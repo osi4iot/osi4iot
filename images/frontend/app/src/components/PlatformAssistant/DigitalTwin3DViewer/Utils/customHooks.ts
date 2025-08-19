@@ -215,7 +215,11 @@ export const useChatMessages = (setOpts: (updater: ViewerOptions | ((prevOpts: V
             const updateOpts = (opts: any, updates: any) => {
                 for (const [key, value] of Object.entries(updates)) {
                     if (typeof value === "object" && value !== null) {
-                        opts[key] = updateOpts(opts[key] ?? {}, value);
+                        if (Array.isArray(value)) {
+                            opts[key] = [...value];
+                        } else {
+                            opts[key] = updateOpts(opts[key] ?? {}, value);
+                        }
                     } else {
                         opts[key] = value;
                     }
@@ -224,11 +228,6 @@ export const useChatMessages = (setOpts: (updater: ViewerOptions | ((prevOpts: V
             };
 
             setOpts((prevOpts) => updateOpts({ ...prevOpts }, newLlmMessage.uiOpts));
-
-            setOpts((prevOpts) => {
-                const newOpts = { ...prevOpts };
-                return newOpts;
-            });
         }
 
     // eslint-disable-next-line react-hooks/exhaustive-deps

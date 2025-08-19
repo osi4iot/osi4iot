@@ -78,7 +78,7 @@ export interface ViewerState {
     femResultData: any;
     femResultLoaded: boolean;
     femResFilesLastUpdate: Date;
-    
+
     // Button labels
     lockReadingButtomLabel: string;
     getLastMeasurementsButtomLabel: string;
@@ -130,6 +130,8 @@ export interface ViewerOptions {
     showFemSimulationDeformation: boolean;
     femSimulationDefScale: number;
     showAllFemSimulationMeshes: boolean;
+    femElemLabels: number[];
+    femNodeLabels: number[];
     legendToShow: string;
     digitalTwinSimulatorState: Record<string, number>;
     numWebWorkers: number;

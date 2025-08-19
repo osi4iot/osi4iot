@@ -3,6 +3,7 @@ package nodes
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"path/filepath"
 	"pipelines/common"
@@ -88,7 +89,7 @@ func CreateLlmNode(node common.NodeData, fm common.Manager) (*LlmNode, error) {
 	}
 
 	femResultsInfo := fm.GetFemResultsInfo(node.GroupId, node.DigitalTwinId)
-	if len(femResultsInfo) > 0 && digitalTwin.ChatAssistantEnabled{
+	if len(femResultsInfo) > 0 && digitalTwin.ChatAssistantEnabled {
 		femResultsPath := fm.GetFemResultsPath()
 		orgId := fmt.Sprintf("org_%d", node.OrgId)
 		groupId := fmt.Sprintf("group_%d", node.GroupId)
@@ -107,6 +108,7 @@ func CreateLlmNode(node common.NodeData, fm common.Manager) (*LlmNode, error) {
 	if fm.GetMode() == "debug" {
 		debug = true
 	}
+	debug = true
 
 	hostConfig := &mcphost.HostConfig{
 		NatsClient:     fm.GetNatsClient(),
@@ -154,7 +156,7 @@ func CreateLlmNode(node common.NodeData, fm common.Manager) (*LlmNode, error) {
 		OutputChan: outputChan,
 	}
 
-	newMcpHost, err := mcphost.NewMCPHost(hostConfig, llmNNode.GetChatMessages, llmNNode.SaveChatMessages)
+	newMcpHost, err := mcphost.NewMCPHost(hostConfig, ctx, llmNNode.GetChatMessages, llmNNode.SaveChatMessages)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create MCP host: %w", err)
 	}
@@ -171,11 +173,24 @@ func (n *LlmNode) Start(log *logger.Logger, needReinitialization bool) {
 
 	n.SetStatus(common.NodeStatusRunning)
 	log.Infof("Starting LLMNode with UID: %s", n.NodeUid)
+
+	// Registrar la goroutine en el WaitGroup
+	n.wg.Add(1)
 	go func() {
+		defer n.wg.Done()
+		defer func() {
+			log.Infof("MCP Host goroutine terminated for UID: %s", n.NodeUid)
+		}()
+
 		if err := n.McpHost.Run(); err != nil {
-			log.Errorf("MCP Host error: %v", err)
-			n.HandleError(err)
-			return
+			if !errors.Is(err, context.Canceled) {
+				log.Errorf("MCP Host error: %v", err)
+				n.HandleError(err)
+				return
+			} else {
+				log.Infof("MCP Host stopped gracefully due to context cancellation")
+				return
+			}
 		}
 	}()
 
@@ -294,14 +309,18 @@ func (n *LlmNode) Stop(log *logger.Logger) {
 		return
 	}
 
+	log.Infof("Stopping Node %s", n.NodeUid)
 	n.SetStatus(common.NodeStatusStopped)
 
-	if n.Cancel != nil {
+	if n.McpHost != nil {
 		n.McpHost.Close()
+	}
+
+	if n.Cancel != nil {
 		n.Cancel()
 	}
 
-	n.wg.Wait() //Wait for all goroutines to finish
+	n.wg.Wait() // Esperar a que todas las goroutines terminen
 
 	log.Infof("Node %s stopped successfully", n.NodeUid)
 }

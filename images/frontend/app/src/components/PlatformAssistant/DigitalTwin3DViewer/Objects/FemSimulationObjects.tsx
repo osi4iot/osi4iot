@@ -1,17 +1,27 @@
-import * as THREE from 'three'
-import React, { FC, useEffect, useRef, useState } from 'react'
-import { useFrame } from '@react-three/fiber';
-import { toast } from 'react-toastify';
-import { defaultOpacity, defaultVisibility, FemSimObjectVisibilityState, FemSimulationObjectState, IDigitalTwinGltfData } from '../ViewerTools/ViewerUtils';
-import { IFemSimulationObject, IResultRenderInfo } from '../Main/Model';
-import createSharedArrayBuffersForFemResults from '../../../../webWorkers/createSharedArrayBuffersForFemResults';
-import calFemResultwithSABCode from '../../../../webWorkers/calFemResultwithSABCode';
-import femResultCalcWorkersManager from '../../../../webWorkers/femResultCalcWorkersManager';
+import * as THREE from "three";
+import React, { FC, useCallback, useEffect, useRef, useState } from "react";
+import { useFrame } from "@react-three/fiber";
+import { toast } from "react-toastify";
+import {
+    defaultOpacity,
+    defaultVisibility,
+    FemSimObjectVisibilityState,
+    FemSimulationObjectState,
+    IDigitalTwinGltfData,
+} from "../ViewerTools/ViewerUtils";
+import { IFemSimulationObject, IResultRenderInfo } from "../Main/Model";
+import createSharedArrayBuffersForFemResults from "../../../../webWorkers/createSharedArrayBuffersForFemResults";
+import calFemResultwithSABCode from "../../../../webWorkers/calFemResultwithSABCode";
+import femResultCalcWorkersManager from "../../../../webWorkers/femResultCalcWorkersManager";
+import { ElemTooltip } from "../Utils/ElemTooltip";
+import { NodeTooltip } from "../Utils/NodeTooltip";
 
 interface FemSimulationObjectProps {
     femSimulationGeneralInfo: Record<string, IResultRenderInfo>;
     femResultData: any;
     meshIndex: number;
+    femElemLabels: number[];
+    femNodeLabels: number[];
     femSimulationObject: IFemSimulationObject;
     femSimulationObjectState: FemSimulationObjectState;
     femSimulationStateString: string;
@@ -28,7 +38,7 @@ interface FemSimulationObjectProps {
     femResultNames: string[];
     enableWebWorkes: boolean;
     numWebWorkers: number;
-	logElapsedTime: boolean;
+    logElapsedTime: boolean;
     onlyFemObjects: boolean;
 }
 
@@ -39,6 +49,8 @@ const FemSimulationObjectBase: FC<FemSimulationObjectProps> = ({
     femSimulationGeneralInfo,
     femResultData,
     meshIndex,
+    femElemLabels,
+    femNodeLabels,
     femSimulationObject,
     femSimulationObjectState,
     femSimulationStateString,
@@ -55,26 +67,32 @@ const FemSimulationObjectBase: FC<FemSimulationObjectProps> = ({
     femResultNames,
     enableWebWorkes,
     numWebWorkers,
-	logElapsedTime,
-    onlyFemObjects
+    logElapsedTime,
+    onlyFemObjects,
 }) => {
     const [paramsSABMap, setParamsSABMap] = useState<Map<string, SharedArrayBuffer> | null>(null);
     const [originaGeometrySAB, setOriginaGeometrySAB] = useState<SharedArrayBuffer | null>(null);
     const [elemConnectivitiesSAB, setElemConnectivitiesSAB] = useState<SharedArrayBuffer | null>(null);
     const [lutRgbArraySABMap, setLutRgbArraySABMap] = useState<Map<string, SharedArrayBuffer> | null>(null);
-    const [femResultModalValueSABMap, setFemResultModalValueSABMap] = useState<Map<string, SharedArrayBuffer> | null>(null);
-    const [femResultNodalValueSABMap, setFemResultNodalValueSABMap] = useState<Map<string, SharedArrayBuffer> | null>(null);
+    const [femResultModalValueSABMap, setFemResultModalValueSABMap] = useState<Map<string, SharedArrayBuffer> | null>(
+        null
+    );
+    const [femResultNodalValueSABMap, setFemResultNodalValueSABMap] = useState<Map<string, SharedArrayBuffer> | null>(
+        null
+    );
     const [workers, setWorkers] = useState<Worker[]>([]);
+    const [nodalIndex, setNodalIndex] = useState<Map<number, number>>(new Map<number, number>());
 
     const objectRef = useRef<THREE.Group>();
     const meshRef = useRef<THREE.LineSegments>();
     const geometryRef = useRef<THREE.Mesh>();
     const defOpacity = defaultOpacity(femSimulationObject.node);
-    const material = femSimulationResult === "None result" ?
-        Object.assign(femSimulationObject.originalMaterial) :
-        Object.assign(femSimulationObject.femResultMaterial);
+    const material =
+        femSimulationResult === "None result"
+            ? Object.assign(femSimulationObject.originalMaterial)
+            : Object.assign(femSimulationObject.femResultMaterial);
 
-    material.transparent = (defOpacity * opacity) === 1 ? false : true;
+    material.transparent = defOpacity * opacity === 1 ? false : true;
     let lastIntervalTime = 0;
     let meshResult: any = null;
     const isThereFemResData = femResultData && Object.keys(femResultData).length !== 0;
@@ -88,6 +106,74 @@ const FemSimulationObjectBase: FC<FemSimulationObjectProps> = ({
     const [mixer, setMixer] = useState<THREE.AnimationMixer | null>(null);
     const [clipsDuration, setClipsDuration] = useState(0);
     const currentJobIdRef = useRef(0);
+
+    const [workersCompleted, setWorkersCompleted] = useState(false);
+    const workersCompletedRef = useRef(false);
+
+    const onWorkersCompleted = useCallback(() => {
+        setWorkersCompleted((prev) => !prev);
+        workersCompletedRef.current = true;
+    }, []);
+
+    const calcElemPosition = useCallback(
+        (elemId: number) => {
+            if (!meshResult || !femSimulationObject?.node.geometry || femElemLabels.length === 0 || !showFemMesh) {
+                return;
+            }
+
+            const pos = femSimulationObject.node.geometry.attributes.position.array;
+            const i = (elemId - 1) * 9;
+
+            return new THREE.Vector3(
+                (pos[i] + pos[i + 3] + pos[i + 6]) * 0.3333333333333333,
+                (pos[i + 1] + pos[i + 4] + pos[i + 7]) * 0.3333333333333333,
+                (pos[i + 2] + pos[i + 5] + pos[i + 8]) * 0.3333333333333333
+            );
+        },
+        [meshResult, femSimulationObject.node.geometry, femElemLabels, showFemMesh]
+    );
+
+    const calcNodePosition = useCallback(
+        (nodeId: number) => {
+            if (!meshResult || nodalIndex.size === 0 || femNodeLabels.length === 0 || !showFemMesh) {
+                return;
+            }
+
+            if (!nodalIndex.has(nodeId)) {
+                console.error(`Node ID ${nodeId} not found in nodalIndex map.`);
+                return;
+            }
+
+            const nodeIndex = nodalIndex.get(nodeId);
+            if (nodeIndex === undefined) {
+                return;
+            }
+            const positionArray = femSimulationObject.node.geometry.attributes.position.array;
+
+            return new THREE.Vector3(
+                positionArray[nodeIndex * 3],
+                positionArray[nodeIndex * 3 + 1],
+                positionArray[nodeIndex * 3 + 2]
+            );
+        },
+        [
+            meshResult,
+            nodalIndex,
+            femSimulationObject.node.geometry.attributes.position.array,
+            femNodeLabels,
+            showFemMesh,
+        ]
+    );
+
+    useEffect(() => {
+        const nodalIndex = new Map<number, number>();
+        for (let i = 0; i < femSimulationObject.node.geometry.attributes.position.count; i++) {
+            const node = meshResult.elemConnectivities.array[i];
+            if (nodalIndex.has(node)) continue;
+            nodalIndex.set(node, i);
+        }
+        setNodalIndex(nodalIndex);
+    }, [femSimulationObject.node.geometry.attributes.position.count, meshResult.elemConnectivities.array]);
 
     useEffect(() => {
         if (meshResult && femResultNames.length !== 0) {
@@ -103,19 +189,13 @@ const FemSimulationObjectBase: FC<FemSimulationObjectProps> = ({
                     setElemConnectivitiesSAB,
                     setLutRgbArraySABMap,
                     setFemResultModalValueSABMap,
-                    setFemResultNodalValueSABMap,
+                    setFemResultNodalValueSABMap
                 );
             } catch (e: any) {
                 toast.error("Error setting SharedArrayBuffer for FEM results. Check results bounds.");
             }
         }
-    }, [
-        femResultNames,
-        femSimulationGeneralInfo,
-        femSimulationObject,
-        femSimulationObjectState,
-        meshResult
-    ]);
+    }, [femResultNames, femSimulationGeneralInfo, femSimulationObject, femSimulationObjectState, meshResult]);
 
     useEffect(() => {
         const workers: Worker[] = [];
@@ -123,19 +203,20 @@ const FemSimulationObjectBase: FC<FemSimulationObjectProps> = ({
         for (let iworker = 0; iworker < maxNumWebWorkers; ++iworker) {
             workers[iworker] = new Worker(calFemResultwithSABCode);
         }
-        setWorkers(workers)
+        setWorkers(workers);
 
         return () => {
             for (let iworker = 0; iworker < maxNumWebWorkers; ++iworker) {
                 workers[iworker].terminate();
             }
-        }
-    }, [])
-
+        };
+    }, []);
 
     useEffect(() => {
-        if (femSimulationObject.node.animations.length !== 0 &&
-            !(femSimulationObject.node.animations as any).includes(undefined) && objectRef.current
+        if (
+            femSimulationObject.node.animations.length !== 0 &&
+            !(femSimulationObject.node.animations as any).includes(undefined) &&
+            objectRef.current
         ) {
             if (femSimulationObject.node.userData.clipName) {
                 const mixer = new THREE.AnimationMixer(meshRef.current as any);
@@ -153,15 +234,16 @@ const FemSimulationObjectBase: FC<FemSimulationObjectProps> = ({
     useEffect(() => {
         if (meshRef.current) {
             meshRef.current.visible = false;
-        };
+        }
         const size = femSimulationObject.node.geometry.attributes.position.count * 3;
         const resultColors = new Float32Array(size).fill(255);
-        femSimulationObject.node.geometry.setAttribute('color', new THREE.BufferAttribute(resultColors, 3));
+        femSimulationObject.node.geometry.setAttribute("color", new THREE.BufferAttribute(resultColors, 3));
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     useEffect(() => {
-        if (mixer &&
+        if (
+            mixer &&
             clipsDuration &&
             femSimulationObjectState !== undefined &&
             femSimulationObjectState.clipValue !== null
@@ -175,7 +257,6 @@ const FemSimulationObjectBase: FC<FemSimulationObjectProps> = ({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [mixer, femSimulationObjectState]);
 
-
     useFrame(({ clock }) => {
         if (hideObject) {
             if (objectRef.current) objectRef.current.visible = false;
@@ -186,13 +267,13 @@ const FemSimulationObjectBase: FC<FemSimulationObjectProps> = ({
                     lastIntervalTime = clock.elapsedTime;
                 }
                 const deltaInterval = clock.elapsedTime - lastIntervalTime;
-                if (deltaInterval <= 0.30) {
+                if (deltaInterval <= 0.3) {
                     material.emissive = noEmitColor;
                     material.opacity = defOpacity * opacity;
-                } else if (deltaInterval > 0.30 && deltaInterval <= 0.60) {
+                } else if (deltaInterval > 0.3 && deltaInterval <= 0.6) {
                     material.emissive = highlightColor;
                     material.opacity = 1;
-                } else if (deltaInterval > 0.60) {
+                } else if (deltaInterval > 0.6) {
                     lastIntervalTime = clock.elapsedTime;
                 }
             } else {
@@ -207,9 +288,8 @@ const FemSimulationObjectBase: FC<FemSimulationObjectProps> = ({
                 }
             }
         }
-    })
+    });
 
-    // useLayoutEffect(() => {
     useEffect(() => {
         if (window.Worker && enableWebWorkes) {
             const times: number[] = [];
@@ -219,7 +299,10 @@ const FemSimulationObjectBase: FC<FemSimulationObjectProps> = ({
             }
             if ((femSimulationResult === "None result" || meshResult === null) && !showFemSimulationDeformation) {
                 const currentPositions = new Float32Array(femSimulationObject.originalGeometry);
-                femSimulationObject.node.geometry.setAttribute('position', new THREE.BufferAttribute(currentPositions, 3));
+                femSimulationObject.node.geometry.setAttribute(
+                    "position",
+                    new THREE.BufferAttribute(currentPositions, 3)
+                );
 
                 if (meshRef.current) {
                     if (showFemMesh) {
@@ -238,7 +321,8 @@ const FemSimulationObjectBase: FC<FemSimulationObjectProps> = ({
                     femResultModalValueSABMap &&
                     femResultNodalValueSABMap
                 ) {
-                    try {                   
+                    try {
+                        workersCompletedRef.current = false;
                         femResultCalcWorkersManager(
                             numWebWorkers,
                             logElapsedTime,
@@ -261,11 +345,12 @@ const FemSimulationObjectBase: FC<FemSimulationObjectProps> = ({
                             meshIndex,
                             meshRef.current,
                             meshResult,
-                            currentJobIdRef
-                        )
+                            currentJobIdRef,
+                            onWorkersCompleted
+                        );
                         currentJobIdRef.current++;
                     } catch (e: any) {
-                        toast.error("Error calculating FEM results in web workers")
+                        toast.error("Error calculating FEM results in web workers");
                     }
                 }
             }
@@ -295,9 +380,11 @@ const FemSimulationObjectBase: FC<FemSimulationObjectProps> = ({
                         let modalValue = 0.0;
                         if (
                             femSimulationObjectState.resultFieldModalValues[femSimulationResult] !== undefined &&
-                            femSimulationObjectState.resultFieldModalValues[femSimulationResult][imode - 1] !== undefined
+                            femSimulationObjectState.resultFieldModalValues[femSimulationResult][imode - 1] !==
+                                undefined
                         ) {
-                            modalValue = femSimulationObjectState.resultFieldModalValues[femSimulationResult][imode - 1];
+                            modalValue =
+                                femSimulationObjectState.resultFieldModalValues[femSimulationResult][imode - 1];
                         }
                         if (modalValue === 0.0) continue;
                         if (meshResult.resultFields[femSimulationResult].resultLocation === "OnNodes") {
@@ -337,7 +424,10 @@ const FemSimulationObjectBase: FC<FemSimulationObjectProps> = ({
                     return newFemMaxValues;
                 });
                 resultColors = new Float32Array(lutColors);
-                femSimulationObject.node.geometry.setAttribute('color', new THREE.BufferAttribute(new Float32Array(resultColors), 3));
+                femSimulationObject.node.geometry.setAttribute(
+                    "color",
+                    new THREE.BufferAttribute(new Float32Array(resultColors), 3)
+                );
             }
 
             if (showFemSimulationDeformation && deformationFields.length === 3) {
@@ -353,7 +443,8 @@ const FemSimulationObjectBase: FC<FemSimulationObjectProps> = ({
                     for (let imode = 1; imode <= numberOfModesDispX; imode++) {
                         let dispXPath = `${deformationFields[0]}__${imode}`;
                         const modalDispX = meshResult.resultFields[deformationFields[0]].modalValues[dispXPath];
-                        const modalValueX = femSimulationObjectState.resultFieldModalValues[deformationFields[0]][imode - 1];
+                        const modalValueX =
+                            femSimulationObjectState.resultFieldModalValues[deformationFields[0]][imode - 1];
                         currentCoordX += modalDispX.array[inode] * modalValueX * deformationScale;
                     }
 
@@ -361,7 +452,8 @@ const FemSimulationObjectBase: FC<FemSimulationObjectProps> = ({
                     for (let imode = 1; imode <= numberOfModesDispY; imode++) {
                         let dispYPath = `${deformationFields[1]}__${imode}`;
                         const modalDispY = meshResult.resultFields[deformationFields[1]].modalValues[dispYPath];
-                        const modalValueY = femSimulationObjectState.resultFieldModalValues[deformationFields[1]][imode - 1];
+                        const modalValueY =
+                            femSimulationObjectState.resultFieldModalValues[deformationFields[1]][imode - 1];
                         currentCoordZ += modalDispY.array[inode] * modalValueY * deformationScale;
                     }
 
@@ -369,7 +461,8 @@ const FemSimulationObjectBase: FC<FemSimulationObjectProps> = ({
                     for (let imode = 1; imode <= numberOfModesDispZ; imode++) {
                         let dispZPath = `${deformationFields[2]}__${imode}`;
                         const modalDispZ = meshResult.resultFields[deformationFields[2]].modalValues[dispZPath];
-                        const modalValueZ = femSimulationObjectState.resultFieldModalValues[deformationFields[2]][imode - 1];
+                        const modalValueZ =
+                            femSimulationObjectState.resultFieldModalValues[deformationFields[2]][imode - 1];
                         currentCoordY += modalDispZ.array[inode] * modalValueZ * deformationScale;
                     }
 
@@ -380,7 +473,10 @@ const FemSimulationObjectBase: FC<FemSimulationObjectProps> = ({
                 currentPositions = femSimulationObject.originalGeometry;
             }
 
-            femSimulationObject.node.geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(currentPositions), 3));
+            femSimulationObject.node.geometry.setAttribute(
+                "position",
+                new THREE.BufferAttribute(new Float32Array(currentPositions), 3)
+            );
 
             if (meshRef.current) {
                 if (showFemMesh) {
@@ -392,11 +488,11 @@ const FemSimulationObjectBase: FC<FemSimulationObjectProps> = ({
 
             if (logElapsedTime) {
                 const endTime = Date.now();
-                console.log(`Elapsed time using main thread: ${(endTime - startTime)}ms`);
+                console.log(`Elapsed time using main thread: ${endTime - startTime}ms`);
             }
         }
 
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [
         meshResult,
         femSimulationResult,
@@ -415,31 +511,58 @@ const FemSimulationObjectBase: FC<FemSimulationObjectProps> = ({
         enableWebWorkes,
         numWebWorkers,
         logElapsedTime,
+        onWorkersCompleted,
     ]);
 
     return (
-        <group ref={objectRef as React.MutableRefObject<THREE.Group>} >
+        <group ref={objectRef as React.MutableRefObject<THREE.Group>}>
             <mesh
-                ref={geometryRef as React.MutableRefObject<THREE.Mesh<THREE.BufferGeometry, THREE.Material | THREE.Material[]>>}
+                ref={
+                    geometryRef as React.MutableRefObject<
+                        THREE.Mesh<THREE.BufferGeometry, THREE.Material | THREE.Material[]>
+                    >
+                }
                 castShadow
                 receiveShadow
                 material={material}
             >
-                <primitive
-                    material={material}
-                    object={femSimulationObject.node}
-                />
+                <primitive material={material} object={femSimulationObject.node} />
             </mesh>
             <primitive ref={meshRef} object={femSimulationObject.wireFrameMesh} />
+            {showFemMesh && femElemLabels.length > 0 && (
+                <group>
+                    {femElemLabels.map((label, index) => (
+                        <ElemTooltip
+                            key={`elem-${index + 1}-${workersCompleted}`}
+                            elemId={label}
+                            position={calcElemPosition(label) || new THREE.Vector3()}
+                        />
+                    ))}
+                </group>
+            )}
+            {showFemMesh && femNodeLabels.length > 0 && (
+                <group>
+                    {femNodeLabels.map((label, index) => (
+                        <NodeTooltip
+                            key={`node-${index + 1}-${workersCompleted}`}
+                            nodeId={label}
+                            position={calcNodePosition(label) || new THREE.Vector3()}
+                        />
+                    ))}
+                </group>
+            )}
         </group>
-    )
-}
+    );
+};
 
 const areEqual = (prevProps: FemSimulationObjectProps, nextProps: FemSimulationObjectProps) => {
-    return (prevProps.femSimulationObjectState !== undefined &&
-        (prevProps.femSimulationObjectState.highlight === nextProps.femSimulationObjectState.highlight || nextProps.blinking)) &&
+    return (
+        prevProps.femSimulationObjectState !== undefined &&
+        (prevProps.femSimulationObjectState.highlight === nextProps.femSimulationObjectState.highlight ||
+            nextProps.blinking) &&
         prevProps.femSimulationObjectState.clipValue === nextProps.femSimulationObjectState.clipValue &&
-        prevProps.femSimulationObjectState.resultFieldModalValues === nextProps.femSimulationObjectState.resultFieldModalValues &&
+        prevProps.femSimulationObjectState.resultFieldModalValues ===
+            nextProps.femSimulationObjectState.resultFieldModalValues &&
         prevProps.blinking === nextProps.blinking &&
         prevProps.opacity === nextProps.opacity &&
         prevProps.hideObject === nextProps.hideObject &&
@@ -448,8 +571,11 @@ const areEqual = (prevProps: FemSimulationObjectProps, nextProps: FemSimulationO
         prevProps.femSimulationStateString === nextProps.femSimulationStateString &&
         prevProps.showFemSimulationDeformation === nextProps.showFemSimulationDeformation &&
         prevProps.femSimulationDefScale === nextProps.femSimulationDefScale &&
-        prevProps.femResultData === nextProps.femResultData;
-}
+        prevProps.femResultData === nextProps.femResultData &&
+        prevProps.femElemLabels === nextProps.femElemLabels &&
+        prevProps.femNodeLabels === nextProps.femNodeLabels
+    );
+};
 
 const FemSimulationObject = React.memo(FemSimulationObjectBase, areEqual);
 
@@ -467,16 +593,17 @@ interface FemSimulationObjectsProps {
     showFemSimulationDeformation: boolean;
     femSimulationDefScale: number;
     femSimulationObjectsVisibilityState: Record<string, FemSimObjectVisibilityState>;
+    femElemLabels: number[];
+    femNodeLabels: number[];
     setFemMinValues: React.Dispatch<React.SetStateAction<number[]>>;
     setFemMaxValues: React.Dispatch<React.SetStateAction<number[]>>;
     setFemResultLoaded: (femResultLoaded: boolean) => void;
     femResultNames: string[];
     enableWebWorkes: boolean;
     numWebWorkers: number;
-	logElapsedTime: boolean;
+    logElapsedTime: boolean;
     onlyFemObjects: boolean;
 }
-
 
 const FemSimulationObjects: FC<FemSimulationObjectsProps> = ({
     digitalTwinGltfData,
@@ -492,36 +619,49 @@ const FemSimulationObjects: FC<FemSimulationObjectsProps> = ({
     showFemSimulationDeformation,
     femSimulationDefScale,
     femSimulationObjectsVisibilityState,
+    femElemLabels,
+    femNodeLabels,
     setFemMinValues,
     setFemMaxValues,
     setFemResultLoaded,
     femResultNames,
     enableWebWorkes,
     numWebWorkers,
-	logElapsedTime,
+    logElapsedTime,
     onlyFemObjects = false,
 }) => {
-
     return (
         <>
-            {
-                femSimulationObjects.map((obj, index) => {
-                    return <FemSimulationObject
+            {femSimulationObjects.map((obj, index) => {
+                return (
+                    <FemSimulationObject
                         key={obj.node.uuid}
                         femSimulationGeneralInfo={femSimulationGeneralInfo}
                         femResultData={femResultData}
                         meshIndex={index}
+                        femElemLabels={femElemLabels}
+                        femNodeLabels={femNodeLabels}
                         femSimulationObject={obj}
                         femSimulationObjectState={femSimulationObjectsState[index]}
                         femSimulationStateString={JSON.stringify(femSimulationObjectsState[index])}
-                        blinking={highlightAllFemSimulationObjects || femSimulationObjectsVisibilityState[obj.collectionName].highlight}
-                        opacity={femSimulationObjectsOpacity * femSimulationObjectsVisibilityState[obj.collectionName].opacity}
-                        hideObject={hideAllFemSimulationObjects || femSimulationObjectsVisibilityState[obj.collectionName].hide}
-                        showFemMesh={showFemAllMeshes || femSimulationObjectsVisibilityState[obj.collectionName].showMesh}
+                        blinking={
+                            highlightAllFemSimulationObjects ||
+                            femSimulationObjectsVisibilityState[obj.collectionName].highlight
+                        }
+                        opacity={
+                            femSimulationObjectsOpacity *
+                            femSimulationObjectsVisibilityState[obj.collectionName].opacity
+                        }
+                        hideObject={
+                            hideAllFemSimulationObjects || femSimulationObjectsVisibilityState[obj.collectionName].hide
+                        }
+                        showFemMesh={
+                            showFemAllMeshes || femSimulationObjectsVisibilityState[obj.collectionName].showMesh
+                        }
                         femSimulationResult={
-                            femSimulationResult === "None result" ?
-                                femSimulationObjectsVisibilityState[obj.collectionName].femSimulationResult :
-                                femSimulationResult
+                            femSimulationResult === "None result"
+                                ? femSimulationObjectsVisibilityState[obj.collectionName].femSimulationResult
+                                : femSimulationResult
                         }
                         showFemSimulationDeformation={
                             showFemSimulationDeformation ||
@@ -537,11 +677,10 @@ const FemSimulationObjects: FC<FemSimulationObjectsProps> = ({
                         logElapsedTime={logElapsedTime}
                         onlyFemObjects={onlyFemObjects}
                     />
-                })
-            }
+                );
+            })}
         </>
-    )
-}
-
+    );
+};
 
 export default FemSimulationObjects;

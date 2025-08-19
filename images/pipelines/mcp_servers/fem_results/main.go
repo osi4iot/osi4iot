@@ -53,7 +53,6 @@ func (rf ResultField) FormatValue(value float64) string {
 }
 
 func (r *ResultsList) ExistsResult(name string, location string) bool {
-
 	if location == "nodes" || location == "all" {
 		for _, field := range r.onNodesResults {
 			if field.ResultName == name {
@@ -167,6 +166,46 @@ func (f *FemResults) Close() error {
 	return nil
 }
 
+func (f *FemResults) GetNumElements() int {
+	return f.numElements
+}
+
+func (f *FemResults) GetNumNodes() int {
+	return f.numNodes
+}
+
+func (f *FemResults) findResultField(location string, targetName string) (*ResultField, bool) {
+	var fields []ResultField
+	switch location {
+	case "nodes":
+		fields = f.resultsList.onNodesResults
+	case "gauss_points":
+		fields = f.resultsList.onGPResults
+	}
+	for i, field := range fields {
+		if field.ResultName == targetName {
+			return &fields[i], true
+		}
+	}
+	return nil, false
+}
+
+
+func (f *FemResults) FormatValue(resultName string, value float64) (string, error) {
+	var resultField *ResultField
+	resultField, exists1 := f.findResultField("nodes", resultName)
+	if exists1 {
+		return resultField.FormatValue(value), nil
+	}
+
+	resultField, exists2 := f.findResultField("gauss_points", resultName)
+	if exists2 {
+		return resultField.FormatValue(value), nil
+	}
+
+	return "", fmt.Errorf("result field not found")
+}
+
 func main() {
 	// Obtener la instancia única de los resultados FEM
 	femResultsSingleton := GetFemResultsInstance()
@@ -245,6 +284,52 @@ func main() {
 	)
 	mcpServer.AddTool(minValueTool, handleMinValue)
 
+	// Create and add the nodal-value tool
+	nodalValueTool := mcp.NewTool(
+		"nodal-value",
+		mcp.WithDescription(
+			"Get the value of the indicated result at the node level",
+		),
+		mcp.WithString("result_name",
+			mcp.Description("Name of the result"),
+			mcp.Required(),
+		),
+		mcp.WithNumber("node_id",
+			mcp.Description("ID of the node"),
+			mcp.Required(),
+		),
+		mcp.WithArray(
+			"params",
+			mcp.WithNumberItems(),
+			mcp.Min(1),
+			mcp.Required(),
+		),
+	)
+	mcpServer.AddTool(nodalValueTool, handleNodalValue)
+
+	// Create and add the elem-value tool
+	elemValueTool := mcp.NewTool(
+		"elem-value",
+		mcp.WithDescription(
+			"Get the value of the indicated result at the element level",
+		),
+		mcp.WithString("result_name",
+			mcp.Description("Name of the result"),
+			mcp.Required(),
+		),
+		mcp.WithNumber("element_id",
+			mcp.Description("ID of the element"),
+			mcp.Required(),
+		),
+		mcp.WithArray(
+			"params",
+			mcp.WithNumberItems(),
+			mcp.Min(1),
+			mcp.Required(),
+		),
+	)
+	mcpServer.AddTool(elemValueTool, handleElemValue)
+
 	// Run server
 	if err := server.ServeStdio(mcpServer); err != nil {
 		log.Fatalf("Server error: %v", err)
@@ -289,17 +374,9 @@ func handleMaxValue(
 		return nil, fmt.Errorf("Invalid or missing 'result_name' argument")
 	}
 
-	rawParams, ok := arguments["params"].([]interface{})
-	if !ok {
-		return nil, fmt.Errorf("Invalid or missing 'params' argument")
-	}
-	var params []float64
-	for _, param := range rawParams {
-		if f, ok := param.(float64); ok {
-			params = append(params, f)
-		} else {
-			return nil, fmt.Errorf("Invalid param type: expected number")
-		}
+	params, err := getParams(arguments)
+	if err != nil {
+		return nil, fmt.Errorf("Error fetching params: %v", err)
 	}
 
 	femResults := GetFemResultsInstance()
@@ -336,11 +413,10 @@ func handleMaxValue(
 			return nil, fmt.Errorf("Error executing query for nodes: %v", err)
 		}
 
-		resultField, exists := findResultField(femResults.resultsList.onNodesResults, resultName)
-		if !exists {
-			return nil, fmt.Errorf("Result '%s' not found", resultName)
+		maxValueWithUnits, err := femResults.FormatValue(resultName, maxValue)
+		if err != nil {
+			return nil, fmt.Errorf("Error formatting max value: %v", err)
 		}
-		maxValueWithUnits := resultField.FormatValue(maxValue)
 		return mcp.NewToolResultText(fmt.Sprintf("Max value %s in Node %d", maxValueWithUnits, maxNode)), nil
 	}
 
@@ -376,11 +452,10 @@ func handleMaxValue(
 			return nil, fmt.Errorf("Error executing query for Gauss Points: %v", err)
 		}
 
-		resultField, exists := findResultField(femResults.resultsList.onGPResults, resultName)
-		if !exists {
-			return nil, fmt.Errorf("Result '%s' not found", resultName)
+		maxValueWithUnits, err := femResults.FormatValue(resultName, maxValue)
+		if err != nil {
+			return nil, fmt.Errorf("Error formatting max value: %v", err)
 		}
-		maxValueWithUnits := resultField.FormatValue(maxValue)
 		message := fmt.Sprintf("Max value %s at element %d, Gauss point %d", maxValueWithUnits, maxElem, maxGP)
 		return mcp.NewToolResultText(message), nil
 	}
@@ -398,17 +473,9 @@ func handleMinValue(
 		return nil, fmt.Errorf("Invalid or missing 'result_name' argument")
 	}
 
-	rawParams, ok := arguments["params"].([]interface{})
-	if !ok {
-		return nil, fmt.Errorf("Invalid or missing 'params' argument")
-	}
-	var params []float64
-	for _, param := range rawParams {
-		if f, ok := param.(float64); ok {
-			params = append(params, f)
-		} else {
-			return nil, fmt.Errorf("Invalid param type: expected number")
-		}
+	params, err := getParams(arguments)
+	if err != nil {
+		return nil, fmt.Errorf("Error fetching params: %v", err)
 	}
 
 	femResults := GetFemResultsInstance()
@@ -446,11 +513,10 @@ func handleMinValue(
 			return nil, fmt.Errorf("Error executing query for nodes: %v", err)
 		}
 
-		resultField, exists := findResultField(femResults.resultsList.onNodesResults, resultName)
-		if !exists {
-			return nil, fmt.Errorf("Result '%s' not found", resultName)
+		minValueWithUnits, err := femResults.FormatValue(resultName, minValue)
+		if err != nil {
+			return nil, fmt.Errorf("Error formatting min value: %v", err)
 		}
-		minValueWithUnits := resultField.FormatValue(minValue)
 		return mcp.NewToolResultText(fmt.Sprintf("Min value %s in Node %d", minValueWithUnits, minNode)), nil
 	}
 
@@ -486,16 +552,148 @@ func handleMinValue(
 			return nil, fmt.Errorf("Error executing query for Gauss Points: %v", err)
 		}
 
-		resultField, exists := findResultField(femResults.resultsList.onGPResults, resultName)
-		if !exists {
-			return nil, fmt.Errorf("Result '%s' not found", resultName)
+		minValueWithUnits, err := femResults.FormatValue(resultName, minValue)
+		if err != nil {
+			return nil, fmt.Errorf("Error formatting min value: %v", err)
 		}
-		minValueWithUnits := resultField.FormatValue(minValue)
 		message := fmt.Sprintf("Min value %s at element %d, Gauss point %d", minValueWithUnits, minElem, minGP)
 		return mcp.NewToolResultText(message), nil
 	}
 
 	return nil, fmt.Errorf("Result '%s' not found", resultName)
+}
+
+func handleNodalValue(ctx context.Context,
+	request mcp.CallToolRequest,
+) (*mcp.CallToolResult, error) {
+	femResults := GetFemResultsInstance()
+	arguments := request.GetArguments()
+	resultName, ok := arguments["result_name"].(string)
+	if !ok {
+		return nil, fmt.Errorf("Invalid or missing 'result_name' parameter")
+	}
+
+	nodeIDFloat, ok := arguments["node_id"].(float64)
+	if !ok {
+		return nil, fmt.Errorf("Invalid or missing 'node_id' parameter")
+	}
+	nodeID := int(nodeIDFloat)
+	if nodeID < 0 || nodeID > femResults.GetNumNodes() {
+		return nil, fmt.Errorf("Invalid 'node_id' parameter")
+	}
+
+	params, err := getParams(arguments)
+	if err != nil {
+		return nil, fmt.Errorf("Error fetching params: %v", err)
+	}
+
+	db := femResults.GetDB()
+	resultsList := femResults.resultsList
+	if !resultsList.ExistsResult(resultName, "nodes") {
+		return nil, fmt.Errorf("Result '%s' not found in nodes", resultName)
+	}
+
+	expression, err := getExpression(db, femResults.femResOnNodesPath, params, resultName)
+	if err != nil {
+		return nil, fmt.Errorf("Error fetching expression for nodes: %v", err)
+	}
+
+	var nodalValue float64
+
+	query := fmt.Sprintf(`
+        SELECT %s as node_value
+        FROM '%s'
+        WHERE Node = ?;
+    `, expression, femResults.femResOnNodesPath)
+
+	err = db.QueryRow(query, nodeID).Scan(&nodalValue)
+	if err != nil {
+		return nil, fmt.Errorf("Error executing query for nodes: %v", err)
+	}
+
+
+	nodalValueWithUnits, err := femResults.FormatValue(resultName, nodalValue)
+	if err != nil {
+		return nil, fmt.Errorf("Error formatting nodal value: %v", err)
+	}
+
+	return mcp.NewToolResultText(fmt.Sprintf("Node value for '%s': %s", resultName, nodalValueWithUnits)), nil
+}
+
+func handleElemValue(ctx context.Context,
+	request mcp.CallToolRequest,
+) (*mcp.CallToolResult, error) {
+	femResults := GetFemResultsInstance()
+	arguments := request.GetArguments()
+	resultName, ok := arguments["result_name"].(string)
+	if !ok {
+		return nil, fmt.Errorf("Invalid or missing 'result_name' parameter")
+	}
+
+	elementIDFloat, ok := arguments["element_id"].(float64)
+	if !ok {
+		return nil, fmt.Errorf("Invalid or missing 'element_id' parameter")
+	}
+	elementID := int(elementIDFloat)
+	if elementID < 0 || elementID > femResults.GetNumElements() {
+		return nil, fmt.Errorf("Invalid 'element_id' parameter")
+	}
+
+	params, err := getParams(arguments)
+	if err != nil {
+		return nil, fmt.Errorf("Error fetching params: %v", err)
+	}
+
+	db := femResults.GetDB()
+	resultsList := femResults.resultsList
+	if !resultsList.ExistsResult(resultName, "gauss_points") {
+		return nil, fmt.Errorf("Result '%s' not found in elements", resultName)
+	}
+
+	expression, err := getExpression(db, femResults.femResOnGPPath, params, resultName)
+	if err != nil {
+		return nil, fmt.Errorf("Error fetching expression for elements: %v", err)
+	}
+
+	var avgValue float64
+	var minValue float64
+	var maxValue float64
+
+    query := fmt.Sprintf(`
+        SELECT 
+            AVG(%s) as avg_result,
+            MIN(%s) as min_result,
+            MAX(%s) as max_result,
+        FROM '%s'
+        WHERE Elem = ?
+        GROUP BY Elem;
+    `, expression, expression, expression, femResults.femResOnGPPath)
+
+	err = db.QueryRow(query, elementID).Scan(&avgValue, &minValue, &maxValue)
+	if err != nil {
+		return nil, fmt.Errorf("Error executing query for elements: %v", err)
+	}
+
+	avgValueWithUnits, err := femResults.FormatValue(resultName, avgValue)
+	if err != nil {
+		return nil, fmt.Errorf("Error formatting element value: %v", err)
+	}
+
+	minValueWithUnits, err := femResults.FormatValue(resultName, minValue)
+	if err != nil {
+		return nil, fmt.Errorf("Error formatting element value: %v", err)
+	}
+
+	maxValueWithUnits, err := femResults.FormatValue(resultName, maxValue)
+	if err != nil {
+		return nil, fmt.Errorf("Error formatting element value: %v", err)
+	}
+
+	return mcp.NewToolResultText(fmt.Sprintf("Element values for '%s': avg= %v, min= %v, max= %v", resultName,
+		avgValueWithUnits,
+		minValueWithUnits,
+		maxValueWithUnits,
+	)), nil
 }
 
 func getNumElements(db *sql.DB, meshFilePath string) (int, error) {
@@ -660,15 +858,6 @@ func getResultsList(db *sql.DB, gpResFilePath string, nodesResFilePath string, r
 	return &resultsList, nil
 }
 
-func findResultField(fields []ResultField, targetName string) (*ResultField, bool) {
-	for i, field := range fields {
-		if field.ResultName == targetName {
-			return &fields[i], true
-		}
-	}
-	return nil, false
-}
-
 func joinStrings(strs []string, sep string) string {
 	if len(strs) == 0 {
 		return ""
@@ -682,4 +871,29 @@ func joinStrings(strs []string, sep string) string {
 		result += sep + strs[i]
 	}
 	return result
+}
+
+func getParams(arguments map[string]any) ([]float64, error) {
+	rawParams, ok := arguments["params"].([]interface{})
+	if !ok {
+		return nil, fmt.Errorf("Invalid or missing 'params' argument")
+	}
+	var params []float64
+	for _, param := range rawParams {
+		if f, ok := param.(float64); ok {
+			params = append(params, f)
+		} else {
+			return nil, fmt.Errorf("Invalid param type: expected number")
+		}
+	}
+	return params, nil
+}
+
+func findResultField(fields []ResultField, targetName string) (*ResultField, bool) {
+	for i, field := range fields {
+		if field.ResultName == targetName {
+			return &fields[i], true
+		}
+	}
+	return nil, false
 }

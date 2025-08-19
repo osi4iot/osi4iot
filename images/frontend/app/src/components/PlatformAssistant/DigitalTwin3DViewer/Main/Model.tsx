@@ -86,6 +86,8 @@ interface ModelProps {
     femSimulationGeneralInfo: Record<string, IResultRenderInfo>;
     initialFemSimObjectsState: FemSimulationObjectState[];
     femSimulationObjectsVisibilityState: Record<string, FemSimObjectVisibilityState>;
+    femElemLabels: number[];
+    femNodeLabels: number[];
     genericObjects: IGenericObject[];
     initialGenericObjectsState: Record<string, GenericObjectState>;
     genericObjectsVisibilityState: Record<string, ObjectVisibilityState>;
@@ -156,6 +158,8 @@ const Model: FC<ModelProps> = ({
     femSimulationObjects,
     femSimulationGeneralInfo,
     femSimulationObjectsVisibilityState,
+    femElemLabels,
+    femNodeLabels,
     genericObjects,
     genericObjectsVisibilityState,
     sensorsOpacity,
@@ -387,6 +391,8 @@ const Model: FC<ModelProps> = ({
                     showFemSimulationDeformation={showFemSimulationDeformation}
                     femSimulationDefScale={femSimulationDefScale}
                     femSimulationObjectsVisibilityState={femSimulationObjectsVisibilityState}
+                    femElemLabels={femElemLabels}
+                    femNodeLabels={femNodeLabels}
                     setFemMaxValues={setFemMaxValues}
                     setFemMinValues={setFemMinValues}
                     setFemResultLoaded={setFemResultLoaded}

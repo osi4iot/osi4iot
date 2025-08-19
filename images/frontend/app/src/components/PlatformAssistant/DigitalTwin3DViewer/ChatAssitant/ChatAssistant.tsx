@@ -2,9 +2,10 @@ import React, { useState, KeyboardEvent, ChangeEvent, useRef, useEffect, useCall
 import styled from "styled-components";
 import SpeechRecognition, { useSpeechRecognition } from "react-speech-recognition";
 import { FaMicrophone, FaMicrophoneSlash } from "react-icons/fa";
-import { MessageContent, renderLatexMessage } from "./KatexRenderer"; // Importar la función mejorada
+import { containsLatex, MessageContent, renderLatexMessage } from "./KatexRenderer"; // Importar la función mejorada
 import { useSpeechSynthesis } from "./useSpeechSynthesis";
 import { useLoggedUserLogin } from "../../../../contexts/authContext/authContext";
+import { normalizeForTTS } from "./ttsNormalizer";
 
 const getVoices = (lang: string) => {
     const isSpanish = lang.includes("es");
@@ -267,6 +268,20 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({ chatMessages, setChatMess
     const [containerWidth, setContainerWidth] = useState(520);
     const containerRef = useRef<HTMLDivElement>(null);
     const [voice, setVoice] = useState<IChatVoice | null>(null);
+    const textAreaRef = useRef<HTMLTextAreaElement | null>(null);
+
+    const normalizeTextForSpeech = useCallback(
+        (text: string): string => {
+            try {
+                const normalizedText = normalizeForTTS(text, chatAssistantLanguage, "physics");
+                return normalizedText;
+            } catch (error) {
+                console.error("Error normalizando texto para TTS:", error);
+                return text; // Retornar texto original si hay error
+            }
+        },
+        [chatAssistantLanguage]
+    );
 
     // Manejo del redimensionado
     const handleMouseDown = useCallback(
@@ -372,7 +387,7 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({ chatMessages, setChatMess
                 setChatMessages([greetingMessage]);
             });
         }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [chatAssistantLanguage]);
 
     // Manejar cambios en el transcript
@@ -437,13 +452,14 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({ chatMessages, setChatMess
                 SpeechRecognition.stopListening();
                 setSystemStatus("speaking");
 
+                const normalizedText = normalizeTextForSpeech(lastMessage.message);
                 speakRef.current?.({
-                    text: lastMessage.message,
+                    text: normalizedText,
                     voice: voice.speechLang,
                 });
             }
         }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [chatMessages.length, voice?.greeting, voice?.speechLang, isVoiceEnabled]);
 
     const handleKeyPress = (e: KeyboardEvent<HTMLTextAreaElement>) => {
@@ -461,6 +477,25 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({ chatMessages, setChatMess
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }, [chatMessages]);
+
+    useEffect(() => {
+        const handleGlobalPointerDown = (e: MouseEvent) => {
+            const containerEl = containerRef.current;
+            const ta = textAreaRef.current;
+
+            if (!ta) return;
+
+            const taIsActive = document.activeElement === ta;
+
+            const clickedInsideChat = containerEl?.contains(e.target as Node) ?? false;
+            if (taIsActive && !clickedInsideChat) {
+                ta.blur();
+            }
+        };
+
+        document.addEventListener("pointerdown", handleGlobalPointerDown, true);
+        return () => document.removeEventListener("pointerdown", handleGlobalPointerDown, true);
+    }, []);
 
     const stopListening = useCallback(() => {
         try {
@@ -506,7 +541,12 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({ chatMessages, setChatMess
             <MessagesContainer>
                 {chatMessages.map((msg, index) => (
                     <MessageBubble key={index} sender={msg.sender}>
-                        <Label>{msg.sender === "assistant" ? "OSI" : userName}</Label>
+                        <Label>
+                            {msg.sender === "assistant" ? "OSI" : userName}
+                            {msg.sender === "assistant" && containsLatex(msg.message) && (
+                                <span style={{ marginLeft: "10px", fontSize: "0.6rem", opacity: 0.7 }}>📝 LaTeX</span>
+                            )}
+                        </Label>
                         <MessageContent
                             dangerouslySetInnerHTML={{
                                 __html: renderLatexMessage(msg.message),
@@ -518,6 +558,7 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({ chatMessages, setChatMess
             </MessagesContainer>
             <InputContainer>
                 <TextArea
+                    ref={textAreaRef}
                     value={input}
                     onChange={handleInputChange}
                     onKeyPress={handleKeyPress}

@@ -8,7 +8,7 @@ require (
 	github.com/dop251/goja v0.0.0-20250630131328-58d95d85e994
 	github.com/golang-jwt/jwt/v5 v5.2.2
 	github.com/nats-io/nats.go v1.44.0
-	github.com/osi4iot/mcphost v0.29.2-osi4iot
+	github.com/osi4iot/mcphost v0.29.3-osi4iot
 	github.com/spf13/viper v1.20.1
 	go.uber.org/zap v1.27.0
 	gopkg.in/gomail.v2 v2.0.0-20160411212932-81ebce5c23df

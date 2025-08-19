@@ -60,6 +60,8 @@ export const DEFAULT_VIEWER_OPTIONS = {
     showFemSimulationDeformation: false,
     femSimulationDefScale: 0,
     showAllFemSimulationMeshes: false,
+    femElemLabels: [],
+    femNodeLabels: [],
     legendToShow: "None result",
     numWebWorkers: giveDefaultNumWebWorkers(),
     enableWebWorkes: true,
