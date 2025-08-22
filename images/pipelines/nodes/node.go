@@ -32,14 +32,15 @@ func CreateNode(
 		newNode, err = CreateTelegramNode(node, fm)
 	case "Email":
 		newNode, err = CreateEmailNode(node, fm)
-	case "LLM":
-		newNode, err = CreateLlmNode(node, fm)
+	case "AiAgent":
+		newNode, err = CreateAiAgentNode(node, fm)
 	case "Publish":
 		newNode, err = CreatePublishNode(node, fm)
 	default:
 		log.Errorf("Unknown node type: %s", node.Type)
 		newNode, err = nil, fmt.Errorf("unknown node type: %s", node.Type)
 	}
+
 	return newNode, err
 }
 
@@ -163,6 +164,8 @@ func (n *BaseNode) SetStatus(status common.NodeStatus) {
 }
 
 func (n *BaseNode) HandleError(err error) {
+	n.SetStatus(common.NodeStatusError)
+	
 	if n.LogSubject == "" {
 		n.Fm.Log().Errorf("Node %s encountered an error but no log subject is set", n.NodeUid)
 		return

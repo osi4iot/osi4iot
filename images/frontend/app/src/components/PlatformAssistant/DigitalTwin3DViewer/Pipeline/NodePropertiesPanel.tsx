@@ -13,6 +13,7 @@ import { useUpdateNodeInternals } from "@xyflow/react";
 import { useFormChanges } from "../Utils/customHooks";
 import { IMqttTopicData } from "../Main/Model";
 import GeneralizedCompletion from "./Completion/Completion";
+import { json } from "@codemirror/lang-json";
 
 // CSS estándar para el resizing - mejor performance
 const resizableStyles = `
@@ -232,7 +233,7 @@ const NodeTypeIndicator = styled.span<{ nodeType: string }>`
                 return "#a6bbcf";
             case "Delay":
                 return "#a8a152";
-            case "LLM":
+            case "AiAgent":
                 return "#B8B1FB";
             case "Email":
                 return "#4a90e2";
@@ -429,7 +430,7 @@ const TextAreaSystemPrompt = styled.textarea`
     font-family: "Monaco", "Menlo", "Ubuntu Mono", monospace;
     transition: border-color 0.2s;
     resize: vertical;
-    min-height: 200px;
+    min-height: 180px;
 
     &:focus {
         outline: none;
@@ -731,7 +732,6 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
     const updateNodeInternals = useUpdateNodeInternals();
     const [listenTopicsRef, setListenTopicsRef] = useState<string[]>([]);
     const [publishTopicsRef, setPublishTopicsRef] = useState<string[]>([]);
-    // const [injectRefTopicsRef, setInjectRefTopicsRef] = useState<string[]>([]);
 
     // Estados para el redimensionamiento - Enfoque híbrido optimizado
     const [width, setWidth] = useState(550);
@@ -1258,6 +1258,46 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                                 />
                             </FormGroup>
                         )}
+                        <FormGroup>
+                            <Label>Injection type</Label>
+                            <Select
+                                value={formData.injectionType || "Timestamp"}
+                                onChange={(e) => handleInputChange("injectionType", e.target.value)}
+                            >
+                                <option value="Timestamp">Timestamp</option>
+                                <option value="JSON">JSON</option>
+                            </Select>
+                        </FormGroup>
+                        {formData.injectionType === "JSON" && (
+                            <FormGroup>
+                                <Label>JSON</Label>
+                                <CodeMirrorWrapper>
+                                    <CodeMirror
+                                        value={formData.json || "{}"}
+                                        height="auto"
+                                        minHeight="180px"
+                                        extensions={[
+                                            json(),
+                                            indentUnit.of("    "),
+                                            indentOnInput(),
+                                            keymap.of([...completionKeymap, indentWithTab, reIndentCommand]),
+                                        ]}
+                                        theme={oneDark}
+                                        onChange={(value) => handleInputChange("json", value)}
+                                        basicSetup={{
+                                            lineNumbers: true,
+                                            foldGutter: true,
+                                            bracketMatching: true,
+                                            closeBrackets: true,
+                                            syntaxHighlighting: true,
+                                            autocompletion: true,
+                                            tabSize: 4,
+                                            searchKeymap: true,
+                                        }}
+                                    />
+                                </CodeMirrorWrapper>
+                            </FormGroup>
+                        )}
                     </>
                 );
 
@@ -1275,17 +1315,45 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                     </FormGroup>
                 );
 
-            case "LLM":
+            case "AiAgent":
                 return (
-                    <FormGroup>
-                        <Label>System Prompt</Label>
-                        <TextAreaSystemPrompt
-                            value={formData.systemPrompt || ""}
-                            onChange={(e) => handleInputChange("systemPrompt", e.target.value)}
-                            placeholder="Your system prompt"
-                            rows={4}
-                        />
-                    </FormGroup>
+                    <>
+                        <FormGroup>
+                            <Label>Model</Label>
+                            <Select
+                                value={formData.llmModel || "openai:gpt-oss-120b"}
+                                onChange={(e) => handleInputChange("llmModel", e.target.value)}
+                            >
+                                <option value="openai:gpt-oss-120b">openai/gpt-oss-120b</option>
+                                <option value="openai:gpt-oss-20b">openai/gpt-oss-20b</option>
+                                <option value="openai:gpt-4o">openai/gpt-4o</option>
+                                <option value="openai:gpt-4o-mini">openai/gpt-4o-mini</option>
+                                <option value="openai:gpt-5-mini">openai/gpt-5-mini</option>
+                                <option value="openai:gpt-5-nano">openai/gpt-5-nano</option>
+                            </Select>
+                        </FormGroup>
+                        <FormGroup>
+                            <Label>Temperature</Label>
+                            <Input
+                                type="number"
+                                step="0.01"
+                                max="1.0"
+                                min="0.0"
+                                value={formData.llmTemperature || 0.7}
+                                onChange={(e) => handleInputChange("llmTemperature", parseFloat(e.target.value))}
+                                placeholder="0.7"
+                            />
+                        </FormGroup>
+                        <FormGroup>
+                            <Label>System Prompt</Label>
+                            <TextAreaSystemPrompt
+                                value={formData.systemPrompt || ""}
+                                onChange={(e) => handleInputChange("systemPrompt", e.target.value)}
+                                placeholder="Your system prompt"
+                                rows={4}
+                            />
+                        </FormGroup>
+                    </>
                 );
 
             case "Email":

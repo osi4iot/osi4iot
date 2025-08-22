@@ -48,7 +48,8 @@ type FlowsManager struct {
 	PlatformTelegramBotToken string
 	LlmProviderApiKey        string
 	LlmProviderUrl           string
-	LlmModel                 string
+	DefaultLlmModel          string
+	DefaultLlmTemperature    float32
 	LlmMaxTokens             int
 	McpServersPath           string
 	MaxChatMessagesPerUser   int
@@ -105,7 +106,8 @@ func CreateFlowsManager(
 		PlatformTelegramBotToken: config.PlatformTelegramBotToken,
 		LlmProviderApiKey:        config.LlmProviderApiKey,
 		LlmProviderUrl:           config.LlmProviderUrl,
-		LlmModel:                 config.LlmModel,
+		DefaultLlmModel:          config.DefaultLlmModel,
+		DefaultLlmTemperature:    config.DefaultLlmTemperature,
 		LlmMaxTokens:             config.LlmMaxTokens,
 		McpServersPath:           config.McpServersPath,
 		MaxChatMessagesPerUser:   config.MaxChatMessagesPerUser,
@@ -332,8 +334,12 @@ func (fm *FlowsManager) GetLlmProviderUrl() string {
 	return fm.LlmProviderUrl
 }
 
-func (fm *FlowsManager) GetLlmModel() string {
-	return fm.LlmModel
+func (fm *FlowsManager) GetDefaultLlmModel() string {
+	return fm.DefaultLlmModel
+}
+
+func (fm *FlowsManager) GetDefaultLlmTemperature() float32 {
+	return fm.DefaultLlmTemperature
 }
 
 func (fm *FlowsManager) GetLlmMaxTokens() int {

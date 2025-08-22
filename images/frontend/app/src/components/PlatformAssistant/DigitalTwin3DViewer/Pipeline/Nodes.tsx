@@ -243,9 +243,14 @@ export function InjectNode({ data, selected }) {
                 const topicRef = data.settings.injectRef;
                 const mqttTopic = mqttTopics.find((topic) => topic.topicRef === topicRef)?.mqttTopic;
                 if (mqttTopic) {
-                    const messageToSend = JSON.stringify({
-                        timestamp: Date.now(),
-                    });
+                    let messageToSend: string;
+                    if (data.settings.injectionType === "JSON") {
+                        messageToSend = data.settings.json;
+                    } else {
+                        messageToSend = JSON.stringify({
+                            timestamp: Date.now(),
+                        });
+                    }
                     try {
                         const message = new Paho.Message(messageToSend);
                         message.destinationName = mqttTopic;
@@ -262,7 +267,7 @@ export function InjectNode({ data, selected }) {
             }
         },
         // eslint-disable-next-line react-hooks/exhaustive-deps
-        [data.mqttClient, data.mqttTopicsData]
+        [data.mqttClient, data.mqttTopicsData, data.settings]
     );
 
     return (
@@ -324,7 +329,7 @@ export function DelayNode({ data, selected }) {
     );
 }
 
-export function LlmNode({ data, selected }) {
+export function AiAgentNode({ data, selected }) {
     const numOutputs = data?.numOutputs || 0;
     return (
         <NodeContainer bgColor="#B8B1FB" hoverColor="#cdc8fcff" selected={selected}>
@@ -333,7 +338,7 @@ export function LlmNode({ data, selected }) {
                 <IconContainer>
                     <BrainCog size={20} color="#e7e3dfff" />
                 </IconContainer>
-                <NodeLabel>{data?.label || "LLM Node"}</NodeLabel>
+                <NodeLabel>{data?.label || "AiAgent Node"}</NodeLabel>
             </NodeContent>
             {numOutputs > 0 && (
                 <>

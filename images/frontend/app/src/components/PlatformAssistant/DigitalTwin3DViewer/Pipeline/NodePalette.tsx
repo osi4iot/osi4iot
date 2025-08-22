@@ -104,6 +104,8 @@ const nodeTypes = [
             injectRef: "inject_1",
             repeat: "none",
             every: 0.0,
+            injectionType: "Timestamp",
+            json: "{}"
         },
     },
     {
@@ -133,8 +135,8 @@ const nodeTypes = [
         },
     },
     {
-        type: "LLM",
-        label: "LLM",
+        type: "AiAgent",
+        label: "AI Agent",
         bgColor: "#B8B1FB",
         hoverColor: "#cdc8fcff",
         icon: <BrainCog size={30} color="#e7e3df" />,

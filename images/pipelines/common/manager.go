@@ -118,7 +118,8 @@ type Manager interface {
 
 	GetLlmProviderApiKey() string
 	GetLlmProviderUrl() string
-	GetLlmModel() string
+	GetDefaultLlmModel() string
+	GetDefaultLlmTemperature() float32
 	GetLlmMaxTokens() int
 	GetMcpServersPath() string
 	GetMaxChatMessagesPerUser() int

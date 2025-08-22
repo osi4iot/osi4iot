@@ -498,14 +498,14 @@ const normalizeFormData = (data: any, nodeType: string) => {
 export const useFormChanges = (selectedNode: any) => {
     const [hasChanges, setHasChanges] = useState(false);
     const originalDataRef = useRef(null);
-
+    
     const checkForChangesInternal = useCallback(
         (currentData, nodeType) => {
             if (!originalDataRef.current || !selectedNode) {
                 setHasChanges(false);
                 return false;
             }
-
+            
             const normalizedCurrent = normalizeFormData(currentData, nodeType);
             const hasChanged = !deepEqual(originalDataRef.current, normalizedCurrent);
             setHasChanges(hasChanged);

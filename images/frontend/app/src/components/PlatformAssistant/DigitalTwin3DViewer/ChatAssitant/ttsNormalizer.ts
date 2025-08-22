@@ -1,4 +1,4 @@
-import { containsLatex } from "./KatexRenderer";
+import { containsLatex } from "./MathMessage";
 
 interface TTSNormalizerOptions {
     language: string;

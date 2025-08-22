@@ -31,7 +31,8 @@ type Config struct {
 	ShardCount               int               `mapstructure:"shardCount"`
 	LlmProviderApiKey        string            `mapstructure:"llmProviderApiKey"`
 	LlmProviderUrl           string            `mapstructure:"llmProviderUrl"`
-	LlmModel                 string            `mapstructure:"llmModel"`
+	DefaultLlmModel          string            `mapstructure:"defaultLlmModel"`
+	DefaultLlmTemperature    float32           `mapstructure:"defaultLlmTemperature"`
 	LlmMaxTokens             int               `mapstructure:"llmMaxTokens"`
 	McpServersPath           string            `mapstructure:"mcpServersPath"`
 	MaxChatMessagesPerUser   int               `mapstructure:"maxChatMessagesPerUser"`

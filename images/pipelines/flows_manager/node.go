@@ -362,10 +362,10 @@ func (fm *FlowsManager) StartNodesInDigitalTwin(digitalTwinId int, needReinitial
 
 	digitalTwin := fm.GetDigitalTwin(digitalTwinId)
 	numNodes := fm.GetNumOfNodesOfPipeline(digitalTwin)
-	if numNodes != len(nodes) {
-		fm.log.Errorf("Number of nodes in digital twin %d (%d) does not match the number of nodes in the pipeline file (%d)", digitalTwinId, len(nodes), numNodes)
-		errDetails := fmt.Sprintf("The number of nodes in digital twin %d (%d) does not match the number of nodes in the pipeline file (%d)", digitalTwinId, len(nodes), numNodes)
-		fm.logPipelineError(digitalTwin, "Pipeline start failed", errDetails)
+	if numNodes > len(nodes) {
+		errMsg := fmt.Sprintf("Some nodes in the digital twin %d are not been created successfully (found: %d, expected: %d)", digitalTwinId, len(nodes), numNodes)
+		fm.log.Errorf(errMsg)
+		fm.logPipelineError(digitalTwin, "Pipeline start failed", errMsg)
 		return
 	}
 

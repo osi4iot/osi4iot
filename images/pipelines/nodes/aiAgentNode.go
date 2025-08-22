@@ -10,16 +10,19 @@ import (
 	"pipelines/logger"
 	"pipelines/nats"
 	"pipelines/utils"
+	"strings"
 
 	"github.com/cloudwego/eino/schema"
 	"github.com/osi4iot/mcphost/pkg/mcphost"
 )
 
-type LlmNode struct {
+type AiAgentNode struct {
 	BaseNode
-	InputChan  chan mcphost.ChatMessage
-	OutputChan chan mcphost.LlmResponse
-	McpHost    mcphost.MCPHost
+	LlmModel     string
+	LlmTemperature float64
+	InputChan    chan mcphost.ChatMessage
+	OutputChan   chan mcphost.LlmResponse
+	McpHost      mcphost.MCPHost
 }
 
 type Response struct {
@@ -27,10 +30,40 @@ type Response struct {
 	UiOpts  map[string]any `json:"uiOpts"`
 }
 
-func CreateLlmNode(node common.NodeData, fm common.Manager) (*LlmNode, error) {
+type Email struct {
+	EmailBody    string `json:"emailBody"`
+	EmailSubject string `json:"emailSubject"`
+}
+
+type MessageType string
+
+const (
+	ResponseType MessageType = "response"
+	EmailType    MessageType = "email"
+	RawType      MessageType = "raw"
+)
+
+// ParsedMessage encapsula el resultado del parsing
+type ParsedMessage struct {
+	Type    MessageType
+	Content interface{}
+	Raw     string
+}
+
+func CreateAiAgentNode(node common.NodeData, fm common.Manager) (*AiAgentNode, error) {
+	llmModel, ok := node.Settings["llmModel"].(string)
+	if !ok {
+		llmModel = fm.GetDefaultLlmModel()
+	}
+
+	llmTemperature, ok := node.Settings["llmTemperature"].(float32)
+	if !ok {
+		llmTemperature = fm.GetDefaultLlmTemperature()
+	}
+
 	systemPrompt, ok := node.Settings["systemPrompt"].(string)
 	if !ok {
-		fm.Log().Errorf("LlmNode %s: 'systemPrompt' setting is required and must be a non-empty string", node.NodeUid)
+		fm.Log().Errorf("AiAgentNode %s: 'systemPrompt' setting is required and must be a non-empty string", node.NodeUid)
 		return nil, fmt.Errorf("systemPrompt setting is required and must be a non-empty string")
 	}
 
@@ -52,14 +85,6 @@ func CreateLlmNode(node common.NodeData, fm common.Manager) (*LlmNode, error) {
 				"allowed_directories": []string{"/home/daniel/Escritorio", filepath.Join(mcpServersPath, "chroma")},
 			},
 		},
-		// "task-manager": {
-		// 	Type: "builtin",
-		// 	Name: "todo",
-		// },
-		// "web-fetcher": {
-		// 	Type: "builtin",
-		// 	Name: "http",
-		// },
 		"current_date": {
 			Type:    "local",
 			Command: []string{filepath.Join(mcpServersPath, "current_date", "current_date")},
@@ -75,17 +100,17 @@ func CreateLlmNode(node common.NodeData, fm common.Manager) (*LlmNode, error) {
 				"server.py",
 			},
 		},
-		"chroma": {
-			Type:    "local",
-			Command: []string{"uvx"},
-			Args: []string{
-				"chroma-mcp",
-				"--client-type",
-				"persistent",
-				"--data-dir",
-				filepath.Join(mcpServersPath, "chroma"),
-			},
-		},
+		// "chroma": {
+		// 	Type:    "local",
+		// 	Command: []string{"uvx"},
+		// 	Args: []string{
+		// 		"chroma-mcp",
+		// 		"--client-type",
+		// 		"persistent",
+		// 		"--data-dir",
+		// 		filepath.Join(mcpServersPath, "chroma"),
+		// 	},
+		// },
 	}
 
 	femResultsInfo := fm.GetFemResultsInfo(node.GroupId, node.DigitalTwinId)
@@ -101,7 +126,6 @@ func CreateLlmNode(node common.NodeData, fm common.Manager) (*LlmNode, error) {
 		}
 	}
 
-	var temperature float32 = 0.7
 	var topP float32 = 0.95
 	var topK int32 = 40
 	debug := false
@@ -110,17 +134,22 @@ func CreateLlmNode(node common.NodeData, fm common.Manager) (*LlmNode, error) {
 	}
 	debug = true
 
+	providerUrl := fm.GetLlmProviderUrl()
+	if strings.Contains(llmModel, "gpt-5") && providerUrl == "https://api.openai.com/v1" {
+		providerUrl = ""
+	}
+
 	hostConfig := &mcphost.HostConfig{
 		NatsClient:     fm.GetNatsClient(),
 		MCPServers:     mcpServers,
-		Model:          fm.GetLlmModel(),
-		MaxSteps:       100,
+		Model:          llmModel,
+		MaxSteps:       500,
 		Debug:          debug,
 		SystemPrompt:   systemPrompt,
 		ProviderAPIKey: fm.GetLlmProviderApiKey(),
-		ProviderURL:    fm.GetLlmProviderUrl(),
+		ProviderURL:    providerUrl,
 		MaxTokens:      fm.GetLlmMaxTokens(),
-		Temperature:    &temperature,
+		Temperature:    &llmTemperature,
 		TopP:           &topP,
 		TopK:           &topK,
 		SavedMessages:  nil, // This will be populated later
@@ -129,7 +158,7 @@ func CreateLlmNode(node common.NodeData, fm common.Manager) (*LlmNode, error) {
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
-	llmNNode := &LlmNode{
+	aiAgentNode := &AiAgentNode{
 		BaseNode: BaseNode{
 			Id:             node.Id,
 			NodeUid:        node.NodeUid,
@@ -145,7 +174,7 @@ func CreateLlmNode(node common.NodeData, fm common.Manager) (*LlmNode, error) {
 			NumOutputs:     node.NumOutputs,
 			Settings:       node.Settings,
 			Debug:          node.Debug,
-			Type:           "LLM",
+			Type:           "AiAgent",
 			LogSubject:     logSubject,
 			Fm:             fm,
 			Cancel:         cancel,
@@ -156,23 +185,23 @@ func CreateLlmNode(node common.NodeData, fm common.Manager) (*LlmNode, error) {
 		OutputChan: outputChan,
 	}
 
-	newMcpHost, err := mcphost.NewMCPHost(hostConfig, ctx, llmNNode.GetChatMessages, llmNNode.SaveChatMessages)
+	newMcpHost, err := mcphost.NewMCPHost(hostConfig, ctx, aiAgentNode.GetChatMessages, aiAgentNode.SaveChatMessages)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create MCP host: %w", err)
 	}
-	llmNNode.McpHost = newMcpHost
+	aiAgentNode.McpHost = newMcpHost
 
-	return llmNNode, nil
+	return aiAgentNode, nil
 }
 
-func (n *LlmNode) Start(log *logger.Logger, needReinitialization bool) {
+func (n *AiAgentNode) Start(log *logger.Logger, needReinitialization bool) {
 	if n.GetStatus() == common.NodeStatusRunning {
-		log.Infof("LLMNode %s is already running", n.NodeUid)
+		log.Infof("AiAgentNode %s is already running", n.NodeUid)
 		return
 	}
 
 	n.SetStatus(common.NodeStatusRunning)
-	log.Infof("Starting LLMNode with UID: %s", n.NodeUid)
+	log.Infof("Starting AiAgentNode with UID: %s", n.NodeUid)
 
 	// Registrar la goroutine en el WaitGroup
 	n.wg.Add(1)
@@ -186,6 +215,7 @@ func (n *LlmNode) Start(log *logger.Logger, needReinitialization bool) {
 			if !errors.Is(err, context.Canceled) {
 				log.Errorf("MCP Host error: %v", err)
 				n.HandleError(err)
+				n.McpHost.Close()
 				return
 			} else {
 				log.Infof("MCP Host stopped gracefully due to context cancellation")
@@ -198,9 +228,9 @@ func (n *LlmNode) Start(log *logger.Logger, needReinitialization bool) {
 	n.handleMcpHostMessage(log)
 }
 
-func (n *LlmNode) sendPromptToMcpHost(msg mcphost.ChatMessage, log *logger.Logger) error {
+func (n *AiAgentNode) sendPromptToMcpHost(msg mcphost.ChatMessage, log *logger.Logger) error {
 	if n.GetStatus() != common.NodeStatusRunning {
-		log.Infof("LlmNode %s stopped during delay, discarding message", n.NodeUid)
+		log.Infof("AiAgentNode %s stopped during delay, discarding message", n.NodeUid)
 		return nil
 	}
 
@@ -209,7 +239,7 @@ func (n *LlmNode) sendPromptToMcpHost(msg mcphost.ChatMessage, log *logger.Logge
 	return nil
 }
 
-func (n *LlmNode) handleInputWires(log *logger.Logger, processor func(mcphost.ChatMessage, *logger.Logger) error) {
+func (n *AiAgentNode) handleInputWires(log *logger.Logger, processor func(mcphost.ChatMessage, *logger.Logger) error) {
 	nodeInputWires := n.Fm.GetNodeInputWires(n.DigitalTwinId, n.Id)
 	if len(nodeInputWires) == 0 {
 		return
@@ -239,8 +269,15 @@ func (n *LlmNode) handleInputWires(log *logger.Logger, processor func(mcphost.Ch
 						continue
 					}
 
-					userName := msg.Payload["userName"].(string)
-					prompt := msg.Payload["message"].(string)
+					var userName, prompt string
+					userName, ok = msg.Payload["userName"].(string)
+					if !ok || userName == "" {
+						userName = "unknown"
+					}
+					prompt, ok = msg.Payload["message"].(string)
+					if !ok || prompt == "" {
+						prompt = "no prompt"
+					}
 					chatMessage := mcphost.ChatMessage{
 						UserName: userName,
 						Prompt:   prompt,
@@ -254,7 +291,7 @@ func (n *LlmNode) handleInputWires(log *logger.Logger, processor func(mcphost.Ch
 	}
 }
 
-func (n *LlmNode) handleMcpHostMessage(log *logger.Logger) error {
+func (n *AiAgentNode) handleMcpHostMessage(log *logger.Logger) error {
 	n.wg.Add(1)
 	defer n.wg.Done()
 	go func() {
@@ -273,25 +310,14 @@ func (n *LlmNode) handleMcpHostMessage(log *logger.Logger) error {
 					errMsg := fmt.Errorf("MCP Host error: %s", msg.Message)
 					log.Errorf("MCP Host error: %v", errMsg)
 					n.HandleError(errMsg)
+					n.McpHost.Close()
 					return
 				} else {
-					var message common.Message
-					var response Response
-					err := json.Unmarshal([]byte(msg.Message), &response)
-					if err != nil {
-						message = common.Message{
-							Payload: map[string]interface{}{
-								"message": msg.Message,
-							},
-						}
-					} else {
-						message = common.Message{
-							Payload: map[string]interface{}{
-								"message":               response.Message,
-								"uiOpts":                response.UiOpts,
-								"eventTriggerTopicType": "llm2sim",
-							},
-						}
+					parsed := n.parseMessage(msg.Message)
+					payload := n.createCommonMessage(parsed)
+
+					message := common.Message{
+						Payload: payload,
 					}
 
 					n.sendToOutputs(message, log)
@@ -304,7 +330,7 @@ func (n *LlmNode) handleMcpHostMessage(log *logger.Logger) error {
 	return nil
 }
 
-func (n *LlmNode) Stop(log *logger.Logger) {
+func (n *AiAgentNode) Stop(log *logger.Logger) {
 	if n.GetStatus() == common.NodeStatusStopped {
 		return
 	}
@@ -325,7 +351,7 @@ func (n *LlmNode) Stop(log *logger.Logger) {
 	log.Infof("Node %s stopped successfully", n.NodeUid)
 }
 
-func (n *LlmNode) GetChatMessages(userName string) []*schema.Message {
+func (n *AiAgentNode) GetChatMessages(userName string) []*schema.Message {
 	kvStore := n.Fm.GetDigitalTwinKvStore(n.DigitalTwinId)
 	if kvStore == nil {
 		n.Fm.Log().Errorf("Failed to get KV store for digital twin %d", n.DigitalTwinId)
@@ -353,7 +379,7 @@ func (n *LlmNode) GetChatMessages(userName string) []*schema.Message {
 	return chatMessages
 }
 
-func (n *LlmNode) SaveChatMessages(userName string, messages []*schema.Message) error {
+func (n *AiAgentNode) SaveChatMessages(userName string, messages []*schema.Message) error {
 	// 1. Validar entrada y obtener KV store
 	if err := n.validateSaveChatInput(userName, messages); err != nil {
 		return err
@@ -386,7 +412,7 @@ func (n *LlmNode) SaveChatMessages(userName string, messages []*schema.Message) 
 }
 
 // validateSaveChatInput valida los parámetros de entrada
-func (n *LlmNode) validateSaveChatInput(userName string, messages []*schema.Message) error {
+func (n *AiAgentNode) validateSaveChatInput(userName string, messages []*schema.Message) error {
 	if userName == "" {
 		return fmt.Errorf("userName cannot be empty")
 	}
@@ -397,7 +423,7 @@ func (n *LlmNode) validateSaveChatInput(userName string, messages []*schema.Mess
 }
 
 // getCurrentChatMessages obtiene los mensajes de chat existentes del KV store
-func (n *LlmNode) getCurrentChatMessages(kvStore *nats.KVStore, key, userName string) ([]schema.Message, error) {
+func (n *AiAgentNode) getCurrentChatMessages(kvStore *nats.KVStore, key, userName string) ([]schema.Message, error) {
 	arrayValue, err := kvStore.GetArrayValue(context.Background(), key)
 	if err != nil {
 		if err.Error() == fmt.Sprintf("key %s not found", key) {
@@ -419,7 +445,7 @@ func (n *LlmNode) getCurrentChatMessages(kvStore *nats.KVStore, key, userName st
 }
 
 // appendNewMessages agrega los nuevos mensajes a la lista existente
-func (n *LlmNode) appendNewMessages(currentMessages []schema.Message, newMessages []*schema.Message) []schema.Message {
+func (n *AiAgentNode) appendNewMessages(currentMessages []schema.Message, newMessages []*schema.Message) []schema.Message {
 	// Pre-asignar capacidad para evitar realocaciones
 	updatedMessages := make([]schema.Message, len(currentMessages), len(currentMessages)+len(newMessages))
 	copy(updatedMessages, currentMessages)
@@ -435,7 +461,7 @@ func (n *LlmNode) appendNewMessages(currentMessages []schema.Message, newMessage
 }
 
 // convertToMessage convierte un valor del KV store a *schema.Message
-func (n *LlmNode) convertToMessage(msg interface{}, userName string, index int) *schema.Message {
+func (n *AiAgentNode) convertToMessage(msg interface{}, userName string, index int) *schema.Message {
 	// Método 1: Intentar conversión directa (si el tipo coincide)
 	if chatMsg, ok := msg.(schema.Message); ok {
 		return &chatMsg
@@ -464,12 +490,12 @@ func (n *LlmNode) convertToMessage(msg interface{}, userName string, index int) 
 }
 
 // convertToMessageValue es similar a convertToMessage pero retorna valor en lugar de puntero
-func (n *LlmNode) convertToMessageValue(msg interface{}, userName string, index int) *schema.Message {
+func (n *AiAgentNode) convertToMessageValue(msg interface{}, userName string, index int) *schema.Message {
 	return n.convertToMessage(msg, userName, index)
 }
 
 // convertMapToMessage convierte un map[string]interface{} a schema.Message
-func (n *LlmNode) convertMapToMessage(msgMap map[string]interface{}, userName string, index int) *schema.Message {
+func (n *AiAgentNode) convertMapToMessage(msgMap map[string]interface{}, userName string, index int) *schema.Message {
 	// Método preferido: usar JSON marshaling/unmarshaling para manejar todos los campos y tipos complejos
 	jsonBytes, err := json.Marshal(msgMap)
 	if err != nil {
@@ -488,7 +514,7 @@ func (n *LlmNode) convertMapToMessage(msgMap map[string]interface{}, userName st
 }
 
 // manualMapToMessage mapeo manual como fallback si falla JSON unmarshaling
-func (n *LlmNode) manualMapToMessage(msgMap map[string]interface{}) *schema.Message {
+func (n *AiAgentNode) manualMapToMessage(msgMap map[string]interface{}) *schema.Message {
 	message := &schema.Message{}
 
 	// Role (RoleType)
@@ -572,6 +598,86 @@ func (n *LlmNode) manualMapToMessage(msgMap map[string]interface{}) *schema.Mess
 	return message
 }
 
-func (n *LlmNode) getFullChatMessageKvStoreKey(userName string) string {
+func (n *AiAgentNode) getFullChatMessageKvStoreKey(userName string) string {
 	return fmt.Sprintf("org_%s.dt_%s.kvstore.chat_messages.%s", n.GetOrgHash(), n.GetDigitalTwinUID(), userName)
+}
+
+func (n *AiAgentNode) parseMessage(messageStr string) ParsedMessage {
+	// Primero verificamos si es un JSON válido
+	var genericJSON map[string]interface{}
+	if err := json.Unmarshal([]byte(messageStr), &genericJSON); err != nil {
+		// No es JSON válido, retornamos como texto plano
+		return ParsedMessage{
+			Type:    RawType,
+			Content: messageStr,
+			Raw:     messageStr,
+		}
+	}
+
+	// Verificamos si tiene la estructura de Response
+	if n.hasFields(genericJSON, []string{"message"}) {
+		var response Response
+		if err := json.Unmarshal([]byte(messageStr), &response); err == nil {
+			return ParsedMessage{
+				Type:    ResponseType,
+				Content: response,
+				Raw:     messageStr,
+			}
+		}
+	}
+
+	// Verificamos si tiene la estructura de Email
+	if n.hasFields(genericJSON, []string{"emailBody", "emailSubject"}) {
+		var email Email
+		if err := json.Unmarshal([]byte(messageStr), &email); err == nil {
+			return ParsedMessage{
+				Type:    EmailType,
+				Content: email,
+				Raw:     messageStr,
+			}
+		}
+	}
+
+	// Si no coincide con ningún formato conocido, devolvemos el JSON genérico
+	return ParsedMessage{
+		Type:    RawType,
+		Content: genericJSON,
+		Raw:     messageStr,
+	}
+}
+
+// hasFields verifica si un map contiene todos los campos requeridos
+func (n *AiAgentNode) hasFields(data map[string]interface{}, fields []string) bool {
+	for _, field := range fields {
+		if _, exists := data[field]; !exists {
+			return false
+		}
+	}
+	return true
+}
+
+// createCommonMessage convierte el ParsedMessage a common.Message
+func (n *AiAgentNode) createCommonMessage(parsed ParsedMessage) map[string]interface{} {
+	basePayload := map[string]interface{}{
+		"messageType": string(parsed.Type),
+	}
+
+	switch parsed.Type {
+	case ResponseType:
+		if response, ok := parsed.Content.(Response); ok {
+			basePayload["message"] = response.Message
+			basePayload["uiOpts"] = response.UiOpts
+			basePayload["eventTriggerTopicType"] = "llm2sim"
+		}
+	case EmailType:
+		if email, ok := parsed.Content.(Email); ok {
+			basePayload["emailBody"] = email.EmailBody
+			basePayload["emailSubject"] = email.EmailSubject
+		}
+	case RawType:
+		basePayload["message"] = parsed.Raw
+		basePayload["eventTriggerTopicType"] = "llm2sim"
+	}
+
+	return basePayload
 }

@@ -17,10 +17,12 @@ import (
 
 type InjectNode struct {
 	BaseNode
-	TopicIn string
-	Repeat  string  // none, interval
-	Every   float64 // interval time in seconds
-	MsgChan chan common.Message
+	TopicIn              string
+	Repeat               string  // none, interval
+	Every                float64 // interval time in seconds
+	InjectionType        string
+	Json                 map[string]interface{}
+	MsgChan              chan common.Message
 	isCurrentlyLeader    bool
 	leadershipMutex      sync.RWMutex
 	periodicTaskCancel   context.CancelFunc
@@ -72,6 +74,26 @@ func CreateInjectNode(node common.NodeData, fm common.Manager) (*InjectNode, err
 		}
 	}
 
+	var injectionType string
+	injectionType, ok = node.Settings["injectionType"].(string)
+	if !ok || injectionType == "" {
+		fm.Log().Errorf("InjectNode %s: 'injectionType' setting is required", node.NodeUid)
+		return nil, fmt.Errorf("injectionType setting is required")
+	}
+
+	if injectionType != "Timestamp" && injectionType != "JSON" {
+		fm.Log().Errorf("InjectNode %s: 'injectionType' must be 'Timestamp' or 'JSON'", node.NodeUid)
+		return nil, fmt.Errorf("invalid injectionType: %s. It must be 'Timestamp' or 'JSON'", injectionType)
+	}
+
+	jsonMessage := map[string]interface{}{}
+	if injectionType == "JSON" {
+		if err := json.Unmarshal([]byte(node.Settings["json"].(string)), &jsonMessage); err != nil {
+			fm.Log().Errorf("InjectNode %s: failed to unmarshal json: %w", node.NodeUid, err)
+			return nil, fmt.Errorf("failed to unmarshal jsonSchema: %w", err)
+		}
+	}
+
 	org := fm.GetOrg(node.OrgId)
 	digitalTwin := fm.GetDigitalTwin(node.DigitalTwinId)
 
@@ -107,6 +129,8 @@ func CreateInjectNode(node common.NodeData, fm common.Manager) (*InjectNode, err
 		TopicIn:           topicIn,
 		Repeat:            repeat,
 		Every:             every,
+		InjectionType:     injectionType,
+		Json:              jsonMessage,
 		MsgChan:           msgChan,
 		isCurrentlyLeader: false,
 	}, nil
@@ -179,8 +203,13 @@ func (n *InjectNode) runPeriodicTask(periodicCtx context.Context, interval time.
 	for {
 		select {
 		case <-ticker.C:
-			payload := map[string]interface{}{
-				"timestamp": time.Now().UnixMilli(),
+			var payload map[string]interface{}
+			if n.Json != nil {
+				payload = n.Json
+			} else {
+				payload = map[string]interface{}{
+					"timestamp": time.Now().UnixMilli(),
+				}
 			}
 			message := common.Message{
 				Payload: payload,
@@ -220,7 +249,7 @@ func (n *InjectNode) monitorLeadershipChanges(log *logger.Logger) {
 		select {
 		case <-ticker.C:
 			currentLeaderStatus := n.shouldRunPeriodicTasks()
-			
+
 			n.leadershipMutex.Lock()
 			wasLeader := n.isCurrentlyLeader
 			n.isCurrentlyLeader = currentLeaderStatus
@@ -248,7 +277,7 @@ func (n *InjectNode) shouldRunPeriodicTasks() bool {
 	replicaIndex := n.Fm.GetReplicaIndex()
 	numReplicas := n.Fm.GetNumReplicas()
 	isRaftLeader := n.Fm.IsRaftLeader()
-	
+
 	return (replicaIndex == 1 && numReplicas == 1) || isRaftLeader
 }
 
@@ -286,4 +315,3 @@ func (n *InjectNode) stopPeriodicTasks() {
 		n.periodicListenCancel = nil
 	}
 }
-

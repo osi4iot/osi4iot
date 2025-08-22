@@ -128,7 +128,6 @@ func (n *FuncNode) Start(log *logger.Logger, needReinitialization bool) {
 	if n.onMessageScript != "" {
 		n.handleInputWires(log, n.processMessage)
 	}
-
 }
 
 func (n *FuncNode) precompileScript(log *logger.Logger) error {

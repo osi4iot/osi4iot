@@ -2,10 +2,10 @@ import React, { useState, KeyboardEvent, ChangeEvent, useRef, useEffect, useCall
 import styled from "styled-components";
 import SpeechRecognition, { useSpeechRecognition } from "react-speech-recognition";
 import { FaMicrophone, FaMicrophoneSlash } from "react-icons/fa";
-import { containsLatex, MessageContent, renderLatexMessage } from "./KatexRenderer"; // Importar la función mejorada
 import { useSpeechSynthesis } from "./useSpeechSynthesis";
 import { useLoggedUserLogin } from "../../../../contexts/authContext/authContext";
 import { normalizeForTTS } from "./ttsNormalizer";
+import { containsLatex, MathMessage } from "./MathMessage";
 
 const getVoices = (lang: string) => {
     const isSpanish = lang.includes("es");
@@ -547,11 +547,7 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({ chatMessages, setChatMess
                                 <span style={{ marginLeft: "10px", fontSize: "0.6rem", opacity: 0.7 }}>📝 LaTeX</span>
                             )}
                         </Label>
-                        <MessageContent
-                            dangerouslySetInnerHTML={{
-                                __html: renderLatexMessage(msg.message),
-                            }}
-                        />
+                        <MathMessage html={msg.message} />
                     </MessageBubble>
                 ))}
                 <div ref={messagesEndRef} />

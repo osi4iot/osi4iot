@@ -190,7 +190,6 @@ func (f *FemResults) findResultField(location string, targetName string) (*Resul
 	return nil, false
 }
 
-
 func (f *FemResults) FormatValue(resultName string, value float64) (string, error) {
 	var resultField *ResultField
 	resultField, exists1 := f.findResultField("nodes", resultName)
@@ -283,6 +282,28 @@ func main() {
 		),
 	)
 	mcpServer.AddTool(minValueTool, handleMinValue)
+
+
+		// Create and add the critical-value tool
+	criticalValueTool := mcp.NewTool(
+		"critical-value",
+		mcp.WithDescription(
+			"Get the critical value of the indicated result",
+		),
+		mcp.WithArray(
+			"result_names",
+			mcp.WithStringItems(),
+			mcp.Min(1),
+			mcp.Required(),
+		),
+		mcp.WithArray(
+			"params",
+			mcp.WithNumberItems(),
+			mcp.Min(1),
+			mcp.Required(),
+		),
+	)
+	mcpServer.AddTool(criticalValueTool, handleCriticalValue)
 
 	// Create and add the nodal-value tool
 	nodalValueTool := mcp.NewTool(
@@ -398,15 +419,13 @@ func handleMaxValue(
 			return nil, fmt.Errorf("Error fetching expression for nodes: %v", err)
 		}
 		query := fmt.Sprintf(`
-            WITH calculations AS (
-                SELECT %s as value, Node
-                FROM '%s'
-            )
-            SELECT 
-                MAX(value) as max_val,
-                ARG_MAX(Node, value) as max_node
-            FROM calculations;
-        `, expression, femResults.femResOnNodesPath)
+			SELECT 
+				%s AS max_val,
+				Node AS max_node
+			FROM '%s'
+			ORDER BY %s DESC NULLS LAST
+			LIMIT 1;
+        `, expression, femResults.femResOnNodesPath, expression)
 
 		err = db.QueryRow(query).Scan(&maxValue, &maxNode)
 		if err != nil {
@@ -423,40 +442,29 @@ func handleMaxValue(
 	if resultsList.ExistsResult(resultName, "gauss_points") {
 		expression, err := getExpression(db, femResults.femResOnGPPath, params, resultName)
 		if err != nil {
-			return nil, fmt.Errorf("Error fetching expression for Gauss Points: %v", err)
+			return nil, fmt.Errorf("Error fetching expression for gauss points: %v", err)
 		}
 
-		// Opción 1: Query simple que encuentra el máximo y luego obtiene elem/GP
 		query := fmt.Sprintf(`
-            WITH max_value_cte AS (
-                SELECT MAX(%s) as max_val
-                FROM '%s'
-            ),
-            max_location AS (
-                SELECT %s as value, Elem, Gauss_Point
-                FROM '%s'
-                WHERE %s = (SELECT max_val FROM max_value_cte)
-                LIMIT 1
-            )
-            SELECT 
-                (SELECT max_val FROM max_value_cte) as max_val,
-                Elem as max_elem,
-                Gauss_Point as max_gp
-            FROM max_location;
-        `, expression, femResults.femResOnGPPath,
-			expression, femResults.femResOnGPPath,
-			expression)
+			SELECT 
+				%s AS max_val,
+				Elem AS max_elem,
+				Gauss_Point AS max_gp
+			FROM '%s'
+			ORDER BY %s DESC NULLS LAST
+			LIMIT 1;
+        `, expression, femResults.femResOnGPPath, expression)
 
 		err = db.QueryRow(query).Scan(&maxValue, &maxElem, &maxGP)
 		if err != nil {
-			return nil, fmt.Errorf("Error executing query for Gauss Points: %v", err)
+			return nil, fmt.Errorf("Error executing query for gauss points: %v", err)
 		}
 
 		maxValueWithUnits, err := femResults.FormatValue(resultName, maxValue)
 		if err != nil {
 			return nil, fmt.Errorf("Error formatting max value: %v", err)
 		}
-		message := fmt.Sprintf("Max value %s at element %d, Gauss point %d", maxValueWithUnits, maxElem, maxGP)
+		message := fmt.Sprintf("Max value %s at element %d, gauss point %d", maxValueWithUnits, maxElem, maxGP)
 		return mcp.NewToolResultText(message), nil
 	}
 
@@ -498,15 +506,13 @@ func handleMinValue(
 		}
 
 		query := fmt.Sprintf(`
-            WITH calculations AS (
-                SELECT %s as value, Node
-                FROM '%s'
-            )
-            SELECT 
-                MIN(value) as min_val,
-                ARG_MIN(Node, value) as min_node
-            FROM calculations;
-        `, expression, femResults.femResOnNodesPath)
+			SELECT 
+				%s AS min_val,
+				Node AS min_node
+			FROM '%s'
+			ORDER BY %s ASC NULLS FIRST
+			LIMIT 1;
+        `, expression, femResults.femResOnNodesPath, expression)
 
 		err = db.QueryRow(query).Scan(&minValue, &minNode)
 		if err != nil {
@@ -523,44 +529,137 @@ func handleMinValue(
 	if resultsList.ExistsResult(resultName, "gauss_points") {
 		expression, err := getExpression(db, femResults.femResOnGPPath, params, resultName)
 		if err != nil {
-			return nil, fmt.Errorf("Error fetching expression for Gauss Points: %v", err)
+			return nil, fmt.Errorf("Error fetching expression for gauss points: %v", err)
 		}
 
 		// Opción 1: Query simple que encuentra el mínimo y luego obtiene elem/GP
 		query := fmt.Sprintf(`
-            WITH min_value_cte AS (
-                SELECT MIN(%s) as min_val
-                FROM '%s'
-            ),
-            min_location AS (
-                SELECT %s as value, Elem, Gauss_Point
-                FROM '%s'
-                WHERE %s = (SELECT min_val FROM min_value_cte)
-                LIMIT 1
-            )
-            SELECT 
-                (SELECT min_val FROM min_value_cte) as min_val,
-                Elem as min_elem,
-                Gauss_Point as min_gp
-            FROM min_location;
-        `, expression, femResults.femResOnGPPath,
-			expression, femResults.femResOnGPPath,
-			expression)
+			SELECT 
+				%s AS min_val,
+				Elem AS min_elem,
+				Gauss_Point AS min_gp
+			FROM '%s'
+			ORDER BY %s ASC NULLS FIRST
+			LIMIT 1;
+        `, expression, femResults.femResOnGPPath, expression)
+
 
 		err = db.QueryRow(query).Scan(&minValue, &minElem, &minGP)
 		if err != nil {
-			return nil, fmt.Errorf("Error executing query for Gauss Points: %v", err)
+			return nil, fmt.Errorf("Error executing query for gauss points: %v", err)
 		}
 
 		minValueWithUnits, err := femResults.FormatValue(resultName, minValue)
 		if err != nil {
 			return nil, fmt.Errorf("Error formatting min value: %v", err)
 		}
-		message := fmt.Sprintf("Min value %s at element %d, Gauss point %d", minValueWithUnits, minElem, minGP)
+		message := fmt.Sprintf("Min value %s at element %d, gauss point %d", minValueWithUnits, minElem, minGP)
 		return mcp.NewToolResultText(message), nil
 	}
 
 	return nil, fmt.Errorf("Result '%s' not found", resultName)
+}
+
+func handleCriticalValue(
+	ctx context.Context,
+	request mcp.CallToolRequest,
+) (*mcp.CallToolResult, error) {
+	arguments := request.GetArguments()
+
+	resultNames, err := getResultNames(arguments)
+	if err != nil {
+		return nil, fmt.Errorf("Error fetching result names: %v", err)
+	}
+
+	params, err := getParams(arguments)
+	if err != nil {
+		return nil, fmt.Errorf("Error fetching params: %v", err)
+	}
+
+	femResults := GetFemResultsInstance()
+	db := femResults.GetDB()
+	resultsList := femResults.resultsList
+
+	location := ""
+	for ires, resultName := range resultNames {
+		resultLocation := ""
+		if resultsList.ExistsResult(resultName, "nodes") {
+			resultLocation = "nodes"
+		}
+		if resultsList.ExistsResult(resultName, "gauss_points") {
+			resultLocation = "gauss_points"
+		}
+		if ires == 0 && resultLocation != "" {
+			location = resultLocation
+		} else if resultLocation != location {
+			return nil, fmt.Errorf("Invalid result names: %v", err)
+		}
+	}
+	if location == "" {
+		return nil, fmt.Errorf("Invalid result names: %v", err)
+	}
+
+	var criticalValue float64
+	var criticalNode int32
+	var criticalElem int32
+	var criticalGP int32
+
+	if location == "nodes" {
+		expression, err := getCriticalValueExpression(db, femResults.femResOnNodesPath, params, resultNames)
+		if err != nil {
+			return nil, fmt.Errorf("Error fetching expression for nodes: %v", err)
+		}
+		query := fmt.Sprintf(`
+			SELECT 
+				GREATEST(%s) AS max_val,
+				Node AS max_node
+			FROM '%s'
+			ORDER BY GREATEST(%s) DESC NULLS LAST
+			LIMIT 1;
+        `, expression, femResults.femResOnNodesPath, expression)
+
+		err = db.QueryRow(query).Scan(&criticalValue, &criticalNode)
+		if err != nil {
+			return nil, fmt.Errorf("Error executing query for nodes: %v", err)
+		}
+
+		criticalValueWithUnits, err := femResults.FormatValue(resultNames[0], criticalValue)
+		if err != nil {
+			return nil, fmt.Errorf("Error formatting critical value: %v", err)
+		}
+		return mcp.NewToolResultText(fmt.Sprintf("Critical value %s in Node %d", criticalValueWithUnits, criticalNode)), nil
+	}
+
+	if location == "gauss_points" {
+		expression, err := getCriticalValueExpression(db, femResults.femResOnGPPath, params, resultNames)
+		if err != nil {
+			return nil, fmt.Errorf("Error fetching expression for gauss points: %v", err)
+		}
+
+		query := fmt.Sprintf(`
+			SELECT 
+				GREATEST(%s) AS max_val,
+				Elem AS max_elem,
+				Gauss_Point AS max_gp
+			FROM '%s'
+			ORDER BY GREATEST(%s) DESC NULLS LAST
+			LIMIT 1;
+        `, expression, femResults.femResOnGPPath, expression)
+
+		err = db.QueryRow(query).Scan(&criticalValue, &criticalElem, &criticalGP)
+		if err != nil {
+			return nil, fmt.Errorf("Error executing query for gauss points: %v", err)
+		}
+
+		criticalValueWithUnits, err := femResults.FormatValue(resultNames[0], criticalValue)
+		if err != nil {
+			return nil, fmt.Errorf("Error formatting critical value: %v", err)
+		}
+		message := fmt.Sprintf("Critical value %s at element %d, gauss point %d", criticalValueWithUnits, criticalElem, criticalGP)
+		return mcp.NewToolResultText(message), nil
+	}
+
+	return nil, fmt.Errorf("Invalid result names: %v", err)
 }
 
 func handleNodalValue(ctx context.Context,
@@ -611,7 +710,6 @@ func handleNodalValue(ctx context.Context,
 		return nil, fmt.Errorf("Error executing query for nodes: %v", err)
 	}
 
-
 	nodalValueWithUnits, err := femResults.FormatValue(resultName, nodalValue)
 	if err != nil {
 		return nil, fmt.Errorf("Error formatting nodal value: %v", err)
@@ -659,7 +757,7 @@ func handleElemValue(ctx context.Context,
 	var minValue float64
 	var maxValue float64
 
-    query := fmt.Sprintf(`
+	query := fmt.Sprintf(`
         SELECT 
             AVG(%s) as avg_result,
             MIN(%s) as min_result,
@@ -749,6 +847,35 @@ func getExpression(db *sql.DB, filePath string, params []float64, resultName str
 	}
 	return expression, nil
 }
+
+func getCriticalValueExpression(db *sql.DB, filePath string, params []float64, resultNames []string) (string, error) {
+	columnsInfo, err := getColumnsInfo(db, filePath)
+	if err != nil {
+		return "", fmt.Errorf("Error fetching columns info: %v", err)
+	}
+	expression := ""
+	for ires, resultName := range resultNames {
+		modalResults, err := getModalResults(columnsInfo, resultName)
+		if err != nil {
+			return "", fmt.Errorf("Error fetching modal results: %v", err)
+		}
+		resultNameExpression := ""
+		length := math.Min(float64(len(modalResults)), float64(len(params)))
+		for i := 0; i < int(length); i++ {
+			resultNameExpression += fmt.Sprintf("(%s * %f)", modalResults[i], params[i])
+			if i < int(length)-1 {
+				resultNameExpression += " + "
+			}
+		}
+
+		expression += fmt.Sprintf("ABS(%s)", resultNameExpression)
+		if ires < len(resultNames)-1 {
+			expression += ", "
+		}
+	}
+	return expression, nil
+}
+
 
 func getColumnsInfo(db *sql.DB, filePath string) ([]string, error) {
 	query := fmt.Sprintf("DESCRIBE SELECT * FROM '%s'", filePath)
@@ -887,6 +1014,22 @@ func getParams(arguments map[string]any) ([]float64, error) {
 		}
 	}
 	return params, nil
+}
+
+func getResultNames(arguments map[string]any) ([]string, error) {
+	rawResultNames, ok := arguments["result_names"].([]interface{})
+	if !ok {
+		return nil, fmt.Errorf("Invalid or missing 'result_names' argument")
+	}
+	var resultNames []string
+	for _, param := range rawResultNames {
+		if f, ok := param.(string); ok {
+			resultNames = append(resultNames, f)
+		} else {
+			return nil, fmt.Errorf("Invalid param type: expected string")
+		}
+	}
+	return resultNames, nil
 }
 
 func findResultField(fields []ResultField, targetName string) (*ResultField, bool) {

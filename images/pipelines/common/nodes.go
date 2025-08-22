@@ -9,6 +9,7 @@ const (
 	NodeStatusUpdated
 	NodeStatusRunning
 	NodeStatusStopped
+	NodeStatusError
 )
 
 func (s NodeStatus) String() string {
@@ -21,6 +22,8 @@ func (s NodeStatus) String() string {
 		return "stopped"
 	case NodeStatusUpdated:
 		return "updated"
+	case NodeStatusError:
+		return "error"
 	default:
 		return "unknown"
 	}
