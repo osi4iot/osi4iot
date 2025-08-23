@@ -16,6 +16,7 @@ import {
 } from "../Main/Model";
 import { IDigitalTwin } from "../../TableColumns/digitalTwinsColumns";
 import { IResultRenderInfo } from "../Main/Model";
+import { McpToolCall } from "../ChatAssitant/ChatAssistant";
 
 export interface SelectedObjectInfo {
     type: string;
@@ -150,7 +151,8 @@ export interface MqttOptions {
 export interface ChatMessage {
     userName: string;
     message: string;
-    sender: "user" | "assistant";
+    sender: "user" | "assistant" | "mcphost";
+    mcpToolCalls: McpToolCall[];
     time: string;
 }
 

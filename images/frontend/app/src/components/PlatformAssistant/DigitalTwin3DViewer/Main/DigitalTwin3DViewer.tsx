@@ -79,7 +79,6 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
     const legendRenderer = useLegendRenderer();
     const { connectionStatus, mqttClient } = useMqttConnection();
     const openDashboardTab = useOpenWindowTab();
-    const { logMessages, setLogMessages, handleUpdateLogMessages } = usePipelineLogs();
     
     const {
         canvasContainerRef,
@@ -94,6 +93,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
     
     const [opts, setOpts] = useViewerOptions([]);
     const { chatMessages, setChatMessages, handleUpdateChatAssistantMessages } = useChatMessages(setOpts);
+    const { logMessages, setLogMessages, handleUpdateLogMessages } = usePipelineLogs(setChatMessages);
 
     // Initialize FEM results logic
     const femResults = useFemResults(digitalTwinSelected, legendRenderer, opts, fetchFemResFileWorker);

@@ -1,7 +1,7 @@
 import React, { useState, KeyboardEvent, ChangeEvent, useRef, useEffect, useCallback } from "react";
 import styled from "styled-components";
 import SpeechRecognition, { useSpeechRecognition } from "react-speech-recognition";
-import { FaMicrophone, FaMicrophoneSlash } from "react-icons/fa";
+import { FaMicrophone, FaMicrophoneSlash, FaWrench } from "react-icons/fa";
 import { useSpeechSynthesis } from "./useSpeechSynthesis";
 import { useLoggedUserLogin } from "../../../../contexts/authContext/authContext";
 import { normalizeForTTS } from "./ttsNormalizer";
@@ -16,17 +16,24 @@ const getVoices = (lang: string) => {
     });
 };
 
+export interface McpToolCall {
+    tool_name: string;
+    args: string[];
+}
+
 export interface LlmMessage {
     message: string;
     uiOpts: Record<string, any>;
-    sender: "user" | "assistant";
+    mcpToolCalls: McpToolCall[];
+    sender: "user" | "assistant" | "mcphost";
 }
 
 export interface ChatMessage {
     message: string;
     userName: string;
-    sender: "user" | "assistant";
+    sender: "user" | "assistant" | "mcphost";
     time: string;
+    mcpToolCalls: McpToolCall[];
 }
 
 export interface IChatVoice {
@@ -113,7 +120,7 @@ const MessagesContainer = styled.div`
 `;
 
 interface MessageBubbleProps {
-    sender: "user" | "assistant";
+    sender: "user" | "assistant" | "mcphost";
 }
 
 const MessageBubble = styled.div<MessageBubbleProps>`
@@ -122,10 +129,38 @@ const MessageBubble = styled.div<MessageBubbleProps>`
     max-width: 90%;
     word-wrap: break-word;
     align-self: ${({ sender }) => (sender === "user" ? "flex-end" : "flex-start")};
-    background-color: ${({ sender }) => (sender === "user" ? "#3a3a3a" : "#555")};
+    background-color: ${({ sender }) => (sender === "user" ? "#3a3a3a" : (sender === "assistant" ? "#555" : "#a54646ff"))};
     color: #f1f1f1;
     position: relative;
     font-size: 0.9rem;
+`;
+
+const McpToolsList = styled.div`
+    margin-top: 8px;
+    padding-top: 6px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    font-size: 0.7rem;
+    color: #bbb;
+    line-height: 1.2;
+`;
+
+const McpToolItem = styled.div`
+    margin-bottom: 3px;
+    font-family: 'Courier New', monospace;
+    
+    &:last-child {
+        margin-bottom: 0;
+    }
+`;
+
+const ToolName = styled.span`
+    color: #4a9eff;
+    font-weight: bold;
+`;
+
+const ToolArgs = styled.span`
+    color: #999;
+    margin-left: 4px;
 `;
 
 const Label = styled.span`
@@ -176,7 +211,7 @@ const ButtonRow = styled.div`
 `;
 
 const Button = styled.button`
-    padding: 12px;
+    padding: 15px;
     border: none;
     color: #fff;
     cursor: pointer;
@@ -192,6 +227,25 @@ const Button = styled.button`
 
     &:hover {
         background: #2461c0;
+    }
+`;
+
+const ToggleButton = styled.button<{ active: boolean }>`
+    padding: 4px;
+    border: none;
+    border-radius: 50%;
+    background-color: ${({ active }) => (active ? "#3274d9" : "#666")};
+    color: #fff;
+    cursor: pointer;
+    font-size: 0.8rem;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    &:hover {
+        background-color: ${({ active }) => (active ? "#1e8449" : "#555")};
     }
 `;
 
@@ -253,6 +307,7 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({ chatMessages, setChatMess
     const isMounted = useRef(true);
     const userName = useLoggedUserLogin();
     const [input, setInput] = useState<string>("");
+    const [showMcpTools, setShowMcpTools] = useState<boolean>(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const { transcript, resetTranscript, browserSupportsSpeechRecognition } = useSpeechRecognition();
     const [isVoiceEnabled, setIsVoiceEnabled] = useState<boolean>(false);
@@ -383,6 +438,7 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({ chatMessages, setChatMess
                     userName: "Assistant",
                     sender: "assistant",
                     time: new Date().toISOString(),
+                    mcpToolCalls: [],
                 };
                 setChatMessages([greetingMessage]);
             });
@@ -421,6 +477,7 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({ chatMessages, setChatMess
             message: messageToSend,
             sender: "user",
             time: new Date().toISOString(),
+            mcpToolCalls: [],
         };
 
         setChatMessages((prev: ChatMessage[]) => [...prev, newMessage]);
@@ -535,6 +592,27 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({ chatMessages, setChatMess
         }
     };
 
+    const renderMcpToolCalls = (mcpToolCalls: McpToolCall[]) => {
+        if (!mcpToolCalls || mcpToolCalls.length === 0 || !showMcpTools) return null;
+
+        return (
+            <McpToolsList>
+                {mcpToolCalls.map((toolCall, index) => (
+                    <McpToolItem key={index}>
+                        🔧 <ToolName>{toolCall.tool_name}</ToolName>
+                        {toolCall.args.length > 0 && (
+                            <ToolArgs>({toolCall.args})</ToolArgs>
+                        )}
+                    </McpToolItem>
+                ))}
+            </McpToolsList>
+        );
+    };
+
+    const toggleMcpToolsVisibility = useCallback(() => {
+        setShowMcpTools(prev => !prev);
+    }, []);
+
     return (
         <ChatContainer ref={containerRef} style={{ width: `${containerWidth}px` }}>
             <ResizeHandle onMouseDown={handleMouseDown} style={{ cursor: isResizing ? "ew-resize" : "ew-resize" }} />
@@ -542,12 +620,13 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({ chatMessages, setChatMess
                 {chatMessages.map((msg, index) => (
                     <MessageBubble key={index} sender={msg.sender}>
                         <Label>
-                            {msg.sender === "assistant" ? "OSI" : userName}
+                            {(msg.sender === "assistant" || msg.sender === "mcphost") ? "OSI" : userName}
                             {msg.sender === "assistant" && containsLatex(msg.message) && (
                                 <span style={{ marginLeft: "10px", fontSize: "0.6rem", opacity: 0.7 }}>📝 LaTeX</span>
                             )}
                         </Label>
                         <MathMessage html={msg.message} />
+                        {renderMcpToolCalls(msg.mcpToolCalls)}
                     </MessageBubble>
                 ))}
                 <div ref={messagesEndRef} />
@@ -566,6 +645,13 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({ chatMessages, setChatMess
                         <Button onClick={handleSend}>Send</Button>
                     </ButtonRow>
                     <ButtonRow>
+                        <ToggleButton
+                            active={showMcpTools}
+                            onClick={toggleMcpToolsVisibility}
+                            title={showMcpTools ? "Ocultar herramientas MCP" : "Mostrar herramientas MCP"}
+                        >
+                            <FaWrench style={{ opacity: showMcpTools ? 1 : 0.3 }} />
+                        </ToggleButton>
                         <MicButton
                             active={isVoiceEnabled}
                             onClick={toggleVoice}

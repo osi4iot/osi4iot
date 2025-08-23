@@ -1,4 +1,4 @@
-import { containsLatex } from "./MathMessage";
+// import { containsLatex } from "./MathMessage";
 
 interface TTSNormalizerOptions {
     language: string;
@@ -422,12 +422,19 @@ class TTSNormalizer {
     }
 
     normalize(text: string, options: TTSNormalizerOptions): string {
-        if (containsLatex(text)) {
+        // Si contiene fórmulas display (no inline), devolver vacío
+        if (this.containsDisplayMath(text)) {
             return "";
         }
 
         const lang = options.language.includes("es") ? "es" : "en";
         let normalizedText = text;
+
+        // Normalizar LaTeX matemático inline PRIMERO
+        normalizedText = this.normalizeLatex(normalizedText, lang);
+
+        // Normalizar código/variables en backticks
+        normalizedText = this.normalizeCodeBlocks(normalizedText, lang);
 
         // Normalizar unidades
         normalizedText = this.normalizeUnits(normalizedText, lang);
@@ -448,6 +455,242 @@ class TTSNormalizer {
         return normalizedText.replace(/\s+/g, " ").trim();
     }
 
+    private containsDisplayMath(text: string): boolean {
+        // Patrones para fórmulas display (NO inline)
+        const displayPatterns = [
+            /\\\[.*?\\\]/, // \[ ... \] - display math
+            /\$\$.*?\$\$/, // $$ ... $$ - display math
+        ];
+
+        // Patrones para matrices y estructuras complejas (incluso en inline)
+        const matrixPatterns = [
+            /\\begin\{(pmatrix|bmatrix|vmatrix|Vmatrix|matrix)\}/i, // matrices
+            /\\begin\{(array|cases|align|equation|eqnarray)\}/i, // arrays y ecuaciones complejas
+            /\\end\{(pmatrix|bmatrix|vmatrix|Vmatrix|matrix)\}/i,
+            /\\end\{(array|cases|align|equation|eqnarray)\}/i,
+        ];
+
+        const allPatterns = [...displayPatterns, ...matrixPatterns];
+        return allPatterns.some((pattern) => pattern.test(text));
+    }
+
+    private normalizeCodeBlocks(text: string, lang: string): string {
+        // Patrón para capturar texto entre backticks
+        const codePattern = /`([^`]+)`/g;
+
+        // Simplemente remover los backticks pero mantener el contenido tal como está
+        return text.replace(codePattern, (match, code) => {
+            return code.trim();
+        });
+    }
+
+    private normalizeLatex(text: string, lang: string): string {
+        const isSpanish = lang === "es";
+        let result = text;
+
+        // SOLO patrones inline - NO display math
+        const inlinePatterns = [
+            // \( ... \) - inline math
+            /\\\((.*?)\\\)/g,
+            // $ ... $ - inline math (single dollar, pero NO $)
+            /(?<!\$)\$([^$]+)\$(?!\$)/g,
+        ];
+
+        inlinePatterns.forEach((pattern) => {
+            result = result.replace(pattern, (match, mathContent) => {
+                return this.parseMathExpression(mathContent.trim(), isSpanish);
+            });
+        });
+
+        return result;
+    }
+
+    private parseMathExpression(mathExpr: string, isSpanish: boolean): string {
+        let result = mathExpr;
+
+        // 1. Normalizar subíndices: _{...} -> contenido
+        result = result.replace(/_{([^}]+)}/g, (match, subscript) => {
+            // Si el subíndice es \text{...}, extraer solo el contenido
+            const textMatch = subscript.match(/\\text{([^}]+)}/);
+            if (textMatch) {
+                return ` ${textMatch[1]}`;
+            }
+            return ` ${subscript}`;
+        });
+
+        // 2. Normalizar superíndices: ^{...}
+        result = result.replace(/\^{([^}]+)}/g, (match, exponent) => {
+            const exp = exponent.replace(/[{}]/g, "").trim();
+            const expNum = parseInt(exp);
+
+            if (isSpanish) {
+                if (expNum === 2) return " al cuadrado";
+                if (expNum === 3) return " al cubo";
+                if (expNum < 0) return ` elevado a menos ${Math.abs(expNum)}`;
+                return ` elevado a ${exp}`;
+            } else {
+                if (expNum === 2) return " squared";
+                if (expNum === 3) return " cubed";
+                if (expNum < 0) return ` to the power of minus ${Math.abs(expNum)}`;
+                return ` to the power of ${exp}`;
+            }
+        });
+
+        // 3. Normalizar comandos de texto: \text{...} -> contenido
+        result = result.replace(/\\text{([^}]+)}/g, "$1");
+
+        // 4. Normalizar espaciado LaTeX
+        result = result.replace(/\\,/g, " "); // \, -> espacio fino
+        result = result.replace(/\\;/g, " "); // \; -> espacio medio
+        result = result.replace(/\\:/g, " "); // \: -> espacio medio
+        result = result.replace(/\\!/g, ""); // \! -> espacio negativo (eliminar)
+        result = result.replace(/\\quad/g, " "); // \quad -> espacio
+        result = result.replace(/\\qquad/g, "  "); // \qquad -> espacio doble
+
+        // 5. Normalizar notación científica LaTeX: \times 10^{...}
+        result = result.replace(/\\times\s*10\^{([^}]+)}/g, (match, exponent) => {
+            const exp = exponent.replace(/[{}]/g, "").trim();
+            const expNum = parseInt(exp);
+
+            if (isSpanish) {
+                if (expNum < 0) {
+                    return `por 10 elevado a menos ${Math.abs(expNum)}`;
+                } else {
+                    return `por 10 elevado a ${expNum}`;
+                }
+            } else {
+                if (expNum < 0) {
+                    return `times 10 to the power of minus ${Math.abs(expNum)}`;
+                } else {
+                    return `times 10 to the power of ${expNum}`;
+                }
+            }
+        });
+
+        // 6. Normalizar fracciones: \frac{numerador}{denominador}
+        result = result.replace(/\\frac{([^}]+)}{([^}]+)}/g, (match, numerator, denominator) => {
+            const num = numerator.trim();
+            const den = denominator.trim();
+
+            if (isSpanish) {
+                return `${num} sobre ${den}`;
+            } else {
+                return `${num} over ${den}`;
+            }
+        });
+
+        // 7. Normalizar raíces: \sqrt{...}
+        result = result.replace(/\\sqrt{([^}]+)}/g, (match, content) => {
+            const inner = content.trim();
+
+            if (isSpanish) {
+                return `raíz cuadrada de ${inner}`;
+            } else {
+                return `square root of ${inner}`;
+            }
+        });
+
+        // 8. Normalizar comandos LaTeX comunes
+        const latexCommands = isSpanish
+            ? {
+                  "\\times": " por ",
+                  "\\cdot": " por ",
+                  "\\div": " dividido por ",
+                  "\\pm": " más o menos ",
+                  "\\mp": " menos o más ",
+                  "\\approx": " aproximadamente igual a ",
+                  "\\neq": " no igual a ",
+                  "\\leq": " menor o igual que ",
+                  "\\geq": " mayor o igual que ",
+                  "\\ll": " mucho menor que ",
+                  "\\gg": " mucho mayor que ",
+                  "\\infty": " infinito ",
+                  "\\sum": " suma de ",
+                  "\\prod": " producto de ",
+                  "\\int": " integral de ",
+                  "\\partial": " derivada parcial de ",
+                  "\\nabla": " gradiente de ",
+                  "\\Delta": " delta ",
+                  "\\alpha": " alfa ",
+                  "\\beta": " beta ",
+                  "\\gamma": " gamma ",
+                  "\\delta": " delta ",
+                  "\\epsilon": " épsilon ",
+                  "\\theta": " theta ",
+                  "\\lambda": " lambda ",
+                  "\\mu": " mu ",
+                  "\\pi": " pi ",
+                  "\\sigma": " sigma ",
+                  "\\tau": " tau ",
+                  "\\phi": " phi ",
+                  "\\omega": " omega ",
+                  "\\left(": " ",
+                  "\\right)": " ",
+                  "\\left[": " ",
+                  "\\right]": " ",
+                  "\\left\\{": " ",
+                  "\\right\\}": " ",
+                  "=": " igual a ",
+              }
+            : {
+                  "\\times": " times ",
+                  "\\cdot": " times ",
+                  "\\div": " divided by ",
+                  "\\pm": " plus or minus ",
+                  "\\mp": " minus or plus ",
+                  "\\approx": " approximately equals ",
+                  "\\neq": " not equal to ",
+                  "\\leq": " less than or equal to ",
+                  "\\geq": " greater than or equal to ",
+                  "\\ll": " much less than ",
+                  "\\gg": " much greater than ",
+                  "\\infty": " infinity ",
+                  "\\sum": " sum of ",
+                  "\\prod": " product of ",
+                  "\\int": " integral of ",
+                  "\\partial": " partial derivative of ",
+                  "\\nabla": " gradient of ",
+                  "\\Delta": " delta ",
+                  "\\alpha": " alpha ",
+                  "\\beta": " beta ",
+                  "\\gamma": " gamma ",
+                  "\\delta": " delta ",
+                  "\\epsilon": " epsilon ",
+                  "\\theta": " theta ",
+                  "\\lambda": " lambda ",
+                  "\\mu": " mu ",
+                  "\\pi": " pi ",
+                  "\\sigma": " sigma ",
+                  "\\tau": " tau ",
+                  "\\phi": " phi ",
+                  "\\omega": " omega ",
+                  "\\left(": " ",
+                  "\\right)": " ",
+                  "\\left[": " ",
+                  "\\right]": " ",
+                  "\\left\\{": " ",
+                  "\\right\\}": " ",
+                  "=": " equals ",
+              };
+
+        // Aplicar reemplazos de comandos LaTeX
+        Object.entries(latexCommands).forEach(([command, replacement]) => {
+            const escapedCommand = command.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+            result = result.replace(new RegExp(escapedCommand, "g"), replacement);
+        });
+
+        // 9. Limpiar comandos LaTeX desconocidos (que empiecen con \)
+        result = result.replace(/\\[a-zA-Z]+\*?/g, "");
+
+        // 10. Limpiar llaves restantes
+        result = result.replace(/[{}]/g, "");
+
+        // 11. Limpiar espacios múltiples
+        result = result.replace(/\s+/g, " ").trim();
+
+        return result;
+    }
+
     private normalizeUnits(text: string, lang: string): string {
         const units = this.units[lang] || this.units["en"];
         let result = text;
@@ -458,23 +701,41 @@ class TTSNormalizer {
         sortedUnits.forEach(([unit, fullName]) => {
             const escapedUnit = unit.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
-            // Patrones para diferentes casos:
-            // 1. Número + espacio + unidad
-            // 2. Número + unidad directamente pegada
-            // 3. Unidad al inicio de palabra (para casos como "pH")
-            const patterns = [
-                new RegExp(`(\\d+(?:[.,]\\d+)?)\\s*${escapedUnit}(?=\\s|$|[.,;!?()\\]\\}\\"'])`, "gi"),
-                new RegExp(`(?<=\\s|^)${escapedUnit}(?=\\s|$|[.,;!?()\\]\\}\\"'])`, "gi"),
-            ];
+            // Para unidades de una sola letra, usar case-sensitive
+            // Para unidades multi-letra, usar case-insensitive
+            const isSingleLetter = unit.length === 1 && /[a-zA-Z]/.test(unit);
+            const regexFlags = isSingleLetter ? "g" : "gi";
 
-            patterns.forEach((pattern, index) => {
-                if (index === 0) {
-                    // Para números con unidades
-                    result = result.replace(pattern, `$1 ${fullName}`);
-                } else {
-                    // Para unidades independientes
-                    result = result.replace(pattern, fullName);
+            // Patrón 1: Número seguido de unidad (ej: "5 A", "10kW")
+            const numberPattern = new RegExp(
+                `(\\d+(?:[.,]\\d+)?)\\s*${escapedUnit}(?=\\s|$|[.,;!?()\\]\\}\\"'\\n])`,
+                regexFlags
+            );
+
+            // Patrón 2: Unidad independiente (ej: "A total", "en V")
+            // Pero NO si está dentro de una palabra o variable
+            const standalonePattern = new RegExp(
+                `(?<=\\s|^)${escapedUnit}(?=\\s|$|[.,;!?()\\]\\}\\"'\\n])(?![a-zA-Z0-9_])`,
+                regexFlags
+            );
+
+            // Aplicar patrón 1: números con unidades
+            result = result.replace(numberPattern, `$1 ${fullName}`);
+
+            // Aplicar patrón 2: unidades independientes (con verificación extra)
+            result = result.replace(standalonePattern, (match, ...args) => {
+                const offset = args[args.length - 2]; // posición del match
+                const fullText = args[args.length - 1]; // texto completo
+
+                // Verificar que no esté precedido por letras o guión bajo
+                if (offset > 0) {
+                    const prevChar = fullText[offset - 1];
+                    if (/[a-zA-Z_]/.test(prevChar)) {
+                        return match; // No reemplazar - es parte de una variable
+                    }
                 }
+
+                return fullName;
             });
         });
 
@@ -556,7 +817,7 @@ class TTSNormalizer {
             // Por último símbolos simples
             "°",
             "%",
-            "^",
+            // "^",
         ];
 
         prioritySymbols.forEach((symbol) => {
@@ -570,9 +831,6 @@ class TTSNormalizer {
                 } else if (symbol === "°") {
                     // Grados: número + ° (pero no °C o °F)
                     result = result.replace(/(\d+)\s*°(?![CF])/g, `$1 ${replacement}`);
-                } else if (symbol === "^") {
-                    // Exponentes: mantener contexto
-                    result = result.replace(/\^(\d+)/g, ` ${replacement} $1`);
                 } else {
                     // Reemplazo general con split/join (más seguro que regex)
                     result = result.split(symbol).join(` ${replacement} `);

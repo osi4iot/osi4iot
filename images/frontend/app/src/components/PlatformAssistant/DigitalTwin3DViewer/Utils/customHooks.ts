@@ -195,7 +195,9 @@ export const useMqttConnection = () => {
     return { connectionStatus, mqttClient };
 };
 
-export const useChatMessages = (setOpts: (updater: ViewerOptions | ((prevOpts: ViewerOptions) => ViewerOptions)) => void) => {
+export const useChatMessages = (
+    setOpts: (updater: ViewerOptions | ((prevOpts: ViewerOptions) => ViewerOptions)) => void
+) => {
     const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
 
     const handleUpdateChatAssistantMessages = useCallback((newLlmMessage: any) => {
@@ -206,6 +208,7 @@ export const useChatMessages = (setOpts: (updater: ViewerOptions | ((prevOpts: V
                 message: newLlmMessage.message,
                 sender: newLlmMessage.sender,
                 time: new Date().toLocaleTimeString(),
+                mcpToolCalls: newLlmMessage.mcpToolCalls,
             };
             newMessages.push(newMessage);
             return newMessages;
@@ -230,7 +233,7 @@ export const useChatMessages = (setOpts: (updater: ViewerOptions | ((prevOpts: V
             setOpts((prevOpts) => updateOpts({ ...prevOpts }, newLlmMessage.uiOpts));
         }
 
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     return {
@@ -240,16 +243,30 @@ export const useChatMessages = (setOpts: (updater: ViewerOptions | ((prevOpts: V
     };
 };
 
-export const usePipelineLogs = () => {
+export const usePipelineLogs = (setChatMessages: React.Dispatch<React.SetStateAction<ChatMessage[]>>) => {
     const [logMessages, setLogMessages] = useState<PipelineLog[]>([]);
 
     const handleUpdateLogMessages = useCallback((newLogMessage: PipelineLog) => {
         setLogMessages((prevMessages) => {
             const newMessages = [...prevMessages];
             newMessages.push(newLogMessage);
+            if (newLogMessage.description === "MCP Host error") {
+                setChatMessages((prevMessages) => {
+                    const newMessages = [...prevMessages];
+                    const newMessage = {
+                        userName: "Assistant",
+                        message: newLogMessage.message,
+                        sender: "mcphost" as "mcphost",
+                        time: new Date().toLocaleTimeString(),
+                        mcpToolCalls: [],
+                    };
+                    newMessages.push(newMessage);
+                    return newMessages;
+                });
+            }
             return newMessages;
         });
-    }, []);
+    }, [setChatMessages]);
 
     return {
         logMessages,
@@ -498,14 +515,14 @@ const normalizeFormData = (data: any, nodeType: string) => {
 export const useFormChanges = (selectedNode: any) => {
     const [hasChanges, setHasChanges] = useState(false);
     const originalDataRef = useRef(null);
-    
+
     const checkForChangesInternal = useCallback(
         (currentData, nodeType) => {
             if (!originalDataRef.current || !selectedNode) {
                 setHasChanges(false);
                 return false;
             }
-            
+
             const normalizedCurrent = normalizeFormData(currentData, nodeType);
             const hasChanged = !deepEqual(originalDataRef.current, normalizedCurrent);
             setHasChanges(hasChanged);

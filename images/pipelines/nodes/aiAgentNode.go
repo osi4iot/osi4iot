@@ -10,6 +10,7 @@ import (
 	"pipelines/logger"
 	"pipelines/nats"
 	"pipelines/utils"
+	"regexp"
 	"strings"
 
 	"github.com/cloudwego/eino/schema"
@@ -18,11 +19,11 @@ import (
 
 type AiAgentNode struct {
 	BaseNode
-	LlmModel     string
+	LlmModel       string
 	LlmTemperature float64
-	InputChan    chan mcphost.ChatMessage
-	OutputChan   chan mcphost.LlmResponse
-	McpHost      mcphost.MCPHost
+	InputChan      chan mcphost.ChatMessage
+	OutputChan     chan mcphost.LlmResponse
+	McpHost        mcphost.MCPHost
 }
 
 type Response struct {
@@ -132,7 +133,7 @@ func CreateAiAgentNode(node common.NodeData, fm common.Manager) (*AiAgentNode, e
 	if fm.GetMode() == "debug" {
 		debug = true
 	}
-	debug = true
+	// debug = true
 
 	providerUrl := fm.GetLlmProviderUrl()
 	if strings.Contains(llmModel, "gpt-5") && providerUrl == "https://api.openai.com/v1" {
@@ -213,8 +214,7 @@ func (n *AiAgentNode) Start(log *logger.Logger, needReinitialization bool) {
 
 		if err := n.McpHost.Run(); err != nil {
 			if !errors.Is(err, context.Canceled) {
-				log.Errorf("MCP Host error: %v", err)
-				n.HandleError(err)
+				n.handleMCPHostError(err)
 				n.McpHost.Close()
 				return
 			} else {
@@ -308,13 +308,12 @@ func (n *AiAgentNode) handleMcpHostMessage(log *logger.Logger) error {
 
 				if msg.Status == "error" {
 					errMsg := fmt.Errorf("MCP Host error: %s", msg.Message)
-					log.Errorf("MCP Host error: %v", errMsg)
-					n.HandleError(errMsg)
+					n.handleMCPHostError(errMsg)
 					n.McpHost.Close()
 					return
 				} else {
 					parsed := n.parseMessage(msg.Message)
-					payload := n.createCommonMessage(parsed)
+					payload := n.createCommonMessage(parsed, msg.McpToolCalls)
 
 					message := common.Message{
 						Payload: payload,
@@ -603,10 +602,14 @@ func (n *AiAgentNode) getFullChatMessageKvStoreKey(userName string) string {
 }
 
 func (n *AiAgentNode) parseMessage(messageStr string) ParsedMessage {
+	descriptiveText, jsonContent := n.extractJSONFromMessage(messageStr)
+	if jsonContent != "" {
+		messageStr = jsonContent
+	}
+
 	// Primero verificamos si es un JSON válido
 	var genericJSON map[string]interface{}
 	if err := json.Unmarshal([]byte(messageStr), &genericJSON); err != nil {
-		// No es JSON válido, retornamos como texto plano
 		return ParsedMessage{
 			Type:    RawType,
 			Content: messageStr,
@@ -618,6 +621,9 @@ func (n *AiAgentNode) parseMessage(messageStr string) ParsedMessage {
 	if n.hasFields(genericJSON, []string{"message"}) {
 		var response Response
 		if err := json.Unmarshal([]byte(messageStr), &response); err == nil {
+			if descriptiveText != "" {
+				response.Message = fmt.Sprintf("%s %s", response.Message, descriptiveText)
+			}
 			return ParsedMessage{
 				Type:    ResponseType,
 				Content: response,
@@ -656,10 +662,28 @@ func (n *AiAgentNode) hasFields(data map[string]interface{}, fields []string) bo
 	return true
 }
 
+// ExtractJSONFromMessage extrae un bloque de código JSON de un mensaje de entrada
+func (n *AiAgentNode) extractJSONFromMessage(input string) (string, string) {
+	jsonBlockRegex := regexp.MustCompile("```json\\s*\\n([\\s\\S]*?)\\n```")
+
+	matches := jsonBlockRegex.FindStringSubmatch(input)
+	if len(matches) != 2 {
+		return "", ""
+	}
+
+	jsonContent := strings.TrimSpace(matches[1])
+
+	// Extraer el texto descriptivo (todo lo que está antes del bloque JSON)
+	descriptiveText := strings.TrimSpace(jsonBlockRegex.ReplaceAllString(input, ""))
+
+	return descriptiveText, jsonContent
+}
+
 // createCommonMessage convierte el ParsedMessage a common.Message
-func (n *AiAgentNode) createCommonMessage(parsed ParsedMessage) map[string]interface{} {
+func (n *AiAgentNode) createCommonMessage(parsed ParsedMessage, mcpToolCalls []mcphost.McpToolCall) map[string]interface{} {
 	basePayload := map[string]interface{}{
 		"messageType": string(parsed.Type),
+		"mcpToolCalls": mcpToolCalls,
 	}
 
 	switch parsed.Type {
@@ -680,4 +704,30 @@ func (n *AiAgentNode) createCommonMessage(parsed ParsedMessage) map[string]inter
 	}
 
 	return basePayload
+}
+
+func (n *AiAgentNode) handleMCPHostError(err error) {
+	n.SetStatus(common.NodeStatusError)
+	
+	if n.LogSubject == "" {
+		n.Fm.Log().Errorf("Node %s encountered an error but no log subject is set", n.NodeUid)
+		return
+	}
+
+	n.Fm.Log().Errorf("MCP Host error: %v", err)
+
+	logData := common.PipelineLog{
+		Level:       "error",
+		Component:   "node",
+		Name:        n.Name,
+		Uid:         n.NodeUid,
+		Description: "MCP Host error",
+		Message:     "An unexpected error has occurred in the AI Agent.\n Please restart the pipeline.",
+	}
+
+	if logJSON, marshallErr := json.Marshal(logData); marshallErr == nil {
+		n.Fm.NatsPublish(n.LogSubject, logJSON)
+	} else {
+		n.Fm.Log().Errorf("Failed to marshal log error data for node %s: %v", n.NodeUid, marshallErr)
+	}
 }

@@ -13,9 +13,9 @@ type AdminMessage struct {
 }
 
 type Message struct {
-	Topic   string         `json:"topic"`
-	Payload map[string]any `json:"payload"`
-	State   map[string]any `json:"state"`
+	Topic        string                `json:"topic"`
+	Payload      map[string]any        `json:"payload"`
+	State        map[string]any        `json:"state"`
 }
 
 type Org struct {
