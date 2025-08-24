@@ -166,7 +166,6 @@ const updateObjectsState = (
             }
 
             if (messageTopicRef === "llm2sim") {
-                console.log("LLM to SIM message received:", mqttMessage);
                 const newMessage: LlmMessage = {
                     message: mqttMessage.message,
                     uiOpts: mqttMessage.uiOpts,

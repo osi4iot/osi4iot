@@ -129,7 +129,8 @@ const MessageBubble = styled.div<MessageBubbleProps>`
     max-width: 90%;
     word-wrap: break-word;
     align-self: ${({ sender }) => (sender === "user" ? "flex-end" : "flex-start")};
-    background-color: ${({ sender }) => (sender === "user" ? "#3a3a3a" : (sender === "assistant" ? "#555" : "#a54646ff"))};
+    background-color: ${({ sender }) =>
+        sender === "user" ? "#3a3a3a" : sender === "assistant" ? "#555" : "#a54646ff"};
     color: #f1f1f1;
     position: relative;
     font-size: 0.9rem;
@@ -146,8 +147,8 @@ const McpToolsList = styled.div`
 
 const McpToolItem = styled.div`
     margin-bottom: 3px;
-    font-family: 'Courier New', monospace;
-    
+    font-family: "Courier New", monospace;
+
     &:last-child {
         margin-bottom: 0;
     }
@@ -169,6 +170,37 @@ const Label = styled.span`
     margin-bottom: 4px;
     display: block;
     color: #bbb;
+`;
+
+// Contenedor para el spinner dentro del mensaje
+const MessageSpinnerContainer = styled.div`
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 4px 0;
+`;
+
+const ThinkingText = styled.span`
+    color: #bbb;
+    font-style: italic;
+`;
+
+const MiniSpinner = styled.div`
+    width: 16px;
+    height: 16px;
+    border: 2px solid rgba(50, 116, 217, 0.2);
+    border-top: 2px solid #3274d9;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+
+    @keyframes spin {
+        0% {
+            transform: rotate(0deg);
+        }
+        100% {
+            transform: rotate(360deg);
+        }
+    }
 `;
 
 const InputContainer = styled.div`
@@ -228,6 +260,12 @@ const Button = styled.button`
     &:hover {
         background: #2461c0;
     }
+
+    &:disabled {
+        background-color: #666;
+        cursor: not-allowed;
+        opacity: 0.6;
+    }
 `;
 
 const ToggleButton = styled.button<{ active: boolean }>`
@@ -245,7 +283,7 @@ const ToggleButton = styled.button<{ active: boolean }>`
     justify-content: center;
 
     &:hover {
-        background-color: ${({ active }) => (active ? "#1e8449" : "#555")};
+        background-color: ${({ active }) => (active ? "#2461c0" : "#555")};
     }
 `;
 
@@ -308,6 +346,7 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({ chatMessages, setChatMess
     const userName = useLoggedUserLogin();
     const [input, setInput] = useState<string>("");
     const [showMcpTools, setShowMcpTools] = useState<boolean>(false);
+    const [isLoading, setIsLoading] = useState<boolean>(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const { transcript, resetTranscript, browserSupportsSpeechRecognition } = useSpeechRecognition();
     const [isVoiceEnabled, setIsVoiceEnabled] = useState<boolean>(false);
@@ -332,7 +371,7 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({ chatMessages, setChatMess
                 return normalizedText;
             } catch (error) {
                 console.error("Error normalizando texto para TTS:", error);
-                return text; // Retornar texto original si hay error
+                return text;
             }
         },
         [chatAssistantLanguage]
@@ -431,17 +470,23 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({ chatMessages, setChatMess
     useEffect(() => {
         if (!initializedRef.current && chatMessages.length === 0) {
             initializedRef.current = true;
-            getVoices(chatAssistantLanguage).then((voice) => {
-                setVoice(voice as IChatVoice);
-                const greetingMessage: ChatMessage = {
-                    message: voice.greeting,
-                    userName: "Assistant",
-                    sender: "assistant",
-                    time: new Date().toISOString(),
-                    mcpToolCalls: [],
-                };
-                setChatMessages([greetingMessage]);
-            });
+            setIsLoading(true); // Activar spinner durante la inicialización
+            getVoices(chatAssistantLanguage)
+                .then((voice) => {
+                    setVoice(voice as IChatVoice);
+                    const greetingMessage: ChatMessage = {
+                        message: voice.greeting,
+                        userName: "Assistant",
+                        sender: "assistant",
+                        time: new Date().toISOString(),
+                        mcpToolCalls: [],
+                    };
+                    setChatMessages([greetingMessage]);
+                    setIsLoading(false); // Desactivar spinner
+                })
+                .catch(() => {
+                    setIsLoading(false); // Asegurar que se desactive en caso de error
+                });
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [chatAssistantLanguage]);
@@ -463,6 +508,7 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({ chatMessages, setChatMess
         processingTimeoutRef.current = setTimeout(() => {
             if (transcript.trim() && transcript === lastTranscriptRef.current && isVoiceEnabled) {
                 setSystemStatus("processing");
+                setIsLoading(true);
                 handleSendRef.current?.();
             }
         }, 1000);
@@ -471,6 +517,8 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({ chatMessages, setChatMess
     const handleSend = useCallback(() => {
         const messageToSend = input.trim();
         if (messageToSend === "") return;
+
+        setIsLoading(true);
 
         const newMessage: ChatMessage = {
             userName: userName,
@@ -515,9 +563,14 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({ chatMessages, setChatMess
                     voice: voice.speechLang,
                 });
             }
+
+            // Desactivar spinner cuando llega una respuesta del asistente
+            if (lastMessage.sender === "assistant" && isLoading) {
+                setIsLoading(false);
+            }
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [chatMessages.length, voice?.greeting, voice?.speechLang, isVoiceEnabled]);
+    }, [chatMessages.length, voice?.greeting, voice?.speechLang, isVoiceEnabled, isLoading]);
 
     const handleKeyPress = (e: KeyboardEvent<HTMLTextAreaElement>) => {
         if (e.key === "Enter" && !e.shiftKey) {
@@ -533,7 +586,7 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({ chatMessages, setChatMess
     // Auto-scroll al final
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    }, [chatMessages]);
+    }, [chatMessages, isLoading]);
 
     useEffect(() => {
         const handleGlobalPointerDown = (e: MouseEvent) => {
@@ -600,9 +653,7 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({ chatMessages, setChatMess
                 {mcpToolCalls.map((toolCall, index) => (
                     <McpToolItem key={index}>
                         🔧 <ToolName>{toolCall.tool_name}</ToolName>
-                        {toolCall.args.length > 0 && (
-                            <ToolArgs>({toolCall.args})</ToolArgs>
-                        )}
+                        {toolCall.args.length > 0 && <ToolArgs>({toolCall.args})</ToolArgs>}
                     </McpToolItem>
                 ))}
             </McpToolsList>
@@ -610,8 +661,23 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({ chatMessages, setChatMess
     };
 
     const toggleMcpToolsVisibility = useCallback(() => {
-        setShowMcpTools(prev => !prev);
+        setShowMcpTools((prev) => !prev);
     }, []);
+
+    // Componente para mostrar el spinner mientras se espera respuesta
+    const renderLoadingMessage = () => {
+        if (!isLoading) return null;
+
+        return (
+            <MessageBubble sender="assistant">
+                <Label>OSI</Label>
+                <MessageSpinnerContainer>
+                    <MiniSpinner />
+                    <ThinkingText>Thinking...</ThinkingText>
+                </MessageSpinnerContainer>
+            </MessageBubble>
+        );
+    };
 
     return (
         <ChatContainer ref={containerRef} style={{ width: `${containerWidth}px` }}>
@@ -620,15 +686,16 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({ chatMessages, setChatMess
                 {chatMessages.map((msg, index) => (
                     <MessageBubble key={index} sender={msg.sender}>
                         <Label>
-                            {(msg.sender === "assistant" || msg.sender === "mcphost") ? "OSI" : userName}
+                            {msg.sender === "assistant" || msg.sender === "mcphost" ? "OSI" : userName}
                             {msg.sender === "assistant" && containsLatex(msg.message) && (
-                                <span style={{ marginLeft: "10px", fontSize: "0.6rem", opacity: 0.7 }}>📝 LaTeX</span>
+                                <span style={{ marginLeft: "10px", fontSize: "0.6rem", opacity: 0.7 }}>📊 LaTeX</span>
                             )}
                         </Label>
                         <MathMessage html={msg.message} />
                         {renderMcpToolCalls(msg.mcpToolCalls)}
                     </MessageBubble>
                 ))}
+                {renderLoadingMessage()}
                 <div ref={messagesEndRef} />
             </MessagesContainer>
             <InputContainer>
@@ -642,13 +709,15 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({ chatMessages, setChatMess
                 />
                 <ButtonContainer>
                     <ButtonRow>
-                        <Button onClick={handleSend}>Send</Button>
+                        <Button onClick={handleSend} disabled={isLoading || !input.trim()}>
+                            Send
+                        </Button>
                     </ButtonRow>
                     <ButtonRow>
                         <ToggleButton
                             active={showMcpTools}
                             onClick={toggleMcpToolsVisibility}
-                            title={showMcpTools ? "Ocultar herramientas MCP" : "Mostrar herramientas MCP"}
+                            title={showMcpTools ? "Hide MCP tools" : "Show MCP tools"}
                         >
                             <FaWrench style={{ opacity: showMcpTools ? 1 : 0.3 }} />
                         </ToggleButton>
