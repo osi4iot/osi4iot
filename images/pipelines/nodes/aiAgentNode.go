@@ -77,22 +77,32 @@ func CreateAiAgentNode(node common.NodeData, fm common.Manager) (*AiAgentNode, e
 	inputChan := make(chan mcphost.ChatMessage)
 	outputChan := make(chan mcphost.LlmResponse)
 	mcpServersPath := fm.GetMcpServersPath()
+	dtPath := fm.GetDigitalTwinPath(node.OrgId, node.GroupId, node.DigitalTwinId)
+	fileSystemPath := filepath.Join(dtPath, "filesystem")
+	utils.CreateDirectoryIfNotExists(fileSystemPath)
 
 	mcpServers := map[string]mcphost.MCPServerConfig{
 		"filesystem": {
 			Type: "builtin",
 			Name: "fs",
 			Options: map[string]any{
-				"allowed_directories": []string{"/home/daniel/Escritorio", filepath.Join(mcpServersPath, "chroma")},
+				"allowed_directories": []string{fileSystemPath},
 			},
 		},
-		"current_date": {
+	}
+
+	femResultsInfo := fm.GetFemResultsInfo(node.GroupId, node.DigitalTwinId)
+	if fm.GetMode() == "local" {
+		mcpServers["current_date"] = mcphost.MCPServerConfig{
 			Type:    "local",
+			Name:    "current_date",
 			Command: []string{filepath.Join(mcpServersPath, "current_date", "current_date")},
 			Args:    []string{},
-		},
-		"calculate_expression1": {
+		}
+
+		mcpServers["calculate_expression1"] = mcphost.MCPServerConfig{
 			Type:    "local",
+			Name:    "calculate_expression1",
 			Command: []string{"uv"},
 			Args: []string{
 				"run",
@@ -100,40 +110,55 @@ func CreateAiAgentNode(node common.NodeData, fm common.Manager) (*AiAgentNode, e
 				filepath.Join(mcpServersPath, "mcp_calculate_server"),
 				"server.py",
 			},
-		},
-		// "chroma": {
-		// 	Type:    "local",
-		// 	Command: []string{"uvx"},
-		// 	Args: []string{
-		// 		"chroma-mcp",
-		// 		"--client-type",
-		// 		"persistent",
-		// 		"--data-dir",
-		// 		filepath.Join(mcpServersPath, "chroma"),
-		// 	},
-		// },
-	}
+		}
 
-	femResultsInfo := fm.GetFemResultsInfo(node.GroupId, node.DigitalTwinId)
-	if len(femResultsInfo) > 0 && digitalTwin.ChatAssistantEnabled {
-		femResultsPath := fm.GetFemResultsPath()
-		orgId := fmt.Sprintf("org_%d", node.OrgId)
-		groupId := fmt.Sprintf("group_%d", node.GroupId)
-		digitalTwinId := fmt.Sprintf("dt_%d", node.DigitalTwinId)
-		mcpServers["fem_results"] = mcphost.MCPServerConfig{
+		if len(femResultsInfo) > 0 && digitalTwin.ChatAssistantEnabled {
+			femResultsPath := fm.GetFemResultsPath(node.OrgId, node.GroupId, node.DigitalTwinId)
+			utils.CreateDirectoryIfNotExists(femResultsPath)
+			if femResultsPath != "" {
+				mcpServers["fem_results"] = mcphost.MCPServerConfig{
+					Type:    "local",
+					Name:    "fem_results",
+					Command: []string{filepath.Join(mcpServersPath, "fem_results", "fem_results")},
+					Args:    []string{"--results_path", femResultsPath},
+				}
+			}
+		}
+	} else {
+		mcpServers["current_date"] = mcphost.MCPServerConfig{
 			Type:    "local",
-			Command: []string{filepath.Join(mcpServersPath, "fem_results", "fem_results")},
-			Args:    []string{"--results_path", filepath.Join(femResultsPath, orgId, groupId, digitalTwinId)},
+			Name:    "current_date",
+			Command: []string{"/usr/local/bin/current_date"},
+			Args:    []string{},
+		}
+
+		mcpServers["calculate_expression1"] = mcphost.MCPServerConfig{
+			Type:    "local",
+			Name:    "calculate_expression1",
+			Command: []string{"/opt/venv/bin/python"},
+			Args:    []string{"-m", "server"},
+		}
+
+		if len(femResultsInfo) > 0 && digitalTwin.ChatAssistantEnabled {
+			femResultsPath := fm.GetFemResultsPath(node.OrgId, node.GroupId, node.DigitalTwinId)
+			utils.CreateDirectoryIfNotExists(femResultsPath)
+			if femResultsPath != "" {
+				mcpServers["fem_results"] = mcphost.MCPServerConfig{
+					Type:    "local",
+					Name:    "fem_results",
+					Command: []string{"/usr/local/bin/fem_results"},
+					Args:    []string{"--results_path", femResultsPath},
+				}
+			}
 		}
 	}
 
 	var topP float32 = 0.95
 	var topK int32 = 40
 	debug := false
-	if fm.GetMode() == "debug" {
+	if fm.GetMode() == "local" {
 		debug = true
 	}
-	// debug = true
 
 	providerUrl := fm.GetLlmProviderUrl()
 	if strings.Contains(llmModel, "gpt-5") && providerUrl == "https://api.openai.com/v1" {
@@ -682,7 +707,7 @@ func (n *AiAgentNode) extractJSONFromMessage(input string) (string, string) {
 // createCommonMessage convierte el ParsedMessage a common.Message
 func (n *AiAgentNode) createCommonMessage(parsed ParsedMessage, mcpToolCalls []mcphost.McpToolCall) map[string]interface{} {
 	basePayload := map[string]interface{}{
-		"messageType": string(parsed.Type),
+		"messageType":  string(parsed.Type),
 		"mcpToolCalls": mcpToolCalls,
 	}
 
@@ -708,7 +733,7 @@ func (n *AiAgentNode) createCommonMessage(parsed ParsedMessage, mcpToolCalls []m
 
 func (n *AiAgentNode) handleMCPHostError(err error) {
 	n.SetStatus(common.NodeStatusError)
-	
+
 	if n.LogSubject == "" {
 		n.Fm.Log().Errorf("Node %s encountered an error but no log subject is set", n.NodeUid)
 		return
@@ -730,4 +755,8 @@ func (n *AiAgentNode) handleMCPHostError(err error) {
 	} else {
 		n.Fm.Log().Errorf("Failed to marshal log error data for node %s: %v", n.NodeUid, marshallErr)
 	}
+}
+
+func (n *AiAgentNode) GetName() string {
+	return n.Name
 }

@@ -67,7 +67,7 @@ images/pipelines/mcp_servers/mcp_calculate_server/mcp_calcualte_server.egg-info/
 images/pipelines/mcp_servers/mcp_calculate_server/uv.lock
 images/pipelines/mcp_servers/chroma/
 images/pipelines/mcp_servers/fem_results/fem_results
-images/pipelines/mcp_servers/fem_results/data/
+images/pipelines/mcp_servers/data/
 utils/osi4iot_cli/node_modules
 utils/osi4iot_cli/osi4iot_state_old.json
 utils/osi4iot_cli/osi4iot_state.json

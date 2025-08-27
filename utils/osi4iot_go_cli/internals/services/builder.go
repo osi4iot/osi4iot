@@ -273,6 +273,7 @@ func GenerateServices(pd *pt.PlatformData, sd pt.SwarmData) map[string]pt.Servic
 		"admin_api":    AdminApiService(pd, sd, svcResourcesMap, nodeRoleMaps),
 		"frontend":     FrontendService(pd, sd, svcResourcesMap, nodeRoleMaps),
 		"grafana":      GrafanaService(pd, sd, svcResourcesMap, nodeRoleMaps),
+		"pipelines":    PipelinesService(pd, sd, svcResourcesMap, nodeRoleMaps),
 	}
 
 	switch messagingSystem {

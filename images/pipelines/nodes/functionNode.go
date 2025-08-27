@@ -12,7 +12,7 @@ import (
 	"github.com/dop251/goja"
 	"github.com/nats-io/nats.go"
 
-	fl "pipelines/function_libray"
+	fl "pipelines/function_library"
 )
 
 type CompiledScript struct {

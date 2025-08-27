@@ -74,22 +74,23 @@ func (m *Model) validateAnswer(qIdx int) (bool, string) {
 
 		if slices.Contains(m.Questions[qIdx].Rules, "fileOrFieldExists") {
 			key := m.Questions[qIdx].Key
-			if key == "MAIN_ORGANIZATION_BUILDING_PATH" {
+			switch key {
+			case "MAIN_ORGANIZATION_BUILDING_PATH":
 				mainOrgBuilding := pi.MainOrganizationBuilding
 				dataMap[q.Prompt] = mainOrgBuilding
-			} else if key == "MAIN_ORGANIZATION_FLOOR_PATH" {
-				dataMap[q.Prompt] =  pi.MainOrganizationFirstFloor
-			} else if key == "DOMAIN_SSL_PRIVATE_KEY_PATH" {
+			case "MAIN_ORGANIZATION_FLOOR_PATH":
+				dataMap[q.Prompt] = pi.MainOrganizationFirstFloor
+			case "DOMAIN_SSL_PRIVATE_KEY_PATH":
 				dataMap[q.Prompt] = picerts.DomainCerts.PrivateKey
-			} else if key == "DOMAIN_SSL_CA_PEM_PATH" {
+			case "DOMAIN_SSL_CA_PEM_PATH":
 				dataMap[q.Prompt] = picerts.DomainCerts.SslCaPem
-			} else if key == "DOMAIN_SSL_CERT_CRT_PATH" {
+			case "DOMAIN_SSL_CERT_CRT_PATH":
 				dataMap[q.Prompt] = picerts.DomainCerts.SslCertCrt
-			} else if key == "AWS_SSH_KEY_PATH" {
+			case "AWS_SSH_KEY_PATH":
 				dataMap[q.Prompt] = pi.AwsSshKey
-			} else if key == "SSH_PRIVATE_KEY_PATH" {
+			case "SSH_PRIVATE_KEY_PATH":
 				dataMap[q.Prompt] = pi.SshPrivKey
-			} else if key == "SSH_PUBLIC_KEY_PATH" {
+			case "SSH_PUBLIC_KEY_PATH":
 				dataMap[q.Prompt] = pi.SshPubKey
 			}
 		}
@@ -289,7 +290,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			data.SetPlatformState(data.CreatingOrg)
 			m.Finished = true
 			return m, tea.Quit
-		}		
+		}
 	}
 	return m, nil
 }
@@ -309,7 +310,8 @@ func (m Model) View() string {
 				labelCursor = ">"
 				questionPrompt = style.Render(questionPrompt)
 			}
-			if m.Questions[i].QuestionType == "generic" || m.Questions[i].QuestionType == "password" {
+			switch m.Questions[i].QuestionType {
+			case "generic", "password":
 				var answer string
 				var styledAnswer string
 				var isDefaultAnswer bool
@@ -364,7 +366,7 @@ func (m Model) View() string {
 					answer,
 					styleErrMsg.Render(m.Questions[i].ErrorMessage),
 				)
-			} else if m.Questions[i].QuestionType == "list" {
+			case "list":
 				CursorAndMargin := style.Render(Cursor) + margin
 				if m.Questions[i].Margin != 0 {
 					CursorAndMargin = margin + style.Render(Cursor)
@@ -384,7 +386,7 @@ func (m Model) View() string {
 						output += fmt.Sprintf("%s[%s] %s\n", marginList, style.Render(CursorChoice), choice)
 					}
 				}
-			} else if m.Questions[i].QuestionType == "label" {
+			case "label":
 				questionLabel := m.Questions[i].Key
 				labelPrompt := m.Questions[i].Prompt + ":"
 				if strings.Contains(m.Questions[m.Focus].Key, questionLabel) {
@@ -442,14 +444,15 @@ func (m *Model) resetMessages(msg string) {
 }
 
 func (m *Model) updateFocus(dir string) {
-	if dir == "up" {
+	switch dir {
+	case "up":
 		if m.Focus > 0 {
 			m.Focus--
 		}
 		if m.Focus < (m.CurrentPage-1)*m.PageSize && m.CurrentPage > 1 {
 			m.CurrentPage--
 		}
-	} else if dir == "down" {
+	case "down":
 		if m.Focus < len(m.Questions)-1 {
 			m.Focus++
 		}
@@ -462,13 +465,14 @@ func (m *Model) updateFocus(dir string) {
 
 func (m *Model) updateChoiceFocus(dir string) {
 	if m.Questions[m.Focus].Answer == "" {
-		if dir == "up" {
+		switch dir {
+		case "up":
 			if m.Questions[m.Focus].ChoiceFocus > 0 {
 				m.Questions[m.Focus].ChoiceFocus--
 			} else {
 				m.Questions[m.Focus].ChoiceFocus = len(m.Questions[m.Focus].Choices) - 1
 			}
-		} else if dir == "down" {
+		case "down":
 			if m.Questions[m.Focus].ChoiceFocus < len(m.Questions[m.Focus].Choices)-1 {
 				m.Questions[m.Focus].ChoiceFocus++
 			} else {

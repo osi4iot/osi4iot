@@ -296,11 +296,12 @@ func awsS3BucketQuestions(m *Model) (submissionResultMsg, error) {
 	}
 
 	s3BucketType := m.FindAnswerByKey("S3_BUCKET_TYPE")
-	if s3BucketType == "Local Minio" {
+	switch s3BucketType {
+	case "Local Minio":
 		m.removeQuestionByKey("AWS_ACCESS_KEY_ID_S3_BUCKET")
 		m.removeQuestionByKey("AWS_SECRET_ACCESS_KEY_S3_BUCKET")
 		m.removeQuestionByKey("AWS_REGION_S3_BUCKET")
-	} else if s3BucketType == "Cloud AWS S3" {
+	case "Cloud AWS S3":
 		addAwsS3BucketQuestions(m)
 	}
 	return submissionResultMsg("AWS S3 Bucket questions added succesfully"), nil
@@ -395,7 +396,8 @@ func addNetworkInterfaceQuestions(m *Model) {
 func DeployLocationQuestions(m *Model) (submissionResultMsg, error) {
 	qIdx := m.FindQuestionIdByKey("DEPLOYMENT_LOCATION")
 	deployLocation := m.Questions[qIdx].Answer
-	if deployLocation == "Local deployment" {
+	switch deployLocation {
+	case "Local deployment":
 		m.removeQuestionByKey("AWS_SSH_KEY_PATH")
 		m.removeQuestionByKey("NUMBER_OF_SWARM_NODES")
 		m.removeQuestionByKey("AWS_EFS_DNS")
@@ -403,14 +405,14 @@ func DeployLocationQuestions(m *Model) (submissionResultMsg, error) {
 		m.removeQuestionByKey("NETWORK_INTERFACE")
 		removingNodeQuestions(m)
 		addLocalResourceUtilizationQuestion(qIdx+1, m)
-	} else if deployLocation == "On-premise cluster deployment" {
+	case "On-premise cluster deployment":
 		m.removeQuestionByKey("AWS_SSH_KEY_PATH")
 		m.removeQuestionByKey("AWS_EFS_DNS")
 		m.removeQuestionByKey("LOCAL_RESOURCE_UTILIZATION_PERCENTAGE")
 		addNumNodesQuestion(qIdx+1, m)
 		addNodesDataQuestions(m)
 		addNetworkInterfaceQuestions(m)
-	} else if deployLocation == "AWS cluster deployment" {
+	case "AWS cluster deployment":
 		m.removeQuestionByKey("FLOATING_IP_ADDRESS")
 		m.removeQuestionByKey("NETWORK_INTERFACE")
 		m.removeQuestionByKey("LOCAL_RESOURCE_UTILIZATION_PERCENTAGE")
@@ -501,7 +503,8 @@ func addDomainCertsProvidedByCAQuestions(index int, m *Model) {
 func DomainCertsQuestions(m *Model) (submissionResultMsg, error) {
 	idx := m.FindQuestionIdByKey("DOMAIN_CERTS_TYPE")
 	certType := m.Questions[idx].Answer
-	if certType == "No certs" {
+	switch certType {
+	case "No certs":
 		m.removeQuestionByKey("DOMAIN_SSL_PRIVATE_KEY_PATH")
 		m.removeQuestionByKey("DOMAIN_SSL_CA_PEM_PATH")
 		m.removeQuestionByKey("DOMAIN_SSL_CERT_CRT_PATH")
@@ -509,11 +512,11 @@ func DomainCertsQuestions(m *Model) (submissionResultMsg, error) {
 		m.removeQuestionByKey("AWS_SECRET_ACCESS_KEY_ROUTE_53")
 		m.removeQuestionByKey("AWS_REGION_ROUTE_53")
 		m.removeQuestionByKey("AWS_HOSTED_ZONE_ID_ROUTE_53")
-	} else if certType == "Certs provided by an CA" {
+	case "Certs provided by an CA":
 		addDomainCertsProvidedByCAQuestions(idx+1, m)
 		m.removeQuestionByKey("AWS_ACCESS_KEY_ID_ROUTE_53")
 		m.removeQuestionByKey("AWS_SECRET_ACCESS_KEY_ROUTE_53")
-	} else if certType == "Let's encrypt certs with HTTP-01 challenge" {
+	case "Let's encrypt certs with HTTP-01 challenge":
 		m.removeQuestionByKey("DOMAIN_SSL_PRIVATE_KEY_PATH")
 		m.removeQuestionByKey("DOMAIN_SSL_CA_PEM_PATH")
 		m.removeQuestionByKey("DOMAIN_SSL_CERT_CRT_PATH")
@@ -521,7 +524,7 @@ func DomainCertsQuestions(m *Model) (submissionResultMsg, error) {
 		m.removeQuestionByKey("AWS_SECRET_ACCESS_KEY_ROUTE_53")
 		m.removeQuestionByKey("AWS_REGION_ROUTE_53")
 		m.removeQuestionByKey("AWS_HOSTED_ZONE_ID_ROUTE_53")
-	} else if certType == "Let's encrypt certs with DNS-01 challenge and AWS Route 53 provider" {
+	case "Let's encrypt certs with DNS-01 challenge and AWS Route 53 provider":
 		addAWSRoute53Questions(m)
 		m.removeQuestionByKey("DOMAIN_SSL_PRIVATE_KEY_PATH")
 		m.removeQuestionByKey("DOMAIN_SSL_CA_PEM_PATH")
@@ -579,11 +582,12 @@ func copyKeyInNode(m *Model) (submissionResultMsg, error) {
 func messagingSystemQuestions(m *Model) (submissionResultMsg, error) {
 	qIdx := m.FindQuestionIdByKey("MESSAGING_SYSTEM")
 	messagingSystem := m.Questions[qIdx].Answer
-	if messagingSystem == "mqtt" {
+	switch messagingSystem {
+	case "mqtt":
 		m.removeQuestionByKey("NATS_NKEY_VALIDITY_DAYS")
 		m.removeQuestionByKey("NUM_NATS_CLUSTER_NODES")
 		addMqttCertsValidityDaysQuestions(qIdx+1, m)
-	} else if messagingSystem == "nats" {
+	case "nats":
 		m.removeQuestionByKey("MQTT_SSL_CERTS_VALIDITY_DAYS")
 		addNumNatsClusterNodesQuestions(qIdx+1, m)
 	}
@@ -741,12 +745,13 @@ func createPlatform(m *Model) (platformCreatingMsg, error) {
 		utils.SetCertsNamesAndExpirationTime(platformData)
 	}
 
-	if platformData.PlatformInfo.MessagingSystem == "mqtt" {
+	switch platformData.PlatformInfo.MessagingSystem {
+	case "mqtt":
 		err = utils.MqttTLSCredentials(platformData)
 		if err != nil {
 			return platformCreatingMsg("Error: creating mqtt certs"), err
 		}
-	} else if platformData.PlatformInfo.MessagingSystem == "nats" {
+	case "nats":
 		err = utils.NatsCredentials(platformData)
 		if err != nil {
 			return platformCreatingMsg("Error: creating nats certs"), err

@@ -3,10 +3,12 @@ package admin
 import (
 	"fmt"
 	"net/http"
+	"path/filepath"
 	"pipelines/common"
 	"pipelines/config"
 	"pipelines/logger"
 	"pipelines/utils"
+	"strings"
 
 	"sync"
 	"time"
@@ -32,7 +34,7 @@ type Admin struct {
 }
 
 func CreateAdmin(cfg *config.Config, log *logger.Logger) (*Admin, error) {
-	baseUrl := "admin_api:3200"
+	baseUrl := "http://admin_api:3200"
 	if cfg.Mode == "local" {
 		baseUrl = fmt.Sprintf("https://%s/admin_api", cfg.DomainName)
 	}
@@ -192,11 +194,10 @@ func (a *Admin) GetAssets() []*common.Asset {
 		return nil
 	}
 
-
 	return assets
 }
 
-func (a *Admin) GetSensor (groupId int, sensorId int) *common.Sensor {
+func (a *Admin) GetSensor(groupId int, sensorId int) *common.Sensor {
 	url := fmt.Sprintf("%s/sensor/%d/id/%d", a.baseUrl, groupId, sensorId)
 	response, err := utils.HttpGetWithJwt(url, a.accessToken)
 	if err != nil {
@@ -507,4 +508,47 @@ func (a *Admin) GetFemResultsInfo(groupId int, digitalTwinId int) []*common.FemR
 	}
 
 	return femResultsInfo
+}
+
+func (a *Admin) ProcessFemResultFile(femResultsPath string, groupId int, digitalTwinId int) {
+	femResultsInfo := a.GetFemResultsInfo(groupId, digitalTwinId)
+
+	if len(femResultsInfo) > 0 {
+		isFemResultsProcessed, err := utils.IsFemResultsFileProcessed(femResultsPath, femResultsInfo[0])
+		if err != nil {
+			a.log.Errorf("failed to check if fem results file is processed: %v", err)
+			return
+		}
+
+		if isFemResultsProcessed {
+			return
+		}
+
+		fileName := strings.Split(femResultsInfo[0].FileName, "/")[4]
+		lastModified := femResultsInfo[0].LastModified
+		femResultFileUrl := fmt.Sprintf("%s/digital_twin_download_file/%d/%d/femResFiles/%s", a.baseUrl, groupId, digitalTwinId, fileName)
+		response, err := utils.HttpGetWithJwt(femResultFileUrl, a.accessToken)
+		if err != nil {
+			a.log.Errorf("failed to download fem result file %s: %v", fileName, err)
+			return
+		}
+		// Save the file or process it as needed
+		jsonFilePath := filepath.Join(femResultsPath, fileName)
+		err = utils.SaveToFile(jsonFilePath, response)
+		if err != nil {
+			a.log.Errorf("failed to save fem result file %s: %v", fileName, err)
+		}
+
+		processor := utils.NewFemResultsProcessor(femResultsPath, fileName, lastModified)
+		err = processor.ProcessJSONFile(jsonFilePath)
+		if err != nil {
+			a.log.Errorf("Error processing JSON: %v\n", err)
+			return
+		}
+
+		err = utils.DeleteFile(jsonFilePath)
+		if err != nil {
+			a.log.Errorf("Error deleting fem results json file %s: %v\n", jsonFilePath, err)
+		}
+	}
 }

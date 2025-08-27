@@ -122,8 +122,14 @@ type Manager interface {
 	GetDefaultLlmTemperature() float32
 	GetLlmMaxTokens() int
 	GetMcpServersPath() string
+	GetPipelinesDataPath() string
+	GetDigitalTwinPath(orgId int, groupId int, digitalTwinId int) string
 	GetMaxChatMessagesPerUser() int
 
 	GetFemResultsInfo(groupId int, digitalTwinId int) []*FemResultsInfo
-	GetFemResultsPath() string
+	GetFemResultsPath(orgId int, groupId int, digitalTwinId int) string
+	GetDigitalTwinFolder(orgId int, groupId int, digitalTwinId int) string
+	AddFemResultsInDigitalTwins() error
+	AddFemResultsInDigitalTwin(digitalTwinId int) error
+	DeleteFemResultsInDigitalTwin(digitalTwinId int) error 
 }

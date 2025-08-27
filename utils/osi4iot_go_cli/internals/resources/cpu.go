@@ -27,6 +27,9 @@ func getNanoCPUsSvcMap(pd *pt.PlatformData) map[string]int64 {
 	adminDataStorageSvcCpus, _ := strconv.ParseFloat(adminDataStorageSvcCpusStr[0:len(adminDataStorageSvcCpusStr)-3], 64)
 	uiSvcCpusStr := strings.Split(pd.PlatformInfo.UiSvcResources, "-")[0]
 	uiSvcCpus, _ := strconv.ParseFloat(uiSvcCpusStr[0:len(uiSvcCpusStr)-3], 64)
+	pipelinesSvcCpusStr := strings.Split(pd.PlatformInfo.PipelinesSvcResources, "-")[0]
+	
+	pipelinesSvcCpus, _ := strconv.ParseFloat(pipelinesSvcCpusStr[0:len(pipelinesSvcCpusStr)-3], 64)
 
 	systemPruneCpu := 0.125 * 1e9
 	var keepalivedCpu float64 = 0.0
@@ -58,6 +61,7 @@ func getNanoCPUsSvcMap(pd *pt.PlatformData) map[string]int64 {
 	nanoCPUsSvcMap["frontend"] = int64(uiSvcCpus * 1e9)
 	nanoCPUsSvcMap["pgadmin4"] = int64(0.5 * uiSvcCpus * 1e9)
 	nanoCPUsSvcMap["grafana_renderer"] = int64(0.5 * uiSvcCpus * 1e9)
+	nanoCPUsSvcMap["pipelines"] = int64(pipelinesSvcCpus * 1e9)
 
 	if uiSvcCpus <= 1.0 {
 		nanoCPUsSvcMap["nodered_instance"] = int64(uiSvcCpus * 1e9)

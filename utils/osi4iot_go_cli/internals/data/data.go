@@ -97,6 +97,10 @@ func SetData(key string, value string) {
 		Data.PlatformInfo.NotificationsEmailAddress = value
 	case "NOTIFICATIONS_EMAIL_PASSWORD":
 		Data.PlatformInfo.NotificationsEmailPassword = value
+	case "LLM_PROVIDER_URL":
+		Data.PlatformInfo.LlmProviderUrl = value
+	case "LLM_PROVIDER_API_KEY":
+		Data.PlatformInfo.LlmProviderApiKey = value
 	case "REGISTRATION_TOKEN_LIFETIME":
 		regTokenLifetime, _ := strconv.Atoi(value)
 		Data.PlatformInfo.RegistrationTokenLifetime = regTokenLifetime
@@ -137,6 +141,8 @@ func SetData(key string, value string) {
 		Data.PlatformInfo.AdminDataStorageSvcResources = value
 	case "UI_SVC_RESOURCES":
 		Data.PlatformInfo.UiSvcResources = value
+	case "PIPELINES_SVC_RESOURCES":
+		Data.PlatformInfo.PipelinesSvcResources = value
 	case "NUMBER_OF_SWARM_NODES":
 		numberOfNodes, _ := strconv.Atoi(value)
 		Data.PlatformInfo.NumberOfSwarmNodes = numberOfNodes

@@ -9,8 +9,8 @@ import (
 
 // Dev2pdbConfig generates a configuration string for the dev2pdb service.
 // It uses a template to fill in the parameters for the configuration file.
-var configTmpl = `
-mode: "{{ .Mode }}"  # options: "dev", "prod"
+var dev2pdbConfigTmpl = `
+mode: "{{ .Mode }}"  # options: "local", "prod"
 
 # Domain name used for TLS in MQTT (and for NATS if you need it)
 domainName: "{{ .DomainName }}"
@@ -127,7 +127,7 @@ func Dev2pdbConfig(platformData *types.PlatformData, nodeRoleNumMap map[string]i
 		},
 	}
 
-	tmpl, err := template.New("dev2pdbConfig").Parse(configTmpl)
+	tmpl, err := template.New("dev2pdbConfig").Parse(dev2pdbConfigTmpl)
 	if err != nil {
 		return "", err
 	}

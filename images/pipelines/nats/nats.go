@@ -2,9 +2,12 @@ package nats
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
 	"pipelines/config"
 	"pipelines/logger"
 	"strconv"
@@ -21,14 +24,41 @@ type KVStore struct {
 }
 
 func Connect(cfg *config.Config, log *logger.Logger) (*nats.Conn, error) {
-	nc, err := nats.Connect(
-		strings.Join(cfg.NATS.ServersUrl, ","),
-		nats.UserInfo(cfg.NATS.Username, cfg.NATS.Password),
-	)
-	if err != nil {
+    opts := []nats.Option{
+        nats.Timeout(cfg.NATS.Timeout),
+    }
+    if cfg.NATS.Username != "" || cfg.NATS.Password != "" {
+        opts = append(opts, nats.UserInfo(cfg.NATS.Username, cfg.NATS.Password))
+    }
+
+	if cfg.Mode == "prod" {
+		caCert, err := os.ReadFile("/etc/nats/ca.pem")
+		if err != nil {
+			panic(fmt.Sprintf("ca.pem can not be read: %v", err))
+		}
+	
+		rootCAs, err := x509.SystemCertPool()
+		if err != nil || rootCAs == nil {
+			rootCAs = x509.NewCertPool()
+		}
+		if ok := rootCAs.AppendCertsFromPEM(caCert); !ok {
+			panic("failed to add ca.pem to CA pool")
+		}
+	
+		tlsCfg := &tls.Config{
+			ServerName: cfg.DomainName,
+			RootCAs:    rootCAs,
+		}
+	
+		opts = append(opts, nats.Secure(tlsCfg))
+	}
+
+    nc, err := nats.Connect(strings.Join(cfg.NATS.ServersUrl, ","), opts...)
+    if err != nil {
 		log.Errorf("Error connecting to NATS: %v", err)
 		return nil, err
-	}
+    }
+
 	log.Info("Connected to NATS")
 	return nc, nil
 }

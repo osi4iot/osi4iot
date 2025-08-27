@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"pipelines/common"
 	nats_pkg "pipelines/nats"
+	"pipelines/utils"
 	"strconv"
 	"strings"
 )
@@ -50,7 +51,8 @@ func (fm *FlowsManager) AddDigitalTwins(digitalTwins []*common.DigitalTwin) {
 
 func (fm *FlowsManager) DeleteDigitalTwin(digitalTwinId int) error {
 	digitalTwinIdStr := strconv.Itoa(digitalTwinId)
-	if _, ok := fm.DigitalTwins.Load(digitalTwinIdStr); ok {
+	if entry, ok := fm.DigitalTwins.Load(digitalTwinIdStr); ok {
+		digitalTwin := entry.(*common.DigitalTwin)
 		dtPrefix := fmt.Sprintf("dt:%d:", digitalTwinId)
 		dtNodesKey := makeDTNodesKey(digitalTwinId)
 		dtWiresKey := makeDTWiresKey(digitalTwinId)
@@ -150,6 +152,15 @@ func (fm *FlowsManager) DeleteDigitalTwin(digitalTwinId int) error {
 		}
 
 		fm.DeleteDigitalTwinTopicsRefByDTid(digitalTwinId)
+
+		// Delete FEM results folder
+		digitalTwinFolderPath := fm.GetDigitalTwinFolder(digitalTwin.OrgId, digitalTwin.GroupId, digitalTwin.Id)
+		if digitalTwinFolderPath != "" {
+			err := utils.DeleteFolder(digitalTwinFolderPath)
+			if err != nil {
+				return err
+			}
+		}
 
 		return nil
 	}
@@ -310,4 +321,39 @@ func (fm *FlowsManager) GetFemResultsInfo(groupId int, digitalTwinId int) []*com
 	femResultsInfo = fm.Admin.GetFemResultsInfo(groupId, digitalTwinId)
 
 	return femResultsInfo
+}
+
+func (fm *FlowsManager) AddFemResultsInDigitalTwin(digitalTwinId int) error {
+	digitalTwinIdStr := strconv.Itoa(digitalTwinId)
+	if entry, ok := fm.DigitalTwins.Load(digitalTwinIdStr); ok {
+		digitalTwin := entry.(*common.DigitalTwin)
+		femResultPath := fm.GetFemResultsPath(digitalTwin.OrgId, digitalTwin.GroupId, digitalTwin.Id)
+		if femResultPath != "" {
+			fm.Admin.ProcessFemResultFile(femResultPath, digitalTwin.GroupId, digitalTwin.Id)
+		}
+	}
+	return nil
+}
+
+func (fm *FlowsManager) AddFemResultsInDigitalTwins() error {
+	digitalTwins := fm.GetDigitalTwins()
+	for _, digitalTwin := range digitalTwins {
+		fm.AddFemResultsInDigitalTwin(digitalTwin.Id)
+	}
+	return nil
+}
+
+func (fm *FlowsManager) DeleteFemResultsInDigitalTwin(digitalTwinId int) error {
+	digitalTwinIdStr := strconv.Itoa(digitalTwinId)
+	if entry, ok := fm.DigitalTwins.Load(digitalTwinIdStr); ok {
+		digitalTwin := entry.(*common.DigitalTwin)
+		femResultPath := fm.GetFemResultsPath(digitalTwin.OrgId, digitalTwin.GroupId, digitalTwin.Id)
+		if femResultPath != "" {
+			err := utils.DeleteFolder(femResultPath)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }

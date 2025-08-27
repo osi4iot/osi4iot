@@ -26,6 +26,8 @@ func getMemoryBytesSvcMap(pd *pt.PlatformData) map[string]int64 {
 	adminDataStorageSvcMem, _ := strconv.ParseFloat(adminDataStorageSvcMemStr[0:len(adminDataStorageSvcMemStr)-2], 64)
 	uiSvcMemStr := strings.Split(pd.PlatformInfo.UiSvcResources, "-")[1]
 	uiSvcMem, _ := strconv.ParseFloat(uiSvcMemStr[0:len(uiSvcMemStr)-2], 64)
+	pipelinesSvcMemStr := strings.Split(pd.PlatformInfo.PipelinesSvcResources, "-")[1]
+	pipelinesSvcMem, _ := strconv.ParseFloat(pipelinesSvcMemStr[0:len(pipelinesSvcMemStr)-2], 64)
 
 	systemPruneMemory := int64(100 * 1024 * 1024) // 100 MB
 	var keepalivedMemory int64 = 0
@@ -52,6 +54,8 @@ func getMemoryBytesSvcMap(pd *pt.PlatformData) map[string]int64 {
 	memoryBytesSvcMap["frontend"] = int64(uiSvcMem * 1024 * 1024)
 	memoryBytesSvcMap["pgadmin4"] = int64(0.5 * uiSvcMem * 1024 * 1024)
 	memoryBytesSvcMap["grafana_renderer"] = int64(0.5 * uiSvcMem * 1024 * 1024)
+	
+	memoryBytesSvcMap["pipelines"] = int64(pipelinesSvcMem * 1024 * 1024)
 
 	memoryBytesSvcMap["nodered_instance"] = int64(2000 * 1024 * 1024) // 2000 MB
 

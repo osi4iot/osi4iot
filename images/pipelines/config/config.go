@@ -15,7 +15,6 @@ type Config struct {
 	AdminUsername            string            `mapstructure:"adminUsername"`
 	AdminPassword            string            `mapstructure:"adminPassword"`
 	NATS                     NATSConfig        `mapstructure:"nats"`
-	Postgresql               PostgresqlConfig  `mapstructure:"postgresql"`
 	TimescaleDB              TimescaleDBConfig `mapstructure:"timescaledb"`
 	NumStreamReplicas        int               `mapstructure:"numStreamReplicas"`
 	ReplicaIndex             int               `mapstructure:"replicaIndex"`
@@ -36,7 +35,7 @@ type Config struct {
 	LlmMaxTokens             int               `mapstructure:"llmMaxTokens"`
 	McpServersPath           string            `mapstructure:"mcpServersPath"`
 	MaxChatMessagesPerUser   int               `mapstructure:"maxChatMessagesPerUser"`
-	FemResultsPath           string            `mapstructure:"femResultsPath"`
+	PipelinesDataPath        string            `mapstructure:"pipelinesDataPath"`
 }
 
 type NATSConfig struct {
@@ -47,15 +46,6 @@ type NATSConfig struct {
 }
 
 type TimescaleDBConfig struct {
-	User     string `mapstructure:"user"`
-	Password string `mapstructure:"password"`
-	Host     string `mapstructure:"host"`
-	Port     int    `mapstructure:"port"`
-	DBName   string `mapstructure:"dbName"`
-	SSLMode  string `mapstructure:"sslmode"`
-}
-
-type PostgresqlConfig struct {
 	User     string `mapstructure:"user"`
 	Password string `mapstructure:"password"`
 	Host     string `mapstructure:"host"`
@@ -114,18 +104,5 @@ func (c *Config) TimescaledbDNS() string {
 		c.TimescaleDB.Port,
 		c.TimescaleDB.DBName,
 		c.TimescaleDB.SSLMode,
-	)
-}
-
-// PostgresDNS returns a PostgreSQL connection string based on the loaded config.
-func (c *Config) PostresqlDNS() string {
-	return fmt.Sprintf(
-		"postgres://%s:%s@%s:%d/%s?sslmode=%s",
-		c.Postgresql.User,
-		c.Postgresql.Password,
-		c.Postgresql.Host,
-		c.Postgresql.Port,
-		c.Postgresql.DBName,
-		c.Postgresql.SSLMode,
 	)
 }

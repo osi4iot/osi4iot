@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"path/filepath"
 	"pipelines/admin"
 	"pipelines/common"
 	"pipelines/config"
@@ -53,7 +54,7 @@ type FlowsManager struct {
 	LlmMaxTokens             int
 	McpServersPath           string
 	MaxChatMessagesPerUser   int
-	FemResultsPath           string
+	PipelinesDataPath              string
 }
 
 func CreateFlowsManager(
@@ -111,7 +112,7 @@ func CreateFlowsManager(
 		LlmMaxTokens:             config.LlmMaxTokens,
 		McpServersPath:           config.McpServersPath,
 		MaxChatMessagesPerUser:   config.MaxChatMessagesPerUser,
-		FemResultsPath:           config.FemResultsPath,
+		PipelinesDataPath:        config.PipelinesDataPath,
 		log:                      log,
 	}
 
@@ -123,6 +124,7 @@ func CreateFlowsManager(
 	flowManager.AddDigitalTwinTopicsRef(digitalTwinTopics)
 	flowManager.AddMlModels(mlModels)
 	flowManager.AddDigitalTwins(digitalTwins)
+	flowManager.AddFemResultsInDigitalTwins()
 	flowManager.AddNodes(nodes)
 	flowManager.AddWires(wires)
 
@@ -350,10 +352,44 @@ func (fm *FlowsManager) GetMcpServersPath() string {
 	return fm.McpServersPath
 }
 
+func (fm *FlowsManager) GetPipelinesDataPath() string {
+	return fm.PipelinesDataPath
+}
+
 func (fm *FlowsManager) GetMaxChatMessagesPerUser() int {
 	return fm.MaxChatMessagesPerUser
 }
 
-func (fm *FlowsManager) GetFemResultsPath() string {
-	return fm.FemResultsPath
+func (fm *FlowsManager) GetFemResultsPath(orgId int, groupId int, digitalTwinId int) string {
+	if fm.PipelinesDataPath == "" {
+		return ""
+	}
+	
+	org := fmt.Sprintf("org_%d", orgId)
+	group := fmt.Sprintf("group_%d", groupId)
+	digitalTwin := fmt.Sprintf("dt_%d", digitalTwinId)
+	return filepath.Join(fm.PipelinesDataPath, org, group, digitalTwin, "femResults")
+}
+
+func (fm *FlowsManager) GetDigitalTwinPath(orgId int, groupId int, digitalTwinId int) string {
+	if fm.PipelinesDataPath == "" {
+		return ""
+	}
+
+	org := fmt.Sprintf("org_%d", orgId)
+	group := fmt.Sprintf("group_%d", groupId)
+	digitalTwin := fmt.Sprintf("dt_%d", digitalTwinId)
+	return filepath.Join(fm.PipelinesDataPath, org, group, digitalTwin)
+}
+
+func (fm *FlowsManager) GetDigitalTwinFolder(orgId int, groupId int, digitalTwinId int) string {
+	if fm.PipelinesDataPath == "" {
+		return ""
+	}
+
+	org := fmt.Sprintf("org_%d", orgId)
+	group := fmt.Sprintf("group_%d", groupId)
+	digitalTwin := fmt.Sprintf("dt_%d", digitalTwinId)
+	return filepath.Join(fm.PipelinesDataPath, org, group, digitalTwin)
+
 }

@@ -28,7 +28,8 @@ func GenerateVolumes(platformData *pt.PlatformData) map[string]pt.Volume {
 		}
 	}
 
-	if messagingSystem == "mqtt" {
+	switch messagingSystem {
+	case "mqtt":
 		Volumes["mosquitto_data"] = pt.Volume{
 			Name:       "mosquitto_data",
 			Driver:     "local",
@@ -39,7 +40,7 @@ func GenerateVolumes(platformData *pt.PlatformData) map[string]pt.Volume {
 			Driver:     "local",
 			DriverOpts: map[string]string{},
 		}
-	} else if messagingSystem == "nats" {
+	case "nats":
 		for iNatsNode := 1; iNatsNode <= pi.NumNatsClusterNodes; iNatsNode++ {
 			volumeName := fmt.Sprintf("nats%d_data", iNatsNode)
 			Volumes[volumeName] = pt.Volume{
@@ -77,6 +78,11 @@ func GenerateVolumes(platformData *pt.PlatformData) map[string]pt.Volume {
 	}
 	Volumes["admin_api_log"] = pt.Volume{
 		Name:       "admin_api_log",
+		Driver:     "local",
+		DriverOpts: map[string]string{},
+	}
+	Volumes["pipelines_data"] = pt.Volume{
+		Name:       "pipelines_data",
 		Driver:     "local",
 		DriverOpts: map[string]string{},
 	}

@@ -174,6 +174,16 @@ func (fm *FlowsManager) Listen() {
 				fm.log.Errorf("Unknown action: %s for component: %s", adminMsg.Action, adminMsg.Component)
 				return
 			}
+		case "femResults":
+			switch adminMsg.Action {
+			case "create":
+				fm.AddFemResultsInDigitalTwin(adminMsg.Id)
+			case "delete":
+				fm.DeleteFemResultsInDigitalTwin(adminMsg.Id)
+			default:
+				fm.log.Errorf("Unknown action: %s for component: %s", adminMsg.Action, adminMsg.Component)
+				return
+			}
 		case "node":
 			switch adminMsg.Action {
 			case "create":

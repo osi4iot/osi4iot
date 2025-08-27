@@ -62,10 +62,16 @@ import IRequestWithDigitalTwinAndGroup from "../group/interfaces/requestWithDigi
 import infoLogger from "../../utils/logger/infoLogger";
 import { getAssetTopicsInfoFromByDTIdsArray } from "../asset/assetDAL";
 import type { Readable } from "stream";
-import { applyPipelineAction, createDigitalTwinPipeline, deleteDigitalTwinPipeline, updateDigitalTwinPipeline } from "./pipeline";
+import {
+	applyPipelineAction,
+	createDigitalTwinPipeline,
+	deleteDigitalTwinPipeline,
+	updateDigitalTwinPipeline,
+} from "./pipeline";
 import CreatePipelineActionDto from "./pipeline_action.dto";
 import IDigitalTwinTopic from "./digitalTwinTopic.interface";
 import PipelineDto from "./pipeline.dto";
+import natsClient from "../../config/natsConfig";
 
 const uploadDigitalTwinFile = multer({
 	storage: multerS3({
@@ -494,8 +500,13 @@ class DigitalTwinController implements IController {
 			const message = {
 				message: `The file ${fileName} has been successfully uploaded in the S3 bucket`,
 			};
-			if (folder === "femResFile") {
+			if (folder === "femResFiles") {
 				await checkMaxNumberOfFemResFiles(req.digitalTwin);
+				const context = {
+					groupId: req.digitalTwin.groupId,
+					digitalTwinId: req.digitalTwin.id,
+				};
+				await natsClient.jsPublish("femResults", "create", req.digitalTwin.id, context);
 			} else if (folder === "gltfFile") {
 				await checkNumberOfGltfFiles(req.digitalTwin);
 			}
@@ -559,6 +570,13 @@ class DigitalTwinController implements IController {
 		const fileKey = `${keyBase}/${folder}/${fileName}`;
 		try {
 			await deleteBucketFile(fileKey);
+			if (folder === "femResFile") {
+				const context = {
+					groupId: req.digitalTwin.groupId,
+					digitalTwinId: req.digitalTwin.id,
+				};
+				await natsClient.jsPublish("femResults", "delete", req.digitalTwin.id, context);
+			}
 			const message = {
 				message: `The file ${fileName} has been successfully deleted from the S3 bucket`,
 			};

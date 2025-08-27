@@ -281,6 +281,15 @@ func GenerateSecrets(pd *pt.PlatformData) map[string]pt.Secret {
 	}
 	Secrets["dev2pdb_config"] = dev2pdbConfigSecret
 
+	pipelinesCfgStr, _ := utils.PipelinesConfig(pd, nodeRoleMaps.NodeRoleNumMap)
+	pipelinesConfigHash := utils.GetMD5Hash(pipelinesCfgStr)
+	pipelinesConfigName := fmt.Sprintf("pipelines_config_%s", pipelinesConfigHash)
+	pipelinesConfigSecret := pt.Secret{
+		Name: pipelinesConfigName,
+		Data: pipelinesCfgStr,
+	}
+	Secrets["pipelines_config"] = pipelinesConfigSecret
+
 	minioSecrets := []string{
 		fmt.Sprintf("MINIO_ROOT_USER=%s", pd.PlatformInfo.PlatformAdminUserName),
 		fmt.Sprintf("MINIO_ROOT_PASSWORD=%s", pd.PlatformInfo.PlatformAdminPassword),

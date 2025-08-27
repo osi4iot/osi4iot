@@ -4,16 +4,8 @@ import "os"
 
 
 func ExistFile(filePath string) bool {
-	existFile := false
-	_, err := os.Stat(filePath)
-	if err == nil {
-		existFile = true
-	} else {
-		if os.IsNotExist(err) {
-			existFile = false
-		}
-	}
-	return existFile
+    _, err := os.Stat(filePath)
+    return err == nil
 }
 
 func CreateDirectoryIfNotExists(dirPath string) error {

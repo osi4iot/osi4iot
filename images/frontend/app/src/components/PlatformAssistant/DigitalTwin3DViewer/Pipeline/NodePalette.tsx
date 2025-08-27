@@ -118,8 +118,8 @@ const nodeTypes = [
         debug: "off",
         settings: {
             onMessageScript: "function process(msg) {\n    const go = Go();\n    const { log, time } = go.All();\n\n    // Your code here\n\n    return msg;\n}",
+            onInitializationScript: "function init() {\n    const go = Go();\n    const { log, time } = go.All();\n\n    // Your code here\n}",
             onStartScript: "function start() {\n    const go = Go();\n    const { log, time } = go.All();\n\n    // Your code here\n}",
-            onStopScript: "function init() {\n    const go = Go();\n    const { log, time } = go.All();\n\n    // Your code here\n}",
         },
     },
     {

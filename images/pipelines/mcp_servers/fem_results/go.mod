@@ -2,7 +2,10 @@ module fem_results
 
 go 1.24.2
 
-require github.com/mark3labs/mcp-go v0.37.0
+require (
+	github.com/marcboeker/go-duckdb v1.8.5
+	github.com/mark3labs/mcp-go v0.37.0
+)
 
 require (
 	github.com/apache/arrow-go/v18 v18.1.0 // indirect
@@ -16,7 +19,6 @@ require (
 	github.com/klauspost/compress v1.17.11 // indirect
 	github.com/klauspost/cpuid/v2 v2.2.9 // indirect
 	github.com/mailru/easyjson v0.7.7 // indirect
-	github.com/marcboeker/go-duckdb v1.8.5 // indirect
 	github.com/pierrec/lz4/v4 v4.1.22 // indirect
 	github.com/spf13/cast v1.7.1 // indirect
 	github.com/wk8/go-ordered-map/v2 v2.1.8 // indirect

@@ -474,7 +474,11 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
         const maxNumResFemFiles = parseInt(values.maxNumResFemFiles, 10);
 
         if (values.type === "Gltf 3D model" || values.type === "Glb 3D model") {
-            if (isValidGltfFile) {
+            if (
+                isValidGltfFile ||
+                (storedGltfFileName === gltfFileName &&
+                    formatDateString(storedGltfFileLastModif) === formatDateString(gltfFileLastModif))
+            ) {
                 if (
                     Object.keys(digitalTwinFemResData).length !== 0 &&
                     (femResFileNames[0] !== femResFileName ||
@@ -535,8 +539,12 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
 
             const storedDate = formatDateString(storedPipelineFileLastModifDate);
             const newDate = formatDateString(pipelineFileLastModifDateString);
-
-            if (storedPipelineFileData !== "" && Object.keys(digitalTwinPipelineData).length === 0) {
+            if (
+                storedPipelineFileData !== "" &&
+                pipelineFileName === "-" &&
+                pipelineFileLastModifDateString === "-" &&
+                Object.keys(digitalTwinPipelineData).length === 0
+            ) {
                 const urlUploadPipelineBase = `${protocol}://${domainName}/admin_api/digital_twin_pipeline`;
                 const urlUploadPipeline = `${urlUploadPipelineBase}/${groupId}/${digitalTwinId}`;
                 getAxiosInstance(refreshToken, authDispatch)

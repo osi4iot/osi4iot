@@ -198,6 +198,8 @@ func GiveReplicsPtr(serviceName string, nodeRoleMaps NodesRoleMaps) *uint64 {
 		replics = uint64(1)
 	case "dev2pdb":
 		replics = uint64(1)
+	case "pipelines":
+		replics = uint64(1)
 	case "grafana":
 		replics = uint64(1)
 		if nodeRoleNumMap["Manager"] >= 1 {
