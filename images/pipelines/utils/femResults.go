@@ -109,7 +109,7 @@ func NewFemResultsProcessor(femResultsDir string, jsonFileName string, jsonFileL
 	}
 }
 
-func IsFemResultsFileProcessed(femResultsDir string, femResultsInfo *common.FemResultsInfo) (bool, error) {
+func IsFemResultsFileProcessed(femResultsDir string, femResultsInfo *common.S3FolderFileInfo) (bool, error) {
 	meshFilePath := filepath.Join(femResultsDir, "mesh_0.parquet")
 	femResOnNodesPath := filepath.Join(femResultsDir, "femres_OnNodes_mesh_0.parquet")
 	femResOnGPPath := filepath.Join(femResultsDir, "femres_OnGaussPoints_mesh_0.parquet")

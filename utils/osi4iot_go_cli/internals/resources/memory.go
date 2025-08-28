@@ -26,8 +26,11 @@ func getMemoryBytesSvcMap(pd *pt.PlatformData) map[string]int64 {
 	adminDataStorageSvcMem, _ := strconv.ParseFloat(adminDataStorageSvcMemStr[0:len(adminDataStorageSvcMemStr)-2], 64)
 	uiSvcMemStr := strings.Split(pd.PlatformInfo.UiSvcResources, "-")[1]
 	uiSvcMem, _ := strconv.ParseFloat(uiSvcMemStr[0:len(uiSvcMemStr)-2], 64)
-	pipelinesSvcMemStr := strings.Split(pd.PlatformInfo.PipelinesSvcResources, "-")[1]
-	pipelinesSvcMem, _ := strconv.ParseFloat(pipelinesSvcMemStr[0:len(pipelinesSvcMemStr)-2], 64)
+	pipelinesSvcMem := 0.25
+	if pd.PlatformInfo.PipelinesSvcResources != "No service" {
+		pipelinesSvcMemStr := strings.Split(pd.PlatformInfo.PipelinesSvcResources, "-")[1]
+		pipelinesSvcMem, _ = strconv.ParseFloat(pipelinesSvcMemStr[0:len(pipelinesSvcMemStr)-2], 64)
+	}
 
 	systemPruneMemory := int64(100 * 1024 * 1024) // 100 MB
 	var keepalivedMemory int64 = 0

@@ -20,6 +20,7 @@ export interface AdminMsgContext {
 	assetId?: number;
 	topicId?: number;
 	topicRef?: string;
+	fileName?: string;
 }
 
 export interface Nats {

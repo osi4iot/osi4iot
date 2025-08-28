@@ -316,11 +316,8 @@ func (fm *FlowsManager) CheckIfNodeExistInPipelineFile(digitalTwin *common.Digit
 	return false
 }
 
-func (fm *FlowsManager) GetFemResultsInfo(groupId int, digitalTwinId int) []*common.FemResultsInfo {
-	var femResultsInfo []*common.FemResultsInfo
-	femResultsInfo = fm.Admin.GetFemResultsInfo(groupId, digitalTwinId)
-
-	return femResultsInfo
+func (fm *FlowsManager) GetS3FolderInfo(groupId int, digitalTwinId int, folder string) []*common.S3FolderFileInfo {
+	return fm.Admin.GetS3FolderInfo(groupId, digitalTwinId, folder)
 }
 
 func (fm *FlowsManager) AddFemResultsInDigitalTwin(digitalTwinId int) error {
@@ -350,6 +347,41 @@ func (fm *FlowsManager) DeleteFemResultsInDigitalTwin(digitalTwinId int) error {
 		femResultPath := fm.GetFemResultsPath(digitalTwin.OrgId, digitalTwin.GroupId, digitalTwin.Id)
 		if femResultPath != "" {
 			err := utils.DeleteFolder(femResultPath)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func (fm *FlowsManager) AddDocInfoFileInDigitalTwin(digitalTwinId int) error {
+	digitalTwinIdStr := strconv.Itoa(digitalTwinId)
+	if entry, ok := fm.DigitalTwins.Load(digitalTwinIdStr); ok {
+		digitalTwin := entry.(*common.DigitalTwin)
+		docInfoFilesPath := fm.GetDocInfoFilesPath(digitalTwin.OrgId, digitalTwin.GroupId, digitalTwin.Id)
+		if docInfoFilesPath != "" {
+			fm.Admin.ProcessDocInfoFile(docInfoFilesPath, digitalTwin.GroupId, digitalTwin.Id)
+		}
+	}
+	return nil
+}
+
+func (fm *FlowsManager) AddDocInfoFilesInDigitalTwins() error {
+	digitalTwins := fm.GetDigitalTwins()
+	for _, digitalTwin := range digitalTwins {
+		fm.AddDocInfoFileInDigitalTwin(digitalTwin.Id)
+	}
+	return nil
+}
+
+func (fm *FlowsManager) DeleteDocInfoFileInDigitalTwin(digitalTwinId int) error {
+	digitalTwinIdStr := strconv.Itoa(digitalTwinId)
+	if entry, ok := fm.DigitalTwins.Load(digitalTwinIdStr); ok {
+		digitalTwin := entry.(*common.DigitalTwin)
+		docInfoFilePath := fm.GetDocInfoFilesPath(digitalTwin.OrgId, digitalTwin.GroupId, digitalTwin.Id)
+		if docInfoFilePath != "" {
+			err := utils.DeleteFolder(docInfoFilePath)
 			if err != nil {
 				return err
 			}

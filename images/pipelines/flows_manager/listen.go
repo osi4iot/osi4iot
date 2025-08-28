@@ -184,6 +184,16 @@ func (fm *FlowsManager) Listen() {
 				fm.log.Errorf("Unknown action: %s for component: %s", adminMsg.Action, adminMsg.Component)
 				return
 			}
+		case "docInfoFile":
+			switch adminMsg.Action {
+			case "create":
+				fm.AddDocInfoFileInDigitalTwin(adminMsg.Id)
+			case "delete":
+				fm.DeleteDocInfoFileInDigitalTwin(adminMsg.Id)
+			default:
+				fm.log.Errorf("Unknown action: %s for component: %s", adminMsg.Action, adminMsg.Component)
+				return
+			}			
 		case "node":
 			switch adminMsg.Action {
 			case "create":

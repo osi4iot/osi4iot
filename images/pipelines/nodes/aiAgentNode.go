@@ -91,7 +91,7 @@ func CreateAiAgentNode(node common.NodeData, fm common.Manager) (*AiAgentNode, e
 		},
 	}
 
-	femResultsInfo := fm.GetFemResultsInfo(node.GroupId, node.DigitalTwinId)
+	femResultsInfo := fm.GetS3FolderInfo(node.GroupId, node.DigitalTwinId, "femResFiles")
 	if fm.GetMode() == "local" {
 		mcpServers["current_date"] = mcphost.MCPServerConfig{
 			Type:    "local",

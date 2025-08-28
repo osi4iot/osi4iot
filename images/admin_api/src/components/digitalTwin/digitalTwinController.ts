@@ -509,6 +509,13 @@ class DigitalTwinController implements IController {
 				await natsClient.jsPublish("femResults", "create", req.digitalTwin.id, context);
 			} else if (folder === "gltfFile") {
 				await checkNumberOfGltfFiles(req.digitalTwin);
+			} else if (folder === "docInfoFiles") {
+				const context = {
+					groupId: req.digitalTwin.groupId,
+					digitalTwinId: req.digitalTwin.id,
+					fileName,
+				};
+				await natsClient.jsPublish("docInfoFile", "create", req.digitalTwin.id, context);
 			}
 			infoLogger(req, res, 200, message.message);
 			res.status(200).send(message);
@@ -570,12 +577,19 @@ class DigitalTwinController implements IController {
 		const fileKey = `${keyBase}/${folder}/${fileName}`;
 		try {
 			await deleteBucketFile(fileKey);
-			if (folder === "femResFile") {
+			if (folder === "femResFiles") {
 				const context = {
 					groupId: req.digitalTwin.groupId,
 					digitalTwinId: req.digitalTwin.id,
 				};
 				await natsClient.jsPublish("femResults", "delete", req.digitalTwin.id, context);
+			} else if (folder === "docInfoFiles") {
+				const context = {
+					groupId: req.digitalTwin.groupId,
+					digitalTwinId: req.digitalTwin.id,
+					fileName,
+				};
+				await natsClient.jsPublish("docInfoFile", "delete", req.digitalTwin.id, context);
 			}
 			const message = {
 				message: `The file ${fileName} has been successfully deleted from the S3 bucket`,

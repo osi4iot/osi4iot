@@ -492,26 +492,26 @@ func (a *Admin) GetWire(groupId int, wireId int) *common.Wire {
 	return &wire
 }
 
-func (a *Admin) GetFemResultsInfo(groupId int, digitalTwinId int) []*common.FemResultsInfo {
-	var femResultsInfo []*common.FemResultsInfo
-	url := fmt.Sprintf("%s/digital_twin_file_list/%d/%d/femResFiles", a.baseUrl, groupId, digitalTwinId)
+func (a *Admin) GetS3FolderInfo(groupId int, digitalTwinId int, folder string) []*common.S3FolderFileInfo {
+	var folderInfo []*common.S3FolderFileInfo
+	url := fmt.Sprintf("%s/digital_twin_file_list/%d/%d/%s", a.baseUrl, groupId, digitalTwinId, folder)
 	response, err := utils.HttpGetWithJwt(url, a.accessToken)
 	if err != nil {
-		a.log.Errorf("failed to get fem results info: %v", err)
+		a.log.Errorf("failed to get s3 folder info: %v", err)
 		return nil
 	}
 
-	err = utils.UnmarshalData(response, &femResultsInfo)
+	err = utils.UnmarshalData(response, &folderInfo)
 	if err != nil {
 		a.log.Errorf("failed to unmarshal fem results info: %v", err)
 		return nil
 	}
 
-	return femResultsInfo
+	return folderInfo
 }
 
 func (a *Admin) ProcessFemResultFile(femResultsPath string, groupId int, digitalTwinId int) {
-	femResultsInfo := a.GetFemResultsInfo(groupId, digitalTwinId)
+	femResultsInfo := a.GetS3FolderInfo(groupId, digitalTwinId, "femResFiles")
 
 	if len(femResultsInfo) > 0 {
 		isFemResultsProcessed, err := utils.IsFemResultsFileProcessed(femResultsPath, femResultsInfo[0])
@@ -549,6 +549,29 @@ func (a *Admin) ProcessFemResultFile(femResultsPath string, groupId int, digital
 		err = utils.DeleteFile(jsonFilePath)
 		if err != nil {
 			a.log.Errorf("Error deleting fem results json file %s: %v\n", jsonFilePath, err)
+		}
+	}
+}
+
+func (a *Admin) ProcessDocInfoFile(docInfoFilesPath string, groupId int, digitalTwinId int) {
+	docInfoFilesInfo := a.GetS3FolderInfo(groupId, digitalTwinId, "docInfoFiles")
+
+	if len(docInfoFilesInfo) > 0 {
+		fileName := strings.Split(docInfoFilesInfo[0].FileName, "/")[4]
+		docInfoFilePath := filepath.Join(docInfoFilesPath, fileName)
+		lastModified := docInfoFilesInfo[0].LastModified
+		isNewer, _ := utils.IsDateNewerThanFile(lastModified, docInfoFilePath)
+		if isNewer {
+			docInfoFileUrl := fmt.Sprintf("%s/digital_twin_download_file/%d/%d/docInfoFiles/%s", a.baseUrl, groupId, digitalTwinId, fileName)
+			response, err := utils.HttpGetWithJwt(docInfoFileUrl, a.accessToken)
+			if err != nil {
+				a.log.Errorf("failed to download doc info file %s: %v", fileName, err)
+				return
+			}
+			err = utils.SaveToFile(docInfoFilePath, response)
+			if err != nil {
+				a.log.Errorf("failed to save doc info file %s: %v", fileName, err)
+			}
 		}
 	}
 }

@@ -125,6 +125,7 @@ func CreateFlowsManager(
 	flowManager.AddMlModels(mlModels)
 	flowManager.AddDigitalTwins(digitalTwins)
 	flowManager.AddFemResultsInDigitalTwins()
+	flowManager.AddDocInfoFilesInDigitalTwins()
 	flowManager.AddNodes(nodes)
 	flowManager.AddWires(wires)
 
@@ -370,6 +371,18 @@ func (fm *FlowsManager) GetFemResultsPath(orgId int, groupId int, digitalTwinId 
 	digitalTwin := fmt.Sprintf("dt_%d", digitalTwinId)
 	return filepath.Join(fm.PipelinesDataPath, org, group, digitalTwin, "femResults")
 }
+
+func (fm *FlowsManager) GetDocInfoFilesPath(orgId int, groupId int, digitalTwinId int) string {
+	if fm.PipelinesDataPath == "" {
+		return ""
+	}
+	
+	org := fmt.Sprintf("org_%d", orgId)
+	group := fmt.Sprintf("group_%d", groupId)
+	digitalTwin := fmt.Sprintf("dt_%d", digitalTwinId)
+	return filepath.Join(fm.PipelinesDataPath, org, group, digitalTwin, "filesystem")
+}
+
 
 func (fm *FlowsManager) GetDigitalTwinPath(orgId int, groupId int, digitalTwinId int) string {
 	if fm.PipelinesDataPath == "" {
