@@ -116,25 +116,26 @@ sudo ufw enable
 		for _, node := range nodesData {
 			var nodeScript utils.NodeScript
 			nodeRole := node.NodeRole
-			if nodeRole == "Manager" {
+			switch nodeRole {
+			case "Manager":
 				nodeScript = utils.NodeScript{
 					Node:   node,
 					Script: managerScript,
 					Args:   []string{},
 				}
-			} else if nodeRole == "Platform worker" {
+			case "Platform worker":
 				nodeScript = utils.NodeScript{
 					Node:   node,
 					Script: platformWorkerScript,
 					Args:   []string{},
 				}
-			} else if nodeRole == "Generic org worker" || nodeRole == "Exclusive org worker" {
+			case "Generic org worker", "Exclusive org worker":
 				nodeScript = utils.NodeScript{
 					Node:   node,
 					Script: genericWorkerScript,
 					Args:   []string{},
 				}
-			} else if nodeRole == "NFS server" {
+			case "NFS server":
 				nodeScript = utils.NodeScript{
 					Node:   node,
 					Script: nfsScript,

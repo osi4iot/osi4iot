@@ -24,8 +24,6 @@ RUN uv venv /opt/venv \
 # 1) Go builder: compila binarios (enlace estático)
 ########################################
 FROM golang:1.24.2-bookworm AS builder
-ARG TARGETPLATFORM
-ARG TARGETARCH
 
 WORKDIR /src
 
@@ -43,7 +41,7 @@ COPY utils/ ./utils/
 RUN go mod download && go mod verify
 
 # pipelines
-RUN CGO_ENABLED=0 go build -ldflags="-s -w" -o /usr/local/bin/pipelines .
+RUN CGO_ENABLED=1 CC=gcc go build -ldflags="-s -w" -o /usr/local/bin/pipelines .
 
 # current_date
 COPY mcp_servers/current_date/go.mod ./mcp_servers/current_date/
@@ -66,6 +64,8 @@ RUN cd mcp_servers/fem_results && \
 # 2) Runtime (mínimo)
 ########################################
 FROM python:3.12-slim AS runtime
+ARG TARGETPLATFORM
+ARG TARGETARCH
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
       tzdata curl ca-certificates \
@@ -84,9 +84,24 @@ ENV PATH="/opt/venv/bin:${PATH}"
 
 
 WORKDIR /pipelines
+
+RUN mkdir -p ./assets
+COPY assets/ /tmp/assets/
+RUN if [ "$TARGETARCH" = "amd64" ]; then \
+        mkdir -p ./assets/onnx_runtime_linux_amd64 && \
+        cp /tmp/assets/onnx_runtime_linux_amd64/onnxruntime.so ./assets/onnx_runtime_linux_amd64/ && \
+        chmod 755 ./assets/onnx_runtime_linux_amd64/onnxruntime.so; \
+    elif [ "$TARGETARCH" = "arm64" ]; then \
+        mkdir -p ./assets/onnx_runtime_linux_arm64 && \
+        cp /tmp/assets/onnx_runtime_linux_arm64/onnxruntime_arm64.so ./assets/onnx_runtime_linux_arm64/ && \
+        chmod 755 ./assets/onnx_runtime_linux_arm64/onnxruntime_arm64.so; \
+    else \
+        echo "Architecture not supported: $TARGETARCH" && exit 1; \
+    fi && \
+    rm -rf /tmp/assets
+
 RUN mkdir data && chown -R pipelines:pipelines_group /pipelines
 USER pipelines
-
 
 EXPOSE 3300
 HEALTHCHECK --interval=10s --timeout=3s --start-period=30s --retries=3 \

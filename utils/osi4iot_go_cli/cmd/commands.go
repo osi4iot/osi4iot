@@ -85,6 +85,8 @@ var cmdRun = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		checkState("run")
 		platformData := data.GetData()
+		excludedServices, _ := cmd.Flags().GetStringSlice("exclude")
+		platformData.PlatformInfo.ExcludedServices = excludedServices
 		dc, err := docker.GetManagerDC()
 		if err != nil {
 			errMsg := fmt.Sprintf("Error: getting docker client %v", err)
@@ -350,7 +352,9 @@ func Execute() {
 func init() {
 	rootCmd.AddCommand(cmdCreate)
 	rootCmd.AddCommand(cmdInit)
+	cmdInit.PersistentFlags().StringSlice("exclude", []string{}, "List of services to exclude")
 	rootCmd.AddCommand(cmdRun)
+	cmdRun.PersistentFlags().StringSlice("exclude", []string{}, "List of services to exclude")
 	rootCmd.AddCommand(cmdStop)
 	rootCmd.AddCommand(cmdDelete)
 	rootCmd.AddCommand(cmdNri)

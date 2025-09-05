@@ -97,7 +97,9 @@ const MobilePhotoForm: FC<MobileSensorSelectFormProps> = (
         if (isMqttConnected) {
             const image = await Jimp.read(dataUri);
             const bufferData = await image.getBufferAsync(Jimp.MIME_JPEG)
-            const data2Send = bufferData.toString('base64');
+            const data2Send = {
+                image: bufferData.toString('base64')
+            };
             const groupHash = mobileTopicSelected.groupUid;
             const topicHash = mobileTopicSelected.topicUid;
             const mqttTopic = `dev2dtm/Group_${groupHash}/Topic_${topicHash}`;

@@ -25,6 +25,7 @@ interface GeoAssetsProps {
     openDigitalTwin3DViewer: (digitalTwinGltfData: IDigitalTwinGltfData) => void;
     setGlftDataLoading: (gtGlftDataLoading: boolean) => void;
     setGltfFileDownloadProgress: (gltfFileDownloadProgress: number) => void;
+    setAssetWithMobilePhotoSelected: (selected: boolean) => void;
 }
 
 
@@ -45,7 +46,8 @@ const GeoAssets: FC<GeoAssetsProps> = (
         sensorsState,
         openDigitalTwin3DViewer,
         setGlftDataLoading,
-        setGltfFileDownloadProgress,       
+        setGltfFileDownloadProgress,
+        setAssetWithMobilePhotoSelected
     }) => {
 
     return (
@@ -70,6 +72,7 @@ const GeoAssets: FC<GeoAssetsProps> = (
                         openDigitalTwin3DViewer={openDigitalTwin3DViewer}
                         setGlftDataLoading={setGlftDataLoading}
                         setGltfFileDownloadProgress={setGltfFileDownloadProgress}
+                        setAssetWithMobilePhotoSelected={setAssetWithMobilePhotoSelected}
                     />
                 })
             }

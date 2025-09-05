@@ -33,6 +33,7 @@ const useSubscription = (
     setFemResFilesLastUpdate: (femResFilesLastUpdate: Date) => void,
     isGroupDTDemo: boolean,
     setDigitalTwinState: React.Dispatch<React.SetStateAction<string>>,
+    handleImageUrlChange: (base64Image: string) => void,
     handleUpdateChatAssistantMessages: (newMessage: LlmMessage) => void,
     handleUpdateLogMessages: (newLogMessage: PipelineLog) => void,
     options: SubscribeOptions = {} as SubscribeOptions
@@ -87,6 +88,7 @@ const useSubscription = (
                         setFemResFilesLastUpdate,
                         isGroupDTDemo,
                         setDigitalTwinState,
+                        handleImageUrlChange,
                         handleUpdateChatAssistantMessages,
                         handleUpdateLogMessages
                     );
@@ -125,6 +127,7 @@ const updateObjectsState = (
     setFemResFilesLastUpdate: (femResFilesLastUpdate: Date) => void,
     isGroupDTDemo: boolean,
     setDigitalTwinState: React.Dispatch<React.SetStateAction<string>>,
+    handleImageUrlChange: (base64Image: string) => void,
     handleUpdateChatAssistantMessages: (newMessage: LlmMessage) => void,
     handleUpdateLogMessages: (newLogMessage: PipelineLog) => void
 ) => {
@@ -326,6 +329,12 @@ const updateObjectsState = (
                         }
                     }
                 });
+            }
+
+            if (messageTopicRef === "dtm2sim") {
+                if (messagePayloadKeys.includes("image")) {
+                    handleImageUrlChange(mqttMessage["image"]);
+                }
             }
 
             if (messageTopicRef === "dtm2sim" || messageTopicRef === "llm2sim") {

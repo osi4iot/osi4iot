@@ -329,6 +329,34 @@ export function DelayNode({ data, selected }) {
     );
 }
 
+export function MlModelNode({ data, selected }) {
+    const numOutputs = data?.numOutputs || 0;
+    return (
+        <NodeContainer bgColor="#bd5f25ff" hoverColor="#be7648ff" selected={selected}>
+            <StyledHandle type="target" position={Position.Left} style={{ top: "50%", left: "-1px" }} />
+            <NodeContent numOutputs={numOutputs}>
+                <IconContainer>
+                    <BrainCog size={20} color="#e7e3dfff" />
+                </IconContainer>
+                <NodeLabel>{data?.label || "AiAgent Node"}</NodeLabel>
+            </NodeContent>
+            {numOutputs > 0 && (
+                <>
+                    {Array.from({ length: numOutputs }, (_, index) => (
+                        <StyledHandle
+                            key={index}
+                            type="source"
+                            position={Position.Right}
+                            id={`${data.nodeUid}-${index}`}
+                            style={getHandleStyle(index, numOutputs)}
+                        />
+                    ))}
+                </>
+            )}
+        </NodeContainer>
+    );
+}
+
 export function AiAgentNode({ data, selected }) {
     const numOutputs = data?.numOutputs || 0;
     return (

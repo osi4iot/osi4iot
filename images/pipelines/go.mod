@@ -9,9 +9,12 @@ require (
 	github.com/dop251/goja v0.0.0-20250630131328-58d95d85e994
 	github.com/golang-jwt/jwt/v5 v5.2.2
 	github.com/nats-io/nats.go v1.44.0
+	github.com/nfnt/resize v0.0.0-20180221191011-83c6a9932646
 	github.com/osi4iot/mcphost v0.29.5-osi4iot
 	github.com/spf13/viper v1.20.1
+	github.com/yalue/onnxruntime_go v1.21.0
 	go.uber.org/zap v1.27.0
+	golang.org/x/image v0.22.0
 	gopkg.in/gomail.v2 v2.0.0-20160411212932-81ebce5c23df
 )
 

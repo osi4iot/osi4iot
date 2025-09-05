@@ -14,6 +14,8 @@ import { useFormChanges } from "../Utils/customHooks";
 import { IMqttTopicData } from "../Main/Model";
 import GeneralizedCompletion from "./Completion/Completion";
 import { json } from "@codemirror/lang-json";
+import { IDigitalTwin } from "../../TableColumns/digitalTwinsColumns";
+import { useMlModelsTableInGroup } from "../../../../contexts/platformAssistantContext/platformAssistantContext";
 
 // CSS estándar para el resizing - mejor performance
 const resizableStyles = `
@@ -233,6 +235,8 @@ const NodeTypeIndicator = styled.span<{ nodeType: string }>`
                 return "#a6bbcf";
             case "Delay":
                 return "#a8a152";
+            case "MlModel":
+                return "#bd5f25ff";
             case "AiAgent":
                 return "#B8B1FB";
             case "Email":
@@ -710,6 +714,7 @@ interface NodePropertiesPanelProps {
     } | null;
     onUpdateNode: (nodeId: string, newData: Partial<NodeData>) => void;
     onWidthChange?: (width: number) => void;
+    digitalTwinSelected: IDigitalTwin;
     handlePipelineUiChanged: (isPipelineUiChanged: any) => void;
     mqttTopicsData: IMqttTopicData[];
 }
@@ -720,6 +725,7 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
     selectedNode,
     onUpdateNode,
     onWidthChange,
+    digitalTwinSelected,
     handlePipelineUiChanged,
     mqttTopicsData,
 }) => {
@@ -738,6 +744,7 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
     const [isDragging, setIsDragging] = useState(false);
     const dragStartRef = useRef({ x: 0, widthInicial: 0 });
     const panelRef = useRef<HTMLDivElement>(null);
+    const mlModelsTable = useMlModelsTableInGroup(digitalTwinSelected.groupId);
 
     // Función para actualizar el width usando CSS nativo
     const updatePanelWidth = useCallback((newWidth: number) => {
@@ -865,6 +872,11 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
 
     useEffect(() => {
         if (selectedNode) {
+            if (selectedNode.type === "MlModel" && mlModelsTable.length > 0) {
+                if (selectedNode.data.settings?.mlModelId === 0) {
+                    selectedNode.data.settings.mlModelId = mlModelsTable[0].id;
+                }
+            }
             const initialData = {
                 label: selectedNode.data.label,
                 numOutputs: selectedNode.data.numOutputs,
@@ -882,6 +894,7 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                 setActiveTab("settings");
             }
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [selectedNode, setOriginalData]);
 
     const handleClose = useCallback(() => {
@@ -1312,6 +1325,23 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                             onChange={(e) => handleInputChange("duration", Math.max(0, parseFloat(e.target.value)))}
                             placeholder="0.0"
                         />
+                    </FormGroup>
+                );
+
+            case "MlModel":
+                return (
+                    <FormGroup>
+                        <Label>Machine learning model</Label>
+                        <Select
+                            value={formData.mlModelId}
+                            onChange={(e) => handleInputChange("mlModelId", parseInt(e.target.value))}
+                        >
+                            {mlModelsTable.map((model) => (
+                                <option key={model.id} value={model.id}>
+                                    {model.description}
+                                </option>
+                            ))}
+                        </Select>
                     </FormGroup>
                 );
 

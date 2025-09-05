@@ -316,8 +316,8 @@ func (fm *FlowsManager) CheckIfNodeExistInPipelineFile(digitalTwin *common.Digit
 	return false
 }
 
-func (fm *FlowsManager) GetS3FolderInfo(groupId int, digitalTwinId int, folder string) []*common.S3FolderFileInfo {
-	return fm.Admin.GetS3FolderInfo(groupId, digitalTwinId, folder)
+func (fm *FlowsManager) GetS3DigitalTwinFolderInfo(groupId int, digitalTwinId int, folder string) []*common.S3FolderFileInfo {
+	return fm.Admin.GetS3DigitalTwinFolderInfo(groupId, digitalTwinId, folder)
 }
 
 func (fm *FlowsManager) AddFemResultsInDigitalTwin(digitalTwinId int) error {

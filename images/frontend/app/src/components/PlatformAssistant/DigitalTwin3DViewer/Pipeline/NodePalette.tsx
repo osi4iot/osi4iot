@@ -1,10 +1,10 @@
 // @ts-nocheck
-import { SquareFunction, WifiHigh, ArrowBigRight, Mail, ClockFading, BrainCog } from "lucide-react";
+import { SquareFunction, WifiHigh, ArrowBigRight, Mail, ClockFading, BrainCog, BrainCircuit } from "lucide-react";
 import { FaTelegramPlane } from "react-icons/fa";
 import styled from "styled-components";
 
 const PaletteContainer = styled.div`
-    width: 150px;
+    width: 160px;
     background-color: #2a2a2a;
     border-right: 1px solid #444;
     padding: 16px;
@@ -132,6 +132,18 @@ const nodeTypes = [
         debug: "off",
         settings: {
             duration: 0.0,
+        },
+    },
+    {
+        type: "MlModel",
+        label: "ML Model",
+        bgColor: "#bd5f25ff",
+        hoverColor: "#be7648ff",
+        icon: <BrainCircuit size={30} color="#e7e3df" />,
+        numOutputs: 1,
+        debug: "off",
+        settings: {
+            mlModelId: 0,
         },
     },
     {

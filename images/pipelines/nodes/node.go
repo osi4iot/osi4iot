@@ -34,6 +34,8 @@ func CreateNode(
 		newNode, err = CreateEmailNode(node, fm)
 	case "AiAgent":
 		newNode, err = CreateAiAgentNode(node, fm)
+	case "MlModel":
+		newNode, err = CreateMlmNode(node, fm)
 	case "Publish":
 		newNode, err = CreatePublishNode(node, fm)
 	default:

@@ -415,6 +415,7 @@ interface MapProps {
     openDigitalTwin3DViewer: (digitalTwinGltfData: IDigitalTwinGltfData) => void;
     setGlftDataLoading: (gtGlftDataLoading: boolean) => void;
     setGltfFileDownloadProgress: (gltfFileDownloadProgress: number) => void;
+    setAssetWithMobilePhotoSelected: (selected: boolean) => void;
 }
 
 
@@ -467,7 +468,8 @@ const Map: FC<MapProps> = (
         sensorsState,
         openDigitalTwin3DViewer,
         setGlftDataLoading,
-        setGltfFileDownloadProgress,     
+        setGltfFileDownloadProgress,
+        setAssetWithMobilePhotoSelected
     }) => {
     const windowWidth = useWindowWidth();
     const isMobile = windowWidth < 768;
@@ -550,6 +552,7 @@ const Map: FC<MapProps> = (
                     openDigitalTwin3DViewer={openDigitalTwin3DViewer}
                     setGlftDataLoading={setGlftDataLoading}
                     setGltfFileDownloadProgress={setGltfFileDownloadProgress}
+                    setAssetWithMobilePhotoSelected={setAssetWithMobilePhotoSelected}
                 />
             }
             <ControlsContainer>

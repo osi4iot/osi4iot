@@ -22,6 +22,7 @@ import {
     PlayIcon,
     RefreshCwIcon,
     UploadIcon,
+    CameraIcon,
 } from "./StyledComponents";
 import { TooltipWrapper } from "./TooltipWrapper";
 import styled from "styled-components";
@@ -34,7 +35,7 @@ interface HeaderProps {
     isControlPanelOpen: boolean;
     isMqttConnected: boolean;
     digitalTwinState: string;
-    activeViewer: "3D" | "pipeline";
+    activeViewer: "3D" | "pipeline" | "image_frame";
     handleControlPanelOpenAndClose: () => void;
     handleToggleActiveViewer: () => void;
     handleChatAssistantOpen: () => void;
@@ -49,6 +50,7 @@ interface HeaderProps {
     handleReinitiatePipeline: () => void;
     isPipelineUiChanged: boolean;
     close3DViewer: () => void;
+    assetWithMobilePhotoSelected: boolean;
 }
 
 export const Header: FC<HeaderProps> = ({
@@ -70,23 +72,35 @@ export const Header: FC<HeaderProps> = ({
     handleReinitiatePipeline,
     isPipelineUiChanged,
     close3DViewer,
+    assetWithMobilePhotoSelected,
 }) => {
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     return (
         <HeaderContainer>
             <HeaderOptionsContainer>
-                {activeViewer === "pipeline" ? (
-                    <TooltipWrapper tooltip="Switch to 3D model viewer" onClick={handleToggleActiveViewer}>
-                        <BoxIcon />
-                    </TooltipWrapper>
-                ) : (
+                {activeViewer === "3D" && (
                     <TooltipWrapper tooltip="Switch to pipeline viewer" onClick={handleToggleActiveViewer}>
                         <TiFlowMergeIcon />
                     </TooltipWrapper>
                 )}
+                {activeViewer === "pipeline" && !assetWithMobilePhotoSelected && (
+                    <TooltipWrapper tooltip="Switch to 3D model viewer" onClick={handleToggleActiveViewer}>
+                        <BoxIcon />
+                    </TooltipWrapper>
+                )}
+                {activeViewer === "pipeline" && assetWithMobilePhotoSelected && (
+                    <TooltipWrapper tooltip="Switch to photo viewer" onClick={handleToggleActiveViewer}>
+                        <CameraIcon />
+                    </TooltipWrapper>
+                )}
+                {activeViewer === "image_frame" && assetWithMobilePhotoSelected && (
+                    <TooltipWrapper tooltip="Switch to 3D model viewer" onClick={handleToggleActiveViewer}>
+                        <BoxIcon />
+                    </TooltipWrapper>
+                )}
 
-                {activeViewer === "3D" ? (
+                {activeViewer === "3D" && (
                     <>
                         {isControlPanelOpen ? (
                             <TooltipWrapper tooltip="Close control panel" onClick={handleControlPanelOpenAndClose}>
@@ -122,7 +136,8 @@ export const Header: FC<HeaderProps> = ({
                             </TooltipWrapper>
                         )}
                     </>
-                ) : (
+                )}
+                {activeViewer === "pipeline" && (
                     <>
                         <TooltipWrapper tooltip="Deploy changes" onClick={handleDeployPipeline}>
                             <PlayIcon
@@ -148,12 +163,33 @@ export const Header: FC<HeaderProps> = ({
                         <TooltipWrapper tooltip="Download YAML" onClick={handleDownloadYamlFile}>
                             <DownloadIcon className="w-4 h-4" />
                         </TooltipWrapper>
-                        <TooltipWrapper
-                            tooltip="Upload YAML"
-                            onClick={() => fileInputRef.current?.click()}
-                        >
+                        <TooltipWrapper tooltip="Upload YAML" onClick={() => fileInputRef.current?.click()}>
                             <UploadIcon className="w-4 h-4" />
                         </TooltipWrapper>
+                    </>
+                )}
+                {activeViewer === "image_frame" && (
+                    <>
+                        <TooltipWrapper tooltip="Chat with assistant" onClick={handleChatAssistantOpen}>
+                            <ChatAssistantIcon />
+                        </TooltipWrapper>
+                        <TooltipWrapper tooltip="Open pipeline logs" onClick={handlePipelineLogsOpen}>
+                            <LogsIcon />
+                        </TooltipWrapper>
+
+                        <TooltipWrapper tooltip="Open Grafana dashboard" onClick={handleOpenGrafanaDashboard}>
+                            <DashboardIcon />
+                        </TooltipWrapper>
+
+                        {digitalTwinState === "OK" ? (
+                            <TooltipWrapper tooltip="Digital twin state is OK">
+                                <HiShieldCheckIcon onClick={handleDigitalTwinStateShield} />
+                            </TooltipWrapper>
+                        ) : (
+                            <TooltipWrapper tooltip="Digital twin state is not OK">
+                                <HiShieldExclamationIcon onClick={handleDigitalTwinStateShield} />
+                            </TooltipWrapper>
+                        )}
                     </>
                 )}
 

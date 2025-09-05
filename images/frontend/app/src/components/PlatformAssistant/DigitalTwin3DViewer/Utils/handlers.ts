@@ -19,7 +19,8 @@ import axiosErrorHandler from "../../../../tools/axiosErrorHandler";
 interface HandlersParams {
     digitalTwinSelected: IDigitalTwin | null;
     digitalTwinGltfData: IDigitalTwinGltfData;
-    activeViewer: "3D" | "pipeline";
+    activeViewer: "3D" | "pipeline" | "image_frame";
+    assetWithMobilePhotoSelected: boolean;
     accessToken: string;
     refreshToken: string;
     authDispatch: any;
@@ -40,7 +41,7 @@ interface HandlersParams {
 export const createHandlers = (
     params: HandlersParams,
     setters: {
-        setActiveViewer: (viewer: "3D" | "pipeline") => void;
+        setActiveViewer: (viewer: "3D" | "pipeline" | "image_frame") => void;
         setGetLastMeasurementsButtomLabel: (label: string) => void;
         setInitialDigitalTwinSimulatorState: (state: Record<string, number>) => void;
         setLockReadingButtomLabel: (label: string) => void;
@@ -219,7 +220,13 @@ export const createHandlers = (
 
     const handleToggleActiveViewer = () => {
         const { activeViewer } = params;
-        const newViewer = activeViewer === "3D" ? "pipeline" : "3D";
+        const viewerOptions = ["3D", "pipeline"];
+        if (params.assetWithMobilePhotoSelected) {
+            viewerOptions.push("image_frame");
+        }
+        const currentIndex = viewerOptions.indexOf(activeViewer);
+        const nextIndex = (currentIndex + 1) % viewerOptions.length;
+        const newViewer = viewerOptions[nextIndex] as "3D" | "pipeline" | "image_frame";
         setters.setActiveViewer(newViewer);
         if (newViewer === "pipeline") {
             setters.setIsControlPanelOpen(false);

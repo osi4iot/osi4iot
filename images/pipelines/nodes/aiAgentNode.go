@@ -77,7 +77,7 @@ func CreateAiAgentNode(node common.NodeData, fm common.Manager) (*AiAgentNode, e
 	inputChan := make(chan mcphost.ChatMessage)
 	outputChan := make(chan mcphost.LlmResponse)
 	mcpServersPath := fm.GetMcpServersPath()
-	dtPath := fm.GetDigitalTwinPath(node.OrgId, node.GroupId, node.DigitalTwinId)
+	dtPath := fm.GetDigitalTwinFolder(node.OrgId, node.GroupId, node.DigitalTwinId)
 	fileSystemPath := filepath.Join(dtPath, "filesystem")
 	utils.CreateDirectoryIfNotExists(fileSystemPath)
 
@@ -91,7 +91,7 @@ func CreateAiAgentNode(node common.NodeData, fm common.Manager) (*AiAgentNode, e
 		},
 	}
 
-	femResultsInfo := fm.GetS3FolderInfo(node.GroupId, node.DigitalTwinId, "femResFiles")
+	femResultsInfo := fm.GetS3DigitalTwinFolderInfo(node.GroupId, node.DigitalTwinId, "femResFiles")
 	if fm.GetMode() == "local" {
 		mcpServers["current_date"] = mcphost.MCPServerConfig{
 			Type:    "local",

@@ -111,6 +111,7 @@ interface GeolocationContainerProps {
     sensorsState: ISensorState[];
     setSensorsState: (sensorsState: ISensorState[]) => void;
     setGltfFileDownloadProgress: (gltfFileDownloadProgress: number) => void;
+    setAssetWithMobilePhotoSelected: (selected: boolean) => void;
 }
 
 const GeolocationContainer: FC<GeolocationContainerProps> = (
@@ -161,6 +162,7 @@ const GeolocationContainer: FC<GeolocationContainerProps> = (
         sensorsState,
         setSensorsState,
         setGltfFileDownloadProgress,
+        setAssetWithMobilePhotoSelected
     }) => {
     const { accessToken, refreshToken } = useAuthState();
     const authDispatch = useAuthDispatch();
@@ -337,6 +339,7 @@ const GeolocationContainer: FC<GeolocationContainerProps> = (
                     openDigitalTwin3DViewer={openDigitalTwin3DViewer}
                     setGlftDataLoading={setGlftDataLoading}
                     setGltfFileDownloadProgress={setGltfFileDownloadProgress}
+                    setAssetWithMobilePhotoSelected={setAssetWithMobilePhotoSelected}
                 />
             }
             {geolocationOptionToShow === GEOLOCATION_OPTIONS.SELECT_ORG &&

@@ -1,26 +1,37 @@
-import { FC, useState, SyntheticEvent, useEffect } from 'react';
+import { FC, useState, SyntheticEvent, useEffect } from "react";
 import styled from "styled-components";
-import { Formik, Form, FormikProps } from 'formik';
-import * as Yup from 'yup';
-import { useFilePicker } from 'use-file-picker';
-import { useAuthState, useAuthDispatch } from '../../../contexts/authContext';
+import { Formik, Form, FormikProps } from "formik";
+import * as Yup from "yup";
+import { useFilePicker } from "use-file-picker";
+import { useAuthState, useAuthDispatch } from "../../../contexts/authContext";
 import { axiosAuth, getDomainName, getProtocol } from "../../../tools/tools";
 import { toast } from "react-toastify";
 import FormikControl from "../../Tools/FormikControl";
 import FormButtonsProps from "../../Tools/FormButtons";
 import FormTitle from "../../Tools/FormTitle";
-import { ML_MODELS_OPTIONS } from '../Utils/platformAssistantOptions';
-import Loader from '../../Tools/Loader';
-import formatDateString from '../../../tools/formatDate';
-import { setReloadDashboardsTable, setReloadTopicsTable, useGroupsManagedTable, useOrgsOfGroupsManagedTable, usePlatformAssitantDispatch } from '../../../contexts/platformAssistantContext';
-import { getAxiosInstance } from '../../../tools/axiosIntance';
-import axiosErrorHandler from '../../../tools/axiosErrorHandler';
-import { IMlModel } from '../TableColumns/mlModelsColumns';
-import { setMlModelsOptionToShow, useMlModelIdToEdit, useMlModelRowIndexToEdit, useMlModelsDispatch } from '../../../contexts/mlModelsOptions';
-import { MlModelFileName } from './CreateMlModel';
-import { FieldContainer } from './EditAsset';
-import { ControlsContainer, FormContainer } from './CreateAsset';
-import { AxiosResponse, AxiosError } from 'axios';
+import { ML_MODELS_OPTIONS } from "../Utils/platformAssistantOptions";
+import Loader from "../../Tools/Loader";
+import formatDateString from "../../../tools/formatDate";
+import {
+    setReloadDashboardsTable,
+    setReloadTopicsTable,
+    useGroupsManagedTable,
+    useOrgsOfGroupsManagedTable,
+    usePlatformAssitantDispatch,
+} from "../../../contexts/platformAssistantContext";
+import { getAxiosInstance } from "../../../tools/axiosIntance";
+import axiosErrorHandler from "../../../tools/axiosErrorHandler";
+import { IMlModel } from "../TableColumns/mlModelsColumns";
+import {
+    setMlModelsOptionToShow,
+    useMlModelIdToEdit,
+    useMlModelRowIndexToEdit,
+    useMlModelsDispatch,
+} from "../../../contexts/mlModelsOptions";
+import { MlModelFileName } from "./CreateMlModel";
+import { FieldContainer } from "./EditAsset";
+import { ControlsContainer, FormContainer } from "./CreateAsset";
+import { AxiosResponse, AxiosError } from "axios";
 
 const DataFileTitle = styled.div`
     margin-bottom: 5px;
@@ -39,34 +50,33 @@ const SelectDataFilesButtonContainer = styled.div`
     margin-bottom: 10px;
     flex-direction: row;
     justify-content: center;
-	align-items: center;
+    align-items: center;
     background-color: #202226;
     width: 100%;
 `;
 
-
 const FileButton = styled.button`
-	background-color: #3274d9;
-	padding: 5px 10px;
+    background-color: #3274d9;
+    padding: 5px 10px;
     margin: 5px 10px;
-	color: white;
-	border: 1px solid #2c3235;
-	border-radius: 10px;
-	outline: none;
-	cursor: pointer;
-	box-shadow: 0 5px #173b70;
+    color: white;
+    border: 1px solid #2c3235;
+    border-radius: 10px;
+    outline: none;
+    cursor: pointer;
+    box-shadow: 0 5px #173b70;
     font-size: 14px;
     width: 40%;
 
-	&:hover {
-		background-color: #2461c0;
-	}
+    &:hover {
+        background-color: #2461c0;
+    }
 
-	&:active {
-		background-color: #2461c0;
-		box-shadow: 0 2px #173b70;
-		transform: translateY(4px);
-	}
+    &:active {
+        background-color: #2461c0;
+        box-shadow: 0 2px #173b70;
+        transform: translateY(4px);
+    }
 `;
 
 const MlModelField = styled.div`
@@ -103,26 +113,29 @@ const MlModelField = styled.div`
 const mlLibrariesOptions = [
     {
         label: "Tensorflow",
-        value: "Tensorflow"
+        value: "Tensorflow",
     },
     {
         label: "Scikit-learn",
-        value: "Scikit-learn"
-    }
+        value: "Scikit-learn",
+    },
+    {
+        label: "Onnx",
+        value: "Onnx",
+    },
 ];
 
 const selectFile = (openFileSelector: () => void, clear: () => void) => {
     clear();
     openFileSelector();
-}
+};
 
 interface InitialMLModelData {
     description: string;
     mlLibrary: string;
 }
 
-type FormikType = FormikProps<InitialMLModelData>
-
+type FormikType = FormikProps<InitialMLModelData>;
 
 const domainName = getDomainName();
 const protocol = getProtocol();
@@ -143,10 +156,10 @@ const EditMlModel: FC<EditMlModelProps> = ({ mlModels, backToTable, refreshMlMod
     const mLModelId = useMlModelIdToEdit();
     const groupId = mlModels[mlModelRowIndex].groupId;
     const groupsManaged = useGroupsManagedTable();
-    const group = groupsManaged.filter(groupManaged => groupManaged.id === groupId)[0];
+    const group = groupsManaged.filter((groupManaged) => groupManaged.id === groupId)[0];
     const groupAcronym = group.acronym;
     const orgsOfGroupsManaged = useOrgsOfGroupsManagedTable();
-    const organization = orgsOfGroupsManaged.filter(org => org.id === group.orgId)[0];
+    const organization = orgsOfGroupsManaged.filter((org) => org.id === group.orgId)[0];
     const orgAcronym = organization.acronym;
     const [mLModelDataLoading, setMlModelDataLoading] = useState(true);
     const [areMlModelFilesModified, setAreMlModelFilesModified] = useState(false);
@@ -161,6 +174,10 @@ const EditMlModel: FC<EditMlModelProps> = ({ mlModels, backToTable, refreshMlMod
     const [scikitLearnPickleFile, setScikitLearnPickleFile] = useState<File | null>(null);
     const [scikitLearnPickleFileName, setScikitLearnPickleFileName] = useState("-");
     const [scikitLearnPickleFileLastModif, setScikitLearnPickleFileLastModif] = useState("-");
+    const [onnxLocalFilesLoaded, setOnnxLocalFilesLoaded] = useState(false);
+    const [onnxFile, setOnnxFile] = useState<File | null>(null);
+    const [onnxFileName, setOnnxFileName] = useState("-");
+    const [onnxFileLastModif, setOnnxFileLastModif] = useState("-");
     const [mlLibrary, setMlLibrary] = useState(mlModels[mlModelRowIndex].mlLibrary);
 
     useEffect(() => {
@@ -183,8 +200,10 @@ const EditMlModel: FC<EditMlModelProps> = ({ mlModels, backToTable, refreshMlMod
                         } else if (fileName.slice(fileNameLength - 3) === "pkl") {
                             setScikitLearnPickleFileName(fileName);
                             setScikitLearnPickleFileLastModif(dateString);
-                        }
-                        else {
+                        } else if (fileName.slice(fileNameLength - 4) === "onnx") {
+                            setOnnxFileName(fileName);
+                            setOnnxFileLastModif(dateString);
+                        } else {
                             modelBinFileNames.push(fileName);
                         }
                     }
@@ -202,25 +221,18 @@ const EditMlModel: FC<EditMlModelProps> = ({ mlModels, backToTable, refreshMlMod
             .catch((error: AxiosError) => {
                 axiosErrorHandler(error, authDispatch);
                 setMlModelDataLoading(false);
-            })
-    }, [
-        accessToken,
-        refreshToken,
-        authDispatch,
-        backToTable,
-        groupId,
-        mLModelId
-    ])
+            });
+    }, [accessToken, refreshToken, authDispatch, backToTable, groupId, mLModelId]);
 
     const onMlLibrarySelectChange = (e: { value: string }, formik: FormikType) => {
         setMlLibrary(e.value);
-        formik.setFieldValue("mlLibrary", e.value)
-    }
+        formik.setFieldValue("mlLibrary", e.value);
+    };
 
     const [openTensorflowFilesSelector, tensorflowFilesParams] = useFilePicker({
-        readAs: 'Text',
+        readAs: "Text",
         multiple: true,
-        accept: ['.json', '.bin']
+        accept: [".json", ".bin"],
     });
 
     const clearTensorflowDataFile = () => {
@@ -231,7 +243,7 @@ const EditMlModel: FC<EditMlModelProps> = ({ mlModels, backToTable, refreshMlMod
         setTensorflowBinFiles([]);
         setTensorflowBinFileNames([]);
         tensorflowFilesParams.clear();
-    }
+    };
 
     useEffect(() => {
         if (
@@ -259,7 +271,7 @@ const EditMlModel: FC<EditMlModelProps> = ({ mlModels, backToTable, refreshMlMod
                         ) {
                             binFilesNum = fileObj.weightsManifest[0].paths.length;
                         } else {
-                            throw new Error('The entered json file does not correspond to an ML model');
+                            throw new Error("The entered json file does not correspond to an ML model");
                         }
                         setTensorflowJsonFile(files[ifile]);
                         setTensorflowJsonFileName(fileName);
@@ -271,7 +283,7 @@ const EditMlModel: FC<EditMlModelProps> = ({ mlModels, backToTable, refreshMlMod
                     }
                 }
                 if (binFilesNum !== modelBinFiles.length) {
-                    throw new Error('Missing to introduce some bin shard file');
+                    throw new Error("Missing to introduce some bin shard file");
                 }
                 if (modelBinFiles.length !== 0 && modelBinFileNames.length !== 0) {
                     setTensorflowBinFiles(modelBinFiles);
@@ -302,18 +314,18 @@ const EditMlModel: FC<EditMlModelProps> = ({ mlModels, backToTable, refreshMlMod
         tensorflowFilesParams.filesContent,
         tensorflowFilesParams.plainFiles,
         tensorflowFilesParams,
-    ])
+    ]);
 
     const tensorflowFileButtonHandler = () => {
         if (!tensorflowLocalFilesLoaded) {
             selectFile(openTensorflowFilesSelector, tensorflowFilesParams.clear);
         }
-    }
+    };
 
     const [openScikitLearnFileSelector, scikitLearnFileParams] = useFilePicker({
-        readAs: 'Text',
+        readAs: "Text",
         multiple: false,
-        accept: ['.pkl']
+        accept: [".pkl"],
     });
 
     const clearScikitLearnDataFile = () => {
@@ -322,13 +334,13 @@ const EditMlModel: FC<EditMlModelProps> = ({ mlModels, backToTable, refreshMlMod
         setScikitLearnPickleFileName("-");
         setScikitLearnPickleFileLastModif("-");
         scikitLearnFileParams.clear();
-    }
+    };
 
     const scikitLearnFileButtonHandler = () => {
         if (!scikitLearnLocalFilesLoaded) {
             selectFile(openScikitLearnFileSelector, scikitLearnFileParams.clear);
         }
-    }
+    };
 
     useEffect(() => {
         if (
@@ -360,11 +372,59 @@ const EditMlModel: FC<EditMlModelProps> = ({ mlModels, backToTable, refreshMlMod
                 scikitLearnFileParams.clear();
             }
         }
-    }, [
-        scikitLearnFileParams.loading,
-        scikitLearnFileParams.plainFiles,
-        scikitLearnFileParams,
-    ])
+    }, [scikitLearnFileParams.loading, scikitLearnFileParams.plainFiles, scikitLearnFileParams]);
+
+    const [openOnnxFileSelector, onnxFileParams] = useFilePicker({
+        readAs: "Text",
+        multiple: false,
+        accept: [".onnx"],
+    });
+
+    const clearOnnxDataFile = () => {
+        setOnnxLocalFilesLoaded(false);
+        setOnnxFile(null);
+        setOnnxFileName("-");
+        setOnnxFileLastModif("-");
+        onnxFileParams.clear();
+    };
+
+    const onnxFileButtonHandler = () => {
+        if (!onnxLocalFilesLoaded) {
+            selectFile(openOnnxFileSelector, onnxFileParams.clear);
+        }
+    };
+
+    useEffect(() => {
+        if (
+            !onnxFileParams.loading &&
+            onnxFileParams.filesContent.length !== 0 &&
+            onnxFileParams.plainFiles.length !== 0
+        ) {
+            try {
+                const files = onnxFileParams.plainFiles;
+                const onnxFileName = files[0].name;
+                setOnnxFileName(onnxFileName);
+                const dateString = formatDateString((files[0] as any).lastModified);
+                setOnnxFileLastModif(dateString);
+                setOnnxFile(files[0]);
+                setOnnxLocalFilesLoaded(true);
+                setAreMlModelFilesModified(true);
+                onnxFileParams.clear();
+            } catch (error) {
+                if (error instanceof Error) {
+                    toast.error(`Invalid Onnx ML model files: ${error.message}`);
+                } else {
+                    toast.error("Invalid Onnx ML model files");
+                }
+                setAreMlModelFilesModified(false);
+                setOnnxLocalFilesLoaded(false);
+                setOnnxFile(null);
+                setOnnxFileName("-");
+                setOnnxFileLastModif("-");
+                onnxFileParams.clear();
+            }
+        }
+    }, [onnxFileParams.loading, onnxFileParams.plainFiles, onnxFileParams]);
 
     const onSubmit = async (values: any, actions: any) => {
         const groupId = mlModels[mlModelRowIndex].groupId;
@@ -376,10 +436,9 @@ const EditMlModel: FC<EditMlModelProps> = ({ mlModels, backToTable, refreshMlMod
             const mlModelData = {
                 description: values.description,
                 mlLibrary: values.mlLibrary,
-                areMlModelFilesModified
+                areMlModelFilesModified,
             };
-            const response = await getAxiosInstance(refreshToken, authDispatch)
-                .patch(updateUrl, mlModelData, config);
+            const response = await getAxiosInstance(refreshToken, authDispatch).patch(updateUrl, mlModelData, config);
 
             if (response.data) {
                 const data = response.data;
@@ -399,7 +458,7 @@ const EditMlModel: FC<EditMlModelProps> = ({ mlModels, backToTable, refreshMlMod
             backToTable();
         }
 
-        const configMultipart = axiosAuth(accessToken, "multipart/form-data")
+        const configMultipart = axiosAuth(accessToken, "multipart/form-data");
         const urlUploadMlModelFileBase0 = `${protocol}://${domainName}/admin_api/ml_model_upload_file`;
         const urlUploadMlModelBase = `${urlUploadMlModelFileBase0}/${groupId}/${mLModelId}`;
 
@@ -417,7 +476,7 @@ const EditMlModel: FC<EditMlModelProps> = ({ mlModels, backToTable, refreshMlMod
                         .catch((error: AxiosError) => {
                             axiosErrorHandler(error, authDispatch);
                             backToTable();
-                        })
+                        });
 
                     for (let ifile = 0; ifile < tensorflowBinFiles.length; ifile++) {
                         const modelBinFileData = new FormData();
@@ -435,17 +494,13 @@ const EditMlModel: FC<EditMlModelProps> = ({ mlModels, backToTable, refreshMlMod
                             .catch((error: AxiosError) => {
                                 axiosErrorHandler(error, authDispatch);
                                 backToTable();
-                            })
+                            });
                     }
                 }
             } else if (mlLibrary === "Scikit-learn") {
                 if (scikitLearnPickleFile) {
                     const pickleFileData = new FormData();
-                    pickleFileData.append(
-                        "file",
-                        scikitLearnPickleFile as File,
-                        scikitLearnPickleFileName
-                    );
+                    pickleFileData.append("file", scikitLearnPickleFile as File, scikitLearnPickleFileName);
                     const urlUploadPickleFile = `${urlUploadMlModelBase}/${scikitLearnPickleFileName}`;
                     getAxiosInstance(refreshToken, authDispatch)
                         .post(urlUploadPickleFile, pickleFileData, configMultipart)
@@ -455,22 +510,35 @@ const EditMlModel: FC<EditMlModelProps> = ({ mlModels, backToTable, refreshMlMod
                         .catch((error: AxiosError) => {
                             axiosErrorHandler(error, authDispatch);
                             backToTable();
-                        })
+                        });
                 }
-
+            } else if (mlLibrary === "Onnx") {
+                if (onnxFile) {
+                    const onnxFileData = new FormData();
+                    onnxFileData.append("file", onnxFile as File, onnxFileName);
+                    const urlUploadOnnxFile = `${urlUploadMlModelBase}/${onnxFileName}`;
+                    getAxiosInstance(refreshToken, authDispatch)
+                        .post(urlUploadOnnxFile, onnxFileData, configMultipart)
+                        .then((response: AxiosResponse<any, any>) => {
+                            toast.success(response.data.message);
+                        })
+                        .catch((error: AxiosError) => {
+                            axiosErrorHandler(error, authDispatch);
+                            backToTable();
+                        });
+                }
             }
         }
-    }
+    };
 
     const initialDigitalTwinData = {
         description: mlModels[mlModelRowIndex].description,
-        mlLibrary: mlModels[mlModelRowIndex].mlLibrary
-    }
+        mlLibrary: mlModels[mlModelRowIndex].mlLibrary,
+    };
 
     const validationSchema = Yup.object().shape({
-        description: Yup.string().required('Required')
+        description: Yup.string().required("Required"),
     });
-
 
     const onCancel = (e: SyntheticEvent) => {
         e.preventDefault();
@@ -479,116 +547,140 @@ const EditMlModel: FC<EditMlModelProps> = ({ mlModels, backToTable, refreshMlMod
 
     return (
         <>
-            {
-                mLModelDataLoading ?
-                    <Loader />
-                    :
-                    <>
-                        <FormTitle isSubmitting={isSubmitting} >Edit ML model</FormTitle>
-                        <FormContainer>
-                            <Formik initialValues={initialDigitalTwinData} validationSchema={validationSchema} onSubmit={onSubmit} >
-                                {
-                                    formik => {
-                                        return (
-                                            <Form>
-                                                <ControlsContainer>
-                                                    <FieldContainer>
-                                                        <label>Org acronym</label>
-                                                        <div>{orgAcronym}</div>
-                                                    </FieldContainer>
-                                                    <FieldContainer>
-                                                        <label>Group acronym</label>
-                                                        <div>{groupAcronym}</div>
-                                                    </FieldContainer>
-                                                    <MlModelField>
-                                                        <label>ML model reference:</label>
-                                                        <div>{mlModels[mlModelRowIndex].mlModelUid}</div>
-                                                    </MlModelField>
-                                                    <FormikControl
-                                                        control='input'
-                                                        label='Description'
-                                                        name='description'
-                                                        type='text'
-                                                    />
-                                                    <FormikControl
-                                                        control='select'
-                                                        label='Select ML library'
-                                                        name="mlLibrary"
-                                                        options={mlLibrariesOptions}
-                                                        type='text'
-                                                        onChange={(e) => onMlLibrarySelectChange(e, formik)}
-                                                    />
-                                                    <DataFileTitle>ML model files</DataFileTitle>
-                                                    {
-                                                        mlLibrary === "Tensorflow" ?
-                                                            <DataFileContainer>
-                                                                <MlModelFileName>
-                                                                    <label>Json file name:</label>
-                                                                    <div>{tensorflowJsonFileName}</div>
-                                                                </MlModelFileName>
-                                                                <MlModelFileName>
-                                                                    <label>Json file last modification date:</label>
-                                                                    <div>{tensorflowJsonFileLastModif}</div>
-                                                                </MlModelFileName>
-                                                                {tensorflowBinFileNames.map((fileName: any, index: number) => (
-                                                                    <MlModelFileName key={`${fileName}_${index}`}>
-                                                                        <label>Shard {index + 1} of {tensorflowBinFileNames.length}:</label>
-                                                                        <div>{fileName}</div>
-                                                                    </MlModelFileName>
-                                                                ))}
-                                                                <SelectDataFilesButtonContainer >
-                                                                    <FileButton
-                                                                        type='button'
-                                                                        onClick={clearTensorflowDataFile}
-                                                                    >
-                                                                        Clear
-                                                                    </FileButton>
-                                                                    <FileButton
-                                                                        type='button'
-                                                                        onClick={() => tensorflowFileButtonHandler()}
-                                                                    >
-                                                                        Select local files
-                                                                    </FileButton>
-                                                                </SelectDataFilesButtonContainer>
-                                                            </DataFileContainer>
-                                                            :
-                                                            <DataFileContainer>
-                                                                <MlModelFileName>
-                                                                    <label>Pickle file name:</label>
-                                                                    <div>{scikitLearnPickleFileName}</div>
-                                                                </MlModelFileName>
-                                                                <MlModelFileName>
-                                                                    <label>Pickle file last modification date:</label>
-                                                                    <div>{scikitLearnPickleFileLastModif}</div>
-                                                                </MlModelFileName>
-                                                                <SelectDataFilesButtonContainer >
-                                                                    <FileButton
-                                                                        type='button'
-                                                                        onClick={clearScikitLearnDataFile}
-                                                                    >
-                                                                        Clear
-                                                                    </FileButton>
-                                                                    <FileButton
-                                                                        type='button'
-                                                                        onClick={() => scikitLearnFileButtonHandler()}
-                                                                    >
-                                                                        Select local file
-                                                                    </FileButton>
-                                                                </SelectDataFilesButtonContainer>
-                                                            </DataFileContainer>
-                                                    }
-                                                </ControlsContainer>
-                                                <FormButtonsProps onCancel={onCancel} isValid={formik.isValid} isSubmitting={formik.isSubmitting} />
-                                            </Form>
-                                        )
-                                    }
-                                }
-                            </Formik>
-                        </FormContainer>
-                    </>
-            }
+            {mLModelDataLoading ? (
+                <Loader />
+            ) : (
+                <>
+                    <FormTitle isSubmitting={isSubmitting}>Edit ML model</FormTitle>
+                    <FormContainer>
+                        <Formik
+                            initialValues={initialDigitalTwinData}
+                            validationSchema={validationSchema}
+                            onSubmit={onSubmit}
+                        >
+                            {(formik) => {
+                                return (
+                                    <Form>
+                                        <ControlsContainer>
+                                            <FieldContainer>
+                                                <label>Org acronym</label>
+                                                <div>{orgAcronym}</div>
+                                            </FieldContainer>
+                                            <FieldContainer>
+                                                <label>Group acronym</label>
+                                                <div>{groupAcronym}</div>
+                                            </FieldContainer>
+                                            <MlModelField>
+                                                <label>ML model reference:</label>
+                                                <div>{mlModels[mlModelRowIndex].mlModelUid}</div>
+                                            </MlModelField>
+                                            <FormikControl
+                                                control="input"
+                                                label="Description"
+                                                name="description"
+                                                type="text"
+                                            />
+                                            <FormikControl
+                                                control="select"
+                                                label="Select ML library"
+                                                name="mlLibrary"
+                                                options={mlLibrariesOptions}
+                                                type="text"
+                                                onChange={(e) => onMlLibrarySelectChange(e, formik)}
+                                            />
+                                            <DataFileTitle>ML model files</DataFileTitle>
+                                            {mlLibrary === "Tensorflow" && (
+                                                <DataFileContainer>
+                                                    <MlModelFileName>
+                                                        <label>Json file name:</label>
+                                                        <div>{tensorflowJsonFileName}</div>
+                                                    </MlModelFileName>
+                                                    <MlModelFileName>
+                                                        <label>Json file last modification date:</label>
+                                                        <div>{tensorflowJsonFileLastModif}</div>
+                                                    </MlModelFileName>
+                                                    {tensorflowBinFileNames.map((fileName: any, index: number) => (
+                                                        <MlModelFileName key={`${fileName}_${index}`}>
+                                                            <label>
+                                                                Shard {index + 1} of {tensorflowBinFileNames.length}:
+                                                            </label>
+                                                            <div>{fileName}</div>
+                                                        </MlModelFileName>
+                                                    ))}
+                                                    <SelectDataFilesButtonContainer>
+                                                        <FileButton type="button" onClick={clearTensorflowDataFile}>
+                                                            Clear
+                                                        </FileButton>
+                                                        <FileButton
+                                                            type="button"
+                                                            onClick={() => tensorflowFileButtonHandler()}
+                                                        >
+                                                            Select local files
+                                                        </FileButton>
+                                                    </SelectDataFilesButtonContainer>
+                                                </DataFileContainer>
+                                            )}
+                                            {mlLibrary === "ScikitLearn" && (
+                                                <DataFileContainer>
+                                                    <MlModelFileName>
+                                                        <label>Pickle file name:</label>
+                                                        <div>{scikitLearnPickleFileName}</div>
+                                                    </MlModelFileName>
+                                                    <MlModelFileName>
+                                                        <label>Pickle file last modification date:</label>
+                                                        <div>{scikitLearnPickleFileLastModif}</div>
+                                                    </MlModelFileName>
+                                                    <SelectDataFilesButtonContainer>
+                                                        <FileButton type="button" onClick={clearScikitLearnDataFile}>
+                                                            Clear
+                                                        </FileButton>
+                                                        <FileButton
+                                                            type="button"
+                                                            onClick={() => scikitLearnFileButtonHandler()}
+                                                        >
+                                                            Select local file
+                                                        </FileButton>
+                                                    </SelectDataFilesButtonContainer>
+                                                </DataFileContainer>
+                                            )}
+                                            {mlLibrary === "Onnx" && (
+                                                <DataFileContainer>
+                                                    <MlModelFileName>
+                                                        <label>Onnx file name:</label>
+                                                        <div>{onnxFileName}</div>
+                                                    </MlModelFileName>
+                                                    <MlModelFileName>
+                                                        <label>Onnx file last modification date:</label>
+                                                        <div>{onnxFileLastModif}</div>
+                                                    </MlModelFileName>
+                                                    <SelectDataFilesButtonContainer>
+                                                        <FileButton type="button" onClick={clearOnnxDataFile}>
+                                                            Clear
+                                                        </FileButton>
+                                                        <FileButton
+                                                            type="button"
+                                                            onClick={() => onnxFileButtonHandler()}
+                                                        >
+                                                            Select local file
+                                                        </FileButton>
+                                                    </SelectDataFilesButtonContainer>
+                                                </DataFileContainer>
+                                            )}
+                                        </ControlsContainer>
+                                        <FormButtonsProps
+                                            onCancel={onCancel}
+                                            isValid={formik.isValid}
+                                            isSubmitting={formik.isSubmitting}
+                                        />
+                                    </Form>
+                                );
+                            }}
+                        </Formik>
+                    </FormContainer>
+                </>
+            )}
         </>
-    )
-}
+    );
+};
 
 export default EditMlModel;

@@ -55,9 +55,11 @@ import {
     useAssetTypesTable,
     useAssetsTable,
     useAssetsWithMarkerTable,
+    useMlModelsTable,
     useReloadAssetTypesTable,
     useReloadAssetsTable,
     useReloadAssetsWithMarkerTable,
+    useReloadMlModelsTable,
     useReloadSensorTypesTable,
     useReloadSensorsTable,
     useSensorTypesTable,
@@ -73,6 +75,10 @@ import { getDTStorageInfo, syncDigitalTwinsLocalStorage } from "../../../tools/f
 import { IGeolocationMeasurement } from "../TableColumns/measurementsColumns";
 import HomeOptionsLoader from "../../Tools/HomeOptionsLoader";
 import { AxiosResponse, AxiosError } from "axios";
+import {
+    setMlModelsTable,
+    setReloadMlModelsTable,
+} from "../../../contexts/platformAssistantContext/platformAssistantAction";
 
 const PlatformAssistantHomeOptionsContainer = styled.div`
     display: flex;
@@ -247,6 +253,7 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
     const sensorTypesTable = useSensorTypesTable();
     const sensorsTable = useSensorsTable();
     const digitalTwinsTable = useDigitalTwinsTable();
+    const mlModelsTable = useMlModelsTable();
     const [buildingsLoading, setBuildingsLoading] = useState(true);
     const [floorsLoading, setFloorsLoading] = useState(true);
     const [orgsOfGroupsManagedLoading, setOrgsOfGroupsManagedLoading] = useState(true);
@@ -257,6 +264,7 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
     const [sensorTypesLoading, setSensorTypesLoading] = useState(true);
     const [sensorsLoading, setSensorsLoading] = useState(true);
     const [digitalTwinLoading, setDigitalTwinsLoading] = useState(true);
+    const [mlModelsLoading, setMlModelsLoading] = useState(true);
     const [digitalTwinGltfData, setDigitalTwinGltfData] = useState<IDigitalTwinGltfData | null>(null);
     const [optionToShow, setOptionToShow] = useState(PLATFORM_ASSISTANT_HOME_OPTIONS.GEOLOCATION);
     const reloadBuildingsTable = useReloadBuildingsTable();
@@ -268,6 +276,7 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
     const reloadAssetsWithMarkerTable = useReloadAssetsWithMarkerTable();
     const reloadSensorsTable = useReloadSensorsTable();
     const reloadSensorTypesTable = useReloadSensorTypesTable();
+    const reloadMlModelsTable = useReloadMlModelsTable();
     const [reloadDigitalTwins, setReloadDigitalTwins] = useState(false);
     const initialBuildingsFiltered = filterBuildings(buildingsTable);
     const [buildingsFiltered, setBuildingsFiltered] = useState<IBuilding[]>(initialBuildingsFiltered);
@@ -288,6 +297,7 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
     const [sensorsState, setSensorsState] = useState<ISensorState[]>([]);
     const [assetMarkerSelected, setAssetMarkerSelected] = useState(false);
     const fetchFemResFileWorker: Worker = useMemo(() => new Worker(fetchFemResFileCode), []);
+    const [assetWithMobilePhotoSelected, setAssetWithMobilePhotoSelected] = useState(false);
 
     const refreshBuildings = useCallback(() => {
         setBuildingsLoading(true);
@@ -640,7 +650,7 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
     }, [refreshToken, accessToken, authDispatch, plaformAssistantDispatch, sensorsTable.length, reloadSensorsTable]);
 
     useEffect(() => {
-        if (digitalTwinsTable.length === 0 || reloadDigitalTwins ) {
+        if (digitalTwinsTable.length === 0 || reloadDigitalTwins) {
             setDigitalTwinsLoading(false);
             const config = axiosAuth(accessToken);
             const urlDigitalTwins = `${protocol}://${domainName}/admin_api/digital_twins/user_managed`;
@@ -755,6 +765,30 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
         plaformAssistantDispatch,
     ]);
 
+    useEffect(() => {
+        if (mlModelsTable.length === 0 || reloadMlModelsTable) {
+            const config = axiosAuth(accessToken);
+            const urlMlModels = `${protocol}://${domainName}/admin_api/ml_models/user_managed`;
+            getAxiosInstance(refreshToken, authDispatch)
+                .get(urlMlModels, config)
+                .then((response: AxiosResponse<any, any>) => {
+                    const mlModels = response.data;
+                    setMlModelsTable(plaformAssistantDispatch, { mlModels });
+                    setMlModelsLoading(false);
+                    const reloadMlModelsTable = false;
+                    setReloadMlModelsTable(plaformAssistantDispatch, { reloadMlModelsTable });
+                })
+                .catch((error: AxiosError) => {
+                    const mlModels: never[] = [];
+                    setMlModelsTable(plaformAssistantDispatch, { mlModels });
+                    setMlModelsLoading(false);
+                    axiosErrorHandler(error, authDispatch);
+                });
+        } else {
+            setMlModelsLoading(false);
+        }
+    }, [accessToken, refreshToken, authDispatch, plaformAssistantDispatch, reloadMlModelsTable, mlModelsTable.length]);
+
     const clickHandler = (optionToShow: string) => {
         setOptionToShow(optionToShow);
     };
@@ -796,6 +830,7 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
                     assetsWithMarkerLoading ||
                     sensorsLoading ||
                     digitalTwinLoading ||
+                    mlModelsLoading ||
                     glftDataLoading ? (
                         <HomeOptionsLoader
                             key={gltfFileDownloadProgress}
@@ -854,6 +889,7 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
                                     setGltfFileDownloadProgress={(progress: number) =>
                                         setGltfFileDownloadProgress(progress)
                                     }
+                                    setAssetWithMobilePhotoSelected={setAssetWithMobilePhotoSelected}
                                 />
                             )}
                             {optionToShow === PLATFORM_ASSISTANT_HOME_OPTIONS.DIGITAL_TWINS && digitalTwinGltfData && (
@@ -864,6 +900,7 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
                                         close3DViewer={handleCloseViewer}
                                         fetchFemResFileWorker={fetchFemResFileWorker}
                                         refreshDigitalTwins={refreshDigitalTwins}
+                                        assetWithMobilePhotoSelected={assetWithMobilePhotoSelected}
                                     />
                                 </Suspense>
                             )}

@@ -12,11 +12,12 @@ import {
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { FunctionNode, ListenNode, PublishNode, InjectNode, DelayNode, EmailNode, TelegramNode, AiAgentNode } from "./Nodes";
+import { FunctionNode, ListenNode, PublishNode, InjectNode, DelayNode, EmailNode, TelegramNode, MlModelNode, AiAgentNode } from "./Nodes";
 import NodePalette from "./NodePalette";
 import NodePropertiesPanel from "./NodePropertiesPanel";
 import { createNodesAndEdges } from "../Utils/customHooks";
 import { toast } from "react-toastify";
+import { useMlModelsTableInGroup } from "../../../../contexts/platformAssistantContext/platformAssistantContext";
 
 export const processInitialPipelineData = (digitalTwinSelected, mqttClient, mqttTopicsData) => {
     if (!digitalTwinSelected.pipelineFileData || digitalTwinSelected.pipelineFileData === "") {
@@ -67,6 +68,7 @@ export default function Flow({
     const [selectedNode, setSelectedNode] = useState(null);
     const [isPanelOpen, setIsPanelOpen] = useState(false);
     const [nodeCounters, setNodeCounters] = useState({});
+    const mlModelsTable = useMlModelsTableInGroup(digitalTwinSelected.groupId);
 
     useEffect(() => {
         const newCounters = {
@@ -78,6 +80,7 @@ export default function Flow({
             Telegram: 0,
             Delay: 0,
             AiAgent: 0,
+            MlModel: 0,
         };
 
         let maxInject = 0;
@@ -111,6 +114,7 @@ export default function Flow({
             Email: EmailNode,
             Telegram: TelegramNode,
             Delay: DelayNode,
+            MlModel: MlModelNode,
             AiAgent: AiAgentNode,
         }),
         []
@@ -222,6 +226,16 @@ export default function Flow({
             if (!data) return;
 
             const { nodeType, label, numOutputs, debug, settings } = JSON.parse(data);
+            if (nodeType === "MlModel") {
+                if (mlModelsTable.length === 0) {
+                    toast.error("No ML Models available.");
+                    return;
+                } else {
+                    if (settings && settings.mlModelId === 0) {
+                        settings.mlModelId = parseInt(mlModelsTable[0].id);
+                    }
+                }
+            }
             const nodeWidth = 190;
             const nodeHeight = 40;
             const position = screenToFlowPosition({
@@ -276,6 +290,7 @@ export default function Flow({
                 onClose={onClosePanel}
                 selectedNode={selectedNode}
                 onUpdateNode={onUpdateNode}
+                digitalTwinSelected={digitalTwinSelected}
                 handlePipelineUiChanged={handlePipelineUiChanged}
                 mqttTopicsData={mqttTopicsData}
             />

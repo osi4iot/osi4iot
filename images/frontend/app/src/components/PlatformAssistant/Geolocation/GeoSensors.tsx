@@ -25,6 +25,7 @@ interface GeoSensorsProps {
     openDigitalTwin3DViewer: (digitalTwinGltfData: IDigitalTwinGltfData) => void;
     setGlftDataLoading: (gtGlftDataLoading: boolean) => void;
     setGltfFileDownloadProgress: (gltfFileDownloadProgress: number) => void;
+    setAssetWithMobilePhotoSelected: (selected: boolean) => void;
 }
 
 
@@ -42,6 +43,7 @@ const GeoSensors: FC<GeoSensorsProps> = ({
     openDigitalTwin3DViewer,
     setGlftDataLoading,
     setGltfFileDownloadProgress,
+    setAssetWithMobilePhotoSelected
 }) => {
     const arrayLength = sensors.length;
     const [sensorsArray, setSensorsArray] = useState(sensors.slice(0, 10));
@@ -105,10 +107,12 @@ const GeoSensors: FC<GeoSensorsProps> = ({
                     digitalTwinSelected={digitalTwinSelected}
                     selectDigitalTwin={selectDigitalTwin}
                     selectSensor={selectSensor}
+                    sensors={sensors}
                     digitalTwinState={digitalTwinState}
                     openDigitalTwin3DViewer={openDigitalTwin3DViewer}
                     setGlftDataLoading={setGlftDataLoading}
                     setGltfFileDownloadProgress={setGltfFileDownloadProgress}
+                    setAssetWithMobilePhotoSelected={setAssetWithMobilePhotoSelected}
                 />
             }
             {

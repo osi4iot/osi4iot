@@ -106,7 +106,7 @@ func PipelinesConfig(platformData *types.PlatformData, nodeRoleNumMap map[string
 		ReplicaIndex:           1,
 		NumStreamReplicas:      1,
 		IsRaftLeader:           true,
-		FunctionsTimeout:       500,
+		FunctionsTimeout:       5000,
 		TelegramBotToken:       platformData.PlatformInfo.TelegramBotToken,
 		PlatformEmailUsername:  platformData.PlatformInfo.NotificationsEmailUser,
 		PlatformEmailPassword:  platformData.PlatformInfo.NotificationsEmailPassword,

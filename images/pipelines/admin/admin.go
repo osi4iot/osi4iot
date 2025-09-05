@@ -492,7 +492,7 @@ func (a *Admin) GetWire(groupId int, wireId int) *common.Wire {
 	return &wire
 }
 
-func (a *Admin) GetS3FolderInfo(groupId int, digitalTwinId int, folder string) []*common.S3FolderFileInfo {
+func (a *Admin) GetS3DigitalTwinFolderInfo(groupId int, digitalTwinId int, folder string) []*common.S3FolderFileInfo {
 	var folderInfo []*common.S3FolderFileInfo
 	url := fmt.Sprintf("%s/digital_twin_file_list/%d/%d/%s", a.baseUrl, groupId, digitalTwinId, folder)
 	response, err := utils.HttpGetWithJwt(url, a.accessToken)
@@ -510,8 +510,26 @@ func (a *Admin) GetS3FolderInfo(groupId int, digitalTwinId int, folder string) [
 	return folderInfo
 }
 
+func (a *Admin) GetS3MlModelFolderInfo(groupId int, mlModelId int) []*common.S3FolderFileInfo {
+	var folderInfo []*common.S3FolderFileInfo
+	url := fmt.Sprintf("%s/ml_model_file_list/%d/%d", a.baseUrl, groupId, mlModelId)
+	response, err := utils.HttpGetWithJwt(url, a.accessToken)
+	if err != nil {
+		a.log.Errorf("failed to get s3 folder info: %v", err)
+		return nil
+	}
+
+	err = utils.UnmarshalData(response, &folderInfo)
+	if err != nil {
+		a.log.Errorf("failed to unmarshal fem results info: %v", err)
+		return nil
+	}
+
+	return folderInfo
+}
+
 func (a *Admin) ProcessFemResultFile(femResultsPath string, groupId int, digitalTwinId int) {
-	femResultsInfo := a.GetS3FolderInfo(groupId, digitalTwinId, "femResFiles")
+	femResultsInfo := a.GetS3DigitalTwinFolderInfo(groupId, digitalTwinId, "femResFiles")
 
 	if len(femResultsInfo) > 0 {
 		isFemResultsProcessed, err := utils.IsFemResultsFileProcessed(femResultsPath, femResultsInfo[0])
@@ -554,7 +572,7 @@ func (a *Admin) ProcessFemResultFile(femResultsPath string, groupId int, digital
 }
 
 func (a *Admin) ProcessDocInfoFile(docInfoFilesPath string, groupId int, digitalTwinId int) {
-	docInfoFilesInfo := a.GetS3FolderInfo(groupId, digitalTwinId, "docInfoFiles")
+	docInfoFilesInfo := a.GetS3DigitalTwinFolderInfo(groupId, digitalTwinId, "docInfoFiles")
 
 	if len(docInfoFilesInfo) > 0 {
 		fileName := strings.Split(docInfoFilesInfo[0].FileName, "/")[4]
@@ -574,4 +592,30 @@ func (a *Admin) ProcessDocInfoFile(docInfoFilesPath string, groupId int, digital
 			}
 		}
 	}
+}
+
+func (a *Admin) DownloadMlModelFile(mlModelFolder string, groupId int, mlModelId int) string {
+	mlModelFileInfo := a.GetS3MlModelFolderInfo(groupId, mlModelId)
+	if len(mlModelFileInfo) > 0 {
+		fileName := strings.Split(mlModelFileInfo[0].FileName, "/")[4]
+		mlModelFilePath := filepath.Join(mlModelFolder, fileName)
+		lastModified := mlModelFileInfo[0].LastModified
+		isNewer, _ := utils.IsDateNewerThanFile(lastModified, mlModelFilePath)
+		if isNewer {
+			utils.DeleteFilesInFolder(mlModelFolder)
+			mlModelFileUrl := fmt.Sprintf("%s/ml_model_download_file/%d/%d/%s", a.baseUrl, groupId, mlModelId, fileName)
+			response, err := utils.HttpGetWithJwt(mlModelFileUrl, a.accessToken)
+			if err != nil {
+				a.log.Errorf("failed to download ML model file %s: %v", fileName, err)
+				return ""
+			}
+			err = utils.SaveToFile(mlModelFilePath, response)
+			if err != nil {
+				a.log.Errorf("failed to save ML model file %s: %v", fileName, err)
+			}
+		}
+
+		return fileName
+	}
+	return ""
 }

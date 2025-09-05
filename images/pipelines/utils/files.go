@@ -71,6 +71,23 @@ func DeleteFolder(folderPath string) error {
     return nil
 }
 
+func DeleteFilesInFolder(folderPath string) error {
+	files, err := os.ReadDir(folderPath)
+	if err != nil {
+		return fmt.Errorf("error reading folder %s: %w", folderPath, err)
+	}
+
+	for _, file := range files {
+		if !file.IsDir() {
+			err := os.Remove(filepath.Join(folderPath, file.Name()))
+			if err != nil {
+				return fmt.Errorf("error deleting file %s: %w", file.Name(), err)
+			}
+		}
+	}
+	return nil
+}
+
 func CreateDirectoryIfNotExists(dirPath string) error {
 	if _, err := os.Stat(dirPath); os.IsNotExist(err) {
 		err := os.MkdirAll(dirPath, os.ModePerm)

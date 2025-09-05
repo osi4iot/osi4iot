@@ -21,6 +21,7 @@ type PlatformData struct {
 type PlatformInfo struct {
 	DockerImagesVersion        string     `json:"DOCKER_IMAGES_VERSION"`
 	DeploymentMode             string     `json:"DEPLOYMENT_MODE"`
+	ExcludedServices           []string   `json:"EXCLUDED_SERVICES"`
 	DeploymentLocation         string     `json:"DEPLOYMENT_LOCATION"`
 	LocalResourceUtilization   int        `json:"LOCAL_RESOURCE_UTILIZATION_PERCENTAGE"`
 	S3BucketType               string     `json:"S3_BUCKET_TYPE"`

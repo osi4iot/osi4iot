@@ -3,6 +3,7 @@ package services
 import (
 	"fmt"
 	"maps"
+	"slices"
 	"time"
 
 	"github.com/docker/docker/api/types/container"
@@ -275,7 +276,8 @@ func GenerateServices(pd *pt.PlatformData, sd pt.SwarmData) map[string]pt.Servic
 		"grafana":      GrafanaService(pd, sd, svcResourcesMap, nodeRoleMaps),
 	}
 
-	if pd.PlatformInfo.PipelinesSvcResources != "No service" {
+	pi := pd.PlatformInfo
+	if pi.PipelinesSvcResources != "No service" && !slices.Contains(pi.ExcludedServices, "pipelines") {
 		services["pipelines"] = PipelinesService(pd, sd, svcResourcesMap, nodeRoleMaps)
 	}
 

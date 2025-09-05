@@ -123,11 +123,13 @@ interface GeoDigitalTwinProps {
     digitalTwinData: IDigitalTwin;
     digitalTwinSelected: IDigitalTwin | null;
     selectDigitalTwin: (digitalTwinSelected: IDigitalTwin | null) => void;
+    sensors: ISensor[];
     selectSensor: (sensorSelected: ISensor | null) => void;
     digitalTwinState: IDigitalTwinState | null;
     openDigitalTwin3DViewer: (digitalTwinGltfData: IDigitalTwinGltfData) => void;
     setGlftDataLoading: (gtGlftDataLoading: boolean) => void;
     setGltfFileDownloadProgress: (gltfFileDownloadProgress: number) => void;
+    setAssetWithMobilePhotoSelected: (selected: boolean) => void;
 }
 
 
@@ -147,10 +149,12 @@ const GeoDigitalTwin: FC<GeoDigitalTwinProps> = ({
     digitalTwinSelected,
     selectDigitalTwin,
     selectSensor,
+    sensors,
     digitalTwinState,
     openDigitalTwin3DViewer,
     setGlftDataLoading,
     setGltfFileDownloadProgress,
+    setAssetWithMobilePhotoSelected
 }) => {
     const { accessToken, refreshToken } = useAuthState();
     const authDispatch = useAuthDispatch();
@@ -189,6 +193,17 @@ const GeoDigitalTwin: FC<GeoDigitalTwinProps> = ({
         selectDigitalTwin(digitalTwinData);
         selectSensor(null);
         const digitalTwinDataType = digitalTwinData.type;
+        let assetWithMobilePhotoSelected = false;
+        for (let i = 0; i < sensors.length; i++) {
+            const sensor = sensors[i];
+            if (sensor.assetId === digitalTwinData.assetId) {
+                if (sensor.sensorType === "Mobile photo") {
+                    assetWithMobilePhotoSelected = true;
+                    break;
+                }
+            }
+        }
+        setAssetWithMobilePhotoSelected(assetWithMobilePhotoSelected);
 
         if (digitalTwinDataType === "Gltf 3D model" || digitalTwinDataType === "Glb 3D model") {
             setGlftDataLoading(true);

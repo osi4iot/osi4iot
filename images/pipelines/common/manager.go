@@ -36,6 +36,10 @@ type Manager interface {
 	AddMlModels(models []*MLModel)
 	DeleteMlModel(modelId int) error
 	UpdateMlModel(model *MLModel) error
+	GetS3MlModelFolderInfo(groupId int, mlModelId int) []*S3FolderFileInfo
+	GetMlModelFolder(orgId int, groupId int, mlModelId int) string
+	GetMlModelFilePath(orgId int, groupId int, mlModelId int) string
+	DownloadMlModelFile(mlModelFilePath string, groupId int, mlModelId int) string
 
 	GetNode(nodeId int) Node
 	GetNodes() []Node
@@ -123,10 +127,9 @@ type Manager interface {
 	GetLlmMaxTokens() int
 	GetMcpServersPath() string
 	GetPipelinesDataPath() string
-	GetDigitalTwinPath(orgId int, groupId int, digitalTwinId int) string
 	GetMaxChatMessagesPerUser() int
 
-	GetS3FolderInfo(groupId int, digitalTwinId int, folder string) []*S3FolderFileInfo
+	GetS3DigitalTwinFolderInfo(groupId int, digitalTwinId int, folder string) []*S3FolderFileInfo
 	GetFemResultsPath(orgId int, groupId int, digitalTwinId int) string
 	GetDigitalTwinFolder(orgId int, groupId int, digitalTwinId int) string
 	AddFemResultsInDigitalTwins() error

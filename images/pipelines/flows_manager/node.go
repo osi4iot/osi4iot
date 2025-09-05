@@ -307,7 +307,6 @@ func (fm *FlowsManager) StartNodes() {
 	}
 
 	var wg sync.WaitGroup
-
 	for _, digitalTwin := range digitalTwins {
 		wg.Add(1)
 

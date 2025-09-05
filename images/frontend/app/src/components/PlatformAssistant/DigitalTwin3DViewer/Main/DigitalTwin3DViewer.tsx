@@ -44,6 +44,7 @@ import {
     useFemResults,
     useMqttConnection,
     usePipelineActions,
+    useImageFrame,
 } from "../Utils/customHooks";
 
 // Handlers
@@ -60,6 +61,7 @@ import Flow, { processInitialPipelineData } from "../Pipeline/Flow";
 import { ReactFlowProvider } from "@xyflow/react";
 import useSubscription from "../MqttHook/useSubscription";
 import { toast } from "react-toastify";
+import { ImageFrame } from "../PhotoFrame/PhotoFrame";
 
 const resolveSetStateAction = <T extends unknown>(action: SetStateAction<T>, prevValue: T): T => {
     return typeof action === "function" ? (action as (prev: T) => T)(prevValue) : action;
@@ -71,6 +73,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
     close3DViewer,
     fetchFemResFileWorker,
     refreshDigitalTwins,
+    assetWithMobilePhotoSelected,
 }) => {
     // Hooks
     const { accessToken, refreshToken } = useAuthState();
@@ -79,7 +82,14 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
     const legendRenderer = useLegendRenderer();
     const { connectionStatus, mqttClient } = useMqttConnection();
     const openDashboardTab = useOpenWindowTab();
-    
+    const { imageUrl, handleImageUrlChange } = useImageFrame();
+
+    useEffect(() => {
+        return () => {
+            URL.revokeObjectURL(imageUrl);
+        };
+    }, [imageUrl]);
+
     const {
         canvasContainerRef,
         canvasRef,
@@ -90,7 +100,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
         femMinValueRef,
         selectedObjCollectionNameRef,
     } = useRefs();
-    
+
     const [opts, setOpts] = useViewerOptions([]);
     const { chatMessages, setChatMessages, handleUpdateChatAssistantMessages } = useChatMessages(setOpts);
     const { logMessages, setLogMessages, handleUpdateLogMessages } = usePipelineLogs(setChatMessages);
@@ -121,6 +131,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
             digitalTwinSelected,
             digitalTwinGltfData,
             activeViewer: state.activeViewer,
+            assetWithMobilePhotoSelected,
             accessToken,
             refreshToken,
             authDispatch: authDispatch,
@@ -454,7 +465,6 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
         }
     }, [mqttClient, state.isChatAssistantOpen, chatMessages, digitalTwinModelChatAssistantTopic]);
 
-    // Mover useSubscription aquí
     useSubscription(
         mqttClient,
         digitalTwinGltfData?.mqttTopicsData?.map((topic) => topic.mqttTopic).filter((topic) => topic !== "") || [],
@@ -481,6 +491,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
                 ...prev,
                 digitalTwinState: resolveSetStateAction(digitalTwinState, prev.digitalTwinState),
             })),
+        handleImageUrlChange,
         handleUpdateChatAssistantMessages,
         handleUpdateLogMessages
     );
@@ -575,7 +586,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
             )}
 
             <CanvasContainer ref={canvasContainerRef}>
-                {state.activeViewer === "3D" ? (
+                {state.activeViewer === "3D" && (
                     <Canvas
                         ref={canvasRef}
                         dpr={window.devicePixelRatio}
@@ -697,7 +708,8 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
                         </Stage>
                         <OrbitControls ref={controlsRef} mouseButtons={MOUSE_BUTTONS} />
                     </Canvas>
-                ) : (
+                )}
+                {state.activeViewer === "pipeline" && (
                     <ReactFlowProvider>
                         <Flow
                             mqttClient={mqttClient}
@@ -711,6 +723,10 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
                             handlePipelineUiChanged={handlers.handlePipelineUiChanged}
                         />
                     </ReactFlowProvider>
+                )}
+
+                {assetWithMobilePhotoSelected && state.activeViewer === "image_frame" && (
+                    <ImageFrame imageUrl={imageUrl} />
                 )}
 
                 {/* FEM Simulation Legend */}
@@ -760,6 +776,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
                     handleReinitiatePipeline={handleReinitiatePipeline}
                     isPipelineUiChanged={state.isPipelineUiChanged}
                     close3DViewer={close3DViewer}
+                    assetWithMobilePhotoSelected={assetWithMobilePhotoSelected}
                 />
 
                 {/* Control Panel */}

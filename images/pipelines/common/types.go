@@ -2,6 +2,7 @@ package common
 
 import (
 	"context"
+	"image"
 	nats_pkg "pipelines/nats"
 )
 
@@ -13,9 +14,10 @@ type AdminMessage struct {
 }
 
 type Message struct {
-	Topic        string                `json:"topic"`
-	Payload      map[string]any        `json:"payload"`
-	State        map[string]any        `json:"state"`
+	Topic   string         `json:"topic"`
+	Payload map[string]any `json:"payload"`
+	State   map[string]any `json:"state"`
+	Image   image.Image     `json:"image"`
 }
 
 type Org struct {
@@ -147,6 +149,7 @@ type MLModel struct {
 	MLModelUid  string `json:"mlModelUid"`
 	Description string `json:"description"`
 	MLLibrary   string `json:"mlLibrary"`
+	FileName    string `json:"fileName"`
 	Created     string `json:"created"`
 	Updated     string `json:"updated"`
 }

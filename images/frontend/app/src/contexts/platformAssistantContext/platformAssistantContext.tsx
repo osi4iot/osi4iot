@@ -419,6 +419,15 @@ export const useMlModelsTable = (): IMlModel[] => {
 	return context.mlModels;
 }
 
+export const useMlModelsTableInGroup = (groupId: number): IMlModel[] => {
+	const context = useContext(PlatformAssitantStateContext);
+	if (context === undefined) {
+		throw new Error('useMlModelsTable must be used within a PlatformAssitantProvider');
+	}
+	return context.mlModels.filter(model => model.groupId === groupId);
+}
+
+
 export const useReloadMlModelsTable = (): boolean => {
 	const context = useContext(PlatformAssitantStateContext);
 	if (context === undefined) {

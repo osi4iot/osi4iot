@@ -3,6 +3,7 @@ package nodes
 import (
 	"context"
 	"fmt"
+	"image"
 	"pipelines/common"
 	"pipelines/logger"
 	"pipelines/utils"
@@ -68,8 +69,8 @@ func CreateFuncNode(node common.NodeData, fm common.Manager) (*FuncNode, error) 
 			Ctx:            ctx,
 			status:         common.NodeStatusCreated,
 		},
-		nc:                     nil,                          // This will be set later
-		vmPool:                 make(chan *goja.Runtime, 10), // Pool size of 10
+		nc:                     nil,
+		vmPool:                 make(chan *goja.Runtime, 10),
 		onInitializationScript: onInitializationScript,
 		onStartScript:          onStartScript,
 		onMessageScript:        onMessageScript,
@@ -78,7 +79,6 @@ func CreateFuncNode(node common.NodeData, fm common.Manager) (*FuncNode, error) 
 	fm.Log().Infof("Created FuncNode with UID: %s", funNode.NodeUid)
 
 	if funNode.onMessageScript != "" {
-		// Precompile the onMessageScript and initialize the VM pool
 		if err := funNode.precompileScript(fm.Log()); err != nil {
 			nodeError := fmt.Errorf("Failed to precompile script for node %s: %v", funNode.NodeUid, err)
 			funNode.HandleError(nodeError)
@@ -92,7 +92,6 @@ func CreateFuncNode(node common.NodeData, fm common.Manager) (*FuncNode, error) 
 	}
 
 	fm.Log().Infof("FuncNode %s initialized successfully", funNode.NodeUid)
-
 	return funNode, nil
 }
 
@@ -105,7 +104,6 @@ func (n *FuncNode) Start(log *logger.Logger, needReinitialization bool) {
 	n.SetStatus(common.NodeStatusRunning)
 	log.Infof("Starting FuncNode with UID: %s", n.NodeUid)
 
-	// Ejecutar onInitializationScript solo la primera vez
 	if n.onInitializationScript != "" && needReinitialization {
 		if err := n.executeInitializationScript(log); err != nil {
 			log.Errorf("Failed to execute initialization script for node %s: %v", n.NodeUid, err)
@@ -115,7 +113,6 @@ func (n *FuncNode) Start(log *logger.Logger, needReinitialization bool) {
 		log.Infof("Initialization script executed successfully for node %s", n.NodeUid)
 	}
 
-	// Ejecutar onStartScript cada vez que se inicia/reinicia
 	if n.onStartScript != "" {
 		if err := n.executeStartScript(log); err != nil {
 			log.Errorf("Failed to execute start script for node %s: %v", n.NodeUid, err)
@@ -134,19 +131,16 @@ func (n *FuncNode) precompileScript(log *logger.Logger) error {
 	vm := goja.New()
 	n.setupJSGlobals(vm, log)
 
-	// Compilar solo el script de mensaje
 	program, err := goja.Compile(n.NodeUid+".js", n.onMessageScript, false)
 	if err != nil {
 		return fmt.Errorf("failed to compile script: %w", err)
 	}
 
-	// Ejecutar para obtener la función process
 	_, err = vm.RunProgram(program)
 	if err != nil {
 		return fmt.Errorf("failed to execute script: %w", err)
 	}
 
-	// Verificar que la función process existe
 	processFunc, ok := goja.AssertFunction(vm.Get("process"))
 	if !ok {
 		return fmt.Errorf("process function not found in script")
@@ -167,7 +161,6 @@ func (n *FuncNode) executeInitializationScript(log *logger.Logger) error {
 		return nil
 	}
 
-	// Crear VM temporal y compilar directamente
 	vm := goja.New()
 	n.setupJSGlobals(vm, log)
 
@@ -200,7 +193,6 @@ func (n *FuncNode) executeStartScript(log *logger.Logger) error {
 		return nil
 	}
 
-	// Crear VM temporal y compilar directamente
 	vm := goja.New()
 	n.setupJSGlobals(vm, log)
 
@@ -229,32 +221,23 @@ func (n *FuncNode) executeStartScript(log *logger.Logger) error {
 }
 
 func (n *FuncNode) initVMPool(log *logger.Logger) error {
-	// Create multiple preconfigured VMs for the pool
 	poolSize := 10
 	for i := 0; i < poolSize; i++ {
 		vm := goja.New()
-
-		// Configure global functions
 		n.setupJSGlobals(vm, log)
 
-		// Execute precompiled script
 		_, err := vm.RunProgram(n.compiledScript.program)
 		if err != nil {
 			return fmt.Errorf("failed to initialize VM %d: %w", i, err)
 		}
 
-		// Add to the pool
 		n.vmPool <- vm
 	}
-
 	return nil
 }
 
 func (n *FuncNode) setupJSGlobals(vm *goja.Runtime, log *logger.Logger) {
-	// Get all JavaScript functions from registered providers
 	jsFunctions := fl.GetJSFunctions(n, n.Fm, log)
-
-	// Register each function in the JavaScript VM
 	for _, jsFunc := range jsFunctions {
 		vm.Set(jsFunc.Name, jsFunc.Func)
 	}
@@ -269,7 +252,6 @@ func (n *FuncNode) returnVM(vm *goja.Runtime) {
 }
 
 func (n *FuncNode) processMessage(message common.Message, log *logger.Logger) error {
-	// Get VM from the pool
 	vm := n.getVM()
 	timer := time.AfterFunc(time.Duration(n.Fm.GetFunctionsTimeout())*time.Millisecond, func() {
 		vm.Interrupt("halt processing due to timeout")
@@ -277,64 +259,173 @@ func (n *FuncNode) processMessage(message common.Message, log *logger.Logger) er
 	defer n.returnVM(vm)
 	defer timer.Stop()
 
-	// Get process function from the current VM (each VM has its own instance)
 	processFunc, ok := goja.AssertFunction(vm.Get("process"))
 	if !ok {
 		log.Errorf("Process function not found in VM for node %s", n.NodeUid)
 		return fmt.Errorf("process function not found in VM")
 	}
 
-	// Convert data to JavaScript object with correct mapping
-	jsData := n.convertToJSObject(vm, message)
+	jsData := n.convertMessageToJS(vm, message)
 
-	// Execute processing
 	result, err := processFunc(goja.Undefined(), jsData)
 	if err != nil {
 		log.Errorf("Script execution error in node %s: %v", n.NodeUid, err)
 		return fmt.Errorf("script execution error: %w", err)
 	}
 
-	// Process result
 	if result != nil && !goja.IsUndefined(result) && !goja.IsNull(result) {
-		// Convert JavaScript result to Go
-		processedData, err := n.convertFromJSObject(result)
+		processedData, err := n.convertFromJSToMessage(result)
 		if err != nil {
 			return fmt.Errorf("failed to convert JS result: %w", err)
 		}
 
 		nodeOutputWires := n.Fm.GetNodeOutputWires(n.DigitalTwinId, n.Id)
+		return n.handleProcessedData(processedData, message, nodeOutputWires, log)
+	}
 
-		if len(nodeOutputWires) == 0 {
-			if msg, ok := processedData.(common.Message); ok {
+	return nil
+}
+
+func (n *FuncNode) convertMessageToJS(vm *goja.Runtime, message common.Message) goja.Value {
+	jsObj := vm.NewObject()
+	
+	jsObj.Set("topic", message.Topic)
+	
+	if message.Payload != nil {
+		jsObj.Set("payload", vm.ToValue(message.Payload))
+	} else {
+		jsObj.Set("payload", vm.NewObject())
+	}
+	
+	if message.State != nil {
+		jsObj.Set("state", vm.ToValue(message.State))
+	} else {
+		jsObj.Set("state", vm.NewObject())
+	}
+	
+	if message.Image != nil {
+		jsObj.Set("image", vm.ToValue(message.Image))
+	}
+	
+	return jsObj
+}
+
+func (n *FuncNode) convertFromJSToMessage(jsValue goja.Value) (interface{}, error) {
+	exported := jsValue.Export()
+	
+	switch v := exported.(type) {
+	case map[string]interface{}:
+		if n.isMessageLike(v) {
+			return n.mapToMessageDirect(v), nil
+		}
+		return v, nil
+	case []interface{}:
+		return n.convertArrayToMessagesDirect(v), nil
+	default:
+		return exported, nil
+	}
+}
+
+func (n *FuncNode) isMessageLike(data map[string]interface{}) bool {
+	_, hasPayload := data["payload"]
+	return hasPayload
+}
+
+func (n *FuncNode) mapToMessageDirect(data map[string]interface{}) common.Message {
+	msg := common.Message{}
+	
+	// Topic
+	if topic, ok := data["topic"].(string); ok {
+		msg.Topic = topic
+	}
+	
+	// Payload
+	if payload, ok := data["payload"].(map[string]interface{}); ok {
+		msg.Payload = payload
+	} else {
+		msg.Payload = make(map[string]interface{})
+	}
+	
+	// State  
+	if state, ok := data["state"].(map[string]interface{}); ok {
+		msg.State = state
+	} else {
+		msg.State = make(map[string]interface{})
+	}
+	
+	// Image
+	if img, ok := data["image"].(image.Image); ok {
+		msg.Image = img
+	}
+	
+	return msg
+}
+
+func (n *FuncNode) convertArrayToMessagesDirect(array []interface{}) interface{} {
+	if len(array) == 0 {
+		return array
+	}
+	
+	messages := make([]common.Message, 0, len(array))
+	mixedArray := make([]interface{}, 0, len(array))
+	allMessages := true
+	
+	for _, item := range array {
+		if item == nil {
+			mixedArray = append(mixedArray, nil)
+			allMessages = false
+			continue
+		}
+		
+		if mapData, ok := item.(map[string]interface{}); ok && n.isMessageLike(mapData) {
+			msg := n.mapToMessageDirect(mapData)
+			messages = append(messages, msg)
+			mixedArray = append(mixedArray, msg)
+		} else {
+			mixedArray = append(mixedArray, item)
+			allMessages = false
+		}
+	}
+	
+	if allMessages {
+		return messages
+	}
+	return mixedArray
+}
+
+func (n *FuncNode) handleProcessedData(processedData interface{}, originalMessage common.Message, nodeOutputWires [][]*common.Wire, log *logger.Logger) error {
+	if len(nodeOutputWires) == 0 {
+		if msg, ok := processedData.(common.Message); ok {
+			if n.Debug == "on" {
+				n.HandleDebug(msg, 0)
+			}
+		} else {
+			errorMsg := fmt.Errorf("processed data is not of type Message in node %s", n.NodeUid)
+			log.Error(errorMsg)
+			n.HandleError(errorMsg)
+		}
+	} else if len(nodeOutputWires) == 1 {
+		if msg, ok := processedData.(common.Message); ok {
+			n.addEventTriggerTopicType(originalMessage.Topic, &msg)
+			for _, wire := range nodeOutputWires[0] {
 				if n.Debug == "on" {
 					n.HandleDebug(msg, 0)
 				}
-			} else {
-				errorMsg := fmt.Errorf("Processed data is not of type Message in node %s", n.NodeUid)
-				log.Error(errorMsg)
-				n.HandleError(errorMsg)
+				wire.Channel <- msg
 			}
-		} else if len(nodeOutputWires) == 1 {
-			if msg, ok := processedData.(common.Message); ok {
-				n.addEventTriggerTopicType(message.Topic, &msg)
-				for _, wire := range nodeOutputWires[0] {
-					if n.Debug == "on" {
-						n.HandleDebug(msg, 0)
-					}
-					wire.Channel <- msg
-				}
-			} else {
-				errorMsg := fmt.Errorf("Processed data is not of type Message in node %s", n.NodeUid)
-				log.Error(errorMsg)
-				n.HandleError(errorMsg)
+		} else {
+			errorMsg := fmt.Errorf("processed data is not of type Message in node %s", n.NodeUid)
+			log.Error(errorMsg)
+			n.HandleError(errorMsg)
+		}
+	} else {
+		if msgs, ok := processedData.([]common.Message); ok {
+			for idx, msg := range msgs {
+				n.addEventTriggerTopicType(originalMessage.Topic, &msg)
+				msgs[idx] = msg
 			}
-		} else if len(nodeOutputWires) > 1 {
-			if msgs, ok := processedData.([]common.Message); ok {
-				for idx, msg := range msgs {
-					n.addEventTriggerTopicType(message.Topic, &msg)
-					msgs[idx] = msg // Update the message in place
-				}
-				for idx, wireArray := range nodeOutputWires {
+			for idx, wireArray := range nodeOutputWires {
+				if idx < len(msgs) {
 					if n.Debug == "on" {
 						n.HandleDebug(msgs[idx], idx)
 					}
@@ -342,150 +433,39 @@ func (n *FuncNode) processMessage(message common.Message, log *logger.Logger) er
 						wire.Channel <- msgs[idx]
 					}
 				}
-			} else {
-				if msgs, ok := processedData.([]interface{}); ok {
-					for idx, msg := range msgs {
-						if msg1, ok1 := msg.(common.Message); ok1 {
-							n.addEventTriggerTopicType(message.Topic, &msg1)
-							msgs[idx] = msg1 // Update the message in place
-						}
-					}
-					for idx, wireArray := range nodeOutputWires {
-						if msg1, ok1 := msgs[idx].(common.Message); ok1 {
-							if n.Debug == "on" {
-								n.HandleDebug(msg1, idx)
-							}
-							for _, wire := range wireArray {
-								wire.Channel <- msg1
-							}
-						}
-					}
-				} else {
-					log.Errorf("Processed data is not of type []Message in node %s", n.NodeUid)
+			}
+		} else if msgs, ok := processedData.([]interface{}); ok {
+			for idx, msg := range msgs {
+				if msg1, ok1 := msg.(common.Message); ok1 {
+					n.addEventTriggerTopicType(originalMessage.Topic, &msg1)
+					msgs[idx] = msg1
 				}
 			}
+			for idx, wireArray := range nodeOutputWires {
+				if idx < len(msgs) {
+					if msg1, ok1 := msgs[idx].(common.Message); ok1 {
+						if n.Debug == "on" {
+							n.HandleDebug(msg1, idx)
+						}
+						for _, wire := range wireArray {
+							wire.Channel <- msg1
+						}
+					}
+				}
+			}
+		} else {
+			log.Errorf("Processed data is not of type []Message in node %s", n.NodeUid)
 		}
 	}
-
 	return nil
 }
 
 func (n *FuncNode) addEventTriggerTopicType(subject string, msg *common.Message) {
-	existsEventTrigger := msg.Payload["eventTriggerTopicType"] != nil
-	if !existsEventTrigger {
+	if msg.Payload["eventTriggerTopicType"] == nil {
 		eventTriggerTopicType := "dev2pdb"
 		if strings.Contains(subject, "sim2dtm") {
 			eventTriggerTopicType = "sim2dtm"
 		}
 		msg.Payload["eventTriggerTopicType"] = eventTriggerTopicType
 	}
-}
-
-// convertToJSObject convert a Go data structure to a JavaScript object
-func (n *FuncNode) convertToJSObject(vm *goja.Runtime, data interface{}) goja.Value {
-	// Convert to JSON and then parse to get correct mapping
-	jsonData, err := utils.MarshalData(data)
-	if err != nil {
-		n.Fm.Log().Errorf("Failed to marshal data for JS conversion: %v", err)
-		return vm.ToValue(data) // fallback
-	}
-
-	// Parse as map to have control over keys
-	var jsData map[string]interface{}
-	if err := utils.UnmarshalData(jsonData, &jsData); err != nil {
-		n.Fm.Log().Errorf("Failed to unmarshal data for JS conversion: %v", err)
-		return vm.ToValue(data) // fallback
-	}
-
-	return vm.ToValue(jsData)
-}
-
-func (n *FuncNode) looksLikeMessageData(data map[string]interface{}) bool {
-	_, existsPayload := data["payload"]
-	return existsPayload
-}
-
-// convertFromJSObject convert a JavaScript object back to Go
-func (n *FuncNode) convertFromJSObject(jsValue goja.Value) (interface{}, error) {
-	exported := jsValue.Export()
-
-	switch v := exported.(type) {
-	case map[string]interface{}:
-		return n.convertMapToMessage(v)
-	case []interface{}:
-		return n.convertArrayToMessages(v)
-	default:
-		return exported, nil
-	}
-}
-
-// convertMapToMessage converts a single map to a Message if it looks like message data
-func (n *FuncNode) convertMapToMessage(mapData map[string]interface{}) (interface{}, error) {
-	if !n.looksLikeMessageData(mapData) {
-		return mapData, nil
-	}
-
-	message, err := n.marshalUnmarshalMessage(mapData)
-	if err != nil {
-		return mapData, nil // return original map if conversion fails
-	}
-
-	return message, nil
-}
-
-// convertArrayToMessages converts an array of maps to Messages where possible
-func (n *FuncNode) convertArrayToMessages(mapDataArray []interface{}) (interface{}, error) {
-	if len(mapDataArray) == 0 {
-		return mapDataArray, nil
-	}
-
-	messages := make([]common.Message, 0, len(mapDataArray))
-	mixedArray := make([]interface{}, 0, len(mapDataArray))
-	allAreMessages := true
-
-	for _, item := range mapDataArray {
-		if item == nil {
-			mixedArray = append(mixedArray, nil)
-			allAreMessages = false
-			continue
-		}
-
-		mapData, ok := item.(map[string]interface{})
-		if !ok || !n.looksLikeMessageData(mapData) {
-			mixedArray = append(mixedArray, item)
-			allAreMessages = false
-			continue
-		}
-
-		message, err := n.marshalUnmarshalMessage(mapData)
-		if err != nil {
-			mixedArray = append(mixedArray, item)
-			allAreMessages = false
-			continue
-		}
-
-		messages = append(messages, message)
-		mixedArray = append(mixedArray, message)
-	}
-
-	// Return homogeneous array of Messages if all items were successfully converted
-	if allAreMessages {
-		return messages, nil
-	}
-
-	// Return mixed array if some items couldn't be converted
-	return mixedArray, nil
-}
-
-// marshalUnmarshalMessage helper function to convert map to Message
-func (n *FuncNode) marshalUnmarshalMessage(mapData interface{}) (common.Message, error) {
-	var message common.Message
-
-	jsonData, err := utils.MarshalData(mapData)
-	if err != nil {
-		return message, err
-	}
-
-	err = utils.UnmarshalData(jsonData, &message)
-	return message, err
 }

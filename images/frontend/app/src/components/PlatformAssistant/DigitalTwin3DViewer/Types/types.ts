@@ -31,6 +31,7 @@ export interface Viewer3DProps {
     close3DViewer: () => void;
     fetchFemResFileWorker: Worker;
     refreshDigitalTwins: () => void;
+    assetWithMobilePhotoSelected: boolean;
 }
 
 export interface ViewerState {
@@ -39,7 +40,7 @@ export interface ViewerState {
     isChatAssistantOpen: boolean;
     isPipelineLogsOpen: boolean;
     showDtSimulatorModal: boolean;
-    activeViewer: "3D" | "pipeline";
+    activeViewer: "3D" | "pipeline" | "image_frame";
     
     // Digital Twin state
     digitalTwinState: string;

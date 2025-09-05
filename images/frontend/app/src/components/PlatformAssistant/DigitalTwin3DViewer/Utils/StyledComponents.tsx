@@ -9,7 +9,7 @@ import { HiShieldCheck, HiShieldExclamation } from "react-icons/hi";
 import { RiWifiLine, RiWifiOffLine } from "react-icons/ri";
 import { TiFlowMerge } from "react-icons/ti";
 import { BsChatDotsFill } from "react-icons/bs";
-import { SlidersHorizontal, Logs, Box, RotateCcw, RefreshCw, Download, CircleX, Upload, Play } from "lucide-react";
+import { SlidersHorizontal, Logs, Box, RotateCcw, RefreshCw, Download, CircleX, Upload, Play, Camera } from "lucide-react";
 import DatGui, { 
     DatNumber, 
     DatBoolean, 
@@ -151,6 +151,11 @@ export const LogsIcon = styled(Logs)`
 export const BoxIcon = styled(Box)`
     ${IconBaseStyles}
 `;
+
+export const CameraIcon = styled(Camera)`
+    ${IconBaseStyles}
+`;
+
 
 export const RotateCcwIcon = styled(RotateCcw)`
     ${IconBaseStyles}

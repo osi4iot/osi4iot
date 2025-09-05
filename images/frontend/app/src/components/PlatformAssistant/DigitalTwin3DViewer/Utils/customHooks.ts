@@ -34,6 +34,7 @@ import formatDateString from "../../../../tools/formatDate";
 import { IDigitalTwin } from "../../TableColumns/digitalTwinsColumns";
 import axiosErrorHandler from "../../../../tools/axiosErrorHandler";
 import { IMqttTopicData } from "../Main/Model";
+import { base64ToJpg } from "../../../../tools/base64ToJpg";
 
 export const useViewerState = () => {
     const [state, setState] = useState<ViewerState>({
@@ -492,6 +493,12 @@ const normalizeFormData = (data: any, nodeType: string) => {
         normalized.every = parseFloat(normalized.every) || 0;
     }
 
+    if (nodeType === "MlModel") {
+        if (typeof normalized.mlModelId === "string") {
+            normalized.mlModelId = parseInt(normalized.mlModelId) || 0;
+        }
+    }
+
     const stringFields = [
         "label",
         "topic",
@@ -599,6 +606,22 @@ export const useFormChanges = (selectedNode: any) => {
         checkForChanges,
         createInputChangeHandler,
         createDebugToggleHandler,
+    };
+};
+
+export const useImageFrame = () => {
+    const [imageUrl, setImageUrl] = useState<string>("");
+
+    const handleImageUrlChange = (base64Image: string) => {
+        const blob = base64ToJpg(base64Image);
+        if (blob) {
+            setImageUrl(URL.createObjectURL(blob));
+        }
+    };
+
+    return {
+        imageUrl,
+        handleImageUrlChange,
     };
 };
 
