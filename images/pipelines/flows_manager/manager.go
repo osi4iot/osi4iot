@@ -51,6 +51,8 @@ type FlowsManager struct {
 	LlmProviderUrl           string
 	DefaultLlmModel          string
 	DefaultLlmTemperature    float32
+	DefaultLlmTopK           int32
+	DefaultLlmTopP           float32
 	LlmMaxTokens             int
 	McpServersPath           string
 	MaxChatMessagesPerUser   int
@@ -344,6 +346,14 @@ func (fm *FlowsManager) GetDefaultLlmModel() string {
 func (fm *FlowsManager) GetDefaultLlmTemperature() float32 {
 	return fm.DefaultLlmTemperature
 }
+
+func (fm *FlowsManager) GetDefaultLlmTopK() int32 {
+	return fm.DefaultLlmTopK
+}
+
+func (fm *FlowsManager) GetDefaultLlmTopP() float32 {
+	return fm.DefaultLlmTopP
+}	
 
 func (fm *FlowsManager) GetLlmMaxTokens() int {
 	return fm.LlmMaxTokens

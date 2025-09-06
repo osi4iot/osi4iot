@@ -144,6 +144,7 @@ const nodeTypes = [
         debug: "off",
         settings: {
             mlModelId: 0,
+            batchSize: 1,
         },
     },
     {
@@ -156,6 +157,9 @@ const nodeTypes = [
         debug: "off",
         settings: {
             systemPrompt: "",
+            llmTemperature: 0.7,
+            llmTopK: 40,
+            llmTopP: 0.95,
         },
     },
     {

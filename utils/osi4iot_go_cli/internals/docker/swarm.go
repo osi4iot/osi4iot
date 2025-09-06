@@ -59,15 +59,17 @@ func InitPlatform(platformData *pt.PlatformData) error {
 	return nil
 }
 
-func RunSwarm(dc *pt.DockerClient, platformData *pt.PlatformData) error {
-	err := createSwarmServices(platformData, dc)
+func RunSwarm(dc *pt.DockerClient, pd *pt.PlatformData) error {
+	err := createSwarmServices(pd, dc)
 	if err != nil {
 		return fmt.Errorf("error creating swarm services: %v", err)
 	}
 
-	err = CreateNriSwarmServices(platformData, dc)
-	if err != nil {
-		return fmt.Errorf("error creating NRI services: %v", err)
+	if !slices.Contains(pd.PlatformInfo.ExcludedServices, "nri") {
+		err = CreateNriSwarmServices(pd, dc)
+		if err != nil {
+			return fmt.Errorf("error creating NRI services: %v", err)
+		}
 	}
 
 	return nil
@@ -112,7 +114,7 @@ func createSwarmServices(platformData *pt.PlatformData, dc *pt.DockerClient) err
 		}
 	}
 
-	err = waitUntilAllContainersAreHealthy("all")
+	err = waitUntilAllContainersAreHealthy(platformData,"all")
 	if err != nil {
 		return fmt.Errorf("error waiting for all containers to be healthy: %v", err)
 	}
@@ -283,7 +285,11 @@ func DeletePlatform(platformData *pt.PlatformData) error {
 	return nil
 }
 
-func waitUntilAllContainersAreHealthy(serviceType string) error {
+func waitUntilAllContainersAreHealthy(pd *pt.PlatformData, serviceType string) error {
+	if slices.Contains(pd.PlatformInfo.ExcludedServices, serviceType) {
+		return nil
+	}
+
 	docker, err := GetManagerDC()
 	if err != nil {
 		return fmt.Errorf("error getting docker client: %v", err)
@@ -393,7 +399,7 @@ func waitUntilAllContainersAreHealthy(serviceType string) error {
 }
 
 func SwarmInitiationInfo(platformData *pt.PlatformData, okMessage string) error {
-	err := waitUntilAllContainersAreHealthy("nodered_instance")
+	err := waitUntilAllContainersAreHealthy(platformData,"nri")
 	if err != nil {
 		errMsg := utils.StyleErrMsg.Render("error waiting nri is to be healthy: ", err.Error())
 		fmt.Println(errMsg)

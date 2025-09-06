@@ -236,7 +236,7 @@ func GiveReplicsPtr(serviceName string, nodeRoleMaps NodesRoleMaps) *uint64 {
 		replics = uint64(1)
 	case "keepalived":
 		replics = uint64(1)
-	case "nodered_instance":
+	case "nri":
 		replics = uint64(1)
 	default:
 		replics = uint64(1)
@@ -259,13 +259,13 @@ func NriResourceMap(pd *pt.PlatformData) SvcResourcesMap {
 	nanoCPUsSvcMap := make(map[string]int64)
 
 	if uiSvcCpus <= 1.0 {
-		nanoCPUsSvcMap["nodered_instance"] = int64(uiSvcCpus * 1e9)
+		nanoCPUsSvcMap["nri"] = int64(uiSvcCpus * 1e9)
 	} else {
-		nanoCPUsSvcMap["nodered_instance"] = int64(1.0 * 1e9)
+		nanoCPUsSvcMap["nri"] = int64(1.0 * 1e9)
 	}
 	
 	memoryBytesSvcMap := make(map[string]int64)
-	memoryBytesSvcMap["nodered_instance"] = int64(2000 * 1024 * 1024) // 2000 MB
+	memoryBytesSvcMap["nri"] = int64(2000 * 1024 * 1024) // 2000 MB
 
 	resourcesMap := SvcResourcesMap{
 		SvcMemoryBytesMap: memoryBytesSvcMap,

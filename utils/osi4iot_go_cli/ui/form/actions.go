@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"os/user"
 	"runtime"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -919,9 +920,11 @@ func createOrg(m *Model) (creatingOrgMsg, error) {
 		return creatingOrgMsg("Error: adding EFS folders on nodes"), err
 	}
 
-	err = docker.CreateNriSwarmServicesForOrg(platformData, newOrg)
-	if err != nil {
-		return creatingOrgMsg("Error: creating NodeRed instances services"), err
+	if !slices.Contains(platformData.PlatformInfo.ExcludedServices, "nri") {
+		err = docker.CreateNriSwarmServicesForOrg(platformData, newOrg)
+		if err != nil {
+			return creatingOrgMsg("Error: creating NodeRed instances services"), err
+		}
 	}
 
 	return creatingOrgMsg("Organization created successfully"), nil

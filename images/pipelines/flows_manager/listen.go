@@ -154,6 +154,16 @@ func (fm *FlowsManager) Listen() {
 				fm.log.Errorf("Unknown action: %s for component: %s", adminMsg.Action, adminMsg.Component)
 				return
 			}
+		case "ml_model_file":
+			switch adminMsg.Action {
+			case "upload":
+				groupId := int(adminMsg.Context["groupId"].(float64))
+				fm.GetMlModelFile(groupId, adminMsg.Id)
+
+			default:
+				fm.log.Errorf("Unknown action: %s for component: %s", adminMsg.Action, adminMsg.Component)
+				return
+			}			
 		case "digitalTwin":
 			switch adminMsg.Action {
 			case "create":

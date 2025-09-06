@@ -32,7 +32,7 @@ func NriService(
 	domainName := pd.PlatformInfo.DomainName
 
 	annotationsLabels := map[string]string{
-		"service_type":   "nodered_instance",
+		"service_type":   "nri",
 		"traefik.enable": "true",
 		fmt.Sprintf("traefik.http.routers.%s.rule", serviceName): fmt.Sprintf(
 			"Host(`%s`) && PathPrefix(`/%s/`)",
@@ -138,11 +138,11 @@ func NriService(
 			},
 		}).
 		WithResources(
-			resources.CPUs("nodered_instance", svcResourcesMap),
-			resources.Memory("nodered_instance", svcResourcesMap),
+			resources.CPUs("nri", svcResourcesMap),
+			resources.Memory("nri", svcResourcesMap),
 		).
 		WithPlacement(nriData.ConstraintsArray).
-		WithModeReplicated(resources.GiveReplicsPtr("nodered_instance", nodeRoleMaps)).
+		WithModeReplicated(resources.GiveReplicsPtr("nri", nodeRoleMaps)).
 		WithNetworks([]swarm.NetworkAttachmentConfig{
 			{Target: sd.Networks["internal_net"].Name},
 			{Target: sd.Networks["traefik_public"].Name},

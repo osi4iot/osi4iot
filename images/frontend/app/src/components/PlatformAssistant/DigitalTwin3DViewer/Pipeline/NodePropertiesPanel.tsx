@@ -1330,19 +1330,30 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
 
             case "MlModel":
                 return (
-                    <FormGroup>
-                        <Label>Machine learning model</Label>
-                        <Select
-                            value={formData.mlModelId}
-                            onChange={(e) => handleInputChange("mlModelId", parseInt(e.target.value))}
-                        >
-                            {mlModelsTable.map((model) => (
-                                <option key={model.id} value={model.id}>
-                                    {model.description}
-                                </option>
-                            ))}
-                        </Select>
-                    </FormGroup>
+                    <>
+                        <FormGroup>
+                            <Label>Machine learning model</Label>
+                            <Select
+                                value={formData.mlModelId}
+                                onChange={(e) => handleInputChange("mlModelId", parseInt(e.target.value))}
+                            >
+                                {mlModelsTable.map((model) => (
+                                    <option key={model.id} value={model.id}>
+                                        {model.description}
+                                    </option>
+                                ))}
+                            </Select>
+                        </FormGroup>
+                        <FormGroup>
+                            <Label>Batch size</Label>
+                            <Input
+                                type="number"
+                                value={formData.batchSize || 1}
+                                onChange={(e) => handleInputChange("batchSize", parseInt(e.target.value))}
+                                placeholder="1"
+                            />
+                        </FormGroup>
+                    </>
                 );
 
             case "AiAgent":
@@ -1372,6 +1383,30 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                                 value={formData.llmTemperature || 0.7}
                                 onChange={(e) => handleInputChange("llmTemperature", parseFloat(e.target.value))}
                                 placeholder="0.7"
+                            />
+                        </FormGroup>
+                        <FormGroup>
+                            <Label>Top K</Label>
+                            <Input
+                                type="number"
+                                step="1"
+                                max="100"
+                                min="1"
+                                value={formData.llmTopK || 40}
+                                onChange={(e) => handleInputChange("llmTopK", parseInt(e.target.value))}
+                                placeholder="40"
+                            />
+                        </FormGroup>
+                        <FormGroup>
+                            <Label>Top P</Label>
+                            <Input
+                                type="number"
+                                step="0.01"
+                                max="1.0"
+                                min="0.0"
+                                value={formData.llmTopP || 0.95}
+                                onChange={(e) => handleInputChange("llmTopP", parseFloat(e.target.value))}
+                                placeholder="0.95"
                             />
                         </FormGroup>
                         <FormGroup>

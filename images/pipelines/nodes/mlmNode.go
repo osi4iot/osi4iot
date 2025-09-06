@@ -69,6 +69,7 @@ func ReadDynTensor[T ort.TensorData](dt *DynTensor) ([]T, error) {
 type MlmNode struct {
 	BaseNode
 	MlModelId     int
+	BatchSize     int64
 	Session       *ort.AdvancedSession
 	InputTensors  []*DynTensor
 	OutputTensors []*DynTensor
@@ -94,6 +95,15 @@ func CreateMlmNode(node common.NodeData, fm common.Manager) (*MlmNode, error) {
 	mlModel := fm.GetMlModel(mlModelId)
 	if mlModel == nil {
 		return nil, fmt.Errorf("ML model with ID %d not found", mlModelId)
+	}
+
+	var batchSize int64 = 1
+	batchSizeFloat, ok := node.Settings["batchSize"].(float64)
+	if ok {
+		batchSize = int64(batchSizeFloat)
+		if batchSize <= 0 {
+			return nil, fmt.Errorf("batchSize must be a positive integer, got %d", batchSize)
+		}
 	}
 
 	org := fm.GetOrg(node.OrgId)
@@ -135,6 +145,7 @@ func CreateMlmNode(node common.NodeData, fm common.Manager) (*MlmNode, error) {
 			status:         common.NodeStatusCreated,
 		},
 		MlModelId: mlModelId,
+		BatchSize: batchSize,
 	}
 
 	return mlmNode, nil
@@ -205,7 +216,7 @@ func (n *MlmNode) loadModelInfo(log *logger.Logger) error {
 		inputDims := make([]int64, len(inputs[i].Dimensions))
 		for idim, dim := range inputs[i].Dimensions {
 			if dim == -1 {
-				inputDims[idim] = 1
+				inputDims[idim] = n.BatchSize
 			} else {
 				inputDims[idim] = dim
 			}
@@ -222,7 +233,7 @@ func (n *MlmNode) loadModelInfo(log *logger.Logger) error {
 		outputDims := make([]int64, len(out.Dimensions))
 		for i, dim := range out.Dimensions {
 			if dim == -1 {
-				outputDims[i] = 1
+				outputDims[i] = n.BatchSize
 			} else {
 				outputDims[i] = dim
 			}

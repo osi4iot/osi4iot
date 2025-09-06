@@ -81,6 +81,8 @@ type PipelinesParams struct {
 	LlmProviderUrl           string
 	DefaultLlmModel          string
 	DefaultLlmTemperature    float32
+	DefaultLlmTopK           int32
+	DefaultLlmTopP           float32
 	LlmMaxTokens             int
 	McpServersPath           string
 	MaxChatMessagesPerUser   int
@@ -116,6 +118,8 @@ func PipelinesConfig(platformData *types.PlatformData, nodeRoleNumMap map[string
 		LlmProviderUrl:         platformData.PlatformInfo.LlmProviderUrl,
 		DefaultLlmModel:        "openai:gpt-oss-120b",
 		DefaultLlmTemperature:  0.7,
+		DefaultLlmTopK:         40,
+		DefaultLlmTopP:         0.95,
 		LlmMaxTokens:           1000,
 		McpServersPath:         "",
 		MaxChatMessagesPerUser: 500,

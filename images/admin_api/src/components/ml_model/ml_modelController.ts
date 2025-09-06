@@ -1,7 +1,7 @@
 import { Router, NextFunction, Request, Response } from "express";
-import multer from 'multer';
-import multerS3 from 'multer-s3';
-import { ReadStream } from 'fs';
+import multer from "multer";
+import multerS3 from "multer-s3";
+import { ReadStream } from "fs";
 import IController from "../../interfaces/controller.interface";
 import validationMiddleware from "../../middleware/validation.middleware";
 import { groupAdminAuth, organizationAdminAuth, userAuth } from "../../middleware/auth.middleware";
@@ -19,14 +19,18 @@ import {
 	getMLModelsByGroupId,
 	getMLModelsByGroupsIdArray,
 	getMLModelsByOrgId,
-	updateMLModelByProp
+	updateMLModelByProp,
 } from "./ml_modelDAL";
 import IRequestWithGroup from "../group/interfaces/requestWithGroup.interface";
 import IRequestWithUser from "../../interfaces/requestWithUser.interface";
 import IMLModel from "./ml_model.interface";
 import { getAllGroupsInOrgArray, getGroupsThatCanBeEditatedAndAdministratedByUserId } from "../group/groupDAL";
 import { getOrganizationsManagedByUserId } from "../organization/organizationDAL";
-import { deleteBucketFile, getBucketFolderInfoFileList, removeFilesFromBucketFolder } from "../digitalTwin/digitalTwinDAL";
+import {
+	deleteBucketFile,
+	getBucketFolderInfoFileList,
+	removeFilesFromBucketFolder,
+} from "../digitalTwin/digitalTwinDAL";
 import s3Client from "../../config/s3Config";
 import { GetObjectCommand } from "@aws-sdk/client-s3";
 import process_env from "../../config/api_config";
@@ -34,6 +38,7 @@ import IRequestWithMLModelAndGroup from "./requestWithMLModelAndGroup.interface"
 import mlModelAndGroupExist from "../../middleware/mlModelAndGroupExist.middleware";
 import UpdateMLModelDto from "./ml_modelUpdate.dto";
 import infoLogger from "../../utils/logger/infoLogger";
+import natsClient from "../../config/natsConfig";
 
 const uploadMLModelFile = multer({
 	storage: multerS3({
@@ -47,10 +52,10 @@ const uploadMLModelFile = multer({
 			const { groupId, mlModelId, fileName } = req.params;
 			const keyBase = `org_${group.orgId}/group_${groupId}/ml_models/ml_model_${mlModelId}`;
 			const fileKey = `${keyBase}/${fileName}`;
-			cb(null, fileKey)
-		}
-	})
-})
+			cb(null, fileKey);
+		},
+	}),
+});
 
 class MLModelController implements IController {
 	public path = "/ml_model";
@@ -63,35 +68,11 @@ class MLModelController implements IController {
 
 	private initializeRoutes(): void {
 		this.router
-			.get(
-				`${this.path}s/user_managed/`,
-				userAuth,
-				this.getMLModelsManagedByUser
-			)
-			.get(
-				`${this.path}s_in_org/:orgId/`,
-				organizationAdminAuth,
-				organizationExists,
-				this.getMLModelsInOrg
-			)
-			.get(
-				`${this.path}s_in_group/:groupId`,
-				groupExists,
-				groupAdminAuth,
-				this.getMLModelsInGroup
-			)
-			.get(
-				`${this.path}/:groupId/:propName/:propValue`,
-				groupExists,
-				groupAdminAuth,
-				this.getMLModelByProp
-			)
-			.delete(
-				`${this.path}/:groupId/:mlModelId`,
-				groupExists,
-				groupAdminAuth,
-				this.deleteMLModelById
-			)
+			.get(`${this.path}s/user_managed/`, userAuth, this.getMLModelsManagedByUser)
+			.get(`${this.path}s_in_org/:orgId/`, organizationAdminAuth, organizationExists, this.getMLModelsInOrg)
+			.get(`${this.path}s_in_group/:groupId`, groupExists, groupAdminAuth, this.getMLModelsInGroup)
+			.get(`${this.path}/:groupId/:propName/:propValue`, groupExists, groupAdminAuth, this.getMLModelByProp)
+			.delete(`${this.path}/:groupId/:mlModelId`, groupExists, groupAdminAuth, this.deleteMLModelById)
 			.patch(
 				`${this.path}/:groupId/:propName/:propValue`,
 				groupExists,
@@ -110,7 +91,7 @@ class MLModelController implements IController {
 				`${this.path}_upload_file/:groupId/:mlModelId/:fileName`,
 				mlModelAndGroupExist,
 				groupAdminAuth,
-				uploadMLModelFile.single('file'),
+				uploadMLModelFile.single("file"),
 				this.uploadMLModelFile
 			)
 			.get(
@@ -130,7 +111,7 @@ class MLModelController implements IController {
 				mlModelAndGroupExist,
 				groupAdminAuth,
 				this.deleteMLModelFile
-			)
+			);
 	}
 
 	private getMLModelsManagedByUser = async (
@@ -146,15 +127,15 @@ class MLModelController implements IController {
 				const groups = await getGroupsThatCanBeEditatedAndAdministratedByUserId(req.user.id);
 				const organizations = await getOrganizationsManagedByUserId(req.user.id);
 				if (organizations.length !== 0) {
-					const orgIdsArray = organizations.map(org => org.id);
-					const groupsInOrgs = await getAllGroupsInOrgArray(orgIdsArray)
-					const groupsIdArray = groups.map(group => group.id);
-					groupsInOrgs.forEach(groupInOrg => {
+					const orgIdsArray = organizations.map((org) => org.id);
+					const groupsInOrgs = await getAllGroupsInOrgArray(orgIdsArray);
+					const groupsIdArray = groups.map((group) => group.id);
+					groupsInOrgs.forEach((groupInOrg) => {
 						if (groupsIdArray.indexOf(groupInOrg.id) === -1) groups.push(groupInOrg);
-					})
+					});
 				}
 				if (groups.length !== 0) {
-					const groupsIdArray = groups.map(group => group.id);
+					const groupsIdArray = groups.map((group) => group.id);
 					mlModels = await getMLModelsByGroupsIdArray(groupsIdArray);
 				}
 			}
@@ -177,11 +158,7 @@ class MLModelController implements IController {
 		}
 	};
 
-	private getMLModelsInGroup = async (
-		req: IRequestWithGroup,
-		res: Response,
-		next: NextFunction
-	): Promise<void> => {
+	private getMLModelsInGroup = async (req: IRequestWithGroup, res: Response, next: NextFunction): Promise<void> => {
 		try {
 			const mlModels = await getMLModelsByGroupId(req.group.id);
 			res.status(200).send(mlModels);
@@ -190,11 +167,7 @@ class MLModelController implements IController {
 		}
 	};
 
-	private getMLModelByProp = async (
-		req: IRequestWithGroup,
-		res: Response,
-		next: NextFunction
-	): Promise<void> => {
+	private getMLModelByProp = async (req: IRequestWithGroup, res: Response, next: NextFunction): Promise<void> => {
 		try {
 			const { propName, propValue } = req.params;
 			if (!this.isValidMLModelPropName(propName)) throw new InvalidPropNameExeception(req, res, propName);
@@ -206,11 +179,7 @@ class MLModelController implements IController {
 		}
 	};
 
-	private deleteMLModelById = async (
-		req: Request,
-		res: Response,
-		next: NextFunction
-	): Promise<void> => {
+	private deleteMLModelById = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
 		try {
 			const { mlModelId } = req.params;
 			const mlModel = await getMLModelByProp("id", mlModelId);
@@ -218,48 +187,44 @@ class MLModelController implements IController {
 			await deleteMLModelByProp("id", mlModelId);
 			const bucketFolder = `org_${mlModel.orgId}/group_${mlModel.groupId}/ml_models/ml_model_${mlModel.id}`;
 			await removeFilesFromBucketFolder(bucketFolder);
-			const message = { message: "ML model deleted successfully" }
+			const message = { message: "ML model deleted successfully" };
 			res.status(200).json(message);
 		} catch (error) {
 			next(error);
 		}
 	};
 
-	private updateMLModelByProp = async (
-		req: IRequestWithGroup,
-		res: Response,
-		next: NextFunction
-	): Promise<void> => {
+	private updateMLModelByProp = async (req: IRequestWithGroup, res: Response, next: NextFunction): Promise<void> => {
 		try {
 			const { propName, propValue } = req.params;
 			const mlModelData = req.body;
 			if (!this.isValidMLModelPropName(propName)) throw new InvalidPropNameExeception(req, res, propName);
 			const storedMlModel = await getMLModelByProp(propName, propValue);
 			if (!storedMlModel) throw new ItemNotFoundException(req, res, "The ML model", propName, propValue);
-			const mlModel = { ...storedMlModel, description: mlModelData.description, mlLibrary: mlModelData.mlLibrary };
+			const mlModel = {
+				...storedMlModel,
+				description: mlModelData.description,
+				mlLibrary: mlModelData.mlLibrary,
+			};
 			await updateMLModelByProp(propName, propValue, mlModel);
 			if (mlModelData.areMlModelFilesModified || storedMlModel.mlLibrary !== mlModelData.mlLibrary) {
 				const bucketFolder = `org_${mlModel.orgId}/group_${mlModel.groupId}/ml_models/ml_model_${mlModel.id}`;
 				await removeFilesFromBucketFolder(bucketFolder);
 			}
-			const message = { message: "ML model updated successfully" }
+			const message = { message: "ML model updated successfully" };
 			res.status(200).json(message);
 		} catch (error) {
 			next(error);
 		}
 	};
 
-	private createMLModel = async (
-		req: IRequestWithGroup,
-		res: Response,
-		next: NextFunction
-	): Promise<void> => {
+	private createMLModel = async (req: IRequestWithGroup, res: Response, next: NextFunction): Promise<void> => {
 		try {
 			const mlModelData: CreateMLModelDto = req.body;
 			const newMlModel = await createMLModel(req.group, mlModelData);
 			const message = {
 				message: `A new ML model has been created`,
-				mlModelId: newMlModel.id
+				mlModelId: newMlModel.id,
 			};
 			infoLogger(req, res, 200, message.message);
 			res.status(200).send(message);
@@ -268,16 +233,20 @@ class MLModelController implements IController {
 		}
 	};
 
-	private uploadMLModelFile = (
+	private uploadMLModelFile = async (
 		req: IRequestWithMLModelAndGroup,
 		res: Response,
 		next: NextFunction
-	): void => {
+	): Promise<void> => {
 		const { fileName } = req.params;
 		try {
 			const message = {
 				message: `The file ${fileName} has been successfully uploaded in the S3 bucket`,
 			};
+			const context = {
+				groupId: req.group.id,
+			};
+			await natsClient.jsPublish("ml_model_file", "upload", req.mlModel.id, context);
 			infoLogger(req, res, 200, message.message);
 			res.status(200).send(message);
 		} catch (error) {
@@ -316,7 +285,7 @@ class MLModelController implements IController {
 	): Promise<void> => {
 		const group = req.group;
 		const { groupId, mlModelId } = req.params;
-		const folderPath = `org_${group.orgId}/group_${groupId}/ml_models/ml_model_${mlModelId}`
+		const folderPath = `org_${group.orgId}/group_${groupId}/ml_models/ml_model_${mlModelId}`;
 
 		try {
 			const fileInfoList = await getBucketFolderInfoFileList(folderPath);
@@ -351,7 +320,6 @@ class MLModelController implements IController {
 		const validPropName = ["id", "ml_model_uid"];
 		return validPropName.indexOf(propName) !== -1;
 	};
-
 }
 
 export default MLModelController;

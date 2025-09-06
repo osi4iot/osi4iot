@@ -62,6 +62,22 @@ func CreateAiAgentNode(node common.NodeData, fm common.Manager) (*AiAgentNode, e
 		llmTemperature = fm.GetDefaultLlmTemperature()
 	}
 
+	var llmTopK int32 = 40
+	llmTopKFloat64, ok := node.Settings["llmTopK"].(float64)
+	if !ok {
+		llmTopK = fm.GetDefaultLlmTopK()
+	} else {
+		llmTopK = int32(llmTopKFloat64)
+	}
+
+	var llmTopP float32 = 0.95
+	llmTopPFloat64, ok := node.Settings["llmTopP"].(float64)
+	if !ok {
+		llmTopP = fm.GetDefaultLlmTopP()
+	} else {
+		llmTopP = float32(llmTopPFloat64)
+	}
+
 	systemPrompt, ok := node.Settings["systemPrompt"].(string)
 	if !ok {
 		fm.Log().Errorf("AiAgentNode %s: 'systemPrompt' setting is required and must be a non-empty string", node.NodeUid)
@@ -153,8 +169,6 @@ func CreateAiAgentNode(node common.NodeData, fm common.Manager) (*AiAgentNode, e
 		}
 	}
 
-	var topP float32 = 0.95
-	var topK int32 = 40
 	debug := false
 	if fm.GetMode() == "local" {
 		debug = true
@@ -176,8 +190,8 @@ func CreateAiAgentNode(node common.NodeData, fm common.Manager) (*AiAgentNode, e
 		ProviderURL:    providerUrl,
 		MaxTokens:      fm.GetLlmMaxTokens(),
 		Temperature:    &llmTemperature,
-		TopP:           &topP,
-		TopK:           &topK,
+		TopP:           &llmTopP,
+		TopK:           &llmTopK,
 		SavedMessages:  nil, // This will be populated later
 		InputChan:      inputChan,
 		OutputChan:     outputChan,

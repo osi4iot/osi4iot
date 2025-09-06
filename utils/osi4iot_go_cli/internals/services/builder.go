@@ -277,7 +277,7 @@ func GenerateServices(pd *pt.PlatformData, sd pt.SwarmData) map[string]pt.Servic
 	}
 
 	pi := pd.PlatformInfo
-	if pi.PipelinesSvcResources != "No service" && !slices.Contains(pi.ExcludedServices, "pipelines") {
+	if !slices.Contains(pi.ExcludedServices, "pipelines") {
 		services["pipelines"] = PipelinesService(pd, sd, svcResourcesMap, nodeRoleMaps)
 	}
 
@@ -335,12 +335,12 @@ func CreateNriServices(
 	var nriConstraintsArray []string
 	nriResources := &swarm.ResourceRequirements{
 		Limits: &swarm.Limit{
-			NanoCPUs:    resources.CPUs("nodered_instance", svcResourcesMap),
-			MemoryBytes: resources.Memory("nodered_instance", svcResourcesMap),
+			NanoCPUs:    resources.CPUs("nri", svcResourcesMap),
+			MemoryBytes: resources.Memory("nri", svcResourcesMap),
 		},
 		Reservations: &swarm.Resources{
-			NanoCPUs:    resources.CPUs("nodered_instance", svcResourcesMap),
-			MemoryBytes: resources.Memory("nodered_instance", svcResourcesMap),
+			NanoCPUs:    resources.CPUs("nri", svcResourcesMap),
+			MemoryBytes: resources.Memory("nri", svcResourcesMap),
 		},
 	}
 	numSwarmNodes := len(pd.PlatformInfo.NodesData)

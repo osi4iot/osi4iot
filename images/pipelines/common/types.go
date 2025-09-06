@@ -154,6 +154,13 @@ type MLModel struct {
 	Updated     string `json:"updated"`
 }
 
+type MlModelFolder struct {
+	Path      string
+	GroupId   int
+	OrgId     int
+	MlModelId int
+}
+
 type NotificationChannel struct {
 	Id                int            `json:"id"`
 	OrgId             int            `json:"orgId"`

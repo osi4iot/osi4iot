@@ -64,9 +64,9 @@ func getNanoCPUsSvcMap(pd *pt.PlatformData) map[string]int64 {
 	nanoCPUsSvcMap["pipelines"] = int64(pipelinesSvcCpus * 1e9)
 
 	if uiSvcCpus <= 1.0 {
-		nanoCPUsSvcMap["nodered_instance"] = int64(uiSvcCpus * 1e9)
+		nanoCPUsSvcMap["nri"] = int64(uiSvcCpus * 1e9)
 	} else {
-		nanoCPUsSvcMap["nodered_instance"] = int64(1.0 * 1e9)
+		nanoCPUsSvcMap["nri"] = int64(1.0 * 1e9)
 	}
 
 	return nanoCPUsSvcMap

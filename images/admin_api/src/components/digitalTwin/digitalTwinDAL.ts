@@ -253,9 +253,8 @@ export const updateDigitalTwinById = async (
 	]);
 	const context = {
 		groupId: digitalTwinData.groupId,
-		digitalTwinId: digitalTwinData.id,
 	};
-	await natsClient.jsPublish("digitalTwin", "update", digitalTwinData.id, context);
+	await natsClient.jsPublish("digitalTwin", "update", digitalTwinId, context);
 };
 
 export const updateDigitalTwinPipelineFileDataById = async (
@@ -1390,10 +1389,12 @@ export interface IBucketFileInfoList {
 }
 
 export const getBucketFolderInfoFileList = async (folderPath: string): Promise<IBucketFileInfoList[]> => {
+	const normalizedFolderPath = folderPath.endsWith("/") ? folderPath : `${folderPath}/`;
 	const bucketParams = {
 		Bucket: process_env.S3_BUCKET_NAME,
-		Prefix: folderPath,
+		Prefix: normalizedFolderPath,
 	};
+
 	const data = await s3Client.send(new ListObjectsV2Command(bucketParams));
 	let fileInfoList: IBucketFileInfoList[] = [];
 	if (data.KeyCount !== 0 && data.Contents.length !== 0) {

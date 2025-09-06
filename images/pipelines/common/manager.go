@@ -40,6 +40,9 @@ type Manager interface {
 	GetMlModelFolder(orgId int, groupId int, mlModelId int) string
 	GetMlModelFilePath(orgId int, groupId int, mlModelId int) string
 	DownloadMlModelFile(mlModelFilePath string, groupId int, mlModelId int) string
+	GetMlModelFile(groupId int, mlModelId int) error
+	DeleteOldMlModelFiles(currentModels []*MLModel) error
+	GetModelFolders(rootPath string) ([]MlModelFolder, error)
 
 	GetNode(nodeId int) Node
 	GetNodes() []Node
@@ -124,6 +127,8 @@ type Manager interface {
 	GetLlmProviderUrl() string
 	GetDefaultLlmModel() string
 	GetDefaultLlmTemperature() float32
+	GetDefaultLlmTopK() int32
+	GetDefaultLlmTopP() float32
 	GetLlmMaxTokens() int
 	GetMcpServersPath() string
 	GetPipelinesDataPath() string

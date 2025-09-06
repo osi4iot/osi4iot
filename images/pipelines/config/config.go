@@ -32,6 +32,8 @@ type Config struct {
 	LlmProviderUrl           string            `mapstructure:"llmProviderUrl"`
 	DefaultLlmModel          string            `mapstructure:"defaultLlmModel"`
 	DefaultLlmTemperature    float32           `mapstructure:"defaultLlmTemperature"`
+	DefaultLlmTopK           int32             `mapstructure:"defaultLlmTopK"`
+	DefaultLlmTopP           float32           `mapstructure:"defaultLlmTopP"`
 	LlmMaxTokens             int               `mapstructure:"llmMaxTokens"`
 	McpServersPath           string            `mapstructure:"mcpServersPath"`
 	MaxChatMessagesPerUser   int               `mapstructure:"maxChatMessagesPerUser"`
