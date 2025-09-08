@@ -128,7 +128,7 @@ func CreateAiAgentNode(node common.NodeData, fm common.Manager) (*AiAgentNode, e
 			},
 		}
 
-		if len(femResultsInfo) > 0 && digitalTwin.ChatAssistantEnabled {
+		if len(femResultsInfo) > 0 {
 			femResultsPath := fm.GetFemResultsPath(node.OrgId, node.GroupId, node.DigitalTwinId)
 			utils.CreateDirectoryIfNotExists(femResultsPath)
 			if femResultsPath != "" {
@@ -155,7 +155,7 @@ func CreateAiAgentNode(node common.NodeData, fm common.Manager) (*AiAgentNode, e
 			Args:    []string{"-m", "server"},
 		}
 
-		if len(femResultsInfo) > 0 && digitalTwin.ChatAssistantEnabled {
+		if len(femResultsInfo) > 0 {
 			femResultsPath := fm.GetFemResultsPath(node.OrgId, node.GroupId, node.DigitalTwinId)
 			utils.CreateDirectoryIfNotExists(femResultsPath)
 			if femResultsPath != "" {

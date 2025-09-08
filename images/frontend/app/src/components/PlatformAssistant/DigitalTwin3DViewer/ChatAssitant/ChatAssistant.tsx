@@ -356,7 +356,8 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({ chatMessages, setChatMess
     const handleSendRef = useRef<() => void>();
     const speakRef = useRef<(params: { text: string; voice: string }) => void>();
     const initializedRef = useRef<boolean>(false);
-
+    const [lastChatMessageIndex, setLastChatMessageIndex] = useState<number>(0);
+    const [isSpeaking, setIsSpeaking] = useState<boolean>(false);
     // Estados para el redimensionado
     const [isResizing, setIsResizing] = useState(false);
     const [containerWidth, setContainerWidth] = useState(520);
@@ -377,7 +378,6 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({ chatMessages, setChatMess
         [chatAssistantLanguage]
     );
 
-    // Manejo del redimensionado
     const handleMouseDown = useCallback(
         (e: React.MouseEvent) => {
             e.preventDefault();
@@ -431,17 +431,18 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({ chatMessages, setChatMess
     const { speak, cancel } = useSpeechSynthesis({
         onEnd: useCallback(() => {
             if (isMounted.current && isVoiceEnabled) {
+                setIsSpeaking(false);
                 setSystemStatus("idle");
+
                 setTimeout(() => {
-                    if (isMounted.current && isVoiceEnabled) {
+                    if (isMounted.current && isVoiceEnabled && !isSpeaking) {
                         startListening();
                     }
-                }, 500);
+                }, 800);
             }
-        }, [isVoiceEnabled, startListening]),
+        }, [isVoiceEnabled, isSpeaking, startListening]),
     });
 
-    // Cleanup al desmontar
     useEffect(() => {
         return () => {
             isMounted.current = false;
@@ -449,6 +450,11 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({ chatMessages, setChatMess
                 clearTimeout(processingTimeoutRef.current);
             }
             SpeechRecognition.stopListening();
+            setTimeout(() => {
+                if ("speechSynthesis" in window) {
+                    window.speechSynthesis.cancel();
+                }
+            }, 100);
         };
     }, []);
 
@@ -466,11 +472,10 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({ chatMessages, setChatMess
         }
     }, []);
 
-    // Inicializar voz de saludo
     useEffect(() => {
         if (!initializedRef.current && chatMessages.length === 0) {
             initializedRef.current = true;
-            setIsLoading(true); // Activar spinner durante la inicialización
+            setIsLoading(true);
             getVoices(chatAssistantLanguage)
                 .then((voice) => {
                     setVoice(voice as IChatVoice);
@@ -482,10 +487,11 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({ chatMessages, setChatMess
                         mcpToolCalls: [],
                     };
                     setChatMessages([greetingMessage]);
-                    setIsLoading(false); // Desactivar spinner
+                    setLastChatMessageIndex(1); // Inicializar correctamente
+                    setIsLoading(false);
                 })
                 .catch(() => {
-                    setIsLoading(false); // Asegurar que se desactive en caso de error
+                    setIsLoading(false);
                 });
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -534,7 +540,6 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({ chatMessages, setChatMess
         lastTranscriptRef.current = "";
     }, [input, resetTranscript, userName, setChatMessages]);
 
-    // Actualizar las referencias
     useEffect(() => {
         handleSendRef.current = handleSend;
     }, [handleSend]);
@@ -543,25 +548,37 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({ chatMessages, setChatMess
         speakRef.current = speak;
     }, [speak]);
 
-    // Manejar respuestas del asistente para TTS
     useEffect(() => {
-        if (chatMessages.length > 0) {
+        // Solo procesar si hay mensajes nuevos
+        if (chatMessages.length > lastChatMessageIndex) {
             const lastMessage = chatMessages[chatMessages.length - 1];
 
             if (
                 lastMessage.sender === "assistant" &&
                 lastMessage.message !== voice?.greeting &&
                 isVoiceEnabled &&
-                voice?.speechLang
+                voice?.speechLang &&
+                !isSpeaking
             ) {
+                setLastChatMessageIndex(chatMessages.length);
+
                 SpeechRecognition.stopListening();
                 setSystemStatus("speaking");
+                setIsSpeaking(true);
 
                 const normalizedText = normalizeTextForSpeech(lastMessage.message);
-                speakRef.current?.({
-                    text: normalizedText,
-                    voice: voice.speechLang,
-                });
+
+                setTimeout(() => {
+                    if (isMounted.current && isVoiceEnabled) {
+                        speak({
+                            text: normalizedText,
+                            voice: voice.speechLang,
+                        });
+                    }
+                }, 200);
+            } else {
+                // Actualizar el índice incluso si no vamos a hablar
+                setLastChatMessageIndex(chatMessages.length);
             }
 
             // Desactivar spinner cuando llega una respuesta del asistente
@@ -570,7 +587,15 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({ chatMessages, setChatMess
             }
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [chatMessages.length, voice?.greeting, voice?.speechLang, isVoiceEnabled, isLoading]);
+    }, [
+        chatMessages.length,
+        lastChatMessageIndex,
+        voice?.greeting,
+        voice?.speechLang,
+        isVoiceEnabled,
+        isSpeaking,
+        isLoading,
+    ]);
 
     const handleKeyPress = (e: KeyboardEvent<HTMLTextAreaElement>) => {
         if (e.key === "Enter" && !e.shiftKey) {
@@ -612,17 +637,24 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({ chatMessages, setChatMess
             SpeechRecognition.stopListening();
             setIsVoiceEnabled(false);
             setSystemStatus("idle");
-            cancel();
+            setIsSpeaking(false);
+
+            setTimeout(() => {
+                cancel();
+            }, 100);
+
             resetTranscript();
             lastTranscriptRef.current = "";
 
             if (processingTimeoutRef.current) {
                 clearTimeout(processingTimeoutRef.current);
             }
+
+            setLastChatMessageIndex(chatMessages.length);
         } catch (error) {
             console.error("Error stopping speech recognition:", error);
         }
-    }, [cancel, resetTranscript]);
+    }, [cancel, chatMessages.length, resetTranscript]);
 
     const toggleVoice = useCallback(() => {
         if (isVoiceEnabled) {

@@ -428,7 +428,7 @@ class TTSNormalizer {
         }
 
         const lang = options.language.includes("es") ? "es" : "en";
-        let normalizedText = text;
+        let normalizedText = this.cleanMarkdown(text);
 
         // Normalizar LaTeX matemático inline PRIMERO
         normalizedText = this.normalizeLatex(normalizedText, lang);
@@ -458,8 +458,8 @@ class TTSNormalizer {
     private containsDisplayMath(text: string): boolean {
         // Patrones para fórmulas display (NO inline)
         const displayPatterns = [
-            /\\\[.*?\\\]/, // \[ ... \] - display math
-            /\$\$.*?\$\$/, // $$ ... $$ - display math
+            /\\\[[\s\S]*?\\\]/, // \[ ... \] - display math
+            /\$\$[\s\S]*?\$\$/, // $$ ... $$ - display math
         ];
 
         // Patrones para matrices y estructuras complejas (incluso en inline)
@@ -472,6 +472,22 @@ class TTSNormalizer {
 
         const allPatterns = [...displayPatterns, ...matrixPatterns];
         return allPatterns.some((pattern) => pattern.test(text));
+    }
+
+    private cleanMarkdown(text: string): string {
+        let result = text;
+
+        // Eliminar markdown de texto en negrita: **texto** y *texto*
+        result = result.replace(/\*\*(.*?)\*\*/g, "$1");
+        result = result.replace(/(?<!\*)\*([^*\n]+?)\*(?!\*)/g, "$1");
+
+        // Eliminar markdown de cursiva: _texto_
+        result = result.replace(/(?<!_)_([^_\n]+?)_(?!_)/g, "$1");
+
+        // Eliminar backticks de código: `código`
+        result = result.replace(/`([^`]+)`/g, "$1");
+
+        return result;
     }
 
     private normalizeCodeBlocks(text: string, lang: string): string {
@@ -488,7 +504,6 @@ class TTSNormalizer {
         const isSpanish = lang === "es";
         let result = text;
 
-        // SOLO patrones inline - NO display math
         const inlinePatterns = [
             // \( ... \) - inline math
             /\\\((.*?)\\\)/g,

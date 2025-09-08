@@ -1,14 +1,31 @@
-// 1) Imports
 import katex from "katex";
 import "katex/dist/katex.min.css";
 import styled from "styled-components";
 
-// 2) Utilidad para escapar HTML en los trozos de texto normal
 function escapeHTML(s: string) {
     return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
-// 3) Render de bloques: ```math ...``` / ```latex ...``` y $$...$$ en líneas propias
+function processMarkdown(text: string): string {
+    let result = text;
+
+    // Procesar texto en negrita: **texto** o *texto*
+    // Primero ** (doble asterisco) para evitar conflictos
+    result = result.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
+
+    // Luego * (asterisco simple) - solo si no está ya procesado
+    result = result.replace(/(?<!\*)\*([^*\n]+?)\*(?!\*)/g, "<strong>$1</strong>");
+
+    // Procesar texto en cursiva: _texto_
+    result = result.replace(/(?<!_)_([^_\n]+?)_(?!_)/g, "<em>$1</em>");
+
+    // Procesar código inline: `código`
+    result = result.replace(/`([^`]+)`/g, "<code>$1</code>");
+
+    return result;
+}
+
+// 4) Render de bloques: ```math ...``` / ```latex ...``` y $$...$$ en líneas propias
 export function renderExplicitMathBlocks(input: string): string {
     let src = input;
 
@@ -107,14 +124,42 @@ export function renderExplicitMathBlocks(input: string): string {
         })
         .join("\n");
 
-    // 6) Escape global del resto + reinyectar los fragmentos de KaTeX
-    let safe = escapeHTML(src).replace(/\r?\n/g, "<br/>");
+    // 6) Procesar markdown ANTES del escape HTML
+    let safe = src;
+
+    // Verificar si ya contiene etiquetas HTML
+    const hasHTML = /<\/?(?:strong|em|code|b|i|span|div|p|br)\b[^>]*>/i.test(src);
+
+    if (hasHTML) {
+        // Ya tiene HTML - proteger las etiquetas existentes
+        const htmlTagProtection: string[] = [];
+        const protectHTML = (match: string) => {
+            const index = htmlTagProtection.push(match) - 1;
+            return `__HTMLTAG_${index}__`;
+        };
+
+        // Proteger etiquetas HTML válidas
+        safe = safe.replace(/<\/?(?:strong|em|code|b|i|span|div|p|br|ul|ol|li)\b[^>]*>/gi, protectHTML);
+
+        // Escapar el resto del contenido
+        safe = escapeHTML(safe);
+
+        // Restaurar las etiquetas HTML protegidas
+        safe = safe.replace(/__HTMLTAG_(\d+)__/g, (_m, i) => htmlTagProtection[Number(i)]);
+    } else {
+        safe = processMarkdown(safe);
+    }
+
+    // Convertir saltos de línea
+    safe = safe.replace(/\r?\n/g, "<br/>");
+
+    // 7) Reinyectar los fragmentos de KaTeX
     safe = safe.replace(/__KXCHUNK_(\d+)__/g, (_m, i) => chunks[Number(i)]);
 
     return safe;
 }
 
-// 4) Componente para mensajes
+// 8) Componente para mensajes
 export const MathMessage: React.FC<{ html: string }> = ({ html }) => {
     const __html = renderExplicitMathBlocks(html);
     return <MessageContent dangerouslySetInnerHTML={{ __html }} />;
@@ -129,6 +174,27 @@ const MessageContent = styled.div`
     word-wrap: break-word;
     overflow-wrap: anywhere;
     white-space: pre-wrap;
+
+    /* ===== Estilos para markdown ===== */
+    strong {
+        font-weight: bold;
+        color: #ffffff;
+    }
+
+    em {
+        font-style: italic;
+        color: #f0f0f0;
+    }
+
+    code {
+        background-color: rgba(255, 255, 255, 0.1);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 3px;
+        padding: 2px 4px;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, "Liberation Mono", monospace;
+        font-size: 0.9em;
+        color: #ff6b6b;
+    }
 
     /* ===== KaTeX: estilos seguros ===== */
     .katex {
