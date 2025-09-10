@@ -18,8 +18,13 @@ import (
 type InjectNode struct {
 	BaseNode
 	TopicIn              string
-	Repeat               string  // none, interval
+	Repeat               string  // none, interval, interval_between_times, interval_at_specific_time
 	Every                float64 // interval time in seconds
+	StartTime            string  // HH:MM format for interval_between_times
+	EndTime              string  // HH:MM format for interval_between_times
+	SpecificTime         string  // HH:MM format for interval_at_specific_time
+	DaysOfWeek           []int   // days of the week for specific times (0=Sunday, 6=Saturday)
+	Timezone             string  // timezone for time-based intervals
 	InjectionType        string
 	Json                 map[string]interface{}
 	MsgChan              chan common.Message
@@ -60,18 +65,76 @@ func CreateInjectNode(node common.NodeData, fm common.Manager) (*InjectNode, err
 		return nil, fmt.Errorf("repeat setting is required")
 	}
 
-	if repeat != "none" && repeat != "interval" {
-		fm.Log().Errorf("InjectNode %s: 'repeat' setting must be 'none' or 'interval'", node.NodeUid)
+	validRepeats := []string{"none", "interval", "interval_between_times", "interval_at_specific_time"}
+	if !contains(validRepeats, repeat) {
+		fm.Log().Errorf("InjectNode %s: 'repeat' setting must be one of: %v", node.NodeUid, validRepeats)
 		return nil, fmt.Errorf("invalid repeat setting: %s", repeat)
 	}
 
 	var every float64
-	if repeat == "interval" {
+	var startTime, endTime string
+	var specificTime string
+	var daysOfWeek []int
+	timezone := "Europe/Madrid"
+	if tz, ok := node.Settings["timezone"].(string); ok && tz != "" {
+		timezone = tz
+	}
+
+	// Validate settings based on repeat type
+	switch repeat {
+	case "interval", "interval_between_times":
 		every, ok = node.Settings["every"].(float64)
 		if !ok || every == 0 {
-			fm.Log().Errorf("InjectNode %s: 'every' setting is required for repeat 'interval'", node.NodeUid)
-			return nil, fmt.Errorf("every setting is required for repeat 'interval'")
+			fm.Log().Errorf("InjectNode %s: 'every' setting is required for repeat '%s'", node.NodeUid, repeat)
+			return nil, fmt.Errorf("every setting is required for repeat '%s'", repeat)
 		}
+
+		if repeat == "interval_between_times" {
+			startTime, ok = node.Settings["startTime"].(string)
+			if !ok || startTime == "" {
+				fm.Log().Errorf("InjectNode %s: 'startTime' setting is required for repeat 'interval_between_times'", node.NodeUid)
+				return nil, fmt.Errorf("startTime setting is required for repeat 'interval_between_times'")
+			}
+			if err := validateTimeFormat(startTime); err != nil {
+				fm.Log().Errorf("InjectNode %s: invalid startTime format: %s", node.NodeUid, err)
+				return nil, fmt.Errorf("invalid startTime format: %w", err)
+			}
+
+			endTime, ok = node.Settings["endTime"].(string)
+			if !ok || endTime == "" {
+				fm.Log().Errorf("InjectNode %s: 'endTime' setting is required for repeat 'interval_between_times'", node.NodeUid)
+				return nil, fmt.Errorf("endTime setting is required for repeat 'interval_between_times'")
+			}
+			if err := validateTimeFormat(endTime); err != nil {
+				fm.Log().Errorf("InjectNode %s: invalid endTime format: %s", node.NodeUid, err)
+				return nil, fmt.Errorf("invalid endTime format: %w", err)
+			}
+
+			if !isTimeAfter(endTime, startTime) {
+				fm.Log().Errorf("InjectNode %s: endTime must be after startTime", node.NodeUid)
+				return nil, fmt.Errorf("endTime must be after startTime")
+			}
+
+			daysOfWeek, err = readDaysOfWeek(node)
+			if err != nil {
+				fm.Log().Errorf("InjectNode %s: %s", node.NodeUid, err)
+				return nil, err
+			}
+		}
+
+	case "interval_at_specific_time":
+		specificTime, ok = node.Settings["specificTime"].(string)
+		if !ok || specificTime == "" {
+			fm.Log().Errorf("InjectNode %s: 'specificTime' setting is required for repeat 'interval_at_specific_time'", node.NodeUid)
+			return nil, fmt.Errorf("specificTime setting is required for repeat 'interval_at_specific_time'")
+		}
+
+		timeStr := specificTime
+		if err := validateTimeFormat(timeStr); err != nil {
+			fm.Log().Errorf("InjectNode %s: invalid specificTime format %s: %s", node.NodeUid, timeStr, err)
+			return nil, fmt.Errorf("invalid specificTime format %s: %w", timeStr, err)
+		}
+		specificTime = timeStr
 	}
 
 	var injectionType string
@@ -129,6 +192,11 @@ func CreateInjectNode(node common.NodeData, fm common.Manager) (*InjectNode, err
 		TopicIn:           topicIn,
 		Repeat:            repeat,
 		Every:             every,
+		StartTime:         startTime,
+		EndTime:           endTime,
+		SpecificTime:      specificTime,
+		DaysOfWeek:        daysOfWeek,
+		Timezone:          timezone,
 		InjectionType:     injectionType,
 		Json:              jsonMessage,
 		MsgChan:           msgChan,
@@ -153,13 +221,13 @@ func (n *InjectNode) Start(log *logger.Logger, needReinitialization bool) {
 	n.wg.Add(1)
 	go n.handleNatsSubscription(log, n.TopicIn, n.processNatsMessage)
 
-	if n.Repeat == "interval" {
+	if n.Repeat != "none" {
 		n.wg.Add(1)
 		go n.monitorLeadershipChanges(log)
 	}
 
 	// Initialize periodic tasks if this node is the leader
-	if n.isCurrentlyLeader && n.Repeat == "interval" {
+	if n.isCurrentlyLeader && n.Repeat != "none" {
 		n.startPeriodicTasks(log)
 	}
 }
@@ -197,30 +265,177 @@ func (n *InjectNode) processMessage(msg common.Message, log *logger.Logger) erro
 func (n *InjectNode) runPeriodicTask(periodicCtx context.Context, interval time.Duration) {
 	defer n.wg.Done()
 	defer n.SetStatus(common.NodeStatusStopped)
+
+	switch n.Repeat {
+	case "interval":
+		n.runSimpleInterval(periodicCtx, interval)
+	case "interval_between_times":
+		n.runIntervalBetweenTimes(periodicCtx, interval)
+	case "interval_at_specific_time":
+		n.runAtSpecificTime(periodicCtx)
+	}
+}
+
+func (n *InjectNode) runSimpleInterval(periodicCtx context.Context, interval time.Duration) {
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 
 	for {
 		select {
 		case <-ticker.C:
-			var payload map[string]interface{}
-			if n.Json != nil {
-				payload = n.Json
-			} else {
-				payload = map[string]interface{}{
-					"timestamp": time.Now().UnixMilli(),
-				}
-			}
-			message := common.Message{
-				Payload: payload,
-				Topic:   "interval/" + n.NodeUid,
-			}
-			n.MsgChan <- message
+			n.sendMessage()
 		case <-periodicCtx.Done():
-			n.Fm.Log().Infof("InjectNode %s context cancelled, stopping periodic task", n.NodeUid)
+			n.Fm.Log().Infof("InjectNode %s context cancelled, stopping simple interval", n.NodeUid)
 			return
 		}
 	}
+}
+
+func (n *InjectNode) isValidDay(now time.Time) bool {
+	if len(n.DaysOfWeek) == 0 {
+		return true // Si no se especifican días, todos son válidos
+	}
+
+	currentWeekday := int(now.Weekday()) // 0=Sunday, 1=Monday, ..., 6=Saturday
+	for _, day := range n.DaysOfWeek {
+		if day == currentWeekday {
+			return true
+		}
+	}
+	return false
+}
+
+func (n *InjectNode) runIntervalBetweenTimes(periodicCtx context.Context, interval time.Duration) {
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+
+	loc, err := time.LoadLocation(n.Timezone)
+	if err != nil {
+		n.Fm.Log().Errorf("InjectNode %s: invalid timezone %s, using UTC", n.NodeUid, n.Timezone)
+		loc = time.UTC
+	}
+
+	for {
+		select {
+		case <-ticker.C:
+			now := time.Now().In(loc)
+			if n.isWithinTimeRange(now) && n.isValidDay(now) {
+				n.sendMessage()
+			}
+		case <-periodicCtx.Done():
+			n.Fm.Log().Infof("InjectNode %s context cancelled, stopping interval between times", n.NodeUid)
+			return
+		}
+	}
+}
+
+// Función mejorada para interval_at_specific_time con soporte para DaysOfWeek
+func (n *InjectNode) runAtSpecificTime(periodicCtx context.Context) {
+	loc, err := time.LoadLocation(n.Timezone)
+	if err != nil {
+		n.Fm.Log().Errorf("InjectNode %s: invalid timezone %s, using UTC", n.NodeUid, n.Timezone)
+		loc = time.UTC
+	}
+
+	for {
+		nextTime := n.getNextSpecificTime(loc)
+		if nextTime.IsZero() {
+			n.Fm.Log().Errorf("InjectNode %s: no valid next time found", n.NodeUid)
+			return
+		}
+
+		duration := time.Until(nextTime)
+		timer := time.NewTimer(duration)
+
+		select {
+		case <-timer.C:
+			now := time.Now().In(loc)
+			if n.isValidDay(now) {
+				n.sendMessage()
+			}
+		case <-periodicCtx.Done():
+			timer.Stop()
+			n.Fm.Log().Infof("InjectNode %s context cancelled, stopping specific times", n.NodeUid)
+			return
+		}
+
+		timer.Stop()
+	}
+}
+
+func (n *InjectNode) getNextSpecificTime(loc *time.Location) time.Time {
+	now := time.Now().In(loc)
+	today := now.Truncate(24 * time.Hour)
+
+	// Función para verificar tiempos en una fecha específica
+	getNextTimeForDate := func(date time.Time, startFromTime time.Time) (time.Time, bool) {
+		if !n.isValidDay(date) {
+			return time.Time{}, false
+		}
+
+		targetTime := n.parseTimeForDate(date, n.SpecificTime, loc)
+		if targetTime.After(startFromTime) {
+			return targetTime, true
+		}
+
+		return time.Time{}, false
+	}
+
+	// Primero, buscar en el día actual
+	if nextTime, found := getNextTimeForDate(today, now); found {
+		return nextTime
+	}
+
+
+	// Buscar en los próximos días
+	for dayOffset := 1; dayOffset < 8; dayOffset++ {
+		checkDate := today.AddDate(0, 0, dayOffset)
+		if nextTime, found := getNextTimeForDate(checkDate, checkDate.Add(-1*time.Second)); found {
+			return nextTime
+		}
+	}
+
+	return time.Time{}
+}
+
+func (n *InjectNode) sendMessage() {
+	var payload map[string]interface{}
+	if len(n.Json) > 0 {
+		payload = n.Json
+	} else {
+		payload = map[string]interface{}{
+			"timestamp": time.Now().UnixMilli(),
+		}
+	}
+	message := common.Message{
+		Payload: payload,
+		Topic:   "interval/" + n.NodeUid,
+	}
+	n.MsgChan <- message
+}
+
+func (n *InjectNode) isWithinTimeRange(now time.Time) bool {
+	currentTime := now.Format("15:04")
+	return isTimeAfterOrEqual(currentTime, n.StartTime) && isTimeAfterOrEqual(n.EndTime, currentTime)
+}
+
+func (n *InjectNode) parseTimeForDate(date time.Time, timeStr string, loc *time.Location) time.Time {
+	parts := strings.Split(timeStr, ":")
+	if len(parts) != 2 {
+		return time.Time{}
+	}
+
+	hour, err := strconv.Atoi(parts[0])
+	if err != nil {
+		return time.Time{}
+	}
+
+	minute, err := strconv.Atoi(parts[1])
+	if err != nil {
+		return time.Time{}
+	}
+
+	return time.Date(date.Year(), date.Month(), date.Day(), hour, minute, 0, 0, loc)
 }
 
 func (n *InjectNode) listenToPeriodicMessages(listenCtx context.Context, log *logger.Logger, processor func(common.Message, *logger.Logger) error) {
@@ -258,7 +473,7 @@ func (n *InjectNode) monitorLeadershipChanges(log *logger.Logger) {
 			if wasLeader != currentLeaderStatus {
 				if currentLeaderStatus {
 					log.Infof("InjectNode %s: Replica became leader, starting periodic tasks", n.NodeUid)
-					if n.Repeat == "interval" {
+					if n.Repeat != "none" {
 						n.startPeriodicTasks(log)
 					}
 				} else {
@@ -314,4 +529,81 @@ func (n *InjectNode) stopPeriodicTasks() {
 		n.periodicListenCancel()
 		n.periodicListenCancel = nil
 	}
+}
+
+// Helper functions
+func contains(slice []string, item string) bool {
+	for _, s := range slice {
+		if s == item {
+			return true
+		}
+	}
+	return false
+}
+
+func validateTimeFormat(timeStr string) error {
+	parts := strings.Split(timeStr, ":")
+	if len(parts) != 2 {
+		return fmt.Errorf("time must be in HH:MM format")
+	}
+
+	hour, err := strconv.Atoi(parts[0])
+	if err != nil || hour < 0 || hour > 23 {
+		return fmt.Errorf("invalid hour: must be between 00-23")
+	}
+
+	minute, err := strconv.Atoi(parts[1])
+	if err != nil || minute < 0 || minute > 59 {
+		return fmt.Errorf("invalid minute: must be between 00-59")
+	}
+
+	return nil
+}
+
+func isTimeAfter(timeA, timeB string) bool {
+	partsA := strings.Split(timeA, ":")
+	partsB := strings.Split(timeB, ":")
+
+	hourA, _ := strconv.Atoi(partsA[0])
+	minuteA, _ := strconv.Atoi(partsA[1])
+	hourB, _ := strconv.Atoi(partsB[0])
+	minuteB, _ := strconv.Atoi(partsB[1])
+
+	if hourA > hourB {
+		return true
+	}
+	if hourA == hourB && minuteA > minuteB {
+		return true
+	}
+	return false
+}
+
+func isTimeAfterOrEqual(timeA, timeB string) bool {
+	return timeA == timeB || isTimeAfter(timeA, timeB)
+}
+
+var dayNames = []string{"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"}
+
+func readDaysOfWeek(node common.NodeData) ([]int, error) {
+	daysOfWeek := []int{}
+	daysOfWeekArray, ok := node.Settings["daysOfWeek"].([]string)
+	if !ok {
+		return []int{0, 1, 2, 3, 4, 5, 6}, nil // default to all days if not specified
+	}
+
+	for _, day := range daysOfWeekArray {
+		weekday := -1
+		for i, name := range dayNames {
+			if day == name {
+				weekday = i
+				break
+			}
+		}
+		if weekday == -1 {
+			return nil, fmt.Errorf("invalid day of week: %s", day)
+		}
+		daysOfWeek = append(daysOfWeek, weekday)
+	}
+
+	return daysOfWeek, nil
 }

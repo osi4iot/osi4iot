@@ -175,8 +175,13 @@ func CreateAiAgentNode(node common.NodeData, fm common.Manager) (*AiAgentNode, e
 	}
 
 	providerUrl := fm.GetLlmProviderUrl()
-	if strings.Contains(llmModel, "gpt-5") && providerUrl == "https://api.openai.com/v1" {
-		providerUrl = ""
+	switch providerUrl {
+	case "https://api.openai.com/v1":
+		if strings.Contains(llmModel, "gpt-5") {
+			providerUrl = ""
+		}
+	case "https://api.groq.com/openai/v1":
+		llmModel = strings.ReplaceAll(llmModel, "openai:", "openai:openai/")
 	}
 
 	hostConfig := &mcphost.HostConfig{

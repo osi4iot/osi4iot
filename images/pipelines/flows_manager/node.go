@@ -123,27 +123,17 @@ func (fm *FlowsManager) UpdateNode(node *common.NodeData) error {
 	return common.ErrNotFound
 }
 
-func (fm *FlowsManager) regenerateNode(nodeId int) error {
+func (fm *FlowsManager) RegenerateNode(nodeId int) error {
 	nodeIdStr := strconv.Itoa(nodeId)
 	if value, ok := fm.Nodes.Load(nodeIdStr); ok {
 		existingNode := value.(common.Node)
 		existingNode.Stop(fm.log)
-
-		nodeData := &common.NodeData{
-			Id:            existingNode.GetId(),
-			NodeUid:       existingNode.GetUid(),
-			OrgId:         existingNode.GetOrgId(),
-			GroupId:       existingNode.GetGroupId(),
-			AssetId:       existingNode.GetAssetId(),
-			DigitalTwinId: existingNode.GetDigitalTwinId(),
-			Name:          existingNode.GetName(),
-			Type:          existingNode.GetType(),
-			NumOutputs:    existingNode.GetNumOutputs(),
-			Xpos:          existingNode.GetXpos(),
-			Ypos:          existingNode.GetYpos(),
-			Settings:      existingNode.GetSettings(),
-			Debug:         existingNode.GetDebug(),
+		nodeData := fm.Admin.GetNode(existingNode.GetGroupId(), nodeId)
+		if nodeData == nil {
+			fm.log.Errorf("Failed to regenerate node %d, it does not exist in admin manager", nodeId)
+			return common.ErrNotFound
 		}
+		
 		newNode, err := nodes.CreateNode(*nodeData, fm.log, fm)
 		if err != nil {
 			fm.log.Errorf("Failed to regenerate node %d: %v", nodeId, err)
@@ -151,6 +141,7 @@ func (fm *FlowsManager) regenerateNode(nodeId int) error {
 		}
 		fm.Nodes.Store(nodeIdStr, newNode)
 		fm.updateDigitalTwinNodesIndex(existingNode.GetDigitalTwinId(), newNode, "replace")
+		fm.log.Infof("Node with UID: %s regenerated successfully", newNode.GetUid())
 	} else {
 		fm.log.Errorf("Failed to regenerate node %d, it does not exist", nodeId)
 		return common.ErrNotFound
@@ -165,7 +156,7 @@ func (fm *FlowsManager) RegenerateNodesInDigitalTwin(digitalTwinId int) {
 		return
 	}
 	for _, node := range nodes {
-		fm.regenerateNode(node.GetId())
+		fm.RegenerateNode(node.GetId())
 	}
 }
 
@@ -371,7 +362,7 @@ func (fm *FlowsManager) StartNodesInDigitalTwin(digitalTwinId int, needReinitial
 	// Regenerate nodes if they are stopped
 	for _, node := range nodes {
 		if node.GetStatus() == common.NodeStatusStopped {
-			err := fm.regenerateNode(node.GetId())
+			err := fm.RegenerateNode(node.GetId())
 			if err != nil {
 				fm.log.Errorf("Failed to regenerate node %d: %v", node.GetId(), err)
 				errDetails := fmt.Sprintf("Failed to regenerate node %d: %v", node.GetId(), err)
@@ -405,7 +396,6 @@ func (fm *FlowsManager) StartNodesInDigitalTwin(digitalTwinId int, needReinitial
 				return
 			}
 		case <-timeoutChan:
-			// Obtain information about nodes that are not running
 			notRunningNodes := fm.getNotRunningNodes(digitalTwinId)
 			fm.log.Warnf("Timeout while waiting for nodes to start in digital twin %d. Nodes not running: %v",
 				digitalTwinId, notRunningNodes)

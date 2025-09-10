@@ -582,7 +582,7 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({ chatMessages, setChatMess
             }
 
             // Desactivar spinner cuando llega una respuesta del asistente
-            if (lastMessage.sender === "assistant" && isLoading) {
+            if ((lastMessage.sender === "assistant" || lastMessage.sender === "mcphost") && isLoading) {
                 setIsLoading(false);
             }
         }

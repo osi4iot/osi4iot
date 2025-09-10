@@ -266,8 +266,7 @@ export function InjectNode({ data, selected }) {
                 data.onInject(data);
             }
         },
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-        [data.mqttClient, data.mqttTopicsData, data.settings]
+        [data]
     );
 
     return (

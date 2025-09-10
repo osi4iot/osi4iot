@@ -1073,8 +1073,8 @@ export const usePipelineActions = (
             reader.readAsText(file);
         }
         event.target.value = "";
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [mqttClient, mqttTopicsData]);
 
     const handleDownloadYamlFile = useCallback(() => {
         downloadYamlFile(params.digitalTwinSelected, pipelineNodes, pipelineEdges);

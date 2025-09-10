@@ -59,6 +59,7 @@ type Manager interface {
 	RestartNodesInDigitalTwin(digitalTwinId int, needReinitialization bool)
 	StopNodesInDigitalTwin(digitalTwinId int, action string)
 	RegenerateNodesInDigitalTwin(digitalTwinId int)
+	RegenerateNode(nodeId int) error
 
 	GetOrgs() []*Org
 	GetOrg(orgId int) *Org

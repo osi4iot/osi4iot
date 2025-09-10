@@ -16,6 +16,8 @@ import GeneralizedCompletion from "./Completion/Completion";
 import { json } from "@codemirror/lang-json";
 import { IDigitalTwin } from "../../TableColumns/digitalTwinsColumns";
 import { useMlModelsTableInGroup } from "../../../../contexts/platformAssistantContext/platformAssistantContext";
+import { TimeSelector } from "./Utils/TimeSelector";
+import { timezoneOptions } from "./Utils/timezones";
 
 // CSS estándar para el resizing - mejor performance
 const resizableStyles = `
@@ -349,11 +351,11 @@ const TabContentFunction = styled.div`
     padding: 16px 16px 0 16px;
 `;
 
-const FormGroup = styled.div`
+export const FormGroup = styled.div`
     margin-bottom: 16px;
 `;
 
-const Label = styled.label`
+export const Label = styled.label`
     display: block;
     color: #d1d5db;
     font-size: 14px;
@@ -382,6 +384,73 @@ const Input = styled.input`
     }
 `;
 
+// Primero, agrega estos styled components adicionales
+const CheckboxGroup = styled.div`
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 8px;
+    margin-top: 8px;
+`;
+
+const CheckboxItem = styled.label`
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    padding: 8px 12px;
+    border-radius: 6px;
+    background-color: #374151;
+    border: 1px solid #4b5563;
+    transition: all 0.2s;
+    color: #d1d5db;
+    font-size: 14px;
+    font-weight: 400;
+
+    &:hover {
+        background-color: #4b5563;
+        border-color: #6b7280;
+    }
+
+    &[data-checked="true"] {
+        background-color: #1e40af;
+        border-color: #3b82f6;
+        color: #fff;
+    }
+`;
+
+const CheckboxInput = styled.input`
+    appearance: none;
+    width: 16px;
+    height: 16px;
+    border: 2px solid #6b7280;
+    border-radius: 3px;
+    background-color: transparent;
+    cursor: pointer;
+    position: relative;
+    transition: all 0.2s;
+
+    &:checked {
+        background-color: #3b82f6;
+        border-color: #3b82f6;
+
+        &::after {
+            content: "✓";
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-size: 12px;
+            font-weight: bold;
+        }
+    }
+
+    &:focus {
+        outline: none;
+        box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3);
+    }
+`;
+
 const Select = styled.select`
     width: 100%;
     padding: 10px 12px;
@@ -396,6 +465,24 @@ const Select = styled.select`
         outline: none;
         border-color: #3b82f6;
         box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+
+    overflow-y: auto;
+    &::-webkit-scrollbar {
+        width: 8px;
+    }
+
+    &::-webkit-scrollbar-track {
+        background: #2a2a2a;
+    }
+
+    &::-webkit-scrollbar-thumb {
+        background: #4b5563;
+        border-radius: 4px;
+    }
+
+    &::-webkit-scrollbar-thumb:hover {
+        background: #6b7280;
     }
 `;
 
@@ -434,7 +521,7 @@ const TextAreaSystemPrompt = styled.textarea`
     font-family: "Monaco", "Menlo", "Ubuntu Mono", monospace;
     transition: border-color 0.2s;
     resize: vertical;
-    min-height: 180px;
+    min-height: calc(100vh - 440px);
 
     &:focus {
         outline: none;
@@ -694,6 +781,26 @@ const CodeMirrorWrapper = styled.div`
         }
     }
 `;
+
+const daysOfWeek = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
+const handleDayChange = (
+    selectedDay: string,
+    isChecked: boolean,
+    formData: any,
+    handleInputChange: (field: string, value: any) => void
+) => {
+    const currentDays = formData.daysOfWeek || [];
+    let updatedDays;
+
+    if (isChecked) {
+        updatedDays = [...currentDays, selectedDay];
+    } else {
+        updatedDays = currentDays.filter((day: string) => day !== selectedDay);
+    }
+
+    handleInputChange("daysOfWeek", updatedDays);
+};
 
 interface NodeData {
     label: string;
@@ -1121,6 +1228,279 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
         );
     };
 
+    const renderInjectTabs = () => {
+        const tabs = [
+            { id: "settings", label: "Settings" },
+            { id: "injection", label: "Injection" },
+        ];
+
+        return (
+            <>
+                <TabsContainer>
+                    {tabs.map((tab) => (
+                        <Tab key={tab.id} isActive={activeTab === tab.id} onClick={() => setActiveTab(tab.id)}>
+                            {tab.label}
+                        </Tab>
+                    ))}
+                </TabsContainer>
+                <PanelContent>
+                    <TabContentFunction>
+                        {activeTab === "settings" && (
+                            <>
+                                <FormGroup>
+                                    <Label>Node Name</Label>
+                                    <Input
+                                        type="text"
+                                        value={formData.label || ""}
+                                        onChange={(e) => handleInputChange("label", e.target.value)}
+                                        placeholder="Node name"
+                                    />
+                                </FormGroup>
+                                {renderOutputSelector()}
+                                <FormGroup>
+                                    <Label>Repeat</Label>
+                                    <Select
+                                        value={formData.repeat || "none"}
+                                        onChange={(e) => handleInputChange("repeat", e.target.value)}
+                                    >
+                                        <option value="none">None</option>
+                                        <option value="interval">Interval</option>
+                                        <option value="interval_between_times">Interval between times</option>
+                                        <option value="interval_at_specific_time">Interval at specific time</option>
+                                    </Select>
+                                </FormGroup>
+                                {(formData.repeat === "interval" || formData.repeat === "interval_between_times") && (
+                                    <FormGroup>
+                                        <Label>Every (seconds)</Label>
+                                        <Input
+                                            type="number"
+                                            step="0.1"
+                                            value={formData.every || 0}
+                                            onChange={(e) =>
+                                                handleInputChange("every", Math.max(0, parseFloat(e.target.value)))
+                                            }
+                                            placeholder="1.0"
+                                        />
+                                    </FormGroup>
+                                )}
+                                {formData.repeat === "interval_between_times" && (
+                                    <>
+                                        <TimeSelector
+                                            value={formData.startTime || "00:00"}
+                                            onChange={(value) => handleInputChange("startTime", value)}
+                                            label="Start time"
+                                        />
+                                        <TimeSelector
+                                            value={formData.endTime || "01:00"}
+                                            onChange={(value) => handleInputChange("endTime", value)}
+                                            label="End time"
+                                        />
+                                    </>
+                                )}
+                                {formData.repeat === "interval_at_specific_time" && (
+                                    <TimeSelector
+                                        value={formData.specificTime || "00:00"}
+                                        onChange={(value) => handleInputChange("specificTime", value)}
+                                        label="Specific time"
+                                    />
+                                )}
+                                {(formData.repeat === "interval_between_times" ||
+                                    formData.repeat === "interval_at_specific_time") && (
+                                    <>
+                                        <FormGroup>
+                                            <Label>Timezone</Label>
+                                            <Select
+                                                value={formData.timezone || "Europe/Madrid"}
+                                                onChange={(e) => handleInputChange("timezone", e.target.value)}
+                                            >
+                                                {timezoneOptions.map((option) => (
+                                                    <option key={option.value} value={option.value}>
+                                                        {option.label}
+                                                    </option>
+                                                ))}
+                                            </Select>
+                                        </FormGroup>
+                                        <FormGroup>
+                                            <Label>Days of the week</Label>
+                                            <CheckboxGroup>
+                                                {daysOfWeek.map((day) => (
+                                                    <CheckboxItem
+                                                        key={day}
+                                                        data-checked={formData.daysOfWeek?.includes(day) || false}
+                                                    >
+                                                        <CheckboxInput
+                                                            type="checkbox"
+                                                            checked={formData.daysOfWeek?.includes(day) || false}
+                                                            onChange={(e) =>
+                                                                handleDayChange(
+                                                                    day,
+                                                                    e.target.checked,
+                                                                    formData,
+                                                                    handleInputChange
+                                                                )
+                                                            }
+                                                        />
+                                                        {day}
+                                                    </CheckboxItem>
+                                                ))}
+                                            </CheckboxGroup>
+                                        </FormGroup>
+                                    </>
+                                )}
+                            </>
+                        )}
+                        {activeTab === "injection" && (
+                            <>
+                                <FormGroup>
+                                    <Label>Injection type</Label>
+                                    <Select
+                                        value={formData.injectionType || "Timestamp"}
+                                        onChange={(e) => handleInputChange("injectionType", e.target.value)}
+                                    >
+                                        <option value="Timestamp">Timestamp</option>
+                                        <option value="JSON">JSON</option>
+                                    </Select>
+                                </FormGroup>
+                                {formData.injectionType === "JSON" && (
+                                    <FormGroup>
+                                        <Label>JSON</Label>
+                                        <CodeMirrorWrapper>
+                                            <CodeMirror
+                                                value={formData.json || "{}"}
+                                                height="auto"
+                                                minHeight="350px"
+                                                extensions={[
+                                                    json(),
+                                                    indentUnit.of("    "),
+                                                    indentOnInput(),
+                                                    keymap.of([...completionKeymap, indentWithTab, reIndentCommand]),
+                                                ]}
+                                                theme={oneDark}
+                                                onChange={(value) => handleInputChange("json", value)}
+                                                basicSetup={{
+                                                    lineNumbers: true,
+                                                    foldGutter: true,
+                                                    bracketMatching: true,
+                                                    closeBrackets: true,
+                                                    syntaxHighlighting: true,
+                                                    autocompletion: true,
+                                                    tabSize: 4,
+                                                    searchKeymap: true,
+                                                }}
+                                            />
+                                        </CodeMirrorWrapper>
+                                    </FormGroup>
+                                )}
+                            </>
+                        )}
+                    </TabContentFunction>
+                </PanelContent>
+            </>
+        );
+    };
+
+    const renderAiAgentTabs = () => {
+        const tabs = [
+            { id: "settings", label: "Settings" },
+            { id: "system_prompt", label: "System prompt" },
+        ];
+
+        return (
+            <>
+                <TabsContainer>
+                    {tabs.map((tab) => (
+                        <Tab key={tab.id} isActive={activeTab === tab.id} onClick={() => setActiveTab(tab.id)}>
+                            {tab.label}
+                        </Tab>
+                    ))}
+                </TabsContainer>
+                <PanelContent>
+                    <TabContentFunction>
+                        {activeTab === "settings" && (
+                            <>
+                                <FormGroup>
+                                    <Label>Node Name</Label>
+                                    <Input
+                                        type="text"
+                                        value={formData.label || ""}
+                                        onChange={(e) => handleInputChange("label", e.target.value)}
+                                        placeholder="Node name"
+                                    />
+                                </FormGroup>
+                                {renderOutputSelector()}
+                                <FormGroup>
+                                    <Label>Model</Label>
+                                    <Select
+                                        value={formData.llmModel || "openai:gpt-oss-120b"}
+                                        onChange={(e) => handleInputChange("llmModel", e.target.value)}
+                                    >
+                                        <option value="openai:gpt-oss-120b">openai/gpt-oss-120b</option>
+                                        <option value="openai:gpt-oss-20b">openai/gpt-oss-20b</option>
+                                        <option value="openai:gpt-4o">openai/gpt-4o</option>
+                                        <option value="openai:gpt-4o-mini">openai/gpt-4o-mini</option>
+                                        <option value="openai:gpt-5-mini">openai/gpt-5-mini</option>
+                                        <option value="openai:gpt-5-nano">openai/gpt-5-nano</option>
+                                    </Select>
+                                </FormGroup>
+                                <FormGroup>
+                                    <Label>Temperature</Label>
+                                    <Input
+                                        type="number"
+                                        step="0.01"
+                                        max="1.0"
+                                        min="0.0"
+                                        value={formData.llmTemperature || 0.7}
+                                        onChange={(e) =>
+                                            handleInputChange("llmTemperature", parseFloat(e.target.value))
+                                        }
+                                        placeholder="0.7"
+                                    />
+                                </FormGroup>
+                                <FormGroup>
+                                    <Label>Top K</Label>
+                                    <Input
+                                        type="number"
+                                        step="1"
+                                        max="100"
+                                        min="1"
+                                        value={formData.llmTopK || 40}
+                                        onChange={(e) => handleInputChange("llmTopK", parseInt(e.target.value))}
+                                        placeholder="40"
+                                    />
+                                </FormGroup>
+                                <FormGroup>
+                                    <Label>Top P</Label>
+                                    <Input
+                                        type="number"
+                                        step="0.01"
+                                        max="1.0"
+                                        min="0.0"
+                                        value={formData.llmTopP || 0.95}
+                                        onChange={(e) => handleInputChange("llmTopP", parseFloat(e.target.value))}
+                                        placeholder="0.95"
+                                    />
+                                </FormGroup>
+                            </>
+                        )}
+                        {activeTab === "system_prompt" && (
+                            <>
+                                <FormGroup>
+                                    {/* <Label>System Prompt</Label> */}
+                                    <TextAreaSystemPrompt
+                                        value={formData.systemPrompt || ""}
+                                        onChange={(e) => handleInputChange("systemPrompt", e.target.value)}
+                                        placeholder="Your system prompt"
+                                        rows={4}
+                                    />
+                                </FormGroup>
+                            </>
+                        )}
+                    </TabContentFunction>
+                </PanelContent>
+            </>
+        );
+    };
+
     // Renderizado de formularios según el tipo de nodo (sin colapsables)
     const renderNodeContent = () => {
         if (!selectedNode) return null;
@@ -1129,6 +1509,10 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
 
         if (nodeType === "Function") {
             return renderFunctionTabs();
+        } else if (nodeType === "Inject") {
+            return renderInjectTabs();
+        } else if (nodeType === "AiAgent") {
+            return renderAiAgentTabs();
         }
 
         // Para otros tipos de nodos, mostrar contenido simple
@@ -1243,77 +1627,6 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                         )}
                     </>
                 );
-
-            case "Inject":
-                return (
-                    <>
-                        <FormGroup>
-                            <Label>Repeat</Label>
-                            <Select
-                                value={formData.repeat || "none"}
-                                onChange={(e) => handleInputChange("repeat", e.target.value)}
-                            >
-                                <option value="none">None</option>
-                                <option value="interval">Interval</option>
-                            </Select>
-                        </FormGroup>
-                        {formData.repeat === "interval" && (
-                            <FormGroup>
-                                <Label>Every (seconds)</Label>
-                                <Input
-                                    type="number"
-                                    step="0.1"
-                                    value={formData.every || 0}
-                                    onChange={(e) =>
-                                        handleInputChange("every", Math.max(0, parseFloat(e.target.value)))
-                                    }
-                                    placeholder="1.0"
-                                />
-                            </FormGroup>
-                        )}
-                        <FormGroup>
-                            <Label>Injection type</Label>
-                            <Select
-                                value={formData.injectionType || "Timestamp"}
-                                onChange={(e) => handleInputChange("injectionType", e.target.value)}
-                            >
-                                <option value="Timestamp">Timestamp</option>
-                                <option value="JSON">JSON</option>
-                            </Select>
-                        </FormGroup>
-                        {formData.injectionType === "JSON" && (
-                            <FormGroup>
-                                <Label>JSON</Label>
-                                <CodeMirrorWrapper>
-                                    <CodeMirror
-                                        value={formData.json || "{}"}
-                                        height="auto"
-                                        minHeight="180px"
-                                        extensions={[
-                                            json(),
-                                            indentUnit.of("    "),
-                                            indentOnInput(),
-                                            keymap.of([...completionKeymap, indentWithTab, reIndentCommand]),
-                                        ]}
-                                        theme={oneDark}
-                                        onChange={(value) => handleInputChange("json", value)}
-                                        basicSetup={{
-                                            lineNumbers: true,
-                                            foldGutter: true,
-                                            bracketMatching: true,
-                                            closeBrackets: true,
-                                            syntaxHighlighting: true,
-                                            autocompletion: true,
-                                            tabSize: 4,
-                                            searchKeymap: true,
-                                        }}
-                                    />
-                                </CodeMirrorWrapper>
-                            </FormGroup>
-                        )}
-                    </>
-                );
-
             case "Delay":
                 return (
                     <FormGroup>
@@ -1351,71 +1664,6 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                                 value={formData.batchSize || 1}
                                 onChange={(e) => handleInputChange("batchSize", parseInt(e.target.value))}
                                 placeholder="1"
-                            />
-                        </FormGroup>
-                    </>
-                );
-
-            case "AiAgent":
-                return (
-                    <>
-                        <FormGroup>
-                            <Label>Model</Label>
-                            <Select
-                                value={formData.llmModel || "openai:gpt-oss-120b"}
-                                onChange={(e) => handleInputChange("llmModel", e.target.value)}
-                            >
-                                <option value="openai:gpt-oss-120b">openai/gpt-oss-120b</option>
-                                <option value="openai:gpt-oss-20b">openai/gpt-oss-20b</option>
-                                <option value="openai:gpt-4o">openai/gpt-4o</option>
-                                <option value="openai:gpt-4o-mini">openai/gpt-4o-mini</option>
-                                <option value="openai:gpt-5-mini">openai/gpt-5-mini</option>
-                                <option value="openai:gpt-5-nano">openai/gpt-5-nano</option>
-                            </Select>
-                        </FormGroup>
-                        <FormGroup>
-                            <Label>Temperature</Label>
-                            <Input
-                                type="number"
-                                step="0.01"
-                                max="1.0"
-                                min="0.0"
-                                value={formData.llmTemperature || 0.7}
-                                onChange={(e) => handleInputChange("llmTemperature", parseFloat(e.target.value))}
-                                placeholder="0.7"
-                            />
-                        </FormGroup>
-                        <FormGroup>
-                            <Label>Top K</Label>
-                            <Input
-                                type="number"
-                                step="1"
-                                max="100"
-                                min="1"
-                                value={formData.llmTopK || 40}
-                                onChange={(e) => handleInputChange("llmTopK", parseInt(e.target.value))}
-                                placeholder="40"
-                            />
-                        </FormGroup>
-                        <FormGroup>
-                            <Label>Top P</Label>
-                            <Input
-                                type="number"
-                                step="0.01"
-                                max="1.0"
-                                min="0.0"
-                                value={formData.llmTopP || 0.95}
-                                onChange={(e) => handleInputChange("llmTopP", parseFloat(e.target.value))}
-                                placeholder="0.95"
-                            />
-                        </FormGroup>
-                        <FormGroup>
-                            <Label>System Prompt</Label>
-                            <TextAreaSystemPrompt
-                                value={formData.systemPrompt || ""}
-                                onChange={(e) => handleInputChange("systemPrompt", e.target.value)}
-                                placeholder="Your system prompt"
-                                rows={4}
                             />
                         </FormGroup>
                     </>
