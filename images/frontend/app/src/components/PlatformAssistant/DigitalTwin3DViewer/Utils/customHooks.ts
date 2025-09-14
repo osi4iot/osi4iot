@@ -244,6 +244,26 @@ export const useChatMessages = (
     };
 };
 
+export const usePipelineStatus = (digitalTwinSelected: IDigitalTwin | null, mqttClient: Paho.Client | null, sim2stateTopic: string) => {
+    const [pipelineStatus, setPipelineStatus] = useState("unknown");
+
+    const handlePipelineStatusChange = useCallback((status: string) => {
+        if (digitalTwinSelected && digitalTwinSelected.pipelineFileData !== "") {
+            setPipelineStatus(status);
+        } else {
+            setPipelineStatus("unknown");
+        }
+    }, [digitalTwinSelected]);
+
+    const queryPipelineStatus = useCallback(() => {
+        if (digitalTwinSelected && digitalTwinSelected.pipelineFileData !== "" && mqttClient && sim2stateTopic !== "") {
+            mqttClient.send(sim2stateTopic, JSON.stringify({ action: "queryPipelineStatus" }));
+        }
+    }, [digitalTwinSelected, mqttClient, sim2stateTopic]);
+
+    return { pipelineStatus, handlePipelineStatusChange, queryPipelineStatus };
+};
+
 export const usePipelineLogs = (setChatMessages: React.Dispatch<React.SetStateAction<ChatMessage[]>>) => {
     const [logMessages, setLogMessages] = useState<PipelineLog[]>([]);
 
@@ -251,22 +271,23 @@ export const usePipelineLogs = (setChatMessages: React.Dispatch<React.SetStateAc
         setLogMessages((prevMessages) => {
             const newMessages = [...prevMessages];
             newMessages.push(newLogMessage);
-            if (newLogMessage.description === "MCP Host error") {
-                setChatMessages((prevMessages) => {
-                    const newMessages = [...prevMessages];
-                    const newMessage = {
-                        userName: "Assistant",
-                        message: newLogMessage.message,
-                        sender: "mcphost" as "mcphost",
-                        time: new Date().toLocaleTimeString(),
-                        mcpToolCalls: [],
-                    };
-                    newMessages.push(newMessage);
-                    return newMessages;
-                });
-            }
             return newMessages;
         });
+
+        if (newLogMessage.description === "MCP Host error") {
+            setChatMessages((prevMessages) => {
+                const newChatMessages = [...prevMessages];
+                const newMessage = {
+                    userName: "Assistant",
+                    message: newLogMessage.message,
+                    sender: "mcphost" as "mcphost",
+                    time: new Date().toLocaleTimeString(),
+                    mcpToolCalls: [],
+                };
+                newChatMessages.push(newMessage);
+                return newChatMessages;
+            });
+        }
     }, [setChatMessages]);
 
     return {
@@ -1048,33 +1069,37 @@ export const usePipelineActions = (
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [pipelineNodes, pipelineEdges, refreshDigitalTwins, params]);
 
-    const handleFileUpload = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
-        const file = event.target.files?.[0];
-        if (file) {
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                const content = e.target?.result as string;
-                try {
-                    const yamlData = YAML.parse(content);
-                    const pipelineNodes = yamlData.nodes || [];
-                    const { nodes, edges } = createNodesAndEdges(pipelineNodes, mqttClient, mqttTopicsData);
-                    setPipelineNodes(nodes);
-                    setPipelineEdges(edges);
-                    handlePipelineUiChanged(true);
-                    toast.success("YAML file loaded successfully");
-                } catch (error) {
-                    toast.error("Error parsing YAML file");
-                    console.error("YAML parsing error:", error);
-                }
-            };
-            reader.onerror = () => {
-                toast.error("Error reading file");
-            };
-            reader.readAsText(file);
-        }
-        event.target.value = "";
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [mqttClient, mqttTopicsData]);
+    const handleFileUpload = useCallback(
+        (event: React.ChangeEvent<HTMLInputElement>) => {
+            const file = event.target.files?.[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const content = e.target?.result as string;
+                    try {
+                        const yamlData = YAML.parse(content);
+                        const pipelineNodes = yamlData.nodes || [];
+                        const { nodes, edges } = createNodesAndEdges(pipelineNodes, mqttClient, mqttTopicsData);
+                        setPipelineNodes(nodes);
+                        setPipelineEdges(edges);
+                        handlePipelineUiChanged(true);
+                        toast.success("YAML file loaded successfully");
+                    } catch (error) {
+                        toast.error("Error parsing YAML file");
+                        console.error("YAML parsing error:", error);
+                    }
+                };
+                reader.onerror = () => {
+                    toast.error("Error reading file");
+                };
+                reader.readAsText(file);
+            }
+            event.target.value = "";
+            // eslint-disable-next-line react-hooks/exhaustive-deps
+        },
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        [mqttClient, mqttTopicsData]
+    );
 
     const handleDownloadYamlFile = useCallback(() => {
         downloadYamlFile(params.digitalTwinSelected, pipelineNodes, pipelineEdges);

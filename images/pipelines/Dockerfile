@@ -23,7 +23,7 @@ RUN uv venv /opt/venv \
 ########################################
 # 1) Go builder: compila binarios (enlace estático)
 ########################################
-FROM golang:1.24.2-bookworm AS builder
+FROM golang:1.25.1-bookworm AS builder
 
 WORKDIR /src
 

@@ -2,7 +2,6 @@ package flows_manager
 
 import (
 	"encoding/json"
-	"fmt"
 	"pipelines/common"
 	nats_pkg "pipelines/nats"
 	"pipelines/utils"
@@ -27,15 +26,22 @@ func (fm *FlowsManager) GetDigitalTwin(digitalTwinId int) *common.DigitalTwin {
 	return nil
 }
 
-func (fm *FlowsManager) AddDigitalTwin(digitalTwin *common.DigitalTwin) {
+func (fm *FlowsManager) AddDigitalTwin(digitalTwin *common.DigitalTwin, createPipeline bool) {
 	digitalTwinIdStr := strconv.Itoa(digitalTwin.Id)
 	if _, ok := fm.DigitalTwins.Load(digitalTwinIdStr); !ok {
-		org := fm.Admin.GetOrg(digitalTwin.OrgId)
-		kv, err := nats_pkg.CreateDigitalTwinKeyValueStore(org.OrgHash, digitalTwin.DigitalTwinUID, fm.log, fm.JetStream)
+		org := fm.GetOrg(digitalTwin.OrgId)
+		kv, err := nats_pkg.CreateDigitalTwinKeyValueStore(org.OrgHash, digitalTwin.DigitalTwinUid, fm.log, fm.JetStream)
 		if err != nil {
 			fm.log.Error("Failed to create KeyValue store for Digital Twin %d: %v", digitalTwin.Id, err)
 		} else {
 			digitalTwin.KvStore = kv
+		}
+
+		if createPipeline {
+			digitalTwin.Pipeline = fm.createPipeline(digitalTwin, org, "create")
+			digitalTwin.Pipeline.Start(true)
+		} else {
+			digitalTwin.Pipeline = nil
 		}
 		fm.DigitalTwins.Store(digitalTwinIdStr, digitalTwin)
 	} else {
@@ -45,7 +51,7 @@ func (fm *FlowsManager) AddDigitalTwin(digitalTwin *common.DigitalTwin) {
 
 func (fm *FlowsManager) AddDigitalTwins(digitalTwins []*common.DigitalTwin) {
 	for _, digitalTwin := range digitalTwins {
-		fm.AddDigitalTwin(digitalTwin)
+		fm.AddDigitalTwin(digitalTwin, true)
 	}
 }
 
@@ -53,104 +59,10 @@ func (fm *FlowsManager) DeleteDigitalTwin(digitalTwinId int) error {
 	digitalTwinIdStr := strconv.Itoa(digitalTwinId)
 	if entry, ok := fm.DigitalTwins.Load(digitalTwinIdStr); ok {
 		digitalTwin := entry.(*common.DigitalTwin)
-		dtPrefix := fmt.Sprintf("dt:%d:", digitalTwinId)
-		dtNodesKey := makeDTNodesKey(digitalTwinId)
-		dtWiresKey := makeDTWiresKey(digitalTwinId)
-
-		// Collect all keys to delete before deleting them
-		var nodesToDelete, wiresToDelete []string
-		var digitalTwinNodesKeys, digitalTwinWiresKeys []string
-		var nodeOutputWiresKeys, nodeInputWiresKeys, nodeOutputIndexKeys []string
-
-		// 1. Obtain nodes and wires to delete individually
-		if nodes, exists := fm.DigitalTwinNodes.Load(dtNodesKey); exists {
-			if nodesList, ok := nodes.([]common.Node); ok {
-				for _, node := range nodesList {
-					nodesToDelete = append(nodesToDelete, fmt.Sprintf("%d", node.GetId()))
-				}
-			}
+		if digitalTwin.Pipeline != nil{
+			digitalTwin.Pipeline.Stop("stop")
 		}
-
-		if wires, exists := fm.DigitalTwinWires.Load(dtWiresKey); exists {
-			if wiresList, ok := wires.([]*common.Wire); ok {
-				for _, wire := range wiresList {
-					wiresToDelete = append(wiresToDelete, fmt.Sprintf("%d", wire.Id))
-				}
-			}
-		}
-
-		// 2. Collect keys related to the digitalTwinId from each map
-		fm.DigitalTwinNodes.Range(func(key, value interface{}) bool {
-			keyStr, ok := key.(string)
-			if ok && (strings.HasPrefix(keyStr, dtPrefix) || keyStr == dtNodesKey) {
-				digitalTwinNodesKeys = append(digitalTwinNodesKeys, keyStr)
-			}
-			return true
-		})
-
-		fm.DigitalTwinWires.Range(func(key, value interface{}) bool {
-			keyStr, ok := key.(string)
-			if ok && (strings.HasPrefix(keyStr, dtPrefix) || keyStr == dtWiresKey) {
-				digitalTwinWiresKeys = append(digitalTwinWiresKeys, keyStr)
-			}
-			return true
-		})
-
-		fm.NodeOutputWires.Range(func(key, value interface{}) bool {
-			keyStr, ok := key.(string)
-			if ok && strings.HasPrefix(keyStr, dtPrefix) {
-				nodeOutputWiresKeys = append(nodeOutputWiresKeys, keyStr)
-			}
-			return true
-		})
-
-		fm.NodeInputWires.Range(func(key, value interface{}) bool {
-			keyStr, ok := key.(string)
-			if ok && strings.HasPrefix(keyStr, dtPrefix) {
-				nodeInputWiresKeys = append(nodeInputWiresKeys, keyStr)
-			}
-			return true
-		})
-
-		fm.NodeOutputByIndex.Range(func(key, value interface{}) bool {
-			keyStr, ok := key.(string)
-			if ok && strings.HasPrefix(keyStr, dtPrefix) {
-				nodeOutputIndexKeys = append(nodeOutputIndexKeys, keyStr)
-			}
-			return true
-		})
-
-		// 3. Delete the digital twin and all related nodes and wires
 		fm.DigitalTwins.Delete(digitalTwinIdStr)
-
-		for _, nodeId := range nodesToDelete {
-			fm.Nodes.Delete(nodeId)
-		}
-
-		for _, wireId := range wiresToDelete {
-			fm.Wires.Delete(wireId)
-		}
-
-		for _, key := range digitalTwinNodesKeys {
-			fm.DigitalTwinNodes.Delete(key)
-		}
-
-		for _, key := range digitalTwinWiresKeys {
-			fm.DigitalTwinWires.Delete(key)
-		}
-
-		for _, key := range nodeOutputWiresKeys {
-			fm.NodeOutputWires.Delete(key)
-		}
-
-		for _, key := range nodeInputWiresKeys {
-			fm.NodeInputWires.Delete(key)
-		}
-
-		for _, key := range nodeOutputIndexKeys {
-			fm.NodeOutputByIndex.Delete(key)
-		}
-
 		fm.DeleteDigitalTwinTopicsRefByDTid(digitalTwinId)
 
 		// Delete FEM results folder

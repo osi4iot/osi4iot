@@ -117,7 +117,7 @@ func (fm *FlowsManager) DeleteOldMlModelFiles(models []*common.MLModel) error {
 	deleteError := error(nil)
 	for _, folder := range modelFoldersToDelete {
 		if err := utils.DeleteFolder(folder.Path); err != nil {
-			newErr := fmt.Errorf("Failed to delete ML model folder %s: %v", folder.Path, err)
+			newErr := fmt.Errorf("failed to delete ML model folder %s: %v", folder.Path, err)
 			deleteError = fmt.Errorf("%w; %v", deleteError, newErr)
 		}
 	}

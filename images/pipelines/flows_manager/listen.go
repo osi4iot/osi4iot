@@ -170,7 +170,7 @@ func (fm *FlowsManager) Listen() {
 				groupId := int(adminMsg.Context["groupId"].(float64))
 				digitalTwin := fm.Admin.GetDigitalTwin(groupId, adminMsg.Id)
 				if digitalTwin != nil {
-					fm.AddDigitalTwin(digitalTwin)
+					fm.AddDigitalTwin(digitalTwin, false)
 				}
 			case "update":
 				groupId := int(adminMsg.Context["groupId"].(float64))
@@ -203,77 +203,24 @@ func (fm *FlowsManager) Listen() {
 			default:
 				fm.log.Errorf("Unknown action: %s for component: %s", adminMsg.Action, adminMsg.Component)
 				return
-			}			
-		case "node":
-			switch adminMsg.Action {
-			case "create":
-				groupId := int(adminMsg.Context["groupId"].(float64))
-				node := fm.Admin.GetNode(groupId, adminMsg.Id)
-				if node != nil {
-					err := fm.AddNode(node)
-					if err != nil {
-						fm.handleNodeError(node, err)
-					}
-				}
-			case "update":
-				groupId := int(adminMsg.Context["groupId"].(float64))
-				digitalTwinId := int(adminMsg.Context["digitalTwinId"].(float64))
-				node := fm.Admin.GetNode(groupId, adminMsg.Id)
-				if node != nil {
-					err := fm.UpdateNode(node)
-					if err != nil {
-						if err == common.ErrNotFound {
-							digitalTwin := fm.Admin.GetDigitalTwin(groupId, digitalTwinId)
-							exist := fm.CheckIfNodeExistInPipelineFile(digitalTwin, node)
-							if exist {
-								err := fm.AddNode(node)
-								if err != nil {
-									fm.handleNodeError(node, err)
-								}
-							} else {
-								fm.handleNodeError(node, err)
-							}
-						} else {
-							fm.handleNodeError(node, err)
-						}
-					}
-				}
-			case "delete":
-				fm.DeleteNode(adminMsg.Id)
-			default:
-				fm.log.Errorf("Unknown action: %s for component: %s", adminMsg.Action, adminMsg.Component)
-				return
-			}
-		case "wire":
-			switch adminMsg.Action {
-			case "create":
-				groupId := int(adminMsg.Context["groupId"].(float64))
-				wire := fm.Admin.GetWire(groupId, adminMsg.Id)
-				if wire != nil {
-					fm.AddWire(wire)
-				}
-			case "update":
-				groupId := int(adminMsg.Context["groupId"].(float64))
-				wire := fm.Admin.GetWire(groupId, adminMsg.Id)
-				if wire != nil {
-					fm.UpdateWire(wire)
-				}
-			case "delete":
-				fm.DeleteWire(adminMsg.Id)
-			default:
-				fm.log.Errorf("Unknown action: %s for component: %s", adminMsg.Action, adminMsg.Component)
-				return
 			}
 		case "pipeline_action":
 			digitalTwinId := adminMsg.Id
-			reinitialize := adminMsg.Context["reinitialize"].(bool)
 			switch adminMsg.Action {
+			case "create":
+				fm.CreatePipelineInDigitalTwin(digitalTwinId)
+			case "update":
+				fm.UpdatePipelineInDigitalTwin(digitalTwinId)
 			case "stop":
 				fm.StopNodesInDigitalTwin(digitalTwinId, "stop")
 			case "start":
+				reinitialize := adminMsg.Context["reinitialize"].(bool)
 				fm.StartNodesInDigitalTwin(digitalTwinId, reinitialize)
 			case "restart":
+				reinitialize := adminMsg.Context["reinitialize"].(bool)
 				fm.RestartNodesInDigitalTwin(digitalTwinId, reinitialize)
+			case "delete":
+				fm.DeletePipelineInDigitalTwin(digitalTwinId)
 			default:
 				fm.log.Errorf("Unknown action: %s for component: %s", adminMsg.Action, adminMsg.Component)
 				return

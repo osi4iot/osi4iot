@@ -51,7 +51,7 @@ type ParsedMessage struct {
 	Raw     string
 }
 
-func CreateAiAgentNode(node common.NodeData, fm common.Manager) (*AiAgentNode, error) {
+func CreateAiAgentNode(node common.NodeData, fm common.Manager, p common.Pipeline) (*AiAgentNode, error) {
 	llmModel, ok := node.Settings["llmModel"].(string)
 	if !ok {
 		llmModel = fm.GetDefaultLlmModel()
@@ -84,16 +84,13 @@ func CreateAiAgentNode(node common.NodeData, fm common.Manager) (*AiAgentNode, e
 		return nil, fmt.Errorf("systemPrompt setting is required and must be a non-empty string")
 	}
 
-	org := fm.GetOrg(node.OrgId)
-	digitalTwin := fm.GetDigitalTwin(node.DigitalTwinId)
-
-	logTopic := fm.GetTopicByTopicRef(node.AssetId, node.DigitalTwinId, "dtmlog")
+	logTopic := fm.GetTopicByTopicRef(p.GetAssetId(), p.GetDigitalTwinId(), "dtmlog")
 	logSubject := utils.TopicToNatsSubject(logTopic.TopicType, logTopic.GroupUid, logTopic.TopicUid)
 
 	inputChan := make(chan mcphost.ChatMessage)
 	outputChan := make(chan mcphost.LlmResponse)
 	mcpServersPath := fm.GetMcpServersPath()
-	dtPath := fm.GetDigitalTwinFolder(node.OrgId, node.GroupId, node.DigitalTwinId)
+	dtPath := fm.GetDigitalTwinFolder(p.GetOrgId(), p.GetGroupId(), p.GetDigitalTwinId())
 	fileSystemPath := filepath.Join(dtPath, "filesystem")
 	utils.CreateDirectoryIfNotExists(fileSystemPath)
 
@@ -107,7 +104,7 @@ func CreateAiAgentNode(node common.NodeData, fm common.Manager) (*AiAgentNode, e
 		},
 	}
 
-	femResultsInfo := fm.GetS3DigitalTwinFolderInfo(node.GroupId, node.DigitalTwinId, "femResFiles")
+	femResultsInfo := fm.GetS3DigitalTwinFolderInfo(p.GetGroupId(), p.GetDigitalTwinId(), "femResFiles")
 	if fm.GetMode() == "local" {
 		mcpServers["current_date"] = mcphost.MCPServerConfig{
 			Type:    "local",
@@ -129,7 +126,7 @@ func CreateAiAgentNode(node common.NodeData, fm common.Manager) (*AiAgentNode, e
 		}
 
 		if len(femResultsInfo) > 0 {
-			femResultsPath := fm.GetFemResultsPath(node.OrgId, node.GroupId, node.DigitalTwinId)
+			femResultsPath := fm.GetFemResultsPath(p.GetOrgId(), p.GetGroupId(), p.GetDigitalTwinId())
 			utils.CreateDirectoryIfNotExists(femResultsPath)
 			if femResultsPath != "" {
 				mcpServers["fem_results"] = mcphost.MCPServerConfig{
@@ -156,7 +153,7 @@ func CreateAiAgentNode(node common.NodeData, fm common.Manager) (*AiAgentNode, e
 		}
 
 		if len(femResultsInfo) > 0 {
-			femResultsPath := fm.GetFemResultsPath(node.OrgId, node.GroupId, node.DigitalTwinId)
+			femResultsPath := fm.GetFemResultsPath(p.GetOrgId(), p.GetGroupId(), p.GetDigitalTwinId())
 			utils.CreateDirectoryIfNotExists(femResultsPath)
 			if femResultsPath != "" {
 				mcpServers["fem_results"] = mcphost.MCPServerConfig{
@@ -205,14 +202,7 @@ func CreateAiAgentNode(node common.NodeData, fm common.Manager) (*AiAgentNode, e
 	ctx, cancel := context.WithCancel(context.Background())
 	aiAgentNode := &AiAgentNode{
 		BaseNode: BaseNode{
-			Id:             node.Id,
 			NodeUid:        node.NodeUid,
-			OrgId:          node.OrgId,
-			OrgHash:        org.OrgHash,
-			GroupId:        node.GroupId,
-			AssetId:        node.AssetId,
-			DigitalTwinId:  node.DigitalTwinId,
-			DigitalTwinUID: digitalTwin.DigitalTwinUID,
 			Name:           node.Name,
 			Xpos:           node.Xpos,
 			Ypos:           node.Ypos,
@@ -222,6 +212,7 @@ func CreateAiAgentNode(node common.NodeData, fm common.Manager) (*AiAgentNode, e
 			Type:           "AiAgent",
 			LogSubject:     logSubject,
 			Fm:             fm,
+			Pipeline:       p,
 			Cancel:         cancel,
 			Ctx:            ctx,
 			status:         common.NodeStatusCreated,
@@ -284,7 +275,7 @@ func (n *AiAgentNode) sendPromptToMcpHost(msg mcphost.ChatMessage, log *logger.L
 }
 
 func (n *AiAgentNode) handleInputWires(log *logger.Logger, processor func(mcphost.ChatMessage, *logger.Logger) error) {
-	nodeInputWires := n.Fm.GetNodeInputWires(n.DigitalTwinId, n.Id)
+	nodeInputWires := n.GetNodeInputWires()
 	if len(nodeInputWires) == 0 {
 		return
 	}
@@ -354,6 +345,8 @@ func (n *AiAgentNode) handleMcpHostMessage(log *logger.Logger) error {
 					errMsg := fmt.Errorf("MCP Host error: %s", msg.Message)
 					n.handleMCPHostError(errMsg)
 					n.McpHost.Close()
+					n.Cancel()
+					n.Pipeline.RestartNode(n.NodeUid)
 					return
 				} else {
 					parsed := n.parseMessage(msg.Message)
@@ -391,13 +384,15 @@ func (n *AiAgentNode) Stop(log *logger.Logger) {
 
 	n.wg.Wait() // Esperar a que todas las goroutines terminen
 
+	n.Pipeline.ResetNode(n.NodeUid)
+
 	log.Infof("Node %s stopped successfully", n.NodeUid)
 }
 
 func (n *AiAgentNode) GetChatMessages(userName string) []*schema.Message {
-	kvStore := n.Fm.GetDigitalTwinKvStore(n.DigitalTwinId)
+	kvStore := n.Fm.GetDigitalTwinKvStore(n.GetDigitalTwinId())
 	if kvStore == nil {
-		n.Fm.Log().Errorf("Failed to get KV store for digital twin %d", n.DigitalTwinId)
+		n.Fm.Log().Errorf("Failed to get KV store for digital twin %d", n.GetDigitalTwinId())
 		return nil
 	}
 
@@ -428,9 +423,9 @@ func (n *AiAgentNode) SaveChatMessages(userName string, messages []*schema.Messa
 		return err
 	}
 
-	kvStore := n.Fm.GetDigitalTwinKvStore(n.DigitalTwinId)
+	kvStore := n.Fm.GetDigitalTwinKvStore(n.GetDigitalTwinId())
 	if kvStore == nil {
-		return fmt.Errorf("failed to get KV store for digital twin %d", n.DigitalTwinId)
+		return fmt.Errorf("failed to get KV store for digital twin %d", n.GetDigitalTwinId())
 	}
 
 	// 2. Obtener mensajes existentes
@@ -642,7 +637,7 @@ func (n *AiAgentNode) manualMapToMessage(msgMap map[string]interface{}) *schema.
 }
 
 func (n *AiAgentNode) getFullChatMessageKvStoreKey(userName string) string {
-	return fmt.Sprintf("org_%s.dt_%s.kvstore.chat_messages.%s", n.GetOrgHash(), n.GetDigitalTwinUID(), userName)
+	return fmt.Sprintf("org_%s.dt_%s.kvstore.chat_messages.%s", n.GetOrgHash(), n.GetDigitalTwinUid(), userName)
 }
 
 func (n *AiAgentNode) parseMessage(messageStr string) ParsedMessage {
@@ -766,7 +761,7 @@ func (n *AiAgentNode) handleMCPHostError(err error) {
 		Name:        n.Name,
 		Uid:         n.NodeUid,
 		Description: "MCP Host error",
-		Message:     "An unexpected error has occurred in the AI Agent.\n Please restart the pipeline.",
+		Message:     "An unexpected error has occurred in the AI Agent.\n The node is going to be restarted automatically.",
 	}
 
 	if logJSON, marshallErr := json.Marshal(logData); marshallErr == nil {

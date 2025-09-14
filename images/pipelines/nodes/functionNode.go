@@ -31,7 +31,7 @@ type FuncNode struct {
 	vmPool                 chan *goja.Runtime
 }
 
-func CreateFuncNode(node common.NodeData, fm common.Manager) (*FuncNode, error) {
+func CreateFuncNode(node common.NodeData, fm common.Manager, p common.Pipeline) (*FuncNode, error) {
 	onMessageScript, ok1 := node.Settings["onMessageScript"].(string)
 	onInitializationScript, ok2 := node.Settings["onInitializationScript"].(string)
 	onStartScript, ok3 := node.Settings["onStartScript"].(string)
@@ -39,23 +39,13 @@ func CreateFuncNode(node common.NodeData, fm common.Manager) (*FuncNode, error) 
 		return nil, fmt.Errorf("missing required scripts in node settings")
 	}
 
-	org := fm.GetOrg(node.OrgId)
-	digitalTwin := fm.GetDigitalTwin(node.DigitalTwinId)
-
-	logTopic := fm.GetTopicByTopicRef(node.AssetId, node.DigitalTwinId, "dtmlog")
+	logTopic := fm.GetTopicByTopicRef(p.GetAssetId(), p.GetDigitalTwinId(), "dtmlog")
 	logSubject := utils.TopicToNatsSubject(logTopic.TopicType, logTopic.GroupUid, logTopic.TopicUid)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	funNode := &FuncNode{
 		BaseNode: BaseNode{
-			Id:             node.Id,
 			NodeUid:        node.NodeUid,
-			OrgId:          node.OrgId,
-			GroupId:        node.GroupId,
-			AssetId:        node.AssetId,
-			DigitalTwinId:  node.DigitalTwinId,
-			OrgHash:        org.OrgHash,
-			DigitalTwinUID: digitalTwin.DigitalTwinUID,
 			Name:           node.Name,
 			Xpos:           node.Xpos,
 			Ypos:           node.Ypos,
@@ -65,6 +55,7 @@ func CreateFuncNode(node common.NodeData, fm common.Manager) (*FuncNode, error) 
 			Type:           "Function",
 			LogSubject:     logSubject,
 			Fm:             fm,
+			Pipeline:       p,
 			Cancel:         cancel,
 			Ctx:            ctx,
 			status:         common.NodeStatusCreated,
@@ -80,12 +71,12 @@ func CreateFuncNode(node common.NodeData, fm common.Manager) (*FuncNode, error) 
 
 	if funNode.onMessageScript != "" {
 		if err := funNode.precompileScript(fm.Log()); err != nil {
-			nodeError := fmt.Errorf("Failed to precompile script for node %s: %v", funNode.NodeUid, err)
+			nodeError := fmt.Errorf("failed to precompile script for node %s: %v", funNode.NodeUid, err)
 			funNode.HandleError(nodeError)
 			return nil, nodeError
 		}
 		if err := funNode.initVMPool(fm.Log()); err != nil {
-			nodeError := fmt.Errorf("Failed to initialize VM pool for node %s: %v", funNode.NodeUid, err)
+			nodeError := fmt.Errorf("failed to initialize VM pool for node %s: %v", funNode.NodeUid, err)
 			funNode.HandleError(nodeError)
 			return nil, nodeError
 		}
@@ -279,7 +270,7 @@ func (n *FuncNode) processMessage(message common.Message, log *logger.Logger) er
 			return fmt.Errorf("failed to convert JS result: %w", err)
 		}
 
-		nodeOutputWires := n.Fm.GetNodeOutputWires(n.DigitalTwinId, n.Id)
+		nodeOutputWires := n.GetNodeOutputWires()
 		return n.handleProcessedData(processedData, message, nodeOutputWires, log)
 	}
 

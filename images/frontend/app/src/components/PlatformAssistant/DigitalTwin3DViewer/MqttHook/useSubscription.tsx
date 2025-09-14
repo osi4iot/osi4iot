@@ -36,6 +36,7 @@ const useSubscription = (
     handleImageUrlChange: (base64Image: string) => void,
     handleUpdateChatAssistantMessages: (newMessage: LlmMessage) => void,
     handleUpdateLogMessages: (newLogMessage: PipelineLog) => void,
+    handlePipelineStatusChange: (pipelineStatus: string) => void,
     options: SubscribeOptions = {} as SubscribeOptions
 ) => {
     let femResultNames: string[] = [];
@@ -90,7 +91,8 @@ const useSubscription = (
                         setDigitalTwinState,
                         handleImageUrlChange,
                         handleUpdateChatAssistantMessages,
-                        handleUpdateLogMessages
+                        handleUpdateLogMessages,
+                        handlePipelineStatusChange
                     );
                 }
             };
@@ -129,7 +131,8 @@ const updateObjectsState = (
     setDigitalTwinState: React.Dispatch<React.SetStateAction<string>>,
     handleImageUrlChange: (base64Image: string) => void,
     handleUpdateChatAssistantMessages: (newMessage: LlmMessage) => void,
-    handleUpdateLogMessages: (newLogMessage: PipelineLog) => void
+    handleUpdateLogMessages: (newLogMessage: PipelineLog) => void,
+    handlePipelineStatusChange: (pipelineStatus: string) => void
 ) => {
     const mqttTopics = mqttTopicsData.map((topicData) => topicData.mqttTopic).filter((topic) => topic !== "");
     const sim2dtmTopicId = mqttTopicsData.filter((topic) => topic.topicRef === "sim2dtm")[0].topicId;
@@ -192,6 +195,13 @@ const updateObjectsState = (
                     date: formatDateString(new Date().toISOString()),
                 };
                 handleUpdateLogMessages(newLogMessage);
+            }
+
+            if (messageTopicRef === "state2sim") {
+                if (mqttMessage.pipelineStatus !== undefined) {
+                    console.log("Updating pipeline status...");
+                    handlePipelineStatusChange(mqttMessage.pipelineStatus);
+                }
             }
 
             if (

@@ -353,7 +353,7 @@ func (fr *FemResultsProcessor) createGaussPointsParquet(meshIdx int, gaussResult
 	builderIndex := 0
 	for _, field := range gaussResults {
 		for modalKey := range field.ModalValues {
-			columnName := fmt.Sprintf("%s", modalKey)
+			columnName := modalKey
 			fields = append(fields, arrow.Field{Name: columnName, Type: arrow.PrimitiveTypes.Float64})
 			resultKeys = append(resultKeys, columnName)
 			modalKeyToBuilder[columnName] = builderIndex
@@ -405,7 +405,7 @@ func (fr *FemResultsProcessor) createGaussPointsParquet(meshIdx int, gaussResult
 			// Llenar resultados
 			for _, field := range gaussResults {
 				for modalKey, modal := range field.ModalValues {
-					columnName := fmt.Sprintf("%s", modalKey)
+					columnName := modalKey
 					builderIdx := modalKeyToBuilder[columnName]
 
 					if arrayIdx < len(modal.Array) {
@@ -475,7 +475,7 @@ func (fr *FemResultsProcessor) createNodesParquet(meshIdx int, nodesResults map[
 	builderIndex := 0
 	for _, field := range nodesResults {
 		for modalKey := range field.ModalValues {
-			columnName := fmt.Sprintf("%s", modalKey)
+			columnName := modalKey
 			fields = append(fields, arrow.Field{Name: columnName, Type: arrow.PrimitiveTypes.Float64})
 			resultKeys = append(resultKeys, columnName)
 			modalKeyToBuilder[columnName] = builderIndex
@@ -519,7 +519,7 @@ func (fr *FemResultsProcessor) createNodesParquet(meshIdx int, nodesResults map[
 		// Llenar resultados para este nodo
 		for _, field := range nodesResults {
 			for modalKey, modal := range field.ModalValues {
-				columnName := fmt.Sprintf("%s", modalKey)
+				columnName := modalKey
 				builderIdx := modalKeyToBuilder[columnName]
 
 				if nodeIdx < len(modal.Array) {

@@ -9,7 +9,6 @@ import (
 	"pipelines/common"
 	"pipelines/config"
 	"pipelines/logger"
-	"pipelines/utils"
 	"strconv"
 	"strings"
 
@@ -18,21 +17,14 @@ import (
 )
 
 type FlowsManager struct {
-	Orgs                     *common.ShardedSyncMap
-	Groups                   *common.ShardedSyncMap
-	NotificationChannels     *common.ShardedSyncMap
-	Topics                   *common.ShardedSyncMap
-	AssetTopicsRef           *common.ShardedSyncMap
-	DigitalTwinTopicsRef     *common.ShardedSyncMap
-	MLModels                 *common.ShardedSyncMap
-	DigitalTwins             *common.ShardedSyncMap
-	Nodes                    *common.ShardedSyncMap
-	Wires                    *common.ShardedSyncMap
-	DigitalTwinNodes         *common.ShardedSyncMap // key: "digitalTwinId" -> []*Node (nodes that belong to the digital twin)
-	DigitalTwinWires         *common.ShardedSyncMap // key: "digitalTwinId" -> []*Wire (wires that belong to the digital twin)
-	NodeOutputWires          *common.ShardedSyncMap // key: "digitalTwinId:nodeID" -> [][]*Wire (wires that leave the node)
-	NodeInputWires           *common.ShardedSyncMap // key: "digitalTwinId:nodeID" -> []*Wire (wires that arrive at the node)
-	NodeOutputByIndex        *common.ShardedSyncMap // key: "digitalTwinId:nodeID:outputIndex" -> []*Wire
+	Orgs                 *common.ShardedSyncMap
+	Groups               *common.ShardedSyncMap
+	NotificationChannels *common.ShardedSyncMap
+	Topics               *common.ShardedSyncMap
+	AssetTopicsRef       *common.ShardedSyncMap
+	DigitalTwinTopicsRef *common.ShardedSyncMap
+	MLModels             *common.ShardedSyncMap
+	DigitalTwins         *common.ShardedSyncMap
 	Admin                    *admin.Admin
 	JsConsumer               jetstream.Consumer
 	log                      *logger.Logger
@@ -56,7 +48,7 @@ type FlowsManager struct {
 	LlmMaxTokens             int
 	McpServersPath           string
 	MaxChatMessagesPerUser   int
-	PipelinesDataPath              string
+	PipelinesDataPath        string
 }
 
 func CreateFlowsManager(
@@ -75,9 +67,7 @@ func CreateFlowsManager(
 	digitalTwins := admin.GetDigitalTwins()
 	assetsTopics := admin.GetAssetTopics()
 	digitalTwinTopics := admin.GetDigitalTwinTopics()
-	nodes := admin.GetNodes()
-	wires := admin.GetWires()
-
+	
 	flowManager := FlowsManager{
 		Orgs:                     common.NewShardedSyncMap(config.ShardCount),
 		Groups:                   common.NewShardedSyncMap(config.ShardCount),
@@ -87,13 +77,6 @@ func CreateFlowsManager(
 		DigitalTwinTopicsRef:     common.NewShardedSyncMap(config.ShardCount),
 		MLModels:                 common.NewShardedSyncMap(config.ShardCount),
 		DigitalTwins:             common.NewShardedSyncMap(config.ShardCount),
-		Nodes:                    common.NewShardedSyncMap(config.ShardCount),
-		Wires:                    common.NewShardedSyncMap(config.ShardCount),
-		DigitalTwinNodes:         common.NewShardedSyncMap(config.ShardCount / 2),
-		DigitalTwinWires:         common.NewShardedSyncMap(config.ShardCount / 2),
-		NodeOutputWires:          common.NewShardedSyncMap(config.ShardCount),
-		NodeInputWires:           common.NewShardedSyncMap(config.ShardCount),
-		NodeOutputByIndex:        common.NewShardedSyncMap(config.ShardCount),
 		NumReplicas:              config.NumReplicas,
 		ReplicaIndex:             config.ReplicaIndex,
 		ShardIndex:               config.ShardIndex,
@@ -117,7 +100,7 @@ func CreateFlowsManager(
 		PipelinesDataPath:        config.PipelinesDataPath,
 		log:                      log,
 	}
-
+	
 	flowManager.AddOrgs(orgs)
 	flowManager.AddGroups(groups)
 	flowManager.AddNotificationChannels(notificationChannels)
@@ -128,9 +111,7 @@ func CreateFlowsManager(
 	flowManager.AddDigitalTwins(digitalTwins)
 	flowManager.AddFemResultsInDigitalTwins()
 	flowManager.AddDocInfoFilesInDigitalTwins()
-	flowManager.AddNodes(nodes)
-	flowManager.AddWires(wires)
-
+	
 	flowManager.Listen()
 	flowManager.StartNodes()
 
@@ -263,7 +244,7 @@ func (fm *FlowsManager) NatsPublish(subject string, msg []byte) error {
 func (fm *FlowsManager) isPipelineInitialized(digitalTwin *common.DigitalTwin) bool {
 	kvstore := fm.GetDigitalTwinKvStore(digitalTwin.Id)
 	orgHash := fm.GetOrg(digitalTwin.OrgId).OrgHash
-	key := fmt.Sprintf("org_%s.dt_%s.kvstore.%s", orgHash, digitalTwin.DigitalTwinUID, "pipeline_initialized")
+	key := fmt.Sprintf("org_%s.dt_%s.kvstore.%s", orgHash, digitalTwin.DigitalTwinUid, "pipeline_initialized")
 
 	var isPipelineInitialized bool
 	err := kvstore.GetValue(context.Background(), key, &isPipelineInitialized)
@@ -277,7 +258,7 @@ func (fm *FlowsManager) isPipelineInitialized(digitalTwin *common.DigitalTwin) b
 func (fm *FlowsManager) setPipelineInitialized(digitalTwin *common.DigitalTwin, isPipelineInitialized bool) error {
 	kvstore := fm.GetDigitalTwinKvStore(digitalTwin.Id)
 	orgHash := fm.GetOrg(digitalTwin.OrgId).OrgHash
-	key := fmt.Sprintf("org_%s.dt_%s.kvstore.%s", orgHash, digitalTwin.DigitalTwinUID, "pipeline_initialized")
+	key := fmt.Sprintf("org_%s.dt_%s.kvstore.%s", orgHash, digitalTwin.DigitalTwinUid, "pipeline_initialized")
 
 	err := kvstore.SetValue(context.Background(), key, isPipelineInitialized)
 	if err != nil {
@@ -287,32 +268,6 @@ func (fm *FlowsManager) setPipelineInitialized(digitalTwin *common.DigitalTwin, 
 	fm.log.Infof("Pipeline initialization set to %v for digital twin %d", isPipelineInitialized, digitalTwin.Id)
 
 	return nil
-}
-
-func (fm *FlowsManager) handleNodeError(n *common.NodeData, err error) {
-	logTopic := fm.GetTopicByTopicRef(n.AssetId, n.DigitalTwinId, "dtmlog")
-	logSubject := utils.TopicToNatsSubject(logTopic.TopicType, logTopic.GroupUid, logTopic.TopicUid)
-
-	if logSubject == "" {
-		fm.Log().Errorf("Node %s encountered an error but no log subject is set", n.NodeUid)
-		return
-	}
-
-	description := fmt.Sprintf("Error in a node type %s ", n.Type)
-	logData := common.PipelineLog{
-		Level:       "error",
-		Component:   "node",
-		Name:        n.Name,
-		Uid:         n.NodeUid,
-		Description: description,
-		Message:     err.Error(),
-	}
-
-	if logJSON, marshallErr := json.Marshal(logData); marshallErr == nil {
-		fm.NatsPublish(logSubject, logJSON)
-	} else {
-		fm.Log().Errorf("Failed to marshal log error data for node %s: %v", n.NodeUid, marshallErr)
-	}
 }
 
 func (fm *FlowsManager) GetFunctionsTimeout() int {
@@ -353,7 +308,7 @@ func (fm *FlowsManager) GetDefaultLlmTopK() int32 {
 
 func (fm *FlowsManager) GetDefaultLlmTopP() float32 {
 	return fm.DefaultLlmTopP
-}	
+}
 
 func (fm *FlowsManager) GetLlmMaxTokens() int {
 	return fm.LlmMaxTokens
@@ -375,7 +330,7 @@ func (fm *FlowsManager) GetFemResultsPath(orgId int, groupId int, digitalTwinId 
 	if fm.PipelinesDataPath == "" {
 		return ""
 	}
-	
+
 	org := fmt.Sprintf("org_%d", orgId)
 	group := fmt.Sprintf("group_%d", groupId)
 	digitalTwin := fmt.Sprintf("dt_%d", digitalTwinId)

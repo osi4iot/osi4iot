@@ -713,14 +713,13 @@ class DigitalTwinController implements IController {
 		next: NextFunction
 	): Promise<void> => {
 		try {
-			const { digitalTwinId } = req.params;
-			const digitalTwinIdNum = parseInt(digitalTwinId, 10);
+			const digitalTwin = req.digitalTwin;
 			const pipelineActionData: CreatePipelineActionDto = req.body;
 			const { action, reinitialize } = pipelineActionData;
 
-			await applyPipelineAction(digitalTwinIdNum, action, reinitialize, req.group.id);
+			await applyPipelineAction(digitalTwin, action, reinitialize, req.group.id);
 			const response = {
-				message: `The action '${action}' has been executed for pipeline of digital twin with id ${digitalTwinIdNum}`,
+				message: `The action '${action}' has been executed for pipeline of digital twin with id ${digitalTwin.id}`,
 			};
 
 			res.status(200).send(response);

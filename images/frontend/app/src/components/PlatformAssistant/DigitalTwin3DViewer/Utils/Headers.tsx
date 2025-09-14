@@ -23,6 +23,10 @@ import {
     RefreshCwIcon,
     UploadIcon,
     CameraIcon,
+    StoppedIndicator,
+    RunningIndicator,
+    ErrorIndicator,
+    UnknownIndicator,
 } from "./StyledComponents";
 import { TooltipWrapper } from "./TooltipWrapper";
 import styled from "styled-components";
@@ -51,6 +55,7 @@ interface HeaderProps {
     isPipelineUiChanged: boolean;
     close3DViewer: () => void;
     assetWithMobilePhotoSelected: boolean;
+    pipelineStatus: string;
 }
 
 export const Header: FC<HeaderProps> = ({
@@ -73,32 +78,78 @@ export const Header: FC<HeaderProps> = ({
     isPipelineUiChanged,
     close3DViewer,
     assetWithMobilePhotoSelected,
+    pipelineStatus,
 }) => {
     const fileInputRef = useRef<HTMLInputElement>(null);
+
+    console.log("Pipeline Status in Header:", pipelineStatus);
+
+    const switchPipelineViewer = () => (
+        <>
+            {activeViewer === "3D" && (
+                <TooltipWrapper tooltip="Switch to pipeline viewer" onClick={handleToggleActiveViewer}>
+                    <TiFlowMergeIcon />
+                </TooltipWrapper>
+            )}
+            {activeViewer === "pipeline" && !assetWithMobilePhotoSelected && (
+                <TooltipWrapper tooltip="Switch to 3D model viewer" onClick={handleToggleActiveViewer}>
+                    <BoxIcon />
+                </TooltipWrapper>
+            )}
+            {activeViewer === "pipeline" && assetWithMobilePhotoSelected && (
+                <TooltipWrapper tooltip="Switch to photo viewer" onClick={handleToggleActiveViewer}>
+                    <CameraIcon />
+                </TooltipWrapper>
+            )}
+            {activeViewer === "image_frame" && assetWithMobilePhotoSelected && (
+                <TooltipWrapper tooltip="Switch to 3D model viewer" onClick={handleToggleActiveViewer}>
+                    <BoxIcon />
+                </TooltipWrapper>
+            )}
+        </>
+    );
+
+    const pipelineStatusIndicator = () => {
+        if (activeViewer !== "pipeline") return null;
+        if (pipelineStatus === "running") {
+            return (
+                <TooltipWrapper tooltip="Status: Running">
+                    <RunningIndicator />
+                </TooltipWrapper>
+            );
+        }
+        if (pipelineStatus === "stopped") {
+            return (
+                <TooltipWrapper tooltip="Status: Stopped">
+                    <StoppedIndicator />
+                </TooltipWrapper>
+            );
+        }
+
+        if (pipelineStatus === "error") {
+            return (
+                <TooltipWrapper tooltip="Status: Error">
+                    <ErrorIndicator />
+                </TooltipWrapper>
+            );
+        }
+
+        if (pipelineStatus === "unknown") {
+            return (
+                <TooltipWrapper tooltip="Status: Unknown">
+                    <UnknownIndicator />
+                </TooltipWrapper>
+            );
+        }
+
+        return null;
+    };
 
     return (
         <HeaderContainer>
             <HeaderOptionsContainer>
-                {activeViewer === "3D" && (
-                    <TooltipWrapper tooltip="Switch to pipeline viewer" onClick={handleToggleActiveViewer}>
-                        <TiFlowMergeIcon />
-                    </TooltipWrapper>
-                )}
-                {activeViewer === "pipeline" && !assetWithMobilePhotoSelected && (
-                    <TooltipWrapper tooltip="Switch to 3D model viewer" onClick={handleToggleActiveViewer}>
-                        <BoxIcon />
-                    </TooltipWrapper>
-                )}
-                {activeViewer === "pipeline" && assetWithMobilePhotoSelected && (
-                    <TooltipWrapper tooltip="Switch to photo viewer" onClick={handleToggleActiveViewer}>
-                        <CameraIcon />
-                    </TooltipWrapper>
-                )}
-                {activeViewer === "image_frame" && assetWithMobilePhotoSelected && (
-                    <TooltipWrapper tooltip="Switch to 3D model viewer" onClick={handleToggleActiveViewer}>
-                        <BoxIcon />
-                    </TooltipWrapper>
-                )}
+                {switchPipelineViewer()}
+                {pipelineStatusIndicator()}
 
                 {activeViewer === "3D" && (
                     <>

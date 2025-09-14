@@ -16,28 +16,30 @@ func CreateNode(
 	node common.NodeData,
 	log *logger.Logger,
 	fm common.Manager,
+	p common.Pipeline,
 ) (common.Node, error) {
 	var newNode common.Node
 	var err error
+
 	switch node.Type {
 	case "Listen":
-		newNode, err = CreateListenNode(node, fm)
+		newNode, err = CreateListenNode(node, fm, p)
 	case "Inject":
-		newNode, err = CreateInjectNode(node, fm)
+		newNode, err = CreateInjectNode(node, fm, p)
 	case "Delay":
-		newNode, err = CreateDelayNode(node, fm)
+		newNode, err = CreateDelayNode(node, fm, p)
 	case "Function":
-		newNode, err = CreateFuncNode(node, fm)
+		newNode, err = CreateFuncNode(node, fm, p)
 	case "Telegram":
-		newNode, err = CreateTelegramNode(node, fm)
+		newNode, err = CreateTelegramNode(node, fm, p)
 	case "Email":
-		newNode, err = CreateEmailNode(node, fm)
+		newNode, err = CreateEmailNode(node, fm, p)
 	case "AiAgent":
-		newNode, err = CreateAiAgentNode(node, fm)
+		newNode, err = CreateAiAgentNode(node, fm, p)
 	case "MlModel":
-		newNode, err = CreateMlmNode(node, fm)
+		newNode, err = CreateMlmNode(node, fm, p)
 	case "Publish":
-		newNode, err = CreatePublishNode(node, fm)
+		newNode, err = CreatePublishNode(node, fm, p)
 	default:
 		log.Errorf("Unknown node type: %s", node.Type)
 		newNode, err = nil, fmt.Errorf("unknown node type: %s", node.Type)
@@ -47,22 +49,16 @@ func CreateNode(
 }
 
 type BaseNode struct {
-	Id             int            `json:"id"`
-	NodeUid        string         `json:"nodeUid"`
-	OrgId          int            `json:"orgId"`
-	OrgHash        string         `json:"orgHash"`
-	GroupId        int            `json:"groupId"`
-	AssetId        int            `json:"assetId"`
-	DigitalTwinId  int            `json:"digitalTwinId"`
-	DigitalTwinUID string         `json:"digitalTwinUid"`
-	Name           string         `json:"name"`
-	Type           string         `json:"type"`
-	Xpos           float64        `json:"x"`
-	Ypos           float64        `json:"y"`
-	NumOutputs     int            `json:"numOutputs"`
-	Settings       map[string]any `json:"settings"`
-	Debug          string         `json:"debug"` // Indicates if debug mode is enabled
+	NodeUid    string         `json:"nodeUid"`
+	Name       string         `json:"name"`
+	Type       string         `json:"type"`
+	Xpos       float64        `json:"x"`
+	Ypos       float64        `json:"y"`
+	NumOutputs int            `json:"numOutputs"`
+	Settings   map[string]any `json:"settings"`
+	Debug      string         `json:"debug"` // Indicates if debug mode is enabled
 
+	Pipeline   common.Pipeline
 	LogSubject string
 	Fm         common.Manager
 	Ctx        context.Context
@@ -73,36 +69,40 @@ type BaseNode struct {
 	wg          sync.WaitGroup
 }
 
-func (n *BaseNode) GetId() int {
-	return n.Id
-}
-
 func (n *BaseNode) GetUid() string {
 	return n.NodeUid
 }
 
 func (n *BaseNode) GetDigitalTwinId() int {
-	return n.DigitalTwinId
+	return n.Pipeline.GetDigitalTwinId()
 }
 
-func (n *BaseNode) GetDigitalTwinUID() string {
-	return n.DigitalTwinUID
+func (n *BaseNode) GetDigitalTwinUid() string {
+	return n.Pipeline.GetDigitalTwinUid()
 }
 
 func (n *BaseNode) GetOrgId() int {
-	return n.OrgId
+	return n.Pipeline.GetOrgId()
 }
 
 func (n *BaseNode) GetOrgHash() string {
-	return n.OrgHash
+	return n.Pipeline.GetOrgHash()
 }
 
 func (n *BaseNode) GetGroupId() int {
-	return n.GroupId
+	return n.Pipeline.GetGroupId()
 }
 
 func (n *BaseNode) GetAssetId() int {
-	return n.AssetId
+	return n.Pipeline.GetAssetId()
+}
+
+func (n *BaseNode) GetNodeInputWires() []*common.Wire {
+	return n.Pipeline.GetNodeInputWires(n.NodeUid)
+}
+
+func (n *BaseNode) GetNodeOutputWires() [][]*common.Wire {
+	return n.Pipeline.GetNodeOutputWires(n.NodeUid)
 }
 
 func (n *BaseNode) GetName() string {
@@ -138,13 +138,13 @@ func (n *BaseNode) IsRunning() bool {
 	return n.GetStatus() == common.NodeStatusRunning
 }
 
-// IsStopped verifica si el nodo está detenido
 func (n *BaseNode) IsStopped() bool {
 	return n.GetStatus() == common.NodeStatusStopped
 }
 
 func (n *BaseNode) Stop(log *logger.Logger) {
 	if n.GetStatus() == common.NodeStatusStopped {
+		log.Infof("Node %s is already stopped", n.NodeUid)
 		return
 	}
 
@@ -156,6 +156,8 @@ func (n *BaseNode) Stop(log *logger.Logger) {
 
 	n.wg.Wait() //Wait for all goroutines to finish
 
+	n.ResetNodeContext()
+
 	log.Infof("Node %s stopped successfully", n.NodeUid)
 }
 
@@ -165,9 +167,15 @@ func (n *BaseNode) SetStatus(status common.NodeStatus) {
 	n.status = status
 }
 
+func (n *BaseNode) ResetNodeContext() {
+	ctx, cancel := context.WithCancel(context.Background())
+	n.Cancel = cancel
+	n.Ctx = ctx
+}
+
 func (n *BaseNode) HandleError(err error) {
 	n.SetStatus(common.NodeStatusError)
-	
+
 	if n.LogSubject == "" {
 		n.Fm.Log().Errorf("Node %s encountered an error but no log subject is set", n.NodeUid)
 		return
@@ -205,7 +213,7 @@ func (n *BaseNode) HandleDebug(message common.Message, outputIndex int) {
 		OutputIndex: outputIndex,
 		Payload:     message.Payload,
 	}
-	
+
 	if logJSON, marshallErr := json.Marshal(logData); marshallErr == nil {
 		n.Fm.NatsPublish(n.LogSubject, logJSON)
 	} else {
@@ -247,7 +255,7 @@ func (n *BaseNode) GetDebug() string {
 }
 
 func (n *BaseNode) handleInputWires(log *logger.Logger, processor func(common.Message, *logger.Logger) error) {
-	nodeInputWires := n.Fm.GetNodeInputWires(n.DigitalTwinId, n.Id)
+	nodeInputWires := n.GetNodeInputWires()
 
 	if len(nodeInputWires) == 0 {
 		return
@@ -287,7 +295,7 @@ func (n *BaseNode) handleInputWires(log *logger.Logger, processor func(common.Me
 }
 
 func (n *BaseNode) sendToOutputs(msg common.Message, log *logger.Logger) {
-	nodeOutputWires := n.Fm.GetNodeOutputWires(n.DigitalTwinId, n.Id)
+	nodeOutputWires := n.GetNodeOutputWires()
 	for outputIndex, wireArray := range nodeOutputWires {
 		for idx, wire := range wireArray {
 			select {

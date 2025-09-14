@@ -45,6 +45,7 @@ import {
     useMqttConnection,
     usePipelineActions,
     useImageFrame,
+    usePipelineStatus,
 } from "../Utils/customHooks";
 
 // Handlers
@@ -104,6 +105,13 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
     const [opts, setOpts] = useViewerOptions([]);
     const { chatMessages, setChatMessages, handleUpdateChatAssistantMessages } = useChatMessages(setOpts);
     const { logMessages, setLogMessages, handleUpdateLogMessages } = usePipelineLogs(setChatMessages);
+    const sim2stateTopic =
+        digitalTwinGltfData?.mqttTopicsData?.filter((topic) => topic.topicRef === "sim2state")[0].mqttTopic || "";
+    const { pipelineStatus, handlePipelineStatusChange, queryPipelineStatus } = usePipelineStatus(
+        digitalTwinSelected,
+        mqttClient,
+        sim2stateTopic
+    );
 
     // Initialize FEM results logic
     const femResults = useFemResults(digitalTwinSelected, legendRenderer, opts, fetchFemResFileWorker);
@@ -124,6 +132,12 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
         femResults.femResultData,
         femResults.femSimulationGeneralInfo,
     ]);
+
+    useEffect(() => {
+        if (digitalTwinSelected) {
+            queryPipelineStatus();
+        }
+    }, [queryPipelineStatus, digitalTwinSelected]);
 
     // Create handlers
     const handlers = createHandlers(
@@ -493,7 +507,8 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
             })),
         handleImageUrlChange,
         handleUpdateChatAssistantMessages,
-        handleUpdateLogMessages
+        handleUpdateLogMessages,
+        handlePipelineStatusChange
     );
 
     const [pipelineNodes, setPipelineNodes] = useState([] as IPipelineNode[]);
@@ -777,6 +792,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
                     isPipelineUiChanged={state.isPipelineUiChanged}
                     close3DViewer={close3DViewer}
                     assetWithMobilePhotoSelected={assetWithMobilePhotoSelected}
+                    pipelineStatus={pipelineStatus}
                 />
 
                 {/* Control Panel */}

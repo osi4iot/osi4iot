@@ -25,7 +25,7 @@ var posibleListenToForListenNode = []string{
 	"Topic reference",
 }
 
-func CreateListenNode(node common.NodeData, fm common.Manager) (*ListenNode, error) {
+func CreateListenNode(node common.NodeData, fm common.Manager, p common.Pipeline) (*ListenNode, error) {
 	listenTo, ok := node.Settings["listenTo"].(string)
 	if !ok || listenTo == "" {
 		fm.Log().Errorf("ListenNode %s: 'listenTo' setting is required", node.NodeUid)
@@ -51,7 +51,7 @@ func CreateListenNode(node common.NodeData, fm common.Manager) (*ListenNode, err
 		topic = strings.ReplaceAll(topic, "/", ".")
 	case "Topic reference":
 		topicRef := topic
-		topicInstance := fm.GetTopicByTopicRef(node.AssetId, node.DigitalTwinId, topicRef)
+		topicInstance := fm.GetTopicByTopicRef(p.GetAssetId(), p.GetDigitalTwinId(), topicRef)
 		if topicInstance == nil {
 			fm.Log().Errorf("ListenNode %s: topic reference '%s' not found", node.NodeUid, topicRef)
 			return nil, fmt.Errorf("topic reference '%s' not found", topicRef)
@@ -59,23 +59,13 @@ func CreateListenNode(node common.NodeData, fm common.Manager) (*ListenNode, err
 		topic = utils.TopicToNatsSubject(topicInstance.TopicType, topicInstance.GroupUid, topicInstance.TopicUid)
 	}
 
-	org := fm.GetOrg(node.OrgId)
-	digitalTwin := fm.GetDigitalTwin(node.DigitalTwinId)
-
-	logTopic := fm.GetTopicByTopicRef(node.AssetId, node.DigitalTwinId, "dtmlog")
+	logTopic := fm.GetTopicByTopicRef(p.GetAssetId(), p.GetDigitalTwinId(), "dtmlog")
 	logSubject := utils.TopicToNatsSubject(logTopic.TopicType, logTopic.GroupUid, logTopic.TopicUid)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	return &ListenNode{
 		BaseNode: BaseNode{
-			Id:             node.Id,
 			NodeUid:        node.NodeUid,
-			OrgId:          node.OrgId,
-			OrgHash:        org.OrgHash,
-			GroupId:        node.GroupId,
-			AssetId:        node.AssetId,
-			DigitalTwinId:  node.DigitalTwinId,
-			DigitalTwinUID: digitalTwin.DigitalTwinUID,
 			Name:           node.Name,
 			Xpos:           node.Xpos,
 			Ypos:           node.Ypos,
@@ -85,6 +75,7 @@ func CreateListenNode(node common.NodeData, fm common.Manager) (*ListenNode, err
 			Type:           "Listen",
 			LogSubject:     logSubject,
 			Fm:             fm,
+			Pipeline:       p,
 			Cancel:         cancel,
 			Ctx:            ctx,
 			status:         common.NodeStatusCreated,

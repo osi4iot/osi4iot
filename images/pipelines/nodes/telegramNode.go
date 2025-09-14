@@ -17,7 +17,7 @@ type TelegramNode struct {
 	Message         string
 }
 
-func CreateTelegramNode(node common.NodeData, fm common.Manager) (*TelegramNode, error) {
+func CreateTelegramNode(node common.NodeData, fm common.Manager, p common.Pipeline) (*TelegramNode, error) {
 	options, ok := node.Settings["options"].(string)
 	if !ok || options == "" {
 		return nil, fmt.Errorf("options setting is required")
@@ -28,7 +28,7 @@ func CreateTelegramNode(node common.NodeData, fm common.Manager) (*TelegramNode,
 	message := ""
 	switch options {
 	case "Group notification options":
-		chatID = fm.GetGroupTelegramChatID(node.GroupId)
+		chatID = fm.GetGroupTelegramChatID(p.GetGroupId())
 	case "Custom telegram options":
 		isCustomMessage = true
 		chatIDStr, ok := node.Settings["chatId"].(string)
@@ -48,23 +48,13 @@ func CreateTelegramNode(node common.NodeData, fm common.Manager) (*TelegramNode,
 		return nil, fmt.Errorf("invalid options setting: %s", options)
 	}
 
-	org := fm.GetOrg(node.OrgId)
-	digitalTwin := fm.GetDigitalTwin(node.DigitalTwinId)
-
-	logTopic := fm.GetTopicByTopicRef(node.AssetId, node.DigitalTwinId, "dtmlog")
+	logTopic := fm.GetTopicByTopicRef(p.GetAssetId(), p.GetDigitalTwinId(), "dtmlog")
 	logSubject := utils.TopicToNatsSubject(logTopic.TopicType, logTopic.GroupUid, logTopic.TopicUid)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	return &TelegramNode{
 		BaseNode: BaseNode{
-			Id:             node.Id,
 			NodeUid:        node.NodeUid,
-			OrgId:          node.OrgId,
-			OrgHash:        org.OrgHash,
-			GroupId:        node.GroupId,
-			AssetId:        node.AssetId,
-			DigitalTwinId:  node.DigitalTwinId,
-			DigitalTwinUID: digitalTwin.DigitalTwinUID,
 			Name:           node.Name,
 			Xpos:           node.Xpos,
 			Ypos:           node.Ypos,
@@ -74,6 +64,7 @@ func CreateTelegramNode(node common.NodeData, fm common.Manager) (*TelegramNode,
 			Type:           "Telegram",
 			LogSubject:     logSubject,
 			Fm:             fm,
+			Pipeline:       p,
 			Cancel:         cancel,
 			Ctx:            ctx,
 			status:         common.NodeStatusCreated,

@@ -32,7 +32,6 @@ func (s NodeStatus) String() string {
 type Node interface {
 	Start(log *logger.Logger, needReinitialization bool)
 	Stop(log *logger.Logger)
-	GetId() int
 	GetUid() string
 	GetOrgId() int
 	GetOrgHash() string
@@ -45,10 +44,13 @@ type Node interface {
 	GetNumOutputs() int
 	GetSettings() map[string]any
 	GetDigitalTwinId() int
-	GetDigitalTwinUID() string
+	GetDigitalTwinUid() string
 	GetStatus() NodeStatus
+	ResetNodeContext()
 	GetDebug() string
 	HandleError(err error)
 	HandleDebug(msg Message, outputIndex int)
 	HandleInfo(msg string)
+	GetNodeInputWires() []*Wire
+	GetNodeOutputWires() [][]*Wire
 }

@@ -34,7 +34,7 @@ type InjectNode struct {
 	periodicListenCancel context.CancelFunc
 }
 
-func CreateInjectNode(node common.NodeData, fm common.Manager) (*InjectNode, error) {
+func CreateInjectNode(node common.NodeData, fm common.Manager, p common.Pipeline) (*InjectNode, error) {
 	injectRef, ok := node.Settings["injectRef"].(string)
 	if !ok || injectRef == "" {
 		fm.Log().Errorf("InjectNode %s: 'injectRef' setting is required", node.NodeUid)
@@ -52,7 +52,7 @@ func CreateInjectNode(node common.NodeData, fm common.Manager) (*InjectNode, err
 		return nil, fmt.Errorf("invalid injectRef: %s. It must be between inject_1 and inject_5", injectRef)
 	}
 
-	topic := fm.GetTopicByTopicRef(node.AssetId, node.DigitalTwinId, injectRef)
+	topic := fm.GetTopicByTopicRef(p.GetAssetId(), p.GetDigitalTwinId(), injectRef)
 	if topic == nil {
 		fm.Log().Errorf("InjectNode %s: topic %s not found", node.NodeUid, injectRef)
 		return nil, fmt.Errorf("topic %s not found", injectRef)
@@ -157,10 +157,7 @@ func CreateInjectNode(node common.NodeData, fm common.Manager) (*InjectNode, err
 		}
 	}
 
-	org := fm.GetOrg(node.OrgId)
-	digitalTwin := fm.GetDigitalTwin(node.DigitalTwinId)
-
-	logTopic := fm.GetTopicByTopicRef(node.AssetId, node.DigitalTwinId, "dtmlog")
+	logTopic := fm.GetTopicByTopicRef(p.GetAssetId(), p.GetDigitalTwinId(), "dtmlog")
 	logSubject := utils.TopicToNatsSubject(logTopic.TopicType, logTopic.GroupUid, logTopic.TopicUid)
 
 	msgChan := make(chan common.Message, 100)
@@ -168,26 +165,20 @@ func CreateInjectNode(node common.NodeData, fm common.Manager) (*InjectNode, err
 	ctx, cancel := context.WithCancel(context.Background())
 	return &InjectNode{
 		BaseNode: BaseNode{
-			Id:             node.Id,
-			NodeUid:        node.NodeUid,
-			OrgId:          node.OrgId,
-			OrgHash:        org.OrgHash,
-			DigitalTwinUID: digitalTwin.DigitalTwinUID,
-			GroupId:        node.GroupId,
-			AssetId:        node.AssetId,
-			DigitalTwinId:  node.DigitalTwinId,
-			Name:           node.Name,
-			Xpos:           node.Xpos,
-			Ypos:           node.Ypos,
-			NumOutputs:     node.NumOutputs,
-			Settings:       node.Settings,
-			Debug:          node.Debug,
-			Type:           "Inject",
-			LogSubject:     logSubject,
-			Fm:             fm,
-			Cancel:         cancel,
-			Ctx:            ctx,
-			status:         common.NodeStatusCreated,
+			NodeUid:    node.NodeUid,
+			Name:       node.Name,
+			Xpos:       node.Xpos,
+			Ypos:       node.Ypos,
+			NumOutputs: node.NumOutputs,
+			Settings:   node.Settings,
+			Debug:      node.Debug,
+			Type:       "Inject",
+			LogSubject: logSubject,
+			Fm:         fm,
+			Pipeline:   p,
+			Cancel:     cancel,
+			Ctx:        ctx,
+			status:     common.NodeStatusCreated,
 		},
 		TopicIn:           topicIn,
 		Repeat:            repeat,
@@ -385,7 +376,6 @@ func (n *InjectNode) getNextSpecificTime(loc *time.Location) time.Time {
 	if nextTime, found := getNextTimeForDate(today, now); found {
 		return nextTime
 	}
-
 
 	// Buscar en los próximos días
 	for dayOffset := 1; dayOffset < 8; dayOffset++ {

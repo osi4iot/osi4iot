@@ -17,8 +17,6 @@ import NodeRedInstanceController from "./components/nodeRedInstance/nodeRedInsta
 import MLModelController from "./components/ml_model/ml_modelController";
 import AssetController from "./components/asset/asset.controller";
 import SensorController from "./components/sensor/sensor.controller";
-import WireController from "./components/pipelines/wire/wire.controller";
-import NodeController from "./components/pipelines/node/node.controller";
 import natsClient from "./config/natsConfig";
 
 const main = async (): Promise<void> => {
@@ -42,8 +40,6 @@ const main = async (): Promise<void> => {
 			new DigitalTwinController(),
 			new MLModelController(),
 			new DashboardController(),
-			new NodeController(),
-			new WireController(),
 		]);
 		app.listen();
 	} catch (error) {

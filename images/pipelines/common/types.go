@@ -17,7 +17,7 @@ type Message struct {
 	Topic   string         `json:"topic"`
 	Payload map[string]any `json:"payload"`
 	State   map[string]any `json:"state"`
-	Image   image.Image     `json:"image"`
+	Image   image.Image    `json:"image"`
 }
 
 type Org struct {
@@ -112,7 +112,7 @@ type DigitalTwin struct {
 	AssetId                     int            `json:"assetId"`
 	OrgId                       int            `json:"orgId"`
 	Scope                       string         `json:"scope"`
-	DigitalTwinUID              string         `json:"digitalTwinUid"`
+	DigitalTwinUid              string         `json:"digitalTwinUid"`
 	Description                 string         `json:"description"`
 	Type                        string         `json:"type"`
 	DashboardID                 int            `json:"dashboardId"`
@@ -128,7 +128,8 @@ type DigitalTwin struct {
 	Created                     string         `json:"created"`
 	Updated                     string         `json:"updated"`
 
-	KvStore *nats_pkg.KVStore
+	KvStore  *nats_pkg.KVStore
+	Pipeline Pipeline
 }
 
 type DigitalTwinTopic struct {
@@ -180,31 +181,21 @@ type NotificationChannel struct {
 }
 
 type NodeData struct {
-	Id            int            `json:"id"`
-	NodeUid       string         `json:"nodeUid"`
-	OrgId         int            `json:"orgId"`
-	GroupId       int            `json:"groupId"`
-	AssetId       int            `json:"assetId"`
-	DigitalTwinId int            `json:"digitalTwinId"`
-	Name          string         `json:"name"`
-	Type          string         `json:"type"`
-	Xpos          float64        `json:"x"`
-	Ypos          float64        `json:"y"`
-	Settings      map[string]any `json:"settings"`
-	NumOutputs    int            `json:"numOutputs"`
-	Debug         string         `json:"debug"`
+	NodeUid    string         `json:"nodeUid"`
+	Name       string         `json:"name"`
+	Type       string         `json:"type"`
+	Xpos       float64        `json:"x"`
+	Ypos       float64        `json:"y"`
+	Settings   map[string]any `json:"settings"`
+	NumOutputs int            `json:"numOutputs"`
+	Debug      string         `json:"debug"`
 }
 
 type Wire struct {
-	Id              int    `json:"id"`
 	WireUid         string `json:"wireUid"`
 	Name            string `json:"name"`
-	OrgId           int    `json:"orgId"`
-	GroupId         int    `json:"groupId"`
-	AssetId         int    `json:"assetId"`
-	DigitalTwinId   int    `json:"digitalTwinId"`
-	NodeIniId       int    `json:"nodeIniId"`
-	NodeEndId       int    `json:"nodeEndId"`
+	NodeIniUid      string `json:"nodeIniUid"`
+	NodeEndUid      string `json:"nodeEndUid"`
 	NiniOutputIndex int    `json:"niniOutputIndex"`
 
 	Ctx        context.Context
@@ -213,17 +204,33 @@ type Wire struct {
 	Channel    chan Message
 }
 
+type WireData struct {
+	NodeEndUid string `json:"nodeEndUid"`
+}
+
 type PipelineNode struct {
-	Name       string  `json:"name"`
-	Type       string  `json:"type"`
-	X          float64 `json:"x"`
-	Y          float64 `json:"y"`
-	NumOutputs int     `json:"num_outputs"`
-	Settings   string  `json:"settings"`
+	NodeUid    string       `json:"nodeUid"`
+	Name       string       `json:"name"`
+	Type       string       `json:"type"`
+	X          float64      `json:"x"`
+	Y          float64      `json:"y"`
+	NumOutputs int          `json:"numOutputs"`
+	Settings   string       `json:"settings"`
+	Debug      string       `json:"debug"`
+	Wires      [][]WireData `json:"wires"`
 }
 
 type PipelineData struct {
-	Nodes []PipelineNode `json:"nodes"`
+	OrgId                  int    `json:"org_id"`
+	OrgHash                string `json:"org_hash"`
+	GroupId                int    `json:"group_id"`
+	AssetId                int    `json:"asset_id"`
+	DigitalTwinId          int    `json:"digital_twin_id"`
+	DigitalTwinUid         string `json:"digital_twin_uid"`
+	DigitalTwinDescription string `json:"digital_twin_description"`
+	FileData               string `json:"file_data"`
+	FileName               string `json:"file_name"`
+	FileLastModifDate      string `json:"file_last_modif_date"`
 }
 
 type PipelineLog struct {

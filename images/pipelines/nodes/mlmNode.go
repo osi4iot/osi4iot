@@ -81,7 +81,7 @@ type MlmNode struct {
 	outputNames   []string
 }
 
-func CreateMlmNode(node common.NodeData, fm common.Manager) (*MlmNode, error) {
+func CreateMlmNode(node common.NodeData, fm common.Manager, p common.Pipeline) (*MlmNode, error) {
 	mlModelIdFloat, ok := node.Settings["mlModelId"].(float64)
 	if !ok {
 		return nil, fmt.Errorf("mlModelId setting is required and must be a number")
@@ -106,31 +106,14 @@ func CreateMlmNode(node common.NodeData, fm common.Manager) (*MlmNode, error) {
 		}
 	}
 
-	org := fm.GetOrg(node.OrgId)
-	if org == nil {
-		return nil, fmt.Errorf("organization with ID %d not found", node.OrgId)
-	}
-
-	digitalTwin := fm.GetDigitalTwin(node.DigitalTwinId)
-	if digitalTwin == nil {
-		return nil, fmt.Errorf("digital twin with ID %d not found", node.DigitalTwinId)
-	}
-
-	logTopic := fm.GetTopicByTopicRef(node.AssetId, node.DigitalTwinId, "dtmlog")
+	logTopic := fm.GetTopicByTopicRef(p.GetAssetId(), p.GetDigitalTwinId(), "dtmlog")
 	logSubject := utils.TopicToNatsSubject(logTopic.TopicType, logTopic.GroupUid, logTopic.TopicUid)
 
 	ctx, cancel := context.WithCancel(context.Background())
 
 	mlmNode := &MlmNode{
 		BaseNode: BaseNode{
-			Id:             node.Id,
 			NodeUid:        node.NodeUid,
-			OrgId:          node.OrgId,
-			OrgHash:        org.OrgHash,
-			GroupId:        node.GroupId,
-			AssetId:        node.AssetId,
-			DigitalTwinId:  node.DigitalTwinId,
-			DigitalTwinUID: digitalTwin.DigitalTwinUID,
 			Name:           node.Name,
 			Xpos:           node.Xpos,
 			Ypos:           node.Ypos,
@@ -140,6 +123,7 @@ func CreateMlmNode(node common.NodeData, fm common.Manager) (*MlmNode, error) {
 			Type:           "MlModel",
 			LogSubject:     logSubject,
 			Fm:             fm,
+			Pipeline:       p,
 			Cancel:         cancel,
 			Ctx:            ctx,
 			status:         common.NodeStatusCreated,
@@ -161,21 +145,21 @@ func (n *MlmNode) Start(log *logger.Logger, needReinitialization bool) {
 
 	if err := n.initializeONNXRuntime(log); err != nil {
 		log.Errorf("Failed to initialize ONNX Runtime: %v", err)
-		errMsg := fmt.Errorf("Failed to initialize ONNX Runtime: %v", err)
+		errMsg := fmt.Errorf("failed to initialize ONNX Runtime: %v", err)
 		n.HandleError(errMsg)
 		return
 	}
 
 	if err := n.loadModelInfo(log); err != nil {
 		log.Errorf("Failed to load model info: %v", err)
-		errMsg := fmt.Errorf("Failed to load model info: %v", err)
+		errMsg := fmt.Errorf("failed to load model info: %v", err)
 		n.HandleError(errMsg)
 		return
 	}
 
 	if err := n.createSession(log); err != nil {
 		log.Errorf("Failed to create session: %v", err)
-		errMsg := fmt.Errorf("Failed to create session: %v", err)
+		errMsg := fmt.Errorf("failed to create session: %v", err)
 		n.HandleError(errMsg)
 		return
 	}
@@ -198,7 +182,7 @@ func (n *MlmNode) initializeONNXRuntime(log *logger.Logger) error {
 }
 
 func (n *MlmNode) loadModelInfo(log *logger.Logger) error {
-	mlModelFilePath := n.Fm.GetMlModelFilePath(n.OrgId, n.GroupId, n.MlModelId)
+	mlModelFilePath := n.Fm.GetMlModelFilePath(n.GetOrgId(), n.GetGroupId(), n.MlModelId)
 
 	inputs, outputs, err := ort.GetInputOutputInfo(mlModelFilePath)
 	if err != nil {
@@ -254,7 +238,7 @@ func (n *MlmNode) loadModelInfo(log *logger.Logger) error {
 }
 
 func (n *MlmNode) createSession(log *logger.Logger) error {
-	mlModelFilePath := n.Fm.GetMlModelFilePath(n.OrgId, n.GroupId, n.MlModelId)
+	mlModelFilePath := n.Fm.GetMlModelFilePath(n.GetOrgId(), n.GetGroupId(), n.MlModelId)
 
 	inputTensors := make([]*DynTensor, len(n.inputShapes))
 	sessionInputTensors := make([]ort.Value, len(n.inputShapes))
@@ -429,6 +413,8 @@ func (n *MlmNode) Stop(log *logger.Logger) {
 	}
 
 	n.wg.Wait()
+
+	n.ResetNodeContext()
 
 	log.Infof("MlModel %s stopped successfully", n.NodeUid)
 }

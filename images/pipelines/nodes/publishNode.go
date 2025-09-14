@@ -24,31 +24,31 @@ var posiblePublishToForPublishNode = []string{
 	"Message topic",
 }
 
-func CreatePublishNode(node common.NodeData, fm common.Manager) (*PublishNode, error) {
+func CreatePublishNode(node common.NodeData, fm common.Manager, p common.Pipeline) (*PublishNode, error) {
 	publishTo, ok := node.Settings["publishTo"].(string)
 	if !ok || publishTo == "" {
 		fm.Log().Errorf("PublishNode %s: 'publishTo' setting is required", node.NodeUid)
 		return nil, fmt.Errorf("publishTo setting is required")
 	}
-	
+
 	// Validate publishTo
 	if !slices.Contains(posiblePublishToForPublishNode, publishTo) {
 		fm.Log().Errorf("PublishNode %s: invalid 'publishTo' setting", node.NodeUid)
 		return nil, fmt.Errorf("invalid publishTo setting")
 	}
-	
+
 	topic, ok := node.Settings["topic"].(string)
 	if !ok || topic == "" {
 		fm.Log().Errorf("PublishNode %s: 'topic' setting is required", node.NodeUid)
 		return nil, fmt.Errorf("topic setting is required")
 	}
-	
+
 	switch publishTo {
 	case "Generic mqtt":
 		topic = strings.ReplaceAll(topic, "/", ".")
 	case "Topic reference":
 		topicRef := topic
-		topicInstance := fm.GetTopicByTopicRef(node.AssetId, node.DigitalTwinId, topicRef)
+		topicInstance := fm.GetTopicByTopicRef(p.GetAssetId(), p.GetDigitalTwinId(), topicRef)
 		if topicInstance == nil {
 			fm.Log().Errorf("PublishNode %s: topic reference '%s' not found", node.NodeUid, topicRef)
 			return nil, fmt.Errorf("topic reference '%s' not found", topicRef)
@@ -56,35 +56,26 @@ func CreatePublishNode(node common.NodeData, fm common.Manager) (*PublishNode, e
 		topic = utils.TopicToNatsSubject(topicInstance.TopicType, topicInstance.GroupUid, topicInstance.TopicUid)
 	}
 
-	org := fm.GetOrg(node.OrgId)
-	digitalTwin := fm.GetDigitalTwin(node.DigitalTwinId)
-
-	logTopic := fm.GetTopicByTopicRef(node.AssetId, node.DigitalTwinId, "dtmlog")
+	logTopic := fm.GetTopicByTopicRef(p.GetAssetId(), p.GetDigitalTwinId(), "dtmlog")
 	logSubject := utils.TopicToNatsSubject(logTopic.TopicType, logTopic.GroupUid, logTopic.TopicUid)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	return &PublishNode{
 		BaseNode: BaseNode{
-			Id:            node.Id,
-			NodeUid:       node.NodeUid,
-			OrgId:         node.OrgId,
-			OrgHash:       org.OrgHash,
-			GroupId:       node.GroupId,
-			AssetId:       node.AssetId,
-			DigitalTwinId: node.DigitalTwinId,
-			DigitalTwinUID: digitalTwin.DigitalTwinUID,
-			Name:          node.Name,
-			Xpos:          node.Xpos,
-			Ypos:          node.Ypos,
-			NumOutputs:    node.NumOutputs,
-			Settings:      node.Settings,
-			Debug:         node.Debug,
-			Type:          "Publish",
-			LogSubject:    logSubject,
-			Fm:            fm,
-			Cancel:        cancel,
-			Ctx:           ctx,
-			status:        common.NodeStatusCreated,
+			NodeUid:        node.NodeUid,
+			Name:           node.Name,
+			Xpos:           node.Xpos,
+			Ypos:           node.Ypos,
+			NumOutputs:     node.NumOutputs,
+			Settings:       node.Settings,
+			Debug:          node.Debug,
+			Type:           "Publish",
+			LogSubject:     logSubject,
+			Fm:             fm,
+			Pipeline:       p,
+			Cancel:         cancel,
+			Ctx:            ctx,
+			status:         common.NodeStatusCreated,
 		},
 		PublishTo: publishTo,
 		Topic:     topic,

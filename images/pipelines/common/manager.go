@@ -18,7 +18,7 @@ type Manager interface {
 
 	GetDigitalTwins() []*DigitalTwin
 	GetDigitalTwin(digitalTwinId int) *DigitalTwin
-	AddDigitalTwin(digitalTwin *DigitalTwin)
+	AddDigitalTwin(digitalTwin *DigitalTwin, createPipeline bool)
 	AddDigitalTwins(digitalTwins []*DigitalTwin)
 	DeleteDigitalTwin(digitalTwinId int) error
 	UpdateDigitalTwin(digitalTwin *DigitalTwin) error
@@ -44,22 +44,15 @@ type Manager interface {
 	DeleteOldMlModelFiles(currentModels []*MLModel) error
 	GetModelFolders(rootPath string) ([]MlModelFolder, error)
 
-	GetNode(nodeId int) Node
-	GetNodes() []Node
-	AddNode(node *NodeData) error
-	AddNodes(nodes []*NodeData) error
-	DeleteNode(nodeId int) error
-	UpdateNode(node *NodeData) error
-	GetDigitalTwinNodes(digitalTwinId int) []Node
-
 	StartNodes()
 	StopNodes()
 
+	CreatePipelineInDigitalTwin(digitalTwinId int)
+	UpdatePipelineInDigitalTwin(digitalTwinId int)
 	StartNodesInDigitalTwin(digitalTwinId int, needReinitialization bool)
 	RestartNodesInDigitalTwin(digitalTwinId int, needReinitialization bool)
 	StopNodesInDigitalTwin(digitalTwinId int, action string)
-	RegenerateNodesInDigitalTwin(digitalTwinId int)
-	RegenerateNode(nodeId int) error
+	DeletePipelineInDigitalTwin(digitalTwinId int)
 
 	GetOrgs() []*Org
 	GetOrg(orgId int) *Org
@@ -91,18 +84,6 @@ type Manager interface {
 	DeleteTopic(topicId int) error
 	UpdateTopic(topic *Topic) error
 	GetTopicByTopicRef(assetId int, digitalTwinId int, topicRef string) *Topic
-
-	GetWire(wireId int) *Wire
-	GetWires() []*Wire
-	AddWire(wire *Wire)
-	AddWires(wires []*Wire)
-	DeleteWire(wireId int) error
-	UpdateWire(wire *Wire) error
-	AddWireToDigitalTwin(digitalTwinId int, wire *Wire) error
-	GetDigitalTwinWires(digitalTwinId int) []*Wire
-	GetNodeOutputWires(digitalTwinId int, nodeId int) [][]*Wire
-	GetNodeInputWires(digitalTwinId int, nodeId int) []*Wire
-	GetNodeOutputIndex(digitalTwinId int, nodeId int, outputIndex int) []*Wire
 
 	GetNatsClient() *nats.Conn
 	NatsSubscribe(subject string, handler nats.MsgHandler) (*nats.Subscription, error)

@@ -1,6 +1,6 @@
 module pipelines
 
-go 1.24.2
+go 1.25.1
 
 require (
 	github.com/apache/arrow/go/v14 v14.0.2

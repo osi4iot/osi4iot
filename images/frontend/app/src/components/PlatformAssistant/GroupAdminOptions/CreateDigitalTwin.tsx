@@ -616,6 +616,29 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
         }
     }, [docInfoFileParams.loading, docInfoFileParams.filesContent, docInfoFileParams.plainFiles, docInfoFileParams]);
 
+    const submitPipeline = (config: any, groupId: number, digitalTwinId: number) => {
+        const urlUploadPipelineBase = `${protocol}://${domainName}/admin_api/digital_twin_pipeline`;
+        const urlUploadPipeline = `${urlUploadPipelineBase}/${groupId}/${digitalTwinId}`;
+        const pipelineNodes = (digitalTwinPipelineData as any).nodes;
+        for (let inode = 0; inode < pipelineNodes.length; inode++) {
+            pipelineNodes[inode].settings = JSON.stringify(pipelineNodes[inode].settings);
+        }
+        const pipelineData = {
+            pipelineFileName: pipelineFileName,
+            pipelineFileLastModifDate: pipelineFileLastModifDateString,
+            nodes: pipelineNodes,
+        };
+        getAxiosInstance(refreshToken, authDispatch)
+            .post(urlUploadPipeline, pipelineData, config)
+            .then((response: AxiosResponse<any, any>) => {
+                toast.success(response.data.message);
+                refreshDigitalTwins();
+            })
+            .catch((error: AxiosError) => {
+                axiosErrorHandler(error, authDispatch);
+            });
+    };
+
     const onSubmit = (values: any, actions: any) => {
         const groupId = groupsManaged.filter((group) => group.acronym === values.groupAcronym)[0].id;
         const assetName = values.assetName;
@@ -677,34 +700,18 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
                         .post(urlUploadFemResFile, femResData, configMultipart)
                         .then((response: AxiosResponse<any, any>) => {
                             toast.success(response.data.message);
+                            if (Object.keys(digitalTwinPipelineData).length !== 0) {
+                                submitPipeline(config, groupId, data.digitalTwinId);
+                            }
                         })
                         .catch((error: AxiosError) => {
                             axiosErrorHandler(error, authDispatch);
                             // backToTable();
                         });
-                }
-
-                if (Object.keys(digitalTwinPipelineData).length !== 0) {
-                    const urlUploadPipelineBase = `${protocol}://${domainName}/admin_api/digital_twin_pipeline`;
-                    const urlUploadPipeline = `${urlUploadPipelineBase}/${groupId}/${data.digitalTwinId}`;
-                    const pipelineNodes = (digitalTwinPipelineData as any).nodes;
-                    for (let inode = 0; inode < pipelineNodes.length; inode++) {
-                        pipelineNodes[inode].settings = JSON.stringify(pipelineNodes[inode].settings);
+                } else {
+                    if (Object.keys(digitalTwinPipelineData).length !== 0) {
+                        submitPipeline(config, groupId, data.digitalTwinId);
                     }
-                    const pipelineData = {
-                        pipelineFileName: pipelineFileName,
-                        pipelineFileLastModifDate: pipelineFileLastModifDateString,
-                        nodes: pipelineNodes,
-                    };
-                    getAxiosInstance(refreshToken, authDispatch)
-                        .post(urlUploadPipeline, pipelineData, config)
-                        .then((response: AxiosResponse<any, any>) => {
-                            toast.success(response.data.message);
-                            refreshDigitalTwins();
-                        })
-                        .catch((error: AxiosError) => {
-                            axiosErrorHandler(error, authDispatch);
-                        });
                 }
 
                 if (docInfoFileData !== "") {

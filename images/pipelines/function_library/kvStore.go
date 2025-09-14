@@ -24,14 +24,14 @@ func NewKvStore(node common.Node, fm common.Manager, log *logger.Logger) *KvStor
 }
 
 func (kv *KvStore) getFullKvStoreKey(key string) string {
-	return fmt.Sprintf("org_%s.dt_%s.kvstore.%s", kv.node.GetOrgHash(), kv.node.GetDigitalTwinUID(), key)
+	return fmt.Sprintf("org_%s.dt_%s.kvstore.%s", kv.node.GetOrgHash(), kv.node.GetDigitalTwinUid(), key)
 }
 
 
 func (kv *KvStore) SetValue(key string, data interface{}) {
 	kvStore := kv.fm.GetDigitalTwinKvStore(kv.node.GetDigitalTwinId())
 	if kvStore == nil {
-		kv.log.Errorf("KVStore not found for node %d", kv.node.GetId())
+		kv.log.Errorf("KVStore not found for node %s", kv.node.GetUid())
 		return
 	}
 	fullKey := kv.getFullKvStoreKey(key)
@@ -44,7 +44,7 @@ func (kv *KvStore) SetValue(key string, data interface{}) {
 func (kv *KvStore) GetNumberValue(key string) float64 {
 	kvStore := kv.fm.GetDigitalTwinKvStore(kv.node.GetDigitalTwinId())
 	if kvStore == nil {
-		kv.log.Errorf("KVStore not found for node %d", kv.node.GetId())
+		kv.log.Errorf("KVStore not found for node %s", kv.node.GetUid())
 		return 0.0
 	}
 	fullKey := kv.getFullKvStoreKey(key)
@@ -58,7 +58,7 @@ func (kv *KvStore) GetNumberValue(key string) float64 {
 func (kv *KvStore) GetStringValue(key string) string {
 	kvStore := kv.fm.GetDigitalTwinKvStore(kv.node.GetDigitalTwinId())
 	if kvStore == nil {
-		kv.log.Errorf("KVStore not found for node %d", kv.node.GetId())
+		kv.log.Errorf("KVStore not found for node %s", kv.node.GetUid())
 		return ""
 	}
 	fullKey := kv.getFullKvStoreKey(key)
@@ -72,7 +72,7 @@ func (kv *KvStore) GetStringValue(key string) string {
 func (kv *KvStore) GetBooleanValue(key string) bool {
 	kvStore := kv.fm.GetDigitalTwinKvStore(kv.node.GetDigitalTwinId())
 	if kvStore == nil {
-		kv.log.Errorf("KVStore not found for node %d", kv.node.GetId())
+		kv.log.Errorf("KVStore not found for node %s", kv.node.GetUid())
 		return false
 	}
 	fullKey := kv.getFullKvStoreKey(key)
@@ -86,7 +86,7 @@ func (kv *KvStore) GetBooleanValue(key string) bool {
 func (kv *KvStore) GetArrayValue(key string) []interface{} {
 	kvStore := kv.fm.GetDigitalTwinKvStore(kv.node.GetDigitalTwinId())
 	if kvStore == nil {
-		kv.log.Errorf("KVStore not found for node %d", kv.node.GetId())
+		kv.log.Errorf("KVStore not found for node %s", kv.node.GetUid())
 		return nil
 	}
 	fullKey := kv.getFullKvStoreKey(key)
@@ -100,7 +100,7 @@ func (kv *KvStore) GetArrayValue(key string) []interface{} {
 func (kv *KvStore) GetObjectValue(key string) map[string]interface{} {
 	kvStore := kv.fm.GetDigitalTwinKvStore(kv.node.GetDigitalTwinId())
 	if kvStore == nil {
-		kv.log.Errorf("KVStore not found for node %d", kv.node.GetId())
+		kv.log.Errorf("KVStore not found for node %s", kv.node.GetUid())
 		return nil
 	}
 	fullKey := kv.getFullKvStoreKey(key)
@@ -114,7 +114,7 @@ func (kv *KvStore) GetObjectValue(key string) map[string]interface{} {
 func (kv *KvStore) DeleteEntry(key string) {
 	kvStore := kv.fm.GetDigitalTwinKvStore(kv.node.GetDigitalTwinId())
 	if kvStore == nil {
-		kv.log.Errorf("KVStore not found for node %d", kv.node.GetId())
+		kv.log.Errorf("KVStore not found for node %s", kv.node.GetUid())
 		return
 	}
 	fullKey := kv.getFullKvStoreKey(key)
@@ -127,7 +127,7 @@ func (kv *KvStore) DeleteEntry(key string) {
 func (kv *KvStore) DeleteAllEntries(key string) {
 	kvStore := kv.fm.GetDigitalTwinKvStore(kv.node.GetDigitalTwinId())
 	if kvStore == nil {
-		kv.log.Errorf("KVStore not found for node %d", kv.node.GetId())
+		kv.log.Errorf("KVStore not found for node %s", kv.node.GetUid())
 		return
 	}
 	fullKey := kv.getFullKvStoreKey(key)
@@ -140,7 +140,7 @@ func (kv *KvStore) DeleteAllEntries(key string) {
 func (kv *KvStore) ExistsKey(key string) bool {
 	kvStore := kv.fm.GetDigitalTwinKvStore(kv.node.GetDigitalTwinId())
 	if kvStore == nil {
-		kv.log.Errorf("KVStore not found for node %d", kv.node.GetId())
+		kv.log.Errorf("KVStore not found for node %s", kv.node.GetUid())
 		return false
 	}
 	fullKey := kv.getFullKvStoreKey(key)
@@ -155,7 +155,7 @@ func (kv *KvStore) ExistsKey(key string) bool {
 func (kv *KvStore) ListKeys() []string {
 	kvStore := kv.fm.GetDigitalTwinKvStore(kv.node.GetDigitalTwinId())
 	if kvStore == nil {
-		kv.log.Errorf("KVStore not found for node %d", kv.node.GetId())
+		kv.log.Errorf("KVStore not found for node %s", kv.node.GetUid())
 		return nil
 	}
 	keys, err := kvStore.ListKeys(context.Background())

@@ -20,7 +20,7 @@ type EmailNode struct {
 	Body            string
 }
 
-func CreateEmailNode(node common.NodeData, fm common.Manager) (*EmailNode, error) {
+func CreateEmailNode(node common.NodeData, fm common.Manager, p common.Pipeline) (*EmailNode, error) {
 	toOptions, ok := node.Settings["toOptions"].(string)
 	if !ok || toOptions == "" {
 		return nil, fmt.Errorf("toOptions setting is required")
@@ -34,7 +34,7 @@ func CreateEmailNode(node common.NodeData, fm common.Manager) (*EmailNode, error
 			return nil, fmt.Errorf("to setting is required")
 		}
 	case "Group email notification channel":
-		to = fm.GetGroupNotificationEmail(node.GroupId)
+		to = fm.GetGroupNotificationEmail(p.GetGroupId())
 	}
 
 	if to == "" {
@@ -60,23 +60,13 @@ func CreateEmailNode(node common.NodeData, fm common.Manager) (*EmailNode, error
 		}
 	}
 
-	org := fm.GetOrg(node.OrgId)
-	digitalTwin := fm.GetDigitalTwin(node.DigitalTwinId)
-
-	logTopic := fm.GetTopicByTopicRef(node.AssetId, node.DigitalTwinId, "dtmlog")
+	logTopic := fm.GetTopicByTopicRef(p.GetAssetId(), p.GetDigitalTwinId(), "dtmlog")
 	logSubject := utils.TopicToNatsSubject(logTopic.TopicType, logTopic.GroupUid, logTopic.TopicUid)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	return &EmailNode{
 		BaseNode: BaseNode{
-			Id:             node.Id,
 			NodeUid:        node.NodeUid,
-			OrgId:          node.OrgId,
-			OrgHash:        org.OrgHash,
-			DigitalTwinUID: digitalTwin.DigitalTwinUID,
-			GroupId:        node.GroupId,
-			AssetId:        node.AssetId,
-			DigitalTwinId:  node.DigitalTwinId,
 			Name:           node.Name,
 			Xpos:           node.Xpos,
 			Ypos:           node.Ypos,
@@ -86,6 +76,7 @@ func CreateEmailNode(node common.NodeData, fm common.Manager) (*EmailNode, error
 			Type:           "Email",
 			LogSubject:     logSubject,
 			Fm:             fm,
+			Pipeline:       p,
 			Cancel:         cancel,
 			Ctx:            ctx,
 			status:         common.NodeStatusCreated,
@@ -129,7 +120,7 @@ func (n *EmailNode) processMessage(msg common.Message, log *logger.Logger) error
 
 	err := utils.SendEmail(n.SMTPServer, n.From, n.To, subject, body, n.Username, n.Password)
 	if err != nil {
-		return fmt.Errorf("Failed to send email in EmailNode %s: %v", n.NodeUid, err)
+		return fmt.Errorf("failed to send email in EmailNode %s: %v", n.NodeUid, err)
 	}
 
 	return nil

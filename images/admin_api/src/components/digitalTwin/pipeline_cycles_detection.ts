@@ -1,6 +1,6 @@
-import { getMqttTopicsData } from "../../digitalTwin/digitalTwinDAL";
-import { IMqttTopicDataShort } from "../../digitalTwin/digitalTwinGltfData.interface";
-import PipelineNodeDto from "../../digitalTwin/pipelineNode.dto";
+import { getMqttTopicsData } from "./digitalTwinDAL";
+import { IMqttTopicDataShort } from "./digitalTwinGltfData.interface";
+import PipelineNodeDto from "./pipelineNode.dto";
 
 interface NodeConnections {
 	listensTo: string[];

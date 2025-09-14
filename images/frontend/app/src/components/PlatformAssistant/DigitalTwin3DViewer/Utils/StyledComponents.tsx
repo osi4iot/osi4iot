@@ -3,8 +3,12 @@ import {
     FaShareSquare, 
     FaFolderOpen, 
     FaFolderMinus, 
-    FaChartLine 
+    FaChartLine, 
+    FaCheckCircle,
+    FaRegStopCircle,
+    FaQuestionCircle
 } from "react-icons/fa";
+import { MdError } from "react-icons/md";
 import { HiShieldCheck, HiShieldExclamation } from "react-icons/hi";
 import { RiWifiLine, RiWifiOffLine } from "react-icons/ri";
 import { TiFlowMerge } from "react-icons/ti";
@@ -180,6 +184,52 @@ export const UploadIcon = styled(Upload)`
 export const PlayIcon = styled(Play)`
     ${IconBaseStyles}
 `;
+
+export const StoppedIndicator = styled(FaRegStopCircle)`
+    background-color: #141619;
+    font-size: 25px;
+    color: #ff4040;
+    margin: 10px;
+
+    &:hover {
+        color: white;
+    }
+`;
+
+export const ErrorIndicator = styled(MdError)`
+    background-color: #141619;
+    font-size: 25px;
+    color: #ff4040;
+    margin: 10px;
+
+    &:hover {
+        color: white;
+    }
+`;
+
+export const RunningIndicator = styled(FaCheckCircle)`
+    background-color: #141619;
+    font-size: 25px;
+    color: #62f700;
+    margin: 10px;
+
+    &:hover {
+        color: white;
+    }
+`;
+
+export const UnknownIndicator = styled(FaQuestionCircle)`
+    background-color: #141619;
+    font-size: 25px;
+    color: #806787;
+    margin: 10px;
+
+    &:hover {
+        color: white;
+    }
+`;
+
+
 
 export const ChatAssistantIcon = styled(BsChatDotsFill)`
     background-color: #141619;
