@@ -28,7 +28,7 @@ const Container = styled.div`
     position: fixed;
     top: 265px;
     right: 15px;
-    width: 520px;
+    width: 550px;
     height: calc(100vh - 330px);
     background-color: #2c2c2c;
     border: 1px solid #444;

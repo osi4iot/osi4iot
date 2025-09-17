@@ -32,7 +32,7 @@ export const CanvasContainer = styled.div`
 
 export const HeaderContainer = styled.div`
     background-color: #141619;
-    width: 520px;
+    width: 550px;
     position: fixed;
     top: 210px;
     right: 15px;
@@ -56,7 +56,7 @@ export const SelectedObjectInfoContainer = styled.div`
     position: fixed;
     bottom: 20px;
     right: 5px;
-    width: 520px;
+    width: 550px;
 `;
 
 export const ObjectInfoContainer = styled.div`
@@ -304,7 +304,7 @@ export const StyledDataGui = styled(DatGui)`
     }
 
     &.react-dat-gui {
-        width: 520px;
+        width: 550px;
         top: 10px;
         right: 15px;
         position: fixed;

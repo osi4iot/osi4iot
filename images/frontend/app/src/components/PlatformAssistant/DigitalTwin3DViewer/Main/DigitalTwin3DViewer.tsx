@@ -45,7 +45,7 @@ import {
     useMqttConnection,
     usePipelineActions,
     useImageFrame,
-    usePipelineStatus,
+    usePipelineState,
 } from "../Utils/customHooks";
 
 // Handlers
@@ -107,10 +107,18 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
     const { logMessages, setLogMessages, handleUpdateLogMessages } = usePipelineLogs(setChatMessages);
     const sim2stateTopic =
         digitalTwinGltfData?.mqttTopicsData?.filter((topic) => topic.topicRef === "sim2state")[0].mqttTopic || "";
-    const { pipelineStatus, handlePipelineStatusChange, queryPipelineStatus } = usePipelineStatus(
+    const { 
+        pipelineStatus, 
+        handlePipelineStatusChange, 
+        queryPipelineStatus, 
+        queryChatMessages,
+        handleSetChatMessages,
+        handleRemoveChatAssistantHistory,
+     } = usePipelineState(
         digitalTwinSelected,
         mqttClient,
-        sim2stateTopic
+        sim2stateTopic,
+        setChatMessages
     );
 
     // Initialize FEM results logic
@@ -135,9 +143,12 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 
     useEffect(() => {
         if (digitalTwinSelected) {
-            queryPipelineStatus();
+            setTimeout(() => {
+                queryPipelineStatus();
+                queryChatMessages();
+            }, 500);
         }
-    }, [queryPipelineStatus, digitalTwinSelected]);
+    }, [queryPipelineStatus, digitalTwinSelected, queryChatMessages]);
 
     // Create handlers
     const handlers = createHandlers(
@@ -508,7 +519,8 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
         handleImageUrlChange,
         handleUpdateChatAssistantMessages,
         handleUpdateLogMessages,
-        handlePipelineStatusChange
+        handlePipelineStatusChange,
+        handleSetChatMessages
     );
 
     const [pipelineNodes, setPipelineNodes] = useState([] as IPipelineNode[]);
@@ -830,6 +842,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
                         chatMessages={chatMessages}
                         setChatMessages={setChatMessages}
                         chatAssistantLanguage={digitalTwinSelected.chatAssistantLanguage}
+                        handleRemoveChatAssistantHistory={handleRemoveChatAssistantHistory}
                     />
                 )}
 

@@ -244,16 +244,25 @@ export const useChatMessages = (
     };
 };
 
-export const usePipelineStatus = (digitalTwinSelected: IDigitalTwin | null, mqttClient: Paho.Client | null, sim2stateTopic: string) => {
+export const usePipelineState = (
+    digitalTwinSelected: IDigitalTwin | null,
+    mqttClient: Paho.Client | null,
+    sim2stateTopic: string,
+    setChatMessages: React.Dispatch<React.SetStateAction<ChatMessage[]>>
+) => {
     const [pipelineStatus, setPipelineStatus] = useState("unknown");
+    const userName = useLoggedUserLogin();
 
-    const handlePipelineStatusChange = useCallback((status: string) => {
-        if (digitalTwinSelected && digitalTwinSelected.pipelineFileData !== "") {
-            setPipelineStatus(status);
-        } else {
-            setPipelineStatus("unknown");
-        }
-    }, [digitalTwinSelected]);
+    const handlePipelineStatusChange = useCallback(
+        (status: string) => {
+            if (digitalTwinSelected && digitalTwinSelected.pipelineFileData !== "") {
+                setPipelineStatus(status);
+            } else {
+                setPipelineStatus("unknown");
+            }
+        },
+        [digitalTwinSelected]
+    );
 
     const queryPipelineStatus = useCallback(() => {
         if (digitalTwinSelected && digitalTwinSelected.pipelineFileData !== "" && mqttClient && sim2stateTopic !== "") {
@@ -261,34 +270,95 @@ export const usePipelineStatus = (digitalTwinSelected: IDigitalTwin | null, mqtt
         }
     }, [digitalTwinSelected, mqttClient, sim2stateTopic]);
 
-    return { pipelineStatus, handlePipelineStatusChange, queryPipelineStatus };
+    const queryChatMessages = useCallback(() => {
+        if (
+            digitalTwinSelected &&
+            digitalTwinSelected.pipelineFileData !== "" &&
+            mqttClient &&
+            sim2stateTopic !== "" &&
+            digitalTwinSelected.chatAssistantEnabled
+        ) {
+            mqttClient.send(
+                sim2stateTopic,
+                JSON.stringify({
+                    action: "queryChatMessages",
+                    userName,
+                })
+            );
+        }
+    }, [digitalTwinSelected, mqttClient, sim2stateTopic, userName]);
+
+    const handleSetChatMessages = useCallback(
+        (storedMessages: ChatMessage[]) => {
+            const messages: ChatMessage[] = [];
+            if (storedMessages == null) {
+                storedMessages = [];
+            }
+            for (let i = 0; i < storedMessages.length; i++) {
+                const msg = storedMessages[i];
+                try {
+                    const msgObject = JSON.parse(msg.message);
+                    if (msgObject && msgObject.message) {
+                        msg.message = msgObject.message;
+                    }
+                } catch (e) {}
+                messages.push(msg);
+            }
+            setChatMessages(messages);
+        },
+        [setChatMessages]
+    );
+
+    const handleRemoveChatAssistantHistory = useCallback(() => {
+        if (digitalTwinSelected && digitalTwinSelected.pipelineFileData !== "" && mqttClient && sim2stateTopic !== "") {
+            mqttClient.send(
+                sim2stateTopic,
+                JSON.stringify({
+                    action: "queryRemoveChatMessages",
+                    userName,
+                })
+            );
+        }
+    }, [digitalTwinSelected, mqttClient, sim2stateTopic, userName]);
+
+    return {
+        pipelineStatus,
+        handlePipelineStatusChange,
+        handleSetChatMessages,
+        queryPipelineStatus,
+        queryChatMessages,
+        handleRemoveChatAssistantHistory,
+    };
 };
 
 export const usePipelineLogs = (setChatMessages: React.Dispatch<React.SetStateAction<ChatMessage[]>>) => {
     const [logMessages, setLogMessages] = useState<PipelineLog[]>([]);
 
-    const handleUpdateLogMessages = useCallback((newLogMessage: PipelineLog) => {
-        setLogMessages((prevMessages) => {
-            const newMessages = [...prevMessages];
-            newMessages.push(newLogMessage);
-            return newMessages;
-        });
-
-        if (newLogMessage.description === "MCP Host error") {
-            setChatMessages((prevMessages) => {
-                const newChatMessages = [...prevMessages];
-                const newMessage = {
-                    userName: "Assistant",
-                    message: newLogMessage.message,
-                    sender: "mcphost" as "mcphost",
-                    time: new Date().toLocaleTimeString(),
-                    mcpToolCalls: [],
-                };
-                newChatMessages.push(newMessage);
-                return newChatMessages;
+    const handleUpdateLogMessages = useCallback(
+        (newLogMessage: PipelineLog) => {
+            setLogMessages((prevMessages) => {
+                const newMessages = [...prevMessages];
+                newMessages.push(newLogMessage);
+                return newMessages;
             });
-        }
-    }, [setChatMessages]);
+
+            if (newLogMessage.description === "MCP Host error") {
+                setChatMessages((prevMessages) => {
+                    const newChatMessages = [...prevMessages];
+                    const newMessage = {
+                        userName: "Assistant",
+                        message: newLogMessage.message,
+                        sender: "mcphost" as "mcphost",
+                        time: new Date().toLocaleTimeString(),
+                        mcpToolCalls: [],
+                    };
+                    newChatMessages.push(newMessage);
+                    return newChatMessages;
+                });
+            }
+        },
+        [setChatMessages]
+    );
 
     return {
         logMessages,

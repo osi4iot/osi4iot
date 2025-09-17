@@ -1,7 +1,7 @@
 import React, { useState, KeyboardEvent, ChangeEvent, useRef, useEffect, useCallback } from "react";
 import styled from "styled-components";
 import SpeechRecognition, { useSpeechRecognition } from "react-speech-recognition";
-import { FaMicrophone, FaMicrophoneSlash, FaWrench } from "react-icons/fa";
+import { FaMicrophone, FaMicrophoneSlash, FaWrench, FaTrashAlt } from "react-icons/fa";
 import { useSpeechSynthesis } from "./useSpeechSynthesis";
 import { useLoggedUserLogin } from "../../../../contexts/authContext/authContext";
 import { normalizeForTTS } from "./ttsNormalizer";
@@ -44,10 +44,10 @@ export interface IChatVoice {
 
 const ChatContainer = styled.div`
     position: fixed;
-    top: 270px;
+    top: 268px;
     right: 15px;
-    width: 520px;
-    min-width: 520px;
+    width: 550px;
+    min-width: 550px;
     max-width: calc(100vw - 100px);
     height: calc(100vh - 330px);
     background-color: #2c2c2c;
@@ -250,9 +250,9 @@ const Button = styled.button`
     border: 2px solid #141619;
     border-radius: 6px;
     background-color: #3274d9;
-    font-size: 0.85rem;
+    font-size: 0.95rem;
     height: 26px;
-    width: 90%;
+    width: 95%;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -269,6 +269,25 @@ const Button = styled.button`
 `;
 
 const ToggleButton = styled.button<{ active: boolean }>`
+    padding: 4px;
+    border: none;
+    border-radius: 50%;
+    background-color: ${({ active }) => (active ? "#3274d9" : "#666")};
+    color: #fff;
+    cursor: pointer;
+    font-size: 0.8rem;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    &:hover {
+        background-color: ${({ active }) => (active ? "#2461c0" : "#555")};
+    }
+`;
+
+const TrashButton = styled.button<{ active: boolean }>`
     padding: 4px;
     border: none;
     border-radius: 50%;
@@ -339,9 +358,15 @@ interface ChatAssistantProps {
     chatMessages: ChatMessage[];
     setChatMessages: (messages: ChatMessage[] | ((prev: ChatMessage[]) => ChatMessage[])) => void;
     chatAssistantLanguage: string;
+    handleRemoveChatAssistantHistory: () => void;
 }
 
-const ChatAssistant: React.FC<ChatAssistantProps> = ({ chatMessages, setChatMessages, chatAssistantLanguage }) => {
+const ChatAssistant: React.FC<ChatAssistantProps> = ({ 
+    chatMessages, 
+    setChatMessages,
+    chatAssistantLanguage, 
+    handleRemoveChatAssistantHistory 
+}) => {
     const isMounted = useRef(true);
     const userName = useLoggedUserLogin();
     const [input, setInput] = useState<string>("");
@@ -696,6 +721,13 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({ chatMessages, setChatMess
         setShowMcpTools((prev) => !prev);
     }, []);
 
+    const removeChatAssistantHistory = useCallback(() => {
+        setChatMessages([]);
+        setLastChatMessageIndex(0);
+        setShowMcpTools(false);
+        handleRemoveChatAssistantHistory();
+    }, [handleRemoveChatAssistantHistory, setChatMessages]);
+
     // Componente para mostrar el spinner mientras se espera respuesta
     const renderLoadingMessage = () => {
         if (!isLoading) return null;
@@ -761,6 +793,13 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({ chatMessages, setChatMess
                             {isVoiceEnabled ? <FaMicrophone /> : <FaMicrophoneSlash />}
                         </MicButton>
                         <StatusIndicator status={systemStatus}>{getStatusText()}</StatusIndicator>
+                        <TrashButton
+                            active={chatMessages.length > 0}
+                            onClick={removeChatAssistantHistory}
+                            title="Clear chat history"
+                        >
+                            <FaTrashAlt />
+                        </TrashButton>
                     </ButtonRow>
                 </ButtonContainer>
             </InputContainer>

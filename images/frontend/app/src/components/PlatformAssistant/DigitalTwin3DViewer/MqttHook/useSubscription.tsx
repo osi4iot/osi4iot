@@ -7,7 +7,7 @@ import { IAssetObject, IFemSimulationObject, IGenericObject, IMqttTopicData, ISe
 import { AssetState, FemSimulationObjectState, GenericObjectState, SensorState } from "../ViewerTools/ViewerUtils";
 import { IThreeMesh } from "../Types/threeInterfaces";
 import formatDateString from "../../../../tools/formatDate";
-import { LlmMessage } from "../ChatAssitant/ChatAssistant";
+import { ChatMessage, LlmMessage } from "../ChatAssitant/ChatAssistant";
 import { PipelineLog } from "../Pipeline/PipelineLogs";
 import { IMessage } from "./interfaces";
 
@@ -37,6 +37,7 @@ const useSubscription = (
     handleUpdateChatAssistantMessages: (newMessage: LlmMessage) => void,
     handleUpdateLogMessages: (newLogMessage: PipelineLog) => void,
     handlePipelineStatusChange: (pipelineStatus: string) => void,
+    handleSetChatMessages: (messages: ChatMessage[]) => void,
     options: SubscribeOptions = {} as SubscribeOptions
 ) => {
     let femResultNames: string[] = [];
@@ -92,7 +93,8 @@ const useSubscription = (
                         handleImageUrlChange,
                         handleUpdateChatAssistantMessages,
                         handleUpdateLogMessages,
-                        handlePipelineStatusChange
+                        handlePipelineStatusChange,
+                        handleSetChatMessages
                     );
                 }
             };
@@ -132,7 +134,8 @@ const updateObjectsState = (
     handleImageUrlChange: (base64Image: string) => void,
     handleUpdateChatAssistantMessages: (newMessage: LlmMessage) => void,
     handleUpdateLogMessages: (newLogMessage: PipelineLog) => void,
-    handlePipelineStatusChange: (pipelineStatus: string) => void
+    handlePipelineStatusChange: (pipelineStatus: string) => void,
+    handleSetChatMessages: (messages: ChatMessage[]) => void
 ) => {
     const mqttTopics = mqttTopicsData.map((topicData) => topicData.mqttTopic).filter((topic) => topic !== "");
     const sim2dtmTopicId = mqttTopicsData.filter((topic) => topic.topicRef === "sim2dtm")[0].topicId;
@@ -199,8 +202,11 @@ const updateObjectsState = (
 
             if (messageTopicRef === "state2sim") {
                 if (mqttMessage.pipelineStatus !== undefined) {
-                    console.log("Updating pipeline status...");
                     handlePipelineStatusChange(mqttMessage.pipelineStatus);
+                }
+                
+                if (mqttMessage.chatMessages !== undefined) {
+                    handleSetChatMessages(mqttMessage.chatMessages);
                 }
             }
 

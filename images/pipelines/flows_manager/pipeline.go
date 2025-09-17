@@ -785,9 +785,22 @@ func (p *Pipeline) StatusSubcription() {
 		}
 
 		if action, ok := rawMessage["action"].(string); ok {
-			if action == "queryPipelineStatus" {
+			switch action {
+			case "queryPipelineStatus":
 				pipelineStatus := p.GetStatus().String()
 				p.PublishPipelineStatus(pipelineStatus)
+			case "queryChatMessages":
+				if userName, ok := rawMessage["userName"].(string); ok {
+					p.PublishChatMessages(userName)
+				} else {
+					p.Fm.Log().Errorf("userName not found in message for digital twin %d", p.DigitalTwinId)
+				}
+			case "queryRemoveChatMessages":
+				if userName, ok := rawMessage["userName"].(string); ok {
+					p.ClearChatMessagesHistory(userName)
+				} else {
+					p.Fm.Log().Errorf("userName not found in message for digital twin %d", p.DigitalTwinId)
+				}
 			}
 		}
 
@@ -808,6 +821,83 @@ func (p *Pipeline) PublishPipelineStatus(pipelineStatus string) {
 
 	payload := PipelineStatusMessage{
 		PipelineStatus: pipelineStatus,
+	}
+	jsonData, err := json.Marshal(payload)
+	if err != nil {
+		p.Fm.Log().Errorf("failed to marshal message for digital twin %d: %w", p.GetDigitalTwinId(), err)
+		return
+	}
+	err = p.Fm.NatsPublish(state2simSubject, jsonData)
+	if err != nil {
+		p.Fm.Log().Errorf("failed to publish message for digital twin %d: %w", p.GetDigitalTwinId(), err)
+		return
+	}
+}
+
+type ChatMessagesPayload struct {
+	ChatMessages []utils.ChatMessage `json:"chatMessages"`
+}
+
+func (p *Pipeline) PublishChatMessages(userName string) {
+	state2simTopic := p.Fm.GetTopicByTopicRef(p.GetAssetId(), p.GetDigitalTwinId(), "state2sim")
+	state2simSubject := utils.TopicToNatsSubject(state2simTopic.TopicType, state2simTopic.GroupUid, state2simTopic.TopicUid)
+
+	if state2simSubject == "" {
+		p.Fm.Log().Errorf("No state2sim subject is set for digital twin %d", p.DigitalTwinId)
+		return
+	}
+
+	kvStore := p.Fm.GetDigitalTwinKvStore(p.GetDigitalTwinId())
+	key := utils.GetFullChatMessageKvStoreKey(userName, p.GetOrgHash(), p.GetDigitalTwinUid())
+
+	chatSchemaMessages, mcpToolCallsArray, err := utils.GetCurrentChatMessages(p.Fm.Log(), kvStore, key, userName)
+	if err != nil {
+		p.Fm.Log().Errorf("Failed to get current chat messages for user %s: %v", userName, err)
+		return
+	}
+
+	var chatMessages []utils.ChatMessage
+	for index, msg := range chatSchemaMessages {
+		chatMessages = append(chatMessages, utils.ChatMessage{
+			Message:  msg.Content,
+			UserName: userName,
+			Sender:  string(msg.Role),
+			McpToolCalls: mcpToolCallsArray[index],
+		})
+	}
+
+
+	payload := ChatMessagesPayload{
+		ChatMessages: chatMessages,
+	}
+	jsonData, err := json.Marshal(payload)
+	if err != nil {
+		p.Fm.Log().Errorf("failed to marshal message for digital twin %d: %w", p.GetDigitalTwinId(), err)
+		return
+	}
+	err = p.Fm.NatsPublish(state2simSubject, jsonData)
+	if err != nil {
+		p.Fm.Log().Errorf("failed to publish message for digital twin %d: %w", p.GetDigitalTwinId(), err)
+		return
+	}
+}
+
+func (p *Pipeline) ClearChatMessagesHistory(userName string) {
+	state2simTopic := p.Fm.GetTopicByTopicRef(p.GetAssetId(), p.GetDigitalTwinId(), "state2sim")
+	state2simSubject := utils.TopicToNatsSubject(state2simTopic.TopicType, state2simTopic.GroupUid, state2simTopic.TopicUid)
+
+	if state2simSubject == "" {
+		p.Fm.Log().Errorf("No state2sim subject is set for digital twin %d", p.DigitalTwinId)
+		return
+	}
+
+	kvStore := p.Fm.GetDigitalTwinKvStore(p.GetDigitalTwinId())
+	key := utils.GetFullChatMessageKvStoreKey(userName, p.GetOrgHash(), p.GetDigitalTwinUid())
+    kvStore.DeleteEntry(context.Background(), key)
+
+	var chatMessages []utils.ChatMessage = []utils.ChatMessage{}
+	payload := ChatMessagesPayload{
+		ChatMessages: chatMessages,
 	}
 	jsonData, err := json.Marshal(payload)
 	if err != nil {

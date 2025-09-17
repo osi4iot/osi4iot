@@ -82,8 +82,6 @@ export const Header: FC<HeaderProps> = ({
 }) => {
     const fileInputRef = useRef<HTMLInputElement>(null);
 
-    console.log("Pipeline Status in Header:", pipelineStatus);
-
     const switchPipelineViewer = () => (
         <>
             {activeViewer === "3D" && (

@@ -205,17 +205,6 @@ func (img *Image) EncodeImageToBase64(pic image.Image, format string, quality in
 
 	switch format {
 	case "jpeg", "jpg":
-		var outputPath = "./output_detected.jpg"
-		f, err := os.Create(outputPath)
-		if err != nil {
-			return ""
-		}
-		defer f.Close()
-
-		if err := jpeg.Encode(f, pic, &jpeg.Options{Quality: 90}); err != nil {
-			return ""
-		}
-
 		options := &jpeg.Options{Quality: quality}
 		if err := jpeg.Encode(&buf, pic, options); err != nil {
 			img.node.HandleError(fmt.Errorf("error encoding image as JPEG: %w", err))
