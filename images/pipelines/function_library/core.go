@@ -3,8 +3,6 @@ package function_library
 import (
 	"pipelines/common"
 	"pipelines/logger"
-	"pipelines/utils"
-	"strings"
 )
 
 func GetJSFunctions(node common.Node, fm common.Manager, log *logger.Logger) []common.JSFunction {
@@ -13,18 +11,6 @@ func GetJSFunctions(node common.Node, fm common.Manager, log *logger.Logger) []c
 			Name: "Go",
 			Func: func() *Golang {
 				return newGolang(node, fm, log)
-			},
-		},
-		{
-			Name: "getTopic",
-			Func: func(topicRef string) string {
-				return getTopic(fm, node, topicRef)
-			},
-		},
-		{
-			Name: "getTopicType",
-			Func: func(msg common.Message) string {
-				return getTopicType(msg)
 			},
 		},
 	}
@@ -64,30 +50,28 @@ func (g *Golang) Image() *Image {
 	return NewImage(g.node)
 }
 
+func (g *Golang) Utils() *Utils {
+	return NewUtils(g.node, g.fm)
+}
+
 func (g *Golang) All() map[string]interface{} {
+	utils := NewUtils(g.node, g.fm)
 	log := newLogger(g.node)
 	time := NewTime(g.node)
 	kvStore := NewKvStore(g.node, g.fm, g.log)
 	image := NewImage(g.node)
 	http := NewHttp(g.node, g.log)
+	dsp := NewDsp(g.node, g.log)
+	yolo := NewYolo(g.node, g.log)
 	instanceMap := map[string]interface{}{
 		"log":     log,
+		"utils":   utils,
 		"time":    time,
 		"kvStore": kvStore,
 		"image":   image,
 		"http":    http,
+		"dsp":     dsp,
+		"yolo":    yolo,
 	}
 	return instanceMap
-}
-
-func getTopic(fm common.Manager, node common.Node, topicRef string) string {
-	topic := fm.GetTopicByTopicRef(node.GetAssetId(), node.GetDigitalTwinId(), topicRef)
-	if topic == nil {
-		return ""
-	}
-	return utils.TopicToNatsSubject(topic.TopicType, topic.GroupUid, topic.TopicUid)
-}
-
-func getTopicType(msg common.Message) string {
-	return strings.Split(msg.Topic, ".")[0]
 }

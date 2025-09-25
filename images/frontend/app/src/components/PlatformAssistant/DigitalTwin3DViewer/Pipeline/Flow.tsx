@@ -12,7 +12,18 @@ import {
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { FunctionNode, ListenNode, PublishNode, InjectNode, DelayNode, EmailNode, TelegramNode, MlModelNode, AiAgentNode } from "./Nodes";
+import {
+    FunctionNode,
+    ListenNode,
+    PublishNode,
+    InjectNode,
+    DelayNode,
+    EmailNode,
+    TelegramNode,
+    MlModelNode,
+    AiAgentNode,
+    BatchNode,
+} from "./Nodes";
 import NodePalette from "./NodePalette";
 import NodePropertiesPanel from "./NodePropertiesPanel";
 import { createNodesAndEdges } from "../Utils/customHooks";
@@ -81,6 +92,7 @@ export default function Flow({
             Delay: 0,
             AiAgent: 0,
             MlModel: 0,
+            Batch: 0,
         };
 
         let maxInject = 0;
@@ -116,6 +128,7 @@ export default function Flow({
             Delay: DelayNode,
             MlModel: MlModelNode,
             AiAgent: AiAgentNode,
+            Batch: BatchNode,
         }),
         []
     );

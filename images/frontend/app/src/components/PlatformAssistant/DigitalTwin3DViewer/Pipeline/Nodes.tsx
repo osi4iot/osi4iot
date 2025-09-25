@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { SquareFunction, WifiHigh, ArrowBigRight, Mail, ClockFading, BrainCog } from "lucide-react";
+import { SquareFunction, WifiHigh, ArrowBigRight, Mail, ClockFading, BrainCog, Layers } from "lucide-react";
 import { FaTelegramPlane } from "react-icons/fa";
 import { Handle, Position } from "@xyflow/react";
 import Paho from "paho-mqtt";
@@ -408,6 +408,34 @@ export function EmailNode({ data, selected }) {
                     <Mail size={15} color="#e7e3dfff" />
                 </IconContainer>
             </NodeContent>
+        </NodeContainer>
+    );
+}
+
+export function BatchNode({ data, selected }) {
+    const numOutputs = data?.numOutputs || 0;
+    return (
+        <NodeContainer bgColor="#b8ac2fff" hoverColor="#bbb24eff" selected={selected}>
+            <StyledHandle type="target" position={Position.Left} style={{ top: "50%", left: "-1px" }} />
+            <NodeContent numOutputs={numOutputs}>
+                <IconContainer>
+                    <Layers size={20} color="#e7e3dfff" />
+                </IconContainer>
+                <NodeLabel>{data?.label || "Batch Node"}</NodeLabel>
+            </NodeContent>
+            {numOutputs > 0 && (
+                <>
+                    {Array.from({ length: numOutputs }, (_, index) => (
+                        <StyledHandle
+                            key={index}
+                            type="source"
+                            position={Position.Right}
+                            id={`${data.nodeUid}-${index}`}
+                            style={getHandleStyle(index, numOutputs)}
+                        />
+                    ))}
+                </>
+            )}
         </NodeContainer>
     );
 }

@@ -8,6 +8,7 @@ import (
 
 	"pipelines/common"
 	"pipelines/logger"
+	nats_pkg "pipelines/nats"
 
 	"github.com/nats-io/nats.go"
 )
@@ -40,6 +41,8 @@ func CreateNode(
 		newNode, err = CreateMlmNode(node, fm, p)
 	case "Publish":
 		newNode, err = CreatePublishNode(node, fm, p)
+	case "Batch":
+		newNode, err = CreateBatchNode(node, fm, p)
 	default:
 		log.Errorf("Unknown node type: %s", node.Type)
 		newNode, err = nil, fmt.Errorf("unknown node type: %s", node.Type)
@@ -103,6 +106,10 @@ func (n *BaseNode) GetNodeInputWires() []*common.Wire {
 
 func (n *BaseNode) GetNodeOutputWires() [][]*common.Wire {
 	return n.Pipeline.GetNodeOutputWires(n.NodeUid)
+}
+
+func (n *BaseNode) GetNodeContext() context.Context {
+	return n.Ctx
 }
 
 func (n *BaseNode) GetName() string {
@@ -174,7 +181,7 @@ func (n *BaseNode) ResetNodeContext() {
 }
 
 func (n *BaseNode) HandleError(err error) {
-	n.SetStatus(common.NodeStatusError)
+	// n.SetStatus(common.NodeStatusError) //ATENTION - this line was added recently
 
 	if n.LogSubject == "" {
 		n.Fm.Log().Errorf("Node %s encountered an error but no log subject is set", n.NodeUid)
@@ -335,4 +342,20 @@ func (n *BaseNode) handleNatsSubscription(log *logger.Logger, subject string, me
 	if err := sub.Unsubscribe(); err != nil {
 		log.Errorf("Failed to unsubscribe Node with UID %s: %v", n.NodeUid, err)
 	}
+}
+
+func (n *BaseNode) ShouldRunPeriodicTasks() bool {
+	replicaIndex := n.Fm.GetReplicaIndex()
+	numReplicas := n.Fm.GetNumReplicas()
+	isRaftLeader := n.Fm.IsRaftLeader()
+
+	return (replicaIndex == 1 && numReplicas == 1) || isRaftLeader
+}
+
+func (n *BaseNode) GetKvStore(digitalTwinId int) (*nats_pkg.KVStore, error) {
+	kvStore := n.Fm.GetDigitalTwinKvStore(digitalTwinId)
+	if kvStore == nil {
+		return nil, fmt.Errorf("failed to get KV store for digital twin %d", digitalTwinId)
+	}
+	return kvStore, nil
 }

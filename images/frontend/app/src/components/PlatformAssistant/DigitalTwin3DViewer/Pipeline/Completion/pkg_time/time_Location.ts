@@ -1,7 +1,7 @@
-import { ClassDef } from "./utils";
+import { ClassDef } from "../tools";
 
-export const locationClass: ClassDef = {
-    name: "Location",
+export const timeLocationClass: ClassDef = {
+    name: "time.Location",
     methods: [
         {
             label: "String",

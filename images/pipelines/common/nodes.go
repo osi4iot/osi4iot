@@ -1,6 +1,9 @@
 package common
 
-import "pipelines/logger"
+import (
+	"context"
+	"pipelines/logger"
+)
 
 type NodeStatus int
 
@@ -48,6 +51,7 @@ type Node interface {
 	GetStatus() NodeStatus
 	ResetNodeContext()
 	GetDebug() string
+	GetNodeContext() context.Context
 	HandleError(err error)
 	HandleDebug(msg Message, outputIndex int)
 	HandleInfo(msg string)

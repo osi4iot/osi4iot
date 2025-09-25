@@ -39,7 +39,6 @@ func (fm *FlowsManager) AddDigitalTwin(digitalTwin *common.DigitalTwin, createPi
 
 		if createPipeline {
 			digitalTwin.Pipeline = fm.createPipeline(digitalTwin, org, "create")
-			digitalTwin.Pipeline.Start(true)
 		} else {
 			digitalTwin.Pipeline = nil
 		}

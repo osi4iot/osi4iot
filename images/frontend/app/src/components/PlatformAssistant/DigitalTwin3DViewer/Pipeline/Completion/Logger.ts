@@ -1,12 +1,12 @@
-import { applyFunction, ClassDef } from "./utils";
+import { applyFunction, ClassDef } from "./tools";
 
 export const loggerClass: ClassDef = {
-    name: "Logger",
+    name: "log.Logger",
     methods: [
         {
             label: "Msg",
             type: "method",
-            info: "Logs a simple message",
+            info: "Logs a simple message.",
             detail: "(message: Message) => void",
             apply: "Msg(msg);",
             returnType: undefined,
@@ -15,7 +15,7 @@ export const loggerClass: ClassDef = {
         {
             label: "Infof",
             type: "method",
-            info: "Logs a formatted info message",
+            info: "Logs a formatted info message.",
             detail: "(format: string, ...args) => void",
             apply: applyFunction('Infof("format", arg);', 7, 13),
             returnType: undefined,
@@ -24,7 +24,7 @@ export const loggerClass: ClassDef = {
         {
             label: "Errorf",
             type: "method",
-            info: "Logs a formatted error message",
+            info: "Logs a formatted error message.",
             detail: "(format: string, ...args) => void",
             apply: applyFunction('Errorf("format", arg);', 8, 14),
             returnType: undefined,

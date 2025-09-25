@@ -14,7 +14,8 @@ require (
 	github.com/spf13/viper v1.20.1
 	github.com/yalue/onnxruntime_go v1.21.0
 	go.uber.org/zap v1.27.0
-	golang.org/x/image v0.22.0
+	golang.org/x/image v0.25.0
+	gonum.org/v1/gonum v0.16.0
 	gopkg.in/gomail.v2 v2.0.0-20160411212932-81ebce5c23df
 )
 

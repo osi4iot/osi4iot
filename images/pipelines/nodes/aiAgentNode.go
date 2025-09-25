@@ -363,28 +363,29 @@ func (n *AiAgentNode) Stop(log *logger.Logger) {
 }
 
 func (n *AiAgentNode) GetChatMessages(userName string) []*schema.Message {
-	kvStore := n.Fm.GetDigitalTwinKvStore(n.GetDigitalTwinId())
+	kvStore, _ := n.GetKvStore(n.GetDigitalTwinId())
 	if kvStore == nil {
-		n.Fm.Log().Errorf("Failed to get KV store for digital twin %d", n.GetDigitalTwinId())
 		return nil
 	}
-
 	chatMessages := utils.GetChatMessages(n.Fm.Log(), kvStore, userName, n.GetOrgHash(), n.GetDigitalTwinUid())
 
 	return chatMessages
 }
 
 func (n *AiAgentNode) SaveChatMessages(userName string, messages []*schema.Message, mcpToolCallsArray [][]mcphost.McpToolCall) error {
-	kvStore := n.Fm.GetDigitalTwinKvStore(n.GetDigitalTwinId())
-	if kvStore == nil {
-		return fmt.Errorf("failed to get KV store for digital twin %d", n.GetDigitalTwinId())
+	kvStore, err:= n.GetKvStore(n.GetDigitalTwinId())
+	if err != nil {
+		return err
 	}
-
-	err := utils.SaveChatMessages(
+	
+	err = utils.SaveChatMessages(
 		n.Fm.Log(),
 		kvStore,
-		userName, n.GetOrgHash(), n.GetDigitalTwinUid(), n.Fm.GetMaxChatMessagesPerUser(), 
-		messages, 
+		userName,
+		n.GetOrgHash(),
+		n.GetDigitalTwinUid(),
+		n.Fm.GetMaxChatMessagesPerUser(),
+		messages,
 		mcpToolCallsArray,
 	)
 

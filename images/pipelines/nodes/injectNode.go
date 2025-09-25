@@ -206,7 +206,7 @@ func (n *InjectNode) Start(log *logger.Logger, needReinitialization bool) {
 
 	// Initialize leadership status based on the current replica index and number of replicas
 	n.leadershipMutex.Lock()
-	n.isCurrentlyLeader = n.shouldRunPeriodicTasks()
+	n.isCurrentlyLeader = n.ShouldRunPeriodicTasks()
 	n.leadershipMutex.Unlock()
 
 	n.wg.Add(1)
@@ -453,7 +453,7 @@ func (n *InjectNode) monitorLeadershipChanges(log *logger.Logger) {
 	for {
 		select {
 		case <-ticker.C:
-			currentLeaderStatus := n.shouldRunPeriodicTasks()
+			currentLeaderStatus := n.ShouldRunPeriodicTasks()
 
 			n.leadershipMutex.Lock()
 			wasLeader := n.isCurrentlyLeader
@@ -476,14 +476,6 @@ func (n *InjectNode) monitorLeadershipChanges(log *logger.Logger) {
 			return
 		}
 	}
-}
-
-func (n *InjectNode) shouldRunPeriodicTasks() bool {
-	replicaIndex := n.Fm.GetReplicaIndex()
-	numReplicas := n.Fm.GetNumReplicas()
-	isRaftLeader := n.Fm.IsRaftLeader()
-
-	return (replicaIndex == 1 && numReplicas == 1) || isRaftLeader
 }
 
 func (n *InjectNode) startPeriodicTasks(log *logger.Logger) {

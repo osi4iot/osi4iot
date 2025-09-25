@@ -6,7 +6,7 @@ import { completionKeymap } from "@codemirror/autocomplete";
 import { indentWithTab } from "@codemirror/commands";
 
 // Importaciones de CodeMirror
-import CodeMirror, { keymap } from "@uiw/react-codemirror";
+import CodeMirror, { keymap, hoverTooltip } from "@uiw/react-codemirror";
 import { javascript, javascriptLanguage } from "@codemirror/lang-javascript";
 import { oneDark } from "@codemirror/theme-one-dark";
 import { useUpdateNodeInternals } from "@xyflow/react";
@@ -18,6 +18,7 @@ import { IDigitalTwin } from "../../TableColumns/digitalTwinsColumns";
 import { useMlModelsTableInGroup } from "../../../../contexts/platformAssistantContext/platformAssistantContext";
 import { TimeSelector } from "./Utils/TimeSelector";
 import { timezoneOptions } from "./Utils/timezones";
+import { GetVariableInfo } from "./Completion/tools";
 
 // CSS estándar para el resizing - mejor performance
 const resizableStyles = `
@@ -1065,6 +1066,82 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
         return !excludedTypes.includes(nodeType);
     };
 
+
+    const hoverFnDocs = useCallback(async (view: any, pos: any, side: any) => {
+        const { state } = view;
+        const word = state.wordAt(pos);
+        if (!word) return null;
+        const name = state.sliceDoc(word.from, word.to);
+        if (!name) return null;
+        const line = state.doc.lineAt(pos);
+        const lineFullText = line.text;
+        const fullDoc = state.doc.toString();
+        const info = GetVariableInfo(name, fullDoc, lineFullText);
+        if (!info) return null;
+
+        let methodsOptions = "Methods:";
+        if (info.doc === "Method for give access to different packages by destructuring") {
+            methodsOptions = "Destructuring options:";
+        }
+
+        return {
+            pos: word.from,
+            end: word.to,
+            above: false,
+            strictSide: true,
+            create() {
+                const dom = document.createElement("div");
+                dom.className = "scrollable";
+                dom.style.maxWidth = "600px";
+                dom.style.maxHeight = "300px";
+                dom.style.padding = "6px 8px";
+                dom.style.overflowY = "auto";
+                const style = document.createElement("style");
+                style.textContent = `
+                    .scrollable::-webkit-scrollbar { 
+                        width: 8px;
+                        height: 8px;
+                    }
+                    .scrollable::-webkit-scrollbar-track {
+                        background: #30363fff;
+                    }
+                    .scrollable::-webkit-scrollbar-thumb { 
+                        background: #4b5563;
+                        border-radius: 4px;
+                    }
+                    .scrollable::-webkit-scrollbar-thumb:hover {
+                        background: #6b7280;
+                    }
+                `;
+                document.head.appendChild(style);
+                dom.style.fontFamily = "ui-monospace, SFMono-Regular, Menlo, monospace";
+                dom.style.fontSize = "12px";
+                dom.innerHTML = `
+                    <div style="font-weight:600; margin-bottom:4px;">${info.doc}</div>
+                    <div style="line-height:1.35;">${info.sig}</div>
+                    ${
+                        info.constants && info.constants.length > 0
+                            ? `<div style="margin-top:6px; font-weight:600;">Constants:</div>
+                        <ul style="margin:4px 0 0 16px; padding:0; list-style-type: disc;">
+                            ${info.constants
+                                .map((constant) => `<li style="margin-bottom:2px;">${constant}</li>`)
+                                .join("")}
+                        </ul>`
+                            : ""
+                    }
+                    ${
+                        info.methods && info.methods.length > 0
+                            ? `<div style="margin-top:6px; font-weight:600;">${methodsOptions}</div>
+                        <ul style="margin:4px 0 0 16px; padding:0; list-style-type: disc;">
+                            ${info.methods.map((method) => `<li style="margin-bottom:2px;">${method}</li>`).join("")}
+                        </ul>`
+                            : ""
+                    }`;
+                return { dom };
+            },
+        };
+    }, []);
+
     // Renderizar el selector de número de outputs
     const renderOutputSelector = () => {
         if (!selectedNode || !shouldShowOutputSelector(selectedNode.type)) {
@@ -1135,6 +1212,7 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                                         }),
                                         indentUnit.of("    "),
                                         indentOnInput(),
+                                        hoverTooltip(hoverFnDocs, { hoverTime: 180 }),
                                         keymap.of([indentWithTab, reIndentCommand]),
                                     ]}
                                     theme={oneDark}
@@ -1168,6 +1246,7 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                                         }),
                                         indentUnit.of("    "),
                                         indentOnInput(),
+                                        hoverTooltip(hoverFnDocs, { hoverTime: 180 }),
                                         keymap.of([indentWithTab, reIndentCommand]),
                                     ]}
                                     theme={oneDark}
@@ -1201,6 +1280,7 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                                         }),
                                         indentUnit.of("    "),
                                         indentOnInput(),
+                                        hoverTooltip(hoverFnDocs, { hoverTime: 180 }),
                                         keymap.of([
                                             ...completionKeymap, // Enter, Escape, flechas
                                             indentWithTab, // Tab normal para indentación
@@ -1783,6 +1863,50 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                                     value={formData.message || ""}
                                     onChange={(e) => handleInputChange("message", e.target.value)}
                                     placeholder="Hello from OSI4IOT!"
+                                />
+                            </FormGroup>
+                        )}
+                    </>
+                );
+
+            case "Batch":
+                return (
+                    <>
+                        <FormGroup>
+                            <Label>Mode</Label>
+                            <Select
+                                value={formData.batchMode || "Group by number of messages"}
+                                onChange={(e) => handleInputChange("batchMode", e.target.value)}
+                            >
+                                <option value="Group by number of messages">Group by number of messages</option>
+                                <option value="Group by time interval">Group by time interval</option>
+                            </Select>
+                        </FormGroup>
+                        {formData.batchMode === "Group by number of messages" && (
+                            <FormGroup>
+                                <Label>Number of messages</Label>
+                                <Input
+                                    type="number"
+                                    step="1"
+                                    value={formData.batchSize || 1}
+                                    onChange={(e) =>
+                                        handleInputChange("batchSize", Math.max(1, parseInt(e.target.value)))
+                                    }
+                                    placeholder="1"
+                                />
+                            </FormGroup>
+                        )}
+                        {formData.batchMode === "Group by time interval" && (
+                            <FormGroup>
+                                <Label>Time interval (seconds)</Label>
+                                <Input
+                                    type="number"
+                                    step="1"
+                                    value={formData.batchInterval || 1}
+                                    onChange={(e) =>
+                                        handleInputChange("batchInterval", Math.max(1, parseInt(e.target.value)))
+                                    }
+                                    placeholder="1"
                                 />
                             </FormGroup>
                         )}

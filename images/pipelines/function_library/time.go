@@ -117,10 +117,17 @@ func NewTime(node common.Node) *Time {
 	}
 }
 
+func (t *Time) AfterChan(d time.Duration) <-chan time.Time {
+	return time.After(d)
+}
+
+func (t *Time) TickChan(d time.Duration) <-chan time.Time {
+	return time.Tick(d)
+}
+
 func (t *Time) After(d time.Duration) time.Time {
 	return time.Now().Add(d)
 }
-
 
 func (t *Time) Date(year int, month time.Month, day int, hour int, min int, sec int, nsec int) time.Time {
 	return time.Date(year, month, day, hour, min, sec, nsec, time.UTC)
@@ -202,6 +209,21 @@ func (t *Time) Until(t1 time.Time) time.Duration {
 func (t *Time) Sleep(d time.Duration) {
 	time.Sleep(d)
 }
+
+func (t *Time) FixedZone(name string, offset int) *time.Location {
+	return time.FixedZone(name, offset)
+}
+
+func (t *Time) GetParseError(layout, value, layoutElem, valueElem, message string) *time.ParseError {
+	return &time.ParseError{
+		Layout:     layout,
+		Value:     value,
+		LayoutElem: layoutElem,
+		ValueElem:  valueElem,
+		Message:   message,
+	}
+}
+
 
 // Custom functions
 func (t *Time) GetCurrentTime() string {

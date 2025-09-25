@@ -1,7 +1,7 @@
-import { applyFunction, ClassDef } from "./utils";
+import { applyFunction, ClassDef } from "./tools";
 
 export const httpClass: ClassDef = {
-    name: "Http",
+    name: "http.Http",
     methods: [
         {
             label: "Get",

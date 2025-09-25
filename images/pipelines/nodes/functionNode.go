@@ -73,11 +73,13 @@ func CreateFuncNode(node common.NodeData, fm common.Manager, p common.Pipeline) 
 		if err := funNode.precompileScript(fm.Log()); err != nil {
 			nodeError := fmt.Errorf("failed to precompile script for node %s: %v", funNode.NodeUid, err)
 			funNode.HandleError(nodeError)
+			funNode.SetStatus(common.NodeStatusError)
 			return nil, nodeError
 		}
 		if err := funNode.initVMPool(fm.Log()); err != nil {
 			nodeError := fmt.Errorf("failed to initialize VM pool for node %s: %v", funNode.NodeUid, err)
 			funNode.HandleError(nodeError)
+			funNode.SetStatus(common.NodeStatusError)
 			return nil, nodeError
 		}
 	}
@@ -99,6 +101,7 @@ func (n *FuncNode) Start(log *logger.Logger, needReinitialization bool) {
 		if err := n.executeInitializationScript(log); err != nil {
 			log.Errorf("Failed to execute initialization script for node %s: %v", n.NodeUid, err)
 			n.HandleError(err)
+			n.SetStatus(common.NodeStatusError)
 			return
 		}
 		log.Infof("Initialization script executed successfully for node %s", n.NodeUid)
@@ -108,6 +111,7 @@ func (n *FuncNode) Start(log *logger.Logger, needReinitialization bool) {
 		if err := n.executeStartScript(log); err != nil {
 			log.Errorf("Failed to execute start script for node %s: %v", n.NodeUid, err)
 			n.HandleError(err)
+			n.SetStatus(common.NodeStatusError)
 			return
 		}
 		log.Infof("Start script executed successfully for node %s", n.NodeUid)

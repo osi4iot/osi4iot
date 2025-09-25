@@ -37,6 +37,6 @@ func (l *NodeLogger) Infof(format string, args ...interface{}) {
 
 func (l *NodeLogger) Errorf(format string, args ...interface{}) {
 	msg := fmt.Sprintf(format, args...)
-	msgErr := fmt.Errorf("%s\n", msg)
+	msgErr := fmt.Errorf("%s", msg)
 	l.node.HandleError(msgErr)
 }

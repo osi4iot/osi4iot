@@ -147,6 +147,7 @@ func (n *MlmNode) Start(log *logger.Logger, needReinitialization bool) {
 		log.Errorf("Failed to initialize ONNX Runtime: %v", err)
 		errMsg := fmt.Errorf("failed to initialize ONNX Runtime: %v", err)
 		n.HandleError(errMsg)
+		n.SetStatus(common.NodeStatusError)
 		return
 	}
 
@@ -154,6 +155,7 @@ func (n *MlmNode) Start(log *logger.Logger, needReinitialization bool) {
 		log.Errorf("Failed to load model info: %v", err)
 		errMsg := fmt.Errorf("failed to load model info: %v", err)
 		n.HandleError(errMsg)
+		n.SetStatus(common.NodeStatusError)
 		return
 	}
 
@@ -161,6 +163,7 @@ func (n *MlmNode) Start(log *logger.Logger, needReinitialization bool) {
 		log.Errorf("Failed to create session: %v", err)
 		errMsg := fmt.Errorf("failed to create session: %v", err)
 		n.HandleError(errMsg)
+		n.SetStatus(common.NodeStatusError)
 		return
 	}
 
@@ -319,6 +322,7 @@ func (n *MlmNode) processMessage(msg common.Message, log *logger.Logger) error {
 		return fmt.Errorf("inference failed: %w", err)
 	}
 
+	
 	if len(n.OutputTensors) == 1 {
 		mlmOutput, err := n.GetMlmOutput(n.OutputTensors[0], n.outputTypes[0])
 		if err != nil {

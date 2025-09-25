@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { SquareFunction, WifiHigh, ArrowBigRight, Mail, ClockFading, BrainCog, BrainCircuit } from "lucide-react";
+import { SquareFunction, WifiHigh, ArrowBigRight, Mail, ClockFading, BrainCog, BrainCircuit, Layers } from "lucide-react";
 import { FaTelegramPlane } from "react-icons/fa";
 import styled from "styled-components";
 
@@ -192,6 +192,20 @@ const nodeTypes = [
             telegramBotToken: "your-telegram-bot-token",
             messageOptions: "Message received options",
             message: "Hello from OSI4IOT!",
+        },
+    },
+    {
+        type: "Batch",
+        label: "Batch",
+        bgColor: "#b8ac2fff",
+        hoverColor: "#bbb24eff",
+        icon: <Layers color="#e7e3df" />,
+        numOutputs: 1,
+        debug: "off",
+        settings: {
+            batchMode: "Group by number of messages",
+            batchSize: 10,
+            batchInterval: 10,
         },
     },
 ];
