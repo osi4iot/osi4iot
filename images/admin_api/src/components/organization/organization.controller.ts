@@ -24,7 +24,6 @@ import {
 	updateOrgUserRoleInDefaultOrgGroup,
 	organizationsWhichTheLoggedUserIsUser,
 	getOrganizationsWithIdsArray,
-	updateNodeRedInstancesInOrg,
 } from "./organizationDAL";
 import { encrypt } from "../../utils/encryptAndDecrypt/encryptAndDecrypt";
 import CreateUserDto from "../user/interfaces/User.dto";
@@ -75,11 +74,6 @@ import {
 } from "../digitalTwin/digitalTwinDAL";
 import { existsBuildingWithId, getFloorByOrgIdAndFloorNumber } from "../building/buildingDAL";
 import process_env from "../../config/api_config";
-import {
-	assignNodeRedInstanceToGroup,
-	createNodeRedInstancesInOrg,
-	getNodeRedInstancesByOrgsIdArray,
-} from "../nodeRedInstance/nodeRedInstanceDAL";
 import { createTimescaledbOrgDataSource } from "../group/datasourceDAL";
 import { createNewAsset, createNewAssetType, getAssetTypeByTypeAndOrgId } from "../asset/assetDAL";
 import { createNewSensorType } from "../sensor/sensorDAL";
@@ -304,6 +298,7 @@ class OrganizationController implements IController {
 		try {
 			const organizationData: CreateOrganizationDto = req.body;
 			organizationData.acronym = organizationData.acronym.replace(/ /g, "_").toUpperCase();
+			organizationData.orgHash = nanoid(20).replace(/-/g, "x").replace(/_/g, "X");
 			const orgGrafanaDTO: IOrganizationGrafanaDTO = { name: organizationData.name };
 			const exits_OrganizationWithName = await exitsOrganizationWithName(organizationData.name);
 			const exits_OrganizationWithAcronym = await exitsOrganizationWithAcronym(organizationData.acronym);
@@ -407,8 +402,6 @@ class OrganizationController implements IController {
 				let centerGroupAreaLatitude = 0.0;
 				let assetLongitude = 0.0;
 				let assetLatitude = 0.0;
-				let nriLongitude = 0.0;
-				let nriLatitude = 0.0;
 				if (geojsonObj.features) {
 					const geoPolygon = polygon(geojsonObj.features[0].geometry.coordinates);
 					const center = pointOnFeature(geoPolygon);
@@ -418,18 +411,7 @@ class OrganizationController implements IController {
 					const ptAsset = rhumbDestination(ptCenterGroupArea, 0.001, 180);
 					assetLongitude = ptAsset.geometry.coordinates[0];
 					assetLatitude = ptAsset.geometry.coordinates[1];
-					const ptNri = rhumbDestination(ptCenterGroupArea, 0.002, 0.0);
-					nriLongitude = ptNri.geometry.coordinates[0];
-					nriLatitude = ptNri.geometry.coordinates[1];
 				}
-
-				const noredInstances = await createNodeRedInstancesInOrg(
-					organizationData.nriHashes,
-					orgId,
-					nriLongitude,
-					nriLatitude
-				);
-				await assignNodeRedInstanceToGroup(noredInstances[0], group.id);
 
 				const sensorTypes: ISensorType[] = [];
 				for (const sensorType of predefinedSensorTypes) {
@@ -895,9 +877,10 @@ class OrganizationController implements IController {
 			const oldOrganizationData = await getOrganizationByProp(propName, propValue);
 			if (!oldOrganizationData)
 				throw new ItemNotFoundException(req, res, "The organization", propName, propValue);
+			if (oldOrganizationData.role === "Main" && orgDataToUpdate.role && orgDataToUpdate.role !== "Main") {
+				throw new HttpException(req, res, 400, "The role of the main organization cannot be modified.");
+			}
 			const newOrganizationData = { ...oldOrganizationData, ...orgDataToUpdate };
-			const currentNodeRedInstanceInOrg = await getNodeRedInstancesByOrgsIdArray([oldOrganizationData.id]);
-			await updateNodeRedInstancesInOrg(currentNodeRedInstanceInOrg, newOrganizationData);
 			await updateOrganizationByProp(propName, propValue, newOrganizationData);
 			res.status(200).json({ message: `Organization updated successfully` });
 		} catch (error) {

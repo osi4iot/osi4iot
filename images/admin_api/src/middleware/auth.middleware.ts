@@ -4,9 +4,8 @@ import { NextFunction, Response } from "express";
 import IRequestWithUser from "../interfaces/requestWithUser.interface";
 import HttpException from "../exceptions/HttpException";
 import { isThisUserAdminOfSomeOrg, isThisUserOrgAdmin } from "../components/user/userDAL";
-import { getGroupByProp, haveThisUserGroupAdminPermissions } from "../components/group/groupDAL";
+import { haveThisUserGroupAdminPermissions } from "../components/group/groupDAL";
 import IRequestWithUserAndGroup from "../components/group/interfaces/requestWithUserAndGroup.interface";
-import { getNodeRedInstanceByProp } from "../components/nodeRedInstance/nodeRedInstanceDAL";
 
 export const registerAuth = (req: IRequestWithUser, res: Response, next: NextFunction): void => {
 	passport.authenticate("register_jwt", { session: false }, (err: any, user: any, info: any) => {
@@ -136,37 +135,6 @@ export const groupAdminAuth = async (req: IRequestWithUserAndGroup, res: Respons
 		return next();
 	})(req, res, next);
 };
-
-export const groupAdminNodeRedInstanceAuth = async (req: IRequestWithUserAndGroup, res: Response, next: NextFunction): Promise<void> => {
-	passport.authenticate("nodered_instance_access_jwt", { session: false }, async (err: any, user: any, info: any) => {
-		if (info) {
-			return next(new HttpException(req, res, 401, info.message));
-		}
-		if (err) {
-			return next(err);
-		}
-		if (!user) {
-			return next(new HttpException(req, res, 401, "You are not allowed to access."));
-		}
-		const { nriHash } = req.params;
-		const nodeRedInstance = await getNodeRedInstanceByProp("nri_hash", nriHash);
-		if (nodeRedInstance) {
-			const group = await getGroupByProp("id", nodeRedInstance.groupId);
-			req.group = group;
-			let isGroupAdmin = await haveThisUserGroupAdminPermissions(user.id, group.teamId, group.orgId);
-			if (user.isGrafanaAdmin) isGroupAdmin = true;
-
-			if (user && !isGroupAdmin) {
-				return next(new HttpException(req, res, 401, "You don't have group administrator privileges."));
-			}
-		} else {
-			return next(new HttpException(req, res, 404, `Not exits any nodered instance with hash= ${nriHash}`));
-		}
-		req.user = user;
-		return next();
-	})(req, res, next);
-};
-
 
 export const basicGroupAdminAuth = async (req: IRequestWithUserAndGroup, res: Response, next: NextFunction): Promise<void> => {
 	passport.authenticate("local-login", { session: false }, async (err: any, user: any, info: any) => {

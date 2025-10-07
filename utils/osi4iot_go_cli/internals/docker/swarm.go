@@ -65,13 +65,6 @@ func RunSwarm(dc *pt.DockerClient, pd *pt.PlatformData) error {
 		return fmt.Errorf("error creating swarm services: %v", err)
 	}
 
-	if !slices.Contains(pd.PlatformInfo.ExcludedServices, "nri") {
-		err = CreateNriSwarmServices(pd, dc)
-		if err != nil {
-			return fmt.Errorf("error creating NRI services: %v", err)
-		}
-	}
-
 	return nil
 }
 

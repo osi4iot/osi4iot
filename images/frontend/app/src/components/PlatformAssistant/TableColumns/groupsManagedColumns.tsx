@@ -260,11 +260,6 @@ export interface IGroupManaged {
     floorNumber: number;
     featureIndex: number;
     outerBounds: number[][];
-    nriInGroupId: number;
-    nriInGroupHash: string;
-    nriInGroupIconLongitude: number;
-    nriInGroupIconLatitude: number;
-    nriInGroupIconRadio: number;
     sslCerts: string;
 }
 
@@ -352,31 +347,6 @@ export const CREATE_GROUPS_MANAGED_COLUMNS = (refreshGroupMembers: () => void, r
             disableFilters: true
         },
         {
-            Header: "nriInGroupId",
-            accessor: "nriInGroupId",
-            disableFilters: true
-        },
-        {
-            Header: "nriInGroupHash",
-            accessor: "nriInGroupHash",
-            disableFilters: true
-        },
-        {
-            Header: "nriInGroupIconLongitude",
-            accessor: "nriInGroupIconLongitude",
-            disableFilters: true
-        },
-        {
-            Header: "nriInGroupIconLatitude",
-            accessor: "nriInGroupIconLatitude",
-            disableFilters: true
-        },
-        {
-            Header: "nriInGroupIconRadio",
-            accessor: "nriInGroupIconRadio",
-            disableFilters: true
-        },
-        {
             Header: () => <div style={{ backgroundColor: '#202226' }}>Add<br />members</div>,
             accessor: "addGroupMembers",
             disableFilters: true,
@@ -440,11 +410,6 @@ export const CREATE_GROUPS_MANAGED_COLUMNS = (refreshGroupMembers: () => void, r
                 const mqttAccessControl = row?.original?.mqttAccessControl;
                 const telegramInvitationLink = row?.original?.telegramInvitationLink;
                 const telegramChatId = row?.original?.telegramChatId;
-                const nriInGroupId = row?.original?.nriInGroupId;
-                const nriInGroupHash = row?.original?.nriInGroupHash;
-                const nriInGroupIconLongitude = row?.original?.nriInGroupIconLongitude;
-                const nriInGroupIconLatitude = row?.original?.nriInGroupIconLatitude;
-                const nriInGroupIconRadio = row?.original?.nriInGroupIconRadio;
                 const groupManagedData = {
                     groupId,
                     name,
@@ -454,11 +419,6 @@ export const CREATE_GROUPS_MANAGED_COLUMNS = (refreshGroupMembers: () => void, r
                     mqttAccessControl,
                     telegramInvitationLink,
                     telegramChatId,
-                    nriInGroupId,
-                    nriInGroupHash,
-                    nriInGroupIconLongitude,
-                    nriInGroupIconLatitude,
-                    nriInGroupIconRadio
                 }
                 return <EditGroupManaged rowIndex={rowIndex} groupId={groupId} groupManagedData={groupManagedData} />
             }

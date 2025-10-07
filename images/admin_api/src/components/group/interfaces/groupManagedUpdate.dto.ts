@@ -1,4 +1,4 @@
-import { IsEnum, IsNumber, IsString } from "class-validator";
+import { IsEnum, IsString } from "class-validator";
 import { FolderPermissionOptions, FolderPermissionOption } from "./FolerPermissionsOptions";
 
 class UpdateGroupManagedDto {
@@ -10,18 +10,6 @@ class UpdateGroupManagedDto {
 
 	@IsString()
 	public telegramChatId?: string;
-
-	@IsNumber()
-	public nriInGroupId: number;
-
-	@IsNumber()
-	public nriInGroupIconLongitude: number;
-
-	@IsNumber()
-		nriInGroupIconLatitude: number;
-
-	@IsNumber()
-		nriInGroupIconRadio: number;
 }
 
 export default UpdateGroupManagedDto;

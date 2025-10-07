@@ -17,12 +17,6 @@ class UpdateOrganizationDto {
 	public buildingId: number;
 
 	@IsString()
-	public orgHash: string;
-
-	@IsString({each: true})
-	public nriHashes: string[];
-
-	@IsString()
 	public mqttAccessControl: string;
 }
 

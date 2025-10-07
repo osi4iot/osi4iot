@@ -7,7 +7,6 @@ import {
 	IGroupsManagedIdToEdit,
 	IGroupsManagedBuildingId,
 	IGroupsManagedInputFormData,
-    IGroupManagedNriId
 } from "./interfaces";
 
 
@@ -38,8 +37,4 @@ export function setGroupsManagedBuildingId(groupsManagedDispatch: GroupsManagedD
 
 export function setGroupManagedInputFormData(groupsManagedDispatch: GroupsManagedDispatch, data: IGroupsManagedInputFormData) {
 	groupsManagedDispatch({ type: "GROUP_MANAGED_INPUT_DATA", payload: data });
-}
-
-export function setGroupManagedNriId(groupsManagedDispatch: GroupsManagedDispatch, data: IGroupManagedNriId) {
-	groupsManagedDispatch({ type: "GROUP_MANAGED_NRI_ID", payload: data });
 }

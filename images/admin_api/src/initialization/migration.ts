@@ -15,13 +15,7 @@ import { createHomeDashboard } from "../components/group/dashboardDAL";
 import IGroup from "../components/group/interfaces/Group.interface";
 import { RoleInGroupOption } from "../components/group/interfaces/RoleInGroupOptions";
 import needle from "needle";
-import { createFictitiousUserForService, createFictitiousUsersForMainOrgNri } from "../components/user/userDAL";
-import INodeRedInstance from "../components/nodeRedInstance/nodeRedInstance.interface";
-import {
-	assignNodeRedInstanceToGroup,
-	createNodeRedInstancesInOrg,
-	updateGroupNodeRedInstanceLocation,
-} from "../components/nodeRedInstance/nodeRedInstanceDAL";
+import { createFictitiousUserForService } from "../components/user/userDAL";
 import s3Client from "../config/s3Config";
 import { CreateBucketCommand, ListBucketsCommand } from "@aws-sdk/client-s3";
 import { getOrganizations } from "../components/organization/organizationDAL";
@@ -359,12 +353,6 @@ export const dataBaseInitialization = async () => {
 					await createFictitiousUserForService(dev2pdbUser);
 				} catch (err) {
 					logger.log("error", `Fictitious user for service dev2pdb could not be created: %s`, err.message);
-				}
-
-				try {
-					await createFictitiousUsersForMainOrgNri();
-				} catch (err) {
-					logger.log("error", `Fictitious user for NRI could not be created: %s`, err.message);
 				}
 
 				const queryStringUpdateUser =
@@ -888,49 +876,8 @@ export const dataBaseInitialization = async () => {
 					logger.log("error", `Table ${tableMLModel} can not be created: %s`, err.message);
 				}
 
-				const tableNodeRedInstance = "grafanadb.nodered_instance";
-				const queryStringodeRedInstance = `
-				CREATE TABLE IF NOT EXISTS ${tableNodeRedInstance}(
-					id serial PRIMARY KEY,
-					nri_hash VARCHAR(40) UNIQUE,
-					org_id bigint,
-					group_id bigint,
-					geolocation POINT,
-					icon_radio real NOT NULL DEFAULT 1.0,
-					deleted boolean NOT NULL DEFAULT FALSE,
-					created TIMESTAMPTZ,
-					updated TIMESTAMPTZ,
-					CONSTRAINT fk_org_id
-						FOREIGN KEY(org_id)
-						REFERENCES grafanadb.org(id)
-						ON DELETE CASCADE
-				);
 
-				CREATE INDEX IF NOT EXISTS idx_nri_hash
-				ON grafanadb.nodered_instance(nri_hash);`;
-
-				let mainNodeRedInstance: INodeRedInstance;
-				try {
-					await postgresClient.query(queryStringodeRedInstance);
-					const nodeRedInstances = await createNodeRedInstancesInOrg(process_env.MAIN_ORG_NRI_HASHES, 1);
-					mainNodeRedInstance = nodeRedInstances[0];
-					logger.log("info", `Table ${tableNodeRedInstance} has been created sucessfully`);
-				} catch (err) {
-					logger.log("error", `Table ${tableNodeRedInstance} can not be created: %s`, err.message);
-				}
-
-				try {
-					await assignNodeRedInstanceToGroup(mainNodeRedInstance, group.id);
-					logger.log("info", `NodeRed instance assigned to group with id: ${group.id}`);
-				} catch (err) {
-					logger.log(
-						"error",
-						`NodeRed instance can not be assigned to group with id: ${group.id}: %s`,
-						err.message
-					);
-				}
-
-				let asset: IAsset;
+				let asset: IAsset
 				try {
 					const defaultAssetData = {
 						assetTypeId: assetTypes[5].id,
@@ -1040,7 +987,6 @@ export const dataBaseInitialization = async () => {
 				try {
 					const geoJsonDataString = findGroupGeojsonData(floor, 1);
 					await updateGroupAssetsLocation(geoJsonDataString, group);
-					await updateGroupNodeRedInstanceLocation(geoJsonDataString, group);
 					logger.log("info", `Updapting geolocation for asset in group with id: ${group.id}`);
 				} catch (err) {
 					logger.log(

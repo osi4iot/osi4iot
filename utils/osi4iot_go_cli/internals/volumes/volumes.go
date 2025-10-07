@@ -2,7 +2,6 @@ package volumes
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/volume"
@@ -105,21 +104,6 @@ func GenerateVolumes(platformData *pt.PlatformData) map[string]pt.Volume {
 			Name:       "minio_storage",
 			Driver:     "local",
 			DriverOpts: map[string]string{},
-		}
-	}
-
-	for iorg := 0; iorg < len(platformData.Organizations); iorg++ {
-		orgAcronym := strings.ToLower(platformData.Organizations[iorg].OrgAcronym)
-		numNodeRedInstances := len(platformData.Organizations[iorg].NodeRedInstances)
-		for inri := 0; inri < numNodeRedInstances; inri++ {
-			nriHash := platformData.Organizations[iorg].NodeRedInstances[inri].NriHash
-			serviceName := fmt.Sprintf("org_%s_nri_%s", orgAcronym, nriHash)
-			volumeName := fmt.Sprintf("%s_data", serviceName)
-			Volumes[volumeName] = pt.Volume{
-				Name:       volumeName,
-				Driver:     "local",
-				DriverOpts: map[string]string{},
-			}
 		}
 	}
 
@@ -229,23 +213,6 @@ func GenerateVolumes(platformData *pt.PlatformData) map[string]pt.Volume {
 			}
 			Volumes["minio_storage"] = minioStorage
 		}
-
-		for iorg := 0; iorg < len(platformData.Organizations); iorg++ {
-			orgAcronym := strings.ToLower(platformData.Organizations[iorg].OrgAcronym)
-			numNodeRedInstances := len(platformData.Organizations[iorg].NodeRedInstances)
-			for inri := 0; inri < numNodeRedInstances; inri++ {
-				nriHash := platformData.Organizations[iorg].NodeRedInstances[inri].NriHash
-				serviceName := fmt.Sprintf("org_%s_nri_%s", orgAcronym, nriHash)
-				volumeName := fmt.Sprintf("%s_data", serviceName)
-				nriVolume := Volumes[volumeName]
-				nriVolume.DriverOpts = map[string]string{
-					"type":   "nfs",
-					"o":      driverOptsO,
-					"device": fmt.Sprintf(":/var/nfs_osi4iot/%s", volumeName),
-				}
-				Volumes[volumeName] = nriVolume
-			}
-		}
 	} else if deploymentLocation == "AWS cluster deployment" && len(nodesData) > 1 {
 		awsEfsDNS := pi.AwsEfsDNS
 		driverOptsO := fmt.Sprintf("addr=%s,nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2,noresvport", awsEfsDNS)
@@ -343,23 +310,6 @@ func GenerateVolumes(platformData *pt.PlatformData) map[string]pt.Volume {
 			}
 			Volumes["minio_storage"] = minioStorage
 		}
-
-		for iorg := 0; iorg < len(platformData.Organizations); iorg++ {
-			orgAcronym := strings.ToLower(platformData.Organizations[iorg].OrgAcronym)
-			numNodeRedInstances := len(platformData.Organizations[iorg].NodeRedInstances)
-			for inri := 0; inri < numNodeRedInstances; inri++ {
-				nriHash := platformData.Organizations[iorg].NodeRedInstances[inri].NriHash
-				serviceName := fmt.Sprintf("org_%s_nri_%s", orgAcronym, nriHash)
-				volumeName := fmt.Sprintf("%s_data", serviceName)
-				nriVolume := Volumes[volumeName]
-				nriVolume.DriverOpts = map[string]string{
-					"type":   "nfs",
-					"o":      driverOptsO,
-					"device": fmt.Sprintf("%s:/%s", awsEfsDNS, volumeName),
-				}
-				Volumes[volumeName] = nriVolume
-			}
-		}
 	}
 
 	return Volumes
@@ -407,7 +357,7 @@ func CreateSwarmVolumes(platformData *pt.PlatformData) (map[string]pt.Volume, er
 		if numNodes == 1 {
 			filteredVolumes = volumesMap
 		} else {
-			filteredVolumes = getVolumesMapByNodeRole(platformData, volumesMap, dc.Node.NodeRole)
+			filteredVolumes = getVolumesMapByNodeRole(volumesMap, dc.Node.NodeRole)
 		}
 
 		for key, volume := range filteredVolumes {
@@ -428,7 +378,7 @@ func CreateSwarmVolumes(platformData *pt.PlatformData) (map[string]pt.Volume, er
 
 func RemoveSwarmVolumes(platformData *pt.PlatformData) error {
 	errors := []error{}
-	filterByNames := getVolumeFilterByNames(platformData)
+	filterByNames := getVolumeFilterByNames()
 
 	for _, dc := range pt.DCMap {
 		existingVolumes := make(map[string]*volume.Volume)
@@ -475,7 +425,7 @@ func RemoveSwarmVolumes(platformData *pt.PlatformData) error {
 	return nil
 }
 
-func getVolumeFilterByNames(platformData *pt.PlatformData) filters.Args {
+func getVolumeFilterByNames() filters.Args {
 	volumeNames := []string{
 		"letsencrypt",
 		"mosquitto_data",
@@ -490,17 +440,6 @@ func getVolumeFilterByNames(platformData *pt.PlatformData) filters.Args {
 		"minio_storage",
 	}
 
-	for iorg := 0; iorg < len(platformData.Organizations); iorg++ {
-		orgAcronym := strings.ToLower(platformData.Organizations[iorg].OrgAcronym)
-		numNodeRedInstances := len(platformData.Organizations[iorg].NodeRedInstances)
-		for inri := 0; inri < numNodeRedInstances; inri++ {
-			nriHash := platformData.Organizations[iorg].NodeRedInstances[inri].NriHash
-			serviceName := fmt.Sprintf("org_%s_nri_%s", orgAcronym, nriHash)
-			nriVolumeName := fmt.Sprintf("%s_data", serviceName)
-			volumeNames = append(volumeNames, nriVolumeName)
-		}
-	}
-
 	volumeFilters := filters.NewArgs()
 	for _, name := range volumeNames {
 		volumeFilters.Add("name", name)
@@ -509,7 +448,7 @@ func getVolumeFilterByNames(platformData *pt.PlatformData) filters.Args {
 	return volumeFilters
 }
 
-func getVolumesMapByNodeRole(platformData *pt.PlatformData, volumesMap map[string]pt.Volume, nodeRole string) map[string]pt.Volume {
+func getVolumesMapByNodeRole(volumesMap map[string]pt.Volume, nodeRole string) map[string]pt.Volume {
 	volumeNames := []string{}
 	switch nodeRole {
 	case "Manager":
@@ -529,19 +468,6 @@ func getVolumesMapByNodeRole(platformData *pt.PlatformData, volumesMap map[strin
 			"pgadmin4_data",
 			"minio_storage",
 		)
-	case "Generic org worker":
-		for iorg := 0; iorg < len(platformData.Organizations); iorg++ {
-			orgAcronym := strings.ToLower(platformData.Organizations[iorg].OrgAcronym)
-			numNodeRedInstances := len(platformData.Organizations[iorg].NodeRedInstances)
-			for inri := 0; inri < numNodeRedInstances; inri++ {
-				nriHash := platformData.Organizations[iorg].NodeRedInstances[inri].NriHash
-				serviceName := fmt.Sprintf("org_%s_nri_%s", orgAcronym, nriHash)
-				nriVolumeName := fmt.Sprintf("%s_data", serviceName)
-				volumeNames = append(volumeNames, nriVolumeName)
-			}
-		}
-	case "ExclusiveOrgWorker":
-		//no code
 	case "NfsWorker":
 		//no code
 	}

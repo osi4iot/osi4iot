@@ -3,11 +3,9 @@ package cmd
 import (
 	"fmt"
 	"os"
-	"strconv"
 
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/data"
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/docker"
-	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/orgs"
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/utils"
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/ui/form"
 	"github.com/spf13/cobra"
@@ -103,96 +101,6 @@ var cmdRun = &cobra.Command{
 			if err != nil {
 				errMsg := fmt.Sprintf("Error: initializing the platform %v", err)
 				exitWithError(errMsg)
-			}
-		}
-	},
-}
-
-var cmdOrg = &cobra.Command{
-	Use:   "org",
-	Short: "Organizations management",
-	Long:  "Organizations management",
-	// Run: func(cmd *cobra.Command, args []string) {
-	// 	fmt.Println("Organizations management")
-	// },
-}
-
-var subCmdOrgsList = &cobra.Command{
-	Use:   "list",
-	Short: "List organizations",
-	Long:  "List organizations",
-	Args: cobra.NoArgs,
-	Run: func(cmd *cobra.Command, args []string) {
-		err := orgs.ListOrgs()
-		if err != nil {
-			errMsg := fmt.Sprintf("Error: listing organizations %v", err)
-			exitWithError(errMsg)
-		}
-	},
-}
-
-var subCmdUpdateOrg = &cobra.Command{
-	Use:   "update",
-	Short: "Update organizations",
-	Long:  "Update organizations",
-	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("Update organization")
-	},
-}
-
-var subCmdAddOrg = &cobra.Command{
-	Use:   "add",
-	Short: "Add organization",
-	Long:  "Add organization",
-	Args: cobra.NoArgs,
-	Run: func(cmd *cobra.Command, args []string) {
-		form.CreateOrgForm()
-		platformState := data.GetPlatformState()
-		if platformState == data.CreatingOrg {
-			platformData := data.GetData()
-			okMessage := "Organization has been created successfully"
-			err := docker.SwarmInitiationInfo(platformData, okMessage)
-			if err != nil {
-				errMsg := fmt.Sprintf("Error: initializing the platform %v", err)
-				exitWithError(errMsg)
-			}
-		}
-	},
-}
-
-var subCmdRemoveOrg = &cobra.Command{
-	Use:   "remove",
-	Short: "Remove organization",
-	Long:  "Remove organization",
-	Args:  cobra.ExactArgs(1),
-	Run: func(cmd *cobra.Command, args []string) {
-		orgIdString := args[0]
-		orgId, err := strconv.Atoi(orgIdString)
-		if err != nil {
-			errMsg := fmt.Sprintf("Error: invalid organization ID %v", err)
-			exitWithError(errMsg)
-		}
-		existingOrg, err := orgs.CheckIfOrgExists(orgId)
-		if err != nil {
-			errMsg := fmt.Sprintf("Error: checking if organization exists %v", err)
-			exitWithError(errMsg)
-		}
-
-		if existingOrg == nil {
-			warningMsg := fmt.Sprintf("Organization with id %d does not exist", orgId)
-			exitWithWarning(warningMsg)
-		} else {
-			msg := fmt.Sprintf("Are you sure you want to remove the organization %s? [y/n]: ", existingOrg.Acronym)
-			fmt.Print(utils.StyleWarningMsg.Render(msg))
-			response := utils.ReadFromConsole()
-			if response == "y" || response == "Y" {
-				err = orgs.RemoveOrg(existingOrg)
-				if err != nil {
-					errMsg := fmt.Sprintf("Error: removing organization %v", err)
-					exitWithError(errMsg)
-					return
-				}
-				exitWithOkMsg("Organization removed successfully")
 			}
 		}
 	},
@@ -361,12 +269,6 @@ func init() {
 	rootCmd.AddCommand(cmdCerts)
 	rootCmd.AddCommand(cmdStatus)
 
-	cmdOrg.AddCommand(subCmdOrgsList)
-	cmdOrg.AddCommand(subCmdUpdateOrg)
-	cmdOrg.AddCommand(subCmdAddOrg)
-	cmdOrg.AddCommand(subCmdRemoveOrg)
-	rootCmd.AddCommand(cmdOrg)
-
 	cmdCustomService.AddCommand(subCmdListCS)
 	cmdCustomService.AddCommand(subCmdUpdateCS)
 	cmdCustomService.AddCommand(subCmdAddCS)
@@ -377,13 +279,6 @@ func init() {
 	cmdNodes.AddCommand(subCmdAddNode)
 	cmdNodes.AddCommand(subCmdRemoveNode)
 	rootCmd.AddCommand(cmdNodes)
-}
-
-func exitWithOkMsg(okMsg string) {
-	docker.CleanResources()
-	fmt.Println(utils.StyleOKMsg.Render(okMsg))
-	fmt.Println()
-	os.Exit(0)
 }
 
 func exitWithWarning(errMsg string) {

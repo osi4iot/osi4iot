@@ -19,9 +19,4 @@ export default interface IGroup {
 	mqttPassword?: string;
 	mqttSalt?: string;
 	mqttAccessControl: string;
-	nriInGroupId?: number;
-	nriInGroupHash?: string;
-	nriInGroupIconLongitude?: number;
-	nriInGroupIconLatitude?: number;
-	nriInGroupIconRadio?: number;
 }

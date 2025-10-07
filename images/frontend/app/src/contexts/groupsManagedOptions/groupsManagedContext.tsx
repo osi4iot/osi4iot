@@ -93,13 +93,5 @@ export const useGroupManagedBuildingId = (): number => {
 	return context.groupManagedBuildingId;
 };
 
-export const useGroupManagedNriId = (): number => {
-	const context = useContext(GroupsManagedStateContext);
-	if (context === undefined) {
-		throw new Error('useGroupManagedNriId must be used within a GroupsManagedProvider');
-	}
-	return context.groupManagedNriId;
-};
-
 
 

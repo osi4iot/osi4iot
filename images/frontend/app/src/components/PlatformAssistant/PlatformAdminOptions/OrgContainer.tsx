@@ -23,11 +23,6 @@ export interface IOrgAdminData {
 export interface IOrgInputData {
     name: string;
     acronym: string;
-    address: string;
-    city: string;
-    zipCode: string;
-    state: string;
-    country: string;
     buildingId: number;
     orgAdminArray: IOrgAdminData[];
 }
@@ -36,11 +31,7 @@ export interface IOrgInputData {
 const initialOrgData = {
     name: "",
     acronym: "",
-    address: "",
-    city: "",
-    zipCode: "",
-    state: "",
-    country: "",
+    role: "Generic",
     buildingId: 1,
     mqttAccessControl: "Pub & Sub",
     telegramInvitationLink: "",

@@ -11,7 +11,6 @@ import (
 	"fmt"
 	"math/big"
 	"net"
-	"strings"
 	"time"
 
 	"golang.org/x/crypto/bcrypt"
@@ -217,92 +216,6 @@ func CreateBrokerCerts(platformData *types.PlatformData, caKey *rsa.PrivateKey, 
 	return nil
 }
 
-func CreateNodeRedMqttCerts(platformData *types.PlatformData, caKey *rsa.PrivateKey, caCert *x509.Certificate) error {
-	domainName := platformData.PlatformInfo.DomainName
-	validityDays := platformData.PlatformInfo.MQTTSslCertsValidityDays
-	limitTime := time.Now().Add(24 * 15 * time.Hour) //15 days of margin
-	for iorg, org := range platformData.Organizations {
-		orgAcronym := org.OrgAcronym
-		orgAcronymLower := strings.ToLower(orgAcronym)
-		for inri, nri := range org.NodeRedInstances {
-			mqttClientCert := nri.NriMqttCerts.ClientCrt
-			mqttClientKey := nri.NriMqttCerts.ClientKey
-			mqttClientExpirationTimestamp := nri.NriMqttCerts.ExpirationTimestamp
-			expirationTime := time.Unix(mqttClientExpirationTimestamp, 0)
-			if (mqttClientCert == "" && mqttClientKey == "") || expirationTime.Before(limitTime) {
-				nriHash := nri.NriHash
-				if nriHash == "" {
-					nriHash = GeneratePassword(10)
-				}
-				nriCommonName := fmt.Sprintf("nri_%s", nriHash)
-
-				serverKey, err := rsa.GenerateKey(rand.Reader, 2048)
-				if err != nil {
-					return fmt.Errorf("error generating node-red private key: %v", err)
-				}
-
-				serialNumber, err := rand.Int(rand.Reader, big.NewInt(1<<62))
-				if err != nil {
-					return fmt.Errorf("error generating serial number for client %s: %v", nriCommonName, err)
-				}
-				timeInHours := time.Duration(validityDays) * 24 * time.Hour
-
-				serverTemplate := x509.Certificate{
-					SerialNumber: serialNumber,
-					Subject: pkix.Name{
-						CommonName: nriCommonName,
-					},
-					NotBefore: time.Now(),
-					NotAfter:  time.Now().Add(timeInHours),
-					KeyUsage:  x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment,
-					ExtKeyUsage: []x509.ExtKeyUsage{
-						x509.ExtKeyUsageClientAuth,
-					},
-					BasicConstraintsValid: true,
-					IPAddresses:           []net.IP{net.IPv4(127, 0, 0, 1), net.IPv6loopback},
-					DNSNames:              []string{"localhost", domainName}, // SAN
-				}
-
-				nriDERBytes, err := x509.CreateCertificate(
-					rand.Reader,
-					&serverTemplate,
-					caCert,
-					&serverKey.PublicKey,
-					caKey,
-				)
-				if err != nil {
-					return fmt.Errorf("error creating client cert: %v", err)
-				}
-
-				nriCertPEM := pem.EncodeToMemory(&pem.Block{
-					Type:  "CERTIFICATE",
-					Bytes: nriDERBytes,
-				})
-
-				nriKeyPEM := pem.EncodeToMemory(&pem.Block{
-					Type:  "RSA PRIVATE KEY",
-					Bytes: x509.MarshalPKCS1PrivateKey(serverKey),
-				})
-
-				mqttClientCert := string(nriCertPEM)
-				mqttClientKey := string(nriKeyPEM)
-
-				platformData.Organizations[iorg].NodeRedInstances[inri].NriMqttCerts.ClientCrt = mqttClientCert
-				mqttClientCertName := fmt.Sprintf("%s_%s_cert_%s", orgAcronymLower, nriHash, GetMD5Hash(mqttClientCert))
-				platformData.Organizations[iorg].NodeRedInstances[inri].NriMqttCerts.ClientCrtName = mqttClientCertName
-				platformData.Organizations[iorg].NodeRedInstances[inri].NriMqttCerts.ExpirationTimestamp = GetCertExpirationTimestamp(mqttClientCert)
-
-				platformData.Organizations[iorg].NodeRedInstances[inri].NriMqttCerts.ClientKey = mqttClientKey
-				mqttClientKeyName := fmt.Sprintf("%s_%s_key_%s", orgAcronymLower, nriHash, GetMD5Hash(mqttClientKey))
-				platformData.Organizations[iorg].NodeRedInstances[inri].NriMqttCerts.ClientKeyName = mqttClientKeyName
-				platformData.Organizations[iorg].NodeRedInstances[inri].NriHash = nriHash
-			}
-		}
-	}
-
-	return nil
-}
-
 func MqttTLSCredentials(platformData *types.PlatformData) error {
 	//CA Cert
 	caKey, caCert, err := CreateMqttCaCerts(platformData)
@@ -316,30 +229,6 @@ func MqttTLSCredentials(platformData *types.PlatformData) error {
 		return err
 	}
 
-	//Node-Red MQTT Cert
-	err = CreateNodeRedMqttCerts(platformData, caKey, caCert)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func CreateNriNatsNkeys(platformData *types.PlatformData) error {
-	for iorg, org := range platformData.Organizations {
-		for inri, nri := range org.NodeRedInstances {
-			nriNatsPublic := nri.NriNatsCerts.NriNkeyPublic
-			nriNatsSeed := nri.NriNatsCerts.NriNkeySeed
-			if nriNatsPublic == "" && nriNatsSeed == "" {
-				nriNatsPublic, nriNatsSeed, err := CreateUserNatsNkey()
-				if err != nil {
-					return fmt.Errorf("error creating NATS Nkey for Node-Red instance: %v", err)
-				}
-				platformData.Organizations[iorg].NodeRedInstances[inri].NriNatsCerts.NriNkeyPublic = nriNatsPublic
-				platformData.Organizations[iorg].NodeRedInstances[inri].NriNatsCerts.NriNkeySeed = nriNatsSeed
-			}
-		}
-	}
 	return nil
 }
 

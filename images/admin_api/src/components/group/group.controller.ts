@@ -55,13 +55,6 @@ import {
 } from "../digitalTwin/digitalTwinDAL";
 import { getFloorByOrgIdAndFloorNumber } from "../building/buildingDAL";
 import { findGroupGeojsonData } from "../../utils/geolocation.ts/geolocation";
-import {
-	assignNodeRedInstanceToGroup,
-	markAsDeleteNodeRedInstancesInGroup,
-	getNodeRedInstancesInGroup,
-	getNodeRedInstancesUnassignedInOrg,
-	updateNodeRedInstanceIconById,
-} from "../nodeRedInstance/nodeRedInstanceDAL";
 import UpdateGroupManagedDto from "./interfaces/groupManagedUpdate.dto";
 import rhumbDestination from "@turf/rhumb-destination";
 import { updateMeasurementsGroupUid } from "../mesurement/measurementDAL";
@@ -257,16 +250,7 @@ class GroupController implements IController {
 			const usersArray = await getOrganizationUsersByEmailArray(
 				orgId,
 				groupInput.groupAdminDataArray.map((user) => user.email)
-			);
-			const nodeRedInstancesUnlinkedInOrg = await getNodeRedInstancesUnassignedInOrg(orgId);
-			if (nodeRedInstancesUnlinkedInOrg.length === 0) {
-				throw new HttpException(
-					req,
-					res,
-					400,
-					`The org with id: ${orgId} not have nodered instances available`
-				);
-			}
+			);;
 			if (usersArray.length !== groupInput.groupAdminDataArray.length) {
 				throw new HttpException(
 					req,
@@ -289,8 +273,6 @@ class GroupController implements IController {
 			let centerGroupAreaLatitude = 0.0;
 			let assetLongitude = 0.0;
 			let assetLatitude = 0.0;
-			let nriLongitude = 0.0;
-			let nriLatitude = 0.0;
 			if (geojsonObj.features) {
 				const geoPolygon = polygon(geojsonObj.features[0].geometry.coordinates);
 				const center = pointOnFeature(geoPolygon);
@@ -300,14 +282,7 @@ class GroupController implements IController {
 				const ptAsset = rhumbDestination(ptCenterGroupArea, 0.001, 180);
 				assetLongitude = ptAsset.geometry.coordinates[0];
 				assetLatitude = ptAsset.geometry.coordinates[1];
-				const ptNri = rhumbDestination(ptCenterGroupArea, 0.002, 0.0);
-				nriLongitude = ptNri.geometry.coordinates[0];
-				nriLatitude = ptNri.geometry.coordinates[1];
 			}
-
-			nodeRedInstancesUnlinkedInOrg[0].longitude = nriLongitude;
-			nodeRedInstancesUnlinkedInOrg[0].latitude = nriLatitude;
-			await assignNodeRedInstanceToGroup(nodeRedInstancesUnlinkedInOrg[0], groupCreated.id);
 
 			const assetType = await getAssetTypeByTypeAndOrgId(orgId, "Mobile");
 			const defaultAssetData = {
@@ -486,11 +461,6 @@ class GroupController implements IController {
 			const groupManagedInput: UpdateGroupManagedDto = req.body;
 			const existentGroup = await getGroupByWithFolderPermissionProp("id", groupId);
 			if (!existentGroup) throw new ItemNotFoundException(req, res, "The group", "id", groupId);
-			const nriId = groupManagedInput.nriInGroupId;
-			const longitude = groupManagedInput.nriInGroupIconLongitude;
-			const latitude = groupManagedInput.nriInGroupIconLatitude;
-			const iconRadio = groupManagedInput.nriInGroupIconRadio;
-			await updateNodeRedInstanceIconById(nriId, longitude, latitude, iconRadio);
 
 			const folderPermission = groupManagedInput.folderPermission;
 			const telegramInvitationLink = groupManagedInput.telegramInvitationLink;
@@ -512,10 +482,6 @@ class GroupController implements IController {
 			if (!this.isValidGroupPropName(propName)) throw new InvalidPropNameExeception(req, res, propName);
 			const group = await getGroupByProp(propName, propValue);
 			if (!group) throw new ItemNotFoundException(req, res, "The group", propName, propValue);
-			const nriInGroup = await getNodeRedInstancesInGroup(group.id);
-			if (nriInGroup) {
-				await markAsDeleteNodeRedInstancesInGroup(group.id);
-			}
 			const orgKey = await getOrganizationKey(orgId);
 			const message = await deleteGroup(group, orgKey);
 			const bucketFolder = `org_${orgId}/group_${group.id}`;

@@ -10,10 +10,6 @@ export interface IGroupManagedData {
 	folderPermission: string;
     telegramInvitationLink: string;
     telegramChatId: string;
-    nriInGroupId: number;
-    nriInGroupIconLongitude: number;
-    nriInGroupIconLatitude: number;
-    nriInGroupIconRadio: number;
 }
 
 export interface GroupsManagedContextProps {
@@ -23,7 +19,6 @@ export interface GroupsManagedContextProps {
 	groupManagedRowIndex: number;
 	groupManagedIdToEdit: number;
 	groupManagedBuildingId: number;
-	groupManagedNriId: number;
 	groupManagedInputFormData: IGroupManagedData;
 }
 
@@ -34,7 +29,6 @@ export interface GroupsManagedActionPayload {
 	groupManagedRowIndex: number;
 	groupManagedIdToEdit: number;
 	groupManagedBuildingId: number;
-	groupManagedNriId: number;
 	groupManagedInputFormData: IGroupManagedData;
 }
 
@@ -67,11 +61,6 @@ export interface IGroupsManagedIdToEdit {
 export interface IGroupsManagedBuildingId {
 	groupManagedBuildingId: number;
 }
-
-export interface IGroupManagedNriId {
-	groupManagedNriId: number;
-}
-
 
 export interface IGroupsManagedInputFormData {
 	groupManagedInputFormData: IGroupManagedData;

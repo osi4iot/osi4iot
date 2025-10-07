@@ -14,12 +14,12 @@ class CreateUserDto {
 	@IsEmail()
 	public email: string;
 
-	@ValidateIf((obj) => obj.login !== undefined)
+	@ValidateIf((obj) => obj.login !== undefined && obj.login !== "")
 	@IsString()
 	@Matches(/^[a-zA-Z0-9._-]{4,}$/)
 	public login: string;
 
-	@ValidateIf((obj) => obj.password !== undefined)
+	@ValidateIf((obj) => obj.password !== undefined && obj.password !== "")
 	@IsString()
 	@Matches(/^[a-zA-Z0-9._-]{8,20}$/)
 	public password: string;

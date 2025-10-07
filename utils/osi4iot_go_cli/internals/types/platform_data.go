@@ -12,7 +12,6 @@ import (
 
 type PlatformData struct {
 	PlatformInfo       PlatformInfo   `json:"platformInfo"`
-	Organizations      []Organization `json:"organizations"`
 	Certs              Certs          `json:"certs"`
 	AdminAPISecretName string         `json:"admin_api_secret_name"`
 	CustomServices     []interface{}  `json:"custom_services"`
@@ -182,13 +181,6 @@ type Broker struct {
 	ServerKey           string `json:"server_key"`
 	MqttBrokerKeyName   string `json:"mqtt_broker_key_name"`
 	ExpirationTimestamp int64  `json:"expiration_timestamp"`
-}
-
-type Organization struct {
-	OrgHash              string            `json:"org_hash"`
-	OrgAcronym           string            `json:"org_acronym"`
-	ExclusiveWorkerNodes []string          `json:"exclusiveWorkerNodes"` // Ajustar si se conoce la estructura
-	NodeRedInstances     []NodeRedInstance `json:"nodered_instances"`
 }
 
 type NriMqttCerts struct {

@@ -34,7 +34,6 @@ import verifiyPassword from "../../utils/helpers/verifiyPassword";
 import process_env from "../../config/api_config";
 import { getTopicInfoForMqttAclByTopicUid } from "../topic/topicDAL";
 import ITopicInfoForMqttAcl from "../topic/topicInfoForMqttAcl.interface";
-import { getNodeRedInstanceByProp } from "../nodeRedInstance/nodeRedInstanceDAL";
 import {
 	getNumAssetTypes,
 	getNumAssetTypesByOrgsIdArray,
@@ -289,17 +288,6 @@ class AuthenticationController implements IController {
 				}
 			}
 
-			if (username.split("_")[0] === "nri" && topicArray[0] === "test") {
-				const nriHashInTopic = topicArray[1].slice(4);
-				const nriHashInUserName = username.split("_")[1];
-				if (nriHashInTopic !== nriHashInUserName) {
-					const errorMessage = "Incorrect nri_hash";
-					errorLogger(req, res, 400, errorMessage);
-					res.status(400).json({ Ok: false, Error: errorMessage });
-					return
-				}
-			}
-
 			let isMosquittoSysTopic = false;
 			if (topicArray[0] === "$SYS" && topicArray[1] === "broker") {
 				isMosquittoSysTopic = true;
@@ -408,17 +396,6 @@ class AuthenticationController implements IController {
 					errorLogger(req, res, 400, errorMessage);
 					res.status(400).json({ Ok: false, Error: errorMessage });
 					return
-				}
-			} else if (usernameArray[0] === "nri") {
-				if (topicArray[0] !== "test") {
-					const nriHashInUserName = username.split("_")[1];
-					const nodeRedInstance = await getNodeRedInstanceByProp("nri_hash", nriHashInUserName);
-					if (nodeRedInstance.groupId !== topicData.groupId) {
-						const errorMessage = "Incorrect group for provided nri_hash";
-						errorLogger(req, res, 400, errorMessage);
-						res.status(400).json({ Ok: false, Error: errorMessage });
-						return
-					}
 				}
 			} else {
 				let user: IUser;

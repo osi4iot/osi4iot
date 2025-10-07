@@ -15,18 +15,6 @@ import (
 
 func GenerateSecrets(pd *pt.PlatformData) map[string]pt.Secret {
 	Secrets := make(map[string]pt.Secret)
-	mainOrgNodeRedInstances := pd.Organizations[0].NodeRedInstances
-	var hashes []string
-	var nriPasswords []string
-	var nriNkeysPublic []string
-	for _, nri := range mainOrgNodeRedInstances {
-		hashes = append(hashes, nri.NriHash)
-		nriPasswords = append(nriPasswords, nri.NriPassword)
-		nriNkeysPublic = append(nriNkeysPublic, nri.NriNatsCerts.NriNkeyPublic)
-	}
-	mainOrgNriHashes := strings.Join(hashes, ",")
-	mainOrgNriPasswords := strings.Join(nriPasswords, ",")
-	mainOrgNriNkeysPublic := strings.Join(nriNkeysPublic, ",")
 	domainCertsType := pd.PlatformInfo.DomainCertsType
 	messagingSystem := pd.PlatformInfo.MessagingSystem
 	nodeRoleMaps := resources.NewNodeRoleMaps(pd)
@@ -63,12 +51,8 @@ func GenerateSecrets(pd *pt.PlatformData) map[string]pt.Secret {
 		fmt.Sprintf("MAIN_ORGANIZATION_TELEGRAM_CHAT_ID=%s", pd.PlatformInfo.MainOrganizationTelegramChatID),
 		fmt.Sprintf("MAIN_ORGANIZATION_TELEGRAM_INVITATION_LINK=%s", pd.PlatformInfo.MainOrganizationTelegramInviteLink),
 		fmt.Sprintf("TELEGRAM_BOTTOKEN=%s", pd.PlatformInfo.TelegramBotToken),
-		fmt.Sprintf("MAIN_ORG_HASH=%s", pd.Organizations[0].OrgHash),
 		fmt.Sprintf("AWS_ACCESS_KEY_ID=%s", pd.PlatformInfo.AWSAccessKeyIDS3Bucket),
 		fmt.Sprintf("AWS_SECRET_ACCESS_KEY=%s", pd.PlatformInfo.AWSSecretAccessKeyS3Bucket),
-		fmt.Sprintf("MAIN_ORG_NRI_HASHES=%s", mainOrgNriHashes),
-		fmt.Sprintf("MAIN_ORG_NRI_PASSWORDS=%s", mainOrgNriPasswords),
-		fmt.Sprintf("MAIN_ORG_NRI_NKEYS_PUBLIC=%s", mainOrgNriNkeysPublic),
 	}
 
 	adminApiSecretsData := strings.Join(adminApiSecretsDataArray, "\n")
@@ -338,68 +322,6 @@ func GenerateSecrets(pd *pt.PlatformData) map[string]pt.Secret {
 	Secrets["s3_storage"] = s3StorageSecret
 
 	return Secrets
-}
-
-func GenerateNriSecrets(messagingSystem string, orgs []pt.Organization, Secrets map[string]pt.Secret) {
-	for iorg := range orgs {
-		orgAcronym := strings.ToLower(orgs[iorg].OrgAcronym)
-		numNodeRedInstances := len(orgs[iorg].NodeRedInstances)
-		for inri := range numNodeRedInstances {
-			nriHash := orgs[iorg].NodeRedInstances[inri].NriHash
-			switch messagingSystem {
-			case "mqtt":
-				mqttClientCertSecretKey := fmt.Sprintf("%s_%s_cert", orgAcronym, nriHash)
-				mqttClientCertSecret := pt.Secret{
-					Name: orgs[iorg].NodeRedInstances[inri].NriMqttCerts.ClientCrtName,
-					Data: orgs[iorg].NodeRedInstances[inri].NriMqttCerts.ClientCrt,
-				}
-				Secrets[mqttClientCertSecretKey] = mqttClientCertSecret
-
-				mqttClientKeySecretKey := fmt.Sprintf("%s_%s_key", orgAcronym, nriHash)
-				mqttClientKeySecret := pt.Secret{
-					Name: orgs[iorg].NodeRedInstances[inri].NriMqttCerts.ClientKeyName,
-					Data: orgs[iorg].NodeRedInstances[inri].NriMqttCerts.ClientKey,
-				}
-				Secrets[mqttClientKeySecretKey] = mqttClientKeySecret
-			case "nats":
-				nriUserName := orgs[iorg].NodeRedInstances[inri].NriUserName
-				if nriUserName == "" {
-					nriUserName = fmt.Sprintf("nri_%s", nriHash)
-					orgs[iorg].NodeRedInstances[inri].NriUserName = nriUserName
-				}
-				nriPassword := orgs[iorg].NodeRedInstances[inri].NriPassword
-				if nriPassword == "" {
-					nriPassword = utils.GeneratePassword(20)
-					orgs[iorg].NodeRedInstances[inri].NriPassword = nriPassword
-				}
-				nriNatsPublic := orgs[iorg].NodeRedInstances[inri].NriNatsCerts.NriNkeyPublic
-				nriNatsSeed := orgs[iorg].NodeRedInstances[inri].NriNatsCerts.NriNkeySeed
-				if nriNatsPublic == "" && nriNatsSeed == "" {
-					nriNatsPublic, nriNatsSeed, _ := utils.CreateUserNatsNkey()
-					orgs[iorg].NodeRedInstances[inri].NriNatsCerts.NriNkeyPublic = nriNatsPublic
-					orgs[iorg].NodeRedInstances[inri].NriNatsCerts.NriNkeySeed = nriNatsSeed
-				} else {
-					nriNatsSeed = orgs[iorg].NodeRedInstances[inri].NriNatsCerts.NriNkeySeed
-				}
-
-				nriNatsSecrets := []string{
-					fmt.Sprintf("NRI_USERNAME=%s", nriUserName),
-					fmt.Sprintf("NRI_PASSWORD=%s", nriPassword),
-					fmt.Sprintf("NATS_NKEY_SEED=%s", nriNatsSeed),
-				}
-
-				nriNatsSecretsData := strings.Join(nriNatsSecrets, "\n")
-				nriNatsSecretsHash := utils.GetMD5Hash(nriNatsSecretsData)
-				nriNatsSecretsKey := fmt.Sprintf("%s_%s_nats", orgAcronym, nriHash)
-				nriNatsSecretsName := fmt.Sprintf("%s_%s", nriNatsSecretsKey, nriNatsSecretsHash)
-				nriNatsSecret := pt.Secret{
-					Name: nriNatsSecretsName,
-					Data: nriNatsSecretsData,
-				}
-				Secrets[nriNatsSecretsKey] = nriNatsSecret
-			}
-		}
-	}
 }
 
 func CreateSecret(dc *pt.DockerClient, secretKey string, secret *pt.Secret) error {

@@ -16,11 +16,9 @@ class CreateOrganizationDto {
 	@IsNumber()
 	public buildingId: number;
 
+	@ValidateIf((obj) => obj.orgHash !== undefined)
 	@IsString()
 	public orgHash: string;
-
-	@IsString({each: true})
-	public nriHashes: string[];
 
 	@ValidateIf((obj) => obj.telegramInvitationLink !== undefined)
 	@IsString()

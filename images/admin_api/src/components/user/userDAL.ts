@@ -11,7 +11,6 @@ import { passwordGenerator } from "../../utils/passwordGenerator";
 import UserProfileDto from "./interfaces/UserProfile.dto";
 import CreateGlobalUserDto from "./interfaces/GlobalUser.dto";
 import normalizeString from "../../utils/helpers/normalizeString";
-import process_env from "../../config/api_config";
 
 export const getUserLoginDatadByEmailOrLogin = async (
 	emailOrLogin: string
@@ -157,27 +156,6 @@ export const createFictitiousUserForService = async (
 	const user_msg = await grafanaApi.createUsers([serviceUserData]);
 	await grafanaApi.removeUserFromOrganization(1, user_msg[0].id);
 	return user_msg[0];
-};
-
-export const createFictitiousUsersForMainOrgNri = async () => {
-	const nriUsers: CreateUserDto[] = [];
-	for (let i = 0; i < process_env.MAIN_ORG_NRI_HASHES.length; i++) {
-		const username = `nri_${process_env.MAIN_ORG_NRI_HASHES[i]}`;
-		const email = `${username}@osi4iot.com`;
-		const nriUser: CreateUserDto = {
-			name: username,
-			firstName: "",
-			surname: "",
-			login: username,
-			email,
-			password: process_env.MAIN_ORG_NRI_PASSWORDS[i],
-			natsNkey: process_env.MAIN_ORG_NRI_NKEYS_PUBLIC[i],
-			OrgId: 1,
-		};
-		nriUsers.push(nriUser);
-	}
-	const users_msg = await createOrganizationUsers(1, nriUsers, false);
-	return users_msg;
 };
 
 export const createGlobalUsers = async (usersData: CreateUserDto[]) => {

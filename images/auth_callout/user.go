@@ -25,7 +25,7 @@ type User struct {
 	UpdatedAt      time.Time `json:"updated"`
 }
 
-func (u *User) GetPermissions(authModel *AuthModel, group *Group, nri *Nri, svc *Service) jwt.Permissions {
+func (u *User) GetPermissions(authModel *AuthModel, group *Group, svc *Service) jwt.Permissions {
 	if u.IsGrafanaAdmin {
 		return jwt.Permissions{
 			Pub: jwt.Permission{
@@ -58,8 +58,6 @@ func (u *User) GetPermissions(authModel *AuthModel, group *Group, nri *Nri, svc 
 		}
 	} else if len(u.Username) >= 6 && u.Username[:6] == "group_" {
 		return group.GroupPermissions(authModel)
-	} else if len(u.Username) >= 4 && u.Username[:4] == "nri_" {
-		return nri.NriPermissions(authModel)
 	} else if len(u.Username) >= 4 && u.Username[:4] == "svc_" {
 		return svc.ServicePermissions(authModel)
 	} else {

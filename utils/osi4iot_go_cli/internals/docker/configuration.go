@@ -19,19 +19,9 @@ func nodesConfiguration(platformData *types.PlatformData) error {
 		return fmt.Errorf("error installing NFS on nodes: %w", err)
 	}
 
-	err = AddNFSFolders(platformData)
-	if err != nil {
-		return fmt.Errorf("error adding NFS folders on nodes: %w", err)
-	}
-
 	err = installEFS(platformData)
 	if err != nil {
 		return fmt.Errorf("error installing EFS on nodes: %w", err)
-	}
-
-	err = AddEfsFolders(platformData)
-	if err != nil {
-		return fmt.Errorf("error adding EFS folders on nodes: %w", err)
 	}
 
 	err = addNodesLabels(platformData)
@@ -274,131 +264,6 @@ sudo systemctl restart nfs-kernel-server
 	return nil
 }
 
-func AddNFSFolders(platformData *types.PlatformData) error {
-	pi := platformData.PlatformInfo
-	deploymentLocation := pi.DeploymentLocation
-	numSwarmNodes := len(pi.NodesData)
-
-	if deploymentLocation == "On-premise cluster deployment" && numSwarmNodes > 1 {
-		spinnerDone := make(chan bool)
-		spinnerMsg := "Adding NFS folders."
-		endMsg := "NFS folders added successfully."
-		utils.Spinner(spinnerMsg, endMsg, spinnerDone)
-		nodesData := pi.NodesData
-		nfsNode := types.NodeData{}
-		for _, node := range nodesData {
-			if node.NodeRole == "NFS server" {
-				nfsNode = node
-				break
-			}
-		}
-
-		organizations := platformData.Organizations
-
-		addNfsFoldersScript := `#!/bin/bash
-org_acronym=$1
-nri_hashes_array=($(echo "$2" | tr ',' '\n'))
-
-for (( i=0; i < ${#nri_hashes_array[@]}; i++ )); do
-    nri_folder="/var/nfs_osi4iot/org_${org_acronym}_nri_${nri_hashes_array[$i]}_data"
-    if [ ! -d  $nri_folder ]; then
-        sudo mkdir $nri_folder
-        sudo chown nobody:nogroup $nri_folder
-    fi
-done
-
-sudo systemctl restart nfs-kernel-server
-`
-		nodeScripts := []utils.NodeScript{}
-		for _, org := range organizations {
-			orgAcronym := strings.ToLower(org.OrgAcronym)
-			nriHashes := []string{}
-			for _, nri := range org.NodeRedInstances {
-				nriHashes = append(nriHashes, nri.NriHash)
-			}
-			nriHashesString := strings.Join(nriHashes, ",")
-			nodeScript := utils.NodeScript{
-				Node:   nfsNode,
-				Script: addNfsFoldersScript,
-				Args:   []string{orgAcronym, nriHashesString},
-			}
-			nodeScripts = append(nodeScripts, nodeScript)
-		}
-		_, err := utils.RunScriptInNodes(platformData, nodeScripts)
-		if err != nil {
-			spinnerDone <- false
-			return err
-		}
-		spinnerDone <- true
-	}
-
-	return nil
-}
-
-func RemoveNfsFolders(platformData *types.PlatformData, orgAcronym string) error {
-	pi := platformData.PlatformInfo
-	deploymentLocation := pi.DeploymentLocation
-	numSwarmNodes := len(pi.NodesData)
-
-	if deploymentLocation == "On-premise cluster deployment" && numSwarmNodes > 1 {
-		spinnerDone := make(chan bool)
-		spinnerMsg := fmt.Sprintf("Removing NFS folders for organization %s", orgAcronym)
-		endMsg := fmt.Sprintf("NFS folders removed successfully for organization %s", orgAcronym)
-		utils.Spinner(spinnerMsg, endMsg, spinnerDone)
-		nodesData := pi.NodesData
-		nfsNode := types.NodeData{}
-		for _, node := range nodesData {
-			if node.NodeRole == "NFS server" {
-				nfsNode = node
-				break
-			}
-		}
-
-		organizations := platformData.Organizations
-		orgToRemove := types.Organization{}
-		for _, org := range organizations {
-			if org.OrgAcronym == orgAcronym {
-				orgToRemove = org
-				break
-			}
-		}
-
-		if orgToRemove.OrgAcronym != "" {
-			orgAcronym := strings.ToLower(orgToRemove.OrgAcronym)
-			nriHashes := []string{}
-			for _, nri := range orgToRemove.NodeRedInstances {
-				nriHashes = append(nriHashes, nri.NriHash)
-			}
-			nriHashesString := strings.Join(nriHashes, ",")
-			removeNfsFoldersScript := `#!/bin/bash
-org_acronym=$1
-nri_hashes_array=($(echo "$2" | tr ',' '\n'))
-
-for (( i=0; i < ${#nri_hashes_array[@]}; i++ )); do
-    nri_folder="/var/nfs_osi4iot/org_${org_acronym}_nri_${nri_hashes_array[$i]}_data"
-    if [ -d  $nri_folder ]; then
-        sudo rm -rf $nri_folder
-    fi
-done
-
-sudo systemctl restart nfs-kernel-server		
-`
-			nodeScript := utils.NodeScript{
-				Node:   nfsNode,
-				Script: removeNfsFoldersScript,
-				Args:   []string{orgAcronym, nriHashesString},
-			}
-			_, err := utils.RunScriptInNodes(platformData, []utils.NodeScript{nodeScript})
-			if err != nil {
-				spinnerDone <- false
-				return err
-			}
-			spinnerDone <- true
-		}
-	}
-	return nil
-}
-
 func installEFS(platformData *types.PlatformData) error {
 	pi := platformData.PlatformInfo
 	deploymentLocation := pi.DeploymentLocation
@@ -498,120 +363,6 @@ fi
 	return nil
 }
 
-func AddEfsFolders(platformData *types.PlatformData) error {
-	pi := platformData.PlatformInfo
-	deploymentLocation := pi.DeploymentLocation
-	numSwarmNodes := len(pi.NodesData)
-
-	if deploymentLocation == "AWS cluster deployment" && numSwarmNodes > 1 {
-		spinnerDone := make(chan bool)
-		spinnerMsg := "Adding EFS folders for organizations"
-		endMsg := "EFS folders added successfully"
-		utils.Spinner(spinnerMsg, endMsg, spinnerDone)
-		nodeData := pi.NodesData[0]
-		organizations := platformData.Organizations
-
-		addEfsFoldersScript := `#!/bin/bash
-org_acronym=$1
-nri_hashes_array=($(echo "$2" | tr ',' '\n'))
-
-for (( i=0; i < ${#nri_hashes_array[@]}; i++ )); do
-    nri_folder="/home/ubuntu/efs_osi4iot/org_${org_acronym}_nri_${nri_hashes_array[$i]}_data"
-    if [ ! -d  $nri_folder ]; then
-        sudo mkdir $nri_folder
-        sudo chown ubuntu:ubuntu $nri_folder
-    fi
-done
-`
-		nodeScripts := []utils.NodeScript{}
-		for _, org := range organizations {
-			orgAcronym := strings.ToLower(org.OrgAcronym)
-			nriHashes := []string{}
-			for _, nri := range org.NodeRedInstances {
-				nriHashes = append(nriHashes, nri.NriHash)
-			}
-			nriHashesString := strings.Join(nriHashes, ",")
-			nodeScript := utils.NodeScript{
-				Node:   nodeData,
-				Script: addEfsFoldersScript,
-				Args:   []string{orgAcronym, nriHashesString},
-			}
-			nodeScripts = append(nodeScripts, nodeScript)
-		}
-		_, err := utils.RunScriptInNodes(platformData, nodeScripts)
-		if err != nil {
-			spinnerDone <- false
-			return err
-		}
-		spinnerDone <- true
-	}
-
-	return nil
-}
-
-func RemoveEfsFolders(platformData *types.PlatformData, orgAcronym string) error {
-	pi := platformData.PlatformInfo
-	deploymentLocation := pi.DeploymentLocation
-	numSwarmNodes := len(pi.NodesData)
-
-	if deploymentLocation == "AWS cluster deployment" && numSwarmNodes > 1 {
-		spinnerDone := make(chan bool)
-		spinnerMsg := fmt.Sprintf("Removing EFS folders for organization %s", orgAcronym)
-		endMsg := fmt.Sprintf("EFS folders removed successfully for organization %s", orgAcronym)
-		utils.Spinner(spinnerMsg, endMsg, spinnerDone)
-		nodeData := pi.NodesData[0]
-		organizations := platformData.Organizations
-		orgToRemove := types.Organization{}
-		for _, org := range organizations {
-			if org.OrgAcronym == orgAcronym {
-				orgToRemove = org
-				break
-			}
-		}
-
-		if orgToRemove.OrgAcronym != "" {
-			orgAcronym := orgToRemove.OrgAcronym
-			nriHashes := []string{}
-			for _, nri := range orgToRemove.NodeRedInstances {
-				nriHashes = append(nriHashes, nri.NriHash)
-			}
-			nriHashesString := strings.Join(nriHashes, ",")
-			removeNfsFoldersScript := `#!/bin/bash
-org_acronym=$1
-nri_hashes_array=($(echo "$2" | tr ',' '\n'))
-
-for (( i=0; i < ${#nri_hashes_array[@]}; i++ )); do
-    nri_folder="/home/ubuntu/efs_osi4iot/org_${org_acronym}_nri_${nri_hashes_array[$i]}_data"
-    if [ -d  $nri_folder ]; then
-        sudo rm -rf $nri_folder
-    fi
-done		
-`
-			nodeScript := utils.NodeScript{
-				Node:   nodeData,
-				Script: removeNfsFoldersScript,
-				Args:   []string{orgAcronym, nriHashesString},
-			}
-			_, err := utils.RunScriptInNodes(platformData, []utils.NodeScript{nodeScript})
-			if err != nil {
-				return err
-			}
-		}
-	}
-	return nil
-}
-
-func filterOrganizations(organizations []types.Organization, nodeName string) *types.Organization {
-	for _, org := range organizations {
-		for _, node := range org.ExclusiveWorkerNodes {
-			if node == nodeName {
-				return &org
-			}
-		}
-	}
-	return nil
-}
-
 func addNodesLabels(platformData *types.PlatformData) error {
 	pi := platformData.PlatformInfo
 	spinnerDone := make(chan bool)
@@ -652,7 +403,6 @@ func addNodesLabels(platformData *types.PlatformData) error {
 			spec.Labels = make(map[string]string)
 		}
 
-		nodeName := node.NodeHostName
 		nodeRole := node.NodeRole
 		switch nodeRole {
 		case "Manager":
@@ -663,14 +413,6 @@ func addNodesLabels(platformData *types.PlatformData) error {
 			spec.Labels["KEEPALIVED_PRIORITY"] = "0"
 		case "Platform worker":
 			spec.Labels["platform_worker"] = "true"
-		case "Generic org worker":
-			spec.Labels["generic_org_worker"] = "true"
-		case "Exclusive org worker":
-			organizations := platformData.Organizations
-			filteredOrg := filterOrganizations(organizations, nodeName)
-			if filteredOrg != nil {
-				spec.Labels["org_hash"] = filteredOrg.OrgHash
-			}
 		case "NFS server":
 			spec.Labels["nfs_server"] = "true"
 		}

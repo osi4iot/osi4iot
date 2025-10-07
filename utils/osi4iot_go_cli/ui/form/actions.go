@@ -6,13 +6,10 @@ import (
 	"os/exec"
 	"os/user"
 	"runtime"
-	"slices"
 	"strconv"
 	"strings"
 
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/data"
-	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/docker"
-	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/orgs"
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/types"
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/utils"
 	"github.com/shirou/gopsutil/mem"
@@ -651,44 +648,6 @@ func createPlatform(m *Model) (platformCreatingMsg, error) {
 		return platformCreatingMsg("Error: Some questions are not answered correctly"), nil
 	}
 
-	if len(data.Data.Organizations) == 0 {
-		orgHash := utils.GeneratePassword(16)
-		orgAcronym := platformData.PlatformInfo.MainOrganizationAcronym
-		numNriInMainOrg := platformData.PlatformInfo.NumberOfNodeRedInstancesInMainOrg
-		exclusiveWorkerNodes := []string{}
-		noderedInstances := make([]types.NodeRedInstance, numNriInMainOrg)
-		organization := types.Organization{
-			OrgHash:              orgHash,
-			OrgAcronym:           orgAcronym,
-			ExclusiveWorkerNodes: exclusiveWorkerNodes,
-			NodeRedInstances:     noderedInstances,
-		}
-		for idx := range numNriInMainOrg {
-			nriHash := utils.GeneratePassword(10)
-			nriUserName := fmt.Sprintf("nri_%s", nriHash)
-			nriPassword := utils.GeneratePassword(20)
-			nriNkeyPublic, nriNkeySeed, err := utils.CreateUserNatsNkey()
-			if err != nil {
-				return platformCreatingMsg("Error: generating NATS Nkey pair for " + nriUserName), err
-			}
-			nriNatsCerts := types.NriNatsCerts{
-				NriNkeyPublic: nriNkeyPublic,
-				NriNkeySeed:   nriNkeySeed,
-			}
-
-			nri := types.NodeRedInstance{
-				NriHash:      nriHash,
-				NriUserName:  nriUserName,
-				NriPassword:  nriPassword,
-				NriMqttCerts: types.NriMqttCerts{},
-				NriNatsCerts: nriNatsCerts,
-			}
-			organization.NodeRedInstances[idx] = nri
-		}
-
-		platformData.Organizations = append(platformData.Organizations, organization)
-	}
-
 	notificationsEmailAddress := m.FindAnswerByKey("NOTIFICATIONS_EMAIL_ADDRESS")
 	data.SetData("NOTIFICATIONS_EMAIL_USER", notificationsEmailAddress)
 
@@ -824,108 +783,4 @@ func GetLocalNodeData() (types.NodeData, error) {
 		NodeMemoryBytes: int64(vm.Total),
 	}
 	return nodeData, nil
-}
-
-func createOrg(m *Model) (creatingOrgMsg, error) {
-	platformData := data.GetData()
-	orgHash := utils.GeneratePassword(16)
-	orgName := m.FindAnswerByKey("ORGANIZATION_NAME")
-	orgAcronym := m.FindAnswerByKey("ORGANIZATION_ACRONYM")
-	orgRole := m.FindAnswerByKey("ORGANIZATION_ROLE")
-	buildingId, _ := strconv.Atoi(m.FindAnswerByKey("BUILDING_ID"))
-	orgTelegramChatId := m.FindAnswerByKey("ORGANIZATION_TELEGRAM_CHAT_ID")
-	orgTelegramInvitationLink := m.FindAnswerByKey("ORGANIZATION_TELEGRAM_INVITATION_LINK")
-	mqttAccessControl := m.FindAnswerByKey("MQTT_ACCESS_CONTROL")
-	numNriInOrg, _ := strconv.Atoi(m.FindAnswerByKey("NUMBER_OF_NODERED_INSTANCES_IN_ORG"))
-	nriHashes := make([]string, numNriInOrg)
-
-	newOrg := types.Organization{
-		OrgHash:              orgHash,
-		OrgAcronym:           orgAcronym,
-		ExclusiveWorkerNodes: []string{},
-		NodeRedInstances:     []types.NodeRedInstance{},
-	}
-	for idx := 0; idx < numNriInOrg; idx++ {
-		nriHash := utils.GeneratePassword(10)
-		nriHashes[idx] = nriHash
-		nriUserName := fmt.Sprintf("nri_%s", nriHash)
-		nriPassword := utils.GeneratePassword(20)
-		nriNkeyPublic, nriNkeySeed, err := utils.CreateUserNatsNkey()
-		if err != nil {
-			return creatingOrgMsg("Error: generating NATS Nkey pair"), err
-		}
-		nriNatsCerts := types.NriNatsCerts{
-			NriNkeyPublic: nriNkeyPublic,
-			NriNkeySeed:   nriNkeySeed,
-		}
-
-		nri := types.NodeRedInstance{
-			NriHash:      nriHash,
-			NriUserName:  nriUserName,
-			NriPassword:  nriPassword,
-			NriMqttCerts: types.NriMqttCerts{},
-			NriNatsCerts: nriNatsCerts,
-		}
-		newOrg.NodeRedInstances = append(newOrg.NodeRedInstances, nri)
-	}
-	platformData.Organizations = append(platformData.Organizations, newOrg)
-
-	orgAdminFirstName := m.FindAnswerByKey("ORG_ADMIN_FIRST_NAME")
-	orgAdminSurname := m.FindAnswerByKey("ORG_ADMIN_SURNAME")
-	orgAdminEmail := m.FindAnswerByKey("ORG_ADMIN_EMAIL")
-	orgAdminArray := []orgs.Admin{
-		{
-			FirstName: orgAdminFirstName,
-			Surname:   orgAdminSurname,
-			Email:     orgAdminEmail,
-		},
-	}
-
-	createOrgData := orgs.CreateOrgData{
-		Name:                   orgName,
-		Acronym:                orgAcronym,
-		Role:                   orgRole,
-		BuildingId:             buildingId,
-		OrgHash:                orgHash,
-		NriHashes:              nriHashes,
-		TelegramInvitationLink: orgTelegramInvitationLink,
-		TelegramChatId:         orgTelegramChatId,
-		MqttAccessControl:      mqttAccessControl,
-		OrgAdminArray:          orgAdminArray,
-	}
-
-	err := orgs.RequestCreateOrg(platformData, createOrgData)
-	if err != nil {
-		errMsg := fmt.Sprintf("Error: creating organization: %v", err)
-		return creatingOrgMsg(errMsg), err
-	}
-
-	err = utils.MqttTLSCredentials(platformData)
-	if err != nil {
-		return creatingOrgMsg("Error: creating mqtt certs"), err
-	}
-
-	err = utils.WritePlatformDataToFile(platformData)
-	if err != nil {
-		return creatingOrgMsg("Error: writing platform data to file"), err
-	}
-
-	err = docker.AddNFSFolders(platformData)
-	if err != nil {
-		return creatingOrgMsg("Error: adding NFS folders on nodes"), err
-	}
-
-	err = docker.AddEfsFolders(platformData)
-	if err != nil {
-		return creatingOrgMsg("Error: adding EFS folders on nodes"), err
-	}
-
-	if !slices.Contains(platformData.PlatformInfo.ExcludedServices, "nri") {
-		err = docker.CreateNriSwarmServicesForOrg(platformData, newOrg)
-		if err != nil {
-			return creatingOrgMsg("Error: creating NodeRed instances services"), err
-		}
-	}
-
-	return creatingOrgMsg("Organization created successfully"), nil
 }

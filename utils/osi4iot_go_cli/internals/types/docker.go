@@ -52,13 +52,6 @@ type SwarmData struct {
 	Networks map[string]Network
 }
 
-type NriData struct {
-	Org              Organization
-	Nri              NodeRedInstance
-	Resources        *swarm.ResourceRequirements
-	ConstraintsArray []string
-}
-
 type DockerClient struct {
 	Cli  *client.Client
 	Ctx  context.Context

@@ -398,11 +398,6 @@ const hiddenColumnCondition = (col: any) => {
         col.Header === "digitalTwinSimulationFormat" ||
         col.Header === "telegramInvitationLink" ||
         col.Header === "telegramChatId" ||
-        col.Header === "nriInGroupId" ||
-        col.Header === "nriInGroupHash" ||
-        col.Header === "nriInGroupIconLongitude" ||
-        col.Header === "nriInGroupIconLatitude" ||
-        col.Header === "nriInGroupIconRadio" ||
         col.Header === "dashboardUrl"
 
     return condition;

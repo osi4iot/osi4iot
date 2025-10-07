@@ -52,9 +52,6 @@ interface IProcessEnv extends Record<string, string | string[] | string[][]> {
 	MAIN_ORGANIZATION_TELEGRAM_INVITATION_LINK: string;
 	TELEGRAM_BOTTOKEN: string;
 	MAIN_ORG_HASH: string;
-	MAIN_ORG_NRI_HASHES: string[];
-	MAIN_ORG_NRI_PASSWORDS: string[];
-	MAIN_ORG_NRI_NKEYS_PUBLIC: string[];
 	REPLICA: string;
 }
 
@@ -109,37 +106,22 @@ const process_env: IProcessEnv = {
 	MAIN_ORGANIZATION_TELEGRAM_INVITATION_LINK: process.env.MAIN_ORGANIZATION_TELEGRAM_INVITATION_LINK,
 	TELEGRAM_BOTTOKEN: process.env.TELEGRAM_BOTTOKEN,
 	MAIN_ORG_HASH: process.env.MAIN_ORG_HASH,
-	MAIN_ORG_NRI_HASHES: [],
-	MAIN_ORG_NRI_PASSWORDS: [],
-	MAIN_ORG_NRI_NKEYS_PUBLIC: [],
 	REPLICA: process.env.REPLICA,
 };
 
 const readDockerFiles = (dockerFileName: string) => {
 	if (fs.existsSync(dockerFileName)) {
 		try {
-			const data = fs.readFileSync(dockerFileName, {encoding:'utf8', flag:'r'});
+			const data = fs.readFileSync(dockerFileName, { encoding: "utf8", flag: "r" });
 			const lines = data.split(/\r?\n/);
 			lines.forEach((line) => {
 				const splittedLine = line.split("=");
 				if (splittedLine.length === 2) {
 					const envName = splittedLine[0];
-					if (envName === "MAIN_ORG_NRI_HASHES") {
-						const envValues = splittedLine[1].replace(/"/g, "").split(",");
-						process_env.MAIN_ORG_NRI_HASHES.push(...envValues);
-					} else if (envName === "MAIN_ORG_NRI_PASSWORDS") {
-						const envValues = splittedLine[1].replace(/"/g, "").split(",");
-						process_env.MAIN_ORG_NRI_PASSWORDS.push(...envValues);
-					} else if (envName === "MAIN_ORG_NRI_NKEYS_PUBLIC") {
-						const envValues = splittedLine[1].replace(/"/g, "").split(",");
-						process_env.MAIN_ORG_NRI_NKEYS_PUBLIC.push(...envValues);
-					} else {
-						const envValue = splittedLine[1].replace(/"/g, "");
-						process_env[envName] = envValue;
-					}
+					const envValue = splittedLine[1].replace(/"/g, "");
+					process_env[envName] = envValue;
 				}
 			});
-
 		} catch (err) {
 			logger.log("error", `An error occurred while trying to read the file: ${dockerFileName}:  %s`, err.message);
 		}
@@ -149,6 +131,4 @@ const readDockerFiles = (dockerFileName: string) => {
 readDockerFiles("/run/secrets/admin_api.txt");
 readDockerFiles("/run/configs/admin_api.conf");
 
-
 export default process_env;
-

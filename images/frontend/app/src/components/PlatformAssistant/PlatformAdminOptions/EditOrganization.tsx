@@ -1,8 +1,8 @@
-import { FC, SyntheticEvent, useState } from 'react';
+import { FC, SyntheticEvent, useState } from "react";
 import styled from "styled-components";
-import { Formik, Form } from 'formik';
-import * as Yup from 'yup';
-import { useAuthState, useAuthDispatch } from '../../../contexts/authContext';
+import { Formik, Form } from "formik";
+import * as Yup from "yup";
+import { useAuthState, useAuthDispatch } from "../../../contexts/authContext";
 import { axiosAuth, getDomainName, getProtocol } from "../../../tools/tools";
 import { toast } from "react-toastify";
 import FormikControl from "../../Tools/FormikControl";
@@ -12,23 +12,23 @@ import {
     useOrgsDispatch,
     useOrgRowIndexToEdit,
     setOrgsOptionToShow,
-    useOrgIdToEdit
-} from '../../../contexts/orgsOptions';
-import { ORGS_OPTIONS } from '../Utils/platformAssistantOptions';
+    useOrgIdToEdit,
+} from "../../../contexts/orgsOptions";
+import { ORGS_OPTIONS } from "../Utils/platformAssistantOptions";
 import {
     setReloadGroupsMembershipTable,
     setReloadOrgsManagedTable,
     setReloadOrgsMembershipTable,
     usePlatformAssitantDispatch,
-    setReloadGroupsTable
-} from '../../../contexts/platformAssistantContext';
-import { getAxiosInstance } from '../../../tools/axiosIntance';
-import axiosErrorHandler from '../../../tools/axiosErrorHandler';
-import { AxiosResponse, AxiosError } from 'axios';
-import { IOrganization } from '../TableColumns/organizationsColumns';
+    setReloadGroupsTable,
+} from "../../../contexts/platformAssistantContext";
+import { getAxiosInstance } from "../../../tools/axiosIntance";
+import axiosErrorHandler from "../../../tools/axiosErrorHandler";
+import { AxiosResponse, AxiosError } from "axios";
+import { IOrganization } from "../TableColumns/organizationsColumns";
 
 const FormContainer = styled.div`
-	font-size: 12px;
+    font-size: 12px;
     padding: 30px 10px 30px 20px;
     border: 3px solid #3274d9;
     border-radius: 20px;
@@ -51,10 +51,10 @@ const ControlsContainer = styled.div`
         background: #202226;
         border-radius: 5px;
     }
-    
+
     /* Handle */
     ::-webkit-scrollbar-thumb {
-        background: #2c3235; 
+        background: #2c3235;
         border-radius: 5px;
     }
 
@@ -75,20 +75,20 @@ const ControlsContainer = styled.div`
 const mqttAccessControlOptions = [
     {
         label: "Subscribe & Publish",
-        value: "Pub & Sub"
+        value: "Pub & Sub",
     },
     {
         label: "Subscribe",
-        value: "Sub"
+        value: "Sub",
     },
     {
         label: "Publish",
-        value: "Pub"
+        value: "Pub",
     },
     {
         label: "None",
-        value: "None"
-    }
+        value: "None",
+    },
 ];
 
 const domainName = getDomainName();
@@ -99,6 +99,11 @@ interface EditOrganizationProps {
     refreshOrgs: () => void;
     backToTable: () => void;
 }
+
+const roleOptions = [
+    { label: "Generic", value: "Generic" },
+    { label: "Provider", value: "Provider" },
+];
 
 const EditOrganization: FC<EditOrganizationProps> = ({ organizations, refreshOrgs, backToTable }) => {
     const plaformAssistantDispatch = usePlatformAssitantDispatch();
@@ -113,18 +118,24 @@ const EditOrganization: FC<EditOrganizationProps> = ({ organizations, refreshOrg
         name: organizations[orgRowIndex].name,
         acronym: organizations[orgRowIndex].acronym,
         buildingId: organizations[orgRowIndex].buildingId,
-        mqttAccessControl: organizations[orgRowIndex].mqttAccessControl
-    }
+        role: organizations[orgRowIndex].role,
+        mqttAccessControl: organizations[orgRowIndex].mqttAccessControl,
+    };
 
     const validationSchema = Yup.object().shape({
-        name: Yup.string().max(190, "The maximum number of characters allowed is 190").required('Required'),
-        acronym: Yup.string().max(20, "The maximum number of characters allowed is 20").required('Required'),
-        buildingId: Yup.number().integer().positive().required('Required'),
+        name: Yup.string().max(190, "The maximum number of characters allowed is 190").required("Required"),
+        acronym: Yup.string().max(20, "The maximum number of characters allowed is 20").required("Required"),
+        buildingId: Yup.number().integer().positive().required("Required"),
     });
 
     const onSubmit = (values: {}, actions: any) => {
         const url = `${protocol}://${domainName}/admin_api/organization/id/${orgId}`;
         const config = axiosAuth(accessToken);
+
+        if (typeof (values as any).buildingId === "string") {
+            (values as any).buildingId = parseInt((values as any).buildingId, 10);
+        }
+
         setIsSubmitting(true);
 
         getAxiosInstance(refreshToken, authDispatch)
@@ -150,8 +161,8 @@ const EditOrganization: FC<EditOrganizationProps> = ({ organizations, refreshOrg
                 setReloadGroupsTable(plaformAssistantDispatch, { reloadGroupsTable });
                 const reloadGroupsMembershipTable = true;
                 setReloadGroupsMembershipTable(plaformAssistantDispatch, { reloadGroupsMembershipTable });
-            })
-    }
+            });
+    };
 
     const onCancel = (e: SyntheticEvent) => {
         e.preventDefault();
@@ -160,47 +171,41 @@ const EditOrganization: FC<EditOrganizationProps> = ({ organizations, refreshOrg
 
     return (
         <>
-            <FormTitle isSubmitting={isSubmitting} >Edit org</FormTitle>
+            <FormTitle isSubmitting={isSubmitting}>Edit org</FormTitle>
             <FormContainer>
-                <Formik initialValues={initialOrgData} validationSchema={validationSchema} onSubmit={onSubmit} >
-                    {
-                        formik => (
-                            <Form>
-                                <ControlsContainer>
-                                    <FormikControl
-                                        control='input'
-                                        label='Org name'
-                                        name='name'
-                                        type='text'
-                                    />
-                                    <FormikControl
-                                        control='input'
-                                        label='Org acronym'
-                                        name='acronym'
-                                        type='text'
-                                    />
-                                    <FormikControl
-                                        control='input'
-                                        label='Building Id'
-                                        name='buildingId'
-                                        type='text'
-                                    />
-                                    <FormikControl
-                                        control='select'
-                                        label='Mqtt access control'
-                                        name="mqttAccessControl"
-                                        options={mqttAccessControlOptions}
-                                        type='text'
-                                    />
-                                </ControlsContainer>
-                                <FormButtonsProps onCancel={onCancel} isValid={formik.isValid} isSubmitting={formik.isSubmitting} />
-                            </Form>
-                        )
-                    }
+                <Formik initialValues={initialOrgData} validationSchema={validationSchema} onSubmit={onSubmit}>
+                    {(formik) => (
+                        <Form>
+                            <ControlsContainer>
+                                <FormikControl control="input" label="Org name" name="name" type="text" />
+                                <FormikControl control="input" label="Org acronym" name="acronym" type="text" />
+                                <FormikControl
+                                    control="input"
+                                    label="Role"
+                                    name="role"
+                                    type="select"
+                                    options={roleOptions}
+                                />
+                                <FormikControl control="input" label="Building Id" name="buildingId" type="text" />
+                                <FormikControl
+                                    control="select"
+                                    label="Mqtt access control"
+                                    name="mqttAccessControl"
+                                    options={mqttAccessControlOptions}
+                                    type="text"
+                                />
+                            </ControlsContainer>
+                            <FormButtonsProps
+                                onCancel={onCancel}
+                                isValid={formik.isValid}
+                                isSubmitting={formik.isSubmitting}
+                            />
+                        </Form>
+                    )}
                 </Formik>
             </FormContainer>
         </>
-    )
-}
+    );
+};
 
 export default EditOrganization;

@@ -12,10 +12,6 @@ import { RoleInGroupOption } from "../group/interfaces/RoleInGroupOptions";
 import IMessage from "../../GrafanaApi/interfaces/Message";
 import IUserInOrg from "../user/interfaces/UserInOrg.interface";
 import IGroupMember from "../group/interfaces/GroupMember.interface";
-import UpdateOrganizationDto from "./interfaces/updateOrganization.dto";
-import { createNodeRedInstance, deleteNodeRedInstanceById } from "../nodeRedInstance/nodeRedInstanceDAL";
-import INodeRedInstance from "../nodeRedInstance/nodeRedInstance.interface";
-import CreateNodeRedInstanceDto from "../nodeRedInstance/nodeRedInstance.dto";
 import natsClient from "../../config/natsConfig";
 
 export const exitsOrganizationWithName = async (orgName: string): Promise<boolean> => {
@@ -33,14 +29,13 @@ export const exitsOrganizationWithAcronym = async (orgAcronym: string): Promise<
 
 export const updateOrganizationByProp = async (propName: string, propValue: (string | number), orgData: Partial<CreateOrganizationDto>): Promise<void> => {
 	const query = `UPDATE grafanadb.org SET name = $1, acronym = $2, role = $3, 
-	building_id = $4, org_hash = $5,  mqtt_access_control = $6  WHERE grafanadb.org.${propName} = $7 RETURNING *;`;
+	building_id = $4, mqtt_access_control = $5  WHERE grafanadb.org.${propName} = $6 RETURNING *;`;
 	const queryArray =
 		[
 			orgData.name,
 			orgData.acronym,
 			orgData.role,
 			orgData.buildingId,
-			orgData.orgHash,
 			orgData.mqttAccessControl,
 			propValue
 		];
@@ -243,42 +238,3 @@ export const updateOrgUserRoleInDefaultOrgGroup = async (orgId: number, user: IU
 	const message = await udpateRoleMemberInGroup(group, groupMembersArray, existentGroupMemberArray);
 	return message;
 }
-
-export const updateNodeRedInstancesInOrg = async (currentNodeRedInstancesInOrg: INodeRedInstance[], newOrganizationData: UpdateOrganizationDto) => {
-	const nriToCreateQueries = [];
-	const nriToRemoveQueries = [];
-	if (currentNodeRedInstancesInOrg.length > newOrganizationData.nriHashes.length) {
-		const newNriHashes = newOrganizationData.nriHashes;
-		const nodeRedInstancesToRemove = currentNodeRedInstancesInOrg.filter(nri => !newNriHashes.includes(nri.nriHash));
-		for (const nodeRedInstance of nodeRedInstancesToRemove) {
-			nriToRemoveQueries.push(deleteNodeRedInstanceById(nodeRedInstance.id));
-		}
-	}
-
-	if (currentNodeRedInstancesInOrg.length < newOrganizationData.nriHashes.length) {
-		const newNriHashes = newOrganizationData.nriHashes;
-		const currentNodeRedInstanceHashes = currentNodeRedInstancesInOrg.map(nri => nri.nriHash);
-		const nodeRedInstancesHashesToCreate = newNriHashes.filter(nriHash => !currentNodeRedInstanceHashes.includes(nriHash));
-		for (const nriHash of nodeRedInstancesHashesToCreate) {
-			const orgId = newOrganizationData.id;
-			const nodeRedInstancInput: CreateNodeRedInstanceDto = {
-				nriHash,
-				orgId,
-				longitude: 0,
-				latitude: 0,
-				iconRadio: 1
-			}
-			nriToCreateQueries.push(createNodeRedInstance(nodeRedInstancInput));
-		}
-	}
-
-	if (nriToCreateQueries.length !== 0) {
-		await Promise.all(nriToCreateQueries);
-	}
-
-	if (nriToRemoveQueries.length !== 0) {
-		await Promise.all(nriToRemoveQueries);
-	}
-
-}
-

@@ -132,7 +132,6 @@ func run() error {
 
 		var user *User = nil
 		var group *Group = nil
-		var nri *Nri = nil
 		var svc *Service = nil
 
 		userName := connOpts.Username
@@ -161,13 +160,6 @@ func run() error {
 					group, err = authModel.GetGroupByUID(groupUid)
 					if err != nil || group == nil {
 						respondMsg(req, userName, userNkey, serverId, "", "group not found")
-						return
-					}
-				} else if len(userName) >= 4 && userName[:4] == "nri_" {
-					nriHash := userName[4:]
-					nri, err = authModel.GetNriByHash(nriHash)
-					if err != nil || nri == nil {
-						respondMsg(req, userName, userNkey, serverId, "", "nri not found")
 						return
 					}
 				} else if len(userName) >= 4 && userName[:4] == "svc_" {
@@ -216,14 +208,6 @@ func run() error {
 					respondMsg(req, userName, userNkey, serverId, "", "group not found")
 					return
 				}
-			} else if len(userName) >= 4 && userName[:4] == "nri_" {
-				nriHash := userName[4:]
-				nri, err = authModel.GetNriByHash(nriHash)
-				if err != nil || nri == nil {
-					fmt.Println("nri not found error=", err)
-					respondMsg(req, userName, userNkey, serverId, "", "nri not found")
-					return
-				}
 			} else if len(userName) >= 4 && userName[:4] == "svc_" {
 				svciHash := userName[4:]
 				svc, err = authModel.GetServiceByHash(svciHash)
@@ -247,7 +231,7 @@ func run() error {
 		uc.Audience = "APP"
 
 		// Set the associated permissions if present.
-		uc.Permissions = user.GetPermissions(authModel, group, nri, svc)
+		uc.Permissions = user.GetPermissions(authModel, group, svc)
 
 		// Validate the claims.
 		vr := jwt.CreateValidationResults()

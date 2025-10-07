@@ -113,9 +113,8 @@ func (m *AuthModel) GetGroupByID(id int64) (*Group, error) {
 	grafanadb.group.telegram_notification_channel_id, grafanadb.group.is_org_default_group, grafanadb.group.floor_number, 
 	grafanadb.group.feature_index, grafanadb.group.outer_bounds, grafanadb.group.mqtt_access_control, 
 	grafanadb.org.mqtt_access_control AS org_mqtt_access_control, 
-	grafanadb.nodered_instance.nri_hash, grafanadb.group.created, grafanadb.group.updated
+	grafanadb.group.created, grafanadb.group.updated
 	FROM grafanadb.group
-	INNER JOIN grafanadb.nodered_instance ON grafanadb.nodered_instance.group_id = grafanadb.group.id
 	INNER JOIN grafanadb.org ON grafanadb.group.org_id = grafanadb.org.id
 	WHERE grafanadb.group.id = $1`
 	err := m.db.QueryRow(context.Background(), queryString, id).
@@ -155,9 +154,8 @@ func (m *AuthModel) GetGroupByUID(groupUid string) (*Group, error) {
 	grafanadb.group.telegram_notification_channel_id, grafanadb.group.is_org_default_group, grafanadb.group.floor_number, 
 	grafanadb.group.feature_index, grafanadb.group.outer_bounds, grafanadb.group.mqtt_access_control, 
 	grafanadb.org.mqtt_access_control AS org_mqtt_access_control, 
-	grafanadb.nodered_instance.nri_hash, grafanadb.group.created, grafanadb.group.updated
+	grafanadb.group.created, grafanadb.group.updated
 	FROM grafanadb.group
-	INNER JOIN grafanadb.nodered_instance ON grafanadb.nodered_instance.group_id = grafanadb.group.id
 	INNER JOIN grafanadb.org ON grafanadb.group.org_id = grafanadb.org.id
 	WHERE grafanadb.group.group_uid = $1`
 	err := m.db.QueryRow(context.Background(), queryString, groupUid).
@@ -197,9 +195,8 @@ func (m *AuthModel) GetAllGroups() ([]Group, error) {
 	grafanadb.group.telegram_notification_channel_id, grafanadb.group.is_org_default_group, grafanadb.group.floor_number, 
 	grafanadb.group.feature_index, grafanadb.group.outer_bounds, grafanadb.group.mqtt_access_control, 
 	grafanadb.org.mqtt_access_control AS org_mqtt_access_control,
-	grafanadb.nodered_instance.nri_hash, grafanadb.group.created, grafanadb.group.updated
+	grafanadb.group.created, grafanadb.group.updated
 	FROM grafanadb.group
-	INNER JOIN grafanadb.nodered_instance ON grafanadb.nodered_instance.group_id = grafanadb.group.id
 	INNER JOIN grafanadb.org ON grafanadb.group.org_id = grafanadb.org.id`
 	rows, err := m.db.Query(context.Background(), queryString)
 	if err != nil {
@@ -249,9 +246,8 @@ func (m *AuthModel) GetGroupByNatsNKey(natsNKey string) (*Group, error) {
 	grafanadb.group.telegram_notification_channel_id, grafanadb.group.is_org_default_group, grafanadb.group.floor_number, 
 	grafanadb.group.feature_index, grafanadb.group.outer_bounds, grafanadb.group.mqtt_access_control, 
 	grafanadb.org.mqtt_access_control AS org_mqtt_access_control, 
-	grafanadb.nodered_instance.nri_hash, grafanadb.group.created, grafanadb.group.updated
+	grafanadb.group.created, grafanadb.group.updated
 	FROM grafanadb.group
-	INNER JOIN grafanadb.nodered_instance ON grafanadb.nodered_instance.group_id = grafanadb.group.id
 	INNER JOIN grafanadb.org ON grafanadb.group.org_id = grafanadb.org.id
 	WHERE grafanadb.group.nats_nkey = $1`
 	err := m.db.QueryRow(context.Background(), queryString, natsNKey).
@@ -291,9 +287,8 @@ func (m *AuthModel) GetGroupsByOrgId(orgId int64) ([]Group, error) {
 	grafanadb.group.telegram_notification_channel_id, grafanadb.group.is_org_default_group, grafanadb.group.floor_number, 
 	grafanadb.group.feature_index, grafanadb.group.outer_bounds, grafanadb.group.mqtt_access_control, 
 	grafanadb.org.mqtt_access_control AS org_mqtt_access_control,
-	grafanadb.nodered_instance.nri_hash, grafanadb.group.created, grafanadb.group.updated
+	grafanadb.group.created, grafanadb.group.updated
 	FROM grafanadb.group
-	INNER JOIN grafanadb.nodered_instance ON grafanadb.nodered_instance.group_id = grafanadb.group.id
 	INNER JOIN grafanadb.org ON grafanadb.group.org_id = grafanadb.org.id
 	WHERE grafanadb.team_member.user_id = $1 AND grafanadb.team_member.permission = $2`
 	rows, err := m.db.Query(context.Background(), queryString, orgId)
@@ -344,9 +339,8 @@ func (m *AuthModel) GetSQLGroupsManagedByUser(user *User) ([]Group, error) {
 	grafanadb.group.telegram_notification_channel_id, grafanadb.group.is_org_default_group, grafanadb.group.floor_number, 
 	grafanadb.group.feature_index, grafanadb.group.outer_bounds, grafanadb.group.mqtt_access_control,
 	grafanadb.org.mqtt_access_control AS org_mqtt_access_control,
-	grafanadb.nodered_instance.nri_hash, grafanadb.group.created, grafanadb.group.updated
+	grafanadb.group.created, grafanadb.group.updated
 	FROM grafanadb.group
-	INNER JOIN grafanadb.nodered_instance ON grafanadb.nodered_instance.group_id = grafanadb.group.id
 	INNER JOIN grafanadb.org ON grafanadb.group.org_id = grafanadb.org.id
 	INNER JOIN grafanadb.team_member ON grafanadb.team_member.team_id = grafanadb.group.team_id
 	WHERE grafanadb.team_member.user_id = $1 AND grafanadb.team_member.permission = $2`

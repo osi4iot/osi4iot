@@ -13,7 +13,6 @@ import DigitalTwinController from "./components/digitalTwin/digitalTwinControlle
 import BuildingController from "./components/building/building.controller";
 import MeasurementController from "./components/mesurement/measurement.controller";
 import DashboardController from "./components/dashboard/dashboardController";
-import NodeRedInstanceController from "./components/nodeRedInstance/nodeRedInstance.controller";
 import MLModelController from "./components/ml_model/ml_modelController";
 import AssetController from "./components/asset/asset.controller";
 import SensorController from "./components/sensor/sensor.controller";
@@ -34,7 +33,6 @@ const main = async (): Promise<void> => {
 			new GroupController(),
 			new AssetController(),
 			new SensorController(),
-			new NodeRedInstanceController(),
 			new TopicController(),
 			new MeasurementController(),
 			new DigitalTwinController(),

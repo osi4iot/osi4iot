@@ -530,9 +530,6 @@ func runAction(actionKey string, m *Model) tea.Msg {
 			return submissionResultMsg("Error copying key to node: " + err.Error())
 		}
 		return response
-	case "createOrg":
-		response, _ := createOrg(m)
-		return response
 	}
 	return nil
 }
