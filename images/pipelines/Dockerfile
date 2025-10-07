@@ -6,7 +6,6 @@ FROM python:3.12-slim AS python-builder
 # Instalar uv
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 
-# Sólo si tu paquete necesita compilar algo
 RUN apt-get update && apt-get install -y --no-install-recommends \
       build-essential ca-certificates \
   && rm -rf /var/lib/apt/lists/*

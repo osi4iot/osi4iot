@@ -26,7 +26,6 @@ import {
     setReloadAssetsTable,
     setReloadGroupsManagedTable,
     setReloadGroupsMembershipTable,
-    setReloadNodeRedInstancesTable,
     setReloadSensorsTable,
     usePlatformAssitantDispatch
 } from '../../../contexts/platformAssistantContext';
@@ -201,9 +200,7 @@ const EditGroup: FC<EditGroupProps> = ({
                 const reloadAssetsTable = true;
                 setReloadAssetsTable(plaformAssistantDispatch, { reloadAssetsTable });
                 const reloadSensorsTable = true;
-                setReloadSensorsTable(plaformAssistantDispatch, { reloadSensorsTable });;
-                const reloadNodeRedInstancesTable = true;
-                setReloadNodeRedInstancesTable(plaformAssistantDispatch, { reloadNodeRedInstancesTable });
+                setReloadSensorsTable(plaformAssistantDispatch, { reloadSensorsTable });;;
                 const reloadGroupsMembershipTable = true;
                 setReloadGroupsMembershipTable(plaformAssistantDispatch, { reloadGroupsMembershipTable });
             })

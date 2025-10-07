@@ -107,6 +107,30 @@ func (n *BatchNode) Start(log *logger.Logger, needReinitialization bool) {
 	n.handleInputWires(log, n.processMessage)
 }
 
+func (n *BatchNode) Stop(log *logger.Logger) {
+	if n.GetStatus() == common.NodeStatusStopped {
+		log.Infof("Node %s is already stopped", n.NodeUid)
+		return
+	}
+
+	n.SetStatus(common.NodeStatusStopped)
+
+	if n.Cancel != nil {
+		n.Cancel()
+	}
+
+	n.wg.Wait() //Wait for all goroutines to finish
+
+	if n.Mode == "Group by time interval" {
+		n.stopTimeIntervalCheck()
+		n.setIsCurrentlyLeader(false)
+	}
+
+	n.ResetNodeContext()
+
+	log.Infof("Node %s stopped successfully", n.NodeUid)
+}
+
 func (n *BatchNode) processMessage(msg common.Message, log *logger.Logger) error {
 	batchData, err := n.AddMessageToBatchData(msg.Payload, log)
 	if err != nil {
@@ -234,6 +258,12 @@ func (n *BatchNode) AddMessageToBatchData(message map[string]interface{}, log *l
 	}
 
 	return batchData, nil
+}
+
+func (n *BatchNode) setIsCurrentlyLeader(isLeader bool) {
+	n.leadershipMutex.Lock()
+	defer n.leadershipMutex.Unlock()
+	n.isCurrentlyLeader = isLeader
 }
 
 func (n *BatchNode) monitorLeadershipChanges(log *logger.Logger) {

@@ -6,10 +6,8 @@ import { IGlobalUser } from "../../components/PlatformAssistant/TableColumns/glo
 import { IGroupMember } from "../../components/PlatformAssistant/TableColumns/groupMemberColumns";
 import { IGroup } from "../../components/PlatformAssistant/TableColumns/groupsColumns";
 import { IGroupManaged } from "../../components/PlatformAssistant/TableColumns/groupsManagedColumns";
-import { INodeRedInstance } from "../../components/PlatformAssistant/TableColumns/nodeRedInstancesInOrgsColumns";
 import { IMembershipInGroups } from "../../components/PlatformAssistant/TableColumns/membershipInGroups";
 import { IMembershipInOrgs } from "../../components/PlatformAssistant/TableColumns/membershipInOrgs";
-import { IOrganization } from "../../components/PlatformAssistant/TableColumns/organizationsColumns";
 import { IOrgManaged } from "../../components/PlatformAssistant/TableColumns/organizationsManagedColumns";
 import { IOrgOfGroupsManaged } from "../../components/PlatformAssistant/TableColumns/orgsOfGroupsManagedColumns";
 import { IOrgUser } from "../../components/PlatformAssistant/TableColumns/orgUsersColumns";
@@ -24,6 +22,7 @@ import { IAssetType } from "../../components/PlatformAssistant/TableColumns/asse
 import IAssetS3Folder from "../../components/PlatformAssistant/TableColumns/assetS3Folder.interface";
 import { ISensorType } from "../../components/PlatformAssistant/TableColumns/sensorTypesColumns";
 import IAssetTopic from "../../components/PlatformAssistant/TableColumns/assetTopics.interface";
+import { IOrganization } from "../../components/PlatformAssistant/TableColumns/organizationsColumns";
 
 export interface PlatformAssistantDispatch {
 	(arg0: { type: string; payload?: any; error?: any }): void;
@@ -42,8 +41,6 @@ export interface PlatformAssistantContextProps {
 	selectOrgUsers: ISelectOrgUser[];
 	reloadSelectOrgUsersTable: boolean;
 	organizations: IOrganization[];
-	nodeRedInstances: INodeRedInstance[];
-	reloadNodeRedInstancesTable: boolean;
 	buildings: IBuilding[];
 	reloadBuildingsTable: boolean;
 	floors: IFloor[];
@@ -106,8 +103,6 @@ export interface PlatformAssistantActionPayload {
 	selectOrgUsers: ISelectOrgUser[];
 	reloadSelectOrgUsersTable: boolean;
 	organizations: IOrganization[];
-	nodeRedInstances: INodeRedInstance[];
-	reloadNodeRedInstancesTable: boolean;
 	buildings: IBuilding[];
 	reloadBuildingsTable: boolean;
 	floors: IFloor[];
@@ -188,14 +183,6 @@ export interface IReloadSelectOrgUsersTable {
 
 export interface IOrganizationsTable {
 	organizations: IOrganization[];
-}
-
-export interface INodeRedInstancesTable {
-	nodeRedInstances: INodeRedInstance[];
-}
-
-export interface IReloadNodeRedInstancesTable {
-	reloadNodeRedInstancesTable: boolean;
 }
 
 export interface IGlobalUsersTable {

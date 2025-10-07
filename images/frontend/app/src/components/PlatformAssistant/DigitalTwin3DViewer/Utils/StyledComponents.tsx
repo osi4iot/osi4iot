@@ -257,7 +257,7 @@ export const HiShieldCheckIcon = styled(HiShieldCheck)`
 
 export const HiShieldExclamationIcon = styled(HiShieldExclamation)`
     background-color: #141619;
-    font-size: 35px;
+    font-size: 30px;
     color: #ff4040;
     margin: 10px;
     animation: blinker 0.8s step-start infinite;

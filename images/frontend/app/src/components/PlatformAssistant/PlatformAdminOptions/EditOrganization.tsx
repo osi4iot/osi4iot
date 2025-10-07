@@ -15,7 +15,6 @@ import {
     useOrgIdToEdit
 } from '../../../contexts/orgsOptions';
 import { ORGS_OPTIONS } from '../Utils/platformAssistantOptions';
-import { IOrganization } from '../TableColumns/organizationsColumns';
 import {
     setReloadGroupsMembershipTable,
     setReloadOrgsManagedTable,
@@ -26,6 +25,7 @@ import {
 import { getAxiosInstance } from '../../../tools/axiosIntance';
 import axiosErrorHandler from '../../../tools/axiosErrorHandler';
 import { AxiosResponse, AxiosError } from 'axios';
+import { IOrganization } from '../TableColumns/organizationsColumns';
 
 const FormContainer = styled.div`
 	font-size: 12px;
@@ -113,6 +113,7 @@ const EditOrganization: FC<EditOrganizationProps> = ({ organizations, refreshOrg
         name: organizations[orgRowIndex].name,
         acronym: organizations[orgRowIndex].acronym,
         buildingId: organizations[orgRowIndex].buildingId,
+        mqttAccessControl: organizations[orgRowIndex].mqttAccessControl
     }
 
     const validationSchema = Yup.object().shape({

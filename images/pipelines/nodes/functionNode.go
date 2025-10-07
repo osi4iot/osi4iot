@@ -8,6 +8,7 @@ import (
 	"pipelines/logger"
 	"pipelines/utils"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/dop251/goja"
@@ -28,7 +29,12 @@ type FuncNode struct {
 	onStartScript          string
 	onMessageScript        string
 	compiledScript         *CompiledScript
+	vmArray                []*goja.Runtime
 	vmPool                 chan *goja.Runtime
+	vmPoolClosed           bool
+	queryResponseSub       *nats.Subscription
+	enableQueryResponse    bool
+	vmPoolMutex            sync.RWMutex
 }
 
 func CreateFuncNode(node common.NodeData, fm common.Manager, p common.Pipeline) (*FuncNode, error) {
@@ -39,32 +45,38 @@ func CreateFuncNode(node common.NodeData, fm common.Manager, p common.Pipeline) 
 		return nil, fmt.Errorf("missing required scripts in node settings")
 	}
 
+	enableQueryResponse, ok4 := node.Settings["enableQueryResponse"].(bool)
+	if !ok4 {
+		enableQueryResponse = false
+	}
+
 	logTopic := fm.GetTopicByTopicRef(p.GetAssetId(), p.GetDigitalTwinId(), "dtmlog")
 	logSubject := utils.TopicToNatsSubject(logTopic.TopicType, logTopic.GroupUid, logTopic.TopicUid)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	funNode := &FuncNode{
 		BaseNode: BaseNode{
-			NodeUid:        node.NodeUid,
-			Name:           node.Name,
-			Xpos:           node.Xpos,
-			Ypos:           node.Ypos,
-			NumOutputs:     node.NumOutputs,
-			Settings:       node.Settings,
-			Debug:          node.Debug,
-			Type:           "Function",
-			LogSubject:     logSubject,
-			Fm:             fm,
-			Pipeline:       p,
-			Cancel:         cancel,
-			Ctx:            ctx,
-			status:         common.NodeStatusCreated,
+			NodeUid:    node.NodeUid,
+			Name:       node.Name,
+			Xpos:       node.Xpos,
+			Ypos:       node.Ypos,
+			NumOutputs: node.NumOutputs,
+			Settings:   node.Settings,
+			Debug:      node.Debug,
+			Type:       "Function",
+			LogSubject: logSubject,
+			Fm:         fm,
+			Pipeline:   p,
+			Cancel:     cancel,
+			Ctx:        ctx,
+			status:     common.NodeStatusCreated,
 		},
 		nc:                     nil,
 		vmPool:                 make(chan *goja.Runtime, 10),
 		onInitializationScript: onInitializationScript,
 		onStartScript:          onStartScript,
 		onMessageScript:        onMessageScript,
+		enableQueryResponse:    enableQueryResponse,
 	}
 
 	fm.Log().Infof("Created FuncNode with UID: %s", funNode.NodeUid)
@@ -76,12 +88,16 @@ func CreateFuncNode(node common.NodeData, fm common.Manager, p common.Pipeline) 
 			funNode.SetStatus(common.NodeStatusError)
 			return nil, nodeError
 		}
-		if err := funNode.initVMPool(fm.Log()); err != nil {
-			nodeError := fmt.Errorf("failed to initialize VM pool for node %s: %v", funNode.NodeUid, err)
+
+		vms, err := funNode.createVMs(10, fm.Log())
+		if err != nil {
+			nodeError := fmt.Errorf("failed to create VMs for node %s: %v", funNode.NodeUid, err)
 			funNode.HandleError(nodeError)
 			funNode.SetStatus(common.NodeStatusError)
 			return nil, nodeError
 		}
+		funNode.vmArray = vms
+		funNode.initVMPool()
 	}
 
 	fm.Log().Infof("FuncNode %s initialized successfully", funNode.NodeUid)
@@ -119,7 +135,101 @@ func (n *FuncNode) Start(log *logger.Logger, needReinitialization bool) {
 
 	if n.onMessageScript != "" {
 		n.handleInputWires(log, n.processMessage)
+
+		if n.enableQueryResponse {
+			n.QueryResponse(log)
+		}
 	}
+}
+
+func (n *FuncNode) Stop(log *logger.Logger) {
+	if n.GetStatus() == common.NodeStatusStopped {
+		log.Infof("FuncNode %s is already stopped", n.NodeUid)
+		return
+	}
+
+	log.Infof("Stopping FuncNode %s", n.NodeUid)
+	n.SetStatus(common.NodeStatusStopped)
+
+	if n.Cancel != nil {
+		n.Cancel()
+	}
+
+	n.wg.Wait()
+
+	if n.queryResponseSub != nil {
+		if err := n.queryResponseSub.Unsubscribe(); err != nil {
+			log.Errorf("Failed to unsubscribe QueryResponse for node %s: %v", n.NodeUid, err)
+		}
+		n.queryResponseSub = nil
+	}
+
+	n.resetVMPool(log)
+
+	n.ResetNodeContext()
+
+	log.Infof("FuncNode %s stopped successfully", n.NodeUid)
+}
+
+func (n *FuncNode) resetVMPool(log *logger.Logger) {
+	n.vmPoolMutex.Lock()
+	defer n.vmPoolMutex.Unlock()
+
+	if n.vmPool == nil {
+		return
+	}
+
+	n.vmPoolClosed = true
+
+	count := 0
+	for {
+		select {
+		case vm := <-n.vmPool:
+			if vm != nil {
+				vm.ClearInterrupt()
+				count++
+			}
+		default:
+			log.Infof("Drained %d VMs from pool for node %s", count, n.NodeUid)
+			n.initVMPool()
+			n.vmPoolClosed = false
+			return
+		}
+	}
+}
+
+func (n *FuncNode) QueryResponse(log *logger.Logger) {
+	queueName := fmt.Sprintf("org_%s.dt_%s.query_response.node_%s", n.GetOrgHash(), n.GetDigitalTwinUid(), n.NodeUid)
+	sub, err := n.Fm.NatsQueueSubscribe(queueName, n.NodeUid, func(natsMsg *nats.Msg) {
+		n.Fm.Log().Infof("Received NATS message in node %s: %s", n.NodeUid, string(natsMsg.Data))
+		queryMsg := common.Message{
+			Payload: map[string]interface{}{
+				"data": string(natsMsg.Data),
+			},
+		}
+		processedData, err := n.processGojaFunc(queryMsg, log)
+		if err != nil || processedData == nil {
+			return
+		}
+
+		if replyMsg, ok := processedData.(common.Message); ok {
+			reply, ok2 := replyMsg.Payload["currentTime"].(string)
+			if ok2 {
+				n.Fm.Log().Infof("Replying to NATS message in node %s: %s", n.NodeUid, reply)
+				natsMsg.Respond([]byte(reply))
+			}
+		}
+	})
+
+	if err != nil {
+		log.Errorf("Failed to subscribe to NATS subject for query response in node %s: %v", n.NodeUid, err)
+		n.HandleError(err)
+		n.SetStatus(common.NodeStatusError)
+		return
+	}
+
+	n.queryResponseSub = sub
+	log.Infof("Subscribed to NATS subject for query response in node %s", n.NodeUid)
 }
 
 func (n *FuncNode) precompileScript(log *logger.Logger) error {
@@ -215,20 +325,25 @@ func (n *FuncNode) executeStartScript(log *logger.Logger) error {
 	return nil
 }
 
-func (n *FuncNode) initVMPool(log *logger.Logger) error {
-	poolSize := 10
-	for i := 0; i < poolSize; i++ {
+func (n *FuncNode) createVMs(poolSize int, log *logger.Logger) ([]*goja.Runtime, error) {
+	var vms = make([]*goja.Runtime, 0, poolSize)
+	for i := range poolSize {
 		vm := goja.New()
 		n.setupJSGlobals(vm, log)
 
 		_, err := vm.RunProgram(n.compiledScript.program)
 		if err != nil {
-			return fmt.Errorf("failed to initialize VM %d: %w", i, err)
+			return nil, fmt.Errorf("failed to initialize VM %d: %w", i, err)
 		}
+		vms = append(vms, vm)
+	}
+	return vms, nil
+}
 
+func (n *FuncNode) initVMPool() {
+	for _, vm := range n.vmArray {
 		n.vmPool <- vm
 	}
-	return nil
 }
 
 func (n *FuncNode) setupJSGlobals(vm *goja.Runtime, log *logger.Logger) {
@@ -238,16 +353,48 @@ func (n *FuncNode) setupJSGlobals(vm *goja.Runtime, log *logger.Logger) {
 	}
 }
 
-func (n *FuncNode) getVM() *goja.Runtime {
-	return <-n.vmPool
+func (n *FuncNode) getVM() (*goja.Runtime, error) {
+	n.vmPoolMutex.RLock()
+	if n.vmPoolClosed {
+		n.vmPoolMutex.RUnlock()
+		return nil, fmt.Errorf("VM pool is closed")
+	}
+	n.vmPoolMutex.RUnlock()
+
+	select {
+	case vm := <-n.vmPool:
+		return vm, nil
+	case <-time.After(5 * time.Second):
+		return nil, fmt.Errorf("timeout waiting for VM from pool")
+	}
 }
 
 func (n *FuncNode) returnVM(vm *goja.Runtime) {
-	n.vmPool <- vm
+	if vm == nil {
+		return
+	}
+
+	n.vmPoolMutex.Lock()
+	defer n.vmPoolMutex.Unlock()
+
+	if n.vmPoolClosed {
+		return
+	}
+
+	select {
+	case n.vmPool <- vm:
+		// VM returned successfully
+	default:
+		// Pool full, discard the VM (should not happen under normal usage)
+	}
 }
 
-func (n *FuncNode) processMessage(message common.Message, log *logger.Logger) error {
-	vm := n.getVM()
+
+func (n *FuncNode) processGojaFunc(message common.Message, log *logger.Logger) (interface{}, error) {
+	vm, err := n.getVM()
+	if err != nil {
+		return nil, err
+	}
 	timer := time.AfterFunc(time.Duration(n.Fm.GetFunctionsTimeout())*time.Millisecond, func() {
 		vm.Interrupt("halt processing due to timeout")
 	})
@@ -257,7 +404,7 @@ func (n *FuncNode) processMessage(message common.Message, log *logger.Logger) er
 	processFunc, ok := goja.AssertFunction(vm.Get("process"))
 	if !ok {
 		log.Errorf("Process function not found in VM for node %s", n.NodeUid)
-		return fmt.Errorf("process function not found in VM")
+		return nil, fmt.Errorf("process function not found in VM")
 	}
 
 	jsData := n.convertMessageToJS(vm, message)
@@ -265,49 +412,61 @@ func (n *FuncNode) processMessage(message common.Message, log *logger.Logger) er
 	result, err := processFunc(goja.Undefined(), jsData)
 	if err != nil {
 		log.Errorf("Script execution error in node %s: %v", n.NodeUid, err)
-		return fmt.Errorf("script execution error: %w", err)
+		return nil, fmt.Errorf("script execution error: %w", err)
 	}
 
-	if result != nil && !goja.IsUndefined(result) && !goja.IsNull(result) {
-		processedData, err := n.convertFromJSToMessage(result)
-		if err != nil {
-			return fmt.Errorf("failed to convert JS result: %w", err)
-		}
-
-		nodeOutputWires := n.GetNodeOutputWires()
-		return n.handleProcessedData(processedData, message, nodeOutputWires, log)
+	if result == nil || goja.IsUndefined(result) || goja.IsNull(result) {
+		return nil, nil
 	}
 
+	processedData, err := n.convertFromJSToMessage(result)
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert JS result: %w", err)
+	}
+
+	return processedData, nil
+}
+
+func (n *FuncNode) processMessage(message common.Message, log *logger.Logger) error {
+	processedData, err := n.processGojaFunc(message, log)
+	if err != nil {
+		return err
+	}
+
+	nodeOutputWires := n.GetNodeOutputWires()
+	if err := n.handleProcessedData(processedData, message, nodeOutputWires, log); err != nil {
+		return err
+	}
 	return nil
 }
 
 func (n *FuncNode) convertMessageToJS(vm *goja.Runtime, message common.Message) goja.Value {
 	jsObj := vm.NewObject()
-	
+
 	jsObj.Set("topic", message.Topic)
-	
+
 	if message.Payload != nil {
 		jsObj.Set("payload", vm.ToValue(message.Payload))
 	} else {
 		jsObj.Set("payload", vm.NewObject())
 	}
-	
+
 	if message.State != nil {
 		jsObj.Set("state", vm.ToValue(message.State))
 	} else {
 		jsObj.Set("state", vm.NewObject())
 	}
-	
+
 	if message.Image != nil {
 		jsObj.Set("image", vm.ToValue(message.Image))
 	}
-	
+
 	return jsObj
 }
 
 func (n *FuncNode) convertFromJSToMessage(jsValue goja.Value) (interface{}, error) {
 	exported := jsValue.Export()
-	
+
 	switch v := exported.(type) {
 	case map[string]interface{}:
 		if n.isMessageLike(v) {
@@ -328,31 +487,31 @@ func (n *FuncNode) isMessageLike(data map[string]interface{}) bool {
 
 func (n *FuncNode) mapToMessageDirect(data map[string]interface{}) common.Message {
 	msg := common.Message{}
-	
+
 	// Topic
 	if topic, ok := data["topic"].(string); ok {
 		msg.Topic = topic
 	}
-	
+
 	// Payload
 	if payload, ok := data["payload"].(map[string]interface{}); ok {
 		msg.Payload = payload
 	} else {
 		msg.Payload = make(map[string]interface{})
 	}
-	
-	// State  
+
+	// State
 	if state, ok := data["state"].(map[string]interface{}); ok {
 		msg.State = state
 	} else {
 		msg.State = make(map[string]interface{})
 	}
-	
+
 	// Image
 	if img, ok := data["image"].(image.Image); ok {
 		msg.Image = img
 	}
-	
+
 	return msg
 }
 
@@ -360,18 +519,18 @@ func (n *FuncNode) convertArrayToMessagesDirect(array []interface{}) interface{}
 	if len(array) == 0 {
 		return array
 	}
-	
+
 	messages := make([]common.Message, 0, len(array))
 	mixedArray := make([]interface{}, 0, len(array))
 	allMessages := true
-	
+
 	for _, item := range array {
 		if item == nil {
 			mixedArray = append(mixedArray, nil)
 			allMessages = false
 			continue
 		}
-		
+
 		if mapData, ok := item.(map[string]interface{}); ok && n.isMessageLike(mapData) {
 			msg := n.mapToMessageDirect(mapData)
 			messages = append(messages, msg)
@@ -381,7 +540,7 @@ func (n *FuncNode) convertArrayToMessagesDirect(array []interface{}) interface{}
 			allMessages = false
 		}
 	}
-	
+
 	if allMessages {
 		return messages
 	}

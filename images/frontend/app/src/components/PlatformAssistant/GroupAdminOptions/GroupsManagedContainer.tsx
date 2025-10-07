@@ -6,8 +6,6 @@ import {
     useGroupsManagedDispatch,
     useGroupsManagedOptionToShow,
     setGroupsManagedOptionToShow,
-    useGroupManagedInputFormData,
-    setGroupManagedInputFormData
 } from '../../../contexts/groupsManagedOptions';
 import CreateGroupMember from './CreateGroupMember';
 import { IGroupManaged, CREATE_GROUPS_MANAGED_COLUMNS } from '../TableColumns/groupsManagedColumns';
@@ -15,8 +13,6 @@ import EditGroupManaged from './EditGroupManaged';
 import { IOrgOfGroupsManaged } from '../TableColumns/orgsOfGroupsManagedColumns';
 import { IBuilding } from '../TableColumns/buildingsColumns';
 import { IFloor } from '../TableColumns/floorsColumns';
-import { useBuildingsTable, useFloorsTable } from '../../../contexts/platformAssistantContext';
-import NriLocationContainer from './NriLocationContainer';
 import { IAsset } from '../TableColumns/assetsColumns';
 import { IAssetType } from '../TableColumns/assetTypesColumns';
 
@@ -72,38 +68,23 @@ const GroupsManagedContainer: FC<GroupsManagedContainerProps> = ({
     refreshBuildings,
     refreshFloors,
 }) => {
-    const buildingsTable = useBuildingsTable();
-    const floorsTable = useFloorsTable();
     const groupsManagedDispatch = useGroupsManagedDispatch();
     const groupsManagedOptionToShow = useGroupsManagedOptionToShow();
     const [groupMembersInputData, setGroupMembersInputData] = useState<IGroupMembersInput>(initialGroupsMembersData);
-    const groupManagedInputData = useGroupManagedInputFormData();
 
     const showGroupsManagedTableOption = useCallback(() => {
         setGroupsManagedOptionToShow(groupsManagedDispatch, { groupsManagedOptionToShow: GROUPS_MANAGED_OPTIONS.TABLE });
     }, [groupsManagedDispatch]);
 
 
-    const showEditGroupsManagedOption = useCallback(() => {
-        setGroupsManagedOptionToShow(groupsManagedDispatch, { groupsManagedOptionToShow: GROUPS_MANAGED_OPTIONS.EDIT_GROUP_MANAGED });
-    }, [groupsManagedDispatch]);
-
     const showSelectLocationOption = useCallback(() => {
         if (buildingsFiltered.length !== 0 && floorsFiltered.length !== 0) {
-            setGroupsManagedOptionToShow(groupsManagedDispatch, { groupsManagedOptionToShow: GROUPS_MANAGED_OPTIONS.SELECT_NRI_ICON_LOCATION });
+            setGroupsManagedOptionToShow(groupsManagedDispatch, { groupsManagedOptionToShow: GROUPS_MANAGED_OPTIONS.EDIT_GROUP_MANAGED });
         } else {
-            const warningMessage = "To select a location for the nodered instance, building and floor geodata must be already entered"
+            const warningMessage = "To select a location for the building and floor geodata must be already entered"
             toast.warning(warningMessage);
         }
     }, [groupsManagedDispatch, buildingsFiltered.length, floorsFiltered.length]);
-
-    const setNodeRedIconLocationData = (nriLong: number, nriLat: number) => {
-        const newGroupManagedInputData = { ...groupManagedInputData };
-        newGroupManagedInputData.nriInGroupIconLongitude = nriLong;
-        newGroupManagedInputData.nriInGroupIconLatitude = nriLat;
-        const groupManagedInputFormData = { groupManagedInputFormData: newGroupManagedInputData };
-        setGroupManagedInputFormData(groupsManagedDispatch, groupManagedInputFormData);
-    }
 
     return (
         <>
@@ -130,22 +111,6 @@ const GroupsManagedContainer: FC<GroupsManagedContainerProps> = ({
                     backToTable={showGroupsManagedTableOption}
                     refreshGroupsManaged={refreshGroupsManaged}
                     selectLocationOption={showSelectLocationOption}
-                />
-            }
-            {
-                groupsManagedOptionToShow === GROUPS_MANAGED_OPTIONS.SELECT_NRI_ICON_LOCATION &&
-                <NriLocationContainer
-                    buildings={buildingsTable}
-                    floors={floorsTable}
-                    groupsManaged={groupsManaged}
-                    assetTypes={assetTypes}
-                    assets={assets}
-                    refreshBuildings={refreshBuildings}
-                    refreshFloors={refreshFloors}
-                    refreshGroups={refreshGroups}
-                    refreshAssets={refreshAssets}
-                    backToOption={showEditGroupsManagedOption}
-                    setNodeRedIconLocationData={setNodeRedIconLocationData}
                 />
             }
         </>

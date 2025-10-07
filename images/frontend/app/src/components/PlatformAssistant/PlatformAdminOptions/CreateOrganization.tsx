@@ -12,7 +12,7 @@ import { setOrgsOptionToShow, useOrgsDispatch } from '../../../contexts/orgsOpti
 import { ORGS_OPTIONS } from '../Utils/platformAssistantOptions';
 import { ISelectGlobalUser } from '../TableColumns/selectGlobalUserColumns';
 import SelectGlobalUsers from './SelectGlobalUsers';
-import { IOrgInputData } from './OrgContainerOld';
+import { IOrgInputData } from './OrgContainer';
 import {
     setReloadGroupsTable,
     setReloadGroupsMembershipTable,
@@ -26,7 +26,6 @@ import {
     setReloadOrgsOfGroupsManagedTable,
     setReloadOrgUsersTable,
     setReloadTopicsTable,
-    setReloadNodeRedInstancesTable
 } from '../../../contexts/platformAssistantContext';
 import { getAxiosInstance } from '../../../tools/axiosIntance';
 import axiosErrorHandler from '../../../tools/axiosErrorHandler';
@@ -202,8 +201,6 @@ const CreateOrganization: FC<CreateOrganizationProps> = ({ backToTable, refreshO
                 setReloadGroupsMembershipTable(plaformAssistantDispatch, { reloadGroupsMembershipTable });
                 const reloadGroupsManagedTable = true;
                 setReloadGroupsManagedTable(plaformAssistantDispatch, { reloadGroupsManagedTable });
-                const reloadNodeRedInstancesTable = true;
-                setReloadNodeRedInstancesTable(plaformAssistantDispatch, { reloadNodeRedInstancesTable });
 
                 const reloadOrgsOfGroupsManagedTable = true;
                 setReloadOrgsOfGroupsManagedTable(plaformAssistantDispatch, { reloadOrgsOfGroupsManagedTable });

@@ -68,7 +68,6 @@ export const ORG_ADMIN_OPTIONS = {
     ORGS_MANAGED: "Orgs Managed",
     ORG_USERS: "Orgs users",
     GROUPS: "Groups",
-    NODERED_INSTANCES_IN_ORGS: "Nodered instances in orgs",
     SENSOR_TYPES: "Sensor types",
     ASSET_TYPES: "Asset types"
 }
@@ -115,7 +114,6 @@ export const GROUPS_MANAGED_OPTIONS = {
     EDIT_GROUP_MANAGED: "Edit group managed",
     CREATE_GROUP_MEMBERS: "Create group members",
     REMOVE_ALL_GROUP_MEMBERS: "Remove all group members",
-    SELECT_NRI_ICON_LOCATION: "Select location"
 }
 
 export const ASSET_TYPES_OPTIONS = {

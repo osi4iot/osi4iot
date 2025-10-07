@@ -30,6 +30,7 @@ type Pipeline struct {
 	NodeOutputWires        map[string][][]*common.Wire // key: "nodeID" -> [][]*Wire (wires that leave the node)
 	NodeInputWires         map[string][]*common.Wire   // key: "nodeID" -> []*Wire (wires that arrive at the node)
 	NodeOutputByIndex      map[string][]*common.Wire   // key: "nodeID:outputIndex" -> []*Wire
+	NatsStatusSubscription *nats.Subscription
 	mu                     sync.RWMutex
 }
 
@@ -210,7 +211,6 @@ func (p *Pipeline) setStatusUnsafe(status common.PipelineStatus) {
 	p.Status = status
 }
 
-
 func (p *Pipeline) GetStatus() common.PipelineStatus {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
@@ -273,6 +273,7 @@ func (p *Pipeline) RestartNode(nodeUid string) error {
 				elapsed := time.Since(startTime)
 				msg := fmt.Sprintf("Node %s in digital twin %d has been restarted successfully (took %v)", p.Nodes[nodeUid].GetName(), p.DigitalTwinId, elapsed)
 				p.Fm.log.Infof(msg)
+				p.setStatusUnsafe(common.PipelineStatusRunning)
 				p.StatusSubcription()
 				return nil
 			}
@@ -655,7 +656,7 @@ func (p *Pipeline) Stop(action string) error {
 
 	if len(p.Nodes) == 0 {
 		return fmt.Errorf("no nodes data available to stop pipeline")
-	
+
 	}
 
 	for _, node := range p.Nodes {
@@ -675,6 +676,7 @@ func (p *Pipeline) Stop(action string) error {
 				if action == "stop" {
 					p.setStatusUnsafe(common.PipelineStatusStopped)
 					p.LogPipelineInfo("Pipeline stopped successfully")
+					p.stopStatusSubscriptionUnsafe()
 				}
 				return nil
 			}
@@ -682,6 +684,7 @@ func (p *Pipeline) Stop(action string) error {
 			p.Fm.log.Warnf("Timeout while waiting for nodes to stop in digital twin %d", p.GetDigitalTwinId())
 			p.LogPipelineError("Pipeline stop failed", "Timeout while waiting for nodes to stop")
 			p.setStatusUnsafe(common.PipelineStatusError)
+			p.stopStatusSubscriptionUnsafe()
 			return fmt.Errorf("timeout while waiting for nodes to stop in digital twin %d", p.GetDigitalTwinId())
 		}
 	}
@@ -777,7 +780,7 @@ func (p *Pipeline) StatusSubcription() {
 	}
 
 	queueName := fmt.Sprintf("pipeline_status_%s", p.GetDigitalTwinUid())
-	_, err := p.Fm.NatsQueueSubscribe(sim2stateSubject, queueName, func(msg *nats.Msg) {
+	sub, err := p.Fm.NatsQueueSubscribe(sim2stateSubject, queueName, func(msg *nats.Msg) {
 		var rawMessage map[string]interface{}
 		if err := json.Unmarshal(msg.Data, &rawMessage); err != nil {
 			p.Fm.Log().Errorf("failed to unmarshal message for digital twin %d: %w", p.DigitalTwinId, err)
@@ -807,6 +810,15 @@ func (p *Pipeline) StatusSubcription() {
 	})
 	if err != nil {
 		p.Fm.Log().Errorf("Failed to subscribe to status subject for digital twin %d: %v", p.DigitalTwinId, err)
+		return
+	}
+	p.NatsStatusSubscription = sub
+}
+
+func (p *Pipeline) stopStatusSubscriptionUnsafe() {
+	if p.NatsStatusSubscription != nil {
+		p.NatsStatusSubscription.Unsubscribe()
+		p.NatsStatusSubscription = nil
 	}
 }
 
@@ -859,13 +871,12 @@ func (p *Pipeline) PublishChatMessages(userName string) {
 	var chatMessages []utils.ChatMessage
 	for index, msg := range chatSchemaMessages {
 		chatMessages = append(chatMessages, utils.ChatMessage{
-			Message:  msg.Content,
-			UserName: userName,
-			Sender:  string(msg.Role),
+			Message:      msg.Content,
+			UserName:     userName,
+			Sender:       string(msg.Role),
 			McpToolCalls: mcpToolCallsArray[index],
 		})
 	}
-
 
 	payload := ChatMessagesPayload{
 		ChatMessages: chatMessages,
@@ -893,7 +904,7 @@ func (p *Pipeline) ClearChatMessagesHistory(userName string) {
 
 	kvStore := p.Fm.GetDigitalTwinKvStore(p.GetDigitalTwinId())
 	key := utils.GetFullChatMessageKvStoreKey(userName, p.GetOrgHash(), p.GetDigitalTwinUid())
-    kvStore.DeleteEntry(context.Background(), key)
+	kvStore.DeleteEntry(context.Background(), key)
 
 	var chatMessages []utils.ChatMessage = []utils.ChatMessage{}
 	payload := ChatMessagesPayload{

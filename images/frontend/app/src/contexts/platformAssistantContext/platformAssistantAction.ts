@@ -35,8 +35,6 @@ import {
 	IReloadGlobalUsersTable,
 	IReloadBuildingsTable,
 	IReloadFloorsTable,
-	INodeRedInstancesTable,
-	IReloadNodeRedInstancesTable,
 	IMlModelsTable,
 	IReloadMlModelsTable,
 	IAssetsTable,
@@ -75,14 +73,6 @@ export function setReloadSelectOrgUsersTable(plaformAssistantDispatch: PlatformA
 
 export function setOrganizationsTable(plaformAssistantDispatch: PlatformAssistantDispatch, data: IOrganizationsTable) {
 	plaformAssistantDispatch({ type: 'ORGANIZATIONS_TABLE', payload: data });
-}
-
-export function setNodeRedInstancesTable(plaformAssistantDispatch: PlatformAssistantDispatch, data: INodeRedInstancesTable) {
-	plaformAssistantDispatch({ type: 'NODERED_INSTANCES_TABLE', payload: data });
-}
-
-export function setReloadNodeRedInstancesTable(plaformAssistantDispatch: PlatformAssistantDispatch, data: IReloadNodeRedInstancesTable) {
-	plaformAssistantDispatch({ type: 'RELOAD_NODERED_INSTANCES_TABLE', payload: data });
 }
 
 export function setBuildingsTable(plaformAssistantDispatch: PlatformAssistantDispatch, data: IBuildingsTable) {

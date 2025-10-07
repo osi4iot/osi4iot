@@ -72,6 +72,7 @@ func GrafanaService(
 
 	return NewService("grafana", pd, sd).
 		WithImage("ghcr.io/osi4iot/grafana:8.4.1-ubuntu").
+		//WithImage("ghcr.io/osi4iot/grafana:12.3.0-17718666199-ubuntu").
 		WithAnnotationsLabels(annotationsLabels).
 		WithSecrets(secrets).
 		WithConfigs(configs).

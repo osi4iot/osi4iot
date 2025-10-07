@@ -255,7 +255,7 @@ export const usePipelineState = (
 
     const handlePipelineStatusChange = useCallback(
         (status: string) => {
-            if (digitalTwinSelected && digitalTwinSelected.pipelineFileData !== "") {
+            if (digitalTwinSelected) {
                 setPipelineStatus(status);
             } else {
                 setPipelineStatus("unknown");
@@ -826,6 +826,7 @@ const deployPipeline = (
                 axiosErrorHandler(error, authDispatch);
             })
             .finally(() => {
+                digitalTwinSelected.pipelineFileData = "";
                 refreshDigitalTwins();
             });
         return;

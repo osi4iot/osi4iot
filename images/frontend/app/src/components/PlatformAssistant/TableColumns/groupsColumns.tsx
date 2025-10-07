@@ -23,7 +23,6 @@ import {
     setReloadGroupMembersTable,
     setReloadGroupsManagedTable,
     setReloadGroupsMembershipTable,
-    setReloadNodeRedInstancesTable,
     setReloadOrgsOfGroupsManagedTable,
     setReloadSensorsTable,
     setReloadTopicsTable,
@@ -87,9 +86,6 @@ const DeleteGroupModal: FC<DeleteGroupModalProps> = ({ rowIndex, orgId, groupId,
             setReloadGroupsManagedTable(plaformAssistantDispatch, { reloadGroupsManagedTable })
             const reloadGroupsMembershipTable = true;
             setReloadGroupsMembershipTable(plaformAssistantDispatch, { reloadGroupsMembershipTable });
-            const reloadNodeRedInstancesTable = true;
-            setReloadNodeRedInstancesTable(plaformAssistantDispatch, { reloadNodeRedInstancesTable });
-
             const reloadOrgsOfGroupsManagedTable = true;
             setReloadOrgsOfGroupsManagedTable(plaformAssistantDispatch, { reloadOrgsOfGroupsManagedTable });
             const reloadGroupMembersTable = true;

@@ -11,13 +11,12 @@ import { FaRedo, FaRegTimesCircle, FaRegCheckCircle } from "react-icons/fa";
 import { LatLngTuple } from 'leaflet';
 import icon from 'leaflet/dist/images/marker-icon.png';
 import iconShadow from 'leaflet/dist/images/marker-shadow.png';
-import GeoNodeRedInstance from './GeoNodeRedInstance';
 import { IBuilding } from '../TableColumns/buildingsColumns';
 import { IFloor } from '../TableColumns/floorsColumns';
 import GeoBuilding from './GeoBuilding';
 import { IFeatureCollection, spacesDivider } from '../../../tools/spacesDivider';
 import { IGroupManaged } from '../TableColumns/groupsManagedColumns';
-import { ASSETS_PREVIOUS_OPTIONS } from '../Utils/platformAssistantOptions'; import DraggableNriCircle from './DraggableNriCircle';
+import { ASSETS_PREVIOUS_OPTIONS } from '../Utils/platformAssistantOptions';
 import { useGroupManagedInputFormData } from '../../../contexts/groupsManagedOptions';
 import { IAsset } from '../TableColumns/assetsColumns';
 import { useAssetIdToEdit, useAssetInputData, useAssetsPreviousOption } from '../../../contexts/assetsOptions';
@@ -319,9 +318,7 @@ const GeoGroupSpaceMap: FC<GeoGroupSpaceMapProps> = ({
     const assetsPreviousOption = useAssetsPreviousOption();
     const assetIdToEdit = useAssetIdToEdit();
     const assetInputData = useAssetInputData();
-    const groupManagedData = useGroupManagedInputFormData();
     const [assetDragging, setAssetDragging] = useState(false);
-    const [nriDragging, setNriDragging] = useState(false);
 
     useEffect(() => {
         let groupOuterBounds = groupManaged.outerBounds;
@@ -353,24 +350,6 @@ const GeoGroupSpaceMap: FC<GeoGroupSpaceMapProps> = ({
                 style={(geoJsonFeature: any) => groupStyle()}
                 eventHandlers={evenstHandlerGeoJson}
             />
-            {
-                elementToDrag === "nri" ?
-                    <DraggableNriCircle
-                        nriRadio={groupManagedData.nriInGroupIconRadio}
-                        nriPosition={nriPosition}
-                        setNriPosition={(nriPosition: LatLngExpression) => setNriPosition(nriPosition)}
-                        nriDragging={nriDragging}
-                        setNriDragging={(nriDragging: boolean) => setNriDragging(nriDragging)}
-                    />
-                    :
-                    <GeoNodeRedInstance
-                        longitude={groupManaged.nriInGroupIconLongitude}
-                        latitude={groupManaged.nriInGroupIconLatitude}
-                        iconRadio={groupManaged.nriInGroupIconRadio}
-                        nriHash={groupManaged.nriInGroupHash}
-                        linkAvailable={false}
-                    />
-            }
             {
                 assetsInGroup.map(asset => {
                     if (

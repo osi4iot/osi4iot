@@ -80,6 +80,7 @@ import {
     setReloadMlModelsTable,
 } from "../../../contexts/platformAssistantContext/platformAssistantAction";
 
+
 const PlatformAssistantHomeOptionsContainer = styled.div`
     display: flex;
     flex-direction: row;
@@ -87,7 +88,7 @@ const PlatformAssistantHomeOptionsContainer = styled.div`
     align-items: center;
     width: 60%;
     height: 50px;
-    background-color: #0c0d0f;
+    background-color: #0c0d0f
 `;
 
 interface OptionContainerProps {
@@ -407,6 +408,14 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 
     const handleCloseViewer = () => {
         selectAsset(null);
+        if (assetSelected) {
+            const assetTypeId = assetSelected.assetTypeId;
+            const assetType = assetTypesTable.find((at) => at.id === assetTypeId);
+            if (assetType?.geolocationMode === "dynamic") {
+                resetBuildingSelection();
+                setOuterBounds(initialOuterBounds);
+            }
+        }
         setOptionToShow(PLATFORM_ASSISTANT_HOME_OPTIONS.GEOLOCATION);
     };
 

@@ -7,10 +7,8 @@ import { IGlobalUser } from '../../components/PlatformAssistant/TableColumns/glo
 import { IGroupMember } from '../../components/PlatformAssistant/TableColumns/groupMemberColumns';
 import { IGroup } from '../../components/PlatformAssistant/TableColumns/groupsColumns';
 import { IGroupManaged } from '../../components/PlatformAssistant/TableColumns/groupsManagedColumns';
-import { INodeRedInstance } from '../../components/PlatformAssistant/TableColumns/nodeRedInstancesInOrgsColumns';
 import { IMembershipInGroups } from '../../components/PlatformAssistant/TableColumns/membershipInGroups';
 import { IMembershipInOrgs } from '../../components/PlatformAssistant/TableColumns/membershipInOrgs';
-import { IOrganization } from '../../components/PlatformAssistant/TableColumns/organizationsColumns';
 import { IOrgManaged } from '../../components/PlatformAssistant/TableColumns/organizationsManagedColumns';
 import { IOrgOfGroupsManaged } from '../../components/PlatformAssistant/TableColumns/orgsOfGroupsManagedColumns';
 import { IOrgUser } from '../../components/PlatformAssistant/TableColumns/orgUsersColumns';
@@ -28,6 +26,7 @@ import { IAssetType } from '../../components/PlatformAssistant/TableColumns/asse
 import IAssetS3Folder from '../../components/PlatformAssistant/TableColumns/assetS3Folder.interface';
 import { ISensorType } from '../../components/PlatformAssistant/TableColumns/sensorTypesColumns';
 import IAssetTopic from '../../components/PlatformAssistant/TableColumns/assetTopics.interface';
+import { IOrganization } from '../../components/PlatformAssistant/TableColumns/organizationsColumns';
 
 const PlatformAssitantStateContext = createContext<PlatformAssistantContextProps>(initialState);
 const PlatformAssitantDispatchContext = createContext<any>({});
@@ -95,22 +94,6 @@ export const useOrganizationsTable = (): IOrganization[] => {
 		throw new Error('useOrganizationsTable must be used within a PlatformAssitantProvider');
 	}
 	return context.organizations;
-}
-
-export const useNodeRedInstancesTable = (): INodeRedInstance[] => {
-	const context = useContext(PlatformAssitantStateContext);
-	if (context === undefined) {
-		throw new Error('useNodeRedInstancesTable must be used within a PlatformAssitantProvider');
-	}
-	return context.nodeRedInstances;
-}
-
-export const useReloadNodeRedInstancesTable = (): boolean => {
-	const context = useContext(PlatformAssitantStateContext);
-	if (context === undefined) {
-		throw new Error('useReloadNodeRedInstancesTable must be used within a PlatformAssitantProvider');
-	}
-	return context.reloadNodeRedInstancesTable;
 }
 
 export const useBuildingsTable = (): IBuilding[] => {

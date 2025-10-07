@@ -10,7 +10,6 @@ import { findOutStatus } from "./statusTools";
 import { IFloor } from "../TableColumns/floorsColumns";
 import { findGroupGeojsonData } from "../../../tools/findGroupGeojsonData";
 import { IDigitalTwinGltfData } from "../DigitalTwin3DViewer/ViewerTools/ViewerUtils";
-import GeoNodeRedInstance from "./GeoNodeRedInstance";
 import { IAsset } from "../TableColumns/assetsColumns";
 import { ISensor } from "../TableColumns/sensorsColumns";
 import GeoAssets from "./GeoAssets";
@@ -152,12 +151,6 @@ const GeoGroup: FC<GeoGroupProps> = (
                         >
                             <Tooltip sticky>Group: {groupData.acronym}</Tooltip>
                         </GeoJSON>
-                        <GeoNodeRedInstance
-                            longitude={groupData.nriInGroupIconLongitude}
-                            latitude={groupData.nriInGroupIconLatitude}
-                            iconRadio={groupData.nriInGroupIconRadio}
-                            nriHash={groupData.nriInGroupHash}
-                        />
                         <GeoAssets
                             assetTypeDataArray={assetTypeDataArray}
                             assetDataArray={assetDataArrayFiltered}

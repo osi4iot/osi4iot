@@ -392,12 +392,12 @@ func handleMaxValue(
 	arguments := request.GetArguments()
 	resultName, ok := arguments["result_name"].(string)
 	if !ok {
-		return nil, fmt.Errorf("Invalid or missing 'result_name' argument")
+		return nil, fmt.Errorf("invalid or missing 'result_name' argument")
 	}
 
 	params, err := getParams(arguments)
 	if err != nil {
-		return nil, fmt.Errorf("Error fetching params: %v", err)
+		return nil, fmt.Errorf("error fetching params: %v", err)
 	}
 
 	femResults := GetFemResultsInstance()
@@ -405,7 +405,7 @@ func handleMaxValue(
 	resultsList := femResults.resultsList
 
 	if !resultsList.ExistsResult(resultName, "all") {
-		return nil, fmt.Errorf("Result '%s' not found", resultName)
+		return nil, fmt.Errorf("result '%s' not found", resultName)
 	}
 
 	var maxValue float64
@@ -416,7 +416,7 @@ func handleMaxValue(
 	if resultsList.ExistsResult(resultName, "nodes") {
 		expression, err := getExpression(db, femResults.femResOnNodesPath, params, resultName)
 		if err != nil {
-			return nil, fmt.Errorf("Error fetching expression for nodes: %v", err)
+			return nil, fmt.Errorf("error fetching expression for nodes: %v", err)
 		}
 		query := fmt.Sprintf(`
 			SELECT 
@@ -429,12 +429,12 @@ func handleMaxValue(
 
 		err = db.QueryRow(query).Scan(&maxValue, &maxNode)
 		if err != nil {
-			return nil, fmt.Errorf("Error executing query for nodes: %v", err)
+			return nil, fmt.Errorf("error executing query for nodes: %v", err)
 		}
 
 		maxValueWithUnits, err := femResults.FormatValue(resultName, maxValue)
 		if err != nil {
-			return nil, fmt.Errorf("Error formatting max value: %v", err)
+			return nil, fmt.Errorf("error formatting max value: %v", err)
 		}
 		return mcp.NewToolResultText(fmt.Sprintf("Max value %s in Node %d", maxValueWithUnits, maxNode)), nil
 	}
@@ -442,7 +442,7 @@ func handleMaxValue(
 	if resultsList.ExistsResult(resultName, "gauss_points") {
 		expression, err := getExpression(db, femResults.femResOnGPPath, params, resultName)
 		if err != nil {
-			return nil, fmt.Errorf("Error fetching expression for gauss points: %v", err)
+			return nil, fmt.Errorf("error fetching expression for gauss points: %v", err)
 		}
 
 		query := fmt.Sprintf(`
@@ -457,18 +457,18 @@ func handleMaxValue(
 
 		err = db.QueryRow(query).Scan(&maxValue, &maxElem, &maxGP)
 		if err != nil {
-			return nil, fmt.Errorf("Error executing query for gauss points: %v", err)
+			return nil, fmt.Errorf("error executing query for gauss points: %v", err)
 		}
 
 		maxValueWithUnits, err := femResults.FormatValue(resultName, maxValue)
 		if err != nil {
-			return nil, fmt.Errorf("Error formatting max value: %v", err)
+			return nil, fmt.Errorf("error formatting max value: %v", err)
 		}
 		message := fmt.Sprintf("Max value %s at element %d, gauss point %d", maxValueWithUnits, maxElem, maxGP)
 		return mcp.NewToolResultText(message), nil
 	}
 
-	return nil, fmt.Errorf("Result '%s' not found", resultName)
+	return nil, fmt.Errorf("result '%s' not found", resultName)
 }
 
 func handleMinValue(
@@ -478,12 +478,12 @@ func handleMinValue(
 	arguments := request.GetArguments()
 	resultName, ok := arguments["result_name"].(string)
 	if !ok {
-		return nil, fmt.Errorf("Invalid or missing 'result_name' argument")
+		return nil, fmt.Errorf("invalid or missing 'result_name' argument")
 	}
 
 	params, err := getParams(arguments)
 	if err != nil {
-		return nil, fmt.Errorf("Error fetching params: %v", err)
+		return nil, fmt.Errorf("error fetching params: %v", err)
 	}
 
 	femResults := GetFemResultsInstance()
@@ -491,7 +491,7 @@ func handleMinValue(
 	resultsList := femResults.resultsList
 
 	if !resultsList.ExistsResult(resultName, "all") {
-		return nil, fmt.Errorf("Result '%s' not found", resultName)
+		return nil, fmt.Errorf("result '%s' not found", resultName)
 	}
 
 	var minValue float64
@@ -502,7 +502,7 @@ func handleMinValue(
 	if resultsList.ExistsResult(resultName, "nodes") {
 		expression, err := getExpression(db, femResults.femResOnNodesPath, params, resultName)
 		if err != nil {
-			return nil, fmt.Errorf("Error fetching expression for nodes: %v", err)
+			return nil, fmt.Errorf("error fetching expression for nodes: %v", err)
 		}
 
 		query := fmt.Sprintf(`
@@ -516,12 +516,12 @@ func handleMinValue(
 
 		err = db.QueryRow(query).Scan(&minValue, &minNode)
 		if err != nil {
-			return nil, fmt.Errorf("Error executing query for nodes: %v", err)
+			return nil, fmt.Errorf("error executing query for nodes: %v", err)
 		}
 
 		minValueWithUnits, err := femResults.FormatValue(resultName, minValue)
 		if err != nil {
-			return nil, fmt.Errorf("Error formatting min value: %v", err)
+			return nil, fmt.Errorf("error formatting min value: %v", err)
 		}
 		return mcp.NewToolResultText(fmt.Sprintf("Min value %s in Node %d", minValueWithUnits, minNode)), nil
 	}
@@ -529,7 +529,7 @@ func handleMinValue(
 	if resultsList.ExistsResult(resultName, "gauss_points") {
 		expression, err := getExpression(db, femResults.femResOnGPPath, params, resultName)
 		if err != nil {
-			return nil, fmt.Errorf("Error fetching expression for gauss points: %v", err)
+			return nil, fmt.Errorf("error fetching expression for gauss points: %v", err)
 		}
 
 		// Opción 1: Query simple que encuentra el mínimo y luego obtiene elem/GP
@@ -546,18 +546,18 @@ func handleMinValue(
 
 		err = db.QueryRow(query).Scan(&minValue, &minElem, &minGP)
 		if err != nil {
-			return nil, fmt.Errorf("Error executing query for gauss points: %v", err)
+			return nil, fmt.Errorf("error executing query for gauss points: %v", err)
 		}
 
 		minValueWithUnits, err := femResults.FormatValue(resultName, minValue)
 		if err != nil {
-			return nil, fmt.Errorf("Error formatting min value: %v", err)
+			return nil, fmt.Errorf("error formatting min value: %v", err)
 		}
 		message := fmt.Sprintf("Min value %s at element %d, gauss point %d", minValueWithUnits, minElem, minGP)
 		return mcp.NewToolResultText(message), nil
 	}
 
-	return nil, fmt.Errorf("Result '%s' not found", resultName)
+	return nil, fmt.Errorf("result '%s' not found", resultName)
 }
 
 func handleCriticalValue(
@@ -568,12 +568,12 @@ func handleCriticalValue(
 
 	resultNames, err := getResultNames(arguments)
 	if err != nil {
-		return nil, fmt.Errorf("Error fetching result names: %v", err)
+		return nil, fmt.Errorf("error fetching result names: %v", err)
 	}
 
 	params, err := getParams(arguments)
 	if err != nil {
-		return nil, fmt.Errorf("Error fetching params: %v", err)
+		return nil, fmt.Errorf("error fetching params: %v", err)
 	}
 
 	femResults := GetFemResultsInstance()
@@ -592,11 +592,11 @@ func handleCriticalValue(
 		if ires == 0 && resultLocation != "" {
 			location = resultLocation
 		} else if resultLocation != location {
-			return nil, fmt.Errorf("Invalid result names: %v", err)
+			return nil, fmt.Errorf("invalid result names: %v", err)
 		}
 	}
 	if location == "" {
-		return nil, fmt.Errorf("Invalid result names: %v", err)
+		return nil, fmt.Errorf("invalid result names: %v", err)
 	}
 
 	var criticalValue float64
@@ -607,7 +607,7 @@ func handleCriticalValue(
 	if location == "nodes" {
 		expression, err := getCriticalValueExpression(db, femResults.femResOnNodesPath, params, resultNames)
 		if err != nil {
-			return nil, fmt.Errorf("Error fetching expression for nodes: %v", err)
+			return nil, fmt.Errorf("error fetching expression for nodes: %v", err)
 		}
 		query := fmt.Sprintf(`
 			SELECT 
@@ -620,12 +620,12 @@ func handleCriticalValue(
 
 		err = db.QueryRow(query).Scan(&criticalValue, &criticalNode)
 		if err != nil {
-			return nil, fmt.Errorf("Error executing query for nodes: %v", err)
+			return nil, fmt.Errorf("error executing query for nodes: %v", err)
 		}
 
 		criticalValueWithUnits, err := femResults.FormatValue(resultNames[0], criticalValue)
 		if err != nil {
-			return nil, fmt.Errorf("Error formatting critical value: %v", err)
+			return nil, fmt.Errorf("error formatting critical value: %v", err)
 		}
 		return mcp.NewToolResultText(fmt.Sprintf("Critical value %s in Node %d", criticalValueWithUnits, criticalNode)), nil
 	}
@@ -633,7 +633,7 @@ func handleCriticalValue(
 	if location == "gauss_points" {
 		expression, err := getCriticalValueExpression(db, femResults.femResOnGPPath, params, resultNames)
 		if err != nil {
-			return nil, fmt.Errorf("Error fetching expression for gauss points: %v", err)
+			return nil, fmt.Errorf("error fetching expression for gauss points: %v", err)
 		}
 
 		query := fmt.Sprintf(`
@@ -648,18 +648,18 @@ func handleCriticalValue(
 
 		err = db.QueryRow(query).Scan(&criticalValue, &criticalElem, &criticalGP)
 		if err != nil {
-			return nil, fmt.Errorf("Error executing query for gauss points: %v", err)
+			return nil, fmt.Errorf("error executing query for gauss points: %v", err)
 		}
 
 		criticalValueWithUnits, err := femResults.FormatValue(resultNames[0], criticalValue)
 		if err != nil {
-			return nil, fmt.Errorf("Error formatting critical value: %v", err)
+			return nil, fmt.Errorf("error formatting critical value: %v", err)
 		}
 		message := fmt.Sprintf("Critical value %s at element %d, gauss point %d", criticalValueWithUnits, criticalElem, criticalGP)
 		return mcp.NewToolResultText(message), nil
 	}
 
-	return nil, fmt.Errorf("Invalid result names: %v", err)
+	return nil, fmt.Errorf("invalid result names: %v", err)
 }
 
 func handleNodalValue(ctx context.Context,
@@ -669,32 +669,32 @@ func handleNodalValue(ctx context.Context,
 	arguments := request.GetArguments()
 	resultName, ok := arguments["result_name"].(string)
 	if !ok {
-		return nil, fmt.Errorf("Invalid or missing 'result_name' parameter")
+		return nil, fmt.Errorf("invalid or missing 'result_name' parameter")
 	}
 
 	nodeIDFloat, ok := arguments["node_id"].(float64)
 	if !ok {
-		return nil, fmt.Errorf("Invalid or missing 'node_id' parameter")
+		return nil, fmt.Errorf("invalid or missing 'node_id' parameter")
 	}
 	nodeID := int(nodeIDFloat)
 	if nodeID < 0 || nodeID > femResults.GetNumNodes() {
-		return nil, fmt.Errorf("Invalid 'node_id' parameter")
+		return nil, fmt.Errorf("invalid 'node_id' parameter")
 	}
 
 	params, err := getParams(arguments)
 	if err != nil {
-		return nil, fmt.Errorf("Error fetching params: %v", err)
+		return nil, fmt.Errorf("error fetching params: %v", err)
 	}
 
 	db := femResults.GetDB()
 	resultsList := femResults.resultsList
 	if !resultsList.ExistsResult(resultName, "nodes") {
-		return nil, fmt.Errorf("Result '%s' not found in nodes", resultName)
+		return nil, fmt.Errorf("result '%s' not found in nodes", resultName)
 	}
 
 	expression, err := getExpression(db, femResults.femResOnNodesPath, params, resultName)
 	if err != nil {
-		return nil, fmt.Errorf("Error fetching expression for nodes: %v", err)
+		return nil, fmt.Errorf("error fetching expression for nodes: %v", err)
 	}
 
 	var nodalValue float64
@@ -707,12 +707,12 @@ func handleNodalValue(ctx context.Context,
 
 	err = db.QueryRow(query, nodeID).Scan(&nodalValue)
 	if err != nil {
-		return nil, fmt.Errorf("Error executing query for nodes: %v", err)
+		return nil, fmt.Errorf("error executing query for nodes: %v", err)
 	}
 
 	nodalValueWithUnits, err := femResults.FormatValue(resultName, nodalValue)
 	if err != nil {
-		return nil, fmt.Errorf("Error formatting nodal value: %v", err)
+		return nil, fmt.Errorf("error formatting nodal value: %v", err)
 	}
 
 	return mcp.NewToolResultText(fmt.Sprintf("Node value for '%s': %s", resultName, nodalValueWithUnits)), nil
@@ -725,32 +725,32 @@ func handleElemValue(ctx context.Context,
 	arguments := request.GetArguments()
 	resultName, ok := arguments["result_name"].(string)
 	if !ok {
-		return nil, fmt.Errorf("Invalid or missing 'result_name' parameter")
+		return nil, fmt.Errorf("invalid or missing 'result_name' parameter")
 	}
 
 	elementIDFloat, ok := arguments["element_id"].(float64)
 	if !ok {
-		return nil, fmt.Errorf("Invalid or missing 'element_id' parameter")
+		return nil, fmt.Errorf("invalid or missing 'element_id' parameter")
 	}
 	elementID := int(elementIDFloat)
 	if elementID < 0 || elementID > femResults.GetNumElements() {
-		return nil, fmt.Errorf("Invalid 'element_id' parameter")
+		return nil, fmt.Errorf("invalid 'element_id' parameter")
 	}
 
 	params, err := getParams(arguments)
 	if err != nil {
-		return nil, fmt.Errorf("Error fetching params: %v", err)
+		return nil, fmt.Errorf("error fetching params: %v", err)
 	}
 
 	db := femResults.GetDB()
 	resultsList := femResults.resultsList
 	if !resultsList.ExistsResult(resultName, "gauss_points") {
-		return nil, fmt.Errorf("Result '%s' not found in elements", resultName)
+		return nil, fmt.Errorf("result '%s' not found in elements", resultName)
 	}
 
 	expression, err := getExpression(db, femResults.femResOnGPPath, params, resultName)
 	if err != nil {
-		return nil, fmt.Errorf("Error fetching expression for elements: %v", err)
+		return nil, fmt.Errorf("error fetching expression for elements: %v", err)
 	}
 
 	var avgValue float64
@@ -769,22 +769,22 @@ func handleElemValue(ctx context.Context,
 
 	err = db.QueryRow(query, elementID).Scan(&avgValue, &minValue, &maxValue)
 	if err != nil {
-		return nil, fmt.Errorf("Error executing query for elements: %v", err)
+		return nil, fmt.Errorf("error executing query for elements: %v", err)
 	}
 
 	avgValueWithUnits, err := femResults.FormatValue(resultName, avgValue)
 	if err != nil {
-		return nil, fmt.Errorf("Error formatting element value: %v", err)
+		return nil, fmt.Errorf("error formatting element value: %v", err)
 	}
 
 	minValueWithUnits, err := femResults.FormatValue(resultName, minValue)
 	if err != nil {
-		return nil, fmt.Errorf("Error formatting element value: %v", err)
+		return nil, fmt.Errorf("error formatting element value: %v", err)
 	}
 
 	maxValueWithUnits, err := femResults.FormatValue(resultName, maxValue)
 	if err != nil {
-		return nil, fmt.Errorf("Error formatting element value: %v", err)
+		return nil, fmt.Errorf("error formatting element value: %v", err)
 	}
 
 	return mcp.NewToolResultText(fmt.Sprintf("Element values for '%s': avg= %v, min= %v, max= %v", resultName,
@@ -799,7 +799,7 @@ func getNumElements(db *sql.DB, meshFilePath string) (int, error) {
 	var numElements int
 	err := db.QueryRow(query).Scan(&numElements)
 	if err != nil {
-		return 0, fmt.Errorf("Error fetching number of elements: %v", err)
+		return 0, fmt.Errorf("error fetching number of elements: %v", err)
 	}
 	return numElements, nil
 }
@@ -807,7 +807,7 @@ func getNumElements(db *sql.DB, meshFilePath string) (int, error) {
 func getNumNodes(db *sql.DB, meshFilePath string) (int, error) {
 	nodeColumns, err := getColumnsNodes(db, meshFilePath)
 	if err != nil {
-		return 0, fmt.Errorf("Error fetching node columns: %v", err)
+		return 0, fmt.Errorf("error fetching node columns: %v", err)
 	}
 
 	if len(nodeColumns) == 0 {
@@ -823,7 +823,7 @@ func getNumNodes(db *sql.DB, meshFilePath string) (int, error) {
 	var numNodes int
 	err = db.QueryRow(query).Scan(&numNodes)
 	if err != nil {
-		return 0, fmt.Errorf("Error fetching number of nodes: %v", err)
+		return 0, fmt.Errorf("error fetching number of nodes: %v", err)
 	}
 	return numNodes, nil
 }
@@ -831,11 +831,11 @@ func getNumNodes(db *sql.DB, meshFilePath string) (int, error) {
 func getExpression(db *sql.DB, filePath string, params []float64, resultName string) (string, error) {
 	columnsInfo, err := getColumnsInfo(db, filePath)
 	if err != nil {
-		return "", fmt.Errorf("Error fetching columns info: %v", err)
+		return "", fmt.Errorf("error fetching columns info: %v", err)
 	}
 	modalResults, err := getModalResults(columnsInfo, resultName)
 	if err != nil {
-		return "", fmt.Errorf("Error fetching modal results: %v", err)
+		return "", fmt.Errorf("error fetching modal results: %v", err)
 	}
 	expression := ""
 	length := math.Min(float64(len(modalResults)), float64(len(params)))
@@ -851,13 +851,13 @@ func getExpression(db *sql.DB, filePath string, params []float64, resultName str
 func getCriticalValueExpression(db *sql.DB, filePath string, params []float64, resultNames []string) (string, error) {
 	columnsInfo, err := getColumnsInfo(db, filePath)
 	if err != nil {
-		return "", fmt.Errorf("Error fetching columns info: %v", err)
+		return "", fmt.Errorf("error fetching columns info: %v", err)
 	}
 	expression := ""
 	for ires, resultName := range resultNames {
 		modalResults, err := getModalResults(columnsInfo, resultName)
 		if err != nil {
-			return "", fmt.Errorf("Error fetching modal results: %v", err)
+			return "", fmt.Errorf("error fetching modal results: %v", err)
 		}
 		resultNameExpression := ""
 		length := math.Min(float64(len(modalResults)), float64(len(params)))
@@ -1003,14 +1003,14 @@ func joinStrings(strs []string, sep string) string {
 func getParams(arguments map[string]any) ([]float64, error) {
 	rawParams, ok := arguments["params"].([]interface{})
 	if !ok {
-		return nil, fmt.Errorf("Invalid or missing 'params' argument")
+		return nil, fmt.Errorf("invalid or missing 'params' argument")
 	}
 	var params []float64
 	for _, param := range rawParams {
 		if f, ok := param.(float64); ok {
 			params = append(params, f)
 		} else {
-			return nil, fmt.Errorf("Invalid param type: expected number")
+			return nil, fmt.Errorf("invalid param type: expected number")
 		}
 	}
 	return params, nil
@@ -1019,14 +1019,14 @@ func getParams(arguments map[string]any) ([]float64, error) {
 func getResultNames(arguments map[string]any) ([]string, error) {
 	rawResultNames, ok := arguments["result_names"].([]interface{})
 	if !ok {
-		return nil, fmt.Errorf("Invalid or missing 'result_names' argument")
+		return nil, fmt.Errorf("invalid or missing 'result_names' argument")
 	}
 	var resultNames []string
 	for _, param := range rawResultNames {
 		if f, ok := param.(string); ok {
 			resultNames = append(resultNames, f)
 		} else {
-			return nil, fmt.Errorf("Invalid param type: expected string")
+			return nil, fmt.Errorf("invalid param type: expected string")
 		}
 	}
 	return resultNames, nil

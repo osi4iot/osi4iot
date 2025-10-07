@@ -1,0 +1,2 @@
+docker buildx build --platform linux/amd64,linux/arm64 -t ghcr.io/osi4iot/grafana:12.3.0-17718666199-ubuntu --push .
+# docker buildx build --platform linux/amd64,linux/arm64 -t ghcr.io/osi4iot/grafana:latest --push .

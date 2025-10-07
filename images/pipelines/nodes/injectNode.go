@@ -282,6 +282,26 @@ func (n *InjectNode) runSimpleInterval(periodicCtx context.Context, interval tim
 	}
 }
 
+func (n *InjectNode) Stop(log *logger.Logger) {
+	if n.GetStatus() == common.NodeStatusStopped {
+		log.Infof("Node %s is already stopped", n.NodeUid)
+		return
+	}
+
+	n.SetStatus(common.NodeStatusStopped)
+
+	if n.Cancel != nil {
+		n.Cancel()
+	}
+
+	n.stopPeriodicTasks()
+	n.wg.Wait() //Wait for all goroutines to finish
+
+	n.ResetNodeContext()
+
+	log.Infof("Node %s stopped successfully", n.NodeUid)
+}
+
 func (n *InjectNode) isValidDay(now time.Time) bool {
 	if len(n.DaysOfWeek) == 0 {
 		return true // Si no se especifican días, todos son válidos
@@ -430,6 +450,7 @@ func (n *InjectNode) parseTimeForDate(date time.Time, timeStr string, loc *time.
 
 func (n *InjectNode) listenToPeriodicMessages(listenCtx context.Context, log *logger.Logger, processor func(common.Message, *logger.Logger) error) {
 	defer n.wg.Done()
+
 	for {
 		select {
 		case msg := <-n.MsgChan:

@@ -1,5 +1,5 @@
 import React, { FC, useState, useCallback } from 'react'
-import { IOrganization, Create_ORGANIZATIONS_COLUMNS } from '../TableColumns/organizationsColumnsOld';
+import { IOrganization, Create_ORGANIZATIONS_COLUMNS } from '../TableColumns/organizationsColumns';
 import TableWithPagination from '../Utils/TableWithPagination';
 import CreateOrganization from './CreateOrganization';
 import EditOrganization from './EditOrganization';
@@ -42,6 +42,7 @@ const initialOrgData = {
     state: "",
     country: "",
     buildingId: 1,
+    mqttAccessControl: "Pub & Sub",
     telegramInvitationLink: "",
     telegramChatId: "",
     orgAdminArray: [
@@ -55,7 +56,7 @@ const initialOrgData = {
     ]
 }
 
-const OrgsContainerOld: FC<OrgsContainerProps> = ({ organizations, refreshOrgs }) => {
+const OrgsContainer: FC<OrgsContainerProps> = ({ organizations, refreshOrgs }) => {
     const orgsDispatch = useOrgsDispatch();
     const orgsOptionToShow = useOrgsOptionToShow();
     const [orgInputData, setOrgInputData] = useState<IOrgInputData>(initialOrgData)
@@ -95,4 +96,4 @@ const OrgsContainerOld: FC<OrgsContainerProps> = ({ organizations, refreshOrgs }
     )
 }
 
-export default OrgsContainerOld;
+export default OrgsContainer;

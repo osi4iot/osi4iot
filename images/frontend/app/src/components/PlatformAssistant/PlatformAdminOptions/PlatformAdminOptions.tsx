@@ -9,7 +9,6 @@ import { IRefreshToken, Create_REFRESH_TOKENS_COLUMNS } from '../TableColumns/re
 import elaspsedTimeFormat from '../../../tools/elapsedTimeFormat';
 import { PLATFORM_ADMIN_OPTIONS } from '../Utils/platformAssistantOptions';
 import { OrgsProvider } from '../../../contexts/orgsOptions';
-import OrgsContainer from './OrgsContainer';
 import { GlobalUsersProvider } from '../../../contexts/globalUsersOptions';
 import GlobalUsersContainer from './GlobalUsersContainer';
 import {
@@ -41,6 +40,7 @@ import axiosErrorHandler from '../../../tools/axiosErrorHandler';
 import { IBuilding } from '../TableColumns/buildingsColumns';
 import { IFloor } from '../TableColumns/floorsColumns';
 import { AxiosResponse, AxiosError } from 'axios';
+import OrgsContainer from './OrgContainer';
 
 const PlatformAdminOptionsContainer = styled.div`
 	display: flex;

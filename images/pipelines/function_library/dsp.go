@@ -208,7 +208,7 @@ func (dsp *Dsp) DetrendInPlace(x []float64) {
 // welchPSD computes PSD (power spectral density) in unit^2/Hz.
 // Scaling convention similar to SciPy: Pxx = (2/(fs*sum(w^2))) |X[k]|^2
 // (factor 2 only for 0<k<Nfft/2; DC/Nyquist not doubled). Averages over segments.
-// Returns: freq (0..Nyquist), psd, df and K (number of averages).
+// Returns: freq (0..Nyquist), psd and df.
 func (dsp *Dsp) WelchPSD(x []float64, cfg WelchConfig) (freq, psd []float64, df float64) {
 	N := len(x)
 	if cfg.WinLen <= 0 || cfg.WinLen > N {

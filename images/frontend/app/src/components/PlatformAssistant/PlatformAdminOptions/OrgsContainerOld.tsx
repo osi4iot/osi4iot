@@ -1,5 +1,5 @@
 import React, { FC } from 'react'
-import { IOrganization, Create_ORGANIZATIONS_COLUMNS } from '../TableColumns/organizationsColumns';
+import { IOrganization, Create_ORGANIZATIONS_COLUMNS } from '../TableColumns/organizationsColumnsOld';
 import TableWithPagination from '../Utils/TableWithPagination';
 
 
