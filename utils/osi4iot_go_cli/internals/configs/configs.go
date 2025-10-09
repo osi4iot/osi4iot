@@ -26,7 +26,6 @@ func GenerateConfigs(platformData *pt.PlatformData) map[string]pt.Config {
 		fmt.Sprintf("DOMAIN_NAME=%s", pi.DomainName),
 		fmt.Sprintf("PROTOCOL=%s", protocol),
 		fmt.Sprintf("DEPLOYMENT_LOCATION=\"%s\"", pi.DeploymentLocation),
-		fmt.Sprintf("MESSAGING_SYSTEM=%s", pi.MessagingSystem),
 		fmt.Sprintf("PLATFORM_PHRASE=\"%s\"", pi.PlatformPhrase),
 		fmt.Sprintf("MAIN_ORGANIZATION_NAME=\"%s\"", pi.MainOrganizationName),
 		fmt.Sprintf("MAIN_ORGANIZATION_ACRONYM=%s", pi.MainOrganizationAcronym),
@@ -94,83 +93,6 @@ func GenerateConfigs(platformData *pt.PlatformData) map[string]pt.Config {
 	Configs["grafana"] = pt.Config{
 		Name: grafanaConfigName,
 		Data: grafanaConfig,
-	}
-
-	mosquittoConfigArray := []string{
-		"persistence true",
-		"persistence_location /mosquitto/data",
-		"log_type error",
-		"log_type warning",
-		"log_type notice",
-		"log_type information",
-		"log_dest stdout",
-		" ",
-		"# MQTT plain",
-		"listener 1883",
-		"protocol mqtt",
-		"allow_anonymous false",
-		" ",
-		"# MQTT over TLS/SSL mTLS",
-		"listener 8883",
-		"protocol mqtt",
-		"cafile /mosquitto/mqtt_certs/ca.crt",
-		"certfile /mosquitto/mqtt_certs/server.crt",
-		"keyfile /mosquitto/mqtt_certs/server.key",
-		"require_certificate true",
-		"use_identity_as_username true",
-		" ",
-		"# MQTT over TLS/SSL one-way TLS with CA",
-		"listener 8884",
-		"protocol mqtt",
-		"allow_anonymous false",
-		" ",
-		"# WS for health check",
-		"listener 8080 127.0.0.1",
-		"protocol websockets",
-		" ",
-		"# MQTT over WSS",
-		"listener 9001",
-		"protocol websockets",
-		"allow_anonymous false",
-		" ",
-		"include_dir /etc/mosquitto/conf.d",
-	}
-	mosquittoConfig := strings.Join(mosquittoConfigArray, "\n")
-	mosquittoConfigHash := utils.GetMD5Hash(mosquittoConfig)
-	mosquittoConfigName := fmt.Sprintf("mosquitto_%s", mosquittoConfigHash)
-	Configs["mosquitto_conf"] = pt.Config{
-		Name: mosquittoConfigName,
-		Data: mosquittoConfig,
-	}
-
-	mosquittoGoAuthArray := []string{
-		"auth_plugin /mosquitto/go-auth.so",
-		"auth_opt_log_level info",
-		"auth_opt_log_dest stdout",
-		"auth_opt_backends http",
-		"auth_opt_disable_superuser true",
-		"auth_opt_http_host admin_api",
-		"auth_opt_http_port 3200",
-		"auth_opt_http_getuser_uri /auth/mosquitto_user",
-		"auth_opt_http_aclcheck_uri /auth/mosquitto_aclcheck",
-		"auth_opt_http_method POST",
-		" ",
-		"auth_opt_cache true",
-		"auth_opt_cache_type go-cache",
-		"auth_opt_cache_reset true",
-		"auth_opt_cache_refresh true",
-		" ",
-		"auth_opt_auth_cache_seconds 60",
-		"auth_opt_acl_cache_seconds 60",
-		"auth_opt_auth_jitter_seconds 5",
-		"auth_opt_acl_jitter_seconds 5",
-	}
-	mosquittoGoAuth := strings.Join(mosquittoGoAuthArray, "\n")
-	mosquittoGoAuthHash := utils.GetMD5Hash(mosquittoGoAuth)
-	mosquittoGoAuthName := fmt.Sprintf("mosquitto_go_auth_%s", mosquittoGoAuthHash)
-	Configs["mosquitto_go_auth"] = pt.Config{
-		Name: mosquittoGoAuthName,
-		Data: mosquittoGoAuth,
 	}
 
 	s3StorageConfigArray := []string{

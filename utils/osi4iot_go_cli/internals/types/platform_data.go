@@ -81,7 +81,6 @@ type PlatformInfo struct {
 	AccessTokenSecret         string `json:"ACCESS_TOKEN_SECRET"`
 	AccessTokenLifetime       int    `json:"ACCESS_TOKEN_LIFETIME"`
 
-	MessagingSystem          string `json:"MESSAGING_SYSTEM"`
 	NumNatsClusterNodes      int    `json:"NUM_NATS_CLUSTER_NODES"`
 	MQTTSslCertsValidityDays int    `json:"MQTT_SSL_CERTS_VALIDITY_DAYS"`
 	FloatingIPAddress        string `json:"FLOATING_IP_ADDRES"`

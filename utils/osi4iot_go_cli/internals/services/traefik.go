@@ -14,7 +14,6 @@ func TraefikService(
 	svcResourcesMap resources.SvcResourcesMap,
 	nodeRoleMaps resources.NodesRoleMaps,
 	) pt.Service {
-	messagingSystem := pd.PlatformInfo.MessagingSystem
 	domainCertsType := pd.PlatformInfo.DomainCertsType
 
 	commands := []string{
@@ -35,24 +34,10 @@ func TraefikService(
 		"--log",
 	}
 
-	if messagingSystem == "mqtt" {
-		commands = append(commands, "--entrypoints.mqtt.address=:1883")
-		commands = append(commands, "--entrypoints.mqtt-tls.address=:8884")
-		commands = append(commands, "--entrypoints.wss.address=:9001")
-	}
-
 	// define los puertos básicos
 	ports := []swarm.PortConfig{
 		{Protocol: swarm.PortConfigProtocolTCP, TargetPort: 80, PublishedPort: 80},
 		{Protocol: swarm.PortConfigProtocolTCP, TargetPort: 443, PublishedPort: 443},
-	}
-
-	if messagingSystem == "mqtt" {
-		ports = append(ports,
-			swarm.PortConfig{Protocol: swarm.PortConfigProtocolTCP, TargetPort: 1883, PublishedPort: 1883},
-			swarm.PortConfig{Protocol: swarm.PortConfigProtocolTCP, TargetPort: 9001, PublishedPort: 9001},
-			swarm.PortConfig{Protocol: swarm.PortConfigProtocolTCP, TargetPort: 8884, PublishedPort: 8884},
-		)
 	}
 
 	traefikSecrets := []*swarm.SecretReference{}

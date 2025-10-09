@@ -34,7 +34,6 @@ func main() {
 	}
 	sugar.Info("Number of workers: ", cfg.NumWorkers)
 	sugar.Info("Batch size: ", cfg.BatchSize)
-	sugar.Infof("Messaging type: %s", cfg.MessagingType)
 
 	// Check Admin API with backoff and retry until the Admin API is available
 	bo := backoff.NewExponentialBackOff()
@@ -66,15 +65,14 @@ func main() {
 	sugar.Info("Connected to database")
 
 	// 1-) Connect to messaging broker (Mosquitto or NATS)
-	msgClient, err := messaging.NewClient(cfg)
+	natsClient, err := messaging.NewNATSClient(cfg)
 	if err != nil {
 		sugar.Fatalf("could not create messaging client: %v", err)
 	}
-	if err := msgClient.Connect(); err != nil {
+	if err := natsClient.Connect(); err != nil {
 		sugar.Fatalf("error connecting to broker: %v", err)
 	}
-	defer msgClient.Close()
-	sugar.Infof("using messaging system: %s", cfg.MessagingType)
+	defer natsClient.Close()
 
 	// 2-) Unified channel and batchers
 	dataCh := make(chan models.ThingData, cfg.BatchSize)
@@ -82,13 +80,13 @@ func main() {
 	defer cancel()
 
 	b := batcher.NewBatcher(
-		ctx, 
-		dbpool, 
-		dataCh, 
-		cfg.NumWorkers, 
-		cfg.BatchSize, 
-		200*time.Millisecond, 
-		batcher.CopyFromSaver, 
+		ctx,
+		dbpool,
+		dataCh,
+		cfg.NumWorkers,
+		cfg.BatchSize,
+		200*time.Millisecond,
+		batcher.CopyFromSaver,
 		sugar,
 	)
 	go b.Start()
@@ -107,21 +105,13 @@ func main() {
 
 	// 4-) Dynamic subscription
 	for _, s := range subs {
-		topic := s.mqttSub
-		if cfg.MessagingType == "nats" {
-			topic = s.natsSub
-		}
+		topic := s.natsSub
 		sugar.Infof("subscribing to %s", topic)
 
-		// en NATS msgClient.Subscribe invoca tu handler con (subject, payload)
-		err := msgClient.Subscribe(topic, func(receivedTopic string, payload []byte) {
+		// en NATS natsClient.Subscribe invoca tu handler con (subject, payload)
+		err := natsClient.Subscribe(topic, func(receivedTopic string, payload []byte) {
 			// partir el subject usando "/" o "." según el broker
-			var parts []string
-			if cfg.MessagingType == "mqtt" {
-				parts = strings.Split(receivedTopic, "/")
-			} else {
-				parts = strings.Split(receivedTopic, ".")
-			}
+			parts := strings.Split(receivedTopic, ".")
 
 			// extract rows
 			rows, err := s.ext(parts, payload)

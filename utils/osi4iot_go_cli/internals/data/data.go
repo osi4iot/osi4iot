@@ -118,11 +118,6 @@ func SetData(key string, value string) {
 		if Data.PlatformInfo.AccessTokenSecret == "" {
 			Data.PlatformInfo.AccessTokenSecret = value
 		}
-	case "MESSAGING_SYSTEM":
-		Data.PlatformInfo.MessagingSystem = value
-	case "MQTT_SSL_CERTS_VALIDITY_DAYS":
-		mqttCertsValidityDays, _ := strconv.Atoi(value)
-		Data.PlatformInfo.MQTTSslCertsValidityDays = mqttCertsValidityDays
 	case "NUM_NATS_CLUSTER_NODES":
 		numNatsClusterNodes, _ := strconv.Atoi(value)
 		Data.PlatformInfo.NumNatsClusterNodes = numNatsClusterNodes

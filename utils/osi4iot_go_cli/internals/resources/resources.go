@@ -184,8 +184,6 @@ func GiveReplicsPtr(serviceName string, nodeRoleMaps NodesRoleMaps) *uint64 {
 		replics = uint64(1)
 	case "traefik":
 		replics = uint64(nodeRoleNumMap["Manager"])
-	case "mosquitto_go_auth":
-		replics = uint64(1)
 	case "nats":
 		replics = uint64(1)
 	case "auth_callout":

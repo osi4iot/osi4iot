@@ -42,7 +42,6 @@ func getNanoCPUsSvcMap(pd *pt.PlatformData) map[string]int64 {
 	nanoCPUsSvcMap["traefik"] = int64(uiSvcCpus * 1e9)
 	nanoCPUsSvcMap["grafana"] = int64(uiSvcCpus * 1e9)
 
-	nanoCPUsSvcMap["mosquitto"] = int64(messagingSvcCpus * 1e9)
 	nanoCPUsSvcMap["nats"] = int64(messagingSvcCpus * 1e9)
 	nanoCPUsSvcMap["auth_callout"] = int64(0.25 * messagingSvcCpus * 1e9)
 	nanoCPUsSvcMap["dev2pdb"] = int64(0.50 * messagingSvcCpus * 1e9)

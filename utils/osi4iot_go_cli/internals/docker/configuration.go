@@ -189,17 +189,6 @@ if [ ! -d /var/nfs_osi4iot/grafana_data ]; then
 	sudo chown nobody:nogroup /var/nfs_osi4iot/grafana_data
 fi
 
-if [ ! -d /var/nfs_osi4iot/mosquitto_data ]; then
-	sudo mkdir /var/nfs_osi4iot/mosquitto_data
-	sudo chown nobody:nogroup /var/nfs_osi4iot/mosquitto_data
-fi
-
-if [ ! -d /var/nfs_osi4iot/mosquitto_log ]; then
-	sudo mkdir /var/nfs_osi4iot/mosquitto_log
-	sudo chown nobody:nogroup /var/nfs_osi4iot/mosquitto_log
-fi
-
-
 if [ ! -d  /var/nfs_osi4iot/portainer_data ]; then
 	sudo mkdir /var/nfs_osi4iot/portainer_data
 	sudo chown nobody:nogroup /var/nfs_osi4iot/portainer_data
@@ -299,16 +288,6 @@ if [ ! -d /home/ubuntu/efs_osi4iot/grafana_data ]; then
     sudo mkdir /home/ubuntu/efs_osi4iot/grafana_data
     #sudo chown ubuntu:ubuntu /home/ubuntu/efs_osi4iot/grafana_data
 	sudo chown 472:472 /home/ubuntu/efs_osi4iot/grafana_data
-fi
-
-if [ ! -d /home/ubuntu/efs_osi4iot/mosquitto_data ]; then
-    sudo mkdir /home/ubuntu/efs_osi4iot/mosquitto_data
-    sudo chown ubuntu:ubuntu /home/ubuntu/efs_osi4iot/mosquitto_data
-fi
-
-if [ ! -d /home/ubuntu/efs_osi4iot/mosquitto_log ]; then
-    sudo mkdir /home/ubuntu/efs_osi4iot/mosquitto_log
-    sudo chown ubuntu:ubuntu /home/ubuntu/efs_osi4iot/mosquitto_log
 fi
 
 if [ ! -d  /home/ubuntu/efs_osi4iot/portainer_data ]; then

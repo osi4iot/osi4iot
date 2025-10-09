@@ -51,45 +51,17 @@ func AdminApiService(
 		},
 	}
 
-	messagingSystem := pd.PlatformInfo.MessagingSystem
-	switch messagingSystem {
-	case "mqtt":
-		mqttSecrets := []*swarm.SecretReference{
-			{
-				File: &swarm.SecretReferenceFileTarget{
-					Name: "ca.crt",
-					UID:  "0",
-					GID:  "0",
-					Mode: 0444,
-				},
-				SecretID:   sd.Secrets["mqtt_certs_ca_cert"].ID,
-				SecretName: sd.Secrets["mqtt_certs_ca_cert"].Name,
-			},
-			{
-				File: &swarm.SecretReferenceFileTarget{
-					Name: "ca.key",
-					UID:  "0",
-					GID:  "0",
-					Mode: 0444,
-				},
-				SecretID:   sd.Secrets["mqtt_certs_ca_key"].ID,
-				SecretName: sd.Secrets["mqtt_certs_ca_key"].Name,
-			},
-		}
-		secrets = append(secrets, mqttSecrets...)
-	case "nats":
-		natsSecret := swarm.SecretReference{
-			File: &swarm.SecretReferenceFileTarget{
-				Name: "/etc/nats/ca.pem",
-				UID:  "0",
-				GID:  "0",
-				Mode: 0444,
-			},
-			SecretID:   sd.Secrets["iot_platform_ca_cert"].ID,
-			SecretName: sd.Secrets["iot_platform_ca_cert"].Name,
-		}
-		secrets = append(secrets, &natsSecret)
+	natsSecret := swarm.SecretReference{
+		File: &swarm.SecretReferenceFileTarget{
+			Name: "/etc/nats/ca.pem",
+			UID:  "0",
+			GID:  "0",
+			Mode: 0444,
+		},
+		SecretID:   sd.Secrets["iot_platform_ca_cert"].ID,
+		SecretName: sd.Secrets["iot_platform_ca_cert"].Name,
 	}
+	secrets = append(secrets, &natsSecret)
 
 	configs := []*swarm.ConfigReference{
 		{

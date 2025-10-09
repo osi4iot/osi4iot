@@ -260,7 +260,6 @@ func durationPtr(d time.Duration) *time.Duration {
 // GenerateServices creates a map of services based on the platform data and swarm data.
 // It not includes nodered service
 func GenerateServices(pd *pt.PlatformData, sd pt.SwarmData) map[string]pt.Service {
-	messagingSystem := pd.PlatformInfo.MessagingSystem
 	nodeRoleMaps := resources.NewNodeRoleMaps(pd)
 	svcResourcesMap := resources.NewSvcResourcesMap(pd)
 
@@ -281,17 +280,12 @@ func GenerateServices(pd *pt.PlatformData, sd pt.SwarmData) map[string]pt.Servic
 		services["pipelines"] = PipelinesService(pd, sd, svcResourcesMap, nodeRoleMaps)
 	}
 
-	switch messagingSystem {
-	case "mqtt":
-		services["mosquitto"] = MosquittoService(pd, sd, svcResourcesMap, nodeRoleMaps)
-	case "nats":
-		for idx := range pd.PlatformInfo.NumNatsClusterNodes {
-			nodeId := idx + 1
-			serviceName := fmt.Sprintf("nats%d", nodeId)
-			services[serviceName] = NatsService(nodeId, pd, sd, svcResourcesMap, nodeRoleMaps)
-		}
-		services["auth_callout"] = AuthCalloutService(pd, sd, svcResourcesMap, nodeRoleMaps)
+	for idx := range pd.PlatformInfo.NumNatsClusterNodes {
+		nodeId := idx + 1
+		serviceName := fmt.Sprintf("nats%d", nodeId)
+		services[serviceName] = NatsService(nodeId, pd, sd, svcResourcesMap, nodeRoleMaps)
 	}
+	services["auth_callout"] = AuthCalloutService(pd, sd, svcResourcesMap, nodeRoleMaps)
 
 	existArmArchNodes := false
 	for _, node := range pd.PlatformInfo.NodesData {

@@ -2,6 +2,7 @@ package utils
 
 import (
 	"bytes"
+	"fmt"
 	"text/template"
 
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/types"
@@ -24,14 +25,6 @@ numWorkers: {{ .NumWorkers }}
 # Batch size
 batchSize: {{ .BatchSize }}
 
-mqtt:
-  clientID: "{{ .MQTT.ClientID }}"
-  broker: "{{ .MQTT.Broker }}"
-  port: {{ .MQTT.Port }}
-  username: "{{ .MQTT.Username }}"
-  password: "{{ .MQTT.Password }}"
-  tlsInsecureSkipVerify: {{ .MQTT.TLSInsecureSkipVerify }}
-
 nats:
   serversUrl:
 {{- range .NATS.ServersURL }}
@@ -50,14 +43,6 @@ timescaledb:
   sslmode: "{{ .TimescaleDB.SSLMode }}"
 `
 
-type MQTTParams struct {
-	ClientID              string
-	Broker                string
-	Port                  int
-	Username              string
-	Password              string
-	TLSInsecureSkipVerify bool
-}
 type NATSParams struct {
 	ServersURL []string
 	Username   string
@@ -77,7 +62,6 @@ type Dev2pdbParams struct {
 	Mode          string
 	DomainName    string
 	MessagingType string
-	MQTT          MQTTParams
 	NATS          NATSParams
 	TimescaleDB   TimescaleDBParams
 	NumWorkers    int
@@ -85,41 +69,27 @@ type Dev2pdbParams struct {
 }
 
 // Dev2pdbConfig generates a configuration string for the dev2pdb service.
-func Dev2pdbConfig(platformData *types.PlatformData, nodeRoleNumMap map[string]int) (string, error) {
-	serversUrl := []string{"nats://nats1:4222"}
-	if nodeRoleNumMap["Platform worker"] >= 3 {
-		serversUrl = append(serversUrl, "nats://nats2:4222")
-		serversUrl = append(serversUrl, "nats://nats3:4222")
-	}
-
-	messagingType := "mqtt"
-	if platformData.PlatformInfo.MessagingSystem == "nats" {
-		messagingType = "nats"
+func Dev2pdbConfig(pd *types.PlatformData, nodeRoleNumMap map[string]int) (string, error) {
+	serversUrl := []string{}
+	for inode:=0; inode <pd.PlatformInfo.NumNatsClusterNodes; inode++ {
+		natUrl := fmt.Sprintf("nats://nats%d:4222", inode+1)
+		serversUrl = append(serversUrl, natUrl)
 	}
 
 	params := Dev2pdbParams{
 		Mode:          "prod",
-		DomainName:    platformData.PlatformInfo.DomainName,
-		NumWorkers:    platformData.PlatformInfo.NumberDev2pdbWorkers,
-		BatchSize:     platformData.PlatformInfo.Dev2pdbBatchSize,
-		MessagingType: messagingType,
-		MQTT: MQTTParams{
-			ClientID:              "dev2pdb",
-			Broker:                "mosquitto",
-			Port:                  1883,
-			Username:              "dev2pdb",
-			Password:              platformData.PlatformInfo.Dev2pdbPassword,
-			TLSInsecureSkipVerify: true,
-		},
+		DomainName:    pd.PlatformInfo.DomainName,
+		NumWorkers:    pd.PlatformInfo.NumberDev2pdbWorkers,
+		BatchSize:     pd.PlatformInfo.Dev2pdbBatchSize,
 		NATS: NATSParams{
 			ServersURL: serversUrl,
 			Username:   "dev2pdb",
-			Password:   platformData.PlatformInfo.Dev2pdbPassword,
+			Password:   pd.PlatformInfo.Dev2pdbPassword,
 			Timeout:    "15s",
 		},
 		TimescaleDB: TimescaleDBParams{
-			User:     platformData.PlatformInfo.TimescaleUser,
-			Password: platformData.PlatformInfo.TimescalePassword,
+			User:     pd.PlatformInfo.TimescaleUser,
+			Password: pd.PlatformInfo.TimescalePassword,
 			Host:     "timescaledb",
 			Port:     5432,
 			DBName:   "iot_data_db",

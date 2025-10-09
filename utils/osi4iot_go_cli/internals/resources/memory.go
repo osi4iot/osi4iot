@@ -41,7 +41,6 @@ func getMemoryBytesSvcMap(pd *pt.PlatformData) map[string]int64 {
 	memoryBytesSvcMap["grafana"] = int64(uiSvcMem * 1024 * 1024)
 	memoryBytesSvcMap["traefik"] = int64(uiSvcMem * 1024 * 1024)
 
-	memoryBytesSvcMap["mosquitto"] = int64(messagingSvcMem * 1024 * 1024)
 	memoryBytesSvcMap["nats"] = int64(messagingSvcMem * 1024 * 1024)
 	memoryBytesSvcMap["auth_callout"] = int64(0.25 * iotDataStorageSvcMem * 1024 * 1024)
 	memoryBytesSvcMap["dev2pdb"] = int64(0.50 * iotDataStorageSvcMem * 1024 * 1024)

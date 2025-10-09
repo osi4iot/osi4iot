@@ -16,7 +16,6 @@ import (
 func GenerateSecrets(pd *pt.PlatformData) map[string]pt.Secret {
 	Secrets := make(map[string]pt.Secret)
 	domainCertsType := pd.PlatformInfo.DomainCertsType
-	messagingSystem := pd.PlatformInfo.MessagingSystem
 	nodeRoleMaps := resources.NewNodeRoleMaps(pd)
 	numNodes := len(pd.PlatformInfo.NodesData)
 
@@ -89,91 +88,56 @@ func GenerateSecrets(pd *pt.PlatformData) map[string]pt.Secret {
 		Secrets["iot_platform_ca_cert"] = iotPlatformCaCertSecret
 	}
 
-	switch messagingSystem {
-	case "mqtt":
-		mqttCaCertHash := utils.GetMD5Hash(pd.Certs.MqttCerts.CaCerts.CaCrt)
-		mqttCaCertSecretName := fmt.Sprintf("mqtt_certs_ca_cert_%s", mqttCaCertHash)
-		mqttCaCertSecret := pt.Secret{
-			Name: mqttCaCertSecretName,
-			Data: pd.Certs.MqttCerts.CaCerts.CaCrt,
-		}
+	authCalloutSecretsDataArray := []string{
+		fmt.Sprintf("DOMAIN_NAME=%s", pd.PlatformInfo.DomainName),
+		fmt.Sprintf("ACCESS_TOKEN_SECRET=%s", pd.PlatformInfo.AccessTokenSecret),
+		fmt.Sprintf("PG_HOST=%s", "postgres"),
+		fmt.Sprintf("PG_PORT=%s", "5432"),
+		fmt.Sprintf("PG_USERNAME=%s", pd.PlatformInfo.PostgresUser),
+		fmt.Sprintf("PG_PASSWORD=%s", pd.PlatformInfo.PostgresPassword),
+		fmt.Sprintf("PG_DBNAME=%s", pd.PlatformInfo.PostgresDB),
+		fmt.Sprintf("NATS_HOST=%s", "nats1"),
+		fmt.Sprintf("NATS_PORT=%s", "4222"),
+		fmt.Sprintf("NATS_PROTOCOL=%s", "nats"),
+		fmt.Sprintf("NATS_ADMIN_USERNAME=%s", pd.Certs.NatsCerts.NatsAdminUsername),
+		fmt.Sprintf("NATS_ADMIN_PASSWORD=%s", pd.Certs.NatsCerts.NatsAdminPassword),
+		fmt.Sprintf("NATS_ISSUER_SEED=%s", pd.Certs.NatsCerts.NatsIssuerSeed),
+		fmt.Sprintf("NATS_XKEY_SEED=%s", pd.Certs.NatsCerts.NatsXKeySeed),
+	}
+	authCalloutSecretsData := strings.Join(authCalloutSecretsDataArray, "\n")
+	authCalloutSecretsHash := utils.GetMD5Hash(authCalloutSecretsData)
+	authCalloutSecretsName := fmt.Sprintf("authCallout_%s", authCalloutSecretsHash)
+	authCalloutSecret := pt.Secret{
+		Name: authCalloutSecretsName,
+		Data: authCalloutSecretsData,
+	}
+	Secrets["auth_callout"] = authCalloutSecret
 
-		Secrets["mqtt_certs_ca_cert"] = mqttCaCertSecret
-
-		mqttCaKeyHash := utils.GetMD5Hash(pd.Certs.MqttCerts.CaCerts.CaKey)
-		mqttCaKeySecretName := fmt.Sprintf("mqtt_certs_ca_key_%s", mqttCaKeyHash)
-		mqttCaKeySecret := pt.Secret{
-			Name: mqttCaKeySecretName,
-			Data: pd.Certs.MqttCerts.CaCerts.CaKey,
+	clusterRoutes := []string{"nats1:6222"}
+	if (numNodes == 1 && pd.PlatformInfo.NumNatsClusterNodes > 1) || nodeRoleMaps.NodeRoleNumMap["Platform worker"] >= 3 {
+		for iNatsNode := 2; iNatsNode <= pd.PlatformInfo.NumNatsClusterNodes; iNatsNode++ {
+			clusterRoutes = append(clusterRoutes, fmt.Sprintf("nats%d:6222", iNatsNode))
 		}
-		Secrets["mqtt_certs_ca_key"] = mqttCaKeySecret
-
-		mqttBrokerCertHash := utils.GetMD5Hash(pd.Certs.MqttCerts.Broker.ServerCrt)
-		mqttBrokerCertSecretName := fmt.Sprintf("mqtt_broker_cert_%s", mqttBrokerCertHash)
-		mqttBrokerCertSecret := pt.Secret{
-			Name: mqttBrokerCertSecretName,
-			Data: pd.Certs.MqttCerts.Broker.ServerCrt,
-		}
-		Secrets["mqtt_broker_cert"] = mqttBrokerCertSecret
-
-		mqttBrokerKeyHash := utils.GetMD5Hash(pd.Certs.MqttCerts.Broker.ServerKey)
-		mqttBrokerKeySecretName := fmt.Sprintf("mqtt_broker_key_%s", mqttBrokerKeyHash)
-		mqttBrokerKeySecret := pt.Secret{
-			Name: mqttBrokerKeySecretName,
-			Data: pd.Certs.MqttCerts.Broker.ServerKey,
-		}
-		Secrets["mqtt_broker_key"] = mqttBrokerKeySecret
-	case "nats":
-		authCalloutSecretsDataArray := []string{
-			fmt.Sprintf("DOMAIN_NAME=%s", pd.PlatformInfo.DomainName),
-			fmt.Sprintf("ACCESS_TOKEN_SECRET=%s", pd.PlatformInfo.AccessTokenSecret),
-			fmt.Sprintf("PG_HOST=%s", "postgres"),
-			fmt.Sprintf("PG_PORT=%s", "5432"),
-			fmt.Sprintf("PG_USERNAME=%s", pd.PlatformInfo.PostgresUser),
-			fmt.Sprintf("PG_PASSWORD=%s", pd.PlatformInfo.PostgresPassword),
-			fmt.Sprintf("PG_DBNAME=%s", pd.PlatformInfo.PostgresDB),
-			fmt.Sprintf("NATS_HOST=%s", "nats1"),
-			fmt.Sprintf("NATS_PORT=%s", "4222"),
-			fmt.Sprintf("NATS_PROTOCOL=%s", "nats"),
-			fmt.Sprintf("NATS_ADMIN_USERNAME=%s", pd.Certs.NatsCerts.NatsAdminUsername),
-			fmt.Sprintf("NATS_ADMIN_PASSWORD=%s", pd.Certs.NatsCerts.NatsAdminPassword),
-			fmt.Sprintf("NATS_ISSUER_SEED=%s", pd.Certs.NatsCerts.NatsIssuerSeed),
-			fmt.Sprintf("NATS_XKEY_SEED=%s", pd.Certs.NatsCerts.NatsXKeySeed),
-		}
-		authCalloutSecretsData := strings.Join(authCalloutSecretsDataArray, "\n")
-		authCalloutSecretsHash := utils.GetMD5Hash(authCalloutSecretsData)
-		authCalloutSecretsName := fmt.Sprintf("authCallout_%s", authCalloutSecretsHash)
-		authCalloutSecret := pt.Secret{
-			Name: authCalloutSecretsName,
-			Data: authCalloutSecretsData,
-		}
-		Secrets["auth_callout"] = authCalloutSecret
-
-		clusterRoutes := []string{"nats1:6222"}
-		if (numNodes == 1 && pd.PlatformInfo.NumNatsClusterNodes > 1) || nodeRoleMaps.NodeRoleNumMap["Platform worker"] >= 3 {
-			for iNatsNode := 2; iNatsNode <= pd.PlatformInfo.NumNatsClusterNodes; iNatsNode++ {
-				clusterRoutes = append(clusterRoutes, fmt.Sprintf("nats%d:6222", iNatsNode))
-			}
-		}
-		params := utils.NatsConfigParams{
-			NatsAdminUsername:   pd.Certs.NatsCerts.NatsAdminUsername,
-			NatsAdminPassword:   pd.Certs.NatsCerts.NatsAdminPassword,
-			NatsAdminNkeyPublic: pd.Certs.NatsCerts.NatsAdminNkeyPublic,
-			NatsIssuerPublicKey: pd.Certs.NatsCerts.NatsIssuerPublicKey,
-			NatsXKeyPublicKey:   pd.Certs.NatsCerts.NatsXKeyPublicKey,
-			ClusterRoutes:       clusterRoutes,
-		}
-
-		cfgStr, _ := utils.NatsRenderConfig(params)
-		natsConfigHash := utils.GetMD5Hash(cfgStr)
-		natsConfigName := fmt.Sprintf("nats_config_%s", natsConfigHash)
-		natsConfigSecret := pt.Secret{
-			Name: natsConfigName,
-			Data: cfgStr,
-		}
-		Secrets["nats_config"] = natsConfigSecret
+	}
+	params := utils.NatsConfigParams{
+		NatsAdminUsername:   pd.Certs.NatsCerts.NatsAdminUsername,
+		NatsAdminPassword:   pd.Certs.NatsCerts.NatsAdminPassword,
+		NatsAdminNkeyPublic: pd.Certs.NatsCerts.NatsAdminNkeyPublic,
+		NatsIssuerPublicKey: pd.Certs.NatsCerts.NatsIssuerPublicKey,
+		NatsXKeyPublicKey:   pd.Certs.NatsCerts.NatsXKeyPublicKey,
+		ClusterRoutes:       clusterRoutes,
 	}
 
+	cfgStr, _ := utils.NatsRenderConfig(params)
+	natsConfigHash := utils.GetMD5Hash(cfgStr)
+	natsConfigName := fmt.Sprintf("nats_config_%s", natsConfigHash)
+	natsConfigSecret := pt.Secret{
+		Name: natsConfigName,
+		Data: cfgStr,
+	}
+	Secrets["nats_config"] = natsConfigSecret
+
+	
 	grafanaSecretsDataArray := []string{
 		fmt.Sprintf("GRAFANA_ADMIN_PASSWORD=%s", pd.PlatformInfo.GrafanaAdminPassword),
 		fmt.Sprintf("NOTIFICATIONS_EMAIL_USER=%s", pd.PlatformInfo.NotificationsEmailUser),

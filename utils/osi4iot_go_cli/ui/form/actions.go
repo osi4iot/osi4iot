@@ -577,61 +577,6 @@ func copyKeyInNode(m *Model) (submissionResultMsg, error) {
 	return submissionResultMsg(msg), nil
 }
 
-func messagingSystemQuestions(m *Model) (submissionResultMsg, error) {
-	qIdx := m.FindQuestionIdByKey("MESSAGING_SYSTEM")
-	messagingSystem := m.Questions[qIdx].Answer
-	switch messagingSystem {
-	case "mqtt":
-		m.removeQuestionByKey("NATS_NKEY_VALIDITY_DAYS")
-		m.removeQuestionByKey("NUM_NATS_CLUSTER_NODES")
-		addMqttCertsValidityDaysQuestions(qIdx+1, m)
-	case "nats":
-		m.removeQuestionByKey("MQTT_SSL_CERTS_VALIDITY_DAYS")
-		addNumNatsClusterNodesQuestions(qIdx+1, m)
-	}
-	return submissionResultMsg("Messaging system questions added/removed succesfully"), nil
-}
-
-func addMqttCertsValidityDaysQuestions(index int, m *Model) {
-	idx := m.FindQuestionIdByKey("MQTT_SSL_CERTS_VALIDITY_DAYS")
-	if idx == -1 {
-		mqttCertsValidityDaysQuestion := Question{
-			Key:           "MQTT_SSL_CERTS_VALIDITY_DAYS",
-			QuestionType:  "generic",
-			Prompt:        "Mqtt ssl certs validity days",
-			Answer:        utils.IntValueToStr(data.Data.PlatformInfo.MQTTSslCertsValidityDays),
-			DefaultAnswer: "365",
-			ErrorMessage:  "",
-			Choices:       []string{},
-			ChoiceFocus:   0,
-			Rules:         []string{"required", "int", "minval:30"},
-			ActionKey:     "",
-			Margin:        0,
-		}
-		m.addQuestions(index, mqttCertsValidityDaysQuestion)
-	}
-}
-
-func addNumNatsClusterNodesQuestions(index int, m *Model) {
-	idx := m.FindQuestionIdByKey("NUM_NATS_CLUSTER_NODES")
-	if idx == -1 {
-		numNatsClusterNodesQuestion := Question{
-			Key:           "NUM_NATS_CLUSTER_NODES",
-			QuestionType:  "list",
-			Prompt:        "Number of NATS cluster nodes",
-			Answer:        utils.IntValueToStr(data.Data.PlatformInfo.NumNatsClusterNodes),
-			DefaultAnswer: "1",
-			ErrorMessage:  "",
-			Choices:       []string{"1", "3", "5"},
-			ChoiceFocus:   0,
-			Rules:         []string{"required", "int", "minval:1"},
-			ActionKey:     "",
-			Margin:        0,
-		}
-		m.addQuestions(index, numNatsClusterNodesQuestion)
-	}
-}
-
 func createPlatform(m *Model) (platformCreatingMsg, error) {
 	platformData := data.GetData()
 	areAllQuestionsOK := true
@@ -705,17 +650,9 @@ func createPlatform(m *Model) (platformCreatingMsg, error) {
 		utils.SetCertsNamesAndExpirationTime(platformData)
 	}
 
-	switch platformData.PlatformInfo.MessagingSystem {
-	case "mqtt":
-		err = utils.MqttTLSCredentials(platformData)
-		if err != nil {
-			return platformCreatingMsg("Error: creating mqtt certs"), err
-		}
-	case "nats":
-		err = utils.NatsCredentials(platformData)
-		if err != nil {
-			return platformCreatingMsg("Error: creating nats certs"), err
-		}
+	err = utils.NatsCredentials(platformData)
+	if err != nil {
+		return platformCreatingMsg("Error: creating nats certs"), err
 	}
 
 	deployLocation := platformData.PlatformInfo.DeploymentLocation

@@ -512,9 +512,6 @@ func runAction(actionKey string, m *Model) tea.Msg {
 	case "deploymentLocation":
 		response, _ := DeployLocationQuestions(m)
 		return response
-	case "messagingSystemQuestions":
-		response, _ := messagingSystemQuestions(m)
-		return response
 	case "creatingNodeQuestions":
 		response, _ := creatingNodeQuestions(m)
 		return response

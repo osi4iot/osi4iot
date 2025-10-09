@@ -465,35 +465,15 @@ func initialModelCreatePlatform() Model {
 				Margin:        0,
 			},
 			{
-				Key:           "MESSAGING_SYSTEM",
+				Key:           "NUM_NATS_CLUSTER_NODES",
 				QuestionType:  "list",
-				Prompt:        "Select the messaging system of the platform",
-				Answer:        data.Data.PlatformInfo.MessagingSystem,
-				DefaultAnswer: "",
+				Prompt:        "Number of NATS cluster nodes",
+				Answer:        utils.IntValueToStr(data.Data.PlatformInfo.NumNatsClusterNodes),
+				DefaultAnswer: "1",
 				ErrorMessage:  "",
-				Choices: []string{
-					"mqtt",
-					"nats",
-				},
-				ChoiceFocus: utils.GiveChoiceFocus(data.Data.PlatformInfo.MessagingSystem,
-					[]string{
-						"mqtt",
-						"nats",
-					}, 0),
-				Rules:     []string{"required"},
-				ActionKey: "messagingSystemQuestions",
-				Margin:    0,
-			},
-			{
-				Key:           "MQTT_SSL_CERTS_VALIDITY_DAYS",
-				QuestionType:  "generic",
-				Prompt:        "Mqtt ssl certs validity days",
-				Answer:        utils.IntValueToStr(data.Data.PlatformInfo.MQTTSslCertsValidityDays),
-				DefaultAnswer: "365",
-				ErrorMessage:  "",
-				Choices:       []string{},
+				Choices:       []string{"1", "3", "5"},
 				ChoiceFocus:   0,
-				Rules:         []string{"required", "int", "minval:30"},
+				Rules:         []string{"required", "int", "minval:1"},
 				ActionKey:     "",
 				Margin:        0,
 			},
@@ -744,7 +724,6 @@ func initialModelCreatePlatform() Model {
 			"creatingNodeQuestions":    "Adding node questions",
 			"copyKeyInNode":            "Copying public key in node",
 			"deploymentLocation":       "Setting questions for the deployment location selected",
-			"messagingSystemQuestions": "Setting questions for the messaging system selected",
 		},
 		RecievedMsg:   "",
 		PageSize:      10,
@@ -784,8 +763,6 @@ func initialModelCreatePlatform() Model {
 	if data.Data.PlatformInfo.DeploymentLocation != "Local deployment" {
 		DeployLocationQuestions(&model)
 	}
-
-	messagingSystemQuestions(&model)
 
 	return model
 }

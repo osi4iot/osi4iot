@@ -17,7 +17,6 @@ func GenerateVolumes(platformData *pt.PlatformData) map[string]pt.Volume {
 	deploymentMode := pi.DeploymentMode
 	s3BucketType := pi.S3BucketType
 	domainCertsType := pi.DomainCertsType
-	messagingSystem := pi.MessagingSystem
 
 	if domainCertsType[0:19] == "Let's encrypt certs" {
 		Volumes["letsencrypt"] = pt.Volume{
@@ -27,26 +26,12 @@ func GenerateVolumes(platformData *pt.PlatformData) map[string]pt.Volume {
 		}
 	}
 
-	switch messagingSystem {
-	case "mqtt":
-		Volumes["mosquitto_data"] = pt.Volume{
-			Name:       "mosquitto_data",
+	for iNatsNode := 1; iNatsNode <= pi.NumNatsClusterNodes; iNatsNode++ {
+		volumeName := fmt.Sprintf("nats%d_data", iNatsNode)
+		Volumes[volumeName] = pt.Volume{
+			Name:       volumeName,
 			Driver:     "local",
 			DriverOpts: map[string]string{},
-		}
-		Volumes["mosquitto_log"] = pt.Volume{
-			Name:       "mosquitto_log",
-			Driver:     "local",
-			DriverOpts: map[string]string{},
-		}
-	case "nats":
-		for iNatsNode := 1; iNatsNode <= pi.NumNatsClusterNodes; iNatsNode++ {
-			volumeName := fmt.Sprintf("nats%d_data", iNatsNode)
-			Volumes[volumeName] = pt.Volume{
-				Name:       volumeName,
-				Driver:     "local",
-				DriverOpts: map[string]string{},
-			}
 		}
 	}
 
@@ -130,22 +115,6 @@ func GenerateVolumes(platformData *pt.PlatformData) map[string]pt.Volume {
 			Volumes["letsencrypt"] = letsencryptData
 		}
 
-		mosquittoData := Volumes["mosquitto_data"]
-		mosquittoData.DriverOpts = map[string]string{
-			"type":   "nfs",
-			"o":      driverOptsO,
-			"device": ":/var/nfs_osi4iot/mosquitto_data",
-		}
-		Volumes["mosquitto_data"] = mosquittoData
-
-		mosquittoLog := Volumes["mosquitto_log"]
-		mosquittoLog.DriverOpts = map[string]string{
-			"type":   "nfs",
-			"o":      driverOptsO,
-			"device": ":/var/nfs_osi4iot/mosquitto_log",
-		}
-		Volumes["mosquitto_log"] = mosquittoLog
-
 		pgdata := Volumes["pgdata"]
 		pgdata.DriverOpts = map[string]string{
 			"type":   "nfs",
@@ -226,22 +195,6 @@ func GenerateVolumes(platformData *pt.PlatformData) map[string]pt.Volume {
 			}
 			Volumes["letsencrypt"] = letsencryptData
 		}
-
-		mosquittoData := Volumes["mosquitto_data"]
-		mosquittoData.DriverOpts = map[string]string{
-			"type":   "nfs",
-			"o":      driverOptsO,
-			"device": fmt.Sprintf("%s:/mosquitto_data", awsEfsDNS),
-		}
-		Volumes["mosquitto_data"] = mosquittoData
-
-		mosquittoLog := Volumes["mosquitto_log"]
-		mosquittoLog.DriverOpts = map[string]string{
-			"type":   "nfs",
-			"o":      driverOptsO,
-			"device": fmt.Sprintf("%s:/mosquitto_log", awsEfsDNS),
-		}
-		Volumes["mosquitto_log"] = mosquittoLog
 
 		pgdata := Volumes["pgdata"]
 		pgdata.DriverOpts = map[string]string{
@@ -348,16 +301,16 @@ func CreateVolume(dc *pt.DockerClient, swarmVol *pt.Volume) error {
 	return nil
 }
 
-func CreateSwarmVolumes(platformData *pt.PlatformData) (map[string]pt.Volume, error) {
-	volumesMap := GenerateVolumes(platformData)
-	numNodes := len(platformData.PlatformInfo.NodesData)
+func CreateSwarmVolumes(pd *pt.PlatformData) (map[string]pt.Volume, error) {
+	volumesMap := GenerateVolumes(pd)
+	numNodes := len(pd.PlatformInfo.NodesData)
 	errors := []error{}
 	for _, dc := range pt.DCMap {
 		var filteredVolumes map[string]pt.Volume
 		if numNodes == 1 {
 			filteredVolumes = volumesMap
 		} else {
-			filteredVolumes = getVolumesMapByNodeRole(volumesMap, dc.Node.NodeRole)
+			filteredVolumes = getVolumesMapByNodeRole(volumesMap, dc.Node.NodeRole, pd)
 		}
 
 		for key, volume := range filteredVolumes {
@@ -376,9 +329,9 @@ func CreateSwarmVolumes(platformData *pt.PlatformData) (map[string]pt.Volume, er
 	return volumesMap, nil
 }
 
-func RemoveSwarmVolumes(platformData *pt.PlatformData) error {
+func RemoveSwarmVolumes(pd *pt.PlatformData) error {
 	errors := []error{}
-	filterByNames := getVolumeFilterByNames()
+	filterByNames := getVolumeFilterByNames(pd)
 
 	for _, dc := range pt.DCMap {
 		existingVolumes := make(map[string]*volume.Volume)
@@ -425,11 +378,9 @@ func RemoveSwarmVolumes(platformData *pt.PlatformData) error {
 	return nil
 }
 
-func getVolumeFilterByNames() filters.Args {
+func getVolumeFilterByNames(pd *pt.PlatformData) filters.Args {
 	volumeNames := []string{
 		"letsencrypt",
-		"mosquitto_data",
-		"mosquitto_log",
 		"pgdata",
 		"grafana_data",
 		"timescaledb_data",
@@ -438,6 +389,11 @@ func getVolumeFilterByNames() filters.Args {
 		"portainer_data",
 		"pgadmin4_data",
 		"minio_storage",
+	}
+	for idx := range pd.PlatformInfo.NumNatsClusterNodes {
+		nodeId := idx + 1
+		volName := fmt.Sprintf("nats%d_data", nodeId)
+		volumeNames = append(volumeNames, volName)
 	}
 
 	volumeFilters := filters.NewArgs()
@@ -448,7 +404,7 @@ func getVolumeFilterByNames() filters.Args {
 	return volumeFilters
 }
 
-func getVolumesMapByNodeRole(volumesMap map[string]pt.Volume, nodeRole string) map[string]pt.Volume {
+func getVolumesMapByNodeRole(volumesMap map[string]pt.Volume, nodeRole string, pd *pt.PlatformData) map[string]pt.Volume {
 	volumeNames := []string{}
 	switch nodeRole {
 	case "Manager":
@@ -458,8 +414,6 @@ func getVolumesMapByNodeRole(volumesMap map[string]pt.Volume, nodeRole string) m
 		)
 	case "Platform worker":
 		volumeNames = append(volumeNames,
-			"mosquitto_data",
-			"mosquitto_log",
 			"pgdata",
 			"timescaledb_data",
 			"s3_storage_data",
@@ -468,6 +422,12 @@ func getVolumesMapByNodeRole(volumesMap map[string]pt.Volume, nodeRole string) m
 			"pgadmin4_data",
 			"minio_storage",
 		)
+		for idx := range pd.PlatformInfo.NumNatsClusterNodes {
+			nodeId := idx + 1
+			volName := fmt.Sprintf("nats%d_data", nodeId)
+			volumeNames = append(volumeNames, volName)
+		}
+
 	case "NfsWorker":
 		//no code
 	}

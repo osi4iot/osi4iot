@@ -11,7 +11,7 @@ import passportInitialize from "../../config/passportHandler";
 import { userAuth, registerAuth, superAdminAuth } from "../../middleware/auth.middleware";
 import grafanaApi from '../../GrafanaApi';
 import UserRegisterDto from "./userRegister.dto";
-import { getUserdByEmailOrLogin, getUserLoginDatadByEmailOrLogin, isThisUserOrgAdmin, isUserProfileDataCorrect, updateOrganizationUser, updateUserProfileById } from "../user/userDAL";
+import { getUserLoginDatadByEmailOrLogin, isUserProfileDataCorrect, updateOrganizationUser, updateUserProfileById } from "../user/userDAL";
 import IUser from "../user/interfaces/User.interface";
 import RefreshTokenToDisableDto from "./refreshTokenToDisableDTO";
 import {
@@ -25,15 +25,13 @@ import {
 	updateRefreshToken
 } from "./authenticationDAL";
 import { getNumOrganizations, getOrganizationsManagedByUserId } from "../organization/organizationDAL";
-import { getAllGroupsInOrgArray, getFullGroupDataById, getGroupsManagedByUserId, getNumGroups, isThisUserGroupAdmin } from "../group/groupDAL";
+import { getAllGroupsInOrgArray, getGroupsManagedByUserId, getNumGroups} from "../group/groupDAL";
 import IComponentsManagedByUser from "./ComponentsManagedByUser.interface";
 import generateLastSeenAtAgeString from "../../utils/helpers/generateLastSeenAtAgeString";
 import CreateUserDto from "../user/interfaces/User.dto";
 import UserProfileDto from "../user/interfaces/UserProfile.dto";
 import verifiyPassword from "../../utils/helpers/verifiyPassword";
 import process_env from "../../config/api_config";
-import { getTopicInfoForMqttAclByTopicUid } from "../topic/topicDAL";
-import ITopicInfoForMqttAcl from "../topic/topicInfoForMqttAcl.interface";
 import {
 	getNumAssetTypes,
 	getNumAssetTypesByOrgsIdArray,
@@ -44,7 +42,6 @@ import { getNumSensors, getNumSensorsByGroupsIdArray } from "../sensor/sensorDAL
 import { getNumDigitalTwins, getNumDigitalTwinsByGroupsIdArray } from "../digitalTwin/digitalTwinDAL";
 import { getNumMLModelsByGroupsIdArray } from "../ml_model/ml_modelDAL";
 import infoLogger from "../../utils/logger/infoLogger";
-import errorLogger from "../../utils/logger/errorLogger";
 
 interface IJwtPayload {
 	id: string;
@@ -92,8 +89,6 @@ class AuthenticationController implements IController {
 		this.router.delete(`${this.path}/disable_refresh_token_by_id/:refreshTokenId`, superAdminAuth, this.disableRefreshTokenById);
 		this.router.delete(`${this.path}/disable_user_refresh_tokens/:userId`, superAdminAuth, this.disableUsersRefreshToken);
 		this.router.get(`${this.path}/user_managed_components`, userAuth, this.numComponentsManagedByUser);
-		this.router.post(`${this.path}/mosquitto_user`, this.userMosquittoAuth);
-		this.router.post(`${this.path}/mosquitto_aclcheck`, this.userMosquittoAclCheck);
 	}
 
 	private generateNewRefreshToken = (user: IUser) => {
@@ -178,256 +173,6 @@ class AuthenticationController implements IController {
 			}
 		)(req, res);
 	};
-
-	private userMosquittoAuth = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-		try {
-			const { password, username } = req.body;
-			const usernameArray = username.split("_");
-			if (usernameArray[0] === "jwt") {
-				const algorithm = "HS256" as jwt.Algorithm;
-				const verifyOptionsAccessToken = {
-					algorithms: [algorithm]
-				};
-
-				try {
-					const jwtPayload = jwt.verify(
-						password,
-						process_env.ACCESS_TOKEN_SECRET,
-						verifyOptionsAccessToken) as IJwtPayload;
-					const user = await getUserdByEmailOrLogin(jwtPayload.email);
-					if (!user || jwtPayload.action !== "access") {
-						const errorMessage = "User not registered";
-						errorLogger(req, res, 400, errorMessage)
-						res.status(400).json({ Ok: false, Error: errorMessage });
-						return
-					}
-					if (user.login !== username.slice(4)) {
-						const errorMessage = "Username not match with jwt payload";
-						errorLogger(req, res, 400, errorMessage)
-						res.status(400).json({ Ok: false, Error: errorMessage });
-						return
-					}
-				} catch (e) {
-					if (e instanceof jwt.JsonWebTokenError) {
-						const errorMessage = "JWT provided is unauthorized";
-						errorLogger(req, res, 400, errorMessage)
-						res.status(401).json({ Ok: false, Error: errorMessage });
-						return
-					}
-					res.status(400).json({ Ok: false, Error: "Bad request" });
-					return;
-				}
-			} else if (usernameArray[0] === "group") {
-				const groupId = parseInt(usernameArray[1], 10);
-				const group = await getFullGroupDataById(groupId);
-				if (!group) {
-					const errorMessage = "Group not registered";
-					errorLogger(req, res, 400, errorMessage)
-					res.status(400).json({ Ok: false, Error: errorMessage });
-					return
-				}
-				const match = verifiyPassword(password, group.mqttPassword, group.mqttSalt);
-				if (!match) {
-					const errorMessage = `Password not correct for username= ${username as string}`;
-					errorLogger(req, res, 400, errorMessage);
-					res.status(400).json({ Ok: false, Error: errorMessage });
-					return
-				}
-			} else {
-				const user = await getUserLoginDatadByEmailOrLogin(username);
-				if (!user) {
-					const errorMessage = "User not registered";
-					errorLogger(req, res, 400, errorMessage);
-					res.status(400).json({ Ok: false, Error: errorMessage });
-					return
-				}
-				const match = verifiyPassword(password, user.password, user.salt);
-				if (!match) {
-					const errorMessage = `Password not correct for username= ${username as string}`;
-					errorLogger(req, res, 400, errorMessage);
-					res.status(400).json({ Ok: false, Error: errorMessage });
-					return
-				}
-			}
-
-			const message = `A user with username=${username as string} has been connected successfully to the MQTT broker.`
-			infoLogger(req, res, 200, message);
-			res.status(200).json({ Ok: true, Error: "" });
-		} catch (error) {
-			return next(error);
-		}
-	};
-
-	private userMosquittoAclCheck = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-		try {
-			const { acc, username, topic } = req.body;
-			const topicArray = topic.split("/");
-			if (username === "dev2pdb") {
-				const topicType = topicArray[0];
-				if (
-					!(
-						topicType === "dev2pdb" ||
-						topicType === "dev2pdb_wt" ||
-						topicType === "dev2pdb_ma" ||
-						topicType === "dev2dtm" ||
-						topicType === "dev2sim" ||
-						topicType === "dtm2dev" ||
-						topicType === "dtm2sim" ||
-						topicType === "dtm2pdb" ||
-						topicType === "sim2dtm" ||
-						topicType === "sim2llm" ||
-						topicType === "llm2sim"
-					)) {
-					const errorMessage = "Topic type not allowed for dev2pdb";
-					errorLogger(req, res, 400, errorMessage);
-					res.status(400).json({ Ok: false, Error: errorMessage });
-					return;
-				} else {
-					res.status(200).json({ Ok: true, Error: "" });
-					return;
-				}
-			}
-
-			let isMosquittoSysTopic = false;
-			if (topicArray[0] === "$SYS" && topicArray[1] === "broker") {
-				isMosquittoSysTopic = true;
-			}
-
-
-			let topicData: ITopicInfoForMqttAcl;
-			if (!isMosquittoSysTopic && topicArray.length === 3) {
-				const topicUid = topicArray[2].slice(6);
-				topicData = await getTopicInfoForMqttAclByTopicUid(topicUid);
-				if (!topicData) {
-					const errorMessage = "Incorrect topic hash";
-					errorLogger(req, res, 400, errorMessage);
-					res.status(400).json({ Ok: false, Error: errorMessage });
-					return
-				}
-
-				const groupHash = topicArray[1].slice(6);
-				if (groupHash !== topicData.groupHash) {
-					const errorMessage = "Incorrect group hash";
-					errorLogger(req, res, 400, errorMessage);
-					res.status(400).json({ Ok: false, Error: errorMessage });
-					return
-				}
-
-				const topicType = topicArray[0];
-				if (topicType !== topicData.topicType) {
-					const errorMessage = "Incorrect topic type";
-					errorLogger(req, res, 400, errorMessage);
-					res.status(400).json({ Ok: false, Error: errorMessage });
-					return
-				}
-
-				if (topicData.topicAccessControl === "None") {
-					const errorMessage = `It is not allowed any action for the topic with id: ${topicData.topicId}`;
-					errorLogger(req, res, 400, errorMessage);
-					res.status(400).json({ Ok: false, Error: errorMessage });
-					return
-				}
-
-				if (topicData.groupAccessControl === "None") {
-					const errorMessage = `It is not allowed any action for the group with id: ${topicData.groupId}`;
-					errorLogger(req, res, 400, errorMessage);
-					res.status(400).json({ Ok: false, Error: errorMessage });
-					return
-				}
-
-				if (topicData.orgAccessControl === "None") {
-					const errorMessage = `It is not allowed any action for the group with id: ${topicData.orgId}`;
-					errorLogger(req, res, 400, errorMessage);
-					res.status(400).json({ Ok: false, Error: errorMessage });
-					return
-				}
-
-				if ((acc === 1 || acc === 4) && !(topicData.topicAccessControl === "Sub" || topicData.topicAccessControl === "Pub & Sub")) {
-					const errorMessage = `Subcription/read action not allowed for the topic with id: ${topicData.topicId}`;
-					errorLogger(req, res, 400, errorMessage);
-					res.status(400).json({ Ok: false, Error: errorMessage });
-					return
-				}
-
-				if ((acc === 2 || acc === 3) && !(topicData.topicAccessControl === "Pub" || topicData.topicAccessControl === "Pub & Sub")) {
-					const errorMessage = `Publication/write action not allowed for the topic with id: ${topicData.topicId}`;
-					errorLogger(req, res, 400, errorMessage);
-					res.status(400).json({ Ok: false, Error: errorMessage });
-					return
-				}
-
-
-				if ((acc === 1 || acc === 4) && !(topicData.groupAccessControl === "Sub" || topicData.groupAccessControl === "Pub & Sub")) {
-					const errorMessage = `Subcription/read action not allowed for the group with id: ${topicData.groupId}`;
-					errorLogger(req, res, 400, errorMessage);
-					res.status(400).json({ Ok: false, Error: errorMessage });
-					return
-				}
-
-
-				if ((acc === 2 || acc === 3) && !(topicData.groupAccessControl === "Pub" || topicData.groupAccessControl === "Pub & Sub")) {
-					const errorMessage = `Publication/write action not allowed for the group with id: ${topicData.groupId}`;
-					errorLogger(req, res, 400, errorMessage);
-					res.status(400).json({ Ok: false, Error: errorMessage });
-					return
-				}
-
-				if ((acc === 1 || acc === 4) && !(topicData.orgAccessControl === "Sub" || topicData.orgAccessControl === "Pub & Sub")) {
-					const errorMessage = `Subcription/read action not allowed for the org with id: ${topicData.orgId}`;
-					errorLogger(req, res, 400, errorMessage);
-					res.status(400).json({ Ok: false, Error: errorMessage });
-					return
-				}
-
-
-				if ((acc === 2 || acc === 3) && !(topicData.orgAccessControl === "Pub" || topicData.orgAccessControl === "Pub & Sub")) {
-					const errorMessage = `Publication/write action not allowed for the org with id: ${topicData.orgId}`;
-					errorLogger(req, res, 400, errorMessage);
-					res.status(400).json({ Ok: false, Error: errorMessage });
-					return
-				}
-			}
-
-			const usernameArray = username.split("_");
-			if (usernameArray[0] === "group") {
-				const groupId = parseInt(usernameArray[1], 10);
-				if (groupId !== topicData.groupId) {
-					const errorMessage = "Group not registered";
-					errorLogger(req, res, 400, errorMessage);
-					res.status(400).json({ Ok: false, Error: errorMessage });
-					return
-				}
-			} else {
-				let user: IUser;
-				if (usernameArray[0] === "jwt") {
-					const login = username.slice(4);
-					user = await getUserdByEmailOrLogin(login);
-				} else {
-					user = await getUserdByEmailOrLogin(username);
-				}
-
-				if (!user.isGrafanaAdmin && !isMosquittoSysTopic) {
-					const orgId = topicData.orgId;
-					const isOrgAdminUser = await isThisUserOrgAdmin(user.id, orgId);
-					if (!isOrgAdminUser) {
-						const teamId = topicData.teamId;
-						const isGroupAdminUser = await isThisUserGroupAdmin(user.id, teamId);
-						if (!isGroupAdminUser) {
-							const errorMessage = `The username=${username as string} is not allowed to connect to the MQTT broker`;
-							errorLogger(req, res, 400, errorMessage);
-							res.status(401).json({ Ok: false, Error: errorMessage })
-							return;
-						}
-					}
-				}
-			}
-
-			res.status(200).json({ Ok: true, Error: "" });
-		} catch (error) {
-			return next(error);
-		}
-	};
-
 
 	private userRegister = async (req: IRequestWithUser, res: Response, next: NextFunction): Promise<void> => {
 		try {

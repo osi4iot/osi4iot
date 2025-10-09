@@ -12,25 +12,10 @@ import (
 type Config struct {
 	Mode          string            `mapstructure:"mode"`
 	DomainName    string            `mapstructure:"domainName"`
-	MessagingType string            `mapstructure:"messagingtype"`
-	MQTT          MQTTConfig        `mapstructure:"mqtt"`
 	NATS          NATSConfig        `mapstructure:"nats"`
 	TimescaleDB   TimescaleDBConfig `mapstructure:"timescaledb"`
 	NumWorkers    int               `mapstructure:"numWorkers"`
 	BatchSize     int               `mapstructure:"batchSize"`
-}
-
-type Messaging struct {
-	Type string `mapstructure:"type"`
-}
-
-type MQTTConfig struct {
-	ClientID              string `mapstructure:"clientID"`
-	Broker                string `mapstructure:"broker"`
-	Port                  int    `mapstructure:"port"`
-	Username              string `mapstructure:"username"`
-	Password              string `mapstructure:"password"`
-	TLSInsecureSkipVerify bool   `mapstructure:"tlsInsecureSkipVerify"`
 }
 
 type NATSConfig struct {
@@ -61,10 +46,6 @@ func Load() (*Config, error) {
 
 	// 3) Set defaults for any keys that might be missing
 	viper.SetDefault("mode", "dev")
-	viper.SetDefault("messaging.type", "mqtt")
-
-	viper.SetDefault("mqtt.port", 1883)
-	viper.SetDefault("mqtt.tlsInsecureSkipVerify", false)
 
 	viper.SetDefault("nats.serversUrl", []string{"nats://localhost:4222"})
 	viper.SetDefault("nats.timeout", 5*time.Second)
