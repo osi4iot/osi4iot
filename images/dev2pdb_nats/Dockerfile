@@ -1,7 +1,7 @@
 ########################################
 # 1) Builder stage
 ########################################
-FROM --platform=$BUILDPLATFORM golang:1.24 AS builder
+FROM --platform=$BUILDPLATFORM golang:1.25.1 AS builder
 
 # build arguments provided by buildx
 ARG TARGETOS

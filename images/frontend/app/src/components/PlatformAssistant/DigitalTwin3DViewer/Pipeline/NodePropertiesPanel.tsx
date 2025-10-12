@@ -803,7 +803,7 @@ const handleDayChange = (
     handleInputChange("daysOfWeek", updatedDays);
 };
 
-interface NodeData {
+export interface NodeData {
     label: string;
     nodeUid: string;
     debug: string;

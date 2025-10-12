@@ -273,22 +273,19 @@ func GenerateServices(pd *pt.PlatformData, sd pt.SwarmData) map[string]pt.Servic
 		"admin_api":    AdminApiService(pd, sd, svcResourcesMap, nodeRoleMaps),
 		"frontend":     FrontendService(pd, sd, svcResourcesMap, nodeRoleMaps),
 		"grafana":      GrafanaService(pd, sd, svcResourcesMap, nodeRoleMaps),
+		"pipelines":    PipelinesService(pd, sd, svcResourcesMap, nodeRoleMaps),
+		"auth_callout": AuthCalloutService(pd, sd, svcResourcesMap, nodeRoleMaps),
 	}
 
 	pi := pd.PlatformInfo
-	if !slices.Contains(pi.ExcludedServices, "pipelines") {
-		services["pipelines"] = PipelinesService(pd, sd, svcResourcesMap, nodeRoleMaps)
-	}
-
-	for idx := range pd.PlatformInfo.NumNatsClusterNodes {
+	for idx := range pi.NumNatsClusterNodes {
 		nodeId := idx + 1
 		serviceName := fmt.Sprintf("nats%d", nodeId)
 		services[serviceName] = NatsService(nodeId, pd, sd, svcResourcesMap, nodeRoleMaps)
 	}
-	services["auth_callout"] = AuthCalloutService(pd, sd, svcResourcesMap, nodeRoleMaps)
 
 	existArmArchNodes := false
-	for _, node := range pd.PlatformInfo.NodesData {
+	for _, node := range pi.NodesData {
 		if node.NodeArch == "aarch64" {
 			existArmArchNodes = true
 			break
@@ -298,21 +295,29 @@ func GenerateServices(pd *pt.PlatformData, sd pt.SwarmData) map[string]pt.Servic
 		services["grafana_renderer"] = GrafanaRendererService(pd, sd, svcResourcesMap, nodeRoleMaps)
 	}
 
-	s3BucketType := pd.PlatformInfo.S3BucketType
+	s3BucketType := pi.S3BucketType
 	if s3BucketType == "Local Minio" {
 		services["minio"] = MinioService(pd, sd, svcResourcesMap, nodeRoleMaps)
 	}
 
-	numSwarmNodes := len(pd.PlatformInfo.NodesData)
-	deploymentLocation := pd.PlatformInfo.DeploymentLocation
+	numSwarmNodes := len(pi.NodesData)
+	deploymentLocation := pi.DeploymentLocation
 	if numSwarmNodes > 1 && !existArmArchNodes && deploymentLocation == "On-premise cluster deployment" {
 		services["keepalived"] = KeepalivedService(pd, sd, svcResourcesMap, nodeRoleMaps)
 	}
 
-	deploymentMode := pd.PlatformInfo.DeploymentMode
+	deploymentMode := pi.DeploymentMode
 	if deploymentMode == "development" {
 		services["pgadmin4"] = Pgadmin4Service(pd, sd, svcResourcesMap, nodeRoleMaps)
 	}
 
-	return services
+	filteredServices := map[string]pt.Service{}
+	for name, svc := range services {
+		excluded := slices.Contains(pd.PlatformInfo.ExcludedServices, name)
+		if !excluded {
+			filteredServices[name] = svc
+		}
+	}
+
+	return filteredServices
 }

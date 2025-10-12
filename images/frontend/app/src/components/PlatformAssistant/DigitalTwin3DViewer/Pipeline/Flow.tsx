@@ -42,7 +42,9 @@ export const processInitialPipelineData = (digitalTwinSelected, mqttClient, mqtt
             return { nodes: [], edges: [] };
         }
 
-        return createNodesAndEdges(pipelineNodes, mqttClient, mqttTopicsData);
+        const existingNodes = []; // No existent nodes on initial load
+        const existingEdges = []; // No existent edges on initial load
+        return createNodesAndEdges(existingNodes, existingEdges, pipelineNodes, mqttClient, mqttTopicsData);
     } catch (error) {
         toast.error(`Error processing pipeline data: ${error.message}`);
         return { nodes: [], edges: [] };

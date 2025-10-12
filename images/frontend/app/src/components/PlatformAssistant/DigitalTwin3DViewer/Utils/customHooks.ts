@@ -956,13 +956,45 @@ const reinitializePipeline = (
 };
 
 export const createNodesAndEdges = (
-    pipelineNodes: any,
+    existingNodes: any[],
+    existingEdges: any[],
+    pipelineNodesData: any,
     mqttClient: Paho.Client | null,
     mqttTopicsData: IMqttTopicData[]
 ) => {
+    const nodes = [];
+    const edges = [];
+    let maxY = 0;
+    const existingNodeNameSet = new Set<string>();
+    const existingNodeUidSet = new Set<string>();
+    if (existingNodes && existingNodes.length > 0) {
+        for (const node of existingNodes) {
+            nodes.push(node);
+            existingNodeNameSet.add(node.data.label);
+            existingNodeUidSet.add(node.id);
+            if (node.position.y > maxY) {
+                maxY = node.position.y;
+            }
+        }
+    }
+
+    if (existingEdges && existingEdges.length > 0) {
+        for (const edge of existingEdges) {
+            edges.push(edge);
+        }
+    }
+
     const nodeUidMap = new Map();
-    for (const node of pipelineNodes) {
-        nodeUidMap.set(node.name, node.nodeUid);
+    const pipelineNodes = [] as any[];
+    for (const node of pipelineNodesData) {
+        if (!existingNodeNameSet.has(node.name) && !existingNodeUidSet.has(node.nodeUid)) {
+            pipelineNodes.push(node);
+        } else {
+            let newNodeUid = nanoid(20).replace(/-/g, "x").replace(/_/g, "X");
+            const newNode = { ...node, nodeUid: newNodeUid };
+            pipelineNodes.push(newNode);
+            nodeUidMap.set(node.nodeUid, newNodeUid);
+        }
     }
 
     for (let inode = 0; inode < pipelineNodes.length; inode++) {
@@ -972,16 +1004,30 @@ export const createNodesAndEdges = (
             if (wireArray && wireArray.length > 0) {
                 for (let wireIdx = 0; wireIdx < wireArray.length; wireIdx++) {
                     const wire = wireArray[wireIdx];
-                    if (!wire.nodeEndUid) {
-                        pipelineNodes[inode].wires[outputIndex][wireIdx].nodeEndUid = nodeUidMap.get(wire.nodeEndName);
+                    if (nodeUidMap.has(wire.nodeEndUid)) {
+                        pipelineNodes[inode].wires[outputIndex][wireIdx].nodeEndUid = nodeUidMap.get(wire.nodeEndUid);
                     }
                 }
             }
         }
     }
 
-    const nodes = [];
-    const edges = [];
+    let newNodesMinY = 0;
+    for (let inode = 0; inode < pipelineNodes.length; inode++) {
+        const node = pipelineNodes[inode];
+        if (inode === 0) {
+            newNodesMinY = node.y;
+        } else {
+            if (node.y < newNodesMinY!) {
+                newNodesMinY = node.y;
+            }
+        }
+    }
+
+    if (newNodesMinY < 40) {
+        maxY += 40 - newNodesMinY;
+    }
+
     for (let inode = 0; inode < pipelineNodes.length; inode++) {
         const nodeItem = pipelineNodes[inode];
 
@@ -998,9 +1044,11 @@ export const createNodesAndEdges = (
             settings,
         };
 
+        let yPosition = nodeItem.y || 0;
+        yPosition += maxY;
         const position = {
             x: nodeItem.x || 0,
-            y: nodeItem.y || 0,
+            y: yPosition,
         };
 
         if (nodeItem.type === "Inject") {
@@ -1051,9 +1099,10 @@ const downloadYamlFile = (
         const sourceNode = edge.source;
         const targetNode = edge.target;
         const outputIndex = edge.sourceHandle ? parseInt(edge.sourceHandle.split("-")[1], 10) : 0;
+        console.log("edge=", edge);
 
-        if (!wiresData.has(sourceNode)) {
-            wiresData.set(sourceNode, {
+        if (!wiresData.has(edge.id)) {
+            wiresData.set(edge.id, {
                 nodeEndUid: targetNode,
                 outputIndex,
             });
@@ -1072,7 +1121,8 @@ const downloadYamlFile = (
         const nodeUid = node.id;
         const numOutputs = nodeNumOutputs.get(nodeUid) || 0;
         const wires = new Array(numOutputs).fill(null).map(() => [] as { nodeEndUid: string }[]);
-        for (let [keyNodeUid, wireData] of Array.from(wiresData.entries())) {
+        for (let [key, wireData] of Array.from(wiresData.entries())) {
+            const keyNodeUid = key.split("-")[0]; // Extract the nodeUid from the key
             if (keyNodeUid === nodeUid) {
                 const newWireItem = {
                     nodeEndUid: wireData.nodeEndUid,
@@ -1149,8 +1199,14 @@ export const usePipelineActions = (
                     const content = e.target?.result as string;
                     try {
                         const yamlData = YAML.parse(content);
-                        const pipelineNodes = yamlData.nodes || [];
-                        const { nodes, edges } = createNodesAndEdges(pipelineNodes, mqttClient, mqttTopicsData);
+                        const newPipelineNodes = yamlData.nodes || [];
+                        const { nodes, edges } = createNodesAndEdges(
+                            pipelineNodes,
+                            pipelineEdges,
+                            newPipelineNodes,
+                            mqttClient,
+                            mqttTopicsData
+                        );
                         setPipelineNodes(nodes);
                         setPipelineEdges(edges);
                         handlePipelineUiChanged(true);
@@ -1166,10 +1222,9 @@ export const usePipelineActions = (
                 reader.readAsText(file);
             }
             event.target.value = "";
-            // eslint-disable-next-line react-hooks/exhaustive-deps
         },
         // eslint-disable-next-line react-hooks/exhaustive-deps
-        [mqttClient, mqttTopicsData]
+        [pipelineNodes, pipelineEdges, mqttClient, mqttTopicsData]
     );
 
     const handleDownloadYamlFile = useCallback(() => {
