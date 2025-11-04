@@ -139,7 +139,7 @@ func (fm *FlowsManager) DeletePipelineInDigitalTwin(digitalTwinId int) {
 	}
 
 	if digitalTwin.Pipeline != nil {
-		digitalTwin.Pipeline.Stop("stop")
+		digitalTwin.Pipeline.Stop("delete")
 		digitalTwin.Pipeline.SetStatus(common.PipelineStatusUnknown)
 	}
 	digitalTwin.Pipeline = nil

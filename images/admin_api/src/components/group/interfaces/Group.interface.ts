@@ -19,4 +19,5 @@ export default interface IGroup {
 	mqttPassword?: string;
 	mqttSalt?: string;
 	mqttAccessControl: string;
+	llmEnabled: boolean;
 }

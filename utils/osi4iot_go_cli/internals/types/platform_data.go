@@ -11,10 +11,10 @@ import (
 )
 
 type PlatformData struct {
-	PlatformInfo       PlatformInfo   `json:"platformInfo"`
-	Certs              Certs          `json:"certs"`
-	AdminAPISecretName string         `json:"admin_api_secret_name"`
-	CustomServices     []interface{}  `json:"custom_services"`
+	PlatformInfo       PlatformInfo  `json:"platformInfo"`
+	Certs              Certs         `json:"certs"`
+	AdminAPISecretName string        `json:"admin_api_secret_name"`
+	CustomServices     []interface{} `json:"custom_services"`
 }
 
 type PlatformInfo struct {
@@ -67,13 +67,9 @@ type PlatformInfo struct {
 	MainOrganizationTelegramChatID     string `json:"MAIN_ORGANIZATION_TELEGRAM_CHAT_ID"`
 	MainOrganizationTelegramInviteLink string `json:"MAIN_ORGANIZATION_TELEGRAM_INVITATION_LINK"`
 
-	NumberOfNodeRedInstancesInMainOrg int    `json:"NUMBER_OF_NODERED_INSTANCES_IN_MAIN_ORG"`
 	NotificationsEmailUser            string `json:"NOTIFICATIONS_EMAIL_USER"`
 	NotificationsEmailAddress         string `json:"NOTIFICATIONS_EMAIL_ADDRESS"`
 	NotificationsEmailPassword        string `json:"NOTIFICATIONS_EMAIL_PASSWORD"`
-
-	LlmProviderUrl    string `json:"LLM_PROVIDER_URL"`
-	LlmProviderApiKey string `json:"LLM_PROVIDER_API_KEY"`
 
 	RegistrationTokenLifetime int    `json:"REGISTRATION_TOKEN_LIFETIME"`
 	RefreshTokenLifetime      int    `json:"REFRESH_TOKEN_LIFETIME"`
@@ -113,6 +109,7 @@ type PlatformInfo struct {
 	AdminDataStorageSvcResources string `json:"ADMIN_DATA_STORAGE_SVC_RESOURCES"`
 	UiSvcResources               string `json:"UI_SVC_RESOURCES"`
 	PipelinesSvcResources        string `json:"PIPELINES_SVC_RESOURCES"`
+	NumPipelinesInstances   int    `json:"NUMBER_OF_PIPELINES_INSTANCES"`
 
 	// Keys used for AWS Cluster deployment
 	AwsSshKeyPath string `json:"AWS_SSH_KEY_PATH"`
@@ -180,27 +177,6 @@ type Broker struct {
 	ServerKey           string `json:"server_key"`
 	MqttBrokerKeyName   string `json:"mqtt_broker_key_name"`
 	ExpirationTimestamp int64  `json:"expiration_timestamp"`
-}
-
-type NriMqttCerts struct {
-	ClientCrt           string `json:"client_crt"`
-	ClientKey           string `json:"client_key"`
-	ExpirationTimestamp int64  `json:"expiration_timestamp"`
-	ClientCrtName       string `json:"client_crt_name"`
-	ClientKeyName       string `json:"client_key_name"`
-}
-
-type NriNatsCerts struct {
-	NriNkeyPublic string `json:"nri_nkey_public"`
-	NriNkeySeed   string `json:"nri_nkey_seed"`
-}
-
-type NodeRedInstance struct {
-	NriHash      string       `json:"nri_hash"`
-	NriUserName  string       `json:"nri_user_name"`
-	NriPassword  string       `json:"nri_password"`
-	NriMqttCerts NriMqttCerts `json:"nri_mqtt_certs"`
-	NriNatsCerts NriNatsCerts `json:"nri_nats_certs"`
 }
 
 type NodeData struct {

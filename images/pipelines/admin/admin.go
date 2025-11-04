@@ -71,9 +71,9 @@ func CreateAdmin(cfg *config.Config, log *logger.Logger) (*Admin, error) {
 	return admin, nil
 }
 
-func (a *Admin) GetOrgs() []*common.Org {
+func (a *Admin) GetOrgs(secretEncryptionKey string) []*common.Org {
 	var orgs []*common.Org
-	url := fmt.Sprintf("%s/organizations/user_managed", a.baseUrl)
+	url := fmt.Sprintf("%s/organizations/full_info", a.baseUrl)
 	response, err := utils.HttpGetWithJwt(url, a.accessToken)
 	if err != nil {
 		a.log.Errorf("failed to get orgs: %v", err)
@@ -86,11 +86,19 @@ func (a *Admin) GetOrgs() []*common.Org {
 		return nil
 	}
 
+	for _, org := range orgs {
+		if org.LlmProviderUrl != "-" && org.HashedLlmProviderApiKey != "-" {
+			hashedApiKey := org.HashedLlmProviderApiKey
+			llmProviderApiKey, _ := utils.Decrypt(hashedApiKey, secretEncryptionKey)
+			org.LlmProviderApiKey = llmProviderApiKey
+		}
+	}
+
 	return orgs
 }
 
-func (a *Admin) GetOrg(orgId int) *common.Org {
-	url := fmt.Sprintf("%s/organization/id/%d", a.baseUrl, orgId)
+func (a *Admin) GetOrg(orgId int, secretEncryptionKey string) *common.Org {
+	url := fmt.Sprintf("%s/organization_full_info/id/%d", a.baseUrl, orgId)
 	response, err := utils.HttpGetWithJwt(url, a.accessToken)
 	if err != nil {
 		a.log.Errorf("failed to get org %d: %v", orgId, err)
@@ -102,6 +110,16 @@ func (a *Admin) GetOrg(orgId int) *common.Org {
 	if err != nil {
 		a.log.Errorf("failed to unmarshal org %d: %v", orgId, err)
 		return nil
+	}
+
+	if org.LlmProviderUrl != "" && org.HashedLlmProviderApiKey != "" {
+		hashedApiKey := org.HashedLlmProviderApiKey
+		llmProviderApiKey, err := utils.Decrypt(hashedApiKey, secretEncryptionKey)
+		if err != nil {
+			a.log.Errorf("failed to decrypt LLM provider API key for org %d: %v", orgId, err)
+			return nil
+		}
+		org.LlmProviderApiKey = llmProviderApiKey
 	}
 
 	return &org
@@ -126,7 +144,7 @@ func (a *Admin) GetGroups() []*common.Group {
 }
 
 func (a *Admin) GetGroup(groupId int) *common.Group {
-	url := fmt.Sprintf("%s/group/id/%d", a.baseUrl, groupId)
+	url := fmt.Sprintf("%s/group_user_managed/%d", a.baseUrl, groupId)
 	response, err := utils.HttpGetWithJwt(url, a.accessToken)
 	if err != nil {
 		a.log.Errorf("failed to get group %d: %v", groupId, err)

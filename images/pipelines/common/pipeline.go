@@ -8,6 +8,7 @@ const (
 	PipelineStatusRunning
 	PipelineStatusStopped
 	PipelineStatusError
+	PipelineStatusDeleted
 )
 
 func (s PipelineStatus) String() string {
@@ -22,9 +23,15 @@ func (s PipelineStatus) String() string {
 		return "stopped"
 	case PipelineStatusError:
 		return "error"
+	case PipelineStatusDeleted:
+		return "deleted"
 	default:
 		return "unknown"
 	}
+}
+
+type LeaderElector interface {
+	IsLeader() bool
 }
 
 type Pipeline interface {
@@ -51,5 +58,11 @@ type Pipeline interface {
 	GetOrgHash() string
 	GetGroupId() int
 	StatusSubcription()
-	PublishPipelineStatus(string)
+	PublishPipelineStatus(payload PipelineStatusMessage)
+	GetLeaderElector() LeaderElector
+}
+
+type PipelineStatusMessage struct {
+	PipelineStatus     string `json:"pipelineStatus"`
+	ReplicaIndexLeader int    `json:"replicaIndexLeader,omitempty"`
 }

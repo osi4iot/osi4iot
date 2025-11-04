@@ -31,6 +31,7 @@ type Pipeline struct {
 	NodeInputWires         map[string][]*common.Wire   // key: "nodeID" -> []*Wire (wires that arrive at the node)
 	NodeOutputByIndex      map[string][]*common.Wire   // key: "nodeID:outputIndex" -> []*Wire
 	NatsStatusSubscription *nats.Subscription
+	LeaderElector          *PipelineLeaderElector
 	mu                     sync.RWMutex
 }
 
@@ -80,6 +81,8 @@ func (fm *FlowsManager) createPipeline(digitalTwin *common.DigitalTwin, org *com
 }
 
 func (fm *FlowsManager) createPipelineInstanceFromData(pd *common.PipelineData) (*Pipeline, error) {
+	pipelineErrors := &PipelineCreationError{}
+
 	pipeline := &Pipeline{
 		OrgId:                  pd.OrgId,
 		OrgHash:                pd.OrgHash,
@@ -98,7 +101,17 @@ func (fm *FlowsManager) createPipelineInstanceFromData(pd *common.PipelineData) 
 		NodeOutputByIndex:      make(map[string][]*common.Wire),
 	}
 
+	leaderElector, err := NewPipelineLeaderElector(fm, pipeline.OrgHash, pipeline.DigitalTwinUid, 10*time.Second)
+	if err != nil {
+		pipelineErrors.AddErrorMsg(fmt.Sprintf("Failed to create leader elector: %v", err))
+	} else {
+		pipeline.LeaderElector = leaderElector
+	}
+
 	if pd.FileData == "" {
+		if len(pipelineErrors.ErrorMessages) > 0 {
+			return pipeline, pipelineErrors
+		}
 		return pipeline, nil
 	}
 
@@ -151,7 +164,6 @@ func (fm *FlowsManager) createPipelineInstanceFromData(pd *common.PipelineData) 
 		}
 	}
 
-	pipelineErrors := &PipelineCreationError{}
 	for _, nodeData := range pipeline.NodesData {
 		node, err := nodes.CreateNode(*nodeData, fm.log, fm, pipeline)
 		if err != nil {
@@ -207,8 +219,21 @@ func (p *Pipeline) SetStatus(status common.PipelineStatus) {
 
 func (p *Pipeline) setStatusUnsafe(status common.PipelineStatus) {
 	pipelineStatus := status.String()
-	p.PublishPipelineStatus(pipelineStatus)
 	p.Status = status
+	replicaIndexLeader := p.getReplicaIndexLeader()
+	payload := common.PipelineStatusMessage{
+		PipelineStatus:     pipelineStatus,
+		ReplicaIndexLeader: replicaIndexLeader,
+	}
+	p.PublishPipelineStatus(payload)
+}
+
+func (p *Pipeline) getReplicaIndexLeader() int {
+	replicaIndexLeader := -1
+	if p.LeaderElector != nil {
+		replicaIndexLeader = p.LeaderElector.GetReplicaIndexLeader()
+	}
+	return replicaIndexLeader
 }
 
 func (p *Pipeline) GetStatus() common.PipelineStatus {
@@ -247,9 +272,10 @@ func (p *Pipeline) ResetNode(nodeUid string) error {
 
 func (p *Pipeline) RestartNode(nodeUid string) error {
 	p.mu.RLock()
-	defer p.mu.RUnlock()
+	nodes := p.Nodes
+	p.mu.RUnlock()
 
-	if len(p.NodesData) == 0 {
+	if len(nodes) == 0 {
 		return fmt.Errorf("no nodes data available to restart node %s", nodeUid)
 	}
 
@@ -273,8 +299,10 @@ func (p *Pipeline) RestartNode(nodeUid string) error {
 				elapsed := time.Since(startTime)
 				msg := fmt.Sprintf("Node %s in digital twin %d has been restarted successfully (took %v)", p.Nodes[nodeUid].GetName(), p.DigitalTwinId, elapsed)
 				p.Fm.log.Infof(msg)
-				p.setStatusUnsafe(common.PipelineStatusRunning)
-				p.StatusSubcription()
+				p.SetStatus(common.PipelineStatusRunning)
+				if p.NatsStatusSubscription == nil {
+					p.StatusSubcription()
+				}
 				return nil
 			}
 		case <-timeoutChan:
@@ -561,17 +589,22 @@ func (p *Pipeline) GetGroupId() int {
 
 func (p *Pipeline) Start(needReinitialization bool) {
 	p.mu.RLock()
-	defer p.mu.RUnlock()
 
 	if len(p.Nodes) == 0 {
+		p.mu.RUnlock()
 		return
 	}
 
-	for _, node := range p.Nodes {
+	p.LeaderElector.Start()
+
+	nodes := p.Nodes
+	p.mu.RUnlock()
+
+	for _, node := range nodes {
 		node.Start(p.Fm.log, needReinitialization)
 	}
 
-	p.Fm.log.Infof("Started %d nodes for digital twin %d, waiting for them to be ready", len(p.Nodes), p.DigitalTwinId)
+	p.Fm.log.Infof("Started %d nodes for digital twin %d, waiting for them to be ready", len(nodes), p.DigitalTwinId)
 
 	// Wait for all nodes to be running
 	ticker := time.NewTicker(100 * time.Millisecond)
@@ -583,26 +616,34 @@ func (p *Pipeline) Start(needReinitialization bool) {
 	for {
 		select {
 		case <-ticker.C:
-			if p.allNodesRunningUnsafe() {
+			p.mu.RLock()
+			allRunning := p.allNodesRunningUnsafe()
+			p.mu.RUnlock()
+
+			if allRunning {
 				elapsed := time.Since(startTime)
 				p.Fm.log.Infof("All nodes in digital twin %d are running (took %v)", p.DigitalTwinId, elapsed)
 				p.LogPipelineInfo(fmt.Sprintf("Pipeline of digital twin '%s' started successfully.", p.DigitalTwinDescription))
-				p.setStatusUnsafe(common.PipelineStatusRunning)
-				p.StatusSubcription()
+				p.SetStatus(common.PipelineStatusRunning)
+				if p.NatsStatusSubscription == nil {
+					p.StatusSubcription()
+				}
 				return
 			}
 		case <-timeoutChan:
+			p.mu.RLock()
 			notRunningNodes := p.getNotRunningNodesUnsafe()
+			p.mu.RUnlock()
+
 			p.Fm.log.Warnf("Timeout while waiting for nodes to start in digital twin %d. Nodes not running: %v",
 				p.DigitalTwinId, notRunningNodes)
 			errorDetails := fmt.Sprintf("Timeout occurred while waiting for the '%s' digital twin nodes to start.. Nodes not running: %v",
 				p.DigitalTwinDescription, notRunningNodes)
 			p.LogPipelineError("Pipeline start failed", errorDetails)
-			p.setStatusUnsafe(common.PipelineStatusError)
+			p.SetStatus(common.PipelineStatusError)
 			return
 		}
 	}
-
 }
 
 func (p *Pipeline) AllNodesRunning() bool {
@@ -652,14 +693,18 @@ func (p *Pipeline) anyNodeRunningUnsafe() bool {
 
 func (p *Pipeline) Stop(action string) error {
 	p.mu.RLock()
-	defer p.mu.RUnlock()
 
 	if len(p.Nodes) == 0 {
+		p.mu.RUnlock()
 		return fmt.Errorf("no nodes data available to stop pipeline")
-
 	}
 
-	for _, node := range p.Nodes {
+	p.LeaderElector.Stop()
+
+	nodes := p.Nodes
+	p.mu.RUnlock()
+
+	for _, node := range nodes {
 		node.Stop(p.Fm.log)
 	}
 
@@ -671,11 +716,18 @@ func (p *Pipeline) Stop(action string) error {
 	for {
 		select {
 		case <-ticker.C:
-			if !p.anyNodeRunningUnsafe() {
+			p.mu.RLock()
+			anyNodeRunning := p.anyNodeRunningUnsafe()
+			p.mu.RUnlock()
+			if !anyNodeRunning {
 				p.Fm.log.Infof("All nodes in digital twin %d have stopped", p.GetDigitalTwinId())
-				if action == "stop" {
-					p.setStatusUnsafe(common.PipelineStatusStopped)
+				switch action {
+				case "stop":
+					p.SetStatus(common.PipelineStatusStopped)
 					p.LogPipelineInfo("Pipeline stopped successfully")
+				case "delete":
+					p.SetStatus(common.PipelineStatusDeleted)
+					p.LogPipelineInfo("Pipeline delete successfully")
 					p.stopStatusSubscriptionUnsafe()
 				}
 				return nil
@@ -683,8 +735,10 @@ func (p *Pipeline) Stop(action string) error {
 		case <-timeoutChan:
 			p.Fm.log.Warnf("Timeout while waiting for nodes to stop in digital twin %d", p.GetDigitalTwinId())
 			p.LogPipelineError("Pipeline stop failed", "Timeout while waiting for nodes to stop")
-			p.setStatusUnsafe(common.PipelineStatusError)
-			p.stopStatusSubscriptionUnsafe()
+			p.SetStatus(common.PipelineStatusError)
+			if action == "delete" {
+				p.stopStatusSubscriptionUnsafe()
+			}
 			return fmt.Errorf("timeout while waiting for nodes to stop in digital twin %d", p.GetDigitalTwinId())
 		}
 	}
@@ -721,8 +775,11 @@ func (p *Pipeline) HandleNodeError(n *common.NodeData, err error) {
 }
 
 func (p *Pipeline) LogPipelineInfo(message string) {
-	var logData common.PipelineLog
+	if p.LeaderElector != nil && !p.LeaderElector.IsLeader() {
+		return
+	}
 
+	var logData common.PipelineLog
 	dtName := fmt.Sprintf("DT: %s", p.GetDigitalTwinDescription())
 	logData = common.PipelineLog{
 		Level:     "info",
@@ -740,12 +797,14 @@ func (p *Pipeline) LogPipelineInfo(message string) {
 	} else {
 		p.Fm.Log().Errorf("Failed to marshal info data for dt %s: %v", p.GetDigitalTwinUid(), marshallErr)
 	}
-
 }
 
 func (p *Pipeline) LogPipelineError(description string, message string) {
-	var logData common.PipelineLog
+	if p.LeaderElector != nil && !p.LeaderElector.IsLeader() {
+		return
+	}
 
+	var logData common.PipelineLog
 	dtName := fmt.Sprintf("DT: %s", p.GetDigitalTwinDescription())
 	logData = common.PipelineLog{
 		Level:       "error",
@@ -764,10 +823,6 @@ func (p *Pipeline) LogPipelineError(description string, message string) {
 	} else {
 		p.Fm.Log().Errorf("Failed to marshal error data for dt %s: %v", p.GetDigitalTwinUid(), marshallErr)
 	}
-}
-
-type PipelineStatusMessage struct {
-	PipelineStatus string `json:"pipelineStatus"`
 }
 
 func (p *Pipeline) StatusSubcription() {
@@ -791,7 +846,12 @@ func (p *Pipeline) StatusSubcription() {
 			switch action {
 			case "queryPipelineStatus":
 				pipelineStatus := p.GetStatus().String()
-				p.PublishPipelineStatus(pipelineStatus)
+				replicaIndexLeader := p.LeaderElector.GetReplicaIndexLeader()
+				payload := common.PipelineStatusMessage{
+					PipelineStatus:     pipelineStatus,
+					ReplicaIndexLeader: replicaIndexLeader,
+				}
+				p.PublishPipelineStatus(payload)
 			case "queryChatMessages":
 				if userName, ok := rawMessage["userName"].(string); ok {
 					p.PublishChatMessages(userName)
@@ -822,7 +882,7 @@ func (p *Pipeline) stopStatusSubscriptionUnsafe() {
 	}
 }
 
-func (p *Pipeline) PublishPipelineStatus(pipelineStatus string) {
+func (p *Pipeline) PublishPipelineStatus(payload common.PipelineStatusMessage) {
 	state2simTopic := p.Fm.GetTopicByTopicRef(p.GetAssetId(), p.GetDigitalTwinId(), "state2sim")
 	state2simSubject := utils.TopicToNatsSubject(state2simTopic.TopicType, state2simTopic.GroupUid, state2simTopic.TopicUid)
 
@@ -831,9 +891,6 @@ func (p *Pipeline) PublishPipelineStatus(pipelineStatus string) {
 		return
 	}
 
-	payload := PipelineStatusMessage{
-		PipelineStatus: pipelineStatus,
-	}
 	jsonData, err := json.Marshal(payload)
 	if err != nil {
 		p.Fm.Log().Errorf("failed to marshal message for digital twin %d: %w", p.GetDigitalTwinId(), err)
@@ -920,4 +977,8 @@ func (p *Pipeline) ClearChatMessagesHistory(userName string) {
 		p.Fm.Log().Errorf("failed to publish message for digital twin %d: %w", p.GetDigitalTwinId(), err)
 		return
 	}
+}
+
+func (p *Pipeline) GetLeaderElector() common.LeaderElector {
+	return p.LeaderElector
 }

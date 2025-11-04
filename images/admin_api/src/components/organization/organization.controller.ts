@@ -24,6 +24,8 @@ import {
 	updateOrgUserRoleInDefaultOrgGroup,
 	organizationsWhichTheLoggedUserIsUser,
 	getOrganizationsWithIdsArray,
+	getOrganizationsFullInfo,
+	getOrganizationFullInfo,
 } from "./organizationDAL";
 import { encrypt } from "../../utils/encryptAndDecrypt/encryptAndDecrypt";
 import CreateUserDto from "../user/interfaces/User.dto";
@@ -166,7 +168,9 @@ class OrganizationController implements IController {
 		this.router.get(`${this.path}s`, superAdminAuth, this.getAllOrganization);
 
 		this.router
-			.get(`${this.path}/:propName/:propValue`, superAdminAuth, this.getOrganizationByProp)
+			.get(`${this.path}s/full_info/`, superAdminAuth, this.getOrganizationsFullInfo)
+			.get(`${this.path}_full_info/:propName/:propValue`, superAdminAuth, this.getOrganizationFullInfoByProp)
+			.get(`${this.path}/:propName/:propValue`, superAdminAuth, this.getOrganizationFullInfoByProp)
 			.patch(
 				`${this.path}/:propName/:propValue`,
 				superAdminAuth,
@@ -204,6 +208,37 @@ class OrganizationController implements IController {
 			next(error);
 		}
 	};
+
+	private getOrganizationsFullInfo = async (
+		req: Request,
+		res: Response,
+		next: NextFunction
+	): Promise<void> => {
+		try {
+			const organizations = await getOrganizationsFullInfo();
+			res.status(200).send(organizations);
+		} catch (error) {
+			next(error);
+		}
+	};
+
+
+	private getOrganizationFullInfoByProp = async (
+		req: Request,
+		res: Response,
+		next: NextFunction
+	): Promise<void> => {
+		try {
+			const { propName, propValue } = req.params;
+			if (!this.isValidOrganizationPropName(propName)) throw new InvalidPropNameExeception(req, res, propName);
+			const organization = await getOrganizationFullInfo(propName, propValue);
+			if (!organization) throw new ItemNotFoundException(req, res, "The organization", propName, propValue);
+			res.status(200).send(organization);
+		} catch (error) {
+			next(error);
+		}
+	};
+
 
 	private organizationsOfGroupsManagedByUser = async (user: IUser): Promise<IOrganization[]> => {
 		let organizations: IOrganization[];
@@ -336,6 +371,10 @@ class OrganizationController implements IController {
 				const orgId = newOrg.orgId;
 				await natsClient.jsPublish("org", "create", orgId);
 				await grafanaApi.createOrgApiAdminUser(orgId);
+				if (organizationData.llmProviderApiKey !== "-") {
+					const hashedLlmProviderApiKey = encrypt(organizationData.llmProviderApiKey);
+					organizationData.hashedLlmProviderApiKey = hashedLlmProviderApiKey;
+				}
 				await updateOrganizationByProp("id", orgId, organizationData);
 				const apyKeyName = `ApiKey_${organizationData.acronym.replace(/"/g, "")}`;
 				const apiKeyData = { name: apyKeyName, role: "Admin" };
@@ -388,6 +427,7 @@ class OrganizationController implements IController {
 					floorNumber: 0,
 					featureIndex: 1,
 					mqttAccessControl: "Pub & Sub",
+					llmEnabled: false,
 				};
 				const adminIdArray = await addAdminToOrganization(orgId, organizationData.orgAdminArray);
 				defaultOrgGroup.groupAdminDataArray.forEach((admin, index) => (admin.userId = adminIdArray[index]));
@@ -881,6 +921,10 @@ class OrganizationController implements IController {
 				throw new HttpException(req, res, 400, "The role of the main organization cannot be modified.");
 			}
 			const newOrganizationData = { ...oldOrganizationData, ...orgDataToUpdate };
+			if (orgDataToUpdate.llmEnabled) {
+				const hashedLlmProviderApiKey = encrypt(orgDataToUpdate.llmProviderApiKey);
+				newOrganizationData.hashedLlmProviderApiKey = hashedLlmProviderApiKey;
+			}
 			await updateOrganizationByProp(propName, propValue, newOrganizationData);
 			res.status(200).json({ message: `Organization updated successfully` });
 		} catch (error) {

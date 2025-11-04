@@ -22,6 +22,7 @@ export const initialState = {
         floorNumber: 0,
         featureIndex: 1,
         mqttAccessControl: "Pub & Sub",
+        llmEnabled: false,
         groupAdminDataArray: [
             {
                 firstName: "",

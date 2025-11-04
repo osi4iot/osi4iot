@@ -88,19 +88,12 @@ func SetData(key string, value string) {
 		Data.PlatformInfo.MainOrganizationTelegramChatID = value
 	case "MAIN_ORGANIZATION_TELEGRAM_INVITATION_LINK":
 		Data.PlatformInfo.MainOrganizationTelegramInviteLink = value
-	case "NUMBER_OF_NODERED_INSTANCES_IN_MAIN_ORG":
-		nrInstances, _ := strconv.Atoi(value)
-		Data.PlatformInfo.NumberOfNodeRedInstancesInMainOrg = nrInstances
 	case "NOTIFICATIONS_EMAIL_USER":
 		Data.PlatformInfo.NotificationsEmailUser = value
 	case "NOTIFICATIONS_EMAIL_ADDRESS":
 		Data.PlatformInfo.NotificationsEmailAddress = value
 	case "NOTIFICATIONS_EMAIL_PASSWORD":
 		Data.PlatformInfo.NotificationsEmailPassword = value
-	case "LLM_PROVIDER_URL":
-		Data.PlatformInfo.LlmProviderUrl = value
-	case "LLM_PROVIDER_API_KEY":
-		Data.PlatformInfo.LlmProviderApiKey = value
 	case "REGISTRATION_TOKEN_LIFETIME":
 		regTokenLifetime, _ := strconv.Atoi(value)
 		Data.PlatformInfo.RegistrationTokenLifetime = regTokenLifetime
@@ -138,6 +131,9 @@ func SetData(key string, value string) {
 		Data.PlatformInfo.UiSvcResources = value
 	case "PIPELINES_SVC_RESOURCES":
 		Data.PlatformInfo.PipelinesSvcResources = value
+	case "NUMBER_OF_PIPELINES_INSTANCES":
+		numberOfInstances, _ := strconv.Atoi(value)
+		Data.PlatformInfo.NumPipelinesInstances = numberOfInstances
 	case "NUMBER_OF_SWARM_NODES":
 		numberOfNodes, _ := strconv.Atoi(value)
 		Data.PlatformInfo.NumberOfSwarmNodes = numberOfNodes

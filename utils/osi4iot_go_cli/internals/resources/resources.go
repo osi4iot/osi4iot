@@ -1,9 +1,6 @@
 package resources
 
 import (
-	"strconv"
-	"strings"
-
 	pt "github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/types"
 )
 
@@ -176,6 +173,12 @@ func getRoleMemoryBytesMap(platformData *pt.PlatformData) map[string]int64 {
 	return roleMemoryBytesMap
 }
 
+func GivePipelinesReplicsPtr(pd *pt.PlatformData) *uint64 {
+	numReplicas := pd.PlatformInfo.NumPipelinesInstances
+	replics := uint64(numReplicas)
+	return &replics
+}
+
 func GiveReplicsPtr(serviceName string, nodeRoleMaps NodesRoleMaps) *uint64 {
 	nodeRoleNumMap := nodeRoleMaps.NodeRoleNumMap
 	replics := uint64(1)
@@ -234,8 +237,6 @@ func GiveReplicsPtr(serviceName string, nodeRoleMaps NodesRoleMaps) *uint64 {
 		replics = uint64(1)
 	case "keepalived":
 		replics = uint64(1)
-	case "nri":
-		replics = uint64(1)
 	default:
 		replics = uint64(1)
 	}
@@ -246,28 +247,6 @@ func NewSvcResourcesMap(pd *pt.PlatformData) SvcResourcesMap {
 	resourcesMap := SvcResourcesMap{
 		SvcMemoryBytesMap: getMemoryBytesSvcMap(pd),
 		SvcNanoCPUsMap:    getNanoCPUsSvcMap(pd),
-	}
-
-	return resourcesMap
-}
-
-func NriResourceMap(pd *pt.PlatformData) SvcResourcesMap {
-	uiSvcCpusStr := strings.Split(pd.PlatformInfo.UiSvcResources, "-")[0]
-	uiSvcCpus, _ := strconv.ParseFloat(uiSvcCpusStr[0:len(uiSvcCpusStr)-3], 64)
-	nanoCPUsSvcMap := make(map[string]int64)
-
-	if uiSvcCpus <= 1.0 {
-		nanoCPUsSvcMap["nri"] = int64(uiSvcCpus * 1e9)
-	} else {
-		nanoCPUsSvcMap["nri"] = int64(1.0 * 1e9)
-	}
-	
-	memoryBytesSvcMap := make(map[string]int64)
-	memoryBytesSvcMap["nri"] = int64(2000 * 1024 * 1024) // 2000 MB
-
-	resourcesMap := SvcResourcesMap{
-		SvcMemoryBytesMap: memoryBytesSvcMap,
-		SvcNanoCPUsMap:    nanoCPUsSvcMap,
 	}
 
 	return resourcesMap

@@ -26,14 +26,32 @@ interface FormikControlProps {
     autoFocus?: boolean;
     onChange?: (option: any) => void;
     textAreaSize?: string;
-    readOnly?: boolean
+    readOnly?: boolean;
+    autocomplete?: string;
 }
 
-const FormikControl: FC<FormikControlProps> = ({ control, label, name, type, labelArray, nameArray, typeArray, addLabel, selectLabel, goToSelect, options, autoFocus, textAreaSize, readOnly=false, ...rest }) => {
+const FormikControl: FC<FormikControlProps> = ({
+    control,
+    label,
+    name,
+    type,
+    labelArray,
+    nameArray,
+    typeArray,
+    addLabel,
+    selectLabel,
+    goToSelect,
+    options,
+    autoFocus,
+    textAreaSize,
+    autocomplete = "off",
+    readOnly = false,
+    ...rest
+}) => {
     switch (control) {
-        case 'input':
-            return <Input label={label as string} name={name as string} type={type as string} {...rest} />
-        case 'inputArray':
+        case "input":
+            return <Input label={label as string} name={name as string} type={type as string} autocomplete={autocomplete as string} {...rest} />;
+        case "inputArray":
             return (
                 <InputArray
                     label={label as string}
@@ -46,8 +64,8 @@ const FormikControl: FC<FormikControlProps> = ({ control, label, name, type, lab
                     goToSelect={goToSelect as () => void}
                     {...rest}
                 />
-            )
-        case 'inputArrayRows':
+            );
+        case "inputArrayRows":
             return (
                 <InputArrayRows
                     label={label as string}
@@ -61,13 +79,30 @@ const FormikControl: FC<FormikControlProps> = ({ control, label, name, type, lab
                     goToSelect={goToSelect as () => void}
                     {...rest}
                 />
-            )
-        case 'textarea':
-            return <Textarea label={label as string} name={name as string} textAreaSize={textAreaSize as string} readOnly={readOnly} {...rest}/>
-        case 'select':
-            return <SelectControl label={label as string} name={name as string} options={options as OptionsType<IOption>} autoFocus={ autoFocus as boolean} {...rest} />
-        default: return null;
+            );
+        case "textarea":
+            return (
+                <Textarea
+                    label={label as string}
+                    name={name as string}
+                    textAreaSize={textAreaSize as string}
+                    readOnly={readOnly}
+                    {...rest}
+                />
+            );
+        case "select":
+            return (
+                <SelectControl
+                    label={label as string}
+                    name={name as string}
+                    options={options as OptionsType<IOption>}
+                    autoFocus={autoFocus as boolean}
+                    {...rest}
+                />
+            );
+        default:
+            return null;
     }
-}
+};
 
 export default FormikControl;

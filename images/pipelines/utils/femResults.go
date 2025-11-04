@@ -25,7 +25,7 @@ type ModalValue struct {
 
 type ResultField struct {
 	NumberOfModes      int                   `json:"numberOfModes"`
-	DefaultModalValues []int                 `json:"defaultModalValues"`
+	DefaultModalValues []float64             `json:"defaultModalValues"`
 	ResultLocation     string                `json:"resultLocation"`
 	ModalValues        map[string]ModalValue `json:"modalValues"`
 }

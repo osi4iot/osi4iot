@@ -386,6 +386,8 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
     const [isGlftDataReady, setIsGlftDataReady] = useState(false);
     const [sensorsRef, setSensorsRef] = useState<string[]>([]);
     const [isChatAssistantEnabled, setIsChatAssistantEnabled] = useState(false);
+    const [orgLlmEnabled, setOrgLlmEnabled] = useState(false);
+    const [groupLlmEnabled, setGroupLlmEnabled] = useState(false);
 
     useEffect(() => {
         const orgArray = orgsOfGroupManaged.map((org) => org.acronym);
@@ -403,6 +405,10 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
         const assetName = `Asset_${initAsset.assetUid}`;
         const assetDescription = findAssetDescription(assets, assetName);
         setAssetDescription(assetDescription);
+        const org = orgsOfGroupManaged.filter((o) => o.acronym === orgAcronym)[0];
+        setOrgLlmEnabled(org.llmEnabled);
+        const group = groupsManaged.filter((g) => g.acronym === groupAcronym)[0];
+        setGroupLlmEnabled(group.llmEnabled);
     }, [assets, groupsManaged, initAsset.assetUid, initGroup.acronym, initOrg.acronym, orgsOfGroupManaged]);
 
     const handleChangeOrg = (e: { value: string }, formik: FormikType) => {
@@ -418,6 +424,8 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
         formik.setFieldValue("assetName", assetName);
         const assetDescription = findAssetDescription(assets, assetName);
         setAssetDescription(assetDescription);
+        const org = orgsOfGroupManaged.filter((o) => o.acronym === orgAcronym)[0];
+        setOrgLlmEnabled(org.llmEnabled);
     };
 
     const handleChangeGroup = (e: { value: string }, formik: FormikType) => {
@@ -429,6 +437,8 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
         formik.setFieldValue("assetName", assetName);
         const assetDescription = findAssetDescription(assets, assetName);
         setAssetDescription(assetDescription);
+        const group = groupsManaged.filter((g) => g.acronym === groupAcronym)[0];
+        setGroupLlmEnabled(group.llmEnabled);
     };
 
     const handleChangeAsset = (e: { value: string }, formik: FormikType) => {
@@ -991,49 +1001,55 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
                                                     </FileButton>
                                                 </SelectDataFilenButtonContainer>
                                             </DataFileContainer>
-                                            <DataFileTitle>Documental info</DataFileTitle>
-                                            <DataFileContainer>
-                                                <FieldContainer>
-                                                    <label>File name</label>
-                                                    <div>{docInfoFileName}</div>
-                                                </FieldContainer>
-                                                <FieldContainer>
-                                                    <label>Last modification date</label>
-                                                    <div>{docInfoFileLastModifDateString}</div>
-                                                </FieldContainer>
-                                                <SelectDataFilenButtonContainer>
-                                                    <FileButton type="button" onClick={clearDocInfoFile}>
-                                                        Clear
-                                                    </FileButton>
-                                                    <FileButton
-                                                        type="button"
-                                                        onClick={() => docInfoFileButtonHandler()}
-                                                    >
-                                                        Select local file
-                                                    </FileButton>
-                                                </SelectDataFilenButtonContainer>
-                                            </DataFileContainer>
-                                            <ChatAssistantTitle>Chat assistant</ChatAssistantTitle>
-                                            <ChatAssistantContainer>
-                                                <FormikControl
-                                                    control="select"
-                                                    label="Use chat assistant"
-                                                    name="chatAssistantEnabled"
-                                                    options={chatAssistantEnabledOptions}
-                                                    type="text"
-                                                    onChange={(e) => onchatAssistantEnabledOptions(e, formik)}
-                                                />
-                                                {isChatAssistantEnabled && (
-                                                    <FormikControl
-                                                        control="select"
-                                                        label="Select chat assistant language"
-                                                        name="chatAssistantLanguage"
-                                                        options={chatAssistantLanguageOptions}
-                                                        type="text"
-                                                        onChange={(e) => onchatAssistantLanguageOptions(e, formik)}
-                                                    />
-                                                )}
-                                            </ChatAssistantContainer>
+                                            {orgLlmEnabled && groupLlmEnabled && (
+                                                <>
+                                                    <DataFileTitle>Documental info</DataFileTitle>
+                                                    <DataFileContainer>
+                                                        <FieldContainer>
+                                                            <label>File name</label>
+                                                            <div>{docInfoFileName}</div>
+                                                        </FieldContainer>
+                                                        <FieldContainer>
+                                                            <label>Last modification date</label>
+                                                            <div>{docInfoFileLastModifDateString}</div>
+                                                        </FieldContainer>
+                                                        <SelectDataFilenButtonContainer>
+                                                            <FileButton type="button" onClick={clearDocInfoFile}>
+                                                                Clear
+                                                            </FileButton>
+                                                            <FileButton
+                                                                type="button"
+                                                                onClick={() => docInfoFileButtonHandler()}
+                                                            >
+                                                                Select local file
+                                                            </FileButton>
+                                                        </SelectDataFilenButtonContainer>
+                                                    </DataFileContainer>
+                                                    <ChatAssistantTitle>Chat assistant</ChatAssistantTitle>
+                                                    <ChatAssistantContainer>
+                                                        <FormikControl
+                                                            control="select"
+                                                            label="Use chat assistant"
+                                                            name="chatAssistantEnabled"
+                                                            options={chatAssistantEnabledOptions}
+                                                            type="text"
+                                                            onChange={(e) => onchatAssistantEnabledOptions(e, formik)}
+                                                        />
+                                                        {isChatAssistantEnabled && (
+                                                            <FormikControl
+                                                                control="select"
+                                                                label="Select chat assistant language"
+                                                                name="chatAssistantLanguage"
+                                                                options={chatAssistantLanguageOptions}
+                                                                type="text"
+                                                                onChange={(e) =>
+                                                                    onchatAssistantLanguageOptions(e, formik)
+                                                                }
+                                                            />
+                                                        )}
+                                                    </ChatAssistantContainer>
+                                                </>
+                                            )}
                                             <FormikControl
                                                 control="textarea"
                                                 label="Digital twin simulation format"

@@ -22,6 +22,8 @@ type ServiceBuilder struct {
 
 // NewService initializes a builder with a mandatory name.
 func NewService(name string, pd *pt.PlatformData, sd pt.SwarmData) *ServiceBuilder {
+	stopGracePeriod := 20 * time.Second
+
 	return &ServiceBuilder{
 		svc: pt.Service{
 			Name: name,
@@ -40,6 +42,7 @@ func NewService(name string, pd *pt.PlatformData, sd pt.SwarmData) *ServiceBuild
 					Env: []string{
 						fmt.Sprintf("TZ=%s", pd.PlatformInfo.DefaultTimeZone),
 					},
+					StopGracePeriod: &stopGracePeriod,
 				},
 				Resources: &swarm.ResourceRequirements{
 					Limits: &swarm.Limit{

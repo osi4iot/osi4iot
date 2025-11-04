@@ -125,7 +125,10 @@ export const dataBaseInitialization = async () => {
 											ADD COLUMN role VARCHAR(20) NOT NULL DEFAULT 'Generic',
 											ADD COLUMN building_id bigint,
 											ADD COLUMN org_hash varchar(20) UNIQUE,
-											ADD COLUMN mqtt_access_control VARCHAR(10)`;
+											ADD COLUMN mqtt_access_control VARCHAR(10),
+											ADD COLUMN llm_enabled BOOLEAN NOT NULL DEFAULT false,
+											ADD COLUMN llm_provider_url VARCHAR(255),
+											ADD COLUMN hashed_llm_provider_api_key TEXT;`;
 				try {
 					await postgresClient.query(queryStringAlterOrg);
 					logger.log("info", `Column acronym has been added sucessfully to Table ${tableOrg}`);
@@ -145,7 +148,7 @@ export const dataBaseInitialization = async () => {
 					process_env.MAIN_ORGANIZATION_ACRONYM.replace(/ /g, "_").toUpperCase(),
 					"Main",
 					1,
-					process_env.MAIN_ORG_HASH,
+					nanoid(20).replace(/-/g, "x").replace(/_/g, "X"),
 					"Pub & Sub",
 					"Main Org.",
 				];
@@ -452,6 +455,7 @@ export const dataBaseInitialization = async () => {
 					mqtt_access_control VARCHAR(10),
 					mqtt_password VARCHAR(255),
 					mqtt_salt VARCHAR(40),
+					llm_enabled BOOLEAN DEFAULT false,
 					created TIMESTAMPTZ,
 					updated TIMESTAMPTZ,
 					CONSTRAINT fk_org_id
@@ -499,6 +503,7 @@ export const dataBaseInitialization = async () => {
 						featureIndex: 1,
 						outerBounds: [] as number[][],
 						mqttAccessControl: "Pub & Sub",
+						llmEnabled: false,
 					};
 					group = await createGroup(1, defaultMainOrgGroup, process_env.MAIN_ORGANIZATION_NAME, true, true);
 					await createHomeDashboard(1, orgAcronym, orgName, group.folderId);

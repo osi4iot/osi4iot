@@ -187,14 +187,7 @@ var subCmdRemoveNode = &cobra.Command{
 	},
 }
 
-var cmdNri = &cobra.Command{
-	Use:   "nri",
-	Short: "Recover node-red instances",
-	Long:  "Recover node-red instances",
-	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("Recover node-red instances")
-	},
-}
+
 
 var cmdCerts = &cobra.Command{
 	Use:   "certs",
@@ -265,7 +258,6 @@ func init() {
 	cmdRun.PersistentFlags().StringSlice("exclude", []string{}, "List of services to exclude")
 	rootCmd.AddCommand(cmdStop)
 	rootCmd.AddCommand(cmdDelete)
-	rootCmd.AddCommand(cmdNri)
 	rootCmd.AddCommand(cmdCerts)
 	rootCmd.AddCommand(cmdStatus)
 

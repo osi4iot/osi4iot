@@ -5,6 +5,8 @@ import { updateDigitalTwinPipelineFileDataById } from "./digitalTwinDAL";
 import PipelineFileDataDto from "./pipelineFileData.dto";
 import { areCyclesInPipeline, areThereInjectTopicsInPublish } from "./pipeline_cycles_detection";
 import IDigitalTwin from "./digitalTwin.interface";
+import { getGroupByProp } from "../group/groupDAL";
+import { getOrganizationByProp } from "../organization/organizationDAL";
 
 // Función auxiliar para generar un UID único basado en el nombre
 const generateUid = (): string => {
@@ -18,6 +20,8 @@ export const createDigitalTwinPipeline = async (
 	groupId: number
 ): Promise<void> => {
 	const pipelineNodes = pipelineData.nodes;
+	const group = await getGroupByProp("id", groupId);
+	const org = await getOrganizationByProp("id", group.orgId);
 
 	const hasInjectNodesInPublish = areThereInjectTopicsInPublish(pipelineNodes);
 	if (hasInjectNodesInPublish) {
@@ -27,6 +31,21 @@ export const createDigitalTwinPipeline = async (
 	const hasCycles = await areCyclesInPipeline(digitalTwinId, pipelineNodes);
 	if (hasCycles) {
 		throw new Error("The pipeline contains cycles, which is not allowed.");
+	}
+
+	for (const node of pipelineNodes) {
+		if (node.type === "AiAgent") {
+			const orgLlmEnabled = org?.llmEnabled || false;
+			const groupLlmEnabled = group?.llmEnabled || false;
+
+			if (!orgLlmEnabled) {
+				throw new Error("LLM is not enabled for this organization.");
+			}
+
+			if (!groupLlmEnabled) {
+				throw new Error("LLM is not enabled for this group.");
+			}
+		}
 	}
 
 	// Primer paso: procesar todos los nodos y generar UIDs si es necesario
@@ -55,6 +74,8 @@ export const updateDigitalTwinPipeline = async (
 	pipelineData: PipelineDto,
 	groupId: number
 ): Promise<void> => {
+	const group = await getGroupByProp("id", groupId);
+	const org = await getOrganizationByProp("id", group.orgId);
 	const hasInjectNodesInPublish = areThereInjectTopicsInPublish(pipelineData.nodes);
 	if (hasInjectNodesInPublish) {
 		throw new Error("The pipeline contains 'inject' topics in 'Publish' nodes, which is not allowed.");
@@ -63,6 +84,21 @@ export const updateDigitalTwinPipeline = async (
 	const hasCycles = await areCyclesInPipeline(digitalTwinId, pipelineData.nodes);
 	if (hasCycles) {
 		throw new Error("The pipeline contains cycles, which is not allowed.");
+	}
+
+	for (const node of pipelineData.nodes) {
+		if (node.type === "AiAgent") {
+			const orgLlmEnabled = org?.llmEnabled || false;
+			const groupLlmEnabled = group?.llmEnabled || false;
+
+			if (!orgLlmEnabled) {
+				throw new Error("LLM is not enabled for this organization.");
+			}
+
+			if (!groupLlmEnabled) {
+				throw new Error("LLM is not enabled for this group.");
+			}
+		}
 	}
 
 	pipelineData.nodes.forEach((node) => {

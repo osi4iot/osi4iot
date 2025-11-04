@@ -17,6 +17,8 @@ import {
 import { IDigitalTwin } from "../../TableColumns/digitalTwinsColumns";
 import { IResultRenderInfo } from "../Main/Model";
 import { McpToolCall } from "../ChatAssitant/ChatAssistant";
+import { IOrgOfGroupsManaged } from "../../TableColumns/orgsOfGroupsManagedColumns";
+import { IGroupManaged } from "../../TableColumns/groupsManagedColumns";
 
 export interface SelectedObjectInfo {
     type: string;
@@ -28,6 +30,8 @@ export interface SelectedObjectInfo {
 export interface Viewer3DProps {
     digitalTwinSelected: IDigitalTwin | null;
     digitalTwinGltfData: IDigitalTwinGltfData;
+    orgSelected: IOrgOfGroupsManaged | null;
+    groupSelected: IGroupManaged | null;
     close3DViewer: () => void;
     fetchFemResFileWorker: Worker;
     refreshDigitalTwins: () => void;

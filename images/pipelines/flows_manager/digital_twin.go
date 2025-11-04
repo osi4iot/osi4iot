@@ -59,7 +59,7 @@ func (fm *FlowsManager) DeleteDigitalTwin(digitalTwinId int) error {
 	if entry, ok := fm.DigitalTwins.Load(digitalTwinIdStr); ok {
 		digitalTwin := entry.(*common.DigitalTwin)
 		if digitalTwin.Pipeline != nil{
-			digitalTwin.Pipeline.Stop("stop")
+			digitalTwin.Pipeline.Stop("delete")
 		}
 		fm.DigitalTwins.Delete(digitalTwinIdStr)
 		fm.DeleteDigitalTwinTopicsRefByDTid(digitalTwinId)

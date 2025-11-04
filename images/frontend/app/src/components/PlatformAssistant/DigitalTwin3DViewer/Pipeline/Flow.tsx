@@ -28,7 +28,9 @@ import NodePalette from "./NodePalette";
 import NodePropertiesPanel from "./NodePropertiesPanel";
 import { createNodesAndEdges } from "../Utils/customHooks";
 import { toast } from "react-toastify";
-import { useMlModelsTableInGroup } from "../../../../contexts/platformAssistantContext/platformAssistantContext";
+import {
+    useMlModelsTableInGroup,
+} from "../../../../contexts/platformAssistantContext/platformAssistantContext";
 
 export const processInitialPipelineData = (digitalTwinSelected, mqttClient, mqttTopicsData) => {
     if (!digitalTwinSelected.pipelineFileData || digitalTwinSelected.pipelineFileData === "") {
@@ -69,6 +71,8 @@ export default function Flow({
     mqttConnectionStatus,
     mqttTopicsData,
     digitalTwinSelected,
+    orgSelected,
+    groupSelected,
     nodes,
     edges,
     setNodes,
@@ -250,7 +254,18 @@ export default function Flow({
                         settings.mlModelId = parseInt(mlModelsTable[0].id);
                     }
                 }
+            } else if (nodeType === "AiAgent") {
+                if (!orgSelected.llmEnabled) {
+                    toast.error("AiAgent is not enabled for this organization.");
+                    return;
+                }
+
+                if (!groupSelected.llmEnabled) {
+                    toast.error("AiAgent is not enabled for this group.");
+                    return;
+                }
             }
+
             const nodeWidth = 190;
             const nodeHeight = 40;
             const position = screenToFlowPosition({

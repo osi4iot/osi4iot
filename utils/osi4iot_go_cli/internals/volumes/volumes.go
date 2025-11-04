@@ -65,10 +65,14 @@ func GenerateVolumes(platformData *pt.PlatformData) map[string]pt.Volume {
 		Driver:     "local",
 		DriverOpts: map[string]string{},
 	}
-	Volumes["pipelines_data"] = pt.Volume{
-		Name:       "pipelines_data",
-		Driver:     "local",
-		DriverOpts: map[string]string{},
+
+	for i := 1; i <= pi.NumPipelinesInstances; i++ {
+		volName := fmt.Sprintf("pipelines_data_%d", i)
+		Volumes[volName] = pt.Volume{
+			Name:       volName,
+			Driver:     "local",
+			DriverOpts: map[string]string{},
+		}
 	}
 
 	if deploymentMode == "development" {
@@ -155,6 +159,17 @@ func GenerateVolumes(platformData *pt.PlatformData) map[string]pt.Volume {
 		}
 		Volumes["s3_storage_data"] = s3StorageData
 
+		for i := 1; i <= pi.NumPipelinesInstances; i++ {
+			volName := fmt.Sprintf("pipelines_data_%d", i)
+			pipelinesData := Volumes[volName]
+			pipelinesData.DriverOpts = map[string]string{
+				"type":   "nfs",
+				"o":      driverOptsO,
+				"device": fmt.Sprintf(":/var/nfs_osi4iot/%s", volName),
+			}
+			Volumes[volName] = pipelinesData
+		}
+
 		if deploymentMode == "development" {
 			portainerData := Volumes["portainer_data"]
 			portainerData.DriverOpts = map[string]string{
@@ -182,6 +197,7 @@ func GenerateVolumes(platformData *pt.PlatformData) map[string]pt.Volume {
 			}
 			Volumes["minio_storage"] = minioStorage
 		}
+
 	} else if deploymentLocation == "AWS cluster deployment" && len(nodesData) > 1 {
 		awsEfsDNS := pi.AwsEfsDNS
 		driverOptsO := fmt.Sprintf("addr=%s,nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2,noresvport", awsEfsDNS)

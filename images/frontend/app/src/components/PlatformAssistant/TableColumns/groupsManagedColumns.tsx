@@ -261,6 +261,7 @@ export interface IGroupManaged {
     featureIndex: number;
     outerBounds: number[][];
     sslCerts: string;
+    llmEnabled: boolean;
 }
 
 interface IGroupManagedColumn extends IGroupManaged {

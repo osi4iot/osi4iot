@@ -1,4 +1,4 @@
-import { IsEnum, IsNumber, IsString } from "class-validator";
+import { IsBoolean, IsEnum, IsNumber, IsString, ValidateIf } from "class-validator";
 import { OrgRoleOption, OrgRoleOptions } from "./orgRoleOptions";
 
 class UpdateOrganizationDto {
@@ -18,6 +18,17 @@ class UpdateOrganizationDto {
 
 	@IsString()
 	public mqttAccessControl: string;
+
+	@IsBoolean()
+	public llmEnabled: boolean;
+
+	@IsString()
+	@ValidateIf((obj) => obj.llmEnabled === true)
+	public llmProviderUrl: string;
+
+	@ValidateIf((obj) => obj.llmEnabled === true)
+	@IsString()
+	public llmProviderApiKey: string;
 }
 
 export default UpdateOrganizationDto;

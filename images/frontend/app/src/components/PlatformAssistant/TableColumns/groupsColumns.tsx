@@ -1,21 +1,21 @@
-import { FC, useState, useEffect } from 'react';
-import { Column } from 'react-table';
-import { toast } from 'react-toastify';
-import { FeatureCollection } from 'geojson';
-import { axiosAuth, getDomainName, getProtocol } from '../../../tools/tools';
-import { useAuthState, useAuthDispatch } from '../../../contexts/authContext';
-import EditIcon from '../Utils/EditIcon';
-import DeleteIcon from '../Utils/DeleteIcon';
-import DeleteModal from '../../Tools/DeleteModal';
-import { GROUPS_OPTIONS } from '../Utils/platformAssistantOptions';
+import { FC, useState, useEffect } from "react";
+import { Column } from "react-table";
+import { toast } from "react-toastify";
+import { FeatureCollection } from "geojson";
+import { axiosAuth, getDomainName, getProtocol } from "../../../tools/tools";
+import { useAuthState, useAuthDispatch } from "../../../contexts/authContext";
+import EditIcon from "../Utils/EditIcon";
+import DeleteIcon from "../Utils/DeleteIcon";
+import DeleteModal from "../../Tools/DeleteModal";
+import { GROUPS_OPTIONS } from "../Utils/platformAssistantOptions";
 import {
     setGroupIdToEdit,
     setGroupRowIndexToEdit,
     setGroupsOptionToShow,
     setGroupInputData,
-    useGroupsDispatch
-} from '../../../contexts/groupsOptions';
-import { IGroupInputData } from '../../../contexts/groupsOptions/interfaces';
+    useGroupsDispatch,
+} from "../../../contexts/groupsOptions";
+import { IGroupInputData } from "../../../contexts/groupsOptions/interfaces";
 import {
     setReloadAssetsTable,
     setReloadDashboardsTable,
@@ -26,12 +26,11 @@ import {
     setReloadOrgsOfGroupsManagedTable,
     setReloadSensorsTable,
     setReloadTopicsTable,
-    usePlatformAssitantDispatch
-} from '../../../contexts/platformAssistantContext';
-import { getAxiosInstance } from '../../../tools/axiosIntance';
-import axiosErrorHandler from '../../../tools/axiosErrorHandler';
-import { AxiosResponse, AxiosError } from 'axios';
-
+    usePlatformAssitantDispatch,
+} from "../../../contexts/platformAssistantContext";
+import { getAxiosInstance } from "../../../tools/axiosIntance";
+import axiosErrorHandler from "../../../tools/axiosErrorHandler";
+import { AxiosResponse, AxiosError } from "axios";
 
 export interface IGroup {
     id: number;
@@ -48,6 +47,7 @@ export interface IGroup {
     geoJsonData: FeatureCollection;
     outerBounds: number[][];
     mqttAccessControl: string;
+    llmEnabled: boolean;
 }
 
 interface IGroupColumn extends IGroup {
@@ -71,19 +71,20 @@ const DeleteGroupModal: FC<DeleteGroupModalProps> = ({ rowIndex, orgId, groupId,
     const [isSubmitting, setIsSubmitting] = useState(false);
     const title = "DELETE GROUP";
     const question = "Are you sure to delete this group?";
-    const consequences = "All teams, folders, assets, sensors, and sensor measurements belonging to this group are going to be lost.";
+    const consequences =
+        "All teams, folders, assets, sensors, and sensor measurements belonging to this group are going to be lost.";
     const { accessToken, refreshToken } = useAuthState();
     const authDispatch = useAuthDispatch();
 
     const showLoader = () => {
         setIsSubmitting(true);
-    }
+    };
 
     useEffect(() => {
         if (isGroupDeleted) {
             refreshGroups();
             const reloadGroupsManagedTable = true;
-            setReloadGroupsManagedTable(plaformAssistantDispatch, { reloadGroupsManagedTable })
+            setReloadGroupsManagedTable(plaformAssistantDispatch, { reloadGroupsManagedTable });
             const reloadGroupsMembershipTable = true;
             setReloadGroupsMembershipTable(plaformAssistantDispatch, { reloadGroupsMembershipTable });
             const reloadOrgsOfGroupsManagedTable = true;
@@ -119,16 +120,13 @@ const DeleteGroupModal: FC<DeleteGroupModalProps> = ({ rowIndex, orgId, groupId,
                 axiosErrorHandler(error, authDispatch);
                 setIsSubmitting(false);
                 hideModal();
-            })
-    }
-
+            });
+    };
 
     const [showModal] = DeleteModal(title, question, consequences, action, isSubmitting, showLoader);
 
-    return (
-        <DeleteIcon action={showModal} rowIndex={rowIndex} />
-    )
-}
+    return <DeleteIcon action={showModal} rowIndex={rowIndex} />;
+};
 
 interface EditGroupProps {
     rowIndex: number;
@@ -137,7 +135,7 @@ interface EditGroupProps {
 }
 
 const EditGroup: FC<EditGroupProps> = ({ rowIndex, groupId, groupInputData }) => {
-    const groupsDispatch = useGroupsDispatch()
+    const groupsDispatch = useGroupsDispatch();
 
     const handleClick = () => {
         const groupIdToEdit = { groupIdToEdit: groupId };
@@ -146,7 +144,7 @@ const EditGroup: FC<EditGroupProps> = ({ rowIndex, groupId, groupInputData }) =>
         const groupRowIndexToEdit = { groupRowIndexToEdit: rowIndex };
         setGroupRowIndexToEdit(groupsDispatch, groupRowIndexToEdit);
 
-        const groupInputFormData = { groupInputFormData: groupInputData }
+        const groupInputFormData = { groupInputFormData: groupInputData };
         setGroupInputData(groupsDispatch, groupInputFormData);
 
         const groupsOptionToShow = { groupsOptionToShow: GROUPS_OPTIONS.EDIT_GROUP };
@@ -157,91 +155,121 @@ const EditGroup: FC<EditGroupProps> = ({ rowIndex, groupId, groupInputData }) =>
         <span onClick={handleClick}>
             <EditIcon rowIndex={rowIndex} />
         </span>
-    )
-}
+    );
+};
 
 export const Create_GROUPS_COLUMNS = (refreshGroups: () => void): Column<IGroupColumn>[] => {
     return [
         {
             Header: "GroupId",
             accessor: "id",
-            filter: 'equals'
+            filter: "equals",
         },
         {
             Header: "OrgId",
             accessor: "orgId",
-            filter: 'equals'
+            filter: "equals",
         },
         {
             Header: "Name",
-            accessor: "name"
+            accessor: "name",
         },
         {
             Header: "Acronym",
-            accessor: "acronym"
+            accessor: "acronym",
         },
         {
             Header: "Type",
             accessor: "isOrgDefaultGroup",
-            disableFilters: true
-        },        
+            disableFilters: true,
+        },
         {
-            Header: () => <div style={{ backgroundColor: '#202226' }}>Folder<br />permission</div>,
+            Header: () => (
+                <div style={{ backgroundColor: "#202226" }}>
+                    Folder
+                    <br />
+                    permission
+                </div>
+            ),
             accessor: "folderPermission",
-            disableFilters: true
+            disableFilters: true,
         },
         {
             Header: "Group Hash",
             accessor: "groupUid",
-            disableFilters: true
+            disableFilters: true,
         },
         {
             Header: "Telegram invitation link",
             accessor: "telegramInvitationLink",
-            disableFilters: true
+            disableFilters: true,
         },
         {
             Header: "ChatId",
             accessor: "telegramChatId",
-            disableFilters: true
+            disableFilters: true,
         },
         {
-            Header: () => <div style={{ backgroundColor: '#202226' }}>Floor<br />number</div>,
+            Header: () => (
+                <div style={{ backgroundColor: "#202226" }}>
+                    Floor
+                    <br />
+                    number
+                </div>
+            ),
             accessor: "floorNumber",
-            disableFilters: true
+            disableFilters: true,
         },
         {
-            Header: () => <div style={{ backgroundColor: '#202226' }}>Feature<br />index</div>,
+            Header: () => (
+                <div style={{ backgroundColor: "#202226" }}>
+                    Feature
+                    <br />
+                    index
+                </div>
+            ),
             accessor: "featureIndex",
-            disableFilters: true
+            disableFilters: true,
         },
         {
             Header: "Mqtt acc",
             accessor: "mqttAccessControl",
             disableFilters: true,
-            Cell: props => {
+            Cell: (props) => {
                 const rowIndex = parseInt(props.row.id, 10);
-                const row = props.rows.filter(row => row.index === rowIndex)[0];
+                const row = props.rows.filter((row) => row.index === rowIndex)[0];
                 const mqttAccessControl = row?.cells[11]?.value;
                 const style: React.CSSProperties = {
-                    color: mqttAccessControl === "None" ? 'red' : 'white'
+                    color: mqttAccessControl === "None" ? "red" : "white",
                 };
                 return <span style={style}>{mqttAccessControl}</span>;
-            }
+            },
+        },
+        {
+            Header: "LLM",
+            accessor: "llmEnabled",
+            disableFilters: true,
+            Cell: (props) => {
+                const rowIndex = parseInt(props.row.id, 10);
+                const row = props.rows.filter((row) => row.index === rowIndex)[0];
+                const llmEnabled = row?.cells[12]?.value || false;
+                const llmEnabledText = llmEnabled ? "Enabled" : "Disabled";
+                return <span>{llmEnabledText}</span>;
+            },
         },
         {
             Header: "outerBounds",
             accessor: "outerBounds",
-            disableFilters: true
-        },      
+            disableFilters: true,
+        },
         {
             Header: "",
             accessor: "edit",
             disableFilters: true,
             disableSortBy: true,
-            Cell: props => {
+            Cell: (props) => {
                 const rowIndex = parseInt(props.row.id, 10);
-                const row = props.rows.filter(row => row.index === rowIndex)[0];
+                const row = props.rows.filter((row) => row.index === rowIndex)[0];
                 const groupId = row?.cells[0]?.value;
                 const name = row?.cells[2]?.value;
                 const acronym = row?.cells[3]?.value;
@@ -251,6 +279,7 @@ export const Create_GROUPS_COLUMNS = (refreshGroups: () => void): Column<IGroupC
                 const floorNumber = row?.cells[9]?.value;
                 const featureIndex = row?.cells[10]?.value;
                 const mqttAccessControl = row?.cells[11]?.value;
+                const llmEnabled = row?.cells[12]?.value;
                 const groupInputData = {
                     name,
                     acronym,
@@ -259,23 +288,31 @@ export const Create_GROUPS_COLUMNS = (refreshGroups: () => void): Column<IGroupC
                     telegramChatId,
                     floorNumber,
                     featureIndex,
-                    mqttAccessControl
-                }
-                return <EditGroup groupId={groupId} rowIndex={rowIndex} groupInputData={groupInputData} />
-            }
+                    mqttAccessControl,
+                    llmEnabled,
+                };
+                return <EditGroup groupId={groupId} rowIndex={rowIndex} groupInputData={groupInputData} />;
+            },
         },
         {
             Header: "",
             accessor: "delete",
             disableFilters: true,
             disableSortBy: true,
-            Cell: props => {
+            Cell: (props) => {
                 const rowIndex = parseInt(props.row.id, 10);
-                const row = props.rows.filter(row => row.index === rowIndex)[0];
+                const row = props.rows.filter((row) => row.index === rowIndex)[0];
                 const groupId = row?.cells[0]?.value;
                 const orgpId = row?.cells[1]?.value;
-                return <DeleteGroupModal orgId={orgpId} groupId={groupId} rowIndex={rowIndex} refreshGroups={refreshGroups} />
-            }
-        }
-    ]
-}
+                return (
+                    <DeleteGroupModal
+                        orgId={orgpId}
+                        groupId={groupId}
+                        rowIndex={rowIndex}
+                        refreshGroups={refreshGroups}
+                    />
+                );
+            },
+        },
+    ];
+};

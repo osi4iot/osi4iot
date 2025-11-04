@@ -21,13 +21,17 @@ type Message struct {
 }
 
 type Org struct {
-	Id         int    `json:"id"`
-	OrgHash    string `json:"orgHash"`
-	Name       string `json:"name"`
-	Acronym    string `json:"acronym"`
-	Role       string `json:"role"`
-	City       string `json:"city"`
-	BuildingId int    `json:"buildingId"`
+	Id                      int    `json:"id"`
+	OrgHash                 string `json:"orgHash"`
+	Name                    string `json:"name"`
+	Acronym                 string `json:"acronym"`
+	Role                    string `json:"role"`
+	City                    string `json:"city"`
+	BuildingId              int    `json:"buildingId"`
+	LlmEnabled              bool   `json:"llmEnabled"`
+	LlmProviderUrl          string `json:"llmProviderUrl"`
+	HashedLlmProviderApiKey string `json:"hashedLlmProviderApiKey"`
+	LlmProviderApiKey       string `json:"llmProviderApiKey"`
 }
 
 type Group struct {
@@ -43,6 +47,7 @@ type Group struct {
 	IsOrgDefaultGroup             bool   `json:"isOrgDefaultGroup"`
 	FloorNumber                   int    `json:"floorNumber"`
 	FeatureIndex                  int    `json:"featureIndex"`
+	LlmEnabled                    bool   `json:"llmEnabled"`
 }
 
 type Asset struct {

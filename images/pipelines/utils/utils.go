@@ -38,12 +38,19 @@ func AdminApiBackoff(log *logger.Logger, cfg *config.Config) {
 	log.Info("Admin API healthy, proceeding...")
 }
 
-func HealthCheck() {
+func HealthCheck(cfg *config.Config) {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/health", func(w http.ResponseWriter, _ *http.Request) {
 		w.Write([]byte("ok"))
 	})
-	srv := &http.Server{Addr: ":3300", Handler: mux}
+
+	port := ":3300"
+	if cfg.Mode == "local" {
+		replicaIndex := cfg.ReplicaIndex
+		port = fmt.Sprintf(":%d", 3300+replicaIndex-1)
+	}
+	
+	srv := &http.Server{Addr: port, Handler: mux}
 	go func() {
 		if err := srv.ListenAndServe(); err != http.ErrServerClosed {
 			log.Fatalf("HTTP server error: %v", err)

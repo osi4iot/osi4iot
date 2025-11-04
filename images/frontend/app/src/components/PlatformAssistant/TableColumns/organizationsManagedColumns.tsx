@@ -126,6 +126,8 @@ export interface IOrgManaged {
     buildingId: number;
     orgHash: string;
     mqttAccessControl: string;
+    llmEnabled: boolean;
+    llmProviderUrl: string;
 }
 
 interface IOrgManagedColumn extends IOrgManaged {

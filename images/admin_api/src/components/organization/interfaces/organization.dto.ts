@@ -1,5 +1,5 @@
 import { Type } from "class-transformer";
-import { IsNumber, IsString, IsEnum, ValidateIf, ValidateNested } from "class-validator";
+import { IsNumber, IsString, IsEnum, ValidateIf, ValidateNested, IsBoolean } from "class-validator";
 import CreateUserDto from "../../user/interfaces/User.dto";
 import { OrgRoleOption, OrgRoleOptions } from "./orgRoleOptions";
 
@@ -30,6 +30,19 @@ class CreateOrganizationDto {
 
 	@IsString()
 	public mqttAccessControl: string;
+
+	@IsBoolean()
+	public llmEnabled: boolean;
+
+	@IsString()
+	@ValidateIf((obj) => obj.llmEnabled === true)
+	public llmProviderUrl: string;
+
+	@ValidateIf((obj) => obj.llmEnabled === true)
+	@IsString()
+	public llmProviderApiKey: string;
+
+	public hashedLlmProviderApiKey?: string;
 
 	@ValidateNested({ each: true })
 	@Type(() => CreateUserDto)

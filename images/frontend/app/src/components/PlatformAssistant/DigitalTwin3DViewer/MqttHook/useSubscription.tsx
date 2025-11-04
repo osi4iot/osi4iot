@@ -37,6 +37,7 @@ const useSubscription = (
     handleUpdateChatAssistantMessages: (newMessage: LlmMessage) => void,
     handleUpdateLogMessages: (newLogMessage: PipelineLog) => void,
     handlePipelineStatusChange: (pipelineStatus: string) => void,
+    handlePipelineLeaderReplicaIndexChange: (index: number) => void,
     handleSetChatMessages: (messages: ChatMessage[]) => void,
     options: SubscribeOptions = {} as SubscribeOptions
 ) => {
@@ -94,6 +95,7 @@ const useSubscription = (
                         handleUpdateChatAssistantMessages,
                         handleUpdateLogMessages,
                         handlePipelineStatusChange,
+                        handlePipelineLeaderReplicaIndexChange,
                         handleSetChatMessages
                     );
                 }
@@ -135,6 +137,7 @@ const updateObjectsState = (
     handleUpdateChatAssistantMessages: (newMessage: LlmMessage) => void,
     handleUpdateLogMessages: (newLogMessage: PipelineLog) => void,
     handlePipelineStatusChange: (pipelineStatus: string) => void,
+    handlePipelineLeaderReplicaIndexChange: (index: number) => void,
     handleSetChatMessages: (messages: ChatMessage[]) => void
 ) => {
     const mqttTopics = mqttTopicsData.map((topicData) => topicData.mqttTopic).filter((topic) => topic !== "");
@@ -203,6 +206,10 @@ const updateObjectsState = (
             if (messageTopicRef === "state2sim") {
                 if (mqttMessage.pipelineStatus !== undefined) {
                     handlePipelineStatusChange(mqttMessage.pipelineStatus);
+                }
+
+                if (mqttMessage.replicaIndexLeader !== undefined) {
+                    handlePipelineLeaderReplicaIndexChange(mqttMessage.replicaIndexLeader);
                 }
                 
                 if (mqttMessage.chatMessages !== undefined) {

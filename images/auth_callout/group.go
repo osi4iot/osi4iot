@@ -27,7 +27,6 @@ type Group struct {
 	OuterBounds                   [][]float64 `json:"outer_bounds"`
 	MQTTAccessControl             string      `json:"mqtt_access_control"`
 	OrgMQTTAccessControl          string      `json:"org_mqtt_access_control"`
-	NriHash                       string      `json:"nri_hash"`
 	Created                       time.Time   `json:"created"`
 	Updated                       time.Time   `json:"updated"`
 }
@@ -136,7 +135,6 @@ func (m *AuthModel) GetGroupByID(id int64) (*Group, error) {
 			&group.OuterBounds,
 			&group.MQTTAccessControl,
 			&group.OrgMQTTAccessControl,
-			&group.NriHash,
 			&group.Created,
 			&group.Updated,
 		)
@@ -177,7 +175,6 @@ func (m *AuthModel) GetGroupByUID(groupUid string) (*Group, error) {
 			&group.OuterBounds,
 			&group.MQTTAccessControl,
 			&group.OrgMQTTAccessControl,
-			&group.NriHash,
 			&group.Created,
 			&group.Updated,
 		)
@@ -224,7 +221,6 @@ func (m *AuthModel) GetAllGroups() ([]Group, error) {
 			&group.OuterBounds,
 			&group.MQTTAccessControl,
 			&group.OrgMQTTAccessControl,
-			&group.NriHash,
 			&group.Created,
 			&group.Updated)
 		if err != nil {
@@ -269,7 +265,6 @@ func (m *AuthModel) GetGroupByNatsNKey(natsNKey string) (*Group, error) {
 			&group.OuterBounds,
 			&group.MQTTAccessControl,
 			&group.OrgMQTTAccessControl,
-			&group.NriHash,
 			&group.Created,
 			&group.Updated,
 		)
@@ -317,7 +312,6 @@ func (m *AuthModel) GetGroupsByOrgId(orgId int64) ([]Group, error) {
 			&group.OuterBounds,
 			&group.MQTTAccessControl,
 			&group.OrgMQTTAccessControl,
-			&group.NriHash,
 			&group.Created,
 			&group.Updated)
 		if err != nil {
@@ -370,7 +364,6 @@ func (m *AuthModel) GetSQLGroupsManagedByUser(user *User) ([]Group, error) {
 			&group.OuterBounds,
 			&group.MQTTAccessControl,
 			&group.OrgMQTTAccessControl,
-			&group.NriHash,
 			&group.Created,
 			&group.Updated)
 		if err != nil {

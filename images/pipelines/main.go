@@ -40,13 +40,13 @@ func main() {
 	}
 
 	// Create or update the stream
-	stream, err := nats.CreateStream(cfg.ShardIndex, cfg.NumStreamReplicas, log, js)
+	stream, err := nats.CreateAdminStream(cfg.ShardIndex, cfg.NumStreamReplicas, log, js)
 	if err != nil {
 		log.Fatal("Application startup failed")
 	}
 
 	// Create or update the consumer
-	jsConsumer, err := nats.CreateConsumer(cfg.ShardIndex, cfg.ReplicaIndex, log, stream)
+	jsConsumer, err := nats.CreateAdminConsumer(cfg.ShardIndex, cfg.ReplicaIndex, log, stream)
 	if err != nil {
 		log.Fatal("Application startup failed")
 	}
@@ -59,13 +59,16 @@ func main() {
 	ctx, cancel := utils.ContextWithCancel()
 	admin.StartAutoRefresh(ctx, time.Duration(2*time.Minute))
 
-	flows_manager.CreateFlowsManager(cfg, nc, js, jsConsumer, admin, log)
+	manager := flows_manager.CreateFlowsManager(cfg, nc, js, jsConsumer, admin, log)
 
-	utils.HealthCheck()
+	utils.HealthCheck(cfg)
 
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 	<-sigChan
+	manager.GracefullyShutdown()
 	cancel()
 	log.Info("Received shutdown signal, shutting down gracefully...")
+	time.Sleep(2 * time.Second)
+    os.Exit(0)
 }

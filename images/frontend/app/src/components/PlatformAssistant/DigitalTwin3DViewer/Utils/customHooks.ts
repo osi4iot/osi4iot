@@ -251,6 +251,7 @@ export const usePipelineState = (
     setChatMessages: React.Dispatch<React.SetStateAction<ChatMessage[]>>
 ) => {
     const [pipelineStatus, setPipelineStatus] = useState("unknown");
+    const [pipelineLeaderReplicaIndex, setPipelineLeaderReplicaIndex] = useState<number>(-1);
     const userName = useLoggedUserLogin();
 
     const handlePipelineStatusChange = useCallback(
@@ -259,6 +260,17 @@ export const usePipelineState = (
                 setPipelineStatus(status);
             } else {
                 setPipelineStatus("unknown");
+            }
+        },
+        [digitalTwinSelected]
+    );
+
+    const handlePipelineLeaderReplicaIndexChange = useCallback(
+        (index: number) => {
+            if (digitalTwinSelected) {
+                setPipelineLeaderReplicaIndex(index);
+            } else {
+                setPipelineLeaderReplicaIndex(-1);
             }
         },
         [digitalTwinSelected]
@@ -323,7 +335,9 @@ export const usePipelineState = (
 
     return {
         pipelineStatus,
+        pipelineLeaderReplicaIndex,
         handlePipelineStatusChange,
+        handlePipelineLeaderReplicaIndexChange,
         handleSetChatMessages,
         queryPipelineStatus,
         queryChatMessages,
@@ -1098,8 +1112,7 @@ const downloadYamlFile = (
     for (const edge of pipelineEdges) {
         const sourceNode = edge.source;
         const targetNode = edge.target;
-        const outputIndex = edge.sourceHandle ? parseInt(edge.sourceHandle.split("-")[1], 10) : 0;
-        console.log("edge=", edge);
+        const outputIndex = edge.sourceHandle ? parseInt(edge.sourceHandle.split("-")[1], 10) : 0
 
         if (!wiresData.has(edge.id)) {
             wiresData.set(edge.id, {

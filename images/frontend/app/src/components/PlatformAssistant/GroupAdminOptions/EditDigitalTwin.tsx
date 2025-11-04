@@ -359,7 +359,7 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
                             .catch((error: AxiosError) => {
                                 axiosErrorHandler(error, authDispatch);
                                 setDigitalTwinGltfDataLoading(false);
-                            });                            
+                            });
                     } else {
                         setDigitalTwinGltfDataLoading(false);
                         setIsSubmitting(false);
@@ -986,51 +986,60 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
                                                             </FileButton>
                                                         </SelectDataFilenButtonContainer>
                                                     </DataFileContainer>
-                                                    <DataFileTitle>Documental info</DataFileTitle>
-                                                    <DataFileContainer>
-                                                        <FieldContainer>
-                                                            <label>File name</label>
-                                                            <div>{docInfoFileName}</div>
-                                                        </FieldContainer>
-                                                        <FieldContainer>
-                                                            <label>Last modification date</label>
-                                                            <div>{formatDateString(docInfoFileLastModif)}</div>
-                                                        </FieldContainer>
-                                                        <SelectDataFilenButtonContainer>
-                                                            <FileButton type="button" onClick={clearDocInfoFile}>
-                                                                Clear
-                                                            </FileButton>
-                                                            <FileButton
-                                                                type="button"
-                                                                onClick={() => localDocInfoFileButtonHandler()}
-                                                            >
-                                                                Select local file
-                                                            </FileButton>
-                                                        </SelectDataFilenButtonContainer>
-                                                    </DataFileContainer>
-                                                    <ChatAssistantTitle>Chat assistant</ChatAssistantTitle>
-                                                    <ChatAssistantContainer>
-                                                        <FormikControl
-                                                            control="select"
-                                                            label="Use chat assistant"
-                                                            name="chatAssistantEnabled"
-                                                            options={chatAssistantEnabledOptions}
-                                                            type="text"
-                                                            onChange={(e) => onchatAssistantEnabledOptions(e, formik)}
-                                                        />
-                                                        {isChatAssistantEnabled && (
-                                                            <FormikControl
-                                                                control="select"
-                                                                label="Select chat assistant language"
-                                                                name="chatAssistantLanguage"
-                                                                options={chatAssistantLanguageOptions}
-                                                                type="text"
-                                                                onChange={(e) =>
-                                                                    onchatAssistantLanguageOptions(e, formik)
-                                                                }
-                                                            />
-                                                        )}
-                                                    </ChatAssistantContainer>
+                                                    {(organization.llmEnabled && group.llmEnabled) && (
+                                                        <>
+                                                            <DataFileTitle>Documental info</DataFileTitle>
+                                                            <DataFileContainer>
+                                                                <FieldContainer>
+                                                                    <label>File name</label>
+                                                                    <div>{docInfoFileName}</div>
+                                                                </FieldContainer>
+                                                                <FieldContainer>
+                                                                    <label>Last modification date</label>
+                                                                    <div>{formatDateString(docInfoFileLastModif)}</div>
+                                                                </FieldContainer>
+                                                                <SelectDataFilenButtonContainer>
+                                                                    <FileButton
+                                                                        type="button"
+                                                                        onClick={clearDocInfoFile}
+                                                                    >
+                                                                        Clear
+                                                                    </FileButton>
+                                                                    <FileButton
+                                                                        type="button"
+                                                                        onClick={() => localDocInfoFileButtonHandler()}
+                                                                    >
+                                                                        Select local file
+                                                                    </FileButton>
+                                                                </SelectDataFilenButtonContainer>
+                                                            </DataFileContainer>
+                                                            <ChatAssistantTitle>Chat assistant</ChatAssistantTitle>
+                                                            <ChatAssistantContainer>
+                                                                <FormikControl
+                                                                    control="select"
+                                                                    label="Use chat assistant"
+                                                                    name="chatAssistantEnabled"
+                                                                    options={chatAssistantEnabledOptions}
+                                                                    type="text"
+                                                                    onChange={(e) =>
+                                                                        onchatAssistantEnabledOptions(e, formik)
+                                                                    }
+                                                                />
+                                                                {isChatAssistantEnabled && (
+                                                                    <FormikControl
+                                                                        control="select"
+                                                                        label="Select chat assistant language"
+                                                                        name="chatAssistantLanguage"
+                                                                        options={chatAssistantLanguageOptions}
+                                                                        type="text"
+                                                                        onChange={(e) =>
+                                                                            onchatAssistantLanguageOptions(e, formik)
+                                                                        }
+                                                                    />
+                                                                )}
+                                                            </ChatAssistantContainer>
+                                                        </>
+                                                    )}
                                                     <FormikControl
                                                         control="textarea"
                                                         label="Digital twin simulation format"

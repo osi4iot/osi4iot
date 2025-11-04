@@ -15,6 +15,8 @@ export interface IOrgOfGroupsManaged {
     buildingId: number;
     orgHash: string;
     mqttAccessControl: string;
+    llmEnabled: boolean;
+    llmProviderUrl: string;
 }
 
 

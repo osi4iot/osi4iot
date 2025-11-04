@@ -16,17 +16,18 @@ func (fm *FlowsManager) Listen() {
 		}
 		fm.log.Infof("Received message in pipeline admin => component: %s, action: %s, id: %d",
 			adminMsg.Component, adminMsg.Action, adminMsg.Id)
+		encryptionSecretKey := fm.GetEncryptionSecretKey()
 
 		switch adminMsg.Component {
 		case "org":
 			switch adminMsg.Action {
 			case "create":
-				org := fm.Admin.GetOrg(adminMsg.Id)
+				org := fm.Admin.GetOrg(adminMsg.Id, encryptionSecretKey)
 				if org != nil {
 					fm.AddOrg(org)
 				}
 			case "update":
-				org := fm.Admin.GetOrg(adminMsg.Id)
+				org := fm.Admin.GetOrg(adminMsg.Id, encryptionSecretKey)
 				if org != nil {
 					fm.UpdateOrg(org)
 				}

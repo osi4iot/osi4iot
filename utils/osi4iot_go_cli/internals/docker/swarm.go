@@ -107,7 +107,7 @@ func createSwarmServices(platformData *pt.PlatformData, dc *pt.DockerClient) err
 		}
 	}
 
-	err = waitUntilAllContainersAreHealthy(platformData,"all")
+	err = waitUntilAllContainersAreHealthy(platformData, "all")
 	if err != nil {
 		return fmt.Errorf("error waiting for all containers to be healthy: %v", err)
 	}
@@ -392,18 +392,12 @@ func waitUntilAllContainersAreHealthy(pd *pt.PlatformData, serviceType string) e
 }
 
 func SwarmInitiationInfo(platformData *pt.PlatformData, okMessage string) error {
-	err := waitUntilAllContainersAreHealthy(platformData,"nri")
+	err := utils.WritePlatformDataToFile(platformData)
 	if err != nil {
-		errMsg := utils.StyleErrMsg.Render("error waiting nri is to be healthy: ", err.Error())
-		fmt.Println(errMsg)
-	} else {
-		err = utils.WritePlatformDataToFile(platformData)
-		if err != nil {
-			return fmt.Errorf("error writing platform data to file: %v", err)
-		}
-		okMsg := utils.StyleOKMsg.Render(okMessage)
-		fmt.Println(okMsg)
+		return fmt.Errorf("error writing platform data to file: %v", err)
 	}
+	okMsg := utils.StyleOKMsg.Render(okMessage)
+	fmt.Println(okMsg)
 
 	return nil
 }

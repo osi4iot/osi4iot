@@ -76,6 +76,7 @@ class GroupController implements IController {
 	private initializeRoutes(): void {
 		this.router
 			.get(`${this.path}s/user_managed/`, userAuth, this.getGroupsManagedByUser)
+			.get(`${this.path}_user_managed/:groupId`, groupExists, groupAdminAuth, this.getGroupManagedByUser)
 			.patch(
 				`${this.path}_user_managed/:groupId/`,
 				groupExists,
@@ -205,6 +206,20 @@ class GroupController implements IController {
 		try {
 			const groups = await this.groupsManagedByUsers(req.user);
 			res.status(200).send(groups);
+		} catch (error) {
+			next(error);
+		}
+	};
+
+	private getGroupManagedByUser = async (
+		req: IRequestWithUser,
+		res: Response,
+		next: NextFunction
+	): Promise<void> => {
+		try {
+			const { groupId } = req.params;
+			const group = await getGroupByProp("id", groupId);
+			res.status(200).send(group);
 		} catch (error) {
 			next(error);
 		}

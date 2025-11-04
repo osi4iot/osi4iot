@@ -108,6 +108,28 @@ const mqttAccessControlOptions = [
     },
 ];
 
+const LlmTitle = styled.div`
+    margin-bottom: 5px;
+`;
+
+const LlmDataContainer = styled.div`
+    border: 2px solid #2c3235;
+    border-radius: 10px;
+    padding: 10px;
+    width: 100%;
+`;
+
+const enableLLMOptions = [
+    {
+        label: "Enabled",
+        value: true,
+    },
+    {
+        label: "Disabled",
+        value: false,
+    },
+];
+
 const domainName = getDomainName();
 const protocol = getProtocol();
 
@@ -129,6 +151,7 @@ const CreateOrganization: FC<CreateOrganizationProps> = ({
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [selectedUsersArray, setSelectedUsersArray] = useState<ISelectGlobalUser[]>([]);
     const { accessToken, refreshToken } = useAuthState();
+    const [llmEnabled, setLlmEnabled] = useState(false);
     const authDispatch = useAuthDispatch();
     const orgsDispatch = useOrgsDispatch();
     const initialOrgData = { ...orgInputData };
@@ -160,6 +183,14 @@ const CreateOrganization: FC<CreateOrganizationProps> = ({
             .max(60, "The maximum number of characters allowed is 60")
             .required("Required"),
         telegramChatId: Yup.string().max(15, "The maximum number of characters allowed is 15").required("Required"),
+        llmProviderUrl: Yup.string().when("llmEnabled", {
+            is: true,
+            then: Yup.string().url("Enter a valid url").required("Required"),
+        }),
+        llmProviderApiKey: Yup.string().when("llmEnabled", {
+            is: true,
+            then: Yup.string().required("Required"),
+        }),
         orgAdminArray: Yup.array()
             .of(
                 Yup.object().shape({
@@ -243,7 +274,7 @@ const CreateOrganization: FC<CreateOrganizationProps> = ({
                 const reloadSensorsTable = true;
                 setReloadSensorsTable(plaformAssistantDispatch, { reloadSensorsTable });
                 const reloadTopicsTable = true;
-                setReloadTopicsTable(plaformAssistantDispatch, { reloadTopicsTable });;
+                setReloadTopicsTable(plaformAssistantDispatch, { reloadTopicsTable });
                 const reloadDigitalTwinsTable = true;
                 setReloadDigitalTwinsTable(plaformAssistantDispatch, { reloadDigitalTwinsTable });
                 const reloadDashboardsTable = true;
@@ -259,6 +290,11 @@ const CreateOrganization: FC<CreateOrganizationProps> = ({
     const goToSelect = (orgInputData: IOrgInputData) => {
         setOrgInputData(orgInputData);
         setShowCreateOrg(false);
+    };
+
+    const onEnableLLMChange = (e: { value: boolean }, formik: any) => {
+        setLlmEnabled(e.value);
+        formik.setFieldValue("llmEnabled", e.value);
     };
 
     return (
@@ -305,6 +341,34 @@ const CreateOrganization: FC<CreateOrganizationProps> = ({
                                             name="telegramChatId"
                                             type="text"
                                         />
+                                        <LlmTitle>Large language model (LLM)</LlmTitle>
+                                        <LlmDataContainer>
+                                            <FormikControl
+                                                control="select"
+                                                label="Enable LLM"
+                                                name="llmEnabled"
+                                                options={enableLLMOptions}
+                                                type="text"
+                                                onChange={(e) => onEnableLLMChange(e, formik)}
+                                            />
+                                            {llmEnabled && (
+                                                <>
+                                                    <FormikControl
+                                                        control="input"
+                                                        label="LLM provider url"
+                                                        name="llmProviderUrl"
+                                                        type="text"
+                                                    />
+                                                    <FormikControl
+                                                        control="input"
+                                                        label="LLM provider api key"
+                                                        name="llmProviderApiKey"
+                                                        type="password"
+                                                        autocomplete="off"
+                                                    />
+                                                </>
+                                            )}
+                                        </LlmDataContainer>
                                         <FormikControl
                                             control="inputArray"
                                             label="Organization admins"

@@ -15,53 +15,58 @@ import IGroupMember from "../group/interfaces/GroupMember.interface";
 import natsClient from "../../config/natsConfig";
 
 export const exitsOrganizationWithName = async (orgName: string): Promise<boolean> => {
-	const result = await pool.query('SELECT COUNT(*) FROM grafanadb.org WHERE name = $1',
-		[orgName]);
+	const result = await pool.query("SELECT COUNT(*) FROM grafanadb.org WHERE name = $1", [orgName]);
 	return result.rows[0].count !== 0;
 };
 
 export const exitsOrganizationWithAcronym = async (orgAcronym: string): Promise<boolean> => {
-	const result = await pool.query('SELECT COUNT(*) FROM grafanadb.org WHERE acronym = $1',
-		[orgAcronym]);
+	const result = await pool.query("SELECT COUNT(*) FROM grafanadb.org WHERE acronym = $1", [orgAcronym]);
 	return result.rows[0].count !== 0;
 };
 
-
-export const updateOrganizationByProp = async (propName: string, propValue: (string | number), orgData: Partial<CreateOrganizationDto>): Promise<void> => {
+export const updateOrganizationByProp = async (
+	propName: string,
+	propValue: string | number,
+	orgData: Partial<CreateOrganizationDto>
+): Promise<void> => {
 	const query = `UPDATE grafanadb.org SET name = $1, acronym = $2, role = $3, 
-	building_id = $4, mqtt_access_control = $5  WHERE grafanadb.org.${propName} = $6 RETURNING *;`;
-	const queryArray =
-		[
-			orgData.name,
-			orgData.acronym,
-			orgData.role,
-			orgData.buildingId,
-			orgData.mqttAccessControl,
-			propValue
-		];
-	await pool.query(query, queryArray);
-}
+	building_id = $4, mqtt_access_control = $5, llm_enabled = $6, 
+	llm_provider_url = $7, hashed_llm_provider_api_key = $8 
+	WHERE grafanadb.org.${propName} = $9 RETURNING *;`;
+	const queryArray = [
+		orgData.name,
+		orgData.acronym,
+		orgData.role,
+		orgData.buildingId,
+		orgData.mqttAccessControl,
+		orgData.llmEnabled,
+		orgData.llmProviderUrl,
+		orgData.hashedLlmProviderApiKey,
+		propValue,
+	];
+	const result = await pool.query(query, queryArray);
+	const orgId = result.rows[0].id as number;
+	await natsClient.jsPublish("org", "update", orgId);
+};
 
 export const updateOrganizationHashById = async (orgId: number, newOrgHash: string): Promise<void> => {
 	const query = `UPDATE grafanadb.org SET org_hash = $1 WHERE id = $2;`;
-	const queryArray =
-		[
-			newOrgHash,
-			orgId
-		];
+	const queryArray = [newOrgHash, orgId];
 	await pool.query(query, queryArray);
 	await natsClient.jsPublish("org", "update", orgId);
-}
+};
 
 export const getApiKeyIdByName = async (apiKeyName: string): Promise<number> => {
-	const result = await pool.query(`SELECT id FROM grafanadb.api_key WHERE name = $1`,
-		[apiKeyName]);
+	const result = await pool.query(`SELECT id FROM grafanadb.api_key WHERE name = $1`, [apiKeyName]);
 	return result.rows[0].id as number;
-}
+};
 
 export const insertOrganizationToken = async (orgId: number, apiKeyId: number, hashedApiKey: string): Promise<void> => {
-	await pool.query(`INSERT INTO grafanadb.org_token (org_id, api_key_id, organization_key) VALUES ($1, $2, $3)`,
-		[orgId, apiKeyId, hashedApiKey]);
+	await pool.query(`INSERT INTO grafanadb.org_token (org_id, api_key_id, organization_key) VALUES ($1, $2, $3)`, [
+		orgId,
+		apiKeyId,
+		hashedApiKey,
+	]);
 };
 
 export const getOrganizations = async (): Promise<IOrganization[]> => {
@@ -69,46 +74,85 @@ export const getOrganizations = async (): Promise<IOrganization[]> => {
 	                grafanadb.org.acronym, grafanadb.org.role, 
 	                grafanadb.building.city, grafanadb.building.country,
 					building_id AS "buildingId", org_hash AS "orgHash",
-					mqtt_access_control AS "mqttAccessControl"
+					mqtt_access_control AS "mqttAccessControl",
+					llm_enabled AS "llmEnabled",
+					llm_provider_url AS "llmProviderUrl"
 					FROM grafanadb.org
 					INNER JOIN grafanadb.building ON grafanadb.org.building_id = grafanadb.building.id
 					ORDER BY grafanadb.org.id ASC;`;
 	const result = await pool.query(query);
 	return result.rows as IOrganization[];
-}
+};
+
+
+export const getOrganizationsFullInfo = async (): Promise<IOrganization[]> => {
+	const query = `SELECT grafanadb.org.id, grafanadb.org.name, 
+	                grafanadb.org.acronym, grafanadb.org.role, 
+	                grafanadb.building.city, grafanadb.building.country,
+					building_id AS "buildingId", org_hash AS "orgHash",
+					mqtt_access_control AS "mqttAccessControl",
+					llm_enabled AS "llmEnabled",
+					llm_provider_url AS "llmProviderUrl", 
+					hashed_llm_provider_api_key AS "hashedLlmProviderApiKey"
+					FROM grafanadb.org
+					INNER JOIN grafanadb.building ON grafanadb.org.building_id = grafanadb.building.id
+					ORDER BY grafanadb.org.id ASC;`;
+	const result = await pool.query(query);
+	return result.rows as IOrganization[];
+};
 
 export const getOrganizationsWithIdsArray = async (orgIdsArray: number[]): Promise<IOrganization[]> => {
 	const query = `SELECT grafanadb.org.id, grafanadb.org.name, 
 	                grafanadb.org.acronym, grafanadb.org.role, 
 					grafanadb.building.city, grafanadb.building.country,
 					building_id AS "buildingId", org_hash AS "orgHash",
-					mqtt_access_control AS "mqttAccessControl"
+					mqtt_access_control AS "mqttAccessControl",
+					llm_enabled AS "llmEnabled",
+					llm_provider_url AS "llmProviderUrl"
 					FROM grafanadb.org
 					INNER JOIN grafanadb.building ON grafanadb.org.building_id = grafanadb.building.id
 					WHERE grafanadb.org.id = ANY($1::integer[])
 					ORDER BY grafanadb.org.id ASC;`;
 	const result = await pool.query(query, [orgIdsArray]);
 	return result.rows as IOrganization[];
-}
+};
 
 export const getNumOrganizations = async (): Promise<number> => {
 	const query = `SELECT COUNT(*) FROM grafanadb.org;`;
 	const result = await pool.query(query);
 	return parseInt(result.rows[0].count, 10);
-}
+};
 
-export const getOrganizationByProp = async (propName: string, propValue: (string | number)): Promise<IOrganization> => {
+export const getOrganizationByProp = async (propName: string, propValue: string | number): Promise<IOrganization> => {
 	const query = `SELECT grafanadb.org.id, grafanadb.org.name, 
 	                grafanadb.org.acronym, grafanadb.org.role,
 					grafanadb.building.city, grafanadb.building.country,
 					building_id AS "buildingId", org_hash AS "orgHash",
-					mqtt_access_control AS "mqttAccessControl"
+					mqtt_access_control AS "mqttAccessControl",
+					llm_enabled AS "llmEnabled",
+					llm_provider_url AS "llmProviderUrl"
 					FROM grafanadb.org
 					INNER JOIN grafanadb.building ON grafanadb.org.building_id = grafanadb.building.id
 					WHERE grafanadb.org.${propName} = $1;`;
 	const result = await pool.query(query, [propValue]);
 	return result.rows[0] as IOrganization;
-}
+};
+
+export const getOrganizationFullInfo = async (propName: string, propValue: string | number): Promise<IOrganization> => {
+	const query = `SELECT grafanadb.org.id, grafanadb.org.name, 
+	                grafanadb.org.acronym, grafanadb.org.role,
+					grafanadb.building.city, grafanadb.building.country,
+					building_id AS "buildingId", org_hash AS "orgHash",
+					mqtt_access_control AS "mqttAccessControl",
+					llm_enabled AS "llmEnabled",
+					llm_provider_url AS "llmProviderUrl", 
+					hashed_llm_provider_api_key AS "hashedLlmProviderApiKey"
+					FROM grafanadb.org
+					INNER JOIN grafanadb.building ON grafanadb.org.building_id = grafanadb.building.id
+					WHERE grafanadb.org.${propName} = $1;`;
+	const result = await pool.query(query, [propValue]);
+	return result.rows[0] as IOrganization;
+};
 
 export const getOrganizationKey = async (orgId: number): Promise<string> => {
 	const query = `SELECT organization_key as "orgKey"
@@ -116,9 +160,12 @@ export const getOrganizationKey = async (orgId: number): Promise<string> => {
 	const result = await pool.query(query, [orgId]);
 	const apiKey = decrypt(result.rows[0].orgKey);
 	return apiKey;
-}
+};
 
-export const addUsersToOrganizationAndMembersToDefaultOrgGroup = async (orgId: number, orgUsersArray: CreateUserDto[]): Promise<IMessage[]> => {
+export const addUsersToOrganizationAndMembersToDefaultOrgGroup = async (
+	orgId: number,
+	orgUsersArray: CreateUserDto[]
+): Promise<IMessage[]> => {
 	const msg_users = await grafanaApi.addUsersToOrganization(orgId, orgUsersArray);
 	const usersAddedToOrg: CreateUserDto[] = [];
 	msg_users.forEach((msg, index) => {
@@ -127,23 +174,23 @@ export const addUsersToOrganizationAndMembersToDefaultOrgGroup = async (orgId: n
 	});
 	await addOrgUsersToDefaultOrgGroup(orgId, usersAddedToOrg);
 	return msg_users;
-}
+};
 
 export const addAdminToOrganization = async (orgId: number, orgAdminArray: CreateUserDto[]): Promise<number[]> => {
-	orgAdminArray.forEach(user => user.roleInOrg = "Admin");
+	orgAdminArray.forEach((user) => (user.roleInOrg = "Admin"));
 	const adminIdArray: number[] = [];
 	orgAdminArray.forEach(() => adminIdArray.push(0));
-	const usersIdArray = await getUsersIdByEmailsArray(orgAdminArray.map(user => user.email));
-	const emailsArray = usersIdArray.map(user => user.email);
-	const existingUserArray = orgAdminArray.filter(user => emailsArray.indexOf(user.email) !== -1);
-	const nonExistingUserArray = orgAdminArray.filter(user => emailsArray.indexOf(user.email) === -1);
+	const usersIdArray = await getUsersIdByEmailsArray(orgAdminArray.map((user) => user.email));
+	const emailsArray = usersIdArray.map((user) => user.email);
+	const existingUserArray = orgAdminArray.filter((user) => emailsArray.indexOf(user.email) !== -1);
+	const nonExistingUserArray = orgAdminArray.filter((user) => emailsArray.indexOf(user.email) === -1);
 	if (nonExistingUserArray.length !== 0) {
 		const msg_users = await createOrganizationUsers(orgId, nonExistingUserArray);
 		orgAdminArray.forEach((user, index) => {
 			for (let i = 0; i < nonExistingUserArray.length; i++) {
 				if (nonExistingUserArray[i].email === user.email) adminIdArray[index] = msg_users[i].id;
 			}
-		})
+		});
 	}
 
 	if (existingUserArray.length !== 0) {
@@ -152,26 +199,28 @@ export const addAdminToOrganization = async (orgId: number, orgAdminArray: Creat
 			for (let i = 0; i < existingUserArray.length; i++) {
 				if (existingUserArray[i].email === user.email) adminIdArray[index] = msg_users[i].userId;
 			}
-		})
+		});
 	}
 	return adminIdArray;
-}
+};
 
 export const getOrganizationAdmin = async (orgId: number): Promise<Partial<IUser>[]> => {
 	const query = `SELECT grafanadb.user.id, name, login, email
 					FROM grafanadb.user
 					INNER JOIN grafanadb.org_user ON grafanadb.org_user.user_id = grafanadb.user.id
-					WHERE grafanadb.org_user.org_id = $1 AND grafanadb.org_user.role = $2`
+					WHERE grafanadb.org_user.org_id = $1 AND grafanadb.org_user.role = $2`;
 	const result = await pool.query(query, [orgId, "Admin"]);
 	return result.rows as Partial<IUser>[];
-}
+};
 
 export const getOrganizationsManagedByUserId = async (userId: number): Promise<IOrganization[]> => {
 	const query = `SELECT grafanadb.org.id, grafanadb.org.name, 
 	                grafanadb.org.acronym, grafanadb.org.role,
 					grafanadb.building.city, grafanadb.building.country,
 					building_id AS "buildingId", org_hash AS "orgHash",
-					mqtt_access_control AS "mqttAccessControl"
+					mqtt_access_control AS "mqttAccessControl",
+					llm_enabled AS "llmEnabled",
+					llm_provider_url AS "llmProviderUrl"
 					FROM grafanadb.org
 					INNER JOIN grafanadb.building ON grafanadb.org.building_id = grafanadb.building.id
 					INNER JOIN grafanadb.org_user ON grafanadb.org.id = grafanadb.org_user.org_id					
@@ -179,15 +228,18 @@ export const getOrganizationsManagedByUserId = async (userId: number): Promise<I
 					ORDER BY id ASC`;
 	const result = await pool.query(query, [userId, "Admin"]);
 	return result.rows as IOrganization[];
-}
+};
 
-
-export const organizationsWhichTheLoggedUserIsUser = async (userId: number): Promise<IOrganizationWichTheLoggedUserIsUser[]> => {
+export const organizationsWhichTheLoggedUserIsUser = async (
+	userId: number
+): Promise<IOrganizationWichTheLoggedUserIsUser[]> => {
 	const query = `SELECT grafanadb.org.id, grafanadb.org.name, 
 	                grafanadb.org.acronym, grafanadb.org.role,
 					grafanadb.building.city, grafanadb.building.country,
 					building_id AS "buildingId", org_hash AS "orgHash",
-					mqtt_access_control AS "mqttAccessControl"
+					mqtt_access_control AS "mqttAccessControl",
+					llm_enabled AS "llmEnabled",
+					llm_provider_url AS "llmProviderUrl"
 					FROM grafanadb.org
 					INNER JOIN grafanadb.building ON grafanadb.org.building_id = grafanadb.building.id
 					INNER JOIN grafanadb.org_user ON grafanadb.org.id = grafanadb.org_user.org_id
@@ -195,34 +247,43 @@ export const organizationsWhichTheLoggedUserIsUser = async (userId: number): Pro
 					ORDER BY id ASC`;
 	const result = await pool.query(query, [userId]);
 	return result.rows as IOrganizationWichTheLoggedUserIsUser[];
-}
+};
 
-export const addOrgUsersToDefaultOrgGroup = async (orgId: number, usersAddedToOrg: CreateUserDto[]): Promise<IMessage> => {
+export const addOrgUsersToDefaultOrgGroup = async (
+	orgId: number,
+	usersAddedToOrg: CreateUserDto[]
+): Promise<IMessage> => {
 	const group = await getDefaultOrgGroup(orgId);
 	const groupMembersArray: CreateGroupMemberDto[] = [];
-	usersAddedToOrg.forEach(user => {
+	usersAddedToOrg.forEach((user) => {
 		const groupMember = {
 			userId: user.id,
 			firstName: user.firstName,
 			surname: user.surname,
 			email: user.email,
-			roleInGroup: (user.roleInOrg as RoleInGroupOption)
+			roleInGroup: user.roleInOrg as RoleInGroupOption,
 		};
 		groupMembersArray.push(groupMember);
-	})
+	});
 	const message = await addMembersToGroup(group, groupMembersArray);
 	return message;
-}
+};
 
-export const updateOrgUserRoleInDefaultOrgGroup = async (orgId: number, user: IUserInOrg, newRoleInOrg: string): Promise<IMessage> => {
+export const updateOrgUserRoleInDefaultOrgGroup = async (
+	orgId: number,
+	user: IUserInOrg,
+	newRoleInOrg: string
+): Promise<IMessage> => {
 	const group = await getDefaultOrgGroup(orgId);
-	const groupMembersArray: CreateGroupMemberDto[] = [{
-		userId: user.userId,
-		firstName: user.firstName,
-		surname: user.surname,
-		email: user.email,
-		roleInGroup: (newRoleInOrg as RoleInGroupOption)
-	}];
+	const groupMembersArray: CreateGroupMemberDto[] = [
+		{
+			userId: user.userId,
+			firstName: user.firstName,
+			surname: user.surname,
+			email: user.email,
+			roleInGroup: newRoleInOrg as RoleInGroupOption,
+		},
+	];
 
 	const existentGroupMemberArray: IGroupMember[] = [
 		{
@@ -231,10 +292,10 @@ export const updateOrgUserRoleInDefaultOrgGroup = async (orgId: number, user: IU
 			firstName: user.firstName,
 			surname: user.surname,
 			email: user.email,
-			roleInGroup: (user.roleInOrg as RoleInGroupOption)
-		}
+			roleInGroup: user.roleInOrg as RoleInGroupOption,
+		},
 	];
 
 	const message = await udpateRoleMemberInGroup(group, groupMembersArray, existentGroupMemberArray);
 	return message;
-}
+};

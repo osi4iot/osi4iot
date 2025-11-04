@@ -25,6 +25,23 @@ type AiAgentNode struct {
 }
 
 func CreateAiAgentNode(node common.NodeData, fm common.Manager, p common.Pipeline) (*AiAgentNode, error) {
+	orgId := p.GetOrgId()
+	providerUrl := fm.GetOrgLlmProviderUrl(orgId)
+	providerApiKey := fm.GetOrgLlmProviderApiKey(orgId)
+	groupId := p.GetGroupId()
+	orgLlmEnabled := fm.GetOrgLlmEnabled(orgId)
+	groupLlmEnabled := fm.GetGroupLlmEnabled(groupId)
+
+	if !(orgLlmEnabled && groupLlmEnabled) {
+		fm.Log().Errorf("AI Agent Node %s: LLM functionality is not enabled for the organization or group", node.NodeUid)
+		return nil, fmt.Errorf("LLM functionality is not enabled for the organization or group")
+	}
+
+	if providerUrl == "" || providerApiKey == "" {
+		fm.Log().Errorf("AI Agent Node %s: LLM provider URL and API key must be configured", node.NodeUid)
+		return nil, fmt.Errorf("LLM provider URL and API key must be configured")
+	}
+
 	llmModel, ok := node.Settings["llmModel"].(string)
 	if !ok {
 		llmModel = fm.GetDefaultLlmModel()
@@ -144,7 +161,6 @@ func CreateAiAgentNode(node common.NodeData, fm common.Manager, p common.Pipelin
 		debug = true
 	}
 
-	providerUrl := fm.GetLlmProviderUrl()
 	switch providerUrl {
 	case "https://api.openai.com/v1":
 		if strings.Contains(llmModel, "gpt-5") {
@@ -161,7 +177,7 @@ func CreateAiAgentNode(node common.NodeData, fm common.Manager, p common.Pipelin
 		MaxSteps:       500,
 		Debug:          debug,
 		SystemPrompt:   systemPrompt,
-		ProviderAPIKey: fm.GetLlmProviderApiKey(),
+		ProviderAPIKey: providerApiKey,
 		ProviderURL:    providerUrl,
 		MaxTokens:      fm.GetLlmMaxTokens(),
 		Temperature:    &llmTemperature,

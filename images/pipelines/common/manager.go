@@ -5,6 +5,7 @@ import (
 	nats_pkg "pipelines/nats"
 
 	"github.com/nats-io/nats.go"
+	"github.com/nats-io/nats.go/jetstream"
 )
 
 type Manager interface {
@@ -103,10 +104,12 @@ type Manager interface {
 
 	GetNumReplicas() int
 	GetReplicaIndex() int
-	IsRaftLeader() bool
 
-	GetLlmProviderApiKey() string
-	GetLlmProviderUrl() string
+	GetEncryptionSecretKey() string
+	GetOrgLlmEnabled(orgId int) bool
+	GetOrgLlmProviderApiKey(orgId int) string
+	GetOrgLlmProviderUrl(orgId int) string
+	GetGroupLlmEnabled(groupId int) bool
 	GetDefaultLlmModel() string
 	GetDefaultLlmTemperature() float32
 	GetDefaultLlmTopK() int32
@@ -127,4 +130,6 @@ type Manager interface {
 	AddDocInfoFilesInDigitalTwins() error
 	AddDocInfoFileInDigitalTwin(digitalTwinId int) error
 	DeleteDocInfoFileInDigitalTwin(digitalTwinId int) error
+
+	GetLeaderKvStore() jetstream.KeyValue
 }

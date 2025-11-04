@@ -71,6 +71,8 @@ const resolveSetStateAction = <T extends unknown>(action: SetStateAction<T>, pre
 const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
     digitalTwinSelected,
     digitalTwinGltfData,
+    orgSelected,
+    groupSelected,
     close3DViewer,
     fetchFemResFileWorker,
     refreshDigitalTwins,
@@ -109,7 +111,9 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
         digitalTwinGltfData?.mqttTopicsData?.filter((topic) => topic.topicRef === "sim2state")[0].mqttTopic || "";
     const { 
         pipelineStatus, 
-        handlePipelineStatusChange, 
+        pipelineLeaderReplicaIndex,
+        handlePipelineStatusChange,
+        handlePipelineLeaderReplicaIndexChange,
         queryPipelineStatus, 
         queryChatMessages,
         handleSetChatMessages,
@@ -520,6 +524,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
         handleUpdateChatAssistantMessages,
         handleUpdateLogMessages,
         handlePipelineStatusChange,
+        handlePipelineLeaderReplicaIndexChange,
         handleSetChatMessages
     );
 
@@ -743,11 +748,14 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
                             mqttConnectionStatus={connectionStatus}
                             mqttTopicsData={digitalTwinGltfData.mqttTopicsData}
                             digitalTwinSelected={digitalTwinSelected}
+                            orgSelected={orgSelected}
+                            groupSelected={groupSelected}
                             nodes={pipelineNodes}
                             edges={pipelineEdges}
                             setNodes={setPipelineNodes}
                             setEdges={setPipelineEdges}
                             handlePipelineUiChanged={handlers.handlePipelineUiChanged}
+                            
                         />
                     </ReactFlowProvider>
                 )}
@@ -805,6 +813,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
                     close3DViewer={close3DViewer}
                     assetWithMobilePhotoSelected={assetWithMobilePhotoSelected}
                     pipelineStatus={pipelineStatus}
+                    pipelineLeaderReplicaIndex={pipelineLeaderReplicaIndex}
                 />
 
                 {/* Control Panel */}

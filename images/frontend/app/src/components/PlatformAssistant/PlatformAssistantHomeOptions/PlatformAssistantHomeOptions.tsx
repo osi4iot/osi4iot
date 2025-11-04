@@ -906,6 +906,8 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
                                     <DigitalTwin3DViewer
                                         digitalTwinSelected={digitalTwinSelected}
                                         digitalTwinGltfData={digitalTwinGltfData}
+                                        orgSelected={orgSelected}
+                                        groupSelected={groupSelected}
                                         close3DViewer={handleCloseViewer}
                                         fetchFemResFileWorker={fetchFemResFileWorker}
                                         refreshDigitalTwins={refreshDigitalTwins}

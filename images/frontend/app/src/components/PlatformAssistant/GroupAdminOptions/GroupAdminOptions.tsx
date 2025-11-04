@@ -1,11 +1,11 @@
-import { FC, useEffect, useState, useCallback } from 'react'
+import { FC, useEffect, useState, useCallback } from "react";
 import styled from "styled-components";
-import { useAuthState, useAuthDispatch } from '../../../contexts/authContext';
-import { axiosAuth, getDomainName, getProtocol } from '../../../tools/tools';
+import { useAuthState, useAuthDispatch } from "../../../contexts/authContext";
+import { axiosAuth, getDomainName, getProtocol } from "../../../tools/tools";
 import Loader from "../../Tools/Loader";
-import { GROUP_ADMIN_OPTIONS } from '../Utils/platformAssistantOptions';
-import GroupMembersContainer from './GroupMembersContainer';
-import { GroupMembersProvider } from '../../../contexts/groupMembersOptions';
+import { GROUP_ADMIN_OPTIONS } from "../Utils/platformAssistantOptions";
+import GroupMembersContainer from "./GroupMembersContainer";
+import { GroupMembersProvider } from "../../../contexts/groupMembersOptions";
 import {
     usePlatformAssitantDispatch,
     useGroupsManagedTable,
@@ -37,28 +37,43 @@ import {
     useReloadDigitalTwinsTable,
     setReloadDigitalTwinsTable,
     useReloadGroupsManagedTable,
-    setReloadGroupsManagedTable
-} from '../../../contexts/platformAssistantContext';
-import { GroupsManagedProvider } from '../../../contexts/groupsManagedOptions';
-import GroupsManagedContainer from './GroupsManagedContainer';
-import { TopicsProvider } from '../../../contexts/topicsOptions';
-import TopicsContainer from './TopicsContainer';
-import { DigitalTwinsProvider } from '../../../contexts/digitalTwinsOptions';
-import DigitalTwinsContainer from './DigitalTwinsContainer';
-import { MeasurementsProvider } from '../../../contexts/measurementsOptions';
-import MeasurementsContainer from './MeasurementsContainer';
-import { filterBuildings } from '../../../tools/filterBuildings';
-import { IBuilding } from '../TableColumns/buildingsColumns';
-import { IFloor } from '../TableColumns/floorsColumns';
-import { filterFloors } from '../../../tools/filterFloors';
-import { ISelectOrgUser } from '../TableColumns/selectOrgUsersColumns';
-import { DASHBOARD_COLUMNS } from '../TableColumns/dashboardsColumns';
-import TableWithPagination from '../Utils/TableWithPagination';
-import { getAxiosInstance } from '../../../tools/axiosIntance';
-import axiosErrorHandler from '../../../tools/axiosErrorHandler';
-import { MlModelsProvider } from '../../../contexts/mlModelsOptions';
-import { setAssetS3FoldersTable, setAssetTopicsTable, setAssetTypesTable, setAssetsTable, setMlModelsTable, setReloadAssetS3FoldersTable, setReloadAssetTopicsTable, setReloadAssetTypesTable, setReloadAssetsTable, setReloadMlModelsTable, setReloadSensorTypesTable, setReloadSensorsTable, setSensorTypesTable, setSensorsTable } from '../../../contexts/platformAssistantContext/platformAssistantAction';
-import MlModelsContainer from './MlModelsContainer';
+    setReloadGroupsManagedTable,
+} from "../../../contexts/platformAssistantContext";
+import { GroupsManagedProvider } from "../../../contexts/groupsManagedOptions";
+import GroupsManagedContainer from "./GroupsManagedContainer";
+import { TopicsProvider } from "../../../contexts/topicsOptions";
+import TopicsContainer from "./TopicsContainer";
+import { DigitalTwinsProvider } from "../../../contexts/digitalTwinsOptions";
+import DigitalTwinsContainer from "./DigitalTwinsContainer";
+import { MeasurementsProvider } from "../../../contexts/measurementsOptions";
+import MeasurementsContainer from "./MeasurementsContainer";
+import { filterBuildings } from "../../../tools/filterBuildings";
+import { IBuilding } from "../TableColumns/buildingsColumns";
+import { IFloor } from "../TableColumns/floorsColumns";
+import { filterFloors } from "../../../tools/filterFloors";
+import { ISelectOrgUser } from "../TableColumns/selectOrgUsersColumns";
+import { DASHBOARD_COLUMNS } from "../TableColumns/dashboardsColumns";
+import TableWithPagination from "../Utils/TableWithPagination";
+import { getAxiosInstance } from "../../../tools/axiosIntance";
+import axiosErrorHandler from "../../../tools/axiosErrorHandler";
+import { MlModelsProvider } from "../../../contexts/mlModelsOptions";
+import {
+    setAssetS3FoldersTable,
+    setAssetTopicsTable,
+    setAssetTypesTable,
+    setAssetsTable,
+    setMlModelsTable,
+    setReloadAssetS3FoldersTable,
+    setReloadAssetTopicsTable,
+    setReloadAssetTypesTable,
+    setReloadAssetsTable,
+    setReloadMlModelsTable,
+    setReloadSensorTypesTable,
+    setReloadSensorsTable,
+    setSensorTypesTable,
+    setSensorsTable,
+} from "../../../contexts/platformAssistantContext/platformAssistantAction";
+import MlModelsContainer from "./MlModelsContainer";
 import {
     useAssetS3FoldersTable,
     useAssetTopicsTable,
@@ -70,29 +85,30 @@ import {
     useReloadAssetTypesTable,
     useReloadAssetsTable,
     useReloadMlModelsTable,
+    useReloadOrgsOfGroupsManagedTable,
     useReloadSensorTypesTable,
     useReloadSensorsTable,
     useSensorTypesTable,
-    useSensorsTable
-} from '../../../contexts/platformAssistantContext/platformAssistantContext';
-import { AssetsProvider } from '../../../contexts/assetsOptions';
-import AssetsContainer from './AssetsContainer';
-import { SensorsProvider } from '../../../contexts/sensorsOptions';
-import SensorsContainer from './SensorsContainer';
-import { IDigitalTwin } from '../TableColumns/digitalTwinsColumns';
-import elaspsedTimeFormat from '../../../tools/elapsedTimeFormat';
-import { IAssetType } from '../TableColumns/assetTypesColumns';
-import { ITopic } from '../TableColumns/topicsColumns';
-import S3StorageForm from '../../Tools/S3StorageForm';
-import { ISensorType } from '../TableColumns/sensorTypesColumns';
-import { getDTStorageInfo, syncDigitalTwinsLocalStorage } from '../../../tools/fileSystem';
-import { AxiosResponse, AxiosError } from 'axios';
+    useSensorsTable,
+} from "../../../contexts/platformAssistantContext/platformAssistantContext";
+import { AssetsProvider } from "../../../contexts/assetsOptions";
+import AssetsContainer from "./AssetsContainer";
+import { SensorsProvider } from "../../../contexts/sensorsOptions";
+import SensorsContainer from "./SensorsContainer";
+import { IDigitalTwin } from "../TableColumns/digitalTwinsColumns";
+import elaspsedTimeFormat from "../../../tools/elapsedTimeFormat";
+import { IAssetType } from "../TableColumns/assetTypesColumns";
+import { ITopic } from "../TableColumns/topicsColumns";
+import S3StorageForm from "../../Tools/S3StorageForm";
+import { ISensorType } from "../TableColumns/sensorTypesColumns";
+import { getDTStorageInfo, syncDigitalTwinsLocalStorage } from "../../../tools/fileSystem";
+import { AxiosResponse, AxiosError } from "axios";
 
 const GroupAdminOptionsContainer = styled.div`
-	display: flex;
-	flex-direction: row;
+    display: flex;
+    flex-direction: row;
     justify-content: flex-start;
-	align-items: center;
+    align-items: center;
     width: 60%;
     height: 50px;
     background-color: #0c0d0f;
@@ -103,20 +119,19 @@ interface OptionContainerProps {
 }
 
 const OptionContainer = styled.div<OptionContainerProps>`
-	color: "white";
+    color: "white";
     margin: 10px 20px 0 20px;
-    background-color: ${(props) => props.isOptionActive ? "#202226" : "#0c0d0f"};
+    background-color: ${(props) => (props.isOptionActive ? "#202226" : "#0c0d0f")};
     padding: 10px 10px 10px 10px;
-    border-top: ${(props) => props.isOptionActive ? "3px solid #3274d9;" : "3px solid #0c0d0f"};
+    border-top: ${(props) => (props.isOptionActive ? "3px solid #3274d9;" : "3px solid #0c0d0f")};
     align-content: center;
 
     &:hover {
         cursor: pointer;
         background-color: #202226;
-        border-top: ${(props) => props.isOptionActive ? "3px solid #3274d9;" : "3px solid white"};
+        border-top: ${(props) => (props.isOptionActive ? "3px solid #3274d9;" : "3px solid white")};
     }
 `;
-
 
 const ContentContainer = styled.div`
     width: calc(100vw - 75px);
@@ -124,13 +139,13 @@ const ContentContainer = styled.div`
     background-color: #202226;
     margin-bottom: 5px;
     display: flex;
-	flex-direction: column;
+    flex-direction: column;
     justify-content: flex-start;
-	align-items: center;
+    align-items: center;
     overflow: auto;
 
-        /* width */
-        ::-webkit-scrollbar {
+    /* width */
+    ::-webkit-scrollbar {
         width: 10px;
         height: 10px;
     }
@@ -140,10 +155,10 @@ const ContentContainer = styled.div`
         background: #202226;
         border-radius: 5px;
     }
-    
+
     /* Handle */
     ::-webkit-scrollbar-thumb {
-        background: #2c3235; 
+        background: #2c3235;
         border-radius: 5px;
     }
 
@@ -202,6 +217,7 @@ const GroupAdminOptions: FC<{}> = () => {
     const [reloadBuildings, setReloadBuildings] = useState(false);
     const [reloadFloors, setReloadFloors] = useState(false);
     const reloadGroupsManagedTable = useReloadGroupsManagedTable();
+    const reloadOrgsOfGroupsManagedTable = useReloadOrgsOfGroupsManagedTable();
     const reloadGroupMembersTable = useReloadGroupMembersTable();
     const reloadAssetTypesTable = useReloadAssetTypesTable();
     const reloadSensorTypesTable = useReloadSensorTypesTable();
@@ -227,49 +243,49 @@ const GroupAdminOptions: FC<{}> = () => {
         setAssetsLoading(true);
         const reloadAssetsTable = true;
         setReloadAssetsTable(plaformAssistantDispatch, { reloadAssetsTable });
-    }, [plaformAssistantDispatch])
+    }, [plaformAssistantDispatch]);
 
     const refreshAssetS3Folders = useCallback(() => {
         setAssetS3FoldersLoading(true);
         const reloadAssetS3FoldersTable = true;
         setReloadAssetS3FoldersTable(plaformAssistantDispatch, { reloadAssetS3FoldersTable });
-    }, [plaformAssistantDispatch])
+    }, [plaformAssistantDispatch]);
 
     const refreshSensors = useCallback(() => {
         setSensorsLoading(true);
         const reloadSensorsTable = true;
         setReloadSensorsTable(plaformAssistantDispatch, { reloadSensorsTable });
-    }, [plaformAssistantDispatch])
+    }, [plaformAssistantDispatch]);
 
     const refreshGroupMembers = useCallback(() => {
         setGroupMembersLoading(true);
         const reloadGroupMembersTable = true;
         setReloadGroupMembersTable(plaformAssistantDispatch, { reloadGroupMembersTable });
-    }, [plaformAssistantDispatch])
+    }, [plaformAssistantDispatch]);
 
     const refreshTopics = useCallback(() => {
         setTopicsLoading(true);
         const reloadTopicsTable = true;
         setReloadTopicsTable(plaformAssistantDispatch, { reloadTopicsTable });
-    }, [plaformAssistantDispatch])
+    }, [plaformAssistantDispatch]);
 
     const refreshDashboards = useCallback(() => {
         setDashboardsLoading(true);
         const reloadDashboardsTable = true;
         setReloadDashboardsTable(plaformAssistantDispatch, { reloadDashboardsTable });
-    }, [plaformAssistantDispatch])
+    }, [plaformAssistantDispatch]);
 
     const refreshDigitalTwins = useCallback(() => {
         setDigitalTwinsLoading(true);
         const reloadDigitalTwinsTable = true;
         setReloadDigitalTwinsTable(plaformAssistantDispatch, { reloadDigitalTwinsTable });
-    }, [plaformAssistantDispatch])
+    }, [plaformAssistantDispatch]);
 
     const refreshMlModels = useCallback(() => {
         setMlModelsLoading(true);
         const reloadMlModelsTable = true;
         setReloadMlModelsTable(plaformAssistantDispatch, { reloadMlModelsTable });
-    }, [plaformAssistantDispatch])
+    }, [plaformAssistantDispatch]);
 
     const refreshBuildings = useCallback(() => {
         setReloadBuildings(true);
@@ -295,7 +311,7 @@ const GroupAdminOptions: FC<{}> = () => {
                         building.createdAtAge = elaspsedTimeFormat(building.createdAtAge);
                         building.updatedAtAge = elaspsedTimeFormat(building.updatedAtAge);
                         return building;
-                    })
+                    });
                     setBuildingsTable(plaformAssistantDispatch, { buildings });
                     setBuildingsLoading(false);
                     const buildingsFiltered = filterBuildings(buildings);
@@ -307,14 +323,7 @@ const GroupAdminOptions: FC<{}> = () => {
         } else {
             setBuildingsLoading(false);
         }
-    }, [
-        accessToken,
-        refreshToken,
-        authDispatch,
-        plaformAssistantDispatch,
-        reloadBuildings,
-        buildingsTable.length
-    ]);
+    }, [accessToken, refreshToken, authDispatch, plaformAssistantDispatch, reloadBuildings, buildingsTable.length]);
 
     useEffect(() => {
         if (floorsTable.length === 0 || reloadFloors) {
@@ -328,7 +337,7 @@ const GroupAdminOptions: FC<{}> = () => {
                         floor.createdAtAge = elaspsedTimeFormat(floor.createdAtAge);
                         floor.updatedAtAge = elaspsedTimeFormat(floor.updatedAtAge);
                         return floor;
-                    })
+                    });
                     setFloorsTable(plaformAssistantDispatch, { floors });
                     setFloorsLoading(false);
                     const floorsFiltered = filterFloors(floors);
@@ -340,14 +349,7 @@ const GroupAdminOptions: FC<{}> = () => {
         } else {
             setFloorsLoading(false);
         }
-    }, [
-        accessToken,
-        refreshToken,
-        authDispatch,
-        plaformAssistantDispatch,
-        reloadFloors,
-        floorsTable.length
-    ]);
+    }, [accessToken, refreshToken, authDispatch, plaformAssistantDispatch, reloadFloors, floorsTable.length]);
 
     useEffect(() => {
         if (buildingsTable.length !== 0) {
@@ -363,9 +365,8 @@ const GroupAdminOptions: FC<{}> = () => {
         }
     }, [floorsTable]);
 
-
     useEffect(() => {
-        if (orgsOfGroupManagedTable.length === 0) {
+        if (orgsOfGroupManagedTable.length === 0 || reloadOrgsOfGroupsManagedTable) {
             const config = axiosAuth(accessToken);
             const urlOrgsOfGroupsManaged = `${protocol}://${domainName}/admin_api/organizations/user_groups_managed`;
             getAxiosInstance(refreshToken, authDispatch)
@@ -381,7 +382,14 @@ const GroupAdminOptions: FC<{}> = () => {
         } else {
             setOrgsOfGroupsManagedLoading(false);
         }
-    }, [accessToken, refreshToken, authDispatch, plaformAssistantDispatch, orgsOfGroupManagedTable.length]);
+    }, [
+        accessToken,
+        refreshToken,
+        authDispatch,
+        plaformAssistantDispatch,
+        orgsOfGroupManagedTable.length,
+        reloadOrgsOfGroupsManagedTable,
+    ]);
 
     useEffect(() => {
         if (groupsManagedTable.length === 0 || reloadGroupsManagedTable) {
@@ -391,10 +399,10 @@ const GroupAdminOptions: FC<{}> = () => {
                 .get(urlGroupsManaged, config)
                 .then((response: AxiosResponse<any, any>) => {
                     const groupsManaged = response.data;
-                    groupsManaged.map((group: { isOrgDefaultGroup: string; }) => {
+                    groupsManaged.map((group: { isOrgDefaultGroup: string }) => {
                         group.isOrgDefaultGroup = group.isOrgDefaultGroup ? "Default" : "Generic";
                         return group;
-                    })
+                    });
                     setGroupsManagedTable(plaformAssistantDispatch, { groupsManaged });
                     setGroupsManagedLoading(false);
                     const reloadGroupsManagedTable = false;
@@ -412,7 +420,7 @@ const GroupAdminOptions: FC<{}> = () => {
         authDispatch,
         plaformAssistantDispatch,
         reloadGroupsManagedTable,
-        groupsManagedTable.length
+        groupsManagedTable.length,
     ]);
 
     useEffect(() => {
@@ -440,7 +448,7 @@ const GroupAdminOptions: FC<{}> = () => {
         authDispatch,
         plaformAssistantDispatch,
         reloadGroupMembersTable,
-        groupMembersTable.length
+        groupMembersTable.length,
     ]);
 
     useEffect(() => {
@@ -450,7 +458,9 @@ const GroupAdminOptions: FC<{}> = () => {
             getAxiosInstance(refreshToken, authDispatch)
                 .get(urlGroupsManaged, config)
                 .then((response: AxiosResponse<any, any>) => {
-                    const selectOrgUsers = response.data.filter((user: ISelectOrgUser) => user.login.slice(-9) !== "api_admin");
+                    const selectOrgUsers = response.data.filter(
+                        (user: ISelectOrgUser) => user.login.slice(-9) !== "api_admin"
+                    );
                     setSelectOrgUsersTable(plaformAssistantDispatch, { selectOrgUsers });
                     setSelectOrgUsersLoading(false);
                     const reloadSelectOrgUsersTable = false;
@@ -468,7 +478,7 @@ const GroupAdminOptions: FC<{}> = () => {
         authDispatch,
         plaformAssistantDispatch,
         reloadSelectOrgUsersTable,
-        selectOrgUsersTable.length
+        selectOrgUsersTable.length,
     ]);
 
     useEffect(() => {
@@ -483,7 +493,7 @@ const GroupAdminOptions: FC<{}> = () => {
                         sensorType.isPredefinedString = "No";
                         if (sensorType.isPredefined) sensorType.isPredefinedString = "Yes";
                         return sensorType;
-                    })
+                    });
                     setSensorTypesTable(plaformAssistantDispatch, { sensorTypes });
                     setSensorTypesLoading(false);
                     const reloadSensorTypesTable = false;
@@ -501,7 +511,7 @@ const GroupAdminOptions: FC<{}> = () => {
         authDispatch,
         plaformAssistantDispatch,
         reloadSensorTypesTable,
-        sensorTypesTable.length
+        sensorTypesTable.length,
     ]);
 
     useEffect(() => {
@@ -516,7 +526,7 @@ const GroupAdminOptions: FC<{}> = () => {
                         assetType.isPredefinedString = "No";
                         if (assetType.isPredefined) assetType.isPredefinedString = "Yes";
                         return assetType;
-                    })
+                    });
                     setAssetTypesTable(plaformAssistantDispatch, { assetTypes });
                     setAssetTypesLoading(false);
                     const reloadAssetTypesTable = false;
@@ -534,9 +544,8 @@ const GroupAdminOptions: FC<{}> = () => {
         authDispatch,
         plaformAssistantDispatch,
         reloadAssetTypesTable,
-        assetTypesTable.length
+        assetTypesTable.length,
     ]);
-
 
     useEffect(() => {
         if (assetsTable.length === 0 || reloadAssetsTable) {
@@ -557,14 +566,7 @@ const GroupAdminOptions: FC<{}> = () => {
         } else {
             setAssetsLoading(false);
         }
-    }, [
-        accessToken,
-        refreshToken,
-        authDispatch,
-        plaformAssistantDispatch,
-        reloadAssetsTable,
-        assetsTable.length
-    ]);
+    }, [accessToken, refreshToken, authDispatch, plaformAssistantDispatch, reloadAssetsTable, assetsTable.length]);
 
     useEffect(() => {
         if (assetTopicsTable.length === 0 || reloadAssetTopicsTable) {
@@ -591,9 +593,8 @@ const GroupAdminOptions: FC<{}> = () => {
         authDispatch,
         plaformAssistantDispatch,
         reloadAssetTopicsTable,
-        assetTopicsTable.length
+        assetTopicsTable.length,
     ]);
-
 
     useEffect(() => {
         if (assetS3FoldersTable.length === 0 || reloadAssetS3FoldersTable) {
@@ -620,9 +621,8 @@ const GroupAdminOptions: FC<{}> = () => {
         authDispatch,
         plaformAssistantDispatch,
         reloadAssetS3FoldersTable,
-        assetS3FoldersTable.length
+        assetS3FoldersTable.length,
     ]);
-
 
     useEffect(() => {
         if (sensorsTable.length === 0 || reloadSensorsTable) {
@@ -643,14 +643,7 @@ const GroupAdminOptions: FC<{}> = () => {
         } else {
             setSensorsLoading(false);
         }
-    }, [
-        accessToken,
-        refreshToken,
-        authDispatch,
-        plaformAssistantDispatch,
-        reloadSensorsTable,
-        sensorsTable.length
-    ]);
+    }, [accessToken, refreshToken, authDispatch, plaformAssistantDispatch, reloadSensorsTable, sensorsTable.length]);
 
     useEffect(() => {
         if (topicsTable.length === 0 || reloadTopicsTable) {
@@ -665,7 +658,7 @@ const GroupAdminOptions: FC<{}> = () => {
                         topic.parquetSchema = JSON.stringify(topic.parquetSchema);
                         topic.requireS3StorageString = topic.requireS3Storage ? "yes" : "no";
                         return topic;
-                    })
+                    });
                     setTopicsTable(plaformAssistantDispatch, { topics });
                     setTopicsLoading(false);
                     const reloadTopicsTable = false;
@@ -677,14 +670,7 @@ const GroupAdminOptions: FC<{}> = () => {
         } else {
             setTopicsLoading(false);
         }
-    }, [
-        accessToken,
-        refreshToken,
-        authDispatch,
-        plaformAssistantDispatch,
-        reloadTopicsTable,
-        topicsTable.length
-    ]);
+    }, [accessToken, refreshToken, authDispatch, plaformAssistantDispatch, reloadTopicsTable, topicsTable.length]);
 
     useEffect(() => {
         if (dashboardsTable.length === 0 || reloadDashboardsTable) {
@@ -705,14 +691,13 @@ const GroupAdminOptions: FC<{}> = () => {
         } else {
             setDashboardsLoading(false);
         }
-
     }, [
         accessToken,
         refreshToken,
         authDispatch,
         plaformAssistantDispatch,
         reloadDashboardsTable,
-        dashboardsTable.length
+        dashboardsTable.length,
     ]);
 
     useEffect(() => {
@@ -723,21 +708,21 @@ const GroupAdminOptions: FC<{}> = () => {
                 .get(urlDigitalTwins, config)
                 .then(async (response: AxiosResponse<any, any>) => {
                     const digitalTwins = response.data as IDigitalTwin[];
-                    digitalTwins.forEach(dt => {
-						dt.digitalTwinRef = `DT_${dt.digitalTwinUid}`;
-						dt.numGltfFilesLocallyStored = 0;
-						dt.numFemResFilesLocallyStored = 0;
-					});
-					await syncDigitalTwinsLocalStorage(digitalTwins);
-					const dtStorageInfo = await getDTStorageInfo();
-					const digitalTwinUidArray = dtStorageInfo.map(dt => dt.digitalTwinUid);
-					digitalTwins.forEach(dt => {
-						const dtIndex = digitalTwinUidArray.indexOf(dt.digitalTwinUid);
-						if (dtIndex !== -1) {
-							dt.numGltfFilesLocallyStored = dtStorageInfo[dtIndex].numGltfFiles;
-							dt.numFemResFilesLocallyStored = dtStorageInfo[dtIndex].numFemResFiles;
-						}
-					});
+                    digitalTwins.forEach((dt) => {
+                        dt.digitalTwinRef = `DT_${dt.digitalTwinUid}`;
+                        dt.numGltfFilesLocallyStored = 0;
+                        dt.numFemResFilesLocallyStored = 0;
+                    });
+                    await syncDigitalTwinsLocalStorage(digitalTwins);
+                    const dtStorageInfo = await getDTStorageInfo();
+                    const digitalTwinUidArray = dtStorageInfo.map((dt) => dt.digitalTwinUid);
+                    digitalTwins.forEach((dt) => {
+                        const dtIndex = digitalTwinUidArray.indexOf(dt.digitalTwinUid);
+                        if (dtIndex !== -1) {
+                            dt.numGltfFilesLocallyStored = dtStorageInfo[dtIndex].numGltfFiles;
+                            dt.numFemResFilesLocallyStored = dtStorageInfo[dtIndex].numFemResFiles;
+                        }
+                    });
                     setDigitalTwinsTable(plaformAssistantDispatch, { digitalTwins });
                     setDigitalTwinsLoading(false);
                     const reloadDigitalTwinsTable = false;
@@ -758,7 +743,7 @@ const GroupAdminOptions: FC<{}> = () => {
         authDispatch,
         plaformAssistantDispatch,
         reloadDigitalTwinsTable,
-        digitalTwinsTable.length
+        digitalTwinsTable.length,
     ]);
 
     useEffect(() => {
@@ -783,176 +768,195 @@ const GroupAdminOptions: FC<{}> = () => {
         } else {
             setMlModelsLoading(false);
         }
-    }, [
-        accessToken,
-        refreshToken,
-        authDispatch,
-        plaformAssistantDispatch,
-        reloadMlModelsTable,
-        mlModelsTable.length
-    ]);
+    }, [accessToken, refreshToken, authDispatch, plaformAssistantDispatch, reloadMlModelsTable, mlModelsTable.length]);
 
     const clickHandler = (optionToShow: string) => {
         setOptionToShow(optionToShow);
-    }
+    };
 
     return (
         <>
             <GroupAdminOptionsContainer>
-                <OptionContainer isOptionActive={optionToShow === GROUP_ADMIN_OPTIONS.GROUPS_MANAGED} onClick={() => clickHandler(GROUP_ADMIN_OPTIONS.GROUPS_MANAGED)}>
+                <OptionContainer
+                    isOptionActive={optionToShow === GROUP_ADMIN_OPTIONS.GROUPS_MANAGED}
+                    onClick={() => clickHandler(GROUP_ADMIN_OPTIONS.GROUPS_MANAGED)}
+                >
                     Groups managed
                 </OptionContainer>
-                <OptionContainer isOptionActive={optionToShow === GROUP_ADMIN_OPTIONS.GROUP_MEMBERS} onClick={() => clickHandler(GROUP_ADMIN_OPTIONS.GROUP_MEMBERS)}>
+                <OptionContainer
+                    isOptionActive={optionToShow === GROUP_ADMIN_OPTIONS.GROUP_MEMBERS}
+                    onClick={() => clickHandler(GROUP_ADMIN_OPTIONS.GROUP_MEMBERS)}
+                >
                     Group members
                 </OptionContainer>
-                <OptionContainer isOptionActive={optionToShow === GROUP_ADMIN_OPTIONS.ASSETS} onClick={() => clickHandler(GROUP_ADMIN_OPTIONS.ASSETS)}>
+                <OptionContainer
+                    isOptionActive={optionToShow === GROUP_ADMIN_OPTIONS.ASSETS}
+                    onClick={() => clickHandler(GROUP_ADMIN_OPTIONS.ASSETS)}
+                >
                     Assets
                 </OptionContainer>
-                <OptionContainer isOptionActive={optionToShow === GROUP_ADMIN_OPTIONS.SENSORS} onClick={() => clickHandler(GROUP_ADMIN_OPTIONS.SENSORS)}>
+                <OptionContainer
+                    isOptionActive={optionToShow === GROUP_ADMIN_OPTIONS.SENSORS}
+                    onClick={() => clickHandler(GROUP_ADMIN_OPTIONS.SENSORS)}
+                >
                     Sensors
                 </OptionContainer>
-                <OptionContainer isOptionActive={optionToShow === GROUP_ADMIN_OPTIONS.TOPICS} onClick={() => clickHandler(GROUP_ADMIN_OPTIONS.TOPICS)}>
+                <OptionContainer
+                    isOptionActive={optionToShow === GROUP_ADMIN_OPTIONS.TOPICS}
+                    onClick={() => clickHandler(GROUP_ADMIN_OPTIONS.TOPICS)}
+                >
                     Topics
                 </OptionContainer>
-                <OptionContainer isOptionActive={optionToShow === GROUP_ADMIN_OPTIONS.MEASUREMENTS} onClick={() => clickHandler(GROUP_ADMIN_OPTIONS.MEASUREMENTS)}>
+                <OptionContainer
+                    isOptionActive={optionToShow === GROUP_ADMIN_OPTIONS.MEASUREMENTS}
+                    onClick={() => clickHandler(GROUP_ADMIN_OPTIONS.MEASUREMENTS)}
+                >
                     Measurements
                 </OptionContainer>
-                <OptionContainer isOptionActive={optionToShow === GROUP_ADMIN_OPTIONS.S3_STORAGE} onClick={() => clickHandler(GROUP_ADMIN_OPTIONS.S3_STORAGE)}>
+                <OptionContainer
+                    isOptionActive={optionToShow === GROUP_ADMIN_OPTIONS.S3_STORAGE}
+                    onClick={() => clickHandler(GROUP_ADMIN_OPTIONS.S3_STORAGE)}
+                >
                     S3 storage
                 </OptionContainer>
-                <OptionContainer isOptionActive={optionToShow === GROUP_ADMIN_OPTIONS.DASHBOARDS} onClick={() => clickHandler(GROUP_ADMIN_OPTIONS.DASHBOARDS)}>
+                <OptionContainer
+                    isOptionActive={optionToShow === GROUP_ADMIN_OPTIONS.DASHBOARDS}
+                    onClick={() => clickHandler(GROUP_ADMIN_OPTIONS.DASHBOARDS)}
+                >
                     Dashboards
                 </OptionContainer>
-                <OptionContainer isOptionActive={optionToShow === GROUP_ADMIN_OPTIONS.DIGITAL_TWINS} onClick={() => clickHandler(GROUP_ADMIN_OPTIONS.DIGITAL_TWINS)}>
+                <OptionContainer
+                    isOptionActive={optionToShow === GROUP_ADMIN_OPTIONS.DIGITAL_TWINS}
+                    onClick={() => clickHandler(GROUP_ADMIN_OPTIONS.DIGITAL_TWINS)}
+                >
                     Digital twins
                 </OptionContainer>
-                <OptionContainer isOptionActive={optionToShow === GROUP_ADMIN_OPTIONS.ML_MODELS} onClick={() => clickHandler(GROUP_ADMIN_OPTIONS.ML_MODELS)}>
+                <OptionContainer
+                    isOptionActive={optionToShow === GROUP_ADMIN_OPTIONS.ML_MODELS}
+                    onClick={() => clickHandler(GROUP_ADMIN_OPTIONS.ML_MODELS)}
+                >
                     ML models
                 </OptionContainer>
             </GroupAdminOptionsContainer>
             <ContentContainer>
-                {
-                    (
-                        buildingsLoading ||
-                        floorsLoading ||
-                        orgsOfGroupsManagedLoading ||
-                        groupsManagedLoading ||
-                        assetTypesLoading ||
-                        assetsLoading ||
-                        assetTopicsLoading ||
-                        sensorTypesLoading ||
-                        sensorsLoading ||
-                        groupMembersLoading ||
-                        selectOrgUsersLoading ||
-                        topicsLoading ||
-                        dashboardsLoading ||
-                        digitalTwinsLoading ||
-                        assetS3FoldersLoading ||
-                        mlModelsLoading
-                    ) ?
-                        <Loader />
-                        :
-                        <>
-                            {optionToShow === GROUP_ADMIN_OPTIONS.GROUPS_MANAGED &&
-                                <GroupsManagedProvider>
-                                    <GroupsManagedContainer
-                                        orgsOfGroupManaged={orgsOfGroupManagedTable}
-                                        groupsManaged={groupsManagedTable}
-                                        buildingsFiltered={buildingsFiltered}
-                                        floorsFiltered={floorsFiltered}
-                                        refreshGroupsManaged={refreshGroupsManaged}
-                                        refreshGroupMembers={refreshGroupMembers}
-                                        assetTypes={assetTypesTable}
-                                        assets={assetsTable}
-                                        refreshAssets={refreshAssets}
-                                        refreshGroups={refreshGroupsManaged}
-                                        refreshBuildings={refreshBuildings}
-                                        refreshFloors={refreshFloors}
-                                    />
-                                </GroupsManagedProvider>
-                            }
-                            {optionToShow === GROUP_ADMIN_OPTIONS.GROUP_MEMBERS &&
-                                <GroupMembersProvider>
-                                    <GroupMembersContainer groupMembers={groupMembersTable} refreshGroupMembers={refreshGroupMembers} />
-                                </GroupMembersProvider>
-                            }
-                            {optionToShow === GROUP_ADMIN_OPTIONS.ASSETS &&
-                                <AssetsProvider>
-                                    <AssetsContainer
-                                        orgsOfGroupManaged={orgsOfGroupManagedTable}
-                                        groupsManaged={groupsManagedTable}
-                                        buildingsFiltered={buildingsFiltered}
-                                        floorsFiltered={floorsFiltered}
-                                        assetTypes={assetTypesTable}
-                                        assets={assetsTable}
-                                        refreshAssets={refreshAssets}
-                                        refreshGroups={refreshGroupsManaged}
-                                        refreshBuildings={refreshBuildings}
-                                        refreshFloors={refreshFloors}
-                                    />
-                                </AssetsProvider>
-
-                            }
-                            {optionToShow === GROUP_ADMIN_OPTIONS.SENSORS &&
-                                <SensorsProvider>
-                                    <SensorsContainer
-                                        sensors={sensorsTable}
-                                        refreshSensors={refreshSensors}
-                                    />
-                                </SensorsProvider>
-                            }
-                            {optionToShow === GROUP_ADMIN_OPTIONS.TOPICS &&
-                                <TopicsProvider>
-                                    <TopicsContainer
-                                        orgsOfGroupManaged={orgsOfGroupManagedTable}
-                                        groupsManaged={groupsManagedTable}
-                                        topics={topicsTable}
-                                        refreshTopics={refreshTopics}
-                                    />
-                                </TopicsProvider>
-                            }
-                            {optionToShow === GROUP_ADMIN_OPTIONS.MEASUREMENTS &&
-                                <MeasurementsProvider>
-                                    <MeasurementsContainer topics={topicsTable} sensors={sensorsTable} />
-                                </MeasurementsProvider>
-                            }
-                            {optionToShow === GROUP_ADMIN_OPTIONS.S3_STORAGE &&
-                                <S3StorageForm
-                                    assetS3Folders={assetS3FoldersTable}
-                                    refreshAssetS3Folders={refreshAssetS3Folders}
+                {buildingsLoading ||
+                floorsLoading ||
+                orgsOfGroupsManagedLoading ||
+                groupsManagedLoading ||
+                assetTypesLoading ||
+                assetsLoading ||
+                assetTopicsLoading ||
+                sensorTypesLoading ||
+                sensorsLoading ||
+                groupMembersLoading ||
+                selectOrgUsersLoading ||
+                topicsLoading ||
+                dashboardsLoading ||
+                digitalTwinsLoading ||
+                assetS3FoldersLoading ||
+                mlModelsLoading ? (
+                    <Loader />
+                ) : (
+                    <>
+                        {optionToShow === GROUP_ADMIN_OPTIONS.GROUPS_MANAGED && (
+                            <GroupsManagedProvider>
+                                <GroupsManagedContainer
+                                    orgsOfGroupManaged={orgsOfGroupManagedTable}
+                                    groupsManaged={groupsManagedTable}
+                                    buildingsFiltered={buildingsFiltered}
+                                    floorsFiltered={floorsFiltered}
+                                    refreshGroupsManaged={refreshGroupsManaged}
+                                    refreshGroupMembers={refreshGroupMembers}
+                                    assetTypes={assetTypesTable}
+                                    assets={assetsTable}
+                                    refreshAssets={refreshAssets}
+                                    refreshGroups={refreshGroupsManaged}
+                                    refreshBuildings={refreshBuildings}
+                                    refreshFloors={refreshFloors}
                                 />
-                            }
-                            {optionToShow === GROUP_ADMIN_OPTIONS.DASHBOARDS &&
-                                <TableWithPagination
-                                    dataTable={dashboardsTable}
-                                    columnsTable={DASHBOARD_COLUMNS}
-                                    reloadTable={refreshDashboards}
-                                    componentName=""
+                            </GroupsManagedProvider>
+                        )}
+                        {optionToShow === GROUP_ADMIN_OPTIONS.GROUP_MEMBERS && (
+                            <GroupMembersProvider>
+                                <GroupMembersContainer
+                                    groupMembers={groupMembersTable}
+                                    refreshGroupMembers={refreshGroupMembers}
                                 />
-                            }
-                            {optionToShow === GROUP_ADMIN_OPTIONS.DIGITAL_TWINS &&
-                                <DigitalTwinsProvider>
-                                    <DigitalTwinsContainer
-                                        digitalTwins={digitalTwinsTable}
-                                        refreshDigitalTwins={refreshDigitalTwins}
-                                    />
-                                </DigitalTwinsProvider>
-                            }
-                            {optionToShow === GROUP_ADMIN_OPTIONS.ML_MODELS &&
-                                <MlModelsProvider>
-                                    <MlModelsContainer
-                                        orgsOfGroupManaged={orgsOfGroupManagedTable}
-                                        groupsManaged={groupsManagedTable}
-                                        mlModels={mlModelsTable}
-                                        refreshMlModels={refreshMlModels}
-                                    />
-                                </MlModelsProvider>
-                            }
-                        </>
-                }
+                            </GroupMembersProvider>
+                        )}
+                        {optionToShow === GROUP_ADMIN_OPTIONS.ASSETS && (
+                            <AssetsProvider>
+                                <AssetsContainer
+                                    orgsOfGroupManaged={orgsOfGroupManagedTable}
+                                    groupsManaged={groupsManagedTable}
+                                    buildingsFiltered={buildingsFiltered}
+                                    floorsFiltered={floorsFiltered}
+                                    assetTypes={assetTypesTable}
+                                    assets={assetsTable}
+                                    refreshAssets={refreshAssets}
+                                    refreshGroups={refreshGroupsManaged}
+                                    refreshBuildings={refreshBuildings}
+                                    refreshFloors={refreshFloors}
+                                />
+                            </AssetsProvider>
+                        )}
+                        {optionToShow === GROUP_ADMIN_OPTIONS.SENSORS && (
+                            <SensorsProvider>
+                                <SensorsContainer sensors={sensorsTable} refreshSensors={refreshSensors} />
+                            </SensorsProvider>
+                        )}
+                        {optionToShow === GROUP_ADMIN_OPTIONS.TOPICS && (
+                            <TopicsProvider>
+                                <TopicsContainer
+                                    orgsOfGroupManaged={orgsOfGroupManagedTable}
+                                    groupsManaged={groupsManagedTable}
+                                    topics={topicsTable}
+                                    refreshTopics={refreshTopics}
+                                />
+                            </TopicsProvider>
+                        )}
+                        {optionToShow === GROUP_ADMIN_OPTIONS.MEASUREMENTS && (
+                            <MeasurementsProvider>
+                                <MeasurementsContainer topics={topicsTable} sensors={sensorsTable} />
+                            </MeasurementsProvider>
+                        )}
+                        {optionToShow === GROUP_ADMIN_OPTIONS.S3_STORAGE && (
+                            <S3StorageForm
+                                assetS3Folders={assetS3FoldersTable}
+                                refreshAssetS3Folders={refreshAssetS3Folders}
+                            />
+                        )}
+                        {optionToShow === GROUP_ADMIN_OPTIONS.DASHBOARDS && (
+                            <TableWithPagination
+                                dataTable={dashboardsTable}
+                                columnsTable={DASHBOARD_COLUMNS}
+                                reloadTable={refreshDashboards}
+                                componentName=""
+                            />
+                        )}
+                        {optionToShow === GROUP_ADMIN_OPTIONS.DIGITAL_TWINS && (
+                            <DigitalTwinsProvider>
+                                <DigitalTwinsContainer
+                                    digitalTwins={digitalTwinsTable}
+                                    refreshDigitalTwins={refreshDigitalTwins}
+                                />
+                            </DigitalTwinsProvider>
+                        )}
+                        {optionToShow === GROUP_ADMIN_OPTIONS.ML_MODELS && (
+                            <MlModelsProvider>
+                                <MlModelsContainer
+                                    orgsOfGroupManaged={orgsOfGroupManagedTable}
+                                    groupsManaged={groupsManagedTable}
+                                    mlModels={mlModelsTable}
+                                    refreshMlModels={refreshMlModels}
+                                />
+                            </MlModelsProvider>
+                        )}
+                    </>
+                )}
             </ContentContainer>
         </>
-    )
-}
+    );
+};
 
-export default GroupAdminOptions
+export default GroupAdminOptions;

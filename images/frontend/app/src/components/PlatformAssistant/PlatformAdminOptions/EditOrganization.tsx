@@ -21,6 +21,7 @@ import {
     setReloadOrgsMembershipTable,
     usePlatformAssitantDispatch,
     setReloadGroupsTable,
+    setReloadOrgsOfGroupsManagedTable,
 } from "../../../contexts/platformAssistantContext";
 import { getAxiosInstance } from "../../../tools/axiosIntance";
 import axiosErrorHandler from "../../../tools/axiosErrorHandler";
@@ -91,6 +92,28 @@ const mqttAccessControlOptions = [
     },
 ];
 
+const LlmTitle = styled.div`
+    margin-bottom: 5px;
+`;
+
+const LlmDataContainer = styled.div`
+    border: 2px solid #2c3235;
+    border-radius: 10px;
+    padding: 10px;
+    width: 100%;
+`;
+
+const enableLLMOptions = [
+    {
+        label: "Enabled",
+        value: true,
+    },
+    {
+        label: "Disabled",
+        value: false,
+    },
+];
+
 const domainName = getDomainName();
 const protocol = getProtocol();
 
@@ -113,6 +136,7 @@ const EditOrganization: FC<EditOrganizationProps> = ({ organizations, refreshOrg
     const authDispatch = useAuthDispatch();
     const orgRowIndex = useOrgRowIndexToEdit();
     const orgId = useOrgIdToEdit();
+    const [llmEnabled, setLlmEnabled] = useState(organizations[orgRowIndex].llmEnabled);
 
     const initialOrgData = {
         name: organizations[orgRowIndex].name,
@@ -120,15 +144,34 @@ const EditOrganization: FC<EditOrganizationProps> = ({ organizations, refreshOrg
         buildingId: organizations[orgRowIndex].buildingId,
         role: organizations[orgRowIndex].role,
         mqttAccessControl: organizations[orgRowIndex].mqttAccessControl,
+        llmEnabled: organizations[orgRowIndex].llmEnabled,
+        llmProviderUrl: organizations[orgRowIndex].llmProviderUrl || "https://api.openai.com/v1",
+        llmProviderApiKey: "*****************",
     };
 
     const validationSchema = Yup.object().shape({
         name: Yup.string().max(190, "The maximum number of characters allowed is 190").required("Required"),
         acronym: Yup.string().max(20, "The maximum number of characters allowed is 20").required("Required"),
         buildingId: Yup.number().integer().positive().required("Required"),
+        llmProviderUrl: Yup.string().when("llmEnabled", {
+            is: true,
+            then: Yup.string().url("Enter a valid url").required("Required"),
+        }),
+        llmProviderApiKey: Yup.string().when("llmEnabled", {
+            is: true,
+            then: Yup.string().required("Required"),
+        }),
     });
 
     const onSubmit = (values: {}, actions: any) => {
+        const llmEnabled = (values as any).llmEnabled as boolean;
+        const llmProviderApiKey = (values as any).llmProviderApiKey as string;
+        if (llmEnabled && llmProviderApiKey === "*****************") {
+           toast.error("Please provide a valid LLM provider api key");
+           setIsSubmitting(false);
+           return;
+        }
+
         const url = `${protocol}://${domainName}/admin_api/organization/id/${orgId}`;
         const config = axiosAuth(accessToken);
 
@@ -136,8 +179,8 @@ const EditOrganization: FC<EditOrganizationProps> = ({ organizations, refreshOrg
             (values as any).buildingId = parseInt((values as any).buildingId, 10);
         }
 
-        setIsSubmitting(true);
 
+        setIsSubmitting(true);
         getAxiosInstance(refreshToken, authDispatch)
             .patch(url, values, config)
             .then((response: AxiosResponse<any, any>) => {
@@ -161,12 +204,19 @@ const EditOrganization: FC<EditOrganizationProps> = ({ organizations, refreshOrg
                 setReloadGroupsTable(plaformAssistantDispatch, { reloadGroupsTable });
                 const reloadGroupsMembershipTable = true;
                 setReloadGroupsMembershipTable(plaformAssistantDispatch, { reloadGroupsMembershipTable });
+                const reloadOrgsOfGroupsManagedTable = true;
+                setReloadOrgsOfGroupsManagedTable(plaformAssistantDispatch, { reloadOrgsOfGroupsManagedTable });
             });
     };
 
     const onCancel = (e: SyntheticEvent) => {
         e.preventDefault();
         backToTable();
+    };
+
+    const onEnableLLMChange = (e: { value: boolean }, formik: any) => {
+        setLlmEnabled(e.value);
+        formik.setFieldValue("llmEnabled", e.value);
     };
 
     return (
@@ -194,6 +244,34 @@ const EditOrganization: FC<EditOrganizationProps> = ({ organizations, refreshOrg
                                     options={mqttAccessControlOptions}
                                     type="text"
                                 />
+                                <LlmTitle>Large language model (LLM)</LlmTitle>
+                                <LlmDataContainer>
+                                    <FormikControl
+                                        control="select"
+                                        label="Enable LLM"
+                                        name="llmEnabled"
+                                        options={enableLLMOptions}
+                                        type="text"
+                                        onChange={(e) => onEnableLLMChange(e, formik)}
+                                    />
+                                    {llmEnabled && (
+                                        <>
+                                            <FormikControl
+                                                control="input"
+                                                label="LLM provider url"
+                                                name="llmProviderUrl"
+                                                type="text"
+                                            />
+                                            <FormikControl
+                                                control="input"
+                                                label="LLM provider api key"
+                                                name="llmProviderApiKey"
+                                                type="password"
+                                                autocomplete="off"
+                                            />
+                                        </>
+                                    )}
+                                </LlmDataContainer>
                             </ControlsContainer>
                             <FormButtonsProps
                                 onCancel={onCancel}

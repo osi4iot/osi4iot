@@ -11,9 +11,11 @@ import (
 	"pipelines/logger"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
+	nats_pkg "pipelines/nats"
 )
 
 type FlowsManager struct {
@@ -39,6 +41,7 @@ type FlowsManager struct {
 	PlatformEmailUsername    string
 	PlatformEmailPassword    string
 	PlatformTelegramBotToken string
+	EncryptionSecretKey      string
 	LlmProviderApiKey        string
 	LlmProviderUrl           string
 	DefaultLlmModel          string
@@ -49,6 +52,7 @@ type FlowsManager struct {
 	McpServersPath           string
 	MaxChatMessagesPerUser   int
 	PipelinesDataPath        string
+	LeaderKvStore		   *nats_pkg.KVStore
 }
 
 func CreateFlowsManager(
@@ -59,7 +63,8 @@ func CreateFlowsManager(
 	admin *admin.Admin,
 	log *logger.Logger,
 ) *FlowsManager {
-	orgs := admin.GetOrgs()
+	secretEncryptionKey := config.EncryptionSecretKey
+	orgs := admin.GetOrgs(secretEncryptionKey)
 	groups := admin.GetGroups()
 	notificationChannels := admin.GetNotificationChannels()
 	topics := admin.GetTopics()
@@ -67,6 +72,16 @@ func CreateFlowsManager(
 	digitalTwins := admin.GetDigitalTwins()
 	assetsTopics := admin.GetAssetTopics()
 	digitalTwinTopics := admin.GetDigitalTwinTopics()
+
+	leaderKvStore, err := nats_pkg.CreateLeaderKeyValueStore(
+		config.ShardIndex,
+		10*time.Second,
+		log,
+		jetStream,
+	)
+	if err != nil {
+		log.Fatalf("Failed to create leader KV store: %v", err)
+	}
 	
 	flowManager := FlowsManager{
 		Orgs:                     common.NewShardedSyncMap(config.ShardCount),
@@ -80,7 +95,6 @@ func CreateFlowsManager(
 		NumReplicas:              config.NumReplicas,
 		ReplicaIndex:             config.ReplicaIndex,
 		ShardIndex:               config.ShardIndex,
-		IsLeader:                 config.IsRaftLeader,
 		FunctionsTimeout:         config.FunctionsTimeout,
 		Admin:                    admin,
 		JsConsumer:               jsConsumer,
@@ -90,14 +104,14 @@ func CreateFlowsManager(
 		PlatformEmailUsername:    config.PlatformEmailUsername,
 		PlatformEmailPassword:    config.PlatformEmailPassword,
 		PlatformTelegramBotToken: config.PlatformTelegramBotToken,
-		LlmProviderApiKey:        config.LlmProviderApiKey,
-		LlmProviderUrl:           config.LlmProviderUrl,
+		EncryptionSecretKey:      secretEncryptionKey,
 		DefaultLlmModel:          config.DefaultLlmModel,
 		DefaultLlmTemperature:    config.DefaultLlmTemperature,
 		LlmMaxTokens:             config.LlmMaxTokens,
 		McpServersPath:           config.McpServersPath,
 		MaxChatMessagesPerUser:   config.MaxChatMessagesPerUser,
 		PipelinesDataPath:        config.PipelinesDataPath,
+		LeaderKvStore:            leaderKvStore,
 		log:                      log,
 	}
 	
@@ -282,16 +296,28 @@ func (fm *FlowsManager) GetReplicaIndex() int {
 	return fm.ReplicaIndex
 }
 
-func (fm *FlowsManager) IsRaftLeader() bool {
-	return fm.IsLeader
+func (fm *FlowsManager) GetEncryptionSecretKey() string {
+	return fm.EncryptionSecretKey
 }
 
-func (fm *FlowsManager) GetLlmProviderApiKey() string {
-	return fm.LlmProviderApiKey
+func (fm *FlowsManager) GetOrgLlmEnabled(orgId int) bool {
+	org := fm.GetOrg(orgId)
+	return org.LlmEnabled
 }
 
-func (fm *FlowsManager) GetLlmProviderUrl() string {
-	return fm.LlmProviderUrl
+func (fm *FlowsManager) GetOrgLlmProviderApiKey(orgId int) string {
+	org := fm.GetOrg(orgId)
+	return org.LlmProviderApiKey
+}
+
+func (fm *FlowsManager) GetOrgLlmProviderUrl(orgId int) string {
+	org := fm.GetOrg(orgId)
+	return org.LlmProviderUrl
+}
+
+func (fm *FlowsManager) GetGroupLlmEnabled(groupId int) bool {
+	group := fm.GetGroup(groupId)
+	return group.LlmEnabled
 }
 
 func (fm *FlowsManager) GetDefaultLlmModel() string {
@@ -381,4 +407,13 @@ func (fm *FlowsManager) GetMlModelFilePath(orgId int, groupId int, mlModelId int
 	}
 
 	return filepath.Join(mlmFolder, mlModel.FileName)
+}
+
+func (fm *FlowsManager) GetLeaderKvStore() jetstream.KeyValue {
+	return fm.LeaderKvStore.GetNatsKeyValue()
+}
+
+func (fm *FlowsManager) GracefullyShutdown() {
+	fm.log.Info("FlowsManager is shutting down gracefully...")
+	fm.StopNodes()
 }

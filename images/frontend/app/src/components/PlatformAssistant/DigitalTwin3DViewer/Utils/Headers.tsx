@@ -27,6 +27,8 @@ import {
     RunningIndicator,
     ErrorIndicator,
     UnknownIndicator,
+    IndicatorContainer,
+    InstanceBadge,
 } from "./StyledComponents";
 import { TooltipWrapper } from "./TooltipWrapper";
 import styled from "styled-components";
@@ -56,7 +58,18 @@ interface HeaderProps {
     close3DViewer: () => void;
     assetWithMobilePhotoSelected: boolean;
     pipelineStatus: string;
+    pipelineLeaderReplicaIndex: number;
 }
+
+const RunningIndicatorWithBadge: FC<{ leaderIndex: number }> = ({ leaderIndex }) => {
+    return (
+        <IndicatorContainer>
+            <RunningIndicator />
+            <InstanceBadge>{leaderIndex}</InstanceBadge>
+        </IndicatorContainer>
+    );
+};
+
 
 export const Header: FC<HeaderProps> = ({
     isControlPanelOpen,
@@ -79,6 +92,7 @@ export const Header: FC<HeaderProps> = ({
     close3DViewer,
     assetWithMobilePhotoSelected,
     pipelineStatus,
+    pipelineLeaderReplicaIndex,
 }) => {
     const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -111,8 +125,8 @@ export const Header: FC<HeaderProps> = ({
         if (activeViewer !== "pipeline") return null;
         if (pipelineStatus === "running") {
             return (
-                <TooltipWrapper tooltip="Status: Running">
-                    <RunningIndicator />
+                <TooltipWrapper tooltip={`Status: Running (Leader: ${pipelineLeaderReplicaIndex})`}>
+                    <RunningIndicatorWithBadge leaderIndex={pipelineLeaderReplicaIndex} />
                 </TooltipWrapper>
             );
         }

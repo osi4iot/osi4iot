@@ -40,6 +40,9 @@ export interface IOrganization {
     buildingId: string;
     orgHash: string;
     mqttAccessControl: string;
+    llmEnabled: boolean;
+    llmProviderUrl?: string;
+    llmProviderApiKey?: string;
 }
 
 interface IOrganizationColumn extends IOrganization {
@@ -212,7 +215,19 @@ export const Create_ORGANIZATIONS_COLUMNS = (refreshOrgs: () => void): Column<IO
             Header: "Mqtt acc",
             accessor: "mqttAccessControl",
             disableFilters: true
-        },    
+        },
+        {
+            Header: "LLM",
+            accessor: "llmEnabled",
+            disableFilters: true,
+            Cell: (props) => {
+                const rowIndex = parseInt(props.row.id, 10);
+                const row = props.rows.filter((row) => row.index === rowIndex)[0];
+                const llmEnabled = row?.cells[12]?.value || false;
+                const llmEnabledText = llmEnabled ? "Enabled" : "Disabled";
+                return <span>{llmEnabledText}</span>;
+            },
+        },
         {
             Header: "",
             accessor: "edit",

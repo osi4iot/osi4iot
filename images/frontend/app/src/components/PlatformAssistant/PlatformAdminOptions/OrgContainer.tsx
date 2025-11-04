@@ -36,6 +36,9 @@ const initialOrgData = {
     mqttAccessControl: "Pub & Sub",
     telegramInvitationLink: "",
     telegramChatId: "",
+    llmEnabled: false,
+    llmProviderUrl: "",
+    llmProviderApiKey: "",
     orgAdminArray: [
         {
             firstName: "",

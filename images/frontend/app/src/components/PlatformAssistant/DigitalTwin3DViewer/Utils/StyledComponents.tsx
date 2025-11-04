@@ -218,6 +218,31 @@ export const RunningIndicator = styled(FaCheckCircle)`
     }
 `;
 
+export const IndicatorContainer = styled.div`
+    position: relative;
+    display: inline-block;
+    margin-right: 6px;
+`;
+
+
+export const InstanceBadge = styled.div`
+    position: absolute;
+    bottom: 8px;
+    right: -6px;
+    background-color: #2196F3;
+    color: white;
+    border-radius: 50%;
+    width: 18px;
+    height: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    font-weight: bold;
+    border: 2px solid #141619;
+    box-sizing: border-box;
+`;
+
 export const UnknownIndicator = styled(FaQuestionCircle)`
     background-color: #141619;
     font-size: 25px;

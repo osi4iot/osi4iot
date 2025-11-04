@@ -3,6 +3,7 @@ package config
 
 import (
 	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/spf13/viper"
@@ -20,7 +21,6 @@ type Config struct {
 	ReplicaIndex             int               `mapstructure:"replicaIndex"`
 	ShardIndex               int               `mapstructure:"shardIndex"`
 	NumReplicas              int               `mapstructure:"numReplicas"`
-	IsRaftLeader             bool              `mapstructure:"isRaftLeader"`
 	FunctionsTimeout         int               `mapstructure:"functionsTimeout"`
 	TelegramBotToken         string            `mapstructure:"telegramBotToken"`
 	PlatformEmailUsername    string            `mapstructure:"platformEmailUsername"`
@@ -28,8 +28,7 @@ type Config struct {
 	PlatformTelegramBotToken string            `mapstructure:"platformTelegramBotToken"`
 	RefreshThreshold         uint              `mapstructure:"refreshThreshold"`
 	ShardCount               int               `mapstructure:"shardCount"`
-	LlmProviderApiKey        string            `mapstructure:"llmProviderApiKey"`
-	LlmProviderUrl           string            `mapstructure:"llmProviderUrl"`
+	EncryptionSecretKey      string            `mapstructure:"encryptionSecretKey"`
 	DefaultLlmModel          string            `mapstructure:"defaultLlmModel"`
 	DefaultLlmTemperature    float32           `mapstructure:"defaultLlmTemperature"`
 	DefaultLlmTopK           int32             `mapstructure:"defaultLlmTopK"`
@@ -91,6 +90,14 @@ func Load() (*Config, error) {
 	var cfg Config
 	if err := viper.Unmarshal(&cfg); err != nil {
 		return nil, fmt.Errorf("unable to decode into config struct: %w", err)
+	}
+
+	replica := viper.GetString("replica")
+	if replica != "" {
+		replicaIndex, err := strconv.ParseInt(replica, 10, 32)
+		if err == nil {
+			cfg.ReplicaIndex = int(replicaIndex)
+		}
 	}
 
 	return &cfg, nil

@@ -17,15 +17,13 @@ adminPassword: "{{ .AdminPassword }}"
 numReplicas: {{ .NumReplicas }}
 replicaIndex: {{ .ReplicaIndex }}
 numStreamReplicas: {{ .NumStreamReplicas }}
-isRaftLeader: {{ .IsRaftLeader }}
 functionsTimeout: {{ .FunctionsTimeout }}
 platformTelegramBotToken: "{{ .PlatformTelegramBotToken }}"
 platformEmailPassword: "{{ .PlatformEmailPassword }}"
 platformEmailUsername: "{{ .PlatformEmailUsername }}"
 refreshThreshold: {{ .RefreshThreshold }}
 shardCount: {{ .ShardCount }}
-llmProviderApiKey: "{{ .LlmProviderApiKey }}"
-llmProviderUrl: "{{ .LlmProviderUrl }}"
+encryptionSecretKey: "{{ .EncryptionSecretKey }}"
 defaultLlmModel: "{{ .DefaultLlmModel }}"
 defaultLlmTemperature: {{ .DefaultLlmTemperature }}
 llmMaxTokens: {{ .LlmMaxTokens }}
@@ -69,7 +67,6 @@ type PipelinesParams struct {
 	ReplicaIndex             int
 	NumStreamReplicas        int
 	ShardIndex               int
-	IsRaftLeader             bool
 	FunctionsTimeout         int
 	TelegramBotToken         string
 	PlatformEmailUsername    string
@@ -77,8 +74,7 @@ type PipelinesParams struct {
 	PlatformTelegramBotToken string
 	RefreshThreshold         uint
 	ShardCount               int
-	LlmProviderApiKey        string
-	LlmProviderUrl           string
+	EncryptionSecretKey      string
 	DefaultLlmModel          string
 	DefaultLlmTemperature    float32
 	DefaultLlmTopK           int32
@@ -99,23 +95,23 @@ func PipelinesConfig(platformData *types.PlatformData, nodeRoleNumMap map[string
 		serversUrl = append(serversUrl, "nats://nats3:4222")
 	}
 
+	pi := platformData.PlatformInfo
+
 	params := PipelinesParams{
 		Mode:                   "prod",
-		DomainName:             platformData.PlatformInfo.DomainName,
-		AdminUserName:          platformData.PlatformInfo.PlatformAdminUserName,
-		AdminPassword:          platformData.PlatformInfo.PlatformAdminPassword,
-		NumReplicas:            1,
+		DomainName:             pi.DomainName,
+		AdminUserName:          pi.PlatformAdminUserName,
+		AdminPassword:          pi.PlatformAdminPassword,
+		NumReplicas:            pi.NumPipelinesInstances,
 		ReplicaIndex:           1,
 		NumStreamReplicas:      1,
-		IsRaftLeader:           true,
 		FunctionsTimeout:       5000,
-		TelegramBotToken:       platformData.PlatformInfo.TelegramBotToken,
-		PlatformEmailUsername:  platformData.PlatformInfo.NotificationsEmailUser,
-		PlatformEmailPassword:  platformData.PlatformInfo.NotificationsEmailPassword,
+		TelegramBotToken:       pi.TelegramBotToken,
+		PlatformEmailUsername:  pi.NotificationsEmailUser,
+		PlatformEmailPassword:  pi.NotificationsEmailPassword,
 		RefreshThreshold:       10,
 		ShardCount:             8,
-		LlmProviderApiKey:      platformData.PlatformInfo.LlmProviderApiKey,
-		LlmProviderUrl:         platformData.PlatformInfo.LlmProviderUrl,
+		EncryptionSecretKey:    pi.EncryptionSecretKey,
 		DefaultLlmModel:        "openai:gpt-oss-120b",
 		DefaultLlmTemperature:  0.7,
 		DefaultLlmTopK:         40,
@@ -127,13 +123,13 @@ func PipelinesConfig(platformData *types.PlatformData, nodeRoleNumMap map[string
 
 		NATS: NATSParams{
 			ServersURL: serversUrl,
-			Username:   platformData.PlatformInfo.PlatformAdminUserName,
-			Password:   platformData.PlatformInfo.PlatformAdminPassword,
+			Username:   pi.PlatformAdminUserName,
+			Password:   pi.PlatformAdminPassword,
 			Timeout:    "15s",
 		},
 		TimescaleDB: TimescaleDBParams{
-			User:     platformData.PlatformInfo.TimescaleUser,
-			Password: platformData.PlatformInfo.TimescalePassword,
+			User:     pi.TimescaleUser,
+			Password: pi.TimescalePassword,
 			Host:     "timescaledb",
 			Port:     5432,
 			DBName:   "iot_data_db",

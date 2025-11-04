@@ -57,7 +57,5 @@ func getMemoryBytesSvcMap(pd *pt.PlatformData) map[string]int64 {
 
 	memoryBytesSvcMap["pipelines"] = int64(pipelinesSvcMem * 1024 * 1024)
 
-	memoryBytesSvcMap["nri"] = int64(2000 * 1024 * 1024) // 2000 MB
-
 	return memoryBytesSvcMap
 }

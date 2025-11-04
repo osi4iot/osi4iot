@@ -19,7 +19,7 @@ import (
 )
 
 type KVStore struct {
-	kv     jetstream.KeyValue
+	natsKv     jetstream.KeyValue
 	logger *logger.Logger
 }
 
@@ -73,7 +73,7 @@ func JetStreamConnect(nc *nats.Conn, log *logger.Logger) (jetstream.JetStream, e
 	return js, nil
 }
 
-func CreateStream(
+func CreateAdminStream(
 	shardIndex int,
 	numStreamReplicas int,
 	log *logger.Logger,
@@ -104,7 +104,7 @@ func CreateStream(
 	return stream, nil
 }
 
-func CreateConsumer(
+func CreateAdminConsumer(
 	shardIndex int,
 	replicaIndex int,
 	log *logger.Logger,
@@ -137,6 +137,37 @@ func CreateConsumer(
 
 	log.Infof("Consumer '%s' created successfully", consumerName)
 	return consumer, nil
+}
+
+func CreateLeaderKeyValueStore(
+	shardIndex int,
+	ttl time.Duration,
+	log *logger.Logger,
+	js jetstream.JetStream,
+) (*KVStore, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	kvName := fmt.Sprintf("pipelines_shard_%d_leader", shardIndex)
+	kv, err := js.CreateOrUpdateKeyValue(ctx, jetstream.KeyValueConfig{
+		Bucket: kvName,
+		TTL:    ttl,
+	})
+
+	if err != nil {
+		if kv2, err2 := js.KeyValue(ctx, kvName); err2 == nil {
+			kv = kv2
+		} else {
+			log.Errorf("Error creating KV store '%s': %v", kvName, err)
+			return nil, err
+		}
+	}
+
+
+	newKvStore := NewKVStore(kv, log)
+
+	log.Infof("KV store '%s' created successfully", kvName)
+	return newKvStore, nil
 }
 
 func CreateDigitalTwinKeyValueStore(
@@ -188,9 +219,13 @@ func DeleteDigitalTwinKeyValueStore(
 // NewKVStore creates a new KVStore instance with the provided KeyValue and logger
 func NewKVStore(kv jetstream.KeyValue, log *logger.Logger) *KVStore {
 	return &KVStore{
-		kv:     kv,
+		natsKv:     kv,
 		logger: log,
 	}
+}
+
+func (kvs *KVStore) GetNatsKeyValue() jetstream.KeyValue {
+	return kvs.natsKv
 }
 
 // GetValue retrieves and unmarshals a value from the store into the provided destination
@@ -199,7 +234,7 @@ func (kvs *KVStore) GetValue(ctx context.Context, key string, dest interface{}) 
 		return errors.New("destination cannot be nil")
 	}
 
-	entry, err := kvs.kv.Get(ctx, key)
+	entry, err := kvs.natsKv.Get(ctx, key)
 	if err != nil {
 		if err == jetstream.ErrKeyNotFound {
 			return fmt.Errorf("key %s not found", key)
@@ -260,7 +295,7 @@ func (kvs *KVStore) GetArrayValue(ctx context.Context, key string) ([]any, error
 
 // GetRawValue retrieves the raw bytes from the store
 func (kvs *KVStore) GetRawValue(ctx context.Context, key string) ([]byte, error) {
-	entry, err := kvs.kv.Get(ctx, key)
+	entry, err := kvs.natsKv.Get(ctx, key)
 	if err != nil {
 		if err == jetstream.ErrKeyNotFound {
 			return nil, fmt.Errorf("key %s not found", key)
@@ -293,7 +328,7 @@ func (kvs *KVStore) setValueWithRetry(ctx context.Context, key string, value int
 	}
 
 	// Try to get existing entry
-	entry, err := kvs.kv.Get(ctx, key)
+	entry, err := kvs.natsKv.Get(ctx, key)
 	if err != nil {
 		if err == jetstream.ErrKeyNotFound {
 			// Key doesn't exist, create it
@@ -309,7 +344,7 @@ func (kvs *KVStore) setValueWithRetry(ctx context.Context, key string, value int
 
 // createNewEntry creates a new entry in the store
 func (kvs *KVStore) createNewEntry(ctx context.Context, key string, data []byte) error {
-	newRevision, err := kvs.kv.Put(ctx, key, data)
+	newRevision, err := kvs.natsKv.Put(ctx, key, data)
 	if err != nil {
 		kvs.logger.Errorf("Failed to create key %s: %v", key, err)
 		return err
@@ -336,7 +371,7 @@ func (kvs *KVStore) updateExistingEntry(ctx context.Context, key string, data []
 			}
 		}
 
-		newRevision, err := kvs.kv.Update(ctx, key, data, revision)
+		newRevision, err := kvs.natsKv.Update(ctx, key, data, revision)
 		if err != nil {
 			lastErr = err
 			kvs.logger.Warnf("Failed to update key %s at attempt %d/%d: %v", key, attempt+1, maxRetries, err)
@@ -366,7 +401,7 @@ func (kvs *KVStore) saveHeartbeatEntry(ctx context.Context, baseKey string, revi
 	heartbeatValue := strconv.FormatUint(revision, 10)
 	fullKey := kvs.getHeartbeatKey(baseKey)
 
-	_, err := kvs.kv.Put(ctx, fullKey, []byte(heartbeatValue))
+	_, err := kvs.natsKv.Put(ctx, fullKey, []byte(heartbeatValue))
 	if err != nil {
 		kvs.logger.Warnf("Failed to set heartbeat entry for key %s: %v", fullKey, err)
 	}
@@ -375,7 +410,7 @@ func (kvs *KVStore) saveHeartbeatEntry(ctx context.Context, baseKey string, revi
 // getHeartbeatRevision retrieves the stored revision number
 func (kvs *KVStore) getHeartbeatRevision(ctx context.Context, baseKey string) (uint64, error) {
 	fullKey := kvs.getHeartbeatKey(baseKey)
-	entry, err := kvs.kv.Get(ctx, fullKey)
+	entry, err := kvs.natsKv.Get(ctx, fullKey)
 	if err != nil {
 		return 0, fmt.Errorf("failed to get heartbeat entry: %w", err)
 	}
@@ -395,7 +430,7 @@ func (kvs *KVStore) getHeartbeatKey(baseKey string) string {
 
 // DeleteEntry removes a key from the store
 func (kvs *KVStore) DeleteEntry(ctx context.Context, key string) error {
-	err := kvs.kv.Delete(ctx, key)
+	err := kvs.natsKv.Delete(ctx, key)
 	if err != nil {
 		kvs.logger.Errorf("Failed to delete key %s: %v", key, err)
 		return err
@@ -403,7 +438,7 @@ func (kvs *KVStore) DeleteEntry(ctx context.Context, key string) error {
 
 	// Also delete the heartbeat entry
 	heartbeatKey := kvs.getHeartbeatKey(key)
-	if err := kvs.kv.Delete(ctx, heartbeatKey); err != nil {
+	if err := kvs.natsKv.Delete(ctx, heartbeatKey); err != nil {
 		kvs.logger.Warnf("Failed to delete heartbeat entry for key %s: %v", heartbeatKey, err)
 	}
 
@@ -463,7 +498,7 @@ func (kvs *KVStore) isHeartbeatKey(key string) bool {
 
 // KeyExists checks if a key exists in the store
 func (kvs *KVStore) KeyExists(ctx context.Context, key string) (bool, error) {
-	_, err := kvs.kv.Get(ctx, key)
+	_, err := kvs.natsKv.Get(ctx, key)
 	if err != nil {
 		if err == jetstream.ErrKeyNotFound {
 			return false, nil
@@ -478,7 +513,7 @@ func (kvs *KVStore) ListKeys(ctx context.Context) ([]string, error) {
 	keys := make([]string, 0)
 
 	// Get key lister from NATS JetStream KV
-	keyLister, err := kvs.kv.ListKeys(ctx)
+	keyLister, err := kvs.natsKv.ListKeys(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list keys: %w", err)
 	}
@@ -492,3 +527,5 @@ func (kvs *KVStore) ListKeys(ctx context.Context) ([]string, error) {
 
 	return keys, nil
 }
+
+

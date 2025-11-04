@@ -65,13 +65,14 @@ interface InputProps {
     label: string;
     name: string;
     type: string;
+    autocomplete?: string;
 }
 
-const Input: FC<InputProps> = ({ label, name, type, ...rest }) => {
+const Input: FC<InputProps> = ({ label, name, type, autocomplete, ...rest }) => {
     return (
         <InputStyled>
             <label htmlFor={name}>{label}</label>
-            <Field id={name} name={name} type={type} {...rest} />
+            <Field id={name} name={name} type={type} autoComplete={autocomplete} {...rest} />
             <ErrorMessage name={name} component={TextError}/>
         </InputStyled>
     )

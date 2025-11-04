@@ -255,7 +255,6 @@ func (n *InjectNode) processMessage(msg common.Message, log *logger.Logger) erro
 
 func (n *InjectNode) runPeriodicTask(periodicCtx context.Context, interval time.Duration) {
 	defer n.wg.Done()
-	defer n.SetStatus(common.NodeStatusStopped)
 
 	switch n.Repeat {
 	case "interval":
@@ -515,7 +514,8 @@ func (n *InjectNode) startPeriodicTasks(log *logger.Logger) {
 	n.periodicListenCancel = listenCancel
 
 	n.wg.Add(2)
-	go n.runPeriodicTask(periodicCtx, time.Duration(1000*n.Every)*time.Millisecond)
+	interval := time.Duration(n.Every * float64(time.Second))
+	go n.runPeriodicTask(periodicCtx, interval)
 	go n.listenToPeriodicMessages(listenCtx, log, n.processMessage)
 }
 
@@ -526,6 +526,16 @@ func (n *InjectNode) stopPeriodicTasks() {
 	if n.periodicTaskCancel != nil {
 		n.periodicTaskCancel()
 		n.periodicTaskCancel = nil
+	}
+
+Drain:
+	for {
+		select {
+		case msg := <-n.MsgChan:
+			n.Fm.Log().Warnf("Discarding pending message during stop: %+v", msg)
+		default:
+			break Drain
+		}
 	}
 
 	if n.periodicListenCancel != nil {
