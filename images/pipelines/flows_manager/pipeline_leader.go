@@ -20,10 +20,16 @@ type lockValue struct {
 	LeaseUntil time.Time `json:"leaseUntil"`
 }
 
+type LeaderInstanceID struct {
+	ShardIndex     int
+	ReplicaIndex   int
+	DigitalTwinUID string
+}
+
 type PipelineLeaderElector struct {
 	log        *logger.Logger
 	kv         jetstream.KeyValue
-	instanceID string
+	instanceID LeaderInstanceID
 	lockKey    string
 	ttl        time.Duration
 	cancel     context.CancelFunc
@@ -34,9 +40,8 @@ type PipelineLeaderElector struct {
 	epoch    atomic.Uint64
 
 	lastValidatedAt atomic.Int64
-	
-	// Nuevos campos para control de adquisición
-	acquisitionMu    sync.Mutex
+
+	acquisitionMu sync.Mutex
 }
 
 func NewPipelineLeaderElector(fm *FlowsManager, orgHash, digitalTwinUid string, ttl time.Duration) (*PipelineLeaderElector, error) {
@@ -47,10 +52,16 @@ func NewPipelineLeaderElector(fm *FlowsManager, orgHash, digitalTwinUid string, 
 	s1 := rand.NewSource(time.Now().UnixNano() * int64(replicaIndex))
 	r1 := rand.New(s1)
 
+	instanceID := LeaderInstanceID{
+		ShardIndex:     fm.ShardIndex,
+		ReplicaIndex:   fm.ReplicaIndex,
+		DigitalTwinUID: digitalTwinUid,
+	}
+
 	le := &PipelineLeaderElector{
 		log:        fm.log,
 		kv:         kv,
-		instanceID: fmt.Sprintf("pipelines_shard_%d_replica_%d-dt_%s", fm.ShardIndex, fm.ReplicaIndex, digitalTwinUid),
+		instanceID: instanceID,
 		lockKey:    lockKey,
 		ttl:        ttl,
 		random:     r1,
@@ -64,7 +75,7 @@ func (le *PipelineLeaderElector) Start() error {
 	ctx, cancel := context.WithCancel(context.Background())
 	le.cancel = cancel
 
-	// Intento inicial
+	// Initial attempt
 	le.tryBecomeLeader(ctx)
 
 	// Watch del lock
@@ -89,13 +100,13 @@ func (le *PipelineLeaderElector) Start() error {
 		}
 	}()
 
-	// Heartbeat para renovar lease
+	// Heartbeat to renew lease
 	go le.heartbeatLoop(ctx)
 
 	// Split-brain detection
 	go le.splitBrainDetectionLoop(ctx)
-	
-	// **NUEVO**: Loop activo de adquisición cuando no somos líderes
+
+	// Active acquisition loop when we are not leaders
 	go le.acquisitionLoop(ctx)
 
 	return nil
@@ -108,7 +119,7 @@ func (le *PipelineLeaderElector) handleWatchUpdate(entry jetstream.KeyValueEntry
 		if err != nil {
 			return
 		}
-		if v.ID != le.instanceID {
+		if v.ID != le.instanceID.getString() {
 			if le.isLeader.Load() {
 				le.log.Warnf("Lost leadership to [%s] (epoch=%d)", v.ID, v.Epoch)
 			}
@@ -117,59 +128,59 @@ func (le *PipelineLeaderElector) handleWatchUpdate(entry jetstream.KeyValueEntry
 			return
 		}
 
-		// Nuestro propio PUT: sincronizar estado
+		// Our own PUT: synchronize state
 		le.epoch.Store(v.Epoch)
 		le.rev.Store(entry.Revision())
 		le.isLeader.Store(true)
 		le.touchValidatedNow()
-		
+
 	case jetstream.KeyValueDelete, jetstream.KeyValuePurge:
 		wasLeader := le.isLeader.Load()
 		le.isLeader.Store(false)
 		if wasLeader {
 			le.log.Warnf("Leadership lost due to %s", entry.Operation())
 		}
-		// El acquisitionLoop se encargará de reintentar
+		// The acquisitionLoop will handle retrying
 	}
 }
 
 func (le *PipelineLeaderElector) tryBecomeLeader(ctx context.Context) bool {
-	// Evitar múltiples intentos simultáneos
+	// Avoid multiple simultaneous attempts
 	if !le.acquisitionMu.TryLock() {
 		return false
 	}
 	defer le.acquisitionMu.Unlock()
-	
+
 	opCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
 	defer cancel()
 
-	// Leer lock existente para determinar siguiente epoch
+	// Read existing lock to determine next epoch
 	var nextEpoch uint64 = 1
 	if e, err := le.kv.Get(opCtx, le.lockKey); err == nil {
 		if v, err2 := lockUnmarshal(e.Value()); err2 == nil {
-			// Verificar si el lease expiró
+			// Check if lease expired
 			if time.Now().Before(v.LeaseUntil) {
-				// Lock aún válido, no podemos tomarlo
-				if v.ID == le.instanceID {
-					// Es nuestro lock, sincronizar estado
+				// Lock still valid, we cannot take it
+				if v.ID == le.instanceID.getString() {
+					// It's our lock, synchronize state
 					le.epoch.Store(v.Epoch)
 					le.rev.Store(e.Revision())
 					le.isLeader.Store(true)
 					le.touchValidatedNow()
-					le.log.Infof("Instance [%s] reconfirmed leadership (epoch=%d)", le.instanceID, v.Epoch)
+					le.log.Infof("Instance [%s] reconfirmed leadership (epoch=%d)", le.instanceID.getString(), v.Epoch)
 					return true
 				}
-				// Otro nodo es líder
+				// Another node is leader
 				return false
 			}
-			// Lock expirado, incrementar epoch
+			// Lock expired, increment epoch
 			nextEpoch = v.Epoch + 1
 		}
 	}
 
-	// Intentar crear el lock
+	// Try to create the lock
 	val := lockValue{
-		ID:         le.instanceID,
+		ID:         le.instanceID.getString(),
 		Epoch:      nextEpoch,
 		LeaseUntil: time.Now().Add(le.ttl),
 	}
@@ -179,19 +190,19 @@ func (le *PipelineLeaderElector) tryBecomeLeader(ctx context.Context) bool {
 		le.rev.Store(rev)
 		le.isLeader.Store(true)
 		le.touchValidatedNow()
-		le.log.Infof("Instance [%s] became leader (epoch=%d, rev=%d)", le.instanceID, nextEpoch, rev)
+		le.log.Infof("Instance [%s] became leader (epoch=%d, rev=%d)", le.instanceID.getString(), nextEpoch, rev)
 		return true
 	}
 
-	// Si ya existe, verificar si es nuestro
+	// If exists, check if it's ours
 	if errors.Is(err, jetstream.ErrKeyExists) {
 		if e, err2 := le.kv.Get(opCtx, le.lockKey); err2 == nil {
-			if v, err3 := lockUnmarshal(e.Value()); err3 == nil && v.ID == le.instanceID {
+			if v, err3 := lockUnmarshal(e.Value()); err3 == nil && v.ID == le.instanceID.getString() {
 				le.epoch.Store(v.Epoch)
 				le.rev.Store(e.Revision())
 				le.isLeader.Store(true)
 				le.touchValidatedNow()
-				le.log.Infof("Instance [%s] confirmed leadership (epoch=%d)", le.instanceID, v.Epoch)
+				le.log.Infof("Instance [%s] confirmed leadership (epoch=%d)", le.instanceID.getString(), v.Epoch)
 				return true
 			}
 		}
@@ -224,7 +235,7 @@ func (le *PipelineLeaderElector) renewLock(ctx context.Context) {
 	defer cancel()
 
 	val := lockValue{
-		ID:         le.instanceID,
+		ID:         le.instanceID.getString(),
 		Epoch:      currentEpoch,
 		LeaseUntil: time.Now().Add(le.ttl),
 	}
@@ -232,17 +243,17 @@ func (le *PipelineLeaderElector) renewLock(ctx context.Context) {
 	if err != nil {
 		le.isLeader.Store(false)
 		le.log.Warnf("Failed to renew lock (rev=%d): %v", currentRev, err)
-		// El acquisitionLoop se encargará de reintentar
+		// The acquisitionLoop will handle retrying
 		return
 	}
 	le.rev.Store(newRev)
 	le.touchValidatedNow()
 }
 
-// **NUEVO**: Loop activo que intenta adquirir liderazgo cuando no lo tenemos
+// Active loop that tries to acquire leadership when we don't have it
 func (le *PipelineLeaderElector) acquisitionLoop(ctx context.Context) {
-	// Intervalo basado en el TTL del lock
-	// Intentamos con frecuencia razonable pero sin saturar
+	// Interval based on the lock TTL
+	// We try at a reasonable frequency but without saturating
 	interval := max(le.ttl/4, 500*time.Millisecond)
 
 	for {
@@ -252,16 +263,16 @@ func (le *PipelineLeaderElector) acquisitionLoop(ctx context.Context) {
 		default:
 		}
 
-		// Solo intentar si no somos líderes
+		// Only try if we are not leaders
 		if le.isLeader.Load() {
 			time.Sleep(interval)
 			continue
 		}
 
-		// Intentar adquirir
+		// Try to acquire
 		le.tryBecomeLeader(ctx)
 
-		// Pequeño jitter para evitar thundering herd si hay muchas instancias
+		// Small jitter to avoid thundering herd if there are many instances
 		jitter := time.Duration(le.random.Int63n(int64(interval / 10)))
 		time.Sleep(interval + jitter)
 	}
@@ -288,7 +299,7 @@ func (le *PipelineLeaderElector) splitBrainDetectionLoop(ctx context.Context) {
 				continue
 			}
 
-			// Validación explícita
+			// Explicit validation
 			opCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
 			e, err := le.kv.Get(opCtx, le.lockKey)
 			cancel()
@@ -298,12 +309,12 @@ func (le *PipelineLeaderElector) splitBrainDetectionLoop(ctx context.Context) {
 				continue
 			}
 
-			// Verificar id + epoch
+			// Verify id + epoch
 			v, err := lockUnmarshal(e.Value())
-			if err != nil || v.ID != le.instanceID || v.Epoch != le.epoch.Load() {
+			if err != nil || v.ID != le.instanceID.getString() || v.Epoch != le.epoch.Load() {
 				le.isLeader.Store(false)
 				le.log.Warnf("Leadership validation failed (id/epoch mismatch). id=%s kvID=%s epoch(local=%d kv=%d) err=%v",
-					le.instanceID, v.ID, le.epoch.Load(), v.Epoch, err)
+					le.instanceID.getString(), v.ID, le.epoch.Load(), v.Epoch, err)
 				continue
 			}
 
@@ -316,43 +327,41 @@ func (le *PipelineLeaderElector) IsLeader() bool {
 	return le.isLeader.Load()
 }
 
-func (le *PipelineLeaderElector) getLeaderInstanceID() (string, bool) {
+func (le *PipelineLeaderElector) getLeaderInstanceID() (LeaderInstanceID, bool) {
 	if !le.isLeader.Load() {
-		// Si no somos líderes, leer del KV quién es
+		// If we are not leaders, read from KV who is
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 		defer cancel()
-		
+
 		e, err := le.kv.Get(ctx, le.lockKey)
 		if err != nil {
-			return "", false
+			return LeaderInstanceID{}, false
 		}
-		
+
 		v, err := lockUnmarshal(e.Value())
 		if err != nil {
-			return "", false
+			return LeaderInstanceID{}, false
 		}
-		
-		return v.ID, true
+
+		instanceId, err := getLeaderInstanceIdFromString(v.ID)
+		if err != nil {
+			return LeaderInstanceID{}, false
+		}
+
+		return instanceId, true
 	}
-	
+
 	return le.instanceID, true
 }
 
-// Parsear el instanceID para extraer el replica index
+// Parse the instanceID to extract the replica index
 func (le *PipelineLeaderElector) GetReplicaIndexLeader() int {
 	leaderID, ok := le.getLeaderInstanceID()
 	if !ok {
 		return -1
 	}
-	
-	var shardIdx, replicaIdx int
-	var dtUID string
-	_, err := fmt.Sscanf(leaderID, "pipelines_shard_%d_replica_%d-dt_%s", &shardIdx, &replicaIdx, &dtUID)
-	if err != nil {
-		return -1
-	}
-	
-	return replicaIdx
+
+	return leaderID.ReplicaIndex
 }
 
 func (le *PipelineLeaderElector) Stop() {
@@ -361,7 +370,7 @@ func (le *PipelineLeaderElector) Stop() {
 	}
 	le.cancel()
 
-	// Liberar lock gracefully si somos líderes
+	// Release lock gracefully if we are leaders
 	if le.IsLeader() {
 		opCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 		defer cancel()
@@ -369,7 +378,7 @@ func (le *PipelineLeaderElector) Stop() {
 		if err := le.kv.Delete(opCtx, le.lockKey, jetstream.LastRevision(currentRev)); err != nil {
 			le.log.Warnf("Failed to release lock on stop: %v", err)
 		} else {
-			le.log.Infof("Instance [%s] released leadership gracefully", le.instanceID)
+			le.log.Infof("Instance [%s] released leadership gracefully", le.instanceID.getString())
 		}
 	}
 }
@@ -402,4 +411,13 @@ func lockMarshal(v lockValue) []byte {
 func lockUnmarshal(b []byte) (lockValue, error) {
 	var v lockValue
 	return v, json.Unmarshal(b, &v)
+}
+
+func (li *LeaderInstanceID) getString() (leaderID string) {
+	return fmt.Sprintf("pipelines_shard_%d_replica_%d-dt_%s", li.ShardIndex, li.ReplicaIndex, li.DigitalTwinUID)
+}
+
+func getLeaderInstanceIdFromString(leaderID string) (instanceID LeaderInstanceID, err error) {
+	_, err = fmt.Sscanf(leaderID, "pipelines_shard_%d_replica_%d-dt_%s", &instanceID.ShardIndex, &instanceID.ReplicaIndex, &instanceID.DigitalTwinUID)
+	return instanceID, err
 }

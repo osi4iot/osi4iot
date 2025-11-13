@@ -347,6 +347,7 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
                                         (docInfoFile) => docInfoFile.fileName.split("/")[4]
                                     );
                                     setStoredDocInfoFileName(docInfoFileNames[0]);
+                                    setDocInfoFileName(docInfoFileNames[0]);
                                     const docInfoFilesLastModif = docInfoFileList.map(
                                         (docInfoFile) => docInfoFile.lastModified
                                     );
