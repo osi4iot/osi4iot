@@ -180,3 +180,122 @@ func HttpPostWithJwt(url string, data interface{}, token string) ([]byte, error)
 
 	return body, nil
 }
+
+func HttpPatch(url string, data interface{}) ([]byte, error) {
+	jsonData, err := json.Marshal(data)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal data: %v", err)
+	}
+
+	req, err := http.NewRequest("PATCH", url, bytes.NewBuffer(jsonData))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create PATCH request: %v", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("HTTP PATCH request failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return nil, fmt.Errorf("unexpected status code: %d %s", resp.StatusCode, resp.Status)
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response body: %v", err)
+	}
+
+	return body, nil
+}
+
+func HttpPatchWithJwt(url string, data interface{}, token string) ([]byte, error) {
+	jsonData, err := json.Marshal(data)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal data: %v", err)
+	}
+
+	ctx, cancel := ContextWithTimeout(10 * time.Second)
+	defer cancel()
+	req, err := http.NewRequestWithContext(ctx, "PATCH", url, bytes.NewBuffer(jsonData))
+	if err != nil {
+		return nil, fmt.Errorf("error creating request: %w", err)
+	}
+
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "application/json")
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("error executing request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return nil, fmt.Errorf("unexpected status code: %d %s", resp.StatusCode, resp.Status)
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("error reading response: %w", err)
+	}
+
+	return body, nil
+}
+
+func HttpDelete(url string) ([]byte, error) {
+	req, err := http.NewRequest("DELETE", url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create DELETE request: %v", err)
+	}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("HTTP DELETE request failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return nil, fmt.Errorf("unexpected status code: %d %s", resp.StatusCode, resp.Status)
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response body: %v", err)
+	}
+
+	return body, nil
+}
+
+func HttpDeleteWithJwt(url string, token string) ([]byte, error) {
+	ctx, cancel := ContextWithTimeout(10 * time.Second)
+	defer cancel()
+	req, err := http.NewRequestWithContext(ctx, "DELETE", url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("error creating request: %w", err)
+	}
+
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "application/json")
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("error executing request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return nil, fmt.Errorf("unexpected status code: %d %s", resp.StatusCode, resp.Status)
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("error reading response: %w", err)
+	}
+
+	return body, nil
+}

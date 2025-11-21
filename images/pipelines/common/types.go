@@ -2,6 +2,7 @@ package common
 
 import (
 	"context"
+	"github.com/nats-io/nats.go"
 	"image"
 	nats_pkg "pipelines/nats"
 )
@@ -133,8 +134,9 @@ type DigitalTwin struct {
 	Created                     string         `json:"created"`
 	Updated                     string         `json:"updated"`
 
-	KvStore  *nats_pkg.KVStore
-	Pipeline Pipeline
+	KvStore                    *nats_pkg.KVStore
+	Pipeline                   Pipeline
+	PipelineStatusSubscription *nats.Subscription
 }
 
 type DigitalTwinTopic struct {

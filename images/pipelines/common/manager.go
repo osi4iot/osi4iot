@@ -132,4 +132,5 @@ type Manager interface {
 	DeleteDocInfoFileInDigitalTwin(digitalTwinId int) error
 
 	GetLeaderKvStore() jetstream.KeyValue
+	SetPipelineStatusSubscription(digitalTwin *DigitalTwin) *nats.Subscription
 }

@@ -10,8 +10,6 @@ import (
 	"strings"
 	"sync"
 	"time"
-
-	"github.com/nats-io/nats.go"
 )
 
 type Pipeline struct {
@@ -30,7 +28,6 @@ type Pipeline struct {
 	NodeOutputWires        map[string][][]*common.Wire // key: "nodeID" -> [][]*Wire (wires that leave the node)
 	NodeInputWires         map[string][]*common.Wire   // key: "nodeID" -> []*Wire (wires that arrive at the node)
 	NodeOutputByIndex      map[string][]*common.Wire   // key: "nodeID:outputIndex" -> []*Wire
-	NatsStatusSubscription *nats.Subscription
 	LeaderElector          *PipelineLeaderElector
 	mu                     sync.RWMutex
 }
@@ -220,7 +217,7 @@ func (p *Pipeline) SetStatus(status common.PipelineStatus) {
 func (p *Pipeline) setStatusUnsafe(status common.PipelineStatus) {
 	pipelineStatus := status.String()
 	p.Status = status
-	replicaIndexLeader := p.getReplicaIndexLeader()
+	replicaIndexLeader := p.GetReplicaIndexLeader()
 	payload := common.PipelineStatusMessage{
 		PipelineStatus:     pipelineStatus,
 		ReplicaIndexLeader: replicaIndexLeader,
@@ -228,7 +225,7 @@ func (p *Pipeline) setStatusUnsafe(status common.PipelineStatus) {
 	p.PublishPipelineStatus(payload)
 }
 
-func (p *Pipeline) getReplicaIndexLeader() int {
+func (p *Pipeline) GetReplicaIndexLeader() int {
 	replicaIndexLeader := -1
 	if p.LeaderElector != nil {
 		replicaIndexLeader = p.LeaderElector.GetReplicaIndexLeader()
@@ -300,9 +297,6 @@ func (p *Pipeline) RestartNode(nodeUid string) error {
 				msg := fmt.Sprintf("Node %s in digital twin %d has been restarted successfully (took %v)", p.Nodes[nodeUid].GetName(), p.DigitalTwinId, elapsed)
 				p.Fm.log.Infof(msg)
 				p.SetStatus(common.PipelineStatusRunning)
-				if p.NatsStatusSubscription == nil {
-					p.StatusSubcription()
-				}
 				return nil
 			}
 		case <-timeoutChan:
@@ -625,9 +619,6 @@ func (p *Pipeline) Start(needReinitialization bool) {
 				p.Fm.log.Infof("All nodes in digital twin %d are running (took %v)", p.DigitalTwinId, elapsed)
 				p.LogPipelineInfo(fmt.Sprintf("Pipeline of digital twin '%s' started successfully.", p.DigitalTwinDescription))
 				p.SetStatus(common.PipelineStatusRunning)
-				if p.NatsStatusSubscription == nil {
-					p.StatusSubcription()
-				}
 				return
 			}
 		case <-timeoutChan:
@@ -728,7 +719,7 @@ func (p *Pipeline) Stop(action string) error {
 				case "delete":
 					p.SetStatus(common.PipelineStatusDeleted)
 					p.LogPipelineInfo("Pipeline delete successfully")
-					p.stopStatusSubscriptionUnsafe()
+					//p.stopStatusSubscriptionUnsafe()
 				}
 				return nil
 			}
@@ -736,9 +727,9 @@ func (p *Pipeline) Stop(action string) error {
 			p.Fm.log.Warnf("Timeout while waiting for nodes to stop in digital twin %d", p.GetDigitalTwinId())
 			p.LogPipelineError("Pipeline stop failed", "Timeout while waiting for nodes to stop")
 			p.SetStatus(common.PipelineStatusError)
-			if action == "delete" {
-				p.stopStatusSubscriptionUnsafe()
-			}
+			// if action == "delete" {
+			// 	p.stopStatusSubscriptionUnsafe()
+			// }
 			return fmt.Errorf("timeout while waiting for nodes to stop in digital twin %d", p.GetDigitalTwinId())
 		}
 	}
@@ -822,63 +813,6 @@ func (p *Pipeline) LogPipelineError(description string, message string) {
 		p.Fm.NatsPublish(logSubject, logJSON)
 	} else {
 		p.Fm.Log().Errorf("Failed to marshal error data for dt %s: %v", p.GetDigitalTwinUid(), marshallErr)
-	}
-}
-
-func (p *Pipeline) StatusSubcription() {
-	sim2stateTopic := p.Fm.GetTopicByTopicRef(p.GetAssetId(), p.GetDigitalTwinId(), "sim2state")
-	sim2stateSubject := utils.TopicToNatsSubject(sim2stateTopic.TopicType, sim2stateTopic.GroupUid, sim2stateTopic.TopicUid)
-
-	if sim2stateSubject == "" {
-		p.Fm.Log().Errorf("No sim2state subject is set for digital twin %d", p.DigitalTwinId)
-		return
-	}
-
-	queueName := fmt.Sprintf("pipeline_status_%s", p.GetDigitalTwinUid())
-	sub, err := p.Fm.NatsQueueSubscribe(sim2stateSubject, queueName, func(msg *nats.Msg) {
-		var rawMessage map[string]interface{}
-		if err := json.Unmarshal(msg.Data, &rawMessage); err != nil {
-			p.Fm.Log().Errorf("failed to unmarshal message for digital twin %d: %w", p.DigitalTwinId, err)
-			return
-		}
-
-		if action, ok := rawMessage["action"].(string); ok {
-			switch action {
-			case "queryPipelineStatus":
-				pipelineStatus := p.GetStatus().String()
-				replicaIndexLeader := p.LeaderElector.GetReplicaIndexLeader()
-				payload := common.PipelineStatusMessage{
-					PipelineStatus:     pipelineStatus,
-					ReplicaIndexLeader: replicaIndexLeader,
-				}
-				p.PublishPipelineStatus(payload)
-			case "queryChatMessages":
-				if userName, ok := rawMessage["userName"].(string); ok {
-					p.PublishChatMessages(userName)
-				} else {
-					p.Fm.Log().Errorf("userName not found in message for digital twin %d", p.DigitalTwinId)
-				}
-			case "queryRemoveChatMessages":
-				if userName, ok := rawMessage["userName"].(string); ok {
-					p.ClearChatMessagesHistory(userName)
-				} else {
-					p.Fm.Log().Errorf("userName not found in message for digital twin %d", p.DigitalTwinId)
-				}
-			}
-		}
-
-	})
-	if err != nil {
-		p.Fm.Log().Errorf("Failed to subscribe to status subject for digital twin %d: %v", p.DigitalTwinId, err)
-		return
-	}
-	p.NatsStatusSubscription = sub
-}
-
-func (p *Pipeline) stopStatusSubscriptionUnsafe() {
-	if p.NatsStatusSubscription != nil {
-		p.NatsStatusSubscription.Unsubscribe()
-		p.NatsStatusSubscription = nil
 	}
 }
 

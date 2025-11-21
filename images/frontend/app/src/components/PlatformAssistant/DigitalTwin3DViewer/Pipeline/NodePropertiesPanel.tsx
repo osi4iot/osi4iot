@@ -1066,8 +1066,7 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
         return !excludedTypes.includes(nodeType);
     };
 
-
-    const hoverFnDocs = useCallback(async (view: any, pos: any, side: any) => {
+    const hoverFnDocs = useCallback((view: any, pos: any, side: any) => {
         const { state } = view;
         const word = state.wordAt(pos);
         if (!word) return null;
@@ -1142,6 +1141,20 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
         };
     }, []);
 
+    const codeMirrorExtensions = useMemo(
+        () => [
+            javascript({ typescript: true }),
+            javascriptLanguage.data.of({
+                autocomplete: GeneralizedCompletion,
+            }),
+            indentUnit.of("    "),
+            indentOnInput(),
+            hoverTooltip(hoverFnDocs, { hoverTime: 180 }),
+            keymap.of([...completionKeymap, indentWithTab, reIndentCommand]),
+        ],
+        [hoverFnDocs]
+    );
+
     // Renderizar el selector de número de outputs
     const renderOutputSelector = () => {
         if (!selectedNode || !shouldShowOutputSelector(selectedNode.type)) {
@@ -1205,16 +1218,7 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                                     }
                                     height="auto"
                                     minHeight="500px"
-                                    extensions={[
-                                        javascript({ typescript: true }),
-                                        javascriptLanguage.data.of({
-                                            autocomplete: GeneralizedCompletion,
-                                        }),
-                                        indentUnit.of("    "),
-                                        indentOnInput(),
-                                        hoverTooltip(hoverFnDocs, { hoverTime: 180 }),
-                                        keymap.of([indentWithTab, reIndentCommand]),
-                                    ]}
+                                    extensions={codeMirrorExtensions}
                                     theme={oneDark}
                                     onChange={(value) => handleInputChange("onInitiationScript", value)}
                                     basicSetup={{
@@ -1239,16 +1243,7 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                                     }
                                     height="auto"
                                     minHeight="500px"
-                                    extensions={[
-                                        javascript({ typescript: true }),
-                                        javascriptLanguage.data.of({
-                                            autocomplete: GeneralizedCompletion,
-                                        }),
-                                        indentUnit.of("    "),
-                                        indentOnInput(),
-                                        hoverTooltip(hoverFnDocs, { hoverTime: 180 }),
-                                        keymap.of([indentWithTab, reIndentCommand]),
-                                    ]}
+                                    extensions={codeMirrorExtensions}
                                     theme={oneDark}
                                     onChange={(value) => handleInputChange("onStartScript", value)}
                                     basicSetup={{
@@ -1273,20 +1268,7 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                                     }
                                     height="auto"
                                     minHeight="500px"
-                                    extensions={[
-                                        javascript({ typescript: true }),
-                                        javascriptLanguage.data.of({
-                                            autocomplete: GeneralizedCompletion,
-                                        }),
-                                        indentUnit.of("    "),
-                                        indentOnInput(),
-                                        hoverTooltip(hoverFnDocs, { hoverTime: 180 }),
-                                        keymap.of([
-                                            ...completionKeymap, // Enter, Escape, flechas
-                                            indentWithTab, // Tab normal para indentación
-                                            reIndentCommand,
-                                        ]),
-                                    ]}
+                                    extensions={codeMirrorExtensions}
                                     theme={oneDark}
                                     onChange={(value) => handleInputChange("onMessageScript", value)}
                                     basicSetup={{

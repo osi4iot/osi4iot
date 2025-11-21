@@ -19,40 +19,40 @@ import (
 )
 
 type FlowsManager struct {
-	Orgs                 *common.ShardedSyncMap
-	Groups               *common.ShardedSyncMap
-	NotificationChannels *common.ShardedSyncMap
-	Topics               *common.ShardedSyncMap
-	AssetTopicsRef       *common.ShardedSyncMap
-	DigitalTwinTopicsRef *common.ShardedSyncMap
-	MLModels             *common.ShardedSyncMap
-	DigitalTwins         *common.ShardedSyncMap
-	Admin                    *admin.Admin
-	JsConsumer               jetstream.Consumer
-	log                      *logger.Logger
-	NumReplicas              int
-	FunctionsTimeout         int // Timeout for function execution in milliseconds
-	ReplicaIndex             int
-	ShardIndex               int
-	IsLeader                 bool
-	Nats                     *nats.Conn
-	JetStream                jetstream.JetStream
-	Mode                     string
-	PlatformEmailUsername    string
-	PlatformEmailPassword    string
-	PlatformTelegramBotToken string
-	EncryptionSecretKey      string
-	LlmProviderApiKey        string
-	LlmProviderUrl           string
-	DefaultLlmModel          string
-	DefaultLlmTemperature    float32
-	DefaultLlmTopK           int32
-	DefaultLlmTopP           float32
-	LlmMaxTokens             int
-	McpServersPath           string
-	MaxChatMessagesPerUser   int
-	PipelinesDataPath        string
-	LeaderKvStore		   *nats_pkg.KVStore
+	Orgs                        *common.ShardedSyncMap
+	Groups                      *common.ShardedSyncMap
+	NotificationChannels        *common.ShardedSyncMap
+	Topics                      *common.ShardedSyncMap
+	AssetTopicsRef              *common.ShardedSyncMap
+	DigitalTwinTopicsRef        *common.ShardedSyncMap
+	MLModels                    *common.ShardedSyncMap
+	DigitalTwins                *common.ShardedSyncMap
+	Admin                       *admin.Admin
+	JsConsumer                  jetstream.Consumer
+	log                         *logger.Logger
+	NumReplicas                 int
+	FunctionsTimeout            int // Timeout for function execution in milliseconds
+	ReplicaIndex                int
+	ShardIndex                  int
+	IsLeader                    bool
+	Nats                        *nats.Conn
+	JetStream                   jetstream.JetStream
+	Mode                        string
+	PlatformEmailUsername       string
+	PlatformEmailPassword       string
+	PlatformTelegramBotToken    string
+	EncryptionSecretKey         string
+	LlmProviderApiKey           string
+	LlmProviderUrl              string
+	DefaultLlmModel             string
+	DefaultLlmTemperature       float32
+	DefaultLlmTopK              int32
+	DefaultLlmTopP              float32
+	LlmMaxTokens                int
+	McpServersPath              string
+	MaxChatMessagesPerUser      int
+	PipelinesDataPath           string
+	LeaderKvStore               *nats_pkg.KVStore
 }
 
 func CreateFlowsManager(
@@ -82,39 +82,39 @@ func CreateFlowsManager(
 	if err != nil {
 		log.Fatalf("Failed to create leader KV store: %v", err)
 	}
-	
+
 	flowManager := FlowsManager{
-		Orgs:                     common.NewShardedSyncMap(config.ShardCount),
-		Groups:                   common.NewShardedSyncMap(config.ShardCount),
-		NotificationChannels:     common.NewShardedSyncMap(config.ShardCount),
-		Topics:                   common.NewShardedSyncMap(config.ShardCount),
-		AssetTopicsRef:           common.NewShardedSyncMap(config.ShardCount),
-		DigitalTwinTopicsRef:     common.NewShardedSyncMap(config.ShardCount),
-		MLModels:                 common.NewShardedSyncMap(config.ShardCount),
-		DigitalTwins:             common.NewShardedSyncMap(config.ShardCount),
-		NumReplicas:              config.NumReplicas,
-		ReplicaIndex:             config.ReplicaIndex,
-		ShardIndex:               config.ShardIndex,
-		FunctionsTimeout:         config.FunctionsTimeout,
-		Admin:                    admin,
-		JsConsumer:               jsConsumer,
-		Nats:                     natsConn,
-		JetStream:                jetStream,
-		Mode:                     config.Mode,
-		PlatformEmailUsername:    config.PlatformEmailUsername,
-		PlatformEmailPassword:    config.PlatformEmailPassword,
-		PlatformTelegramBotToken: config.PlatformTelegramBotToken,
-		EncryptionSecretKey:      secretEncryptionKey,
-		DefaultLlmModel:          config.DefaultLlmModel,
-		DefaultLlmTemperature:    config.DefaultLlmTemperature,
-		LlmMaxTokens:             config.LlmMaxTokens,
-		McpServersPath:           config.McpServersPath,
-		MaxChatMessagesPerUser:   config.MaxChatMessagesPerUser,
-		PipelinesDataPath:        config.PipelinesDataPath,
-		LeaderKvStore:            leaderKvStore,
-		log:                      log,
+		Orgs:                        common.NewShardedSyncMap(config.ShardCount),
+		Groups:                      common.NewShardedSyncMap(config.ShardCount),
+		NotificationChannels:        common.NewShardedSyncMap(config.ShardCount),
+		Topics:                      common.NewShardedSyncMap(config.ShardCount),
+		AssetTopicsRef:              common.NewShardedSyncMap(config.ShardCount),
+		DigitalTwinTopicsRef:        common.NewShardedSyncMap(config.ShardCount),
+		MLModels:                    common.NewShardedSyncMap(config.ShardCount),
+		DigitalTwins:                common.NewShardedSyncMap(config.ShardCount),
+		NumReplicas:                 config.NumReplicas,
+		ReplicaIndex:                config.ReplicaIndex,
+		ShardIndex:                  config.ShardIndex,
+		FunctionsTimeout:            config.FunctionsTimeout,
+		Admin:                       admin,
+		JsConsumer:                  jsConsumer,
+		Nats:                        natsConn,
+		JetStream:                   jetStream,
+		Mode:                        config.Mode,
+		PlatformEmailUsername:       config.PlatformEmailUsername,
+		PlatformEmailPassword:       config.PlatformEmailPassword,
+		PlatformTelegramBotToken:    config.PlatformTelegramBotToken,
+		EncryptionSecretKey:         secretEncryptionKey,
+		DefaultLlmModel:             config.DefaultLlmModel,
+		DefaultLlmTemperature:       config.DefaultLlmTemperature,
+		LlmMaxTokens:                config.LlmMaxTokens,
+		McpServersPath:              config.McpServersPath,
+		MaxChatMessagesPerUser:      config.MaxChatMessagesPerUser,
+		PipelinesDataPath:           config.PipelinesDataPath,
+		LeaderKvStore:               leaderKvStore,
+		log:                         log,
 	}
-	
+
 	flowManager.AddOrgs(orgs)
 	flowManager.AddGroups(groups)
 	flowManager.AddNotificationChannels(notificationChannels)
@@ -125,7 +125,7 @@ func CreateFlowsManager(
 	flowManager.AddDigitalTwins(digitalTwins)
 	flowManager.AddFemResultsInDigitalTwins()
 	flowManager.AddDocInfoFilesInDigitalTwins()
-	
+
 	flowManager.Listen()
 	flowManager.StartNodes()
 

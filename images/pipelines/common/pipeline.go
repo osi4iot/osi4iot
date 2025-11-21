@@ -57,9 +57,12 @@ type Pipeline interface {
 	GetOrgId() int
 	GetOrgHash() string
 	GetGroupId() int
-	StatusSubcription()
+	//StatusSubcription()
 	PublishPipelineStatus(payload PipelineStatusMessage)
 	GetLeaderElector() LeaderElector
+	GetReplicaIndexLeader() int
+	PublishChatMessages(userName string)
+	ClearChatMessagesHistory(userName string)
 }
 
 type PipelineStatusMessage struct {

@@ -2,11 +2,14 @@ package flows_manager
 
 import (
 	"encoding/json"
+	"fmt"
 	"pipelines/common"
 	nats_pkg "pipelines/nats"
 	"pipelines/utils"
 	"strconv"
 	"strings"
+
+	"github.com/nats-io/nats.go"
 )
 
 func (fm *FlowsManager) GetDigitalTwins() []*common.DigitalTwin {
@@ -39,6 +42,7 @@ func (fm *FlowsManager) AddDigitalTwin(digitalTwin *common.DigitalTwin, createPi
 
 		if createPipeline {
 			digitalTwin.Pipeline = fm.createPipeline(digitalTwin, org, "create")
+			digitalTwin.PipelineStatusSubscription = fm.SetPipelineStatusSubscription(digitalTwin)
 		} else {
 			digitalTwin.Pipeline = nil
 		}
@@ -54,11 +58,65 @@ func (fm *FlowsManager) AddDigitalTwins(digitalTwins []*common.DigitalTwin) {
 	}
 }
 
+func (fm *FlowsManager) SetPipelineStatusSubscription(digitalTwin *common.DigitalTwin) *nats.Subscription {
+	p := digitalTwin.Pipeline
+	sim2stateTopic := fm.GetTopicByTopicRef(p.GetAssetId(), p.GetDigitalTwinId(), "sim2state")
+	sim2stateSubject := utils.TopicToNatsSubject(sim2stateTopic.TopicType, sim2stateTopic.GroupUid, sim2stateTopic.TopicUid)
+
+	if sim2stateSubject == "" {
+		fm.log.Errorf("No sim2state subject is set for digital twin %d", digitalTwin.Id)
+		return nil
+	}
+
+	queueName := fmt.Sprintf("pipeline_status_%s", digitalTwin.DigitalTwinUid)
+	sub, err := fm.NatsQueueSubscribe(sim2stateSubject, queueName, func(msg *nats.Msg) {
+		var rawMessage map[string]interface{}
+		if err := json.Unmarshal(msg.Data, &rawMessage); err != nil {
+			fm.log.Errorf("failed to unmarshal message for digital twin %d: %w", digitalTwin.Id, err)
+			return
+		}
+
+		if action, ok := rawMessage["action"].(string); ok {
+			switch action {
+			case "queryPipelineStatus":
+				pipelineStatus := p.GetStatus().String()
+				replicaIndexLeader := p.GetReplicaIndexLeader()
+				payload := common.PipelineStatusMessage{
+					PipelineStatus:     pipelineStatus,
+					ReplicaIndexLeader: replicaIndexLeader,
+				}
+				p.PublishPipelineStatus(payload)
+			case "queryChatMessages":
+				if userName, ok := rawMessage["userName"].(string); ok {
+					p.PublishChatMessages(userName)
+				} else {
+					fm.log.Errorf("userName not found in message for digital twin %d", digitalTwin.Id)
+				}
+			case "queryRemoveChatMessages":
+				if userName, ok := rawMessage["userName"].(string); ok {
+					p.ClearChatMessagesHistory(userName)
+				} else {
+					fm.log.Errorf("userName not found in message for digital twin %d", digitalTwin.Id)
+				}
+			}
+		}
+
+	})
+	if err != nil {
+		fm.log.Errorf("Failed to subscribe to status subject for digital twin %d: %v", digitalTwin.Id, err)
+		return nil
+	}
+	return sub
+}
+
 func (fm *FlowsManager) DeleteDigitalTwin(digitalTwinId int) error {
 	digitalTwinIdStr := strconv.Itoa(digitalTwinId)
 	if entry, ok := fm.DigitalTwins.Load(digitalTwinIdStr); ok {
 		digitalTwin := entry.(*common.DigitalTwin)
-		if digitalTwin.Pipeline != nil{
+		if digitalTwin.PipelineStatusSubscription != nil {
+			digitalTwin.PipelineStatusSubscription.Unsubscribe()
+		}
+		if digitalTwin.Pipeline != nil {
 			digitalTwin.Pipeline.Stop("delete")
 		}
 		fm.DigitalTwins.Delete(digitalTwinIdStr)
