@@ -9,8 +9,8 @@ import (
 func AuthCalloutService(
 	pd *pt.PlatformData, 
 	sd pt.SwarmData, 
-	svcResourcesMap resources.SvcResourcesMap,
-	nodeRoleMaps resources.NodesRoleMaps,
+	svcResources resources.SvcResources,
+	nodeRoleNumMap map[string]int,
 	) pt.Service {
 
 	secrets := []*swarm.SecretReference{
@@ -41,7 +41,7 @@ func AuthCalloutService(
 		"node.labels.platform_worker==true",
 	}
 
-	if nodeRoleMaps.NodeRoleNumMap["Platform worker"] == 0 {
+	if nodeRoleNumMap["Platform worker"] == 0 {
 		constraints = []string{
 			"node.role==manager",
 		}
@@ -51,11 +51,11 @@ func AuthCalloutService(
 		WithImage("ghcr.io/osi4iot/auth_callout:1.3.0").
 		WithSecrets(secrets).
 		WithResources(
-			resources.CPUs("auth_callout", svcResourcesMap),
-			resources.Memory("auth_callout", svcResourcesMap),
+			svcResources.NanoCPUs,
+			svcResources.MemoryBytes,
 		).
 		WithPlacement(constraints).
-		WithModeReplicated(resources.GiveReplicsPtr("auth_callout", nodeRoleMaps)).
+		WithModeReplicated(svcResources.ReplicasPtr).
 		WithPorts([]swarm.PortConfig{
 			{Protocol: swarm.PortConfigProtocolTCP, TargetPort: 8883, PublishedPort: 8883},
 		}).

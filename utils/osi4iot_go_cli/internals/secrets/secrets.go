@@ -16,7 +16,7 @@ import (
 func GenerateSecrets(pd *pt.PlatformData) map[string]pt.Secret {
 	Secrets := make(map[string]pt.Secret)
 	domainCertsType := pd.PlatformInfo.DomainCertsType
-	nodeRoleMaps := resources.NewNodeRoleMaps(pd)
+	nodeRoleNumMap := resources.GetNodeRoleNumMap(pd)
 	numNodes := len(pd.PlatformInfo.NodesData)
 
 	adminApiSecretsDataArray := []string{
@@ -114,7 +114,7 @@ func GenerateSecrets(pd *pt.PlatformData) map[string]pt.Secret {
 	Secrets["auth_callout"] = authCalloutSecret
 
 	clusterRoutes := []string{"nats1:6222"}
-	if (numNodes == 1 && pd.PlatformInfo.NumNatsClusterNodes > 1) || nodeRoleMaps.NodeRoleNumMap["Platform worker"] >= 3 {
+	if (numNodes == 1 && pd.PlatformInfo.NumNatsClusterNodes > 1) || nodeRoleNumMap["Platform worker"] >= 3 {
 		for iNatsNode := 2; iNatsNode <= pd.PlatformInfo.NumNatsClusterNodes; iNatsNode++ {
 			clusterRoutes = append(clusterRoutes, fmt.Sprintf("nats%d:6222", iNatsNode))
 		}
@@ -220,7 +220,7 @@ func GenerateSecrets(pd *pt.PlatformData) map[string]pt.Secret {
 	}
 	Secrets["timescale_data_ret_int"] = timescaleDataRetIntSecret
 
-	dev2pdbCfgStr, _ := utils.Dev2pdbConfig(pd, nodeRoleMaps.NodeRoleNumMap)
+	dev2pdbCfgStr, _ := utils.Dev2pdbConfig(pd, nodeRoleNumMap)
 	dev2pdbConfigHash := utils.GetMD5Hash(dev2pdbCfgStr)
 	dev2pdbConfigName := fmt.Sprintf("dev2pdb_config_%s", dev2pdbConfigHash)
 	dev2pdbConfigSecret := pt.Secret{
@@ -229,7 +229,7 @@ func GenerateSecrets(pd *pt.PlatformData) map[string]pt.Secret {
 	}
 	Secrets["dev2pdb_config"] = dev2pdbConfigSecret
 
-	pipelinesCfgStr, _ := utils.PipelinesConfig(pd, nodeRoleMaps.NodeRoleNumMap)
+	pipelinesCfgStr, _ := utils.PipelinesConfig(pd, nodeRoleNumMap)
 	pipelinesConfigHash := utils.GetMD5Hash(pipelinesCfgStr)
 	pipelinesConfigName := fmt.Sprintf("pipelines_config_%s", pipelinesConfigHash)
 	pipelinesConfigSecret := pt.Secret{

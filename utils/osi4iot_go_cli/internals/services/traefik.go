@@ -9,26 +9,25 @@ import (
 )
 
 func TraefikService(
-	pd *pt.PlatformData, 
-	sd pt.SwarmData, 
-	svcResourcesMap resources.SvcResourcesMap,
-	nodeRoleMaps resources.NodesRoleMaps,
-	) pt.Service {
+	pd *pt.PlatformData,
+	sd pt.SwarmData,
+	svcResources resources.SvcResources,
+) pt.Service {
 	domainCertsType := pd.PlatformInfo.DomainCertsType
 
 	commands := []string{
 		"traefik",
 		"--api.insecure=false",
-		"--providers.docker=true",
-		"--providers.docker.swarmMode=true",
-		"--providers.docker.exposedByDefault=false",
+		"--providers.swarm=true",
+		"--providers.swarm.endpoint=unix:///var/run/docker.sock",
+		"--providers.swarm.constraints=Label(`traefik.enable`,`true`)",
 		"--entrypoints.web.address=:80",
 		"--ping=true",
 		"--entrypoints.web.http.redirections.entrypoint.to=websecure",
 		"--entrypoints.web.http.redirections.entrypoint.scheme=https",
 		"--entrypoints.web.http.redirections.entrypoint.permanent=true",
 		"--entrypoints.websecure.address=:443",
-		"--providers.docker.network=traefik_public",
+		"--providers.swarm.network=traefik_public",
 		"--api",
 		"--accesslog",
 		"--log",
@@ -84,7 +83,7 @@ func TraefikService(
 	}
 
 	return NewService("traefik", pd, sd).
-		WithImage("ghcr.io/osi4iot/traefik_go_cli:v2.10").
+		WithImage("ghcr.io/osi4iot/traefik_go_cli:v3.6").
 		WithHealthCheck([]string{
 			"CMD-SHELL",
 			"wget --quiet --tries=1 --spider --no-check-certificate http://127.0.0.1:8080/ping || exit 1",
@@ -96,13 +95,13 @@ func TraefikService(
 			{Type: mount.TypeBind, Source: "/var/run/docker.sock", Target: "/var/run/docker.sock", ReadOnly: true},
 		}).
 		WithResources(
-			resources.CPUs("traefik", svcResourcesMap),
-			resources.Memory("traefik", svcResourcesMap),
+			svcResources.NanoCPUs,
+			svcResources.MemoryBytes,
 		).
 		WithPlacement([]string{
 			"node.role == manager",
 		}).
-		WithModeReplicated(resources.GiveReplicsPtr("traefik", nodeRoleMaps)).
+		WithModeReplicated(svcResources.ReplicasPtr).
 		WithPorts(ports).
 		WithNetworks([]swarm.NetworkAttachmentConfig{
 			{Target: sd.Networks["traefik_public"].Name},

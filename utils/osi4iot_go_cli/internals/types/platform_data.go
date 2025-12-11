@@ -67,9 +67,9 @@ type PlatformInfo struct {
 	MainOrganizationTelegramChatID     string `json:"MAIN_ORGANIZATION_TELEGRAM_CHAT_ID"`
 	MainOrganizationTelegramInviteLink string `json:"MAIN_ORGANIZATION_TELEGRAM_INVITATION_LINK"`
 
-	NotificationsEmailUser            string `json:"NOTIFICATIONS_EMAIL_USER"`
-	NotificationsEmailAddress         string `json:"NOTIFICATIONS_EMAIL_ADDRESS"`
-	NotificationsEmailPassword        string `json:"NOTIFICATIONS_EMAIL_PASSWORD"`
+	NotificationsEmailUser     string `json:"NOTIFICATIONS_EMAIL_USER"`
+	NotificationsEmailAddress  string `json:"NOTIFICATIONS_EMAIL_ADDRESS"`
+	NotificationsEmailPassword string `json:"NOTIFICATIONS_EMAIL_PASSWORD"`
 
 	RegistrationTokenLifetime int    `json:"REGISTRATION_TOKEN_LIFETIME"`
 	RefreshTokenLifetime      int    `json:"REFRESH_TOKEN_LIFETIME"`
@@ -109,7 +109,9 @@ type PlatformInfo struct {
 	AdminDataStorageSvcResources string `json:"ADMIN_DATA_STORAGE_SVC_RESOURCES"`
 	UiSvcResources               string `json:"UI_SVC_RESOURCES"`
 	PipelinesSvcResources        string `json:"PIPELINES_SVC_RESOURCES"`
-	NumPipelinesInstances   int    `json:"NUMBER_OF_PIPELINES_INSTANCES"`
+	NumPipelinesInstances        int    `json:"NUMBER_OF_PIPELINES_INSTANCES"`
+
+	ServicesData []ServiceData `json:"SERVICES_DATA"`
 
 	// Keys used for AWS Cluster deployment
 	AwsSshKeyPath string `json:"AWS_SSH_KEY_PATH"`
@@ -190,6 +192,13 @@ type NodeData struct {
 	NodeArch        string `json:"nodeArch"`
 	NodeNanoCPUs    int64  `json:"nodeNanoCPUs"`
 	NodeMemoryBytes int64  `json:"nodeMemory"`
+}
+
+type ServiceData struct {
+	ServiceName string
+	Replicas    int
+	Cpu         string
+	Memory      string
 }
 
 type AcmeUser struct {

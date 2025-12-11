@@ -3,6 +3,9 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"slices"
+	"strconv"
+	"strings"
 
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/data"
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/docker"
@@ -11,7 +14,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var SwarmActions = []string{"create", "init", "run", "stop", "delete", "org"}
+var SwarmActions = []string{"create", "init", "run", "stop", "delete", "service"}
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
@@ -106,6 +109,128 @@ var cmdRun = &cobra.Command{
 	},
 }
 
+var cmdService = &cobra.Command{
+	Use:   "service",
+	Short: "Services management",
+	Long:  "Services management",
+	Run: func(cmd *cobra.Command, args []string) {
+		fmt.Println("Services management")
+	},
+}
+
+var subCmdServiceList = &cobra.Command{
+	Use:     "list",
+	Aliases: []string{"ls"},
+	Short:   "List services",
+	Long:    "List services",
+	Run: func(cmd *cobra.Command, args []string) {
+		dc, err := docker.GetManagerDC()
+		if err != nil {
+			errMsg := fmt.Sprintf("Error getting docker client: %v", err)
+			exitWithError(errMsg)
+		}
+
+		services, err := docker.ListSwarmServices(dc)
+		if err != nil {
+			errMsg := fmt.Sprintf("Error listing services: %v", err)
+			exitWithError(errMsg)
+		}
+
+		if len(services) == 0 {
+			errMsg := "⚠️  No services found in the swarm"
+			exitWithError(errMsg)
+		}
+
+		utils.ServicesList(services)
+	},
+}
+
+var subCmdServiceInspect = &cobra.Command{
+	Use:   "inspect [SERVICE_NAME]",
+	Short: "Inspect a specific service",
+	Long:  "Display detailed information about a specific service",
+	Args:  cobra.ExactArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		serviceName := args[0]
+
+		pd := data.GetData()
+
+		dc, err := docker.GetManagerDC()
+		if err != nil {
+			errMsg := fmt.Sprintf("Error getting docker client: %v", err)
+			exitWithError(errMsg)
+		}
+
+		service, err := docker.InspectService(dc, serviceName)
+		if err != nil {
+			errMsg := fmt.Sprintf("Error inspecting service: %v", err)
+			exitWithError(errMsg)
+		}
+
+		networks, err := docker.GetServiceNetworks(dc, service)
+		if err != nil {
+			errMsg := fmt.Sprintf("Error listing networks: %v", err)
+			exitWithError(errMsg)
+		}
+
+		utils.InspectService(pd, service, networks)
+	},
+}
+
+var cmdServiceScale = &cobra.Command{
+	Use:   "scale [SERVICE_NAME=REPLICAS].",
+	Short: "Scale services",
+	Long:  "Scale services to the desired number of replicas",
+	Args:  cobra.ExactArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		svcPairStr := args[0]
+
+		pd := data.GetData()
+
+		svcPair := strings.TrimSpace(svcPairStr)
+		dc, err := docker.GetManagerDC()
+		if err != nil {
+			errMsg := fmt.Sprintf("Error getting docker client: %v", err)
+			exitWithError(errMsg)
+		}
+
+		parts := strings.SplitN(svcPair, "=", 2)
+		if len(parts) != 2 {
+			errMsg := fmt.Sprintf("Invalid service-replicas pair: %s", svcPair)
+			exitWithError(errMsg)
+		}
+		serviceName := parts[0]
+		replicasStr := parts[1]
+
+		scalableServices := utils.GetScalableServices(pd)
+		if !slices.Contains(scalableServices, serviceName) {
+			errMsg := fmt.Sprintf("Service '%s' is not scalable", serviceName)
+			exitWithError(errMsg)
+		}
+
+		replicas, err := strconv.ParseUint(replicasStr, 10, 64)
+		if err != nil {
+			errMsg := fmt.Sprintf("Error parsing replicas argument: %v", err)
+			exitWithError(errMsg)
+		}
+
+		warnings, err := docker.ScaleSwarmService(pd, dc, serviceName, replicas)
+		if err != nil {
+			errMsg := fmt.Sprintf("Error scaling service: %v", err)
+			exitWithError(errMsg)
+		}
+
+		if warnings != "" {
+			warningMsg := utils.StyleWarningMsg.Render("Warnings:\n" + warnings)
+			fmt.Println(warningMsg)
+		}
+
+		fmt.Println()
+		okMsg := utils.StyleOKMsg.Render(fmt.Sprintf("Service '%s' has been scaled to %d replicas successfully", serviceName, replicas))
+		fmt.Println(okMsg)
+	},
+}
+
 var cmdCustomService = &cobra.Command{
 	Use:   "custom_service",
 	Short: "Custom services management",
@@ -187,8 +312,6 @@ var subCmdRemoveNode = &cobra.Command{
 	},
 }
 
-
-
 var cmdCerts = &cobra.Command{
 	Use:   "certs",
 	Short: "Update domain certificates",
@@ -266,6 +389,11 @@ func init() {
 	cmdCustomService.AddCommand(subCmdAddCS)
 	cmdCustomService.AddCommand(subCmdRemoveCS)
 	rootCmd.AddCommand(cmdCustomService)
+
+	cmdService.AddCommand(subCmdServiceList)
+	cmdService.AddCommand(subCmdServiceInspect)
+	cmdService.AddCommand(cmdServiceScale)
+	rootCmd.AddCommand(cmdService)
 
 	cmdNodes.AddCommand(subCmdNodesList)
 	cmdNodes.AddCommand(subCmdAddNode)

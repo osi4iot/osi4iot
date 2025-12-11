@@ -25,7 +25,7 @@ func (a *Admin) Login() error {
 		EmailOrLogin: a.userName,
 		Password:     a.password,
 	}
-
+	
 	url := fmt.Sprintf("%s/auth/login", a.baseUrl)
 	response, err := utils.HttpPost(url, loginData)
 	if err != nil {
@@ -104,7 +104,7 @@ func (a *Admin) refreshTokens() error {
 		a.Login()
 	} else {
 		url := fmt.Sprintf("%s/auth/update_token", a.baseUrl)
-		response, err := utils.HttpPostWithJwt(url, nil, a.accessToken)
+		response, err := utils.HttpPostWithJwt(url, nil, a.refreshToken)
 		if err != nil {
 			a.log.Errorf("failed to refresh token: %v", err)
 			return fmt.Errorf("failed to refresh token: %v", err)
@@ -142,7 +142,7 @@ func (a *Admin) GetValidAccessToken() (string, error) {
 		if a.onAuthError != nil {
 			a.onAuthError(err)
 		}
-		return "", fmt.Errorf("error refrescando tokens: %v", err)
+		return "", fmt.Errorf("error refreshing tokens: %v", err)
 	}
 
 	a.mutex.RLock()

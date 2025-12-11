@@ -12,8 +12,8 @@ import (
 func Pgadmin4Service(
 	pd *pt.PlatformData,
 	sd pt.SwarmData,
-	svcResourcesMap resources.SvcResourcesMap,
-	nodeRoleMaps resources.NodesRoleMaps,
+	svcResources resources.SvcResources,
+	nodeRoleNumMaps map[string]int,
 ) pt.Service {
 	domainName := pd.PlatformInfo.DomainName
 
@@ -55,7 +55,7 @@ func Pgadmin4Service(
 		"node.labels.platform_worker==true",
 	}
 
-	if nodeRoleMaps.NodeRoleNumMap["Platform worker"] == 0 {
+	if nodeRoleNumMaps["Platform worker"] == 0 {
 		constraints = []string{
 			"node.role==manager",
 		}
@@ -74,11 +74,11 @@ func Pgadmin4Service(
 			},
 		}).
 		WithResources(
-			resources.CPUs("pgadmin4", svcResourcesMap),
-			resources.Memory("pgadmin4", svcResourcesMap),
+			svcResources.NanoCPUs,
+			svcResources.MemoryBytes,
 		).
 		WithPlacement(constraints).
-		WithModeReplicated(resources.GiveReplicsPtr("pgadmin4", nodeRoleMaps)).
+		WithModeReplicated(svcResources.ReplicasPtr).
 		WithNetworks([]swarm.NetworkAttachmentConfig{
 			{Target: sd.Networks["internal_net"].Name},
 			{Target: sd.Networks["traefik_public"].Name},

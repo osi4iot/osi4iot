@@ -9,8 +9,8 @@ import (
 func GrafanaRendererService(
 	pd *pt.PlatformData,
 	sd pt.SwarmData,
-	svcResourcesMap resources.SvcResourcesMap,
-	nodeRoleMaps resources.NodesRoleMaps,
+	svcResources resources.SvcResources,
+	nodeRoleNumMap map[string]int,
 ) pt.Service {
 
 	constraints := []string{
@@ -18,7 +18,7 @@ func GrafanaRendererService(
 		"node.labels.platform_worker==true",
 	}
 
-	if nodeRoleMaps.NodeRoleNumMap["Platform worker"] == 0 {
+	if nodeRoleNumMap["Platform worker"] == 0 {
 		constraints = []string{
 			"node.role==manager",
 		}
@@ -30,11 +30,11 @@ func GrafanaRendererService(
 			"ENABLE_METRICS=true",
 		}).
 		WithResources(
-			resources.CPUs("grafana_renderer", svcResourcesMap),
-			resources.Memory("grafana_renderer", svcResourcesMap),
+			svcResources.NanoCPUs,
+			svcResources.MemoryBytes,
 		).
 		WithPlacement(constraints).
-		WithModeReplicated(resources.GiveReplicsPtr("grafana_renderer", nodeRoleMaps)).
+		WithModeReplicated(svcResources.ReplicasPtr).
 		WithPorts([]swarm.PortConfig{
 			{
 				Protocol:      swarm.PortConfigProtocolTCP,

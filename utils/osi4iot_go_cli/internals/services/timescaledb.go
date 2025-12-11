@@ -12,8 +12,8 @@ import (
 func TimescaledbService(
 	pd *pt.PlatformData, 
 	sd pt.SwarmData, 
-	svcResourcesMap resources.SvcResourcesMap,
-	nodeRoleMaps resources.NodesRoleMaps,
+	svcResources resources.SvcResources,
+	nodeRoleNumMaps map[string]int,
 	) pt.Service {
 
 	secrets := []*swarm.SecretReference{
@@ -64,7 +64,7 @@ func TimescaledbService(
 		"node.labels.platform_worker==true",
 	}
 
-	if nodeRoleMaps.NodeRoleNumMap["Platform worker"] == 0 {
+	if nodeRoleNumMaps["Platform worker"] == 0 {
 		constraints = []string{
 			"node.role==manager",
 		}
@@ -93,11 +93,11 @@ func TimescaledbService(
 			},
 		}).
 		WithResources(
-			resources.CPUs("timescaledb", svcResourcesMap),
-			resources.Memory("timescaledb", svcResourcesMap),
+			svcResources.NanoCPUs,
+			svcResources.MemoryBytes,
 		).
 		WithPlacement(constraints).
-		WithModeReplicated(resources.GiveReplicsPtr("timescaledb", nodeRoleMaps)).
+		WithModeReplicated(svcResources.ReplicasPtr).
 		WithNetworks([]swarm.NetworkAttachmentConfig{
 			{Target: sd.Networks["internal_net"].Name},
 		}).

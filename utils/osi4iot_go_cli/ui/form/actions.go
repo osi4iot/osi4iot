@@ -96,7 +96,7 @@ func creatingNodeQuestions(m *Model) (submissionResultMsg, error) {
 					QuestionType: "list",
 					Prompt:       "Role",
 					Answer:       defaultNodeData.NodeRole,
-					Choices:      []string{"Manager", "Platform worker", "Generic org worker", "Exclusive org worker", "NFS server"},
+					Choices:      []string{"Manager", "Platform worker", "NFS server"},
 					ChoiceFocus:  0,
 					ErrorMessage: "",
 					Rules:        []string{"required", "string"},

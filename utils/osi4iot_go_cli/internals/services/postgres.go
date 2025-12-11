@@ -10,12 +10,12 @@ import (
 )
 
 func PostgresService(
-	
 	pd *pt.PlatformData, 
 	sd pt.SwarmData,
-	svcResourcesMap resources.SvcResourcesMap,
-	nodeRoleMaps resources.NodesRoleMaps,
+	svcResources resources.SvcResources,
+	nodeRoleNumMaps map[string]int,
 	) pt.Service {
+
 
 	secrets := []*swarm.SecretReference{
 		{
@@ -55,7 +55,7 @@ func PostgresService(
 		"node.labels.platform_worker==true",
 	}
 
-	if nodeRoleMaps.NodeRoleNumMap["Platform worker"] == 0 {
+	if nodeRoleNumMaps["Platform worker"] == 0 {
 		constraints = []string{
 			"node.role==manager",
 		}
@@ -77,11 +77,11 @@ func PostgresService(
 			},
 		}).
 		WithResources(
-			resources.CPUs("postgres", svcResourcesMap),
-			resources.Memory("postgres", svcResourcesMap),
+			svcResources.NanoCPUs,
+			svcResources.MemoryBytes,
 		).
 		WithPlacement(constraints).
-		WithModeReplicated(resources.GiveReplicsPtr("postgres", nodeRoleMaps)).
+		WithModeReplicated(svcResources.ReplicasPtr).
 		WithNetworks([]swarm.NetworkAttachmentConfig{
 			{Target: sd.Networks["internal_net"].Name},
 		}).

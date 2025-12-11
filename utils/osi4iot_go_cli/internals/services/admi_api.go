@@ -12,8 +12,8 @@ import (
 func AdminApiService(
 	pd *pt.PlatformData,
 	sd pt.SwarmData,
-	svcResourcesMap resources.SvcResourcesMap,
-	nodeRoleMaps resources.NodesRoleMaps,
+	svcResources resources.SvcResources,
+	nodeRoleNumMap map[string]int,
 ) pt.Service {
 	domainName := pd.PlatformInfo.DomainName
 
@@ -101,7 +101,7 @@ func AdminApiService(
 		"node.labels.platform_worker==true",
 	}
 
-	if nodeRoleMaps.NodeRoleNumMap["Platform worker"] == 0 {
+	if nodeRoleNumMap["Platform worker"] == 0 {
 		constraints = []string{
 			"node.role==manager",
 		}
@@ -123,11 +123,11 @@ func AdminApiService(
 			},
 		}).
 		WithResources(
-			resources.CPUs("admin_api", svcResourcesMap),
-			resources.Memory("admin_api", svcResourcesMap),
+			svcResources.NanoCPUs,
+			svcResources.MemoryBytes,
 		).
 		WithPlacement(constraints).
-		WithModeReplicated(resources.GiveReplicsPtr("admin_api", nodeRoleMaps)).
+		WithModeReplicated(svcResources.ReplicasPtr).
 		WithPorts([]swarm.PortConfig{
 			{
 				Protocol:      swarm.PortConfigProtocolTCP,

@@ -10,10 +10,11 @@ import (
 func PipelinesService(
 	pd *pt.PlatformData,
 	sd pt.SwarmData,
-	svcResourcesMap resources.SvcResourcesMap,
-	nodeRoleMaps resources.NodesRoleMaps,
+	svcResources resources.SvcResources,
+	nodeRoleNumMaps map[string]int,
 ) pt.Service {
 	volName := "pipelines_data_{{.Task.Slot}}"
+
 	secrets := []*swarm.SecretReference{
 		{
 			File: &swarm.SecretReferenceFileTarget{
@@ -42,7 +43,7 @@ func PipelinesService(
 		"node.labels.platform_worker==true",
 	}
 
-	if nodeRoleMaps.NodeRoleNumMap["Platform worker"] == 0 {
+	if nodeRoleNumMaps["Platform worker"] == 0 {
 		constraints = []string{
 			"node.role==manager",
 		}
@@ -62,11 +63,11 @@ func PipelinesService(
 			},
 		}).
 		WithResources(
-			resources.CPUs("pipelines", svcResourcesMap),
-			resources.Memory("pipelines", svcResourcesMap),
+			svcResources.NanoCPUs,
+			svcResources.MemoryBytes,
 		).
 		WithPlacement(constraints).
-		WithModeReplicated(resources.GivePipelinesReplicsPtr(pd)).
+		WithModeReplicated(svcResources.ReplicasPtr).
 		WithNetworks([]swarm.NetworkAttachmentConfig{
 			{Target: sd.Networks["internal_net"].Name},
 			{Target: sd.Networks["nats_network"].Name},

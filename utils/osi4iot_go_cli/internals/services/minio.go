@@ -12,8 +12,8 @@ import (
 func MinioService(
 	pd *pt.PlatformData,
 	sd pt.SwarmData,
-	svcResourcesMap resources.SvcResourcesMap,
-	nodeRoleMaps resources.NodesRoleMaps,
+	svcResources resources.SvcResources,
+	nodeRoleNumMaps map[string]int,
 ) pt.Service {
 	domainName := pd.PlatformInfo.DomainName
 
@@ -65,7 +65,7 @@ func MinioService(
 		"node.labels.platform_worker==true",
 	}
 
-	if nodeRoleMaps.NodeRoleNumMap["Platform worker"] == 0 {
+	if nodeRoleNumMaps["Platform worker"] == 0 {
 		constraints = []string{
 			"node.role==manager",
 		}
@@ -94,11 +94,11 @@ func MinioService(
 			},
 		}).
 		WithResources(
-			resources.CPUs("minio", svcResourcesMap),
-			resources.Memory("minio", svcResourcesMap),
+			svcResources.NanoCPUs,
+			svcResources.MemoryBytes,
 		).
 		WithPlacement(constraints).
-		WithModeReplicated(resources.GiveReplicsPtr("minio", nodeRoleMaps)).
+		WithModeReplicated(svcResources.ReplicasPtr).
 		WithNetworks([]swarm.NetworkAttachmentConfig{
 			{Target: sd.Networks["internal_net"].Name},
 			{Target: sd.Networks["traefik_public"].Name},

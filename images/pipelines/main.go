@@ -53,7 +53,7 @@ func main() {
 
 	admin, err := admin.CreateAdmin(cfg, log)
 	if err != nil {
-		log.Fatal("Application startup failed: %v", err)
+		log.Fatalf("Application startup failed: %v", err)
 	}
 
 	ctx, cancel := utils.ContextWithCancel()

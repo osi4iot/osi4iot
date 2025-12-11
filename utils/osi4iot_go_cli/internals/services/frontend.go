@@ -11,8 +11,8 @@ import (
 func FrontendService(
 	pd *pt.PlatformData,
 	sd pt.SwarmData,
-	svcResourcesMap resources.SvcResourcesMap,
-	nodeRoleMaps resources.NodesRoleMaps,
+	svcResources resources.SvcResources,
+	nodeRoleNumMap map[string]int,
 ) pt.Service {
 	domainName := pd.PlatformInfo.DomainName
 
@@ -48,7 +48,7 @@ func FrontendService(
 		"node.labels.platform_worker==true",
 	}
 
-	if nodeRoleMaps.NodeRoleNumMap["Platform worker"] == 0 {
+	if nodeRoleNumMap["Platform worker"] == 0 {
 		constraints = []string{
 			"node.role==manager",
 		}
@@ -59,11 +59,11 @@ func FrontendService(
 		WithAnnotationsLabels(annotationsLabels).
 		WithConfigs(configs).
 		WithResources(
-			resources.CPUs("frontend", svcResourcesMap),
-			resources.Memory("frontend", svcResourcesMap),
+			svcResources.NanoCPUs,
+			svcResources.MemoryBytes,
 		).
 		WithPlacement(constraints).
-		WithModeReplicated(resources.GiveReplicsPtr("frontend", nodeRoleMaps)).
+		WithModeReplicated(svcResources.ReplicasPtr).
 		WithNetworks([]swarm.NetworkAttachmentConfig{
 			{Target: sd.Networks["traefik_public"].Name},
 		}).

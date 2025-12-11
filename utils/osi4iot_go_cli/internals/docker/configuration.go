@@ -42,6 +42,7 @@ func installUFWOnNodes(platformData *types.PlatformData) error {
 		spinnerMsg := "Intalling UFW on nodes..."
 		endMsg := "UFW installed on all nodes"
 		utils.Spinner(spinnerMsg, endMsg, spinnerDone)
+		
 		managerScript := `#!/bin/bash
 REQUIRED_PKG="ufw"
 if [ $(dpkg-query -W -f='${Status}' $REQUIRED_PKG 2>/dev/null | grep -c "ok installed") -eq 0 ];
@@ -69,20 +70,6 @@ ufw allow 22/tcp
 ufw allow 1883/tcp
 ufw allow 8883/tcp
 ufw allow 9001/tcp
-ufw allow 2377/tcp
-ufw allow 7946/tcp 
-ufw allow 7946/udp 
-ufw allow 4789/udp
-sudo ufw enable
-`
-		genericWorkerScript := `#!/bin/bash
-REQUIRED_PKG="ufw"
-if [ $(dpkg-query -W -f='${Status}' $REQUIRED_PKG 2>/dev/null | grep -c "ok installed") -eq 0 ];
-then
-	sudo apt-get update -y
-	sudo apt-get install ufw -y
-fi
-ufw allow 22/tcp
 ufw allow 2377/tcp
 ufw allow 7946/tcp 
 ufw allow 7946/udp 
@@ -117,12 +104,6 @@ sudo ufw enable
 				nodeScript = utils.NodeScript{
 					Node:   node,
 					Script: platformWorkerScript,
-					Args:   []string{},
-				}
-			case "Generic org worker", "Exclusive org worker":
-				nodeScript = utils.NodeScript{
-					Node:   node,
-					Script: genericWorkerScript,
 					Args:   []string{},
 				}
 			case "NFS server":

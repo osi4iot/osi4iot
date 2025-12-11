@@ -9,8 +9,8 @@ import (
 func Dev2pdbService(
 	pd *pt.PlatformData,
 	sd pt.SwarmData,
-	svcResourcesMap resources.SvcResourcesMap,
-	nodeRoleMaps resources.NodesRoleMaps,
+	svcResources resources.SvcResources,
+	nodeRoleNumMap map[string]int,
 ) pt.Service {
 
 	secrets := []*swarm.SecretReference{
@@ -41,7 +41,7 @@ func Dev2pdbService(
 		"node.labels.platform_worker==true",
 	}
 
-	if nodeRoleMaps.NodeRoleNumMap["Platform worker"] == 0 {
+	if nodeRoleNumMap["Platform worker"] == 0 {
 		constraints = []string{
 			"node.role==manager",
 		}
@@ -51,11 +51,11 @@ func Dev2pdbService(
 		WithImage("ghcr.io/osi4iot/dev2pdb_nats:1.3.0").
 		WithSecrets(secrets).
 		WithResources(
-			resources.CPUs("dev2pdb", svcResourcesMap),
-			resources.Memory("dev2pdb", svcResourcesMap),
+			svcResources.NanoCPUs,
+			svcResources.MemoryBytes,
 		).
 		WithPlacement(constraints).
-		WithModeReplicated(resources.GiveReplicsPtr("dev2pdb", nodeRoleMaps)).
+		WithModeReplicated(svcResources.ReplicasPtr).
 		WithNetworks([]swarm.NetworkAttachmentConfig{
 			{Target: sd.Networks["internal_net"].Name},
 			{Target: sd.Networks["nats_network"].Name},

@@ -42,7 +42,6 @@ type Service struct {
 	Mode           swarm.ServiceMode
 	UpdateConfig   *swarm.UpdateConfig
 	RollbackConfig *swarm.UpdateConfig
-	Networks       []swarm.NetworkAttachmentConfig
 }
 
 type SwarmData struct {

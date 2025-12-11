@@ -8,10 +8,10 @@ import (
 )
 
 func S3StorageService(
-	pd *pt.PlatformData, 
-	sd pt.SwarmData, 
-	svcResourcesMap resources.SvcResourcesMap,
-	nodeRoleMaps resources.NodesRoleMaps,
+	pd *pt.PlatformData,
+	sd pt.SwarmData,
+	svcResources resources.SvcResources,
+	nodeRoleNumMaps map[string]int,
 ) pt.Service {
 
 	secrets := []*swarm.SecretReference{
@@ -45,7 +45,7 @@ func S3StorageService(
 		"node.labels.platform_worker==true",
 	}
 
-	if nodeRoleMaps.NodeRoleNumMap["Platform worker"] == 0 {
+	if nodeRoleNumMaps["Platform worker"] == 0 {
 		constraints = []string{
 			"node.role==manager",
 		}
@@ -63,11 +63,11 @@ func S3StorageService(
 			},
 		}).
 		WithResources(
-			resources.CPUs("s3_storage", svcResourcesMap),
-			resources.Memory("s3_storage", svcResourcesMap),
+			svcResources.NanoCPUs,
+			svcResources.MemoryBytes,
 		).
 		WithPlacement(constraints).
-		WithModeReplicated(resources.GiveReplicsPtr("s3_storage", nodeRoleMaps)).
+		WithModeReplicated(svcResources.ReplicasPtr).
 		WithPorts([]swarm.PortConfig{
 			{
 				Protocol:      swarm.PortConfigProtocolTCP,

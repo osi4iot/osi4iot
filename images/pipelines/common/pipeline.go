@@ -57,7 +57,6 @@ type Pipeline interface {
 	GetOrgId() int
 	GetOrgHash() string
 	GetGroupId() int
-	//StatusSubcription()
 	PublishPipelineStatus(payload PipelineStatusMessage)
 	GetLeaderElector() LeaderElector
 	GetReplicaIndexLeader() int

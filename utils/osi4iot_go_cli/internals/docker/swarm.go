@@ -10,6 +10,7 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/image"
+	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/errdefs"
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/configs"
@@ -131,11 +132,12 @@ func CreateSwarmService(dc *pt.DockerClient, swarmService pt.Service) error {
 
 	if !serviceExists {
 		_, err := dc.Cli.ServiceCreate(dc.Ctx, swarm.ServiceSpec{
-			Annotations:  swarmService.Annotations,
-			TaskTemplate: swarmService.TaskTemplate,
-			EndpointSpec: swarmService.EndpointSpec,
-			Mode:         swarmService.Mode,
-			Networks:     swarmService.Networks,
+			Annotations:    swarmService.Annotations,
+			TaskTemplate:   swarmService.TaskTemplate,
+			EndpointSpec:   swarmService.EndpointSpec,
+			Mode:           swarmService.Mode,
+			UpdateConfig:   swarmService.UpdateConfig,
+			RollbackConfig: swarmService.RollbackConfig,
 		}, types.ServiceCreateOptions{})
 		if err != nil {
 			return fmt.Errorf("error creating service: %v", err)
@@ -543,4 +545,122 @@ func RemoveSwarmServicesByName(dc *pt.DockerClient, svcNamesToRemove []string) e
 	}
 
 	return nil
+}
+
+func ListSwarmServices(dc *pt.DockerClient) ([]swarm.Service, error) {
+	filterArgs := filters.NewArgs()
+	filterArgs.Add("label", "app=osi4iot")
+	services, err := dc.Cli.ServiceList(dc.Ctx, types.ServiceListOptions{
+		Filters: filterArgs,
+	})
+
+	if err != nil {
+		return nil, fmt.Errorf("error listing services: %v", err)
+	}
+
+	return services, nil
+}
+
+func InspectService(dc *pt.DockerClient, serviceName string) (swarm.Service, error) {
+	filterArgs := filters.NewArgs()
+	filterArgs.Add("name", serviceName)
+	services, err := dc.Cli.ServiceList(dc.Ctx, types.ServiceListOptions{
+		Filters: filterArgs,
+	})
+	if err != nil {
+		return swarm.Service{}, fmt.Errorf("error listing services: %v", err)
+	}
+
+	if len(services) == 0 {
+		return swarm.Service{}, fmt.Errorf("service %s not found", serviceName)
+	}
+
+	return services[0], nil
+}
+
+func GetSwarmNetworks(dc *pt.DockerClient) ([]network.Summary, error) {
+	filterArgs := filters.NewArgs()
+	filterArgs.Add("label", "app=osi4iot")
+	networks, err := dc.Cli.NetworkList(dc.Ctx, network.ListOptions{
+		Filters: filterArgs,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("error listing networks: %v", err)
+	}
+
+	return networks, nil
+}
+
+func GetServiceNetworks(dc *pt.DockerClient, service swarm.Service) ([]network.Summary, error) {
+	var networkIDs []string
+	for _, net := range service.Spec.TaskTemplate.Networks {
+		networkIDs = append(networkIDs, net.Target)
+	}
+
+	filterArgs := filters.NewArgs()
+	filterArgs.Add("label", "app=osi4iot")
+	networks, err := dc.Cli.NetworkList(dc.Ctx, network.ListOptions{
+		Filters: filterArgs,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("error listing networks: %v", err)
+	}
+
+	var serviceNetworks []network.Summary
+	for _, net := range networks {
+		if slices.Contains(networkIDs, net.ID) {
+			serviceNetworks = append(serviceNetworks, net)
+		}
+	}
+
+	return serviceNetworks, nil
+}
+
+func ScaleSwarmService(pd *pt.PlatformData, dc *pt.DockerClient, serviceName string, replicas uint64) (string, error) {
+	service, err := InspectService(dc, serviceName)
+	if err != nil {
+		return "", fmt.Errorf("error inspecting service: %v", err)
+	}
+
+	if service.Spec.Mode.Replicated == nil {
+		return "", fmt.Errorf("service '%s' is in global mode and cannot be scaled", serviceName)
+	}
+
+	currentReplicas := *service.Spec.Mode.Replicated.Replicas
+	if currentReplicas == replicas {
+		message := fmt.Sprintf("Service '%s' is already scaled to %d replicas", serviceName, replicas)
+		return message, nil
+	}
+
+	service.Spec.Mode.Replicated.Replicas = &replicas
+	response, err := dc.Cli.ServiceUpdate(dc.Ctx, service.ID, service.Version, service.Spec, types.ServiceUpdateOptions{})
+	if err != nil {
+		return "", fmt.Errorf("error updating service: %v", err)
+	}
+
+	err = utils.MonitorServiceScaleWithProgressBar(dc, service.ID, replicas)
+	if err != nil {
+		return "", fmt.Errorf("error monitoring service scale: %v", err)
+	}
+
+	warningMessages := ""
+	if len(response.Warnings) > 0 {
+		for _, warning := range response.Warnings {
+			warningMessages += fmt.Sprintf("  - %s\n", warning)
+		}
+	}
+
+	svcIdx, svcData , err := utils.FindServiceDataByName(pd, serviceName)
+	if err != nil {
+		return "", fmt.Errorf("error finding service data: %v", err)
+	}
+
+	svcData.Replicas = int(replicas)
+	pd.PlatformInfo.ServicesData[svcIdx] = *svcData
+	err = utils.WritePlatformDataToFile(pd)
+	if err != nil {
+		return "", fmt.Errorf("error writing platform data to file: %v", err)
+	}
+
+	return warningMessages, nil
 }

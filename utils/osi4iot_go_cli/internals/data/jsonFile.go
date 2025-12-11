@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strconv"
+	"strings"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
@@ -151,16 +153,197 @@ func ReadPlatformDataFromFile() error {
 }
 
 func fixingPlatformData() error {
-	platformData := GetData()
+	pd := GetData()
 
-	nodeData := platformData.PlatformInfo.NodesData
-	for nodeIdx, node := range nodeData {
+	nodesData := pd.PlatformInfo.NodesData
+	for nodeIdx, node := range nodesData {
 		if node.NodeIP == "localhost" {
 			nodeIP, err := utils.GetLocalNodeIP()
 			if err != nil {
 				return fmt.Errorf("error getting local node IP: %v", err)
 			}
-			nodeData[nodeIdx].NodeIP = nodeIP
+			nodesData[nodeIdx].NodeIP = nodeIP
+		}
+	}
+
+	servicesList := []string{
+		"admin_api",
+		"frontend",
+		"nats",
+		"auth_callout",
+		"grafana",
+		"pipelines",
+		"traefik",
+		"system-prune",
+		"postgres",
+		"timescaledb",
+		"s3_storage",
+		"dev2pdb",
+		"pgadmin4",
+		"grafana_renderer",
+		"minio",
+		"keepalived",
+	}
+
+	messagingSvcCpus := strings.Split(pd.PlatformInfo.MessagingSvcResources, "-")[0]
+	messagingSvcCpusFloat, _ := strconv.ParseFloat(messagingSvcCpus[0:len(messagingSvcCpus)-3], 64)
+	messagingSvcCpus_025 := fmt.Sprintf("%.2fCPU", 0.25*messagingSvcCpusFloat)
+	messagingSvcCpus_050 := fmt.Sprintf("%.2fCPU", 0.50*messagingSvcCpusFloat)
+	iotStorageDataSvcCpus := strings.Split(pd.PlatformInfo.IotDataStorageSvcResources, "-")[0]
+	adminDataStorageSvcCpus := strings.Split(pd.PlatformInfo.AdminDataStorageSvcResources, "-")[0]
+	adminDataStorageSvcCpusFloat, _ := strconv.ParseFloat(adminDataStorageSvcCpus[0:len(adminDataStorageSvcCpus)-3], 64)
+	adminDataStorageSvcCpus_050 := fmt.Sprintf("%.2fCPU", 0.50*adminDataStorageSvcCpusFloat)
+	uiSvcCpus := strings.Split(pd.PlatformInfo.UiSvcResources, "-")[0]
+	uiSvcCpusFloat, _ := strconv.ParseFloat(uiSvcCpus[0:len(uiSvcCpus)-3], 64)
+	uiSvcCpus_050 := fmt.Sprintf("%.2fCPU", 0.50*uiSvcCpusFloat)
+	pipelinesSvcCpus := strings.Split(pd.PlatformInfo.PipelinesSvcResources, "-")[0]
+
+	messagingSvcMem := strings.Split(pd.PlatformInfo.MessagingSvcResources, "-")[1]
+	messagingSvcMemFloat, _ := strconv.ParseFloat(messagingSvcMem[0:len(messagingSvcMem)-2], 64)
+	messagingSvcMem_025 := fmt.Sprintf("%.2fMb", 0.25*messagingSvcMemFloat)
+	iotDataStorageSvcMem := strings.Split(pd.PlatformInfo.IotDataStorageSvcResources, "-")[1]
+	iotDataStorageSvcMemFloat, _ := strconv.ParseFloat(iotDataStorageSvcMem[0:len(iotDataStorageSvcMem)-2], 64)
+	iotDataStorageSvcMem_050 := fmt.Sprintf("%.2fMb", 0.50*iotDataStorageSvcMemFloat)
+
+	adminDataStorageSvcMem := strings.Split(pd.PlatformInfo.AdminDataStorageSvcResources, "-")[1]
+	adminDataStorageSvcMemFloat, _ := strconv.ParseFloat(adminDataStorageSvcMem[0:len(adminDataStorageSvcMem)-2], 64)
+	adminDataStorageSvcMem_050 := fmt.Sprintf("%.2fMb", 0.50*adminDataStorageSvcMemFloat)
+	uiSvcMem := strings.Split(pd.PlatformInfo.UiSvcResources, "-")[1]
+	uiSvcMemFloat, _ := strconv.ParseFloat(uiSvcMem[0:len(uiSvcMem)-2], 64)
+	uiSvcMem_050 := fmt.Sprintf("%.2fMb", 0.50*uiSvcMemFloat)
+	pipelinesSvcMem := strings.Split(pd.PlatformInfo.PipelinesSvcResources, "-")[1]
+
+	defaultServicesDataMap := map[string]pt.ServiceData{
+		"admin_api": {
+			ServiceName: "admin_api",
+			Replicas:    1,
+			Cpu:         uiSvcCpus,
+			Memory:      uiSvcMem,
+		},
+		"frontend": {
+			ServiceName: "frontend",
+			Replicas:    1,
+			Cpu:         uiSvcCpus,
+			Memory:      uiSvcMem,
+		},
+		"nats": {
+			ServiceName: "nats",
+			Replicas:    pd.PlatformInfo.NumNatsClusterNodes,
+			Cpu:         messagingSvcCpus,
+			Memory:      messagingSvcMem,
+		},
+		"auth_callout": {
+			ServiceName: "auth_callout",
+			Replicas:    1,
+			Cpu:         messagingSvcCpus_025,
+			Memory:      messagingSvcMem_025,
+		},
+		"grafana": {
+			ServiceName: "grafana",
+			Replicas:    1,
+			Cpu:         uiSvcCpus,
+			Memory:      uiSvcMem,
+		},
+		"pipelines": {
+			ServiceName: "pipelines",
+			Replicas:    pd.PlatformInfo.NumPipelinesInstances,
+			Cpu:         pipelinesSvcCpus,
+			Memory:      pipelinesSvcMem,
+		},
+		"traefik": {
+			ServiceName: "traefik",
+			Replicas:    1,
+			Cpu:         uiSvcCpus,
+			Memory:      uiSvcMem,
+		},
+		"system-prune": {
+			ServiceName: "system-prune",
+			Replicas:    1,
+			Cpu:         "0.125CPU",
+			Memory:      "100Mb",
+		},
+		"postgres": {
+			ServiceName: "postgres",
+			Replicas:    1,
+			Cpu:         adminDataStorageSvcCpus,
+			Memory:      adminDataStorageSvcMem,
+		},
+		"timescaledb": {
+			ServiceName: "timescaledb",
+			Replicas:    1,
+			Cpu:         iotStorageDataSvcCpus,
+			Memory:      iotDataStorageSvcMem,
+		},
+		"s3_storage": {
+			ServiceName: "s3_storage",
+			Replicas:    1,
+			Cpu:         adminDataStorageSvcCpus_050,
+			Memory:      adminDataStorageSvcMem_050,
+		},
+		"dev2pdb": {
+			ServiceName: "dev2pdb",
+			Replicas:    1,
+			Cpu:         messagingSvcCpus_050,
+			Memory:      iotDataStorageSvcMem_050,
+		},
+		"pgadmin4": {
+			ServiceName: "pgadmin4",
+			Replicas:    1,
+			Cpu:         uiSvcCpus_050,
+			Memory:      uiSvcMem_050,
+		},
+		"grafana_renderer": {
+			ServiceName: "grafana_renderer",
+			Replicas:    1,
+			Cpu:         uiSvcCpus_050,
+			Memory:      uiSvcMem_050,
+		},
+		"minio": {
+			ServiceName: "minio",
+			Replicas:    1,
+			Cpu:         adminDataStorageSvcCpus,
+			Memory:      iotDataStorageSvcMem,
+		},
+		"keepalived": {
+			ServiceName: "keepalived",
+			Replicas:    1,
+			Cpu:         "0.25CPU",
+			Memory:      "250Mb",
+		},
+	}
+
+	servicesData := &pd.PlatformInfo.ServicesData
+	if len(*servicesData) == 0 {
+		var defaultServicesData []pt.ServiceData
+		for _, svcName := range servicesList {
+			defaultServicesData = append(defaultServicesData, defaultServicesDataMap[svcName])
+		}
+		*servicesData = defaultServicesData
+	} else {
+		for serviceName, defaultSvcData := range defaultServicesDataMap {
+			found := false
+			for _, svcData := range *servicesData {
+				if svcData.ServiceName == serviceName {
+					found = true
+					break
+				}
+			}
+			if !found {
+				*servicesData = append(*servicesData, defaultSvcData)
+			}
+		}
+		
+		for svcIdx, svc := range *servicesData {
+			serviceName := svc.ServiceName
+			if svc.Replicas < 1 {
+				(*servicesData)[svcIdx].Replicas = defaultServicesDataMap[serviceName].Replicas
+			}
+			if svc.Cpu == "" {
+				(*servicesData)[svcIdx].Cpu = defaultServicesDataMap[serviceName].Cpu
+			}
+			if svc.Memory == "" {
+				(*servicesData)[svcIdx].Memory = defaultServicesDataMap[serviceName].Memory
+			}
 		}
 	}
 
@@ -248,5 +431,15 @@ func CreateSSHKeysFile() error {
 		}
 	}
 
+	return nil
+}
+
+func GetServiceDataByName(serviceName string) *pt.ServiceData {
+	servicesData := Data.PlatformInfo.ServicesData
+	for _, svcData := range servicesData {
+		if svcData.ServiceName == serviceName {
+			return &svcData
+		}
+	}
 	return nil
 }

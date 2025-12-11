@@ -12,8 +12,7 @@ import (
 func GrafanaService(
 	pd *pt.PlatformData, 
 	sd pt.SwarmData, 
-	svcResourcesMap resources.SvcResourcesMap,
-	nodeRoleMaps resources.NodesRoleMaps,
+	svcResources resources.SvcResources,
 	) pt.Service {
 	domainName := pd.PlatformInfo.DomainName
 
@@ -84,11 +83,11 @@ func GrafanaService(
 			},
 		}).
 		WithResources(
-			resources.CPUs("grafana", svcResourcesMap),
-			resources.Memory("grafana", svcResourcesMap),
+			svcResources.NanoCPUs,
+			svcResources.MemoryBytes,
 		).
 		WithPlacement(constraints).
-		WithModeReplicated(resources.GiveReplicsPtr("grafana", nodeRoleMaps)).
+		WithModeReplicated(svcResources.ReplicasPtr).
 		WithNetworks([]swarm.NetworkAttachmentConfig{
 			{Target: sd.Networks["internal_net"].Name},
 			{Target: sd.Networks["traefik_public"].Name},

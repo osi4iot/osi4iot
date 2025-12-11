@@ -58,6 +58,39 @@ func (fm *FlowsManager) AddDigitalTwins(digitalTwins []*common.DigitalTwin) {
 	}
 }
 
+func (fm *FlowsManager) CreatePipelineInDigitalTwin(digitalTwinId int) {
+	fm.log.Infof("Creating pipeline for digital twin %d", digitalTwinId)
+
+	digitalTwin := fm.GetDigitalTwin(digitalTwinId)
+	if digitalTwin == nil {
+		fm.log.Errorf("Digital twin %d not found", digitalTwinId)
+		return
+	}
+
+	org := fm.GetOrg(digitalTwin.OrgId)
+	digitalTwin.Pipeline = fm.createPipeline(digitalTwin, org, "create")
+	digitalTwin.PipelineStatusSubscription = fm.SetPipelineStatusSubscription(digitalTwin)
+	digitalTwin.Pipeline.Start(true)
+}
+
+func (fm *FlowsManager) UpdatePipelineInDigitalTwin(digitalTwinId int) {
+	fm.log.Infof("Updating pipeline for digital twin %d", digitalTwinId)
+
+	digitalTwin := fm.GetDigitalTwin(digitalTwinId)
+	if digitalTwin == nil {
+		fm.log.Errorf("Digital twin %d not found", digitalTwinId)
+		return
+	}
+
+	if digitalTwin.Pipeline != nil {
+		digitalTwin.Pipeline.Stop("update")
+	}
+	org := fm.GetOrg(digitalTwin.OrgId)
+	fmt.Println("Paso por aqui 1")
+	digitalTwin.Pipeline = fm.createPipeline(digitalTwin, org, "update")
+	digitalTwin.Pipeline.Start(false)
+}
+
 func (fm *FlowsManager) SetPipelineStatusSubscription(digitalTwin *common.DigitalTwin) *nats.Subscription {
 	p := digitalTwin.Pipeline
 	sim2stateTopic := fm.GetTopicByTopicRef(p.GetAssetId(), p.GetDigitalTwinId(), "sim2state")

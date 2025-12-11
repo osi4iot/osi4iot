@@ -939,9 +939,6 @@ export const createDigitalTwin = async (
 		chatAssistantEnabled: digitalTwinInput.chatAssistantEnabled,
 		chatAssistantLanguage: digitalTwinInput.chatAssistantLanguage,
 		digitalTwinSimulationFormat: digitalTwinInput.digitalTwinSimulationFormat,
-		// pipelineFileName: digitalTwinInput.pipelineFileName,
-		// pipelineFileLastModifDate: digitalTwinInput.pipelineFileLastModifDate,
-		// pipelineFileData: digitalTwinInput.pipelineFileData || "",
 	};
 	const digitalTwin = await insertDigitalTwin(digitalTwinUpdated);
 	if (!isDefault) {

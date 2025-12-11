@@ -58,37 +58,6 @@ func (fm *FlowsManager) StopNodes() {
 	fm.log.Info("All nodes in all digital twins have been stopped")
 }
 
-func (fm *FlowsManager) CreatePipelineInDigitalTwin(digitalTwinId int) {
-	fm.log.Infof("Creating pipeline for digital twin %d", digitalTwinId)
-
-	digitalTwin := fm.GetDigitalTwin(digitalTwinId)
-	if digitalTwin == nil {
-		fm.log.Errorf("Digital twin %d not found", digitalTwinId)
-		return
-	}
-
-	org := fm.GetOrg(digitalTwin.OrgId)
-	digitalTwin.Pipeline = fm.createPipeline(digitalTwin, org, "create")
-	digitalTwin.Pipeline.Start(true)
-}
-
-func (fm *FlowsManager) UpdatePipelineInDigitalTwin(digitalTwinId int) {
-	fm.log.Infof("Updating pipeline for digital twin %d", digitalTwinId)
-
-	digitalTwin := fm.GetDigitalTwin(digitalTwinId)
-	if digitalTwin == nil {
-		fm.log.Errorf("Digital twin %d not found", digitalTwinId)
-		return
-	}
-
-	if digitalTwin.Pipeline != nil {
-		digitalTwin.Pipeline.Stop("update")
-	}
-	org := fm.GetOrg(digitalTwin.OrgId)
-	digitalTwin.Pipeline = fm.createPipeline(digitalTwin, org, "update")
-	digitalTwin.Pipeline.Start(false)
-}
-
 func (fm *FlowsManager) StartNodesInDigitalTwin(digitalTwinId int, needReinitialization bool) {
 	fm.log.Infof("Starting nodes for digital twin %d", digitalTwinId)
 

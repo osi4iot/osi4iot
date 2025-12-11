@@ -12,8 +12,7 @@ import (
 func KeepalivedService(
 	pd *pt.PlatformData,
 	sd pt.SwarmData,
-	svcResourcesMap resources.SvcResourcesMap,
-	nodeRoleMaps resources.NodesRoleMaps,
+	svcResources resources.SvcResources,
 ) pt.Service {
 
 	constraints := []string{
@@ -42,12 +41,12 @@ func KeepalivedService(
 			},
 		}).
 		WithResources(
-			resources.CPUs("keepalived", svcResourcesMap),
-			resources.Memory("keepalived", svcResourcesMap),
+			svcResources.NanoCPUs,
+			svcResources.MemoryBytes,
 		).
 		WithPlacement(constraints).
 		WithGlobal().
-		WithModeReplicated(resources.GiveReplicsPtr("keepalived", nodeRoleMaps)).
+		WithModeReplicated(svcResources.ReplicasPtr).
 		WithNetworks([]swarm.NetworkAttachmentConfig{
 			{Target: sd.Networks["internal_net"].Name},
 		}).

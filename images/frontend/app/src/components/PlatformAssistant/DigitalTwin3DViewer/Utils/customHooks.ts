@@ -866,6 +866,7 @@ const deployPipeline = (
                 .then((response: AxiosResponse<any, any>) => {
                     handleSetPipelineLogsOpen(true);
                     handlePipelineUiChanged(false);
+                    digitalTwinSelected.pipelineFileData = JSON.stringify(pipelineDataNodes);
                     toast.success(response.data.message);
                 })
                 .catch((error: AxiosError) => {
@@ -880,6 +881,7 @@ const deployPipeline = (
                 .then((response: AxiosResponse<any, any>) => {
                     handleSetPipelineLogsOpen(true);
                     handlePipelineUiChanged(false);
+                    digitalTwinSelected.pipelineFileData = JSON.stringify(pipelineDataNodes);
                     toast.success(response.data.message);
                 })
                 .catch((error: AxiosError) => {

@@ -33,12 +33,13 @@ func main() {
 			exitWithError(errMsg)
 		}
 
+		
 		args := os.Args[1:]
 		action := "none"
 		if len(args) != 0 {
 			action = args[0]
 		}
-
+		
 		if slices.Contains(cmd.SwarmActions, action) {
 			platformData := data.GetData()
 			DCMap, dcMapErr := docker.SetDockerClientsMap(platformData, action)

@@ -57,6 +57,7 @@ func NewService(name string, pd *pt.PlatformData, sd pt.SwarmData) *ServiceBuild
 				Placement: &swarm.Placement{
 					Constraints: []string{},
 				},
+				Networks: []swarm.NetworkAttachmentConfig{},
 			},
 			EndpointSpec: &swarm.EndpointSpec{
 				Mode: swarm.ResolutionModeVIP,
@@ -91,7 +92,8 @@ func (b *ServiceBuilder) WithAnnotationsLabels(labels map[string]string) *Servic
 
 // WithNetworks sets the service networks.
 func (b *ServiceBuilder) WithNetworks(networks []swarm.NetworkAttachmentConfig) *ServiceBuilder {
-	b.svc.Networks = networks
+	// b.svc.Networks = networks
+	b.svc.TaskTemplate.Networks = append(b.svc.TaskTemplate.Networks, networks...)
 	return b
 }
 
@@ -263,28 +265,28 @@ func durationPtr(d time.Duration) *time.Duration {
 // GenerateServices creates a map of services based on the platform data and swarm data.
 // It not includes nodered service
 func GenerateServices(pd *pt.PlatformData, sd pt.SwarmData) map[string]pt.Service {
-	nodeRoleMaps := resources.NewNodeRoleMaps(pd)
 	svcResourcesMap := resources.NewSvcResourcesMap(pd)
+	nodeRoleNumMap := resources.GetNodeRoleNumMap(pd)
 
 	services := map[string]pt.Service{
-		"system-prune": SystemPruneService(pd, sd, svcResourcesMap),
-		"traefik":      TraefikService(pd, sd, svcResourcesMap, nodeRoleMaps),
-		"postgres":     PostgresService(pd, sd, svcResourcesMap, nodeRoleMaps),
-		"timescaledb":  TimescaledbService(pd, sd, svcResourcesMap, nodeRoleMaps),
-		"s3_storage":   S3StorageService(pd, sd, svcResourcesMap, nodeRoleMaps),
-		"dev2pdb":      Dev2pdbService(pd, sd, svcResourcesMap, nodeRoleMaps),
-		"admin_api":    AdminApiService(pd, sd, svcResourcesMap, nodeRoleMaps),
-		"frontend":     FrontendService(pd, sd, svcResourcesMap, nodeRoleMaps),
-		"grafana":      GrafanaService(pd, sd, svcResourcesMap, nodeRoleMaps),
-		"pipelines":    PipelinesService(pd, sd, svcResourcesMap, nodeRoleMaps),
-		"auth_callout": AuthCalloutService(pd, sd, svcResourcesMap, nodeRoleMaps),
+		"system-prune": SystemPruneService(pd, sd, svcResourcesMap["system_prune"]),
+		"traefik":      TraefikService(pd, sd, svcResourcesMap["traefik"]),
+		"postgres":     PostgresService(pd, sd, svcResourcesMap["postgres"], nodeRoleNumMap),
+		"timescaledb":  TimescaledbService(pd, sd, svcResourcesMap["timescaledb"], nodeRoleNumMap),
+		"s3_storage":   S3StorageService(pd, sd, svcResourcesMap["s3_storage"], nodeRoleNumMap),
+		"dev2pdb":      Dev2pdbService(pd, sd, svcResourcesMap["dev2pdb"], nodeRoleNumMap),
+		"admin_api":    AdminApiService(pd, sd, svcResourcesMap["admin_api"], nodeRoleNumMap),
+		"frontend":     FrontendService(pd, sd, svcResourcesMap["frontend"], nodeRoleNumMap),
+		"grafana":      GrafanaService(pd, sd, svcResourcesMap["grafana"]),
+		"pipelines":    PipelinesService(pd, sd, svcResourcesMap["pipelines"], nodeRoleNumMap),
+		"auth_callout": AuthCalloutService(pd, sd, svcResourcesMap["auth_callout"], nodeRoleNumMap),
 	}
 
 	pi := pd.PlatformInfo
 	for idx := range pi.NumNatsClusterNodes {
 		nodeId := idx + 1
 		serviceName := fmt.Sprintf("nats%d", nodeId)
-		services[serviceName] = NatsService(nodeId, pd, sd, svcResourcesMap, nodeRoleMaps)
+		services[serviceName] = NatsService(nodeId, pd, sd, svcResourcesMap["nats"], nodeRoleNumMap)
 	}
 
 	existArmArchNodes := false
@@ -295,23 +297,23 @@ func GenerateServices(pd *pt.PlatformData, sd pt.SwarmData) map[string]pt.Servic
 		}
 	}
 	if !existArmArchNodes {
-		services["grafana_renderer"] = GrafanaRendererService(pd, sd, svcResourcesMap, nodeRoleMaps)
+		services["grafana_renderer"] = GrafanaRendererService(pd, sd, svcResourcesMap["grafana_renderer"], nodeRoleNumMap)
 	}
 
 	s3BucketType := pi.S3BucketType
 	if s3BucketType == "Local Minio" {
-		services["minio"] = MinioService(pd, sd, svcResourcesMap, nodeRoleMaps)
+		services["minio"] = MinioService(pd, sd, svcResourcesMap["minio"], nodeRoleNumMap)
 	}
 
 	numSwarmNodes := len(pi.NodesData)
 	deploymentLocation := pi.DeploymentLocation
 	if numSwarmNodes > 1 && !existArmArchNodes && deploymentLocation == "On-premise cluster deployment" {
-		services["keepalived"] = KeepalivedService(pd, sd, svcResourcesMap, nodeRoleMaps)
+		services["keepalived"] = KeepalivedService(pd, sd, svcResourcesMap["keepalived"])
 	}
 
 	deploymentMode := pi.DeploymentMode
 	if deploymentMode == "development" {
-		services["pgadmin4"] = Pgadmin4Service(pd, sd, svcResourcesMap, nodeRoleMaps)
+		services["pgadmin4"] = Pgadmin4Service(pd, sd, svcResourcesMap["pgadmin4"], nodeRoleNumMap)
 	}
 
 	filteredServices := map[string]pt.Service{}

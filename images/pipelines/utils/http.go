@@ -123,10 +123,17 @@ func HttpGetWithJwt(url string, token string) ([]byte, error) {
 }
 
 func HttpPost(url string, data interface{}) ([]byte, error) {
-	jsonData, err := json.Marshal(data)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal data: %v", err)
-	}
+	var jsonData []byte
+	var err error
+
+    if data != nil {
+        jsonData, err = json.Marshal(data)
+        if err != nil {
+            return nil, fmt.Errorf("failed to marshal data: %v", err)
+        }
+    } else {
+        jsonData = []byte("{}")
+    }
 
 	resp, err := http.Post(url, "application/json", bytes.NewBuffer(jsonData))
 	if err != nil {
@@ -147,10 +154,17 @@ func HttpPost(url string, data interface{}) ([]byte, error) {
 }
 
 func HttpPostWithJwt(url string, data interface{}, token string) ([]byte, error) {
-	jsonData, err := json.Marshal(data)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal data: %v", err)
-	}
+	var jsonData []byte
+	var err error
+
+    if data != nil {
+        jsonData, err = json.Marshal(data)
+        if err != nil {
+            return nil, fmt.Errorf("failed to marshal data: %v", err)
+        }
+    } else {
+        jsonData = []byte("{}")
+    }	
 
 	ctx, cancel := ContextWithTimeout(10 * time.Second)
 	defer cancel()
@@ -182,10 +196,17 @@ func HttpPostWithJwt(url string, data interface{}, token string) ([]byte, error)
 }
 
 func HttpPatch(url string, data interface{}) ([]byte, error) {
-	jsonData, err := json.Marshal(data)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal data: %v", err)
-	}
+	var jsonData []byte
+	var err error
+
+    if data != nil {
+        jsonData, err = json.Marshal(data)
+        if err != nil {
+            return nil, fmt.Errorf("failed to marshal data: %v", err)
+        }
+    } else {
+        jsonData = []byte("{}")
+    }	
 
 	req, err := http.NewRequest("PATCH", url, bytes.NewBuffer(jsonData))
 	if err != nil {
@@ -212,10 +233,17 @@ func HttpPatch(url string, data interface{}) ([]byte, error) {
 }
 
 func HttpPatchWithJwt(url string, data interface{}, token string) ([]byte, error) {
-	jsonData, err := json.Marshal(data)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal data: %v", err)
-	}
+	var jsonData []byte
+	var err error
+
+    if data != nil {
+        jsonData, err = json.Marshal(data)
+        if err != nil {
+            return nil, fmt.Errorf("failed to marshal data: %v", err)
+        }
+    } else {
+        jsonData = []byte("{}")
+    }
 
 	ctx, cancel := ContextWithTimeout(10 * time.Second)
 	defer cancel()

@@ -13,8 +13,8 @@ func NatsService(
 	nodeId int,
 	pd *pt.PlatformData,
 	sd pt.SwarmData,
-	svcResourcesMap resources.SvcResourcesMap,
-	nodeRoleMaps resources.NodesRoleMaps,
+	svcResources resources.SvcResources,
+	nodeRoleNumMaps map[string]int,
 ) pt.Service {
 	// Define the NATS service
 	serviceName := fmt.Sprintf("nats%d", nodeId)
@@ -82,7 +82,7 @@ func NatsService(
 			Protocol:      swarm.PortConfigProtocolTCP,
 			TargetPort:    4222,
 			PublishedPort: natsPort,
-			PublishMode: swarm.PortConfigPublishModeHost,
+			PublishMode:   swarm.PortConfigPublishModeHost,
 		},
 		{
 			Protocol:      swarm.PortConfigProtocolTCP,
@@ -94,13 +94,13 @@ func NatsService(
 			Protocol:      swarm.PortConfigProtocolTCP,
 			TargetPort:    9001,
 			PublishedPort: websocketPort,
-			PublishMode: swarm.PortConfigPublishModeHost,
+			PublishMode:   swarm.PortConfigPublishModeHost,
 		},
 		{
 			Protocol:      swarm.PortConfigProtocolTCP,
 			TargetPort:    1883,
 			PublishedPort: mqttPort,
-			PublishMode: swarm.PortConfigPublishModeHost,
+			PublishMode:   swarm.PortConfigPublishModeHost,
 		},
 	}
 
@@ -109,7 +109,7 @@ func NatsService(
 		fmt.Sprintf("node.labels.nats_%d==true", nodeId),
 	}
 
-	if nodeRoleMaps.NodeRoleNumMap["Platform worker"] == 0 {
+	if nodeRoleNumMaps["Platform worker"] == 0 {
 		constraints = []string{
 			"node.role==manager",
 		}
@@ -131,14 +131,14 @@ func NatsService(
 			},
 		}).
 		WithResources(
-			resources.CPUs("nats", svcResourcesMap),
-			resources.Memory("nats", svcResourcesMap),
+			svcResources.NanoCPUs,
+			svcResources.MemoryBytes,
 		).
 		WithPlacement(constraints).
-		WithModeReplicated(resources.GiveReplicsPtr("nats", nodeRoleMaps)).
+		WithModeReplicated(svcResources.ReplicasPtr).
 		WithPorts(ports).
 		WithHealthCheck([]string{
-			"CMD-SHELL", 
+			"CMD-SHELL",
 			"wget -qO- http://localhost:8222/healthz | grep -q '\"status\":\"ok\"' || exit 0",
 		}).
 		WithNetworks([]swarm.NetworkAttachmentConfig{
