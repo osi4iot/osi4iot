@@ -86,10 +86,10 @@ func (fm *FlowsManager) UpdatePipelineInDigitalTwin(digitalTwinId int) {
 		digitalTwin.Pipeline.Stop("update")
 	}
 	org := fm.GetOrg(digitalTwin.OrgId)
-	fmt.Println("Paso por aqui 1")
 	digitalTwin.Pipeline = fm.createPipeline(digitalTwin, org, "update")
 	digitalTwin.Pipeline.Start(false)
 }
+
 
 func (fm *FlowsManager) SetPipelineStatusSubscription(digitalTwin *common.DigitalTwin) *nats.Subscription {
 	p := digitalTwin.Pipeline

@@ -111,9 +111,12 @@ func SetData(key string, value string) {
 		if Data.PlatformInfo.AccessTokenSecret == "" {
 			Data.PlatformInfo.AccessTokenSecret = value
 		}
-	case "NUM_NATS_CLUSTER_NODES":
-		numNatsClusterNodes, _ := strconv.Atoi(value)
-		Data.PlatformInfo.NumNatsClusterNodes = numNatsClusterNodes
+	case "NUMBER_OF_NATS_NODES":
+		numNatsNodes, _ := strconv.Atoi(value)
+		Data.PlatformInfo.NumOfNatsNodes = numNatsNodes
+	case "DEFAULT_NUMBER_OF_NATS_REPLICAS":
+		defaultNumNatsReplicas, _ := strconv.Atoi(value)
+		Data.PlatformInfo.DefaultNumOfNatsReplicas = defaultNumNatsReplicas
 	case "DEPLOYMENT_LOCATION":
 		Data.PlatformInfo.DeploymentLocation = value
 	case "LOCAL_RESOURCE_UTILIZATION_PERCENTAGE":
@@ -131,9 +134,9 @@ func SetData(key string, value string) {
 		Data.PlatformInfo.UiSvcResources = value
 	case "PIPELINES_SVC_RESOURCES":
 		Data.PlatformInfo.PipelinesSvcResources = value
-	case "NUMBER_OF_PIPELINES_INSTANCES":
+	case "DEFAULT_NUMBER_OF_PIPELINES_INSTANCES":
 		numberOfInstances, _ := strconv.Atoi(value)
-		Data.PlatformInfo.NumPipelinesInstances = numberOfInstances
+		Data.PlatformInfo.DefaultNumPipelinesInstances = numberOfInstances
 	case "NUMBER_OF_SWARM_NODES":
 		numberOfNodes, _ := strconv.Atoi(value)
 		Data.PlatformInfo.NumberOfSwarmNodes = numberOfNodes

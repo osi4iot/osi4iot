@@ -288,10 +288,6 @@ func (fm *FlowsManager) GetFunctionsTimeout() int {
 	return fm.FunctionsTimeout
 }
 
-func (fm *FlowsManager) GetNumReplicas() int {
-	return fm.NumReplicas
-}
-
 func (fm *FlowsManager) GetReplicaIndex() int {
 	return fm.ReplicaIndex
 }

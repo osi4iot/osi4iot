@@ -75,7 +75,6 @@ func Load() (*Config, error) {
 	viper.SetDefault("timescaledb.port", 5432)
 	viper.SetDefault("timescaledb.sslmode", "disable")
 
-	viper.SetDefault("orgId", 1)
 	viper.SetDefault("replicaIndex", 1)
 	viper.SetDefault("numReplicas", 1)
 	viper.SetDefault("numStreamReplicas", 1)

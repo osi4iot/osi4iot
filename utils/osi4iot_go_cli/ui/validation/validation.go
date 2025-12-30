@@ -364,6 +364,27 @@ func Run(value string, prompt string, rules []string, data map[string]string) (b
 			}
 		}
 
+		if len(rule) >= 19 && rule[:19] == "numNatsClusterNodes" {
+			isValid = false
+			numNatsClusterNodes := rule[20:]
+			numNatsClusterNodesInt, err := strconv.Atoi(numNatsClusterNodes)
+			if err != nil {
+				errMsg = fmt.Sprintf("Error: '%s' is not a valid rule", rule)
+				break
+			}
+			valueInt, err := strconv.Atoi(value)
+			if err != nil {
+				errMsg = fmt.Sprintf("Error: '%s' is not a valid number", prompt)
+				break
+			}
+			if valueInt >= numNatsClusterNodesInt {
+				isValid = true
+			} else {
+				errMsg = fmt.Sprintf("Error: '%s' must be at least equal to the number of Nats servers (%d)", prompt, numNatsClusterNodesInt)
+				break
+			}
+		}
+
 		if rule == "email" {
 			isValid, errMsg = isEmail(value, prompt)
 			if !isValid {

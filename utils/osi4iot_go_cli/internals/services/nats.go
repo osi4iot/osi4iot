@@ -2,25 +2,27 @@ package services
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/resources"
 	pt "github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/types"
+	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/utils"
 )
 
 func NatsService(
-	nodeId int,
+	replica int,
+	numReplicas int,
 	pd *pt.PlatformData,
 	sd pt.SwarmData,
 	svcResources resources.SvcResources,
 	nodeRoleNumMaps map[string]int,
 ) pt.Service {
 	// Define the NATS service
-	serviceName := fmt.Sprintf("nats%d", nodeId)
-	volName := fmt.Sprintf("nats%d_data", nodeId)
+	serviceName := fmt.Sprintf("nats%d", replica)
+	volName := fmt.Sprintf("nats%d_data", replica)
 	numNodes := len(pd.PlatformInfo.NodesData)
-	numNatsClusterNodes := pd.PlatformInfo.NumNatsClusterNodes
 	domainName := pd.PlatformInfo.DomainName
 
 	secrets := []*swarm.SecretReference{
@@ -70,11 +72,13 @@ func NatsService(
 	var metricPort uint32 = 8222
 	var mqttPort uint32 = 1883
 	var websocketPort uint32 = 9001
-	if numNodes == 1 && numNatsClusterNodes > 1 {
-		natsPort = uint32(4222 + (nodeId - 1))
-		metricPort = uint32(8222 + (nodeId - 1))
-		websocketPort = uint32(9001 + (nodeId - 1))
-		mqttPort = uint32(1883 + (nodeId - 1))
+	updateOrder := swarm.UpdateOrderStartFirst
+	if numNodes == 1 && numReplicas > 1 {
+		natsPort = uint32(4222 + (replica - 1))
+		metricPort = uint32(8222 + (replica - 1))
+		websocketPort = uint32(9001 + (replica - 1))
+		mqttPort = uint32(1883 + (replica - 1))
+		updateOrder = swarm.UpdateOrderStopFirst
 	}
 
 	ports := []swarm.PortConfig{
@@ -106,7 +110,7 @@ func NatsService(
 
 	constraints := []string{
 		"node.role==worker",
-		fmt.Sprintf("node.labels.nats_%d==true", nodeId),
+		fmt.Sprintf("node.labels.nats_%d==true", replica),
 	}
 
 	if nodeRoleNumMaps["Platform worker"] == 0 {
@@ -115,8 +119,27 @@ func NatsService(
 		}
 	}
 
+	updateConfig := &swarm.UpdateConfig{
+		Parallelism:     1,
+		Delay:           10 * time.Second,                  // Delay entre nodos del cluster
+		FailureAction:   swarm.UpdateFailureActionRollback, // Rollback automático
+		Monitor:         15 * time.Second,                  // NATS arranca rápido, 15s es suficiente
+		MaxFailureRatio: 0,                                 // Con 1 réplica, cualquier fallo es crítico
+		Order:           updateOrder,        // Importante para mantener disponibilidad
+	}
+
+	rollbackConfig := &swarm.UpdateConfig{
+		Parallelism:     1,
+		Delay:           5 * time.Second,
+		FailureAction:   swarm.UpdateFailureActionRollback, // Rollback automático
+		Monitor:         15 * time.Second,
+		MaxFailureRatio: 0,
+		Order:           updateOrder,
+	}
+
+	image := utils.GetServiceImage(pd, "nats", "ghcr.io/osi4iot/nats:2.11.1-alpine")
 	return NewService(serviceName, pd, sd).
-		WithImage("ghcr.io/osi4iot/nats:2.11.1-alpine").
+		WithImage(image).
 		WithHostname(serviceName).
 		WithEnv([]string{
 			fmt.Sprintf("SERVER_NAME=\"%s\"", serviceName),
@@ -143,7 +166,9 @@ func NatsService(
 		}).
 		WithNetworks([]swarm.NetworkAttachmentConfig{
 			{Target: sd.Networks["internal_net"].Name},
-			{Target: sd.Networks["nats_network"].Name, Aliases: []string{fmt.Sprintf("nats%d.%s", nodeId, domainName)}},
+			{Target: sd.Networks["nats_network"].Name, Aliases: []string{fmt.Sprintf("nats%d.%s", replica, domainName)}},
 		}).
+		WithUpdateConfig(updateConfig).
+		WithRollbackConfig(rollbackConfig).
 		Build()
 }

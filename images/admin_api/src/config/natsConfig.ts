@@ -54,12 +54,19 @@ class NATSClient {
 		this.isConnecting = false;
 		this.connectionPromise = null;
 
-		const serversUrl = [`nats://nats1.${process_env.DOMAIN_NAME}:4222`];
-		if (process_env.NATS_NUM_REPLICAS && process_env.NATS_NUM_REPLICAS === "3") {
-			serversUrl.push(
-				`nats://nats2.${process_env.DOMAIN_NAME}:4222`,
-				`nats://nats3.${process_env.DOMAIN_NAME}:4222`
-			);
+		const numNatsNodes = parseInt(process_env.NATS_NUM_NODES, 10);
+		const numNatsReplicas = parseInt(process_env.NATS_NUM_REPLICAS, 10);
+		const numSeedServers = Math.min(numNatsReplicas, 3);
+		const serversUrl = [];
+		if (numNatsNodes === 1) {
+			for (let replica = 1; replica <= numSeedServers; replica++) {
+				const port = 4222 + (replica - 1);
+				serversUrl.push(`nats://nats${replica}.${process_env.DOMAIN_NAME}:${port}`);
+			}
+		} else if (numNatsNodes >= 3) {
+			for (let replica = 1; replica <= numSeedServers; replica++) {
+				serversUrl.push(`nats://nats${replica}.${process_env.DOMAIN_NAME}:4222`);
+			}
 		}
 
 		this.config = {

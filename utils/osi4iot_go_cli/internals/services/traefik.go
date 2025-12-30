@@ -6,6 +6,7 @@ import (
 
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/resources"
 	pt "github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/types"
+	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/utils"
 )
 
 func TraefikService(
@@ -82,8 +83,9 @@ func TraefikService(
 		commands = append(commands, "--providers.file.watch=true")
 	}
 
+	image := utils.GetServiceImage(pd, "traefik", "ghcr.io/osi4iot/traefik_go_cli:v3.6")
 	return NewService("traefik", pd, sd).
-		WithImage("ghcr.io/osi4iot/traefik_go_cli:v3.6").
+		WithImage(image).
 		WithHealthCheck([]string{
 			"CMD-SHELL",
 			"wget --quiet --tries=1 --spider --no-check-certificate http://127.0.0.1:8080/ping || exit 1",

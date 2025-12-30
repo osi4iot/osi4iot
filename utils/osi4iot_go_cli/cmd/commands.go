@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"regexp"
 	"slices"
 	"strconv"
 	"strings"
@@ -113,9 +114,9 @@ var cmdService = &cobra.Command{
 	Use:   "service",
 	Short: "Services management",
 	Long:  "Services management",
-	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("Services management")
-	},
+	// Run: func(cmd *cobra.Command, args []string) {
+	// 	fmt.Println("Services management")
+	// },
 }
 
 var subCmdServiceList = &cobra.Command{
@@ -146,7 +147,7 @@ var subCmdServiceList = &cobra.Command{
 }
 
 var subCmdServiceInspect = &cobra.Command{
-	Use:   "inspect [SERVICE_NAME]",
+	Use:   "inspect SERVICE",
 	Short: "Inspect a specific service",
 	Long:  "Display detailed information about a specific service",
 	Args:  cobra.ExactArgs(1),
@@ -178,7 +179,7 @@ var subCmdServiceInspect = &cobra.Command{
 }
 
 var cmdServiceScale = &cobra.Command{
-	Use:   "scale [SERVICE_NAME=REPLICAS].",
+	Use:   "scale SERVICE=REPLICAS.",
 	Short: "Scale services",
 	Long:  "Scale services to the desired number of replicas",
 	Args:  cobra.ExactArgs(1),
@@ -226,8 +227,119 @@ var cmdServiceScale = &cobra.Command{
 		}
 
 		fmt.Println()
-		okMsg := utils.StyleOKMsg.Render(fmt.Sprintf("Service '%s' has been scaled to %d replicas successfully", serviceName, replicas))
-		fmt.Println(okMsg)
+		if warnings == "" {
+			okMsg := utils.StyleOKMsg.Render(fmt.Sprintf("Service '%s' has been scaled to %d replicas successfully", serviceName, replicas))
+			fmt.Println(okMsg)
+		}
+	},
+}
+
+var cmdServiceUpdateResources = &cobra.Command{
+	Use:   "resources SERVICE=CPU-MEM",
+	Short: "Manage resource limits for a service",
+	Long: `Set CPU and memory limits for a Docker Swarm service.
+
+The resource specification must follow this format:
+
+  SERVICE=CPU-MEM
+
+Where:
+  SERVICE  is the service name
+  CPU      is expressed in cores (e.g. 0.50)
+  MEM      is expressed in megabytes (e.g. 1000Mb)
+
+Example:
+  osi4iot service resources admin_api=0.50CPU-1000Mb
+`,
+	Args: cobra.ExactArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		svcPairStr := args[0]
+
+		re := regexp.MustCompile(`(?i)^([^=]+)=([0-9.]+)CPU-([0-9]+)MB$`)
+		matches := re.FindStringSubmatch(svcPairStr)
+		if matches == nil {
+			erroMsg := fmt.Sprintf("invalid format %q\nexpected: SERVICE=CPU-MEM (e.g. admin_api=0.50CPU-1000Mb)", svcPairStr)
+			exitWithError(erroMsg)
+		}
+
+		serviceName := matches[1]
+		cpu, err := strconv.ParseFloat(matches[2], 64)
+		if err != nil {
+			errMsg := fmt.Sprintf("Error parsing CPU value: %v", err)
+			exitWithError(errMsg)
+		}
+
+		mem, err := strconv.ParseInt(matches[3], 10, 64)
+		if err != nil {
+			errMsg := fmt.Sprintf("Error parsing memory value: %v", err)
+			exitWithError(errMsg)
+		}
+
+		dc, err := docker.GetManagerDC()
+		if err != nil {
+			errMsg := fmt.Sprintf("Error getting docker client: %v", err)
+			exitWithError(errMsg)
+		}
+
+		pd := data.GetData()
+		warnings, err := docker.UpdateSwarmServiceResources(pd, dc, serviceName, mem, cpu)
+		if err != nil {
+			errMsg := fmt.Sprintf("Error updating service resources: %v", err)
+			exitWithError(errMsg)
+		}
+
+		if warnings != "" {
+			warningMsg := utils.StyleWarningMsg.Render("Warnings:\n" + warnings)
+			fmt.Println(warningMsg)
+		}
+
+		fmt.Println()
+		if warnings == "" {
+			okMsg := utils.StyleOKMsg.Render(fmt.Sprintf("Service '%s' resources have been updated successfully", serviceName))
+			fmt.Println(okMsg)
+		}
+	},
+}
+
+var cmdServiceUpdateImage = &cobra.Command{
+	Use:   "image SERVICE=IMAGE",
+	Short: "Manage service images",
+	Long:  "Manage service images",
+	Run: func(cmd *cobra.Command, args []string) {
+		svcPairStr := args[0]
+
+		svcPair := strings.TrimSpace(svcPairStr)
+		dc, err := docker.GetManagerDC()
+		if err != nil {
+			errMsg := fmt.Sprintf("Error getting docker client: %v", err)
+			exitWithError(errMsg)
+		}
+
+		parts := strings.SplitN(svcPair, "=", 2)
+		if len(parts) != 2 {
+			errMsg := fmt.Sprintf("Invalid service-replicas pair: %s", svcPair)
+			exitWithError(errMsg)
+		}
+		serviceName := parts[0]
+		image := parts[1]
+
+		pd := data.GetData()
+		warnings, err := docker.UpdateSwarmServiceImage(pd, dc, serviceName, image)
+		if err != nil {
+			errMsg := fmt.Sprintf("Error updating service image: %v", err)
+			exitWithError(errMsg)
+		}
+
+		if warnings != "" {
+			warningMsg := utils.StyleWarningMsg.Render("Warnings:\n" + warnings)
+			fmt.Println(warningMsg)
+		}
+
+		fmt.Println()
+		if warnings == "" {
+			okMsg := utils.StyleOKMsg.Render(fmt.Sprintf("Service '%s' image has been updated successfully", serviceName))
+			fmt.Println(okMsg)
+		}
 	},
 }
 
@@ -393,6 +505,8 @@ func init() {
 	cmdService.AddCommand(subCmdServiceList)
 	cmdService.AddCommand(subCmdServiceInspect)
 	cmdService.AddCommand(cmdServiceScale)
+	cmdService.AddCommand(cmdServiceUpdateResources)
+	cmdService.AddCommand(cmdServiceUpdateImage)
 	rootCmd.AddCommand(cmdService)
 
 	cmdNodes.AddCommand(subCmdNodesList)

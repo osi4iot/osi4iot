@@ -8,7 +8,6 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/swarm"
-	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/resources"
 	pt "github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/types"
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/utils"
 )
@@ -16,52 +15,8 @@ import (
 func GenerateSecrets(pd *pt.PlatformData) map[string]pt.Secret {
 	Secrets := make(map[string]pt.Secret)
 	domainCertsType := pd.PlatformInfo.DomainCertsType
-	nodeRoleNumMap := resources.GetNodeRoleNumMap(pd)
-	numNodes := len(pd.PlatformInfo.NodesData)
-
-	adminApiSecretsDataArray := []string{
-		fmt.Sprintf("REGISTRATION_TOKEN_LIFETIME=%s", strconv.Itoa(pd.PlatformInfo.RegistrationTokenLifetime)),
-		fmt.Sprintf("REFRESH_TOKEN_LIFETIME=%s", strconv.Itoa(pd.PlatformInfo.RefreshTokenLifetime)),
-		fmt.Sprintf("REFRESH_TOKEN_SECRET=%s", pd.PlatformInfo.RefreshTokenSecret),
-		fmt.Sprintf("ACCESS_TOKEN_SECRET=%s", pd.PlatformInfo.AccessTokenSecret),
-		fmt.Sprintf("ACCESS_TOKEN_LIFETIME=%s", strconv.Itoa(pd.PlatformInfo.AccessTokenLifetime)),
-		fmt.Sprintf("MQTT_SSL_CERTS_VALIDITY_DAYS=%s", strconv.Itoa(pd.PlatformInfo.MQTTSslCertsValidityDays)),
-		fmt.Sprintf("ENCRYPTION_SECRET_KEY=%s", pd.PlatformInfo.EncryptionSecretKey),
-		fmt.Sprintf("PLATFORM_ADMIN_FIRST_NAME=\"%s\"", pd.PlatformInfo.PlatformAdminFirstName),
-		fmt.Sprintf("PLATFORM_ADMIN_SURNAME=\"%s\"", pd.PlatformInfo.PlatformAdminSurname),
-		fmt.Sprintf("PLATFORM_ADMIN_USER_NAME=%s", pd.PlatformInfo.PlatformAdminUserName),
-		fmt.Sprintf("PLATFORM_ADMIN_EMAIL=%s", pd.PlatformInfo.PlatformAdminEmail),
-		fmt.Sprintf("PLATFORM_ADMIN_PASSWORD=%s", pd.PlatformInfo.PlatformAdminPassword),
-		fmt.Sprintf("PLATFORM_ADMIN_NATS_PUBLIC=%s", pd.PlatformInfo.PlatformAdminNatsPublicKey),
-		fmt.Sprintf("GRAFANA_ADMIN_PASSWORD=%s", pd.PlatformInfo.GrafanaAdminPassword),
-		fmt.Sprintf("POSTGRES_USER=%s", pd.PlatformInfo.PostgresUser),
-		fmt.Sprintf("POSTGRES_PASSWORD=%s", pd.PlatformInfo.PostgresPassword),
-		fmt.Sprintf("POSTGRES_DB=%s", pd.PlatformInfo.PostgresDB),
-		fmt.Sprintf("TIMESCALE_USER=%s", pd.PlatformInfo.TimescaleUser),
-		fmt.Sprintf("TIMESCALE_PASSWORD=%s", pd.PlatformInfo.TimescalePassword),
-		fmt.Sprintf("TIMESCALE_DB=%s", pd.PlatformInfo.TimescaleDB),
-		fmt.Sprintf("DEV2PDB_PASSWORD=%s", pd.PlatformInfo.Dev2pdbPassword),
-		fmt.Sprintf("DEV2PDB_NATS_NKEY_PUBLIC=%s", pd.PlatformInfo.Dev2pdbNatsNkeyPublic),
-		fmt.Sprintf("NATS_ADMIN_USERNAME=%s", pd.Certs.NatsCerts.NatsAdminUsername),
-		fmt.Sprintf("NATS_ADMIN_PASSWORD=%s", pd.Certs.NatsCerts.NatsAdminPassword),
-		fmt.Sprintf("NATS_ADMIN_NKEY_PUBLIC=%s", pd.Certs.NatsCerts.NatsAdminNkeyPublic),
-		fmt.Sprintf("NOTIFICATIONS_EMAIL_USER=%s", pd.PlatformInfo.NotificationsEmailUser),
-		fmt.Sprintf("NOTIFICATIONS_EMAIL_PASSWORD=%s", pd.PlatformInfo.NotificationsEmailPassword),
-		fmt.Sprintf("MAIN_ORGANIZATION_TELEGRAM_CHAT_ID=%s", pd.PlatformInfo.MainOrganizationTelegramChatID),
-		fmt.Sprintf("MAIN_ORGANIZATION_TELEGRAM_INVITATION_LINK=%s", pd.PlatformInfo.MainOrganizationTelegramInviteLink),
-		fmt.Sprintf("TELEGRAM_BOTTOKEN=%s", pd.PlatformInfo.TelegramBotToken),
-		fmt.Sprintf("AWS_ACCESS_KEY_ID=%s", pd.PlatformInfo.AWSAccessKeyIDS3Bucket),
-		fmt.Sprintf("AWS_SECRET_ACCESS_KEY=%s", pd.PlatformInfo.AWSSecretAccessKeyS3Bucket),
-	}
-
-	adminApiSecretsData := strings.Join(adminApiSecretsDataArray, "\n")
-	adminApiSecretsHash := utils.GetMD5Hash(adminApiSecretsData)
-	adminApiSecretsName := fmt.Sprintf("admin_api_%s", adminApiSecretsHash)
-	adminApiSecret := pt.Secret{
-		Name: adminApiSecretsName,
-		Data: adminApiSecretsData,
-	}
-	Secrets["admin_api"] = adminApiSecret
+	numNatsReplicas := utils.GetServiceReplicas(pd, "nats")
+	Secrets["admin_api"] = CreateAdminApiConfigSecret(pd, numNatsReplicas)
 
 	if pd.PlatformInfo.DomainCertsType == "Let's encrypt certs with DNS-01 challenge and AWS Route 53 provider" {
 		utils.SetOrUpdateAcmeCerts(pd)
@@ -113,31 +68,8 @@ func GenerateSecrets(pd *pt.PlatformData) map[string]pt.Secret {
 	}
 	Secrets["auth_callout"] = authCalloutSecret
 
-	clusterRoutes := []string{"nats1:6222"}
-	if (numNodes == 1 && pd.PlatformInfo.NumNatsClusterNodes > 1) || nodeRoleNumMap["Platform worker"] >= 3 {
-		for iNatsNode := 2; iNatsNode <= pd.PlatformInfo.NumNatsClusterNodes; iNatsNode++ {
-			clusterRoutes = append(clusterRoutes, fmt.Sprintf("nats%d:6222", iNatsNode))
-		}
-	}
-	params := utils.NatsConfigParams{
-		NatsAdminUsername:   pd.Certs.NatsCerts.NatsAdminUsername,
-		NatsAdminPassword:   pd.Certs.NatsCerts.NatsAdminPassword,
-		NatsAdminNkeyPublic: pd.Certs.NatsCerts.NatsAdminNkeyPublic,
-		NatsIssuerPublicKey: pd.Certs.NatsCerts.NatsIssuerPublicKey,
-		NatsXKeyPublicKey:   pd.Certs.NatsCerts.NatsXKeyPublicKey,
-		ClusterRoutes:       clusterRoutes,
-	}
+	Secrets["nats_config"] = CreateNatsConfigSecret(pd, numNatsReplicas)
 
-	cfgStr, _ := utils.NatsRenderConfig(params)
-	natsConfigHash := utils.GetMD5Hash(cfgStr)
-	natsConfigName := fmt.Sprintf("nats_config_%s", natsConfigHash)
-	natsConfigSecret := pt.Secret{
-		Name: natsConfigName,
-		Data: cfgStr,
-	}
-	Secrets["nats_config"] = natsConfigSecret
-
-	
 	grafanaSecretsDataArray := []string{
 		fmt.Sprintf("GRAFANA_ADMIN_PASSWORD=%s", pd.PlatformInfo.GrafanaAdminPassword),
 		fmt.Sprintf("NOTIFICATIONS_EMAIL_USER=%s", pd.PlatformInfo.NotificationsEmailUser),
@@ -220,23 +152,9 @@ func GenerateSecrets(pd *pt.PlatformData) map[string]pt.Secret {
 	}
 	Secrets["timescale_data_ret_int"] = timescaleDataRetIntSecret
 
-	dev2pdbCfgStr, _ := utils.Dev2pdbConfig(pd, nodeRoleNumMap)
-	dev2pdbConfigHash := utils.GetMD5Hash(dev2pdbCfgStr)
-	dev2pdbConfigName := fmt.Sprintf("dev2pdb_config_%s", dev2pdbConfigHash)
-	dev2pdbConfigSecret := pt.Secret{
-		Name: dev2pdbConfigName,
-		Data: dev2pdbCfgStr,
-	}
-	Secrets["dev2pdb_config"] = dev2pdbConfigSecret
+	Secrets["dev2pdb_config"] = CreateDev2pdbConfigSecret(pd, numNatsReplicas)
 
-	pipelinesCfgStr, _ := utils.PipelinesConfig(pd, nodeRoleNumMap)
-	pipelinesConfigHash := utils.GetMD5Hash(pipelinesCfgStr)
-	pipelinesConfigName := fmt.Sprintf("pipelines_config_%s", pipelinesConfigHash)
-	pipelinesConfigSecret := pt.Secret{
-		Name: pipelinesConfigName,
-		Data: pipelinesCfgStr,
-	}
-	Secrets["pipelines_config"] = pipelinesConfigSecret
+	Secrets["pipelines_config"] = CreatePipelinesConfigSecret(pd, numNatsReplicas)
 
 	minioSecrets := []string{
 		fmt.Sprintf("MINIO_ROOT_USER=%s", pd.PlatformInfo.PlatformAdminUserName),
@@ -288,6 +206,25 @@ func GenerateSecrets(pd *pt.PlatformData) map[string]pt.Secret {
 	return Secrets
 }
 
+func GetSecretByName(dc *pt.DockerClient, secretName string) (*swarm.Secret, error) {
+	filterArgs := filters.NewArgs()
+	filterArgs.Add("label", "app=osi4iot")
+	existingSecrets, err := dc.Cli.SecretList(dc.Ctx, types.SecretListOptions{
+		Filters: filterArgs,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("error listing secrets: %v", err)
+	}
+
+	for _, s := range existingSecrets {
+		if s.Spec.Name == secretName {
+			return &s, nil
+		}
+	}
+
+	return nil, nil
+}
+
 func CreateSecret(dc *pt.DockerClient, secretKey string, secret *pt.Secret) error {
 	existingSecrets, err := dc.Cli.SecretList(dc.Ctx, types.SecretListOptions{})
 	if err != nil {
@@ -329,6 +266,55 @@ func CreateSecret(dc *pt.DockerClient, secretKey string, secret *pt.Secret) erro
 	return nil
 }
 
+func CreateSecretByName(dc *pt.DockerClient, secret *pt.Secret) error {
+	var secResp types.SecretCreateResponse
+	secretExists, err := GetSecretByName(dc, secret.Name)
+	if err != nil {
+		return fmt.Errorf("error checking if secret exists: %v", err)
+	}
+
+	if secretExists == nil {
+		secResp, err = dc.Cli.SecretCreate(dc.Ctx, swarm.SecretSpec{
+			Annotations: swarm.Annotations{
+				Name: secret.Name,
+				Labels: map[string]string{
+					"app": "osi4iot",
+				},
+			},
+			Data: []byte(secret.Data),
+		})
+		if err != nil {
+			return fmt.Errorf("error creating secret: %v", err)
+		}
+		secret.ID = secResp.ID
+	}
+
+	return nil
+}
+
+func RemoveSecretByName(dc *pt.DockerClient, secretName string) error {
+	filterArgs := filters.NewArgs()
+	filterArgs.Add("label", "app=osi4iot")
+	existingSecrets, err := dc.Cli.SecretList(dc.Ctx, types.SecretListOptions{
+		Filters: filterArgs,
+	})
+	if err != nil {
+		return fmt.Errorf("error listing secrets: %v", err)
+	}
+
+	for _, s := range existingSecrets {
+		if s.Spec.Name == secretName {
+			err = dc.Cli.SecretRemove(dc.Ctx, s.ID)
+			if err != nil {
+				return fmt.Errorf("error removing secret: %v", err)
+			}
+			break
+		}
+	}
+
+	return nil
+}
+
 func CreateSwarmSecrets(platformData *pt.PlatformData, dc *pt.DockerClient) (map[string]pt.Secret, error) {
 	secrets := GenerateSecrets(platformData)
 	for key, secret := range secrets {
@@ -360,4 +346,176 @@ func RemoveSwarmSecrets(dc *pt.DockerClient) error {
 	}
 
 	return nil
+}
+
+func GetSecretByKey(dc *pt.DockerClient, secretKey string) (*pt.Secret, error) {
+	filterArgs := filters.NewArgs()
+	filterArgs.Add("label", "app=osi4iot")
+	existingSecrets, err := dc.Cli.SecretList(dc.Ctx, types.SecretListOptions{
+		Filters: filterArgs,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("error listing secrets: %v", err)
+	}
+
+	if len(existingSecrets) == 0 {
+		return nil, fmt.Errorf("secret %s not found", secretKey)
+	}
+
+	var swarmSecret swarm.Secret
+	for _, s := range existingSecrets {
+		if strings.Contains(s.Spec.Name, secretKey) {
+			swarmSecret = s
+			break
+		}
+	}
+
+	if swarmSecret.ID == "" {
+		return nil, fmt.Errorf("secret %s not found", secretKey)
+	}
+
+	secret := &pt.Secret{
+		ID:   swarmSecret.ID,
+		Name: swarmSecret.Spec.Name,
+		Data: string(swarmSecret.Spec.Data),
+	}
+
+	return secret, nil
+}
+
+func CreateAdminApiConfigSecret(
+	pd *pt.PlatformData,
+	numNatsReplicas int,
+) pt.Secret {
+	adminApiSecretsDataArray := []string{
+		fmt.Sprintf("REGISTRATION_TOKEN_LIFETIME=%s", strconv.Itoa(pd.PlatformInfo.RegistrationTokenLifetime)),
+		fmt.Sprintf("REFRESH_TOKEN_LIFETIME=%s", strconv.Itoa(pd.PlatformInfo.RefreshTokenLifetime)),
+		fmt.Sprintf("REFRESH_TOKEN_SECRET=%s", pd.PlatformInfo.RefreshTokenSecret),
+		fmt.Sprintf("ACCESS_TOKEN_SECRET=%s", pd.PlatformInfo.AccessTokenSecret),
+		fmt.Sprintf("ACCESS_TOKEN_LIFETIME=%s", strconv.Itoa(pd.PlatformInfo.AccessTokenLifetime)),
+		fmt.Sprintf("MQTT_SSL_CERTS_VALIDITY_DAYS=%s", strconv.Itoa(pd.PlatformInfo.MQTTSslCertsValidityDays)),
+		fmt.Sprintf("ENCRYPTION_SECRET_KEY=%s", pd.PlatformInfo.EncryptionSecretKey),
+		fmt.Sprintf("PLATFORM_ADMIN_FIRST_NAME=\"%s\"", pd.PlatformInfo.PlatformAdminFirstName),
+		fmt.Sprintf("PLATFORM_ADMIN_SURNAME=\"%s\"", pd.PlatformInfo.PlatformAdminSurname),
+		fmt.Sprintf("PLATFORM_ADMIN_USER_NAME=%s", pd.PlatformInfo.PlatformAdminUserName),
+		fmt.Sprintf("PLATFORM_ADMIN_EMAIL=%s", pd.PlatformInfo.PlatformAdminEmail),
+		fmt.Sprintf("PLATFORM_ADMIN_PASSWORD=%s", pd.PlatformInfo.PlatformAdminPassword),
+		fmt.Sprintf("PLATFORM_ADMIN_NATS_PUBLIC=%s", pd.PlatformInfo.PlatformAdminNatsPublicKey),
+		fmt.Sprintf("GRAFANA_ADMIN_PASSWORD=%s", pd.PlatformInfo.GrafanaAdminPassword),
+		fmt.Sprintf("POSTGRES_USER=%s", pd.PlatformInfo.PostgresUser),
+		fmt.Sprintf("POSTGRES_PASSWORD=%s", pd.PlatformInfo.PostgresPassword),
+		fmt.Sprintf("POSTGRES_DB=%s", pd.PlatformInfo.PostgresDB),
+		fmt.Sprintf("TIMESCALE_USER=%s", pd.PlatformInfo.TimescaleUser),
+		fmt.Sprintf("TIMESCALE_PASSWORD=%s", pd.PlatformInfo.TimescalePassword),
+		fmt.Sprintf("TIMESCALE_DB=%s", pd.PlatformInfo.TimescaleDB),
+		fmt.Sprintf("DEV2PDB_PASSWORD=%s", pd.PlatformInfo.Dev2pdbPassword),
+		fmt.Sprintf("DEV2PDB_NATS_NKEY_PUBLIC=%s", pd.PlatformInfo.Dev2pdbNatsNkeyPublic),
+		fmt.Sprintf("NATS_ADMIN_USERNAME=%s", pd.Certs.NatsCerts.NatsAdminUsername),
+		fmt.Sprintf("NATS_ADMIN_PASSWORD=%s", pd.Certs.NatsCerts.NatsAdminPassword),
+		fmt.Sprintf("NATS_NUM_REPLICAS=%d", numNatsReplicas),
+		fmt.Sprintf("NATS_NUM_NODES=%d", pd.PlatformInfo.NumOfNatsNodes),
+		fmt.Sprintf("NATS_ADMIN_NKEY_PUBLIC=%s", pd.Certs.NatsCerts.NatsAdminNkeyPublic),
+		fmt.Sprintf("NOTIFICATIONS_EMAIL_USER=%s", pd.PlatformInfo.NotificationsEmailUser),
+		fmt.Sprintf("NOTIFICATIONS_EMAIL_PASSWORD=%s", pd.PlatformInfo.NotificationsEmailPassword),
+		fmt.Sprintf("MAIN_ORGANIZATION_TELEGRAM_CHAT_ID=%s", pd.PlatformInfo.MainOrganizationTelegramChatID),
+		fmt.Sprintf("MAIN_ORGANIZATION_TELEGRAM_INVITATION_LINK=%s", pd.PlatformInfo.MainOrganizationTelegramInviteLink),
+		fmt.Sprintf("TELEGRAM_BOTTOKEN=%s", pd.PlatformInfo.TelegramBotToken),
+		fmt.Sprintf("AWS_ACCESS_KEY_ID=%s", pd.PlatformInfo.AWSAccessKeyIDS3Bucket),
+		fmt.Sprintf("AWS_SECRET_ACCESS_KEY=%s", pd.PlatformInfo.AWSSecretAccessKeyS3Bucket),
+	}
+
+	adminApiSecretsData := strings.Join(adminApiSecretsDataArray, "\n")
+	adminApiSecretsHash := utils.GetMD5Hash(adminApiSecretsData)
+	adminApiSecretsName := fmt.Sprintf("admin_api_%s", adminApiSecretsHash)
+	adminApiSecret := pt.Secret{
+		Name: adminApiSecretsName,
+		Data: adminApiSecretsData,
+	}
+	return adminApiSecret
+}
+
+func CreateNatsConfigSecret(
+	pd *pt.PlatformData,
+	numNatsReplicas int,
+) pt.Secret {
+	clusterRoutes := []string{}
+	for iNatsNode := 1; iNatsNode <= numNatsReplicas; iNatsNode++ {
+		clusterRoutes = append(clusterRoutes, fmt.Sprintf("nats%d:6222", iNatsNode))
+	}
+
+	params := utils.NatsConfigParams{
+		NatsAdminUsername:   pd.Certs.NatsCerts.NatsAdminUsername,
+		NatsAdminPassword:   pd.Certs.NatsCerts.NatsAdminPassword,
+		NatsAdminNkeyPublic: pd.Certs.NatsCerts.NatsAdminNkeyPublic,
+		NatsIssuerPublicKey: pd.Certs.NatsCerts.NatsIssuerPublicKey,
+		NatsXKeyPublicKey:   pd.Certs.NatsCerts.NatsXKeyPublicKey,
+		ClusterRoutes:       clusterRoutes,
+	}
+
+	cfgStr, _ := utils.NatsRenderConfig(params)
+	natsConfigHash := utils.GetMD5Hash(cfgStr)
+	natsConfigName := fmt.Sprintf("nats_config_%s", natsConfigHash)
+	natsConfigSecret := pt.Secret{
+		Name: natsConfigName,
+		Data: cfgStr,
+	}
+
+	return natsConfigSecret
+}
+
+func CreatePipelinesConfigSecret(
+	pd *pt.PlatformData,
+	numNatsReplicas int,
+) pt.Secret {
+	cfgStr, _ := utils.PipelinesConfig(pd, numNatsReplicas)
+	pipelinesConfigHash := utils.GetMD5Hash(cfgStr)
+	pipelinesConfigName := fmt.Sprintf("pipelines_config_%s", pipelinesConfigHash)
+	pipelinesConfigSecret := pt.Secret{
+		Name: pipelinesConfigName,
+		Data: cfgStr,
+	}
+
+	return pipelinesConfigSecret
+}
+
+func CreateDev2pdbConfigSecret(
+	pd *pt.PlatformData,
+	numNatsReplicas int,
+) pt.Secret {
+	cfgStr, _ := utils.Dev2pdbConfig(pd, numNatsReplicas)
+	dev2pdbConfigHash := utils.GetMD5Hash(cfgStr)
+	dev2pdbConfigName := fmt.Sprintf("dev2pdb_config_%s", dev2pdbConfigHash)
+	dev2pdbConfigSecret := pt.Secret{
+		Name: dev2pdbConfigName,
+		Data: cfgStr,
+	}
+
+	return dev2pdbConfigSecret
+}
+
+func CreateCertsSecrets(pd *pt.PlatformData) map[string]pt.Secret {
+	CertsSecrets := make(map[string]pt.Secret)
+
+	if pd.PlatformInfo.DomainCertsType == "Certs provided by an CA" ||
+		pd.PlatformInfo.DomainCertsType == "Let's encrypt certs with DNS-01 challenge and AWS Route 53 provider" {
+		iotPlatformCertSecret := pt.Secret{
+			Name: pd.Certs.DomainCerts.IotPlatformCertName,
+			Data: pd.Certs.DomainCerts.SslCertCrt,
+		}
+		CertsSecrets["iot_platform_cert"] = iotPlatformCertSecret
+
+		iotPlatformKeySecret := pt.Secret{
+			Name: pd.Certs.DomainCerts.IotPlatformKeyName,
+			Data: pd.Certs.DomainCerts.PrivateKey,
+		}
+		CertsSecrets["iot_platform_key"] = iotPlatformKeySecret
+
+		iotPlatformCaCertSecret := pt.Secret{
+			Name: pd.Certs.DomainCerts.IotPlatformCaName,
+			Data: pd.Certs.DomainCerts.SslCaPem,
+		}
+		CertsSecrets["iot_platform_ca_cert"] = iotPlatformCaCertSecret
+	}
+
+	return CertsSecrets
 }

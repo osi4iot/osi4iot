@@ -157,6 +157,7 @@ func removingNodeQuestions(m *Model) {
 
 func addNumNodesQuestion(index int, m *Model) {
 	idx := m.FindQuestionIdByKey("NUMBER_OF_SWARM_NODES")
+	numNatsNodes := m.FindAnswerByKey("NUM_NATS_CLUSTER_NODES")
 	if idx == -1 {
 		numNodesQuestion := Question{
 			Key:           "NUMBER_OF_SWARM_NODES",
@@ -167,7 +168,7 @@ func addNumNodesQuestion(index int, m *Model) {
 			ErrorMessage:  "",
 			Choices:       []string{},
 			ChoiceFocus:   0,
-			Rules:         []string{"required", "isInt", "minval:1", "maxval:100"},
+			Rules:         []string{"required", "isInt", "minval:1", "maxval:100", "numNatsClusterNodes:" + numNatsNodes},
 			ActionKey:     "creatingNodeQuestions",
 			Margin:        0,
 		}
@@ -671,6 +672,8 @@ func createPlatform(m *Model) (platformCreatingMsg, error) {
 		}
 	}
 	platformData.PlatformInfo.NodesData = nodesData
+
+	data.SetInitialServicesData(platformData)
 
 	err = utils.WritePlatformDataToFile(platformData)
 	if err != nil {

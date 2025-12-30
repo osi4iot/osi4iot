@@ -139,12 +139,12 @@ tls:
 	return Configs
 }
 
-func createConfig(dc *pt.DockerClient, configKey string, config *pt.Config) error {
+func CreateConfig(dc *pt.DockerClient, configKey string, config *pt.Config) (*types.ConfigCreateResponse, error) {
 	existingConfigs, err := dc.Cli.ConfigList(dc.Ctx, types.ConfigListOptions{})
 	if err != nil {
-		return fmt.Errorf("error listing configs: %v", err)
+		return nil, fmt.Errorf("error listing configs: %v", err)
 	}
-
+	var configResp types.ConfigCreateResponse
 	configExists := false
 	for _, c := range existingConfigs {
 		if c.Spec.Name == config.Name {
@@ -155,7 +155,7 @@ func createConfig(dc *pt.DockerClient, configKey string, config *pt.Config) erro
 			configExists = false
 			err = dc.Cli.ConfigRemove(dc.Ctx, c.ID)
 			if err != nil {
-				return fmt.Errorf("error removing config: %v", err)
+				return nil, fmt.Errorf("error removing config: %v", err)
 			}
 			break
 		}
@@ -172,18 +172,18 @@ func createConfig(dc *pt.DockerClient, configKey string, config *pt.Config) erro
 			Data: []byte(config.Data),
 		})
 		if err != nil {
-			return fmt.Errorf("error creating config: %v", err)
+			return nil, fmt.Errorf("error creating config: %v", err)
 		}
 		config.ID = configResp.ID
 	}
 
-	return nil
+	return &configResp, nil
 }
 
 func CreateSwarmConfigs(platformData *pt.PlatformData, dc *pt.DockerClient) (map[string]pt.Config, error) {
 	configs := GenerateConfigs(platformData)
 	for key, config := range configs {
-		err := createConfig(dc, key, &config)
+		_,err := CreateConfig(dc, key, &config)
 		if err != nil {
 			return nil, fmt.Errorf("error creating config %s: %v", key, err)
 		}
@@ -211,4 +211,39 @@ func RemoveSwarmConfigs(dc *pt.DockerClient) error {
 	}
 
 	return nil
+}
+
+func GetConfigByKey(dc *pt.DockerClient, configKey string) (*pt.Config, error) {
+	filterArgs := filters.NewArgs()
+	filterArgs.Add("label", "app=osi4iot")
+	existingConfigs, err := dc.Cli.ConfigList(dc.Ctx, types.ConfigListOptions{
+		Filters: filterArgs,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("error listing configs: %v", err)
+	}
+
+	if len(existingConfigs) == 0 {
+		return nil, fmt.Errorf("config %s not found", configKey)
+	}
+
+	var swarmConfig swarm.Config
+	for _, c := range existingConfigs {
+		if strings.Contains(c.Spec.Name, configKey) {
+			swarmConfig = c
+			break
+		}
+	}
+
+	if swarmConfig.ID == "" {
+		return nil, fmt.Errorf("config %s not found", configKey)
+	}
+
+	config := &pt.Config{
+		ID:   swarmConfig.ID,
+		Name: swarmConfig.Spec.Name,
+		Data: string(swarmConfig.Spec.Data),
+	}
+
+	return config, nil
 }

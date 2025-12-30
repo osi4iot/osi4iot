@@ -7,6 +7,7 @@ import (
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/resources"
 	pt "github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/types"
+	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/utils"
 )
 
 func KeepalivedService(
@@ -20,8 +21,9 @@ func KeepalivedService(
 		"node.platform.arch==x86_64",
 	}
 
+	image := utils.GetServiceImage(pd, "keepalived","ghcr.io/osi4iot/keepalived:latest")
 	return NewService("keepalived", pd, sd).
-		WithImage("ghcr.io/osi4iot/keepalived:latest").
+		WithImage(image).
 		WithEnv([]string{
 			fmt.Sprintf("KEEPALIVED_VIRTUAL_IP=%s", pd.PlatformInfo.FloatingIPAddress),
 			fmt.Sprintf("KEEPALIVED_INTERFACE=%s", pd.PlatformInfo.NetworkInterface),

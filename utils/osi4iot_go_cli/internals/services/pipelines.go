@@ -5,6 +5,7 @@ import (
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/resources"
 	pt "github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/types"
+	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/utils"
 )
 
 func PipelinesService(
@@ -49,8 +50,9 @@ func PipelinesService(
 		}
 	}
 
+	image := utils.GetServiceImage(pd, "pipelines", "ghcr.io/osi4iot/pipelines:1.3.0")
 	return NewService("pipelines", pd, sd).
-		WithImage("ghcr.io/osi4iot/pipelines:1.3.0").
+		WithImage(image).
 		WithEnv([]string{
 			"REPLICA={{.Task.Slot}}",
 		}).

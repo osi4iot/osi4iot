@@ -719,7 +719,6 @@ func (p *Pipeline) Stop(action string) error {
 				case "delete":
 					p.SetStatus(common.PipelineStatusDeleted)
 					p.LogPipelineInfo("Pipeline delete successfully")
-					//p.stopStatusSubscriptionUnsafe()
 				}
 				return nil
 			}
@@ -727,9 +726,6 @@ func (p *Pipeline) Stop(action string) error {
 			p.Fm.log.Warnf("Timeout while waiting for nodes to stop in digital twin %d", p.GetDigitalTwinId())
 			p.LogPipelineError("Pipeline stop failed", "Timeout while waiting for nodes to stop")
 			p.SetStatus(common.PipelineStatusError)
-			// if action == "delete" {
-			// 	p.stopStatusSubscriptionUnsafe()
-			// }
 			return fmt.Errorf("timeout while waiting for nodes to stop in digital twin %d", p.GetDigitalTwinId())
 		}
 	}

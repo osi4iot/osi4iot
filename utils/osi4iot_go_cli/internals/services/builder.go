@@ -11,6 +11,7 @@ import (
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/resources"
 	pt "github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/types"
+	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/utils"
 )
 
 // ServiceBuilder encapsulates common logic for creating swarm services.
@@ -62,9 +63,13 @@ func NewService(name string, pd *pt.PlatformData, sd pt.SwarmData) *ServiceBuild
 			EndpointSpec: &swarm.EndpointSpec{
 				Mode: swarm.ResolutionModeVIP,
 			},
-			Mode: swarm.ServiceMode{Replicated: &swarm.ReplicatedService{Replicas: func(v uint64) *uint64 { return &v }(1)}},
+			Mode: swarm.ServiceMode{
+				Replicated: &swarm.ReplicatedService{
+					Replicas: func(v uint64) *uint64 { return &v }(1),
+				},
+			},
 			UpdateConfig: &swarm.UpdateConfig{
-				Parallelism:     2,
+				Parallelism:     1,
 				Delay:           5 * time.Second,
 				FailureAction:   swarm.UpdateFailureActionRollback,
 				Monitor:         20 * time.Second,
@@ -72,7 +77,7 @@ func NewService(name string, pd *pt.PlatformData, sd pt.SwarmData) *ServiceBuild
 				Order:           "start-first",
 			},
 			RollbackConfig: &swarm.UpdateConfig{
-				Parallelism:     2,
+				Parallelism:     1,
 				Delay:           5 * time.Second,
 				FailureAction:   swarm.UpdateFailureActionContinue,
 				Monitor:         20 * time.Second,
@@ -283,10 +288,10 @@ func GenerateServices(pd *pt.PlatformData, sd pt.SwarmData) map[string]pt.Servic
 	}
 
 	pi := pd.PlatformInfo
-	for idx := range pi.NumNatsClusterNodes {
-		nodeId := idx + 1
-		serviceName := fmt.Sprintf("nats%d", nodeId)
-		services[serviceName] = NatsService(nodeId, pd, sd, svcResourcesMap["nats"], nodeRoleNumMap)
+	numNatsReplicas := utils.GetServiceReplicas(pd, "nats")
+	for replica := 1; replica <= numNatsReplicas; replica++ {
+		serviceName := fmt.Sprintf("nats%d", replica)
+		services[serviceName] = NatsService(replica, numNatsReplicas, pd, sd, svcResourcesMap["nats"], nodeRoleNumMap)
 	}
 
 	existArmArchNodes := false

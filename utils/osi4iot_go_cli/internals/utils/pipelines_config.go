@@ -2,6 +2,7 @@ package utils
 
 import (
 	"bytes"
+	"fmt"
 	"text/template"
 
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/types"
@@ -88,21 +89,32 @@ type PipelinesParams struct {
 }
 
 // PipelinesConfig generates a configuration string for the pipelines service.
-func PipelinesConfig(platformData *types.PlatformData, nodeRoleNumMap map[string]int) (string, error) {
-	serversUrl := []string{"nats://nats1:4222"}
-	if nodeRoleNumMap["Platform worker"] >= 3 {
-		serversUrl = append(serversUrl, "nats://nats2:4222")
-		serversUrl = append(serversUrl, "nats://nats3:4222")
+func PipelinesConfig(pd *types.PlatformData, numNatsReplicas int) (string, error) {
+	serversUrl := []string{}
+	numNatsNodes := pd.PlatformInfo.NumOfNatsNodes
+	numNatsSeedServers := Min(numNatsReplicas, 3)
+	if numNatsNodes == 1 {
+		for replica := 1; replica <= numNatsSeedServers; replica++ {
+			port := 4222 + (replica - 1)
+			natUrl := fmt.Sprintf("nats://nats%d:%d", replica, port)
+			serversUrl = append(serversUrl, natUrl)
+		}
+	} else if numNatsNodes >= 3 {
+		for replica := 1; replica <= numNatsSeedServers; replica++ {
+			natUrl := fmt.Sprintf("nats://nats%d:4222", replica)
+			serversUrl = append(serversUrl, natUrl)
+		}
 	}
-
-	pi := platformData.PlatformInfo
+	
+	pi := pd.PlatformInfo
+	numReplicas := GetServiceReplicas(pd, "pipelines")
 
 	params := PipelinesParams{
 		Mode:                   "prod",
 		DomainName:             pi.DomainName,
 		AdminUserName:          pi.PlatformAdminUserName,
 		AdminPassword:          pi.PlatformAdminPassword,
-		NumReplicas:            pi.NumPipelinesInstances,
+		NumReplicas:            numReplicas,
 		ReplicaIndex:           1,
 		NumStreamReplicas:      1,
 		FunctionsTimeout:       5000,

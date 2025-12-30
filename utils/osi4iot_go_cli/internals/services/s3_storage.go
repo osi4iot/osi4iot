@@ -5,6 +5,7 @@ import (
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/resources"
 	pt "github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/types"
+	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/utils"
 )
 
 func S3StorageService(
@@ -51,8 +52,9 @@ func S3StorageService(
 		}
 	}
 
+	image := utils.GetServiceImage(pd, "s3_storage", "ghcr.io/osi4iot/s3_storage:1.3.0")
 	return NewService("s3_storage", pd, sd).
-		WithImage("ghcr.io/osi4iot/s3_storage:1.3.0").
+		WithImage(image).
 		WithSecrets(secrets).
 		WithConfigs(configs).
 		WithMounts([]mount.Mount{

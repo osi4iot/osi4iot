@@ -100,3 +100,27 @@ func RemoveSwarmNetworks(dc *pt.DockerClient) error {
 
 	return nil
 }
+
+func GetNetworkByName(dc *pt.DockerClient, networkName string) (*pt.Network, error) {
+	filterArgs := filters.NewArgs()
+	filterArgs.Add("name", networkName)
+	filterArgs.Add("label", "app=osi4iot")
+	existingNetworks, err := dc.Cli.NetworkList(dc.Ctx, network.ListOptions{
+		Filters: filterArgs,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("error listing networks: %v", err)
+	}
+
+	if len(existingNetworks) == 0 {
+		return nil, fmt.Errorf("network %s not found", networkName)
+	}
+
+	network := &pt.Network{
+		Id:     existingNetworks[0].ID,
+		Name:   existingNetworks[0].Name,
+		Driver: existingNetworks[0].Driver,
+	}
+
+	return network, nil
+}

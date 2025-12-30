@@ -7,6 +7,7 @@ import (
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/resources"
 	pt "github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/types"
+	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/utils"
 )
 
 func PostgresService(
@@ -61,8 +62,9 @@ func PostgresService(
 		}
 	}
 
+	image := utils.GetServiceImage(pd, "postgres", "ghcr.io/osi4iot/postgres:14.6-alpine")
 	return NewService("postgres", pd, sd).
-		WithImage("ghcr.io/osi4iot/postgres:14.6-alpine").
+		WithImage(image).
 		WithEnv([]string{
 			fmt.Sprintf("POSTGRES_DB=%s", pd.PlatformInfo.PostgresDB),
 			"POSTGRES_PASSWORD_FILE=/run/secrets/postgres_password.txt",

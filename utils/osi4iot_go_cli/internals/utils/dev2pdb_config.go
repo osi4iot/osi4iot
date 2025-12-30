@@ -69,18 +69,28 @@ type Dev2pdbParams struct {
 }
 
 // Dev2pdbConfig generates a configuration string for the dev2pdb service.
-func Dev2pdbConfig(pd *types.PlatformData, nodeRoleNumMap map[string]int) (string, error) {
+func Dev2pdbConfig(pd *types.PlatformData, numNatsReplicas int) (string, error) {
 	serversUrl := []string{}
-	for inode:=0; inode <pd.PlatformInfo.NumNatsClusterNodes; inode++ {
-		natUrl := fmt.Sprintf("nats://nats%d:4222", inode+1)
-		serversUrl = append(serversUrl, natUrl)
+	numNatsNodes := pd.PlatformInfo.NumOfNatsNodes
+	numNatsSeedServers := Min(numNatsReplicas, 3)
+	if numNatsNodes == 1 {
+		for replica := 1; replica <= numNatsSeedServers; replica++ {
+			port := 4222 + (replica - 1)
+			natUrl := fmt.Sprintf("nats://nats%d:%d", replica, port)
+			serversUrl = append(serversUrl, natUrl)
+		}
+	} else if numNatsNodes >= 3 {
+		for replica := 1; replica <= numNatsSeedServers; replica++ {
+			natUrl := fmt.Sprintf("nats://nats%d:4222", replica)
+			serversUrl = append(serversUrl, natUrl)
+		}
 	}
 
 	params := Dev2pdbParams{
-		Mode:          "prod",
-		DomainName:    pd.PlatformInfo.DomainName,
-		NumWorkers:    pd.PlatformInfo.NumberDev2pdbWorkers,
-		BatchSize:     pd.PlatformInfo.Dev2pdbBatchSize,
+		Mode:       "prod",
+		DomainName: pd.PlatformInfo.DomainName,
+		NumWorkers: pd.PlatformInfo.NumberDev2pdbWorkers,
+		BatchSize:  pd.PlatformInfo.Dev2pdbBatchSize,
 		NATS: NATSParams{
 			ServersURL: serversUrl,
 			Username:   "dev2pdb",

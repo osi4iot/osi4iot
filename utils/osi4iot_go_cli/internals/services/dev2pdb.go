@@ -4,6 +4,7 @@ import (
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/resources"
 	pt "github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/types"
+	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/utils"
 )
 
 func Dev2pdbService(
@@ -47,8 +48,9 @@ func Dev2pdbService(
 		}
 	}
 
+	image := utils.GetServiceImage(pd, "dev2pdb", "ghcr.io/osi4iot/dev2pdb_nats:1.3.0")
 	return NewService("dev2pdb", pd, sd).
-		WithImage("ghcr.io/osi4iot/dev2pdb_nats:1.3.0").
+		WithImage(image).
 		WithSecrets(secrets).
 		WithResources(
 			svcResources.NanoCPUs,

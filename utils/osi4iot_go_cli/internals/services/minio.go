@@ -7,6 +7,7 @@ import (
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/resources"
 	pt "github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/types"
+	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/utils"
 )
 
 func MinioService(
@@ -71,8 +72,9 @@ func MinioService(
 		}
 	}
 
+	image := utils.GetServiceImage(pd, "minio","ghcr.io/osi4iot/minio:RELEASE.2023-10-16T04-13-43Z")
 	return NewService("minio", pd, sd).
-		WithImage("ghcr.io/osi4iot/minio:RELEASE.2023-10-16T04-13-43Z").
+		WithImage(image).
 		WithAnnotationsLabels(annotationsLabels).
 		WithHostname("minio").
 		WithEnv([]string{

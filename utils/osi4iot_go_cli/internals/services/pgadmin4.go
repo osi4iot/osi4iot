@@ -7,6 +7,7 @@ import (
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/resources"
 	pt "github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/types"
+	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/utils"
 )
 
 func Pgadmin4Service(
@@ -61,8 +62,9 @@ func Pgadmin4Service(
 		}
 	}
 
+	image := utils.GetServiceImage(pd, "pgadmin4", "ghcr.io/osi4iot/pgadmin4:2023-10-18-2")
 	return NewService("pgadmin4", pd, sd).
-		WithImage("ghcr.io/osi4iot/pgadmin4:2023-10-18-2").
+		WithImage(image).
 		WithAnnotationsLabels(annotationsLabels).
 		WithUser("0:0").
 		WithSecrets(secrets).

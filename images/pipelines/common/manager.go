@@ -102,7 +102,6 @@ type Manager interface {
 
 	GetFunctionsTimeout() int
 
-	GetNumReplicas() int
 	GetReplicaIndex() int
 
 	GetEncryptionSecretKey() string

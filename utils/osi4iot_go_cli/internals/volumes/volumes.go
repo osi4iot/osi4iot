@@ -7,7 +7,38 @@ import (
 	"github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/errdefs"
 	pt "github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/types"
+	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/utils"
 )
+
+type VolumeOptions struct {
+	driverOptsO string
+	awsEfsDNS   string
+}
+
+func createDefalutOptions(pi pt.PlatformInfo) VolumeOptions {
+	deploymentLocation := pi.DeploymentLocation
+	driverOptsO := ""
+	nodesData := pi.NodesData
+	awsEfsDNS := ""
+	if deploymentLocation == "On-premise cluster deployment" && len(nodesData) > 1 {
+		nfsServerIP := ""
+		for _, node := range nodesData {
+			if node.NodeRole == "NFS Server" {
+				nfsServerIP = node.NodeIP
+				break
+			}
+		}
+		driverOptsO = fmt.Sprintf("nfsvers=4,addr=%s,rw", nfsServerIP)
+	} else if deploymentLocation == "AWS cluster deployment" && len(nodesData) > 1 {
+		driverOptsO = fmt.Sprintf("addr=%s,nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2,noresvport", awsEfsDNS)
+		awsEfsDNS = pi.AwsEfsDNS
+	}
+	volOptions := VolumeOptions{
+		driverOptsO: driverOptsO,
+		awsEfsDNS:   awsEfsDNS,
+	}
+	return volOptions
+}
 
 func GenerateVolumes(platformData *pt.PlatformData) map[string]pt.Volume {
 	Volumes := make(map[string]pt.Volume)
@@ -18,267 +49,37 @@ func GenerateVolumes(platformData *pt.PlatformData) map[string]pt.Volume {
 	s3BucketType := pi.S3BucketType
 	domainCertsType := pi.DomainCertsType
 
+	volOptions := createDefalutOptions(pi)
 	if domainCertsType[0:19] == "Let's encrypt certs" {
-		Volumes["letsencrypt"] = pt.Volume{
-			Name:       "letsencrypt",
-			Driver:     "local",
-			DriverOpts: map[string]string{},
-		}
+		Volumes["letsencrypt"] = SetVolumeConfig("letsencrypt", deploymentLocation, volOptions)
 	}
 
-	for iNatsNode := 1; iNatsNode <= pi.NumNatsClusterNodes; iNatsNode++ {
-		volumeName := fmt.Sprintf("nats%d_data", iNatsNode)
-		Volumes[volumeName] = pt.Volume{
-			Name:       volumeName,
-			Driver:     "local",
-			DriverOpts: map[string]string{},
-		}
+	numNatsReplicas := utils.GetServiceReplicas(platformData, "nats")
+	for replica := 1; replica <= numNatsReplicas; replica++ {
+		volumeName := fmt.Sprintf("nats%d_data", replica)
+		Volumes[volumeName] = SetVolumeConfig(volumeName, deploymentLocation, volOptions)
 	}
 
-	Volumes["pgdata"] = pt.Volume{
-		Name:       "pgdata",
-		Driver:     "local",
-		DriverOpts: map[string]string{},
-	}
-	Volumes["grafana_data"] = pt.Volume{
-		Name:       "grafana_data",
-		Driver:     "local",
-		DriverOpts: map[string]string{},
-	}
-	Volumes["timescaledb_data"] = pt.Volume{
-		Name:       "timescaledb_data",
-		Driver:     "local",
-		DriverOpts: map[string]string{},
-	}
-	Volumes["timescaledb_wal"] = pt.Volume{
-		Name:       "timescaledb_wal",
-		Driver:     "local",
-		DriverOpts: map[string]string{},
-	}
-	Volumes["s3_storage_data"] = pt.Volume{
-		Name:       "s3_storage_data",
-		Driver:     "local",
-		DriverOpts: map[string]string{},
-	}
-	Volumes["admin_api_log"] = pt.Volume{
-		Name:       "admin_api_log",
-		Driver:     "local",
-		DriverOpts: map[string]string{},
-	}
+	Volumes["pgdata"] = SetVolumeConfig("pgdata", deploymentLocation, volOptions)
+	Volumes["grafana_data"] = SetVolumeConfig("grafana_data", deploymentLocation, volOptions)
+	Volumes["timescaledb_data"] = SetVolumeConfig("timescaledb_data", deploymentLocation, volOptions)
+	Volumes["timescaledb_wal"] = SetVolumeConfig("timescaledb_wal", deploymentLocation, volOptions)
+	Volumes["s3_storage_data"] = SetVolumeConfig("s3_storage_data", deploymentLocation, volOptions)
+	Volumes["admin_api_log"] = SetVolumeConfig("admin_api_log", deploymentLocation, volOptions)
 
-	for i := 1; i <= pi.NumPipelinesInstances; i++ {
+	numPipelinesReplicas := utils.GetServiceReplicas(platformData, "pipelines")
+	for i := 1; i <= numPipelinesReplicas; i++ {
 		volName := fmt.Sprintf("pipelines_data_%d", i)
-		Volumes[volName] = pt.Volume{
-			Name:       volName,
-			Driver:     "local",
-			DriverOpts: map[string]string{},
-		}
+		Volumes[volName] = SetVolumeConfig(volName, deploymentLocation, volOptions)
 	}
 
 	if deploymentMode == "development" {
-		Volumes["portainer_data"] = pt.Volume{
-			Name:       "portainer_data",
-			Driver:     "local",
-			DriverOpts: map[string]string{},
-		}
-		Volumes["pgadmin4_data"] = pt.Volume{
-			Name:       "pgadmin4_data",
-			Driver:     "local",
-			DriverOpts: map[string]string{},
-		}
+		Volumes["portainer_data"] = SetVolumeConfig("portainer_data", deploymentLocation, volOptions)
+		Volumes["pgadmin4_data"] = SetVolumeConfig("pgadmin4_data", deploymentLocation, volOptions)
 	}
 
 	if s3BucketType == "Local Minio" {
-		Volumes["minio_storage"] = pt.Volume{
-			Name:       "minio_storage",
-			Driver:     "local",
-			DriverOpts: map[string]string{},
-		}
-	}
-
-	nodesData := pi.NodesData
-	if deploymentLocation == "On-premise cluster deployment" && len(nodesData) > 1 {
-		nfsServerIP := ""
-		for _, node := range nodesData {
-			if node.NodeRole == "NFS Server" {
-				nfsServerIP = node.NodeIP
-				break
-			}
-		}
-		//Atention verify case nfsServerIP := ""
-
-		driverOptsO := fmt.Sprintf("nfsvers=4,addr=%s,rw", nfsServerIP)
-
-		if domainCertsType[0:19] == "Let's encrypt certs" {
-			letsencryptData := Volumes["letsencrypt"]
-			letsencryptData.DriverOpts = map[string]string{
-				"type":   "nfs",
-				"o":      driverOptsO,
-				"device": ":/var/nfs_osi4iot/letsencrypt",
-			}
-			Volumes["letsencrypt"] = letsencryptData
-		}
-
-		pgdata := Volumes["pgdata"]
-		pgdata.DriverOpts = map[string]string{
-			"type":   "nfs",
-			"o":      driverOptsO,
-			"device": ":/var/nfs_osi4iot/pgdata",
-		}
-		Volumes["pgdata"] = pgdata
-
-		timescaledbData := Volumes["timescaledb_data"]
-		timescaledbData.DriverOpts = map[string]string{
-			"type":   "nfs",
-			"o":      driverOptsO,
-			"device": ":/var/nfs_osi4iot/timescaledb_data",
-		}
-		Volumes["timescaledb_data"] = timescaledbData
-
-		grafanaData := Volumes["grafana_data"]
-		grafanaData.DriverOpts = map[string]string{
-			"type":   "nfs",
-			"o":      driverOptsO,
-			"device": ":/var/nfs_osi4iot/grafana_data",
-		}
-		Volumes["grafana_data"] = grafanaData
-
-		adminAPILog := Volumes["admin_api_log"]
-		adminAPILog.DriverOpts = map[string]string{
-			"type":   "nfs",
-			"o":      driverOptsO,
-			"device": ":/var/nfs_osi4iot/admin_api_log",
-		}
-		Volumes["admin_api_log"] = adminAPILog
-
-		s3StorageData := Volumes["s3_storage_data"]
-		s3StorageData.DriverOpts = map[string]string{
-			"type":   "nfs",
-			"o":      driverOptsO,
-			"device": ":/var/nfs_osi4iot/s3_storage_data",
-		}
-		Volumes["s3_storage_data"] = s3StorageData
-
-		for i := 1; i <= pi.NumPipelinesInstances; i++ {
-			volName := fmt.Sprintf("pipelines_data_%d", i)
-			pipelinesData := Volumes[volName]
-			pipelinesData.DriverOpts = map[string]string{
-				"type":   "nfs",
-				"o":      driverOptsO,
-				"device": fmt.Sprintf(":/var/nfs_osi4iot/%s", volName),
-			}
-			Volumes[volName] = pipelinesData
-		}
-
-		if deploymentMode == "development" {
-			portainerData := Volumes["portainer_data"]
-			portainerData.DriverOpts = map[string]string{
-				"type":   "nfs",
-				"o":      driverOptsO,
-				"device": ":/var/nfs_osi4iot/portainer_data",
-			}
-			Volumes["portainer_data"] = portainerData
-
-			pgadmin4Data := Volumes["pgadmin4_data"]
-			pgadmin4Data.DriverOpts = map[string]string{
-				"type":   "nfs",
-				"o":      driverOptsO,
-				"device": ":/var/nfs_osi4iot/pgadmin4_data",
-			}
-			Volumes["pgadmin4_data"] = pgadmin4Data
-		}
-
-		if s3BucketType == "Local Minio" {
-			minioStorage := Volumes["minio_storage"]
-			minioStorage.DriverOpts = map[string]string{
-				"type":   "nfs",
-				"o":      driverOptsO,
-				"device": ":/var/nfs_osi4iot/minio_storage",
-			}
-			Volumes["minio_storage"] = minioStorage
-		}
-
-	} else if deploymentLocation == "AWS cluster deployment" && len(nodesData) > 1 {
-		awsEfsDNS := pi.AwsEfsDNS
-		driverOptsO := fmt.Sprintf("addr=%s,nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2,noresvport", awsEfsDNS)
-
-		if domainCertsType[0:19] == "Let's encrypt certs" {
-			letsencryptData := Volumes["letsencrypt"]
-			letsencryptData.DriverOpts = map[string]string{
-				"type":   "nfs",
-				"o":      driverOptsO,
-				"device": fmt.Sprintf("%s:/letsencrypt", awsEfsDNS),
-			}
-			Volumes["letsencrypt"] = letsencryptData
-		}
-
-		pgdata := Volumes["pgdata"]
-		pgdata.DriverOpts = map[string]string{
-			"type":   "nfs",
-			"o":      driverOptsO,
-			"device": fmt.Sprintf("%s:/pgdata", awsEfsDNS),
-		}
-		Volumes["pgdata"] = pgdata
-
-		grafanaData := Volumes["grafana_data"]
-		grafanaData.DriverOpts = map[string]string{
-			"type":   "nfs",
-			"o":      driverOptsO,
-			"device": fmt.Sprintf("%s:/grafana_data", awsEfsDNS),
-		}
-		Volumes["grafana_data"] = grafanaData
-
-		timescaledbData := Volumes["timescaledb_data"]
-		timescaledbData.DriverOpts = map[string]string{
-			"type":   "nfs",
-			"o":      driverOptsO,
-			"device": fmt.Sprintf("%s:/timescaledb_data", awsEfsDNS),
-		}
-		Volumes["timescaledb_data"] = timescaledbData
-
-		adminAPILog := Volumes["admin_api_log"]
-		adminAPILog.DriverOpts = map[string]string{
-			"type":   "nfs",
-			"o":      driverOptsO,
-			"device": fmt.Sprintf("%s:/admin_api_log", awsEfsDNS),
-		}
-		Volumes["admin_api_log"] = adminAPILog
-
-		s3StorageData := Volumes["s3_storage_data"]
-		s3StorageData.DriverOpts = map[string]string{
-			"type":   "nfs",
-			"o":      driverOptsO,
-			"device": fmt.Sprintf("%s:/s3_storage_data", awsEfsDNS),
-		}
-		Volumes["s3_storage_data"] = s3StorageData
-
-		if deploymentMode == "development" {
-			portainerData := Volumes["portainer_data"]
-			portainerData.DriverOpts = map[string]string{
-				"type":   "nfs",
-				"o":      driverOptsO,
-				"device": fmt.Sprintf("%s:/portainer_data", awsEfsDNS),
-			}
-			Volumes["portainer_data"] = portainerData
-
-			pgadmin4Data := Volumes["pgadmin4_data"]
-			pgadmin4Data.DriverOpts = map[string]string{
-				"type":   "nfs",
-				"o":      driverOptsO,
-				"device": fmt.Sprintf("%s:/pgadmin4_data", awsEfsDNS),
-			}
-			Volumes["pgadmin4_data"] = pgadmin4Data
-		}
-
-		if s3BucketType == "Local Minio" {
-			minioStorage := Volumes["minio_storage"]
-			minioStorage.DriverOpts = map[string]string{
-				"type":   "nfs",
-				"o":      driverOptsO,
-				"device": fmt.Sprintf("%s:/minio_storage", awsEfsDNS),
-			}
-			Volumes["minio_storage"] = minioStorage
-		}
+		Volumes["minio_storage"] = SetVolumeConfig("minio_storage", deploymentLocation, volOptions)
 	}
 
 	return Volumes
@@ -317,8 +118,7 @@ func CreateVolume(dc *pt.DockerClient, swarmVol *pt.Volume) error {
 	return nil
 }
 
-func CreateSwarmVolumes(pd *pt.PlatformData) (map[string]pt.Volume, error) {
-	volumesMap := GenerateVolumes(pd)
+func CreateSwarmVolumes(pd *pt.PlatformData, volumesMap map[string]pt.Volume) (map[string]pt.Volume, error) {
 	numNodes := len(pd.PlatformInfo.NodesData)
 	errors := []error{}
 	for _, dc := range pt.DCMap {
@@ -406,9 +206,9 @@ func getVolumeFilterByNames(pd *pt.PlatformData) filters.Args {
 		"pgadmin4_data",
 		"minio_storage",
 	}
-	for idx := range pd.PlatformInfo.NumNatsClusterNodes {
-		nodeId := idx + 1
-		volName := fmt.Sprintf("nats%d_data", nodeId)
+	numNatsReplicas := utils.GetServiceReplicas(pd, "nats")
+	for replica := 1; replica <= numNatsReplicas; replica++ {
+		volName := fmt.Sprintf("nats%d_data", replica)
 		volumeNames = append(volumeNames, volName)
 	}
 
@@ -438,9 +238,9 @@ func getVolumesMapByNodeRole(volumesMap map[string]pt.Volume, nodeRole string, p
 			"pgadmin4_data",
 			"minio_storage",
 		)
-		for idx := range pd.PlatformInfo.NumNatsClusterNodes {
-			nodeId := idx + 1
-			volName := fmt.Sprintf("nats%d_data", nodeId)
+		numNatsReplicas := utils.GetServiceReplicas(pd, "nats")
+		for replica := 1; replica <= numNatsReplicas; replica++ {
+			volName := fmt.Sprintf("nats%d_data", replica)
 			volumeNames = append(volumeNames, volName)
 		}
 
@@ -454,4 +254,78 @@ func getVolumesMapByNodeRole(volumesMap map[string]pt.Volume, nodeRole string, p
 	}
 
 	return filteredVolumes
+}
+
+func SetVolumeConfig(volumeName string, deploymentLocation string, volOpts VolumeOptions) pt.Volume {
+	vol := pt.Volume{
+		Name:       volumeName,
+		Driver:     "local",
+		DriverOpts: map[string]string{},
+	}
+	switch deploymentLocation {
+	case "On-premise cluster deployment":
+		vol.Driver = "nfs"
+		vol.DriverOpts = map[string]string{
+			"type":   "nfs",
+			"o":      volOpts.driverOptsO,
+			"device": fmt.Sprintf(":/var/nfs_osi4iot/%s", volumeName),
+		}
+	case "AWS cluster deployment":
+		vol.Driver = "nfs"
+		vol.DriverOpts = map[string]string{
+			"type":   "nfs",
+			"o":      volOpts.driverOptsO,
+			"device": fmt.Sprintf("%s:/%s", volOpts.awsEfsDNS, volumeName),
+		}
+	}
+
+	return vol
+}
+
+func CreateNatsVolume(pi pt.PlatformInfo, dc *pt.DockerClient, replica int) (*pt.Volume, error) {
+	volOptions := createDefalutOptions(pi)
+	volumeName := fmt.Sprintf("nats%d_data", replica)
+	volume := SetVolumeConfig(volumeName, pi.DeploymentLocation, volOptions)
+	err := CreateVolume(dc, &volume)
+	if err != nil {
+		return nil, fmt.Errorf("error creating volume %s in node %s: %v", volume.Name, dc.Node.NodeIP, err)
+	}
+
+	return &volume, nil
+}
+
+func RemoveNatsVolume(dc *pt.DockerClient, replica int) error {
+	volumeName := fmt.Sprintf("nats%d_data", replica)
+	err := dc.Cli.VolumeRemove(dc.Ctx, volumeName, true)
+	if err != nil {
+		if errdefs.IsNotFound(err) {
+			return nil
+		}
+		return fmt.Errorf("error removing volume: %v", err)
+	}
+	return nil
+}
+
+func CreatePipelinesVolume(pi pt.PlatformInfo, dc *pt.DockerClient, replica int) error {
+	volOptions := createDefalutOptions(pi)
+	volumeName := fmt.Sprintf("pipelines_data_%d", replica)
+	volume := SetVolumeConfig(volumeName, pi.DeploymentLocation, volOptions)
+	err := CreateVolume(dc, &volume)
+	if err != nil {
+		return fmt.Errorf("error creating volume %s in node %s: %v", volume.Name, dc.Node.NodeIP, err)
+	}
+
+	return nil
+}
+
+func RemovePipelinesVolume(dc *pt.DockerClient, replica int) error {
+	volumeName := fmt.Sprintf("pipelines_data_%d", replica)
+	err := dc.Cli.VolumeRemove(dc.Ctx, volumeName, true)
+	if err != nil {
+		if errdefs.IsNotFound(err) {
+			return nil
+		}
+		return fmt.Errorf("error removing volume: %v", err)
+	}
+	return nil
 }

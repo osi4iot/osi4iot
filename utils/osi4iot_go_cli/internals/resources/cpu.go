@@ -6,7 +6,7 @@ import (
 	pt "github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/types"
 )
 
-func getNanoCPU(pd *pt.PlatformData, service string) int64 {
+func GetNanoCPU(pd *pt.PlatformData, service string) int64 {
 	services := pd.PlatformInfo.ServicesData
 	for _, svc := range services {
 		if svc.ServiceName == service {

@@ -211,7 +211,7 @@ const updateObjectsState = (
                 if (mqttMessage.replicaIndexLeader !== undefined) {
                     handlePipelineLeaderReplicaIndexChange(mqttMessage.replicaIndexLeader);
                 }
-                
+
                 if (mqttMessage.chatMessages !== undefined) {
                     handleSetChatMessages(mqttMessage.chatMessages);
                 }

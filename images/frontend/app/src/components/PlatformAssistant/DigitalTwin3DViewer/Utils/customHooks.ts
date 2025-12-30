@@ -143,55 +143,115 @@ export const useRefs = () => {
 
 export const useMqttConnection = () => {
     const clientValid = useRef(false);
+    const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const reconnectAttemptsRef = useRef(0);
     const [connectionStatus, setStatus] = useState("Offline");
     const [mqttClient, setMqttClient] = useState<Paho.Client | null>(null);
     const options = useMqttOptions();
 
-    useEffect(() => {
-        if (!mqttClient && !clientValid.current) {
-            clientValid.current = true;
-            setStatus("Connecting");
+    // Reconexión configuration
+    const MAX_RECONNECT_ATTEMPTS = 10;
+    const INITIAL_RECONNECT_DELAY = 1000; // 1 segundo
+    const MAX_RECONNECT_DELAY = 30000; // 30 segundos
 
-            const port = 9001;
-            const clientId = "clientId_" + Math.floor(Math.random() * 1000);
-            const mqttClient = new Paho.Client(DOMAIN_NAME, port, clientId);
+    const calculateReconnectDelay = (attempt: number) => {
+        // Exponential backoff with maximum limit
+        const delay = Math.min(
+            INITIAL_RECONNECT_DELAY * Math.pow(2, attempt),
+            MAX_RECONNECT_DELAY
+        );
+        return delay;
+    };
 
-            const onConnect = () => {
-                setStatus("Connected");
-                setMqttClient(mqttClient);
-            };
+    const connect = useCallback(() => {
+        if (clientValid.current) return;
 
-            const onConnectionLost = (error: MQTTError) => {
-                if (error.errorCode !== 0) {
-                    setStatus("Offline");
-                }
-            };
+        clientValid.current = true;
+        setStatus("Connecting");
 
-            const onFailure = (error: MQTTError) => {
-                console.log(`Connection error: ${error}`);
-                setStatus(error.errorMessage);
-            };
+        const port = 9001;
+        const clientId = "clientId_" + Math.floor(Math.random() * 1000);
+        const client = new Paho.Client(DOMAIN_NAME, port, clientId);
 
-            mqttClient.connect({
-                useSSL: true,
-                timeout: 3,
-                onSuccess: onConnect,
-                onFailure: onFailure,
-                userName: options.username,
-                password: options.accessToken,
-            });
+        const onConnect = () => {
+            setStatus("Connected");
+            setMqttClient(client);
+            reconnectAttemptsRef.current = 0; // Reset attempts on successful connection
+        };
 
-            mqttClient.onConnectionLost = onConnectionLost;
-        }
-
-        return () => {
-            if (mqttClient) {
-                mqttClient.disconnect();
+        const onConnectionLost = (error: MQTTError) => {
+            if (error.errorCode !== 0) {
+                console.log(`Connection lost: ${error.errorMessage}`);
+                setStatus("Offline");
                 setMqttClient(null);
                 clientValid.current = false;
+
+                // Try to reconnect
+                if (reconnectAttemptsRef.current < MAX_RECONNECT_ATTEMPTS) {
+                    const delay = calculateReconnectDelay(reconnectAttemptsRef.current);
+                    setStatus(`Reconnecting in ${Math.round(delay / 1000)}s...`);
+                    
+                    reconnectTimeoutRef.current = setTimeout(() => {
+                        reconnectAttemptsRef.current++;
+                        connect();
+                    }, delay);
+                } else {
+                    setStatus("Connection failed - Max attempts reached");
+                }
             }
         };
-    }, [options.username, options.accessToken, mqttClient]);
+
+        const onFailure = (error: MQTTError) => {
+            console.log(`Connection error: ${error.errorMessage}`);
+            setStatus("Connection failed");
+            clientValid.current = false;
+
+            // Try to reconnect
+            if (reconnectAttemptsRef.current < MAX_RECONNECT_ATTEMPTS) {
+                const delay = calculateReconnectDelay(reconnectAttemptsRef.current);
+                setStatus(`Reconnecting in ${Math.round(delay / 1000)}s...`);
+                
+                reconnectTimeoutRef.current = setTimeout(() => {
+                    reconnectAttemptsRef.current++;
+                    connect();
+                }, delay);
+            } else {
+                setStatus("Connection failed - Max attempts reached");
+            }
+        };
+
+        client.connect({
+            useSSL: true,
+            timeout: 3,
+            onSuccess: onConnect,
+            onFailure: onFailure,
+            userName: options.username,
+            password: options.accessToken,
+        });
+
+        client.onConnectionLost = onConnectionLost;
+    }, [options.username, options.accessToken]);
+
+    useEffect(() => {
+        connect();
+
+        return () => {
+            // Clear reconnection timeout
+            if (reconnectTimeoutRef.current) {
+                clearTimeout(reconnectTimeoutRef.current);
+            }
+
+            // Disconnect mqtt client
+            if (mqttClient && mqttClient.isConnected()) {
+                mqttClient.disconnect();
+            }
+            
+            setMqttClient(null);
+            clientValid.current = false;
+            reconnectAttemptsRef.current = 0;
+        };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [connect]);
 
     return { connectionStatus, mqttClient };
 };

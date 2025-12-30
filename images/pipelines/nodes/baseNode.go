@@ -181,11 +181,6 @@ func (n *BaseNode) ResetNodeContext() {
 }
 
 func (n *BaseNode) HandleError(err error) {
-	if !n.Pipeline.GetLeaderElector().IsLeader() {
-		return
-	}
-	// n.SetStatus(common.NodeStatusError) //ATENTION - this line was added recently
-
 	if n.LogSubject == "" {
 		n.Fm.Log().Errorf("Node %s encountered an error but no log subject is set", n.NodeUid)
 		return
@@ -209,10 +204,6 @@ func (n *BaseNode) HandleError(err error) {
 }
 
 func (n *BaseNode) HandleDebug(message common.Message, outputIndex int) {
-	if !n.Pipeline.GetLeaderElector().IsLeader() {
-		return
-	}
-
 	if n.LogSubject == "" {
 		n.Fm.Log().Errorf("Node %s has no log subject set", n.NodeUid)
 		return
@@ -236,10 +227,6 @@ func (n *BaseNode) HandleDebug(message common.Message, outputIndex int) {
 }
 
 func (n *BaseNode) HandleInfo(msg string) {
-	if !n.Pipeline.GetLeaderElector().IsLeader() {
-		return
-	}
-
 	if n.LogSubject == "" {
 		n.Fm.Log().Errorf("Node %s has no log subject set", n.NodeUid)
 		return
@@ -356,11 +343,7 @@ func (n *BaseNode) handleNatsSubscription(log *logger.Logger, subject string, me
 }
 
 func (n *BaseNode) ShouldRunPeriodicTasks() bool {
-	replicaIndex := n.Fm.GetReplicaIndex()
-	numReplicas := n.Fm.GetNumReplicas()
-	isLeader := n.Pipeline.GetLeaderElector().IsLeader()
-
-	return (replicaIndex == 1 && numReplicas == 1) || isLeader
+	return n.Pipeline.GetLeaderElector().IsLeader()
 }
 
 func (n *BaseNode) GetKvStore(digitalTwinId int) (*nats_pkg.KVStore, error) {

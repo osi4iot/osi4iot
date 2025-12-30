@@ -77,7 +77,8 @@ type PlatformInfo struct {
 	AccessTokenSecret         string `json:"ACCESS_TOKEN_SECRET"`
 	AccessTokenLifetime       int    `json:"ACCESS_TOKEN_LIFETIME"`
 
-	NumNatsClusterNodes      int    `json:"NUM_NATS_CLUSTER_NODES"`
+	NumOfNatsNodes           int    `json:"NUMBER_OF_NATS_NODES"`
+	DefaultNumOfNatsReplicas  int    `json:"DEFAULT_NUMBER_OF_NATS_REPLICAS"`
 	MQTTSslCertsValidityDays int    `json:"MQTT_SSL_CERTS_VALIDITY_DAYS"`
 	FloatingIPAddress        string `json:"FLOATING_IP_ADDRES"`
 	NetworkInterface         string `json:"NETWORK_INTERFACE"`
@@ -109,7 +110,7 @@ type PlatformInfo struct {
 	AdminDataStorageSvcResources string `json:"ADMIN_DATA_STORAGE_SVC_RESOURCES"`
 	UiSvcResources               string `json:"UI_SVC_RESOURCES"`
 	PipelinesSvcResources        string `json:"PIPELINES_SVC_RESOURCES"`
-	NumPipelinesInstances        int    `json:"NUMBER_OF_PIPELINES_INSTANCES"`
+	DefaultNumPipelinesInstances int    `json:"DEFAULT_NUMBER_OF_PIPELINES_INSTANCES"`
 
 	ServicesData []ServiceData `json:"SERVICES_DATA"`
 
@@ -196,6 +197,7 @@ type NodeData struct {
 
 type ServiceData struct {
 	ServiceName string
+	Image       string
 	Replicas    int
 	Cpu         string
 	Memory      string

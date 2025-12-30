@@ -4,6 +4,7 @@ import (
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/resources"
 	pt "github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/types"
+	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/utils"
 )
 
 func GrafanaRendererService(
@@ -24,8 +25,9 @@ func GrafanaRendererService(
 		}
 	}
 
+	image := utils.GetServiceImage(pd, "grafana_renderer", "ghcr.io/osi4iot/grafana_renderer:3.12.0")
 	return NewService("grafana_renderer", pd, sd).
-		WithImage("ghcr.io/osi4iot/grafana_renderer:3.12.0").
+		WithImage(image).
 		WithEnv([]string{
 			"ENABLE_METRICS=true",
 		}).

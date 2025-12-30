@@ -7,6 +7,7 @@ import (
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/resources"
 	pt "github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/types"
+	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/utils"
 )
 
 func TimescaledbService(
@@ -70,9 +71,10 @@ func TimescaledbService(
 		}
 	}
 
+	image := utils.GetServiceImage(pd, "timescaledb", "ghcr.io/osi4iot/timescaledb:2.20.0-pg17")
 	return NewService("timescaledb", pd, sd).
 		//WithImage("ghcr.io/osi4iot/timescaledb:2.4.2-pg13").
-		WithImage("ghcr.io/osi4iot/timescaledb:2.20.0-pg17").
+		WithImage(image).
 		WithEnv([]string{
 			fmt.Sprintf("POSTGRES_DB=%s", pd.PlatformInfo.TimescaleDB),
 			"POSTGRES_PASSWORD_FILE=/run/secrets/timescaledb_password.txt",

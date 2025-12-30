@@ -6,7 +6,7 @@ const { combine } = format;
 const options = {
 	combined: {
 		level: "info",
-		filename: "./logs/combined.log",
+		filename: `./logs/replica_${process.env.REPLICA}/combined.log`,
 		handleExceptions: true,
 		format: combine(format.splat(), format.simple()),
 		maxsize: 5242880, // 5MB
@@ -15,7 +15,7 @@ const options = {
 	},
 	error: {
 		level: "error",
-		filename: "./logs/error.log",
+		filename: `./logs/replica_${process.env.REPLICA}/error.log`,
 		handleExceptions: true,
 		format: combine(format.splat(), format.simple()),
 		maxsize: 5242880, // 5MB

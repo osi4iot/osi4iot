@@ -7,6 +7,7 @@ import (
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/resources"
 	pt "github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/types"
+	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/utils"
 )
 
 func AdminApiService(
@@ -107,8 +108,10 @@ func AdminApiService(
 		}
 	}
 
+	image := utils.GetServiceImage(pd, "admin_api", "ghcr.io/osi4iot/admin_api_nats:1.3.0")
+	
 	return NewService("admin_api", pd, sd).
-		WithImage("ghcr.io/osi4iot/admin_api_nats:1.3.0").
+		WithImage(image).
 		WithEnv([]string{
 			"REPLICA={{.Task.Slot}}",
 		}).

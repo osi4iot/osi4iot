@@ -38,6 +38,9 @@ func getServiceReplicasPtr(pd *pt.PlatformData, serviceName string) *uint64 {
 	for _, svc := range services {
 		if svc.ServiceName == serviceName {
 			numReplicas := svc.Replicas
+			if serviceName == "nats"  {
+				numReplicas = 1
+			}
 			replics := uint64(numReplicas)
 			if serviceName == "traefik" && nodeRoleNumMap["Manager"] > int(replics) {
 				replics = uint64(nodeRoleNumMap["Manager"])
@@ -76,8 +79,8 @@ func NewSvcResourcesMap(pd *pt.PlatformData) map[string]SvcResources {
 
 	for _, svcName := range serviceList {
 		svcResources := SvcResources{
-			MemoryBytes: getMemoryBytes(pd, svcName),
-			NanoCPUs:    getNanoCPU(pd, svcName),
+			MemoryBytes: GetMemoryBytes(pd, svcName),
+			NanoCPUs:    GetNanoCPU(pd, svcName),
 			ReplicasPtr: getServiceReplicasPtr(pd, svcName),
 		}
 		svcResourcesMap[svcName] = svcResources
