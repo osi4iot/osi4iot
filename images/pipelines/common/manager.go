@@ -46,13 +46,14 @@ type Manager interface {
 	GetModelFolders(rootPath string) ([]MlModelFolder, error)
 
 	StartNodes()
-	StopNodes()
+	StopPipelines()
 
 	CreatePipelineInDigitalTwin(digitalTwinId int)
 	UpdatePipelineInDigitalTwin(digitalTwinId int)
 	StartNodesInDigitalTwin(digitalTwinId int, needReinitialization bool)
 	RestartNodesInDigitalTwin(digitalTwinId int, needReinitialization bool)
 	StopNodesInDigitalTwin(digitalTwinId int, action string)
+	StopPipelineStatusPublisher(digitalTwinId int)
 	DeletePipelineInDigitalTwin(digitalTwinId int)
 
 	GetOrgs() []*Org

@@ -149,13 +149,13 @@ export const useMqttConnection = () => {
     const [mqttClient, setMqttClient] = useState<Paho.Client | null>(null);
     const options = useMqttOptions();
 
-    // Reconexión configuration
+    // Reconnection configuration
     const MAX_RECONNECT_ATTEMPTS = 10;
-    const INITIAL_RECONNECT_DELAY = 1000; // 1 segundo
-    const MAX_RECONNECT_DELAY = 30000; // 30 segundos
+    const INITIAL_RECONNECT_DELAY = 1000; // 1 second
+    const MAX_RECONNECT_DELAY = 30000; // 30 seconds
 
     const calculateReconnectDelay = (attempt: number) => {
-        // Exponential backoff with maximum limit
+        //Exponential backoff with maximum limit
         const delay = Math.min(
             INITIAL_RECONNECT_DELAY * Math.pow(2, attempt),
             MAX_RECONNECT_DELAY

@@ -30,6 +30,8 @@ type Pipeline struct {
 	NodeOutputByIndex      map[string][]*common.Wire   // key: "nodeID:outputIndex" -> []*Wire
 	LeaderElector          *PipelineLeaderElector
 	mu                     sync.RWMutex
+	statusPublisherCancel  context.CancelFunc
+	statusPublisherWg      sync.WaitGroup
 }
 
 type PipelineCreationError struct {
@@ -911,4 +913,72 @@ func (p *Pipeline) ClearChatMessagesHistory(userName string) {
 
 func (p *Pipeline) GetLeaderElector() common.LeaderElector {
 	return p.LeaderElector
+}
+
+func (p *Pipeline) StartStatusPublisher() {
+	if p.statusPublisherCancel != nil {
+		p.Fm.Log().Warn("Status publisher already running for pipeline")
+		return
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	p.statusPublisherCancel = cancel
+
+	p.statusPublisherWg.Add(1)
+	go func() {
+		defer p.statusPublisherWg.Done()
+
+		ticker := time.NewTicker(5 * time.Second)
+		defer ticker.Stop()
+
+		// Publish immediately at the start
+		p.publishStatus()
+
+		for {
+			select {
+			case <-ctx.Done():
+				p.Fm.Log().Infof("Stopping status publisher for pipeline DigitalTwin: %d", p.GetDigitalTwinId())
+				return
+			case <-ticker.C:
+				p.publishStatus()
+			}
+		}
+	}()
+
+	p.Fm.Log().Infof("Started status publisher for pipeline DigitalTwin: %d", p.GetDigitalTwinId())
+}
+
+// Auxiliar function to publish the status
+func (p *Pipeline) publishStatus() {
+	if p.LeaderElector != nil && p.LeaderElector.IsLeader() {
+		pipelineStatus := p.GetStatus().String()
+		replicaIndexLeader := p.GetReplicaIndexLeader()
+
+		payload := common.PipelineStatusMessage{
+			PipelineStatus:     pipelineStatus,
+			ReplicaIndexLeader: replicaIndexLeader,
+		}
+
+		p.PublishPipelineStatus(payload)
+	}
+}
+
+// StopStatusPublisher() stops the periodic status publisher goroutine.
+func (p *Pipeline) StopStatusPublisher() {
+	if p.statusPublisherCancel == nil {
+		return
+	}
+
+	p.Fm.Log().Infof("Requesting stop for status publisher DigitalTwin: %d", p.GetDigitalTwinId())
+
+	// Cancelar el contexto
+	p.statusPublisherCancel()
+
+	// Esperar a que termine la goroutine
+	p.statusPublisherWg.Wait()
+
+	// Limpiar referencias
+	p.statusPublisherCancel = nil
+
+	p.Fm.Log().Infof("Status publisher stopped DigitalTwin: %d", p.GetDigitalTwinId())
 }

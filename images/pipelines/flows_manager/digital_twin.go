@@ -71,6 +71,7 @@ func (fm *FlowsManager) CreatePipelineInDigitalTwin(digitalTwinId int) {
 	digitalTwin.Pipeline = fm.createPipeline(digitalTwin, org, "create")
 	digitalTwin.PipelineStatusSubscription = fm.SetPipelineStatusSubscription(digitalTwin)
 	digitalTwin.Pipeline.Start(true)
+	digitalTwin.Pipeline.StartStatusPublisher()
 }
 
 func (fm *FlowsManager) UpdatePipelineInDigitalTwin(digitalTwinId int) {
@@ -83,11 +84,13 @@ func (fm *FlowsManager) UpdatePipelineInDigitalTwin(digitalTwinId int) {
 	}
 
 	if digitalTwin.Pipeline != nil {
+		digitalTwin.Pipeline.StopStatusPublisher()
 		digitalTwin.Pipeline.Stop("update")
 	}
 	org := fm.GetOrg(digitalTwin.OrgId)
 	digitalTwin.Pipeline = fm.createPipeline(digitalTwin, org, "update")
 	digitalTwin.Pipeline.Start(false)
+	digitalTwin.Pipeline.StartStatusPublisher()
 }
 
 
@@ -150,6 +153,7 @@ func (fm *FlowsManager) DeleteDigitalTwin(digitalTwinId int) error {
 			digitalTwin.PipelineStatusSubscription.Unsubscribe()
 		}
 		if digitalTwin.Pipeline != nil {
+			digitalTwin.Pipeline.StopStatusPublisher()
 			digitalTwin.Pipeline.Stop("delete")
 		}
 		fm.DigitalTwins.Delete(digitalTwinIdStr)

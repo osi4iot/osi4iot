@@ -673,7 +673,7 @@ func ScaleSwarmService(pd *pt.PlatformData, dc *pt.DockerClient, serviceName str
 				"pipelines": "/pipelines/config.yaml",
 			}
 			for _, dependentService := range natsDependentServices {
-				fmt.Printf("\nUpdating %s service to use new nats config secret", dependentService)
+				fmt.Printf("\nUpdating %s service to use new nats config:", dependentService)
 				service, err := InspectService(dc, dependentService)
 				if err != nil {
 					return "", fmt.Errorf("error inspecting %s service: %v", dependentService, err)

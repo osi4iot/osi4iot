@@ -411,5 +411,5 @@ func (fm *FlowsManager) GetLeaderKvStore() jetstream.KeyValue {
 
 func (fm *FlowsManager) GracefullyShutdown() {
 	fm.log.Info("FlowsManager is shutting down gracefully...")
-	fm.StopNodes()
+	fm.StopPipelines()
 }

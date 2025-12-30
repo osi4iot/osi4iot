@@ -36,7 +36,9 @@ type LeaderElector interface {
 
 type Pipeline interface {
 	Start(needReinitialization bool)
+	StartStatusPublisher()
 	Stop(action string) error
+	StopStatusPublisher()
 	SetStatus(status PipelineStatus)
 	GetStatus() PipelineStatus
 	AddNodeData(nodeData *NodeData) error

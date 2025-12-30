@@ -27,6 +27,7 @@ func (fm *FlowsManager) StartNodes() {
 			if dt.Pipeline != nil {
 				defer fm.setPipelineInitialization(dt, isPipelineInitialized)
 				dt.Pipeline.Start(needReinitialization)
+				dt.Pipeline.StartStatusPublisher()
 			}
 		}(digitalTwin, needReinitialization)
 	}
@@ -40,7 +41,8 @@ func (fm *FlowsManager) setPipelineInitialization(digitalTwin *common.DigitalTwi
 	}
 }
 
-func (fm *FlowsManager) StopNodes() {
+
+func (fm *FlowsManager) StopPipelines() {
 	digitalTwins := fm.GetDigitalTwins()
 	if len(digitalTwins) == 0 {
 		fm.log.Info("No digital twins found to stop")
@@ -52,6 +54,7 @@ func (fm *FlowsManager) StopNodes() {
 		go func(dtId int) {
 			defer wg.Done()
 			fm.StopNodesInDigitalTwin(dtId, "stop")
+			fm.StopPipelineStatusPublisher(dtId)
 		}(digitalTwin.Id)
 	}
 	wg.Wait()
@@ -83,6 +86,18 @@ func (fm *FlowsManager) StopNodesInDigitalTwin(digitalTwinId int, action string)
 
 	if digitalTwin.Pipeline != nil {
 		digitalTwin.Pipeline.Stop(action)
+	}
+}
+
+func (fm *FlowsManager) StopPipelineStatusPublisher(digitalTwinId int) {
+	digitalTwin := fm.GetDigitalTwin(digitalTwinId)
+	if digitalTwin == nil {
+		fm.log.Errorf("Digital twin %d not found", digitalTwinId)
+		return
+	}
+
+	if digitalTwin.Pipeline != nil {
+		digitalTwin.Pipeline.StopStatusPublisher()
 	}
 }
 
