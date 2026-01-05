@@ -236,6 +236,8 @@ const NodeTypeIndicator = styled.span<{ nodeType: string }>`
                 return "#aa97aa";
             case "Inject":
                 return "#a6bbcf";
+            case "Trigger":
+                return "#a6bbcf";
             case "Delay":
                 return "#a8a152";
             case "MlModel":
@@ -391,6 +393,14 @@ const CheckboxGroup = styled.div`
     grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
     gap: 8px;
     margin-top: 8px;
+`;
+
+const CheckboxContainer = styled.div`
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 8px;
+    margin-top: 8px;
+    margin-bottom: 16px;
 `;
 
 const CheckboxItem = styled.label`
@@ -1043,7 +1053,7 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
 
         handleClose();
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [selectedNode, formData, onUpdateNode, handleClose, setOriginalData]);
+    }, [selectedNode, formData, onUpdateNode, handleClose, setOriginalData, hasChanges]);
 
     const handleReset = useCallback(() => {
         if (selectedNode) {
@@ -1461,6 +1471,308 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
         );
     };
 
+    const renderTriggerProperties = () => {
+        const tabs = [
+            { id: "settings", label: "Settings" },
+            { id: "first_message", label: "First message" },
+            { id: "second_message", label: "Second message" },
+        ];
+
+        if (formData.sendMode !== "wait_for") {
+            tabs.splice(2, 1); // Remove "Second message" tab if not needed
+        }
+
+        const sendModeOptions = [
+            { value: "wait_for", label: "Wait for delay and then send second message" },
+            { value: "resend_every", label: "Resend every" },
+            { value: "wait_to_be_reset", label: "Wait to be reset" },
+        ];
+
+        const resetTriggerOptions = [
+            { value: "msg.payload.reset", label: "msg.payload.reset is set" },
+            { value: "optional msg.payload field", label: "Optional msg.payload field is set" },
+        ];
+
+        const firstMessageTypeOptions = [
+            { value: "Timestamp", label: "Timestamp" },
+            { value: "first_message", label: "Existing message object" },
+            { value: "JSON", label: "Custom JSON" },
+            { value: "nothing", label: "Nothing" },
+        ];
+
+        const secondMessageTypeOptions = [
+            { value: "Timestamp", label: "Timestamp" },
+            { value: "first_message", label: "Original message object" },
+            { value: "latest_message", label: "Latest message object" },
+            { value: "JSON", label: "Custom JSON" },
+            { value: "nothing", label: "Nothing" },
+        ];
+
+        const handleMessagesOptions = [
+            { value: "all", label: "All Messages" },
+            { value: "stream_name", label: "By stream field in payload" },
+        ];
+
+        return (
+            <>
+                <TabsContainer>
+                    {tabs.map((tab) => (
+                        <Tab key={tab.id} isActive={activeTab === tab.id} onClick={() => setActiveTab(tab.id)}>
+                            {tab.label}
+                        </Tab>
+                    ))}
+                </TabsContainer>
+                <PanelContent>
+                    <TabContentFunction>
+                        {activeTab === "settings" && (
+                            <>
+                                <FormGroup>
+                                    <Label>Node Name</Label>
+                                    <Input
+                                        type="text"
+                                        value={formData.label || ""}
+                                        onChange={(e) => handleInputChange("label", e.target.value)}
+                                        placeholder="Node name"
+                                    />
+                                </FormGroup>
+                                <FormGroup>
+                                    <Label>Send first message and then</Label>
+                                    <Select
+                                        value={formData.sendMode || "wait_for"}
+                                        onChange={(e) => handleInputChange("sendMode", e.target.value)}
+                                    >
+                                        {sendModeOptions.map((option) => (
+                                            <option key={option.value} value={option.value}>
+                                                {option.label}
+                                            </option>
+                                        ))}
+                                    </Select>
+                                </FormGroup>
+                                {(formData.sendMode === "wait_for" || formData.sendMode === "resend_every") && (
+                                    <>
+                                        {formData.sendMode === "wait_for" && (
+                                            <FormGroup>
+                                                <Label>Delay (seconds)</Label>
+                                                <Input
+                                                    type="number"
+                                                    step="0.1"
+                                                    value={formData.delay || 0}
+                                                    onChange={(e) =>
+                                                        handleInputChange(
+                                                            "delay",
+                                                            Math.max(0, parseFloat(e.target.value))
+                                                        )
+                                                    }
+                                                    placeholder="1.0"
+                                                />
+                                            </FormGroup>
+                                        )}
+                                        {formData.sendMode === "resend_every" && (
+                                            <FormGroup>
+                                                <Label>Every (seconds)</Label>
+                                                <Input
+                                                    type="number"
+                                                    step="0.01"
+                                                    value={formData.resendInterval || 0}
+                                                    onChange={(e) =>
+                                                        handleInputChange(
+                                                            "resendInterval",
+                                                            Math.max(0, parseFloat(e.target.value))
+                                                        )
+                                                    }
+                                                    placeholder="1.0"
+                                                />
+                                            </FormGroup>
+                                        )}
+                                        <CheckboxContainer>
+                                            <CheckboxItem data-checked={formData.overrideDelay || false}>
+                                                <CheckboxInput
+                                                    type="checkbox"
+                                                    checked={formData.overrideDelay || false}
+                                                    onChange={(e) =>
+                                                        handleInputChange("overrideDelay", e.target.checked)
+                                                    }
+                                                    onClick={(e) => e.stopPropagation()}
+                                                />
+                                                <span>Allow msg.payload.delay to override delay setting</span>
+                                            </CheckboxItem>
+                                        </CheckboxContainer>
+                                    </>
+                                )}
+                                {formData.sendMode === "wait_for" && (
+                                    <>
+                                        <CheckboxContainer>
+                                            <CheckboxItem data-checked={formData.extendDelay || false}>
+                                                <CheckboxInput
+                                                    type="checkbox"
+                                                    checked={formData.extendDelay || false}
+                                                    onChange={(e) => handleInputChange("extendDelay", e.target.checked)}
+                                                    onClick={(e) => e.stopPropagation()}
+                                                />
+                                                <span>Extend delay if new message arrives</span>
+                                            </CheckboxItem>
+                                        </CheckboxContainer>
+                                    </>
+                                )}
+                                <FormGroup>
+                                    <Label>Reset the trigger if:</Label>
+                                    <Select
+                                        value={formData.resetTriggerOption || "msg.payload.reset"}
+                                        onChange={(e) => handleInputChange("resetTriggerOption", e.target.value)}
+                                    >
+                                        {resetTriggerOptions.map((option) => (
+                                            <option key={option.value} value={option.value}>
+                                                {option.label}
+                                            </option>
+                                        ))}
+                                    </Select>
+                                </FormGroup>
+                                {formData.resetTriggerOption === "optional msg.payload field" && (
+                                    <FormGroup>
+                                        <Label>Custom payload field</Label>
+                                        <Input
+                                            type="text"
+                                            value={formData.customPayloadFieldForReset || ""}
+                                            onChange={(e) =>
+                                                handleInputChange("customPayloadFieldForReset", e.target.value)
+                                            }
+                                            placeholder="custom_field"
+                                        />
+                                    </FormGroup>
+                                )}
+                                <FormGroup>
+                                    <Label>Handling</Label>
+                                    <Select
+                                        value={formData.handleMessagesBy || "all"}
+                                        onChange={(e) => handleInputChange("handleMessagesBy", e.target.value)}
+                                    >
+                                        {handleMessagesOptions.map((option) => (
+                                            <option key={option.value} value={option.value}>
+                                                {option.label}
+                                            </option>
+                                        ))}
+                                    </Select>
+                                </FormGroup>
+                            </>
+                        )}
+                        {activeTab === "first_message" && (
+                            <>
+                                <FormGroup>
+                                    <Label>Message type</Label>
+                                    <Select
+                                        value={formData.firstMessageType || "Timestamp"}
+                                        onChange={(e) => handleInputChange("firstMessageType", e.target.value)}
+                                    >
+                                        {firstMessageTypeOptions.map((option) => (
+                                            <option key={option.value} value={option.value}>
+                                                {option.label}
+                                            </option>
+                                        ))}
+                                    </Select>
+                                </FormGroup>
+                                {formData.firstMessageType === "JSON" && (
+                                    <FormGroup>
+                                        <Label>JSON</Label>
+                                        <CodeMirrorWrapper>
+                                            <CodeMirror
+                                                value={formData.firstMessagePayload || "{}"}
+                                                height="auto"
+                                                minHeight="350px"
+                                                extensions={[
+                                                    json(),
+                                                    indentUnit.of("    "),
+                                                    indentOnInput(),
+                                                    keymap.of([...completionKeymap, indentWithTab, reIndentCommand]),
+                                                ]}
+                                                theme={oneDark}
+                                                onChange={(value) => handleInputChange("firstMessagePayload", value)}
+                                                basicSetup={{
+                                                    lineNumbers: true,
+                                                    foldGutter: true,
+                                                    bracketMatching: true,
+                                                    closeBrackets: true,
+                                                    syntaxHighlighting: true,
+                                                    autocompletion: true,
+                                                    tabSize: 4,
+                                                    searchKeymap: true,
+                                                }}
+                                            />
+                                        </CodeMirrorWrapper>
+                                    </FormGroup>
+                                )}
+                            </>
+                        )}
+                        {formData.sendMode === "wait_for" && activeTab === "second_message" && (
+                            <>
+                                <FormGroup>
+                                    <Label>Message</Label>
+                                    <Select
+                                        value={formData.secondMessageType || "Timestamp"}
+                                        onChange={(e) => handleInputChange("secondMessageType", e.target.value)}
+                                    >
+                                        {secondMessageTypeOptions.map((option) => (
+                                            <option key={option.value} value={option.value}>
+                                                {option.label}
+                                            </option>
+                                        ))}
+                                    </Select>
+                                </FormGroup>
+                                {formData.secondMessageType === "JSON" && (
+                                    <FormGroup>
+                                        <Label>JSON</Label>
+                                        <CodeMirrorWrapper>
+                                            <CodeMirror
+                                                value={formData.secondMessagePayload || "{}"}
+                                                height="auto"
+                                                minHeight="350px"
+                                                extensions={[
+                                                    json(),
+                                                    indentUnit.of("    "),
+                                                    indentOnInput(),
+                                                    keymap.of([...completionKeymap, indentWithTab, reIndentCommand]),
+                                                ]}
+                                                theme={oneDark}
+                                                onChange={(value) => handleInputChange("secondMessagePayload", value)}
+                                                basicSetup={{
+                                                    lineNumbers: true,
+                                                    foldGutter: true,
+                                                    bracketMatching: true,
+                                                    closeBrackets: true,
+                                                    syntaxHighlighting: true,
+                                                    autocompletion: true,
+                                                    tabSize: 4,
+                                                    searchKeymap: true,
+                                                }}
+                                            />
+                                        </CodeMirrorWrapper>
+                                    </FormGroup>
+                                )}
+                                <CheckboxContainer>
+                                    <CheckboxItem data-checked={formData.separateOutput || false}>
+                                        <CheckboxInput
+                                            type="checkbox"
+                                            checked={formData.separateOutput || false}
+                                            onChange={(e) => {
+                                                if (e.target.checked) {
+                                                    handleInputChange("numOutputs", 2);
+                                                } else {
+                                                    handleInputChange("numOutputs", 1);
+                                                }
+                                                handleInputChange("separateOutput", e.target.checked);
+                                            }}
+                                            onClick={(e) => e.stopPropagation()}
+                                        />
+                                        <span>Send second message to separate output</span>
+                                    </CheckboxItem>
+                                </CheckboxContainer>
+                            </>
+                        )}
+                    </TabContentFunction>
+                </PanelContent>
+            </>
+        );
+    };
+
     const renderAiAgentTabs = () => {
         const tabs = [
             { id: "settings", label: "Settings" },
@@ -1573,6 +1885,8 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
             return renderFunctionTabs();
         } else if (nodeType === "Inject") {
             return renderInjectTabs();
+        } else if (nodeType === "Trigger") {
+            return renderTriggerProperties();
         } else if (nodeType === "AiAgent") {
             return renderAiAgentTabs();
         }

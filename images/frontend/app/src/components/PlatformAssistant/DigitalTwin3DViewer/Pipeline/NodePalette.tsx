@@ -1,5 +1,15 @@
 // @ts-nocheck
-import { SquareFunction, WifiHigh, ArrowBigRight, Mail, ClockFading, BrainCog, BrainCircuit, Layers } from "lucide-react";
+import {
+    SquareFunction,
+    WifiHigh,
+    ArrowBigRight,
+    Mail,
+    ClockFading,
+    BrainCog,
+    BrainCircuit,
+    Layers,
+    Zap,
+} from "lucide-react";
 import { FaTelegramPlane } from "react-icons/fa";
 import styled from "styled-components";
 
@@ -105,7 +115,32 @@ const nodeTypes = [
             repeat: "none",
             every: 0.0,
             injectionType: "Timestamp",
-            json: "{}"
+            json: "{}",
+        },
+    },
+    {
+        type: "Trigger",
+        label: "Trigger",
+        bgColor: "#a6bbcf",
+        hoverColor: "#b0c8d1",
+        icon: <Zap size={30} color="#e7e3df" />,
+        numOutputs: 1,
+        debug: "off",
+        settings: {
+            sendMode: "wait_for",
+            firstMessageType: "JSON",
+            firstMessagePayload: "{}",
+            secondMessageType: "JSON",
+            secondMessagePayload: "{}",
+            delay: 1,
+            resendInterval: 1,
+            overrideDelay: false,
+            extendDelay: false,
+            resetTriggerOption: "msg.payload.reset",
+            customPayloadFieldForReset: "",
+            separateOutput: false,
+            handleMessagesBy: "all",
+            streamNameToHandle: "",
         },
     },
     {
@@ -117,9 +152,12 @@ const nodeTypes = [
         numOutputs: 1,
         debug: "off",
         settings: {
-            onMessageScript: "function process(msg) {\n    const go = Go();\n    const { log, time } = go.All();\n\n    // Your code here\n\n    return msg;\n}",
-            onInitializationScript: "function init() {\n    const go = Go();\n    const { log, time } = go.All();\n\n    // Your code here\n}",
-            onStartScript: "function start() {\n    const go = Go();\n    const { log, time } = go.All();\n\n    // Your code here\n}",
+            onMessageScript:
+                "function process(msg) {\n    const go = Go();\n    const { log, time } = go.All();\n\n    // Your code here\n\n    return msg;\n}",
+            onInitializationScript:
+                "function init() {\n    const go = Go();\n    const { log, time } = go.All();\n\n    // Your code here\n}",
+            onStartScript:
+                "function start() {\n    const go = Go();\n    const { log, time } = go.All();\n\n    // Your code here\n}",
         },
     },
     {
@@ -239,7 +277,7 @@ export default function NodePalette() {
                         )
                     }
                 >
-                    {(node.type === "Publish" || node.type === "Email" || node.type === "Telegram") ? (
+                    {node.type === "Publish" || node.type === "Email" || node.type === "Telegram" ? (
                         <>
                             <NodeLabel>{node.label}</NodeLabel>
                             <IconContainer>{node.icon}</IconContainer>

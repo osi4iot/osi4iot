@@ -94,3 +94,31 @@ func RemoveFieldFromInterface(data interface{}, fieldToRemove string) interface{
 	
 	return result
 }
+
+func DeepCopyPayload(src map[string]interface{}) map[string]interface{} {
+	if src == nil {
+		return nil
+	}
+
+	data, err := json.Marshal(src)
+	if err != nil {
+		// Fallback to shallow copy
+		dst := make(map[string]interface{})
+		for k, v := range src {
+			dst[k] = v
+		}
+		return dst
+	}
+
+	var dst map[string]interface{}
+	if err := json.Unmarshal(data, &dst); err != nil {
+		// Fallback to shallow copy
+		dst := make(map[string]interface{})
+		for k, v := range src {
+			dst[k] = v
+		}
+		return dst
+	}
+
+	return dst
+}

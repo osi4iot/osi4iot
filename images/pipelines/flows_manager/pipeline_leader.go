@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"math/rand"
 	"pipelines/logger"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -364,18 +365,47 @@ func (le *PipelineLeaderElector) GetReplicaIndexLeader() int {
 	return leaderID.ReplicaIndex
 }
 
+// func (le *PipelineLeaderElector) Stop() {
+// 	if le.cancel == nil {
+// 		return
+// 	}
+// 	le.cancel()
+
+// 	// Release lock gracefully if we are leaders
+// 	if le.IsLeader() {
+// 		opCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+// 		defer cancel()
+// 		currentRev := le.rev.Load()
+// 		if err := le.kv.Delete(opCtx, le.lockKey, jetstream.LastRevision(currentRev)); err != nil {
+// 			le.log.Warnf("Failed to release lock on stop: %v", err)
+// 		} else {
+// 			le.log.Infof("Instance [%s] released leadership gracefully", le.instanceID.getString())
+// 		}
+// 	}
+// }
+
 func (le *PipelineLeaderElector) Stop() {
 	if le.cancel == nil {
 		return
 	}
 	le.cancel()
+	
+	time.Sleep(100 * time.Millisecond) // Dejar que heartbeat se detenga
 
-	// Release lock gracefully if we are leaders
 	if le.IsLeader() {
 		opCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 		defer cancel()
+		
 		currentRev := le.rev.Load()
-		if err := le.kv.Delete(opCtx, le.lockKey, jetstream.LastRevision(currentRev)); err != nil {
+		err := le.kv.Delete(opCtx, le.lockKey, jetstream.LastRevision(currentRev))
+		
+		if err != nil && strings.Contains(err.Error(), "wrong last sequence") {
+			// Intentar delete incondicional como fallback
+			le.log.Warn("Conditional delete failed, attempting unconditional delete")
+			if err := le.kv.Delete(opCtx, le.lockKey); err != nil {
+				le.log.Warnf("Unconditional delete also failed: %v", err)
+			}
+		} else if err != nil {
 			le.log.Warnf("Failed to release lock on stop: %v", err)
 		} else {
 			le.log.Infof("Instance [%s] released leadership gracefully", le.instanceID.getString())

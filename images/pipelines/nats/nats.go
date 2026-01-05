@@ -7,10 +7,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math/rand"
 	"os"
 	"pipelines/config"
 	"pipelines/logger"
-	"strconv"
 	"strings"
 	"time"
 
@@ -19,24 +19,24 @@ import (
 )
 
 type KVStore struct {
-	natsKv     jetstream.KeyValue
+	natsKv jetstream.KeyValue
 	logger *logger.Logger
 }
 
 func Connect(cfg *config.Config, log *logger.Logger) (*nats.Conn, error) {
-    opts := []nats.Option{
-        nats.Timeout(cfg.NATS.Timeout),
-    }
-    if cfg.NATS.Username != "" || cfg.NATS.Password != "" {
-        opts = append(opts, nats.UserInfo(cfg.NATS.Username, cfg.NATS.Password))
-    }
+	opts := []nats.Option{
+		nats.Timeout(cfg.NATS.Timeout),
+	}
+	if cfg.NATS.Username != "" || cfg.NATS.Password != "" {
+		opts = append(opts, nats.UserInfo(cfg.NATS.Username, cfg.NATS.Password))
+	}
 
 	if cfg.Mode == "prod" {
 		caCert, err := os.ReadFile("/etc/nats/ca.pem")
 		if err != nil {
 			panic(fmt.Sprintf("ca.pem can not be read: %v", err))
 		}
-	
+
 		rootCAs, err := x509.SystemCertPool()
 		if err != nil || rootCAs == nil {
 			rootCAs = x509.NewCertPool()
@@ -44,20 +44,20 @@ func Connect(cfg *config.Config, log *logger.Logger) (*nats.Conn, error) {
 		if ok := rootCAs.AppendCertsFromPEM(caCert); !ok {
 			panic("failed to add ca.pem to CA pool")
 		}
-	
+
 		tlsCfg := &tls.Config{
 			ServerName: cfg.DomainName,
 			RootCAs:    rootCAs,
 		}
-	
+
 		opts = append(opts, nats.Secure(tlsCfg))
 	}
 
-    nc, err := nats.Connect(strings.Join(cfg.NATS.ServersUrl, ","), opts...)
-    if err != nil {
+	nc, err := nats.Connect(strings.Join(cfg.NATS.ServersUrl, ","), opts...)
+	if err != nil {
 		log.Errorf("Error connecting to NATS: %v", err)
 		return nil, err
-    }
+	}
 
 	log.Info("Connected to NATS")
 	return nc, nil
@@ -144,14 +144,16 @@ func CreateLeaderKeyValueStore(
 	ttl time.Duration,
 	log *logger.Logger,
 	js jetstream.JetStream,
+	numStreamReplicas int,
 ) (*KVStore, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
 	kvName := fmt.Sprintf("pipelines_shard_%d_leader", shardIndex)
 	kv, err := js.CreateOrUpdateKeyValue(ctx, jetstream.KeyValueConfig{
-		Bucket: kvName,
-		TTL:    ttl,
+		Bucket:   kvName,
+		TTL:      ttl,
+		Replicas: numStreamReplicas,
 	})
 
 	if err != nil {
@@ -162,7 +164,6 @@ func CreateLeaderKeyValueStore(
 			return nil, err
 		}
 	}
-
 
 	newKvStore := NewKVStore(kv, log)
 
@@ -175,13 +176,15 @@ func CreateDigitalTwinKeyValueStore(
 	digitalTwinUID string,
 	log *logger.Logger,
 	js jetstream.JetStream,
+	numStreamReplicas int,
 ) (*KVStore, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
 	kvName := fmt.Sprintf("org_%s-dt_%s", orgHash, digitalTwinUID)
 	kv, err := js.CreateOrUpdateKeyValue(ctx, jetstream.KeyValueConfig{
-		Bucket: kvName,
+		Bucket:   kvName,
+		Replicas: numStreamReplicas,
 	})
 
 	if err != nil {
@@ -219,7 +222,7 @@ func DeleteDigitalTwinKeyValueStore(
 // NewKVStore creates a new KVStore instance with the provided KeyValue and logger
 func NewKVStore(kv jetstream.KeyValue, log *logger.Logger) *KVStore {
 	return &KVStore{
-		natsKv:     kv,
+		natsKv: kv,
 		logger: log,
 	}
 }
@@ -309,14 +312,14 @@ func (kvs *KVStore) GetRawValue(ctx context.Context, key string) ([]byte, error)
 
 // SetValue marshals and stores a value in the store
 func (kvs *KVStore) SetValue(ctx context.Context, key string, value interface{}) error {
-	return kvs.setValueWithRetry(ctx, key, value, 3)
+	return kvs.setValueWithRetry(ctx, key, value, 5)
 }
 
 // SetValueWithTimeout marshals and stores a value with a timeout
 func (kvs *KVStore) SetValueWithTimeout(ctx context.Context, key string, value interface{}, timeout time.Duration) error {
 	timeoutCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
-	return kvs.setValueWithRetry(timeoutCtx, key, value, 3)
+	return kvs.setValueWithRetry(timeoutCtx, key, value, 5)
 }
 
 // setValueWithRetry implements the core logic for setting values with retry mechanism
@@ -327,105 +330,56 @@ func (kvs *KVStore) setValueWithRetry(ctx context.Context, key string, value int
 		return fmt.Errorf("failed to marshal data: %w", err)
 	}
 
-	// Try to get existing entry
-	entry, err := kvs.natsKv.Get(ctx, key)
-	if err != nil {
-		if err == jetstream.ErrKeyNotFound {
-			// Key doesn't exist, create it
-			return kvs.createNewEntry(ctx, key, jsonData)
-		}
-		kvs.logger.Errorf("Failed to get key %s: %v", key, err)
-		return err
-	}
-
-	// Key exists, update it with retry logic
-	return kvs.updateExistingEntry(ctx, key, jsonData, entry.Revision(), maxRetries)
-}
-
-// createNewEntry creates a new entry in the store
-func (kvs *KVStore) createNewEntry(ctx context.Context, key string, data []byte) error {
-	newRevision, err := kvs.natsKv.Put(ctx, key, data)
-	if err != nil {
-		kvs.logger.Errorf("Failed to create key %s: %v", key, err)
-		return err
-	}
-
-	kvs.saveHeartbeatEntry(ctx, key, newRevision)
-	return nil
-}
-
-// updateExistingEntry updates an existing entry with retry logic
-func (kvs *KVStore) updateExistingEntry(ctx context.Context, key string, data []byte, baseRevision uint64, maxRetries int) error {
 	var lastErr error
+	baseDelay := 5 * time.Millisecond
 
 	for attempt := 0; attempt < maxRetries; attempt++ {
-		// Get current revision (either from heartbeat or base revision)
-		revision := baseRevision
-		if attempt > 0 {
-			// For retries, get the latest revision from heartbeat
-			heartbeatRevision, err := kvs.getHeartbeatRevision(ctx, key)
-			if err != nil {
-				kvs.logger.Warnf("Failed to get heartbeat revision for key %s, using base revision: %v", key, err)
-			} else {
-				revision = heartbeatRevision
-			}
-		}
-
-		newRevision, err := kvs.natsKv.Update(ctx, key, data, revision)
+		// Siempre lee la revisión actual
+		entry, err := kvs.natsKv.Get(ctx, key)
+		
 		if err != nil {
+			if err == jetstream.ErrKeyNotFound {
+				// Key no existe, créala
+				_, err := kvs.natsKv.Put(ctx, key, jsonData)
+				if err == nil {
+					return nil
+				}
+				// Si Put falla (alguien la creó entre medio), reintenta el loop
+				lastErr = err
+				kvs.logger.Warnf("Failed to create key %s at attempt %d/%d: %v", key, attempt+1, maxRetries, err)
+			} else {
+				kvs.logger.Errorf("Failed to get key %s: %v", key, err)
+				return err
+			}
+		} else {
+			// Key existe, actualízala
+			_, err := kvs.natsKv.Update(ctx, key, jsonData, entry.Revision())
+			if err == nil {
+				return nil
+			}
 			lastErr = err
 			kvs.logger.Warnf("Failed to update key %s at attempt %d/%d: %v", key, attempt+1, maxRetries, err)
-
-			// Add small delay between retries
-			if attempt < maxRetries-1 {
-				select {
-				case <-time.After(time.Millisecond * 100):
-				case <-ctx.Done():
-					return ctx.Err()
-				}
-			}
-			continue
 		}
 
-		// Success
-		kvs.saveHeartbeatEntry(ctx, key, newRevision)
-		return nil
+		// Backoff exponencial con jitter antes de reintentar
+		if attempt < maxRetries-1 {
+			// Calcula el delay máximo: 5ms, 10ms, 20ms, 40ms...
+			maxDelay := baseDelay * time.Duration(1<<attempt)
+			
+			// Añade jitter aleatorio (50% del maxDelay ± 50%)
+			jitter := time.Duration(rand.Int63n(int64(maxDelay)))
+			delay := maxDelay/2 + jitter
+			
+			select {
+			case <-time.After(delay):
+			case <-ctx.Done():
+				return ctx.Err()
+			}
+		}
 	}
 
-	kvs.logger.Errorf("Failed to update key %s after %d attempts", key, maxRetries)
-	return fmt.Errorf("failed to update key after %d attempts: %w", maxRetries, lastErr)
-}
-
-// saveHeartbeatEntry saves the revision number for optimistic locking
-func (kvs *KVStore) saveHeartbeatEntry(ctx context.Context, baseKey string, revision uint64) {
-	heartbeatValue := strconv.FormatUint(revision, 10)
-	fullKey := kvs.getHeartbeatKey(baseKey)
-
-	_, err := kvs.natsKv.Put(ctx, fullKey, []byte(heartbeatValue))
-	if err != nil {
-		kvs.logger.Warnf("Failed to set heartbeat entry for key %s: %v", fullKey, err)
-	}
-}
-
-// getHeartbeatRevision retrieves the stored revision number
-func (kvs *KVStore) getHeartbeatRevision(ctx context.Context, baseKey string) (uint64, error) {
-	fullKey := kvs.getHeartbeatKey(baseKey)
-	entry, err := kvs.natsKv.Get(ctx, fullKey)
-	if err != nil {
-		return 0, fmt.Errorf("failed to get heartbeat entry: %w", err)
-	}
-
-	revision, err := strconv.ParseUint(string(entry.Value()), 10, 64)
-	if err != nil {
-		return 0, fmt.Errorf("failed to parse heartbeat revision: %w", err)
-	}
-
-	return revision, nil
-}
-
-// getHeartbeatKey generates the heartbeat key for a given base key
-func (kvs *KVStore) getHeartbeatKey(baseKey string) string {
-	return fmt.Sprintf("%s.last_revision", baseKey)
+	kvs.logger.Errorf("Failed to set key %s after %d attempts", key, maxRetries)
+	return fmt.Errorf("failed to set key after %d attempts: %w", maxRetries, lastErr)
 }
 
 // DeleteEntry removes a key from the store
@@ -435,18 +389,11 @@ func (kvs *KVStore) DeleteEntry(ctx context.Context, key string) error {
 		kvs.logger.Errorf("Failed to delete key %s: %v", key, err)
 		return err
 	}
-
-	// Also delete the heartbeat entry
-	heartbeatKey := kvs.getHeartbeatKey(key)
-	if err := kvs.natsKv.Delete(ctx, heartbeatKey); err != nil {
-		kvs.logger.Warnf("Failed to delete heartbeat entry for key %s: %v", heartbeatKey, err)
-	}
-
 	return nil
 }
 
 func (kvs *KVStore) DeleteAllEntries(ctx context.Context) error {
-	keys, err := kvs.ListKeys(ctx)
+	keys, err := kvs.ListKeys(ctx, "")
 	if err != nil {
 		return fmt.Errorf("failed to list keys: %w", err)
 	}
@@ -460,11 +407,6 @@ func (kvs *KVStore) DeleteAllEntries(ctx context.Context) error {
 	var errors []string
 
 	for _, key := range keys {
-		// Skip heartbeat keys - they'll be deleted with their main keys
-		if kvs.isHeartbeatKey(key) {
-			continue
-		}
-
 		if err := kvs.DeleteEntry(ctx, key); err != nil {
 			errorMsg := fmt.Sprintf("failed to delete key %s: %v", key, err)
 			errors = append(errors, errorMsg)
@@ -473,12 +415,10 @@ func (kvs *KVStore) DeleteAllEntries(ctx context.Context) error {
 			deletedCount++
 		}
 
-		// Check context cancellation periodically
 		select {
 		case <-ctx.Done():
 			return fmt.Errorf("deletion cancelled after %d entries: %w", deletedCount, ctx.Err())
 		default:
-			// Continue
 		}
 	}
 
@@ -489,11 +429,6 @@ func (kvs *KVStore) DeleteAllEntries(ctx context.Context) error {
 	}
 
 	return nil
-}
-
-// isHeartbeatKey checks if a key is a heartbeat key
-func (kvs *KVStore) isHeartbeatKey(key string) bool {
-	return strings.HasSuffix(key, ".last_revision")
 }
 
 // KeyExists checks if a key exists in the store
@@ -509,7 +444,7 @@ func (kvs *KVStore) KeyExists(ctx context.Context, key string) (bool, error) {
 }
 
 // ListKeys returns all keys with the given prefix
-func (kvs *KVStore) ListKeys(ctx context.Context) ([]string, error) {
+func (kvs *KVStore) ListKeys(ctx context.Context, prefix string) ([]string, error) {
 	keys := make([]string, 0)
 
 	// Get key lister from NATS JetStream KV
@@ -520,12 +455,10 @@ func (kvs *KVStore) ListKeys(ctx context.Context) ([]string, error) {
 
 	// Iterate through all keys
 	for key := range keyLister.Keys() {
-		if key != "" && !strings.HasSuffix(key, ".last_revision") {
+		if key != "" && strings.HasPrefix(key, prefix) {
 			keys = append(keys, key)
 		}
 	}
 
 	return keys, nil
 }
-
-

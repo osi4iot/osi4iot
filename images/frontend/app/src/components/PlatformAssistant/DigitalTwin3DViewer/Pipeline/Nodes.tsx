@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { SquareFunction, WifiHigh, ArrowBigRight, Mail, ClockFading, BrainCog, Layers } from "lucide-react";
+import { SquareFunction, WifiHigh, ArrowBigRight, Mail, ClockFading, BrainCog, Layers, Zap } from "lucide-react";
 import { FaTelegramPlane } from "react-icons/fa";
 import { Handle, Position } from "@xyflow/react";
 import Paho from "paho-mqtt";
@@ -422,6 +422,34 @@ export function BatchNode({ data, selected }) {
                     <Layers size={20} color="#e7e3dfff" />
                 </IconContainer>
                 <NodeLabel>{data?.label || "Batch Node"}</NodeLabel>
+            </NodeContent>
+            {numOutputs > 0 && (
+                <>
+                    {Array.from({ length: numOutputs }, (_, index) => (
+                        <StyledHandle
+                            key={index}
+                            type="source"
+                            position={Position.Right}
+                            id={`${data.nodeUid}-${index}`}
+                            style={getHandleStyle(index, numOutputs)}
+                        />
+                    ))}
+                </>
+            )}
+        </NodeContainer>
+    );
+}
+
+export function TriggerNode({ data, selected }) {
+    const numOutputs = data?.numOutputs || 1;
+    return (
+        <NodeContainer bgColor="#a6bbcf" hoverColor="#b0c8d1" selected={selected}>
+            <StyledHandle type="target" position={Position.Left} style={{ top: "50%", left: "-1px" }} />
+            <NodeContent numOutputs={numOutputs}>
+                <IconContainer>
+                    <Zap size={20} color="#e7e3dfff" />
+                </IconContainer>
+                <NodeLabel>{data?.label || "Trigger Node"}</NodeLabel>
             </NodeContent>
             {numOutputs > 0 && (
                 <>

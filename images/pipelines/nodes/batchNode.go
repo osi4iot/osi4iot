@@ -274,7 +274,7 @@ func (n *BatchNode) monitorLeadershipChanges(log *logger.Logger) {
 	for {
 		select {
 		case <-ticker.C:
-			currentLeaderStatus := n.ShouldRunPeriodicTasks()
+			currentLeaderStatus := n.IsLeader()
 
 			n.leadershipMutex.Lock()
 			wasLeader := n.isCurrentlyLeader

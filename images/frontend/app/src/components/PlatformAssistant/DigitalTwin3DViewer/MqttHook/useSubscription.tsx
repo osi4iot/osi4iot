@@ -52,13 +52,26 @@ const useSubscription = (
         if (mqttClient?.isConnected) {
             // subscribe();
             if (typeof mqttTopics === "string") {
-                mqttClient?.subscribe(mqttTopics, options);
+                mqttClient.subscribe(mqttTopics, options);
             } else {
                 for (const topic_i of mqttTopics as string[]) {
-                    mqttClient?.subscribe(topic_i, options);
+                    mqttClient.subscribe(topic_i, options);
                 }
             }
         }
+
+        return () => {
+            if (mqttClient?.isConnected) {
+                if (typeof mqttTopics === "string") {
+                    mqttClient.unsubscribe(mqttTopics);
+                } else {
+                    for (const topic_i of mqttTopics as string[]) {
+                        mqttClient.unsubscribe(topic_i);
+                    }
+                }
+            }
+        }
+
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [mqttClient]);
 

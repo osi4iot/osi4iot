@@ -27,6 +27,8 @@ func CreateNode(
 		newNode, err = CreateListenNode(node, fm, p)
 	case "Inject":
 		newNode, err = CreateInjectNode(node, fm, p)
+	case "Trigger":
+		newNode, err = CreateTriggerNode(node, fm, p)
 	case "Delay":
 		newNode, err = CreateDelayNode(node, fm, p)
 	case "Function":
@@ -342,7 +344,7 @@ func (n *BaseNode) handleNatsSubscription(log *logger.Logger, subject string, me
 	}
 }
 
-func (n *BaseNode) ShouldRunPeriodicTasks() bool {
+func (n *BaseNode) IsLeader() bool {
 	return n.Pipeline.GetLeaderElector().IsLeader()
 }
 

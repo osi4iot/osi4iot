@@ -7,6 +7,7 @@ import (
 	"pipelines/common"
 	"pipelines/logger"
 	"pipelines/utils"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -66,7 +67,7 @@ func CreateInjectNode(node common.NodeData, fm common.Manager, p common.Pipeline
 	}
 
 	validRepeats := []string{"none", "interval", "interval_between_times", "interval_at_specific_time"}
-	if !contains(validRepeats, repeat) {
+	if !slices.Contains(validRepeats, repeat) {
 		fm.Log().Errorf("InjectNode %s: 'repeat' setting must be one of: %v", node.NodeUid, validRepeats)
 		return nil, fmt.Errorf("invalid repeat setting: %s", repeat)
 	}
@@ -206,7 +207,7 @@ func (n *InjectNode) Start(log *logger.Logger, needReinitialization bool) {
 
 	// Initialize leadership status based on the current replica index and number of replicas
 	n.leadershipMutex.Lock()
-	n.isCurrentlyLeader = n.ShouldRunPeriodicTasks()
+	n.isCurrentlyLeader = n.IsLeader()
 	n.leadershipMutex.Unlock()
 
 	n.wg.Add(1)
@@ -473,7 +474,7 @@ func (n *InjectNode) monitorLeadershipChanges(log *logger.Logger) {
 	for {
 		select {
 		case <-ticker.C:
-			currentLeaderStatus := n.ShouldRunPeriodicTasks()
+			currentLeaderStatus := n.IsLeader()
 
 			n.leadershipMutex.Lock()
 			wasLeader := n.isCurrentlyLeader
@@ -542,16 +543,6 @@ Drain:
 		n.periodicListenCancel()
 		n.periodicListenCancel = nil
 	}
-}
-
-// Helper functions
-func contains(slice []string, item string) bool {
-	for _, s := range slice {
-		if s == item {
-			return true
-		}
-	}
-	return false
 }
 
 func validateTimeFormat(timeStr string) error {

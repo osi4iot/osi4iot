@@ -33,7 +33,7 @@ func (fm *FlowsManager) AddDigitalTwin(digitalTwin *common.DigitalTwin, createPi
 	digitalTwinIdStr := strconv.Itoa(digitalTwin.Id)
 	if _, ok := fm.DigitalTwins.Load(digitalTwinIdStr); !ok {
 		org := fm.GetOrg(digitalTwin.OrgId)
-		kv, err := nats_pkg.CreateDigitalTwinKeyValueStore(org.OrgHash, digitalTwin.DigitalTwinUid, fm.log, fm.JetStream)
+		kv, err := nats_pkg.CreateDigitalTwinKeyValueStore(org.OrgHash, digitalTwin.DigitalTwinUid, fm.log, fm.JetStream, fm.NumStreamReplicas)
 		if err != nil {
 			fm.log.Error("Failed to create KeyValue store for Digital Twin %d: %v", digitalTwin.Id, err)
 		} else {

@@ -125,7 +125,7 @@ func NatsService(
 		FailureAction:   swarm.UpdateFailureActionRollback, // Rollback automático
 		Monitor:         15 * time.Second,                  // NATS arranca rápido, 15s es suficiente
 		MaxFailureRatio: 0,                                 // Con 1 réplica, cualquier fallo es crítico
-		Order:           updateOrder,        // Importante para mantener disponibilidad
+		Order:           updateOrder,                       // Importante para mantener disponibilidad
 	}
 
 	rollbackConfig := &swarm.UpdateConfig{

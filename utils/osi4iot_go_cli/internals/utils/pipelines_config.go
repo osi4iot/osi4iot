@@ -105,9 +105,10 @@ func PipelinesConfig(pd *types.PlatformData, numNatsReplicas int) (string, error
 			serversUrl = append(serversUrl, natUrl)
 		}
 	}
-	
+
 	pi := pd.PlatformInfo
 	numReplicas := GetServiceReplicas(pd, "pipelines")
+	numStreamReplicas := Min(numNatsReplicas, 3)
 
 	params := PipelinesParams{
 		Mode:                   "prod",
@@ -116,7 +117,7 @@ func PipelinesConfig(pd *types.PlatformData, numNatsReplicas int) (string, error
 		AdminPassword:          pi.PlatformAdminPassword,
 		NumReplicas:            numReplicas,
 		ReplicaIndex:           1,
-		NumStreamReplicas:      1,
+		NumStreamReplicas:      numStreamReplicas,
 		FunctionsTimeout:       5000,
 		TelegramBotToken:       pi.TelegramBotToken,
 		PlatformEmailUsername:  pi.NotificationsEmailUser,

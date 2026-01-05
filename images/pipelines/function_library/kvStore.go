@@ -158,7 +158,10 @@ func (kv *KvStore) ListKeys() []string {
 		kv.log.Errorf("KVStore not found for node %s", kv.node.GetUid())
 		return nil
 	}
-	keys, err := kvStore.ListKeys(context.Background())
+
+	prefix := fmt.Sprintf("org_%s.dt_%s.kvstore.", kv.node.GetOrgHash(), kv.node.GetDigitalTwinUid())
+
+	keys, err := kvStore.ListKeys(context.Background(), prefix)
 	if err != nil {
 		kv.log.Errorf("Error listing keys in store: %v", err)
 		return nil
