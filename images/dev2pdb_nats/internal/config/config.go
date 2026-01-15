@@ -10,19 +10,20 @@ import (
 
 // Config holds the entire application configuration.
 type Config struct {
-	Mode          string            `mapstructure:"mode"`
-	DomainName    string            `mapstructure:"domainName"`
-	NATS          NATSConfig        `mapstructure:"nats"`
-	TimescaleDB   TimescaleDBConfig `mapstructure:"timescaledb"`
-	NumWorkers    int               `mapstructure:"numWorkers"`
-	BatchSize     int               `mapstructure:"batchSize"`
+	Mode        string            `mapstructure:"mode"`
+	DomainName  string            `mapstructure:"domainName"`
+	NATS        NATSConfig        `mapstructure:"nats"`
+	TimescaleDB TimescaleDBConfig `mapstructure:"timescaledb"`
+	NumWorkers  int               `mapstructure:"numWorkers"`
+	BatchSize   int               `mapstructure:"batchSize"`
 }
 
 type NATSConfig struct {
-	ServersUrl []string      `mapstructure:"serversUrl"`
-	Username   string        `mapstructure:"username"`
-	Password   string        `mapstructure:"password"`
-	Timeout    time.Duration `mapstructure:"timeout"`
+	ServersUrl      []string      `mapstructure:"serversUrl"`
+	Username        string        `mapstructure:"username"`
+	Password        string        `mapstructure:"password"`
+	Timeout         time.Duration `mapstructure:"timeout"`
+	UseCustomCACert string        `mapstructure:"useCustomCACert"`
 }
 
 type TimescaleDBConfig struct {
@@ -49,6 +50,7 @@ func Load() (*Config, error) {
 
 	viper.SetDefault("nats.serversUrl", []string{"nats://localhost:4222"})
 	viper.SetDefault("nats.timeout", 5*time.Second)
+	viper.SetDefault("nats.useCustomCACert", "No")
 
 	viper.SetDefault("timescaledb.port", 5432)
 	viper.SetDefault("timescaledb.sslmode", "disable")

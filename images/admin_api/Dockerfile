@@ -16,6 +16,10 @@ RUN mkdir -p /app/node_modules && chown -R node:node /app
 RUN mkdir -p /app/logs && chown node:node /app/logs
 WORKDIR /app
 COPY package*.json ./
+
+RUN apk add --no-cache tzdata curl ca-certificates \
+ && update-ca-certificates
+ 
 RUN apk add --no-cache tzdata
 RUN apk add --no-cache curl
 RUN npm install --only=production

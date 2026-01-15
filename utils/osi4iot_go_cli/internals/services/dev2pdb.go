@@ -25,7 +25,10 @@ func Dev2pdbService(
 			SecretID:   sd.Secrets["dev2pdb_config"].ID,
 			SecretName: sd.Secrets["dev2pdb_config"].Name,
 		},
-		{
+	}
+
+	if pd.PlatformInfo.UseCustomNatsCACert == "Yes" {
+		secrets = append(secrets, &swarm.SecretReference{
 			File: &swarm.SecretReferenceFileTarget{
 				Name: "/etc/nats/ca.pem",
 				UID:  "0",
@@ -34,7 +37,7 @@ func Dev2pdbService(
 			},
 			SecretID:   sd.Secrets["iot_platform_ca_cert"].ID,
 			SecretName: sd.Secrets["iot_platform_ca_cert"].Name,
-		},
+		})
 	}
 
 	constraints := []string{

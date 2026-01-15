@@ -761,40 +761,6 @@ func CreateNatsDependentServiceSecrets(pd *pt.PlatformData, dc *pt.DockerClient,
 	}
 }
 
-func ServiceUpdateOld(pd *pt.PlatformData, dc *pt.DockerClient, service swarm.Service, serviceName string, replicas uint64) (string, error) {
-	service.Spec.Mode.Replicated.Replicas = &replicas
-	response, err := dc.Cli.ServiceUpdate(dc.Ctx, service.ID, service.Version, service.Spec, types.ServiceUpdateOptions{})
-	if err != nil {
-		return "", fmt.Errorf("error updating service: %v", err)
-	}
-
-	err = utils.MonitorServiceScaleWithProgressBar(dc, service.ID, replicas)
-	if err != nil {
-		return "", fmt.Errorf("error monitoring service scale: %v", err)
-	}
-
-	warningMessages := ""
-	if len(response.Warnings) > 0 {
-		for _, warning := range response.Warnings {
-			warningMessages += fmt.Sprintf("  - %s\n", warning)
-		}
-	}
-
-	svcIdx, svcData, err := utils.FindServiceDataByName(pd, serviceName)
-	if err != nil {
-		return "", fmt.Errorf("error finding service data: %v", err)
-	}
-
-	svcData.Replicas = int(replicas)
-	pd.PlatformInfo.ServicesData[svcIdx] = *svcData
-	err = utils.WritePlatformDataToFile(pd)
-	if err != nil {
-		return "", fmt.Errorf("error writing platform data to file: %v", err)
-	}
-
-	return warningMessages, nil
-}
-
 func CreateNatsService(pd *pt.PlatformData, dc *pt.DockerClient, replica int, numNatsReplicas int, natsConfigSecret pt.Secret) error {
 	pi := pd.PlatformInfo
 	natsVolume, err := volumes.CreateNatsVolume(pi, dc, int(replica))
@@ -817,11 +783,13 @@ func CreateNatsService(pd *pt.PlatformData, dc *pt.DockerClient, replica int, nu
 	sd.Networks["nats_network"] = *natsNetwork
 
 	sd.Secrets = make(map[string]pt.Secret)
-	caCerts, err := secrets.GetSecretByKey(dc, "iot_platform_ca")
-	if err != nil {
-		return fmt.Errorf("error getting nats secrets: %v", err)
+	if pd.PlatformInfo.UseCustomNatsCACert == "Yes" {
+		caCerts, err := secrets.GetSecretByKey(dc, "iot_platform_ca")
+		if err != nil {
+			return fmt.Errorf("error getting nats secrets: %v", err)
+		}
+		sd.Secrets["iot_platform_ca_cert"] = *caCerts
 	}
-	sd.Secrets["iot_platform_ca_cert"] = *caCerts
 
 	platformCerts, err := secrets.GetSecretByKey(dc, "iot_platform_cert")
 	if err != nil {
@@ -898,4 +866,102 @@ func waitUntilServiceIsRemoved(serviceName string) {
 
 	time.Sleep(10 * time.Second)
 	done <- true
+}
+
+func creatSecretUpdateConfig(secretKey string, certSecret pt.Secret, oldCertSecretName string, targetFile string) SecretUpdateConfig {
+	return SecretUpdateConfig{
+		SecretKey:     secretKey,
+		SecretID:      certSecret.ID,
+		NewSecretName: certSecret.Name,
+		OldSecretName: oldCertSecretName,
+		NewSecretData: certSecret.Data,
+		TargetFile:    targetFile,
+	}
+}
+
+func UpdateCertsInServices(
+	pd *pt.PlatformData,
+	dc *pt.DockerClient,
+) (string, error) {
+	numNatsReplicas, err := GetNatsReplicas(dc)
+	if err != nil {
+		return "", fmt.Errorf("error getting nats replicas: %v", err)
+	}
+
+	servicesToUpdate := []string{
+		"traefik",
+	}
+	for i := 1; i <= int(numNatsReplicas); i++ {
+		natsServiceName := fmt.Sprintf("nats%d", i)
+		servicesToUpdate = append(servicesToUpdate, natsServiceName)
+	}
+
+	certsSecrets, err := secrets.CreateCertsSecrets(pd, dc)
+	if err != nil {
+		return "", fmt.Errorf("error creating certs secrets: %v", err)
+	}
+	secretUpdateConfigs := []SecretUpdateConfig{}
+	for secretKey, certSecret := range certsSecrets {
+		oldCertSecret, err := secrets.GetSecretByKey(dc, secretKey)
+		if err != nil {
+			return "", fmt.Errorf("error getting old cert secret %s: %v", secretKey, err)
+		}
+
+		err = secrets.CreateSecretByName(dc, &certSecret)
+		if err != nil {
+			return "", fmt.Errorf("error creating new cert secret %s in docker: %v", secretKey, err)
+		}
+
+		secretUpdateConfig := creatSecretUpdateConfig(secretKey, certSecret, oldCertSecret.Name, "")
+		secretUpdateConfigs = append(secretUpdateConfigs, secretUpdateConfig)
+	}
+
+	warningMessages := ""
+	for _, serviceName := range servicesToUpdate {
+		service, err := InspectService(dc, serviceName)
+		if err != nil {
+			return "", fmt.Errorf("error inspecting service %s: %v", serviceName, err)
+		}
+
+		if strings.HasPrefix(serviceName, "nats") {
+			// For nats services, set the target file for the certs
+			for i, secretUpdateConfig := range secretUpdateConfigs {
+				switch secretUpdateConfig.SecretKey {
+				case "iot_platform_cert":
+					secretUpdateConfigs[i].TargetFile = "/etc/nats/cert.pem"
+				case "iot_platform_key":
+					secretUpdateConfigs[i].TargetFile = "/etc/nats/key.pem"
+				case "iot_platform_ca_cert":
+					secretUpdateConfigs[i].TargetFile = "/etc/nats/ca.pem"
+				}
+			}
+		}
+
+		if serviceName == "traefik" {
+			// For traefik service, set the target file for the certs
+			for i, secretUpdateConfig := range secretUpdateConfigs {
+				switch secretUpdateConfig.SecretKey {
+				case "iot_platform_cert":
+					secretUpdateConfigs[i].TargetFile = "iot_platform_cert.cer"
+				case "iot_platform_key":
+					secretUpdateConfigs[i].TargetFile = "iot_platform.key"
+				}
+			}
+		}
+
+		updateOptions := ServiceUpdateOptions{
+			SecretsUpdate: secretUpdateConfigs,
+		}
+
+		fmt.Printf("\nUpdating service %s with new certificates:\n", serviceName)
+		warnings, err := ServiceUpdate(pd, dc, service, serviceName, updateOptions)
+		if err != nil {
+			return "", fmt.Errorf("error updating service %s: %v", serviceName, err)
+		}
+		if warnings != "" {
+			warningMessages += fmt.Sprintf("Warnings for service %s:\n%s", serviceName, warnings)
+		}
+	}
+
+	return warningMessages, nil
 }

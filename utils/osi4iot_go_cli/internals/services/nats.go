@@ -28,16 +28,6 @@ func NatsService(
 	secrets := []*swarm.SecretReference{
 		{
 			File: &swarm.SecretReferenceFileTarget{
-				Name: "/etc/nats/ca.pem",
-				UID:  "0",
-				GID:  "0",
-				Mode: 0444,
-			},
-			SecretID:   sd.Secrets["iot_platform_ca_cert"].ID,
-			SecretName: sd.Secrets["iot_platform_ca_cert"].Name,
-		},
-		{
-			File: &swarm.SecretReferenceFileTarget{
 				Name: "/etc/nats/cert.pem",
 				UID:  "0",
 				GID:  "0",
@@ -66,6 +56,19 @@ func NatsService(
 			SecretID:   sd.Secrets["nats_config"].ID,
 			SecretName: sd.Secrets["nats_config"].Name,
 		},
+	}
+
+	if pd.PlatformInfo.UseCustomNatsCACert == "Yes" {
+		secrets = append(secrets, &swarm.SecretReference{
+			File: &swarm.SecretReferenceFileTarget{
+				Name: "/etc/nats/ca.pem",
+				UID:  "0",
+				GID:  "0",
+				Mode: 0444,
+			},
+			SecretID:   sd.Secrets["iot_platform_ca_cert"].ID,
+			SecretName: sd.Secrets["iot_platform_ca_cert"].Name,
+		})
 	}
 
 	var natsPort uint32 = 4222
@@ -158,11 +161,13 @@ func NatsService(
 			svcResources.MemoryBytes,
 		).
 		WithPlacement(constraints).
+		WithStopSignal("SIGUSR2").
+		WithStopGracePeriod(3 * time.Minute).
 		WithModeReplicated(svcResources.ReplicasPtr).
 		WithPorts(ports).
 		WithHealthCheck([]string{
 			"CMD-SHELL",
-			"wget -qO- http://localhost:8222/healthz | grep -q '\"status\":\"ok\"' || exit 0",
+			"wget -qO- http://localhost:8222/healthz | grep -q '\"status\":\"ok\"' || exit 1",
 		}).
 		WithNetworks([]swarm.NetworkAttachmentConfig{
 			{Target: sd.Networks["internal_net"].Name},

@@ -32,22 +32,33 @@ func Connect(cfg *config.Config, log *logger.Logger) (*nats.Conn, error) {
 	}
 
 	if cfg.Mode == "prod" {
-		caCert, err := os.ReadFile("/etc/nats/ca.pem")
-		if err != nil {
-			panic(fmt.Sprintf("ca.pem can not be read: %v", err))
-		}
-
-		rootCAs, err := x509.SystemCertPool()
-		if err != nil || rootCAs == nil {
-			rootCAs = x509.NewCertPool()
-		}
-		if ok := rootCAs.AppendCertsFromPEM(caCert); !ok {
-			panic("failed to add ca.pem to CA pool")
-		}
-
 		tlsCfg := &tls.Config{
 			ServerName: cfg.DomainName,
-			RootCAs:    rootCAs,
+			MinVersion: tls.VersionTLS12,
+		}
+		if cfg.NATS.UseCustomCACert == "Yes" {
+			// Load custom CA certificate
+			caCert, err := os.ReadFile("/etc/nats/ca.pem")
+			if err != nil {
+				panic(fmt.Sprintf("ca.pem can not be read: %v", err))
+			}
+
+			rootCAs, err := x509.SystemCertPool()
+			if err != nil || rootCAs == nil {
+				rootCAs = x509.NewCertPool()
+			}
+			if ok := rootCAs.AppendCertsFromPEM(caCert); !ok {
+				panic("failed to add ca.pem to CA pool")
+			}
+
+			tlsCfg.RootCAs = rootCAs
+		} else {
+			// Use system CA certs
+			rootCAs, err := x509.SystemCertPool()
+			if err != nil || rootCAs == nil {
+				rootCAs = x509.NewCertPool()
+			}
+			tlsCfg.RootCAs = rootCAs
 		}
 
 		opts = append(opts, nats.Secure(tlsCfg))
@@ -336,7 +347,7 @@ func (kvs *KVStore) setValueWithRetry(ctx context.Context, key string, value int
 	for attempt := 0; attempt < maxRetries; attempt++ {
 		// Siempre lee la revisión actual
 		entry, err := kvs.natsKv.Get(ctx, key)
-		
+
 		if err != nil {
 			if err == jetstream.ErrKeyNotFound {
 				// Key no existe, créala
@@ -365,11 +376,11 @@ func (kvs *KVStore) setValueWithRetry(ctx context.Context, key string, value int
 		if attempt < maxRetries-1 {
 			// Calcula el delay máximo: 5ms, 10ms, 20ms, 40ms...
 			maxDelay := baseDelay * time.Duration(1<<attempt)
-			
+
 			// Añade jitter aleatorio (50% del maxDelay ± 50%)
 			jitter := time.Duration(rand.Int63n(int64(maxDelay)))
 			delay := maxDelay/2 + jitter
-			
+
 			select {
 			case <-time.After(delay):
 			case <-ctx.Done():

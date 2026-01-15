@@ -15,21 +15,22 @@ import (
 )
 
 type Config struct {
-	Env               string `mapstructure:"ENV"`
-	AccessTokenSecret string `mapstructure:"ACCESS_TOKEN_SECRET"`
-	DomainName        string `mapstructure:"DOMAIN_NAME"`
-	PGHost            string `mapstructure:"PG_HOST"`
-	PGPort            int    `mapstructure:"PG_PORT"`
-	PGUserName        string `mapstructure:"PG_USERNAME"`
-	PGPassword        string `mapstructure:"PG_PASSWORD"`
-	PGDBName          string `mapstructure:"PG_DBNAME"`
-	NatsHost          string `mapstructure:"NATS_HOST"`
-	NatsPort          int    `mapstructure:"NATS_PORT"`
-	NatsProtocol      string `mapstructure:"NATS_PROTOCOL"`
-	NatsAdminUserName string `mapstructure:"NATS_ADMIN_USERNAME"`
-	NatsAdminPassword string `mapstructure:"NATS_ADMIN_PASSWORD"`
-	NatsIssuerSeed    string `mapstructure:"NATS_ISSUER_SEED"`
-	NatsXkeySeed      string `mapstructure:"NATS_XKEY_SEED"`
+	Env                 string `mapstructure:"ENV"`
+	AccessTokenSecret   string `mapstructure:"ACCESS_TOKEN_SECRET"`
+	UseCustomNatsCACert string `mapstructure:"USE_CUSTOM_NATS_CA_CERT"`
+	DomainName          string `mapstructure:"DOMAIN_NAME"`
+	PGHost              string `mapstructure:"PG_HOST"`
+	PGPort              int    `mapstructure:"PG_PORT"`
+	PGUserName          string `mapstructure:"PG_USERNAME"`
+	PGPassword          string `mapstructure:"PG_PASSWORD"`
+	PGDBName            string `mapstructure:"PG_DBNAME"`
+	NatsHost            string `mapstructure:"NATS_HOST"`
+	NatsPort            int    `mapstructure:"NATS_PORT"`
+	NatsProtocol        string `mapstructure:"NATS_PROTOCOL"`
+	NatsAdminUserName   string `mapstructure:"NATS_ADMIN_USERNAME"`
+	NatsAdminPassword   string `mapstructure:"NATS_ADMIN_PASSWORD"`
+	NatsIssuerSeed      string `mapstructure:"NATS_ISSUER_SEED"`
+	NatsXkeySeed        string `mapstructure:"NATS_XKEY_SEED"`
 }
 
 func LoadConfig() (*Config, error) {
@@ -44,6 +45,8 @@ func LoadConfig() (*Config, error) {
 	if err := viper.ReadInConfig(); err != nil {
 		return nil, err
 	}
+
+	viper.SetDefault("UseCustomNatsCACert", "No")
 
 	// Unmarshal into Config
 	if err := viper.Unmarshal(&cfg); err != nil {
@@ -93,23 +96,35 @@ func NatsConnection(config *Config) (*nats.Conn, error) {
 		}
 		return nats.Connect(natsUrl, nats.UserInfo(natsUser, natsPass), nats.Secure(tlsCfg))
 	} else {
-		caCert, err := os.ReadFile("/etc/nats/ca.pem")
-		if err != nil {
-			panic(fmt.Sprintf("ca.pem can not be read: %v", err))
-		}
-
-		rootCAs, err := x509.SystemCertPool()
-		if err != nil || rootCAs == nil {
-			rootCAs = x509.NewCertPool()
-		}
-		if ok := rootCAs.AppendCertsFromPEM(caCert); !ok {
-			panic("failed to add ca.pem to CA pool")
-		}
-
 		tlsCfg := &tls.Config{
 			ServerName: config.DomainName,
-			RootCAs:    rootCAs,
+			MinVersion: tls.VersionTLS12,
 		}
+		if config.UseCustomNatsCACert == "Yes" {
+			// Load custom CA cert
+			caCert, err := os.ReadFile("/etc/nats/ca.pem")
+			if err != nil {
+				panic(fmt.Sprintf("ca.pem can not be read: %v", err))
+			}
+
+			rootCAs, err := x509.SystemCertPool()
+			if err != nil || rootCAs == nil {
+				rootCAs = x509.NewCertPool()
+			}
+			if ok := rootCAs.AppendCertsFromPEM(caCert); !ok {
+				panic("failed to add ca.pem to CA pool")
+			}
+
+			tlsCfg.RootCAs = rootCAs
+		} else {
+			// Use system CA certs
+			rootCAs, err := x509.SystemCertPool()
+			if err != nil || rootCAs == nil {
+				rootCAs = x509.NewCertPool()
+			}
+			tlsCfg.RootCAs = rootCAs
+		}
+
 		return nats.Connect(natsUrl, nats.UserInfo(natsUser, natsPass), nats.Secure(tlsCfg))
 	}
 }

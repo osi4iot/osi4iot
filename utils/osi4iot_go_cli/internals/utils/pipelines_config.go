@@ -40,6 +40,7 @@ nats:
   username: "{{ .NATS.Username }}"
   password: "{{ .NATS.Password }}"
   timeout: {{ .NATS.Timeout }}
+  useCustomCACert: {{ .NATS.UseCustomCACert }}
 
 timescaledb:
   user: "{{ .TimescaleDB.User }}"
@@ -139,6 +140,7 @@ func PipelinesConfig(pd *types.PlatformData, numNatsReplicas int) (string, error
 			Username:   pi.PlatformAdminUserName,
 			Password:   pi.PlatformAdminPassword,
 			Timeout:    "15s",
+			UseCustomCACert: pi.UseCustomNatsCACert,
 		},
 		TimescaleDB: TimescaleDBParams{
 			User:     pi.TimescaleUser,

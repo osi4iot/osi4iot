@@ -52,17 +52,19 @@ func AdminApiService(
 		},
 	}
 
-	natsSecret := swarm.SecretReference{
-		File: &swarm.SecretReferenceFileTarget{
-			Name: "/etc/nats/ca.pem",
-			UID:  "0",
-			GID:  "0",
-			Mode: 0444,
-		},
-		SecretID:   sd.Secrets["iot_platform_ca_cert"].ID,
-		SecretName: sd.Secrets["iot_platform_ca_cert"].Name,
+	if pd.PlatformInfo.UseCustomNatsCACert == "Yes" {
+		natsSecret := swarm.SecretReference{
+			File: &swarm.SecretReferenceFileTarget{
+				Name: "/etc/nats/ca.pem",
+				UID:  "0",
+				GID:  "0",
+				Mode: 0444,
+			},
+			SecretID:   sd.Secrets["iot_platform_ca_cert"].ID,
+			SecretName: sd.Secrets["iot_platform_ca_cert"].Name,
+		}
+		secrets = append(secrets, &natsSecret)
 	}
-	secrets = append(secrets, &natsSecret)
 
 	configs := []*swarm.ConfigReference{
 		{
@@ -109,7 +111,7 @@ func AdminApiService(
 	}
 
 	image := utils.GetServiceImage(pd, "admin_api", "ghcr.io/osi4iot/admin_api_nats:1.3.0")
-	
+
 	return NewService("admin_api", pd, sd).
 		WithImage(image).
 		WithEnv([]string{

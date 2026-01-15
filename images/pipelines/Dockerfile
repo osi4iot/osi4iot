@@ -68,6 +68,7 @@ ARG TARGETARCH
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
       tzdata curl ca-certificates \
+  && update-ca-certificates \
   && rm -rf /var/lib/apt/lists/* \
   && addgroup --system pipelines_group \
   && adduser --system --ingroup pipelines_group pipelines

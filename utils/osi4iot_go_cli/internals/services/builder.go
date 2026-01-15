@@ -255,6 +255,16 @@ func (b *ServiceBuilder) WithConfigs(configs []*swarm.ConfigReference) *ServiceB
 	return b
 }
 
+func (b *ServiceBuilder) WithStopSignal(signal string) *ServiceBuilder {
+	b.svc.TaskTemplate.ContainerSpec.StopSignal = signal
+	return b
+}
+
+func (b *ServiceBuilder) WithStopGracePeriod(duration time.Duration) *ServiceBuilder {
+	b.svc.TaskTemplate.ContainerSpec.StopGracePeriod = &duration
+	return b
+}
+
 // WithGlobal sets the service to global mode.
 func (b *ServiceBuilder) WithGlobal() *ServiceBuilder {
 	b.svc.Mode = swarm.ServiceMode{Global: &swarm.GlobalService{}}

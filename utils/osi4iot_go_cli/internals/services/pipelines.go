@@ -27,7 +27,10 @@ func PipelinesService(
 			SecretID:   sd.Secrets["pipelines_config"].ID,
 			SecretName: sd.Secrets["pipelines_config"].Name,
 		},
-		{
+	}
+
+	if pd.PlatformInfo.UseCustomNatsCACert == "Yes" {
+		secrets = append(secrets, &swarm.SecretReference{
 			File: &swarm.SecretReferenceFileTarget{
 				Name: "/etc/nats/ca.pem",
 				UID:  "0",
@@ -36,7 +39,7 @@ func PipelinesService(
 			},
 			SecretID:   sd.Secrets["iot_platform_ca_cert"].ID,
 			SecretName: sd.Secrets["iot_platform_ca_cert"].Name,
-		},
+		})
 	}
 
 	constraints := []string{

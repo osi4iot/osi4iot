@@ -14,58 +14,69 @@ import (
 )
 
 type natsClient struct {
-    conn *nats.Conn
+	conn *nats.Conn
 }
 
 func NewNATSClient(cfg *config.Config) (*natsClient, error) {
-    opts := []nats.Option{
-        nats.Timeout(cfg.NATS.Timeout),
-    }
-    if cfg.NATS.Username != "" || cfg.NATS.Password != "" {
-        opts = append(opts, nats.UserInfo(cfg.NATS.Username, cfg.NATS.Password))
-    }
-
-    caCert, err := os.ReadFile("/etc/nats/ca.pem")
-	if err != nil {
-		panic(fmt.Sprintf("ca.pem can not be read: %v", err))
+	opts := []nats.Option{
+		nats.Timeout(cfg.NATS.Timeout),
 	}
-
-	rootCAs, err := x509.SystemCertPool()
-	if err != nil || rootCAs == nil {
-		rootCAs = x509.NewCertPool()
-	}
-	if ok := rootCAs.AppendCertsFromPEM(caCert); !ok {
-		panic("failed to add ca.pem to CA pool")
+	if cfg.NATS.Username != "" || cfg.NATS.Password != "" {
+		opts = append(opts, nats.UserInfo(cfg.NATS.Username, cfg.NATS.Password))
 	}
 
 	tlsCfg := &tls.Config{
 		ServerName: cfg.DomainName,
-		RootCAs:    rootCAs,
+		MinVersion: tls.VersionTLS12,
 	}
 
-    opts = append(opts, nats.Secure(tlsCfg))
+	if cfg.NATS.UseCustomCACert == "Yes" {
+        // Load custom CA cert
+		caCert, err := os.ReadFile("/etc/nats/ca.pem")
+		if err != nil {
+			panic(fmt.Sprintf("ca.pem can not be read: %v", err))
+		}
 
-    nc, err := nats.Connect(strings.Join(cfg.NATS.ServersUrl, ","), opts...)
-    if err != nil {
-        return nil, fmt.Errorf("failed to connect to NATS servers %v: %w", cfg.NATS.ServersUrl, err)
-    }
-    return &natsClient{conn: nc}, nil
+		rootCAs, err := x509.SystemCertPool()
+		if err != nil || rootCAs == nil {
+			rootCAs = x509.NewCertPool()
+		}
+		if ok := rootCAs.AppendCertsFromPEM(caCert); !ok {
+			panic("failed to add ca.pem to CA pool")
+		}
+        tlsCfg.RootCAs = rootCAs
+	} else {
+		// Use system CA certs
+		rootCAs, err := x509.SystemCertPool()
+		if err != nil || rootCAs == nil {
+			rootCAs = x509.NewCertPool()
+		}
+		tlsCfg.RootCAs = rootCAs
+	}
+
+	opts = append(opts, nats.Secure(tlsCfg))
+
+	nc, err := nats.Connect(strings.Join(cfg.NATS.ServersUrl, ","), opts...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to connect to NATS servers %v: %w", cfg.NATS.ServersUrl, err)
+	}
+	return &natsClient{conn: nc}, nil
 }
 
 func (n *natsClient) Connect() error {
-    if n.conn.IsClosed() {
-        return fmt.Errorf("nats connection is closed")
-    }
-    return nil
+	if n.conn.IsClosed() {
+		return fmt.Errorf("nats connection is closed")
+	}
+	return nil
 }
 
 func (n *natsClient) Subscribe(subject string, handler func(string, []byte)) error {
-    _, err := n.conn.Subscribe(subject, func(msg *nats.Msg) {
-        handler(msg.Subject, msg.Data)
-    })
-    return err
+	_, err := n.conn.Subscribe(subject, func(msg *nats.Msg) {
+		handler(msg.Subject, msg.Data)
+	})
+	return err
 }
 
 func (n *natsClient) Close() {
-    n.conn.Close()
+	n.conn.Close()
 }

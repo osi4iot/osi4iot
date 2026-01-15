@@ -40,10 +40,11 @@ type Config struct {
 }
 
 type NATSConfig struct {
-	ServersUrl []string      `mapstructure:"serversUrl"`
-	Username   string        `mapstructure:"username"`
-	Password   string        `mapstructure:"password"`
-	Timeout    time.Duration `mapstructure:"timeout"`
+	ServersUrl      []string      `mapstructure:"serversUrl"`
+	Username        string        `mapstructure:"username"`
+	Password        string        `mapstructure:"password"`
+	Timeout         time.Duration `mapstructure:"timeout"`
+	UseCustomCACert string        `mapstructure:"useCustomCACert"`
 }
 
 type TimescaleDBConfig struct {
@@ -68,6 +69,7 @@ func Load() (*Config, error) {
 	// 3) Set defaults for any keys that might be missing
 	viper.SetDefault("nats.serversUrl", []string{"nats://localhost:4222"})
 	viper.SetDefault("nats.timeout", 5*time.Second)
+	viper.SetDefault("nats.useCustomCACert", "No")
 
 	viper.SetDefault("postgresql.port", 5432)
 	viper.SetDefault("postgresql.sslmode", "disable")

@@ -178,7 +178,7 @@ var subCmdServiceInspect = &cobra.Command{
 	},
 }
 
-var cmdServiceScale = &cobra.Command{
+var subCmdServiceScale = &cobra.Command{
 	Use:   "scale SERVICE=REPLICAS.",
 	Short: "Scale services",
 	Long:  "Scale services to the desired number of replicas",
@@ -234,7 +234,7 @@ var cmdServiceScale = &cobra.Command{
 	},
 }
 
-var cmdServiceUpdateResources = &cobra.Command{
+var subCmdServiceUpdateResources = &cobra.Command{
 	Use:   "resources SERVICE=CPU-MEM",
 	Short: "Manage resource limits for a service",
 	Long: `Set CPU and memory limits for a Docker Swarm service.
@@ -301,7 +301,7 @@ Example:
 	},
 }
 
-var cmdServiceUpdateImage = &cobra.Command{
+var subCmdServiceUpdateImage = &cobra.Command{
 	Use:   "image SERVICE=IMAGE",
 	Short: "Manage service images",
 	Long:  "Manage service images",
@@ -339,6 +339,59 @@ var cmdServiceUpdateImage = &cobra.Command{
 		if warnings == "" {
 			okMsg := utils.StyleOKMsg.Render(fmt.Sprintf("Service '%s' image has been updated successfully", serviceName))
 			fmt.Println(okMsg)
+		}
+	},
+}
+
+var subCmdCertsCheck = &cobra.Command{
+	Use:   "check",
+	Short: "Check certificates expiration",
+	Long:  "Check certificates expiration",
+	Run: func(cmd *cobra.Command, args []string) {
+		pd := data.GetData()
+		expirationInfo, err := utils.GetCertsExpirationInfo(pd)
+		if err != nil {
+			errMsg := fmt.Sprintf("Error checking certificates: %v", err)
+			exitWithError(errMsg)
+		}
+		fmt.Println("Platform certificates expiration info:")
+		fmt.Printf("Expiration date: %s\n", expirationInfo.ExpirationTime)
+		fmt.Printf("Time to expiry: %d days\n", expirationInfo.DaysToExpiry)
+	},
+}
+
+var subCmdCertsUpdate = &cobra.Command{
+	Use:   "update",
+	Short: "Update platform certificates",
+	Long:  "Update platform certificates",
+	Run: func(cmd *cobra.Command, args []string) {
+		pd := data.GetData()
+
+		expirationInfo, err := utils.GetCertsExpirationInfo(pd)
+		if err != nil {
+			errMsg := fmt.Sprintf("Error checking certificates: %v", err)
+			exitWithError(errMsg)
+		}
+
+		if expirationInfo.DaysToExpiry > 15 {
+			fmt.Printf("Certificates are not close to expiration (%d days to expiry).\n", expirationInfo.DaysToExpiry)
+			fmt.Println("Less than 15 days are required to update the certificates.")
+			return
+		}
+
+		domainCertsType := pd.PlatformInfo.DomainCertsType
+		switch domainCertsType {
+		case "Let's encrypt certs with DNS-01 challenge and AWS Route 53 provider":
+			err = utils.SetOrUpdateAcmeCerts(pd)
+			if err != nil {
+				errMsg := fmt.Sprintf("Error updating ACME certificates: %v", err)
+				exitWithError(errMsg)
+			}
+			okMsg := utils.StyleOKMsg.Render("ACME certificates have been updated successfully")
+			fmt.Println(okMsg)
+		case "Certs provided by an CA":
+			errMsg := fmt.Sprintf("Certificate update not supported for domain certs type: %s", domainCertsType)
+			exitWithError(errMsg)
 		}
 	},
 }
@@ -493,7 +546,6 @@ func init() {
 	cmdRun.PersistentFlags().StringSlice("exclude", []string{}, "List of services to exclude")
 	rootCmd.AddCommand(cmdStop)
 	rootCmd.AddCommand(cmdDelete)
-	rootCmd.AddCommand(cmdCerts)
 	rootCmd.AddCommand(cmdStatus)
 
 	cmdCustomService.AddCommand(subCmdListCS)
@@ -504,10 +556,14 @@ func init() {
 
 	cmdService.AddCommand(subCmdServiceList)
 	cmdService.AddCommand(subCmdServiceInspect)
-	cmdService.AddCommand(cmdServiceScale)
-	cmdService.AddCommand(cmdServiceUpdateResources)
-	cmdService.AddCommand(cmdServiceUpdateImage)
+	cmdService.AddCommand(subCmdServiceScale)
+	cmdService.AddCommand(subCmdServiceUpdateResources)
+	cmdService.AddCommand(subCmdServiceUpdateImage)
 	rootCmd.AddCommand(cmdService)
+
+	cmdCerts.AddCommand(subCmdCertsCheck)
+	cmdCerts.AddCommand(subCmdCertsUpdate)
+	rootCmd.AddCommand(cmdCerts)
 
 	cmdNodes.AddCommand(subCmdNodesList)
 	cmdNodes.AddCommand(subCmdAddNode)

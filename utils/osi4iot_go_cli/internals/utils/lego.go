@@ -23,7 +23,7 @@ func SetOrUpdateAcmeCerts(platformData *types.PlatformData) error {
 	setRoute53EnvVars(platformData)
 
 	caDir := lego.LEDirectoryProduction
-	//caDir := lego.LEDirectoryStaging
+	// caDir := lego.LEDirectoryStaging
 
 	acmeUser, err := loadOrCreateAcmeUser(platformData, caDir)
 	if err != nil {
@@ -118,6 +118,7 @@ func loadOrCreateAcmeUser(platformData *types.PlatformData, caDirUrl string) (*t
 	return &u, nil
 }
 
+// timeToExpiry parses a PEM encoded certificate and returns the duration until it expires
 func timeToExpiry(pemCert []byte) (time.Duration, error) {
 	block, _ := pem.Decode(pemCert)
 	if block == nil || block.Type != "CERTIFICATE" {
@@ -164,7 +165,6 @@ func renewIfNeeded(platformData *types.PlatformData,
 ) error {
 	certString := platformData.Certs.DomainCerts.SslCertCrt
 	if certString == "" {
-
 		return fmt.Errorf("there is no certificate to renew")
 	}
 	certPem := []byte(certString)

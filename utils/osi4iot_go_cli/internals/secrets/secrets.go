@@ -18,7 +18,7 @@ func GenerateSecrets(pd *pt.PlatformData) map[string]pt.Secret {
 	numNatsReplicas := utils.GetServiceReplicas(pd, "nats")
 	Secrets["admin_api"] = CreateAdminApiConfigSecret(pd, numNatsReplicas)
 
-	if pd.PlatformInfo.DomainCertsType == "Let's encrypt certs with DNS-01 challenge and AWS Route 53 provider" {
+	if domainCertsType == "Let's encrypt certs with DNS-01 challenge and AWS Route 53 provider" {
 		utils.SetOrUpdateAcmeCerts(pd)
 	}
 
@@ -58,6 +58,7 @@ func GenerateSecrets(pd *pt.PlatformData) map[string]pt.Secret {
 		fmt.Sprintf("NATS_ADMIN_PASSWORD=%s", pd.Certs.NatsCerts.NatsAdminPassword),
 		fmt.Sprintf("NATS_ISSUER_SEED=%s", pd.Certs.NatsCerts.NatsIssuerSeed),
 		fmt.Sprintf("NATS_XKEY_SEED=%s", pd.Certs.NatsCerts.NatsXKeySeed),
+		fmt.Sprintf("USE_CUSTOM_NATS_CA_CERT=%s", pd.PlatformInfo.UseCustomNatsCACert),
 	}
 	authCalloutSecretsData := strings.Join(authCalloutSecretsDataArray, "\n")
 	authCalloutSecretsHash := utils.GetMD5Hash(authCalloutSecretsData)
@@ -450,6 +451,7 @@ func CreateNatsConfigSecret(
 		NatsIssuerPublicKey: pd.Certs.NatsCerts.NatsIssuerPublicKey,
 		NatsXKeyPublicKey:   pd.Certs.NatsCerts.NatsXKeyPublicKey,
 		ClusterRoutes:       clusterRoutes,
+		UseCustomCACert:     pd.PlatformInfo.UseCustomNatsCACert,
 	}
 
 	cfgStr, _ := utils.NatsRenderConfig(params)
@@ -493,29 +495,41 @@ func CreateDev2pdbConfigSecret(
 	return dev2pdbConfigSecret
 }
 
-func CreateCertsSecrets(pd *pt.PlatformData) map[string]pt.Secret {
-	CertsSecrets := make(map[string]pt.Secret)
+func CreateCertsSecrets(pd *pt.PlatformData, dc *pt.DockerClient) (map[string]pt.Secret, error) {
+	certsSecrets := make(map[string]pt.Secret)
+	domainCertsType := pd.PlatformInfo.DomainCertsType
 
-	if pd.PlatformInfo.DomainCertsType == "Certs provided by an CA" ||
-		pd.PlatformInfo.DomainCertsType == "Let's encrypt certs with DNS-01 challenge and AWS Route 53 provider" {
+	if domainCertsType == "Certs provided by an CA" ||
+		domainCertsType == "Let's encrypt certs with DNS-01 challenge and AWS Route 53 provider" {
 		iotPlatformCertSecret := pt.Secret{
 			Name: pd.Certs.DomainCerts.IotPlatformCertName,
 			Data: pd.Certs.DomainCerts.SslCertCrt,
 		}
-		CertsSecrets["iot_platform_cert"] = iotPlatformCertSecret
+		certsSecrets["iot_platform_cert"] = iotPlatformCertSecret
 
 		iotPlatformKeySecret := pt.Secret{
 			Name: pd.Certs.DomainCerts.IotPlatformKeyName,
 			Data: pd.Certs.DomainCerts.PrivateKey,
 		}
-		CertsSecrets["iot_platform_key"] = iotPlatformKeySecret
 
-		iotPlatformCaCertSecret := pt.Secret{
-			Name: pd.Certs.DomainCerts.IotPlatformCaName,
-			Data: pd.Certs.DomainCerts.SslCaPem,
+		certsSecrets["iot_platform_key"] = iotPlatformKeySecret
+
+		if pd.PlatformInfo.UseCustomNatsCACert == "Yes" {
+			iotPlatformCaCertSecret := pt.Secret{
+				Name: pd.Certs.DomainCerts.IotPlatformCaName,
+				Data: pd.Certs.DomainCerts.SslCaPem,
+			}
+			certsSecrets["iot_platform_ca_cert"] = iotPlatformCaCertSecret
 		}
-		CertsSecrets["iot_platform_ca_cert"] = iotPlatformCaCertSecret
+	}
+	
+	for key, secret := range certsSecrets {
+		err := CreateSecret(dc, key, &secret)
+		if err != nil {
+			return nil, fmt.Errorf("error creating secret %s: %v", key, err)
+		}
+		certsSecrets[key] = secret
 	}
 
-	return CertsSecrets
+	return certsSecrets, nil
 }

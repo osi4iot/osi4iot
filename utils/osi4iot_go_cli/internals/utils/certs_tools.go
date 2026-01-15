@@ -19,6 +19,11 @@ import (
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/types"
 )
 
+type CertExpirationInfo struct {
+	ExpirationTime      string
+	DaysToExpiry        int64
+}
+
 func GetMD5Hash(text string) string {
 	hasher := md5.New()
 	hasher.Write([]byte(text))
@@ -321,3 +326,24 @@ func CreateUserNatsNkey() (string, string, error) {
 	}
 	return userPub, string(userSeed), nil
 }
+
+func GetCertsExpirationInfo(pd *types.PlatformData) (CertExpirationInfo, error) {
+	caPemExpirationTimestamp := pd.Certs.DomainCerts.CaPemExpirationTimestamp
+	CertCrtExpirationTimestamp := pd.Certs.DomainCerts.CertCrtExpirationTimestamp
+	if caPemExpirationTimestamp == 0 || CertCrtExpirationTimestamp == 0 {
+		return CertExpirationInfo{}, fmt.Errorf("certificate expiration timestamps are not set")
+	}
+
+	expirationTimestamp := Min(caPemExpirationTimestamp, CertCrtExpirationTimestamp)
+
+	currentTimestamp := time.Now().Unix()
+	daysToExpiry := (expirationTimestamp - currentTimestamp) / (24 * 3600)
+
+	expirationInfo := CertExpirationInfo{
+		ExpirationTime: time.Unix(expirationTimestamp, 0).Format(time.RFC850),
+		DaysToExpiry:   daysToExpiry,
+	}
+
+	return expirationInfo, nil
+}
+

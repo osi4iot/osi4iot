@@ -33,6 +33,7 @@ nats:
   username: "{{ .NATS.Username }}"
   password: "{{ .NATS.Password }}"
   timeout: {{ .NATS.Timeout }}
+  useCustomCACert: {{ .NATS.UseCustomCACert }}
 
 timescaledb:
   user: "{{ .TimescaleDB.User }}"
@@ -48,6 +49,7 @@ type NATSParams struct {
 	Username   string
 	Password   string
 	Timeout    string
+	UseCustomCACert string
 }
 type TimescaleDBParams struct {
 	User     string
@@ -96,6 +98,7 @@ func Dev2pdbConfig(pd *types.PlatformData, numNatsReplicas int) (string, error) 
 			Username:   "dev2pdb",
 			Password:   pd.PlatformInfo.Dev2pdbPassword,
 			Timeout:    "15s",
+			UseCustomCACert: pd.PlatformInfo.UseCustomNatsCACert,
 		},
 		TimescaleDB: TimescaleDBParams{
 			User:     pd.PlatformInfo.TimescaleUser,

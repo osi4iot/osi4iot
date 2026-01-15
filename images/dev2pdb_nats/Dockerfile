@@ -28,7 +28,8 @@ RUN CGO_ENABLED=0 \
 FROM alpine:latest AS runtime
 
 # Install tzdata and curl and create a non-root user
-RUN apk add --no-cache tzdata curl \
+RUN apk add --no-cache tzdata curl ca-certificates \
+ && update-ca-certificates \
  && addgroup -S dev2pdb_group \
  && adduser  -S dev2pdb -G dev2pdb_group
 
