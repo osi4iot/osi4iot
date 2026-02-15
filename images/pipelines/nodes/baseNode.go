@@ -45,6 +45,8 @@ func CreateNode(
 		newNode, err = CreatePublishNode(node, fm, p)
 	case "Batch":
 		newNode, err = CreateBatchNode(node, fm, p)
+	case "IoTDb":
+		newNode, err = CreateIoTDbNode(node, fm, p)
 	default:
 		log.Errorf("Unknown node type: %s", node.Type)
 		newNode, err = nil, fmt.Errorf("unknown node type: %s", node.Type)

@@ -8,6 +8,7 @@ import { indentWithTab } from "@codemirror/commands";
 // Importaciones de CodeMirror
 import CodeMirror, { keymap, hoverTooltip } from "@uiw/react-codemirror";
 import { javascript, javascriptLanguage } from "@codemirror/lang-javascript";
+import { sql } from "@codemirror/lang-sql";
 import { oneDark } from "@codemirror/theme-one-dark";
 import { useUpdateNodeInternals } from "@xyflow/react";
 import { useFormChanges } from "../Utils/customHooks";
@@ -145,7 +146,9 @@ const PanelContainer = styled.div.attrs<{ isOpen: boolean; isClosing: boolean }>
     border-right: 1px solid #444;
     box-shadow: 2px 0 10px rgba(0, 0, 0, 0.3);
     z-index: 1001;
-    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease;
+    transition:
+        transform 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+        opacity 0.3s ease;
     display: flex;
     flex-direction: column;
 
@@ -163,8 +166,7 @@ const PanelContainer = styled.div.attrs<{ isOpen: boolean; isClosing: boolean }>
         `}
 `;
 
-// ResizeHandle sin estilos dinámicos
-const ResizeHandle = styled.div<{ isDragging: boolean }>`
+export const ResizeHandle = styled.div<{ isDragging: boolean }>`
     position: absolute;
     top: 0;
     right: 0;
@@ -799,7 +801,7 @@ const handleDayChange = (
     selectedDay: string,
     isChecked: boolean,
     formData: any,
-    handleInputChange: (field: string, value: any) => void
+    handleInputChange: (field: string, value: any) => void,
 ) => {
     const currentDays = formData.daysOfWeek || [];
     let updatedDays;
@@ -831,7 +833,6 @@ interface NodePropertiesPanelProps {
         data: NodeData;
     } | null;
     onUpdateNode: (nodeId: string, newData: Partial<NodeData>) => void;
-    onWidthChange?: (width: number) => void;
     digitalTwinSelected: IDigitalTwin;
     handlePipelineUiChanged: (isPipelineUiChanged: any) => void;
     mqttTopicsData: IMqttTopicData[];
@@ -842,7 +843,6 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
     onClose,
     selectedNode,
     onUpdateNode,
-    onWidthChange,
     digitalTwinSelected,
     handlePipelineUiChanged,
     mqttTopicsData,
@@ -856,6 +856,7 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
     const updateNodeInternals = useUpdateNodeInternals();
     const [listenTopicsRef, setListenTopicsRef] = useState<string[]>([]);
     const [publishTopicsRef, setPublishTopicsRef] = useState<string[]>([]);
+    const [dev2pdbTopicsRef, setDev2pdbTopicsRef] = useState<string[]>([]);
 
     // Estados para el redimensionamiento - Enfoque híbrido optimizado
     const [width, setWidth] = useState(550);
@@ -868,12 +869,15 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
     const updatePanelWidth = useCallback((newWidth: number) => {
         if (panelRef.current) {
             panelRef.current.style.setProperty("--panel-width", `${newWidth}px`);
+            setWidth(newWidth);
         }
     }, []);
 
     useEffect(() => {
-        if (selectedNode && selectedNode.type === "Function") {
+        if (selectedNode?.type === "Function" || selectedNode?.type === "IoTDb") {
             updatePanelWidth(800);
+        } else {
+            updatePanelWidth(550);
         }
     }, [selectedNode, updatePanelWidth]);
 
@@ -900,10 +904,9 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
             document.body.style.userSelect = "none";
             document.body.style.cursor = "ew-resize";
         },
-        [width, setDraggingClass]
+        [width, setDraggingClass],
     );
 
-    // OPTIMIZACIÓN MÁXIMA: Solo CSS durante el drag, sin React re-renders
     const handleDrag = useCallback(
         (e: MouseEvent) => {
             if (!isDragging) return;
@@ -913,7 +916,7 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
 
             let widthMin = 550;
             let widthMax = 550;
-            if (selectedNode && selectedNode.type === "Function") {
+            if (selectedNode?.type === "Function" || selectedNode?.type === "IoTDb") {
                 widthMin = 800;
                 widthMax = 1370;
             }
@@ -923,7 +926,7 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                 updatePanelWidth(newWidth);
             }
         },
-        [isDragging, selectedNode, updatePanelWidth]
+        [isDragging, selectedNode, updatePanelWidth],
     );
 
     const finishDrag = useCallback(() => {
@@ -936,9 +939,8 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
         if (panelRef.current) {
             const computedWidth = panelRef.current.offsetWidth;
             setWidth(computedWidth);
-            onWidthChange?.(computedWidth);
         }
-    }, [onWidthChange, setDraggingClass]);
+    }, [setDraggingClass]);
 
     useEffect(() => {
         if (isDragging) {
@@ -962,11 +964,13 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
     useEffect(() => {
         const listenTopics: string[] = [];
         const publishTopics: string[] = [];
+        const dev2pdbTopics: string[] = [];
 
         mqttTopicsData.forEach((topic) => {
             if (topic.topicRef.slice(0, 7) === "dev2pdb") {
-                listenTopics.push(topic.topicRef);
+                //listenTopics.push(topic.topicRef);
                 publishTopics.push(topic.topicRef);
+                dev2pdbTopics.push(topic.topicRef);
             }
         });
 
@@ -981,11 +985,12 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
             "sim2llm",
             "llm2sim",
             "state2sim",
-            "sim2state"
+            "sim2state",
         );
 
         setListenTopicsRef(listenTopics);
         setPublishTopicsRef(publishTopics);
+        setDev2pdbTopicsRef(dev2pdbTopics);
     }, [mqttTopicsData]);
 
     useEffect(() => {
@@ -1027,7 +1032,7 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
 
     const handleDebugToggle = useMemo(
         () => createDebugToggleHandler(setFormData, isDebugEnabled, setIsDebugEnabled),
-        [createDebugToggleHandler, isDebugEnabled]
+        [createDebugToggleHandler, isDebugEnabled],
     );
 
     const handleSave = useCallback(() => {
@@ -1151,7 +1156,7 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
         };
     }, []);
 
-    const codeMirrorExtensions = useMemo(
+    const codeMirrorJSExtensions = useMemo(
         () => [
             javascript({ typescript: true }),
             javascriptLanguage.data.of({
@@ -1162,7 +1167,18 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
             hoverTooltip(hoverFnDocs, { hoverTime: 180 }),
             keymap.of([...completionKeymap, indentWithTab, reIndentCommand]),
         ],
-        [hoverFnDocs]
+        [hoverFnDocs],
+    );
+
+    const codeMirrorSqlExtensions = useMemo(
+        () => [
+            sql(),
+            indentUnit.of("    "),
+            indentOnInput(),
+            hoverTooltip(hoverFnDocs, { hoverTime: 180 }),
+            keymap.of([...completionKeymap, indentWithTab, reIndentCommand]),
+        ],
+        [hoverFnDocs],
     );
 
     // Renderizar el selector de número de outputs
@@ -1228,7 +1244,7 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                                     }
                                     height="auto"
                                     minHeight="500px"
-                                    extensions={codeMirrorExtensions}
+                                    extensions={codeMirrorJSExtensions}
                                     theme={oneDark}
                                     onChange={(value) => handleInputChange("onInitiationScript", value)}
                                     basicSetup={{
@@ -1253,7 +1269,7 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                                     }
                                     height="auto"
                                     minHeight="500px"
-                                    extensions={codeMirrorExtensions}
+                                    extensions={codeMirrorJSExtensions}
                                     theme={oneDark}
                                     onChange={(value) => handleInputChange("onStartScript", value)}
                                     basicSetup={{
@@ -1278,7 +1294,7 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                                     }
                                     height="auto"
                                     minHeight="500px"
-                                    extensions={codeMirrorExtensions}
+                                    extensions={codeMirrorJSExtensions}
                                     theme={oneDark}
                                     onChange={(value) => handleInputChange("onMessageScript", value)}
                                     basicSetup={{
@@ -1408,7 +1424,7 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                                                                     day,
                                                                     e.target.checked,
                                                                     formData,
-                                                                    handleInputChange
+                                                                    handleInputChange,
                                                                 )
                                                             }
                                                         />
@@ -1560,7 +1576,7 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                                                     onChange={(e) =>
                                                         handleInputChange(
                                                             "delay",
-                                                            Math.max(0, parseFloat(e.target.value))
+                                                            Math.max(0, parseFloat(e.target.value)),
                                                         )
                                                     }
                                                     placeholder="1.0"
@@ -1577,7 +1593,7 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                                                     onChange={(e) =>
                                                         handleInputChange(
                                                             "resendInterval",
-                                                            Math.max(0, parseFloat(e.target.value))
+                                                            Math.max(0, parseFloat(e.target.value)),
                                                         )
                                                     }
                                                     placeholder="1.0"
@@ -1875,6 +1891,123 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
         );
     };
 
+    const renderIotDBTabs = () => {
+        const tabs = [
+            { id: "settings", label: "Settings" },
+            { id: "sql_query", label: "SQL Query" },
+        ];
+
+        return (
+            <>
+                <TabsContainer>
+                    {tabs
+                        .filter(
+                            (tab) =>
+                                !(
+                                    tab.id === "sql_query" &&
+                                    (formData.action === "Insert" || formData.queryMode === "query_from_payload")
+                                ),
+                        )
+                        .map((tab) => (
+                            <Tab key={tab.id} isActive={activeTab === tab.id} onClick={() => setActiveTab(tab.id)}>
+                                {tab.label}
+                            </Tab>
+                        ))}
+                </TabsContainer>
+                <PanelContent>
+                    <TabContentFunction>
+                        {activeTab === "settings" && (
+                            <>
+                                <FormGroup>
+                                    <Label>Node Name</Label>
+                                    <Input
+                                        type="text"
+                                        value={formData.label || ""}
+                                        onChange={(e) => handleInputChange("label", e.target.value)}
+                                        placeholder="Node name"
+                                    />
+                                </FormGroup>
+                                {renderOutputSelector()}
+                                <FormGroup>
+                                    <Label>Query mode</Label>
+                                    <Select
+                                        value={formData.queryMode || "static_query"}
+                                        onChange={(e) => {
+                                            handleInputChange("queryMode", e.target.value);
+                                        }}
+                                    >
+                                        <option value="static_query">Static query</option>
+                                        <option value="query_from_payload">Query from msg.payload.sql</option>
+                                    </Select>
+                                </FormGroup>
+                                {formData.queryMode === "static_query" && (
+                                    <>
+                                        <FormGroup>
+                                            <Label>Action</Label>
+                                            <Select
+                                                value={formData.action || "Insert"}
+                                                onChange={(e) => {
+                                                    handleInputChange("action", e.target.value);
+                                                }}
+                                            >
+                                                <option value="Insert">Insert</option>
+                                                <option value="Read">Read</option>
+                                            </Select>
+                                        </FormGroup>
+                                        {formData.action === "Insert" && (
+                                            <FormGroup>
+                                                <Label>Topic</Label>
+                                                <Select
+                                                    value={formData.insertTopicRef}
+                                                    onChange={(e) => handleInputChange("insertTopicRef", e.target.value)}
+                                                >
+                                                    {dev2pdbTopicsRef.map((topic) => (
+                                                        <option key={topic} value={topic}>
+                                                            {topic}
+                                                        </option>
+                                                    ))}
+                                                </Select>
+                                            </FormGroup>
+                                        )}
+                                    </>
+                                )}
+                            </>
+                        )}
+                        {activeTab === "sql_query" &&
+                            formData.queryMode === "static_query" &&
+                            formData.action === "Read" && (
+                                <FormGroup>
+                                    <CodeMirrorWrapper>
+                                        <CodeMirror
+                                            value={
+                                                formData.sqlQuery ||
+                                                "SELECT * FROM iot_table WHERE topic = $__topicFun('dev2pdb_1') AND \n timestamp >= $__timeFun('now-25s') AND timestamp <= $__timeFun('now') ORDER BY timestamp DESC; ;"
+                                            }
+                                            height="auto"
+                                            minHeight="500px"
+                                            extensions={codeMirrorSqlExtensions}
+                                            theme={oneDark}
+                                            onChange={(value) => handleInputChange("sqlQuery", value)}
+                                            basicSetup={{
+                                                lineNumbers: true,
+                                                foldGutter: true,
+                                                bracketMatching: true,
+                                                closeBrackets: true,
+                                                syntaxHighlighting: true,
+                                                autocompletion: true,
+                                                tabSize: 4,
+                                                searchKeymap: true,
+                                            }}
+                                        />
+                                    </CodeMirrorWrapper>
+                                </FormGroup>
+                            )}
+                    </TabContentFunction>
+                </PanelContent>
+            </>
+        );
+    };
+
     // Renderizado de formularios según el tipo de nodo (sin colapsables)
     const renderNodeContent = () => {
         if (!selectedNode) return null;
@@ -1889,6 +2022,8 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
             return renderTriggerProperties();
         } else if (nodeType === "AiAgent") {
             return renderAiAgentTabs();
+        } else if (nodeType === "IoTDb") {
+            return renderIotDBTabs();
         }
 
         // Para otros tipos de nodos, mostrar contenido simple
@@ -1938,11 +2073,31 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                                     value={formData.topic}
                                     onChange={(e) => handleInputChange("topic", e.target.value)}
                                 >
-                                    {listenTopicsRef.map((topic) => (
-                                        <option key={topic} value={topic}>
-                                            {topic}
-                                        </option>
-                                    ))}
+                                    {dev2pdbTopicsRef.length > 0 && (
+                                        <>
+                                            <optgroup label="Subscribe to all dev2pdb topics">
+                                                <option key="all dev2pdb" value="all_dev2pdb">
+                                                    all dev2pdb
+                                                </option>
+                                            </optgroup>
+                                            <optgroup label="Select single dev2pdb topic">
+                                                {dev2pdbTopicsRef.map((topic) => (
+                                                    <option key={topic} value={topic}>
+                                                        {topic}
+                                                    </option>
+                                                ))}
+                                            </optgroup>
+                                        </>
+                                    )}
+                                    {listenTopicsRef.length > 0 && (
+                                        <optgroup label="Select custom listen topics">
+                                            {listenTopicsRef.map((topic) => (
+                                                <option key={topic} value={topic}>
+                                                    {topic}
+                                                </option>
+                                            ))}
+                                        </optgroup>
+                                    )}
                                 </Select>
                             ) : (
                                 <Input

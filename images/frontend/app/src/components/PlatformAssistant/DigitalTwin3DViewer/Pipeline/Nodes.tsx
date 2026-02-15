@@ -1,5 +1,15 @@
 // @ts-nocheck
-import { SquareFunction, WifiHigh, ArrowBigRight, Mail, ClockFading, BrainCog, Layers, Zap } from "lucide-react";
+import {
+    SquareFunction,
+    WifiHigh,
+    ArrowBigRight,
+    Mail,
+    ClockFading,
+    BrainCog,
+    Layers,
+    Zap,
+    Database,
+} from "lucide-react";
 import { FaTelegramPlane } from "react-icons/fa";
 import { Handle, Position } from "@xyflow/react";
 import Paho from "paho-mqtt";
@@ -29,6 +39,7 @@ const NodeContainer = styled.div<{ bgColor: string; hoverColor?: string; selecte
 `;
 
 const NodeContent = styled.div<{ numOutputs?: number }>`
+    padding: 0px 2px;
     display: flex;
     align-items: center;
     gap: 4px;
@@ -125,7 +136,9 @@ const InjectButtonIntegrated = styled.div<{ numOutputs?: number }>`
 
     &:active {
         background-color: #cfd8e0ff;
-        box-shadow: inset -1px 0 0 rgba(0, 0, 0, 0.3), inset 0 1px 2px rgba(0, 0, 0, 0.2);
+        box-shadow:
+            inset -1px 0 0 rgba(0, 0, 0, 0.3),
+            inset 0 1px 2px rgba(0, 0, 0, 0.2);
     }
 `;
 
@@ -191,7 +204,7 @@ export function FunctionNode({ data, selected }) {
 }
 
 export function ListenNode({ data, selected }) {
-    const numOutputs = data?.numOutputs || 0;
+    const numOutputs = data?.numOutputs ?? 0;
     return (
         <NodeContainer bgColor="#aa97aaff" hoverColor="#b5a5b5" selected={selected}>
             <NodeContent numOutputs={numOutputs}>
@@ -232,7 +245,7 @@ export function PublishNode({ data, selected }) {
 }
 
 export function InjectNode({ data, selected }) {
-    const numOutputs = data?.numOutputs || 0;
+    const numOutputs = data?.numOutputs ?? 0;
 
     const handleButtonClick = useCallback(
         (e) => {
@@ -266,7 +279,7 @@ export function InjectNode({ data, selected }) {
                 data.onInject(data);
             }
         },
-        [data]
+        [data],
     );
 
     return (
@@ -301,7 +314,7 @@ export function InjectNode({ data, selected }) {
 }
 
 export function DelayNode({ data, selected }) {
-    const numOutputs = data?.numOutputs || 0;
+    const numOutputs = data?.numOutputs ?? 0;
     return (
         <NodeContainer bgColor="#a8a152ff" hoverColor="#b8b062ff" selected={selected}>
             <StyledHandle type="target" position={Position.Left} style={{ top: "50%", left: "-1px" }} />
@@ -329,7 +342,7 @@ export function DelayNode({ data, selected }) {
 }
 
 export function MlModelNode({ data, selected }) {
-    const numOutputs = data?.numOutputs || 0;
+    const numOutputs = data?.numOutputs ?? 0;
     return (
         <NodeContainer bgColor="#bd5f25ff" hoverColor="#be7648ff" selected={selected}>
             <StyledHandle type="target" position={Position.Left} style={{ top: "50%", left: "-1px" }} />
@@ -357,7 +370,7 @@ export function MlModelNode({ data, selected }) {
 }
 
 export function AiAgentNode({ data, selected }) {
-    const numOutputs = data?.numOutputs || 0;
+    const numOutputs = data?.numOutputs ?? 0;
     return (
         <NodeContainer bgColor="#B8B1FB" hoverColor="#cdc8fcff" selected={selected}>
             <StyledHandle type="target" position={Position.Left} style={{ top: "50%", left: "-1px" }} />
@@ -413,7 +426,7 @@ export function EmailNode({ data, selected }) {
 }
 
 export function BatchNode({ data, selected }) {
-    const numOutputs = data?.numOutputs || 0;
+    const numOutputs = data?.numOutputs ?? 0;
     return (
         <NodeContainer bgColor="#b8ac2fff" hoverColor="#bbb24eff" selected={selected}>
             <StyledHandle type="target" position={Position.Left} style={{ top: "50%", left: "-1px" }} />
@@ -441,7 +454,7 @@ export function BatchNode({ data, selected }) {
 }
 
 export function TriggerNode({ data, selected }) {
-    const numOutputs = data?.numOutputs || 1;
+    const numOutputs = data?.numOutputs ?? 1;
     return (
         <NodeContainer bgColor="#a6bbcf" hoverColor="#b0c8d1" selected={selected}>
             <StyledHandle type="target" position={Position.Left} style={{ top: "50%", left: "-1px" }} />
@@ -450,6 +463,34 @@ export function TriggerNode({ data, selected }) {
                     <Zap size={20} color="#e7e3dfff" />
                 </IconContainer>
                 <NodeLabel>{data?.label || "Trigger Node"}</NodeLabel>
+            </NodeContent>
+            {numOutputs > 0 && (
+                <>
+                    {Array.from({ length: numOutputs }, (_, index) => (
+                        <StyledHandle
+                            key={index}
+                            type="source"
+                            position={Position.Right}
+                            id={`${data.nodeUid}-${index}`}
+                            style={getHandleStyle(index, numOutputs)}
+                        />
+                    ))}
+                </>
+            )}
+        </NodeContainer>
+    );
+}
+
+export function IoTDbNode({ data, selected }) {
+    const numOutputs = data?.numOutputs ?? 0;
+    return (
+        <NodeContainer bgColor="#5B85A7" hoverColor="#77aedb" selected={selected}>
+            <StyledHandle type="target" position={Position.Left} style={{ top: "50%", left: "-1px" }} />
+            <NodeContent>
+                <NodeLabel>{data?.label || "IoT DB"}</NodeLabel>
+                <IconContainer>
+                    <Database size={20} color="#e7e3dfff" />
+                </IconContainer>
             </NodeContent>
             {numOutputs > 0 && (
                 <>

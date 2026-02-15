@@ -26,9 +26,60 @@ func (u *Utils) GetTopicByRef(topicRef string) string {
 	return utils.TopicToNatsSubject(topic.TopicType, topic.GroupUid, topic.TopicUid)
 }
 
-func (u *Utils) GetTopicTypeFromMessage(msg common.Message) string {
-	return strings.Split(msg.Topic, ".")[0]
+func (u *Utils) GetTopicTypeFromMessage(rawMsg any) string {
+	message, err := utils.GetMessageFromRaw(rawMsg)
+	if err != nil {
+		return ""
+	}
+	
+	if message.Topic == "" {
+		return ""
+	}
+
+	return strings.Split(message.Topic, ".")[0]
 }
+
+func (u *Utils) GetTopicRefFromMessage(rawMsg any) string {
+	message, err := utils.GetMessageFromRaw(rawMsg)
+	if err != nil {
+		return ""
+	}
+
+	assetId := u.node.GetAssetId()
+	topics := u.fm.GetTopicsByAssetId(assetId)
+	for key, topic := range topics {
+		topicSubject := utils.TopicToNatsSubject(topic.TopicType, topic.GroupUid, topic.TopicUid)
+		if topicSubject == message.Topic {
+			return key
+		}
+	}
+
+	return ""
+}
+
+func (u *Utils) GetFullTopicFromMessage(rawMsg any) string {
+	message, err := utils.GetMessageFromRaw(rawMsg)
+	if err != nil {
+		return ""
+	}
+
+	return message.Topic
+}
+
+func (u *Utils) GetTopicFromMessage(rawMsg any) string {
+	message, err := utils.GetMessageFromRaw(rawMsg)
+	if err != nil {
+		return ""
+	}
+
+	if message.Topic == "" {
+		return ""
+	}
+
+	topicParts := strings.Split(message.Topic, ".")
+	return topicParts[2]
+}
+
 
 func (u *Utils) Nil() any {
 	return nil

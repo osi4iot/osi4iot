@@ -8,14 +8,18 @@ import (
 	"pipelines/admin"
 	"pipelines/common"
 	"pipelines/config"
+	"pipelines/iotdb"
 	"pipelines/logger"
 	"strconv"
 	"strings"
 	"time"
 
+	nats_pkg "pipelines/nats"
+
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
-	nats_pkg "pipelines/nats"
+
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type FlowsManager struct {
@@ -38,6 +42,9 @@ type FlowsManager struct {
 	Nats                     *nats.Conn
 	JetStream                jetstream.JetStream
 	NumStreamReplicas        int
+	DBPool                   *pgxpool.Pool
+	IotDataCh                chan common.ThingData
+	IotDataCancel            context.CancelFunc
 	Mode                     string
 	PlatformEmailUsername    string
 	PlatformEmailPassword    string
@@ -61,6 +68,7 @@ func CreateFlowsManager(
 	natsConn *nats.Conn,
 	jetStream jetstream.JetStream,
 	jsConsumer jetstream.Consumer,
+	dbpool *pgxpool.Pool,
 	admin *admin.Admin,
 	log *logger.Logger,
 ) *FlowsManager {
@@ -73,6 +81,20 @@ func CreateFlowsManager(
 	digitalTwins := admin.GetDigitalTwins()
 	assetsTopics := admin.GetAssetTopics()
 	digitalTwinTopics := admin.GetDigitalTwinTopics()
+
+	iotDataCh := make(chan common.ThingData, config.IotDataBatchSize)
+	iotDataCtx, iotDataCancel := context.WithCancel(context.Background())
+
+	b := iotdb.NewBatcher(
+		iotDataCtx,
+		dbpool,
+		iotDataCh,
+		config.IotDataNumWorkers,
+		config.IotDataBatchSize,
+		200*time.Millisecond,
+		log,
+	)
+	go b.Start()
 
 	leaderKvStore, err := nats_pkg.CreateLeaderKeyValueStore(
 		config.ShardIndex,
@@ -103,6 +125,9 @@ func CreateFlowsManager(
 		Nats:                     natsConn,
 		JetStream:                jetStream,
 		NumStreamReplicas:        config.NumStreamReplicas,
+		DBPool:                   dbpool,
+		IotDataCh:                iotDataCh,
+		IotDataCancel:            iotDataCancel,
 		Mode:                     config.Mode,
 		PlatformEmailUsername:    config.PlatformEmailUsername,
 		PlatformEmailPassword:    config.PlatformEmailPassword,
@@ -412,7 +437,16 @@ func (fm *FlowsManager) GetLeaderKvStore() jetstream.KeyValue {
 	return fm.LeaderKvStore.GetNatsKeyValue()
 }
 
+func (fm *FlowsManager) SendToIotDataChannel(data common.ThingData) {
+	fm.IotDataCh <- data
+}
+
+func (fm *FlowsManager) GetDbPool() *pgxpool.Pool {
+	return fm.DBPool
+}
+
 func (fm *FlowsManager) GracefullyShutdown() {
 	fm.log.Info("FlowsManager is shutting down gracefully...")
+	fm.IotDataCancel()
 	fm.StopPipelines()
 }

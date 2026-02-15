@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"os"
 	"os/signal"
 	"syscall"
@@ -12,6 +13,8 @@ import (
 	"pipelines/logger"
 	"pipelines/nats"
 	"pipelines/utils"
+
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 func main() {
@@ -56,10 +59,29 @@ func main() {
 		log.Fatalf("Application startup failed: %v", err)
 	}
 
-	ctx, cancel := utils.ContextWithCancel()
+	ctx, dbCancel := utils.ContextWithTimeoutAndCancel(5*time.Second)
 	admin.StartAutoRefresh(ctx, time.Duration(2*time.Minute))
 
-	manager := flows_manager.CreateFlowsManager(cfg, nc, js, jsConsumer, admin, log)
+	// IOT Data DB connection
+	config, err := pgxpool.ParseConfig(cfg.TimescaledbDNS())
+	if err != nil {
+		log.Fatalf("config parse error: %v", err)
+	}
+
+	dbpool, err := pgxpool.NewWithConfig(context.Background(), config)
+	if err != nil {
+		log.Fatalf("pool creation error: %v", err)
+	}
+	defer dbpool.Close()
+
+	// Verifica la conexión
+	if err := dbpool.Ping(context.Background()); err != nil {
+		log.Fatalf("ping error: %v", err)
+	}
+
+	log.Info("Connected to iot database")
+
+	manager := flows_manager.CreateFlowsManager(cfg, nc, js, jsConsumer, dbpool, admin, log)
 
 	utils.HealthCheck(cfg)
 
@@ -67,8 +89,8 @@ func main() {
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 	<-sigChan
 	manager.GracefullyShutdown()
-	cancel()
+	dbCancel()
 	log.Info("Received shutdown signal, shutting down gracefully...")
 	time.Sleep(2 * time.Second)
-    os.Exit(0)
+	os.Exit(0)
 }

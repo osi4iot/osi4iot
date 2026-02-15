@@ -22,6 +22,33 @@ export const utilsClass: ClassDef = {
             source: "osi4iot",
         },
         {
+            label: "GetTopicRefFromMessage",
+            type: "method",
+            info: "Get topic reference from message",
+            detail: "(msg: Message) => string",
+            apply: "GetTopicRefFromMessage(msg);",
+            returnType: "string",
+            source: "osi4iot",
+        },
+        {
+            label: "GetTopicFromMessage",
+            type: "method",
+            info: "Get topic from message",
+            detail: "(msg: Message) => string",
+            apply: "GetTopicFromMessage(msg);",
+            returnType: "string",
+            source: "osi4iot",
+        },
+                {
+            label: "GetFullTopicFromMessage",
+            type: "method",
+            info: "Get full topic from message",
+            detail: "(msg: Message) => string",
+            apply: "GetFullTopicFromMessage(msg);",
+            returnType: "string",
+            source: "osi4iot",
+        },
+        {
             label: "Nil",
             type: "method",
             info: "Return nil",
@@ -29,7 +56,7 @@ export const utilsClass: ClassDef = {
             apply: "Nil()",
             returnType: "any",
             source: "osi4iot",
-        },       
+        },
     ],
     instances: [
         {

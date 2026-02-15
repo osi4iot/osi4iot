@@ -24,6 +24,7 @@ import {
     MlModelNode,
     AiAgentNode,
     BatchNode,
+    IoTDbNode,
 } from "./Nodes";
 import NodePalette from "./NodePalette";
 import NodePropertiesPanel from "./NodePropertiesPanel";
@@ -101,6 +102,7 @@ export default function Flow({
             AiAgent: 0,
             MlModel: 0,
             Batch: 0,
+            IoTDb: 0,
         };
 
         let maxInject = 0;
@@ -138,6 +140,7 @@ export default function Flow({
             MlModel: MlModelNode,
             AiAgent: AiAgentNode,
             Batch: BatchNode,
+            IoTDb: IoTDbNode,
         }),
         []
     );

@@ -705,7 +705,7 @@ func (p *Pipeline) Stop(action string) error {
 	ticker := time.NewTicker(100 * time.Millisecond)
 	defer ticker.Stop()
 
-	timeoutChan := time.After(10 * time.Second)
+	timeoutChan := time.After(5 * time.Second)
 	for {
 		select {
 		case <-ticker.C:
@@ -789,7 +789,13 @@ func (p *Pipeline) LogPipelineInfo(message string) {
 }
 
 func (p *Pipeline) LogPipelineError(description string, message string) {
-	if p.LeaderElector != nil && !p.LeaderElector.IsLeader() {
+	mustLog := false
+	if p.LeaderElector != nil && p.LeaderElector.IsLeader() {
+		mustLog = true
+	} else if description == "Pipeline creation failed" && p.Fm.ReplicaIndex == 1 {
+		mustLog = true
+	}
+	if !mustLog {
 		return
 	}
 

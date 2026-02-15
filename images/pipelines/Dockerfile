@@ -33,6 +33,7 @@ COPY common/ ./common/
 COPY config/ ./config/
 COPY flows_manager/ ./flows_manager/
 COPY function_library/ ./function_library/
+COPY iotdb/ ./iotdb/
 COPY logger/ ./logger/
 COPY nats/ ./nats/
 COPY nodes/ ./nodes/

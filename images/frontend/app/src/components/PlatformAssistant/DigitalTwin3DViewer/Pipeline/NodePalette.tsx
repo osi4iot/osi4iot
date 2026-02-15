@@ -9,6 +9,7 @@ import {
     BrainCircuit,
     Layers,
     Zap,
+    Database,
 } from "lucide-react";
 import { FaTelegramPlane } from "react-icons/fa";
 import styled from "styled-components";
@@ -17,17 +18,43 @@ const PaletteContainer = styled.div`
     width: 160px;
     background-color: #2a2a2a;
     border-right: 1px solid #444;
-    padding: 16px;
-    height: 100%;
-    overflow-y: auto;
     border-bottom: 1px solid #444;
+    height: 100%;
+
+    display: flex;
+    flex-direction: column;
 `;
 
 const PaletteTitle = styled.h3`
     color: #e7e3df;
     font-size: 14px;
-    margin-bottom: 16px;
+    margin: 0;
+    padding: 12px 0;
     font-family: Helvetica, Arial, sans-serif;
+    text-align: center;
+    border-bottom: 1px solid #444;
+`;
+
+const NodesContainer = styled.div`
+    overflow-y: auto;
+    flex: 1;
+    margin: 10px 0;
+    padding: 5px 10px;
+
+    ::-webkit-scrollbar {
+        width: 10px;
+    }
+    ::-webkit-scrollbar-track {
+        background: #202226;
+        border-radius: 5px;
+    }
+    ::-webkit-scrollbar-thumb {
+        background: #3e474b;
+        border-radius: 5px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+        background-color: #515c61;
+    }
 `;
 
 const NodeItem = styled.div`
@@ -246,13 +273,28 @@ const nodeTypes = [
             batchInterval: 10,
         },
     },
+    {
+        type: "IoTDb",
+        label: "IoT DB",
+        bgColor: "#5B85A7",
+        hoverColor: "#77aedb",
+        icon: <Database color="#e7e3df" />,
+        numOutputs: 1,
+        debug: "off",
+        settings: {
+            queryMode: "static_query",
+            action: "Insert",
+            insertTopicRef: "dev2pdb_1",
+            sqlQuery: "SELECT * FROM iot_table WHERE topic = $__topicFun('dev2pdb_1') AND \n timestamp >= $__timeFun('now-25s') AND timestamp <= $__timeFun('now') ORDER BY timestamp DESC; ;",
+        },
+    },
 ];
 
 export default function NodePalette() {
     const onDragStart = (event, nodeType, nodeUid, label, numOutputs, debug, settings) => {
         event.dataTransfer.setData(
             "application/reactflow",
-            JSON.stringify({ nodeType, nodeUid, label, numOutputs, debug, settings })
+            JSON.stringify({ nodeType, nodeUid, label, numOutputs, debug, settings }),
         );
         event.dataTransfer.effectAllowed = "move";
     };
@@ -260,36 +302,39 @@ export default function NodePalette() {
     return (
         <PaletteContainer>
             <PaletteTitle>Node Palette</PaletteTitle>
-            {nodeTypes.map((node) => (
-                <NodeItem
-                    key={node.type}
-                    bgColor={node.bgColor}
-                    draggable
-                    onDragStart={(event) =>
-                        onDragStart(
-                            event,
-                            node.type,
-                            node.nodeUid,
-                            node.label,
-                            node.numOutputs,
-                            node.debug,
-                            node.settings
-                        )
-                    }
-                >
-                    {node.type === "Publish" || node.type === "Email" || node.type === "Telegram" ? (
-                        <>
-                            <NodeLabel>{node.label}</NodeLabel>
-                            <IconContainer>{node.icon}</IconContainer>
-                        </>
-                    ) : (
-                        <>
-                            <IconContainer>{node.icon}</IconContainer>
-                            <NodeLabel>{node.label}</NodeLabel>
-                        </>
-                    )}
-                </NodeItem>
-            ))}
+
+            <NodesContainer>
+                {nodeTypes.map((node) => (
+                    <NodeItem
+                        key={node.type}
+                        bgColor={node.bgColor}
+                        draggable
+                        onDragStart={(event) =>
+                            onDragStart(
+                                event,
+                                node.type,
+                                node.nodeUid,
+                                node.label,
+                                node.numOutputs,
+                                node.debug,
+                                node.settings,
+                            )
+                        }
+                    >
+                        {node.type === "Publish" || node.type === "Email" || node.type === "Telegram" ? (
+                            <>
+                                <NodeLabel>{node.label}</NodeLabel>
+                                <IconContainer>{node.icon}</IconContainer>
+                            </>
+                        ) : (
+                            <>
+                                <IconContainer>{node.icon}</IconContainer>
+                                <NodeLabel>{node.label}</NodeLabel>
+                            </>
+                        )}
+                    </NodeItem>
+                ))}
+            </NodesContainer>
         </PaletteContainer>
     );
 }

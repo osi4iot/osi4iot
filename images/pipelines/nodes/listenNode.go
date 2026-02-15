@@ -16,7 +16,7 @@ import (
 type ListenNode struct {
 	BaseNode
 	ListenTo string
-	Topic    string
+	Topics   []string
 }
 
 var posibleListenToForListenNode = []string{
@@ -38,25 +38,38 @@ func CreateListenNode(node common.NodeData, fm common.Manager, p common.Pipeline
 		return nil, fmt.Errorf("invalid 'listenTo' setting: %s", listenTo)
 	}
 
-	topic, ok := node.Settings["topic"].(string)
-	if !ok || topic == "" {
+	singleTopic, ok := node.Settings["topic"].(string)
+	if !ok || singleTopic == "" {
 		fm.Log().Errorf("ListenNode %s: 'topic' setting is required", node.NodeUid)
 		return nil, fmt.Errorf("topic setting is required")
 	}
+	var topics []string
 
 	switch listenTo {
 	case "Generic nats":
-		// No specific processing needed for Generic nats
+		topics = append(topics, singleTopic)
 	case "Generic mqtt":
-		topic = strings.ReplaceAll(topic, "/", ".")
+		singleTopic = strings.ReplaceAll(singleTopic, "/", ".")
+		topics = append(topics, singleTopic)
 	case "Topic reference":
-		topicRef := topic
-		topicInstance := fm.GetTopicByTopicRef(p.GetAssetId(), p.GetDigitalTwinId(), topicRef)
-		if topicInstance == nil {
-			fm.Log().Errorf("ListenNode %s: topic reference '%s' not found", node.NodeUid, topicRef)
-			return nil, fmt.Errorf("topic reference '%s' not found", topicRef)
+		topicRef := singleTopic
+		if topicRef == "all_dev2pdb" {
+			topicsMap := fm.GetTopicsByAssetId(p.GetAssetId())
+			for _, topicInstance := range topicsMap {
+				if topicInstance != nil {
+					topic := utils.TopicToNatsSubject(topicInstance.TopicType, topicInstance.GroupUid, topicInstance.TopicUid)
+					topics = append(topics, topic)
+				}
+			}
+		} else {
+			topicInstance := fm.GetTopicByTopicRef(p.GetAssetId(), p.GetDigitalTwinId(), topicRef)
+			if topicInstance == nil {
+				fm.Log().Errorf("ListenNode %s: topic reference '%s' not found", node.NodeUid, topicRef)
+				return nil, fmt.Errorf("topic reference '%s' not found", topicRef)
+			}
+			topic := utils.TopicToNatsSubject(topicInstance.TopicType, topicInstance.GroupUid, topicInstance.TopicUid)
+			topics = append(topics, topic)
 		}
-		topic = utils.TopicToNatsSubject(topicInstance.TopicType, topicInstance.GroupUid, topicInstance.TopicUid)
 	}
 
 	logTopic := fm.GetTopicByTopicRef(p.GetAssetId(), p.GetDigitalTwinId(), "dtmlog")
@@ -65,23 +78,23 @@ func CreateListenNode(node common.NodeData, fm common.Manager, p common.Pipeline
 	ctx, cancel := context.WithCancel(context.Background())
 	return &ListenNode{
 		BaseNode: BaseNode{
-			NodeUid:        node.NodeUid,
-			Name:           node.Name,
-			Xpos:           node.Xpos,
-			Ypos:           node.Ypos,
-			NumOutputs:     node.NumOutputs,
-			Settings:       node.Settings,
-			Debug:          node.Debug,
-			Type:           "Listen",
-			LogSubject:     logSubject,
-			Fm:             fm,
-			Pipeline:       p,
-			Cancel:         cancel,
-			Ctx:            ctx,
-			status:         common.NodeStatusCreated,
+			NodeUid:    node.NodeUid,
+			Name:       node.Name,
+			Xpos:       node.Xpos,
+			Ypos:       node.Ypos,
+			NumOutputs: node.NumOutputs,
+			Settings:   node.Settings,
+			Debug:      node.Debug,
+			Type:       "Listen",
+			LogSubject: logSubject,
+			Fm:         fm,
+			Pipeline:   p,
+			Cancel:     cancel,
+			Ctx:        ctx,
+			status:     common.NodeStatusCreated,
 		},
 		ListenTo: listenTo,
-		Topic:    topic,
+		Topics:   topics,
 	}, nil
 }
 
@@ -94,8 +107,11 @@ func (n *ListenNode) Start(log *logger.Logger, needReinitialization bool) {
 	n.SetStatus(common.NodeStatusRunning)
 	log.Infof("Starting ListenNode with UID: %s", n.NodeUid)
 
-	n.wg.Add(1)
-	go n.handleNatsSubscription(log, n.Topic, n.processNatsMessage)
+	for _, topic := range n.Topics {
+		log.Infof("ListenNode %s subscribing to topic: %s", n.NodeUid, topic)
+		n.wg.Add(1)
+		go n.handleNatsSubscription(log, topic, n.processNatsMessage)
+	}
 }
 
 func (n *ListenNode) processNatsMessage(msg *nats.Msg, log *logger.Logger) error {

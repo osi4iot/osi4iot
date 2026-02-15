@@ -71,6 +71,18 @@ func TimescaledbService(
 		}
 	}
 
+	ports := []swarm.PortConfig{}
+	if pd.PlatformInfo.DeploymentMode == "development" {
+		ports = []swarm.PortConfig{
+			{
+				Protocol:      swarm.PortConfigProtocolTCP,
+				TargetPort:    5432,
+				PublishedPort: 5432,
+				PublishMode:   swarm.PortConfigPublishModeHost,
+			},
+		}
+	}
+
 	image := utils.GetServiceImage(pd, "timescaledb", "ghcr.io/osi4iot/timescaledb:2.20.0-pg17")
 	return NewService("timescaledb", pd, sd).
 		//WithImage("ghcr.io/osi4iot/timescaledb:2.4.2-pg13").
@@ -98,6 +110,7 @@ func TimescaledbService(
 			svcResources.NanoCPUs,
 			svcResources.MemoryBytes,
 		).
+		WithPorts(ports).
 		WithPlacement(constraints).
 		WithModeReplicated(svcResources.ReplicasPtr).
 		WithNetworks([]swarm.NetworkAttachmentConfig{

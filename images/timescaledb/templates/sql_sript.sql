@@ -15,7 +15,7 @@ CREATE TABLE IF NOT EXISTS iot_data.thingData(
   group_uid varchar(42) NOT NULL,
   topic_uid varchar(42) NOT NULL,
   topic varchar(1024) NOT NULL,
-  payload json NOT NULL,
+  payload jsonb NOT NULL,
   deleted  SMALLINT NOT NULL
 );
 
@@ -26,7 +26,7 @@ SELECT add_retention_policy('iot_data.thingData', INTERVAL '${DATA_RETENTION_INT
 CREATE TABLE IF NOT EXISTS iot_data.assetState(
   group_uid varchar(42) NOT NULL,
   asset_uid varchar(42) NOT NULL,
-  current_state json NOT NULL,
+  current_state jsonb NOT NULL,
   last_updated TIMESTAMPTZ
 );
 

@@ -17,6 +17,8 @@ type Config struct {
 	AdminPassword            string            `mapstructure:"adminPassword"`
 	NATS                     NATSConfig        `mapstructure:"nats"`
 	TimescaleDB              TimescaleDBConfig `mapstructure:"timescaledb"`
+	IotDataBatchSize         int               `mapstructure:"iotDataBatchSize"`
+	IotDataNumWorkers         int               `mapstructure:"iotDataNumWorkers"`
 	NumStreamReplicas        int               `mapstructure:"numStreamReplicas"`
 	ReplicaIndex             int               `mapstructure:"replicaIndex"`
 	ShardIndex               int               `mapstructure:"shardIndex"`
@@ -81,6 +83,9 @@ func Load() (*Config, error) {
 	viper.SetDefault("numReplicas", 1)
 	viper.SetDefault("numStreamReplicas", 1)
 	viper.SetDefault("shardIndex", 1)
+
+	viper.SetDefault("iotDataBatchSize", 1000)
+	viper.SetDefault("iotDataNumWorkers", 10)
 
 	// 4) Read in the file
 	if err := viper.ReadInConfig(); err != nil {

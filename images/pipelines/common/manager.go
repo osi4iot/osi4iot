@@ -4,6 +4,7 @@ import (
 	"pipelines/logger"
 	nats_pkg "pipelines/nats"
 
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
 )
@@ -133,4 +134,8 @@ type Manager interface {
 
 	GetLeaderKvStore() jetstream.KeyValue
 	SetPipelineStatusSubscription(digitalTwin *DigitalTwin) *nats.Subscription
+
+	GetDbPool() *pgxpool.Pool
+
+	SendToIotDataChannel(data ThingData)
 }

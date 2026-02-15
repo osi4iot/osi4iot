@@ -1,12 +1,5 @@
 import { useEffect, useRef, useState, useMemo, useCallback } from "react";
-import {
-    AlertCircle,
-    Info,
-    Bug,
-    ChevronDown,
-    ChevronRight,
-    Trash2,
-} from "lucide-react";
+import { AlertCircle, Info, Bug, ChevronDown, ChevronRight, Trash2 } from "lucide-react";
 import styled from "styled-components";
 import React from "react";
 
@@ -46,7 +39,6 @@ const LogContainer = styled.div`
     flex-direction: column;
     height: 100%;
 `;
-
 
 const Title = styled.h1`
     font-size: 20px;
@@ -93,7 +85,9 @@ const Tooltip = styled.div<{ visible: boolean }>`
     pointer-events: none;
     opacity: ${(props) => (props.visible ? 1 : 0)};
     visibility: ${(props) => (props.visible ? "visible" : "hidden")};
-    transition: opacity 0.2s, visibility 0.2s;
+    transition:
+        opacity 0.2s,
+        visibility 0.2s;
     z-index: 1000;
     margin-top: 4px;
     border: 1px solid #374151;
@@ -111,7 +105,6 @@ const Tooltip = styled.div<{ visible: boolean }>`
         border-bottom: 5px solid #1f2937;
     }
 `;
-
 
 const FiltersContainer = styled.div`
     padding: 10px 5px;
@@ -282,10 +275,14 @@ const CodeBlock = styled.div`
     border-radius: 4px;
     font-size: 12px;
     text-align: left;
+    overflow: hidden; /* Contiene el overflow */
+    max-width: 100%; /* No excede el contenedor padre */
 
     pre {
         white-space: pre-wrap;
-        overflow-x: auto;
+        word-wrap: break-word; /* Rompe palabras largas */
+        word-break: break-all; /* Fuerza el quiebre en cualquier carácter */
+        overflow-wrap: break-word;
         color: #d1d5db;
         margin: 0;
         text-align: left;
@@ -343,6 +340,37 @@ const EmptyState = styled.div`
     text-align: center;
     padding: 32px 0;
     color: #9ca3af;
+`;
+
+const StyledTable = styled.table`
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+    margin-top: 4px;
+
+    th,
+    td {
+        padding: 6px 8px;
+        text-align: left;
+        border: 1px solid #374151;
+        color: #d1d5db;
+        word-break: break-word;
+        max-width: 300px;
+    }
+
+    th {
+        background-color: #1f2937;
+        color: #f9fafb;
+        font-weight: 600;
+    }
+
+    tr:nth-child(even) {
+        background-color: rgba(31, 41, 55, 0.5);
+    }
+
+    tr:hover {
+        background-color: #1f2937;
+    }
 `;
 
 // Componente para renderizar objetos anidados con expansión
@@ -490,7 +518,7 @@ const NestedObjectRenderer: React.FC<{
                 </NestedItem>
             );
         },
-        [expandedKeys, parentPath, toggleExpanded]
+        [expandedKeys, parentPath, toggleExpanded],
     );
 
     // Validaciones iniciales
@@ -536,6 +564,64 @@ const TooltipWrapper: React.FC<{
             <Tooltip visible={showTooltip}>{tooltip}</Tooltip>
         </IconButton>
     );
+};
+
+const LogMessage = ({ message }: { message: string }) => {
+    const parsedData = useMemo(() => {
+        if (typeof message === 'string') {
+            try {
+                const parsed = JSON.parse(message);
+
+                if (Array.isArray(parsed) && parsed.length > 0 && typeof parsed[0] === 'object') {
+                    return { type: 'array', data: parsed };
+                }
+                if (typeof parsed === 'object' && parsed !== null) {
+                    return { type: 'object', data: parsed };
+                }
+                return { type: 'string', data: message };
+            } catch {
+                return { type: 'string', data: message };
+            }
+        }
+        
+        // Fallback para otros tipos (number, boolean, etc.)
+        return { type: 'string', data: String(message ?? '') };
+    }, [message]);
+
+    if (parsedData.type === 'array') {
+        const keys = Array.from(new Set(parsedData.data.flatMap((item: any) => Object.keys(item)))) as string[];
+        
+        return (
+            <StyledTable>
+                <thead>
+                    <tr>
+                        {keys.map((key) => (
+                            <th key={key}>{key}</th>
+                        ))}
+                    </tr>
+                </thead>
+                <tbody>
+                    {parsedData.data.map((row: any, index: number) => (
+                        <tr key={index}>
+                            {keys.map((key) => (
+                                <td key={key}>
+                                    {typeof row[key] === 'object' 
+                                        ? JSON.stringify(row[key]) 
+                                        : String(row[key] ?? '')}
+                                </td>
+                            ))}
+                        </tr>
+                    ))}
+                </tbody>
+            </StyledTable>
+        );
+    }
+
+    if (parsedData.type === 'object') {
+        return <pre>{JSON.stringify(parsedData.data, null, 2)}</pre>;
+    }
+
+    return <pre>{parsedData.data}</pre>;
 };
 
 // Componente para mostrar un log individual (optimizado con React.memo)
@@ -612,8 +698,8 @@ const LogEntry = React.memo(({ log }: { log: PipelineLog }) => {
                 </ComponentInfo>
             )}
 
-            {(log.level === "info") && (
-                log.component === "node" ? (
+            {log.level === "info" &&
+                (log.component === "node" ? (
                     <ComponentInfo>
                         Description: <span className="label">{log.description}</span>
                     </ComponentInfo>
@@ -621,8 +707,7 @@ const LogEntry = React.memo(({ log }: { log: PipelineLog }) => {
                     <ComponentInfo>
                         Message: <span className="label">{log.message}</span>
                     </ComponentInfo>
-                )
-            )}
+                ))}
 
             {isExpanded && (
                 <ExpandedContent>
@@ -658,7 +743,9 @@ const LogEntry = React.memo(({ log }: { log: PipelineLog }) => {
                             </UidInfo>
                             <div>
                                 <SectionTitle>Details:</SectionTitle>
-                                <CodeBlock>{log.message}</CodeBlock>
+                                <CodeBlock>
+                                    <LogMessage message={log.message} />
+                                </CodeBlock>
                             </div>
                         </>
                     )}
@@ -675,12 +762,9 @@ interface PipelineLogsProps {
     setLogMessages: React.Dispatch<React.SetStateAction<PipelineLog[]>>;
 }
 
-const PipelineLogs: React.FC<PipelineLogsProps> = ({
-    logMessages,
-    setLogMessages,
-}) => {
+const PipelineLogs: React.FC<PipelineLogsProps> = ({ logMessages, setLogMessages }) => {
     const [filterLevel, setFilterLevel] = useState<string>("all");
-    
+
     // Memoizar logs filtrados
     const filteredLogs = useMemo(() => {
         return filterLevel === "all"

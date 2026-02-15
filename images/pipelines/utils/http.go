@@ -35,6 +35,11 @@ func ContextWithCancel() (context.Context, context.CancelFunc) {
 	return ctx, cancel
 }
 
+func ContextWithTimeoutAndCancel(timeout time.Duration) (context.Context, context.CancelFunc) {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	return ctx, cancel
+}
+
 func ParseTokenClaims(tokenString string) (*UserClaims, error) {
 	token, _, err := new(jwt.Parser).ParseUnverified(tokenString, &UserClaims{})
 	if err != nil {

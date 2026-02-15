@@ -3,6 +3,7 @@ package utils
 import (
 	"encoding/json"
 	"fmt"
+	"pipelines/common"
 )
 
 func MarshalData(data interface{}) ([]byte, error) {
@@ -121,4 +122,18 @@ func DeepCopyPayload(src map[string]interface{}) map[string]interface{} {
 	}
 
 	return dst
+}
+
+func GetMessageFromRaw(rawMsg any) (common.Message, error) {
+	var message common.Message
+	jsonData, err := MarshalData(rawMsg)
+	if err != nil {
+		return common.Message{}, fmt.Errorf("failed to marshal raw message: %v", err)
+	}
+	err = UnmarshalData(jsonData, &message)
+	if err != nil {
+		return common.Message{}, fmt.Errorf("failed to unmarshal message: %v", err)
+	}
+
+	return message, nil
 }
