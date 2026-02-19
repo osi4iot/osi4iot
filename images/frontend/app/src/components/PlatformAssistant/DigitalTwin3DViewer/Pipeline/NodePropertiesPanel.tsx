@@ -248,7 +248,9 @@ const NodeTypeIndicator = styled.span<{ nodeType: string }>`
                 return "#B8B1FB";
             case "Email":
                 return "#4a90e2";
-            case "Telegram":
+            case "TelegramListen":
+                return "#4a90e2";
+            case "TelegramSend":
                 return "#4a90e2";
             default:
                 return "#6b7280";
@@ -1077,7 +1079,7 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
 
     // Función para determinar si un nodo debe mostrar el selector de outputs
     const shouldShowOutputSelector = (nodeType: string) => {
-        const excludedTypes = ["Publish", "Email", "Telegram"];
+        const excludedTypes = ["Publish", "Email"];
         return !excludedTypes.includes(nodeType);
     };
 
@@ -1959,7 +1961,9 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                                                 <Label>Topic</Label>
                                                 <Select
                                                     value={formData.insertTopicRef}
-                                                    onChange={(e) => handleInputChange("insertTopicRef", e.target.value)}
+                                                    onChange={(e) =>
+                                                        handleInputChange("insertTopicRef", e.target.value)
+                                                    }
                                                 >
                                                     {dev2pdbTopicsRef.map((topic) => (
                                                         <option key={topic} value={topic}>
@@ -2261,41 +2265,32 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                     </>
                 );
 
-            case "Telegram":
+            case "TelegramListen":
                 return (
                     <>
                         <FormGroup>
-                            <Label>Options</Label>
-                            <Select
-                                value={formData.options || "Group notification options"}
-                                onChange={(e) => handleInputChange("options", e.target.value)}
-                            >
-                                <option value="Group notification options">Group notification options</option>
-                                <option value="Custom telegram options">Custom telegram options</option>
-                            </Select>
+                            <Label>Chat ID</Label>
+                            <Input
+                                type="text"
+                                value={formData.chatId || ""}
+                                onChange={(e) => handleInputChange("chatId", e.target.value)}
+                                placeholder="123456789"
+                            />
                         </FormGroup>
-                        {formData.options === "Custom telegram options" && (
-                            <>
-                                <FormGroup>
-                                    <Label>Chat ID</Label>
-                                    <Input
-                                        type="text"
-                                        value={formData.chatId || ""}
-                                        onChange={(e) => handleInputChange("chatId", e.target.value)}
-                                        placeholder="123456789"
-                                    />
-                                </FormGroup>
-                                <FormGroup>
-                                    <Label>Telegram Bot Token</Label>
-                                    <Input
-                                        type="text"
-                                        value={formData.telegramBotToken || ""}
-                                        onChange={(e) => handleInputChange("telegramBotToken", e.target.value)}
-                                        placeholder="your-telegram-bot-token"
-                                    />
-                                </FormGroup>
-                            </>
-                        )}
+                    </>
+                );
+            case "TelegramSend":
+                return (
+                    <>
+                        <FormGroup>
+                            <Label>Chat ID</Label>
+                            <Input
+                                type="text"
+                                value={formData.chatId || ""}
+                                onChange={(e) => handleInputChange("chatId", e.target.value)}
+                                placeholder="123456789"
+                            />
+                        </FormGroup>
                         <FormGroup>
                             <Label>Message Options</Label>
                             <Select
@@ -2309,17 +2304,16 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                         {formData.messageOptions === "Custom message" && (
                             <FormGroup>
                                 <Label>Message</Label>
-                                <Input
-                                    type="text"
-                                    value={formData.message || ""}
-                                    onChange={(e) => handleInputChange("message", e.target.value)}
+                                <TextArea
+                                    value={formData.messageToSend || ""}
+                                    onChange={(e) => handleInputChange("messageToSend", e.target.value)}
                                     placeholder="Hello from OSI4IOT!"
+                                    rows={4}
                                 />
                             </FormGroup>
                         )}
                     </>
                 );
-
             case "Batch":
                 return (
                     <>

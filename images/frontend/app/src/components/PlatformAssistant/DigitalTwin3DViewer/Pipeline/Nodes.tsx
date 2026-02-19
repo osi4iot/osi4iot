@@ -10,12 +10,12 @@ import {
     Zap,
     Database,
 } from "lucide-react";
-import { FaTelegramPlane } from "react-icons/fa";
 import { Handle, Position } from "@xyflow/react";
 import Paho from "paho-mqtt";
 import styled from "styled-components";
 import { toast } from "react-toastify";
 import { useCallback } from "react";
+import { TelegramNodeIcon, IconContainer } from "./NodePalette";
 
 const NodeContainer = styled.div<{ bgColor: string; hoverColor?: string; selected?: boolean }>`
     padding: 2px 4px;
@@ -46,14 +46,6 @@ const NodeContent = styled.div<{ numOutputs?: number }>`
     height: ${(props) => `${(props.numOutputs || 1) * 5 + 15}px`};
 `;
 
-const IconContainer = styled.div<{ rotate?: string }>`
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 20px;
-    height: 20px;
-    rotate: ${(props) => props.rotate || "0deg"};
-`;
 
 const NodeLabel = styled.div`
     flex: 1;
@@ -68,12 +60,6 @@ export const StyledHandle = styled(Handle)`
     height: 6px !important;
     background-color: #d9d9d9 !important;
     border-color: #a09c98ff !important;
-`;
-
-const TelegramIcon = styled(FaTelegramPlane)`
-    width: 15px;
-    height: 15px;
-    color: #e7e3dfff;
 `;
 
 const InjectNodeWrapper = styled.div`
@@ -397,15 +383,38 @@ export function AiAgentNode({ data, selected }) {
     );
 }
 
-export function TelegramNode({ data, selected }) {
+export function TelegramListenNode({ data, selected }) {
+    const numOutputs = data?.numOutputs ?? 1;
+    return (
+        <NodeContainer bgColor="#4a90e2" hoverColor="#5da4f5ff" selected={selected}>
+            <NodeContent>
+                <NodeLabel>{data?.label || "Telegram listen Node"}</NodeLabel>
+                <TelegramNodeIcon size="20px" mode="listen" color="#e7e3df" />
+            </NodeContent>
+            {numOutputs > 0 && (
+                <>
+                    {Array.from({ length: numOutputs }, (_, index) => (
+                        <StyledHandle
+                            key={index}
+                            type="source"
+                            position={Position.Right}
+                            id={`${data.nodeUid}-${index}`}
+                            style={getHandleStyle(index, numOutputs)}
+                        />
+                    ))}
+                </>
+            )}
+        </NodeContainer>
+    );
+}
+
+export function TelegramSendNode({ data, selected }) {
     return (
         <NodeContainer bgColor="#4a90e2" hoverColor="#5da4f5ff" selected={selected}>
             <StyledHandle type="target" position={Position.Left} style={{ top: "50%", left: "-1px" }} />
             <NodeContent>
-                <NodeLabel>{data?.label || "Telegram Node"}</NodeLabel>
-                <IconContainer>
-                    <TelegramIcon />
-                </IconContainer>
+                <NodeLabel>{data?.label || "Telegram send Node"}</NodeLabel>
+                <TelegramNodeIcon size="20px" mode="send" color="#e7e3df" />
             </NodeContent>
         </NodeContainer>
     );

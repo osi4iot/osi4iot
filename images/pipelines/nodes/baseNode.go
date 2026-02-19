@@ -33,8 +33,10 @@ func CreateNode(
 		newNode, err = CreateDelayNode(node, fm, p)
 	case "Function":
 		newNode, err = CreateFuncNode(node, fm, p)
-	case "Telegram":
-		newNode, err = CreateTelegramNode(node, fm, p)
+	case "TelegramListen":
+		newNode, err = CreateTelegramListenNode(node, fm, p)
+	case "TelegramSend":
+		newNode, err = CreateTelegramSendNode(node, fm, p)
 	case "Email":
 		newNode, err = CreateEmailNode(node, fm, p)
 	case "AiAgent":

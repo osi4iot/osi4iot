@@ -10,6 +10,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	leader_election "pipelines/leader_election"
 )
 
 type Pipeline struct {
@@ -28,7 +30,7 @@ type Pipeline struct {
 	NodeOutputWires        map[string][][]*common.Wire // key: "nodeID" -> [][]*Wire (wires that leave the node)
 	NodeInputWires         map[string][]*common.Wire   // key: "nodeID" -> []*Wire (wires that arrive at the node)
 	NodeOutputByIndex      map[string][]*common.Wire   // key: "nodeID:outputIndex" -> []*Wire
-	LeaderElector          *PipelineLeaderElector
+	LeaderElector          *leader_election.LeaderElector
 	mu                     sync.RWMutex
 	statusPublisherCancel  context.CancelFunc
 	statusPublisherWg      sync.WaitGroup
@@ -100,7 +102,13 @@ func (fm *FlowsManager) createPipelineInstanceFromData(pd *common.PipelineData) 
 		NodeOutputByIndex:      make(map[string][]*common.Wire),
 	}
 
-	leaderElector, err := NewPipelineLeaderElector(fm, pipeline.OrgHash, pipeline.DigitalTwinUid, 10*time.Second)
+	//leaderElector, err := NewPipelineLeaderElector(fm, pipeline.OrgHash, pipeline.DigitalTwinUid, 10*time.Second)
+	replicaIndex := fm.ReplicaIndex
+	orgHash := pipeline.OrgHash
+	elementType := "pipeline"
+	elementID := pipeline.DigitalTwinUid
+	kv := fm.GetLeaderKvStore()
+	leaderElector, err := leader_election.NewLeaderElector(replicaIndex, orgHash, elementType, elementID, kv, 10*time.Second, fm.log)
 	if err != nil {
 		pipelineErrors.AddErrorMsg(fmt.Sprintf("Failed to create leader elector: %v", err))
 	} else {

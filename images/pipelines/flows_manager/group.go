@@ -85,5 +85,10 @@ func (fm *FlowsManager) DeleteGroup(groupId int) error {
 		fm.DeleteDigitalTwin(digitalTwinId)
 	}
 
+	groupIdStr := strconv.Itoa(groupId)
+	if _, ok := fm.Groups.Load(groupIdStr); ok {
+		fm.Groups.Delete(groupIdStr)
+	}
+
 	return nil
 }

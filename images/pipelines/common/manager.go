@@ -138,4 +138,6 @@ type Manager interface {
 	GetDbPool() *pgxpool.Pool
 
 	SendToIotDataChannel(data ThingData)
+
+	StartTelegramBots()
 }

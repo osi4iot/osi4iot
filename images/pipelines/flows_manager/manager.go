@@ -144,6 +144,7 @@ func CreateFlowsManager(
 	}
 
 	flowManager.AddOrgs(orgs)
+	// flowManager.StartTelegramBots()
 	flowManager.AddGroups(groups)
 	flowManager.AddNotificationChannels(notificationChannels)
 	flowManager.AddTopics(topics)
@@ -449,4 +450,5 @@ func (fm *FlowsManager) GracefullyShutdown() {
 	fm.log.Info("FlowsManager is shutting down gracefully...")
 	fm.IotDataCancel()
 	fm.StopPipelines()
+	fm.StopTelegramBots()
 }

@@ -44,7 +44,7 @@ func CreateListenNode(node common.NodeData, fm common.Manager, p common.Pipeline
 		return nil, fmt.Errorf("topic setting is required")
 	}
 	var topics []string
-
+	
 	switch listenTo {
 	case "Generic nats":
 		topics = append(topics, singleTopic)
@@ -108,7 +108,7 @@ func (n *ListenNode) Start(log *logger.Logger, needReinitialization bool) {
 	log.Infof("Starting ListenNode with UID: %s", n.NodeUid)
 
 	for _, topic := range n.Topics {
-		log.Infof("ListenNode %s subscribing to topic: %s", n.NodeUid, topic)
+		log.Infof("Subscribing to topic: %s", topic)
 		n.wg.Add(1)
 		go n.handleNatsSubscription(log, topic, n.processNatsMessage)
 	}

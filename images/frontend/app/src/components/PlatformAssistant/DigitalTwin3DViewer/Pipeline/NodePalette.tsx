@@ -11,11 +11,11 @@ import {
     Zap,
     Database,
 } from "lucide-react";
-import { FaTelegramPlane } from "react-icons/fa";
+import { FaTelegramPlane, FaArrowDown, FaArrowUp } from "react-icons/fa";
 import styled from "styled-components";
 
 const PaletteContainer = styled.div`
-    width: 160px;
+    width: 190px;
     background-color: #2a2a2a;
     border-right: 1px solid #444;
     border-bottom: 1px solid #444;
@@ -78,12 +78,12 @@ const NodeItem = styled.div`
     }
 `;
 
-const IconContainer = styled.div`
+export const IconContainer = styled.div<{ size?: string; rotate?: string }>`
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 30px;
-    height: 30px;
+    width: ${(props) => props.size || "30px"};
+    height: ${(props) => props.size || "30px"};
     rotate: ${(props) => props.rotate || "0deg"};
 `;
 
@@ -95,16 +95,55 @@ const NodeLabel = styled.span`
     flex: 1;
 `;
 
-const TelegramIcon = styled(FaTelegramPlane)`
-    width: 25px;
-    height: 25px;
-    color: #e7e3df;
+const TelegramIcon = styled(FaTelegramPlane)<{ size?: string }>`
+    font-size: ${(props) => props.size || "26px"};
+    color: #ffffff;
+    filter: drop-shadow(0px 2px 3px rgba(0, 0, 0, 0.2));
 `;
+
+const Badge = styled.div<{ size?: string }>`
+    position: absolute;
+    bottom: -1px;
+    right: -3px;
+    width: ${(props) => props.size || "16px"};
+    height: ${(props) => props.size || "16px"};
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    background-color: #84b8f5;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+
+    svg {
+        color: #ffffff;
+        font-size: ${(props) => props.size || "10px"};
+        stroke-width: 2.5;
+    }
+`;
+
+const ArrowStyled = styled.div`
+    color: #fff;
+    display: flex;
+    font-size: 10px;
+    font-weight: bold;
+`;
+
+export const TelegramNodeIcon = ({ size = "30px", mode = "send" }) => (
+    <IconContainer title={mode === "listen" ? "Telegram Listen" : "Telegram Send"} size={size}>
+        <TelegramIcon />
+        <Badge size={size === "30px" ? "12px" : "8px"}>
+            <ArrowStyled>
+                {mode === "listen" ? <FaArrowDown strokeWidth={2} /> : <FaArrowUp strokeWidth={2} />}
+            </ArrowStyled>
+        </Badge>
+    </IconContainer>
+);
 
 const nodeTypes = [
     {
         type: "Listen",
-        label: "Listen",
+        label: "Nats listen",
         bgColor: "#aa97aa",
         hoverColor: "#b5a5b5",
         icon: <WifiHigh size={30} color="#e7e3df" style={{ transform: "rotate(90deg)" }} />,
@@ -117,7 +156,7 @@ const nodeTypes = [
     },
     {
         type: "Publish",
-        label: "Publish",
+        label: "Nats publish",
         bgColor: "#aa97aa",
         hoverColor: "#b5a5b5",
         icon: <WifiHigh size={30} color="#e7e3df" style={{ transform: "rotate(90deg)" }} />,
@@ -244,19 +283,29 @@ const nodeTypes = [
         },
     },
     {
-        type: "Telegram",
-        label: "Telegram",
+        type: "TelegramListen",
+        label: "Telegram listen",
         bgColor: "#4a90e2",
         hoverColor: "#5da4f5ff",
-        icon: <TelegramIcon color="#e7e3df" />,
+        icon: <TelegramNodeIcon size="30px" mode="listen" color="#e7e3df" />,
+        numOutputs: 1,
+        debug: "off",
+        settings: {
+            chatId: "123456789",
+        },
+    },
+    {
+        type: "TelegramSend",
+        label: "Telegram send",
+        bgColor: "#4a90e2",
+        hoverColor: "#5da4f5ff",
+        icon: <TelegramNodeIcon size="30px" mode="send" color="#e7e3df" />,
         numOutputs: 0,
         debug: "off",
         settings: {
-            options: "Group notification options",
             chatId: "123456789",
-            telegramBotToken: "your-telegram-bot-token",
-            messageOptions: "Message received options",
-            message: "Hello from OSI4IOT!",
+            messageOptions: "Custom message",
+            messageToSend: "Hello from OSI4IOT!",
         },
     },
     {
@@ -285,7 +334,8 @@ const nodeTypes = [
             queryMode: "static_query",
             action: "Insert",
             insertTopicRef: "dev2pdb_1",
-            sqlQuery: "SELECT * FROM iot_table WHERE topic = $__topicFun('dev2pdb_1') AND \n timestamp >= $__timeFun('now-25s') AND timestamp <= $__timeFun('now') ORDER BY timestamp DESC; ;",
+            sqlQuery:
+                "SELECT * FROM iot_table WHERE topic = $__topicFun('dev2pdb_1') AND \n timestamp >= $__timeFun('now-25s') AND timestamp <= $__timeFun('now') ORDER BY timestamp DESC; ;",
         },
     },
 ];
@@ -321,7 +371,10 @@ export default function NodePalette() {
                             )
                         }
                     >
-                        {node.type === "Publish" || node.type === "Email" || node.type === "Telegram" ? (
+                        {node.type === "Publish" ||
+                        node.type === "Email" ||
+                        node.type === "TelegramListen" ||
+                        node.type === "TelegramSend" ? (
                             <>
                                 <NodeLabel>{node.label}</NodeLabel>
                                 <IconContainer>{node.icon}</IconContainer>

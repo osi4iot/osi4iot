@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"os"
 	"os/signal"
 	"syscall"
@@ -59,7 +58,8 @@ func main() {
 		log.Fatalf("Application startup failed: %v", err)
 	}
 
-	ctx, dbCancel := utils.ContextWithTimeoutAndCancel(5*time.Second)
+	ctx, cancel := utils.ContextWithCancel()
+
 	admin.StartAutoRefresh(ctx, time.Duration(2*time.Minute))
 
 	// IOT Data DB connection
@@ -68,14 +68,16 @@ func main() {
 		log.Fatalf("config parse error: %v", err)
 	}
 
-	dbpool, err := pgxpool.NewWithConfig(context.Background(), config)
+	dbpool, err := pgxpool.NewWithConfig(ctx, config)
 	if err != nil {
 		log.Fatalf("pool creation error: %v", err)
 	}
 	defer dbpool.Close()
 
 	// Verifica la conexión
-	if err := dbpool.Ping(context.Background()); err != nil {
+	pingCtx, pingCancel := utils.ContextWithTimeout(10*time.Second)
+	defer pingCancel()
+	if err := dbpool.Ping(pingCtx); err != nil {
 		log.Fatalf("ping error: %v", err)
 	}
 
@@ -89,7 +91,7 @@ func main() {
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 	<-sigChan
 	manager.GracefullyShutdown()
-	dbCancel()
+	cancel()
 	log.Info("Received shutdown signal, shutting down gracefully...")
 	time.Sleep(2 * time.Second)
 	os.Exit(0)

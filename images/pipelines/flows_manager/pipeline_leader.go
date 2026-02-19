@@ -365,25 +365,6 @@ func (le *PipelineLeaderElector) GetReplicaIndexLeader() int {
 	return leaderID.ReplicaIndex
 }
 
-// func (le *PipelineLeaderElector) Stop() {
-// 	if le.cancel == nil {
-// 		return
-// 	}
-// 	le.cancel()
-
-// 	// Release lock gracefully if we are leaders
-// 	if le.IsLeader() {
-// 		opCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-// 		defer cancel()
-// 		currentRev := le.rev.Load()
-// 		if err := le.kv.Delete(opCtx, le.lockKey, jetstream.LastRevision(currentRev)); err != nil {
-// 			le.log.Warnf("Failed to release lock on stop: %v", err)
-// 		} else {
-// 			le.log.Infof("Instance [%s] released leadership gracefully", le.instanceID.getString())
-// 		}
-// 	}
-// }
-
 func (le *PipelineLeaderElector) Stop() {
 	if le.cancel == nil {
 		return

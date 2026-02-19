@@ -2,9 +2,12 @@ package common
 
 import (
 	"context"
-	"github.com/nats-io/nats.go"
 	"image"
+	"github.com/nats-io/nats.go"
+	
 	nats_pkg "pipelines/nats"
+	"pipelines/leader_election"
+	"pipelines/telegram"
 )
 
 type AdminMessage struct {
@@ -22,17 +25,20 @@ type Message struct {
 }
 
 type Org struct {
-	Id                      int    `json:"id"`
-	OrgHash                 string `json:"orgHash"`
-	Name                    string `json:"name"`
-	Acronym                 string `json:"acronym"`
-	Role                    string `json:"role"`
-	City                    string `json:"city"`
-	BuildingId              int    `json:"buildingId"`
-	LlmEnabled              bool   `json:"llmEnabled"`
-	LlmProviderUrl          string `json:"llmProviderUrl"`
-	HashedLlmProviderApiKey string `json:"hashedLlmProviderApiKey"`
-	LlmProviderApiKey       string `json:"llmProviderApiKey"`
+	Id                      int                            `json:"id"`
+	OrgHash                 string                         `json:"orgHash"`
+	Name                    string                         `json:"name"`
+	Acronym                 string                         `json:"acronym"`
+	Role                    string                         `json:"role"`
+	City                    string                         `json:"city"`
+	BuildingId              int                            `json:"buildingId"`
+	LlmEnabled              bool                           `json:"llmEnabled"`
+	LlmProviderUrl          string                         `json:"llmProviderUrl"`
+	HashedLlmProviderApiKey string                         `json:"hashedLlmProviderApiKey"`
+	LlmProviderApiKey       string                         `json:"llmProviderApiKey"`
+	TelegramBotToken        string                         `json:"telegramBotToken"`
+	LeaderElector           *leader_election.LeaderElector `json:"-"`
+	TelegramListener        *telegram.OrgListener          `json:"-"`
 }
 
 type Group struct {

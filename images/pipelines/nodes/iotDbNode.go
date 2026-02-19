@@ -69,6 +69,7 @@ func CreateIoTDbNode(node common.NodeData, fm common.Manager, p common.Pipeline)
 	assetId := p.GetAssetId()
 	groupUid = group.GroupUID
 	topicMap := fm.GetTopicsByAssetId(assetId)
+
 	if len(topicMap) == 0 {
 		fm.Log().Errorf("IoTDbNode %s: no topics found for asset ID %d", node.NodeUid, assetId)
 		return nil, fmt.Errorf("no topics found for asset ID %d", assetId)
@@ -180,13 +181,13 @@ func (n *IoTDbNode) processMessage(msg common.Message, log *logger.Logger) error
 			return fmt.Errorf("failed to unmarshal sql field: %w", err)
 		}
 
+		action = sqlData.Action
 		insertTopic := sqlData.InsertTopic
-		if insertTopic == "" {
+		if insertTopic == "" && action == "Insert" {
 			log.Errorf("IoTDbNode %s: 'insertTopic' field in sql is empty", n.NodeUid)
 			return fmt.Errorf("'insertTopic' field in sql is empty")
 		}
 
-		action = sqlData.Action
 		variables := make(map[string]any)
 		var readQuery string = ""
 		if action == "Read" {
@@ -201,12 +202,12 @@ func (n *IoTDbNode) processMessage(msg common.Message, log *logger.Logger) error
 		}
 
 		params = Params{
-			Action:    sqlData.Action,
-			GroupUID:  n.Params.GroupUID,
-			ReadQuery: readQuery,
-			TopicMap:  n.Params.TopicMap,
+			Action:      sqlData.Action,
+			GroupUID:    n.Params.GroupUID,
+			ReadQuery:   readQuery,
+			TopicMap:    n.Params.TopicMap,
 			InsertTopic: insertTopic,
-			Variables: variables,
+			Variables:   variables,
 		}
 	default:
 		log.Errorf("IoTDbNode %s: unknown queryMode '%s'", n.NodeUid, n.QueryMode)

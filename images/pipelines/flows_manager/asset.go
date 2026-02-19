@@ -9,9 +9,9 @@ import (
 func (fm *FlowsManager) DeleteAsset(assetId int) error {
 	var assetTopicsRefToDelete []common.AssetTopic
 	var topicsToDelete []int
+	prefix := "asset:" + strconv.Itoa(assetId) + ":" // Assuming format is "asset:<assetId>:topicRef:<topicRef>"
 	fm.AssetTopicsRef.Range(func(key, value interface{}) bool {
 		assetTopicKey := key.(string)
-		prefix := "asset:" + strconv.Itoa(assetId)
 		if strings.HasPrefix(assetTopicKey, prefix) {
 			topic := value.(*common.Topic)
 			assetTopic := common.AssetTopic{
@@ -99,12 +99,14 @@ func (fm *FlowsManager) GetTopicByAssetId(assetId int, topicRef string) *common.
 
 func (fm *FlowsManager) GetTopicsByAssetId(assetId int) map[string]*common.Topic {
 	topicsMap := make(map[string]*common.Topic)
+	prefix := "asset:" + strconv.Itoa(assetId) + ":" // Assuming format is "asset:<assetId>:topicRef:<topicRef>"
+
 	fm.AssetTopicsRef.Range(func(key, value interface{}) bool {
 		assetTopicRefKey := key.(string)
-		prefix := "asset:" + strconv.Itoa(assetId)
 		if strings.HasPrefix(assetTopicRefKey, prefix) {
+			parts := strings.Split(assetTopicRefKey, ":")
+			topicRef := parts[3]
 			topic := value.(*common.Topic)
-			topicRef := strings.Split(assetTopicRefKey, ":")[3] // Assuming format is "asset:<assetId>:topicRef:<topicRef>"
 			topicsMap[topicRef] = topic
 		}
 		return true

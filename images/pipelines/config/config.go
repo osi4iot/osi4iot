@@ -24,7 +24,6 @@ type Config struct {
 	ShardIndex               int               `mapstructure:"shardIndex"`
 	NumReplicas              int               `mapstructure:"numReplicas"`
 	FunctionsTimeout         int               `mapstructure:"functionsTimeout"`
-	TelegramBotToken         string            `mapstructure:"telegramBotToken"`
 	PlatformEmailUsername    string            `mapstructure:"platformEmailUsername"`
 	PlatformEmailPassword    string            `mapstructure:"platformEmailPassword"`
 	PlatformTelegramBotToken string            `mapstructure:"platformTelegramBotToken"`

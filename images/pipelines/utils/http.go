@@ -35,6 +35,14 @@ func ContextWithCancel() (context.Context, context.CancelFunc) {
 	return ctx, cancel
 }
 
+func AddCancelToContext(ctx context.Context) (context.Context, context.CancelFunc) {
+	return context.WithCancel(ctx)
+}
+
+func AddTimeoutToContext(ctx context.Context, timeout time.Duration) (context.Context, context.CancelFunc) {
+	return context.WithTimeout(ctx, timeout)
+}
+
 func ContextWithTimeoutAndCancel(timeout time.Duration) (context.Context, context.CancelFunc) {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	return ctx, cancel

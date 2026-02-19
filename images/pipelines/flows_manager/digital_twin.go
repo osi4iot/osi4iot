@@ -251,9 +251,9 @@ func (fm *FlowsManager) GetTopicByADigitalTwinId(digitalTwinId int, topicRef str
 
 func (fm *FlowsManager) GetTopicsByDigitalTwinId(digitalTwinId int) map[string]*common.Topic {
 	topicsMap := make(map[string]*common.Topic)
+	prefix := "dt:" + strconv.Itoa(digitalTwinId) + ":" // Assuming format is "dt:<digitalTwinId>:topicRef:<topicRef>"
 	fm.DigitalTwinTopicsRef.Range(func(key, value interface{}) bool {
 		digitalTwinTopicRefKey := key.(string)
-		prefix := "dt:" + strconv.Itoa(digitalTwinId)
 		if strings.HasPrefix(digitalTwinTopicRefKey, prefix) {
 			topic := value.(*common.Topic)
 			topicRef := strings.Split(digitalTwinTopicRefKey, ":")[3] // Assuming format is "dt:<digitalTwinId>:topicRef:<topicRef>"
@@ -266,9 +266,9 @@ func (fm *FlowsManager) GetTopicsByDigitalTwinId(digitalTwinId int) map[string]*
 
 func (fm *FlowsManager) DeleteDigitalTwinTopicsRefByDTid(digitalTwinId int) error {
 	var digitalTwinTopicRefKeysToDelete []common.DigitalTwinTopic
+	prefix := "dt:" + strconv.Itoa(digitalTwinId) + ":" // Assuming format is "dt:<digitalTwinId>:topicRef:<topicRef>"
 	fm.DigitalTwinTopicsRef.Range(func(key, value interface{}) bool {
 		digitalTwinTopicRefKey := key.(string)
-		prefix := "dt:" + strconv.Itoa(digitalTwinId)
 		if strings.HasPrefix(digitalTwinTopicRefKey, prefix) {
 			topic := value.(*common.Topic)
 			digitalTwinTopic := common.DigitalTwinTopic{
