@@ -1,7 +1,7 @@
 import styled from "styled-components";
 
 import React from "react";
-import { FormGroup, Label } from "../NodePropertiesPanel";
+import { FormGroup, Label } from "../types";
 
 // Función helper para generar opciones de horas
 const generateHourOptions = () => {

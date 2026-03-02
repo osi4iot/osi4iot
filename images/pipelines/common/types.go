@@ -2,11 +2,11 @@ package common
 
 import (
 	"context"
-	"image"
 	"github.com/nats-io/nats.go"
-	
-	nats_pkg "pipelines/nats"
+	"image"
+
 	"pipelines/leader_election"
+	nats_pkg "pipelines/nats"
 	"pipelines/telegram"
 )
 
@@ -25,20 +25,24 @@ type Message struct {
 }
 
 type Org struct {
-	Id                      int                            `json:"id"`
-	OrgHash                 string                         `json:"orgHash"`
-	Name                    string                         `json:"name"`
-	Acronym                 string                         `json:"acronym"`
-	Role                    string                         `json:"role"`
-	City                    string                         `json:"city"`
-	BuildingId              int                            `json:"buildingId"`
-	LlmEnabled              bool                           `json:"llmEnabled"`
-	LlmProviderUrl          string                         `json:"llmProviderUrl"`
-	HashedLlmProviderApiKey string                         `json:"hashedLlmProviderApiKey"`
-	LlmProviderApiKey       string                         `json:"llmProviderApiKey"`
-	TelegramBotToken        string                         `json:"telegramBotToken"`
-	LeaderElector           *leader_election.LeaderElector `json:"-"`
-	TelegramListener        *telegram.OrgListener          `json:"-"`
+	Id                               int                            `json:"id"`
+	OrgHash                          string                         `json:"orgHash"`
+	Name                             string                         `json:"name"`
+	Acronym                          string                         `json:"acronym"`
+	Role                             string                         `json:"role"`
+	City                             string                         `json:"city"`
+	BuildingId                       int                            `json:"buildingId"`
+	LlmEnabled                       bool                           `json:"llmEnabled"`
+	LlmProviderUrl                   string                         `json:"llmProviderUrl"`
+	HashedLlmProviderApiKey          string                         `json:"hashedLlmProviderApiKey"`
+	LlmProviderApiKey                string                         `json:"llmProviderApiKey"`
+	TelegramEnabled                  bool                           `json:"telegramEnabled"`
+	HashedTelegramBotToken           string                         `json:"hashedTelegramBotToken"`
+	TelegramBotToken                 string                         `json:"telegramBotToken"`
+	HashedTelegramWebhookSecretToken string                         `json:"hashedTelegramWebhookSecretToken"`
+	TelegramWebhookSecretToken       string                         `json:"telegramWebhookSecretToken"`
+	LeaderElector                    *leader_election.LeaderElector `json:"-"`
+	TelegramListener                 *telegram.OrgListener          `json:"-"`
 }
 
 type Group struct {
@@ -55,6 +59,8 @@ type Group struct {
 	FloorNumber                   int    `json:"floorNumber"`
 	FeatureIndex                  int    `json:"featureIndex"`
 	LlmEnabled                    bool   `json:"llmEnabled"`
+
+	KvStore                    *nats_pkg.KVStore `json:"-"`
 }
 
 type Asset struct {

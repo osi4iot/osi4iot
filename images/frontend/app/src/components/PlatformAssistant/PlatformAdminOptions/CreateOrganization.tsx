@@ -108,18 +108,19 @@ const mqttAccessControlOptions = [
     },
 ];
 
-const LlmTitle = styled.div`
+const Title = styled.div`
     margin-bottom: 5px;
 `;
 
-const LlmDataContainer = styled.div`
+const DataContainer = styled.div`
     border: 2px solid #2c3235;
     border-radius: 10px;
     padding: 10px;
     width: 100%;
+    margin-bottom: 15px;
 `;
 
-const enableLLMOptions = [
+const enableDisableOptions = [
     {
         label: "Enabled",
         value: true,
@@ -152,6 +153,7 @@ const CreateOrganization: FC<CreateOrganizationProps> = ({
     const [selectedUsersArray, setSelectedUsersArray] = useState<ISelectGlobalUser[]>([]);
     const { accessToken, refreshToken } = useAuthState();
     const [llmEnabled, setLlmEnabled] = useState(false);
+    const [telegramEnabled, setTelegramEnabled] = useState(false);
     const authDispatch = useAuthDispatch();
     const orgsDispatch = useOrgsDispatch();
     const initialOrgData = { ...orgInputData };
@@ -178,16 +180,15 @@ const CreateOrganization: FC<CreateOrganizationProps> = ({
         name: Yup.string().max(190, "The maximum number of characters allowed is 190").required("Required"),
         acronym: Yup.string().max(20, "The maximum number of characters allowed is 20").required("Required"),
         buildingId: Yup.number().positive().integer().required("Required"),
-        telegramInvitationLink: Yup.string()
-            .url("Enter a valid url")
-            .max(60, "The maximum number of characters allowed is 60")
-            .required("Required"),
-        telegramChatId: Yup.string().max(15, "The maximum number of characters allowed is 15").required("Required"),
         llmProviderUrl: Yup.string().when("llmEnabled", {
             is: true,
             then: Yup.string().url("Enter a valid url").required("Required"),
         }),
         llmProviderApiKey: Yup.string().when("llmEnabled", {
+            is: true,
+            then: Yup.string().required("Required"),
+        }),
+        telegramBotToken: Yup.string().when("telegramEnabled", {
             is: true,
             then: Yup.string().required("Required"),
         }),
@@ -207,18 +208,18 @@ const CreateOrganization: FC<CreateOrganizationProps> = ({
                     login: Yup.string()
                         .matches(
                             /^[a-zA-Z0-9._-]{4,}$/,
-                            "Only the following characters are allowed for username: a-zA-Z0-9._-"
+                            "Only the following characters are allowed for username: a-zA-Z0-9._-",
                         )
                         .min(4, "The minimum number of characters allowed is 4")
                         .max(190, "The maximum number of characters allowed is 190"),
                     password: Yup.string()
                         .matches(
                             /^[a-zA-Z0-9._-]{8,20}$/,
-                            "Only the following characters are allowed for username: a-zA-Z0-9._-"
+                            "Only the following characters are allowed for username: a-zA-Z0-9._-",
                         )
                         .min(4, "The minimum number of characters allowed is 8")
                         .max(20, "The maximum number of characters allowed is 20"),
-                })
+                }),
             )
             .required("Must have org admin") // these constraints are shown if and only if inner constraints are satisfied
             .min(1, "Must be at least one org amdin"),
@@ -297,6 +298,11 @@ const CreateOrganization: FC<CreateOrganizationProps> = ({
         formik.setFieldValue("llmEnabled", e.value);
     };
 
+    const onEnableTelegramChange = (e: { value: boolean }, formik: any) => {
+        setTelegramEnabled(e.value);
+        formik.setFieldValue("telegramEnabled", e.value);
+    };
+
     return (
         <>
             {showCreateOrg ? (
@@ -329,25 +335,33 @@ const CreateOrganization: FC<CreateOrganizationProps> = ({
                                             options={mqttAccessControlOptions}
                                             type="text"
                                         />
-                                        <FormikControl
-                                            control="input"
-                                            label="Telegram invitation link"
-                                            name="telegramInvitationLink"
-                                            type="text"
-                                        />
-                                        <FormikControl
-                                            control="input"
-                                            label="Telegram chat id"
-                                            name="telegramChatId"
-                                            type="text"
-                                        />
-                                        <LlmTitle>Large language model (LLM)</LlmTitle>
-                                        <LlmDataContainer>
+                                        <Title>Telegram bot</Title>
+                                        <DataContainer>
+                                            <FormikControl
+                                                control="select"
+                                                label="Enable Telegram"
+                                                name="telegramEnabled"
+                                                options={enableDisableOptions}
+                                                type="text"
+                                                onChange={(e) => onEnableTelegramChange(e, formik)}
+                                            />
+                                            {telegramEnabled && (
+                                                <FormikControl
+                                                    control="input"
+                                                    label="Telegram bot token"
+                                                    name="telegramBotToken"
+                                                    type="password"
+                                                    autocomplete="off"
+                                                />
+                                            )}
+                                        </DataContainer>
+                                        <Title>Large language model (LLM)</Title>
+                                        <DataContainer>
                                             <FormikControl
                                                 control="select"
                                                 label="Enable LLM"
                                                 name="llmEnabled"
-                                                options={enableLLMOptions}
+                                                options={enableDisableOptions}
                                                 type="text"
                                                 onChange={(e) => onEnableLLMChange(e, formik)}
                                             />
@@ -368,7 +382,7 @@ const CreateOrganization: FC<CreateOrganizationProps> = ({
                                                     />
                                                 </>
                                             )}
-                                        </LlmDataContainer>
+                                        </DataContainer>
                                         <FormikControl
                                             control="inputArray"
                                             label="Organization admins"

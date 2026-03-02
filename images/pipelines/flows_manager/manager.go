@@ -18,13 +18,13 @@ import (
 
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
-
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type FlowsManager struct {
 	Orgs                     *common.ShardedSyncMap
 	Groups                   *common.ShardedSyncMap
+	Assets                   *common.ShardedSyncMap
 	NotificationChannels     *common.ShardedSyncMap
 	Topics                   *common.ShardedSyncMap
 	AssetTopicsRef           *common.ShardedSyncMap
@@ -75,6 +75,7 @@ func CreateFlowsManager(
 	secretEncryptionKey := config.EncryptionSecretKey
 	orgs := admin.GetOrgs(secretEncryptionKey)
 	groups := admin.GetGroups()
+	assets := admin.GetAssets()
 	notificationChannels := admin.GetNotificationChannels()
 	topics := admin.GetTopics()
 	mlModels := admin.GetMlModels()
@@ -110,6 +111,7 @@ func CreateFlowsManager(
 	flowManager := FlowsManager{
 		Orgs:                     common.NewShardedSyncMap(config.ShardCount),
 		Groups:                   common.NewShardedSyncMap(config.ShardCount),
+		Assets:                   common.NewShardedSyncMap(config.ShardCount),
 		NotificationChannels:     common.NewShardedSyncMap(config.ShardCount),
 		Topics:                   common.NewShardedSyncMap(config.ShardCount),
 		AssetTopicsRef:           common.NewShardedSyncMap(config.ShardCount),
@@ -144,8 +146,8 @@ func CreateFlowsManager(
 	}
 
 	flowManager.AddOrgs(orgs)
-	// flowManager.StartTelegramBots()
 	flowManager.AddGroups(groups)
+	flowManager.AddAssets(assets)
 	flowManager.AddNotificationChannels(notificationChannels)
 	flowManager.AddTopics(topics)
 	flowManager.AddAssetTopicsRef(assetsTopics)
@@ -327,16 +329,28 @@ func (fm *FlowsManager) GetEncryptionSecretKey() string {
 
 func (fm *FlowsManager) GetOrgLlmEnabled(orgId int) bool {
 	org := fm.GetOrg(orgId)
+	if org == nil {
+		fm.log.Error("Org with ID %d not found", orgId)
+		return false
+	}
 	return org.LlmEnabled
 }
 
 func (fm *FlowsManager) GetOrgLlmProviderApiKey(orgId int) string {
 	org := fm.GetOrg(orgId)
+	if org == nil {
+		fm.log.Error("Org with ID %d not found", orgId)
+		return ""
+	}
 	return org.LlmProviderApiKey
 }
 
 func (fm *FlowsManager) GetOrgLlmProviderUrl(orgId int) string {
 	org := fm.GetOrg(orgId)
+	if org == nil {
+		fm.log.Error("Org with ID %d not found", orgId)
+		return ""
+	}
 	return org.LlmProviderUrl
 }
 

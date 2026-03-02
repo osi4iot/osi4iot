@@ -26,14 +26,14 @@ import {
     AiAgentNode,
     BatchNode,
     IoTDbNode,
+    AssetStateNode,
+    CommentNode,
 } from "./Nodes";
 import NodePalette from "./NodePalette";
 import NodePropertiesPanel from "./NodePropertiesPanel";
 import { createNodesAndEdges } from "../Utils/customHooks";
 import { toast } from "react-toastify";
-import {
-    useMlModelsTableInGroup,
-} from "../../../../contexts/platformAssistantContext/platformAssistantContext";
+import { useMlModelsTableInGroup } from "../../../../contexts/platformAssistantContext/platformAssistantContext";
 
 export const processInitialPipelineData = (digitalTwinSelected, mqttClient, mqttTopicsData) => {
     if (!digitalTwinSelected.pipelineFileData || digitalTwinSelected.pipelineFileData === "") {
@@ -105,6 +105,8 @@ export default function Flow({
             MlModel: 0,
             Batch: 0,
             IoTDb: 0,
+            AssetState: 0,
+            Comment: 0,
         };
 
         let maxInject = 0;
@@ -129,25 +131,6 @@ export default function Flow({
         });
     }, [nodes]);
 
-    const nodeTypes = useMemo(
-        () => ({
-            Function: FunctionNode,
-            Listen: ListenNode,
-            Publish: PublishNode,
-            Inject: InjectNode,
-            Trigger: TriggerNode,
-            Email: EmailNode,
-            TelegramListen: TelegramListenNode,
-            TelegramSend: TelegramSendNode,
-            Delay: DelayNode,
-            MlModel: MlModelNode,
-            AiAgent: AiAgentNode,
-            Batch: BatchNode,
-            IoTDb: IoTDbNode,
-        }),
-        []
-    );
-
     const onNodesChange = useCallback(
         (changes) => {
             changes.some((change) => {
@@ -171,7 +154,7 @@ export default function Flow({
             setNodes((nodesSnapshot) => applyNodeChanges(changes, nodesSnapshot));
         },
         // eslint-disable-next-line react-hooks/exhaustive-deps
-        [nodes]
+        [nodes],
     );
 
     const onEdgesChange = useCallback(
@@ -186,7 +169,7 @@ export default function Flow({
             setEdges((edgesSnapshot) => applyEdgeChanges(changes, edgesSnapshot));
         },
         // eslint-disable-next-line react-hooks/exhaustive-deps
-        []
+        [],
     );
 
     const onConnect = useCallback(
@@ -195,7 +178,7 @@ export default function Flow({
             setEdges((edgesSnapshot) => addEdge(params, edgesSnapshot));
         },
         // eslint-disable-next-line react-hooks/exhaustive-deps
-        []
+        [],
     );
 
     const onNodeClick = useCallback((event, node) => {
@@ -204,8 +187,10 @@ export default function Flow({
 
     const onNodeDoubleClick = useCallback((event, node) => {
         event.stopPropagation();
-        setSelectedNode(node);
-        setIsPanelOpen(true);
+        if(node.type !== "Comment") {
+            setSelectedNode(node);
+            setIsPanelOpen(true);
+        }
     }, []);
 
     const onPaneClick = useCallback(() => {
@@ -227,10 +212,10 @@ export default function Flow({
                         };
                     }
                     return node;
-                })
+                }),
             );
         },
-        [setNodes]
+        [setNodes],
     );
 
     const onClosePanel = useCallback(() => {
@@ -250,10 +235,10 @@ export default function Flow({
             event.preventDefault();
 
             const data = event.dataTransfer.getData("application/reactflow");
-
             if (!data) return;
 
             const { nodeType, label, numOutputs, debug, settings } = JSON.parse(data);
+
             if (nodeType === "MlModel") {
                 if (mlModelsTable.length === 0) {
                     toast.error("No ML Models available.");
@@ -271,6 +256,11 @@ export default function Flow({
 
                 if (!groupSelected.llmEnabled) {
                     toast.error("AiAgent is not enabled for this group.");
+                    return;
+                }
+            } else if (nodeType === "TelegramListen" || nodeType === "TelegramSend") {
+                if (!orgSelected.telegramEnabled) {
+                    toast.error("Telegram integration is not enabled for this organization.");
                     return;
                 }
             }
@@ -317,7 +307,30 @@ export default function Flow({
             setNodes((nds) => nds.concat(newNode));
         },
         // eslint-disable-next-line react-hooks/exhaustive-deps
-        [screenToFlowPosition, mqttClient, mqttTopicsData, nodeCounters]
+        [screenToFlowPosition, mqttClient, mqttTopicsData, nodeCounters],
+    );
+
+    const nodeTypes = useMemo(
+        () => ({
+            Function: FunctionNode,
+            Listen: ListenNode,
+            Publish: PublishNode,
+            Inject: InjectNode,
+            Trigger: TriggerNode,
+            Email: EmailNode,
+            TelegramListen: TelegramListenNode,
+            TelegramSend: TelegramSendNode,
+            Delay: DelayNode,
+            Comment: ({data, id, selected}) => CommentNode(data, id, selected, onUpdateNode, handlePipelineUiChanged),
+            MlModel: MlModelNode,
+            AiAgent: AiAgentNode,
+            Batch: BatchNode,
+            IoTDb: IoTDbNode,
+            AssetState: AssetStateNode,
+        }),
+        
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        [],
     );
 
     return (

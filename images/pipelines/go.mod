@@ -12,6 +12,7 @@ require (
 	github.com/nats-io/nats.go v1.45.0
 	github.com/nfnt/resize v0.0.0-20180221191011-83c6a9932646
 	github.com/osi4iot/mcphost v0.31.0-osi4iot
+	github.com/pganalyze/pg_query_go/v5 v5.1.0
 	github.com/spf13/viper v1.20.1
 	github.com/yalue/onnxruntime_go v1.21.0
 	go.uber.org/zap v1.27.0

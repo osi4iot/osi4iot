@@ -29,7 +29,7 @@ func (fm *FlowsManager) GetOrg(orgId int) *common.Org {
 func (fm *FlowsManager) AddOrg(org *common.Org) {
 	orgIdStr := strconv.Itoa(org.Id)
 	if _, ok := fm.Orgs.Load(orgIdStr); !ok {
-		if org.TelegramBotToken != "" {
+		if org.TelegramEnabled && org.TelegramBotToken != "" {
 			orgLeaderElector := fm.CreateOrgLeaderElector(org)
 			telegramBot := fm.StartTelegramBot(org, orgLeaderElector)
 			if telegramBot != nil {
@@ -51,10 +51,7 @@ func (fm *FlowsManager) AddOrgs(orgs []*common.Org) {
 	for _, org := range orgs {
 		orgIdStr := strconv.Itoa(org.Id)
 		if _, ok := fm.Orgs.Load(orgIdStr); !ok {
-			if org.Id == 1 {
-				org.TelegramBotToken = fm.GetPlatformTelegramBotToken()
-			}
-			if org.TelegramBotToken != "" {
+			if org.TelegramEnabled && org.TelegramBotToken != "" {
 				orgLeaderElector := fm.CreateOrgLeaderElector(org)
 				telegramBot := fm.StartTelegramBot(org, orgLeaderElector)
 				if telegramBot != nil {
@@ -133,31 +130,63 @@ func (fm *FlowsManager) DeleteOrg(orgId int) error {
 
 func (fm *FlowsManager) UpdateOrg(org *common.Org) error {
 	orgIdStr := strconv.Itoa(org.Id)
-	if value, ok := fm.Orgs.Load(orgIdStr); ok {
-		existentOrg := value.(*common.Org)
-		if existentOrg.TelegramBotToken != org.TelegramBotToken {
+	value, ok := fm.Orgs.Load(orgIdStr)
+	if !ok {
+		return common.ErrNotFound
+	}
+
+	existentOrg := value.(*common.Org)
+	telegramChanged := existentOrg.TelegramEnabled != org.TelegramEnabled
+
+	if telegramChanged {
+		digitalTwinsInOrg := fm.GetDigitalTwinsInOrg(org.Id)
+
+		if existentOrg.TelegramListener != nil {
 			existentOrg.TelegramListener.Stop()
-			existentOrg.LeaderElector.Stop()
-			if org.TelegramBotToken != "" {
-				orgLeaderElector := fm.CreateOrgLeaderElector(org)
-				telegramBot := fm.StartTelegramBot(org, orgLeaderElector)
-				if telegramBot != nil {
-					org.TelegramListener = telegramBot
-					orgIdStr := strconv.Itoa(org.Id)
-					fm.Orgs.Store(orgIdStr, org)
+			for _, dt := range digitalTwinsInOrg {
+				if dt.Pipeline != nil && dt.Pipeline.HasTelegramListenNodesData() {
+					dt.Pipeline.Stop("telegram_stopped")
 				}
+			}
+		}
+		if existentOrg.LeaderElector != nil {
+			existentOrg.LeaderElector.Stop()
+		}
+
+		if org.TelegramEnabled && org.TelegramBotToken != "" {
+			orgLeaderElector := fm.CreateOrgLeaderElector(org)
+			telegramBot := fm.StartTelegramBot(org, orgLeaderElector)
+			if telegramBot != nil {
+				org.TelegramListener = telegramBot
+				org.LeaderElector = orgLeaderElector
+				for _, dt := range digitalTwinsInOrg {
+					if dt.Pipeline != nil && dt.Pipeline.HasTelegramListenNodesData() {
+						err := dt.Pipeline.CreateTelegramListenNodes(org)
+						if err != nil {
+							fm.log.Errorf("Failed to create Telegram listen nodes for Digital Twin %d: %v", dt.Id, err)
+						}
+						dt.Pipeline.Start(false)
+					}
+				}
+				fm.log.Infof("Started Telegram bot for Org %d", org.Id)
 			} else {
-				org.TelegramListener = nil
+				orgLeaderElector.Stop()
 				org.LeaderElector = nil
+				org.TelegramListener = nil
+				fm.log.Errorf("Failed to start Telegram bot for Org %d", org.Id)
 			}
 		} else {
-			org.TelegramListener = existentOrg.TelegramListener
-			org.LeaderElector = existentOrg.LeaderElector
+			org.TelegramListener = nil
+			org.LeaderElector = nil
 		}
-		fm.Orgs.Store(orgIdStr, org)
-		return nil
+	} else {
+		// Sin cambios en Telegram, conservar lo existente
+		org.TelegramListener = existentOrg.TelegramListener
+		org.LeaderElector = existentOrg.LeaderElector
 	}
-	return common.ErrNotFound
+
+	fm.Orgs.Store(orgIdStr, org)
+	return nil
 }
 
 func (fm *FlowsManager) CreateOrgLeaderElector(org *common.Org) *leader_election.LeaderElector {
@@ -232,24 +261,4 @@ func (fm *FlowsManager) StartTelegramBot(org *common.Org, orgLeaderElector *lead
 	}
 
 	return telegramBot
-}
-
-func (fm *FlowsManager) StartTelegramBots() {
-	fm.Orgs.Range(func(key, value any) bool {
-		org := value.(*common.Org)
-		if org.Id == 1 {
-			org.TelegramBotToken = fm.GetPlatformTelegramBotToken()
-		}
-		if org.TelegramBotToken != "" {
-			orgLeaderElector := fm.CreateOrgLeaderElector(org)
-			telegramBot := fm.StartTelegramBot(org, orgLeaderElector)
-			if telegramBot != nil {
-				org.LeaderElector = orgLeaderElector
-				org.TelegramListener = telegramBot
-				orgIdStr := strconv.Itoa(org.Id)
-				fm.Orgs.Store(orgIdStr, org)
-			}
-		}
-		return true
-	})
 }

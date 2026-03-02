@@ -34,11 +34,11 @@ const initialOrgData = {
     role: "Generic",
     buildingId: 1,
     mqttAccessControl: "Pub & Sub",
-    telegramInvitationLink: "",
-    telegramChatId: "",
     llmEnabled: false,
     llmProviderUrl: "",
     llmProviderApiKey: "",
+    telegramEnabled: false,
+    telegramBotToken: "",
     orgAdminArray: [
         {
             firstName: "",

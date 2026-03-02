@@ -159,7 +159,7 @@ func (n *BatchNode) getBatchNodeKvStoreKey() string {
 }
 
 func (n *BatchNode) InitializeBatchData(log *logger.Logger) error {
-	kvStore, err := n.GetKvStore(n.GetDigitalTwinId())
+	kvStore, err := n.GetDigitalTwinKvStore(n.GetDigitalTwinId())
 	if err != nil {
 		return err
 	}
@@ -178,7 +178,7 @@ func (n *BatchNode) InitializeBatchData(log *logger.Logger) error {
 }
 
 func (n *BatchNode) GetBatchData(log *logger.Logger) (*BatchData, error) {
-	kvStore, err:= n.GetKvStore(n.GetDigitalTwinId())
+	kvStore, err:= n.GetDigitalTwinKvStore(n.GetDigitalTwinId())
 	if err != nil {
 		return nil, err
 	}
@@ -230,7 +230,7 @@ func (n *BatchNode) GetBatchData(log *logger.Logger) (*BatchData, error) {
 }
 
 func (n *BatchNode) AddMessageToBatchData(message map[string]interface{}, log *logger.Logger) (*BatchData, error) {
-	kvStore, err:= n.GetKvStore(n.GetDigitalTwinId())
+	kvStore, err:= n.GetDigitalTwinKvStore(n.GetDigitalTwinId())
 	if err != nil {
 		return nil, err
 	}

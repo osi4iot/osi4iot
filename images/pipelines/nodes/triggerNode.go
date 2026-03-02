@@ -357,7 +357,7 @@ func (n *TriggerNode) runResendEveryLoop(ctx context.Context, log *logger.Logger
 }
 
 func (n *TriggerNode) checkAllResendEveryTriggers(log *logger.Logger) {
-    kvStore, err := n.GetKvStore(n.GetDigitalTwinId())
+    kvStore, err := n.GetDigitalTwinKvStore(n.GetDigitalTwinId())
     if err != nil {
         return
     }
@@ -416,7 +416,7 @@ func (n *TriggerNode) checkResendEveryTrigger(state *TriggerState, now time.Time
 }
 
 func (n *TriggerNode) recoverPendingTimers(log *logger.Logger) {
-    kvStore, err := n.GetKvStore(n.GetDigitalTwinId())
+    kvStore, err := n.GetDigitalTwinKvStore(n.GetDigitalTwinId())
     if err != nil {
         log.Errorf("TriggerNode %s: Failed to get KV store for recovery: %v", n.NodeUid, err)
         return
@@ -731,7 +731,7 @@ func (n *TriggerNode) getTriggerState(streamKey string) (*TriggerState, error) {
 }
 
 func (n *TriggerNode) getTriggerStateByKey(kvKey string) (*TriggerState, error) {
-	kvStore, err := n.GetKvStore(n.GetDigitalTwinId())
+	kvStore, err := n.GetDigitalTwinKvStore(n.GetDigitalTwinId())
 	if err != nil {
 		return nil, err
 	}
@@ -795,7 +795,7 @@ func (n *TriggerNode) getTriggerStateByKey(kvKey string) (*TriggerState, error) 
 }
 
 func (n *TriggerNode) saveTriggerState(streamKey string, state *TriggerState) error {
-	kvStore, err := n.GetKvStore(n.GetDigitalTwinId())
+	kvStore, err := n.GetDigitalTwinKvStore(n.GetDigitalTwinId())
 	if err != nil {
 		return err
 	}
@@ -805,7 +805,7 @@ func (n *TriggerNode) saveTriggerState(streamKey string, state *TriggerState) er
 }
 
 func (n *TriggerNode) deleteTriggerState(streamKey string) error {
-	kvStore, err := n.GetKvStore(n.GetDigitalTwinId())
+	kvStore, err := n.GetDigitalTwinKvStore(n.GetDigitalTwinId())
 	if err != nil {
 		return err
 	}
@@ -816,7 +816,7 @@ func (n *TriggerNode) deleteTriggerState(streamKey string) error {
 }
 
 func (n *TriggerNode) deleteAllStreamStates() error {
-	kvStore, err := n.GetKvStore(n.GetDigitalTwinId())
+	kvStore, err := n.GetDigitalTwinKvStore(n.GetDigitalTwinId())
 	if err != nil {
 		return err
 	}

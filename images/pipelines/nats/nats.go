@@ -182,6 +182,54 @@ func CreateLeaderKeyValueStore(
 	return newKvStore, nil
 }
 
+func CreateGroupKeyValueStore(
+	orgHash string,
+	GroupUID string,
+	log *logger.Logger,
+	js jetstream.JetStream,
+	numStreamReplicas int,
+) (*KVStore, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	kvName := fmt.Sprintf("org_%s-group_%s", orgHash, GroupUID)
+	kv, err := js.CreateOrUpdateKeyValue(ctx, jetstream.KeyValueConfig{
+		Bucket:   kvName,
+		Replicas: numStreamReplicas,
+	})
+
+	if err != nil {
+		log.Errorf("Error creating KV store '%s': %v", kvName, err)
+		return nil, err
+	}
+
+	newKvStore := NewKVStore(kv, log)
+
+	log.Infof("KV store '%s' created successfully", kvName)
+	return newKvStore, nil
+}
+
+func DeleteGroupKeyValueStore(
+	orgHash string,
+	GroupUID string,
+	log *logger.Logger,
+	js jetstream.JetStream,
+) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	kvName := fmt.Sprintf("org_%s-group_%s", orgHash, GroupUID)
+	err := js.DeleteKeyValue(ctx, kvName)
+
+	if err != nil {
+		log.Errorf("Error deleting KV store '%s': %v", kvName, err)
+		return err
+	}
+
+	log.Infof("KV store '%s' deleted successfully", kvName)
+	return nil
+}
+
 func CreateDigitalTwinKeyValueStore(
 	orgHash string,
 	digitalTwinUID string,

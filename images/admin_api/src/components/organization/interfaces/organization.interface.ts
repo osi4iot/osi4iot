@@ -13,6 +13,9 @@ export default interface IOrganization {
 	llmEnabled: boolean;
 	llmProviderUrl: string;
 	hashedLlmProviderApiKey: string;
+	telegramEnabled: boolean;
+	hashedTelegramBotToken: string;
+	hashedTelegramWebhookSecretToken: string;
 }
 
 export interface IOrganizationWichTheLoggedUserIsUser {

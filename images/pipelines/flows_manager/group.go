@@ -3,6 +3,8 @@ package flows_manager
 import (
 	"pipelines/common"
 	"strconv"
+
+	nats_pkg "pipelines/nats"
 )
 
 func (fm *FlowsManager) GetGroups() []*common.Group {
@@ -29,6 +31,18 @@ func (fm *FlowsManager) GetGroup(groupId int) *common.Group {
 func (fm *FlowsManager) AddGroup(group *common.Group) {
 	groupIdStr := strconv.Itoa(group.Id)
 	if _, ok := fm.Groups.Load(groupIdStr); !ok {
+		org := fm.GetOrg(group.OrgId)
+		if org == nil {
+			fm.log.Error("Org with ID %d not found for Group %d", group.OrgId, group.Id)
+			return
+		}
+		kv, err := nats_pkg.CreateGroupKeyValueStore(org.OrgHash, group.GroupUID, fm.log, fm.JetStream, fm.NumStreamReplicas)
+		if err != nil {
+			fm.log.Error("Failed to create KeyValue store for Group %d: %v", group.Id, err)
+		} else {
+			group.KvStore = kv
+		}
+
 		fm.Groups.Store(groupIdStr, group)
 	} else {
 		fm.log.Error("Group with ID %d already exists", group.Id)
@@ -37,12 +51,7 @@ func (fm *FlowsManager) AddGroup(group *common.Group) {
 
 func (fm *FlowsManager) AddGroups(groups []*common.Group) {
 	for _, group := range groups {
-		groupIdStr := strconv.Itoa(group.Id)
-		if _, ok := fm.Groups.Load(groupIdStr); !ok {
-			fm.Groups.Store(groupIdStr, group)
-		} else {
-			fm.log.Error("Group with ID %d already exists", group.Id)
-		}
+		fm.AddGroup(group)
 	}
 }
 
@@ -91,4 +100,13 @@ func (fm *FlowsManager) DeleteGroup(groupId int) error {
 	}
 
 	return nil
+}
+
+func (fm *FlowsManager) GetGroupKvStore(groupId int) *nats_pkg.KVStore {
+	group := fm.GetGroup(groupId)
+	if group == nil {
+		fm.log.Errorf("Group with ID %d not found", groupId)
+		return nil
+	}
+	return group.KvStore
 }

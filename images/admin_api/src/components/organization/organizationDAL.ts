@@ -27,12 +27,15 @@ export const exitsOrganizationWithAcronym = async (orgAcronym: string): Promise<
 export const updateOrganizationByProp = async (
 	propName: string,
 	propValue: string | number,
-	orgData: Partial<CreateOrganizationDto>
+	orgData: Partial<CreateOrganizationDto>,
+	action = "update"
 ): Promise<void> => {
 	const query = `UPDATE grafanadb.org SET name = $1, acronym = $2, role = $3, 
 	building_id = $4, mqtt_access_control = $5, llm_enabled = $6, 
-	llm_provider_url = $7, hashed_llm_provider_api_key = $8 
-	WHERE grafanadb.org.${propName} = $9 RETURNING *;`;
+	llm_provider_url = $7, hashed_llm_provider_api_key = $8,
+	telegram_enabled = $9,
+	hashed_telegram_bot_token = $10, hashed_telegram_webhook_secret_token = $11
+	WHERE grafanadb.org.${propName} = $12 RETURNING *;`;
 	const queryArray = [
 		orgData.name,
 		orgData.acronym,
@@ -42,11 +45,18 @@ export const updateOrganizationByProp = async (
 		orgData.llmEnabled,
 		orgData.llmProviderUrl,
 		orgData.hashedLlmProviderApiKey,
+		orgData.telegramEnabled,
+		orgData.hashedTelegramBotToken,
+		orgData.hashedTelegramWebhookSecretToken,
 		propValue,
 	];
 	const result = await pool.query(query, queryArray);
 	const orgId = result.rows[0].id as number;
-	await natsClient.jsPublish("org", "update", orgId);
+	if (action === "create") {
+		await natsClient.jsPublish("org", "create", orgId);
+	} else if (action === "update") {
+		await natsClient.jsPublish("org", "update", orgId);
+	}
 };
 
 export const updateOrganizationHashById = async (orgId: number, newOrgHash: string): Promise<void> => {
@@ -76,14 +86,14 @@ export const getOrganizations = async (): Promise<IOrganization[]> => {
 					building_id AS "buildingId", org_hash AS "orgHash",
 					mqtt_access_control AS "mqttAccessControl",
 					llm_enabled AS "llmEnabled",
-					llm_provider_url AS "llmProviderUrl"
+					llm_provider_url AS "llmProviderUrl",
+					telegram_enabled AS "telegramEnabled"
 					FROM grafanadb.org
 					INNER JOIN grafanadb.building ON grafanadb.org.building_id = grafanadb.building.id
 					ORDER BY grafanadb.org.id ASC;`;
 	const result = await pool.query(query);
 	return result.rows as IOrganization[];
 };
-
 
 export const getOrganizationsFullInfo = async (): Promise<IOrganization[]> => {
 	const query = `SELECT grafanadb.org.id, grafanadb.org.name, 
@@ -93,7 +103,10 @@ export const getOrganizationsFullInfo = async (): Promise<IOrganization[]> => {
 					mqtt_access_control AS "mqttAccessControl",
 					llm_enabled AS "llmEnabled",
 					llm_provider_url AS "llmProviderUrl", 
-					hashed_llm_provider_api_key AS "hashedLlmProviderApiKey"
+					hashed_llm_provider_api_key AS "hashedLlmProviderApiKey",
+					telegram_enabled AS "telegramEnabled",
+					hashed_telegram_bot_token AS "hashedTelegramBotToken",
+					hashed_telegram_webhook_secret_token AS "hashedTelegramWebhookSecretToken"
 					FROM grafanadb.org
 					INNER JOIN grafanadb.building ON grafanadb.org.building_id = grafanadb.building.id
 					ORDER BY grafanadb.org.id ASC;`;
@@ -108,7 +121,8 @@ export const getOrganizationsWithIdsArray = async (orgIdsArray: number[]): Promi
 					building_id AS "buildingId", org_hash AS "orgHash",
 					mqtt_access_control AS "mqttAccessControl",
 					llm_enabled AS "llmEnabled",
-					llm_provider_url AS "llmProviderUrl"
+					llm_provider_url AS "llmProviderUrl",
+					telegram_enabled AS "telegramEnabled"
 					FROM grafanadb.org
 					INNER JOIN grafanadb.building ON grafanadb.org.building_id = grafanadb.building.id
 					WHERE grafanadb.org.id = ANY($1::integer[])
@@ -130,7 +144,8 @@ export const getOrganizationByProp = async (propName: string, propValue: string 
 					building_id AS "buildingId", org_hash AS "orgHash",
 					mqtt_access_control AS "mqttAccessControl",
 					llm_enabled AS "llmEnabled",
-					llm_provider_url AS "llmProviderUrl"
+					llm_provider_url AS "llmProviderUrl",
+					telegram_enabled AS "telegramEnabled"
 					FROM grafanadb.org
 					INNER JOIN grafanadb.building ON grafanadb.org.building_id = grafanadb.building.id
 					WHERE grafanadb.org.${propName} = $1;`;
@@ -138,7 +153,10 @@ export const getOrganizationByProp = async (propName: string, propValue: string 
 	return result.rows[0] as IOrganization;
 };
 
-export const getOrganizationFullInfo = async (propName: string, propValue: string | number): Promise<IOrganization> => {
+export const getOrganizationFullInfoByProp = async (
+	propName: string,
+	propValue: string | number
+): Promise<IOrganization> => {
 	const query = `SELECT grafanadb.org.id, grafanadb.org.name, 
 	                grafanadb.org.acronym, grafanadb.org.role,
 					grafanadb.building.city, grafanadb.building.country,
@@ -146,7 +164,10 @@ export const getOrganizationFullInfo = async (propName: string, propValue: strin
 					mqtt_access_control AS "mqttAccessControl",
 					llm_enabled AS "llmEnabled",
 					llm_provider_url AS "llmProviderUrl", 
-					hashed_llm_provider_api_key AS "hashedLlmProviderApiKey"
+					hashed_llm_provider_api_key AS "hashedLlmProviderApiKey",
+					telegram_enabled AS "telegramEnabled",
+					hashed_telegram_bot_token AS "hashedTelegramBotToken",
+					hashed_telegram_webhook_secret_token AS "hashedTelegramWebhookSecretToken"
 					FROM grafanadb.org
 					INNER JOIN grafanadb.building ON grafanadb.org.building_id = grafanadb.building.id
 					WHERE grafanadb.org.${propName} = $1;`;
@@ -220,6 +241,7 @@ export const getOrganizationsManagedByUserId = async (userId: number): Promise<I
 					building_id AS "buildingId", org_hash AS "orgHash",
 					mqtt_access_control AS "mqttAccessControl",
 					llm_enabled AS "llmEnabled",
+					telegram_enabled AS "telegramEnabled",
 					llm_provider_url AS "llmProviderUrl"
 					FROM grafanadb.org
 					INNER JOIN grafanadb.building ON grafanadb.org.building_id = grafanadb.building.id
@@ -239,7 +261,8 @@ export const organizationsWhichTheLoggedUserIsUser = async (
 					building_id AS "buildingId", org_hash AS "orgHash",
 					mqtt_access_control AS "mqttAccessControl",
 					llm_enabled AS "llmEnabled",
-					llm_provider_url AS "llmProviderUrl"
+					llm_provider_url AS "llmProviderUrl",
+					telegram_enabled AS "telegramEnabled"
 					FROM grafanadb.org
 					INNER JOIN grafanadb.building ON grafanadb.org.building_id = grafanadb.building.id
 					INNER JOIN grafanadb.org_user ON grafanadb.org.id = grafanadb.org_user.org_id

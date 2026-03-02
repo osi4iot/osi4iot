@@ -12,11 +12,26 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+
+	pg_query "github.com/pganalyze/pg_query_go/v5"
 )
+
+var ErrOnlySelect = fmt.Errorf("only SELECT queries are allowed")
+var customVarRegex = regexp.MustCompile(`\$([a-zA-Z][a-zA-Z0-9_]*)`)
+
+var allowedFunNames = []string{"topicFun", "timeFun"}
+var customFuncRegex = buildCustomFuncRegex(allowedFunNames)
+
+func buildCustomFuncRegex(names []string) *regexp.Regexp {
+    pattern := `\$__(` + strings.Join(names, "|") + `)`
+    return regexp.MustCompile(pattern)
+}
+
+const IotTablePlaceholder = "iot_table"
 
 type SQLTemplate struct {
 	Query     string
-	TopicMap map[string]*common.Topic
+	TopicMap  map[string]*common.Topic
 	Variables map[string]interface{}
 }
 
@@ -27,38 +42,31 @@ func ParseAndExecuteSQL(dbPool *pgxpool.Pool, sqlTemplate SQLTemplate) (pgx.Rows
 	ctx, cancel := utils.ContextWithTimeout(DefaultQueryTimeout)
 	defer cancel()
 
-	// Reemplazar variables tipo Grafana
 	query := sqlTemplate.Query
 	var args []interface{}
-	argIndex := 1
 
 	// Replace custom variables $variable with placeholders
-	for varName, value := range sqlTemplate.Variables {
-		if strings.Contains(query, varName) {
-			placeholder := fmt.Sprintf("$%d", argIndex)
-			query = strings.ReplaceAll(query, "$"+varName, placeholder)
-			args = append(args, value)
-			argIndex++
-		}
+	query, args, err := replaceVariables(sqlTemplate.Query, sqlTemplate.Variables)
+	if err != nil {
+		return nil, fmt.Errorf("error replacing variables: %w", err)
 	}
 
 	// Parse time functions like $__timeFun('now-1h')
-	parsedQuery, err := ParseQueryWithTimeFunc(query)
+	query, err = ParseQueryWithTimeFunc(query)
 	if err != nil {
 		return nil, fmt.Errorf("error parsing time functions: %w", err)
 	}
 
 	// Parse topic functions like $__topicFun('topicRef')
-	parsedQuery, err = ParseQueryWithTopicFunc(parsedQuery, sqlTemplate.TopicMap)
+	query, err = ParseQueryWithTopicFunc(query, sqlTemplate.TopicMap)
 	if err != nil {
 		return nil, fmt.Errorf("error parsing topic functions: %w", err)
 	}
 
-	rows, err := dbPool.Query(ctx, parsedQuery, args...)
+	rows, err := dbPool.Query(ctx, query, args...)
 	if err != nil {
-		// Check if the error is a context deadline exceeded error
 		if errors.Is(err, context.DeadlineExceeded) {
-			return nil, fmt.Errorf("query timeout exceeded (5s): %w", err)
+			return nil, fmt.Errorf("query timeout exceeded: %w", err)
 		}
 		return nil, err
 	}
@@ -66,29 +74,107 @@ func ParseAndExecuteSQL(dbPool *pgxpool.Pool, sqlTemplate SQLTemplate) (pgx.Rows
 	return rows, nil
 }
 
-// Basic validation to ensure only SELECT queries are allowed and no dangerous commands are present
-func ValidateQuery(query string) error {
-	// Only allow SELECT queries
-	query = strings.TrimSpace(strings.ToLower(query))
-	query = strings.Join(strings.Fields(query), " ")
-	if !strings.HasPrefix(query, "select") {
-		return fmt.Errorf("only SELECT queries are allowed")
+func ValidateAndResolveQuery(query string, tableName string) (string, error) {
+	// 1. Validar contra el placeholder
+	if err := ValidateQuery(query, IotTablePlaceholder); err != nil {
+		return "", err
 	}
 
-	// Forbid dangerous commands like DROP, DELETE, UPDATE, INSERT, TRUNCATE, ALTER, CREATE
-	dangerous := []string{"drop", "delete", "update", "insert", "truncate", "alter", "create"}
-	for _, cmd := range dangerous {
-		if strings.Contains(query, cmd) {
-			return fmt.Errorf("dangerous command detected: %s", cmd)
+	// 2. Reemplazar el placeholder por la tabla real
+	resolved := strings.ReplaceAll(query, IotTablePlaceholder, tableName)
+	return resolved, nil
+}
+
+func ValidateQuery(query string, allowedTable string) error {
+	sanitized := sanitizeCustomFunctionsAndVariables(query)
+	result, err := pg_query.Parse(sanitized)
+	if err != nil {
+		return fmt.Errorf("invalid SQL: %w", err)
+	}
+
+	if len(result.Stmts) == 0 {
+		return ErrOnlySelect
+	}
+
+	// Reject multiple statements (e.g. "SELECT 1; DROP TABLE...")
+	if len(result.Stmts) > 1 {
+		return fmt.Errorf("only a single statement is allowed")
+	}
+
+	stmt := result.Stmts[0].Stmt
+	selectStmt := stmt.GetSelectStmt()
+	if selectStmt == nil {
+		return ErrOnlySelect
+	}
+
+	return validateTables(result, allowedTable)
+}
+
+func validateTables(result *pg_query.ParseResult, allowedTable string) error {
+	for _, table := range extractTableNames(result) {
+		if table != allowedTable {
+			return fmt.Errorf("table '%s' is not allowed", table)
 		}
 	}
+	return nil
+}
 
-	// Ensure query contain table
-	if !strings.Contains(query, "from iot_table") {
-		return fmt.Errorf("query must contain FROM iot_table")
+func extractTableNames(result *pg_query.ParseResult) []string {
+	var tables []string
+	for _, stmt := range result.Stmts {
+		walkNode(stmt.Stmt, &tables)
+	}
+	return tables
+}
+
+func walkNode(node *pg_query.Node, tables *[]string) {
+	if node == nil {
+		return
 	}
 
-	return nil
+	switch n := node.Node.(type) {
+	case *pg_query.Node_RangeVar:
+		if n.RangeVar.Relname != "" {
+			*tables = append(*tables, n.RangeVar.Relname)
+		}
+
+	case *pg_query.Node_SelectStmt:
+		s := n.SelectStmt
+		for _, f := range s.FromClause {
+			walkNode(f, tables)
+		}
+		walkNode(s.WhereClause, tables)
+		walkNode(s.HavingClause, tables)
+		if s.WithClause != nil {
+			for _, cte := range s.WithClause.Ctes {
+				walkNode(cte, tables)
+			}
+		}
+
+	case *pg_query.Node_BoolExpr:
+		for _, arg := range n.BoolExpr.Args {
+			walkNode(arg, tables)
+		}
+
+	case *pg_query.Node_SubLink:
+		walkNode(n.SubLink.Subselect, tables)
+
+	case *pg_query.Node_JoinExpr:
+		walkNode(n.JoinExpr.Larg, tables)
+		walkNode(n.JoinExpr.Rarg, tables)
+
+	case *pg_query.Node_RangeSubselect:
+		walkNode(n.RangeSubselect.Subquery, tables)
+
+	case *pg_query.Node_CommonTableExpr:
+		walkNode(n.CommonTableExpr.Ctequery, tables)
+	}
+}
+
+func sanitizeCustomFunctionsAndVariables(query string) string {
+	query = customFuncRegex.ReplaceAllString(query, "custom_func")
+	query = customVarRegex.ReplaceAllString(query, "custom_var")
+	return query
 }
 
 func ParseQueryWithTimeFunc(query string) (string, error) {
@@ -137,5 +223,46 @@ func ParseQueryWithTopicFunc(query string, topicMap map[string]*common.Topic) (s
 	}
 
 	return newQuery, nil
+}
 
+func replaceVariables(query string, variables map[string]any) (string, []any, error) {
+    var args []any
+    argIndex := 1
+    replaced := make(map[string]string) // "$varName" -> "$N"
+    var replaceErr error
+
+    result := customVarRegex.ReplaceAllStringFunc(query, func(match string) string {
+        if replaceErr != nil {
+            return match
+        }
+
+        // Ignorar funciones custom $__timeFun, $__topicFun
+        if strings.HasPrefix(match, "$__") {
+            return match
+        }
+
+        // Si ya fue reemplazada, reusar el mismo placeholder
+        if placeholder, ok := replaced[match]; ok {
+            return placeholder
+        }
+
+        varName := match[1:] // quitar el "$"
+        value, ok := variables[varName]
+        if !ok {
+            replaceErr = fmt.Errorf("variable '%s' not found in variables map", varName)
+            return match
+        }
+
+        placeholder := fmt.Sprintf("$%d", argIndex)
+        replaced[match] = placeholder
+        args = append(args, value)
+        argIndex++
+        return placeholder
+    })
+
+    if replaceErr != nil {
+        return "", nil, replaceErr
+    }
+
+    return result, args, nil
 }

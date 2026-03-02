@@ -102,7 +102,6 @@ func (fm *FlowsManager) createPipelineInstanceFromData(pd *common.PipelineData) 
 		NodeOutputByIndex:      make(map[string][]*common.Wire),
 	}
 
-	//leaderElector, err := NewPipelineLeaderElector(fm, pipeline.OrgHash, pipeline.DigitalTwinUid, 10*time.Second)
 	replicaIndex := fm.ReplicaIndex
 	orgHash := pipeline.OrgHash
 	elementType := "pipeline"
@@ -176,7 +175,7 @@ func (fm *FlowsManager) createPipelineInstanceFromData(pd *common.PipelineData) 
 		if err != nil {
 			errMsg := fmt.Sprintf("Failed to create node %s: %v.", nodeData.Name, err)
 			pipelineErrors.AddErrorMsg(errMsg)
-		} else {
+		} else if node != nil {
 			pipeline.Nodes[nodeData.NodeUid] = node
 		}
 	}
@@ -726,6 +725,9 @@ func (p *Pipeline) Stop(action string) error {
 				case "stop":
 					p.SetStatus(common.PipelineStatusStopped)
 					p.LogPipelineInfo("Pipeline stopped successfully")
+				case "telegram_stopped":
+					p.SetStatus(common.PipelineStatusError)
+					p.LogPipelineError("Pipeline stopped by change in Telegram bot settings", "The Telegram bot settings have changed, so the pipeline has been stopped.")
 				case "delete":
 					p.SetStatus(common.PipelineStatusDeleted)
 					p.LogPipelineInfo("Pipeline delete successfully")
@@ -962,7 +964,6 @@ func (p *Pipeline) StartStatusPublisher() {
 	p.Fm.Log().Infof("Started status publisher for pipeline DigitalTwin: %d", p.GetDigitalTwinId())
 }
 
-// Auxiliar function to publish the status
 func (p *Pipeline) publishStatus() {
 	if p.LeaderElector != nil && p.LeaderElector.IsLeader() {
 		pipelineStatus := p.GetStatus().String()
@@ -995,4 +996,55 @@ func (p *Pipeline) StopStatusPublisher() {
 	p.statusPublisherCancel = nil
 
 	p.Fm.Log().Infof("Status publisher stopped DigitalTwin: %d", p.GetDigitalTwinId())
+}
+
+func (p *Pipeline) HasTelegramListenNodesData() bool {
+	hasTelegramListenNodes := false
+	for _, node := range p.NodesData {
+		if node.Type == "TelegramListen" {
+			hasTelegramListenNodes = true
+			break
+		}
+	}
+	return hasTelegramListenNodes
+}
+
+func (p *Pipeline) HasTelegramListenNodes() bool {
+	hasTelegramListenNodes := false
+	for _, node := range p.Nodes {
+		if node.GetType() == "TelegramListen" {
+			hasTelegramListenNodes = true
+			break
+		}
+	}
+	return hasTelegramListenNodes
+}
+
+
+func (p *Pipeline) CreateTelegramListenNodes(org *common.Org) error {
+	nodesData := []*common.NodeData{}
+	for _, node := range p.NodesData {
+		if node.Type == "TelegramListen" {
+			nodeUid := node.NodeUid
+			if _, exists := p.Nodes[nodeUid]; exists {
+				continue
+			}
+			nodesData = append(nodesData, node)
+		}
+	}
+
+	pipelineErrors := &PipelineCreationError{}
+	for _, nodeData := range nodesData {
+		newNode, err := nodes.CreateTelegramListenNode(*nodeData, p.Fm, p, org)
+		if err != nil {
+			errMsg := fmt.Sprintf("Failed to create node %s: %v.", nodeData.Name, err)
+			pipelineErrors.AddErrorMsg(errMsg)
+		} else {
+			p.Nodes[nodeData.NodeUid] = newNode
+		}
+	}
+	if len(pipelineErrors.ErrorMessages) > 0 {
+		return pipelineErrors
+	}
+	return nil
 }

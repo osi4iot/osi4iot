@@ -64,6 +64,9 @@ type Pipeline interface {
 	GetReplicaIndexLeader() int
 	PublishChatMessages(userName string)
 	ClearChatMessagesHistory(userName string)
+	CreateTelegramListenNodes(org *Org) error
+	HasTelegramListenNodesData() bool
+	HasTelegramListenNodes() bool
 }
 
 type PipelineStatusMessage struct {

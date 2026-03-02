@@ -62,6 +62,7 @@ const FormikControl: FC<FormikControlProps> = ({
                     addLabel={addLabel as string}
                     selectLabel={selectLabel as string}
                     goToSelect={goToSelect as () => void}
+                    autocomplete={autocomplete as string}
                     {...rest}
                 />
             );

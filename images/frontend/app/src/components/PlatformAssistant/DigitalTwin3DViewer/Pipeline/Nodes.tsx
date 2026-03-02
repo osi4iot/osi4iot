@@ -1,21 +1,11 @@
 // @ts-nocheck
-import {
-    SquareFunction,
-    WifiHigh,
-    ArrowBigRight,
-    Mail,
-    ClockFading,
-    BrainCog,
-    Layers,
-    Zap,
-    Database,
-} from "lucide-react";
+import { SquareFunction, WifiHigh, ArrowBigRight, Mail, ClockFading, BrainCog, Layers, Zap } from "lucide-react";
 import { Handle, Position } from "@xyflow/react";
 import Paho from "paho-mqtt";
 import styled from "styled-components";
 import { toast } from "react-toastify";
-import { useCallback } from "react";
-import { TelegramNodeIcon, IconContainer } from "./NodePalette";
+import { useCallback, useState, useEffect } from "react";
+import { TelegramIcon, AssetStateIcon, CommentIcon, IoTDBIcon, IconContainer } from "./NodePalette";
 
 const NodeContainer = styled.div<{ bgColor: string; hoverColor?: string; selected?: boolean }>`
     padding: 2px 4px;
@@ -46,13 +36,54 @@ const NodeContent = styled.div<{ numOutputs?: number }>`
     height: ${(props) => `${(props.numOutputs || 1) * 5 + 15}px`};
 `;
 
-
 const NodeLabel = styled.div`
     flex: 1;
     font-size: 10px;
     font-family: Helvetica, Arial, sans-serif !important;
     color: #111827;
     padding-right: 4px;
+`;
+
+const InputWrapper = styled.div`
+    position: relative;
+    display: inline-grid;
+    min-width: 48px;
+
+    &::after {
+        content: attr(data-value);
+        visibility: hidden;
+        white-space: pre;
+        font-size: 10px;
+        font-family: Helvetica, Arial, sans-serif;
+        padding: 2px 4px;
+        border: 1px solid transparent;
+        box-sizing: border-box; /* ← igual que el input */
+        grid-area: 1 / 1;
+    }
+`;
+
+const InputLabel = styled.input<{ value: string; shiftHeld?: boolean; bgColor?: string; hoverColor?: string }>`
+    grid-area: 1 / 1;
+    width: 100%;
+    padding: 2px 4px;
+    font-size: 10px;
+    font-family: Helvetica, Arial, sans-serif !important;
+    font-style: ${(props) => (props.value === "Insert your comment here " ? "italic" : "normal")};
+    color: #111827;
+    outline: none;
+    border: 1px solid #a09c98ff;
+    border-radius: 3px;
+    background-color: ${(props) => props.bgColor || "#9c9c9b"};
+    box-sizing: border-box;
+    cursor: ${(props) => (props.shiftHeld ? "pointer" : "text")};
+
+    &:focus {
+        outline: none;
+    }
+
+    &:hover {
+        background-color: ${(props) => props.hoverColor || "#b4b4b3"};
+    }
 `;
 
 export const StyledHandle = styled(Handle)`
@@ -72,7 +103,6 @@ const InjectNodeWrapper = styled.div`
 const NodeInjectContainer = styled.div<{ selected?: boolean; numOutputs?: number }>`
     display: flex;
     align-items: center;
-    // height: 28px;
     height: ${(props) => `${(props.numOutputs || 1) * 5 + 23}px`};
     border-radius: 5px;
     border: ${(props) => (props.selected ? "2px solid #3b82f6" : "2px solid #a09c98ff")};
@@ -194,7 +224,7 @@ export function ListenNode({ data, selected }) {
     return (
         <NodeContainer bgColor="#aa97aaff" hoverColor="#b5a5b5" selected={selected}>
             <NodeContent numOutputs={numOutputs}>
-                <IconContainer rotate="90deg">
+                <IconContainer rotate="90deg" size="20px">
                     <WifiHigh size={20} color="#e7e3dfff" />
                 </IconContainer>
                 <NodeLabel>{data?.label || "Listen"}</NodeLabel>
@@ -222,9 +252,61 @@ export function PublishNode({ data, selected }) {
             <StyledHandle type="target" position={Position.Left} style={{ top: "50%", left: "-1px" }} />
             <NodeContent>
                 <NodeLabel>{data?.label || "Publish"}</NodeLabel>
-                <IconContainer rotate="90deg">
+                <IconContainer rotate="90deg" size="20px">
                     <WifiHigh size={20} color="#e7e3dfff" />
                 </IconContainer>
+            </NodeContent>
+        </NodeContainer>
+    );
+}
+
+export function CommentNode(data, id, selected, onUpdateNode, handlePipelineUiChanged) {
+    const [localLabel, setLocalLabel] = useState(data?.settings.comment || "Insert your comment here ");
+
+    // Sincroniza si el valor externo cambia (ej: undo/redo)
+    useEffect(() => {
+        setLocalLabel(data?.settings.comment || "Insert your comment here ");
+    }, [data?.settings.comment]);
+
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setLocalLabel(e.target.value);
+    };
+
+    const handleBlur = () => {
+        onUpdateNode(id, { ...data, settings: { ...data.settings, comment: localLabel } });
+        handlePipelineUiChanged(true);
+    };
+
+    const [shiftHeld, setShiftHeld] = useState(false);
+
+    useEffect(() => {
+        const onKeyDown = (e: KeyboardEvent) => e.key === "Shift" && setShiftHeld(true);
+        const onKeyUp = (e: KeyboardEvent) => e.key === "Shift" && setShiftHeld(false);
+        window.addEventListener("keydown", onKeyDown);
+        window.addEventListener("keyup", onKeyUp);
+        return () => {
+            window.removeEventListener("keydown", onKeyDown);
+            window.removeEventListener("keyup", onKeyUp);
+        };
+    }, []);
+
+    return (
+        <NodeContainer bgColor="#9c9c9b" hoverColor="#b4b4b3" selected={selected}>
+            <NodeContent>
+                <IconContainer size="20px">
+                    <CommentIcon size={20} color="#e7e3dfff" />
+                </IconContainer>
+                <InputWrapper data-value={localLabel}>
+                    <InputLabel
+                        value={localLabel}
+                        shiftHeld={shiftHeld}
+                        bgColor="#9c9c9b"
+                        hoverColor="#b4b4b3"
+                        onChange={handleChange}
+                        onBlur={handleBlur}
+                        className={shiftHeld ? "" : "nodrag"}
+                    />
+                </InputWrapper>
             </NodeContent>
         </NodeContainer>
     );
@@ -388,8 +470,9 @@ export function TelegramListenNode({ data, selected }) {
     return (
         <NodeContainer bgColor="#4a90e2" hoverColor="#5da4f5ff" selected={selected}>
             <NodeContent>
+                {/* <TelegramNodeIcon size="20px" mode="listen" color="#e7e3df" /> */}
+                <TelegramIcon size="20px" color="#e7e3df" style={{ transform: "rotate(90deg)" }} />
                 <NodeLabel>{data?.label || "Telegram listen Node"}</NodeLabel>
-                <TelegramNodeIcon size="20px" mode="listen" color="#e7e3df" />
             </NodeContent>
             {numOutputs > 0 && (
                 <>
@@ -414,7 +497,7 @@ export function TelegramSendNode({ data, selected }) {
             <StyledHandle type="target" position={Position.Left} style={{ top: "50%", left: "-1px" }} />
             <NodeContent>
                 <NodeLabel>{data?.label || "Telegram send Node"}</NodeLabel>
-                <TelegramNodeIcon size="20px" mode="send" color="#e7e3df" />
+                <TelegramIcon size="20px" color="#e7e3df" />
             </NodeContent>
         </NodeContainer>
     );
@@ -498,7 +581,35 @@ export function IoTDbNode({ data, selected }) {
             <NodeContent>
                 <NodeLabel>{data?.label || "IoT DB"}</NodeLabel>
                 <IconContainer>
-                    <Database size={20} color="#e7e3dfff" />
+                    <IoTDBIcon size={20} bgcolor="#5B85A7" />
+                </IconContainer>
+            </NodeContent>
+            {numOutputs > 0 && (
+                <>
+                    {Array.from({ length: numOutputs }, (_, index) => (
+                        <StyledHandle
+                            key={index}
+                            type="source"
+                            position={Position.Right}
+                            id={`${data.nodeUid}-${index}`}
+                            style={getHandleStyle(index, numOutputs)}
+                        />
+                    ))}
+                </>
+            )}
+        </NodeContainer>
+    );
+}
+
+export function AssetStateNode({ data, selected }) {
+    const numOutputs = data?.numOutputs ?? 0;
+    return (
+        <NodeContainer bgColor="#5B85A7" hoverColor="#77aedb" selected={selected}>
+            <StyledHandle type="target" position={Position.Left} style={{ top: "50%", left: "-1px" }} />
+            <NodeContent>
+                <NodeLabel>{data?.label || "Asset State"}</NodeLabel>
+                <IconContainer>
+                    <AssetStateIcon size="20px" color="#e7e3df" />
                 </IconContainer>
             </NodeContent>
             {numOutputs > 0 && (

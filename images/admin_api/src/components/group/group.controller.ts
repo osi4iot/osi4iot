@@ -176,7 +176,6 @@ class GroupController implements IController {
 
 		this.router.get(`/notification_channels`, superAdminAuth, this.getAllNotificationChannels);
 		this.router.get(`/notification_channel/:id`, superAdminAuth, this.getNotificationChannel);
-
 	}
 
 	private groupsManagedByUsers = async (user: IUser): Promise<IGroup[]> => {
@@ -211,11 +210,7 @@ class GroupController implements IController {
 		}
 	};
 
-	private getGroupManagedByUser = async (
-		req: IRequestWithUser,
-		res: Response,
-		next: NextFunction
-	): Promise<void> => {
+	private getGroupManagedByUser = async (req: IRequestWithUser, res: Response, next: NextFunction): Promise<void> => {
 		try {
 			const { groupId } = req.params;
 			const group = await getGroupByProp("id", groupId);
@@ -265,7 +260,7 @@ class GroupController implements IController {
 			const usersArray = await getOrganizationUsersByEmailArray(
 				orgId,
 				groupInput.groupAdminDataArray.map((user) => user.email)
-			);;
+			);
 			if (usersArray.length !== groupInput.groupAdminDataArray.length) {
 				throw new HttpException(
 					req,

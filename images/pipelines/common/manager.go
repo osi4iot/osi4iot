@@ -10,7 +10,12 @@ import (
 )
 
 type Manager interface {
+	GetAssets() []*Asset
+	GetAsset(assetId int) *Asset
+	AddAsset(asset *Asset)
+	AddAssets(assets []*Asset)
 	DeleteAsset(assetId int) error
+
 	AddAssetTopicRef(assetId int, topicId int, topicRef string)
 	DeleteAssetTopic(assetId int, topicRef string) error
 	DeleteAssetTopicRef(assetId int, topicRef string) error
@@ -70,6 +75,7 @@ type Manager interface {
 	AddGroups(groups []*Group)
 	DeleteGroup(groupId int) error
 	UpdateGroup(group *Group) error
+	GetGroupKvStore(groupId int) *nats_pkg.KVStore
 
 	GetNotificationChannels() []*NotificationChannel
 	GetNotificationChannel(channelId int) *NotificationChannel
@@ -138,6 +144,5 @@ type Manager interface {
 	GetDbPool() *pgxpool.Pool
 
 	SendToIotDataChannel(data ThingData)
-
-	StartTelegramBots()
+	
 }

@@ -17,7 +17,8 @@ const generateUid = (): string => {
 export const createDigitalTwinPipeline = async (
 	digitalTwinId: number,
 	pipelineData: PipelineDto,
-	groupId: number
+	groupId: number,
+	isDefault = false
 ): Promise<void> => {
 	const pipelineNodes = pipelineData.nodes;
 	const group = await getGroupByProp("id", groupId);
@@ -60,13 +61,15 @@ export const createDigitalTwinPipeline = async (
 		pipelineFileLastModifDate: pipelineData.pipelineFileLastModifDate,
 		pipelineFileData: JSON.stringify(pipelineData.nodes),
 	};
-	await updateDigitalTwinPipelineFileDataById(digitalTwinId, groupId, updatePipelineDto);
+	await updateDigitalTwinPipelineFileDataById(digitalTwinId, groupId, updatePipelineDto, isDefault);
 
-	const context = {
-		digitalTwinId,
-		groupId,
-	};
-	await natsClient.jsPublish("pipeline_action", "create", digitalTwinId, context);
+	if (!isDefault) {
+		const context = {
+			digitalTwinId,
+			groupId,
+		};
+		await natsClient.jsPublish("pipeline_action", "create", digitalTwinId, context);
+	}
 };
 
 export const updateDigitalTwinPipeline = async (
@@ -154,4 +157,107 @@ export const applyPipelineAction = async (
 		reinitialize,
 	};
 	await natsClient.jsPublish("pipeline_action", action, digitalTwinId, context);
+};
+
+export const createDefaultPipelineDataForDigitalTwin = (): PipelineDto => {
+	const defaultPipeline: PipelineDto = {
+		pipelineFileName: "pipeline_all_dev2pdb.yml",
+		pipelineFileLastModifDate: new Date().toISOString(),
+		nodes: [],
+	};
+
+	const nodeCommentUid: string = generateUid();
+	const nodeCommentSettings = {
+		comment: "Store all dev2pdb topics in IoT DB",
+	};
+
+	const nodeListenerUid: string = generateUid();
+	const nodeListenerSettings = {
+		listenTo: "Topic reference",
+		topic: "all_dev2pdb",
+	};
+	const nodeFunctionUid: string = generateUid();
+	const nodeFunctionSettings = {
+		onMessageScript: `function process(msg) {
+    const go = Go();
+    const { log, utils } = go.All();
+
+    const topic = utils.GetTopicFromMessage(msg);
+    msg.payload.sql = {
+        "action": "Insert",
+        "insertTopic": topic
+    };
+
+    return msg;
+}`,
+		onInitializationScript: `function init() {
+    const go = Go();
+    const { log, time } = go.All();
+
+    // Your code here
+}`,
+		onStartScript: `function start() {
+    const go = Go();
+    const { log, time } = go.All();
+
+    // Your code here
+}`,
+		debugEnabled: false,
+	};
+
+	const nodeIoTDBUid: string = generateUid();
+	const nodeIoTDBSettings = {
+		paramOptions: "query_from_payload",
+		action: "Insert",
+		topicRef: "dev2pdb_2",
+		sqlQuery: "SELECT * FROM iot_table WHERE topic = $topic",
+		startTime: "now-25s",
+		endTime: "now",
+		queryMode: "query_from_payload",
+	};
+
+	defaultPipeline.nodes.push(
+		{
+			nodeUid: nodeCommentUid,
+			name: "Comment 1",
+			type: "Comment",
+			x: 30,
+			y: 40,
+			numOutputs: 0,
+			settings: JSON.stringify(nodeCommentSettings),
+			wires: [],
+		},
+		{
+			nodeUid: nodeListenerUid,
+			name: "Listen all dev2pdb",
+			type: "Listen",
+			x: 30,
+			y: 90,
+			numOutputs: 1,
+			settings: JSON.stringify(nodeListenerSettings),
+			wires: [[{ nodeEndUid: nodeFunctionUid }]],
+		},
+		{
+			nodeUid: nodeFunctionUid,
+			name: "Set sql query",
+			type: "Function",
+			x: 180,
+			y: 90,
+			numOutputs: 1,
+			settings: JSON.stringify(nodeFunctionSettings),
+			wires: [[{ nodeEndUid: nodeIoTDBUid }]],
+		},
+		{
+			nodeUid: nodeIoTDBUid,
+			name: "Store in IoT DB",
+			type: "IoTDb",
+			x: 320,
+			y: 90,
+			numOutputs: 0,
+			settings: JSON.stringify(nodeIoTDBSettings),
+			wires: [],
+		}
+	);
+
+	return defaultPipeline;
 };

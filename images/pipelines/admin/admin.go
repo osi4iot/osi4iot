@@ -87,10 +87,22 @@ func (a *Admin) GetOrgs(secretEncryptionKey string) []*common.Org {
 	}
 
 	for _, org := range orgs {
-		if org.LlmProviderUrl != "-" && org.HashedLlmProviderApiKey != "-" {
+		if org.LlmEnabled && org.HashedLlmProviderApiKey != "" {
 			hashedApiKey := org.HashedLlmProviderApiKey
 			llmProviderApiKey, _ := utils.Decrypt(hashedApiKey, secretEncryptionKey)
 			org.LlmProviderApiKey = llmProviderApiKey
+		}
+		if org.TelegramEnabled {
+			if org.HashedTelegramBotToken != "" {
+				hashedTelegramBotToken := org.HashedTelegramBotToken
+				telegramBotToken, _ := utils.Decrypt(hashedTelegramBotToken, secretEncryptionKey)
+				org.TelegramBotToken = telegramBotToken
+			}
+			if org.HashedTelegramWebhookSecretToken != "" {
+				hashedTelegramWebhookSecretToken := org.HashedTelegramWebhookSecretToken
+				telegramWebhookSecretToken, _ := utils.Decrypt(hashedTelegramWebhookSecretToken, secretEncryptionKey)
+				org.TelegramWebhookSecretToken = telegramWebhookSecretToken
+			}
 		}
 	}
 
@@ -111,8 +123,7 @@ func (a *Admin) GetOrg(orgId int, secretEncryptionKey string) *common.Org {
 		a.log.Errorf("failed to unmarshal org %d: %v", orgId, err)
 		return nil
 	}
-
-	if org.LlmProviderUrl != "" && org.HashedLlmProviderApiKey != "" {
+	if org.LlmEnabled && org.LlmProviderUrl != "" {
 		hashedApiKey := org.HashedLlmProviderApiKey
 		llmProviderApiKey, err := utils.Decrypt(hashedApiKey, secretEncryptionKey)
 		if err != nil {
@@ -120,6 +131,26 @@ func (a *Admin) GetOrg(orgId int, secretEncryptionKey string) *common.Org {
 			return nil
 		}
 		org.LlmProviderApiKey = llmProviderApiKey
+	}
+
+	if org.TelegramEnabled && org.HashedTelegramBotToken != "" {
+		hashedTelegramBotToken := org.HashedTelegramBotToken
+		telegramBotToken, err := utils.Decrypt(hashedTelegramBotToken, secretEncryptionKey)
+		if err != nil {
+			a.log.Errorf("failed to decrypt Telegram bot token for org %d: %v", orgId, err)
+			return nil
+		}
+		org.TelegramBotToken = telegramBotToken
+	}
+
+	if org.TelegramWebhookSecretToken != "" && org.HashedTelegramWebhookSecretToken != "" {
+		hashedTelegramWebhookSecretToken := org.HashedTelegramWebhookSecretToken
+		telegramWebhookSecretToken, err := utils.Decrypt(hashedTelegramWebhookSecretToken, secretEncryptionKey)
+		if err != nil {
+			a.log.Errorf("failed to decrypt Telegram webhook secret token for org %d: %v", orgId, err)
+			return nil
+		}
+		org.TelegramWebhookSecretToken = telegramWebhookSecretToken
 	}
 
 	return &org

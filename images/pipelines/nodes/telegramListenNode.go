@@ -20,7 +20,18 @@ type TelegramListenNode struct {
 	ClearChatMessagesHistory func(userName string)
 }
 
-func CreateTelegramListenNode(node common.NodeData, fm common.Manager, p common.Pipeline) (*TelegramListenNode, error) {
+func CreateTelegramListenNode(node common.NodeData, fm common.Manager, p common.Pipeline, org *common.Org) (*TelegramListenNode, error) {
+	telegramEnabled := org.TelegramEnabled
+	if !telegramEnabled {
+		return nil, fmt.Errorf("Telegram integration is not enabled for organization %d", org.Id)
+	}
+
+	telegramListener := org.TelegramListener
+	botToken := org.TelegramBotToken
+	if telegramListener == nil || botToken == "" {
+		return nil, fmt.Errorf("Telegram listener or bot token not configured for organization %d", org.Id)
+	}
+
 	chatIDStr, ok := node.Settings["chatId"].(string)
 	if !ok || chatIDStr == "" {
 		return nil, fmt.Errorf("chatId setting is required")
@@ -28,18 +39,6 @@ func CreateTelegramListenNode(node common.NodeData, fm common.Manager, p common.
 	chatID, err := strconv.ParseInt(chatIDStr, 10, 64)
 	if err != nil {
 		return nil, fmt.Errorf("invalid chatId: %v", err)
-	}
-
-	orgId := p.GetOrgId()
-	org := fm.GetOrg(orgId)
-	if org == nil {
-		return nil, fmt.Errorf("organization with ID %d not found for TelegramNode", orgId)
-	}
-
-	telegramListener := org.TelegramListener
-	botToken := org.TelegramBotToken
-	if telegramListener == nil || botToken == "" {
-		return nil, fmt.Errorf("Telegram listener or bot token not configured for organization %d", orgId)
 	}
 	listenMsgChannel := make(chan *telegram.TelegramMessage, 100)
 	unsubcribe := telegramListener.Subscribe(chatID, listenMsgChannel)
@@ -84,31 +83,38 @@ func (n *TelegramListenNode) Start(log *logger.Logger, needReinitialization bool
 	log.Infof("Starting TelegramListenNode with UID: %s", n.NodeUid)
 
 	go n.processListenMessage(log)
-
 }
 
 func (n *TelegramListenNode) processListenMessage(log *logger.Logger) {
-	for msg := range n.ListenMsgChannel {
-		if msg.Text == "/clear" {
-			if n.ClearChatMessagesHistory != nil {
-				n.ClearChatMessagesHistory(n.chatUserName(msg.ChatID))
-				message := "<i>Chat history cleared successfully</i>"
-				telegram.SendTelegramMessage(n.BotToken, n.ChatID, message, log, telegram.WithParseMode(telegram.ParseModeHTML))
+	for {
+		select {
+        case <-n.Ctx.Done():
+            return
+		case msg, ok := <-n.ListenMsgChannel:
+			if !ok {
+				return // canal cerrado por OrgListener.Stop()
 			}
-			continue
-		}
-		outputMsg := common.Message{
-			Payload: map[string]any{
-				"message_id": msg.MessageID,
-				"chat_id":    msg.ChatID,
-				"text":       msg.Text,
-				"entities":   msg.Entities,
-				"message":    msg.Text,
-				"userName":   n.chatUserName(msg.ChatID),
-			},
-		}
+			if msg.Text == "/clear" {
+				if n.ClearChatMessagesHistory != nil {
+					n.ClearChatMessagesHistory(n.chatUserName(msg.ChatID))
+					message := "<i>Chat history cleared successfully</i>"
+					telegram.SendTelegramMessage(n.BotToken, n.ChatID, message, log, telegram.WithParseMode(telegram.ParseModeHTML))
+				}
+				continue
+			}
+			outputMsg := common.Message{
+				Payload: map[string]any{
+					"message_id": msg.MessageID,
+					"chat_id":    msg.ChatID,
+					"text":       msg.Text,
+					"entities":   msg.Entities,
+					"message":    msg.Text,
+					"userName":   n.chatUserName(msg.ChatID),
+				},
+			}
 
-		n.sendToOutputs(outputMsg, log)
+			n.sendToOutputs(outputMsg, log)
+		}
 	}
 }
 
@@ -122,9 +128,7 @@ func (n *TelegramListenNode) Stop(log *logger.Logger) {
 	log.Infof("Stopping TelegramListenNode with UID: %s", n.NodeUid)
 
 	n.UnSubscribe()
-	if n.ListenMsgChannel != nil {
-		close(n.ListenMsgChannel)
-	}
+	n.Cancel()
 }
 
 func (n *TelegramListenNode) chatUserName(chatId int64) string {

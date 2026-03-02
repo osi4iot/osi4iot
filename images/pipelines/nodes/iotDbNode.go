@@ -64,6 +64,7 @@ func CreateIoTDbNode(node common.NodeData, fm common.Manager, p common.Pipeline)
 
 	var action, groupUid, insertTopic string
 	var readQuery string = ""
+	var err error
 
 	group := fm.GetGroup(p.GetGroupId())
 	assetId := p.GetAssetId()
@@ -89,13 +90,12 @@ func CreateIoTDbNode(node common.NodeData, fm common.Manager, p common.Pipeline)
 				fm.Log().Errorf("IoTDbNode %s: 'sqlQuery' setting is required for Read action", node.NodeUid)
 				return nil, fmt.Errorf("sqlQuery setting is required for Read action")
 			}
-			readQuery = rq
-			dataTable := fmt.Sprintf("iot_datasource.Table_%s", groupUid)
-			if err := iotdb.ValidateQuery(readQuery); err != nil {
+			tableName := fmt.Sprintf("iot_datasource.Table_%s", groupUid)
+			readQuery, err = iotdb.ValidateAndResolveQuery(rq, tableName)
+			if err != nil {
 				fm.Log().Errorf("IoTDbNode %s: invalid sqlQuery: %v", node.NodeUid, err)
 				return nil, fmt.Errorf("invalid sqlQuery: %w", err)
 			}
-			readQuery = strings.ReplaceAll(readQuery, "iot_table", dataTable)
 		case "Insert":
 			insertTopicRef, ok := node.Settings["insertTopicRef"].(string)
 			if !ok || insertTopicRef == "" {
@@ -103,7 +103,7 @@ func CreateIoTDbNode(node common.NodeData, fm common.Manager, p common.Pipeline)
 				return nil, fmt.Errorf("insertTopicRef setting is required")
 			}
 
-			insertTopic := utils.GetTopicByTopicRef(topicMap, insertTopicRef)
+			insertTopic = utils.GetTopicByTopicRef(topicMap, insertTopicRef)
 			if insertTopic == "" {
 				fm.Log().Errorf("IoTDbNode %s: no topic found for insertTopicRef '%s'", node.NodeUid, insertTopicRef)
 				return nil, fmt.Errorf("no topic found for insertTopicRef '%s'", insertTopicRef)
@@ -192,13 +192,12 @@ func (n *IoTDbNode) processMessage(msg common.Message, log *logger.Logger) error
 		var readQuery string = ""
 		if action == "Read" {
 			maps.Copy(variables, sqlData.Variables)
-			readQuery = sqlData.ReadQuery
-			dataTable := fmt.Sprintf("iot_datasource.Table_%s", n.Params.GroupUID)
-			if err := iotdb.ValidateQuery(readQuery); err != nil {
+			tableName := fmt.Sprintf("iot_datasource.Table_%s", n.Params.GroupUID)
+			readQuery, err = iotdb.ValidateAndResolveQuery(sqlData.ReadQuery, tableName)
+			if err != nil {
 				log.Errorf("IoTDbNode %s: invalid readQuery: %v", n.NodeUid, err)
 				return fmt.Errorf("invalid readQuery: %w", err)
 			}
-			readQuery = strings.ReplaceAll(readQuery, "iot_table", dataTable)
 		}
 
 		params = Params{
@@ -254,6 +253,8 @@ func (n *IoTDbNode) processInsertQuery(msg common.Message, params Params, log *l
 		}
 	}
 
+	n.handleSuccessfullyInsertedQuery(msg, log)
+
 	return nil
 }
 
@@ -286,10 +287,8 @@ func (n *IoTDbNode) processReadQuery(msg common.Message, params Params, log *log
 		sqlResults = append(sqlResults, rowMap)
 	}
 
-	var payload map[string]any = make(map[string]any)
-	maps.Copy(payload, msg.Payload)
+	payload := msg.Payload
 	payload["sqlResults"] = sqlResults
-
 	resultMsg := common.Message{
 		Payload: payload,
 	}
@@ -317,8 +316,10 @@ func (n *IoTDbNode) CreateAndSendRow(msg common.Message, params Params, log *log
 		return fmt.Errorf("failed to marshal message for node %s: %w", n.NodeUid, err)
 	}
 
+	topicUid := strings.Split(params.InsertTopic, "_")[1] // Assuming topic format is "Topic_{TopicUid}"
 	row := common.ThingData{
 		GroupUID:  params.GroupUID,
+		TopicUID:  topicUid,
 		Topic:     params.InsertTopic,
 		Payload:   payloadBytes,
 		Timestamp: timestamp,
@@ -328,4 +329,15 @@ func (n *IoTDbNode) CreateAndSendRow(msg common.Message, params Params, log *log
 	n.Fm.SendToIotDataChannel(row)
 
 	return nil
+}
+
+func (n *IoTDbNode) handleSuccessfullyInsertedQuery(msg common.Message, log *logger.Logger) {
+	payload := msg.Payload
+	payload["message"] = "Data inserted successfully into IoT DB"
+
+	responseMsg := common.Message{
+		Payload: payload,
+	}
+
+	n.sendToOutputs(responseMsg, log)
 }

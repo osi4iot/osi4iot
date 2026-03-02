@@ -26,9 +26,23 @@ class UpdateOrganizationDto {
 	@ValidateIf((obj) => obj.llmEnabled === true)
 	public llmProviderUrl: string;
 
-	@ValidateIf((obj) => obj.llmEnabled === true)
+	@IsBoolean()
+	public changeLlmProviderApiKey: boolean;
+
+	@ValidateIf((obj) => obj.llmEnabled === true && obj.changeLlmProviderApiKey === true)
 	@IsString()
 	public llmProviderApiKey: string;
+
+	@IsBoolean()
+	public telegramEnabled: boolean;
+
+	@IsBoolean()
+	@ValidateIf((obj) => obj.telegramEnabled === true)
+	public changeTelegramSettings?: boolean;
+
+	@IsString()
+	@ValidateIf((obj) => obj.telegramEnabled === true && obj.changeTelegramSettings === true)
+	public telegramBotToken?: string;
 }
 
 export default UpdateOrganizationDto;

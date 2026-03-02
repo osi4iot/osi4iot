@@ -25,7 +25,7 @@ import {
 	organizationsWhichTheLoggedUserIsUser,
 	getOrganizationsWithIdsArray,
 	getOrganizationsFullInfo,
-	getOrganizationFullInfo,
+	getOrganizationFullInfoByProp,
 } from "./organizationDAL";
 import { encrypt } from "../../utils/encryptAndDecrypt/encryptAndDecrypt";
 import CreateUserDto from "../user/interfaces/User.dto";
@@ -209,11 +209,7 @@ class OrganizationController implements IController {
 		}
 	};
 
-	private getOrganizationsFullInfo = async (
-		req: Request,
-		res: Response,
-		next: NextFunction
-	): Promise<void> => {
+	private getOrganizationsFullInfo = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
 		try {
 			const organizations = await getOrganizationsFullInfo();
 			res.status(200).send(organizations);
@@ -222,23 +218,17 @@ class OrganizationController implements IController {
 		}
 	};
 
-
-	private getOrganizationFullInfoByProp = async (
-		req: Request,
-		res: Response,
-		next: NextFunction
-	): Promise<void> => {
+	private getOrganizationFullInfoByProp = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
 		try {
 			const { propName, propValue } = req.params;
 			if (!this.isValidOrganizationPropName(propName)) throw new InvalidPropNameExeception(req, res, propName);
-			const organization = await getOrganizationFullInfo(propName, propValue);
+			const organization = await getOrganizationFullInfoByProp(propName, propValue);
 			if (!organization) throw new ItemNotFoundException(req, res, "The organization", propName, propValue);
 			res.status(200).send(organization);
 		} catch (error) {
 			next(error);
 		}
 	};
-
 
 	private organizationsOfGroupsManagedByUser = async (user: IUser): Promise<IOrganization[]> => {
 		let organizations: IOrganization[];
@@ -369,13 +359,20 @@ class OrganizationController implements IController {
 				}
 				const newOrg = await this.grafanaRepository.createOrganization(orgGrafanaDTO);
 				const orgId = newOrg.orgId;
-				await natsClient.jsPublish("org", "create", orgId);
+
+				// await natsClient.jsPublish("org", "create", orgId);
 				await grafanaApi.createOrgApiAdminUser(orgId);
-				if (organizationData.llmProviderApiKey !== "-") {
+				if (organizationData.llmEnabled && organizationData.llmProviderApiKey !== "") {
 					const hashedLlmProviderApiKey = encrypt(organizationData.llmProviderApiKey);
 					organizationData.hashedLlmProviderApiKey = hashedLlmProviderApiKey;
 				}
-				await updateOrganizationByProp("id", orgId, organizationData);
+				if (organizationData.telegramEnabled && organizationData.telegramBotToken !== "") {
+					const hashedTelegramBotToken = encrypt(organizationData.telegramBotToken);
+					organizationData.hashedTelegramBotToken = hashedTelegramBotToken;
+					const telegramWebhookSecretToken = nanoid(20).replace(/-/g, "x").replace(/_/g, "X");
+					organizationData.hashedTelegramWebhookSecretToken = encrypt(telegramWebhookSecretToken);
+				}
+				await updateOrganizationByProp("id", orgId, organizationData, "create");
 				const apyKeyName = `ApiKey_${organizationData.acronym.replace(/"/g, "")}`;
 				const apiKeyData = { name: apyKeyName, role: "Admin" };
 				await grafanaApi.switchOrgContextForAdmin(orgId);
@@ -420,8 +417,8 @@ class OrganizationController implements IController {
 						.replace(/ /g, "_")
 						.replace(/"/g, "")
 						.toLocaleLowerCase()}_general@test.com`,
-					telegramChatId: organizationData.telegramChatId,
-					telegramInvitationLink: organizationData.telegramInvitationLink,
+					telegramChatId: "-111",
+					telegramInvitationLink: "http://a.com",
 					folderPermission: "Viewer" as FolderPermissionOption,
 					groupAdminDataArray,
 					floorNumber: 0,
@@ -897,24 +894,12 @@ class OrganizationController implements IController {
 		}
 	};
 
-	private getOrganizationByProp = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-		try {
-			const { propName, propValue } = req.params;
-			if (!this.isValidOrganizationPropName(propName)) throw new InvalidPropNameExeception(req, res, propName);
-			const organization = await getOrganizationByProp(propName, propValue);
-			if (!organization) throw new ItemNotFoundException(req, res, "The organization", propName, propValue);
-			res.status(200).send(organization);
-		} catch (error) {
-			next(error);
-		}
-	};
-
 	private modifyOrganizationByProp = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
 		try {
 			const { propName, propValue } = req.params;
 			if (!this.isValidOrganizationPropName(propName)) throw new InvalidPropNameExeception(req, res, propName);
 			const orgDataToUpdate: UpdateOrganizationDto = req.body;
-			const oldOrganizationData = await getOrganizationByProp(propName, propValue);
+			const oldOrganizationData = await getOrganizationFullInfoByProp(propName, propValue);
 			if (!oldOrganizationData)
 				throw new ItemNotFoundException(req, res, "The organization", propName, propValue);
 			if (oldOrganizationData.role === "Main" && orgDataToUpdate.role && orgDataToUpdate.role !== "Main") {
@@ -922,8 +907,25 @@ class OrganizationController implements IController {
 			}
 			const newOrganizationData = { ...oldOrganizationData, ...orgDataToUpdate };
 			if (orgDataToUpdate.llmEnabled) {
-				const hashedLlmProviderApiKey = encrypt(orgDataToUpdate.llmProviderApiKey);
-				newOrganizationData.hashedLlmProviderApiKey = hashedLlmProviderApiKey;
+				if (orgDataToUpdate.changeLlmProviderApiKey) {
+					const hashedLlmProviderApiKey = encrypt(orgDataToUpdate.llmProviderApiKey);
+					newOrganizationData.hashedLlmProviderApiKey = hashedLlmProviderApiKey;
+				} else {
+					newOrganizationData.hashedLlmProviderApiKey = oldOrganizationData.hashedLlmProviderApiKey;
+				}
+			}
+
+			if (orgDataToUpdate.telegramEnabled) {
+				if (orgDataToUpdate.changeTelegramSettings) {
+					const hashedTelegramBotToken = encrypt(orgDataToUpdate.telegramBotToken);
+					newOrganizationData.hashedTelegramBotToken = hashedTelegramBotToken;
+					const telegramWebhookSecretToken = nanoid(20).replace(/-/g, "x").replace(/_/g, "X");
+					newOrganizationData.hashedTelegramWebhookSecretToken = encrypt(telegramWebhookSecretToken);
+				} else {
+					newOrganizationData.hashedTelegramBotToken = oldOrganizationData.hashedTelegramBotToken;
+					newOrganizationData.hashedTelegramWebhookSecretToken =
+						oldOrganizationData.hashedTelegramWebhookSecretToken;
+				}
 			}
 			await updateOrganizationByProp(propName, propValue, newOrganizationData);
 			res.status(200).json({ message: `Organization updated successfully` });

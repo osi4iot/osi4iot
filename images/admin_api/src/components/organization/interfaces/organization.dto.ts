@@ -20,14 +20,6 @@ class CreateOrganizationDto {
 	@IsString()
 	public orgHash: string;
 
-	@ValidateIf((obj) => obj.telegramInvitationLink !== undefined)
-	@IsString()
-	public telegramInvitationLink?: string;
-
-	@ValidateIf((obj) => obj.telegramChatId !== undefined)
-	@IsString()
-	public telegramChatId?: string;
-
 	@IsString()
 	public mqttAccessControl: string;
 
@@ -43,6 +35,16 @@ class CreateOrganizationDto {
 	public llmProviderApiKey: string;
 
 	public hashedLlmProviderApiKey?: string;
+
+	@IsBoolean()
+	public telegramEnabled?: boolean;
+
+	@IsString()
+	@ValidateIf((obj) => obj.telegramEnabled === true)
+	public telegramBotToken?: string;
+
+	public hashedTelegramBotToken?: string;
+	public hashedTelegramWebhookSecretToken?: string;
 
 	@ValidateNested({ each: true })
 	@Type(() => CreateUserDto)

@@ -275,13 +275,13 @@ const CodeBlock = styled.div`
     border-radius: 4px;
     font-size: 12px;
     text-align: left;
-    overflow: hidden; /* Contiene el overflow */
-    max-width: 100%; /* No excede el contenedor padre */
-
+    overflow: hidden;
+    max-width: 100%;
+    
     pre {
         white-space: pre-wrap;
-        word-wrap: break-word; /* Rompe palabras largas */
-        word-break: break-all; /* Fuerza el quiebre en cualquier carácter */
+        word-wrap: break-word;
+        word-break: break-all;
         overflow-wrap: break-word;
         color: #d1d5db;
         margin: 0;

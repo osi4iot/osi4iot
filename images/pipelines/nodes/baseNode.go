@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"maps"
 	"sync"
 
 	"pipelines/common"
@@ -34,7 +35,13 @@ func CreateNode(
 	case "Function":
 		newNode, err = CreateFuncNode(node, fm, p)
 	case "TelegramListen":
-		newNode, err = CreateTelegramListenNode(node, fm, p)
+		orgId := p.GetOrgId()
+		org := fm.GetOrg(orgId)
+		if org == nil {
+			log.Errorf("Organization with ID %d not found for TelegramListen node %s", orgId, node.NodeUid)
+			return nil, fmt.Errorf("organization with ID %d not found", orgId)
+		}
+		newNode, err = CreateTelegramListenNode(node, fm, p, org)
 	case "TelegramSend":
 		newNode, err = CreateTelegramSendNode(node, fm, p)
 	case "Email":
@@ -49,6 +56,10 @@ func CreateNode(
 		newNode, err = CreateBatchNode(node, fm, p)
 	case "IoTDb":
 		newNode, err = CreateIoTDbNode(node, fm, p)
+	case "AssetState":
+		newNode, err = CreateAssetStateNode(node, fm, p)
+	case "Comment":
+		newNode, err = CreateCommentNode(node, fm, p)
 	default:
 		log.Errorf("Unknown node type: %s", node.Type)
 		newNode, err = nil, fmt.Errorf("unknown node type: %s", node.Type)
@@ -309,10 +320,15 @@ func (n *BaseNode) sendToOutputs(msg common.Message, log *logger.Logger) {
 	nodeOutputWires := n.GetNodeOutputWires()
 	for outputIndex, wireArray := range nodeOutputWires {
 		for idx, wire := range wireArray {
+			outMsg := msg
+			if idx > 0 || outputIndex > 0 {
+				outMsg.Payload = make(map[string]any, len(msg.Payload))
+				maps.Copy(outMsg.Payload, msg.Payload)
+			}
 			select {
-			case wire.Channel <- msg:
+			case wire.Channel <- outMsg:
 				if n.Debug == "on" && idx == 0 {
-					n.HandleDebug(msg, outputIndex)
+					n.HandleDebug(outMsg, outputIndex)
 				}
 			case <-n.Ctx.Done():
 				log.Infof("Context cancelled while sending message from node %s", n.NodeUid)
@@ -352,10 +368,18 @@ func (n *BaseNode) IsLeader() bool {
 	return n.Pipeline.GetLeaderElector().IsLeader()
 }
 
-func (n *BaseNode) GetKvStore(digitalTwinId int) (*nats_pkg.KVStore, error) {
+func (n *BaseNode) GetDigitalTwinKvStore(digitalTwinId int) (*nats_pkg.KVStore, error) {
 	kvStore := n.Fm.GetDigitalTwinKvStore(digitalTwinId)
 	if kvStore == nil {
 		return nil, fmt.Errorf("failed to get KV store for digital twin %d", digitalTwinId)
+	}
+	return kvStore, nil
+}
+
+func (n *BaseNode) GetGroupKvStore(groupTwinId int) (*nats_pkg.KVStore, error) {
+	kvStore := n.Fm.GetGroupKvStore(groupTwinId)
+	if kvStore == nil {
+		return nil, fmt.Errorf("failed to get KV store for group twin %d", groupTwinId)
 	}
 	return kvStore, nil
 }

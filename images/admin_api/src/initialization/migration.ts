@@ -128,7 +128,10 @@ export const dataBaseInitialization = async () => {
 											ADD COLUMN mqtt_access_control VARCHAR(10),
 											ADD COLUMN llm_enabled BOOLEAN NOT NULL DEFAULT false,
 											ADD COLUMN llm_provider_url VARCHAR(255),
-											ADD COLUMN hashed_llm_provider_api_key TEXT;`;
+											ADD COLUMN hashed_llm_provider_api_key TEXT,
+											ADD COLUMN telegram_enabled BOOLEAN NOT NULL DEFAULT false,
+											ADD COLUMN hashed_telegram_bot_token TEXT DEFAULT '',
+											ADD COLUMN hashed_telegram_webhook_secret_token TEXT DEFAULT '';`;
 				try {
 					await postgresClient.query(queryStringAlterOrg);
 					logger.log("info", `Column acronym has been added sucessfully to Table ${tableOrg}`);
@@ -881,8 +884,7 @@ export const dataBaseInitialization = async () => {
 					logger.log("error", `Table ${tableMLModel} can not be created: %s`, err.message);
 				}
 
-
-				let asset: IAsset
+				let asset: IAsset;
 				try {
 					const defaultAssetData = {
 						assetTypeId: assetTypes[5].id,

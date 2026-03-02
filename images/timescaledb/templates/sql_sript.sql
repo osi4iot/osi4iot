@@ -26,8 +26,7 @@ SELECT add_retention_policy('iot_data.thingData', INTERVAL '${DATA_RETENTION_INT
 CREATE TABLE IF NOT EXISTS iot_data.assetState(
   group_uid varchar(42) NOT NULL,
   asset_uid varchar(42) NOT NULL,
-  current_state jsonb NOT NULL,
-  last_updated TIMESTAMPTZ
+  state jsonb NOT NULL,
+  last_updated TIMESTAMPTZ,
+  CONSTRAINT assetstate_pkey PRIMARY KEY (group_uid, asset_uid)
 );
-
-CREATE INDEX IF NOT EXISTS IDX_assets_state_group_asset ON iot_data.assetsState(group_uid, asset_uid);

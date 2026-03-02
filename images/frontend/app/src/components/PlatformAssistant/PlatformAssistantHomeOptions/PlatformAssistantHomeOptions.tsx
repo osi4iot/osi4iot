@@ -59,6 +59,7 @@ import {
     useReloadAssetTypesTable,
     useReloadAssetsTable,
     useReloadAssetsWithMarkerTable,
+    useReloadDigitalTwinsTable,
     useReloadMlModelsTable,
     useReloadSensorTypesTable,
     useReloadSensorsTable,
@@ -278,6 +279,7 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
     const reloadSensorsTable = useReloadSensorsTable();
     const reloadSensorTypesTable = useReloadSensorTypesTable();
     const reloadMlModelsTable = useReloadMlModelsTable();
+    const reloadDigitalTwinsTable = useReloadDigitalTwinsTable();
     const [reloadDigitalTwins, setReloadDigitalTwins] = useState(false);
     const initialBuildingsFiltered = filterBuildings(buildingsTable);
     const [buildingsFiltered, setBuildingsFiltered] = useState<IBuilding[]>(initialBuildingsFiltered);
@@ -659,7 +661,7 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
     }, [refreshToken, accessToken, authDispatch, plaformAssistantDispatch, sensorsTable.length, reloadSensorsTable]);
 
     useEffect(() => {
-        if (digitalTwinsTable.length === 0 || reloadDigitalTwins) {
+        if (digitalTwinsTable.length === 0 || reloadDigitalTwins || reloadDigitalTwinsTable) {
             setDigitalTwinsLoading(false);
             const config = axiosAuth(accessToken);
             const urlDigitalTwins = `${protocol}://${domainName}/admin_api/digital_twins/user_managed`;
@@ -709,6 +711,7 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
         plaformAssistantDispatch,
         reloadDigitalTwins,
         digitalTwinsTable.length,
+        reloadDigitalTwinsTable,
     ]);
 
     useEffect(() => {

@@ -29,10 +29,27 @@ func (fm *FlowsManager) GetDigitalTwin(digitalTwinId int) *common.DigitalTwin {
 	return nil
 }
 
+func (fm *FlowsManager) GetDigitalTwinsInOrg(orgId int) []*common.DigitalTwin {
+	var digitalTwins []*common.DigitalTwin
+	fm.DigitalTwins.Range(func(key, value interface{}) bool {
+		digitalTwin := value.(*common.DigitalTwin)
+		if digitalTwin.OrgId == orgId {
+			digitalTwins = append(digitalTwins, digitalTwin)
+		}
+		return true
+	})
+
+	return digitalTwins
+}
+
 func (fm *FlowsManager) AddDigitalTwin(digitalTwin *common.DigitalTwin, createPipeline bool) {
 	digitalTwinIdStr := strconv.Itoa(digitalTwin.Id)
 	if _, ok := fm.DigitalTwins.Load(digitalTwinIdStr); !ok {
 		org := fm.GetOrg(digitalTwin.OrgId)
+		if org == nil {
+			fm.log.Error("Org with ID %d not found for Digital Twin %d", digitalTwin.OrgId, digitalTwin.Id)
+			return
+		}
 		kv, err := nats_pkg.CreateDigitalTwinKeyValueStore(org.OrgHash, digitalTwin.DigitalTwinUid, fm.log, fm.JetStream, fm.NumStreamReplicas)
 		if err != nil {
 			fm.log.Error("Failed to create KeyValue store for Digital Twin %d: %v", digitalTwin.Id, err)
@@ -67,7 +84,15 @@ func (fm *FlowsManager) CreatePipelineInDigitalTwin(digitalTwinId int) {
 		return
 	}
 
+	if digitalTwin.Pipeline != nil {
+		digitalTwin.Pipeline.StopStatusPublisher()
+		digitalTwin.Pipeline.Stop("create")
+	}
 	org := fm.GetOrg(digitalTwin.OrgId)
+	if org == nil {
+		fm.log.Errorf("Organization with ID %d not found for digital twin %d", digitalTwin.OrgId, digitalTwinId)
+		return
+	}
 	digitalTwin.Pipeline = fm.createPipeline(digitalTwin, org, "create")
 	digitalTwin.PipelineStatusSubscription = fm.SetPipelineStatusSubscription(digitalTwin)
 	digitalTwin.Pipeline.Start(true)
@@ -88,11 +113,14 @@ func (fm *FlowsManager) UpdatePipelineInDigitalTwin(digitalTwinId int) {
 		digitalTwin.Pipeline.Stop("update")
 	}
 	org := fm.GetOrg(digitalTwin.OrgId)
+	if org == nil {
+		fm.log.Errorf("Organization with ID %d not found for digital twin %d", digitalTwin.OrgId, digitalTwinId)
+		return
+	}
 	digitalTwin.Pipeline = fm.createPipeline(digitalTwin, org, "update")
 	digitalTwin.Pipeline.Start(false)
 	digitalTwin.Pipeline.StartStatusPublisher()
 }
-
 
 func (fm *FlowsManager) SetPipelineStatusSubscription(digitalTwin *common.DigitalTwin) *nats.Subscription {
 	p := digitalTwin.Pipeline

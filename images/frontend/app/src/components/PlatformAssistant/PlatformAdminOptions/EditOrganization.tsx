@@ -92,18 +92,19 @@ const mqttAccessControlOptions = [
     },
 ];
 
-const LlmTitle = styled.div`
+const Title = styled.div`
     margin-bottom: 5px;
 `;
 
-const LlmDataContainer = styled.div`
+const DataContainer = styled.div`
     border: 2px solid #2c3235;
     border-radius: 10px;
     padding: 10px;
     width: 100%;
+    margin-bottom: 15px;
 `;
 
-const enableLLMOptions = [
+const enableDisableOptions = [
     {
         label: "Enabled",
         value: true,
@@ -137,6 +138,17 @@ const EditOrganization: FC<EditOrganizationProps> = ({ organizations, refreshOrg
     const orgRowIndex = useOrgRowIndexToEdit();
     const orgId = useOrgIdToEdit();
     const [llmEnabled, setLlmEnabled] = useState(organizations[orgRowIndex].llmEnabled);
+    const [changeLlmProviderApiKey, setChangeLlmProviderApiKey] = useState(false);
+    const [telegramEnabled, setTelegramEnabled] = useState(organizations[orgRowIndex].telegramEnabled);
+    const [changeTelegramSettings, setChangeTelegramSettings] = useState(false);
+    const changeTelegramSettingsOptions = [
+        { label: "Yes", value: true },
+        { label: "No", value: false },
+    ];
+    const changeLlmProviderApiKeyOptions = [
+        { label: "Yes", value: true },
+        { label: "No", value: false },
+    ];
 
     const initialOrgData = {
         name: organizations[orgRowIndex].name,
@@ -146,30 +158,59 @@ const EditOrganization: FC<EditOrganizationProps> = ({ organizations, refreshOrg
         mqttAccessControl: organizations[orgRowIndex].mqttAccessControl,
         llmEnabled: organizations[orgRowIndex].llmEnabled,
         llmProviderUrl: organizations[orgRowIndex].llmProviderUrl || "https://api.openai.com/v1",
-        llmProviderApiKey: "*****************",
+        changeLlmProviderApiKey: false,
+        llmProviderApiKey: "",
+        telegramEnabled: organizations[orgRowIndex].telegramEnabled || false,
+        changeTelegramSettings: false,
+        telegramBotToken: "",
     };
 
     const validationSchema = Yup.object().shape({
         name: Yup.string().max(190, "The maximum number of characters allowed is 190").required("Required"),
         acronym: Yup.string().max(20, "The maximum number of characters allowed is 20").required("Required"),
         buildingId: Yup.number().integer().positive().required("Required"),
+
         llmProviderUrl: Yup.string().when("llmEnabled", {
             is: true,
-            then: Yup.string().url("Enter a valid url").required("Required"),
+            then: (schema) => schema.url("Enter a valid url").required("Required"),
+            otherwise: (schema) => schema.notRequired(),
         }),
-        llmProviderApiKey: Yup.string().when("llmEnabled", {
-            is: true,
-            then: Yup.string().required("Required"),
+
+        llmProviderApiKey: Yup.string().when(["llmEnabled", "changeLlmProviderApiKey"], {
+            is: (llmEnabled: boolean, changeLlmProviderApiKey: boolean) => llmEnabled && changeLlmProviderApiKey,
+            then: (schema) => schema.required("Required"),
+            otherwise: (schema) => schema.notRequired(),
+        }),
+
+        telegramBotToken: Yup.string().when(["telegramEnabled", "changeTelegramSettings"], {
+            is: (telegramEnabled: boolean, changeTelegramSettings: boolean) =>
+                telegramEnabled && changeTelegramSettings,
+            then: (schema) => schema.required("Required"),
+            otherwise: (schema) => schema.notRequired(),
         }),
     });
 
     const onSubmit = (values: {}, actions: any) => {
         const llmEnabled = (values as any).llmEnabled as boolean;
+        const changeLlmProviderApiKey = (values as any).changeLlmProviderApiKey as boolean;
         const llmProviderApiKey = (values as any).llmProviderApiKey as string;
-        if (llmEnabled && llmProviderApiKey === "*****************") {
-           toast.error("Please provide a valid LLM provider api key");
-           setIsSubmitting(false);
-           return;
+        if (llmEnabled && changeLlmProviderApiKey) {
+            if (llmProviderApiKey === "-") {
+                toast.error("Please provide a valid LLM provider api key");
+                setIsSubmitting(false);
+                return;
+            }
+        }
+
+        const telegramEnabled = (values as any).telegramEnabled as boolean;
+        const changeTelegramSettings = (values as any).changeTelegramSettings as boolean;
+        const telegramBotToken = (values as any).telegramBotToken as string;
+        if (telegramEnabled && changeTelegramSettings) {
+            if (telegramBotToken === "-") {
+                toast.error("Please provide a valid Telegram bot token");
+                setIsSubmitting(false);
+                return;
+            }
         }
 
         const url = `${protocol}://${domainName}/admin_api/organization/id/${orgId}`;
@@ -178,7 +219,6 @@ const EditOrganization: FC<EditOrganizationProps> = ({ organizations, refreshOrg
         if (typeof (values as any).buildingId === "string") {
             (values as any).buildingId = parseInt((values as any).buildingId, 10);
         }
-
 
         setIsSubmitting(true);
         getAxiosInstance(refreshToken, authDispatch)
@@ -219,6 +259,26 @@ const EditOrganization: FC<EditOrganizationProps> = ({ organizations, refreshOrg
         formik.setFieldValue("llmEnabled", e.value);
     };
 
+    const onEnableTelegramChange = (e: { value: boolean }, formik: any) => {
+        setTelegramEnabled(e.value);
+        formik.setFieldValue("telegramEnabled", e.value);
+        if (e.value === true) {
+            setChangeTelegramSettings(true);
+            formik.setFieldValue("changeTelegramSettings", true);
+            formik.setFieldValue("telegramBotToken", "");
+        }
+    };
+
+    const onChangeTelegramSettingsChange = (e: { value: boolean }, formik: any) => {
+        setChangeTelegramSettings(e.value);
+        formik.setFieldValue("changeTelegramSettings", e.value);
+    };
+
+    const onChangeLlmProviderApiKeyChange = (e: { value: boolean }, formik: any) => {
+        setChangeLlmProviderApiKey(e.value);
+        formik.setFieldValue("changeLlmProviderApiKey", e.value);
+    };
+
     return (
         <>
             <FormTitle isSubmitting={isSubmitting}>Edit org</FormTitle>
@@ -244,13 +304,43 @@ const EditOrganization: FC<EditOrganizationProps> = ({ organizations, refreshOrg
                                     options={mqttAccessControlOptions}
                                     type="text"
                                 />
-                                <LlmTitle>Large language model (LLM)</LlmTitle>
-                                <LlmDataContainer>
+                                <Title>Telegram bot</Title>
+                                <DataContainer>
+                                    <FormikControl
+                                        control="select"
+                                        label="Enable Telegram"
+                                        name="telegramEnabled"
+                                        options={enableDisableOptions}
+                                        type="text"
+                                        onChange={(e) => onEnableTelegramChange(e, formik)}
+                                    />
+                                    {telegramEnabled && (
+                                        <FormikControl
+                                            control="select"
+                                            label="Change settings"
+                                            name="changeTelegramSettings"
+                                            options={changeTelegramSettingsOptions}
+                                            type="text"
+                                            onChange={(e) => onChangeTelegramSettingsChange(e, formik)}
+                                        />
+                                    )}
+                                    {telegramEnabled && changeTelegramSettings && (
+                                        <FormikControl
+                                            control="input"
+                                            label="Telegram bot token"
+                                            name="telegramBotToken"
+                                            type="password"
+                                            autocomplete="off"
+                                        />
+                                    )}
+                                </DataContainer>
+                                <Title>Large language model (LLM)</Title>
+                                <DataContainer>
                                     <FormikControl
                                         control="select"
                                         label="Enable LLM"
                                         name="llmEnabled"
-                                        options={enableLLMOptions}
+                                        options={enableDisableOptions}
                                         type="text"
                                         onChange={(e) => onEnableLLMChange(e, formik)}
                                     />
@@ -263,15 +353,25 @@ const EditOrganization: FC<EditOrganizationProps> = ({ organizations, refreshOrg
                                                 type="text"
                                             />
                                             <FormikControl
-                                                control="input"
-                                                label="LLM provider api key"
-                                                name="llmProviderApiKey"
-                                                type="password"
-                                                autocomplete="off"
+                                                control="select"
+                                                label="Change LLM provider api key"
+                                                name="changeLlmProviderApiKey"
+                                                options={changeLlmProviderApiKeyOptions}
+                                                type="text"
+                                                onChange={(e) => onChangeLlmProviderApiKeyChange(e, formik)}
                                             />
+                                            {changeLlmProviderApiKey && (
+                                                <FormikControl
+                                                    control="input"
+                                                    label="LLM provider api key"
+                                                    name="llmProviderApiKey"
+                                                    type="password"
+                                                    autocomplete="off"
+                                                />
+                                            )}
                                         </>
                                     )}
-                                </LlmDataContainer>
+                                </DataContainer>
                             </ControlsContainer>
                             <FormButtonsProps
                                 onCancel={onCancel}

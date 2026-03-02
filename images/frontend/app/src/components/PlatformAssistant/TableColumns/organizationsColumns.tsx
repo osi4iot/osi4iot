@@ -1,13 +1,18 @@
-import { FC, useState, useEffect } from 'react';
-import { Column } from 'react-table';
-import { toast } from 'react-toastify';
-import EditIcon from '../Utils/EditIcon';
-import DeleteIcon from '../Utils/DeleteIcon';
-import DeleteModal from '../../Tools/DeleteModal';
-import { axiosAuth, getDomainName, getProtocol } from '../../../tools/tools';
-import { useAuthState, useAuthDispatch } from '../../../contexts/authContext';
-import { ORGS_OPTIONS } from '../Utils/platformAssistantOptions';
-import { setOrgIdToEdit, setOrgRowIndexToEdit, setOrgsOptionToShow, useOrgsDispatch } from '../../../contexts/orgsOptions';
+import { FC, useState, useEffect } from "react";
+import { Column } from "react-table";
+import { toast } from "react-toastify";
+import EditIcon from "../Utils/EditIcon";
+import DeleteIcon from "../Utils/DeleteIcon";
+import DeleteModal from "../../Tools/DeleteModal";
+import { axiosAuth, getDomainName, getProtocol } from "../../../tools/tools";
+import { useAuthState, useAuthDispatch } from "../../../contexts/authContext";
+import { ORGS_OPTIONS } from "../Utils/platformAssistantOptions";
+import {
+    setOrgIdToEdit,
+    setOrgRowIndexToEdit,
+    setOrgsOptionToShow,
+    useOrgsDispatch,
+} from "../../../contexts/orgsOptions";
 import {
     usePlatformAssitantDispatch,
     setReloadGroupsMembershipTable,
@@ -20,12 +25,11 @@ import {
     setReloadDigitalTwinsTable,
     setReloadDashboardsTable,
     setReloadOrgsOfGroupsManagedTable,
-    setReloadTopicsTable
-} from '../../../contexts/platformAssistantContext';
-import { getAxiosInstance } from '../../../tools/axiosIntance';
-import axiosErrorHandler from '../../../tools/axiosErrorHandler';
-import { AxiosResponse, AxiosError } from 'axios';
-
+    setReloadTopicsTable,
+} from "../../../contexts/platformAssistantContext";
+import { getAxiosInstance } from "../../../tools/axiosIntance";
+import axiosErrorHandler from "../../../tools/axiosErrorHandler";
+import { AxiosResponse, AxiosError } from "axios";
 
 export interface IOrganization {
     id: number;
@@ -43,6 +47,9 @@ export interface IOrganization {
     llmEnabled: boolean;
     llmProviderUrl?: string;
     llmProviderApiKey?: string;
+    telegramEnabled: boolean;
+    changeTelegramSettings?: boolean;
+    telegramBotToken?: string;
 }
 
 interface IOrganizationColumn extends IOrganization {
@@ -65,13 +72,14 @@ const DeleteOrgModal: FC<DeleteOrgModalProps> = ({ rowIndex, orgId, refreshOrgs 
     const [isSubmitting, setIsSubmitting] = useState(false);
     const title = "DELETE ORGANIZATION";
     const question = "Are you sure to delete this organization?";
-    const consequences = "All groups, assets, sensors, and sensor measurements belonging to this org are going to be lost.";
+    const consequences =
+        "All groups, assets, sensors, and sensor measurements belonging to this org are going to be lost.";
     const { accessToken, refreshToken } = useAuthState();
     const authDispatch = useAuthDispatch();
 
     const showLoader = () => {
         setIsSubmitting(true);
-    }
+    };
 
     useEffect(() => {
         if (isOrgDeleted) {
@@ -112,22 +120,19 @@ const DeleteOrgModal: FC<DeleteOrgModalProps> = ({ rowIndex, orgId, refreshOrgs 
                 setIsSubmitting(false);
                 const data = response.data;
                 toast.success(data.message);
-                
+
                 hideModal();
             })
             .catch((error: AxiosError) => {
                 axiosErrorHandler(error, authDispatch);
                 setIsSubmitting(false);
                 hideModal();
-            })
-    }
-    const [showModal] = DeleteModal(title, question, consequences, action, isSubmitting, showLoader );
+            });
+    };
+    const [showModal] = DeleteModal(title, question, consequences, action, isSubmitting, showLoader);
 
-
-    return (
-        <DeleteIcon action={showModal} rowIndex={rowIndex} />
-    )
-}
+    return <DeleteIcon action={showModal} rowIndex={rowIndex} />;
+};
 
 interface EditOrgProps {
     rowIndex: number;
@@ -148,73 +153,71 @@ const EditOrg: FC<EditOrgProps> = ({ rowIndex, orgId }) => {
         setOrgsOptionToShow(orgsDispatch, orgsOptionToShow);
     };
 
-
     return (
         <span onClick={handleClick}>
             <EditIcon rowIndex={rowIndex} />
         </span>
-    )
-}
-
+    );
+};
 
 export const Create_ORGANIZATIONS_COLUMNS = (refreshOrgs: () => void): Column<IOrganizationColumn>[] => {
     return [
         {
             Header: "Id",
             accessor: "id",
-            filter: 'equals'
+            filter: "equals",
         },
         {
             Header: "Name",
-            accessor: "name"
+            accessor: "name",
         },
         {
             Header: "Acronym",
-            accessor: "acronym"
+            accessor: "acronym",
         },
         {
             Header: "Role",
-            accessor: "role"
-        },        
+            accessor: "role",
+        },
         {
             Header: "Address",
             accessor: "address",
-            disableFilters: true
+            disableFilters: true,
         },
         {
             Header: "City",
             accessor: "city",
-            disableFilters: true
+            disableFilters: true,
         },
         {
             Header: "Zip code",
             accessor: "zipCode",
-            disableFilters: true
+            disableFilters: true,
         },
         {
             Header: "State",
             accessor: "state",
-            disableFilters: true
+            disableFilters: true,
         },
         {
             Header: "Country",
             accessor: "country",
-            disableFilters: true
+            disableFilters: true,
         },
         {
             Header: "Building Id",
             accessor: "buildingId",
-            disableFilters: true
+            disableFilters: true,
         },
         {
             Header: "Org hash",
             accessor: "orgHash",
-            disableFilters: true
+            disableFilters: true,
         },
         {
             Header: "Mqtt acc",
             accessor: "mqttAccessControl",
-            disableFilters: true
+            disableFilters: true,
         },
         {
             Header: "LLM",
@@ -229,28 +232,40 @@ export const Create_ORGANIZATIONS_COLUMNS = (refreshOrgs: () => void): Column<IO
             },
         },
         {
+            Header: "Telegram",
+            accessor: "telegramEnabled",
+            disableFilters: true,
+            Cell: (props) => {
+                const rowIndex = parseInt(props.row.id, 10);
+                const row = props.rows.filter((row) => row.index === rowIndex)[0];
+                const telegramEnabled = row?.cells[13]?.value || false;
+                const telegramEnabledText = telegramEnabled ? "Enabled" : "Disabled";
+                return <span>{telegramEnabledText}</span>;
+            },
+        },
+        {
             Header: "",
             accessor: "edit",
             disableFilters: true,
             disableSortBy: true,
-            Cell: props => {
+            Cell: (props) => {
                 const rowIndex = parseInt(props.row.id, 10);
-                const row = props.rows.filter(row => row.index === rowIndex)[0];
+                const row = props.rows.filter((row) => row.index === rowIndex)[0];
                 const orgId = row?.cells[0]?.value;
-                return <EditOrg orgId={orgId} rowIndex={rowIndex} />
-            }
+                return <EditOrg orgId={orgId} rowIndex={rowIndex} />;
+            },
         },
         {
             Header: "",
             accessor: "delete",
             disableFilters: true,
             disableSortBy: true,
-            Cell: props => {
+            Cell: (props) => {
                 const rowIndex = parseInt(props.row.id, 10);
-                const row = props.rows.filter(row => row.index === rowIndex)[0];
+                const row = props.rows.filter((row) => row.index === rowIndex)[0];
                 const orgId = row?.cells[0]?.value;
-                return <DeleteOrgModal orgId={orgId} rowIndex={rowIndex} refreshOrgs={refreshOrgs} />
-            }
-        }
-    ]
-}
+                return <DeleteOrgModal orgId={orgId} rowIndex={rowIndex} refreshOrgs={refreshOrgs} />;
+            },
+        },
+    ];
+};

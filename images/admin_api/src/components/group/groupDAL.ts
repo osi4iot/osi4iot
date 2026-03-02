@@ -6,7 +6,7 @@ import grafanaApi from "../../GrafanaApi";
 import IEmailNotificationChannelSettings from "../../GrafanaApi/interfaces/EmailNotificationChannelSettings";
 import IGrafanaNotificationChannelSettings from "../../GrafanaApi/interfaces/GrafanaNotificationChannelSettings";
 import IFolderPermission from "../../GrafanaApi/interfaces/FolderPermission";
-import { getOrganizationKey } from "../organization/organizationDAL";
+import { getOrganizationByProp, getOrganizationKey } from "../organization/organizationDAL";
 import CreateGroupDto from "./interfaces/group.dto";
 import IGroup from "./interfaces/Group.interface";
 import {
@@ -659,6 +659,12 @@ export const deleteGroup = async (group: IGroup, orgKey: string): Promise<string
 	await deleteView(group.groupUid);
 	await deleteNotificationChannelById(group.telegramNotificationChannelId);
 	await deleteNotificationChannelById(group.emailNotificationChannelId);
+
+	const orgId = group.orgId;
+	const org = await getOrganizationByProp("id", orgId);
+	const kvName = `org_${org.orgHash}-group_${group.groupUid}`;
+	await natsClient.deleteKvStore(kvName);
+
 	let message = "The group could not be deleted";
 	if (response.rows[0]) {
 		message = "Group deleted successfully";

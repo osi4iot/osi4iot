@@ -34,6 +34,7 @@ import { getSensorDashboardByAssetId, getSensorsByAssetId } from "../sensor/sens
 import natsClient from "../../config/natsConfig";
 import { getOrganizationByProp } from "../organization/organizationDAL";
 import PipelineFileDataDto from "./pipelineFileData.dto";
+import { createDefaultPipelineDataForDigitalTwin, createDigitalTwinPipeline } from "./pipeline";
 
 export const insertDigitalTwin = async (digitalTwinData: Partial<IDigitalTwin>): Promise<IDigitalTwin> => {
 	const queryString = `INSERT INTO grafanadb.digital_twin (group_id, asset_id,
@@ -260,7 +261,8 @@ export const updateDigitalTwinById = async (
 export const updateDigitalTwinPipelineFileDataById = async (
 	digitalTwinId: number,
 	groupId: number,
-	digitalTwinFileData: PipelineFileDataDto
+	digitalTwinFileData: PipelineFileDataDto,
+	isDefault = false
 ): Promise<void> => {
 	const query = `UPDATE grafanadb.digital_twin SET 
 					pipeline_file_name = $1,
@@ -274,11 +276,14 @@ export const updateDigitalTwinPipelineFileDataById = async (
 		digitalTwinFileData.pipelineFileData || "",
 		digitalTwinId,
 	]);
-	const context = {
-		groupId,
-		digitalTwinId,
-	};
-	await natsClient.jsPublish("digitalTwin", "update", digitalTwinId, context);
+
+	if (!isDefault) {
+		const context = {
+			groupId,
+			digitalTwinId,
+		};
+		await natsClient.jsPublish("digitalTwin", "update", digitalTwinId, context);
+	}
 };
 
 export const deleteDigitalTwin = async (digitalTwin: IDigitalTwin): Promise<void> => {
@@ -1159,6 +1164,9 @@ export const createDigitalTwin = async (
 		const sensor = sensorsInAsset.filter((sensorInAsset) => sensorInAsset.sensorRef === sensorRef)[0];
 		await createSensorInDigitalTwin(digitalTwin.id, sensor.id);
 	}
+
+	const defaultPipelineData = createDefaultPipelineDataForDigitalTwin();
+	await createDigitalTwinPipeline(digitalTwin.id, defaultPipelineData, group.id, isDefault);
 
 	return digitalTwin;
 };

@@ -37,9 +37,14 @@ func CreateAiAgentNode(node common.NodeData, fm common.Manager, p common.Pipelin
 		return nil, fmt.Errorf("LLM functionality is not enabled for the organization or group")
 	}
 
-	if providerUrl == "" || providerApiKey == "" {
-		fm.Log().Errorf("AI Agent Node %s: LLM provider URL and API key must be configured", node.NodeUid)
-		return nil, fmt.Errorf("LLM provider URL and API key must be configured")
+	if providerUrl == "" {
+		fm.Log().Errorf("AI Agent Node %s: LLM provider URL must be configured", node.NodeUid)
+		return nil, fmt.Errorf("LLM provider URL must be configured")
+	}
+
+	if providerApiKey == "" {
+		fm.Log().Errorf("AI Agent Node %s: API key must be configured", node.NodeUid)
+		return nil, fmt.Errorf("API key must be configured")
 	}
 
 	llmModel, ok := node.Settings["llmModel"].(string)
@@ -379,7 +384,7 @@ func (n *AiAgentNode) Stop(log *logger.Logger) {
 }
 
 func (n *AiAgentNode) GetChatMessages(userName string) []*schema.Message {
-	kvStore, _ := n.GetKvStore(n.GetDigitalTwinId())
+	kvStore, _ := n.GetDigitalTwinKvStore(n.GetDigitalTwinId())
 	if kvStore == nil {
 		return nil
 	}
@@ -389,7 +394,7 @@ func (n *AiAgentNode) GetChatMessages(userName string) []*schema.Message {
 }
 
 func (n *AiAgentNode) SaveChatMessages(userName string, messages []*schema.Message, mcpToolCallsArray [][]mcphost.McpToolCall) error {
-	kvStore, err:= n.GetKvStore(n.GetDigitalTwinId())
+	kvStore, err:= n.GetDigitalTwinKvStore(n.GetDigitalTwinId())
 	if err != nil {
 		return err
 	}

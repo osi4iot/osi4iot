@@ -2,6 +2,7 @@ package flows_manager
 
 import (
 	"encoding/json"
+	"fmt"
 	"pipelines/common"
 
 	"github.com/nats-io/nats.go/jetstream"
@@ -22,11 +23,13 @@ func (fm *FlowsManager) Listen() {
 		case "org":
 			switch adminMsg.Action {
 			case "create":
+				fmt.Printf("Creating org with ID: %d\n", adminMsg.Id)
 				org := fm.Admin.GetOrg(adminMsg.Id, encryptionSecretKey)
 				if org != nil {
 					fm.AddOrg(org)
 				}
 			case "update":
+				fmt.Printf("Updating org with ID: %d\n", adminMsg.Id)
 				org := fm.Admin.GetOrg(adminMsg.Id, encryptionSecretKey)
 				if org != nil {
 					fm.UpdateOrg(org)
