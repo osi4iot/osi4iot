@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import React, { FC, useRef, useState, useLayoutEffect, useEffect } from 'react';
+import React, { FC, useRef, useState, useLayoutEffect, useEffect, ComponentType } from 'react';
 import { useThree, useFrame } from '@react-three/fiber';
 import { HiLocationMarker } from "react-icons/hi";
 import { Html } from "@react-three/drei";
@@ -18,7 +18,7 @@ const MarkerContainer = styled.div`
 `;
 
 
-const MarkerIcon = styled(HiLocationMarker)`
+const MarkerIcon = styled(HiLocationMarker as ComponentType<any>)`
 	font-size: 30px;
 	color: #62f700;
 

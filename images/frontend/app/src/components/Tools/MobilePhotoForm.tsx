@@ -1,4 +1,4 @@
-import { FC, SyntheticEvent } from 'react';
+import { ComponentType, FC, SyntheticEvent } from 'react';
 import Jimp from 'jimp/es';
 import Paho from "paho-mqtt";
 import styled from "styled-components";
@@ -57,7 +57,7 @@ const FormContainer = styled.div`
     }
 `;
 
-const ExitIcon = styled(FaShareSquare)`
+const ExitIcon = styled(FaShareSquare as ComponentType<any>)`
   background-color: #141619;
   font-size: 30px;
   color: #3274d9;

@@ -78,6 +78,19 @@ func (fm *FlowsManager) Listen() {
 			}
 		case "asset":
 			switch adminMsg.Action {
+			case "create":
+				groupId := int(adminMsg.Context["groupId"].(float64))
+				asset := fm.Admin.GetAsset(groupId, adminMsg.Id)
+				if asset != nil {
+					
+					fm.AddAsset(asset)
+				}
+			case "update":
+				groupId := int(adminMsg.Context["groupId"].(float64))
+				asset := fm.Admin.GetAsset(groupId, adminMsg.Id)
+				if asset != nil {
+					fm.UpdateAsset(asset)
+				}
 			case "delete":
 				fm.DeleteAsset(adminMsg.Id)
 			default:

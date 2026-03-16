@@ -1,4 +1,4 @@
-import { FC, useMemo, useCallback, useEffect } from 'react'
+import { FC, useMemo, useCallback, useEffect, ComponentType } from 'react'
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { MapContainer, GeoJSON, useMap, useMapEvents } from 'react-leaflet';
@@ -59,33 +59,33 @@ const ZoomControlContainer = styled.div`
     background-color: #202226;
 `;
 
-const RiZoomInLineStyled = styled(RiZoomInLine)`
+const RiZoomInLineStyled = styled(RiZoomInLine as ComponentType<any>)`
     font-size: 30px;
     color: white;
 `;
 
-const RiZoomOutLineStyled = styled(RiZoomOutLine)`
+const RiZoomOutLineStyled = styled(RiZoomOutLine as ComponentType<any>)`
     font-size: 30px;
     color: white;
 `;
 
 
-const MdZoomOutMapStyled = styled(MdZoomOutMap)`
+const MdZoomOutMapStyled = styled(MdZoomOutMap as ComponentType<any>)`
     font-size: 30px;
     color: white;
 `;
 
-const FaRedoStyled = styled(FaRedo)`
+const FaRedoStyled = styled(FaRedo as ComponentType<any>)`
     font-size: 22px;
     color: white;
 `;
 
-const FaRegTimesCircleStyled = styled(FaRegTimesCircle)`
+const FaRegTimesCircleStyled = styled(FaRegTimesCircle as ComponentType<any>)`
     font-size: 28px;
     color: white;
 `;
 
-const FaRegCheckCircleStyled = styled(FaRegCheckCircle)`
+const FaRegCheckCircleStyled = styled(FaRegCheckCircle as ComponentType<any>)`
     font-size: 28px;
     color: white;
 `;

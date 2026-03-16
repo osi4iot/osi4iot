@@ -35,6 +35,11 @@ type TelegramMessage struct {
 	ReplyToMessageID int64    `json:"reply_to_message_id,omitempty"`
 	ForwardFrom      *User    `json:"forward_from,omitempty"`
 	Entities         []Entity `json:"entities,omitempty"`
+
+	IsEdited bool `json:"is_edited,omitempty"`
+
+	CallbackQueryID string `json:"callback_query_id,omitempty"`
+	CallbackData    string `json:"callback_data,omitempty"`
 }
 
 type MessageType string
@@ -50,6 +55,7 @@ const (
 	MessageTypeLocation MessageType = "location"
 	MessageTypeContact  MessageType = "contact"
 	MessageTypePoll     MessageType = "poll"
+	MessageTypeCallback MessageType = "callback_query"
 	MessageTypeUnknown  MessageType = "unknown"
 )
 
@@ -138,6 +144,13 @@ type PollOption struct {
 	VoterCount int    `json:"voter_count"`
 }
 
+type CallbackQuery struct {
+	ID     string `json:"id"`
+	Data   string `json:"data"`
+	UserID int64  `json:"user_id"`
+	ChatID int64  `json:"chat_id"`
+}
+
 type User struct {
 	ID        int64  `json:"id"`
 	IsBot     bool   `json:"is_bot"`
@@ -155,15 +168,27 @@ type Entity struct {
 }
 
 type apiResponse struct {
-	OK          bool       `json:"ok"`
-	Result      []update   `json:"result,omitempty"`
-	Description string     `json:"description,omitempty"`
-	ErrorCode   int        `json:"error_code,omitempty"`
+	OK          bool     `json:"ok"`
+	Result      []update `json:"result,omitempty"`
+	Description string   `json:"description,omitempty"`
+	ErrorCode   int      `json:"error_code,omitempty"`
+}
+
+type callbackQuery struct {
+	ID      string `json:"id"`
+	From    user   `json:"from"`
+	Message struct {
+		MessageID int64 `json:"message_id"`
+		Chat      chat  `json:"chat"`
+	} `json:"message"`
+	Data string `json:"data"`
 }
 
 type update struct {
-	UpdateID int64    `json:"update_id"`
-	Message  *message `json:"message,omitempty"`
+	UpdateID      int64          `json:"update_id"`
+	Message       *message       `json:"message,omitempty"`
+	EditedMessage *message       `json:"edited_message"`
+	CallbackQuery *callbackQuery `json:"callback_query,omitempty"`
 }
 
 type message struct {
@@ -186,9 +211,9 @@ type message struct {
 	Poll     *poll       `json:"poll,omitempty"`
 
 	// Metadata
-	ReplyToMessage *message  `json:"reply_to_message,omitempty"`
-	ForwardFrom    *user     `json:"forward_from,omitempty"`
-	Entities       []entity  `json:"entities,omitempty"`
+	ReplyToMessage *message `json:"reply_to_message,omitempty"`
+	ForwardFrom    *user    `json:"forward_from,omitempty"`
+	Entities       []entity `json:"entities,omitempty"`
 }
 
 type chat struct {

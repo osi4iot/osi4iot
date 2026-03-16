@@ -119,12 +119,12 @@ func (p *Poller) Start(ctx context.Context) error {
 		errorTimeout = 0
 
 		for _, upd := range updates {
+			p.lastUpdateID.Store(upd.UpdateID) // siempre avanzar el offset
+
 			msg := p.convertUpdate(upd)
 			if msg == nil {
 				continue
 			}
-
-			p.lastUpdateID.Store(upd.UpdateID)
 
 			select {
 			case <-ctx.Done():
@@ -167,15 +167,42 @@ func (p *Poller) getUpdates(ctx context.Context) ([]update, error) {
 }
 
 func (p *Poller) convertUpdate(upd update) *TelegramMessage {
-	if upd.Message == nil {
+	var msg *message
+	var isEdited bool
+
+	if upd.CallbackQuery != nil {
+		cq := upd.CallbackQuery
+		return &TelegramMessage{
+			UpdateID:        upd.UpdateID,
+			Type:            MessageTypeCallback,
+			MessageID:       cq.Message.MessageID,
+			ChatID:          cq.Message.Chat.ID,
+			ChatType:        cq.Message.Chat.Type,
+			ChatTitle:       cq.Message.Chat.Title,
+			UserID:          cq.From.ID,
+			Username:        cq.From.Username,
+			FirstName:       cq.From.FirstName,
+			LastName:        cq.From.LastName,
+			CallbackQueryID: cq.ID,
+			CallbackData:    cq.Data,
+			Timestamp:       time.Now(),
+		}
+	}
+
+	switch {
+	case upd.Message != nil:
+		msg = upd.Message
+	case upd.EditedMessage != nil:
+		msg = upd.EditedMessage
+		isEdited = true
+	default:
 		return nil
 	}
 
-	if upd.Message.From != nil && upd.Message.From.IsBot {
+	if msg.From != nil && msg.From.IsBot {
 		return nil
 	}
 
-	msg := upd.Message
 	tm := &TelegramMessage{
 		UpdateID:  upd.UpdateID,
 		MessageID: msg.MessageID,
@@ -184,6 +211,7 @@ func (p *Poller) convertUpdate(upd update) *TelegramMessage {
 		ChatTitle: msg.Chat.Title,
 		Timestamp: time.Unix(msg.Date, 0),
 		Caption:   msg.Caption,
+		IsEdited:  isEdited,
 	}
 
 	// Info del usuario

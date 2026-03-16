@@ -19,13 +19,6 @@ div {
     color: #ffffff;
 }
 
-button,
-label,
-nav,
-header {
-    user-select: none;
-}
-
 .ReactModal__Content {
     transform: scale(0.1);
     transition: all 500ms ease-in-out;

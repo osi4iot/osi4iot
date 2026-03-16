@@ -1,5 +1,5 @@
 import { useTable, usePagination, useFilters, useGlobalFilter, useAsyncDebounce, useSortBy } from 'react-table';
-import { FC, useMemo, useState } from 'react';
+import { ComponentType, FC, useMemo, useState } from 'react';
 import { Column } from 'react-table';
 import styled from "styled-components";
 import { FaSearch, FaRedo } from "react-icons/fa";
@@ -198,7 +198,7 @@ const Pagination = styled.div`
     }
 `;
 
-const StyledFaRedo = styled(FaRedo)`
+const StyledFaRedo = styled(FaRedo as ComponentType<any>)`
     color: white;
 `;
 
@@ -290,7 +290,7 @@ const SearchContainer = styled.div`
     position: relative;
 `;
 
-const SearchIcon = styled(FaSearch)`
+const SearchIcon = styled(FaSearch as ComponentType<any>)`
     position: absolute;
     top: 10px;
     left: 5px;
@@ -299,7 +299,7 @@ const SearchIcon = styled(FaSearch)`
     background-color: #0c0d0f;
 `;
 
-const GlobalSearchIcon = styled(FaSearch)`
+const GlobalSearchIcon = styled(FaSearch as ComponentType<any>)`
     position: absolute;
     top: 8px;
     left: 38px;

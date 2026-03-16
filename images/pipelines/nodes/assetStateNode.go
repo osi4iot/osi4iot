@@ -9,7 +9,6 @@ import (
 	"pipelines/logger"
 	"pipelines/utils"
 	"slices"
-	"strings"
 )
 
 /* NOTE: To use ParamOptions="state_from_payload" the msg.Payload should contain a "state" field
@@ -64,7 +63,7 @@ func CreateAssetStateNode(node common.NodeData, fm common.Manager, p common.Pipe
 	group := fm.GetGroup(p.GetGroupId())
 	groupUid := group.GroupUID
 	assetId := p.GetAssetId()
-	asset := fm.GetAsset(assetId)
+	asset := fm.GetAssetById(assetId)
 	assetUid := asset.AssetUid
 	var customState map[string]any = make(map[string]any)
 
@@ -168,7 +167,7 @@ func (n *AssetStateNode) processUpsertQuery(msg common.Message, log *logger.Logg
 		}
 		n.sendToOutputs(responseMsg, log)
 	case "key_value_store":
-		kvKey := n.getAssetStateKvStoreKey(n.AssetUid)
+		kvKey := n.GetAssetStateKvStoreKey(n.AssetUid, n.GroupUid)
 		kvStore, err := n.GetGroupKvStore(n.Pipeline.GetGroupId())
 		if err != nil {
 			log.Errorf("AssetStateNode %s: failed to get KV store: %v", n.NodeUid, err)
@@ -204,17 +203,10 @@ func (n *AssetStateNode) processGetStateQuery(msg common.Message, log *logger.Lo
 			return fmt.Errorf("failed to get asset state: %w", err)
 		}
 	case "key_value_store":
-		kvKey := n.getAssetStateKvStoreKey(n.AssetUid)
-		kvStore, err := n.GetGroupKvStore(n.Pipeline.GetGroupId())
+		assetState, err = n.GetAssetStateFromGroupKvStore(n.AssetUid, n.GroupUid)
 		if err != nil {
-			log.Errorf("AssetStateNode %s: failed to get KV store: %v", n.NodeUid, err)
-			return fmt.Errorf("failed to get KV store: %w", err)
-		}
-
-		assetState, err = kvStore.GetObjectValue(context.Background(), kvKey)
-		if err != nil {
-			log.Errorf("Error getting value from store for key %s: %v", kvKey, err)
-			return fmt.Errorf("error getting value from store for key %s: %w", kvKey, err)
+			log.Errorf("Error getting asset state from KV store for asset %s in group %s: %v", n.AssetUid, n.GroupUid, err)
+			return fmt.Errorf("error getting asset state from KV store for asset %s in group %s: %w", n.AssetUid, n.GroupUid, err)
 		}
 	}
 
@@ -224,9 +216,14 @@ func (n *AssetStateNode) processGetStateQuery(msg common.Message, log *logger.Lo
 		assetState["status"] = "Unknown"
 	}
 
+	assetStateDescription := common.DefaultAssetStateDescription
+	if desc, ok := assetState["state_description"].(string); ok {
+		assetStateDescription = desc
+	}
 
 	payload := msg.Payload
 	payload["state"] = assetState
+	payload["state_description"] = assetStateDescription
 
 	resultMsg := common.Message{
 		Payload: payload,
@@ -238,7 +235,7 @@ func (n *AssetStateNode) processGetStateQuery(msg common.Message, log *logger.Lo
 }
 
 func (n *AssetStateNode) processGetStatesInGroupQuery(msg common.Message, log *logger.Logger) error {
-	assetStates := make(map[string]map[string]any)
+	var assetStates map[string]map[string]any
 	var err error
 
 	switch n.StoreType {
@@ -249,32 +246,10 @@ func (n *AssetStateNode) processGetStatesInGroupQuery(msg common.Message, log *l
 			return fmt.Errorf("failed to get asset states in group: %w", err)
 		}
 	case "key_value_store":
-		kvStore, err := n.GetGroupKvStore(n.Pipeline.GetGroupId())
+		assetStates, err = n.GetAssetStatesInGroupFromGroupKvStore(n.GroupUid, log)
 		if err != nil {
-			log.Errorf("AssetStateNode %s: failed to get KV store: %v", n.NodeUid, err)
-			return fmt.Errorf("failed to get KV store: %w", err)
-		}
-
-		keys, err := kvStore.ListKeys(context.Background(), fmt.Sprintf("org_%s-group_%s.asset_states.", n.GetOrgHash(), n.GroupUid))
-		if err != nil {
-			log.Errorf("Error listing keys from store for group %s: %v", n.GroupUid, err)
-			return fmt.Errorf("error listing keys from store for group %s: %w", n.GroupUid, err)
-		}
-
-		for _, key := range keys {
-			assetUid := strings.Split(key, ".")[2] // Assuming the key format is "org_{orgHash}-group_{groupUid}.asset_states.asset_{assetUid}"
-			state, err := kvStore.GetObjectValue(context.Background(), key)
-			if err != nil {
-				log.Errorf("Error getting value from store for key %s: %v", key, err)
-				continue
-			}
-			// Extract asset UID from the key
-			_, err = fmt.Sscanf(key, fmt.Sprintf("org_%s-group_%s.asset_states.asset_%%s", n.GetOrgHash(), n.GroupUid), &assetUid)
-			if err != nil {
-				log.Errorf("Error extracting asset UID from key %s: %v", key, err)
-				continue
-			}
-			assetStates[assetUid] = state
+			log.Errorf("Error getting asset states from KV store for group %s: %v", n.GroupUid, err)
+			return fmt.Errorf("error getting asset states from KV store for group %s: %w", n.GroupUid, err)
 		}
 	}
 
@@ -283,6 +258,12 @@ func (n *AssetStateNode) processGetStatesInGroupQuery(msg common.Message, log *l
 		// If it is not present in the retrieved state, set it to "Unknown"
 		if _, ok := state["status"]; !ok {
 			state["status"] = "Unknown"
+		}
+
+		// Ensure the "state_description" field is always present in the output state
+		// If it is not present in the retrieved state, set it to a default message
+		if _, ok := state["state_description"]; !ok {
+			state["state_description"] = common.DefaultAssetStateDescription
 		}
 	}
 
@@ -295,8 +276,4 @@ func (n *AssetStateNode) processGetStatesInGroupQuery(msg common.Message, log *l
 	n.sendToOutputs(resultMsg, log)
 
 	return nil
-}
-
-func (n *AssetStateNode) getAssetStateKvStoreKey(assetUid string) string {
-	return fmt.Sprintf("org_%s-group_%s.asset_states.asset_%s", n.GetOrgHash(), n.GroupUid, assetUid)
 }

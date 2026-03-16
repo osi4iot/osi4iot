@@ -1,4 +1,4 @@
-package utils
+package telegram
 
 type Emoji struct {
 	Name        string
@@ -65,6 +65,11 @@ var emojis = EmojisMap{
 		Description: "This emoji is used to indicate actions that are not permitted.",
 	},
 	// Good condition/normal operation emojis
+	"OK": {
+		Name:        "OK",
+		Emoji:       "✅",
+		Description: "This emoji indicates successful verification or good status.",
+	},
 	"check_mark": {
 		Name:        "Check Mark",
 		Emoji:       "✅",
@@ -131,9 +136,18 @@ var emojis = EmojisMap{
 		Emoji:       "🟠",
 		Description: "This emoji indicates a malfunction or degraded operation without being a critical alert.",
 	},
+	// Unknown status emojis
+	"Unknown": {
+		Name:        "Unknown",
+		Emoji:       "❓",
+		Description: "This emoji indicates an unknown status or that the system is offline.",
+	},
 }
 
-func GetEmoji(key string) (Emoji, bool) {
+func GetEmoji(key string) string {
 	emoji, exists := emojis[key]
-	return emoji, exists
+	if !exists {
+		return emojis["Unknown"].Emoji
+	}
+	return emoji.Emoji
 }

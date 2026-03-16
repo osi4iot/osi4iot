@@ -1,4 +1,4 @@
-import React, { FC } from "react";
+import React, { ComponentType, FC } from "react";
 import styled, { StyledComponent } from "styled-components";
 import { FaHome, FaUser, FaUsers, FaUniversity } from "react-icons/fa";
 import { IconType } from "react-icons";
@@ -27,10 +27,11 @@ const Menu = styled.div`
 `;
 
 
-const StyledIcon = (icon: IconType): StyledComponent<IconType, any, {}, never> => {
-    const styledIcon = (styled(icon)`
+const StyledIcon = (icon: IconType): StyledComponent<ComponentType<any>, any, {}, never> => {
+    const styledIcon = (styled(icon as ComponentType<any>)`
         font-size: 30px;
-    `) as StyledComponent<IconType, any, {}, never>;
+        user-select: none;
+    `) as StyledComponent<ComponentType<any>, any, {}, never>;
     return styledIcon;
 }
 
@@ -80,6 +81,7 @@ const PlatformLogoContainer = styled.div<PlatformLogoContainerProps>`
     margin-top: 10px;
 	margin-bottom: 10px;
     border: ${(props) => (props.isActive ? '1px solid#3274d9;' : '1px solid #141619')};
+    user-select: none;
 
     &:hover {
 		border: 1px solid white;

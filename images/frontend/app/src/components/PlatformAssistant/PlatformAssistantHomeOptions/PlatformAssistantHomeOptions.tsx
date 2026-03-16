@@ -103,6 +103,7 @@ const OptionContainer = styled.div<OptionContainerProps>`
     padding: 10px 10px 10px 10px;
     border-top: ${(props) => (props.isOptionActive ? "3px solid #3274d9;" : "3px solid #0c0d0f")};
     align-content: center;
+    user-select: none;
 
     &:hover {
         cursor: pointer;

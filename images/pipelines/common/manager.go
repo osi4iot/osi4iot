@@ -11,7 +11,10 @@ import (
 
 type Manager interface {
 	GetAssets() []*Asset
-	GetAsset(assetId int) *Asset
+	GetAssetById(assetId int) *Asset
+	GetAssetByUid(assetUid string) *Asset
+	GetAssetsByGroupId(groupId int) []*Asset
+	GetAssetByShortUidAndGroupId(shortUid string, groupId int) *Asset
 	AddAsset(asset *Asset)
 	AddAssets(assets []*Asset)
 	DeleteAsset(assetId int) error
@@ -76,6 +79,7 @@ type Manager interface {
 	DeleteGroup(groupId int) error
 	UpdateGroup(group *Group) error
 	GetGroupKvStore(groupId int) *nats_pkg.KVStore
+	GetAssetStateKvStoreKey(orgHash string, groupUid string, assetUid string) string
 
 	GetNotificationChannels() []*NotificationChannel
 	GetNotificationChannel(channelId int) *NotificationChannel

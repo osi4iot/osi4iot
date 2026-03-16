@@ -1,4 +1,4 @@
-import { FC, useCallback } from 'react';
+import { ComponentType, FC, useCallback } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { MapContainer, TileLayer, useMap, useMapEvents } from 'react-leaflet';
@@ -71,23 +71,23 @@ const ZoomControlContainer = styled.div`
     background-color: #202226;
 `;
 
-const RiZoomInLineStyled = styled(RiZoomInLine)`
+const RiZoomInLineStyled = styled(RiZoomInLine as ComponentType<any>)`
     font-size: 30px;
     color: white;
 `;
 
-const RiZoomOutLineStyled = styled(RiZoomOutLine)`
+const RiZoomOutLineStyled = styled(RiZoomOutLine as ComponentType<any>)`
     font-size: 30px;
     color: white;
 `;
 
 
-const MdZoomOutMapStyled = styled(MdZoomOutMap)`
+const MdZoomOutMapStyled = styled(MdZoomOutMap as ComponentType<any>)`
     font-size: 30px;
     color: white;
 `;
 
-const FaRedoStyled = styled(FaRedo)`
+const FaRedoStyled = styled(FaRedo as ComponentType<any>)`
     font-size: 22px;
     color: white;
 `;

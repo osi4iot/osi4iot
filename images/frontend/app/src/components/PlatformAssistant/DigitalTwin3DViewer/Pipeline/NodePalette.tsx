@@ -36,6 +36,7 @@ const PaletteTitle = styled.h3`
     text-align: center;
     border-bottom: 1px solid #444;
     font-weight: 700;
+    user-select: none;
 `;
 
 const NodesContainer = styled.div`

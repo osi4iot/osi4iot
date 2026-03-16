@@ -20,6 +20,7 @@ import DatGui, {
     DatSelect, 
     DatButton 
 } from "react-dat-gui";
+import { ComponentType } from "react";
 
 // Layout components
 export const CanvasContainer = styled.div`
@@ -123,23 +124,23 @@ const IconBaseStyles = `
     }
 `;
 
-export const ExitIcon = styled(FaShareSquare)`
+export const ExitIcon = styled(FaShareSquare as ComponentType<any>)`
     ${IconBaseStyles}
 `;
 
-export const DashboardIcon = styled(FaChartLine)`
+export const DashboardIcon = styled(FaChartLine as ComponentType<any>)`
     ${IconBaseStyles}
 `;
 
-export const OpenFolderIcon = styled(FaFolderOpen)`
+export const OpenFolderIcon = styled(FaFolderOpen as ComponentType<any>)`
     ${IconBaseStyles}
 `;
 
-export const CloseFolderIcon = styled(FaFolderMinus)`
+export const CloseFolderIcon = styled(FaFolderMinus as ComponentType<any>)`
     ${IconBaseStyles}
 `;
 
-export const TiFlowMergeIcon = styled(TiFlowMerge)`
+export const TiFlowMergeIcon = styled(TiFlowMerge as ComponentType<any>)`
     ${IconBaseStyles}
     rotate: -90deg;
 `;
@@ -185,7 +186,7 @@ export const PlayIcon = styled(Play)`
     ${IconBaseStyles}
 `;
 
-export const StoppedIndicator = styled(FaRegStopCircle)`
+export const StoppedIndicator = styled(FaRegStopCircle as ComponentType<any>)`
     background-color: #141619;
     font-size: 25px;
     color: #ff4040;
@@ -196,7 +197,7 @@ export const StoppedIndicator = styled(FaRegStopCircle)`
     }
 `;
 
-export const ErrorIndicator = styled(MdError)`
+export const ErrorIndicator = styled(MdError as ComponentType<any>)`
     background-color: #141619;
     font-size: 25px;
     color: #ff4040;
@@ -207,7 +208,7 @@ export const ErrorIndicator = styled(MdError)`
     }
 `;
 
-export const RunningIndicator = styled(FaCheckCircle)`
+export const RunningIndicator = styled(FaCheckCircle as ComponentType<any>)`
     background-color: #141619;
     font-size: 25px;
     color: #62f700;
@@ -243,7 +244,7 @@ export const InstanceBadge = styled.div`
     box-sizing: border-box;
 `;
 
-export const UnknownIndicator = styled(FaQuestionCircle)`
+export const UnknownIndicator = styled(FaQuestionCircle as ComponentType<any>)`
     background-color: #141619;
     font-size: 25px;
     color: #806787;
@@ -256,7 +257,7 @@ export const UnknownIndicator = styled(FaQuestionCircle)`
 
 
 
-export const ChatAssistantIcon = styled(BsChatDotsFill)`
+export const ChatAssistantIcon = styled(BsChatDotsFill as ComponentType<any>)`
     background-color: #141619;
     font-size: 28px;
     color: #3274d9;
@@ -268,7 +269,7 @@ export const ChatAssistantIcon = styled(BsChatDotsFill)`
     }
 `;
 
-export const HiShieldCheckIcon = styled(HiShieldCheck)`
+export const HiShieldCheckIcon = styled(HiShieldCheck as ComponentType<any>)`
     background-color: #141619;
     font-size: 30px;
     color: #62f700;
@@ -280,7 +281,7 @@ export const HiShieldCheckIcon = styled(HiShieldCheck)`
     }
 `;
 
-export const HiShieldExclamationIcon = styled(HiShieldExclamation)`
+export const HiShieldExclamationIcon = styled(HiShieldExclamation as ComponentType<any>)`
     background-color: #141619;
     font-size: 30px;
     color: #ff4040;
@@ -306,7 +307,7 @@ export const MqttText = styled.span`
     font-size: 14px;
 `;
 
-export const WifiIcon = styled(RiWifiLine)`
+export const WifiIcon = styled(RiWifiLine as ComponentType<any>)`
     background-color: #141619;
     font-size: 30px;
     color: #3274d9;
@@ -314,7 +315,7 @@ export const WifiIcon = styled(RiWifiLine)`
     transform: rotate(90deg);
 `;
 
-export const NoWifiIcon = styled(RiWifiOffLine)`
+export const NoWifiIcon = styled(RiWifiOffLine as ComponentType<any>)`
     background-color: #141619;
     font-size: 30px;
     color: #3274d9;

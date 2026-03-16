@@ -1,4 +1,4 @@
-import { FC, SyntheticEvent, useState } from "react";
+import { ComponentType, FC, SyntheticEvent, useState } from "react";
 import { toast } from 'react-toastify';
 import { FaTrash } from "react-icons/fa";
 import styled from "styled-components";
@@ -13,7 +13,7 @@ import { AxiosResponse, AxiosError } from "axios";
 const domainName = getDomainName();
 const protocol = getProtocol();
 
-const FaTrashStyled = styled(FaTrash)`
+const FaTrashStyled = styled(FaTrash as ComponentType<any>)`
     font-size: 20px;
     color: white;
     background-color: #202226;

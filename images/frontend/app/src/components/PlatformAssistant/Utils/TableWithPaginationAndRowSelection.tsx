@@ -8,7 +8,7 @@ import {
     useRowSelect,
     CellProps,
 } from "react-table";
-import { FC, useMemo, useState, forwardRef, useRef, useEffect, Ref, MutableRefObject, ChangeEvent } from "react";
+import { FC, useMemo, useState, forwardRef, useRef, useEffect, Ref, MutableRefObject, ChangeEvent, ComponentType } from "react";
 import { Column } from "react-table";
 import styled from "styled-components";
 import { FaSearch } from "react-icons/fa";
@@ -230,7 +230,7 @@ const SearchContainer = styled.div`
     position: relative;
 `;
 
-const SearchIcon = styled(FaSearch)`
+const SearchIcon = styled(FaSearch as ComponentType<any>)`
     position: absolute;
     top: 10px;
     left: 5px;
@@ -239,7 +239,7 @@ const SearchIcon = styled(FaSearch)`
     background-color: #0c0d0f;
 `;
 
-const GlobalSearchIcon = styled(FaSearch)`
+const GlobalSearchIcon = styled(FaSearch as ComponentType<any>)`
     position: absolute;
     top: 8px;
     left: 7px;

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"mime/multipart"
 	"net/http"
 	"time"
 
@@ -11,13 +12,20 @@ import (
 )
 
 const (
-    ParseModeHTML       = "HTML"
-    ParseModeMarkdownV2 = "MarkdownV2"
+	ParseModeHTML       = "HTML"
+	ParseModeMarkdownV2 = "MarkdownV2"
 )
 
 type TelegramSendMessage struct {
+	ChatID      int64                 `json:"chat_id"`
+	Text        string                `json:"text"`
+	ParseMode   string                `json:"parse_mode,omitempty"`
+	ReplyMarkup *InlineKeyboardMarkup `json:"reply_markup,omitempty"`
+}
+
+type TelegramSendPhoto struct {
 	ChatID    int64  `json:"chat_id"`
-	Text      string `json:"text"`
+	Caption   string `json:"caption,omitempty"`
 	ParseMode string `json:"parse_mode,omitempty"`
 }
 
@@ -32,6 +40,15 @@ type TelegramResponse struct {
 	} `json:"result"`
 }
 
+type InlineKeyboardButton struct {
+	Text         string `json:"text"`
+	CallbackData string `json:"callback_data"`
+}
+
+type InlineKeyboardMarkup struct {
+	InlineKeyboard [][]InlineKeyboardButton `json:"inline_keyboard"`
+}
+
 type MessageOption func(*TelegramSendMessage)
 
 func WithParseMode(mode string) MessageOption {
@@ -40,7 +57,33 @@ func WithParseMode(mode string) MessageOption {
 	}
 }
 
-func SendTelegramMessage(botToken string, chatID int64, message string, log *logger.Logger, opts ...MessageOption) error {
+type PhotoOption func(*TelegramSendPhoto)
+
+func WithCaption(caption string) PhotoOption {
+	return func(p *TelegramSendPhoto) {
+		p.Caption = caption
+	}
+}
+
+func WithPhotoParseMode(mode string) PhotoOption {
+	return func(p *TelegramSendPhoto) {
+		p.ParseMode = mode
+	}
+}
+
+func WithInlineKeyboard(rows [][]InlineKeyboardButton) MessageOption {
+	return func(m *TelegramSendMessage) {
+		m.ReplyMarkup = &InlineKeyboardMarkup{InlineKeyboard: rows}
+	}
+}
+
+func SendTelegramMessage(
+	botToken string,
+	chatID int64,
+	message string,
+	log *logger.Logger,
+	opts ...MessageOption,
+) error {
 	url := fmt.Sprintf("https://api.telegram.org/bot%s/sendMessage", botToken)
 
 	payload := TelegramSendMessage{
@@ -54,7 +97,7 @@ func SendTelegramMessage(botToken string, chatID int64, message string, log *log
 
 	jsonData, err := json.Marshal(payload)
 	if err != nil {
-		return fmt.Errorf("error al crear JSON: %v", err)
+		return fmt.Errorf("error creating JSON: %v", err)
 	}
 
 	client := &http.Client{Timeout: 10 * time.Second}
@@ -77,5 +120,115 @@ func SendTelegramMessage(botToken string, chatID int64, message string, log *log
 		return fmt.Errorf("telegram API error (code %d): %s", telegramResp.ErrorCode, telegramResp.Description)
 	}
 
+	return nil
+}
+
+func SendTelegramPhoto(
+	botToken string,
+	chatID int64,
+	imgData []byte,
+	filename string,
+	log *logger.Logger,
+	opts ...PhotoOption,
+) error {
+	apiURL := fmt.Sprintf("https://api.telegram.org/bot%s/sendPhoto", botToken)
+
+	payload := TelegramSendPhoto{
+		ChatID: chatID,
+	}
+	for _, opt := range opts {
+		opt(&payload)
+	}
+
+	// Construir multipart/form-data
+	var body bytes.Buffer
+	writer := multipart.NewWriter(&body)
+
+	// chat_id
+	if err := writer.WriteField("chat_id", fmt.Sprintf("%d", payload.ChatID)); err != nil {
+		return fmt.Errorf("error writing chat_id: %v", err)
+	}
+
+	// caption (opcional)
+	if payload.Caption != "" {
+		if err := writer.WriteField("caption", payload.Caption); err != nil {
+			return fmt.Errorf("error writing caption: %v", err)
+		}
+	}
+
+	// parse_mode (opcional)
+	if payload.ParseMode != "" {
+		if err := writer.WriteField("parse_mode", payload.ParseMode); err != nil {
+			return fmt.Errorf("error writing parse_mode: %v", err)
+		}
+	}
+
+	// foto
+	part, err := writer.CreateFormFile("photo", filename)
+	if err != nil {
+		return fmt.Errorf("error creating form file: %v", err)
+	}
+	if _, err := part.Write(imgData); err != nil {
+		return fmt.Errorf("error writing image data: %v", err)
+	}
+
+	if err := writer.Close(); err != nil {
+		return fmt.Errorf("error closing multipart writer: %v", err)
+	}
+
+	// Enviar request
+	client := &http.Client{Timeout: 30 * time.Second}
+	resp, err := client.Post(apiURL, writer.FormDataContentType(), &body)
+	if err != nil {
+		return fmt.Errorf("error sending request: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("unexpected HTTP status: %d", resp.StatusCode)
+	}
+
+	var telegramResp TelegramResponse
+	if err := json.NewDecoder(resp.Body).Decode(&telegramResp); err != nil {
+		return fmt.Errorf("error decoding response: %v", err)
+	}
+
+	if !telegramResp.Ok {
+		return fmt.Errorf("telegram API error (code %d): %s", telegramResp.ErrorCode, telegramResp.Description)
+	}
+
+	return nil
+}
+
+func AnswerCallbackQuery(botToken, callbackQueryID string, text string) error {
+	url := fmt.Sprintf("https://api.telegram.org/bot%s/answerCallbackQuery", botToken)
+
+	payload := struct {
+		CallbackQueryID string `json:"callback_query_id"`
+		Text            string `json:"text,omitempty"`
+	}{
+		CallbackQueryID: callbackQueryID,
+		Text:            text,
+	}
+
+	jsonData, err := json.Marshal(payload)
+	if err != nil {
+		return fmt.Errorf("error creating JSON: %v", err)
+	}
+
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Post(url, "application/json", bytes.NewBuffer(jsonData))
+	if err != nil {
+		return fmt.Errorf("error sending request: %v", err)
+	}
+	defer resp.Body.Close()
+
+	var telegramResp TelegramResponse
+	if err := json.NewDecoder(resp.Body).Decode(&telegramResp); err != nil {
+		return fmt.Errorf("error decoding response: %v", err)
+	}
+	if !telegramResp.Ok {
+		return fmt.Errorf("telegram API error (code %d): %s", telegramResp.ErrorCode, telegramResp.Description)
+	}
 	return nil
 }

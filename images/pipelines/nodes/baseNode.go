@@ -376,10 +376,58 @@ func (n *BaseNode) GetDigitalTwinKvStore(digitalTwinId int) (*nats_pkg.KVStore, 
 	return kvStore, nil
 }
 
-func (n *BaseNode) GetGroupKvStore(groupTwinId int) (*nats_pkg.KVStore, error) {
-	kvStore := n.Fm.GetGroupKvStore(groupTwinId)
+func (n *BaseNode) GetGroupKvStore(groupId int) (*nats_pkg.KVStore, error) {
+	kvStore := n.Fm.GetGroupKvStore(groupId)
 	if kvStore == nil {
-		return nil, fmt.Errorf("failed to get KV store for group twin %d", groupTwinId)
+		return nil, fmt.Errorf("failed to get KV store for group %d", groupId)
 	}
 	return kvStore, nil
+}
+
+func (n *BaseNode) GetAssetStateKvStoreKey(assetUid string, groupUid string) string {
+	return n.Fm.GetAssetStateKvStoreKey(n.GetOrgHash(), groupUid, assetUid)
+}
+
+func (n *BaseNode) GetAssetStateFromGroupKvStore(assetUid string, groupUid string) (map[string]any, error) {
+	kvKey := n.GetAssetStateKvStoreKey(assetUid, groupUid)
+	kvStore, err := n.GetGroupKvStore(n.Pipeline.GetGroupId())
+	if err != nil {
+		return nil, fmt.Errorf("failed to get KV store: %w", err)
+	}
+
+	assetState, err := kvStore.GetObjectValue(context.Background(), kvKey)
+	if err != nil {
+		return nil, fmt.Errorf("error getting value from store for key %s: %w", kvKey, err)
+	}
+	return assetState, nil
+}
+
+func (n *BaseNode) GetAssetStatesInGroupFromGroupKvStore(groupUid string, log *logger.Logger) (map[string]map[string]any, error) {
+	assetStates := make(map[string]map[string]any)
+	kvStore, err := n.GetGroupKvStore(n.Pipeline.GetGroupId())
+	if err != nil {
+		return nil, fmt.Errorf("failed to get KV store: %w", err)
+	}
+
+	keys, err := kvStore.ListKeys(context.Background(), fmt.Sprintf("org_%s-group_%s.asset_states.", n.GetOrgHash(), groupUid))
+	if err != nil {
+		return nil, fmt.Errorf("error listing keys from store for group %s: %w", groupUid, err)
+	}
+
+	for _, key := range keys {
+		state, err := kvStore.GetObjectValue(context.Background(), key)
+		if err != nil {
+			log.Errorf("Error getting value from store for key %s: %v", key, err)
+			continue
+		}
+		// Extract asset UID from the key
+		var assetUid string
+		_, err = fmt.Sscanf(key, fmt.Sprintf("org_%s-group_%s.asset_states.asset_%%s", n.GetOrgHash(), groupUid), &assetUid)
+		if err != nil {
+			log.Errorf("Error extracting asset UID from key %s: %v", key, err)
+			continue
+		}
+		assetStates[assetUid] = state
+	}
+	return assetStates, nil
 }

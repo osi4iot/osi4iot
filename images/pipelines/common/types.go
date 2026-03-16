@@ -2,8 +2,9 @@ package common
 
 import (
 	"context"
-	"github.com/nats-io/nats.go"
 	"image"
+
+	"github.com/nats-io/nats.go"
 
 	"pipelines/leader_election"
 	nats_pkg "pipelines/nats"
@@ -60,7 +61,7 @@ type Group struct {
 	FeatureIndex                  int    `json:"featureIndex"`
 	LlmEnabled                    bool   `json:"llmEnabled"`
 
-	KvStore                    *nats_pkg.KVStore `json:"-"`
+	KvStore *nats_pkg.KVStore `json:"-"`
 }
 
 type Asset struct {

@@ -1,4 +1,4 @@
-import React, { FC, useState, useEffect } from "react";
+import React, { FC, useState, useEffect, ComponentType } from "react";
 import { Field, FieldArray, ErrorMessage } from 'formik';
 import styled from "styled-components";
 import { useFilePicker } from 'use-file-picker';
@@ -198,7 +198,7 @@ const RemoveButtonsContainer = styled.div`
     padding: 10px 5px;
 `;
 
-const FaTrashAltStyled = styled(FaTrashAlt)`
+const FaTrashAltStyled = styled(FaTrashAlt as ComponentType<any>)`
     font-size: 17px;
     color: white;
  `;
