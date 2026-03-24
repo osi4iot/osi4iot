@@ -21,6 +21,7 @@ type AiAgentNode struct {
 	LlmTemperature float64
 	InputChan      chan mcphost.ChatMessage
 	OutputChan     chan mcphost.LlmResponse
+	hostConfig     *mcphost.HostConfig
 	McpHost        mcphost.MCPHost
 }
 
@@ -82,8 +83,6 @@ func CreateAiAgentNode(node common.NodeData, fm common.Manager, p common.Pipelin
 	logTopic := fm.GetTopicByTopicRef(p.GetAssetId(), p.GetDigitalTwinId(), "dtmlog")
 	logSubject := utils.TopicToNatsSubject(logTopic.TopicType, logTopic.GroupUid, logTopic.TopicUid)
 
-	inputChan := make(chan mcphost.ChatMessage)
-	outputChan := make(chan mcphost.LlmResponse)
 	mcpServersPath := fm.GetMcpServersPath()
 	dtPath := fm.GetDigitalTwinFolder(p.GetOrgId(), p.GetGroupId(), p.GetDigitalTwinId())
 	fileSystemPath := filepath.Join(dtPath, "filesystem")
@@ -99,7 +98,7 @@ func CreateAiAgentNode(node common.NodeData, fm common.Manager, p common.Pipelin
 		},
 	}
 
-	femResultsInfo := fm.GetS3DigitalTwinFolderInfo(p.GetGroupId(), p.GetDigitalTwinId(), "femResFiles")
+	femResultsInfo := fm.GetS3DigitalTwinFolderInfo(context.Background(), p.GetGroupId(), p.GetDigitalTwinId(), "femResFiles")
 	if fm.GetMode() == "local" {
 		mcpServers["current_date"] = mcphost.MCPServerConfig{
 			Type:    "local",
@@ -107,7 +106,6 @@ func CreateAiAgentNode(node common.NodeData, fm common.Manager, p common.Pipelin
 			Command: []string{filepath.Join(mcpServersPath, "current_date", "current_date")},
 			Args:    []string{},
 		}
-
 		mcpServers["calculate_expression1"] = mcphost.MCPServerConfig{
 			Type:    "local",
 			Name:    "calculate_expression1",
@@ -119,7 +117,6 @@ func CreateAiAgentNode(node common.NodeData, fm common.Manager, p common.Pipelin
 				"server.py",
 			},
 		}
-
 		if len(femResultsInfo) > 0 {
 			femResultsPath := fm.GetFemResultsPath(p.GetOrgId(), p.GetGroupId(), p.GetDigitalTwinId())
 			utils.CreateDirectoryIfNotExists(femResultsPath)
@@ -139,14 +136,12 @@ func CreateAiAgentNode(node common.NodeData, fm common.Manager, p common.Pipelin
 			Command: []string{"/usr/local/bin/current_date"},
 			Args:    []string{},
 		}
-
 		mcpServers["calculate_expression1"] = mcphost.MCPServerConfig{
 			Type:    "local",
 			Name:    "calculate_expression1",
 			Command: []string{"/opt/venv/bin/python"},
 			Args:    []string{"-m", "server"},
 		}
-
 		if len(femResultsInfo) > 0 {
 			femResultsPath := fm.GetFemResultsPath(p.GetOrgId(), p.GetGroupId(), p.GetDigitalTwinId())
 			utils.CreateDirectoryIfNotExists(femResultsPath)
@@ -161,10 +156,7 @@ func CreateAiAgentNode(node common.NodeData, fm common.Manager, p common.Pipelin
 		}
 	}
 
-	debug := false
-	if fm.GetMode() == "local" {
-		debug = true
-	}
+	debug := fm.GetMode() == "local"
 
 	switch providerUrl {
 	case "https://api.openai.com/v1":
@@ -175,6 +167,7 @@ func CreateAiAgentNode(node common.NodeData, fm common.Manager, p common.Pipelin
 		llmModel = strings.ReplaceAll(llmModel, "openai:", "openai:openai/")
 	}
 
+	// Guardamos la config sin InputChan/OutputChan, se asignan en Start
 	hostConfig := &mcphost.HostConfig{
 		NatsClient:     fm.GetNatsClient(),
 		MCPServers:     mcpServers,
@@ -188,13 +181,10 @@ func CreateAiAgentNode(node common.NodeData, fm common.Manager, p common.Pipelin
 		Temperature:    &llmTemperature,
 		TopP:           &llmTopP,
 		TopK:           &llmTopK,
-		SavedMessages:  nil, // This will be populated later
-		InputChan:      inputChan,
-		OutputChan:     outputChan,
+		SavedMessages:  nil,
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
-	aiAgentNode := &AiAgentNode{
+	return &AiAgentNode{
 		BaseNode: BaseNode{
 			NodeUid:    node.NodeUid,
 			Name:       node.Name,
@@ -207,54 +197,61 @@ func CreateAiAgentNode(node common.NodeData, fm common.Manager, p common.Pipelin
 			LogSubject: logSubject,
 			Fm:         fm,
 			Pipeline:   p,
-			Cancel:     cancel,
-			Ctx:        ctx,
+			Cancel:     nil,
+			Ctx:        nil,
 			status:     common.NodeStatusCreated,
 		},
-		InputChan:  inputChan,
-		OutputChan: outputChan,
-	}
-
-	newMcpHost, err := mcphost.NewMCPHost(hostConfig, ctx, aiAgentNode.GetChatMessages, aiAgentNode.SaveChatMessages)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create MCP host: %w", err)
-	}
-	aiAgentNode.McpHost = newMcpHost
-
-	return aiAgentNode, nil
+		hostConfig: hostConfig, // config guardada, sin canales ni ctx
+	}, nil
 }
 
-func (n *AiAgentNode) Start(log *logger.Logger, needReinitialization bool) {
+func (n *AiAgentNode) Start(ctx context.Context, log *logger.Logger, needReinitialization bool) {
 	if n.GetStatus() == common.NodeStatusRunning {
 		log.Infof("AiAgentNode %s is already running", n.NodeUid)
 		return
 	}
 
+	// Canales frescos en cada Start, importante para reinicios
+	n.InputChan = make(chan mcphost.ChatMessage)
+	n.OutputChan = make(chan mcphost.LlmResponse)
+	n.hostConfig.InputChan = n.InputChan
+	n.hostConfig.OutputChan = n.OutputChan
+
+	// Ctx fresco derivado del ctx de la pipeline
+	nodeCtx, nodeCancel := context.WithCancel(ctx)
+	n.Ctx = nodeCtx
+	n.Cancel = nodeCancel
+
+	// McpHost se crea aquí con el ctx y canales correctos
+	newMcpHost, err := mcphost.NewMCPHost(n.hostConfig, nodeCtx, n.GetChatMessages, n.SaveChatMessages)
+	if err != nil {
+		log.Errorf("AiAgentNode %s: failed to create MCP host: %v", n.NodeUid, err)
+		n.Cancel()
+		n.SetStatus(common.NodeStatusError)
+		return
+	}
+	n.McpHost = newMcpHost
+
 	n.SetStatus(common.NodeStatusRunning)
 	log.Infof("Starting AiAgentNode with UID: %s", n.NodeUid)
 
-	// Registrar la goroutine en el WaitGroup
 	n.wg.Add(1)
 	go func() {
 		defer n.wg.Done()
-		defer func() {
-			log.Infof("MCP Host goroutine terminated for UID: %s", n.NodeUid)
-		}()
+		defer log.Infof("MCP Host goroutine terminated for UID: %s", n.NodeUid)
 
 		if err := n.McpHost.Run(); err != nil {
 			if !errors.Is(err, context.Canceled) {
 				n.handleMCPHostError(err)
 				n.McpHost.Close()
-				return
 			} else {
 				log.Infof("MCP Host stopped gracefully due to context cancellation")
-				return
 			}
 		}
 	}()
 
 	n.handleInputWires(log, n.sendPromptToMcpHost)
-	n.handleMcpHostMessage(log)
+	n.handleMcpHostMessage(ctx, log)
 }
 
 func (n *AiAgentNode) sendPromptToMcpHost(msg mcphost.ChatMessage, log *logger.Logger) error {
@@ -320,18 +317,20 @@ func (n *AiAgentNode) handleInputWires(log *logger.Logger, processor func(mcphos
 	}
 }
 
-func (n *AiAgentNode) handleMcpHostMessage(log *logger.Logger) error {
+func (n *AiAgentNode) handleMcpHostMessage(ctx context.Context, log *logger.Logger) {
 	n.wg.Add(1)
-	defer n.wg.Done()
 	go func() {
+		defer n.wg.Done()
+		defer log.Infof("MCP host message handler terminated for UID: %s", n.NodeUid)
+
 		for {
 			select {
 			case <-n.Ctx.Done():
-				log.Infof("Stopping MCP host for Node with UID: %s", n.NodeUid)
+				log.Infof("Stopping MCP host message handler for Node with UID: %s", n.NodeUid)
 				return
 			case msg, ok := <-n.OutputChan:
 				if !ok {
-					log.Infof("Channel closed for Node with UID: %s", n.NodeUid)
+					log.Infof("OutputChan closed for Node with UID: %s", n.NodeUid)
 					return
 				}
 
@@ -340,47 +339,42 @@ func (n *AiAgentNode) handleMcpHostMessage(log *logger.Logger) error {
 					n.handleMCPHostError(errMsg)
 					n.McpHost.Close()
 					n.Cancel()
-					n.Pipeline.RestartNode(n.NodeUid)
+					go func() {
+						n.Pipeline.RestartNode(ctx, n.NodeUid)
+					}()
 					return
-				} else {
-					parsed := utils.ParseMessage(msg.Message)
-					payload := utils.CreateCommonMessage(parsed, msg.McpToolCalls)
-
-					message := common.Message{
-						Payload: payload,
-					}
-
-					n.sendToOutputs(message, log)
 				}
 
+				parsed := utils.ParseMessage(msg.Message)
+				payload := utils.CreateCommonMessage(parsed, msg.McpToolCalls)
+				n.sendToOutputs(common.Message{Payload: payload}, log)
 			}
 		}
 	}()
-
-	return nil
 }
 
 func (n *AiAgentNode) Stop(log *logger.Logger) {
 	if n.GetStatus() == common.NodeStatusStopped {
+		log.Infof("AiAgentNode %s is already stopped", n.NodeUid)
 		return
 	}
 
-	log.Infof("Stopping Node %s", n.NodeUid)
-	n.SetStatus(common.NodeStatusStopped)
+	log.Infof("Stopping AiAgentNode %s", n.NodeUid)
 
 	if n.McpHost != nil {
-		n.McpHost.Close()
+		n.McpHost.Close() // cierra recursos del McpHost antes de cancelar el ctx
 	}
 
 	if n.Cancel != nil {
-		n.Cancel()
+		n.Cancel() // señaliza a todas las goroutines que paren
 	}
 
-	n.wg.Wait() // Esperar a que todas las goroutines terminen
+	n.wg.Wait() // espera que todas las goroutines confirmen que terminaron
 
-	n.Pipeline.ResetNode(n.NodeUid)
+	n.ResetNodeContext()
+	n.SetStatus(common.NodeStatusStopped) // ahora sí refleja la realidad
 
-	log.Infof("Node %s stopped successfully", n.NodeUid)
+	log.Infof("AiAgentNode %s stopped successfully", n.NodeUid)
 }
 
 func (n *AiAgentNode) GetChatMessages(userName string) []*schema.Message {
@@ -393,12 +387,16 @@ func (n *AiAgentNode) GetChatMessages(userName string) []*schema.Message {
 	return chatMessages
 }
 
-func (n *AiAgentNode) SaveChatMessages(userName string, messages []*schema.Message, mcpToolCallsArray [][]mcphost.McpToolCall) error {
-	kvStore, err:= n.GetDigitalTwinKvStore(n.GetDigitalTwinId())
+func (n *AiAgentNode) SaveChatMessages(
+	userName string,
+	messages []*schema.Message,
+	mcpToolCallsArray [][]mcphost.McpToolCall,
+) error {
+	kvStore, err := n.GetDigitalTwinKvStore(n.GetDigitalTwinId())
 	if err != nil {
 		return err
 	}
-	
+
 	err = utils.SaveChatMessages(
 		n.Fm.Log(),
 		kvStore,

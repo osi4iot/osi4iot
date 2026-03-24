@@ -12,13 +12,14 @@ import (
 	"pipelines/logger"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	nats_pkg "pipelines/nats"
 
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
-	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type FlowsManager struct {
@@ -64,6 +65,7 @@ type FlowsManager struct {
 }
 
 func CreateFlowsManager(
+	ctx context.Context,
 	config *config.Config,
 	natsConn *nats.Conn,
 	jetStream jetstream.JetStream,
@@ -73,18 +75,18 @@ func CreateFlowsManager(
 	log *logger.Logger,
 ) *FlowsManager {
 	secretEncryptionKey := config.EncryptionSecretKey
-	orgs := admin.GetOrgs(secretEncryptionKey)
-	groups := admin.GetGroups()
-	assets := admin.GetAssets()
-	notificationChannels := admin.GetNotificationChannels()
-	topics := admin.GetTopics()
-	mlModels := admin.GetMlModels()
-	digitalTwins := admin.GetDigitalTwins()
-	assetsTopics := admin.GetAssetTopics()
-	digitalTwinTopics := admin.GetDigitalTwinTopics()
+	orgs := admin.GetOrgs(ctx, secretEncryptionKey)
+	groups := admin.GetGroups(ctx)
+	assets := admin.GetAssets(ctx)
+	notificationChannels := admin.GetNotificationChannels(ctx)
+	topics := admin.GetTopics(ctx)
+	mlModels := admin.GetMlModels(ctx)
+	digitalTwins := admin.GetDigitalTwins(ctx)
+	assetsTopics := admin.GetAssetTopics(ctx)
+	digitalTwinTopics := admin.GetDigitalTwinTopics(ctx)
 
 	iotDataCh := make(chan common.ThingData, config.IotDataBatchSize)
-	iotDataCtx, iotDataCancel := context.WithCancel(context.Background())
+	iotDataCtx, iotDataCancel := context.WithCancel(ctx)
 
 	b := iotdb.NewBatcher(
 		iotDataCtx,
@@ -98,6 +100,7 @@ func CreateFlowsManager(
 	go b.Start()
 
 	leaderKvStore, err := nats_pkg.CreateLeaderKeyValueStore(
+		ctx,
 		config.ShardIndex,
 		10*time.Second,
 		log,
@@ -145,20 +148,20 @@ func CreateFlowsManager(
 		log:                      log,
 	}
 
-	flowManager.AddOrgs(orgs)
-	flowManager.AddGroups(groups)
-	flowManager.AddAssets(assets)
+	flowManager.AddOrgs(ctx, orgs)
+	flowManager.AddGroups(ctx, groups)
+	flowManager.AddAssets(ctx, assets)
 	flowManager.AddNotificationChannels(notificationChannels)
 	flowManager.AddTopics(topics)
 	flowManager.AddAssetTopicsRef(assetsTopics)
 	flowManager.AddDigitalTwinTopicsRef(digitalTwinTopics)
-	flowManager.AddMlModels(mlModels)
-	flowManager.AddDigitalTwins(digitalTwins)
-	flowManager.AddFemResultsInDigitalTwins()
-	flowManager.AddDocInfoFilesInDigitalTwins()
+	flowManager.AddMlModels(ctx, mlModels)
+	flowManager.AddDigitalTwins(ctx, digitalTwins)
+	flowManager.AddFemResultsInDigitalTwins(ctx)
+	flowManager.AddDocInfoFilesInDigitalTwins(ctx)
 
-	flowManager.Listen()
-	flowManager.StartNodes()
+	flowManager.Listen(ctx)
+	flowManager.StartNodes(ctx)
 
 	return &flowManager
 }
@@ -286,13 +289,13 @@ func (fm *FlowsManager) NatsPublish(subject string, msg []byte) error {
 	return nil
 }
 
-func (fm *FlowsManager) isPipelineInitialized(digitalTwin *common.DigitalTwin) bool {
+func (fm *FlowsManager) isPipelineInitialized(ctx context.Context, digitalTwin *common.DigitalTwin) bool {
 	kvstore := fm.GetDigitalTwinKvStore(digitalTwin.Id)
 	orgHash := fm.GetOrg(digitalTwin.OrgId).OrgHash
 	key := fmt.Sprintf("org_%s.dt_%s.kvstore.%s", orgHash, digitalTwin.DigitalTwinUid, "pipeline_initialized")
 
 	var isPipelineInitialized bool
-	err := kvstore.GetValue(context.Background(), key, &isPipelineInitialized)
+	err := kvstore.GetValue(ctx, key, &isPipelineInitialized)
 	if err != nil {
 		return false
 	}
@@ -300,12 +303,12 @@ func (fm *FlowsManager) isPipelineInitialized(digitalTwin *common.DigitalTwin) b
 	return isPipelineInitialized
 }
 
-func (fm *FlowsManager) setPipelineInitialized(digitalTwin *common.DigitalTwin, isPipelineInitialized bool) error {
+func (fm *FlowsManager) setPipelineInitialized(ctx context.Context, digitalTwin *common.DigitalTwin, isPipelineInitialized bool) error {
 	kvstore := fm.GetDigitalTwinKvStore(digitalTwin.Id)
 	orgHash := fm.GetOrg(digitalTwin.OrgId).OrgHash
 	key := fmt.Sprintf("org_%s.dt_%s.kvstore.%s", orgHash, digitalTwin.DigitalTwinUid, "pipeline_initialized")
 
-	err := kvstore.SetValue(context.Background(), key, isPipelineInitialized)
+	err := kvstore.SetValue(ctx, key, isPipelineInitialized)
 	if err != nil {
 		fm.log.Errorf("Failed to set pipeline_initialized in kvstore for digital twin %d: %v", digitalTwin.Id, err)
 		return err
@@ -460,9 +463,26 @@ func (fm *FlowsManager) GetDbPool() *pgxpool.Pool {
 	return fm.DBPool
 }
 
+
 func (fm *FlowsManager) GracefullyShutdown() {
-	fm.log.Info("FlowsManager is shutting down gracefully...")
-	fm.IotDataCancel()
-	fm.StopPipelines()
-	fm.StopTelegramBots()
+    fm.log.Info("FlowsManager is shutting down gracefully...")
+    
+    var wg sync.WaitGroup
+
+    wg.Add(1)
+    go func() {
+        defer wg.Done()
+        fm.StopPipelines()
+        fm.IotDataCancel()
+    }()
+
+
+    wg.Add(1)
+    go func() {
+        defer wg.Done()
+        fm.StopTelegramBots()
+    }()
+
+    wg.Wait()
+    fm.log.Info("FlowsManager shutdown complete")
 }

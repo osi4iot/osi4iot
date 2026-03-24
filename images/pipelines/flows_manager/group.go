@@ -1,6 +1,7 @@
 package flows_manager
 
 import (
+	"context"
 	"pipelines/common"
 	"strconv"
 
@@ -28,7 +29,7 @@ func (fm *FlowsManager) GetGroup(groupId int) *common.Group {
 	return nil
 }
 
-func (fm *FlowsManager) AddGroup(group *common.Group) {
+func (fm *FlowsManager) AddGroup(ctx context.Context, group *common.Group) {
 	groupIdStr := strconv.Itoa(group.Id)
 	if _, ok := fm.Groups.Load(groupIdStr); !ok {
 		org := fm.GetOrg(group.OrgId)
@@ -36,7 +37,7 @@ func (fm *FlowsManager) AddGroup(group *common.Group) {
 			fm.log.Error("Org with ID %d not found for Group %d", group.OrgId, group.Id)
 			return
 		}
-		kv, err := nats_pkg.CreateGroupKeyValueStore(org.OrgHash, group.GroupUID, fm.log, fm.JetStream, fm.NumStreamReplicas)
+		kv, err := nats_pkg.CreateGroupKeyValueStore(ctx, org.OrgHash, group.GroupUID, fm.log, fm.JetStream, fm.NumStreamReplicas)
 		if err != nil {
 			fm.log.Error("Failed to create KeyValue store for Group %d: %v", group.Id, err)
 		} else {
@@ -49,9 +50,9 @@ func (fm *FlowsManager) AddGroup(group *common.Group) {
 	}
 }
 
-func (fm *FlowsManager) AddGroups(groups []*common.Group) {
+func (fm *FlowsManager) AddGroups(ctx context.Context,groups []*common.Group) {
 	for _, group := range groups {
-		fm.AddGroup(group)
+		fm.AddGroup(ctx, group)
 	}
 }
 

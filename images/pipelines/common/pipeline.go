@@ -1,5 +1,7 @@
 package common
 
+import "context"
+
 type PipelineStatus int
 
 const (
@@ -35,15 +37,14 @@ type LeaderElector interface {
 }
 
 type Pipeline interface {
-	Start(needReinitialization bool)
-	StartStatusPublisher()
+	Start(ctx context.Context, needReinitialization bool)
+	StartStatusPublisher(ctx context.Context)
 	Stop(action string) error
 	StopStatusPublisher()
 	SetStatus(status PipelineStatus)
 	GetStatus() PipelineStatus
-	AddNodeData(nodeData *NodeData) error
 	ResetNode(nodeUid string) error
-	RestartNode(nodeUid string) error
+	RestartNode(ctx context.Context, nodeUid string) error
 	GetNodeData(nodeUid string) *NodeData
 	GetNode(nodeUid string) Node
 	AddWire(wire *Wire)
@@ -63,8 +64,8 @@ type Pipeline interface {
 	GetLeaderElector() LeaderElector
 	GetReplicaIndexLeader() int
 	PublishChatMessages(userName string)
-	ClearChatMessagesHistory(userName string)
-	CreateTelegramListenNodes(org *Org) error
+	ClearChatMessagesHistory(ctx context.Context, userName string)
+	CreateTelegramListenNodes(ctx context.Context, org *Org) error
 	HasTelegramListenNodesData() bool
 	HasTelegramListenNodes() bool
 }

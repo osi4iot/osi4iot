@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"pipelines/common"
-	"pipelines/utils"
 	"regexp"
 	"strings"
 	"time"
@@ -38,8 +37,8 @@ type SQLTemplate struct {
 const DefaultQueryTimeout = 10 * time.Second
 
 // Parser seguro de templates SQL
-func ParseAndExecuteSQL(dbPool *pgxpool.Pool, sqlTemplate SQLTemplate) (pgx.Rows, error) {
-	ctx, cancel := utils.ContextWithTimeout(DefaultQueryTimeout)
+func ParseAndExecuteSQL(ctx context.Context, dbPool *pgxpool.Pool, sqlTemplate SQLTemplate) (pgx.Rows, error) {
+	ctx, cancel :=  context.WithTimeout(ctx, DefaultQueryTimeout)
 	defer cancel()
 
 	query := sqlTemplate.Query

@@ -75,7 +75,7 @@ func CreateListenNode(node common.NodeData, fm common.Manager, p common.Pipeline
 	logTopic := fm.GetTopicByTopicRef(p.GetAssetId(), p.GetDigitalTwinId(), "dtmlog")
 	logSubject := utils.TopicToNatsSubject(logTopic.TopicType, logTopic.GroupUid, logTopic.TopicUid)
 
-	ctx, cancel := context.WithCancel(context.Background())
+
 	return &ListenNode{
 		BaseNode: BaseNode{
 			NodeUid:    node.NodeUid,
@@ -89,8 +89,8 @@ func CreateListenNode(node common.NodeData, fm common.Manager, p common.Pipeline
 			LogSubject: logSubject,
 			Fm:         fm,
 			Pipeline:   p,
-			Cancel:     cancel,
-			Ctx:        ctx,
+			Cancel:     nil,
+			Ctx:        nil,
 			status:     common.NodeStatusCreated,
 		},
 		ListenTo: listenTo,
@@ -98,11 +98,15 @@ func CreateListenNode(node common.NodeData, fm common.Manager, p common.Pipeline
 	}, nil
 }
 
-func (n *ListenNode) Start(log *logger.Logger, needReinitialization bool) {
+func (n *ListenNode) Start(ctx context.Context, log *logger.Logger, needReinitialization bool) {
 	if n.GetStatus() == common.NodeStatusRunning {
 		log.Infof("ListenNode %s is already running", n.NodeUid)
 		return
 	}
+
+	nodectx, nodeCancel := context.WithCancel(ctx)
+    n.Ctx = nodectx
+    n.Cancel = nodeCancel
 
 	n.SetStatus(common.NodeStatusRunning)
 	log.Infof("Starting ListenNode with UID: %s", n.NodeUid)

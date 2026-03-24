@@ -1,6 +1,7 @@
 package admin
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"path/filepath"
@@ -71,10 +72,10 @@ func CreateAdmin(cfg *config.Config, log *logger.Logger) (*Admin, error) {
 	return admin, nil
 }
 
-func (a *Admin) GetOrgs(secretEncryptionKey string) []*common.Org {
+func (a *Admin) GetOrgs(ctx context.Context, secretEncryptionKey string) []*common.Org {
 	var orgs []*common.Org
 	url := fmt.Sprintf("%s/organizations/full_info", a.baseUrl)
-	response, err := utils.HttpGetWithJwt(url, a.accessToken)
+	response, err := utils.HttpGetWithJwt(ctx, url, a.accessToken)
 	if err != nil {
 		a.log.Errorf("failed to get orgs: %v", err)
 		return nil
@@ -109,9 +110,9 @@ func (a *Admin) GetOrgs(secretEncryptionKey string) []*common.Org {
 	return orgs
 }
 
-func (a *Admin) GetOrg(orgId int, secretEncryptionKey string) *common.Org {
+func (a *Admin) GetOrg(ctx context.Context, orgId int, secretEncryptionKey string) *common.Org {
 	url := fmt.Sprintf("%s/organization_full_info/id/%d", a.baseUrl, orgId)
-	response, err := utils.HttpGetWithJwt(url, a.accessToken)
+	response, err := utils.HttpGetWithJwt(ctx, url, a.accessToken)
 	if err != nil {
 		a.log.Errorf("failed to get org %d: %v", orgId, err)
 		return nil
@@ -156,10 +157,10 @@ func (a *Admin) GetOrg(orgId int, secretEncryptionKey string) *common.Org {
 	return &org
 }
 
-func (a *Admin) GetGroups() []*common.Group {
+func (a *Admin) GetGroups(ctx context.Context) []*common.Group {
 	var groups []*common.Group
 	url := fmt.Sprintf("%s/groups/user_managed", a.baseUrl)
-	response, err := utils.HttpGetWithJwt(url, a.accessToken)
+	response, err := utils.HttpGetWithJwt(ctx, url, a.accessToken)
 	if err != nil {
 		a.log.Errorf("failed to get groups: %v", err)
 		return nil
@@ -174,9 +175,9 @@ func (a *Admin) GetGroups() []*common.Group {
 	return groups
 }
 
-func (a *Admin) GetGroup(groupId int) *common.Group {
+func (a *Admin) GetGroup(ctx context.Context, groupId int) *common.Group {
 	url := fmt.Sprintf("%s/group_user_managed/%d", a.baseUrl, groupId)
-	response, err := utils.HttpGetWithJwt(url, a.accessToken)
+	response, err := utils.HttpGetWithJwt(ctx, url, a.accessToken)
 	if err != nil {
 		a.log.Errorf("failed to get group %d: %v", groupId, err)
 		return nil
@@ -192,10 +193,10 @@ func (a *Admin) GetGroup(groupId int) *common.Group {
 	return &group
 }
 
-func (a *Admin) GetNotificationChannels() []*common.NotificationChannel {
+func (a *Admin) GetNotificationChannels(ctx context.Context) []*common.NotificationChannel {
 	var channels []*common.NotificationChannel
 	url := fmt.Sprintf("%s/notification_channels", a.baseUrl)
-	response, err := utils.HttpGetWithJwt(url, a.accessToken)
+	response, err := utils.HttpGetWithJwt(ctx, url, a.accessToken)
 	if err != nil {
 		a.log.Errorf("failed to get notification channels: %v", err)
 		return nil
@@ -210,9 +211,9 @@ func (a *Admin) GetNotificationChannels() []*common.NotificationChannel {
 	return channels
 }
 
-func (a *Admin) GetNotificationChannel(channelId int) *common.NotificationChannel {
+func (a *Admin) GetNotificationChannel(ctx context.Context, channelId int) *common.NotificationChannel {
 	url := fmt.Sprintf("%s/notification_channel/%d", a.baseUrl, channelId)
-	response, err := utils.HttpGetWithJwt(url, a.accessToken)
+	response, err := utils.HttpGetWithJwt(ctx, url, a.accessToken)
 	if err != nil {
 		a.log.Errorf("failed to get notification channel %d: %v", channelId, err)
 		return nil
@@ -228,10 +229,10 @@ func (a *Admin) GetNotificationChannel(channelId int) *common.NotificationChanne
 	return &channel
 }
 
-func (a *Admin) GetAssets() []*common.Asset {
+func (a *Admin) GetAssets(ctx context.Context) []*common.Asset {
 	var assets []*common.Asset
 	url := fmt.Sprintf("%s/assets/user_managed", a.baseUrl)
-	response, err := utils.HttpGetWithJwt(url, a.accessToken)
+	response, err := utils.HttpGetWithJwt(ctx, url, a.accessToken)
 	if err != nil {
 		a.log.Errorf("failed to get assets: %v", err)
 		return nil
@@ -246,9 +247,9 @@ func (a *Admin) GetAssets() []*common.Asset {
 	return assets
 }
 
-func (a *Admin) GetSensor(groupId int, sensorId int) *common.Sensor {
+func (a *Admin) GetSensor(ctx context.Context, groupId int, sensorId int) *common.Sensor {
 	url := fmt.Sprintf("%s/sensor/%d/id/%d", a.baseUrl, groupId, sensorId)
-	response, err := utils.HttpGetWithJwt(url, a.accessToken)
+	response, err := utils.HttpGetWithJwt(ctx, url, a.accessToken)
 	if err != nil {
 		a.log.Errorf("failed to get sensor %d: %v", sensorId, err)
 		return nil
@@ -264,10 +265,10 @@ func (a *Admin) GetSensor(groupId int, sensorId int) *common.Sensor {
 	return &sensor
 }
 
-func (a *Admin) GetSensors() []*common.Sensor {
+func (a *Admin) GetSensors(ctx context.Context) []*common.Sensor {
 	var sensors []*common.Sensor
 	url := fmt.Sprintf("%s/sensors/user_managed", a.baseUrl)
-	response, err := utils.HttpGetWithJwt(url, a.accessToken)
+	response, err := utils.HttpGetWithJwt(ctx, url, a.accessToken)
 	if err != nil {
 		a.log.Errorf("failed to get sensors: %v", err)
 		return nil
@@ -281,10 +282,10 @@ func (a *Admin) GetSensors() []*common.Sensor {
 	return sensors
 }
 
-func (a *Admin) GetTopics() []*common.Topic {
+func (a *Admin) GetTopics(ctx context.Context) []*common.Topic {
 	var topics []*common.Topic
 	url := fmt.Sprintf("%s/topics/user_managed", a.baseUrl)
-	response, err := utils.HttpGetWithJwt(url, a.accessToken)
+	response, err := utils.HttpGetWithJwt(ctx, url, a.accessToken)
 	if err != nil {
 		a.log.Errorf("failed to get topics: %v", err)
 		return nil
@@ -299,9 +300,9 @@ func (a *Admin) GetTopics() []*common.Topic {
 	return topics
 }
 
-func (a *Admin) GetTopic(groupId int, topicId int) *common.Topic {
+func (a *Admin) GetTopic(ctx context.Context, groupId int, topicId int) *common.Topic {
 	url := fmt.Sprintf("%s/topic/%d/id/%d", a.baseUrl, groupId, topicId)
-	response, err := utils.HttpGetWithJwt(url, a.accessToken)
+	response, err := utils.HttpGetWithJwt(ctx, url, a.accessToken)
 	if err != nil {
 		a.log.Errorf("failed to get topic %d: %v", topicId, err)
 		return nil
@@ -315,10 +316,10 @@ func (a *Admin) GetTopic(groupId int, topicId int) *common.Topic {
 	return &topic
 }
 
-func (a *Admin) GetMlModels() []*common.MLModel {
+func (a *Admin) GetMlModels(ctx context.Context) []*common.MLModel {
 	var mlModels []*common.MLModel
 	url := fmt.Sprintf("%s/ml_models/user_managed", a.baseUrl)
-	response, err := utils.HttpGetWithJwt(url, a.accessToken)
+	response, err := utils.HttpGetWithJwt(ctx, url, a.accessToken)
 	if err != nil {
 		a.log.Errorf("failed to get ML models: %v", err)
 		return nil
@@ -331,9 +332,9 @@ func (a *Admin) GetMlModels() []*common.MLModel {
 	return mlModels
 }
 
-func (a *Admin) GetMlModel(groupId int, mlModelId int) *common.MLModel {
+func (a *Admin) GetMlModel(ctx context.Context, groupId int, mlModelId int) *common.MLModel {
 	url := fmt.Sprintf("%s/ml_model/%d/id/%d", a.baseUrl, groupId, mlModelId)
-	response, err := utils.HttpGetWithJwt(url, a.accessToken)
+	response, err := utils.HttpGetWithJwt(ctx, url, a.accessToken)
 	if err != nil {
 		a.log.Errorf("failed to get ML model %d: %v", mlModelId, err)
 		return nil
@@ -347,9 +348,9 @@ func (a *Admin) GetMlModel(groupId int, mlModelId int) *common.MLModel {
 	return &mlModel
 }
 
-func (a *Admin) GetAsset(groupId int, assetId int) *common.Asset {
+func (a *Admin) GetAsset(ctx context.Context, groupId int, assetId int) *common.Asset {
 	url := fmt.Sprintf("%s/asset/%d/id/%d", a.baseUrl, groupId, assetId)
-	response, err := utils.HttpGetWithJwt(url, a.accessToken)
+	response, err := utils.HttpGetWithJwt(ctx, url, a.accessToken)
 	if err != nil {
 		a.log.Errorf("failed to get asset %d: %v", assetId, err)
 		return nil
@@ -365,10 +366,10 @@ func (a *Admin) GetAsset(groupId int, assetId int) *common.Asset {
 	return &asset
 }
 
-func (a *Admin) GetAssetTopics() []*common.AssetTopic {
+func (a *Admin) GetAssetTopics(ctx context.Context) []*common.AssetTopic {
 	var assetTopics []*common.AssetTopic
 	url := fmt.Sprintf("%s/asset_topics/user_managed", a.baseUrl)
-	response, err := utils.HttpGetWithJwt(url, a.accessToken)
+	response, err := utils.HttpGetWithJwt(ctx, url, a.accessToken)
 	if err != nil {
 		a.log.Errorf("failed to get asset topics: %v", err)
 		return nil
@@ -381,9 +382,9 @@ func (a *Admin) GetAssetTopics() []*common.AssetTopic {
 	return assetTopics
 }
 
-func (a *Admin) GetAssetTopicsByAssetId(groupId int, assetId int) []*common.AssetTopic {
+func (a *Admin) GetAssetTopicsByAssetId(ctx context.Context, groupId int, assetId int) []*common.AssetTopic {
 	url := fmt.Sprintf("%s/asset_topic/%d/%d", a.baseUrl, groupId, assetId)
-	response, err := utils.HttpGetWithJwt(url, a.accessToken)
+	response, err := utils.HttpGetWithJwt(ctx, url, a.accessToken)
 	if err != nil {
 		a.log.Errorf("failed to get asset topic %d: %v", assetId, err)
 		return nil
@@ -399,10 +400,10 @@ func (a *Admin) GetAssetTopicsByAssetId(groupId int, assetId int) []*common.Asse
 	return assetTopics
 }
 
-func (a *Admin) GetDigitalTwins() []*common.DigitalTwin {
+func (a *Admin) GetDigitalTwins(ctx context.Context) []*common.DigitalTwin {
 	var digitalTwins []*common.DigitalTwin
 	url := fmt.Sprintf("%s/digital_twins/user_managed", a.baseUrl)
-	response, err := utils.HttpGetWithJwt(url, a.accessToken)
+	response, err := utils.HttpGetWithJwt(ctx, url, a.accessToken)
 	if err != nil {
 		a.log.Errorf("failed to get digital twins: %v", err)
 		return nil
@@ -417,9 +418,9 @@ func (a *Admin) GetDigitalTwins() []*common.DigitalTwin {
 	return digitalTwins
 }
 
-func (a *Admin) GetDigitalTwin(groupId int, digitalTwinId int) *common.DigitalTwin {
+func (a *Admin) GetDigitalTwin(ctx context.Context, groupId int, digitalTwinId int) *common.DigitalTwin {
 	url := fmt.Sprintf("%s/digital_twin/%d/id/%d", a.baseUrl, groupId, digitalTwinId)
-	response, err := utils.HttpGetWithJwt(url, a.accessToken)
+	response, err := utils.HttpGetWithJwt(ctx, url, a.accessToken)
 	if err != nil {
 		a.log.Errorf("failed to get digital twin %d: %v", digitalTwinId, err)
 		return nil
@@ -435,10 +436,10 @@ func (a *Admin) GetDigitalTwin(groupId int, digitalTwinId int) *common.DigitalTw
 	return &digitalTwin
 }
 
-func (a *Admin) GetDigitalTwinTopics() []*common.DigitalTwinTopic {
+func (a *Admin) GetDigitalTwinTopics(ctx context.Context) []*common.DigitalTwinTopic {
 	var digitalTwinTopics []*common.DigitalTwinTopic
 	url := fmt.Sprintf("%s/digital_twin_topics/user_managed", a.baseUrl)
-	response, err := utils.HttpGetWithJwt(url, a.accessToken)
+	response, err := utils.HttpGetWithJwt(ctx, url, a.accessToken)
 	if err != nil {
 		a.log.Errorf("failed to get digital twin topics: %v", err)
 		return nil
@@ -451,9 +452,9 @@ func (a *Admin) GetDigitalTwinTopics() []*common.DigitalTwinTopic {
 	return digitalTwinTopics
 }
 
-func (a *Admin) GetDigitalTwinTopicsByDTid(groupId int, digitalTwinId int) []*common.DigitalTwinTopic {
+func (a *Admin) GetDigitalTwinTopicsByDTid(ctx context.Context, groupId int, digitalTwinId int) []*common.DigitalTwinTopic {
 	url := fmt.Sprintf("%s/digital_twin_topic/%d/%d", a.baseUrl, groupId, digitalTwinId)
-	response, err := utils.HttpGetWithJwt(url, a.accessToken)
+	response, err := utils.HttpGetWithJwt(ctx, url, a.accessToken)
 	if err != nil {
 		a.log.Errorf("failed to get digital twin topic %d: %v", digitalTwinId, err)
 		return nil
@@ -469,10 +470,10 @@ func (a *Admin) GetDigitalTwinTopicsByDTid(groupId int, digitalTwinId int) []*co
 	return digitalTwinTopics
 }
 
-func (a *Admin) GetNodes() []*common.NodeData {
+func (a *Admin) GetNodes(ctx context.Context) []*common.NodeData {
 	var nodes []*common.NodeData
 	url := fmt.Sprintf("%s/nodes/user_managed", a.baseUrl)
-	response, err := utils.HttpGetWithJwt(url, a.accessToken)
+	response, err := utils.HttpGetWithJwt(ctx, url, a.accessToken)
 	if err != nil {
 		a.log.Errorf("failed to get nodes: %v", err)
 		return nil
@@ -487,9 +488,9 @@ func (a *Admin) GetNodes() []*common.NodeData {
 	return nodes
 }
 
-func (a *Admin) GetNode(groupId int, nodeId int) *common.NodeData {
+func (a *Admin) GetNode(ctx context.Context, groupId int, nodeId int) *common.NodeData {
 	url := fmt.Sprintf("%s/node/%d/id/%d", a.baseUrl, groupId, nodeId)
-	response, err := utils.HttpGetWithJwt(url, a.accessToken)
+	response, err := utils.HttpGetWithJwt(ctx, url, a.accessToken)
 	if err != nil {
 		a.log.Errorf("failed to get node %d: %v", nodeId, err)
 		return nil
@@ -505,10 +506,10 @@ func (a *Admin) GetNode(groupId int, nodeId int) *common.NodeData {
 	return &node
 }
 
-func (a *Admin) GetWires() []*common.Wire {
+func (a *Admin) GetWires(ctx context.Context) []*common.Wire {
 	var wires []*common.Wire
 	url := fmt.Sprintf("%s/wires/user_managed", a.baseUrl)
-	response, err := utils.HttpGetWithJwt(url, a.accessToken)
+	response, err := utils.HttpGetWithJwt(ctx, url, a.accessToken)
 	if err != nil {
 		a.log.Errorf("failed to get wires: %v", err)
 		return nil
@@ -523,9 +524,9 @@ func (a *Admin) GetWires() []*common.Wire {
 	return wires
 }
 
-func (a *Admin) GetWire(groupId int, wireId int) *common.Wire {
+func (a *Admin) GetWire(ctx context.Context, groupId int, wireId int) *common.Wire {
 	url := fmt.Sprintf("%s/wire/%d/id/%d", a.baseUrl, groupId, wireId)
-	response, err := utils.HttpGetWithJwt(url, a.accessToken)
+	response, err := utils.HttpGetWithJwt(ctx, url, a.accessToken)
 	if err != nil {
 		a.log.Errorf("failed to get wire %d: %v", wireId, err)
 		return nil
@@ -541,10 +542,10 @@ func (a *Admin) GetWire(groupId int, wireId int) *common.Wire {
 	return &wire
 }
 
-func (a *Admin) GetS3DigitalTwinFolderInfo(groupId int, digitalTwinId int, folder string) []*common.S3FolderFileInfo {
+func (a *Admin) GetS3DigitalTwinFolderInfo(ctx context.Context, groupId int, digitalTwinId int, folder string) []*common.S3FolderFileInfo {
 	var folderInfo []*common.S3FolderFileInfo
 	url := fmt.Sprintf("%s/digital_twin_file_list/%d/%d/%s", a.baseUrl, groupId, digitalTwinId, folder)
-	response, err := utils.HttpGetWithJwt(url, a.accessToken)
+	response, err := utils.HttpGetWithJwt(ctx, url, a.accessToken)
 	if err != nil {
 		a.log.Errorf("failed to get s3 folder info: %v", err)
 		return nil
@@ -559,10 +560,10 @@ func (a *Admin) GetS3DigitalTwinFolderInfo(groupId int, digitalTwinId int, folde
 	return folderInfo
 }
 
-func (a *Admin) GetS3MlModelFolderInfo(groupId int, mlModelId int) []*common.S3FolderFileInfo {
+func (a *Admin) GetS3MlModelFolderInfo(ctx context.Context, groupId int, mlModelId int) []*common.S3FolderFileInfo {
 	var folderInfo []*common.S3FolderFileInfo
 	url := fmt.Sprintf("%s/ml_model_file_list/%d/%d", a.baseUrl, groupId, mlModelId)
-	response, err := utils.HttpGetWithJwt(url, a.accessToken)
+	response, err := utils.HttpGetWithJwt(ctx, url, a.accessToken)
 	if err != nil {
 		a.log.Errorf("failed to get s3 folder info: %v", err)
 		return nil
@@ -577,8 +578,8 @@ func (a *Admin) GetS3MlModelFolderInfo(groupId int, mlModelId int) []*common.S3F
 	return folderInfo
 }
 
-func (a *Admin) ProcessFemResultFile(femResultsPath string, groupId int, digitalTwinId int) {
-	femResultsInfo := a.GetS3DigitalTwinFolderInfo(groupId, digitalTwinId, "femResFiles")
+func (a *Admin) ProcessFemResultFile(ctx context.Context, femResultsPath string, groupId int, digitalTwinId int) {
+	femResultsInfo := a.GetS3DigitalTwinFolderInfo(ctx, groupId, digitalTwinId, "femResFiles")
 
 	if len(femResultsInfo) > 0 {
 		isFemResultsProcessed, err := utils.IsFemResultsFileProcessed(femResultsPath, femResultsInfo[0])
@@ -594,7 +595,7 @@ func (a *Admin) ProcessFemResultFile(femResultsPath string, groupId int, digital
 		fileName := strings.Split(femResultsInfo[0].FileName, "/")[4]
 		lastModified := femResultsInfo[0].LastModified
 		femResultFileUrl := fmt.Sprintf("%s/digital_twin_download_file/%d/%d/femResFiles/%s", a.baseUrl, groupId, digitalTwinId, fileName)
-		response, err := utils.HttpGetWithJwt(femResultFileUrl, a.accessToken)
+		response, err := utils.HttpGetWithJwt(ctx, femResultFileUrl, a.accessToken)
 		if err != nil {
 			a.log.Errorf("failed to download fem result file %s: %v", fileName, err)
 			return
@@ -620,8 +621,8 @@ func (a *Admin) ProcessFemResultFile(femResultsPath string, groupId int, digital
 	}
 }
 
-func (a *Admin) ProcessDocInfoFile(docInfoFilesPath string, groupId int, digitalTwinId int) {
-	docInfoFilesInfo := a.GetS3DigitalTwinFolderInfo(groupId, digitalTwinId, "docInfoFiles")
+func (a *Admin) ProcessDocInfoFile(ctx context.Context, docInfoFilesPath string, groupId int, digitalTwinId int) {
+	docInfoFilesInfo := a.GetS3DigitalTwinFolderInfo(ctx, groupId, digitalTwinId, "docInfoFiles")
 
 	if len(docInfoFilesInfo) > 0 {
 		fileName := strings.Split(docInfoFilesInfo[0].FileName, "/")[4]
@@ -630,7 +631,7 @@ func (a *Admin) ProcessDocInfoFile(docInfoFilesPath string, groupId int, digital
 		isNewer, _ := utils.IsDateNewerThanFile(lastModified, docInfoFilePath)
 		if isNewer {
 			docInfoFileUrl := fmt.Sprintf("%s/digital_twin_download_file/%d/%d/docInfoFiles/%s", a.baseUrl, groupId, digitalTwinId, fileName)
-			response, err := utils.HttpGetWithJwt(docInfoFileUrl, a.accessToken)
+			response, err := utils.HttpGetWithJwt(ctx, docInfoFileUrl, a.accessToken)
 			if err != nil {
 				a.log.Errorf("failed to download doc info file %s: %v", fileName, err)
 				return
@@ -643,8 +644,8 @@ func (a *Admin) ProcessDocInfoFile(docInfoFilesPath string, groupId int, digital
 	}
 }
 
-func (a *Admin) DownloadMlModelFile(mlModelFolder string, groupId int, mlModelId int) string {
-	mlModelFileInfo := a.GetS3MlModelFolderInfo(groupId, mlModelId)
+func (a *Admin) DownloadMlModelFile(ctx context.Context, mlModelFolder string, groupId int, mlModelId int) string {
+	mlModelFileInfo := a.GetS3MlModelFolderInfo(ctx, groupId, mlModelId)
 	if len(mlModelFileInfo) > 0 {
 		fileName := strings.Split(mlModelFileInfo[0].FileName, "/")[4]
 		mlModelFilePath := filepath.Join(mlModelFolder, fileName)
@@ -653,7 +654,7 @@ func (a *Admin) DownloadMlModelFile(mlModelFolder string, groupId int, mlModelId
 		if isNewer {
 			utils.DeleteFilesInFolder(mlModelFolder)
 			mlModelFileUrl := fmt.Sprintf("%s/ml_model_download_file/%d/%d/%s", a.baseUrl, groupId, mlModelId, fileName)
-			response, err := utils.HttpGetWithJwt(mlModelFileUrl, a.accessToken)
+			response, err := utils.HttpGetWithJwt(ctx, mlModelFileUrl, a.accessToken)
 			if err != nil {
 				a.log.Errorf("failed to download ML model file %s: %v", fileName, err)
 				return ""

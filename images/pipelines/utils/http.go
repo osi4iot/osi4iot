@@ -105,10 +105,10 @@ func HttpGet(url string) ([]byte, error) {
 	return body, nil
 }
 
-func HttpGetWithJwt(url string, token string) ([]byte, error) {
-	ctx, cancel := ContextWithTimeout(10 * time.Second)
-	defer cancel()
-	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+func HttpGetWithJwt(ctx context.Context, url string, token string) ([]byte, error) {
+	timeoutCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+    defer cancel()
+	req, err := http.NewRequestWithContext(timeoutCtx, "GET", url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("error creating request: %w", err)
 	}
@@ -166,7 +166,7 @@ func HttpPost(url string, data interface{}) ([]byte, error) {
 	return body, nil
 }
 
-func HttpPostWithJwt(url string, data interface{}, token string) ([]byte, error) {
+func HttpPostWithJwt(ctx context.Context, url string, data interface{}, token string) ([]byte, error) {
 	var jsonData []byte
 	var err error
 
@@ -179,9 +179,9 @@ func HttpPostWithJwt(url string, data interface{}, token string) ([]byte, error)
         jsonData = []byte("{}")
     }	
 
-	ctx, cancel := ContextWithTimeout(10 * time.Second)
-	defer cancel()
-	req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer(jsonData))
+	timeoutCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+    defer cancel()
+	req, err := http.NewRequestWithContext(timeoutCtx, "POST", url, bytes.NewBuffer(jsonData))
 	if err != nil {
 		return nil, fmt.Errorf("error creating request: %w", err)
 	}
@@ -245,7 +245,7 @@ func HttpPatch(url string, data interface{}) ([]byte, error) {
 	return body, nil
 }
 
-func HttpPatchWithJwt(url string, data interface{}, token string) ([]byte, error) {
+func HttpPatchWithJwt(ctx context.Context, url string, data interface{}, token string) ([]byte, error) {
 	var jsonData []byte
 	var err error
 
@@ -258,9 +258,9 @@ func HttpPatchWithJwt(url string, data interface{}, token string) ([]byte, error
         jsonData = []byte("{}")
     }
 
-	ctx, cancel := ContextWithTimeout(10 * time.Second)
+	timeoutCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
-	req, err := http.NewRequestWithContext(ctx, "PATCH", url, bytes.NewBuffer(jsonData))
+	req, err := http.NewRequestWithContext(timeoutCtx, "PATCH", url, bytes.NewBuffer(jsonData))
 	if err != nil {
 		return nil, fmt.Errorf("error creating request: %w", err)
 	}
@@ -311,10 +311,10 @@ func HttpDelete(url string) ([]byte, error) {
 	return body, nil
 }
 
-func HttpDeleteWithJwt(url string, token string) ([]byte, error) {
-	ctx, cancel := ContextWithTimeout(10 * time.Second)
+func HttpDeleteWithJwt(ctx context.Context, url string, token string) ([]byte, error) {
+	timeoutCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
-	req, err := http.NewRequestWithContext(ctx, "DELETE", url, nil)
+	req, err := http.NewRequestWithContext(timeoutCtx, "DELETE", url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("error creating request: %w", err)
 	}

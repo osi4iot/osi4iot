@@ -93,7 +93,7 @@ func (a *Admin) updateTokens(loginResponse LoginResponse) error {
 	return nil
 }
 
-func (a *Admin) refreshTokens() error {
+func (a *Admin) refreshTokens(ctx context.Context) error {
 	if a.refreshToken == "" {
 		return fmt.Errorf("refresh token is empty")
 	}
@@ -104,7 +104,7 @@ func (a *Admin) refreshTokens() error {
 		a.Login()
 	} else {
 		url := fmt.Sprintf("%s/auth/update_token", a.baseUrl)
-		response, err := utils.HttpPostWithJwt(url, nil, a.refreshToken)
+		response, err := utils.HttpPostWithJwt(ctx, url, nil, a.refreshToken)
 		if err != nil {
 			a.log.Errorf("failed to refresh token: %v", err)
 			return fmt.Errorf("failed to refresh token: %v", err)
@@ -127,7 +127,7 @@ func (a *Admin) refreshTokens() error {
 	return nil
 }
 
-func (a *Admin) GetValidAccessToken() (string, error) {
+func (a *Admin) GetValidAccessToken(ctx context.Context) (string, error) {
 	a.mutex.RLock()
 
 	if time.Until(a.accessExpiry) > a.refreshThreshold {
@@ -138,7 +138,7 @@ func (a *Admin) GetValidAccessToken() (string, error) {
 
 	a.mutex.RUnlock()
 
-	if err := a.refreshTokens(); err != nil {
+	if err := a.refreshTokens(ctx); err != nil {
 		if a.onAuthError != nil {
 			a.onAuthError(err)
 		}
@@ -182,7 +182,7 @@ func (a *Admin) autoRefreshLoop(ctx context.Context, checkInterval time.Duration
 			return
 		case <-ticker.C:
 			if a.needsRefresh() {
-				if err := a.refreshTokens(); err != nil {
+				if err := a.refreshTokens(ctx); err != nil {
 					a.log.Errorf("Error in auto-refresh: %v", err)
 					if a.onAuthError != nil {
 						a.onAuthError(err)

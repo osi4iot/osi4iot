@@ -109,8 +109,6 @@ func CreateMlmNode(node common.NodeData, fm common.Manager, p common.Pipeline) (
 	logTopic := fm.GetTopicByTopicRef(p.GetAssetId(), p.GetDigitalTwinId(), "dtmlog")
 	logSubject := utils.TopicToNatsSubject(logTopic.TopicType, logTopic.GroupUid, logTopic.TopicUid)
 
-	ctx, cancel := context.WithCancel(context.Background())
-
 	mlmNode := &MlmNode{
 		BaseNode: BaseNode{
 			NodeUid:        node.NodeUid,
@@ -124,8 +122,8 @@ func CreateMlmNode(node common.NodeData, fm common.Manager, p common.Pipeline) (
 			LogSubject:     logSubject,
 			Fm:             fm,
 			Pipeline:       p,
-			Cancel:         cancel,
-			Ctx:            ctx,
+			Cancel:         nil,
+			Ctx:            nil,
 			status:         common.NodeStatusCreated,
 		},
 		MlModelId: mlModelId,
@@ -135,11 +133,15 @@ func CreateMlmNode(node common.NodeData, fm common.Manager, p common.Pipeline) (
 	return mlmNode, nil
 }
 
-func (n *MlmNode) Start(log *logger.Logger, needReinitialization bool) {
+func (n *MlmNode) Start(ctx context.Context, log *logger.Logger, needReinitialization bool) {
 	if n.GetStatus() == common.NodeStatusRunning {
 		log.Infof("MlModel %s is already running", n.NodeUid)
 		return
 	}
+
+	nodectx, nodeCancel := context.WithCancel(ctx)
+    n.Ctx = nodectx
+    n.Cancel = nodeCancel	
 
 	log.Infof("Starting MlModel with UID: %s", n.NodeUid)
 
@@ -416,11 +418,10 @@ func (n *MlmNode) Stop(log *logger.Logger) {
 		n.Cancel()
 	}
 
-	n.wg.Wait()
-
-	n.ResetNodeContext()
-
-	log.Infof("MlModel %s stopped successfully", n.NodeUid)
+    n.wg.Wait()
+    n.ResetNodeContext()
+    n.SetStatus(common.NodeStatusStopped)
+    log.Infof("Node %s stopped successfully", n.NodeUid)
 }
 
 func (n *MlmNode) CreateDynInputTensorFromShape(shape []int64, dtype ort.TensorElementDataType) (*DynTensor, error) {

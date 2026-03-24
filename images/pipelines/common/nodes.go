@@ -33,7 +33,7 @@ func (s NodeStatus) String() string {
 }
 
 type Node interface {
-	Start(log *logger.Logger, needReinitialization bool)
+	Start(ctx context.Context, log *logger.Logger, needReinitialization bool)
 	Stop(log *logger.Logger)
 	GetUid() string
 	GetOrgId() int

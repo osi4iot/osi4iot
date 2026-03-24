@@ -24,7 +24,7 @@ type TelegramListenNode struct {
 	TelegramListener         *telegram.OrgListener
 	ListenMsgChannel         chan *telegram.TelegramMessage
 	UnSubscribe              context.CancelFunc
-	ClearChatMessagesHistory func(userName string)
+	ClearChatMessagesHistory func(ctx context.Context, userName string)
 }
 
 type AssetState struct {
@@ -77,7 +77,6 @@ func CreateTelegramListenNode(node common.NodeData, fm common.Manager, p common.
 	asset := fm.GetAssetById(assetId)
 	assetUid := asset.AssetUid
 
-	ctx, cancel := context.WithCancel(context.Background())
 	return &TelegramListenNode{
 		BaseNode: BaseNode{
 			NodeUid:    node.NodeUid,
@@ -91,8 +90,8 @@ func CreateTelegramListenNode(node common.NodeData, fm common.Manager, p common.
 			LogSubject: logSubject,
 			Fm:         fm,
 			Pipeline:   p,
-			Cancel:     cancel,
-			Ctx:        ctx,
+			Cancel:     nil,
+			Ctx:        nil,
 			status:     common.NodeStatusCreated,
 		},
 		BotToken:                 botToken,
@@ -107,11 +106,15 @@ func CreateTelegramListenNode(node common.NodeData, fm common.Manager, p common.
 	}, nil
 }
 
-func (n *TelegramListenNode) Start(log *logger.Logger, needReinitialization bool) {
+func (n *TelegramListenNode) Start(ctx context.Context, log *logger.Logger, needReinitialization bool) {
 	if n.GetStatus() == common.NodeStatusRunning {
 		log.Infof("TelegramListenNode %s is already running", n.NodeUid)
 		return
 	}
+
+	nodectx, nodeCancel := context.WithCancel(ctx)
+    n.Ctx = nodectx
+    n.Cancel = nodeCancel
 
 	n.SetStatus(common.NodeStatusRunning)
 	log.Infof("Starting TelegramListenNode with UID: %s", n.NodeUid)
@@ -163,7 +166,7 @@ func (n *TelegramListenNode) processListenMessage(log *logger.Logger) {
 					continue
 				} else if msg.Text == "/clear" {
 					if n.ClearChatMessagesHistory != nil {
-						n.ClearChatMessagesHistory(n.chatUserName(msg.ChatID))
+						n.ClearChatMessagesHistory(n.Ctx, n.chatUserName(msg.ChatID))
 						message := "<i>Chat history cleared successfully</i>"
 						telegram.SendTelegramMessage(n.BotToken, n.ChatID, message, log, telegram.WithParseMode(telegram.ParseModeHTML))
 					}
@@ -279,7 +282,14 @@ func (n *TelegramListenNode) Stop(log *logger.Logger) {
 	log.Infof("Stopping TelegramListenNode with UID: %s", n.NodeUid)
 
 	n.UnSubscribe()
-	n.Cancel()
+	if n.Cancel != nil {
+		n.Cancel()
+	}
+
+	n.wg.Wait()
+    n.ResetNodeContext()
+    n.SetStatus(common.NodeStatusStopped)
+    log.Infof("Node %s stopped successfully", n.NodeUid)
 }
 
 func (n *TelegramListenNode) chatUserName(chatId int64) string {

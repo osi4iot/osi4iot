@@ -1,6 +1,7 @@
 package common
 
 import (
+	"context"
 	"pipelines/logger"
 	nats_pkg "pipelines/nats"
 
@@ -15,8 +16,8 @@ type Manager interface {
 	GetAssetByUid(assetUid string) *Asset
 	GetAssetsByGroupId(groupId int) []*Asset
 	GetAssetByShortUidAndGroupId(shortUid string, groupId int) *Asset
-	AddAsset(asset *Asset)
-	AddAssets(assets []*Asset)
+	AddAsset(ctx context.Context, asset *Asset)
+	AddAssets(ctx context.Context, assets []*Asset)
 	DeleteAsset(assetId int) error
 
 	AddAssetTopicRef(assetId int, topicId int, topicRef string)
@@ -28,8 +29,8 @@ type Manager interface {
 
 	GetDigitalTwins() []*DigitalTwin
 	GetDigitalTwin(digitalTwinId int) *DigitalTwin
-	AddDigitalTwin(digitalTwin *DigitalTwin, createPipeline bool)
-	AddDigitalTwins(digitalTwins []*DigitalTwin)
+	AddDigitalTwin(ctx context.Context, digitalTwin *DigitalTwin, createPipeline bool)
+	AddDigitalTwins(ctx context.Context, digitalTwins []*DigitalTwin)
 	DeleteDigitalTwin(digitalTwinId int) error
 	UpdateDigitalTwin(digitalTwin *DigitalTwin) error
 	GetDigitalTwinKvStore(digitalTwinId int) *nats_pkg.KVStore
@@ -43,39 +44,39 @@ type Manager interface {
 	GetMlModels() []*MLModel
 	GetMlModel(modelId int) *MLModel
 	AddMlModel(model *MLModel)
-	AddMlModels(models []*MLModel)
+	AddMlModels(ctx context.Context, models []*MLModel)
 	DeleteMlModel(modelId int) error
 	UpdateMlModel(model *MLModel) error
-	GetS3MlModelFolderInfo(groupId int, mlModelId int) []*S3FolderFileInfo
+	GetS3MlModelFolderInfo(ctx context.Context, groupId int, mlModelId int) []*S3FolderFileInfo
 	GetMlModelFolder(orgId int, groupId int, mlModelId int) string
 	GetMlModelFilePath(orgId int, groupId int, mlModelId int) string
-	DownloadMlModelFile(mlModelFilePath string, groupId int, mlModelId int) string
-	GetMlModelFile(groupId int, mlModelId int) error
+	DownloadMlModelFile(ctx context.Context, mlModelFilePath string, groupId int, mlModelId int) string
+	GetMlModelFile(ctx context.Context, groupId int, mlModelId int) error
 	DeleteOldMlModelFiles(currentModels []*MLModel) error
 	GetModelFolders(rootPath string) ([]MlModelFolder, error)
 
-	StartNodes()
+	StartNodes(ctx context.Context)
 	StopPipelines()
 
-	CreatePipelineInDigitalTwin(digitalTwinId int)
-	UpdatePipelineInDigitalTwin(digitalTwinId int)
-	StartNodesInDigitalTwin(digitalTwinId int, needReinitialization bool)
-	RestartNodesInDigitalTwin(digitalTwinId int, needReinitialization bool)
+	CreatePipelineInDigitalTwin(ctx context.Context, digitalTwinId int)
+	UpdatePipelineInDigitalTwin(ctx context.Context, digitalTwinId int)
+	StartNodesInDigitalTwin(ctx context.Context, digitalTwinId int, needReinitialization bool)
+	RestartNodesInDigitalTwin(ctx context.Context, digitalTwinId int, needReinitialization bool)
 	StopNodesInDigitalTwin(digitalTwinId int, action string)
 	StopPipelineStatusPublisher(digitalTwinId int)
-	DeletePipelineInDigitalTwin(digitalTwinId int)
+	DeletePipelineInDigitalTwin(ctx context.Context, digitalTwinId int)
 
 	GetOrgs() []*Org
 	GetOrg(orgId int) *Org
-	AddOrg(org *Org)
-	AddOrgs(orgs []*Org)
+	AddOrg(ctx context.Context, org *Org)
+	AddOrgs(ctx context.Context, orgs []*Org)
 	DeleteOrg(orgId int) error
-	UpdateOrg(org *Org) error
+	UpdateOrg(ctx context.Context, org *Org) error
 
 	GetGroups() []*Group
 	GetGroup(groupId int) *Group
-	AddGroup(group *Group)
-	AddGroups(groups []*Group)
+	AddGroup(ctx context.Context,group *Group)
+	AddGroups(ctx context.Context,groups []*Group)
 	DeleteGroup(groupId int) error
 	UpdateGroup(group *Group) error
 	GetGroupKvStore(groupId int) *nats_pkg.KVStore
@@ -130,23 +131,22 @@ type Manager interface {
 	GetPipelinesDataPath() string
 	GetMaxChatMessagesPerUser() int
 
-	GetS3DigitalTwinFolderInfo(groupId int, digitalTwinId int, folder string) []*S3FolderFileInfo
+	GetS3DigitalTwinFolderInfo(ctx context.Context, groupId int, digitalTwinId int, folder string) []*S3FolderFileInfo
 	GetFemResultsPath(orgId int, groupId int, digitalTwinId int) string
 	GetDigitalTwinFolder(orgId int, groupId int, digitalTwinId int) string
-	AddFemResultsInDigitalTwins() error
-	AddFemResultsInDigitalTwin(digitalTwinId int) error
+	AddFemResultsInDigitalTwins(ctx context.Context) error
+	AddFemResultsInDigitalTwin(ctx context.Context, digitalTwinId int) error
 	DeleteFemResultsInDigitalTwin(digitalTwinId int) error
 
 	GetDocInfoFilesPath(orgId int, groupId int, digitalTwinId int) string
-	AddDocInfoFilesInDigitalTwins() error
-	AddDocInfoFileInDigitalTwin(digitalTwinId int) error
+	AddDocInfoFilesInDigitalTwins(ctx context.Context) error
+	AddDocInfoFileInDigitalTwin(ctx context.Context, digitalTwinId int) error
 	DeleteDocInfoFileInDigitalTwin(digitalTwinId int) error
 
 	GetLeaderKvStore() jetstream.KeyValue
-	SetPipelineStatusSubscription(digitalTwin *DigitalTwin) *nats.Subscription
+	SetPipelineStatusSubscription(ctx context.Context, digitalTwin *DigitalTwin) *nats.Subscription
 
 	GetDbPool() *pgxpool.Pool
 
 	SendToIotDataChannel(data ThingData)
-	
 }

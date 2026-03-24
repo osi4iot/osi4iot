@@ -55,7 +55,6 @@ func CreateBatchNode(node common.NodeData, fm common.Manager, p common.Pipeline)
 	logTopic := fm.GetTopicByTopicRef(p.GetAssetId(), p.GetDigitalTwinId(), "dtmlog")
 	logSubject := utils.TopicToNatsSubject(logTopic.TopicType, logTopic.GroupUid, logTopic.TopicUid)
 
-	ctx, cancel := context.WithCancel(context.Background())
 	return &BatchNode{
 		BaseNode: BaseNode{
 			NodeUid:    node.NodeUid,
@@ -69,8 +68,8 @@ func CreateBatchNode(node common.NodeData, fm common.Manager, p common.Pipeline)
 			LogSubject: logSubject,
 			Fm:         fm,
 			Pipeline:   p,
-			Cancel:     cancel,
-			Ctx:        ctx,
+			Cancel:     nil,
+			Ctx:        nil,
 			status:     common.NodeStatusCreated,
 		},
 		Mode:          batchMode,
@@ -79,17 +78,19 @@ func CreateBatchNode(node common.NodeData, fm common.Manager, p common.Pipeline)
 	}, nil
 }
 
-func (n *BatchNode) Start(log *logger.Logger, needReinitialization bool) {
+func (n *BatchNode) Start(ctx context.Context, log *logger.Logger, needReinitialization bool) {
 	if n.GetStatus() == common.NodeStatusRunning {
 		log.Infof("BatchNode %s is already running", n.NodeUid)
 		return
 	}
 
+	nodectx, nodeCancel := context.WithCancel(ctx)
+    n.Ctx = nodectx
+    n.Cancel = nodeCancel
+
 	log.Infof("Starting BatchNode with UID: %s", n.NodeUid)
 	
-	n.SetStatus(common.NodeStatusRunning)
-
-	err := n.InitializeBatchData(log)
+	err := n.InitializeBatchData(ctx, log)
 	if err != nil {
 		errMsg := fmt.Sprintf("BatchNode %s: Failed to initialize batch data: %v", n.NodeUid, err)
 		log.Errorf(errMsg)
@@ -97,6 +98,7 @@ func (n *BatchNode) Start(log *logger.Logger, needReinitialization bool) {
 		n.SetStatus(common.NodeStatusError)
 		return
 	}
+	n.SetStatus(common.NodeStatusRunning)
 	
 
 	if n.Mode == "Group by time interval" {
@@ -119,16 +121,15 @@ func (n *BatchNode) Stop(log *logger.Logger) {
 		n.Cancel()
 	}
 
-	n.wg.Wait() //Wait for all goroutines to finish
-
 	if n.Mode == "Group by time interval" {
 		n.stopTimeIntervalCheck()
 		n.setIsCurrentlyLeader(false)
 	}
 
-	n.ResetNodeContext()
-
-	log.Infof("Node %s stopped successfully", n.NodeUid)
+    n.wg.Wait()
+    n.ResetNodeContext()
+    n.SetStatus(common.NodeStatusStopped)
+    log.Infof("Node %s stopped successfully", n.NodeUid)
 }
 
 func (n *BatchNode) processMessage(msg common.Message, log *logger.Logger) error {
@@ -146,7 +147,7 @@ func (n *BatchNode) processMessage(msg common.Message, log *logger.Logger) error
 				},
 			}
 			// Reset batch data
-			n.InitializeBatchData(log)
+			n.InitializeBatchData(n.Ctx, log)
 			n.sendToOutputs(message, log)
 		}
 	}
@@ -158,7 +159,7 @@ func (n *BatchNode) getBatchNodeKvStoreKey() string {
 	return fmt.Sprintf("org_%s.dt_%s.kvstore.batch_%s", n.GetOrgHash(), n.GetDigitalTwinUid(), n.NodeUid)
 }
 
-func (n *BatchNode) InitializeBatchData(log *logger.Logger) error {
+func (n *BatchNode) InitializeBatchData(ctx context.Context, log *logger.Logger) error {
 	kvStore, err := n.GetDigitalTwinKvStore(n.GetDigitalTwinId())
 	if err != nil {
 		return err
@@ -169,7 +170,7 @@ func (n *BatchNode) InitializeBatchData(log *logger.Logger) error {
 		InitialTime: time.Time{},
 		Messages:    []map[string]interface{}{},
 	}
-	err = kvStore.SetValue(context.Background(), kvKey, batchData)
+	err = kvStore.SetValue(ctx, kvKey, batchData)
 	if err != nil {
 		log.Errorf("Failed to initialize batch data for node %s: %v", n.NodeUid, err)
 		return err
@@ -184,7 +185,7 @@ func (n *BatchNode) GetBatchData(log *logger.Logger) (*BatchData, error) {
 	}
 
 	kvKey := n.getBatchNodeKvStoreKey()
-	batchDataEntry, err := kvStore.GetObjectValue(context.Background(), kvKey)
+	batchDataEntry, err := kvStore.GetObjectValue(n.Ctx, kvKey)
 	if err != nil {
 		if err.Error() == fmt.Sprintf("key %s not found", kvKey) {
 			return &BatchData{
@@ -251,7 +252,7 @@ func (n *BatchNode) AddMessageToBatchData(message map[string]interface{}, log *l
 		batchData.InitialTime = time.Now()
 	}
 
-	err = kvStore.SetValue(context.Background(), kvKey, batchData)
+	err = kvStore.SetValue(n.Ctx, kvKey, batchData)
 	if err != nil {
 		log.Errorf("Failed to save batch data for node %s: %v", n.NodeUid, err)
 		return nil, err
@@ -347,7 +348,7 @@ func (n *BatchNode) runTimeIntervalCheck(ctx context.Context, interval time.Dura
 						},
 					}
 					// Reset batch data
-					n.InitializeBatchData(n.Fm.Log())
+					n.InitializeBatchData(ctx, n.Fm.Log())
 					n.sendToOutputs(message, n.Fm.Log())
 				}
 			}

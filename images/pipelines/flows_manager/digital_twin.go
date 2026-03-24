@@ -1,6 +1,7 @@
 package flows_manager
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"pipelines/common"
@@ -42,7 +43,7 @@ func (fm *FlowsManager) GetDigitalTwinsInOrg(orgId int) []*common.DigitalTwin {
 	return digitalTwins
 }
 
-func (fm *FlowsManager) AddDigitalTwin(digitalTwin *common.DigitalTwin, createPipeline bool) {
+func (fm *FlowsManager) AddDigitalTwin(ctx context.Context, digitalTwin *common.DigitalTwin, createPipeline bool) {
 	digitalTwinIdStr := strconv.Itoa(digitalTwin.Id)
 	if _, ok := fm.DigitalTwins.Load(digitalTwinIdStr); !ok {
 		org := fm.GetOrg(digitalTwin.OrgId)
@@ -50,7 +51,7 @@ func (fm *FlowsManager) AddDigitalTwin(digitalTwin *common.DigitalTwin, createPi
 			fm.log.Error("Org with ID %d not found for Digital Twin %d", digitalTwin.OrgId, digitalTwin.Id)
 			return
 		}
-		kv, err := nats_pkg.CreateDigitalTwinKeyValueStore(org.OrgHash, digitalTwin.DigitalTwinUid, fm.log, fm.JetStream, fm.NumStreamReplicas)
+		kv, err := nats_pkg.CreateDigitalTwinKeyValueStore(ctx, org.OrgHash, digitalTwin.DigitalTwinUid, fm.log, fm.JetStream, fm.NumStreamReplicas)
 		if err != nil {
 			fm.log.Error("Failed to create KeyValue store for Digital Twin %d: %v", digitalTwin.Id, err)
 		} else {
@@ -58,8 +59,8 @@ func (fm *FlowsManager) AddDigitalTwin(digitalTwin *common.DigitalTwin, createPi
 		}
 
 		if createPipeline {
-			digitalTwin.Pipeline = fm.createPipeline(digitalTwin, org, "create")
-			digitalTwin.PipelineStatusSubscription = fm.SetPipelineStatusSubscription(digitalTwin)
+			digitalTwin.Pipeline = fm.createPipeline(ctx, digitalTwin, org, "create")
+			digitalTwin.PipelineStatusSubscription = fm.SetPipelineStatusSubscription(ctx, digitalTwin)
 		} else {
 			digitalTwin.Pipeline = nil
 		}
@@ -69,13 +70,13 @@ func (fm *FlowsManager) AddDigitalTwin(digitalTwin *common.DigitalTwin, createPi
 	}
 }
 
-func (fm *FlowsManager) AddDigitalTwins(digitalTwins []*common.DigitalTwin) {
+func (fm *FlowsManager) AddDigitalTwins(ctx context.Context, digitalTwins []*common.DigitalTwin) {
 	for _, digitalTwin := range digitalTwins {
-		fm.AddDigitalTwin(digitalTwin, true)
+		fm.AddDigitalTwin(ctx, digitalTwin, true)
 	}
 }
 
-func (fm *FlowsManager) CreatePipelineInDigitalTwin(digitalTwinId int) {
+func (fm *FlowsManager) CreatePipelineInDigitalTwin(ctx context.Context, digitalTwinId int) {
 	fm.log.Infof("Creating pipeline for digital twin %d", digitalTwinId)
 
 	digitalTwin := fm.GetDigitalTwin(digitalTwinId)
@@ -93,13 +94,13 @@ func (fm *FlowsManager) CreatePipelineInDigitalTwin(digitalTwinId int) {
 		fm.log.Errorf("Organization with ID %d not found for digital twin %d", digitalTwin.OrgId, digitalTwinId)
 		return
 	}
-	digitalTwin.Pipeline = fm.createPipeline(digitalTwin, org, "create")
-	digitalTwin.PipelineStatusSubscription = fm.SetPipelineStatusSubscription(digitalTwin)
-	digitalTwin.Pipeline.Start(true)
-	digitalTwin.Pipeline.StartStatusPublisher()
+	digitalTwin.Pipeline = fm.createPipeline(ctx, digitalTwin, org, "create")
+	digitalTwin.PipelineStatusSubscription = fm.SetPipelineStatusSubscription(ctx, digitalTwin)
+	digitalTwin.Pipeline.Start(ctx, true)
+	digitalTwin.Pipeline.StartStatusPublisher(ctx)
 }
 
-func (fm *FlowsManager) UpdatePipelineInDigitalTwin(digitalTwinId int) {
+func (fm *FlowsManager) UpdatePipelineInDigitalTwin(ctx context.Context, digitalTwinId int) {
 	fm.log.Infof("Updating pipeline for digital twin %d", digitalTwinId)
 
 	digitalTwin := fm.GetDigitalTwin(digitalTwinId)
@@ -117,12 +118,12 @@ func (fm *FlowsManager) UpdatePipelineInDigitalTwin(digitalTwinId int) {
 		fm.log.Errorf("Organization with ID %d not found for digital twin %d", digitalTwin.OrgId, digitalTwinId)
 		return
 	}
-	digitalTwin.Pipeline = fm.createPipeline(digitalTwin, org, "update")
-	digitalTwin.Pipeline.Start(false)
-	digitalTwin.Pipeline.StartStatusPublisher()
+	digitalTwin.Pipeline = fm.createPipeline(ctx, digitalTwin, org, "update")
+	digitalTwin.Pipeline.Start(ctx, false)
+	digitalTwin.Pipeline.StartStatusPublisher(ctx)
 }
 
-func (fm *FlowsManager) SetPipelineStatusSubscription(digitalTwin *common.DigitalTwin) *nats.Subscription {
+func (fm *FlowsManager) SetPipelineStatusSubscription(ctx context.Context, digitalTwin *common.DigitalTwin) *nats.Subscription {
 	p := digitalTwin.Pipeline
 	sim2stateTopic := fm.GetTopicByTopicRef(p.GetAssetId(), p.GetDigitalTwinId(), "sim2state")
 	sim2stateSubject := utils.TopicToNatsSubject(sim2stateTopic.TopicType, sim2stateTopic.GroupUid, sim2stateTopic.TopicUid)
@@ -158,7 +159,7 @@ func (fm *FlowsManager) SetPipelineStatusSubscription(digitalTwin *common.Digita
 				}
 			case "queryRemoveChatMessages":
 				if userName, ok := rawMessage["userName"].(string); ok {
-					p.ClearChatMessagesHistory(userName)
+					p.ClearChatMessagesHistory(ctx, userName)
 				} else {
 					fm.log.Errorf("userName not found in message for digital twin %d", digitalTwin.Id)
 				}
@@ -350,26 +351,26 @@ func (fm *FlowsManager) CheckIfNodeExistInPipelineFile(digitalTwin *common.Digit
 	return false
 }
 
-func (fm *FlowsManager) GetS3DigitalTwinFolderInfo(groupId int, digitalTwinId int, folder string) []*common.S3FolderFileInfo {
-	return fm.Admin.GetS3DigitalTwinFolderInfo(groupId, digitalTwinId, folder)
+func (fm *FlowsManager) GetS3DigitalTwinFolderInfo(ctx context.Context, groupId int, digitalTwinId int, folder string) []*common.S3FolderFileInfo {
+	return fm.Admin.GetS3DigitalTwinFolderInfo(ctx, groupId, digitalTwinId, folder)
 }
 
-func (fm *FlowsManager) AddFemResultsInDigitalTwin(digitalTwinId int) error {
+func (fm *FlowsManager) AddFemResultsInDigitalTwin(ctx context.Context, digitalTwinId int) error {
 	digitalTwinIdStr := strconv.Itoa(digitalTwinId)
 	if entry, ok := fm.DigitalTwins.Load(digitalTwinIdStr); ok {
 		digitalTwin := entry.(*common.DigitalTwin)
 		femResultPath := fm.GetFemResultsPath(digitalTwin.OrgId, digitalTwin.GroupId, digitalTwin.Id)
 		if femResultPath != "" {
-			fm.Admin.ProcessFemResultFile(femResultPath, digitalTwin.GroupId, digitalTwin.Id)
+			fm.Admin.ProcessFemResultFile(ctx, femResultPath, digitalTwin.GroupId, digitalTwin.Id)
 		}
 	}
 	return nil
 }
 
-func (fm *FlowsManager) AddFemResultsInDigitalTwins() error {
+func (fm *FlowsManager) AddFemResultsInDigitalTwins(ctx context.Context) error {
 	digitalTwins := fm.GetDigitalTwins()
 	for _, digitalTwin := range digitalTwins {
-		fm.AddFemResultsInDigitalTwin(digitalTwin.Id)
+		fm.AddFemResultsInDigitalTwin(ctx, digitalTwin.Id)
 	}
 	return nil
 }
@@ -389,22 +390,22 @@ func (fm *FlowsManager) DeleteFemResultsInDigitalTwin(digitalTwinId int) error {
 	return nil
 }
 
-func (fm *FlowsManager) AddDocInfoFileInDigitalTwin(digitalTwinId int) error {
+func (fm *FlowsManager) AddDocInfoFileInDigitalTwin(ctx context.Context, digitalTwinId int) error {
 	digitalTwinIdStr := strconv.Itoa(digitalTwinId)
 	if entry, ok := fm.DigitalTwins.Load(digitalTwinIdStr); ok {
 		digitalTwin := entry.(*common.DigitalTwin)
 		docInfoFilesPath := fm.GetDocInfoFilesPath(digitalTwin.OrgId, digitalTwin.GroupId, digitalTwin.Id)
 		if docInfoFilesPath != "" {
-			fm.Admin.ProcessDocInfoFile(docInfoFilesPath, digitalTwin.GroupId, digitalTwin.Id)
+			fm.Admin.ProcessDocInfoFile(ctx, docInfoFilesPath, digitalTwin.GroupId, digitalTwin.Id)
 		}
 	}
 	return nil
 }
 
-func (fm *FlowsManager) AddDocInfoFilesInDigitalTwins() error {
+func (fm *FlowsManager) AddDocInfoFilesInDigitalTwins(ctx context.Context) error {
 	digitalTwins := fm.GetDigitalTwins()
 	for _, digitalTwin := range digitalTwins {
-		fm.AddDocInfoFileInDigitalTwin(digitalTwin.Id)
+		fm.AddDocInfoFileInDigitalTwin(ctx, digitalTwin.Id)
 	}
 	return nil
 }

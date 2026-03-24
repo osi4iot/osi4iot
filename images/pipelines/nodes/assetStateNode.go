@@ -77,7 +77,6 @@ func CreateAssetStateNode(node common.NodeData, fm common.Manager, p common.Pipe
 	logTopic := fm.GetTopicByTopicRef(p.GetAssetId(), p.GetDigitalTwinId(), "dtmlog")
 	logSubject := utils.TopicToNatsSubject(logTopic.TopicType, logTopic.GroupUid, logTopic.TopicUid)
 
-	ctx, cancel := context.WithCancel(context.Background())
 	return &AssetStateNode{
 		BaseNode: BaseNode{
 			NodeUid:    node.NodeUid,
@@ -91,8 +90,8 @@ func CreateAssetStateNode(node common.NodeData, fm common.Manager, p common.Pipe
 			LogSubject: logSubject,
 			Fm:         fm,
 			Pipeline:   p,
-			Cancel:     cancel,
-			Ctx:        ctx,
+			Cancel:     nil,
+			Ctx:        nil,
 			status:     common.NodeStatusCreated,
 		},
 		StoreType:    storeType,
@@ -104,11 +103,15 @@ func CreateAssetStateNode(node common.NodeData, fm common.Manager, p common.Pipe
 	}, nil
 }
 
-func (n *AssetStateNode) Start(log *logger.Logger, needReinitialization bool) {
+func (n *AssetStateNode) Start(ctx context.Context, log *logger.Logger, needReinitialization bool) {
 	if n.GetStatus() == common.NodeStatusRunning {
 		log.Infof("AssetStateNode %s is already running", n.NodeUid)
 		return
 	}
+
+	nodectx, nodeCancel := context.WithCancel(ctx)
+    n.Ctx = nodectx
+    n.Cancel = nodeCancel
 
 	n.SetStatus(common.NodeStatusRunning)
 	log.Infof("Starting AssetStateNode with UID: %s", n.NodeUid)
@@ -173,7 +176,7 @@ func (n *AssetStateNode) processUpsertQuery(msg common.Message, log *logger.Logg
 			log.Errorf("AssetStateNode %s: failed to get KV store: %v", n.NodeUid, err)
 			return fmt.Errorf("failed to get KV store: %w", err)
 		}
-		err = kvStore.SetValue(context.Background(), kvKey, state)
+		err = kvStore.SetValue(n.Ctx, kvKey, state)
 		if err != nil {
 			log.Errorf("Error setting value in store for key %s: %v", kvKey, err)
 			return fmt.Errorf("error setting value in store for key %s: %w", kvKey, err)

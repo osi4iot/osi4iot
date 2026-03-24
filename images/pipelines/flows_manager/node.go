@@ -1,46 +1,43 @@
 package flows_manager
 
 import (
+	"context"
 	"pipelines/common"
 	"sync"
 )
 
-func (fm *FlowsManager) StartNodes() {
-	digitalTwins := fm.GetDigitalTwins()
-	if len(digitalTwins) == 0 {
-		fm.log.Info("No digital twins found to start")
-		return
-	}
+func (fm *FlowsManager) StartNodes(ctx context.Context) {
+    digitalTwins := fm.GetDigitalTwins()
+    if len(digitalTwins) == 0 {
+        fm.log.Info("No digital twins found to start")
+        return
+    }
 
-	var wg sync.WaitGroup
-	for _, digitalTwin := range digitalTwins {
-		wg.Add(1)
+    var wg sync.WaitGroup
+    for _, digitalTwin := range digitalTwins {
+        wg.Add(1)
 
-		isPipelineInitialized := fm.isPipelineInitialized(digitalTwin)
-		needReinitialization := true
-		if isPipelineInitialized {
-			needReinitialization = false
-		}
+        isPipelineInitialized := fm.isPipelineInitialized(ctx, digitalTwin)
+        needReinitialization := !isPipelineInitialized
 
-		go func(dt *common.DigitalTwin, needReinitialization bool) {
-			defer wg.Done()
-			if dt.Pipeline != nil {
-				defer fm.setPipelineInitialization(dt, isPipelineInitialized)
-				dt.Pipeline.Start(needReinitialization)
-				dt.Pipeline.StartStatusPublisher()
-			}
-		}(digitalTwin, needReinitialization)
-	}
-	wg.Wait()
-	fm.log.Info("All nodes in all digital twins have been started")
+        go func(dt *common.DigitalTwin, needReinitialization bool, isPipelineInitialized bool) {
+            defer wg.Done()
+            if dt.Pipeline != nil {
+                defer fm.setPipelineInitialization(ctx, dt, isPipelineInitialized) // ✅ ya es parámetro
+                dt.Pipeline.Start(ctx, needReinitialization)
+                dt.Pipeline.StartStatusPublisher(ctx)
+            }
+        }(digitalTwin, needReinitialization, isPipelineInitialized) // ✅ pasado como parámetro
+    }
+    wg.Wait()
+    fm.log.Info("All nodes in all digital twins have been started")
 }
 
-func (fm *FlowsManager) setPipelineInitialization(digitalTwin *common.DigitalTwin, isPipelineInitialized bool) {
+func (fm *FlowsManager) setPipelineInitialization(ctx context.Context, digitalTwin *common.DigitalTwin, isPipelineInitialized bool) {
 	if !isPipelineInitialized {
-		fm.setPipelineInitialized(digitalTwin, true)
+		fm.setPipelineInitialized(ctx, digitalTwin, true)
 	}
 }
-
 
 func (fm *FlowsManager) StopPipelines() {
 	digitalTwins := fm.GetDigitalTwins()
@@ -61,7 +58,7 @@ func (fm *FlowsManager) StopPipelines() {
 	fm.log.Info("All nodes in all digital twins have been stopped")
 }
 
-func (fm *FlowsManager) StartNodesInDigitalTwin(digitalTwinId int, needReinitialization bool) {
+func (fm *FlowsManager) StartNodesInDigitalTwin(ctx context.Context, digitalTwinId int, needReinitialization bool) {
 	fm.log.Infof("Starting nodes for digital twin %d", digitalTwinId)
 
 	digitalTwin := fm.GetDigitalTwin(digitalTwinId)
@@ -71,7 +68,7 @@ func (fm *FlowsManager) StartNodesInDigitalTwin(digitalTwinId int, needReinitial
 	}
 
 	if digitalTwin.Pipeline != nil {
-		digitalTwin.Pipeline.Start(needReinitialization)
+		digitalTwin.Pipeline.Start(ctx, needReinitialization)
 	}
 }
 
@@ -101,19 +98,19 @@ func (fm *FlowsManager) StopPipelineStatusPublisher(digitalTwinId int) {
 	}
 }
 
-func (fm *FlowsManager) RestartNodesInDigitalTwin(digitalTwinId int, needReinitialization bool) {
+func (fm *FlowsManager) RestartNodesInDigitalTwin(ctx context.Context, digitalTwinId int, needReinitialization bool) {
 	fm.log.Infof("Restarting nodes for digital twin %d", digitalTwinId)
 
 	// Stop all nodes first
 	fm.StopNodesInDigitalTwin(digitalTwinId, "restart")
 
 	// Start all nodes again
-	fm.StartNodesInDigitalTwin(digitalTwinId, needReinitialization)
+	fm.StartNodesInDigitalTwin(ctx, digitalTwinId, needReinitialization)
 
 	fm.log.Infof("Restarted nodes for digital twin %d", digitalTwinId)
 }
 
-func (fm *FlowsManager) DeletePipelineInDigitalTwin(digitalTwinId int) {
+func (fm *FlowsManager) DeletePipelineInDigitalTwin(ctx context.Context, digitalTwinId int) {
 	fm.log.Infof("Deleting pipeline for digital twin %d", digitalTwinId)
 
 	digitalTwin := fm.GetDigitalTwin(digitalTwinId)
@@ -127,6 +124,6 @@ func (fm *FlowsManager) DeletePipelineInDigitalTwin(digitalTwinId int) {
 		digitalTwin.Pipeline.SetStatus(common.PipelineStatusUnknown)
 	}
 	digitalTwin.Pipeline = nil
-	fm.setPipelineInitialized(digitalTwin, false)
+	fm.setPipelineInitialized(ctx, digitalTwin, false)
 	fm.log.Infof("Deleted pipeline for digital twin %d", digitalTwinId)
 }

@@ -1,6 +1,7 @@
 package function_library
 
 import (
+	"context"
 	"pipelines/common"
 	"pipelines/logger"
 	"pipelines/utils"
@@ -32,8 +33,8 @@ func (h *Http) Get(url string) interface{} {
 	return responseData
 }
 
-func (h *Http) GetWithJwt(url string, token string) interface{} {
-	response, err := utils.HttpGetWithJwt(url, token)
+func (h *Http) GetWithJwt(ctx context.Context, url string, token string) interface{} {
+	response, err := utils.HttpGetWithJwt(ctx, url, token)
 	if err != nil {
 		h.log.Errorf("Failed to get HTTP response with JWT: %v", err)
 		return nil
@@ -60,8 +61,8 @@ func (h *Http) Post(url string, body interface{}) interface{} {
 	return responseData
 }
 
-func (h *Http) PostWithJwt(url string, body interface{}, token string) interface{} {
-	response, err := utils.HttpPostWithJwt(url, body, token)
+func (h *Http) PostWithJwt(ctx context.Context, url string, body interface{}, token string) interface{} {
+	response, err := utils.HttpPostWithJwt(ctx, url, body, token)
 	if err != nil {
 		h.log.Errorf("Failed to post HTTP request with JWT: %v", err)
 		return nil
@@ -88,8 +89,8 @@ func (h *Http) Patch(url string, body interface{}) interface{} {
 	return responseData
 }
 
-func (h *Http) PatchWithJwt(url string, body interface{}, token string) interface{} {
-	response, err := utils.HttpPatchWithJwt(url, body, token)
+func (h *Http) PatchWithJwt(ctx context.Context, url string, body interface{}, token string) interface{} {
+	response, err := utils.HttpPatchWithJwt(ctx, url, body, token)
 	if err != nil {
 		h.log.Errorf("Failed to patch HTTP request with JWT: %v", err)
 		return nil
@@ -116,8 +117,8 @@ func (h *Http) Delete(url string) interface{} {
 	return responseData
 }
 
-func (h *Http) DeleteWithJwt(url string, token string) interface{} {
-	response, err := utils.HttpDeleteWithJwt(url, token)
+func (h *Http) DeleteWithJwt(ctx context.Context, url string, token string) interface{} {
+	response, err := utils.HttpDeleteWithJwt(ctx, url, token)
 	if err != nil {
 		h.log.Errorf("Failed to delete HTTP request with JWT: %v", err)
 		return nil

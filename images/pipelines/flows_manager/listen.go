@@ -1,6 +1,7 @@
 package flows_manager
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"pipelines/common"
@@ -8,8 +9,25 @@ import (
 	"github.com/nats-io/nats.go/jetstream"
 )
 
-func (fm *FlowsManager) Listen() {
-	fm.JsConsumer.Consume(func(msg jetstream.Msg) {
+func (fm *FlowsManager) Listen(ctx context.Context) {
+	consumeCtx, err := fm.JsConsumer.Consume(func(msg jetstream.Msg) {
+		// 1. Inmediate defer: decide Ack or Nak based on ctx at the end
+        defer func() {
+            select {
+            case <-ctx.Done():
+                msg.Nak() // shutdown in progress, discard
+            default:
+                msg.Ack() // processed successfully
+            }
+        }()
+
+		// 2. Intial check: if we're already in shutdown, exit before processing
+        select {
+        case <-ctx.Done():
+            return
+        default:
+        }
+
 		var adminMsg common.AdminMessage
 		if err := json.Unmarshal(msg.Data(), &adminMsg); err != nil {
 			fm.log.Errorf("Failed to unmarshal message: %v", err)
@@ -24,15 +42,15 @@ func (fm *FlowsManager) Listen() {
 			switch adminMsg.Action {
 			case "create":
 				fmt.Printf("Creating org with ID: %d\n", adminMsg.Id)
-				org := fm.Admin.GetOrg(adminMsg.Id, encryptionSecretKey)
+				org := fm.Admin.GetOrg(ctx, adminMsg.Id, encryptionSecretKey)
 				if org != nil {
-					fm.AddOrg(org)
+					fm.AddOrg(ctx, org)
 				}
 			case "update":
 				fmt.Printf("Updating org with ID: %d\n", adminMsg.Id)
-				org := fm.Admin.GetOrg(adminMsg.Id, encryptionSecretKey)
+				org := fm.Admin.GetOrg(ctx, adminMsg.Id, encryptionSecretKey)
 				if org != nil {
-					fm.UpdateOrg(org)
+					fm.UpdateOrg(ctx, org)
 				}
 			case "delete":
 				fm.DeleteOrg(adminMsg.Id)
@@ -43,12 +61,12 @@ func (fm *FlowsManager) Listen() {
 		case "group":
 			switch adminMsg.Action {
 			case "create":
-				group := fm.Admin.GetGroup(adminMsg.Id)
+				group := fm.Admin.GetGroup(ctx, adminMsg.Id)
 				if group != nil {
-					fm.AddGroup(group)
+					fm.AddGroup(ctx, group)
 				}
 			case "update":
-				group := fm.Admin.GetGroup(adminMsg.Id)
+				group := fm.Admin.GetGroup(ctx, adminMsg.Id)
 				if group != nil {
 					fm.UpdateGroup(group)
 				}
@@ -61,12 +79,12 @@ func (fm *FlowsManager) Listen() {
 		case "notification_channel":
 			switch adminMsg.Action {
 			case "create":
-				channel := fm.Admin.GetNotificationChannel(adminMsg.Id)
+				channel := fm.Admin.GetNotificationChannel(ctx, adminMsg.Id)
 				if channel != nil {
 					fm.AddNotificationChannel(channel)
 				}
 			case "update":
-				channel := fm.Admin.GetNotificationChannel(adminMsg.Id)
+				channel := fm.Admin.GetNotificationChannel(ctx, adminMsg.Id)
 				if channel != nil {
 					fm.UpdateNotificationChannel(channel)
 				}
@@ -80,14 +98,14 @@ func (fm *FlowsManager) Listen() {
 			switch adminMsg.Action {
 			case "create":
 				groupId := int(adminMsg.Context["groupId"].(float64))
-				asset := fm.Admin.GetAsset(groupId, adminMsg.Id)
+				asset := fm.Admin.GetAsset(ctx, groupId, adminMsg.Id)
 				if asset != nil {
-					
-					fm.AddAsset(asset)
+
+					fm.AddAsset(ctx, asset)
 				}
 			case "update":
 				groupId := int(adminMsg.Context["groupId"].(float64))
-				asset := fm.Admin.GetAsset(groupId, adminMsg.Id)
+				asset := fm.Admin.GetAsset(ctx, groupId, adminMsg.Id)
 				if asset != nil {
 					fm.UpdateAsset(asset)
 				}
@@ -109,13 +127,13 @@ func (fm *FlowsManager) Listen() {
 			switch adminMsg.Action {
 			case "create":
 				groupId := int(adminMsg.Context["groupId"].(float64))
-				topic := fm.Admin.GetTopic(groupId, adminMsg.Id)
+				topic := fm.Admin.GetTopic(ctx, groupId, adminMsg.Id)
 				if topic != nil {
 					fm.AddTopic(topic)
 				}
 			case "update":
 				groupId := int(adminMsg.Context["groupId"].(float64))
-				topic := fm.Admin.GetTopic(groupId, adminMsg.Id)
+				topic := fm.Admin.GetTopic(ctx, groupId, adminMsg.Id)
 				if topic != nil {
 					fm.UpdateTopic(topic)
 				}
@@ -155,13 +173,13 @@ func (fm *FlowsManager) Listen() {
 			switch adminMsg.Action {
 			case "create":
 				groupId := int(adminMsg.Context["groupId"].(float64))
-				mlModel := fm.Admin.GetMlModel(groupId, adminMsg.Id)
+				mlModel := fm.Admin.GetMlModel(ctx, groupId, adminMsg.Id)
 				if mlModel != nil {
 					fm.AddMlModel(mlModel)
 				}
 			case "update":
 				groupId := int(adminMsg.Context["groupId"].(float64))
-				mlModel := fm.Admin.GetMlModel(groupId, adminMsg.Id)
+				mlModel := fm.Admin.GetMlModel(ctx, groupId, adminMsg.Id)
 				if mlModel != nil {
 					fm.UpdateMlModel(mlModel)
 				}
@@ -175,23 +193,23 @@ func (fm *FlowsManager) Listen() {
 			switch adminMsg.Action {
 			case "upload":
 				groupId := int(adminMsg.Context["groupId"].(float64))
-				fm.GetMlModelFile(groupId, adminMsg.Id)
+				fm.GetMlModelFile(ctx, groupId, adminMsg.Id)
 
 			default:
 				fm.log.Errorf("Unknown action: %s for component: %s", adminMsg.Action, adminMsg.Component)
 				return
-			}			
+			}
 		case "digitalTwin":
 			switch adminMsg.Action {
 			case "create":
 				groupId := int(adminMsg.Context["groupId"].(float64))
-				digitalTwin := fm.Admin.GetDigitalTwin(groupId, adminMsg.Id)
+				digitalTwin := fm.Admin.GetDigitalTwin(ctx, groupId, adminMsg.Id)
 				if digitalTwin != nil {
-					fm.AddDigitalTwin(digitalTwin, false)
+					fm.AddDigitalTwin(ctx, digitalTwin, false)
 				}
 			case "update":
 				groupId := int(adminMsg.Context["groupId"].(float64))
-				digitalTwin := fm.Admin.GetDigitalTwin(groupId, adminMsg.Id)
+				digitalTwin := fm.Admin.GetDigitalTwin(ctx, groupId, adminMsg.Id)
 				if digitalTwin != nil {
 					fm.UpdateDigitalTwin(digitalTwin)
 				}
@@ -204,7 +222,7 @@ func (fm *FlowsManager) Listen() {
 		case "femResults":
 			switch adminMsg.Action {
 			case "create":
-				fm.AddFemResultsInDigitalTwin(adminMsg.Id)
+				fm.AddFemResultsInDigitalTwin(ctx, adminMsg.Id)
 			case "delete":
 				fm.DeleteFemResultsInDigitalTwin(adminMsg.Id)
 			default:
@@ -214,7 +232,7 @@ func (fm *FlowsManager) Listen() {
 		case "docInfoFile":
 			switch adminMsg.Action {
 			case "create":
-				fm.AddDocInfoFileInDigitalTwin(adminMsg.Id)
+				fm.AddDocInfoFileInDigitalTwin(ctx, adminMsg.Id)
 			case "delete":
 				fm.DeleteDocInfoFileInDigitalTwin(adminMsg.Id)
 			default:
@@ -225,19 +243,19 @@ func (fm *FlowsManager) Listen() {
 			digitalTwinId := adminMsg.Id
 			switch adminMsg.Action {
 			case "create":
-				fm.CreatePipelineInDigitalTwin(digitalTwinId)
+				fm.CreatePipelineInDigitalTwin(ctx, digitalTwinId)
 			case "update":
-				fm.UpdatePipelineInDigitalTwin(digitalTwinId)
+				fm.UpdatePipelineInDigitalTwin(ctx, digitalTwinId)
 			case "stop":
 				fm.StopNodesInDigitalTwin(digitalTwinId, "stop")
 			case "start":
 				reinitialize := adminMsg.Context["reinitialize"].(bool)
-				fm.StartNodesInDigitalTwin(digitalTwinId, reinitialize)
+				fm.StartNodesInDigitalTwin(ctx, digitalTwinId, reinitialize)
 			case "restart":
 				reinitialize := adminMsg.Context["reinitialize"].(bool)
-				fm.RestartNodesInDigitalTwin(digitalTwinId, reinitialize)
+				fm.RestartNodesInDigitalTwin(ctx, digitalTwinId, reinitialize)
 			case "delete":
-				fm.DeletePipelineInDigitalTwin(digitalTwinId)
+				fm.DeletePipelineInDigitalTwin(ctx, digitalTwinId)
 			default:
 				fm.log.Errorf("Unknown action: %s for component: %s", adminMsg.Action, adminMsg.Component)
 				return
@@ -251,4 +269,15 @@ func (fm *FlowsManager) Listen() {
 		fm.log.Infof("Message in pipeline admin => component: %s, action: %s, id: %d processed successfully",
 			adminMsg.Component, adminMsg.Action, adminMsg.Id)
 	})
+
+	if err != nil {
+		fm.log.Errorf("Failed to start consumer: %v", err)
+		return
+	}
+
+	go func() {
+		<-ctx.Done()
+		consumeCtx.Stop()
+		fm.log.Info("JetStream consumer stopped")
+	}()
 }

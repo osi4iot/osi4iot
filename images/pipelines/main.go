@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"os"
 	"os/signal"
 	"syscall"
@@ -41,14 +42,17 @@ func main() {
 		log.Fatal("Application startup failed")
 	}
 
+	ctx, cancel := utils.ContextWithCancel()
+    defer cancel()
+
 	// Create or update the stream
-	stream, err := nats.CreateAdminStream(cfg.ShardIndex, cfg.NumStreamReplicas, log, js)
+	stream, err := nats.CreateAdminStream(ctx, cfg.ShardIndex, cfg.NumStreamReplicas, log, js)
 	if err != nil {
 		log.Fatal("Application startup failed")
 	}
 
 	// Create or update the consumer
-	jsConsumer, err := nats.CreateAdminConsumer(cfg.ShardIndex, cfg.ReplicaIndex, log, stream)
+	jsConsumer, err := nats.CreateAdminConsumer(ctx, cfg.ShardIndex, cfg.ReplicaIndex, log, stream)
 	if err != nil {
 		log.Fatal("Application startup failed")
 	}
@@ -58,24 +62,22 @@ func main() {
 		log.Fatalf("Application startup failed: %v", err)
 	}
 
-	ctx, cancel := utils.ContextWithCancel()
-
 	admin.StartAutoRefresh(ctx, time.Duration(2*time.Minute))
 
 	// IOT Data DB connection
-	config, err := pgxpool.ParseConfig(cfg.TimescaledbDNS())
-	if err != nil {
-		log.Fatalf("config parse error: %v", err)
-	}
+    pgxConfig, err := pgxpool.ParseConfig(cfg.TimescaledbDNS())
+    if err != nil {
+        log.Fatalf("config parse error: %v", err)
+    }
 
-	dbpool, err := pgxpool.NewWithConfig(ctx, config)
+	dbpool, err := pgxpool.NewWithConfig(ctx, pgxConfig)
 	if err != nil {
 		log.Fatalf("pool creation error: %v", err)
 	}
 	defer dbpool.Close()
 
 	// Verifica la conexión
-	pingCtx, pingCancel := utils.ContextWithTimeout(10*time.Second)
+	pingCtx, pingCancel := context.WithTimeout(ctx, 10*time.Second)
 	defer pingCancel()
 	if err := dbpool.Ping(pingCtx); err != nil {
 		log.Fatalf("ping error: %v", err)
@@ -83,16 +85,15 @@ func main() {
 
 	log.Info("Connected to iot database")
 
-	manager := flows_manager.CreateFlowsManager(cfg, nc, js, jsConsumer, dbpool, admin, log)
+	manager := flows_manager.CreateFlowsManager(ctx, cfg, nc, js, jsConsumer, dbpool, admin, log)
 
 	utils.HealthCheck(cfg)
 
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+
 	<-sigChan
-	manager.GracefullyShutdown()
-	cancel()
 	log.Info("Received shutdown signal, shutting down gracefully...")
-	time.Sleep(2 * time.Second)
-	os.Exit(0)
+	cancel()
+	manager.GracefullyShutdown()
 }

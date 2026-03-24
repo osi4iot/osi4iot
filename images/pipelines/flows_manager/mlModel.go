@@ -1,6 +1,7 @@
 package flows_manager
 
 import (
+	"context"
 	"fmt"
 	"io/fs"
 	"path/filepath"
@@ -35,12 +36,12 @@ func (fm *FlowsManager) AddMlModel(model *common.MLModel) {
 	}
 }
 
-func (fm *FlowsManager) AddMlModels(models []*common.MLModel) {
+func (fm *FlowsManager) AddMlModels(ctx context.Context, models []*common.MLModel) {
 	for _, model := range models {
 		modelIdStr := strconv.Itoa(model.Id)
 		if _, ok := fm.MLModels.Load(modelIdStr); !ok {
 			mlModelFolder := fm.GetMlModelFolder(model.OrgId, model.GroupId, model.Id)
-			fileName := fm.DownloadMlModelFile(mlModelFolder, model.GroupId, model.Id)
+			fileName := fm.DownloadMlModelFile(ctx, mlModelFolder, model.GroupId, model.Id)
 			model.FileName = fileName
 			fm.MLModels.Store(modelIdStr, model)
 		} else {
@@ -69,18 +70,18 @@ func (fm *FlowsManager) UpdateMlModel(model *common.MLModel) error {
 	return common.ErrNotFound
 }
 
-func (fm *FlowsManager) GetS3MlModelFolderInfo(groupId int, mlModelId int) []*common.S3FolderFileInfo {
-	return fm.Admin.GetS3MlModelFolderInfo(groupId, mlModelId)
+func (fm *FlowsManager) GetS3MlModelFolderInfo(ctx context.Context, groupId int, mlModelId int) []*common.S3FolderFileInfo {
+	return fm.Admin.GetS3MlModelFolderInfo(ctx, groupId, mlModelId)
 }
 
-func (fm *FlowsManager) GetMlModelFile(groupId int, mlModelId int) error {
-	mlModel := fm.Admin.GetMlModel(groupId, mlModelId)
+func (fm *FlowsManager) GetMlModelFile(ctx context.Context,groupId int, mlModelId int) error {
+	mlModel := fm.Admin.GetMlModel(ctx, groupId, mlModelId)
 	if mlModel == nil {
 		fm.log.Errorf("Machine learning model with id: %d does not exist", mlModelId)
 		return common.ErrNotFound
 	}
 	mlModelFolder := fm.GetMlModelFolder(mlModel.OrgId, mlModel.GroupId, mlModel.Id)
-	fileName := fm.DownloadMlModelFile(mlModelFolder, mlModel.GroupId, mlModel.Id)
+	fileName := fm.DownloadMlModelFile(ctx, mlModelFolder, mlModel.GroupId, mlModel.Id)
 	mlModel.FileName = fileName
 	modelIdStr := strconv.Itoa(mlModel.Id)
 	fm.MLModels.Store(modelIdStr, mlModel)
@@ -168,6 +169,6 @@ func (fm *FlowsManager) GetModelFolders(rootPath string) ([]common.MlModelFolder
 	return modelFolders, nil
 }
 
-func (fm *FlowsManager) DownloadMlModelFile(mlModelFolder string, groupId int, mlModelId int) string {
-	return fm.Admin.DownloadMlModelFile(mlModelFolder, groupId, mlModelId)
+func (fm *FlowsManager) DownloadMlModelFile(ctx context.Context, mlModelFolder string, groupId int, mlModelId int) string {
+	return fm.Admin.DownloadMlModelFile(ctx, mlModelFolder, groupId, mlModelId)
 }

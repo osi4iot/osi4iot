@@ -167,22 +167,18 @@ func (n *BaseNode) IsStopped() bool {
 }
 
 func (n *BaseNode) Stop(log *logger.Logger) {
-	if n.GetStatus() == common.NodeStatusStopped {
-		log.Infof("Node %s is already stopped", n.NodeUid)
-		return
-	}
+    if n.GetStatus() == common.NodeStatusStopped {
+        log.Infof("Node %s is already stopped", n.NodeUid)
+        return
+    }
 
-	n.SetStatus(common.NodeStatusStopped)
-
-	if n.Cancel != nil {
-		n.Cancel()
-	}
-
-	n.wg.Wait() //Wait for all goroutines to finish
-
-	n.ResetNodeContext()
-
-	log.Infof("Node %s stopped successfully", n.NodeUid)
+    if n.Cancel != nil {
+        n.Cancel()
+    }
+    n.wg.Wait()
+    n.ResetNodeContext()
+    n.SetStatus(common.NodeStatusStopped)
+    log.Infof("Node %s stopped successfully", n.NodeUid)
 }
 
 func (n *BaseNode) SetStatus(status common.NodeStatus) {

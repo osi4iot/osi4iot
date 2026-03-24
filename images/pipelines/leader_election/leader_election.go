@@ -35,7 +35,6 @@ type LeaderElector struct {
 	ttl        time.Duration
 	cancel     context.CancelFunc
 	random     *rand.Rand
-
 	isLeader atomic.Bool
 	rev      atomic.Uint64
 	epoch    atomic.Uint64
@@ -43,6 +42,7 @@ type LeaderElector struct {
 	lastValidatedAt atomic.Int64
 
 	acquisitionMu sync.Mutex
+	wg            sync.WaitGroup
 }
 
 func NewLeaderElector(
@@ -82,25 +82,27 @@ func NewLeaderElector(
 	return le, nil
 }
 
-func (le *LeaderElector) Start() error {
-	ctx, cancel := context.WithCancel(context.Background())
-	le.cancel = cancel
+func (le *LeaderElector) Start(ctx context.Context) error {
+	leCtx, leCancel := context.WithCancel(ctx)
+	le.cancel = leCancel
 
 	// Initial attempt
-	le.tryBecomeLeader(ctx)
+	le.tryBecomeLeader(leCtx)
 
-	// Watch del lock
-	watcher, err := le.kv.Watch(ctx, le.lockKey)
+	// Watch the lock key; use leCtx so the watcher is stopped when Stop() is called.
+	watcher, err := le.kv.Watch(leCtx, le.lockKey)
 	if err != nil {
-		cancel()
+		leCancel()
 		return fmt.Errorf("failed to watch lock key: %w", err)
 	}
 
+	le.wg.Add(4)
 	go func() {
+		defer le.wg.Done()
 		defer watcher.Stop()
 		for {
 			select {
-			case <-ctx.Done():
+			case <-leCtx.Done():
 				return
 			case entry := <-watcher.Updates():
 				if entry == nil {
@@ -112,13 +114,22 @@ func (le *LeaderElector) Start() error {
 	}()
 
 	// Heartbeat to renew lease
-	go le.heartbeatLoop(ctx)
+	go func() {
+		defer le.wg.Done()
+		le.heartbeatLoop(leCtx)
+	}()
 
 	// Split-brain detection
-	go le.splitBrainDetectionLoop(ctx)
+	go func() {
+		defer le.wg.Done()
+		le.splitBrainDetectionLoop(leCtx)
+	}()
 
 	// Active acquisition loop when we are not leaders
-	go le.acquisitionLoop(ctx)
+	go func() {
+		defer le.wg.Done()
+		le.acquisitionLoop(leCtx)
+	}()
 
 	return nil
 }
@@ -268,24 +279,20 @@ func (le *LeaderElector) acquisitionLoop(ctx context.Context) {
 	interval := max(le.ttl/4, 500*time.Millisecond)
 
 	for {
+		// Small jitter to avoid thundering herd if there are many instances
+		jitter := time.Duration(le.random.Int63n(int64(interval / 10)))
 		select {
 		case <-ctx.Done():
 			return
-		default:
+		case <-time.After(interval + jitter):
 		}
 
 		// Only try if we are not leaders
 		if le.isLeader.Load() {
-			time.Sleep(interval)
 			continue
 		}
 
-		// Try to acquire
 		le.tryBecomeLeader(ctx)
-
-		// Small jitter to avoid thundering herd if there are many instances
-		jitter := time.Duration(le.random.Int63n(int64(interval / 10)))
-		time.Sleep(interval + jitter)
 	}
 }
 
@@ -340,7 +347,7 @@ func (le *LeaderElector) IsLeader() bool {
 
 func (le *LeaderElector) getLeaderInstanceID() (LeaderInstanceID, bool) {
 	if !le.isLeader.Load() {
-		// If we are not leaders, read from KV who is
+		// If we are not leaders, read from KV who is.
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 		defer cancel()
 
@@ -381,9 +388,13 @@ func (le *LeaderElector) Stop() {
 	}
 	le.cancel()
 
-	time.Sleep(100 * time.Millisecond) // Dejar que heartbeat se detenga
+	// Wait for all goroutines to finish before checking IsLeader(),
+	// eliminating the race that existed with the old time.Sleep(100ms).
+	le.wg.Wait()
 
 	if le.IsLeader() {
+		// le.ctx is already cancelled at this point; use a fresh background context
+		// with a short timeout so the delete is not blocked indefinitely.
 		opCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 		defer cancel()
 
@@ -391,7 +402,7 @@ func (le *LeaderElector) Stop() {
 		err := le.kv.Delete(opCtx, le.lockKey, jetstream.LastRevision(currentRev))
 
 		if err != nil && strings.Contains(err.Error(), "wrong last sequence") {
-			// Intentar delete incondicional como fallback
+			// Fallback: unconditional delete
 			le.log.Warn("Conditional delete failed, attempting unconditional delete")
 			if err := le.kv.Delete(opCtx, le.lockKey); err != nil {
 				le.log.Warnf("Unconditional delete also failed: %v", err)

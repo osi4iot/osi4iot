@@ -50,7 +50,7 @@ func (fm *FlowsManager) GetAssetByShortUidAndGroupId(shortUid string, groupId in
 	return foundAsset
 }
 
-func (fm *FlowsManager) AddAsset(asset *common.Asset) {
+func (fm *FlowsManager) AddAsset(ctx context.Context, asset *common.Asset) {
 	assetIdStr := strconv.Itoa(asset.Id)
 	if _, ok := fm.Assets.Load(assetIdStr); !ok {
 		groupId := asset.GroupId
@@ -62,7 +62,7 @@ func (fm *FlowsManager) AddAsset(asset *common.Asset) {
 			org := fm.GetOrg(group.OrgId)
 			if group != nil && org != nil {
 				assetStateKey := fm.GetAssetStateKvStoreKey(org.OrgHash, group.GroupUID, asset.AssetUid)
-				existsKey, err := kvStore.KeyExists(context.Background(), assetStateKey)
+				existsKey, err := kvStore.KeyExists(ctx, assetStateKey)
 				if err != nil {
 					fm.log.Errorf("Error checking if key exists in store for key %s: %v", assetStateKey, err)
 				}
@@ -71,7 +71,7 @@ func (fm *FlowsManager) AddAsset(asset *common.Asset) {
 						"status": "Unknown",
 						"state_description": common.DefaultAssetStateDescription,
 					}
-					err = kvStore.SetValue(context.Background(), assetStateKey, assetState)
+					err = kvStore.SetValue(ctx, assetStateKey, assetState)
 					if err != nil {
 						fm.log.Errorf("Error setting initial asset state in store for key %s: %v", assetStateKey, err)
 					}
@@ -86,9 +86,9 @@ func (fm *FlowsManager) AddAsset(asset *common.Asset) {
 	}
 }
 
-func (fm *FlowsManager) AddAssets(assets []*common.Asset) {
+func (fm *FlowsManager) AddAssets(ctx context.Context, assets []*common.Asset) {
 	for _, asset := range assets {
-		fm.AddAsset(asset)
+		fm.AddAsset(ctx, asset)
 	}
 }
 

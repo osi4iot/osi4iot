@@ -163,7 +163,6 @@ func CreateInjectNode(node common.NodeData, fm common.Manager, p common.Pipeline
 
 	msgChan := make(chan common.Message, 100)
 
-	ctx, cancel := context.WithCancel(context.Background())
 	return &InjectNode{
 		BaseNode: BaseNode{
 			NodeUid:    node.NodeUid,
@@ -177,8 +176,8 @@ func CreateInjectNode(node common.NodeData, fm common.Manager, p common.Pipeline
 			LogSubject: logSubject,
 			Fm:         fm,
 			Pipeline:   p,
-			Cancel:     cancel,
-			Ctx:        ctx,
+			Cancel:     nil,
+			Ctx:        nil,
 			status:     common.NodeStatusCreated,
 		},
 		TopicIn:           topicIn,
@@ -196,11 +195,15 @@ func CreateInjectNode(node common.NodeData, fm common.Manager, p common.Pipeline
 	}, nil
 }
 
-func (n *InjectNode) Start(log *logger.Logger, needReinitialization bool) {
+func (n *InjectNode) Start(ctx context.Context, log *logger.Logger, needReinitialization bool) {
 	if n.GetStatus() == common.NodeStatusRunning {
 		log.Infof("InjectNode %s is already running", n.NodeUid)
 		return
 	}
+
+	nodectx, nodeCancel := context.WithCancel(ctx)
+	n.Ctx = nodectx
+	n.Cancel = nodeCancel
 
 	n.SetStatus(common.NodeStatusRunning)
 	log.Infof("Starting InjectNode with UID: %s", n.NodeUid)
@@ -295,11 +298,11 @@ func (n *InjectNode) Stop(log *logger.Logger) {
 	}
 
 	n.stopPeriodicTasks()
-	n.wg.Wait() //Wait for all goroutines to finish
-
-	n.ResetNodeContext()
-
-	log.Infof("Node %s stopped successfully", n.NodeUid)
+	
+    n.wg.Wait()
+    n.ResetNodeContext()
+    n.SetStatus(common.NodeStatusStopped)
+    log.Infof("Node %s stopped successfully", n.NodeUid)
 }
 
 func (n *InjectNode) isValidDay(now time.Time) bool {

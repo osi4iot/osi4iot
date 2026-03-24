@@ -85,12 +85,13 @@ func JetStreamConnect(nc *nats.Conn, log *logger.Logger) (jetstream.JetStream, e
 }
 
 func CreateAdminStream(
+	ctx context.Context,
 	shardIndex int,
 	numStreamReplicas int,
 	log *logger.Logger,
 	js jetstream.JetStream,
 ) (jetstream.Stream, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 
 	streamName := strings.ToUpper(fmt.Sprintf("PIPELINES_SHARD_%d", shardIndex))
@@ -116,12 +117,13 @@ func CreateAdminStream(
 }
 
 func CreateAdminConsumer(
+	ctx context.Context,
 	shardIndex int,
 	replicaIndex int,
 	log *logger.Logger,
 	stream jetstream.Stream,
 ) (jetstream.Consumer, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 
 	consumerName := fmt.Sprintf("pipelines_shard_%d_replica_%d", shardIndex, replicaIndex)
@@ -151,13 +153,14 @@ func CreateAdminConsumer(
 }
 
 func CreateLeaderKeyValueStore(
+	ctx context.Context,
 	shardIndex int,
 	ttl time.Duration,
 	log *logger.Logger,
 	js jetstream.JetStream,
 	numStreamReplicas int,
 ) (*KVStore, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 
 	kvName := fmt.Sprintf("pipelines_shard_%d_leader", shardIndex)
@@ -183,13 +186,14 @@ func CreateLeaderKeyValueStore(
 }
 
 func CreateGroupKeyValueStore(
+	ctx context.Context,
 	orgHash string,
 	GroupUID string,
 	log *logger.Logger,
 	js jetstream.JetStream,
 	numStreamReplicas int,
 ) (*KVStore, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 
 	kvName := fmt.Sprintf("org_%s-group_%s", orgHash, GroupUID)
@@ -210,12 +214,13 @@ func CreateGroupKeyValueStore(
 }
 
 func DeleteGroupKeyValueStore(
+	ctx context.Context,
 	orgHash string,
 	GroupUID string,
 	log *logger.Logger,
 	js jetstream.JetStream,
 ) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 
 	kvName := fmt.Sprintf("org_%s-group_%s", orgHash, GroupUID)
@@ -231,13 +236,14 @@ func DeleteGroupKeyValueStore(
 }
 
 func CreateDigitalTwinKeyValueStore(
+	ctx context.Context,
 	orgHash string,
 	digitalTwinUID string,
 	log *logger.Logger,
 	js jetstream.JetStream,
 	numStreamReplicas int,
 ) (*KVStore, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 
 	kvName := fmt.Sprintf("org_%s-dt_%s", orgHash, digitalTwinUID)
@@ -258,12 +264,13 @@ func CreateDigitalTwinKeyValueStore(
 }
 
 func DeleteDigitalTwinKeyValueStore(
+	ctx context.Context,
 	orgHash string,
 	digitalTwinUID string,
 	log *logger.Logger,
 	js jetstream.JetStream,
 ) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 
 	kvName := fmt.Sprintf("org_%s-dt_%s", orgHash, digitalTwinUID)

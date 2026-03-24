@@ -53,7 +53,6 @@ func CreateFuncNode(node common.NodeData, fm common.Manager, p common.Pipeline) 
 	logTopic := fm.GetTopicByTopicRef(p.GetAssetId(), p.GetDigitalTwinId(), "dtmlog")
 	logSubject := utils.TopicToNatsSubject(logTopic.TopicType, logTopic.GroupUid, logTopic.TopicUid)
 
-	ctx, cancel := context.WithCancel(context.Background())
 	funNode := &FuncNode{
 		BaseNode: BaseNode{
 			NodeUid:    node.NodeUid,
@@ -67,8 +66,8 @@ func CreateFuncNode(node common.NodeData, fm common.Manager, p common.Pipeline) 
 			LogSubject: logSubject,
 			Fm:         fm,
 			Pipeline:   p,
-			Cancel:     cancel,
-			Ctx:        ctx,
+			Cancel:     nil,
+			Ctx:        nil,
 			status:     common.NodeStatusCreated,
 		},
 		nc:                     nil,
@@ -104,11 +103,15 @@ func CreateFuncNode(node common.NodeData, fm common.Manager, p common.Pipeline) 
 	return funNode, nil
 }
 
-func (n *FuncNode) Start(log *logger.Logger, needReinitialization bool) {
+func (n *FuncNode) Start(ctx context.Context, log *logger.Logger, needReinitialization bool) {
 	if n.GetStatus() == common.NodeStatusRunning {
 		log.Infof("FuncNode %s is already running", n.NodeUid)
 		return
 	}
+
+	nodectx, nodeCancel := context.WithCancel(ctx)
+    n.Ctx = nodectx
+    n.Cancel = nodeCancel
 
 	n.SetStatus(common.NodeStatusRunning)
 	log.Infof("Starting FuncNode with UID: %s", n.NodeUid)
@@ -155,8 +158,6 @@ func (n *FuncNode) Stop(log *logger.Logger) {
 		n.Cancel()
 	}
 
-	n.wg.Wait()
-
 	if n.queryResponseSub != nil {
 		if err := n.queryResponseSub.Unsubscribe(); err != nil {
 			log.Errorf("Failed to unsubscribe QueryResponse for node %s: %v", n.NodeUid, err)
@@ -166,9 +167,10 @@ func (n *FuncNode) Stop(log *logger.Logger) {
 
 	n.resetVMPool(log)
 
-	n.ResetNodeContext()
-
-	log.Infof("FuncNode %s stopped successfully", n.NodeUid)
+    n.wg.Wait()
+    n.ResetNodeContext()
+    n.SetStatus(common.NodeStatusStopped)
+    log.Infof("Node %s stopped successfully", n.NodeUid)
 }
 
 func (n *FuncNode) resetVMPool(log *logger.Logger) {

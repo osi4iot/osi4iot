@@ -176,8 +176,6 @@ func CreateTriggerNode(node common.NodeData, fm common.Manager, p common.Pipelin
 	logTopic := fm.GetTopicByTopicRef(p.GetAssetId(), p.GetDigitalTwinId(), "dtmlog")
 	logSubject := utils.TopicToNatsSubject(logTopic.TopicType, logTopic.GroupUid, logTopic.TopicUid)
 
-	ctx, cancel := context.WithCancel(context.Background())
-
 	numOutputs := 1
 	if separateOutput && sendMode == "wait_for" && secondMessageType != "nothing" {
 		numOutputs = 2
@@ -196,8 +194,8 @@ func CreateTriggerNode(node common.NodeData, fm common.Manager, p common.Pipelin
 			LogSubject: logSubject,
 			Fm:         fm,
 			Pipeline:   p,
-			Cancel:     cancel,
-			Ctx:        ctx,
+			Cancel:     nil,
+			Ctx:        nil,
 			status:     common.NodeStatusCreated,
 		},
 		SendMode:                   sendMode,
@@ -218,11 +216,15 @@ func CreateTriggerNode(node common.NodeData, fm common.Manager, p common.Pipelin
 	}, nil
 }
 
-func (n *TriggerNode) Start(log *logger.Logger, needReinitialization bool) {
+func (n *TriggerNode) Start(ctx context.Context, log *logger.Logger, needReinitialization bool) {
 	if n.GetStatus() == common.NodeStatusRunning {
 		log.Infof("TriggerNode %s is already running", n.NodeUid)
 		return
 	}
+
+	nodectx, nodeCancel := context.WithCancel(ctx)
+    n.Ctx = nodectx
+    n.Cancel = nodeCancel
 
 	n.SetStatus(common.NodeStatusRunning)
 	log.Infof("Starting TriggerNode with UID: %s", n.NodeUid)
@@ -251,18 +253,12 @@ func (n *TriggerNode) Stop(log *logger.Logger) {
 		return
 	}
 
-	n.SetStatus(common.NodeStatusStopped)
-	log.Infof("Stopping TriggerNode with UID: %s", n.NodeUid)
-
 	// Cancel context
 	if n.Cancel != nil {
 		n.Cancel()
 	}
 
 	n.stopPeriodicCheck()
-	n.wg.Wait()
-
-	n.ResetNodeContext()
 
 	// Clean up all local timers
 	n.localTimerMutex.Lock()
@@ -277,6 +273,11 @@ func (n *TriggerNode) Stop(log *logger.Logger) {
 	if err != nil {
 		log.Errorf("TriggerNode %s: Failed to delete all trigger states: %v", n.NodeUid, err)
 	}
+
+    n.wg.Wait()
+    n.ResetNodeContext()
+    n.SetStatus(common.NodeStatusStopped)
+    log.Infof("Node %s stopped successfully", n.NodeUid)
 
 }
 
@@ -319,7 +320,7 @@ func (n *TriggerNode) startPeriodicCheck(log *logger.Logger) {
     switch n.SendMode {
     case "wait_for":
         // Solo recuperar timers, no necesita polling
-        n.recoverPendingTimers(log)
+        n.recoverPendingTimers(ctx, log)
         return
         
     case "resend_every":
@@ -348,7 +349,7 @@ func (n *TriggerNode) runResendEveryLoop(ctx context.Context, log *logger.Logger
         select {
         case <-ticker.C:
             if n.isCurrentLeader() {
-                n.checkAllResendEveryTriggers(log)
+                n.checkAllResendEveryTriggers(ctx, log)
             }
         case <-ctx.Done():
             return
@@ -356,13 +357,13 @@ func (n *TriggerNode) runResendEveryLoop(ctx context.Context, log *logger.Logger
     }
 }
 
-func (n *TriggerNode) checkAllResendEveryTriggers(log *logger.Logger) {
+func (n *TriggerNode) checkAllResendEveryTriggers(ctx context.Context, log *logger.Logger) {
     kvStore, err := n.GetDigitalTwinKvStore(n.GetDigitalTwinId())
     if err != nil {
         return
     }
 
-    keys, err := kvStore.ListKeys(context.Background(), n.getTriggerKvStorePrefix())
+    keys, err := kvStore.ListKeys(ctx, n.getTriggerKvStorePrefix())
     if err != nil {
         return
     }
@@ -415,7 +416,7 @@ func (n *TriggerNode) checkResendEveryTrigger(state *TriggerState, now time.Time
 	}
 }
 
-func (n *TriggerNode) recoverPendingTimers(log *logger.Logger) {
+func (n *TriggerNode) recoverPendingTimers(ctx context.Context, log *logger.Logger) {
     kvStore, err := n.GetDigitalTwinKvStore(n.GetDigitalTwinId())
     if err != nil {
         log.Errorf("TriggerNode %s: Failed to get KV store for recovery: %v", n.NodeUid, err)
@@ -423,7 +424,7 @@ func (n *TriggerNode) recoverPendingTimers(log *logger.Logger) {
     }
 
     prefix := n.getTriggerKvStorePrefix()
-    keys, err := kvStore.ListKeys(context.Background(), prefix)
+    keys, err := kvStore.ListKeys(ctx, prefix)
     if err != nil {
         log.Errorf("TriggerNode %s: Failed to list keys for recovery: %v", n.NodeUid, err)
         return
@@ -736,7 +737,7 @@ func (n *TriggerNode) getTriggerStateByKey(kvKey string) (*TriggerState, error) 
 		return nil, err
 	}
 
-	stateData, err := kvStore.GetObjectValue(context.Background(), kvKey)
+	stateData, err := kvStore.GetObjectValue(n.Ctx, kvKey)
 	if err != nil {
 		if err.Error() == fmt.Sprintf("key %s not found", kvKey) {
 			return nil, nil // Key doesn't exist
@@ -801,7 +802,7 @@ func (n *TriggerNode) saveTriggerState(streamKey string, state *TriggerState) er
 	}
 
 	kvKey := n.getTriggerKvStoreKey(streamKey)
-	return kvStore.SetValue(context.Background(), kvKey, state)
+	return kvStore.SetValue(n.Ctx, kvKey, state)
 }
 
 func (n *TriggerNode) deleteTriggerState(streamKey string) error {
@@ -812,7 +813,7 @@ func (n *TriggerNode) deleteTriggerState(streamKey string) error {
 
 	kvKey := n.getTriggerKvStoreKey(streamKey)
 
-	return kvStore.DeleteEntry(context.Background(), kvKey)
+	return kvStore.DeleteEntry(n.Ctx, kvKey)
 }
 
 func (n *TriggerNode) deleteAllStreamStates() error {
@@ -822,13 +823,13 @@ func (n *TriggerNode) deleteAllStreamStates() error {
 	}
 
 	prefix := n.getTriggerKvStorePrefix()
-	keys, err := kvStore.ListKeys(context.Background(), prefix)
+	keys, err := kvStore.ListKeys(n.Ctx, prefix)
 	if err != nil {
 		return err
 	}
 
 	for _, key := range keys {
-		if err := kvStore.DeleteEntry(context.Background(), key); err != nil {
+		if err := kvStore.DeleteEntry(n.Ctx, key); err != nil {
 			return err
 		}
 	}

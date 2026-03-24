@@ -59,7 +59,6 @@ func CreatePublishNode(node common.NodeData, fm common.Manager, p common.Pipelin
 	logTopic := fm.GetTopicByTopicRef(p.GetAssetId(), p.GetDigitalTwinId(), "dtmlog")
 	logSubject := utils.TopicToNatsSubject(logTopic.TopicType, logTopic.GroupUid, logTopic.TopicUid)
 
-	ctx, cancel := context.WithCancel(context.Background())
 	return &PublishNode{
 		BaseNode: BaseNode{
 			NodeUid:        node.NodeUid,
@@ -73,8 +72,8 @@ func CreatePublishNode(node common.NodeData, fm common.Manager, p common.Pipelin
 			LogSubject:     logSubject,
 			Fm:             fm,
 			Pipeline:       p,
-			Cancel:         cancel,
-			Ctx:            ctx,
+			Cancel:         nil,
+			Ctx:            nil,
 			status:         common.NodeStatusCreated,
 		},
 		PublishTo: publishTo,
@@ -82,11 +81,15 @@ func CreatePublishNode(node common.NodeData, fm common.Manager, p common.Pipelin
 	}, nil
 }
 
-func (n *PublishNode) Start(log *logger.Logger, needReinitialization bool) {
+func (n *PublishNode) Start(ctx context.Context, log *logger.Logger, needReinitialization bool) {
 	if n.GetStatus() == common.NodeStatusRunning {
 		log.Infof("PublishNode %s is already running", n.NodeUid)
 		return
 	}
+
+	nodectx, nodeCancel := context.WithCancel(ctx)
+    n.Ctx = nodectx
+    n.Cancel = nodeCancel	
 
 	n.SetStatus(common.NodeStatusRunning)
 	log.Infof("Starting PublishNode with UID: %s", n.NodeUid)

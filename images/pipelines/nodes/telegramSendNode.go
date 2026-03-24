@@ -56,7 +56,6 @@ func CreateTelegramSendNode(node common.NodeData, fm common.Manager, p common.Pi
 	logTopic := fm.GetTopicByTopicRef(p.GetAssetId(), p.GetDigitalTwinId(), "dtmlog")
 	logSubject := utils.TopicToNatsSubject(logTopic.TopicType, logTopic.GroupUid, logTopic.TopicUid)
 
-	ctx, cancel := context.WithCancel(context.Background())
 	return &TelegramSendNode{
 		BaseNode: BaseNode{
 			NodeUid:    node.NodeUid,
@@ -70,8 +69,8 @@ func CreateTelegramSendNode(node common.NodeData, fm common.Manager, p common.Pi
 			LogSubject: logSubject,
 			Fm:         fm,
 			Pipeline:   p,
-			Cancel:     cancel,
-			Ctx:        ctx,
+			Cancel:     nil,
+			Ctx:        nil,
 			status:     common.NodeStatusCreated,
 		},
 		BotToken:        botToken,
@@ -81,11 +80,15 @@ func CreateTelegramSendNode(node common.NodeData, fm common.Manager, p common.Pi
 	}, nil
 }
 
-func (n *TelegramSendNode) Start(log *logger.Logger, needReinitialization bool) {
+func (n *TelegramSendNode) Start(ctx context.Context, log *logger.Logger, needReinitialization bool) {
 	if n.GetStatus() == common.NodeStatusRunning {
 		log.Infof("TelegramSendNode %s is already running", n.NodeUid)
 		return
 	}
+
+	nodectx, nodeCancel := context.WithCancel(ctx)
+    n.Ctx = nodectx
+    n.Cancel = nodeCancel
 
 	n.SetStatus(common.NodeStatusRunning)
 	log.Infof("Starting TelegramSendNode with UID: %s", n.NodeUid)
@@ -124,6 +127,12 @@ func (n *TelegramSendNode) Stop(log *logger.Logger) {
 		return
 	}
 
-	n.SetStatus(common.NodeStatusStopped)
-	log.Infof("Stopping TelegramSendNode with UID: %s", n.NodeUid)
+	if n.Cancel != nil {
+		n.Cancel()
+	}
+
+    n.wg.Wait()
+    n.ResetNodeContext()
+    n.SetStatus(common.NodeStatusStopped)
+    log.Infof("Node %s stopped successfully", n.NodeUid)
 }

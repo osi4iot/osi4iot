@@ -1,6 +1,7 @@
 package nodes
 
 import (
+	"context"
 	"pipelines/common"
 	"pipelines/logger"
 )
@@ -32,7 +33,7 @@ func CreateCommentNode(node common.NodeData, fm common.Manager, p common.Pipelin
 	}, nil
 }
 
-func (n *CommentNode) Start(log *logger.Logger, needReinitialization bool) {
+func (n *CommentNode) Start(ctx context.Context, log *logger.Logger, needReinitialization bool) {
 	// Comment nodes don't have any processing logic, so we just set their status to running
 	if n.GetStatus() == common.NodeStatusRunning {
 		log.Infof("CommentNode %s is already running", n.NodeUid)
