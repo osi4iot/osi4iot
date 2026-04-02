@@ -52,10 +52,12 @@ import { useHistory } from "react-router-dom";
 import { getAxiosInstance } from "../../../tools/axiosIntance";
 import axiosErrorHandler from "../../../tools/axiosErrorHandler";
 import {
+    useAssetS3FoldersTable,
     useAssetTypesTable,
     useAssetsTable,
     useAssetsWithMarkerTable,
     useMlModelsTable,
+    useReloadAssetS3FoldersTable,
     useReloadAssetTypesTable,
     useReloadAssetsTable,
     useReloadAssetsWithMarkerTable,
@@ -77,10 +79,12 @@ import { IGeolocationMeasurement } from "../TableColumns/measurementsColumns";
 import HomeOptionsLoader from "../../Tools/HomeOptionsLoader";
 import { AxiosResponse, AxiosError } from "axios";
 import {
+    setAssetS3FoldersTable,
     setMlModelsTable,
+    setReloadAssetS3FoldersTable,
     setReloadMlModelsTable,
 } from "../../../contexts/platformAssistantContext/platformAssistantAction";
-
+import IAssetS3Folder from "../TableColumns/assetS3FolderColumns";
 
 const PlatformAssistantHomeOptionsContainer = styled.div`
     display: flex;
@@ -89,7 +93,7 @@ const PlatformAssistantHomeOptionsContainer = styled.div`
     align-items: center;
     width: 60%;
     height: 50px;
-    background-color: #0c0d0f
+    background-color: #0c0d0f;
 `;
 
 interface OptionContainerProps {
@@ -154,7 +158,7 @@ const ContentContainer = styled.div`
 
 const findAssetsWithMarker = (assetTypes: IAssetType[], assets: IAsset[]) => {
     const assetTypesWithMarker = assetTypes.filter(
-        (item) => item.geolocationMode === "dynamic" && item.markerSvgString !== ""
+        (item) => item.geolocationMode === "dynamic" && item.markerSvgString !== "",
     );
     const assetTypesIdArray = assetTypesWithMarker.map((item) => item.id);
     const assetsWithMarker = assets.filter((asset) => assetTypesIdArray.includes(asset.assetTypeId));
@@ -164,7 +168,7 @@ const findAssetsWithMarker = (assetTypes: IAssetType[], assets: IAsset[]) => {
 const filterAssetWithMarker = (
     assetsWithMarker: IAsset[],
     buildings: IBuilding[],
-    orgsOfGroupsManagedTable: IOrgOfGroupsManaged[]
+    orgsOfGroupsManagedTable: IOrgOfGroupsManaged[],
 ) => {
     const assetsWithMarkerFiltered = assetsWithMarker.filter((asset) => {
         const assetOrg = orgsOfGroupsManagedTable.filter((org) => org.id === asset.orgId)[0];
@@ -257,6 +261,7 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
     const sensorsTable = useSensorsTable();
     const digitalTwinsTable = useDigitalTwinsTable();
     const mlModelsTable = useMlModelsTable();
+    const assetS3FoldersTable = useAssetS3FoldersTable();
     const [buildingsLoading, setBuildingsLoading] = useState(true);
     const [floorsLoading, setFloorsLoading] = useState(true);
     const [orgsOfGroupsManagedLoading, setOrgsOfGroupsManagedLoading] = useState(true);
@@ -268,6 +273,7 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
     const [sensorsLoading, setSensorsLoading] = useState(true);
     const [digitalTwinLoading, setDigitalTwinsLoading] = useState(true);
     const [mlModelsLoading, setMlModelsLoading] = useState(true);
+    const [assetS3FoldersLoading, setAssetS3FoldersLoading] = useState(true);
     const [digitalTwinGltfData, setDigitalTwinGltfData] = useState<IDigitalTwinGltfData | null>(null);
     const [optionToShow, setOptionToShow] = useState(PLATFORM_ASSISTANT_HOME_OPTIONS.GEOLOCATION);
     const reloadBuildingsTable = useReloadBuildingsTable();
@@ -281,6 +287,7 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
     const reloadSensorTypesTable = useReloadSensorTypesTable();
     const reloadMlModelsTable = useReloadMlModelsTable();
     const reloadDigitalTwinsTable = useReloadDigitalTwinsTable();
+    const reloadAssetS3FoldersTable = useReloadAssetS3FoldersTable();
     const [reloadDigitalTwins, setReloadDigitalTwins] = useState(false);
     const initialBuildingsFiltered = filterBuildings(buildingsTable);
     const [buildingsFiltered, setBuildingsFiltered] = useState<IBuilding[]>(initialBuildingsFiltered);
@@ -295,6 +302,7 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
     const [assetSelected, setAssetSelected] = useState<IAsset | null>(null);
     const [sensorSelected, setSensorSelected] = useState<ISensor | null>(null);
     const [digitalTwinSelected, setDigitalTwinSelected] = useState<IDigitalTwin | null>(null);
+    const [assetS3Folders, setAssetS3Folders] = useState<IAssetS3Folder[]>([]);
     const [glftDataLoading, setGlftDataLoading] = useState(false);
     const [gltfFileDownloadProgress, setGltfFileDownloadProgress] = useState(0);
     const [digitalTwinsState, setDigitalTwinsState] = useState<IDigitalTwinState[]>([]);
@@ -357,6 +365,12 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
         setTimeout(() => setReloadDigitalTwins(false), 500);
     }, []);
 
+    const refreshAssetS3Folders = useCallback(() => {
+        setAssetS3FoldersLoading(true);
+        const reloadAssetS3FoldersTable = true;
+        setReloadAssetS3FoldersTable(plaformAssistantDispatch, { reloadAssetS3FoldersTable });
+    }, [plaformAssistantDispatch]);
+
     const openDigitalTwin3DViewer = useCallback((digitalTwinGltfData: IDigitalTwinGltfData) => {
         setDigitalTwinGltfData(digitalTwinGltfData);
         setOptionToShow(PLATFORM_ASSISTANT_HOME_OPTIONS.DIGITAL_TWINS);
@@ -399,6 +413,10 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 
     const selectDigitalTwin = (digitalTwin: IDigitalTwin | null) => {
         setDigitalTwinSelected(digitalTwin);
+        if (digitalTwin) {
+            const assetS3FoldersFiltered = assetS3FoldersTable.filter((folder) => folder.assetId === digitalTwin.assetId);
+            setAssetS3Folders(assetS3FoldersFiltered);
+        }
     };
 
     const resetBuildingSelection = () => {
@@ -688,7 +706,7 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
                         });
                         setDigitalTwinsTable(plaformAssistantDispatch, { digitalTwins });
                         const inexistentDashboards = digitalTwins.filter(
-                            (dt: IDigitalTwin) => dt.dashboardUrl.slice(0, 7) === "Warning"
+                            (dt: IDigitalTwin) => dt.dashboardUrl.slice(0, 7) === "Warning",
                         );
                         if (inexistentDashboards.length !== 0) {
                             const warningMessage = "Some dashboards no longer exist";
@@ -732,7 +750,7 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
                         const lastGeolocationMeasurements = response.data as IGeolocationMeasurement[];
                         initialAssetsWithMarker.forEach((asset) => {
                             const lastGeolocation = lastGeolocationMeasurements.filter(
-                                (item) => item.assetUid === asset.assetUid
+                                (item) => item.assetUid === asset.assetUid,
                             )[0];
                             if (lastGeolocation) {
                                 asset.longitude = lastGeolocation.longitude;
@@ -742,7 +760,7 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
                         const assetsWithMarkerFiltered = filterAssetWithMarker(
                             initialAssetsWithMarker,
                             buildingsFiltered,
-                            orgsOfGroupsManagedTable
+                            orgsOfGroupsManagedTable,
                         );
                         setAssetsWithMarkerTable(plaformAssistantDispatch, {
                             assetsWithMarker: assetsWithMarkerFiltered,
@@ -802,6 +820,49 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
         }
     }, [accessToken, refreshToken, authDispatch, plaformAssistantDispatch, reloadMlModelsTable, mlModelsTable.length]);
 
+    useEffect(() => {
+        if (assetS3FoldersTable.length === 0 || reloadAssetS3FoldersTable) {
+            const config = axiosAuth(accessToken);
+            const urlAssetS3Folders = `${protocol}://${domainName}/admin_api/asset_s3_folders_with_history/user_managed`;
+            getAxiosInstance(refreshToken, authDispatch)
+                .get(urlAssetS3Folders, config)
+                .then((response: AxiosResponse<any, any>) => {
+                   const assetS3Folders: IAssetS3Folder[] = response.data;
+                    for (const assetS3Folder of assetS3Folders) {
+                        if (assetS3Folder.lastS3Storage == null) {
+                            assetS3Folder.lastS3Storage = "-";
+                        }
+                        let numDecimals = 2;
+                        if (assetS3Folder.parquetTotalBytes !== 0) {
+                            numDecimals = Math.max(2, -Math.log10(assetS3Folder.parquetTotalBytes / 1048576) + 1);
+                        }
+                        assetS3Folder.parquetTotalMBytes = (
+                            assetS3Folder.parquetTotalBytes ? assetS3Folder.parquetTotalBytes / 1048576 : 0
+                        ).toFixed(numDecimals);
+
+                        if (assetS3Folder.isCurrent === true) {
+                            assetS3Folder.isCurrent = "Yes";
+                        } else if (assetS3Folder.isCurrent === false) {
+                            assetS3Folder.isCurrent = "No";
+                        }
+                    }
+                    setAssetS3FoldersTable(plaformAssistantDispatch, { assetS3Folders });
+                    setAssetS3FoldersLoading(false);
+                    const reloadAssetS3FoldersTable = false;
+                    setReloadAssetS3FoldersTable(plaformAssistantDispatch, { reloadAssetS3FoldersTable });
+                })
+                .catch((error: AxiosError) => {
+                    const assetS3Folders: never[] = [];
+                    setAssetS3FoldersTable(plaformAssistantDispatch, { assetS3Folders });
+                    setAssetS3FoldersLoading(false);
+                    axiosErrorHandler(error, authDispatch);
+                });
+        } else {
+            setAssetS3FoldersLoading(false);
+        }
+    }, [accessToken, refreshToken, authDispatch, plaformAssistantDispatch, reloadAssetS3FoldersTable, assetS3FoldersTable.length]);
+
+
     const clickHandler = (optionToShow: string) => {
         setOptionToShow(optionToShow);
     };
@@ -844,6 +905,7 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
                     sensorsLoading ||
                     digitalTwinLoading ||
                     mlModelsLoading ||
+                    assetS3FoldersLoading ||
                     glftDataLoading ? (
                         <HomeOptionsLoader
                             key={gltfFileDownloadProgress}
@@ -886,6 +948,7 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
                                     refreshGroupsManaged={refreshGroupsManaged}
                                     refreshAssetTypes={refreshAssetTypes}
                                     refreshAssets={refreshAssets}
+                                    refreshAssetS3Folders={refreshAssetS3Folders}
                                     refreshAssetsWithMarker={refreshAssetsWithMarker}
                                     refreshSensors={refreshSensors}
                                     refreshDigitalTwins={refreshDigitalTwins}
@@ -910,6 +973,7 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
                                     <DigitalTwin3DViewer
                                         digitalTwinSelected={digitalTwinSelected}
                                         digitalTwinGltfData={digitalTwinGltfData}
+                                        assetS3Folders={assetS3Folders}
                                         orgSelected={orgSelected}
                                         groupSelected={groupSelected}
                                         close3DViewer={handleCloseViewer}

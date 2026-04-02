@@ -12,21 +12,21 @@ import (
 func (fm *FlowsManager) Listen(ctx context.Context) {
 	consumeCtx, err := fm.JsConsumer.Consume(func(msg jetstream.Msg) {
 		// 1. Inmediate defer: decide Ack or Nak based on ctx at the end
-        defer func() {
-            select {
-            case <-ctx.Done():
-                msg.Nak() // shutdown in progress, discard
-            default:
-                msg.Ack() // processed successfully
-            }
-        }()
+		defer func() {
+			select {
+			case <-ctx.Done():
+				msg.Nak() // shutdown in progress, discard
+			default:
+				msg.Ack() // processed successfully
+			}
+		}()
 
 		// 2. Intial check: if we're already in shutdown, exit before processing
-        select {
-        case <-ctx.Done():
-            return
-        default:
-        }
+		select {
+		case <-ctx.Done():
+			return
+		default:
+		}
 
 		var adminMsg common.AdminMessage
 		if err := json.Unmarshal(msg.Data(), &adminMsg); err != nil {
@@ -47,13 +47,12 @@ func (fm *FlowsManager) Listen(ctx context.Context) {
 					fm.AddOrg(ctx, org)
 				}
 			case "update":
-				fmt.Printf("Updating org with ID: %d\n", adminMsg.Id)
 				org := fm.Admin.GetOrg(ctx, adminMsg.Id, encryptionSecretKey)
 				if org != nil {
 					fm.UpdateOrg(ctx, org)
 				}
 			case "delete":
-				fm.DeleteOrg(adminMsg.Id)
+				fm.DeleteOrg(ctx, adminMsg.Id)
 			default:
 				fm.log.Errorf("Unknown action: %s for component: %s", adminMsg.Action, adminMsg.Component)
 				return
@@ -71,7 +70,7 @@ func (fm *FlowsManager) Listen(ctx context.Context) {
 					fm.UpdateGroup(group)
 				}
 			case "delete":
-				fm.DeleteGroup(adminMsg.Id)
+				fm.DeleteGroup(ctx, adminMsg.Id)
 			default:
 				fm.log.Errorf("Unknown action: %s for component: %s", adminMsg.Action, adminMsg.Component)
 				return
@@ -214,7 +213,32 @@ func (fm *FlowsManager) Listen(ctx context.Context) {
 					fm.UpdateDigitalTwin(digitalTwin)
 				}
 			case "delete":
-				fm.DeleteDigitalTwin(adminMsg.Id)
+				fm.DeleteDigitalTwin(ctx, adminMsg.Id)
+			default:
+				fm.log.Errorf("Unknown action: %s for component: %s", adminMsg.Action, adminMsg.Component)
+				return
+			}
+		case "s3_folder":
+			switch adminMsg.Action {
+			case "create":
+				groupId := int(adminMsg.Context["groupId"].(float64))
+				assetId := int(adminMsg.Context["assetId"].(float64))
+				assetS3Folder := fm.Admin.GetAssetS3Folder(ctx, groupId, assetId, adminMsg.Id)
+				fm.AddAssetS3Folder(ctx, assetS3Folder)
+			case "update":
+				groupId := int(adminMsg.Context["groupId"].(float64))
+				assetId := int(adminMsg.Context["assetId"].(float64))
+				updatedField := adminMsg.Context["updatedField"].(string)
+				assetS3Folder := fm.Admin.GetAssetS3Folder(ctx, groupId, assetId, adminMsg.Id)
+				switch updatedField {
+				case "parquet_schema":
+				case "parquet_file_stats":
+					fm.AddAssetS3Folder(ctx, assetS3Folder)
+				}
+			case "delete":
+				assetId := int(adminMsg.Context["assetId"].(float64))
+				folderName := adminMsg.Context["folderName"].(string)
+				fm.DeleteAssetS3Folder(ctx, assetId, folderName)
 			default:
 				fm.log.Errorf("Unknown action: %s for component: %s", adminMsg.Action, adminMsg.Component)
 				return
@@ -247,7 +271,7 @@ func (fm *FlowsManager) Listen(ctx context.Context) {
 			case "update":
 				fm.UpdatePipelineInDigitalTwin(ctx, digitalTwinId)
 			case "stop":
-				fm.StopNodesInDigitalTwin(digitalTwinId, "stop")
+				fm.StopNodesInDigitalTwin(ctx, digitalTwinId, "stop")
 			case "start":
 				reinitialize := adminMsg.Context["reinitialize"].(bool)
 				fm.StartNodesInDigitalTwin(ctx, digitalTwinId, reinitialize)

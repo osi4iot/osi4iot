@@ -97,6 +97,7 @@ interface GeolocationContainerProps {
     refreshGroupsManaged: () => void;
     refreshAssetTypes: () => void;
     refreshAssets: () => void;
+    refreshAssetS3Folders: () => void;
     refreshAssetsWithMarker: () => void;
     refreshSensors: () => void;
     refreshDigitalTwins: () => void;
@@ -148,6 +149,7 @@ const GeolocationContainer: FC<GeolocationContainerProps> = (
         refreshGroupsManaged,
         refreshAssetTypes,
         refreshAssets,
+        refreshAssetS3Folders,
         refreshAssetsWithMarker,
         refreshSensors,
         refreshDigitalTwins,
@@ -323,6 +325,7 @@ const GeolocationContainer: FC<GeolocationContainerProps> = (
                     refreshGroupsManaged={refreshGroupsManaged}
                     refreshAssetTypes={refreshAssetTypes}
                     refreshAssets={refreshAssets}
+                    refreshAssetS3Folders={refreshAssetS3Folders}
                     refreshAssetsWithMarker={refreshAssetsWithMarker}
                     refreshSensors={refreshSensors}
                     refreshDigitalTwins={refreshDigitalTwins}

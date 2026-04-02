@@ -3,29 +3,26 @@
 FROM node:lts-alpine
 RUN mkdir -p /app/node_modules && chown -R node:node /app
 WORKDIR /app
-COPY package*.json ./
-RUN npm install -g typescript
-RUN npm install
+COPY package*.json yarn.lock ./
+RUN yarn install
+RUN cat node_modules/typescript/package.json | grep '"version"'  # ← versión exacta
 COPY . .
-RUN npm run build
+RUN ./node_modules/.bin/tsc
 
 ## this is stage two , where the app actually runs
-
 FROM node:lts-alpine
 RUN mkdir -p /app/node_modules && chown -R node:node /app
 RUN mkdir -p /app/logs && chown node:node /app/logs
 WORKDIR /app
-COPY package*.json ./
+COPY package*.json yarn.lock ./
 
 RUN apk add --no-cache tzdata curl ca-certificates \
  && update-ca-certificates
- 
-RUN apk add --no-cache tzdata
-RUN apk add --no-cache curl
-RUN npm install --only=production
+
+RUN yarn install --production
 USER node
 COPY --from=0 /app/build ./build
-CMD ["npm", "start"]
+CMD ["yarn", "start"]
 HEALTHCHECK --interval=10s --timeout=300s --retries=30 \
   CMD curl --fail --insecure http://localhost:3200/health || exit 1
 EXPOSE 3200

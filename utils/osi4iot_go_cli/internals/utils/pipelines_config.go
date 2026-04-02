@@ -8,8 +8,6 @@ import (
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/types"
 )
 
-// Dev2pdbConfig generates a configuration string for the dev2pdb service.
-// It uses a template to fill in the parameters for the configuration file.
 var pipelinesConfigTmpl = `
 mode: "{{ .Mode }}"  # options: "dev", "prod"
 domainName: "{{ .DomainName }}"
@@ -49,7 +47,38 @@ timescaledb:
   port: {{ .TimescaleDB.Port }}
   dbName: "{{ .TimescaleDB.DBName }}"
   sslmode: "{{ .TimescaleDB.SSLMode }}"
+
+awsS3:
+  accessKeyId: "{{ .AwsS3.AccessKeyId }}"
+  secretAccessKey: "{{ .AwsS3.SecretAccessKey }}"
+  region: "{{ .AwsS3.Region }}"
+  bucket: "{{ .AwsS3.Bucket }}"
+  endpoint: "{{ .AwsS3.Endpoint }}"
 `
+
+type NATSParams struct {
+	ServersURL []string
+	Username   string
+	Password   string
+	Timeout    string
+	UseCustomCACert string
+}
+type TimescaleDBParams struct {
+	User     string
+	Password string
+	Host     string
+	Port     int
+	DBName   string
+	SSLMode  string
+}
+
+type AwsS3Config struct {
+	AccessKeyId     string `mapstructure:"accessKeyId"`
+	SecretAccessKey string `mapstructure:"secretAccessKey"`
+	Region          string `mapstructure:"region"`
+	Bucket          string `mapstructure:"bucket"`
+	Endpoint        string `mapstructure:"endpoint,omitempty"`
+}
 
 type PostresqlParams struct {
 	User     string
@@ -87,6 +116,7 @@ type PipelinesParams struct {
 	PipelinesDataPath        string
 	NATS                     NATSParams
 	TimescaleDB              TimescaleDBParams
+	AwsS3                    AwsS3Config
 }
 
 // PipelinesConfig generates a configuration string for the pipelines service.
@@ -110,6 +140,15 @@ func PipelinesConfig(pd *types.PlatformData, numNatsReplicas int) (string, error
 	pi := pd.PlatformInfo
 	numReplicas := GetServiceReplicas(pd, "pipelines")
 	numStreamReplicas := Min(numNatsReplicas, 3)
+
+	awsAccessKeyId := pi.PlatformAdminUserName
+	awsSecretAccessKey := pi.PlatformAdminPassword
+	awsEndpoint := "http://minio:9000/"
+	if (pi.DeploymentLocation == "AWS cluster deployment" || pi.S3BucketType == "Cloud AWS S3") {
+		awsAccessKeyId = pi.AWSAccessKeyIDS3Bucket
+		awsSecretAccessKey = pi.AWSSecretAccessKeyS3Bucket
+		awsEndpoint = ""
+	}
 
 	params := PipelinesParams{
 		Mode:                     "prod",
@@ -149,6 +188,13 @@ func PipelinesConfig(pd *types.PlatformData, numNatsReplicas int) (string, error
 			Port:     5432,
 			DBName:   "iot_data_db",
 			SSLMode:  "disable",
+		},
+		AwsS3: AwsS3Config{
+			AccessKeyId:     awsAccessKeyId,
+			SecretAccessKey: awsSecretAccessKey,
+			Region:          pi.AWSRegionS3Bucket,
+			Bucket:          pi.S3BucketName,
+			Endpoint:        awsEndpoint,
 		},
 	}
 

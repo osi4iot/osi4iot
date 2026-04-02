@@ -49,26 +49,11 @@ func (fm *FlowsManager) AddOrg(ctx context.Context, org *common.Org) {
 
 func (fm *FlowsManager) AddOrgs(ctx context.Context, orgs []*common.Org) {
 	for _, org := range orgs {
-		orgIdStr := strconv.Itoa(org.Id)
-		if _, ok := fm.Orgs.Load(orgIdStr); !ok {
-			if org.TelegramEnabled && org.TelegramBotToken != "" {
-				orgLeaderElector := fm.CreateOrgLeaderElector(org)
-				telegramBot := fm.StartTelegramBot(ctx, org, orgLeaderElector)
-				if telegramBot != nil {
-					org.LeaderElector = orgLeaderElector
-					org.TelegramListener = telegramBot
-					orgIdStr := strconv.Itoa(org.Id)
-					fm.Orgs.Store(orgIdStr, org)
-				}
-			}
-			fm.Orgs.Store(orgIdStr, org)
-		} else {
-			fm.log.Error("Org with ID %d already exists", org.Id)
-		}
+		fm.AddOrg(ctx, org)
 	}
 }
 
-func (fm *FlowsManager) DeleteOrg(orgId int) error {
+func (fm *FlowsManager) DeleteOrg(ctx context.Context, orgId int) error {
 	var mlModelsToDelete []int
 	fm.MLModels.Range(func(key, value interface{}) bool {
 		if mlModel, ok := value.(*common.MLModel); ok {
@@ -95,7 +80,7 @@ func (fm *FlowsManager) DeleteOrg(orgId int) error {
 	for _, groupId := range groupsToDelete {
 		groupIdStr := strconv.Itoa(groupId)
 		fm.Groups.Delete(groupIdStr)
-		fm.DeleteGroup(groupId)
+		fm.DeleteGroup(ctx, groupId)
 	}
 
 	var digitalTwinsToDelete []int
@@ -108,7 +93,7 @@ func (fm *FlowsManager) DeleteOrg(orgId int) error {
 		return true
 	})
 	for _, digitalTwinId := range digitalTwinsToDelete {
-		fm.DeleteDigitalTwin(digitalTwinId)
+		fm.DeleteDigitalTwin(ctx, digitalTwinId)
 	}
 
 	orgIdStr := strconv.Itoa(orgId)
@@ -119,7 +104,7 @@ func (fm *FlowsManager) DeleteOrg(orgId int) error {
 			fm.log.Infof("Stopped Telegram bot for Org %d", org.Id)
 		}
 		if org.LeaderElector != nil {
-			org.LeaderElector.Stop()
+			org.LeaderElector.Stop(ctx)
 			fm.log.Infof("Stopped Leader Elector for Org %d", org.Id)
 		}
 		fm.Orgs.Delete(orgIdStr)
@@ -145,12 +130,12 @@ func (fm *FlowsManager) UpdateOrg(ctx context.Context, org *common.Org) error {
 			existentOrg.TelegramListener.Stop()
 			for _, dt := range digitalTwinsInOrg {
 				if dt.Pipeline != nil && dt.Pipeline.HasTelegramListenNodesData() {
-					dt.Pipeline.Stop("telegram_stopped")
+					dt.Pipeline.Stop(ctx, "telegram_stopped")
 				}
 			}
 		}
 		if existentOrg.LeaderElector != nil {
-			existentOrg.LeaderElector.Stop()
+			existentOrg.LeaderElector.Stop(ctx)
 		}
 
 		if org.TelegramEnabled && org.TelegramBotToken != "" {
@@ -170,7 +155,7 @@ func (fm *FlowsManager) UpdateOrg(ctx context.Context, org *common.Org) error {
 				}
 				fm.log.Infof("Started Telegram bot for Org %d", org.Id)
 			} else {
-				orgLeaderElector.Stop()
+				orgLeaderElector.Stop(ctx)
 				org.LeaderElector = nil
 				org.TelegramListener = nil
 				fm.log.Errorf("Failed to start Telegram bot for Org %d", org.Id)
@@ -228,7 +213,7 @@ func (fm *FlowsManager) CreateOrgTelegramListerner(
 	return orgListener
 }
 
-func (fm *FlowsManager) StopTelegramBots() {
+func (fm *FlowsManager) StopTelegramBots(ctx context.Context) {
 	fm.Orgs.Range(func(key, value any) bool {
 		org := value.(*common.Org)
 		if org.TelegramListener != nil {
@@ -236,7 +221,7 @@ func (fm *FlowsManager) StopTelegramBots() {
 			fm.log.Infof("Stopped Telegram bot for Org %d", org.Id)
 		}
 		if org.LeaderElector != nil {
-			org.LeaderElector.Stop()
+			org.LeaderElector.Stop(ctx)
 			fm.log.Infof("Stopped Leader Elector for Org %d", org.Id)
 		}
 		return true
@@ -255,7 +240,7 @@ func (fm *FlowsManager) StartTelegramBot(ctx context.Context, org *common.Org, o
 		telegramBot.Start(ctx)
 		fm.log.Infof("Started Telegram bot for Org %d", org.Id)
 	} else {
-		orgLeaderElector.Stop()
+		orgLeaderElector.Stop(ctx)
 		fm.log.Errorf("Failed to create Telegram bot for Org %d", org.Id)
 		return nil
 	}

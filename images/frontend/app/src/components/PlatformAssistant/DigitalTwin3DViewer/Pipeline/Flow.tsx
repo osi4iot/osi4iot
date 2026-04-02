@@ -26,6 +26,7 @@ import {
     AiAgentNode,
     BatchNode,
     IoTDbNode,
+    S3StorageNode,
     AssetStateNode,
     CommentNode,
 } from "./Nodes";
@@ -73,6 +74,7 @@ export default function Flow({
     mqttClient,
     mqttConnectionStatus,
     mqttTopicsData,
+    assetS3Folders,
     digitalTwinSelected,
     orgSelected,
     groupSelected,
@@ -105,6 +107,7 @@ export default function Flow({
             MlModel: 0,
             Batch: 0,
             IoTDb: 0,
+            S3Storage: 0,
             AssetState: 0,
             Comment: 0,
         };
@@ -326,6 +329,7 @@ export default function Flow({
             AiAgent: AiAgentNode,
             Batch: BatchNode,
             IoTDb: IoTDbNode,
+            S3Storage: S3StorageNode,
             AssetState: AssetStateNode,
         }),
         
@@ -345,6 +349,7 @@ export default function Flow({
                 digitalTwinSelected={digitalTwinSelected}
                 handlePipelineUiChanged={handlePipelineUiChanged}
                 mqttTopicsData={mqttTopicsData}
+                assetS3Folders={assetS3Folders}
             />
 
             <ReactFlowWrapper ref={reactFlowWrapper}>

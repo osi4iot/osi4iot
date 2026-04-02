@@ -186,7 +186,8 @@ export const createGroup = async (
 	try {
 		await sendGroupAdminInvitationEmail(orgName, group, groupInput.groupAdminDataArray);
 	} catch (err) {
-		logger.log("error", `Email for group admin can not be sended: %s`, err.message);
+		const message = err instanceof Error ? err.message : String(err);
+		logger.log("error", `Email for group admin can not be sended: %s`, message);
 	}
 	return group;
 };

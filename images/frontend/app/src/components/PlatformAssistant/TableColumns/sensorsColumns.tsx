@@ -1,29 +1,28 @@
-import { FC, useState, useEffect } from 'react';
-import { Column } from 'react-table';
-import { toast } from 'react-toastify';
-import { axiosAuth, getDomainName, getProtocol } from '../../../tools/tools';
-import { useAuthState, useAuthDispatch } from '../../../contexts/authContext';
-import EditIcon from '../Utils/EditIcon';
-import DeleteIcon from '../Utils/DeleteIcon';
-import DeleteModal from '../../Tools/DeleteModal';
-import { SENSORS_OPTIONS } from '../Utils/platformAssistantOptions';
+import { FC, useState, useEffect } from "react";
+import { Column } from "react-table";
+import { toast } from "react-toastify";
+import { axiosAuth, getDomainName, getProtocol } from "../../../tools/tools";
+import { useAuthState, useAuthDispatch } from "../../../contexts/authContext";
+import EditIcon from "../Utils/EditIcon";
+import DeleteIcon from "../Utils/DeleteIcon";
+import DeleteModal from "../../Tools/DeleteModal";
+import { SENSORS_OPTIONS } from "../Utils/platformAssistantOptions";
 import {
     setSensorIdToEdit,
     setSensorRowIndexToEdit,
     setSensorsOptionToShow,
-    useSensorsDispatch
-} from '../../../contexts/sensorsOptions';
+    useSensorsDispatch,
+} from "../../../contexts/sensorsOptions";
 
 import {
     setReloadDashboardsTable,
     setReloadTopicsTable,
     setReloadSensorsTable,
-    usePlatformAssitantDispatch
-} from '../../../contexts/platformAssistantContext';
-import { getAxiosInstance } from '../../../tools/axiosIntance';
-import axiosErrorHandler from '../../../tools/axiosErrorHandler';
-import { AxiosResponse, AxiosError } from 'axios';
-
+    usePlatformAssitantDispatch,
+} from "../../../contexts/platformAssistantContext";
+import { getAxiosInstance } from "../../../tools/axiosIntance";
+import axiosErrorHandler from "../../../tools/axiosErrorHandler";
+import { AxiosResponse, AxiosError } from "axios";
 
 export interface ISensor {
     id: number;
@@ -43,9 +42,7 @@ export interface ISensor {
     payloadJsonSchema: string;
 }
 
-
-
-interface ISensorColumn extends  ISensor {
+interface ISensorColumn extends ISensor {
     edit: string;
     delete: string;
 }
@@ -72,7 +69,7 @@ const DeleteSensorModal: FC<DeleteSensorModalProps> = ({ rowIndex, groupId, sens
 
     const showLoader = () => {
         setIsSubmitting(true);
-    }
+    };
 
     useEffect(() => {
         if (isSensorDeleted) {
@@ -97,21 +94,18 @@ const DeleteSensorModal: FC<DeleteSensorModalProps> = ({ rowIndex, groupId, sens
                 const data = response.data;
                 toast.success(data.message);
                 hideModal();
-
             })
             .catch((error: AxiosError) => {
                 axiosErrorHandler(error, authDispatch);
                 setIsSubmitting(false);
                 hideModal();
-            })
-    }
+            });
+    };
 
     const [showModal] = DeleteModal(title, question, consequences, action, isSubmitting, showLoader);
 
-    return (
-        <DeleteIcon action={showModal} rowIndex={rowIndex} />
-    )
-}
+    return <DeleteIcon action={showModal} rowIndex={rowIndex} />;
+};
 
 interface EditSensorProps {
     rowIndex: number;
@@ -119,7 +113,7 @@ interface EditSensorProps {
 }
 
 const EditSensor: FC<EditSensorProps> = ({ rowIndex, sensorId }) => {
-    const sensorsDispatch = useSensorsDispatch()
+    const sensorsDispatch = useSensorsDispatch();
 
     const handleClick = () => {
         const sensorIdToEdit = { sensorIdToEdit: sensorId };
@@ -132,100 +126,105 @@ const EditSensor: FC<EditSensorProps> = ({ rowIndex, sensorId }) => {
         setSensorsOptionToShow(sensorsDispatch, sensorsOptionToShow);
     };
 
-
     return (
         <span onClick={handleClick}>
             <EditIcon rowIndex={rowIndex} />
         </span>
-    )
-}
-
+    );
+};
 
 export const Create_SENSORS_COLUMNS = (refreshSensors: () => void): Column<ISensorColumn>[] => {
     return [
         {
             Header: "Id",
             accessor: "id",
-            filter: 'equals'
+            filter: "equals",
         },
         {
             Header: "OrgId",
             accessor: "orgId",
-            filter: 'equals'
+            filter: "equals",
         },
         {
             Header: "GroupId",
             accessor: "groupId",
-            filter: 'equals'
+            filter: "equals",
         },
         {
             Header: "AssetId",
             accessor: "assetId",
-            filter: 'equals'
+            filter: "equals",
         },
         {
             Header: "SensorUid",
             accessor: "sensorUid",
-            filter: 'equals'
+            filter: "equals",
         },
         {
             Header: "Type",
             accessor: "sensorType",
-            filter: 'equals'
+            filter: "equals",
         },
         {
             Header: "Description",
-            accessor: "description"
+            accessor: "description",
         },
         {
             Header: "SensorRef",
             accessor: "sensorRef",
-            filter: 'equals'
+            filter: "equals",
         },
         {
             Header: "TopicRef",
             accessor: "topicRef",
-            filter: 'equals'
+            filter: "equals",
         },
         {
             Header: "TopicId",
             accessor: "topicId",
-            filter: 'equals'
+            filter: "equals",
         },
         {
             Header: "DashboardId",
             accessor: "dashboardId",
             disableFilters: true,
             disableSortBy: true,
-        }, 
+        },
         {
             Header: "dashboardUrl",
             accessor: "dashboardUrl",
-        },            
+        },
         {
             Header: "",
             accessor: "edit",
             disableFilters: true,
             disableSortBy: true,
-            Cell: props => {
+            Cell: (props) => {
                 const rowIndex = parseInt(props.row.id, 10);
-                const row = props.rows.filter(row => row.index === rowIndex)[0];
+                const row = props.rows.filter((row) => row.index === rowIndex)[0];
                 const sensorId = row?.cells[0]?.value;
-                return <EditSensor sensorId={sensorId} rowIndex={rowIndex} />
-            }
+                return <EditSensor sensorId={sensorId} rowIndex={rowIndex} />;
+            },
         },
         {
             Header: "",
             accessor: "delete",
             disableFilters: true,
             disableSortBy: true,
-            Cell: props => {
+            Cell: (props) => {
                 const rowIndex = parseInt(props.row.id, 10);
-                const row = props.rows.filter(row => row.index === rowIndex)[0];
+                const row = props.rows.filter((row) => row.index === rowIndex)[0];
                 const sensorId = row?.cells[0]?.value;
                 const groupId = row?.cells[2]?.value;
-                return <DeleteSensorModal sensorId={sensorId} groupId={groupId} rowIndex={rowIndex} refreshSensors={refreshSensors} />
-            }
-        }
-    ]
-}
+                return (
+                    <DeleteSensorModal
+                        sensorId={sensorId}
+                        groupId={groupId}
+                        rowIndex={rowIndex}
+                        refreshSensors={refreshSensors}
+                    />
+                );
+            },
+        },
+    ];
+};

@@ -73,13 +73,13 @@ func (fm *FlowsManager) createPipeline(
 		errorDetails := fmt.Sprintf("Failed to create pipeline for Digital Twin %d: %v", digitalTwin.Id, err)
 		fm.log.Errorf("%s", errorDetails)
 		pipeline.LogPipelineError("Pipeline creation failed", errorDetails)
-		pipeline.SetStatus(common.PipelineStatusError)
+		pipeline.SetStatus(ctx, common.PipelineStatusError)
 	} else {
 		msg := fmt.Sprintf("Pipeline of digital twin '%s' created successfully", digitalTwin.Description)
 		fm.log.Info(msg)
 		if action == "create" {
 			pipeline.LogPipelineInfo(msg)
-			pipeline.SetStatus(common.PipelineStatusCreated)
+			pipeline.SetStatus(ctx, common.PipelineStatusCreated)
 		}
 	}
 
@@ -176,7 +176,7 @@ func (fm *FlowsManager) createPipelineInstanceFromData(ctx context.Context, pd *
 	}
 
 	for _, nodeData := range pipeline.NodesData {
-		node, err := nodes.CreateNode(*nodeData, fm.log, fm, pipeline)
+		node, err := nodes.CreateNode(ctx, *nodeData, fm.log, fm, pipeline)
 		if err != nil {
 			errMsg := fmt.Sprintf("Failed to create node %s: %v.", nodeData.Name, err)
 			pipelineErrors.AddErrorMsg(errMsg)
@@ -222,16 +222,16 @@ func (fm *FlowsManager) CreatePipelineWire(ctx context.Context, wire *common.Wir
 
 }
 
-func (p *Pipeline) SetStatus(status common.PipelineStatus) {
+func (p *Pipeline) SetStatus(ctx context.Context,status common.PipelineStatus) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	p.setStatusUnsafe(status)
+	p.setStatusUnsafe(ctx, status)
 }
 
-func (p *Pipeline) setStatusUnsafe(status common.PipelineStatus) {
+func (p *Pipeline) setStatusUnsafe(ctx context.Context, status common.PipelineStatus) {
 	pipelineStatus := status.String()
 	p.Status = status
-	replicaIndexLeader := p.GetReplicaIndexLeader()
+	replicaIndexLeader := p.GetReplicaIndexLeader(ctx)
 	payload := common.PipelineStatusMessage{
 		PipelineStatus:     pipelineStatus,
 		ReplicaIndexLeader: replicaIndexLeader,
@@ -239,10 +239,10 @@ func (p *Pipeline) setStatusUnsafe(status common.PipelineStatus) {
 	p.PublishPipelineStatus(payload)
 }
 
-func (p *Pipeline) GetReplicaIndexLeader() int {
+func (p *Pipeline) GetReplicaIndexLeader(ctx context.Context) int {
 	replicaIndexLeader := -1
 	if p.LeaderElector != nil {
-		replicaIndexLeader = p.LeaderElector.GetReplicaIndexLeader()
+		replicaIndexLeader = p.LeaderElector.GetReplicaIndexLeader(ctx)
 	}
 	return replicaIndexLeader
 }
@@ -254,7 +254,7 @@ func (p *Pipeline) GetStatus() common.PipelineStatus {
 }
 
 
-func (p *Pipeline) ResetNode(nodeUid string) error {
+func (p *Pipeline) ResetNode(ctx context.Context, nodeUid string) error {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 
@@ -262,7 +262,7 @@ func (p *Pipeline) ResetNode(nodeUid string) error {
 		return fmt.Errorf("no nodes data available to restart node %s", nodeUid)
 	}
 
-	err := p.createNodeUnsafe(nodeUid)
+	err := p.createNodeUnsafe(ctx, nodeUid)
 	if err != nil {
 		return err
 	}
@@ -279,7 +279,7 @@ func (p *Pipeline) RestartNode(ctx context.Context, nodeUid string) error {
 		return fmt.Errorf("no nodes data available to restart node %s", nodeUid)
 	}
 
-	err := p.createNodeUnsafe(nodeUid)
+	err := p.createNodeUnsafe(ctx, nodeUid)
 	if err != nil {
 		return err
 	}
@@ -299,7 +299,7 @@ func (p *Pipeline) RestartNode(ctx context.Context, nodeUid string) error {
 				elapsed := time.Since(startTime)
 				msg := fmt.Sprintf("Node %s in digital twin %d has been restarted successfully (took %v)", p.Nodes[nodeUid].GetName(), p.DigitalTwinId, elapsed)
 				p.Fm.log.Infof(msg)
-				p.SetStatus(common.PipelineStatusRunning)
+				p.SetStatus(ctx, common.PipelineStatusRunning)
 				return nil
 			}
 		case <-timeoutChan:
@@ -320,13 +320,13 @@ func (p *Pipeline) GetNodeData(nodeUid string) *common.NodeData {
 	return nil
 }
 
-func (p *Pipeline) createNodeUnsafe(nodeUid string) error {
+func (p *Pipeline) createNodeUnsafe(ctx context.Context, nodeUid string) error {
 	nodeData, ok := p.NodesData[nodeUid]
 	if !ok {
 		return fmt.Errorf("node data with UID %s not found", nodeUid)
 	}
 
-	newNode, err := nodes.CreateNode(*nodeData, p.Fm.log, p.Fm, p)
+	newNode, err := nodes.CreateNode(ctx, *nodeData, p.Fm.log, p.Fm, p)
 	if err != nil {
 		return err
 	}
@@ -604,20 +604,20 @@ func (p *Pipeline) Start(ctx context.Context, needReinitialization bool) {
     for {
         select {
         case <-ctx.Done():
-            p.SetStatus(common.PipelineStatusError)
+            p.SetStatus(ctx, common.PipelineStatusError)
             return
         case <-ticker.C:
             if p.allNodesRunning() {
                 p.Fm.log.Infof("All nodes running in digital twin %d (took %v)", p.DigitalTwinId, time.Since(startTime))
                 p.LogPipelineInfo(fmt.Sprintf("Pipeline of digital twin '%s' started successfully.", p.DigitalTwinDescription))
-                p.SetStatus(common.PipelineStatusRunning)
+                p.SetStatus(ctx, common.PipelineStatusRunning)
                 return
             }
         case <-timer.C:
             notRunning := p.getNotRunningNodes()
             p.Fm.log.Warnf("Timeout waiting for nodes in digital twin %d: %v", p.DigitalTwinId, notRunning)
             p.LogPipelineError("Pipeline start failed", fmt.Sprintf("Timeout waiting for nodes: %v", notRunning))
-            p.SetStatus(common.PipelineStatusError)
+            p.SetStatus(ctx, common.PipelineStatusError)
             return
         }
     }
@@ -686,7 +686,7 @@ func (p *Pipeline) anyNodeRunningUnsafe() bool {
 	return false
 }
 
-func (p *Pipeline) Stop(action string) error {
+func (p *Pipeline) Stop(ctx context.Context, action string) error {
     nodes := p.getNodesSnapshot()
     if len(nodes) == 0 {
         return fmt.Errorf("no nodes data available to stop pipeline")
@@ -696,7 +696,7 @@ func (p *Pipeline) Stop(action string) error {
         node.Stop(p.Fm.log)
     }
 
-	defer p.LeaderElector.Stop()
+	defer p.LeaderElector.Stop(ctx)
 
     ticker := time.NewTicker(100 * time.Millisecond)
     defer ticker.Stop()
@@ -710,13 +710,13 @@ func (p *Pipeline) Stop(action string) error {
                 p.Fm.log.Infof("All nodes in digital twin %d have stopped", p.GetDigitalTwinId())
                 switch action {
                 case "stop":
-                    p.SetStatus(common.PipelineStatusStopped)
+                    p.SetStatus(ctx,common.PipelineStatusStopped)
                     p.LogPipelineInfo("Pipeline stopped successfully") 
                 case "telegram_stopped":
-                    p.SetStatus(common.PipelineStatusError)
+                    p.SetStatus(ctx, common.PipelineStatusError)
                     p.LogPipelineError("Pipeline stopped by change in Telegram bot settings", "The Telegram bot settings have changed, so the pipeline has been stopped.")
                 case "delete":
-                    p.SetStatus(common.PipelineStatusDeleted)
+                    p.SetStatus(ctx, common.PipelineStatusDeleted)
                     p.LogPipelineInfo("Pipeline deleted successfully")
                 }
                 return nil
@@ -724,7 +724,7 @@ func (p *Pipeline) Stop(action string) error {
         case <-timer.C:
             p.Fm.log.Warnf("Timeout while waiting for nodes to stop in digital twin %d", p.GetDigitalTwinId())
             p.LogPipelineError("Pipeline stop failed", "Timeout while waiting for nodes to stop")
-            p.SetStatus(common.PipelineStatusError)
+            p.SetStatus(ctx, common.PipelineStatusError)
             return fmt.Errorf("timeout while waiting for nodes to stop in digital twin %d", p.GetDigitalTwinId())
         }
     }
@@ -842,7 +842,7 @@ type ChatMessagesPayload struct {
 	ChatMessages []utils.ChatMessage `json:"chatMessages"`
 }
 
-func (p *Pipeline) PublishChatMessages(userName string) {
+func (p *Pipeline) PublishChatMessages(ctx context.Context, userName string) {
 	state2simTopic := p.Fm.GetTopicByTopicRef(p.GetAssetId(), p.GetDigitalTwinId(), "state2sim")
 	state2simSubject := utils.TopicToNatsSubject(state2simTopic.TopicType, state2simTopic.GroupUid, state2simTopic.TopicUid)
 
@@ -854,7 +854,7 @@ func (p *Pipeline) PublishChatMessages(userName string) {
 	kvStore := p.Fm.GetDigitalTwinKvStore(p.GetDigitalTwinId())
 	key := utils.GetFullChatMessageKvStoreKey(userName, p.GetOrgHash(), p.GetDigitalTwinUid())
 
-	chatSchemaMessages, mcpToolCallsArray, err := utils.GetCurrentChatMessages(p.Fm.Log(), kvStore, key, userName)
+	chatSchemaMessages, mcpToolCallsArray, err := utils.GetCurrentChatMessages(ctx, p.Fm.Log(), kvStore, key, userName)
 	if err != nil {
 		p.Fm.Log().Errorf("Failed to get current chat messages for user %s: %v", userName, err)
 		return
@@ -935,7 +935,7 @@ func (p *Pipeline) StartStatusPublisher(ctx context.Context) {
 		defer ticker.Stop()
 
 		// Publish immediately at the start
-		p.publishStatus()
+		p.publishStatus(ctx)
 
 		for {
 			select {
@@ -943,7 +943,7 @@ func (p *Pipeline) StartStatusPublisher(ctx context.Context) {
 				p.Fm.Log().Infof("Stopping status publisher for pipeline DigitalTwin: %d", p.GetDigitalTwinId())
 				return
 			case <-ticker.C:
-				p.publishStatus()
+				p.publishStatus(ctx)
 			}
 		}
 	}()
@@ -951,10 +951,10 @@ func (p *Pipeline) StartStatusPublisher(ctx context.Context) {
 	p.Fm.Log().Infof("Started status publisher for pipeline DigitalTwin: %d", p.GetDigitalTwinId())
 }
 
-func (p *Pipeline) publishStatus() {
+func (p *Pipeline) publishStatus(ctx context.Context) {
 	if p.LeaderElector != nil && p.LeaderElector.IsLeader() {
 		pipelineStatus := p.GetStatus().String()
-		replicaIndexLeader := p.GetReplicaIndexLeader()
+		replicaIndexLeader := p.GetReplicaIndexLeader(ctx)
 
 		payload := common.PipelineStatusMessage{
 			PipelineStatus:     pipelineStatus,

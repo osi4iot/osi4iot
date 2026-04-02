@@ -399,6 +399,7 @@ interface MapProps {
     refreshGroupsManaged: () => void;
     refreshAssetTypes: () => void;
     refreshAssets: () => void;
+    refreshAssetS3Folders: () => void;
     refreshAssetsWithMarker: () => void;
     refreshSensors: () => void;
     refreshDigitalTwins: () => void;
@@ -453,6 +454,7 @@ const Map: FC<MapProps> = (
         refreshGroupsManaged,
         refreshAssetTypes,
         refreshAssets,
+        refreshAssetS3Folders,
         refreshAssetsWithMarker,
         refreshSensors,
         refreshDigitalTwins,
@@ -481,6 +483,7 @@ const Map: FC<MapProps> = (
         refreshGroupsManaged();
         refreshAssetTypes();
         refreshAssets();
+        refreshAssetS3Folders();
         refreshAssetsWithMarker();
         refreshSensors();
         refreshDigitalTwins();
@@ -491,6 +494,7 @@ const Map: FC<MapProps> = (
         refreshGroupsManaged,
         refreshAssetTypes,
         refreshAssets,
+        refreshAssetS3Folders,
         refreshAssetsWithMarker,
         refreshSensors,
         refreshDigitalTwins

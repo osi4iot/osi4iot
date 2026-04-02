@@ -23,7 +23,7 @@ import (
    };
 */
 
-type Params struct {
+type IotDbParams struct {
 	Action      string
 	GroupUID    string
 	TopicMap    map[string]*common.Topic
@@ -42,7 +42,7 @@ type SqlField struct {
 type IoTDbNode struct {
 	BaseNode
 	QueryMode string
-	Params    Params
+	Params    IotDbParams
 }
 
 var posibleQueryModesForIotDbNode = []string{
@@ -132,7 +132,7 @@ func CreateIoTDbNode(node common.NodeData, fm common.Manager, p common.Pipeline)
 			status:     common.NodeStatusCreated,
 		},
 		QueryMode: queryMode,
-		Params: Params{
+		Params: IotDbParams{
 			Action:      action,
 			GroupUID:    groupUid,
 			TopicMap:    topicMap,
@@ -160,7 +160,7 @@ func (n *IoTDbNode) Start(ctx context.Context, log *logger.Logger, needReinitial
 
 func (n *IoTDbNode) processMessage(msg common.Message, log *logger.Logger) error {
 	var action string
-	var params Params
+	var params IotDbParams
 
 	switch n.QueryMode {
 	case "static_query":
@@ -203,7 +203,7 @@ func (n *IoTDbNode) processMessage(msg common.Message, log *logger.Logger) error
 			}
 		}
 
-		params = Params{
+		params = IotDbParams{
 			Action:      sqlData.Action,
 			GroupUID:    n.Params.GroupUID,
 			ReadQuery:   readQuery,
@@ -227,7 +227,7 @@ func (n *IoTDbNode) processMessage(msg common.Message, log *logger.Logger) error
 	}
 }
 
-func (n *IoTDbNode) processInsertQuery(msg common.Message, params Params, log *logger.Logger) error {
+func (n *IoTDbNode) processInsertQuery(msg common.Message, params IotDbParams, log *logger.Logger) error {
 	var isMessageArray bool = false
 	var msgArray []any
 	if mArray, ok := msg.Payload["msgArray"].([]any); ok {
@@ -261,7 +261,7 @@ func (n *IoTDbNode) processInsertQuery(msg common.Message, params Params, log *l
 	return nil
 }
 
-func (n *IoTDbNode) processReadQuery(msg common.Message, params Params, log *logger.Logger) error {
+func (n *IoTDbNode) processReadQuery(msg common.Message, params IotDbParams, log *logger.Logger) error {
 	sqlTemplate := iotdb.SQLTemplate{
 		Query:     params.ReadQuery,
 		TopicMap:  params.TopicMap,
@@ -291,7 +291,7 @@ func (n *IoTDbNode) processReadQuery(msg common.Message, params Params, log *log
 	}
 
 	payload := msg.Payload
-	payload["sqlResults"] = sqlResults
+	payload["rows"] = sqlResults
 	resultMsg := common.Message{
 		Payload: payload,
 	}
@@ -301,7 +301,7 @@ func (n *IoTDbNode) processReadQuery(msg common.Message, params Params, log *log
 	return nil
 }
 
-func (n *IoTDbNode) CreateAndSendRow(msg common.Message, params Params, log *logger.Logger) error {
+func (n *IoTDbNode) CreateAndSendRow(msg common.Message, params IotDbParams, log *logger.Logger) error {
 	var timestamp time.Time
 	var err error
 	ts, ok := msg.Payload["timestamp"].(string)

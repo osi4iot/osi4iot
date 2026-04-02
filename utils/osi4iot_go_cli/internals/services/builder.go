@@ -288,8 +288,6 @@ func GenerateServices(pd *pt.PlatformData, sd pt.SwarmData) map[string]pt.Servic
 		"traefik":      TraefikService(pd, sd, svcResourcesMap["traefik"]),
 		"postgres":     PostgresService(pd, sd, svcResourcesMap["postgres"], nodeRoleNumMap),
 		"timescaledb":  TimescaledbService(pd, sd, svcResourcesMap["timescaledb"], nodeRoleNumMap),
-		"s3_storage":   S3StorageService(pd, sd, svcResourcesMap["s3_storage"], nodeRoleNumMap),
-		"dev2pdb":      Dev2pdbService(pd, sd, svcResourcesMap["dev2pdb"], nodeRoleNumMap),
 		"admin_api":    AdminApiService(pd, sd, svcResourcesMap["admin_api"], nodeRoleNumMap),
 		"frontend":     FrontendService(pd, sd, svcResourcesMap["frontend"], nodeRoleNumMap),
 		"grafana":      GrafanaService(pd, sd, svcResourcesMap["grafana"]),

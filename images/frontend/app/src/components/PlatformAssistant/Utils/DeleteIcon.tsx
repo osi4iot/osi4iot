@@ -1,7 +1,7 @@
 import { ComponentType, FC, SyntheticEvent } from "react";
 import { FaTrashAlt } from "react-icons/fa";
 import styled from "styled-components";
-
+import { toast } from "react-toastify";
 
 const FaTrashAltStyled = styled(FaTrashAlt as ComponentType<any>)`
     font-size: 17px;
@@ -38,11 +38,19 @@ const IconContainer = styled.div<FaTrashAltProps>`
 interface DeleteIconProps {
     action: any;
     rowIndex: number;
+    undeletable?: boolean;
+    undeletableMessage?: string;
 }
 
-const DeleteIcon: FC<DeleteIconProps> = ({ action, rowIndex }) => {
+const DeleteIcon: FC<DeleteIconProps> = ({ action, rowIndex, undeletable, undeletableMessage }) => {
 
     const handleClick = (e: SyntheticEvent) => {
+        if (undeletable) {
+            const message = undeletableMessage || "This element cannot be deleted.";
+            toast.error(message);
+            return;
+        }
+
         action();
     };
 

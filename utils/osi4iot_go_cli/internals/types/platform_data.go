@@ -94,13 +94,8 @@ type PlatformInfo struct {
 	TimescalePassword              string `json:"TIMESCALE_PASSWORD"`
 	TimescaleDB                    string `json:"TIMESCALE_DB"`
 	TimescaleDataRetentionInterval string `json:"TIMESCALE_DATA_RET_INT_DAYS"`
-	NumberDev2pdbWorkers           int    `json:"NUMBER_DEV2PDB_WORKERS"`
-	Dev2pdbBatchSize               int    `json:"DEV2PDB_BATCH_SIZE"`
 	GrafanaDBPassword              string `json:"GRAFANA_DB_PASSWORD"`
 	GrafanaDatasourcePassword      string `json:"GRAFANA_DATASOURCE_PASSWORD"`
-	Dev2pdbPassword                string `json:"DEV2PDB_PASSWORD"`
-	Dev2pdbNatsNkeyPublic          string `json:"DEV2PDB_NATS_NKEY_PUBLIC"`
-	Dev2pdbNatsNkeySeed            string `json:"DEV2PDB_NATS_NKEY_SEED"`
 	NodeRedAdmin                   string `json:"NODE_RED_ADMIN"`
 	NodeRedAdminHash               string `json:"NODE_RED_ADMIN_HASH"`
 	PGAdminDefaultEmail            string `json:"PGADMIN_DEFAULT_EMAIL"`

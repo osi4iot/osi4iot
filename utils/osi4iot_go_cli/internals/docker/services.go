@@ -661,15 +661,13 @@ func ScaleSwarmService(pd *pt.PlatformData, dc *pt.DockerClient, serviceName str
 
 		// Fase 6: Update nats dependent services to use new nats config secret
 		if AreNeededNatsDependentServiceUpdates(currentReplicas, replicas) {
-			natsDependentServices := []string{"admin_api", "dev2pdb", "pipelines"}
+			natsDependentServices := []string{"admin_api", "pipelines"}
 			secretsKeys := map[string]string{
 				"admin_api": "admin_api",
-				"dev2pdb":   "dev2pdb_config",
 				"pipelines": "pipelines_config",
 			}
 			targetFiles := map[string]string{
 				"admin_api": "admin_api.txt",
-				"dev2pdb":   "/dev2pdb/config.yaml",
 				"pipelines": "/pipelines/config.yaml",
 			}
 			for _, dependentService := range natsDependentServices {
@@ -748,10 +746,6 @@ func CreateNatsDependentServiceSecrets(pd *pt.PlatformData, dc *pt.DockerClient,
 		adminApiSecret := secrets.CreateAdminApiConfigSecret(pd, numNatsReplicas)
 		secrets.CreateSecretByName(dc, &adminApiSecret)
 		return adminApiSecret, nil
-	case "dev2pdb":
-		dev2pdbSecret := secrets.CreateDev2pdbConfigSecret(pd, numNatsReplicas)
-		secrets.CreateSecretByName(dc, &dev2pdbSecret)
-		return dev2pdbSecret, nil
 	case "pipelines":
 		pipelinesSecret := secrets.CreatePipelinesConfigSecret(pd, numNatsReplicas)
 		secrets.CreateSecretByName(dc, &pipelinesSecret)

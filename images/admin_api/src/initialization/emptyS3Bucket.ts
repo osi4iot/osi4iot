@@ -17,14 +17,15 @@ export const emptyBucket = async () => {
 		while (isTruncated) {
 			const data = await s3Client.send(command);
 			if (data.KeyCount !== 0) {
-				fileListToRemove.push(...data.Contents.map(fileData => fileData.Key))
+				fileListToRemove.push(...data.Contents.map((fileData) => fileData.Key));
 			}
 			isTruncated = data.IsTruncated;
 			command.input.ContinuationToken = data.NextContinuationToken;
 		}
-		if(fileListToRemove.length !== 0) await deleteBucketFiles(fileListToRemove);
+		if (fileListToRemove.length !== 0) await deleteBucketFiles(fileListToRemove);
 		logger.log("info", `Bucket ${bucketName} has been emptied`);
 	} catch (err) {
-		logger.log("error", `Bucket ${bucketName} could not be emptied: %s`, err.message)
+		const message = err instanceof Error ? err.message : String(err);
+		logger.log("error", `Bucket ${bucketName} could not be emptied: %s`, message);
 	}
 };

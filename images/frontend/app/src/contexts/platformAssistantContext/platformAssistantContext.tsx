@@ -23,10 +23,10 @@ import { IMlModel } from '../../components/PlatformAssistant/TableColumns/mlMode
 import { IAsset } from '../../components/PlatformAssistant/TableColumns/assetsColumns';
 import { ISensor } from '../../components/PlatformAssistant/TableColumns/sensorsColumns';
 import { IAssetType } from '../../components/PlatformAssistant/TableColumns/assetTypesColumns';
-import IAssetS3Folder from '../../components/PlatformAssistant/TableColumns/assetS3Folder.interface';
 import { ISensorType } from '../../components/PlatformAssistant/TableColumns/sensorTypesColumns';
 import IAssetTopic from '../../components/PlatformAssistant/TableColumns/assetTopics.interface';
 import { IOrganization } from '../../components/PlatformAssistant/TableColumns/organizationsColumns';
+import IAssetS3Folder from '../../components/PlatformAssistant/TableColumns/assetS3FolderColumns';
 
 const PlatformAssitantStateContext = createContext<PlatformAssistantContextProps>(initialState);
 const PlatformAssitantDispatchContext = createContext<any>({});

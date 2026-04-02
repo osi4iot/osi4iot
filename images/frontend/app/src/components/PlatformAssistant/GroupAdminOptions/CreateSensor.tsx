@@ -1,35 +1,46 @@
-import { FC, useState, SyntheticEvent, useEffect } from 'react';
+import { FC, useState, SyntheticEvent, useEffect } from "react";
 import styled from "styled-components";
-import { Formik, Form, FormikProps } from 'formik';
-import * as Yup from 'yup';
-import { useAuthState, useAuthDispatch } from '../../../contexts/authContext';
+import { Formik, Form, FormikProps } from "formik";
+import * as Yup from "yup";
+import { useAuthState, useAuthDispatch } from "../../../contexts/authContext";
 import { IOption, axiosAuth, convertArrayToOptions, getDomainName, getProtocol } from "../../../tools/tools";
 import { toast } from "react-toastify";
 import FormikControl from "../../Tools/FormikControl";
 import FormButtonsProps from "../../Tools/FormButtons";
 import FormTitle from "../../Tools/FormTitle";
-import { SENSORS_OPTIONS } from '../Utils/platformAssistantOptions';
-import { getAxiosInstance } from '../../../tools/axiosIntance';
-import axiosErrorHandler from '../../../tools/axiosErrorHandler';
-import { IOrgOfGroupsManaged } from '../TableColumns/orgsOfGroupsManagedColumns';
-import { IGroupManaged } from '../TableColumns/groupsManagedColumns';
-import SvgComponent from '../../Tools/SvgComponent';
+import { SENSORS_OPTIONS } from "../Utils/platformAssistantOptions";
+import { getAxiosInstance } from "../../../tools/axiosIntance";
+import axiosErrorHandler from "../../../tools/axiosErrorHandler";
+import { IOrgOfGroupsManaged } from "../TableColumns/orgsOfGroupsManagedColumns";
+import { IGroupManaged } from "../TableColumns/groupsManagedColumns";
+import SvgComponent from "../../Tools/SvgComponent";
 import {
     setReloadDashboardsTable,
     useAssetTopicsTable,
-    useAssetsTable, useGroupsManagedTable,
+    useAssetsTable,
+    useGroupsManagedTable,
     useOrgsOfGroupsManagedTable,
     usePlatformAssitantDispatch,
     useSensorTypesTable,
     useSensorsTable,
-} from '../../../contexts/platformAssistantContext';
-import { IAsset } from '../TableColumns/assetsColumns';
-import { ISensorType } from '../TableColumns/sensorTypesColumns';
-import { setSensorsOptionToShow, useSensorsDispatch } from '../../../contexts/sensorsOptions';
-import IAssetTopic from '../TableColumns/assetTopics.interface';
-import { ISensor } from '../TableColumns/sensorsColumns';
-import { ControlsContainer, FormContainer } from './CreateAsset';
-import { AxiosError, AxiosResponse } from 'axios';
+} from "../../../contexts/platformAssistantContext";
+import { IAsset } from "../TableColumns/assetsColumns";
+import { ISensorType } from "../TableColumns/sensorTypesColumns";
+import { setSensorsOptionToShow, useSensorsDispatch } from "../../../contexts/sensorsOptions";
+import IAssetTopic from "../TableColumns/assetTopics.interface";
+import { ISensor } from "../TableColumns/sensorsColumns";
+import { AxiosError, AxiosResponse } from "axios";
+
+// CodeMirror imports
+import CodeMirror, { keymap } from "@uiw/react-codemirror";
+import { indentUnit, indentOnInput } from "@codemirror/language";
+import { completionKeymap } from "@codemirror/autocomplete";
+import { indentWithTab } from "@codemirror/commands";
+import { json } from "@codemirror/lang-json";
+import { oneDark } from "@codemirror/theme-one-dark";
+import { CodeMirrorWrapper } from "../../Tools/CodeMirrorWrapper";
+import { ControlsContainer, DraggableFormContainer, FieldErrorScroller } from "../../Tools/FormTools";
+import { ReIndentCommand } from "../DigitalTwin3DViewer/Pipeline/types";
 
 const SvgIconPreviewContainerDiv = styled.div`
     margin: 5px 0;
@@ -81,42 +92,39 @@ const domainName = getDomainName();
 const protocol = getProtocol();
 
 const findOrgArray = (assetsManaged: IAsset[], orgsOfGroupManaged: IOrgOfGroupsManaged[]): string[] => {
-    const orgArray: string[] = []
+    const orgArray: string[] = [];
     for (const asset of assetsManaged) {
-        const orgAcronym = orgsOfGroupManaged.filter(org => org.id === asset.orgId)[0].acronym;
+        const orgAcronym = orgsOfGroupManaged.filter((org) => org.id === asset.orgId)[0].acronym;
         if (orgArray.indexOf(orgAcronym) === -1) {
             orgArray.push(orgAcronym);
         }
     }
     return orgArray;
-}
+};
 
 const findGroupArray = (
     assetsManaged: IAsset[],
     orgsOfGroupManaged: IOrgOfGroupsManaged[],
-    groupsManaged: IGroupManaged[]
+    groupsManaged: IGroupManaged[],
 ): Record<string, string[]> => {
-    const groupArray: Record<string, string[]> = {}
+    const groupArray: Record<string, string[]> = {};
     for (const asset of assetsManaged) {
-        const orgAcronym = orgsOfGroupManaged.filter(org => org.id === asset.orgId)[0].acronym;
+        const orgAcronym = orgsOfGroupManaged.filter((org) => org.id === asset.orgId)[0].acronym;
         if (groupArray[orgAcronym] === undefined) {
             groupArray[orgAcronym] = [];
         }
-        const groupAcronym = groupsManaged.filter(group => group.id === asset.groupId)[0].acronym;
+        const groupAcronym = groupsManaged.filter((group) => group.id === asset.groupId)[0].acronym;
         if (groupArray[orgAcronym].indexOf(groupAcronym) === -1) {
             groupArray[orgAcronym].push(groupAcronym);
         }
     }
     return groupArray;
-}
+};
 
-const findAssetNameArray = (
-    assetsManaged: IAsset[],
-    groupsManaged: IGroupManaged[]
-): Record<string, string[]> => {
-    const assetArray: Record<string, string[]> = {}
+const findAssetNameArray = (assetsManaged: IAsset[], groupsManaged: IGroupManaged[]): Record<string, string[]> => {
+    const assetArray: Record<string, string[]> = {};
     for (const asset of assetsManaged) {
-        const groupAcronym = groupsManaged.filter(group => group.id === asset.groupId)[0].acronym;
+        const groupAcronym = groupsManaged.filter((group) => group.id === asset.groupId)[0].acronym;
         if (assetArray[groupAcronym] === undefined) {
             assetArray[groupAcronym] = [];
         }
@@ -126,23 +134,20 @@ const findAssetNameArray = (
         }
     }
     return assetArray;
-}
+};
 
-const findAssetDescription = (
-    assetsManaged: IAsset[],
-    assetName: string
-): string => {
-    const assetManaged = assetsManaged.filter(asset => `Asset_${asset.assetUid}` === assetName)[0];
+const findAssetDescription = (assetsManaged: IAsset[], assetName: string): string => {
+    const assetManaged = assetsManaged.filter((asset) => `Asset_${asset.assetUid}` === assetName)[0];
     return assetManaged.description;
-}
+};
 
 const findSensorTypeArray = (
     sensorTypes: ISensorType[],
     orgsOfGroupManaged: IOrgOfGroupsManaged[],
 ): Record<string, string[]> => {
-    const sensorTypeArray: Record<string, string[]> = {}
+    const sensorTypeArray: Record<string, string[]> = {};
     for (const sensorType of sensorTypes) {
-        const orgAcronym = orgsOfGroupManaged.filter(org => org.id === sensorType.orgId)[0].acronym;
+        const orgAcronym = orgsOfGroupManaged.filter((org) => org.id === sensorType.orgId)[0].acronym;
         if (sensorTypeArray[orgAcronym] === undefined) {
             sensorTypeArray[orgAcronym] = [];
         }
@@ -151,15 +156,12 @@ const findSensorTypeArray = (
         }
     }
     return sensorTypeArray;
-}
+};
 
-const findTopicRefArray = (
-    assetTopics: IAssetTopic[],
-    assetsManaged: IAsset[],
-): Record<string, string[]> => {
-    const topicRefArray: Record<string, string[]> = {}
+const findTopicRefArray = (assetTopics: IAssetTopic[], assetsManaged: IAsset[]): Record<string, string[]> => {
+    const topicRefArray: Record<string, string[]> = {};
     for (const assetTopic of assetTopics) {
-        const assetManaged = assetsManaged.filter(asset => asset.id === assetTopic.assetId)[0];
+        const assetManaged = assetsManaged.filter((asset) => asset.id === assetTopic.assetId)[0];
         const assetName = `Asset_${assetManaged.assetUid}`;
         if (topicRefArray[assetName] === undefined) {
             topicRefArray[assetName] = [];
@@ -169,33 +171,35 @@ const findTopicRefArray = (
         }
     }
     return topicRefArray;
-}
+};
 
 const findSensorTypeSelected = (
     sensorTypes: ISensorType[],
     orgsOfGroupManaged: IOrgOfGroupsManaged[],
     type: string,
-    orgAcronym: string
+    orgAcronym: string,
 ): ISensorType => {
-    const orgId = orgsOfGroupManaged.filter(org => org.acronym === orgAcronym)[0].id;
-    const sensorTypeSelected = sensorTypes.filter(sensorType =>
-        sensorType.type === type && sensorType.orgId === orgId
+    const orgId = orgsOfGroupManaged.filter((org) => org.acronym === orgAcronym)[0].id;
+    const sensorTypeSelected = sensorTypes.filter(
+        (sensorType) => sensorType.type === type && sensorType.orgId === orgId,
     )[0];
     return sensorTypeSelected;
-}
+};
 
 const findNewSensorRefNum = (storedSensors: ISensor[], assets: IAsset[], assetName: string) => {
     let newSensorRefNum = 1;
-    const selectedAsset = assets.filter(asset => `Asset_${asset.assetUid}` === assetName)[0];
+    const selectedAsset = assets.filter((asset) => `Asset_${asset.assetUid}` === assetName)[0];
     const assetId = selectedAsset.id;
-    const storedSensorsFiltered = storedSensors.filter(sensor => sensor.assetId === assetId);
+    const storedSensorsFiltered = storedSensors.filter((sensor) => sensor.assetId === assetId);
     if (storedSensorsFiltered.length !== 0) {
-        const storedSensorsRef = storedSensorsFiltered.map(sensor => sensor.sensorRef);
-        const lastSensorRef = storedSensorsRef.sort((a: any, b: any) => a.slice(7) - b.slice(7))[storedSensorsRef.length - 1];
+        const storedSensorsRef = storedSensorsFiltered.map((sensor) => sensor.sensorRef);
+        const lastSensorRef = storedSensorsRef.sort((a: any, b: any) => a.slice(7) - b.slice(7))[
+            storedSensorsRef.length - 1
+        ];
         newSensorRefNum = parseInt(lastSensorRef.slice(7), 10) + 1;
     }
     return newSensorRefNum;
-}
+};
 
 interface InitialSensorData {
     orgAcronym: string;
@@ -203,23 +207,20 @@ interface InitialSensorData {
     assetName: string;
     assetDescription: string;
     sensorType: string;
-    topicRef: string,
+    topicRef: string;
     sensorRef: string;
     description: string;
     payloadJsonSchema: string;
 }
 
-type FormikType = FormikProps<InitialSensorData>
+type FormikType = FormikProps<InitialSensorData>;
 
 interface CreateSensorProps {
     backToTable: () => void;
     refreshSensors: () => void;
 }
 
-const CreateSensor: FC<CreateSensorProps> = ({
-    backToTable,
-    refreshSensors
-}) => {
+const CreateSensor: FC<CreateSensorProps> = ({ backToTable, refreshSensors }) => {
     const plaformAssistantDispatch = usePlatformAssitantDispatch();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const { accessToken, refreshToken } = useAuthState();
@@ -242,11 +243,11 @@ const CreateSensor: FC<CreateSensorProps> = ({
     const [topicRefArray, setTopicRefAarray] = useState<Record<string, string[]>>({});
     const [topicRefOptions, setTopicRefOptions] = useState<IOption[]>([]);
     const initOrg = orgsOfGroupManaged[0];
-    const initGroup = groupsManaged.filter(group => group.orgId === initOrg.id)[0];
-    const initAsset = assets.filter(asset => asset.groupId === initGroup.id)[0];
+    const initGroup = groupsManaged.filter((group) => group.orgId === initOrg.id)[0];
+    const initAsset = assets.filter((asset) => asset.groupId === initGroup.id)[0];
     const initAssetName = `Asset_${initAsset.assetUid}`;
-    const initSensorType = sensorTypes.filter(sensorType => sensorType.orgId === initOrg.id)[0];
-    const initTopicRef = assetTopics.filter(assetTopic => assetTopic.assetId === initAsset.id)[0];
+    const initSensorType = sensorTypes.filter((sensorType) => sensorType.orgId === initOrg.id)[0];
+    const initTopicRef = assetTopics.filter((assetTopic) => assetTopic.assetId === initAsset.id)[0];
     const newSensorRefNum = findNewSensorRefNum(storedSensors, assets, initAssetName);
     const [iconSvgString, setIconSvgString] = useState(initSensorType.iconSvgString);
 
@@ -259,8 +260,8 @@ const CreateSensor: FC<CreateSensorProps> = ({
         topicRef: initTopicRef.topicRef,
         sensorRef: `sensor_${newSensorRefNum}`,
         description: "",
-        payloadJsonSchema: JSON.stringify(initSensorType.defaultPayloadJsonSchema, null, 4)
-    }
+        payloadJsonSchema: JSON.stringify(initSensorType.defaultPayloadJsonSchema, null, 4),
+    };
 
     useEffect(() => {
         const orgArray = findOrgArray(assets, orgsOfGroupManaged);
@@ -294,7 +295,7 @@ const CreateSensor: FC<CreateSensorProps> = ({
         initGroup.acronym,
         initOrg.acronym,
         orgsOfGroupManaged,
-        sensorTypes
+        sensorTypes,
     ]);
 
     const handleChangeOrg = (e: { value: string }, formik: FormikType) => {
@@ -320,9 +321,9 @@ const CreateSensor: FC<CreateSensorProps> = ({
         formik.setFieldValue("sensorRef", `sensor_${newSensorRefNum}`);
         const sensorTypeSelected = findSensorTypeSelected(sensorTypes, orgsOfGroupManaged, sensorType, orgAcronym);
         setIconSvgString(sensorTypeSelected.iconSvgString);
-        const payloadJsonSchema = JSON.stringify(sensorTypeSelected.defaultPayloadJsonSchema, null, 4)
+        const payloadJsonSchema = JSON.stringify(sensorTypeSelected.defaultPayloadJsonSchema, null, 4);
         formik.setFieldValue("payloadJsonSchema", payloadJsonSchema);
-    }
+    };
 
     const handleChangeGroup = (e: { value: string }, formik: FormikType) => {
         const orgAcronym = formik.values.orgAcronym;
@@ -344,9 +345,9 @@ const CreateSensor: FC<CreateSensorProps> = ({
         formik.setFieldValue("sensorRef", `sensor_${newSensorRefNum}`);
         const sensorTypeSelected = findSensorTypeSelected(sensorTypes, orgsOfGroupManaged, sensorType, orgAcronym);
         setIconSvgString(sensorTypeSelected.iconSvgString);
-        const payloadJsonSchema = JSON.stringify(sensorTypeSelected.defaultPayloadJsonSchema, null, 4)
+        const payloadJsonSchema = JSON.stringify(sensorTypeSelected.defaultPayloadJsonSchema, null, 4);
         formik.setFieldValue("payloadJsonSchema", payloadJsonSchema);
-    }
+    };
 
     const handleChangeAsset = (e: { value: string }, formik: FormikType) => {
         const orgAcronym = formik.values.orgAcronym;
@@ -364,9 +365,9 @@ const CreateSensor: FC<CreateSensorProps> = ({
         formik.setFieldValue("sensorRef", `sensor_${newSensorRefNum}`);
         const sensorTypeSelected = findSensorTypeSelected(sensorTypes, orgsOfGroupManaged, sensorType, orgAcronym);
         setIconSvgString(sensorTypeSelected.iconSvgString);
-        const payloadJsonSchema = JSON.stringify(sensorTypeSelected.defaultPayloadJsonSchema, null, 4)
+        const payloadJsonSchema = JSON.stringify(sensorTypeSelected.defaultPayloadJsonSchema, null, 4);
         formik.setFieldValue("payloadJsonSchema", payloadJsonSchema);
-    }
+    };
 
     const handleChangeSensorType = (e: { value: string }, formik: FormikType) => {
         const sensorType = e.value;
@@ -374,25 +375,25 @@ const CreateSensor: FC<CreateSensorProps> = ({
         const orgAcronym = formik.values.orgAcronym;
         const sensorTypeSelected = findSensorTypeSelected(sensorTypes, orgsOfGroupManaged, sensorType, orgAcronym);
         setIconSvgString(sensorTypeSelected.iconSvgString);
-        const payloadJsonSchema = JSON.stringify(sensorTypeSelected.defaultPayloadJsonSchema, null, 4)
+        const payloadJsonSchema = JSON.stringify(sensorTypeSelected.defaultPayloadJsonSchema, null, 4);
         formik.setFieldValue("payloadJsonSchema", payloadJsonSchema);
-    }
+    };
 
     const onSubmit = (values: any, actions: any) => {
-        const groupId = groupsManaged.filter(group => group.acronym === values.groupAcronym)[0].id;
+        const groupId = groupsManaged.filter((group) => group.acronym === values.groupAcronym)[0].id;
         const assetName = values.assetName;
-        const assetId = assets.filter(asset => asset.assetUid === assetName.slice(6))[0].id;
+        const assetId = assets.filter((asset) => asset.assetUid === assetName.slice(6))[0].id;
         const url = `${protocol}://${domainName}/admin_api/sensor/${groupId}/${assetId}`;
         const config = axiosAuth(accessToken);
-        const topicId = assetTopics.filter(assetTopic => assetTopic.topicRef === values.topicRef)[0].topicId;
-        const sensorTypeId = sensorTypes.filter(sensorType => sensorType.type === values.sensorType)[0].id;
+        const topicId = assetTopics.filter((assetTopic) => assetTopic.topicRef === values.topicRef)[0].topicId;
+        const sensorTypeId = sensorTypes.filter((sensorType) => sensorType.type === values.sensorType)[0].id;
         const sensorData = {
             topicId,
             description: values.description,
             sensorTypeId,
             sensorRef: values.sensorRef,
             payloadJsonSchema: values.payloadJsonSchema,
-        }
+        };
 
         setIsSubmitting(true);
         getAxiosInstance(refreshToken, authDispatch)
@@ -412,11 +413,11 @@ const CreateSensor: FC<CreateSensorProps> = ({
                 refreshSensors();
                 const reloadDashboardsTable = true;
                 setReloadDashboardsTable(plaformAssistantDispatch, { reloadDashboardsTable });
-            })
-    }
+            });
+    };
 
     const validationSchema = Yup.object().shape({
-        description: Yup.string().max(190, "The maximum number of characters allowed is 190").required('Required'),
+        description: Yup.string().max(190, "The maximum number of characters allowed is 190").required("Required"),
     });
 
     const onCancel = (e: SyntheticEvent) => {
@@ -427,98 +428,114 @@ const CreateSensor: FC<CreateSensorProps> = ({
     return (
         <>
             <FormTitle isSubmitting={isSubmitting}>Create sensor</FormTitle>
-            <FormContainer>
-                <Formik initialValues={initialSensorData} validationSchema={validationSchema} onSubmit={onSubmit} >
-                    {
-                        formik => (
-                            <Form>
-                                <ControlsContainer>
-                                    <FormikControl
-                                        control='select'
-                                        label='Select org'
-                                        name='orgAcronym'
-                                        type='text'
-                                        options={orgOptions}
-                                        onChange={(e) => handleChangeOrg(e, formik)}
-                                    />
-                                    <FormikControl
-                                        control='select'
-                                        label='Select group'
-                                        name='groupAcronym'
-                                        type='text'
-                                        options={groupOptions}
-                                        onChange={(e) => handleChangeGroup(e, formik)}
-                                    />
-                                    <FormikControl
-                                        control='select'
-                                        label='Select asset'
-                                        name='assetName'
-                                        type='text'
-                                        options={assetNameOptions}
-                                        onChange={(e) => handleChangeAsset(e, formik)}
-                                    />
-                                    <FieldContainer>
-                                        <label>Asset description</label>
-                                        <div>{assetDescription}</div>
-                                    </FieldContainer>
-                                    <FormikControl
-                                        control='select'
-                                        label='Sensor type'
-                                        name='sensorType'
-                                        options={sensorTypeOptions}
-                                        type='text'
-                                        onChange={(e) => handleChangeSensorType(e, formik)}
-                                    />
-                                    {
-                                        iconSvgString !== "" &&
-                                        <SvgIconPreviewContainerDiv>
-                                            <SvgIconPreviewTitle>
-                                                Icon preview
-                                            </SvgIconPreviewTitle>
-                                            <SvgComponentContainerDiv>
-                                                <SvgComponent
-                                                    svgString={iconSvgString}
-                                                    imgWidth="100"
-                                                    imgHeight="100"
-                                                    backgroundColor="#202226"
-                                                />
-                                            </SvgComponentContainerDiv>
-                                        </SvgIconPreviewContainerDiv>
-                                    }
-                                    <FormikControl
-                                        control='select'
-                                        label='Topic reference'
-                                        name='topicRef'
-                                        options={topicRefOptions}
-                                        type='text'
-                                    />
-                                    <FormikControl
-                                        control='input'
-                                        label='Sensor reference'
-                                        name='sensorRef'
-                                        type='text'
-                                    />
-                                    <FormikControl
-                                        control='input'
-                                        label='Description'
-                                        name='description'
-                                        type='text'
-                                    />
-                                    <FormikControl
-                                        control='textarea'
-                                        label='Payload json schema'
-                                        name='payloadJsonSchema'
-                                        textAreaSize='Large'
-                                    />
-                                </ControlsContainer>
-                                <FormButtonsProps onCancel={onCancel} isValid={formik.isValid} isSubmitting={formik.isSubmitting} />
-                            </Form>
-                        )
-                    }
+            <DraggableFormContainer>
+                <Formik initialValues={initialSensorData} validationSchema={validationSchema} onSubmit={onSubmit}>
+                    {(formik) => (
+                        <Form>
+                            <ControlsContainer>
+                                <FormikControl
+                                    control="select"
+                                    label="Select org"
+                                    name="orgAcronym"
+                                    type="text"
+                                    options={orgOptions}
+                                    onChange={(e) => handleChangeOrg(e, formik)}
+                                />
+                                <FormikControl
+                                    control="select"
+                                    label="Select group"
+                                    name="groupAcronym"
+                                    type="text"
+                                    options={groupOptions}
+                                    onChange={(e) => handleChangeGroup(e, formik)}
+                                />
+                                <FormikControl
+                                    control="select"
+                                    label="Select asset"
+                                    name="assetName"
+                                    type="text"
+                                    options={assetNameOptions}
+                                    onChange={(e) => handleChangeAsset(e, formik)}
+                                />
+                                <FieldContainer>
+                                    <label>Asset description</label>
+                                    <div>{assetDescription}</div>
+                                </FieldContainer>
+                                <FormikControl
+                                    control="select"
+                                    label="Sensor type"
+                                    name="sensorType"
+                                    options={sensorTypeOptions}
+                                    type="text"
+                                    onChange={(e) => handleChangeSensorType(e, formik)}
+                                />
+                                {iconSvgString !== "" && (
+                                    <SvgIconPreviewContainerDiv>
+                                        <SvgIconPreviewTitle>Icon preview</SvgIconPreviewTitle>
+                                        <SvgComponentContainerDiv>
+                                            <SvgComponent
+                                                svgString={iconSvgString}
+                                                imgWidth="100"
+                                                imgHeight="100"
+                                                backgroundColor="#202226"
+                                            />
+                                        </SvgComponentContainerDiv>
+                                    </SvgIconPreviewContainerDiv>
+                                )}
+                                <FormikControl
+                                    control="select"
+                                    label="Topic reference"
+                                    name="topicRef"
+                                    options={topicRefOptions}
+                                    type="text"
+                                />
+                                <FormikControl control="input" label="Sensor reference" name="sensorRef" type="text" />
+                                <FormikControl control="input" label="Description" name="description" type="text" />
+                                <CodeMirrorWrapper fontSize="14px">
+                                    <label>Payload json schema</label>
+                                    <div className="cm-wrapper">
+                                        <CodeMirror
+                                            value={formik.values.payloadJsonSchema}
+                                            height="300px"
+                                            theme={oneDark}
+                                            extensions={[
+                                                json(),
+                                                indentUnit.of("    "),
+                                                indentOnInput(),
+                                                keymap.of([...completionKeymap, indentWithTab, ReIndentCommand]),
+                                            ]}
+                                            onChange={(value) => {
+                                                formik.setFieldValue("payloadJsonSchema", value);
+                                            }}
+                                            onBlur={() => {
+                                                formik.setFieldTouched("payloadJsonSchema", true);
+                                            }}
+                                            basicSetup={{
+                                                lineNumbers: true,
+                                                foldGutter: true,
+                                                bracketMatching: true,
+                                                closeBrackets: true,
+                                                syntaxHighlighting: true,
+                                                autocompletion: true,
+                                                tabSize: 4,
+                                                searchKeymap: true,
+                                            }}
+                                        />
+                                    </div>
+                                    <FieldErrorScroller name="payloadJsonSchema" />
+                                </CodeMirrorWrapper>
+                            </ControlsContainer>
+                            <FormButtonsProps
+                                onCancel={onCancel}
+                                isValid={formik.isValid}
+                                isSubmitting={formik.isSubmitting}
+                            />
+                        </Form>
+                    )}
                 </Formik>
-            </FormContainer>
+            </DraggableFormContainer>
         </>
-    )
-}
+    );
+};
 
 export default CreateSensor;

@@ -48,6 +48,7 @@ type ChatMessage struct {
 }
 
 func GetChatMessages(
+	ctx context.Context,
 	log *logger.Logger,
 	kvStore *nats_pkg.KVStore,
 	userName string,
@@ -55,7 +56,7 @@ func GetChatMessages(
 	digitalTwinUid string,
 ) []*schema.Message {
 	key := GetFullChatMessageKvStoreKey(userName, orgHash, digitalTwinUid)
-	currentMessages, _, err := GetCurrentChatMessages(log, kvStore, key, userName)
+	currentMessages, _, err := GetCurrentChatMessages(ctx, log, kvStore, key, userName)
 	if err != nil {
 		if err.Error() == fmt.Sprintf("key %s not found", key) {
 			return []*schema.Message{} // Retornar slice vacío si no existe la key
@@ -80,6 +81,7 @@ func GetFullChatMessageKvStoreKey(userName string, orgHash string, digitalTwinUi
 }
 
 func SaveChatMessages(
+	ctx context.Context,
 	log *logger.Logger,
 	kvStore *nats_pkg.KVStore,
 	userName string,
@@ -96,7 +98,7 @@ func SaveChatMessages(
 
 	// 2. Obtener mensajes existentes
 	key := GetFullChatMessageKvStoreKey(userName, orgHash, digitalTwinUid)
-	currentMessages, currentMcpToolCallsArray, err := GetCurrentChatMessages(log, kvStore, key, userName)
+	currentMessages, currentMcpToolCallsArray, err := GetCurrentChatMessages(ctx, log, kvStore, key, userName)
 	if err != nil {
 		return fmt.Errorf("failed to retrieve current chat messages: %w", err)
 	}
@@ -119,7 +121,7 @@ func SaveChatMessages(
 	}
 
 	// 4. Guardar mensajes actualizados
-	if err := kvStore.SetValue(context.Background(), key, chatAssistantMessages); err != nil {
+	if err := kvStore.SetValue(ctx, key, chatAssistantMessages); err != nil {
 		return fmt.Errorf("failed to save chat messages for user %s: %w", userName, err)
 	}
 
@@ -138,8 +140,13 @@ func validateSaveChatInput(userName string, messages []*schema.Message) error {
 }
 
 // getCurrentChatMessages obtiene los mensajes de chat existentes del KV store
-func GetCurrentChatMessages(log *logger.Logger, kvStore *nats_pkg.KVStore, key, userName string) ([]schema.Message, [][]mcphost.McpToolCall, error) {
-	chatAssistanMessages, err := kvStore.GetObjectValue(context.Background(), key)
+func GetCurrentChatMessages(
+	ctx context.Context, 
+	log *logger.Logger, 
+	kvStore *nats_pkg.KVStore, 
+	key, userName string,
+	) ([]schema.Message, [][]mcphost.McpToolCall, error) {
+	chatAssistanMessages, err := kvStore.GetObjectValue(ctx, key)
 	if err != nil {
 		if err.Error() == fmt.Sprintf("key %s not found", key) {
 			return make([]schema.Message, 0), nil, nil

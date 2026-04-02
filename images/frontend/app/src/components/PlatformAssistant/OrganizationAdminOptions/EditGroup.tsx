@@ -33,9 +33,9 @@ import { IBuilding } from "../TableColumns/buildingsColumns";
 import { getAxiosInstance } from "../../../tools/axiosIntance";
 import axiosErrorHandler from "../../../tools/axiosErrorHandler";
 import { FieldContainer } from "../GroupAdminOptions/EditAsset";
-import { ControlsContainer, FormContainer } from "../GroupAdminOptions/CreateAsset";
 import { IFloor } from "../TableColumns/floorsColumns";
 import { AxiosResponse, AxiosError } from "axios";
+import { ControlsContainer, StaticFormContainer } from "../../Tools/FormTools";
 
 const GroupLocationTitle = styled.div`
     margin-bottom: 5px;
@@ -276,7 +276,7 @@ const EditGroup: FC<EditGroupProps> = ({
     return (
         <>
             <FormTitle isSubmitting={isSubmitting}>Edit group</FormTitle>
-            <FormContainer>
+            <StaticFormContainer>
                 <Formik initialValues={editGroupInputData} validationSchema={validationSchema} onSubmit={onSubmit}>
                     {(formik) => (
                         <Form>
@@ -351,7 +351,7 @@ const EditGroup: FC<EditGroupProps> = ({
                         </Form>
                     )}
                 </Formik>
-            </FormContainer>
+            </StaticFormContainer>
         </>
     );
 };

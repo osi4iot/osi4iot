@@ -291,11 +291,6 @@ if [ ! -d  /home/ubuntu/efs_osi4iot/timescaledb_data ]; then
     sudo chown ubuntu:ubuntu /home/ubuntu/efs_osi4iot/timescaledb_data
 fi
 
-if [ ! -d  /home/ubuntu/efs_osi4iot/s3_storage_data ]; then
-    sudo mkdir /home/ubuntu/efs_osi4iot/s3_storage_data
-    sudo chown ubuntu:ubuntu /home/ubuntu/efs_osi4iot/s3_storage_data
-fi
-
 if [ ! -d  /home/ubuntu/efs_osi4iot/minio_storage ]; then
     sudo mkdir /home/ubuntu/efs_osi4iot/minio_storage
     sudo chown ubuntu:ubuntu /home/ubuntu/efs_osi4iot/minio_storage

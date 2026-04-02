@@ -99,10 +99,13 @@ import { IDigitalTwin } from "../TableColumns/digitalTwinsColumns";
 import elaspsedTimeFormat from "../../../tools/elapsedTimeFormat";
 import { IAssetType } from "../TableColumns/assetTypesColumns";
 import { ITopic } from "../TableColumns/topicsColumns";
-import S3StorageForm from "../../Tools/S3StorageForm";
+//import S3StorageForm from "../../Tools/S3StorageForm";
 import { ISensorType } from "../TableColumns/sensorTypesColumns";
 import { getDTStorageInfo, syncDigitalTwinsLocalStorage } from "../../../tools/fileSystem";
 import { AxiosResponse, AxiosError } from "axios";
+import { AssetS3FolderProvider } from "../../../contexts/assetS3FolderOptions";
+import AssetS3FolderContainer from "./AssetS3FolderContainer";
+import IAssetS3Folder from "../TableColumns/assetS3FolderColumns";
 
 const GroupAdminOptionsContainer = styled.div`
     display: flex;
@@ -460,7 +463,7 @@ const GroupAdminOptions: FC<{}> = () => {
                 .get(urlGroupsManaged, config)
                 .then((response: AxiosResponse<any, any>) => {
                     const selectOrgUsers = response.data.filter(
-                        (user: ISelectOrgUser) => user.login.slice(-9) !== "api_admin"
+                        (user: ISelectOrgUser) => user.login.slice(-9) !== "api_admin",
                     );
                     setSelectOrgUsersTable(plaformAssistantDispatch, { selectOrgUsers });
                     setSelectOrgUsersLoading(false);
@@ -600,11 +603,29 @@ const GroupAdminOptions: FC<{}> = () => {
     useEffect(() => {
         if (assetS3FoldersTable.length === 0 || reloadAssetS3FoldersTable) {
             const config = axiosAuth(accessToken);
-            const urlAssetS3Folders = `${protocol}://${domainName}/admin_api/asset_s3_folders/user_managed`;
+            const urlAssetS3Folders = `${protocol}://${domainName}/admin_api/asset_s3_folders_with_history/user_managed`;
             getAxiosInstance(refreshToken, authDispatch)
                 .get(urlAssetS3Folders, config)
                 .then((response: AxiosResponse<any, any>) => {
-                    const assetS3Folders = response.data;
+                    const assetS3Folders: IAssetS3Folder[] = response.data;
+                    for (const assetS3Folder of assetS3Folders) {
+                        if (assetS3Folder.lastS3Storage == null) {
+                            assetS3Folder.lastS3Storage = "-";
+                        }
+                        let numDecimals = 2;
+                        if (assetS3Folder.parquetTotalBytes !== 0) {
+                            numDecimals = Math.max(2, -Math.log10(assetS3Folder.parquetTotalBytes / 1048576) + 1);
+                        }
+                        assetS3Folder.parquetTotalMBytes = (
+                            assetS3Folder.parquetTotalBytes ? assetS3Folder.parquetTotalBytes / 1048576 : 0
+                        ).toFixed(numDecimals);
+
+                        if (assetS3Folder.isCurrent === true) {
+                            assetS3Folder.isCurrent = "Yes";
+                        } else if (assetS3Folder.isCurrent === false) {
+                            assetS3Folder.isCurrent = "No";
+                        }
+                    }
                     setAssetS3FoldersTable(plaformAssistantDispatch, { assetS3Folders });
                     setAssetS3FoldersLoading(false);
                     const reloadAssetS3FoldersTable = false;
@@ -922,10 +943,12 @@ const GroupAdminOptions: FC<{}> = () => {
                             </MeasurementsProvider>
                         )}
                         {optionToShow === GROUP_ADMIN_OPTIONS.S3_STORAGE && (
-                            <S3StorageForm
-                                assetS3Folders={assetS3FoldersTable}
-                                refreshAssetS3Folders={refreshAssetS3Folders}
-                            />
+                            <AssetS3FolderProvider>
+                                <AssetS3FolderContainer
+                                    assetS3Folders={assetS3FoldersTable}
+                                    refreshAssetS3Folders={refreshAssetS3Folders}
+                                />
+                            </AssetS3FolderProvider>
                         )}
                         {optionToShow === GROUP_ADMIN_OPTIONS.DASHBOARDS && (
                             <TableWithPagination

@@ -50,7 +50,7 @@ func (fm *FlowsManager) AddGroup(ctx context.Context, group *common.Group) {
 	}
 }
 
-func (fm *FlowsManager) AddGroups(ctx context.Context,groups []*common.Group) {
+func (fm *FlowsManager) AddGroups(ctx context.Context, groups []*common.Group) {
 	for _, group := range groups {
 		fm.AddGroup(ctx, group)
 	}
@@ -67,7 +67,7 @@ func (fm *FlowsManager) UpdateGroup(group *common.Group) error {
 	}
 }
 
-func (fm *FlowsManager) DeleteGroup(groupId int) error {
+func (fm *FlowsManager) DeleteGroup(ctx context.Context, groupId int) error {
 	var mlModelsToDelete []int
 	fm.MLModels.Range(func(key, value interface{}) bool {
 		if mlModel, ok := value.(*common.MLModel); ok { // Asumindo que value es *MLModel
@@ -92,7 +92,7 @@ func (fm *FlowsManager) DeleteGroup(groupId int) error {
 		return true
 	})
 	for _, digitalTwinId := range digitalTwinsToDelete {
-		fm.DeleteDigitalTwin(digitalTwinId)
+		fm.DeleteDigitalTwin(ctx, digitalTwinId)
 	}
 
 	groupIdStr := strconv.Itoa(groupId)

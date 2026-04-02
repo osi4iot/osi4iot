@@ -5,7 +5,7 @@ import Paho from "paho-mqtt";
 import styled from "styled-components";
 import { toast } from "react-toastify";
 import { useCallback, useState, useEffect } from "react";
-import { TelegramIcon, AssetStateIcon, CommentIcon, IoTDBIcon, IconContainer } from "./NodePalette";
+import { TelegramIcon, AssetStateIcon, CommentIcon, IoTDBIcon, S3StorageIcon, IconContainer } from "./NodePalette";
 
 const NodeContainer = styled.div<{ bgColor: string; hoverColor?: string; selected?: boolean }>`
     padding: 2px 4px;
@@ -600,6 +600,35 @@ export function IoTDbNode({ data, selected }) {
         </NodeContainer>
     );
 }
+
+export function S3StorageNode({ data, selected }) {
+    const numOutputs = data?.numOutputs ?? 0;
+    return (
+        <NodeContainer bgColor="#5B85A7" hoverColor="#77aedb" selected={selected}>
+            <StyledHandle type="target" position={Position.Left} style={{ top: "50%", left: "-1px" }} />
+            <NodeContent>
+                <NodeLabel>{data?.label || "S3 Storage"}</NodeLabel>
+                <IconContainer>
+                    <S3StorageIcon size={20} />
+                </IconContainer>
+            </NodeContent>
+            {numOutputs > 0 && (
+                <>
+                    {Array.from({ length: numOutputs }, (_, index) => (
+                        <StyledHandle
+                            key={index}
+                            type="source"
+                            position={Position.Right}
+                            id={`${data.nodeUid}-${index}`}
+                            style={getHandleStyle(index, numOutputs)}
+                        />
+                    ))}
+                </>
+            )}
+        </NodeContainer>
+    );
+}
+
 
 export function AssetStateNode({ data, selected }) {
     const numOutputs = data?.numOutputs ?? 0;

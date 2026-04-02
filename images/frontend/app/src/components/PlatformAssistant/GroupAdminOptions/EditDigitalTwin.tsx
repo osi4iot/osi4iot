@@ -39,8 +39,19 @@ import { getAxiosInstance } from "../../../tools/axiosIntance";
 import axiosErrorHandler from "../../../tools/axiosErrorHandler";
 import { getSensorsRef, getSensorsRefFromDigitalTwinGltfData } from "./CreateDigitalTwin";
 import { FieldContainer } from "./EditAsset";
-import { ControlsContainer, FormContainer } from "./CreateAsset";
 import { AxiosResponse, AxiosError } from "axios";
+
+// CodeMirror imports
+import CodeMirror, { keymap } from "@uiw/react-codemirror";
+import { indentUnit, indentOnInput } from "@codemirror/language";
+import { completionKeymap } from "@codemirror/autocomplete";
+import { indentWithTab } from "@codemirror/commands";
+import { json } from "@codemirror/lang-json";
+import { oneDark } from "@codemirror/theme-one-dark";
+import { CodeMirrorWrapper } from "../../Tools/CodeMirrorWrapper";
+import { ControlsContainer, DraggableFormContainer, FieldErrorScroller } from "../../Tools/FormTools";
+import { ReIndentCommand } from "../DigitalTwin3DViewer/Pipeline/types";
+
 
 const DataFileTitle = styled.div`
     margin-bottom: 5px;
@@ -249,7 +260,7 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
     const [pipelineFileName, setPipelineFileName] = useState(storedPipelineFileName);
     const storedPipelineFileLastModifDate = digitalTwins[digitalTwinRowIndex].pipelineFileLastModifDate || "-";
     const [pipelineFileLastModifDateString, setPipelineFileLastModifDateString] = useState(
-        storedPipelineFileLastModifDate
+        storedPipelineFileLastModifDate,
     );
     const [restartPipeline, setRestartPipeline] = useState(true);
     const [reinitializePipeline, setReinitializePipeline] = useState(false);
@@ -266,7 +277,7 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
     const [sensorsRef, setSensorsRef] = useState<string[]>([]);
     const [isGlftDataReady, setIsGlftDataReady] = useState(storedDigitalTwinType !== "Gltf 3D model");
     const [isChatAssistantEnabled, setIsChatAssistantEnabled] = useState(
-        digitalTwins[digitalTwinRowIndex].chatAssistantEnabled
+        digitalTwins[digitalTwinRowIndex].chatAssistantEnabled,
     );
     const digitalTwinUid = digitalTwins[digitalTwinRowIndex].digitalTwinUid;
 
@@ -319,12 +330,12 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
                                 const femResFileList: { fileName: string; lastModified: string }[] = response.data;
                                 if (femResFileList.length !== 0) {
                                     const femResFileNames = femResFileList.map(
-                                        (femResFile) => femResFile.fileName.split("/")[4]
+                                        (femResFile) => femResFile.fileName.split("/")[4],
                                     );
                                     setFemResFileNames(femResFileNames);
                                     setFemResFileName(femResFileNames[0]);
                                     const femResFilesLastModif = femResFileList.map(
-                                        (femResFile) => femResFile.lastModified
+                                        (femResFile) => femResFile.lastModified,
                                     );
                                     setFemResFilesLastModif(femResFilesLastModif);
                                     setFemResFileLastModifDateString(formatDateString(femResFilesLastModif[0]));
@@ -344,12 +355,12 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
                                 const docInfoFileList: { fileName: string; lastModified: string }[] = response.data;
                                 if (docInfoFileList.length !== 0) {
                                     const docInfoFileNames = docInfoFileList.map(
-                                        (docInfoFile) => docInfoFile.fileName.split("/")[4]
+                                        (docInfoFile) => docInfoFile.fileName.split("/")[4],
                                     );
                                     setStoredDocInfoFileName(docInfoFileNames[0]);
                                     setDocInfoFileName(docInfoFileNames[0]);
                                     const docInfoFilesLastModif = docInfoFileList.map(
-                                        (docInfoFile) => docInfoFile.lastModified
+                                        (docInfoFile) => docInfoFile.lastModified,
                                     );
                                     setDocInfoFileLastModif(docInfoFilesLastModif[0]);
                                     setStoredDocInfoFileLastModif(docInfoFilesLastModif[0]);
@@ -409,7 +420,7 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
             }
         },
         // eslint-disable-next-line react-hooks/exhaustive-deps
-        [gltfFileContent]
+        [gltfFileContent],
     );
 
     useEffect(() => {
@@ -567,7 +578,7 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
                         const response = await getAxiosInstance(refreshToken, authDispatch).post(
                             urlUploadFemResFile,
                             femResData,
-                            configMultipart
+                            configMultipart,
                         );
                         if (response.data) {
                             toast.success(response.data.message);
@@ -591,7 +602,7 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
                         const response = await getAxiosInstance(refreshToken, authDispatch).post(
                             urlUploadGltfFile,
                             gltfData,
-                            configMultipart
+                            configMultipart,
                         );
                         if (response.data) {
                             toast.success(response.data.message);
@@ -743,7 +754,7 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
         digitalTwinSimulationFormat: JSON.stringify(
             digitalTwins[digitalTwinRowIndex].digitalTwinSimulationFormat,
             null,
-            4
+            4,
         ),
         restartPipeline: restartPipeline,
         reinitializePipeline: reinitializePipeline,
@@ -762,7 +773,7 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
             is: "Gltf 3D model",
             then: Yup.string()
                 .test("test-name", "Wrong format for the json object", (value: any) =>
-                    digitalTwinFormatValidation(value)
+                    digitalTwinFormatValidation(value),
                 )
                 .required("Must enter Digital twin simulation format"),
         }),
@@ -858,7 +869,7 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
             ) : (
                 <>
                     <FormTitle isSubmitting={isSubmitting}>Edit digital twin</FormTitle>
-                    <FormContainer>
+                    <DraggableFormContainer>
                         <Formik
                             initialValues={initialDigitalTwinData}
                             validationSchema={validationSchema}
@@ -987,7 +998,7 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
                                                             </FileButton>
                                                         </SelectDataFilenButtonContainer>
                                                     </DataFileContainer>
-                                                    {(organization.llmEnabled && group.llmEnabled) && (
+                                                    {organization.llmEnabled && group.llmEnabled && (
                                                         <>
                                                             <DataFileTitle>Documental info</DataFileTitle>
                                                             <DataFileContainer>
@@ -1041,12 +1052,49 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
                                                             </ChatAssistantContainer>
                                                         </>
                                                     )}
-                                                    <FormikControl
-                                                        control="textarea"
-                                                        label="Digital twin simulation format"
-                                                        name="digitalTwinSimulationFormat"
-                                                        textAreaSize="Small"
-                                                    />
+                                                    <CodeMirrorWrapper fontSize="14px">
+                                                        <label>Digital twin simulation format</label>
+                                                        <div className="cm-wrapper">
+                                                            <CodeMirror
+                                                                value={formik.values.digitalTwinSimulationFormat}
+                                                                height="300px"
+                                                                theme={oneDark}
+                                                                extensions={[
+                                                                    json(),
+                                                                    indentUnit.of("    "),
+                                                                    indentOnInput(),
+                                                                    keymap.of([
+                                                                        ...completionKeymap,
+                                                                        indentWithTab,
+                                                                        ReIndentCommand,
+                                                                    ]),
+                                                                ]}
+                                                                onChange={(value) => {
+                                                                    formik.setFieldValue(
+                                                                        "digitalTwinSimulationFormat",
+                                                                        value,
+                                                                    );
+                                                                }}
+                                                                onBlur={() => {
+                                                                    formik.setFieldTouched(
+                                                                        "digitalTwinSimulationFormat",
+                                                                        true,
+                                                                    );
+                                                                }}
+                                                                basicSetup={{
+                                                                    lineNumbers: true,
+                                                                    foldGutter: true,
+                                                                    bracketMatching: true,
+                                                                    closeBrackets: true,
+                                                                    syntaxHighlighting: true,
+                                                                    autocompletion: true,
+                                                                    tabSize: 4,
+                                                                    searchKeymap: true,
+                                                                }}
+                                                            />
+                                                        </div>
+                                                        <FieldErrorScroller name="digitalTwinSimulationFormat" />
+                                                    </CodeMirrorWrapper>
                                                 </>
                                             )}
                                         </ControlsContainer>
@@ -1062,7 +1110,7 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
                                 );
                             }}
                         </Formik>
-                    </FormContainer>
+                    </DraggableFormContainer>
                 </>
             )}
         </>

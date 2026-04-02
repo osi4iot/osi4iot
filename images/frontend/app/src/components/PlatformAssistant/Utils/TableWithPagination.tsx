@@ -1,23 +1,21 @@
-import { useTable, usePagination, useFilters, useGlobalFilter, useAsyncDebounce, useSortBy } from 'react-table';
-import { ComponentType, FC, useMemo, useState } from 'react';
-import { Column } from 'react-table';
+import { useTable, usePagination, useFilters, useGlobalFilter, useAsyncDebounce, useSortBy } from "react-table";
+import { ComponentType, FC, useMemo, useState } from "react";
+import { Column } from "react-table";
 import styled from "styled-components";
 import { FaSearch, FaRedo } from "react-icons/fa";
 import { numericTextFilter } from "./NumericFilter";
 import { fuzzyTextFilterFn } from "./FuzzyTextFilter";
-
 
 interface TableStylesProps {
     columnsWidth: string[];
     columnsMaxWidth: string[];
 }
 
-
 const TableStyles = styled.div<TableStylesProps>`
-  padding: 1rem;
-  background-color: #202226;
+    padding: 1rem;
+    background-color: #202226;
 
-  table {
+    table {
         font-size: 14px;
         border-collapse: collapse;
         border-spacing: 0;
@@ -69,7 +67,7 @@ const TableStyles = styled.div<TableStylesProps>`
             max-width: ${(props) => props.columnsMaxWidth[2]};
             word-wrap: break-word;
         }
-        
+
         tr td:nth-child(4),
         th td:nth-child(4) {
             width: ${(props) => props.columnsWidth[3]};
@@ -85,7 +83,7 @@ const TableStyles = styled.div<TableStylesProps>`
             max-width: ${(props) => props.columnsMaxWidth[4]};
             word-wrap: break-word;
         }
-        
+
         tr td:nth-child(6),
         th td:nth-child(6) {
             width: ${(props) => props.columnsWidth[5]};
@@ -93,7 +91,7 @@ const TableStyles = styled.div<TableStylesProps>`
             max-width: ${(props) => props.columnsMaxWidth[5]};
             word-wrap: break-word;
         }
-        
+
         tr td:nth-child(7),
         th td:nth-child(7) {
             width: ${(props) => props.columnsWidth[6]};
@@ -101,7 +99,7 @@ const TableStyles = styled.div<TableStylesProps>`
             max-width: ${(props) => props.columnsMaxWidth[6]};
             word-wrap: break-word;
         }
-        
+
         tr td:nth-child(8),
         th td:nth-child(8) {
             width: ${(props) => props.columnsWidth[7]};
@@ -109,7 +107,7 @@ const TableStyles = styled.div<TableStylesProps>`
             max-width: ${(props) => props.columnsMaxWidth[7]};
             word-wrap: break-word;
         }
-        
+
         tr td:nth-child(9),
         th td:nth-child(9) {
             width: ${(props) => props.columnsWidth[8]};
@@ -117,14 +115,14 @@ const TableStyles = styled.div<TableStylesProps>`
             max-width: ${(props) => props.columnsMaxWidth[8]};
             word-wrap: break-word;
         }
-        
+
         tr td:nth-child(10),
         th td:nth-child(10) {
             width: ${(props) => props.columnsWidth[9]};
             min-width: ${(props) => props.columnsWidth[9]};
             max-width: ${(props) => props.columnsMaxWidth[9]};
             word-wrap: break-word;
-        } 
+        }
 
         tr td:nth-child(11),
         th td:nth-child(11) {
@@ -132,17 +130,17 @@ const TableStyles = styled.div<TableStylesProps>`
             min-width: ${(props) => props.columnsWidth[10]};
             max-width: ${(props) => props.columnsMaxWidth[10]};
             word-wrap: break-word;
-        } 
-  }
-`
+        }
+    }
+`;
 
 const TableContainer = styled.div`
     margin-top: 40px;
     padding: 10px;
     display: flex;
     flex-direction: column;
-	justify-content: flex-start;
-	align-items: center;
+    justify-content: flex-start;
+    align-items: center;
     background-color: #202226;
     margin-left: auto;
     margin-right: auto;
@@ -151,14 +149,13 @@ const TableContainer = styled.div`
 const TableOptionsContainer = styled.div`
     display: flex;
     flex-direction: row;
-	justify-content: space-between;
-	align-items: center;
+    justify-content: space-between;
+    align-items: center;
     background-color: #202226;
     width: 100%;
     margin-bottom: 10px;
     padding-right: 20px;
 `;
-
 
 const Pagination = styled.div`
     margin-left: 18px;
@@ -181,7 +178,9 @@ const Pagination = styled.div`
 
         &:focus {
             outline: none;
-            box-shadow: rgb(20 22 25) 0px 0px 0px 2px, rgb(31 96 196) 0px 0px 0px 4px;
+            box-shadow:
+                rgb(20 22 25) 0px 0px 0px 2px,
+                rgb(31 96 196) 0px 0px 0px 4px;
         }
     }
 
@@ -191,7 +190,7 @@ const Pagination = styled.div`
 
     & button {
         margin: 0px 1px;
-        
+
         &:hover {
             cursor: pointer;
         }
@@ -216,36 +215,63 @@ const ReloadContainer = styled.div`
     }
 `;
 
-
 const NewComponentButton = styled.button`
     margin-left: 30px;
-	background-color: #3274d9;
-	padding: 10px;
-	color: white;
-	border: 1px solid #2c3235;
-	border-radius: 10px;
-	outline: none;
-	cursor: pointer;
-	box-shadow: 0 5px #173b70;
-    /* margin-left: auto; */
+    background-color: #3274d9;
+    padding: 10px;
+    color: white;
+    border: 1px solid #2c3235;
+    border-radius: 10px;
+    outline: none;
+    cursor: pointer;
+    box-shadow: 0 5px #173b70;
 
-	&:hover {
-		background-color: #2461c0;
-	}
+    &:hover {
+        background-color: #2461c0;
+    }
 
-	&:active {
-		background-color: #2461c0;
-		box-shadow: 0 2px #173b70;
-		transform: translateY(4px);
-	}
+    &:active {
+        background-color: #2461c0;
+        box-shadow: 0 2px #173b70;
+        transform: translateY(4px);
+    }
 `;
 
+interface ToggleHistoryButtonProps {
+    active: boolean;
+}
+
+const ToggleHistoryButton = styled.button<ToggleHistoryButtonProps>`
+    margin-left: 30px;
+    background-color: ${(props) => (props.active ? "#3274d9" : "transparent")};
+    padding: 10px;
+    color: ${(props) => (props.active ? "white" : "#3274d9")};
+    border: 1px solid #3274d9;
+    border-radius: 10px;
+    outline: none;
+    cursor: pointer;
+    box-shadow: ${(props) => (props.active ? "0 5px #173b70" : "none")};
+    transition:
+        background-color 0.15s ease,
+        color 0.15s ease;
+
+    &:hover {
+        background-color: #2461c0;
+        color: white;
+    }
+
+    &:active {
+        background-color: #2461c0;
+        box-shadow: 0 2px #173b70;
+        transform: translateY(4px);
+    }
+`;
 
 type GlobalFilterProps = {
-    preGlobalFilteredRows: any,
-    globalFilter: any,
-    setGlobalFilter: any,
-}
+    preGlobalFilteredRows: any;
+    globalFilter: any;
+    setGlobalFilter: any;
+};
 
 const SearchColumn = styled.div`
     background-color: #202226;
@@ -260,7 +286,9 @@ const SearchColumn = styled.div`
 
         &:focus {
             outline: none;
-            box-shadow: rgb(20 22 25) 0px 0px 0px 2px, rgb(31 96 196) 0px 0px 0px 4px;
+            box-shadow:
+                rgb(20 22 25) 0px 0px 0px 2px,
+                rgb(31 96 196) 0px 0px 0px 4px;
         }
     }
 `;
@@ -294,8 +322,8 @@ const SearchIcon = styled(FaSearch as ComponentType<any>)`
     position: absolute;
     top: 10px;
     left: 5px;
-	font-size: 12px;
-	color: #3274d9;
+    font-size: 12px;
+    color: #3274d9;
     background-color: #0c0d0f;
 `;
 
@@ -303,8 +331,8 @@ const GlobalSearchIcon = styled(FaSearch as ComponentType<any>)`
     position: absolute;
     top: 8px;
     left: 38px;
-	font-size: 12px;
-	color: #3274d9;
+    font-size: 12px;
+    color: #3274d9;
     background-color: #0c0d0f;
 `;
 
@@ -324,21 +352,18 @@ const SearchGlobal = styled.div`
 
         &:focus {
             outline: none;
-            box-shadow: rgb(20 22 25) 0px 0px 0px 2px, rgb(31 96 196) 0px 0px 0px 4px;
+            box-shadow:
+                rgb(20 22 25) 0px 0px 0px 2px,
+                rgb(31 96 196) 0px 0px 0px 4px;
         }
-    }   
+    }
 `;
 
-
-const GlobalFilter = ({
-    preGlobalFilteredRows,
-    globalFilter,
-    setGlobalFilter
-}: GlobalFilterProps) => {
-    const [value, setValue] = useState(globalFilter)
-    const onChange = useAsyncDebounce(value => {
-        setGlobalFilter(value || undefined)
-    }, 200)
+const GlobalFilter = ({ preGlobalFilteredRows, globalFilter, setGlobalFilter }: GlobalFilterProps) => {
+    const [value, setValue] = useState(globalFilter);
+    const onChange = useAsyncDebounce((value) => {
+        setGlobalFilter(value || undefined);
+    }, 200);
 
     return (
         <SearchContainer>
@@ -346,7 +371,7 @@ const GlobalFilter = ({
                 <GlobalSearchIcon />
                 <input
                     value={value || ""}
-                    onChange={e => {
+                    onChange={(e) => {
                         setValue(e.target.value);
                         onChange(e.target.value);
                     }}
@@ -354,33 +379,29 @@ const GlobalFilter = ({
                 />
             </SearchGlobal>
         </SearchContainer>
-    )
+    );
 };
 
 type DefaultColumnFilterProps = {
     column: {
-        filterValue: any,
-        preFilteredRows: any,
-        setFilter: any,
-    }
-}
+        filterValue: any;
+        preFilteredRows: any;
+        setFilter: any;
+    };
+};
 
-// Define a default UI for filtering
-const DefaultColumnFilter = ({
-    column: { filterValue, preFilteredRows, setFilter },
-}: DefaultColumnFilterProps) => {
-
+const DefaultColumnFilter = ({ column: { filterValue, preFilteredRows, setFilter } }: DefaultColumnFilterProps) => {
     return (
         <input
-            value={filterValue || ''}
-            onChange={e => {
-                setFilter(e.target.value || undefined) // Set undefined to remove the filter entirely
+            value={filterValue || ""}
+            onChange={(e) => {
+                setFilter(e.target.value || undefined);
             }}
             placeholder={`Search`}
-            style={{ width: '100%' }}
+            style={{ width: "100%" }}
         />
-    )
-}
+    );
+};
 
 const hiddenColumnCondition = (col: any) => {
     const condition =
@@ -398,11 +419,10 @@ const hiddenColumnCondition = (col: any) => {
         col.Header === "digitalTwinSimulationFormat" ||
         col.Header === "telegramInvitationLink" ||
         col.Header === "telegramChatId" ||
-        col.Header === "dashboardUrl"
+        col.Header === "dashboardUrl";
 
     return condition;
-}
-
+};
 
 type TableProps<T extends object> = {
     dataTable: T[];
@@ -410,15 +430,31 @@ type TableProps<T extends object> = {
     componentName: string;
     reloadTable?: () => void;
     createComponent?: () => void;
-}
+};
 
-const TableWithPagination: FC<TableProps<any>> = ({ dataTable, columnsTable, componentName, reloadTable, createComponent }) => {
+const TableWithPagination: FC<TableProps<any>> = ({
+    dataTable,
+    columnsTable,
+    componentName,
+    reloadTable,
+    createComponent,
+}) => {
     const columns = useMemo(() => columnsTable, [columnsTable]);
     const data = useMemo(() => dataTable, [dataTable]);
-    const columnsWidth = columnsTable.map(column => {
-        const accessor = (column.accessor as string);
-        const headerName = (column.Header as string);
-        if (typeof column.Header !== 'function') {
+
+    // ── History toggle (only active when componentName === "S3 folder") ──────
+    const [showHistory, setShowHistory] = useState(false);
+
+    const filteredData = useMemo(() => {
+        if (componentName !== "S3 folder" || showHistory) return data;
+        return data.filter((row) => row.isCurrent === "Yes");
+    }, [data, componentName, showHistory]);
+    // ─────────────────────────────────────────────────────────────────────────
+
+    const columnsWidth = columnsTable.map((column) => {
+        const accessor = column.accessor as string;
+        const headerName = column.Header as string;
+        if (typeof column.Header !== "function") {
             if (headerName.slice(-2) === "Id") return "100px";
             else if (headerName === "Floor number") return "120px";
             else if (headerName === "Predefined") return "100px";
@@ -429,14 +465,16 @@ const TableWithPagination: FC<TableProps<any>> = ({ dataTable, columnsTable, com
             else if (accessor === "topicId") return "120px";
             else if (accessor === "sensorRef") return "120px";
             else if (headerName === "ML library") return "120px";
-            else return "auto"
+            else if (accessor === "version") return "110px";
+            else if (accessor === "parquetTotalMBytes") return "110px";
+            else return "auto";
         } else return "auto";
     });
 
-    const columnsMaxWidth = columnsTable.map(column => {
-        const headerName = (column.Header as string);
-        const accessor = (column.accessor as string);
-        if (typeof column.Header !== 'function') {
+    const columnsMaxWidth = columnsTable.map((column) => {
+        const headerName = column.Header as string;
+        const accessor = column.accessor as string;
+        if (typeof column.Header !== "function") {
             if (headerName === "Payload format") return "450px";
             else if (headerName === "Refresh tokens") return "1200px";
             else if (headerName === "Timestamp") return "400px";
@@ -449,39 +487,35 @@ const TableWithPagination: FC<TableProps<any>> = ({ dataTable, columnsTable, com
             else if (accessor === "topicId") return "120px";
             else if (accessor === "sensorRef") return "120px";
             else if (headerName === "ML library") return "120px";
-            else return "auto"
+            else return "auto";
         } else return "auto";
     });
 
-
     const filterTypes = useMemo(
         () => ({
-            // Add a new fuzzyTextFilterFn filter type.
             fuzzyText: fuzzyTextFilterFn,
-            numeric: numericTextFilter
+            numeric: numericTextFilter,
         }),
-        []
-    )
+        [],
+    );
 
     const defaultColumn = useMemo(
         () => ({
-            // Let's set up our default Filter UI
             Filter: DefaultColumnFilter,
         }),
-        []
-    )
-
+        [],
+    );
 
     const handleClick = () => {
         if (createComponent) createComponent();
-    }
+    };
 
     const {
         getTableProps,
         getTableBodyProps,
         headerGroups,
         prepareRow,
-        page, // Instead of using 'rows', we'll use page,
+        page,
         canPreviousPage,
         canNextPage,
         pageOptions,
@@ -496,100 +530,108 @@ const TableWithPagination: FC<TableProps<any>> = ({ dataTable, columnsTable, com
     } = useTable(
         {
             columns,
-            data,
+            data: filteredData,
             initialState: {
                 pageIndex: 0,
-                hiddenColumns: columns.filter((col: any) => hiddenColumnCondition(col)).map(col => col.id || col.accessor) as any
+                hiddenColumns: columns
+                    .filter((col: any) => hiddenColumnCondition(col))
+                    .map((col) => col.id || col.accessor) as any,
             },
-            defaultColumn, // Be sure to pass the defaultColumn option
+            defaultColumn,
             filterTypes,
         },
-        useFilters, // useFilters!
-        useGlobalFilter, // useGlobalFilter!
+        useFilters,
+        useGlobalFilter,
         useSortBy,
-        usePagination
-    )
+        usePagination,
+    );
 
     const { globalFilter, pageIndex, pageSize } = state;
 
-    // Render the UI for your table
     return (
         <TableContainer>
             <TableOptionsContainer>
                 <Pagination>
                     <button onClick={() => gotoPage(0)} disabled={!canPreviousPage}>
-                        {'<<'}
-                    </button>{' '}
+                        {"<<"}
+                    </button>{" "}
                     <button onClick={() => previousPage()} disabled={!canPreviousPage}>
-                        {'<'}
-                    </button>{' '}
+                        {"<"}
+                    </button>{" "}
                     <button onClick={() => nextPage()} disabled={!canNextPage}>
-                        {'>'}
-                    </button>{' '}
+                        {">"}
+                    </button>{" "}
                     <button onClick={() => gotoPage(pageCount - 1)} disabled={!canNextPage}>
-                        {'>>'}
-                    </button>{' '}
+                        {">>"}
+                    </button>{" "}
                     <span>
-                        Page{' '}
+                        Page{" "}
                         <strong>
                             {pageIndex + 1} of {pageOptions.length}
-                        </strong>{' '}
+                        </strong>{" "}
                     </span>
                     <span>
-                        | Go to page:{' '}
+                        | Go to page:{" "}
                         <input
                             type="number"
                             defaultValue={pageIndex + 1}
                             min={1}
                             max={pageOptions.length}
-                            onChange={e => {
-                                const page = e.target.value ? Number(e.target.value) - 1 : 0
-                                gotoPage(page)
+                            onChange={(e) => {
+                                const page = e.target.value ? Number(e.target.value) - 1 : 0;
+                                gotoPage(page);
                             }}
                         />
-                    </span>{' '}
+                    </span>{" "}
                     <select
                         value={pageSize}
-                        onChange={e => {
-                            setPageSize(Number(e.target.value))
+                        onChange={(e) => {
+                            setPageSize(Number(e.target.value));
                         }}
                     >
-                        {[10, 15, 20, 25, 30, 35, 40, 45, 50].map(pageSize => (
-                            <option key={pageSize} value={pageSize} style={{ fontSize: '15px' }}>
+                        {[10, 15, 20, 25, 30, 35, 40, 45, 50].map((pageSize) => (
+                            <option key={pageSize} value={pageSize} style={{ fontSize: "15px" }}>
                                 Show {pageSize}
                             </option>
                         ))}
                     </select>
-                    <ReloadContainer onClick={reloadTable}><StyledFaRedo /></ReloadContainer>
+                    <ReloadContainer onClick={reloadTable}>
+                        <StyledFaRedo />
+                    </ReloadContainer>
                 </Pagination>
                 <GlobalFilter
                     preGlobalFilteredRows={preGlobalFilteredRows}
                     globalFilter={globalFilter}
                     setGlobalFilter={setGlobalFilter}
                 />
-                {componentName !== "" && <NewComponentButton onClick={handleClick}>New {componentName}</NewComponentButton>}
+                {componentName === "S3 folder" && (
+                    <ToggleHistoryButton active={showHistory} onClick={() => setShowHistory((prev) => !prev)}>
+                        {showHistory ? "Hide history" : "Show history"}
+                    </ToggleHistoryButton>
+                )}
+                {componentName !== "" && (
+                    <NewComponentButton onClick={handleClick}>New {componentName}</NewComponentButton>
+                )}
             </TableOptionsContainer>
-            <TableStyles columnsWidth={columnsWidth} columnsMaxWidth={columnsMaxWidth} >
+            <TableStyles columnsWidth={columnsWidth} columnsMaxWidth={columnsMaxWidth}>
                 <table {...getTableProps()}>
                     <thead>
-                        {headerGroups.map(headerGroup => (
+                        {headerGroups.map((headerGroup) => (
                             <tr {...headerGroup.getHeaderGroupProps()}>
-                                {headerGroup.headers.map(column => (
+                                {headerGroup.headers.map((column) => (
                                     <th {...column.getHeaderProps(column.getSortByToggleProps())}>
                                         <HeaderContainer>
                                             <HeaderTtileContainer>
-                                                {column.render('Header')}
+                                                {column.render("Header")}
                                                 <ArrowIcon>
-                                                    {column.isSorted
-                                                        ? column.isSortedDesc
-                                                            ? ' ▼'
-                                                            : ' ▲'
-                                                        : ''}
+                                                    {column.isSorted ? (column.isSortedDesc ? " ▼" : " ▲") : ""}
                                                 </ArrowIcon>
                                             </HeaderTtileContainer>
                                             <SearchContainer>
                                                 {column.canFilter ? <SearchIcon /> : null}
-                                                <SearchColumn>{column.canFilter ? column.render('Filter') : null}</SearchColumn>
+                                                <SearchColumn>
+                                                    {column.canFilter ? column.render("Filter") : null}
+                                                </SearchColumn>
                                             </SearchContainer>
                                         </HeaderContainer>
                                     </th>
@@ -599,20 +641,20 @@ const TableWithPagination: FC<TableProps<any>> = ({ dataTable, columnsTable, com
                     </thead>
                     <tbody {...getTableBodyProps()}>
                         {page.map((row, i) => {
-                            prepareRow(row)
+                            prepareRow(row);
                             return (
                                 <tr {...row.getRowProps()}>
-                                    {row.cells.map(cell => {
-                                        return <td {...cell.getCellProps()}>{cell.render('Cell')}</td>
+                                    {row.cells.map((cell) => {
+                                        return <td {...cell.getCellProps()}>{cell.render("Cell")}</td>;
                                     })}
                                 </tr>
-                            )
+                            );
                         })}
                     </tbody>
                 </table>
             </TableStyles>
         </TableContainer>
-    )
-}
+    );
+};
 
 export default TableWithPagination;

@@ -629,9 +629,6 @@ func createPlatform(m *Model) (platformCreatingMsg, error) {
 	grafanaDatasourcePassword := utils.GeneratePassword(20)
 	data.SetData("GRAFANA_DATASOURCE_PASSWORD", grafanaDatasourcePassword)
 
-	dev2PDBPassword := platformAdminPassword
-	data.SetData("DEV2PDB_PASSWORD", dev2PDBPassword)
-
 	nodeRedAdmin := platformAdminUserName
 	data.SetData("NODE_RED_ADMIN", nodeRedAdmin)
 

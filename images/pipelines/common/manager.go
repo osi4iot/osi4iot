@@ -2,9 +2,12 @@ package common
 
 import (
 	"context"
+	"database/sql"
+	"encoding/json"
 	"pipelines/logger"
 	nats_pkg "pipelines/nats"
 
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
@@ -27,11 +30,15 @@ type Manager interface {
 	GetTopicByAssetId(assetId int, topicRef string) *Topic
 	GetTopicsByAssetId(assetId int) map[string]*Topic
 
+	GetAssetS3Folder(assetId int, folderName string) *AssetS3Folder
+	GetAssetS3FolderByAssetId(assetId int) []*AssetS3Folder
+	UpdateAssetS3FolderStatsById(ctx context.Context, groupId int, assetId int, folderName string, stats S3FolderStats) error
+
 	GetDigitalTwins() []*DigitalTwin
 	GetDigitalTwin(digitalTwinId int) *DigitalTwin
 	AddDigitalTwin(ctx context.Context, digitalTwin *DigitalTwin, createPipeline bool)
 	AddDigitalTwins(ctx context.Context, digitalTwins []*DigitalTwin)
-	DeleteDigitalTwin(digitalTwinId int) error
+	DeleteDigitalTwin(ctx context.Context, digitalTwinId int) error
 	UpdateDigitalTwin(digitalTwin *DigitalTwin) error
 	GetDigitalTwinKvStore(digitalTwinId int) *nats_pkg.KVStore
 	AddDigitalTwinTopicsRef(digitalTwinTopics []*DigitalTwinTopic)
@@ -56,13 +63,13 @@ type Manager interface {
 	GetModelFolders(rootPath string) ([]MlModelFolder, error)
 
 	StartNodes(ctx context.Context)
-	StopPipelines()
+	StopPipelines(ctx context.Context)
 
 	CreatePipelineInDigitalTwin(ctx context.Context, digitalTwinId int)
 	UpdatePipelineInDigitalTwin(ctx context.Context, digitalTwinId int)
 	StartNodesInDigitalTwin(ctx context.Context, digitalTwinId int, needReinitialization bool)
 	RestartNodesInDigitalTwin(ctx context.Context, digitalTwinId int, needReinitialization bool)
-	StopNodesInDigitalTwin(digitalTwinId int, action string)
+	StopNodesInDigitalTwin(ctx context.Context, digitalTwinId int, action string)
 	StopPipelineStatusPublisher(digitalTwinId int)
 	DeletePipelineInDigitalTwin(ctx context.Context, digitalTwinId int)
 
@@ -70,14 +77,14 @@ type Manager interface {
 	GetOrg(orgId int) *Org
 	AddOrg(ctx context.Context, org *Org)
 	AddOrgs(ctx context.Context, orgs []*Org)
-	DeleteOrg(orgId int) error
+	DeleteOrg(ctx context.Context, orgId int) error
 	UpdateOrg(ctx context.Context, org *Org) error
 
 	GetGroups() []*Group
 	GetGroup(groupId int) *Group
 	AddGroup(ctx context.Context,group *Group)
-	AddGroups(ctx context.Context,groups []*Group)
-	DeleteGroup(groupId int) error
+	AddGroups(ctx context.Context, groups []*Group)
+	DeleteGroup(ctx context.Context, groupId int) error
 	UpdateGroup(group *Group) error
 	GetGroupKvStore(groupId int) *nats_pkg.KVStore
 	GetAssetStateKvStoreKey(orgHash string, groupUid string, assetUid string) string
@@ -147,6 +154,24 @@ type Manager interface {
 	SetPipelineStatusSubscription(ctx context.Context, digitalTwin *DigitalTwin) *nats.Subscription
 
 	GetDbPool() *pgxpool.Pool
+	GetDuckdbPool() *sql.DB
+	GetS3Client() *s3.Client
+	GetS3BucketName() string
 
 	SendToIotDataChannel(data ThingData)
+}
+
+func SchemasAreEqual(a, b map[string]any) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	aBytes, err := json.Marshal(a)
+	if err != nil {
+		return false
+	}
+	bBytes, err := json.Marshal(b)
+	if err != nil {
+		return false
+	}
+	return string(aBytes) == string(bBytes)
 }

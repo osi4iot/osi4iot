@@ -9,14 +9,16 @@ export const generateS3StorageToken = (
 	groupId: number,
 	assetId: number,
 	s3FolderName: string,
-	year: string,
+	initDate: string,
+	finalDate: string
 ) => {
 	const payload = {
 		userId,
 		groupId,
 		assetId,
 		s3FolderName,
-		year,
+		initDate,
+		finalDate,
 	}
 	const token = jwt.sign(payload, process_env.ACCESS_TOKEN_SECRET, { expiresIn: '300s' });
 	return { token };
@@ -27,14 +29,16 @@ interface IS3StoragePayload extends jwt.JwtPayload {
 	groupId: number;
 	assetId: number;
 	s3FolderName: string;
-	year: string;
+	initDate: string;
+	finalDate: string;
 }
 
 export const isS3StorageTokenValid = async (
 	group: IGroup,
 	assetId: string,
 	s3FolderName: string,
-	year: string,
+	initDate: string,
+	finalDate: string,
 	token: string
 ) => {
 	if (token == null) return false;
@@ -45,7 +49,8 @@ export const isS3StorageTokenValid = async (
 		if (group.id !== decoded.groupId ||
 			parseInt(assetId, 10) !== decoded.assetId ||
 			s3FolderName !== decoded.s3FolderName ||
-			year !== decoded.year
+			initDate !== decoded.initDate ||
+			finalDate !== decoded.finalDate
 		) return false;
 		const orgId = group.orgId;
 		const teamId = group.teamId;

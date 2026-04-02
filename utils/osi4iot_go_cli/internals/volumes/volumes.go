@@ -64,7 +64,6 @@ func GenerateVolumes(platformData *pt.PlatformData) map[string]pt.Volume {
 	Volumes["grafana_data"] = SetVolumeConfig("grafana_data", deploymentLocation, volOptions)
 	Volumes["timescaledb_data"] = SetVolumeConfig("timescaledb_data", deploymentLocation, volOptions)
 	Volumes["timescaledb_wal"] = SetVolumeConfig("timescaledb_wal", deploymentLocation, volOptions)
-	Volumes["s3_storage_data"] = SetVolumeConfig("s3_storage_data", deploymentLocation, volOptions)
 	Volumes["admin_api_log"] = SetVolumeConfig("admin_api_log", deploymentLocation, volOptions)
 
 	numPipelinesReplicas := utils.GetServiceReplicas(platformData, "pipelines")
@@ -200,7 +199,6 @@ func getVolumeFilterByNames(pd *pt.PlatformData) filters.Args {
 		"pgdata",
 		"grafana_data",
 		"timescaledb_data",
-		"s3_storage_data",
 		"admin_api_log",
 		"portainer_data",
 		"pgadmin4_data",
@@ -232,7 +230,6 @@ func getVolumesMapByNodeRole(volumesMap map[string]pt.Volume, nodeRole string, p
 		volumeNames = append(volumeNames,
 			"pgdata",
 			"timescaledb_data",
-			"s3_storage_data",
 			"admin_api_log",
 			"portainer_data",
 			"pgadmin4_data",

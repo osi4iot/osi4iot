@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"pipelines/common"
+	timeparser "pipelines/timeparser"
 	"regexp"
 	"strings"
 	"time"
@@ -188,7 +189,7 @@ func ParseQueryWithTimeFunc(query string) (string, error) {
 
 	for _, match := range matches {
 		timeStr := match[1]
-		timeParser := NewGrafanaTimeParser(time.UTC)
+		timeParser := timeparser.NewGrafanaTimeParser(time.UTC)
 		parsedTime, err := timeParser.Parse(timeStr)
 		if err != nil {
 			return "", fmt.Errorf("invalid time format in $__timeFun: %s", timeStr)

@@ -66,7 +66,6 @@ func CreateTelegramListenNode(node common.NodeData, fm common.Manager, p common.
 		return nil, fmt.Errorf("invalid chatId: %v", err)
 	}
 	listenMsgChannel := make(chan *telegram.TelegramMessage, 100)
-	unsubcribe := telegramListener.Subscribe(chatID, listenMsgChannel)
 
 	logTopic := fm.GetTopicByTopicRef(p.GetAssetId(), p.GetDigitalTwinId(), "dtmlog")
 	logSubject := utils.TopicToNatsSubject(logTopic.TopicType, logTopic.GroupUid, logTopic.TopicUid)
@@ -101,7 +100,7 @@ func CreateTelegramListenNode(node common.NodeData, fm common.Manager, p common.
 		AssetUid:                 assetUid,
 		TelegramListener:         telegramListener,
 		ListenMsgChannel:         listenMsgChannel,
-		UnSubscribe:              unsubcribe,
+		UnSubscribe:              nil,
 		ClearChatMessagesHistory: p.ClearChatMessagesHistory,
 	}, nil
 }
@@ -118,6 +117,9 @@ func (n *TelegramListenNode) Start(ctx context.Context, log *logger.Logger, need
 
 	n.SetStatus(common.NodeStatusRunning)
 	log.Infof("Starting TelegramListenNode with UID: %s", n.NodeUid)
+
+	unsubcribe := n.TelegramListener.Subscribe(n.ChatID, n.ListenMsgChannel)
+	n.UnSubscribe = unsubcribe
 
 	go n.processListenMessage(log)
 }
@@ -287,7 +289,6 @@ func (n *TelegramListenNode) Stop(log *logger.Logger) {
 	}
 
 	n.wg.Wait()
-    n.ResetNodeContext()
     n.SetStatus(common.NodeStatusStopped)
     log.Infof("Node %s stopped successfully", n.NodeUid)
 }

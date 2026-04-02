@@ -72,7 +72,25 @@ func MinioService(
 		}
 	}
 
-	image := utils.GetServiceImage(pd, "minio","ghcr.io/osi4iot/minio:RELEASE.2023-10-16T04-13-43Z")
+	ports := []swarm.PortConfig{}
+	if pd.PlatformInfo.DeploymentMode == "development" {
+		ports = []swarm.PortConfig{
+			{
+				Protocol:      swarm.PortConfigProtocolTCP,
+				TargetPort:    9000,
+				PublishedPort: 9000,
+				PublishMode:   swarm.PortConfigPublishModeHost,
+			},
+			{
+				Protocol:      swarm.PortConfigProtocolTCP,
+				TargetPort:    9090,
+				PublishedPort: 9090,
+				PublishMode:   swarm.PortConfigPublishModeHost,
+			},
+		}
+	}
+
+	image := utils.GetServiceImage(pd, "minio", "ghcr.io/osi4iot/minio:RELEASE.2023-10-16T04-13-43Z")
 	return NewService("minio", pd, sd).
 		WithImage(image).
 		WithAnnotationsLabels(annotationsLabels).
@@ -99,6 +117,7 @@ func MinioService(
 			svcResources.NanoCPUs,
 			svcResources.MemoryBytes,
 		).
+		WithPorts(ports).
 		WithPlacement(constraints).
 		WithModeReplicated(svcResources.ReplicasPtr).
 		WithNetworks([]swarm.NetworkAttachmentConfig{

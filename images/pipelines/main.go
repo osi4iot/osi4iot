@@ -9,6 +9,7 @@ import (
 
 	"pipelines/admin"
 	"pipelines/config"
+	"pipelines/duckdb"
 	"pipelines/flows_manager"
 	"pipelines/logger"
 	"pipelines/nats"
@@ -43,7 +44,7 @@ func main() {
 	}
 
 	ctx, cancel := utils.ContextWithCancel()
-    defer cancel()
+	defer cancel()
 
 	// Create or update the stream
 	stream, err := nats.CreateAdminStream(ctx, cfg.ShardIndex, cfg.NumStreamReplicas, log, js)
@@ -65,10 +66,10 @@ func main() {
 	admin.StartAutoRefresh(ctx, time.Duration(2*time.Minute))
 
 	// IOT Data DB connection
-    pgxConfig, err := pgxpool.ParseConfig(cfg.TimescaledbDNS())
-    if err != nil {
-        log.Fatalf("config parse error: %v", err)
-    }
+	pgxConfig, err := pgxpool.ParseConfig(cfg.TimescaledbDNS())
+	if err != nil {
+		log.Fatalf("config parse error: %v", err)
+	}
 
 	dbpool, err := pgxpool.NewWithConfig(ctx, pgxConfig)
 	if err != nil {
@@ -85,7 +86,22 @@ func main() {
 
 	log.Info("Connected to iot database")
 
-	manager := flows_manager.CreateFlowsManager(ctx, cfg, nc, js, jsConsumer, dbpool, admin, log)
+	// Create S3 client
+	s3Client, err := utils.CreateS3Client(ctx, cfg.AwsS3, log)
+	if err != nil {
+		log.Fatalf("Failed to create AWS S3 client: %v", err)
+	}
+
+	// Create duckdb connection pool
+	duckdbPool, err := duckdb.NewDB(ctx, cfg, log)
+	if err != nil {
+		log.Fatalf("Failed to create DuckDB connection pool: %v", err)
+	}
+	log.Infof("DuckDB connection pool created successfully")
+	defer duckdbPool.Close()
+
+
+	manager := flows_manager.CreateFlowsManager(ctx, cfg, nc, js, jsConsumer, dbpool, duckdbPool, s3Client, admin, log)
 
 	utils.HealthCheck(cfg)
 
@@ -95,5 +111,8 @@ func main() {
 	<-sigChan
 	log.Info("Received shutdown signal, shutting down gracefully...")
 	cancel()
-	manager.GracefullyShutdown()
+
+	shutdownCtx, shutdownCancel := utils.ContextWithTimeout(10 * time.Second)
+	defer shutdownCancel()
+	manager.GracefullyShutdown(shutdownCtx)
 }

@@ -34,10 +34,11 @@ type LeaderElector struct {
 	lockKey    string
 	ttl        time.Duration
 	cancel     context.CancelFunc
+	ctx        context.Context
 	random     *rand.Rand
-	isLeader atomic.Bool
-	rev      atomic.Uint64
-	epoch    atomic.Uint64
+	isLeader   atomic.Bool
+	rev        atomic.Uint64
+	epoch      atomic.Uint64
 
 	lastValidatedAt atomic.Int64
 
@@ -85,6 +86,7 @@ func NewLeaderElector(
 func (le *LeaderElector) Start(ctx context.Context) error {
 	leCtx, leCancel := context.WithCancel(ctx)
 	le.cancel = leCancel
+	le.ctx = leCtx
 
 	// Initial attempt
 	le.tryBecomeLeader(leCtx)
@@ -345,10 +347,10 @@ func (le *LeaderElector) IsLeader() bool {
 	return le.isLeader.Load()
 }
 
-func (le *LeaderElector) getLeaderInstanceID() (LeaderInstanceID, bool) {
+func (le *LeaderElector) getLeaderInstanceID(ctx context.Context) (LeaderInstanceID, bool) {
 	if !le.isLeader.Load() {
 		// If we are not leaders, read from KV who is.
-		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
 		defer cancel()
 
 		e, err := le.kv.Get(ctx, le.lockKey)
@@ -373,8 +375,8 @@ func (le *LeaderElector) getLeaderInstanceID() (LeaderInstanceID, bool) {
 }
 
 // Parse the instanceID to extract the replica index
-func (le *LeaderElector) GetReplicaIndexLeader() int {
-	leaderID, ok := le.getLeaderInstanceID()
+func (le *LeaderElector) GetReplicaIndexLeader(ctx context.Context) int {
+	leaderID, ok := le.getLeaderInstanceID(ctx)
 	if !ok {
 		return -1
 	}
@@ -382,7 +384,7 @@ func (le *LeaderElector) GetReplicaIndexLeader() int {
 	return leaderID.ReplicaIndex
 }
 
-func (le *LeaderElector) Stop() {
+func (le *LeaderElector) Stop(ctx context.Context) {
 	if le.cancel == nil {
 		return
 	}
@@ -395,7 +397,7 @@ func (le *LeaderElector) Stop() {
 	if le.IsLeader() {
 		// le.ctx is already cancelled at this point; use a fresh background context
 		// with a short timeout so the delete is not blocked indefinitely.
-		opCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		opCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
 		defer cancel()
 
 		currentRev := le.rev.Load()

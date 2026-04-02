@@ -25,7 +25,7 @@ type AiAgentNode struct {
 	McpHost        mcphost.MCPHost
 }
 
-func CreateAiAgentNode(node common.NodeData, fm common.Manager, p common.Pipeline) (*AiAgentNode, error) {
+func CreateAiAgentNode(ctx context.Context, node common.NodeData, fm common.Manager, p common.Pipeline) (*AiAgentNode, error) {
 	orgId := p.GetOrgId()
 	providerUrl := fm.GetOrgLlmProviderUrl(orgId)
 	providerApiKey := fm.GetOrgLlmProviderApiKey(orgId)
@@ -98,7 +98,7 @@ func CreateAiAgentNode(node common.NodeData, fm common.Manager, p common.Pipelin
 		},
 	}
 
-	femResultsInfo := fm.GetS3DigitalTwinFolderInfo(context.Background(), p.GetGroupId(), p.GetDigitalTwinId(), "femResFiles")
+	femResultsInfo := fm.GetS3DigitalTwinFolderInfo(ctx, p.GetGroupId(), p.GetDigitalTwinId(), "femResFiles")
 	if fm.GetMode() == "local" {
 		mcpServers["current_date"] = mcphost.MCPServerConfig{
 			Type:    "local",
@@ -371,7 +371,6 @@ func (n *AiAgentNode) Stop(log *logger.Logger) {
 
 	n.wg.Wait() // espera que todas las goroutines confirmen que terminaron
 
-	n.ResetNodeContext()
 	n.SetStatus(common.NodeStatusStopped) // ahora sí refleja la realidad
 
 	log.Infof("AiAgentNode %s stopped successfully", n.NodeUid)
@@ -382,7 +381,7 @@ func (n *AiAgentNode) GetChatMessages(userName string) []*schema.Message {
 	if kvStore == nil {
 		return nil
 	}
-	chatMessages := utils.GetChatMessages(n.Fm.Log(), kvStore, userName, n.GetOrgHash(), n.GetDigitalTwinUid())
+	chatMessages := utils.GetChatMessages(n.Ctx, n.Fm.Log(), kvStore, userName, n.GetOrgHash(), n.GetDigitalTwinUid())
 
 	return chatMessages
 }
@@ -398,6 +397,7 @@ func (n *AiAgentNode) SaveChatMessages(
 	}
 
 	err = utils.SaveChatMessages(
+		n.Ctx,
 		n.Fm.Log(),
 		kvStore,
 		userName,

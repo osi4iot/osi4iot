@@ -21,6 +21,7 @@ export interface AdminMsgContext {
 	topicId?: number;
 	topicRef?: string;
 	fileName?: string;
+	updatedField?: string;
 }
 
 export interface Nats {

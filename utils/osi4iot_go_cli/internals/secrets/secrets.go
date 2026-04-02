@@ -153,7 +153,6 @@ func GenerateSecrets(pd *pt.PlatformData) map[string]pt.Secret {
 	}
 	Secrets["timescale_data_ret_int"] = timescaleDataRetIntSecret
 
-	Secrets["dev2pdb_config"] = CreateDev2pdbConfigSecret(pd, numNatsReplicas)
 
 	Secrets["pipelines_config"] = CreatePipelinesConfigSecret(pd, numNatsReplicas)
 
@@ -184,25 +183,6 @@ func GenerateSecrets(pd *pt.PlatformData) map[string]pt.Secret {
 		Data: pgadmin4SecretsData,
 	}
 	Secrets["pgadmin4"] = pgadmin4Secret
-
-	s3StorageSecrets := []string{
-		fmt.Sprintf("POSTGRES_USER=%s", pd.PlatformInfo.PostgresUser),
-		fmt.Sprintf("POSTGRES_PASSWORD=%s", pd.PlatformInfo.PostgresPassword),
-		fmt.Sprintf("POSTGRES_DB=%s", pd.PlatformInfo.PostgresDB),
-		fmt.Sprintf("TIMESCALE_USER=%s", pd.PlatformInfo.TimescaleUser),
-		fmt.Sprintf("TIMESCALE_PASSWORD=%s", pd.PlatformInfo.TimescalePassword),
-		fmt.Sprintf("TIMESCALE_DB=%s", pd.PlatformInfo.TimescaleDB),
-		fmt.Sprintf("AWS_ACCESS_KEY_ID_S3_BUCKET=%s", pd.PlatformInfo.AWSAccessKeyIDS3Bucket),
-		fmt.Sprintf("AWS_SECRET_ACCESS_KEY_S3_BUCKET=%s", pd.PlatformInfo.AWSSecretAccessKeyS3Bucket),
-	}
-	s3StorageSecretsData := strings.Join(s3StorageSecrets, "\n")
-	s3StorageSecretsHash := utils.GetMD5Hash(s3StorageSecretsData)
-	s3StorageSecretsName := fmt.Sprintf("s3_storage_%s", s3StorageSecretsHash)
-	s3StorageSecret := pt.Secret{
-		Name: s3StorageSecretsName,
-		Data: s3StorageSecretsData,
-	}
-	Secrets["s3_storage"] = s3StorageSecret
 
 	return Secrets
 }
@@ -409,8 +389,6 @@ func CreateAdminApiConfigSecret(
 		fmt.Sprintf("TIMESCALE_USER=%s", pd.PlatformInfo.TimescaleUser),
 		fmt.Sprintf("TIMESCALE_PASSWORD=%s", pd.PlatformInfo.TimescalePassword),
 		fmt.Sprintf("TIMESCALE_DB=%s", pd.PlatformInfo.TimescaleDB),
-		fmt.Sprintf("DEV2PDB_PASSWORD=%s", pd.PlatformInfo.Dev2pdbPassword),
-		fmt.Sprintf("DEV2PDB_NATS_NKEY_PUBLIC=%s", pd.PlatformInfo.Dev2pdbNatsNkeyPublic),
 		fmt.Sprintf("NATS_ADMIN_USERNAME=%s", pd.Certs.NatsCerts.NatsAdminUsername),
 		fmt.Sprintf("NATS_ADMIN_PASSWORD=%s", pd.Certs.NatsCerts.NatsAdminPassword),
 		fmt.Sprintf("NATS_NUM_REPLICAS=%d", numNatsReplicas),
@@ -478,21 +456,6 @@ func CreatePipelinesConfigSecret(
 	}
 
 	return pipelinesConfigSecret
-}
-
-func CreateDev2pdbConfigSecret(
-	pd *pt.PlatformData,
-	numNatsReplicas int,
-) pt.Secret {
-	cfgStr, _ := utils.Dev2pdbConfig(pd, numNatsReplicas)
-	dev2pdbConfigHash := utils.GetMD5Hash(cfgStr)
-	dev2pdbConfigName := fmt.Sprintf("dev2pdb_config_%s", dev2pdbConfigHash)
-	dev2pdbConfigSecret := pt.Secret{
-		Name: dev2pdbConfigName,
-		Data: cfgStr,
-	}
-
-	return dev2pdbConfigSecret
 }
 
 func CreateCertsSecrets(pd *pt.PlatformData, dc *pt.DockerClient) (map[string]pt.Secret, error) {

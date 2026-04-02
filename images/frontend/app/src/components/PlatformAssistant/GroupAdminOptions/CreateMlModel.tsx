@@ -17,8 +17,8 @@ import axiosErrorHandler from "../../../tools/axiosErrorHandler";
 import { setMlModelsOptionToShow, useMlModelsDispatch } from "../../../contexts/mlModelsOptions";
 import { IGroupManaged } from "../TableColumns/groupsManagedColumns";
 import { IOrgOfGroupsManaged } from "../TableColumns/orgsOfGroupsManagedColumns";
-import { ControlsContainer, FormContainer } from "./CreateAsset";
 import { AxiosError, AxiosResponse } from "axios";
+import { ControlsContainer, StaticFormContainer } from "../../Tools/FormTools";
 
 const DataFileTitle = styled.div`
     margin-bottom: 5px;
@@ -520,7 +520,7 @@ const CreateMlModel: FC<CreateMlModelProps> = ({ backToTable, refreshMlModels, o
     return (
         <>
             <FormTitle isSubmitting={isSubmitting}>Create ML model</FormTitle>
-            <FormContainer>
+            <StaticFormContainer>
                 <Formik initialValues={initialMlModelData} validationSchema={validationSchema} onSubmit={onSubmit}>
                     {(formik) => (
                         <Form>
@@ -633,7 +633,7 @@ const CreateMlModel: FC<CreateMlModelProps> = ({ backToTable, refreshMlModels, o
                         </Form>
                     )}
                 </Formik>
-            </FormContainer>
+            </StaticFormContainer>
         </>
     );
 };

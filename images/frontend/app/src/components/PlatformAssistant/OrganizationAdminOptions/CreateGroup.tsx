@@ -36,8 +36,8 @@ import {
 import { IBuilding } from "../TableColumns/buildingsColumns";
 import { getAxiosInstance } from "../../../tools/axiosIntance";
 import axiosErrorHandler from "../../../tools/axiosErrorHandler";
-import { ControlsContainer, FormContainer } from "../GroupAdminOptions/CreateAsset";
 import { AxiosError, AxiosResponse } from "axios";
+import { ControlsContainer, StaticFormContainer } from "../../Tools/FormTools";
 
 const GroupLocationTitle = styled.div`
     margin-bottom: 5px;
@@ -384,7 +384,7 @@ const CreateGroup: FC<CreateGroupProps> = ({
             {showCreateGroup ? (
                 <>
                     <FormTitle isSubmitting={isSubmitting}>Create group</FormTitle>
-                    <FormContainer>
+                    <StaticFormContainer>
                         <Formik
                             initialValues={initialGroupData}
                             validationSchema={validationSchema}
@@ -486,7 +486,7 @@ const CreateGroup: FC<CreateGroupProps> = ({
                                 </Form>
                             )}
                         </Formik>
-                    </FormContainer>
+                    </StaticFormContainer>
                 </>
             ) : (
                 <SelectOrgUsersOfOrgManaged

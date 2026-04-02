@@ -168,7 +168,6 @@ func (n *FuncNode) Stop(log *logger.Logger) {
 	n.resetVMPool(log)
 
     n.wg.Wait()
-    n.ResetNodeContext()
     n.SetStatus(common.NodeStatusStopped)
     log.Infof("Node %s stopped successfully", n.NodeUid)
 }

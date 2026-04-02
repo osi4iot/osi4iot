@@ -14,6 +14,7 @@ import {
 import { FaTelegramPlane } from "react-icons/fa";
 import { TbDatabaseCog } from "react-icons/tb"
 import { FaRegCommentDots, FaMicrochip, FaGear } from "react-icons/fa6";
+import { BsBucket } from "react-icons/bs";
 import styled from "styled-components";
 
 const PaletteContainer = styled.div`
@@ -117,6 +118,12 @@ export const CommentIcon = styled(FaRegCommentDots)<{ size?: string }>`
     filter: drop-shadow(0px 2px 3px rgba(0, 0, 0, 0.2));
 `;
 
+export const BsBucketIcon = styled(BsBucket)<{ size?: string }>`
+    font-size: ${(props) => props.size || "26px"};
+    color: #ffffff;
+    filter: drop-shadow(0px 2px 3px rgba(0, 0, 0, 0.2));
+`;
+
 const Wrapper = styled.div<{ size: number }>`
     position: relative;
     width: ${(props) => `${props.size}px`};
@@ -142,6 +149,17 @@ export const IoTDBIcon: React.FC<Props> = ({ size = 30, bgcolor = "#5B85A7" }) =
     return (
         <Wrapper size={size}>
             <Database size={size} strokeWidth={2} />
+            <OverlayIcon size={size} bgcolor={bgcolor}>
+                <FaMicrochip size={size * 0.4} />
+            </OverlayIcon>
+        </Wrapper>
+    );
+};
+
+export const S3StorageIcon: React.FC<Props> = ({ size = 30, bgcolor = "#5B85A7" }) => {
+    return (
+        <Wrapper size={size}>
+            <BsBucketIcon size={size}/>
             <OverlayIcon size={size} bgcolor={bgcolor}>
                 <FaMicrochip size={size * 0.4} />
             </OverlayIcon>
@@ -372,11 +390,26 @@ const nodeTypes = [
         },
     },
     {
+        type: "S3Storage",
+        label: "S3 Storage",
+        bgColor: "#5B85A7",
+        hoverColor: "#77aedb",
+        icon: <S3StorageIcon size={30} bgcolor="#5B85A7" />,
+        numOutputs: 1,
+        debug: "off",
+        settings: {
+            queryMode: "static_query",
+            action: "Insert",
+            folderName: "telemetry",
+            duckdbQuery:
+                "SELECT * FROM iot_table WHERE topic = $__topicFun('dev2pdb_1') AND \n timestamp >= $__timeFun('now-25s') AND timestamp <= $__timeFun('now') ORDER BY timestamp DESC;",
+        },
+    },
+    {
         type: "AssetState",
         label: "Asset state",
         bgColor: "#5B85A7",
         hoverColor: "#77aedb",
-        // icon: <AssetStateIcon size="30px" bgcolor="#e7e3df" />,
         icon: <AssetStateStoreIcon size={30} bgcolor="#5B85A7" />,
         numOutputs: 1,
         debug: "off",
@@ -424,6 +457,7 @@ export default function NodePalette() {
                         node.type === "Email" ||
                         node.type === "TelegramSend" ||
                         node.type === "IoTDb" ||
+                        node.type === "S3Storage" ||
                         node.type === "AssetState" ? (
                             <>
                                 <NodeLabel>{node.label}</NodeLabel>

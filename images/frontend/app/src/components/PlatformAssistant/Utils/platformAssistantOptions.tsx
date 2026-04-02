@@ -147,6 +147,12 @@ export const SENSORS_OPTIONS = {
     EDIT_SENSOR: "Edit sensor",
 }
 
+export const ASSET_S3_FOLDER_OPTIONS = {
+    TABLE: "Table",
+    CREATE_ASSET_S3_FOLDER: "Create asset s3 folder",
+    EDIT_ASSET_S3_FOLDER: "Edit asset s3 folder",
+}
+
 export const TOPICS_OPTIONS = {
     TABLE: "Table",
     CREATE_TOPIC: "Create topic",

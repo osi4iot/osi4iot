@@ -44,9 +44,9 @@ func CreateTelegramSendNode(node common.NodeData, fm common.Manager, p common.Pi
 	switch messageOptions {
 	case "Message received options":
 		botToken = org.TelegramBotToken
-	case "Custom telegram options":
+	case "Custom message":
 		isCustomMessage = true
-		if messageToSend, ok = node.Settings["message"].(string); !ok || messageToSend == "" {
+		if messageToSend, ok = node.Settings["messageToSend"].(string); !ok || messageToSend == "" {
 			return nil, fmt.Errorf("message setting is required for custom options")
 		}
 	default:
@@ -132,7 +132,6 @@ func (n *TelegramSendNode) Stop(log *logger.Logger) {
 	}
 
     n.wg.Wait()
-    n.ResetNodeContext()
     n.SetStatus(common.NodeStatusStopped)
     log.Infof("Node %s stopped successfully", n.NodeUid)
 }

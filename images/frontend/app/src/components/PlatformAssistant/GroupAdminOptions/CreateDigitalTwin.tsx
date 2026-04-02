@@ -37,8 +37,18 @@ import axiosErrorHandler from "../../../tools/axiosErrorHandler";
 import { IGroupManaged } from "../TableColumns/groupsManagedColumns";
 import { IOrgOfGroupsManaged } from "../TableColumns/orgsOfGroupsManagedColumns";
 import { IAsset } from "../TableColumns/assetsColumns";
-import { ControlsContainer, FormContainer } from "./CreateAsset";
 import { AxiosError, AxiosResponse } from "axios";
+
+// CodeMirror imports
+import CodeMirror, { keymap } from "@uiw/react-codemirror";
+import { indentUnit, indentOnInput } from "@codemirror/language";
+import { completionKeymap } from "@codemirror/autocomplete";
+import { indentWithTab } from "@codemirror/commands";
+import { json } from "@codemirror/lang-json";
+import { oneDark } from "@codemirror/theme-one-dark";
+import { CodeMirrorWrapper } from "../../Tools/CodeMirrorWrapper";
+import { ControlsContainer, DraggableFormContainer, FieldErrorScroller } from "../../Tools/FormTools";
+import { ReIndentCommand } from "../DigitalTwin3DViewer/Pipeline/types";
 
 const DataFileTitle = styled.div`
     margin-bottom: 5px;
@@ -234,7 +244,7 @@ export const getSensorsRefFromDigitalTwinGltfData = (digitalTwinGltfData: any) =
                         }
                     }
                 }
-            }
+            },
         );
     }
     return sensorsRef;
@@ -242,7 +252,7 @@ export const getSensorsRefFromDigitalTwinGltfData = (digitalTwinGltfData: any) =
 
 const findGroupArray = (
     orgsOfGroupManaged: IOrgOfGroupsManaged[],
-    groupsManaged: IGroupManaged[]
+    groupsManaged: IGroupManaged[],
 ): Record<string, string[]> => {
     const groupArray: Record<string, string[]> = {};
     for (const group of groupsManaged) {
@@ -509,7 +519,7 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
             }
         },
         // eslint-disable-next-line react-hooks/exhaustive-deps
-        [gltfFileContent]
+        [gltfFileContent],
     );
 
     useEffect(() => {
@@ -775,7 +785,7 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
                 is: "Gltf 3D model",
                 then: Yup.string()
                     .test("test-name", "Wrong format for the json object", (value: any) =>
-                        digitalTwinFormatValidation(value)
+                        digitalTwinFormatValidation(value),
                     )
                     .required("Must enter Digital twin simulation format"),
             })
@@ -783,7 +793,7 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
                 is: "Glb 3D model",
                 then: Yup.string()
                     .test("test-name", "Wrong format for the json object", (value: any) =>
-                        digitalTwinFormatValidation(value)
+                        digitalTwinFormatValidation(value),
                     )
                     .required("Must enter Digital twin simulation format"),
             }),
@@ -878,7 +888,7 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
     return (
         <>
             <FormTitle isSubmitting={isSubmitting}>Create digital twin</FormTitle>
-            <FormContainer>
+            <DraggableFormContainer>
                 <Formik initialValues={initialDigitalTwinData} validationSchema={validationSchema} onSubmit={onSubmit}>
                     {(formik) => {
                         return (
@@ -1050,12 +1060,43 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
                                                     </ChatAssistantContainer>
                                                 </>
                                             )}
-                                            <FormikControl
-                                                control="textarea"
-                                                label="Digital twin simulation format"
-                                                name="digitalTwinSimulationFormat"
-                                                textAreaSize="Small"
-                                            />
+                                            <CodeMirrorWrapper fontSize="14px">
+                                                <label>Digital twin simulation format</label>
+                                                <div className="cm-wrapper">
+                                                    <CodeMirror
+                                                        value={formik.values.digitalTwinSimulationFormat}
+                                                        height="300px"
+                                                        theme={oneDark}
+                                                        extensions={[
+                                                            json(),
+                                                            indentUnit.of("    "),
+                                                            indentOnInput(),
+                                                            keymap.of([
+                                                                ...completionKeymap,
+                                                                indentWithTab,
+                                                                ReIndentCommand,
+                                                            ]),
+                                                        ]}
+                                                        onChange={(value) => {
+                                                            formik.setFieldValue("digitalTwinSimulationFormat", value);
+                                                        }}
+                                                        onBlur={() => {
+                                                            formik.setFieldTouched("digitalTwinSimulationFormat", true);
+                                                        }}
+                                                        basicSetup={{
+                                                            lineNumbers: true,
+                                                            foldGutter: true,
+                                                            bracketMatching: true,
+                                                            closeBrackets: true,
+                                                            syntaxHighlighting: true,
+                                                            autocompletion: true,
+                                                            tabSize: 4,
+                                                            searchKeymap: true,
+                                                        }}
+                                                    />
+                                                </div>
+                                                <FieldErrorScroller name="digitalTwinSimulationFormat" />
+                                            </CodeMirrorWrapper>
                                         </>
                                     )}
                                 </ControlsContainer>
@@ -1071,7 +1112,7 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
                         );
                     }}
                 </Formik>
-            </FormContainer>
+            </DraggableFormContainer>
         </>
     );
 };

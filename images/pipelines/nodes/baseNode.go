@@ -15,6 +15,7 @@ import (
 )
 
 func CreateNode(
+	ctx context.Context,
 	node common.NodeData,
 	log *logger.Logger,
 	fm common.Manager,
@@ -47,7 +48,7 @@ func CreateNode(
 	case "Email":
 		newNode, err = CreateEmailNode(node, fm, p)
 	case "AiAgent":
-		newNode, err = CreateAiAgentNode(node, fm, p)
+		newNode, err = CreateAiAgentNode(ctx, node, fm, p)
 	case "MlModel":
 		newNode, err = CreateMlmNode(node, fm, p)
 	case "Publish":
@@ -56,6 +57,8 @@ func CreateNode(
 		newNode, err = CreateBatchNode(node, fm, p)
 	case "IoTDb":
 		newNode, err = CreateIoTDbNode(node, fm, p)
+	case "S3Storage":
+		newNode, err = CreateS3StorageNode(node, fm, p)
 	case "AssetState":
 		newNode, err = CreateAssetStateNode(node, fm, p)
 	case "Comment":
@@ -176,7 +179,6 @@ func (n *BaseNode) Stop(log *logger.Logger) {
         n.Cancel()
     }
     n.wg.Wait()
-    n.ResetNodeContext()
     n.SetStatus(common.NodeStatusStopped)
     log.Infof("Node %s stopped successfully", n.NodeUid)
 }
@@ -185,12 +187,6 @@ func (n *BaseNode) SetStatus(status common.NodeStatus) {
 	n.statusMutex.Lock()
 	defer n.statusMutex.Unlock()
 	n.status = status
-}
-
-func (n *BaseNode) ResetNodeContext() {
-	ctx, cancel := context.WithCancel(context.Background())
-	n.Cancel = cancel
-	n.Ctx = ctx
 }
 
 func (n *BaseNode) HandleError(err error) {
@@ -391,7 +387,7 @@ func (n *BaseNode) GetAssetStateFromGroupKvStore(assetUid string, groupUid strin
 		return nil, fmt.Errorf("failed to get KV store: %w", err)
 	}
 
-	assetState, err := kvStore.GetObjectValue(context.Background(), kvKey)
+	assetState, err := kvStore.GetObjectValue(n.GetNodeContext(), kvKey)
 	if err != nil {
 		return nil, fmt.Errorf("error getting value from store for key %s: %w", kvKey, err)
 	}
@@ -405,13 +401,13 @@ func (n *BaseNode) GetAssetStatesInGroupFromGroupKvStore(groupUid string, log *l
 		return nil, fmt.Errorf("failed to get KV store: %w", err)
 	}
 
-	keys, err := kvStore.ListKeys(context.Background(), fmt.Sprintf("org_%s-group_%s.asset_states.", n.GetOrgHash(), groupUid))
+	keys, err := kvStore.ListKeys(n.GetNodeContext(), fmt.Sprintf("org_%s-group_%s.asset_states.", n.GetOrgHash(), groupUid))
 	if err != nil {
 		return nil, fmt.Errorf("error listing keys from store for group %s: %w", groupUid, err)
 	}
 
 	for _, key := range keys {
-		state, err := kvStore.GetObjectValue(context.Background(), key)
+		state, err := kvStore.GetObjectValue(n.GetNodeContext(), key)
 		if err != nil {
 			log.Errorf("Error getting value from store for key %s: %v", key, err)
 			continue

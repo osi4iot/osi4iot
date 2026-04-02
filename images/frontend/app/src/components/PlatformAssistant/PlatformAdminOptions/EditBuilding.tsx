@@ -24,8 +24,8 @@ import { getAxiosInstance } from '../../../tools/axiosIntance';
 import axiosErrorHandler from '../../../tools/axiosErrorHandler';
 import formatDateString from '../../../tools/formatDate';
 import { isGeoJSONString } from '../../../tools/geojsonValidation';
-import { ControlsContainer, FormContainer } from '../GroupAdminOptions/CreateAsset';
 import { AxiosResponse, AxiosError } from 'axios';
+import { ControlsContainer, StaticFormContainer } from '../../Tools/FormTools';
 
 const BuildingLocationTitle = styled.div`
     margin-bottom: 5px;
@@ -283,7 +283,7 @@ const EditBuilding: FC<EditBuildingProps> = ({ buildings, backToTable, refreshBu
     return (
         <>
             <FormTitle isSubmitting={isSubmitting} >Edit building</FormTitle>
-            <FormContainer>
+            <StaticFormContainer>
                 <Formik initialValues={initialBuildingData} validationSchema={validationSchema} onSubmit={onSubmit} >
                     {
                         formik => {
@@ -373,7 +373,7 @@ const EditBuilding: FC<EditBuildingProps> = ({ buildings, backToTable, refreshBu
                         }
                     }
                 </Formik>
-            </FormContainer>
+            </StaticFormContainer>
         </>
     )
 }

@@ -63,8 +63,6 @@ func NewSvcResourcesMap(pd *pt.PlatformData) map[string]SvcResources {
 		"auth_callout",
 		"postgres",
 		"timescaledb",
-		"s3_storage",
-		"dev2pdb",
 		"pipelines",
 		"grafana",
 		"admin_api",

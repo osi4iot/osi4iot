@@ -10,10 +10,17 @@
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
     "moduleResolution": "node",
+    "ignoreDeprecations": "5.0",
     "resolveJsonModule": true,
+    "strictPropertyInitialization": false,
+    "strictNullChecks": false,
+    "skipLibCheck": true
   },
-  "include": ["src/**/*.ts", "src/components/Authentication/authentication.controller.ts", "src/utils/nats_nkey/nkey.js"],
-  "exclude": [
-    "node_modules"
-  ]
+  "include": [
+    "src/**/*.ts",
+    "src/types/**/*.d.ts",
+    "src/components/Authentication/authentication.controller.ts",
+    "src/utils/nats_nkey/nkey.js"
+  ],
+  "exclude": ["node_modules"]
 }

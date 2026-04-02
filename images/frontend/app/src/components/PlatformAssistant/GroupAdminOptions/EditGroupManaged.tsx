@@ -21,8 +21,8 @@ import {
 } from '../../../contexts/groupsManagedOptions';
 import { getAxiosInstance } from '../../../tools/axiosIntance';
 import axiosErrorHandler from '../../../tools/axiosErrorHandler';
-import { ControlsContainer, FormContainer } from './CreateAsset';
 import { AxiosResponse, AxiosError } from 'axios';
+import { ControlsContainer, StaticFormContainer } from '../../Tools/FormTools';
 
 const groupManagedInitInputFormData = {
     groupId: 0,
@@ -143,7 +143,7 @@ const EditGroupManaged: FC<EditGroupManagedProps> = ({
     return (
         <>
             <FormTitle isSubmitting={isSubmitting} >Edit group managed</FormTitle>
-            <FormContainer>
+            <StaticFormContainer>
                 <Formik initialValues={initialGroupManagedData} validationSchema={validationSchema} onSubmit={onSubmit} >
                     {
                         formik => (
@@ -194,7 +194,7 @@ const EditGroupManaged: FC<EditGroupManagedProps> = ({
                         )
                     }
                 </Formik>
-            </FormContainer>
+            </StaticFormContainer>
         </>
     )
 }

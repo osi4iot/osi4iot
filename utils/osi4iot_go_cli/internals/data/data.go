@@ -216,12 +216,6 @@ func SetData(key string, value string) {
 	case "TIMESCALE_DATA_RET_INT_DAYS":
 		timescaleDataRetentionInterval := value + " days"
 		Data.PlatformInfo.TimescaleDataRetentionInterval = timescaleDataRetentionInterval
-	case "NUMBER_DEV2PDB_WORKERS":
-		numberDev2pdbWorkers, _ := strconv.Atoi(value)
-		Data.PlatformInfo.NumberDev2pdbWorkers = numberDev2pdbWorkers
-	case "DEV2PDB_BATCH_SIZE":
-		dev2pdbBatchSize, _ := strconv.Atoi(value)
-		Data.PlatformInfo.Dev2pdbBatchSize = dev2pdbBatchSize
 	case "GRAFANA_DB_PASSWORD":
 		if Data.PlatformInfo.GrafanaDBPassword == "" {
 			Data.PlatformInfo.GrafanaDBPassword = value
@@ -230,12 +224,6 @@ func SetData(key string, value string) {
 		if Data.PlatformInfo.GrafanaDatasourcePassword == "" {
 			Data.PlatformInfo.GrafanaDatasourcePassword = value
 		}
-	case "DEV2PDB_PASSWORD":
-		Data.PlatformInfo.Dev2pdbPassword = value
-	case "DEV2PDB_NATS_NKEY_PUBLIC":
-		Data.PlatformInfo.Dev2pdbNatsNkeyPublic = value
-	case "DEV2PDB_NATS_NKEY_SEED":
-		Data.PlatformInfo.Dev2pdbNatsNkeySeed = value
 	case "NODE_RED_ADMIN":
 		Data.PlatformInfo.NodeRedAdmin = value
 	case "NODE_RED_ADMIN_HASH":

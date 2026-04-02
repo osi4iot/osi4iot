@@ -3,6 +3,7 @@ package common
 import (
 	"context"
 	"image"
+	"time"
 
 	"github.com/nats-io/nats.go"
 
@@ -199,6 +200,76 @@ type NotificationChannel struct {
 	ChannelType       string         `json:"channelType"`
 	ChannelSettings   map[string]any `json:"channelSettings"`
 }
+
+type ParquetSchemaHistory struct {
+	S3FolderRowID int       `json:"s3FolderRowId"`
+	Schema        string    `json:"parquetSchema"`
+	ValidFrom     time.Time `json:"validFrom"`
+	ValidTo       time.Time `json:"validTo"`
+	Version       int       `json:"version"`
+	IsCurrent     bool      `json:"isCurrent"`
+}
+
+type AssetS3Folder struct {
+	Id                int                    `json:"id"`
+	OrgId             int                    `json:"orgId"`
+	GroupId           int                    `json:"groupId"`
+	GroupUid          string                 `json:"groupUid"`
+	AssetId           int                    `json:"assetId"`
+	AssetUid          string                 `json:"assetUid"`
+	FolderName        string                 `json:"folderName"`
+	ParquetSchema     map[string]any         `json:"parquetSchema"`
+	LastS3Storage     string                 `json:"lastS3Storage"`
+	ParquetFileCount  int                    `json:"parquetFileCount"`
+	ParquetTotalBytes int64                  `json:"parquetTotalBytes"`
+	Version           int                    `json:"version"`
+	IsCurrent         bool                   `json:"isCurrent"`
+	ValidFrom         string                 `json:"validFrom"`
+	ValidTo           string                 `json:"validTo"`
+	SchemaHistory     []ParquetSchemaHistory `json:"schemaHistory,omitempty"`
+	Created           string                 `json:"created,omitempty"`
+	Updated           string                 `json:"updated,omitempty"`
+}
+
+type ParquetField struct {
+	Tag string `json:"Tag"`
+}
+
+type ParquetSchema struct {
+	Tag    string         `json:"Tag"`
+	Fields []ParquetField `json:"Fields"`
+}
+
+type ParquetFieldDef struct {
+	Name        string `json:"name"`
+	Type        string `json:"type"`
+	Required    bool   `json:"required"`
+	Unit        string `json:"unit,omitempty"`
+	Description string `json:"description,omitempty"`
+}
+
+type SchemaDef struct {
+	Fields []ParquetFieldDef `json:"fields"`
+}
+
+// class UpdateS3FolderParquetStatsDto {
+// 	@IsNumber()
+// 	public parquetFileCount: number;
+
+// 	@IsNumber()
+// 	public parquetTotalBytes: number;
+
+// 	@IsString()
+// 	public lastS3Storage: string;
+// }
+
+
+type S3FolderStats struct {
+	ParquetFileCount     int       `json:"parquetFileCount"`
+	ParquetTotalBytes    int64     `json:"parquetTotalBytes"`
+	LastS3Storage time.Time `json:"lastS3Storage"` // timestamp of the most recent file
+}
+
 
 type NodeData struct {
 	NodeUid    string         `json:"nodeUid"`

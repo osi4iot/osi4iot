@@ -24,9 +24,8 @@ import axiosErrorHandler from '../../../tools/axiosErrorHandler';
 import { IGroupManaged } from '../TableColumns/groupsManagedColumns';
 import { IAssetType } from '../TableColumns/assetTypesColumns';
 import SvgComponent from '../../Tools/SvgComponent';
-import { ControlsContainer, FormContainer } from './CreateAsset';
 import { AxiosResponse, AxiosError } from 'axios';
-
+import { ControlsContainer, DraggableFormContainer } from '../../Tools/FormTools';
 
 export const FieldContainer = styled.div`
     margin: 20px 0;
@@ -279,7 +278,7 @@ const EditAsset: FC<EditAssetProps> = ({
     return (
         <>
             <FormTitle isSubmitting={isSubmitting} >Edit asset</FormTitle>
-            <FormContainer>
+            <DraggableFormContainer>
                 <Formik initialValues={initialAssetData} validationSchema={validationSchema} onSubmit={onSubmit} >
                     {
                         formik => (
@@ -361,7 +360,7 @@ const EditAsset: FC<EditAssetProps> = ({
                         )
                     }
                 </Formik>
-            </FormContainer>
+            </DraggableFormContainer>
         </>
     )
 }

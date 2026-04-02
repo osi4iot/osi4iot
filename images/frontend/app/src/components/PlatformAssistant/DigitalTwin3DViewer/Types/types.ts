@@ -1,24 +1,19 @@
-
-import { 
-    IDigitalTwinGltfData, 
-    SensorState, 
-    AssetState, 
+import {
+    IDigitalTwinGltfData,
+    SensorState,
+    AssetState,
     GenericObjectState,
     FemSimulationObjectState,
     ObjectVisibilityState,
     FemSimObjectVisibilityState,
 } from "../ViewerTools/ViewerUtils";
-import { 
-    IAssetObject, 
-    IFemSimulationObject, 
-    IGenericObject, 
-    ISensorObject 
-} from "../Main/Model";
+import { IAssetObject, IFemSimulationObject, IGenericObject, ISensorObject } from "../Main/Model";
 import { IDigitalTwin } from "../../TableColumns/digitalTwinsColumns";
 import { IResultRenderInfo } from "../Main/Model";
 import { McpToolCall } from "../ChatAssitant/ChatAssistant";
 import { IOrgOfGroupsManaged } from "../../TableColumns/orgsOfGroupsManagedColumns";
 import { IGroupManaged } from "../../TableColumns/groupsManagedColumns";
+import IAssetS3Folder from "../../TableColumns/assetS3FolderColumns";
 
 export interface SelectedObjectInfo {
     type: string;
@@ -30,6 +25,7 @@ export interface SelectedObjectInfo {
 export interface Viewer3DProps {
     digitalTwinSelected: IDigitalTwin | null;
     digitalTwinGltfData: IDigitalTwinGltfData;
+    assetS3Folders: IAssetS3Folder[];
     orgSelected: IOrgOfGroupsManaged | null;
     groupSelected: IGroupManaged | null;
     close3DViewer: () => void;
@@ -45,12 +41,12 @@ export interface ViewerState {
     isPipelineLogsOpen: boolean;
     showDtSimulatorModal: boolean;
     activeViewer: "3D" | "pipeline" | "image_frame";
-    
+
     // Digital Twin state
     digitalTwinState: string;
     digitalTwinSimulatorSendData: boolean;
     generalTransparencyIndex: number;
-    
+
     // Objects state
     sensorObjects: ISensorObject[];
     sensorCollectionNames: string[];
@@ -60,20 +56,20 @@ export interface ViewerState {
     genericObjectCollectionNames: string[];
     femSimulationObjects: IFemSimulationObject[];
     femSimObjectCollectionNames: string[];
-    
+
     // Initial states
     initialSensorsState: Record<string, SensorState> | null;
     initialAssetsState: Record<string, AssetState> | null;
     initialGenericObjectsState: Record<string, GenericObjectState> | null;
     initialFemSimObjectsState: FemSimulationObjectState[];
     initialDigitalTwinSimulatorState: Record<string, number>;
-    
+
     // Visibility states
     initialGenericObjectsVisibilityState: Record<string, ObjectVisibilityState> | null;
     initialSensorsVisibilityState: Record<string, ObjectVisibilityState> | null;
     initialAssetsVisibilityState: Record<string, ObjectVisibilityState> | null;
     initialFemSimObjectsVisibilityState: Record<string, FemSimObjectVisibilityState> | null;
-    
+
     // FEM simulation state
     femSimulationGeneralInfo: Record<string, IResultRenderInfo> | null;
     femMinValues: number[];
@@ -88,7 +84,7 @@ export interface ViewerState {
     // Button labels
     lockReadingButtomLabel: string;
     getLastMeasurementsButtomLabel: string;
-    
+
     // Renderer
     legendRenderer: THREE.WebGLRenderer | null;
 

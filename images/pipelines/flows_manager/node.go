@@ -39,7 +39,7 @@ func (fm *FlowsManager) setPipelineInitialization(ctx context.Context, digitalTw
 	}
 }
 
-func (fm *FlowsManager) StopPipelines() {
+func (fm *FlowsManager) StopPipelines(ctx context.Context) {
 	digitalTwins := fm.GetDigitalTwins()
 	if len(digitalTwins) == 0 {
 		fm.log.Info("No digital twins found to stop")
@@ -50,7 +50,7 @@ func (fm *FlowsManager) StopPipelines() {
 		wg.Add(1)
 		go func(dtId int) {
 			defer wg.Done()
-			fm.StopNodesInDigitalTwin(dtId, "stop")
+			fm.StopNodesInDigitalTwin(ctx, dtId, "stop")
 			fm.StopPipelineStatusPublisher(dtId)
 		}(digitalTwin.Id)
 	}
@@ -72,7 +72,7 @@ func (fm *FlowsManager) StartNodesInDigitalTwin(ctx context.Context, digitalTwin
 	}
 }
 
-func (fm *FlowsManager) StopNodesInDigitalTwin(digitalTwinId int, action string) {
+func (fm *FlowsManager) StopNodesInDigitalTwin(ctx context.Context, digitalTwinId int, action string) {
 	fm.log.Infof("Stopping nodes for digital twin %d", digitalTwinId)
 
 	digitalTwin := fm.GetDigitalTwin(digitalTwinId)
@@ -82,7 +82,7 @@ func (fm *FlowsManager) StopNodesInDigitalTwin(digitalTwinId int, action string)
 	}
 
 	if digitalTwin.Pipeline != nil {
-		digitalTwin.Pipeline.Stop(action)
+		digitalTwin.Pipeline.Stop(ctx, action)
 	}
 }
 
@@ -102,7 +102,7 @@ func (fm *FlowsManager) RestartNodesInDigitalTwin(ctx context.Context, digitalTw
 	fm.log.Infof("Restarting nodes for digital twin %d", digitalTwinId)
 
 	// Stop all nodes first
-	fm.StopNodesInDigitalTwin(digitalTwinId, "restart")
+	fm.StopNodesInDigitalTwin(ctx, digitalTwinId, "restart")
 
 	// Start all nodes again
 	fm.StartNodesInDigitalTwin(ctx, digitalTwinId, needReinitialization)
@@ -120,8 +120,8 @@ func (fm *FlowsManager) DeletePipelineInDigitalTwin(ctx context.Context, digital
 	}
 
 	if digitalTwin.Pipeline != nil {
-		digitalTwin.Pipeline.Stop("delete")
-		digitalTwin.Pipeline.SetStatus(common.PipelineStatusUnknown)
+		digitalTwin.Pipeline.Stop(ctx, "delete")
+		digitalTwin.Pipeline.SetStatus(ctx, common.PipelineStatusUnknown)
 	}
 	digitalTwin.Pipeline = nil
 	fm.setPipelineInitialized(ctx, digitalTwin, false)

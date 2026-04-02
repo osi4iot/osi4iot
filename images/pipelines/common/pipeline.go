@@ -39,11 +39,11 @@ type LeaderElector interface {
 type Pipeline interface {
 	Start(ctx context.Context, needReinitialization bool)
 	StartStatusPublisher(ctx context.Context)
-	Stop(action string) error
+	Stop(ctx context.Context, action string) error
 	StopStatusPublisher()
-	SetStatus(status PipelineStatus)
+	SetStatus(ctx context.Context, status PipelineStatus)
 	GetStatus() PipelineStatus
-	ResetNode(nodeUid string) error
+	ResetNode(ctx context.Context, nodeUid string) error
 	RestartNode(ctx context.Context, nodeUid string) error
 	GetNodeData(nodeUid string) *NodeData
 	GetNode(nodeUid string) Node
@@ -62,8 +62,8 @@ type Pipeline interface {
 	GetGroupId() int
 	PublishPipelineStatus(payload PipelineStatusMessage)
 	GetLeaderElector() LeaderElector
-	GetReplicaIndexLeader() int
-	PublishChatMessages(userName string)
+	GetReplicaIndexLeader(ctx context.Context) int
+	PublishChatMessages(ctx context.Context, userName string)
 	ClearChatMessagesHistory(ctx context.Context, userName string)
 	CreateTelegramListenNodes(ctx context.Context, org *Org) error
 	HasTelegramListenNodesData() bool

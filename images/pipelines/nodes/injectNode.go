@@ -300,7 +300,6 @@ func (n *InjectNode) Stop(log *logger.Logger) {
 	n.stopPeriodicTasks()
 	
     n.wg.Wait()
-    n.ResetNodeContext()
     n.SetStatus(common.NodeStatusStopped)
     log.Infof("Node %s stopped successfully", n.NodeUid)
 }

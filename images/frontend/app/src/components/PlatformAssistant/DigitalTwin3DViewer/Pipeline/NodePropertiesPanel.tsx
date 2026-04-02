@@ -40,7 +40,6 @@ import {
     Tab,
     PanelContent,
     TabContentFunction,
-    CodeMirrorWrapper,
     ReIndentCommand,
     CheckboxContainer,
     ResizeHandle,
@@ -48,6 +47,8 @@ import {
     HeaderControls,
     DebugToggle,
 } from "./types";
+import IAssetS3Folder from "../../TableColumns/assetS3FolderColumns";
+import { CodeMirrorWrapper } from "../../../Tools/CodeMirrorWrapper";
 
 const daysOfWeek = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
@@ -90,6 +91,7 @@ interface NodePropertiesPanelProps {
     digitalTwinSelected: IDigitalTwin;
     handlePipelineUiChanged: (isPipelineUiChanged: any) => void;
     mqttTopicsData: IMqttTopicData[];
+    assetS3Folders: IAssetS3Folder[];
 }
 
 const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
@@ -100,6 +102,7 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
     digitalTwinSelected,
     handlePipelineUiChanged,
     mqttTopicsData,
+    assetS3Folders,
 }) => {
     const [isClosing, setIsClosing] = useState(false);
     const [formData, setFormData] = useState<any>({});
@@ -126,14 +129,6 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
             setWidth(newWidth);
         }
     }, []);
-
-    useEffect(() => {
-        if (selectedNode?.type === "Function" || selectedNode?.type === "IoTDb") {
-            updatePanelWidth(800);
-        } else {
-            updatePanelWidth(550);
-        }
-    }, [selectedNode, updatePanelWidth]);
 
     // Manejar clases CSS para el estado de dragging
     const setDraggingClass = useCallback((dragging: boolean) => {
@@ -168,19 +163,15 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
             const deltaX = e.clientX - dragStartRef.current.x;
             const newWidth = dragStartRef.current.widthInicial + deltaX;
 
-            let widthMin = 550;
-            let widthMax = 550;
-            if (selectedNode?.type === "Function" || selectedNode?.type === "IoTDb") {
-                widthMin = 800;
-                widthMax = 1370;
-            }
+            const widthMin = 550;
+            const widthMax = 1370;
 
             if (newWidth >= widthMin && newWidth <= widthMax) {
                 // Solo actualización CSS, sin setState durante el drag
                 updatePanelWidth(newWidth);
             }
         },
-        [isDragging, selectedNode, updatePanelWidth],
+        [isDragging, updatePanelWidth],
     );
 
     const finishDrag = useCallback(() => {
@@ -1264,6 +1255,123 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
         );
     };
 
+    const renderS3StorageTabs = () => {
+        const tabs = [
+            { id: "settings", label: "Settings" },
+            { id: "duckdb_query", label: "DuckDB query" },
+        ];
+
+        return (
+            <>
+                <TabsContainer>
+                    {tabs
+                        .filter(
+                            (tab) =>
+                                !(
+                                    tab.id === "duckdb_query" &&
+                                    (formData.action === "Insert" || formData.queryMode === "query_from_payload")
+                                ),
+                        )
+                        .map((tab) => (
+                            <Tab key={tab.id} isActive={activeTab === tab.id} onClick={() => setActiveTab(tab.id)}>
+                                {tab.label}
+                            </Tab>
+                        ))}
+                </TabsContainer>
+                <PanelContent>
+                    <TabContentFunction>
+                        {activeTab === "settings" && (
+                            <>
+                                <FormGroup>
+                                    <Label>Node Name</Label>
+                                    <Input
+                                        type="text"
+                                        value={formData.label || ""}
+                                        onChange={(e) => handleInputChange("label", e.target.value)}
+                                        placeholder="Node name"
+                                    />
+                                </FormGroup>
+                                {renderOutputSelector()}
+                                <FormGroup>
+                                    <Label>Query mode</Label>
+                                    <Select
+                                        value={formData.queryMode || "static_query"}
+                                        onChange={(e) => {
+                                            handleInputChange("queryMode", e.target.value);
+                                        }}
+                                    >
+                                        <option value="static_query">Static query</option>
+                                        <option value="query_from_payload">Query from msg.payload.s3Storage</option>
+                                    </Select>
+                                </FormGroup>
+                                {formData.queryMode === "static_query" && (
+                                    <>
+                                        <FormGroup>
+                                            <Label>Action</Label>
+                                            <Select
+                                                value={formData.action || "Insert"}
+                                                onChange={(e) => {
+                                                    handleInputChange("action", e.target.value);
+                                                }}
+                                            >
+                                                <option value="Insert">Insert</option>
+                                                <option value="Read">Read</option>
+                                            </Select>
+                                        </FormGroup>
+                                        {formData.action === "Insert" && (
+                                            <FormGroup>
+                                                <Label>Folder name</Label>
+                                                <Select
+                                                    value={formData.folderName}
+                                                    onChange={(e) => handleInputChange("folderName", e.target.value)}
+                                                >
+                                                    {assetS3Folders.map((assetS3Folder) => (
+                                                        <option key={assetS3Folder.folderName} value={assetS3Folder.folderName}>
+                                                            {assetS3Folder.folderName}
+                                                        </option>
+                                                    ))}
+                                                </Select>
+                                            </FormGroup>
+                                        )}
+                                    </>
+                                )}
+                            </>
+                        )}
+                        {activeTab === "duckdb_query" &&
+                            formData.queryMode === "static_query" &&
+                            formData.action === "Read" && (
+                                <FormGroup>
+                                    <CodeMirrorWrapper>
+                                        <CodeMirror
+                                            value={
+                                                formData.duckdbQuery ||
+                                                "SELECT * FROM s3_storage('folder_1') WHERE timestamp >= $__timeFun('now-1d/d') AND timestamp <= $__timeFun('now/d') ORDER BY timestamp DESC;"
+                                            }
+                                            height="auto"
+                                            minHeight="500px"
+                                            extensions={codeMirrorSqlExtensions}
+                                            theme={oneDark}
+                                            onChange={(value) => handleInputChange("duckdbQuery", value)}
+                                            basicSetup={{
+                                                lineNumbers: true,
+                                                foldGutter: true,
+                                                bracketMatching: true,
+                                                closeBrackets: true,
+                                                syntaxHighlighting: true,
+                                                autocompletion: true,
+                                                tabSize: 4,
+                                                searchKeymap: true,
+                                            }}
+                                        />
+                                    </CodeMirrorWrapper>
+                                </FormGroup>
+                            )}
+                    </TabContentFunction>
+                </PanelContent>
+            </>
+        );
+    };
+
     const renderAssetStateTabs = () => {
         const tabs = [
             { id: "settings", label: "Settings" },
@@ -1323,9 +1431,13 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                                             handleInputChange("action", e.target.value);
                                         }}
                                     >
-                                        <option value="Set or update state of current asset">Set or update state of current asset</option>
+                                        <option value="Set or update state of current asset">
+                                            Set or update state of current asset
+                                        </option>
                                         <option value="Get state of current asset">Get state of current asset</option>
-                                        <option value="Get states of assets in current group">Get states of assets in current group</option>
+                                        <option value="Get states of assets in current group">
+                                            Get states of assets in current group
+                                        </option>
                                     </Select>
                                 </FormGroup>
                                 {formData.action === "Set or update state of current asset" && (
@@ -1399,6 +1511,8 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
             return renderAiAgentTabs();
         } else if (nodeType === "IoTDb") {
             return renderIotDBTabs();
+        } else if (nodeType === "S3Storage") {
+            return renderS3StorageTabs();
         } else if (nodeType === "AssetState") {
             return renderAssetStateTabs();
         }

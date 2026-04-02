@@ -85,7 +85,6 @@ func TimescaledbService(
 
 	image := utils.GetServiceImage(pd, "timescaledb", "ghcr.io/osi4iot/timescaledb:2.20.0-pg17")
 	return NewService("timescaledb", pd, sd).
-		//WithImage("ghcr.io/osi4iot/timescaledb:2.4.2-pg13").
 		WithImage(image).
 		WithEnv([]string{
 			fmt.Sprintf("POSTGRES_DB=%s", pd.PlatformInfo.TimescaleDB),

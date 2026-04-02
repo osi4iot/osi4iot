@@ -39,8 +39,6 @@ interface IProcessEnv extends Record<string, string | string[] | string[][]> {
 	AWS_ACCESS_KEY_ID: string;
 	AWS_SECRET_ACCESS_KEY: string;
 	AWS_REGION: string;
-	DEV2PDB_PASSWORD: string;
-	DEV2PDB_NATS_NKEY_PUBLIC: string;
 	MESSAGING_SYSTEM: string;
 	NATS_ADMIN_USERNAME: string;
 	NATS_ADMIN_PASSWORD: string;
@@ -93,8 +91,6 @@ const process_env: IProcessEnv = {
 	AWS_ACCESS_KEY_ID: process.env.AWS_ACCESS_KEY_ID,
 	AWS_SECRET_ACCESS_KEY: process.env.AWS_SECRET_ACCESS_KEY,
 	AWS_REGION: process.env.AWS_REGION,
-	DEV2PDB_PASSWORD: process.env.DEV2PDB_PASSWORD,
-	DEV2PDB_NATS_NKEY_PUBLIC: process.env.DEV2PDB_NATS_NKEY_PUBLIC,
 	MESSAGING_SYSTEM: process.env.MESSAGING_SYSTEM,
 	NATS_ADMIN_USERNAME: process.env.NATS_ADMIN_USERNAME,
 	NATS_ADMIN_PASSWORD: process.env.NATS_ADMIN_PASSWORD,
@@ -123,7 +119,8 @@ const readDockerFiles = (dockerFileName: string) => {
 				}
 			});
 		} catch (err) {
-			logger.log("error", `An error occurred while trying to read the file: ${dockerFileName}:  %s`, err.message);
+			const message = err instanceof Error ? err.message : String(err);
+			logger.log("error", `An error occurred while trying to read the file: ${dockerFileName}:  %s`, message);
 		}
 	}
 };

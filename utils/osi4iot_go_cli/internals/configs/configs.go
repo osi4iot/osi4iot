@@ -95,21 +95,6 @@ func GenerateConfigs(platformData *pt.PlatformData) map[string]pt.Config {
 		Data: grafanaConfig,
 	}
 
-	s3StorageConfigArray := []string{
-		fmt.Sprintf("DEPLOYMENT_LOCATION=\"%s\"", pi.DeploymentLocation),
-		fmt.Sprintf("DEFAULT_TIME_ZONE=%s", pi.DefaultTimeZone),
-		fmt.Sprintf("S3_BUCKET_TYPE=\"%s\"", pi.S3BucketType),
-		fmt.Sprintf("S3_BUCKET_NAME=%s", pi.S3BucketName),
-		fmt.Sprintf("AWS_REGION=%s", utils.AwsRegionsMap[pi.AWSRegionS3Bucket]),
-	}
-	s3StorageConfig := strings.Join(s3StorageConfigArray, "\n")
-	s3StorageConfigHash := utils.GetMD5Hash(s3StorageConfig)
-	s3StorageConfigName := fmt.Sprintf("s3_storage_%s", s3StorageConfigHash)
-	Configs["s3_storage"] = pt.Config{
-		Name: s3StorageConfigName,
-		Data: s3StorageConfig,
-	}
-
 	if domainCertsType != "No certs" {
 		traefikConfig := `
 tls:

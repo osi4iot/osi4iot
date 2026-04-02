@@ -1,8 +1,8 @@
-import { FC } from "react";
+import { ComponentType, FC } from "react";
 import { FaFileDownload } from "react-icons/fa";
 import styled from "styled-components";
 
-const FaFileDownloadStyled = styled(FaFileDownload)`
+const FaFileDownloadStyled = styled(FaFileDownload as ComponentType<any>)`
     font-size: 18px;
 `;
 

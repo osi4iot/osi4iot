@@ -1,7 +1,6 @@
 package function_library
 
 import (
-	"context"
 	"fmt"
 	"pipelines/common"
 	"pipelines/logger"
@@ -35,7 +34,7 @@ func (kv *KvStore) SetValue(key string, data interface{}) {
 		return
 	}
 	fullKey := kv.getFullKvStoreKey(key)
-	err := kvStore.SetValue(context.Background(), fullKey, data)
+	err := kvStore.SetValue(kv.node.GetNodeContext(), fullKey, data)
 	if err != nil {
 		kv.log.Errorf("Error setting value in store for key %s: %v", fullKey, err)
 	}
@@ -48,7 +47,7 @@ func (kv *KvStore) GetNumberValue(key string) float64 {
 		return 0.0
 	}
 	fullKey := kv.getFullKvStoreKey(key)
-	value, err := kvStore.GetNumberValue(context.Background(), fullKey)
+	value, err := kvStore.GetNumberValue(kv.node.GetNodeContext(), fullKey)
 	if err != nil {
 		return 0.0
 	}
@@ -62,7 +61,7 @@ func (kv *KvStore) GetStringValue(key string) string {
 		return ""
 	}
 	fullKey := kv.getFullKvStoreKey(key)
-	value, err := kvStore.GetStringValue(context.Background(), fullKey)
+	value, err := kvStore.GetStringValue(kv.node.GetNodeContext(), fullKey)
 	if err != nil {
 		return ""
 	}
@@ -76,7 +75,7 @@ func (kv *KvStore) GetBooleanValue(key string) bool {
 		return false
 	}
 	fullKey := kv.getFullKvStoreKey(key)
-	value, err := kvStore.GetBoolValue(context.Background(), fullKey)
+	value, err := kvStore.GetBoolValue(kv.node.GetNodeContext(), fullKey)
 	if err != nil {
 		return false
 	}
@@ -90,7 +89,7 @@ func (kv *KvStore) GetArrayValue(key string) []interface{} {
 		return nil
 	}
 	fullKey := kv.getFullKvStoreKey(key)
-	value, err := kvStore.GetArrayValue(context.Background(), fullKey)
+	value, err := kvStore.GetArrayValue(kv.node.GetNodeContext(), fullKey)
 	if err != nil {
 		return nil
 	}
@@ -104,7 +103,7 @@ func (kv *KvStore) GetObjectValue(key string) map[string]interface{} {
 		return nil
 	}
 	fullKey := kv.getFullKvStoreKey(key)
-	value, err := kvStore.GetObjectValue(context.Background(), fullKey)
+	value, err := kvStore.GetObjectValue(kv.node.GetNodeContext(), fullKey)
 	if err != nil {
 		return nil
 	}
@@ -118,7 +117,7 @@ func (kv *KvStore) DeleteEntry(key string) {
 		return
 	}
 	fullKey := kv.getFullKvStoreKey(key)
-	err := kvStore.DeleteEntry(context.Background(), fullKey)
+	err := kvStore.DeleteEntry(kv.node.GetNodeContext(), fullKey)
 	if err != nil {
 		kv.log.Errorf("Error deleting entry from store for key %s: %v", fullKey, err)
 	}
@@ -131,7 +130,7 @@ func (kv *KvStore) DeleteAllEntries(key string) {
 		return
 	}
 	fullKey := kv.getFullKvStoreKey(key)
-	err := kvStore.DeleteAllEntries(context.Background())
+	err := kvStore.DeleteAllEntries(kv.node.GetNodeContext())
 	if err != nil {
 		kv.log.Errorf("Error deleting all entries from store for key %s: %v", fullKey, err)
 	}
@@ -144,7 +143,7 @@ func (kv *KvStore) ExistsKey(key string) bool {
 		return false
 	}
 	fullKey := kv.getFullKvStoreKey(key)
-	exists, err := kvStore.KeyExists(context.Background(), fullKey)
+	exists, err := kvStore.KeyExists(kv.node.GetNodeContext(), fullKey)
 	if err != nil {
 		kv.log.Errorf("Error checking existence of key %s: %v", fullKey, err)
 		return false
@@ -161,7 +160,7 @@ func (kv *KvStore) ListKeys() []string {
 
 	prefix := fmt.Sprintf("org_%s.dt_%s.kvstore.", kv.node.GetOrgHash(), kv.node.GetDigitalTwinUid())
 
-	keys, err := kvStore.ListKeys(context.Background(), prefix)
+	keys, err := kvStore.ListKeys(kv.node.GetNodeContext(), prefix)
 	if err != nil {
 		kv.log.Errorf("Error listing keys in store: %v", err)
 		return nil

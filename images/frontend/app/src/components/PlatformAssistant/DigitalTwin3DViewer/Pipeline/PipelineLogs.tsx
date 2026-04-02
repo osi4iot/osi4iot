@@ -17,11 +17,11 @@ export interface PipelineLog {
 }
 
 // Styled Components
-const Container = styled.div`
+const Container = styled.div<{ width: number }>`
     position: fixed;
     top: 265px;
     right: 15px;
-    width: 550px;
+    width: ${(props) => props.width}px;
     height: calc(100vh - 330px);
     background-color: #2c2c2c;
     border: 1px solid #444;
@@ -29,15 +29,42 @@ const Container = styled.div`
     overflow: hidden;
     font-family: Arial, sans-serif;
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
+    user-select: none;
+`;
+
+const ResizeHandle = styled.div`
+    width: 14px;
+    min-width: 14px;
+    cursor: ew-resize;
+    border-radius: 8px 0 0 8px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    &:hover > span,
+    &:active > span {
+        background-color: #3B82F6;
+    }
+`;
+
+const ResizeHandleBar = styled.span`
+    display: block;
+    width: 4px;
+    height: 100px;
+    border-radius: 9999px;
+    background-color: #4B5563;
+    transition: background-color 0.2s;
 `;
 
 const LogContainer = styled.div`
-    padding: 5px 5px 5px 10px;
+    padding: 5px 5px 5px 0px;
     background-color: #2c2c2c;
     display: flex;
     flex-direction: column;
-    height: 100%;
+    flex: 1;
+    min-width: 0;
 `;
 
 const Title = styled.h1`
@@ -399,7 +426,6 @@ const NestedObjectRenderer: React.FC<{
             const reactKey = `${currentPath}_${keyIndex}_${currentLevel}`;
             const isExpanded = expandedKeys.has(currentPath);
 
-            // Valores null/undefined
             if (value === null || value === undefined) {
                 return (
                     <NestedItem level={currentLevel} key={reactKey}>
@@ -413,7 +439,6 @@ const NestedObjectRenderer: React.FC<{
                 );
             }
 
-            // Arrays
             if (Array.isArray(value)) {
                 if (value.length === 0) {
                     return (
@@ -450,7 +475,6 @@ const NestedObjectRenderer: React.FC<{
                 );
             }
 
-            // Objetos
             if (typeof value === "object") {
                 const objectKeys = Object.keys(value);
 
@@ -488,7 +512,6 @@ const NestedObjectRenderer: React.FC<{
                 );
             }
 
-            // Valores primitivos (string, number, boolean)
             const getValueColor = (val: any) => {
                 switch (typeof val) {
                     case "string":
@@ -521,7 +544,6 @@ const NestedObjectRenderer: React.FC<{
         [expandedKeys, parentPath, toggleExpanded],
     );
 
-    // Validaciones iniciales
     if (data === null || data === undefined) {
         return <div style={{ color: "#6b7280" }}>null</div>;
     }
@@ -544,7 +566,6 @@ const NestedObjectRenderer: React.FC<{
     );
 };
 
-// Componente para el tooltip con hover
 const TooltipWrapper: React.FC<{
     children: React.ReactNode;
     tooltip: string;
@@ -584,7 +605,6 @@ const LogMessage = ({ message }: { message: string }) => {
             }
         }
         
-        // Fallback para otros tipos (number, boolean, etc.)
         return { type: 'string', data: String(message ?? '') };
     }, [message]);
 
@@ -624,11 +644,9 @@ const LogMessage = ({ message }: { message: string }) => {
     return <pre>{parsedData.data}</pre>;
 };
 
-// Componente para mostrar un log individual (optimizado con React.memo)
 const LogEntry = React.memo(({ log }: { log: PipelineLog }) => {
     const [isExpanded, setIsExpanded] = useState(false);
 
-    // Memoizar configuración de colores para evitar recálculo
     const levelConfig = useMemo(() => {
         switch (log.level.toLowerCase()) {
             case "error":
@@ -685,7 +703,6 @@ const LogEntry = React.memo(({ log }: { log: PipelineLog }) => {
                 </ExpandButton>
             </LogHeader>
 
-            {/* Información básica del mensaje */}
             {log.level === "debug" && (
                 <OutputIndex>
                     Output Index: <span className="label">{log.outputIndex}</span>
@@ -715,7 +732,6 @@ const LogEntry = React.memo(({ log }: { log: PipelineLog }) => {
                         <>
                             <UidInfo>Node UID: {log.uid}</UidInfo>
 
-                            {/* Payload con expansión anidada */}
                             {Object.keys(log.payload).length > 0 && (
                                 <div>
                                     <SectionTitle>Payload:</SectionTitle>
@@ -725,7 +741,6 @@ const LogEntry = React.memo(({ log }: { log: PipelineLog }) => {
                                 </div>
                             )}
 
-                            {/* State con expansión anidada */}
                             {Object.keys(log.state).length > 0 && (
                                 <div>
                                     <SectionTitle>State:</SectionTitle>
@@ -757,6 +772,9 @@ const LogEntry = React.memo(({ log }: { log: PipelineLog }) => {
 
 LogEntry.displayName = "LogEntry";
 
+const DEFAULT_WIDTH = 550;
+const MIN_WIDTH = DEFAULT_WIDTH;
+
 interface PipelineLogsProps {
     logMessages: PipelineLog[];
     setLogMessages: React.Dispatch<React.SetStateAction<PipelineLog[]>>;
@@ -764,8 +782,12 @@ interface PipelineLogsProps {
 
 const PipelineLogs: React.FC<PipelineLogsProps> = ({ logMessages, setLogMessages }) => {
     const [filterLevel, setFilterLevel] = useState<string>("all");
+    const [width, setWidth] = useState<number>(DEFAULT_WIDTH);
 
-    // Memoizar logs filtrados
+    const isDragging = useRef(false);
+    const startX = useRef(0);
+    const startWidth = useRef(DEFAULT_WIDTH);
+
     const filteredLogs = useMemo(() => {
         return filterLevel === "all"
             ? logMessages
@@ -789,47 +811,84 @@ const PipelineLogs: React.FC<PipelineLogsProps> = ({ logMessages, setLogMessages
         logsEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }, [filteredLogs]);
 
-    // Optimizar funciones con useCallback
     const handleClear = useCallback(() => {
         setLogMessages([]);
     }, [setLogMessages]);
 
-    return (
-        <>
-            <Container>
-                <LogContainer>
-                    <FiltersContainer>
-                        <Title>Logs</Title>
-                        <FilterButtons>
-                            <FilterButton active={filterLevel === "all"} onClick={() => setFilterLevel("all")}>
-                                All ({logCounts.all})
-                            </FilterButton>
-                            <FilterButton active={filterLevel === "error"} onClick={() => setFilterLevel("error")}>
-                                Errors ({logCounts.error})
-                            </FilterButton>
-                            <FilterButton active={filterLevel === "info"} onClick={() => setFilterLevel("info")}>
-                                Info ({logCounts.info})
-                            </FilterButton>
-                            <FilterButton active={filterLevel === "debug"} onClick={() => setFilterLevel("debug")}>
-                                Debug ({logCounts.debug})
-                            </FilterButton>
-                            <TooltipWrapper tooltip="Clear all logs" onClick={handleClear}>
-                                <Trash2 className="w-4 h-4" />
-                            </TooltipWrapper>
-                        </FilterButtons>
-                    </FiltersContainer>
+    const handleResizeMouseDown = useCallback((e: React.MouseEvent) => {
+        e.preventDefault();
+        isDragging.current = true;
+        startX.current = e.clientX;
+        startWidth.current = width;
 
-                    <LogsList>
-                        {filteredLogs.length === 0 ? (
-                            <EmptyState>There are no logs to display with the selected filter.</EmptyState>
-                        ) : (
-                            filteredLogs.map((log, index) => <LogEntry key={`${log.uid}-${index}`} log={log} />)
-                        )}
-                        <div ref={logsEndRef} />
-                    </LogsList>
-                </LogContainer>
-            </Container>
-        </>
+        document.body.style.cursor = "ew-resize";
+        document.body.style.userSelect = "none";
+    }, [width]);
+
+    useEffect(() => {
+        const handleMouseMove = (e: MouseEvent) => {
+            if (!isDragging.current) return;
+
+            // Dragging left edge: moving mouse left increases width, moving right decreases
+            const delta = startX.current - e.clientX;
+            const maxWidth = window.innerWidth - 280;
+            const newWidth = Math.min(maxWidth, Math.max(MIN_WIDTH, startWidth.current + delta));
+            setWidth(newWidth);
+        };
+
+        const handleMouseUp = () => {
+            if (!isDragging.current) return;
+            isDragging.current = false;
+            document.body.style.cursor = "";
+            document.body.style.userSelect = "";
+        };
+
+        document.addEventListener("mousemove", handleMouseMove);
+        document.addEventListener("mouseup", handleMouseUp);
+
+        return () => {
+            document.removeEventListener("mousemove", handleMouseMove);
+            document.removeEventListener("mouseup", handleMouseUp);
+        };
+    }, []);
+
+    return (
+        <Container width={width}>
+            <ResizeHandle onMouseDown={handleResizeMouseDown} title="Drag to resize">
+                <ResizeHandleBar />
+            </ResizeHandle>
+            <LogContainer>
+                <FiltersContainer>
+                    <Title>Logs</Title>
+                    <FilterButtons>
+                        <FilterButton active={filterLevel === "all"} onClick={() => setFilterLevel("all")}>
+                            All ({logCounts.all})
+                        </FilterButton>
+                        <FilterButton active={filterLevel === "error"} onClick={() => setFilterLevel("error")}>
+                            Errors ({logCounts.error})
+                        </FilterButton>
+                        <FilterButton active={filterLevel === "info"} onClick={() => setFilterLevel("info")}>
+                            Info ({logCounts.info})
+                        </FilterButton>
+                        <FilterButton active={filterLevel === "debug"} onClick={() => setFilterLevel("debug")}>
+                            Debug ({logCounts.debug})
+                        </FilterButton>
+                        <TooltipWrapper tooltip="Clear all logs" onClick={handleClear}>
+                            <Trash2 className="w-4 h-4" />
+                        </TooltipWrapper>
+                    </FilterButtons>
+                </FiltersContainer>
+
+                <LogsList>
+                    {filteredLogs.length === 0 ? (
+                        <EmptyState>There are no logs to display with the selected filter.</EmptyState>
+                    ) : (
+                        filteredLogs.map((log, index) => <LogEntry key={`${log.uid}-${index}`} log={log} />)
+                    )}
+                    <div ref={logsEndRef} />
+                </LogsList>
+            </LogContainer>
+        </Container>
     );
 };
 

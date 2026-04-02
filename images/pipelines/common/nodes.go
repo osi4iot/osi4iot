@@ -49,7 +49,6 @@ type Node interface {
 	GetDigitalTwinId() int
 	GetDigitalTwinUid() string
 	GetStatus() NodeStatus
-	ResetNodeContext()
 	GetDebug() string
 	GetNodeContext() context.Context
 	HandleError(err error)

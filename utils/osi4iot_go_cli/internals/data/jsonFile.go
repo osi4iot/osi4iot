@@ -157,11 +157,8 @@ func getDefaultServicesDataMap(pd *pt.PlatformData) map[string]pt.ServiceData {
 	messagingSvcCpus := strings.Split(pi.MessagingSvcResources, "-")[0]
 	messagingSvcCpusFloat, _ := strconv.ParseFloat(messagingSvcCpus[0:len(messagingSvcCpus)-3], 64)
 	messagingSvcCpus_025 := fmt.Sprintf("%.2fCPU", 0.25*messagingSvcCpusFloat)
-	messagingSvcCpus_050 := fmt.Sprintf("%.2fCPU", 0.50*messagingSvcCpusFloat)
 	iotStorageDataSvcCpus := strings.Split(pi.IotDataStorageSvcResources, "-")[0]
 	adminDataStorageSvcCpus := strings.Split(pi.AdminDataStorageSvcResources, "-")[0]
-	adminDataStorageSvcCpusFloat, _ := strconv.ParseFloat(adminDataStorageSvcCpus[0:len(adminDataStorageSvcCpus)-3], 64)
-	adminDataStorageSvcCpus_050 := fmt.Sprintf("%.2fCPU", 0.50*adminDataStorageSvcCpusFloat)
 	uiSvcCpus := strings.Split(pi.UiSvcResources, "-")[0]
 	uiSvcCpusFloat, _ := strconv.ParseFloat(uiSvcCpus[0:len(uiSvcCpus)-3], 64)
 	uiSvcCpus_050 := fmt.Sprintf("%.2fCPU", 0.50*uiSvcCpusFloat)
@@ -171,12 +168,8 @@ func getDefaultServicesDataMap(pd *pt.PlatformData) map[string]pt.ServiceData {
 	messagingSvcMemFloat, _ := strconv.ParseFloat(messagingSvcMem[0:len(messagingSvcMem)-2], 64)
 	messagingSvcMem_025 := fmt.Sprintf("%.2fMb", 0.25*messagingSvcMemFloat)
 	iotDataStorageSvcMem := strings.Split(pi.IotDataStorageSvcResources, "-")[1]
-	iotDataStorageSvcMemFloat, _ := strconv.ParseFloat(iotDataStorageSvcMem[0:len(iotDataStorageSvcMem)-2], 64)
-	iotDataStorageSvcMem_050 := fmt.Sprintf("%.2fMb", 0.50*iotDataStorageSvcMemFloat)
 
 	adminDataStorageSvcMem := strings.Split(pi.AdminDataStorageSvcResources, "-")[1]
-	adminDataStorageSvcMemFloat, _ := strconv.ParseFloat(adminDataStorageSvcMem[0:len(adminDataStorageSvcMem)-2], 64)
-	adminDataStorageSvcMem_050 := fmt.Sprintf("%.2fMb", 0.50*adminDataStorageSvcMemFloat)
 	uiSvcMem := strings.Split(pi.UiSvcResources, "-")[1]
 	uiSvcMemFloat, _ := strconv.ParseFloat(uiSvcMem[0:len(uiSvcMem)-2], 64)
 	uiSvcMem_050 := fmt.Sprintf("%.2fMb", 0.50*uiSvcMemFloat)
@@ -254,20 +247,6 @@ func getDefaultServicesDataMap(pd *pt.PlatformData) map[string]pt.ServiceData {
 			Cpu:         iotStorageDataSvcCpus,
 			Memory:      iotDataStorageSvcMem,
 		},
-		"s3_storage": {
-			ServiceName: "s3_storage",
-			Image: "ghcr.io/osi4iot/s3_storage:1.3.0",
-			Replicas:    1,
-			Cpu:         adminDataStorageSvcCpus_050,
-			Memory:      adminDataStorageSvcMem_050,
-		},
-		"dev2pdb": {
-			ServiceName: "dev2pdb",
-			Image: "ghcr.io/osi4iot/dev2pdb_nats:1.3.0",
-			Replicas:    1,
-			Cpu:         messagingSvcCpus_050,
-			Memory:      iotDataStorageSvcMem_050,
-		},
 		"pgadmin4": {
 			ServiceName: "pgadmin4",
 			Image: "ghcr.io/osi4iot/pgadmin4:2023-10-18-2",
@@ -326,8 +305,6 @@ func fixingPlatformData() error {
 		"system-prune",
 		"postgres",
 		"timescaledb",
-		"s3_storage",
-		"dev2pdb",
 		"pgadmin4",
 		"grafana_renderer",
 		"minio",

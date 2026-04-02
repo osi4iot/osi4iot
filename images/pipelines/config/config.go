@@ -18,7 +18,7 @@ type Config struct {
 	NATS                     NATSConfig        `mapstructure:"nats"`
 	TimescaleDB              TimescaleDBConfig `mapstructure:"timescaledb"`
 	IotDataBatchSize         int               `mapstructure:"iotDataBatchSize"`
-	IotDataNumWorkers         int               `mapstructure:"iotDataNumWorkers"`
+	IotDataNumWorkers        int               `mapstructure:"iotDataNumWorkers"`
 	NumStreamReplicas        int               `mapstructure:"numStreamReplicas"`
 	ReplicaIndex             int               `mapstructure:"replicaIndex"`
 	ShardIndex               int               `mapstructure:"shardIndex"`
@@ -38,6 +38,8 @@ type Config struct {
 	McpServersPath           string            `mapstructure:"mcpServersPath"`
 	MaxChatMessagesPerUser   int               `mapstructure:"maxChatMessagesPerUser"`
 	PipelinesDataPath        string            `mapstructure:"pipelinesDataPath"`
+	AwsS3                    AwsS3Config       `mapstructure:"awsS3"`
+	DuckDB                   DuckDBConfig      `mapstructure:"duckdb"`
 }
 
 type NATSConfig struct {
@@ -55,6 +57,21 @@ type TimescaleDBConfig struct {
 	Port     int    `mapstructure:"port"`
 	DBName   string `mapstructure:"dbName"`
 	SSLMode  string `mapstructure:"sslmode"`
+}
+
+type AwsS3Config struct {
+	AccessKeyId     string `mapstructure:"accessKeyId"`
+	SecretAccessKey string `mapstructure:"secretAccessKey"`
+	Region          string `mapstructure:"region"`
+	Bucket          string `mapstructure:"bucket"`
+	Endpoint        string `mapstructure:"endpoint,omitempty"`
+}
+
+type DuckDBConfig struct {
+	MaxOpenConns    int           `mapstructure:"maxOpenConns"`
+	MaxIdleConns    int           `mapstructure:"maxIdleConns"`
+	ConnMaxLifetime time.Duration `mapstructure:"connMaxLifetime"`
+	MaxIdleTime     time.Duration `mapstructure:"maxIdleTime"`
 }
 
 // Load reads configuration from config.yaml, environment variables, and defaults.
@@ -77,6 +94,11 @@ func Load() (*Config, error) {
 
 	viper.SetDefault("timescaledb.port", 5432)
 	viper.SetDefault("timescaledb.sslmode", "disable")
+
+	viper.SetDefault("duckdb.maxOpenConns", 25)
+	viper.SetDefault("duckdb.maxIdleConns", 5)
+	viper.SetDefault("duckdb.connMaxLifetime", 30*time.Minute)
+	viper.SetDefault("duckdb.maxIdleTime", 5*time.Minute)
 
 	viper.SetDefault("replicaIndex", 1)
 	viper.SetDefault("numReplicas", 1)

@@ -669,3 +669,48 @@ func (a *Admin) DownloadMlModelFile(ctx context.Context, mlModelFolder string, g
 	}
 	return ""
 }
+
+func (a *Admin) GetAssetS3Folders(ctx context.Context) []*common.AssetS3Folder {
+	var assetS3Folders []*common.AssetS3Folder
+	url := fmt.Sprintf("%s/asset_s3_folders_with_history/user_managed", a.baseUrl)
+	response, err := utils.HttpGetWithJwt(ctx, url, a.accessToken)
+	if err != nil {
+		a.log.Errorf("failed to get asset s3 folders: %v", err)
+		return nil
+	}
+
+	err = utils.UnmarshalData(response, &assetS3Folders)
+	if err != nil {
+		a.log.Errorf("failed to unmarshal asset s3 folders: %v", err)
+		return nil
+	}
+	return assetS3Folders
+}
+
+func (a *Admin) GetAssetS3Folder(ctx context.Context, groupId int, assetId int, assetS3FolderId int) *common.AssetS3Folder {
+	url := fmt.Sprintf("%s/asset_s3_folder/%d/%d/id/%d", a.baseUrl, groupId, assetId, assetS3FolderId)
+	response, err := utils.HttpGetWithJwt(ctx, url, a.accessToken)
+	if err != nil {
+		a.log.Errorf("failed to get asset s3 folder %d: %v", assetS3FolderId, err)
+		return nil
+	}
+
+	var assetS3Folder common.AssetS3Folder
+	err = utils.UnmarshalData(response, &assetS3Folder)
+	if err != nil {
+		a.log.Errorf("failed to unmarshal asset s3 folder %d: %v", assetS3FolderId, err)
+		return nil
+	}
+
+	return &assetS3Folder
+}
+
+func (a *Admin) UpdateAssetS3FolderStatsById(ctx context.Context, groupId int, assetId int, folderName string, stats common.S3FolderStats) error {
+	url := fmt.Sprintf("%s/asset_s3_folder_parquet_stats/%d/%d/%s", a.baseUrl, groupId, assetId, folderName)
+	_, err := utils.HttpPatchWithJwt(ctx, url, stats, a.accessToken)
+	if err != nil {
+		a.log.Errorf("failed to update asset s3 folder stats for asset %d: %v", assetId, err)
+		return err
+	}
+	return nil
+}

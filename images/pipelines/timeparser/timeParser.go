@@ -1,4 +1,4 @@
-package iotdb
+package timeparser
 
 import (
     "fmt"

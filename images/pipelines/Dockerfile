@@ -31,14 +31,17 @@ COPY main.go ./
 COPY admin/ ./admin/
 COPY common/ ./common/
 COPY config/ ./config/
+COPY duckdb/ ./duckdb/
 COPY flows_manager/ ./flows_manager/
 COPY function_library/ ./function_library/
-COPY telegram/ ./telegram/
 COPY leader_election/ ./leader_election/
 COPY iotdb/ ./iotdb/
 COPY logger/ ./logger/
 COPY nats/ ./nats/
 COPY nodes/ ./nodes/
+COPY s3folder/ ./s3folder/
+COPY telegram/ ./telegram/
+COPY timeparser/ ./timeparser/
 COPY utils/ ./utils/
 RUN go mod download && go mod verify
 
@@ -63,7 +66,7 @@ RUN cd mcp_servers/fem_results && \
     go build -ldflags="-s -w" -o /usr/local/bin/fem_results .
 
 ########################################
-# 2) Runtime (mínimo)
+# 2) Runtime
 ########################################
 FROM python:3.12-slim AS runtime
 ARG TARGETPLATFORM
@@ -74,9 +77,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && update-ca-certificates \
     && rm -rf /var/lib/apt/lists/* \
     && addgroup --system pipelines_group \
-    && adduser --system --ingroup pipelines_group pipelines
+    && adduser --system --ingroup pipelines_group --home /home/pipelines pipelines \
+    && mkdir -p /home/pipelines \
+    && chown pipelines:pipelines_group /home/pipelines
 
-# Binarios Go
+# Go binaries
 COPY --from=builder /usr/local/bin/pipelines     /usr/local/bin/pipelines
 COPY --from=builder /usr/local/bin/current_date  /usr/local/bin/current_date
 COPY --from=builder /usr/local/bin/fem_results   /usr/local/bin/fem_results
@@ -85,6 +90,9 @@ COPY --from=builder /usr/local/bin/fem_results   /usr/local/bin/fem_results
 COPY --from=python-builder --chown=pipelines:pipelines_group /opt/venv /opt/venv
 ENV PATH="/opt/venv/bin:${PATH}"
 
+# This grants write permissions to the /tmp directory for the pipelines user, 
+RUN mkdir -p /tmp/duckdb && chown pipelines:pipelines_group /tmp/duckdb
+ENV HOME=/tmp/duckdb
 
 WORKDIR /pipelines
 

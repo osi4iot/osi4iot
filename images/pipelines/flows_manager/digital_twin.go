@@ -87,7 +87,7 @@ func (fm *FlowsManager) CreatePipelineInDigitalTwin(ctx context.Context, digital
 
 	if digitalTwin.Pipeline != nil {
 		digitalTwin.Pipeline.StopStatusPublisher()
-		digitalTwin.Pipeline.Stop("create")
+		digitalTwin.Pipeline.Stop(ctx, "create")
 	}
 	org := fm.GetOrg(digitalTwin.OrgId)
 	if org == nil {
@@ -111,7 +111,7 @@ func (fm *FlowsManager) UpdatePipelineInDigitalTwin(ctx context.Context, digital
 
 	if digitalTwin.Pipeline != nil {
 		digitalTwin.Pipeline.StopStatusPublisher()
-		digitalTwin.Pipeline.Stop("update")
+		digitalTwin.Pipeline.Stop(ctx, "update")
 	}
 	org := fm.GetOrg(digitalTwin.OrgId)
 	if org == nil {
@@ -145,7 +145,7 @@ func (fm *FlowsManager) SetPipelineStatusSubscription(ctx context.Context, digit
 			switch action {
 			case "queryPipelineStatus":
 				pipelineStatus := p.GetStatus().String()
-				replicaIndexLeader := p.GetReplicaIndexLeader()
+				replicaIndexLeader := p.GetReplicaIndexLeader(ctx)
 				payload := common.PipelineStatusMessage{
 					PipelineStatus:     pipelineStatus,
 					ReplicaIndexLeader: replicaIndexLeader,
@@ -153,7 +153,7 @@ func (fm *FlowsManager) SetPipelineStatusSubscription(ctx context.Context, digit
 				p.PublishPipelineStatus(payload)
 			case "queryChatMessages":
 				if userName, ok := rawMessage["userName"].(string); ok {
-					p.PublishChatMessages(userName)
+					p.PublishChatMessages(ctx, userName)
 				} else {
 					fm.log.Errorf("userName not found in message for digital twin %d", digitalTwin.Id)
 				}
@@ -174,7 +174,7 @@ func (fm *FlowsManager) SetPipelineStatusSubscription(ctx context.Context, digit
 	return sub
 }
 
-func (fm *FlowsManager) DeleteDigitalTwin(digitalTwinId int) error {
+func (fm *FlowsManager) DeleteDigitalTwin(ctx context.Context, digitalTwinId int) error {
 	digitalTwinIdStr := strconv.Itoa(digitalTwinId)
 	if entry, ok := fm.DigitalTwins.Load(digitalTwinIdStr); ok {
 		digitalTwin := entry.(*common.DigitalTwin)
@@ -183,7 +183,7 @@ func (fm *FlowsManager) DeleteDigitalTwin(digitalTwinId int) error {
 		}
 		if digitalTwin.Pipeline != nil {
 			digitalTwin.Pipeline.StopStatusPublisher()
-			digitalTwin.Pipeline.Stop("delete")
+			digitalTwin.Pipeline.Stop(ctx, "delete")
 		}
 		fm.DigitalTwins.Delete(digitalTwinIdStr)
 		fm.DeleteDigitalTwinTopicsRefByDTid(digitalTwinId)
@@ -423,4 +423,8 @@ func (fm *FlowsManager) DeleteDocInfoFileInDigitalTwin(digitalTwinId int) error 
 		}
 	}
 	return nil
+}
+
+func makeDigitalTwinTopicRefKey(digitalTwinId int, topicRef string) string {
+	return fmt.Sprintf("dt:%d:topicRef:%s", digitalTwinId, topicRef)
 }

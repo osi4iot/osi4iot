@@ -30,8 +30,8 @@ import {
 } from "../../../contexts/mlModelsOptions";
 import { MlModelFileName } from "./CreateMlModel";
 import { FieldContainer } from "./EditAsset";
-import { ControlsContainer, FormContainer } from "./CreateAsset";
 import { AxiosResponse, AxiosError } from "axios";
+import { ControlsContainer, StaticFormContainer } from "../../Tools/FormTools";
 
 const DataFileTitle = styled.div`
     margin-bottom: 5px;
@@ -552,7 +552,7 @@ const EditMlModel: FC<EditMlModelProps> = ({ mlModels, backToTable, refreshMlMod
             ) : (
                 <>
                     <FormTitle isSubmitting={isSubmitting}>Edit ML model</FormTitle>
-                    <FormContainer>
+                    <StaticFormContainer>
                         <Formik
                             initialValues={initialDigitalTwinData}
                             validationSchema={validationSchema}
@@ -676,7 +676,7 @@ const EditMlModel: FC<EditMlModelProps> = ({ mlModels, backToTable, refreshMlMod
                                 );
                             }}
                         </Formik>
-                    </FormContainer>
+                    </StaticFormContainer>
                 </>
             )}
         </>

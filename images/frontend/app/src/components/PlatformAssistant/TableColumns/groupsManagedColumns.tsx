@@ -22,9 +22,6 @@ import ChangeModal from '../../Tools/ChangeModal';
 import { IGroupManagedData } from '../../../contexts/groupsManagedOptions/interfaces';
 import { getAxiosInstance } from '../../../tools/axiosIntance';
 import axiosErrorHandler from '../../../tools/axiosErrorHandler';
-import DownloadFileIcon from '../Utils/DownloadFileIcon';
-import JSZip from 'jszip';
-import { saveAs } from 'file-saver';
 import { AxiosResponse, AxiosError } from 'axios';
 
 
@@ -192,50 +189,6 @@ const EditGroupManaged: FC<EditGroupManagedProps> = ({ rowIndex, groupId, groupM
     )
 }
 
-interface DownLoadSslCertsProps {
-    rowIndex: number;
-    groupId: number;
-}
-
-const DownLoadSslCerts: FC<DownLoadSslCertsProps> = ({ rowIndex, groupId }) => {
-    const { accessToken, refreshToken } = useAuthState();
-    const authDispatch = useAuthDispatch();
-
-    const handleClick = () => {
-        const url = `${protocol}://${domainName}/admin_api/group_ssl_certs/${groupId}`;
-        const config = axiosAuth(accessToken);
-        getAxiosInstance(refreshToken, authDispatch)
-            .get(url, config)
-            .then((response: AxiosResponse<any, any>) => {
-                const data = response.data;
-                const validityDays = data.validityDays;
-                const message = `Ssl certs created successfully. These are valid for ${validityDays} days`;
-                var zip = new JSZip();
-                const fileName = `group_${groupId}_certs`;
-                const secrets = `username=${data.username}\npassword=${data.password}\n`
-                var group_certs = zip.folder(`${fileName}`);
-                group_certs?.file("ca.crt", data.caCert);
-                group_certs?.file(`group_${groupId}.crt`, data.clientCert);
-                group_certs?.file(`group_${groupId}.key`, data.clientKey);
-                group_certs?.file(`group_${groupId}.secrets`, secrets);
-                zip.generateAsync({ type: "blob" })
-                    .then(function (content) {
-                        saveAs(content, `${fileName}.zip`);
-                    });
-                toast.success(message);
-            })
-            .catch((error: AxiosError) => {
-                axiosErrorHandler(error, authDispatch);
-            })
-    };
-
-    return (
-        <span onClick={handleClick}>
-            <DownloadFileIcon rowIndex={rowIndex} />
-        </span>
-    )
-}
-
 const StyledHeader = styled.div`
     background-color: #202226;
     display: flex;
@@ -382,19 +335,7 @@ export const CREATE_GROUPS_MANAGED_COLUMNS = (refreshGroupMembers: () => void, r
                 const groupId = row?.cells[0]?.value;
                 return <ChangeGroupHashModal groupId={groupId} rowIndex={rowIndex} refreshGroupsManaged={refreshGroupsManaged} />
             }
-        },
-        {
-            Header: () => <div style={{ backgroundColor: '#202226' }}>SSL<br />certs</div>,
-            accessor: "sslCerts",
-            disableFilters: true,
-            disableSortBy: true,
-            Cell: props => {
-                const rowIndex = parseInt(props.row.id, 10);
-                const row = props.rows.filter(row => row.index === rowIndex)[0];
-                const groupId = row?.cells[0]?.value;
-                return <DownLoadSslCerts groupId={groupId} rowIndex={rowIndex} />
-            }
-        },         
+        },        
         {
             Header: "",
             accessor: "edit",

@@ -2,6 +2,7 @@ package flows_manager
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"path/filepath"
@@ -17,6 +18,7 @@ import (
 
 	nats_pkg "pipelines/nats"
 
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
@@ -32,6 +34,7 @@ type FlowsManager struct {
 	DigitalTwinTopicsRef     *common.ShardedSyncMap
 	MLModels                 *common.ShardedSyncMap
 	DigitalTwins             *common.ShardedSyncMap
+	AssetS3Folders           *common.ShardedSyncMap
 	Admin                    *admin.Admin
 	JsConsumer               jetstream.Consumer
 	log                      *logger.Logger
@@ -44,6 +47,9 @@ type FlowsManager struct {
 	JetStream                jetstream.JetStream
 	NumStreamReplicas        int
 	DBPool                   *pgxpool.Pool
+	DuckdbPool               *sql.DB
+	S3Client                 *s3.Client
+	S3BucketName             string
 	IotDataCh                chan common.ThingData
 	IotDataCancel            context.CancelFunc
 	Mode                     string
@@ -71,6 +77,8 @@ func CreateFlowsManager(
 	jetStream jetstream.JetStream,
 	jsConsumer jetstream.Consumer,
 	dbpool *pgxpool.Pool,
+	duckdbPool *sql.DB,
+	s3Client *s3.Client,
 	admin *admin.Admin,
 	log *logger.Logger,
 ) *FlowsManager {
@@ -84,6 +92,7 @@ func CreateFlowsManager(
 	digitalTwins := admin.GetDigitalTwins(ctx)
 	assetsTopics := admin.GetAssetTopics(ctx)
 	digitalTwinTopics := admin.GetDigitalTwinTopics(ctx)
+	assetS3Folders := admin.GetAssetS3Folders(ctx)
 
 	iotDataCh := make(chan common.ThingData, config.IotDataBatchSize)
 	iotDataCtx, iotDataCancel := context.WithCancel(ctx)
@@ -121,16 +130,20 @@ func CreateFlowsManager(
 		DigitalTwinTopicsRef:     common.NewShardedSyncMap(config.ShardCount),
 		MLModels:                 common.NewShardedSyncMap(config.ShardCount),
 		DigitalTwins:             common.NewShardedSyncMap(config.ShardCount),
+		AssetS3Folders:           common.NewShardedSyncMap(config.ShardCount),
 		NumReplicas:              config.NumReplicas,
 		ReplicaIndex:             config.ReplicaIndex,
 		ShardIndex:               config.ShardIndex,
 		FunctionsTimeout:         config.FunctionsTimeout,
+		S3BucketName:             config.AwsS3.Bucket,
 		Admin:                    admin,
 		JsConsumer:               jsConsumer,
+		S3Client:                 s3Client,
 		Nats:                     natsConn,
 		JetStream:                jetStream,
 		NumStreamReplicas:        config.NumStreamReplicas,
 		DBPool:                   dbpool,
+		DuckdbPool:               duckdbPool,
 		IotDataCh:                iotDataCh,
 		IotDataCancel:            iotDataCancel,
 		Mode:                     config.Mode,
@@ -155,6 +168,7 @@ func CreateFlowsManager(
 	flowManager.AddTopics(topics)
 	flowManager.AddAssetTopicsRef(assetsTopics)
 	flowManager.AddDigitalTwinTopicsRef(digitalTwinTopics)
+	flowManager.AddAssetS3Folders(ctx, assetS3Folders)
 	flowManager.AddMlModels(ctx, mlModels)
 	flowManager.AddDigitalTwins(ctx, digitalTwins)
 	flowManager.AddFemResultsInDigitalTwins(ctx)
@@ -463,26 +477,36 @@ func (fm *FlowsManager) GetDbPool() *pgxpool.Pool {
 	return fm.DBPool
 }
 
+func (fm *FlowsManager) GetS3Client() *s3.Client {
+	return fm.S3Client
+}
 
-func (fm *FlowsManager) GracefullyShutdown() {
-    fm.log.Info("FlowsManager is shutting down gracefully...")
-    
-    var wg sync.WaitGroup
+func (fm *FlowsManager) GetDuckdbPool() *sql.DB {
+	return fm.DuckdbPool
+}
 
-    wg.Add(1)
-    go func() {
-        defer wg.Done()
-        fm.StopPipelines()
-        fm.IotDataCancel()
-    }()
+func (fm *FlowsManager) GetS3BucketName() string {
+	return fm.S3BucketName
+}
 
+func (fm *FlowsManager) GracefullyShutdown(ctx context.Context) {
+	fm.log.Info("FlowsManager is shutting down gracefully...")
 
-    wg.Add(1)
-    go func() {
-        defer wg.Done()
-        fm.StopTelegramBots()
-    }()
+	var wg sync.WaitGroup
 
-    wg.Wait()
-    fm.log.Info("FlowsManager shutdown complete")
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		fm.StopPipelines(ctx)
+		fm.IotDataCancel()
+	}()
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		fm.StopTelegramBots(ctx)
+	}()
+
+	wg.Wait()
+	fm.log.Info("FlowsManager shutdown complete")
 }

@@ -226,3 +226,7 @@ func (fm *FlowsManager) GetAssetsByGroupId(groupId int) []*common.Asset {
 func (fm *FlowsManager) GetAssetStateKvStoreKey(orgHash string, groupUid string, assetUid string) string {
 	return fmt.Sprintf("org_%s-group_%s.asset_states.asset_%s", orgHash, groupUid, assetUid)
 }
+
+func makeAssetTopicRefKey(assetId int, topicRef string) string {
+	return fmt.Sprintf("asset:%d:topicRef:%s", assetId, topicRef)
+}

@@ -71,6 +71,7 @@ const resolveSetStateAction = <T extends unknown>(action: SetStateAction<T>, pre
 const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
     digitalTwinSelected,
     digitalTwinGltfData,
+    assetS3Folders,
     orgSelected,
     groupSelected,
     close3DViewer,
@@ -747,6 +748,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
                             mqttClient={mqttClient}
                             mqttConnectionStatus={connectionStatus}
                             mqttTopicsData={digitalTwinGltfData.mqttTopicsData}
+                            assetS3Folders={assetS3Folders}
                             digitalTwinSelected={digitalTwinSelected}
                             orgSelected={orgSelected}
                             groupSelected={groupSelected}
