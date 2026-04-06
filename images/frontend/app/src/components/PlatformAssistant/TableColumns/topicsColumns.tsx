@@ -221,9 +221,9 @@ export const Create_TOPICS_COLUMNS = (refreshTopics: () => void): Column<ITopicC
             Header: "Mqtt acc",
             accessor: "mqttAccessControl",
             disableFilters: true,
-            Cell: props => {
+            Cell: (props: { row: { id: string; }; rows: any[]; }) => {
                 const rowIndex = parseInt(props.row.id, 10);
-                const row = props.rows.filter(row => row.index === rowIndex)[0];
+                const row = props.rows.filter((row: { index: number; }) => row.index === rowIndex)[0];
                 const mqttAccessControl = row?.cells[5]?.value;
                 const style: React.CSSProperties = {
                     color: mqttAccessControl === "None" ? 'red' : 'white'
@@ -247,9 +247,9 @@ export const Create_TOPICS_COLUMNS = (refreshTopics: () => void): Column<ITopicC
             accessor: "changeTopicHash",
             disableFilters: true,
             disableSortBy: true,
-            Cell: props => {
+            Cell: (props: { row: { id: string; }; rows: any[]; }) => {
                 const rowIndex = parseInt(props.row.id, 10);
-                const row = props.rows.filter(row => row.index === rowIndex)[0];
+                const row = props.rows.filter((row: { index: number; }) => row.index === rowIndex)[0];
                 const topicId = row?.cells[0]?.value;
                 const groupId = row?.cells[2]?.value;
                 return <ChangeTopicHashModal groupId={groupId} topicId={topicId} rowIndex={rowIndex} refreshTopics={refreshTopics} />
@@ -260,9 +260,9 @@ export const Create_TOPICS_COLUMNS = (refreshTopics: () => void): Column<ITopicC
             accessor: "edit",
             disableFilters: true,
             disableSortBy: true,
-            Cell: props => {
+            Cell: (props: { row: { id: string; }; rows: any[]; }) => {
                 const rowIndex = parseInt(props.row.id, 10);
-                const row = props.rows.filter(row => row.index === rowIndex)[0];
+                const row = props.rows.filter((row: { index: number; }) => row.index === rowIndex)[0];
                 const topicId = row?.cells[0]?.value;
                 return <EditTopic topicId={topicId} rowIndex={rowIndex} />
             }
@@ -272,9 +272,9 @@ export const Create_TOPICS_COLUMNS = (refreshTopics: () => void): Column<ITopicC
             accessor: "delete",
             disableFilters: true,
             disableSortBy: true,
-            Cell: props => {
+            Cell: (props: { row: { id: string; }; rows: any[]; }) => {
                 const rowIndex = parseInt(props.row.id, 10);
-                const row = props.rows.filter(row => row.index === rowIndex)[0];
+                const row = props.rows.filter((row: { index: number; }) => row.index === rowIndex)[0];
                 const topicId = row?.cells[0]?.value;
                 const groupId = row?.cells[2]?.value;
                 return <DeleteTopicModal topicId={topicId} groupId={groupId} rowIndex={rowIndex} refreshTopics={refreshTopics} />

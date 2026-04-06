@@ -414,7 +414,9 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
     const selectDigitalTwin = (digitalTwin: IDigitalTwin | null) => {
         setDigitalTwinSelected(digitalTwin);
         if (digitalTwin) {
-            const assetS3FoldersFiltered = assetS3FoldersTable.filter((folder) => folder.assetId === digitalTwin.assetId);
+            const assetS3FoldersFiltered = assetS3FoldersTable.filter((folder) => {
+                return folder.assetId === digitalTwin.assetId && folder.isCurrent === "Yes";
+            });
             setAssetS3Folders(assetS3FoldersFiltered);
         }
     };

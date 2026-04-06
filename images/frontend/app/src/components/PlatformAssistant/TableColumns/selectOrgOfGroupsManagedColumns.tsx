@@ -32,9 +32,9 @@ export const SELECT_ORG_OF_GROUPS_MANAGED_COLUMNS: Column<ISelectOrgOfGroupsMana
         Header: "Status",
         accessor: "status",
         disableFilters: true,
-        Cell: props => {
+        Cell: (props: { row: { id: string; }; rows: any[]; }) => {
             const rowIndex = parseInt(props.row.id, 10);
-            const row = props.rows.filter(row => row.index === rowIndex)[0];
+            const row = props.rows.filter((row: { index: number; }) => row.index === rowIndex)[0];
             const status = row?.cells[5]?.value;
             return <StatusLed status={status} size="12px"/>
         }

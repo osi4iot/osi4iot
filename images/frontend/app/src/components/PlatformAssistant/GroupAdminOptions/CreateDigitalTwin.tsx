@@ -892,6 +892,7 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
                 <Formik initialValues={initialDigitalTwinData} validationSchema={validationSchema} onSubmit={onSubmit}>
                     {(formik) => {
                         return (
+                            // @ts-ignore
                             <Form>
                                 <ControlsContainer>
                                     <FormikControl

@@ -122,7 +122,7 @@ export const useMqttOptions = () => {
 export const useRefs = () => {
     const canvasContainerRef = useRef(null);
     const canvasRef = useRef(null);
-    const controlsRef = useRef() as any;
+    const controlsRef = useRef(null) as any;
     const selectedObjTypeRef = useRef(null);
     const selectedObjNameRef = useRef(null);
     const femMaxValueRef = useRef(null);
@@ -143,7 +143,7 @@ export const useRefs = () => {
 
 export const useMqttConnection = () => {
     const clientValid = useRef(false);
-    const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const reconnectAttemptsRef = useRef(0);
     const [connectionStatus, setStatus] = useState("Offline");
     const [mqttClient, setMqttClient] = useState<Paho.Client | null>(null);
@@ -689,7 +689,7 @@ export const useFormChanges = (selectedNode: any) => {
     const originalDataRef = useRef(null);
 
     const checkForChangesInternal = useCallback(
-        (currentData, nodeType) => {
+        (currentData: any, nodeType: string) => {
             if (!originalDataRef.current || !selectedNode) {
                 setHasChanges(false);
                 return false;
@@ -703,14 +703,14 @@ export const useFormChanges = (selectedNode: any) => {
         [selectedNode]
     );
 
-    const setOriginalData = useCallback((data, nodeType) => {
+    const setOriginalData = useCallback((data: any, nodeType: string) => {
         const normalizedData = normalizeFormData(data, nodeType);
         originalDataRef.current = normalizedData;
         setHasChanges(false);
     }, []);
 
     const createInputChangeHandler = useCallback(
-        (setFormData) => {
+        (setFormData: (arg0: (prev: any) => any) => void) => {
             return (field: any, value: any) => {
                 setFormData((prev: any) => {
                     const newData = {
@@ -734,7 +734,7 @@ export const useFormChanges = (selectedNode: any) => {
     );
 
     const createDebugToggleHandler = useCallback(
-        (setFormData, isDebugEnabled, setIsDebugEnabled) => {
+        (setFormData: (arg0: (prev: any) => any) => void, isDebugEnabled: any, setIsDebugEnabled: (arg0: boolean) => void) => {
             return () => {
                 const newDebugState = !isDebugEnabled;
                 setIsDebugEnabled(newDebugState);
@@ -759,7 +759,7 @@ export const useFormChanges = (selectedNode: any) => {
 
     // Función pública para verificar cambios (mantener compatibilidad)
     const checkForChanges = useCallback(
-        (currentData, nodeType) => {
+        (currentData: any, nodeType: string) => {
             return checkForChangesInternal(currentData, nodeType);
         },
         [checkForChangesInternal]

@@ -282,6 +282,7 @@ const EditAsset: FC<EditAssetProps> = ({
                 <Formik initialValues={initialAssetData} validationSchema={validationSchema} onSubmit={onSubmit} >
                     {
                         formik => (
+                            // @ts-ignore
                             <Form>
                                 <ControlsContainer>
                                     <FieldContainer>

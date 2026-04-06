@@ -352,6 +352,7 @@ const MobileSensorSelectForm: FC<MobileSensorSelectFormProps> = (
                 <Formik initialValues={initialMobileSensorData as InitialMobileSensorData} onSubmit={handleMobileSensorSelection} >
                     {
                         formik => (
+                            // @ts-ignore
                             <Form>
                                 <ControlsContainer>
                                     <FormikControl

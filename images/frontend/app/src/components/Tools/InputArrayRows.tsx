@@ -198,7 +198,7 @@ const RemoveButtonsContainer = styled.div`
     padding: 10px 5px;
 `;
 
-const FaTrashAltStyled = styled(FaTrashAlt as ComponentType<any>)`
+const FaTrashAltStyled = styled(FaTrashAlt as any)`
     font-size: 17px;
     color: white;
  `;
@@ -391,7 +391,7 @@ const InputArrayRows: FC<InputArrayRowsProps> = (
                                                             :
                                                             <FieldContainer type={typeArray[subIndex]}>
                                                                 <Field name={`${name}[${index}].${nameArray[subIndex]}`} type={typeArray[subIndex]} {...rest} />
-                                                                <ErrorMessage name={`${name}[${index}].${nameArray[subIndex]}`} component={TextError} />
+                                                                <ErrorMessage name={`${name}[${index}].${nameArray[subIndex]}`} component={TextError as ComponentType<{}>} />
                                                             </FieldContainer>
                                                     }
                                                 </div>

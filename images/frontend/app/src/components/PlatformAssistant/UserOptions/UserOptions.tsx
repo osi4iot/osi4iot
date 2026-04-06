@@ -24,6 +24,7 @@ import {
 import { getAxiosInstance } from '../../../tools/axiosIntance';
 import axiosErrorHandler from '../../../tools/axiosErrorHandler';
 import { AxiosResponse, AxiosError } from 'axios';
+import { Column } from 'react-table';
 
 
 const UserOptionsContainer = styled.div`
@@ -253,7 +254,7 @@ const UserOptions: FC<{}> = () => {
                             &&
                             <TableWithPagination
                                 dataTable={orgsMembershipTable}
-                                columnsTable={MEMBERSHIP_IN_ORGS}
+                                columnsTable={MEMBERSHIP_IN_ORGS as Column<any>[]}
                                 reloadTable={refreshOrgsMembership}
                                 componentName=""
                             />}
@@ -262,7 +263,7 @@ const UserOptions: FC<{}> = () => {
                             &&
                             <TableWithPagination
                                 dataTable={groupsMembershipTable}
-                                columnsTable={MEMBERSHIP_IN_GROUPS}
+                                columnsTable={MEMBERSHIP_IN_GROUPS as Column<any>[]}
                                 reloadTable={refreshGroupsMembership}
                                 componentName=""
                             />}

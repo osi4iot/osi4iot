@@ -294,6 +294,7 @@ const CreateAssetS3Folder: FC<CreateAssetS3FolderProps> = ({ backToTable, refres
             <DraggableFormContainer>
                 <Formik initialValues={initialSensorData} validationSchema={validationSchema} onSubmit={onSubmit}>
                     {(formik) => (
+                        // @ts-ignore
                         <Form>
                             <ControlsContainer>
                                 <FormikControl

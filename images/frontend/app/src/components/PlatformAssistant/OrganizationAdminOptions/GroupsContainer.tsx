@@ -17,6 +17,7 @@ import GroupLocationContainer from "./GroupLocationContainer";
 import { IFloor } from "../TableColumns/floorsColumns";
 import { IBuilding } from "../TableColumns/buildingsColumns";
 import { useOrgsManagedTable } from "../../../contexts/platformAssistantContext";
+import { Column } from "react-table";
 
 interface GroupsContainerProps {
     buildingsFiltered: IBuilding[];
@@ -118,7 +119,7 @@ const GroupsContainer: FC<GroupsContainerProps> = ({
             {groupsOptionToShow === GROUPS_OPTIONS.TABLE && (
                 <TableWithPagination
                     dataTable={groups}
-                    columnsTable={Create_GROUPS_COLUMNS(refreshGroups)}
+                    columnsTable={Create_GROUPS_COLUMNS(refreshGroups) as Column<any>[]}
                     componentName="group"
                     reloadTable={refreshGroups}
                     createComponent={() =>

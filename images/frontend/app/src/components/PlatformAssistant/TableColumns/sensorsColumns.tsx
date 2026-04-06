@@ -199,9 +199,9 @@ export const Create_SENSORS_COLUMNS = (refreshSensors: () => void): Column<ISens
             accessor: "edit",
             disableFilters: true,
             disableSortBy: true,
-            Cell: (props) => {
+            Cell: (props: { row: { id: string; }; rows: any[]; }) => {
                 const rowIndex = parseInt(props.row.id, 10);
-                const row = props.rows.filter((row) => row.index === rowIndex)[0];
+                const row = props.rows.filter((row: { index: number; }) => row.index === rowIndex)[0];
                 const sensorId = row?.cells[0]?.value;
                 return <EditSensor sensorId={sensorId} rowIndex={rowIndex} />;
             },
@@ -211,9 +211,9 @@ export const Create_SENSORS_COLUMNS = (refreshSensors: () => void): Column<ISens
             accessor: "delete",
             disableFilters: true,
             disableSortBy: true,
-            Cell: (props) => {
+            Cell: (props: { row: { id: string; }; rows: any[]; }) => {
                 const rowIndex = parseInt(props.row.id, 10);
-                const row = props.rows.filter((row) => row.index === rowIndex)[0];
+                const row = props.rows.filter((row: { index: number; }) => row.index === rowIndex)[0];
                 const sensorId = row?.cells[0]?.value;
                 const groupId = row?.cells[2]?.value;
                 return (

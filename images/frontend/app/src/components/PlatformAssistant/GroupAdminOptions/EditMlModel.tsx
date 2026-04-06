@@ -560,6 +560,7 @@ const EditMlModel: FC<EditMlModelProps> = ({ mlModels, backToTable, refreshMlMod
                         >
                             {(formik) => {
                                 return (
+                                    // @ts-ignore
                                     <Form>
                                         <ControlsContainer>
                                             <FieldContainer>

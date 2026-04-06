@@ -78,6 +78,7 @@ const EditUserProfile: FC<EditUserProfileProps> = ({  userProfileToEdit, refresh
                 <Formik initialValues={userProfileToEdit} validationSchema={validationSchema} onSubmit={onSubmit} >
                     {
                         formik => (
+                            // @ts-ignore
                             <Form>
                                 <FormikControl
                                     control='input'

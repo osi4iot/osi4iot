@@ -27,6 +27,8 @@ import { LlmMessage } from "../ChatAssitant/ChatAssistant";
 import { PipelineLog } from "../Pipeline/PipelineLogs";
 import { ChatMessage } from "../Types/types";
 
+const GroupComponent = 'group' as any;
+
 export interface ISensorObject {
     node: IThreeMesh;
     collectionName: string;
@@ -137,7 +139,7 @@ interface ModelProps {
     showDtSimulatorModal: boolean;
     handleUpdateChatAssistantMessages: (newMessage: LlmMessage) => void;
     handleUpdateLogMessages: (newLogMessages: PipelineLog) => void;
-    
+
     currentSensorsState: Record<string, SensorState>;
     currentAssetsState: Record<string, AssetState>;
     currentGenericObjectsState: Record<string, GenericObjectState>;
@@ -192,7 +194,7 @@ const Model: FC<ModelProps> = ({
     enableWebWorkes,
     numWebWorkers,
     logElapsedTime,
-    
+
     // Nuevas props - Estados del padre
     currentSensorsState,
     currentAssetsState,
@@ -205,7 +207,7 @@ const Model: FC<ModelProps> = ({
 }) => {
     const camera = useThree((state) => state.camera);
     const container = canvasRef.current as HTMLCanvasElement | null;
-    const group = useRef<THREE.Group>();
+    const group = useRef<THREE.Group | undefined>(undefined);
 
     const sensorsState = currentSensorsState;
     const setSensorsState = setCurrentSensorsState;
@@ -225,7 +227,7 @@ const Model: FC<ModelProps> = ({
                 };
             });
         },
-        [setSensorsState]
+        [setSensorsState],
     );
 
     useLayoutEffect(() => {
@@ -320,7 +322,7 @@ const Model: FC<ModelProps> = ({
             selectedObjCollectionNameRef.current as HTMLDivElement | null,
             changeObjectHighlight,
             digitalTwinGltfData.sensorsDashboards,
-            openDashboardTab
+            openDashboardTab,
         );
         window.addEventListener("mesh_mouse_enter", onMeshMouseEnter, false);
         window.addEventListener("mesh_mouse_exit", onMeshMouseExit, false);
@@ -336,11 +338,11 @@ const Model: FC<ModelProps> = ({
             container?.removeEventListener("mousedown", onMouseDown);
             container?.removeEventListener("touchstart", onTouch);
         };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [camera, container, setSensorsState, setAssetsState, setGenericObjectsState, setFemSimulationObjectsState]);
 
     return (
-        <group ref={group as React.MutableRefObject<THREE.Group>} dispose={null}>
+        <GroupComponent ref={group as React.MutableRefObject<THREE.Group>} dispose={null}>
             {sensorObjects.length !== 0 && sensorsState && sensorsVisibilityState && (
                 <Sensors
                     sensorObjects={sensorObjects}
@@ -405,7 +407,7 @@ const Model: FC<ModelProps> = ({
                     }
                 />
             )}
-        </group>
+        </GroupComponent>
     );
 };
 

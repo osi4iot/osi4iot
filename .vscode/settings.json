@@ -1,5 +1,6 @@
 {
     "livePreview.defaultPreviewPath": "/index.html",
+    "js/ts.tsdk.path": "./node_modules/typescript/lib",
     "CodeGPT.apiKey": "Ollama",
     "CodeGPT.Autocomplete.enabled": false,
     "CodeGPT.Autocomplete.provider": "Ollama - llama3:8b-instruct"

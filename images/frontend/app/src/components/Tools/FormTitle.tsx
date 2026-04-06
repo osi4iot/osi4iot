@@ -25,6 +25,7 @@ const Title = styled.div`
 
 interface FormTitleProp {
 	isSubmitting?: boolean;
+	children: React.ReactNode;
 }
 
 const FormTitle: FC<FormTitleProp> = ({ isSubmitting = false, children }) => {

@@ -1,8 +1,8 @@
-import { ComponentType, FC } from "react";
+import { FC } from "react";
 import { FaEdit } from "react-icons/fa";
 import styled from "styled-components";
 
-const FaEditStyled = styled(FaEdit as ComponentType<any>)`
+const FaEditStyled = styled(FaEdit as any)`
     font-size: 18px;
     color: white;
 `;

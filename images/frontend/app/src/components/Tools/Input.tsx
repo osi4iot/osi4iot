@@ -1,4 +1,4 @@
-import { FC } from "react";
+import { ComponentType, FC } from "react";
 import { Field, ErrorMessage } from 'formik';
 import styled from "styled-components";
 import TextError from "./TextError";
@@ -73,7 +73,7 @@ const Input: FC<InputProps> = ({ label, name, type, autocomplete, ...rest }) => 
         <InputStyled>
             <label htmlFor={name}>{label}</label>
             <Field id={name} name={name} type={type} autoComplete={autocomplete} {...rest} />
-            <ErrorMessage name={name} component={TextError}/>
+            <ErrorMessage name={name} component={TextError as ComponentType<{}>}/>
         </InputStyled>
     )
 

@@ -21,20 +21,20 @@ import (
 type Image struct {
 	node common.Node
 
-	Black       *image.Uniform
-	White       *image.Uniform
-	Transparent *image.Uniform
-	Opaque      *image.Uniform
+	UniformBlack       *image.Uniform
+	UniformWhite       *image.Uniform
+	UniformTransparent *image.Uniform
+	UniformOpaque      *image.Uniform
 }
 
 func NewImage(node common.Node) *Image {
 	return &Image{
 		node: node,
 
-		Black:       image.Black,
-		White:       image.White,
-		Transparent: image.Transparent,
-		Opaque:      image.Opaque,
+		UniformBlack:       image.Black,
+		UniformWhite:       image.White,
+		UniformTransparent: image.Transparent,
+		UniformOpaque:      image.Opaque,
 	}
 }
 
@@ -253,7 +253,6 @@ func (img *Image) Thumbnail(maxWidth, maxHeight uint, src image.Image, interp re
 	return resize.Thumbnail(maxWidth, maxHeight, src, interp)
 }
 
-
 // Draw functions
 func (img *Image) GetDrawOp(op string) draw.Op {
 	switch op {
@@ -274,4 +273,3 @@ func (img *Image) Draw(dst draw.Image, r image.Rectangle, src image.Image, sp im
 func (img *Image) DrawMask(dst draw.Image, r image.Rectangle, src image.Image, sp image.Point, mask image.Image, mp image.Point, op draw.Op) {
 	draw.DrawMask(dst, r, src, sp, mask, mp, op)
 }
-

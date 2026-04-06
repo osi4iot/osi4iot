@@ -288,6 +288,7 @@ const EditBuilding: FC<EditBuildingProps> = ({ buildings, backToTable, refreshBu
                     {
                         formik => {
                             return (
+                                // @ts-ignore
                                 <Form>
                                     <ControlsContainer>
                                         <FormikControl

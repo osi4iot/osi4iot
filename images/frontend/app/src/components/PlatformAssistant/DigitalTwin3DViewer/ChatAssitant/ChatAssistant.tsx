@@ -6,6 +6,12 @@ import { useSpeechSynthesis } from "./useSpeechSynthesis";
 import { useLoggedUserLogin } from "../../../../contexts/authContext/authContext";
 import { normalizeForTTS } from "./ttsNormalizer";
 import { containsLatex, MathMessage } from "./MathMessage";
+import { asIcon } from "../../../../tools/icons";
+
+const FaMicrophoneIcon = asIcon(FaMicrophone);
+const FaMicrophoneSlashIcon = asIcon(FaMicrophoneSlash);
+const FaWrenchIcon = asIcon(FaWrench);
+const FaTrashAltIcon = asIcon(FaTrashAlt);
 
 const getVoices = (lang: string) => {
     const isSpanish = lang.includes("es");
@@ -361,11 +367,11 @@ interface ChatAssistantProps {
     handleRemoveChatAssistantHistory: () => void;
 }
 
-const ChatAssistant: React.FC<ChatAssistantProps> = ({ 
-    chatMessages, 
+const ChatAssistant: React.FC<ChatAssistantProps> = ({
+    chatMessages,
     setChatMessages,
-    chatAssistantLanguage, 
-    handleRemoveChatAssistantHistory 
+    chatAssistantLanguage,
+    handleRemoveChatAssistantHistory,
 }) => {
     const isMounted = useRef(true);
     const userName = useLoggedUserLogin();
@@ -377,9 +383,9 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({
     const [isVoiceEnabled, setIsVoiceEnabled] = useState<boolean>(false);
     const [systemStatus, setSystemStatus] = useState<"idle" | "listening" | "processing" | "speaking">("idle");
     const lastTranscriptRef = useRef<string>("");
-    const processingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-    const handleSendRef = useRef<() => void>();
-    const speakRef = useRef<(params: { text: string; voice: string }) => void>();
+    const processingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const handleSendRef = useRef<(() => void) | undefined>(undefined);
+    const speakRef = useRef<((params: { text: string; voice: string }) => void) | undefined>(undefined);
     const initializedRef = useRef<boolean>(false);
     const [lastChatMessageIndex, setLastChatMessageIndex] = useState<number>(0);
     const [isSpeaking, setIsSpeaking] = useState<boolean>(false);
@@ -400,7 +406,7 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({
                 return text;
             }
         },
-        [chatAssistantLanguage]
+        [chatAssistantLanguage],
     );
 
     const handleMouseDown = useCallback(
@@ -430,7 +436,7 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({
             document.addEventListener("mousemove", handleMouseMove);
             document.addEventListener("mouseup", handleMouseUp);
         },
-        [containerWidth]
+        [containerWidth],
     );
 
     const startListening = useCallback(() => {
@@ -783,14 +789,14 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({
                             onClick={toggleMcpToolsVisibility}
                             title={showMcpTools ? "Hide MCP tools" : "Show MCP tools"}
                         >
-                            <FaWrench style={{ opacity: showMcpTools ? 1 : 0.3 }} />
+                            <FaWrenchIcon style={{ opacity: showMcpTools ? 1 : 0.3 }} />
                         </ToggleButton>
                         <MicButton
                             active={isVoiceEnabled}
                             onClick={toggleVoice}
                             disabled={!browserSupportsSpeechRecognition}
                         >
-                            {isVoiceEnabled ? <FaMicrophone /> : <FaMicrophoneSlash />}
+                            {isVoiceEnabled ? <FaMicrophoneIcon /> : <FaMicrophoneSlashIcon />}
                         </MicButton>
                         <StatusIndicator status={systemStatus}>{getStatusText()}</StatusIndicator>
                         <TrashButton
@@ -798,7 +804,7 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({
                             onClick={removeChatAssistantHistory}
                             title="Clear chat history"
                         >
-                            <FaTrashAlt />
+                            <FaTrashAltIcon />
                         </TrashButton>
                     </ButtonRow>
                 </ButtonContainer>

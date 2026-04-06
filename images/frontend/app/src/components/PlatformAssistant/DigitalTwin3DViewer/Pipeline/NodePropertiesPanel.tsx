@@ -12,13 +12,11 @@ import { oneDark } from "@codemirror/theme-one-dark";
 import { useUpdateNodeInternals } from "@xyflow/react";
 import { useFormChanges } from "../Utils/customHooks";
 import { IMqttTopicData } from "../Main/Model";
-import GeneralizedCompletion from "./Completion/Completion";
 import { json } from "@codemirror/lang-json";
 import { IDigitalTwin } from "../../TableColumns/digitalTwinsColumns";
 import { useMlModelsTableInGroup } from "../../../../contexts/platformAssistantContext/platformAssistantContext";
 import { TimeSelector } from "./Utils/TimeSelector";
 import { timezoneOptions } from "./Utils/timezones";
-import { GetVariableInfo } from "./Completion/tools";
 import {
     PanelContainer,
     PanelHeader,
@@ -50,7 +48,25 @@ import {
 import IAssetS3Folder from "../../TableColumns/assetS3FolderColumns";
 import { CodeMirrorWrapper } from "../../../Tools/CodeMirrorWrapper";
 
+//New
+import { buildEditorExtensions, disposeEditor, restartEditor } from "./editor";
+import { NODE_FUNCTION_SCRIPTS } from "./NodePalette";
+
+const CODEMIRROR_SETUP = {
+    lineNumbers: true,
+    foldGutter: true,
+    bracketMatching: true,
+    closeBrackets: true,
+    syntaxHighlighting: true,
+    autocompletion: true,
+    tabSize: 4,
+    searchKeymap: true,
+} as const;
+
 const daysOfWeek = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
+const MAX_WIDTH = 1370;
+const MIN_WIDTH = 550;
 
 const handleDayChange = (
     selectedDay: string,
@@ -116,7 +132,7 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
     const [dev2pdbTopicsRef, setDev2pdbTopicsRef] = useState<string[]>([]);
 
     // Estados para el redimensionamiento - Enfoque híbrido optimizado
-    const [width, setWidth] = useState(550);
+    const [width, setWidth] = useState(MIN_WIDTH);
     const [isDragging, setIsDragging] = useState(false);
     const dragStartRef = useRef({ x: 0, widthInicial: 0 });
     const panelRef = useRef<HTMLDivElement>(null);
@@ -163,8 +179,8 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
             const deltaX = e.clientX - dragStartRef.current.x;
             const newWidth = dragStartRef.current.widthInicial + deltaX;
 
-            const widthMin = 550;
-            const widthMax = 1370;
+            const widthMin = MIN_WIDTH;
+            const widthMax = MAX_WIDTH;
 
             if (newWidth >= widthMin && newWidth <= widthMax) {
                 // Solo actualización CSS, sin setState durante el drag
@@ -267,6 +283,7 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
 
     const handleClose = useCallback(() => {
         setIsClosing(true);
+        setWidth(MIN_WIDTH); // Reinitialize width on close
         setTimeout(() => {
             setIsClosing(false);
             onClose();
@@ -326,106 +343,119 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
         return !excludedTypes.includes(nodeType);
     };
 
-    const hoverFnDocs = useCallback((view: any, pos: any, side: any) => {
-        const { state } = view;
-        const word = state.wordAt(pos);
-        if (!word) return null;
-        const name = state.sliceDoc(word.from, word.to);
-        if (!name) return null;
-        const line = state.doc.lineAt(pos);
-        const lineFullText = line.text;
-        const fullDoc = state.doc.toString();
-        const info = GetVariableInfo(name, fullDoc, lineFullText);
-        if (!info) return null;
+    // const hoverFnDocs = useCallback((view: any, pos: any, side: any) => {
+    //     const { state } = view;
+    //     const word = state.wordAt(pos);
+    //     if (!word) return null;
+    //     const name = state.sliceDoc(word.from, word.to);
+    //     if (!name) return null;
+    //     const line = state.doc.lineAt(pos);
+    //     const lineFullText = line.text;
+    //     const fullDoc = state.doc.toString();
+    //     const info = GetVariableInfo(name, fullDoc, lineFullText);
+    //     if (!info) return null;
 
-        let methodsOptions = "Methods:";
-        if (info.doc === "Method for give access to different packages by destructuring") {
-            methodsOptions = "Destructuring options:";
-        }
+    //     let methodsOptions = "Methods:";
+    //     if (info.doc === "Method for give access to different packages by destructuring") {
+    //         methodsOptions = "Destructuring options:";
+    //     }
 
-        return {
-            pos: word.from,
-            end: word.to,
-            above: false,
-            strictSide: true,
-            create() {
-                const dom = document.createElement("div");
-                dom.className = "scrollable";
-                dom.style.maxWidth = "600px";
-                dom.style.maxHeight = "300px";
-                dom.style.padding = "6px 8px";
-                dom.style.overflowY = "auto";
-                const style = document.createElement("style");
-                style.textContent = `
-                    .scrollable::-webkit-scrollbar { 
-                        width: 8px;
-                        height: 8px;
-                    }
-                    .scrollable::-webkit-scrollbar-track {
-                        background: #30363fff;
-                    }
-                    .scrollable::-webkit-scrollbar-thumb { 
-                        background: #4b5563;
-                        border-radius: 4px;
-                    }
-                    .scrollable::-webkit-scrollbar-thumb:hover {
-                        background: #6b7280;
-                    }
-                `;
-                document.head.appendChild(style);
-                dom.style.fontFamily = "ui-monospace, SFMono-Regular, Menlo, monospace";
-                dom.style.fontSize = "12px";
-                dom.innerHTML = `
-                    <div style="font-weight:600; margin-bottom:4px;">${info.doc}</div>
-                    <div style="line-height:1.35;">${info.sig}</div>
-                    ${
-                        info.constants && info.constants.length > 0
-                            ? `<div style="margin-top:6px; font-weight:600;">Constants:</div>
-                        <ul style="margin:4px 0 0 16px; padding:0; list-style-type: disc;">
-                            ${info.constants
-                                .map((constant) => `<li style="margin-bottom:2px;">${constant}</li>`)
-                                .join("")}
-                        </ul>`
-                            : ""
-                    }
-                    ${
-                        info.methods && info.methods.length > 0
-                            ? `<div style="margin-top:6px; font-weight:600;">${methodsOptions}</div>
-                        <ul style="margin:4px 0 0 16px; padding:0; list-style-type: disc;">
-                            ${info.methods.map((method) => `<li style="margin-bottom:2px;">${method}</li>`).join("")}
-                        </ul>`
-                            : ""
-                    }`;
-                return { dom };
-            },
-        };
-    }, []);
+    //     return {
+    //         pos: word.from,
+    //         end: word.to,
+    //         above: false,
+    //         strictSide: true,
+    //         create() {
+    //             const dom = document.createElement("div");
+    //             dom.className = "scrollable";
+    //             dom.style.maxWidth = "600px";
+    //             dom.style.maxHeight = "300px";
+    //             dom.style.padding = "6px 8px";
+    //             dom.style.overflowY = "auto";
+    //             const style = document.createElement("style");
+    //             style.textContent = `
+    //                 .scrollable::-webkit-scrollbar { 
+    //                     width: 8px;
+    //                     height: 8px;
+    //                 }
+    //                 .scrollable::-webkit-scrollbar-track {
+    //                     background: #30363fff;
+    //                 }
+    //                 .scrollable::-webkit-scrollbar-thumb { 
+    //                     background: #4b5563;
+    //                     border-radius: 4px;
+    //                 }
+    //                 .scrollable::-webkit-scrollbar-thumb:hover {
+    //                     background: #6b7280;
+    //                 }
+    //             `;
+    //             document.head.appendChild(style);
+    //             dom.style.fontFamily = "ui-monospace, SFMono-Regular, Menlo, monospace";
+    //             dom.style.fontSize = "12px";
+    //             dom.innerHTML = `
+    //                 <div style="font-weight:600; margin-bottom:4px;">${info.doc}</div>
+    //                 <div style="line-height:1.35;">${info.sig}</div>
+    //                 ${
+    //                     info.constants && info.constants.length > 0
+    //                         ? `<div style="margin-top:6px; font-weight:600;">Constants:</div>
+    //                     <ul style="margin:4px 0 0 16px; padding:0; list-style-type: disc;">
+    //                         ${info.constants
+    //                             .map((constant) => `<li style="margin-bottom:2px;">${constant}</li>`)
+    //                             .join("")}
+    //                     </ul>`
+    //                         : ""
+    //                 }
+    //                 ${
+    //                     info.methods && info.methods.length > 0
+    //                         ? `<div style="margin-top:6px; font-weight:600;">${methodsOptions}</div>
+    //                     <ul style="margin:4px 0 0 16px; padding:0; list-style-type: disc;">
+    //                         ${info.methods.map((method) => `<li style="margin-bottom:2px;">${method}</li>`).join("")}
+    //                     </ul>`
+    //                         : ""
+    //                 }`;
+    //             return { dom };
+    //         },
+    //     };
+    // }, []);
 
-    const codeMirrorJSExtensions = useMemo(
-        () => [
-            javascript({ typescript: true }),
-            javascriptLanguage.data.of({
-                autocomplete: GeneralizedCompletion,
-            }),
-            indentUnit.of("    "),
-            indentOnInput(),
-            hoverTooltip(hoverFnDocs, { hoverTime: 180 }),
-            keymap.of([...completionKeymap, indentWithTab, ReIndentCommand]),
-        ],
-        [hoverFnDocs],
-    );
+    // const codeMirrorJSExtensions = useMemo(
+    //     () => [
+    //         javascript({ typescript: true }),
+    //         javascriptLanguage.data.of({
+    //             autocomplete: GeneralizedCompletion,
+    //         }),
+    //         indentUnit.of("    "),
+    //         indentOnInput(),
+    //         hoverTooltip(hoverFnDocs, { hoverTime: 180 }),
+    //         keymap.of([...completionKeymap, indentWithTab, ReIndentCommand]),
+    //     ],
+    //     [hoverFnDocs],
+    // );
 
     const codeMirrorSqlExtensions = useMemo(
         () => [
             sql(),
             indentUnit.of("    "),
             indentOnInput(),
-            hoverTooltip(hoverFnDocs, { hoverTime: 180 }),
             keymap.of([...completionKeymap, indentWithTab, ReIndentCommand]),
         ],
-        [hoverFnDocs],
+        [],
     );
 
+    const codeMirrorJSExtensions = useMemo(
+        () =>
+            buildEditorExtensions({
+                lintDelay: 500, // ms de debounce (default 500)
+                showLintGutter: true, // iconos de error en el gutter izquierdo (default true)
+            }),
+        [],
+    );
+    
+    useEffect(() => {
+        restartEditor();
+        return () => disposeEditor();
+    }, []);
+    
     // Renderizar el selector de número de outputs
     const renderOutputSelector = () => {
         if (!selectedNode || !shouldShowOutputSelector(selectedNode.type)) {
@@ -439,7 +469,9 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                     type="number"
                     step="1"
                     value={formData.numOutputs || 0}
-                    onChange={(e) => handleInputChange("numOutputs", Math.max(0, parseInt(e.target.value)))}
+                    onChange={(e: { target: { value: string } }) =>
+                        handleInputChange("numOutputs", Math.max(0, parseInt(e.target.value)))
+                    }
                     placeholder="1"
                 />
             </FormGroup>
@@ -473,87 +505,30 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                                     <Input
                                         type="text"
                                         value={formData.label || ""}
-                                        onChange={(e) => handleInputChange("label", e.target.value)}
+                                        onChange={(e: { target: { value: any } }) =>
+                                            handleInputChange("label", e.target.value)
+                                        }
                                         placeholder="Node name"
                                     />
                                 </FormGroup>
                                 {renderOutputSelector()}
                             </>
                         )}
-                        {activeTab === "onInitiation" && (
-                            <CodeMirrorWrapper>
-                                <CodeMirror
-                                    value={
-                                        formData.onInitiationScript ||
-                                        "function init() {\n    const go = Go();\n    const { log, time } = go.All();\n\n    // Your code here\n}"
-                                    }
-                                    height="auto"
-                                    minHeight="500px"
-                                    extensions={codeMirrorJSExtensions}
-                                    theme={oneDark}
-                                    onChange={(value) => handleInputChange("onInitiationScript", value)}
-                                    basicSetup={{
-                                        lineNumbers: true,
-                                        foldGutter: true,
-                                        bracketMatching: true,
-                                        closeBrackets: true,
-                                        syntaxHighlighting: true,
-                                        autocompletion: true,
-                                        tabSize: 4,
-                                        searchKeymap: true,
-                                    }}
-                                />
-                            </CodeMirrorWrapper>
-                        )}
-                        {activeTab === "onStart" && (
-                            <CodeMirrorWrapper>
-                                <CodeMirror
-                                    value={
-                                        formData.onStartScript ||
-                                        "function start() {\n    const go = Go();\n    const { log, time } = go.All();\n\n    // Your code here\n}"
-                                    }
-                                    height="auto"
-                                    minHeight="500px"
-                                    extensions={codeMirrorJSExtensions}
-                                    theme={oneDark}
-                                    onChange={(value) => handleInputChange("onStartScript", value)}
-                                    basicSetup={{
-                                        lineNumbers: true,
-                                        foldGutter: true,
-                                        bracketMatching: true,
-                                        closeBrackets: true,
-                                        syntaxHighlighting: true,
-                                        autocompletion: true,
-                                        tabSize: 4,
-                                        searchKeymap: true,
-                                    }}
-                                />
-                            </CodeMirrorWrapper>
-                        )}
-                        {activeTab === "onMessage" && (
-                            <CodeMirrorWrapper>
-                                <CodeMirror
-                                    value={
-                                        formData.onMessageScript ||
-                                        "function process(msg) {\n    const go = Go();\n    const { log, time } = go.All();\n\n    // Your code here\n    return msg;\n}"
-                                    }
-                                    height="auto"
-                                    minHeight="500px"
-                                    extensions={codeMirrorJSExtensions}
-                                    theme={oneDark}
-                                    onChange={(value) => handleInputChange("onMessageScript", value)}
-                                    basicSetup={{
-                                        lineNumbers: true,
-                                        foldGutter: true,
-                                        bracketMatching: true,
-                                        closeBrackets: true,
-                                        syntaxHighlighting: true,
-                                        autocompletion: true,
-                                        tabSize: 4,
-                                        searchKeymap: true,
-                                    }}
-                                />
-                            </CodeMirrorWrapper>
+                        {(["onInitiation", "onStart", "onMessage"] as const).map((tabId) =>
+                            activeTab === tabId ? (
+                                <CodeMirrorWrapper key={tabId}>
+                                    <CodeMirror
+                                        key={tabId}
+                                        value={formData[`${tabId}Script`] ?? NODE_FUNCTION_SCRIPTS[tabId]}
+                                        height="auto"
+                                        minHeight="500px"
+                                        extensions={codeMirrorJSExtensions}
+                                        theme={oneDark}
+                                        onChange={(value) => handleInputChange(`${tabId}Script`, value)}
+                                        basicSetup={CODEMIRROR_SETUP}
+                                    />
+                                </CodeMirrorWrapper>
+                            ) : null,
                         )}
                     </TabContentFunction>
                 </PanelContent>
@@ -585,7 +560,9 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                                     <Input
                                         type="text"
                                         value={formData.label || ""}
-                                        onChange={(e) => handleInputChange("label", e.target.value)}
+                                        onChange={(e: { target: { value: any } }) =>
+                                            handleInputChange("label", e.target.value)
+                                        }
                                         placeholder="Node name"
                                     />
                                 </FormGroup>
@@ -594,7 +571,9 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                                     <Label>Repeat</Label>
                                     <Select
                                         value={formData.repeat || "none"}
-                                        onChange={(e) => handleInputChange("repeat", e.target.value)}
+                                        onChange={(e: { target: { value: any } }) =>
+                                            handleInputChange("repeat", e.target.value)
+                                        }
                                     >
                                         <option value="none">None</option>
                                         <option value="interval">Interval</option>
@@ -609,7 +588,7 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                                             type="number"
                                             step="0.1"
                                             value={formData.every || 0}
-                                            onChange={(e) =>
+                                            onChange={(e: { target: { value: string } }) =>
                                                 handleInputChange("every", Math.max(0, parseFloat(e.target.value)))
                                             }
                                             placeholder="1.0"
@@ -644,7 +623,9 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                                             <Label>Timezone</Label>
                                             <Select
                                                 value={formData.timezone || "Europe/Madrid"}
-                                                onChange={(e) => handleInputChange("timezone", e.target.value)}
+                                                onChange={(e: { target: { value: any } }) =>
+                                                    handleInputChange("timezone", e.target.value)
+                                                }
                                             >
                                                 {timezoneOptions.map((option) => (
                                                     <option key={option.value} value={option.value}>
@@ -664,7 +645,7 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                                                         <CheckboxInput
                                                             type="checkbox"
                                                             checked={formData.daysOfWeek?.includes(day) || false}
-                                                            onChange={(e) =>
+                                                            onChange={(e: { target: { checked: boolean } }) =>
                                                                 handleDayChange(
                                                                     day,
                                                                     e.target.checked,
@@ -688,7 +669,9 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                                     <Label>Injection type</Label>
                                     <Select
                                         value={formData.injectionType || "Timestamp"}
-                                        onChange={(e) => handleInputChange("injectionType", e.target.value)}
+                                        onChange={(e: { target: { value: any } }) =>
+                                            handleInputChange("injectionType", e.target.value)
+                                        }
                                     >
                                         <option value="Timestamp">Timestamp</option>
                                         <option value="JSON">JSON</option>
@@ -792,7 +775,9 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                                     <Input
                                         type="text"
                                         value={formData.label || ""}
-                                        onChange={(e) => handleInputChange("label", e.target.value)}
+                                        onChange={(e: { target: { value: any } }) =>
+                                            handleInputChange("label", e.target.value)
+                                        }
                                         placeholder="Node name"
                                     />
                                 </FormGroup>
@@ -800,7 +785,9 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                                     <Label>Send first message and then</Label>
                                     <Select
                                         value={formData.sendMode || "wait_for"}
-                                        onChange={(e) => handleInputChange("sendMode", e.target.value)}
+                                        onChange={(e: { target: { value: any } }) =>
+                                            handleInputChange("sendMode", e.target.value)
+                                        }
                                     >
                                         {sendModeOptions.map((option) => (
                                             <option key={option.value} value={option.value}>
@@ -818,7 +805,7 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                                                     type="number"
                                                     step="0.1"
                                                     value={formData.delay || 0}
-                                                    onChange={(e) =>
+                                                    onChange={(e: { target: { value: string } }) =>
                                                         handleInputChange(
                                                             "delay",
                                                             Math.max(0, parseFloat(e.target.value)),
@@ -835,7 +822,7 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                                                     type="number"
                                                     step="0.01"
                                                     value={formData.resendInterval || 0}
-                                                    onChange={(e) =>
+                                                    onChange={(e: { target: { value: string } }) =>
                                                         handleInputChange(
                                                             "resendInterval",
                                                             Math.max(0, parseFloat(e.target.value)),
@@ -850,10 +837,10 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                                                 <CheckboxInput
                                                     type="checkbox"
                                                     checked={formData.overrideDelay || false}
-                                                    onChange={(e) =>
+                                                    onChange={(e: { target: { checked: any } }) =>
                                                         handleInputChange("overrideDelay", e.target.checked)
                                                     }
-                                                    onClick={(e) => e.stopPropagation()}
+                                                    onClick={(e: { stopPropagation: () => any }) => e.stopPropagation()}
                                                 />
                                                 <span>Allow msg.payload.delay to override delay setting</span>
                                             </CheckboxItem>
@@ -867,8 +854,10 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                                                 <CheckboxInput
                                                     type="checkbox"
                                                     checked={formData.extendDelay || false}
-                                                    onChange={(e) => handleInputChange("extendDelay", e.target.checked)}
-                                                    onClick={(e) => e.stopPropagation()}
+                                                    onChange={(e: { target: { checked: any } }) =>
+                                                        handleInputChange("extendDelay", e.target.checked)
+                                                    }
+                                                    onClick={(e: { stopPropagation: () => any }) => e.stopPropagation()}
                                                 />
                                                 <span>Extend delay if new message arrives</span>
                                             </CheckboxItem>
@@ -879,7 +868,9 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                                     <Label>Reset the trigger if:</Label>
                                     <Select
                                         value={formData.resetTriggerOption || "msg.payload.reset"}
-                                        onChange={(e) => handleInputChange("resetTriggerOption", e.target.value)}
+                                        onChange={(e: { target: { value: any } }) =>
+                                            handleInputChange("resetTriggerOption", e.target.value)
+                                        }
                                     >
                                         {resetTriggerOptions.map((option) => (
                                             <option key={option.value} value={option.value}>
@@ -894,7 +885,7 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                                         <Input
                                             type="text"
                                             value={formData.customPayloadFieldForReset || ""}
-                                            onChange={(e) =>
+                                            onChange={(e: { target: { value: any } }) =>
                                                 handleInputChange("customPayloadFieldForReset", e.target.value)
                                             }
                                             placeholder="custom_field"
@@ -905,7 +896,9 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                                     <Label>Handling</Label>
                                     <Select
                                         value={formData.handleMessagesBy || "all"}
-                                        onChange={(e) => handleInputChange("handleMessagesBy", e.target.value)}
+                                        onChange={(e: { target: { value: any } }) =>
+                                            handleInputChange("handleMessagesBy", e.target.value)
+                                        }
                                     >
                                         {handleMessagesOptions.map((option) => (
                                             <option key={option.value} value={option.value}>
@@ -922,7 +915,9 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                                     <Label>Message type</Label>
                                     <Select
                                         value={formData.firstMessageType || "Timestamp"}
-                                        onChange={(e) => handleInputChange("firstMessageType", e.target.value)}
+                                        onChange={(e: { target: { value: any } }) =>
+                                            handleInputChange("firstMessageType", e.target.value)
+                                        }
                                     >
                                         {firstMessageTypeOptions.map((option) => (
                                             <option key={option.value} value={option.value}>
@@ -969,7 +964,9 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                                     <Label>Message</Label>
                                     <Select
                                         value={formData.secondMessageType || "Timestamp"}
-                                        onChange={(e) => handleInputChange("secondMessageType", e.target.value)}
+                                        onChange={(e: { target: { value: any } }) =>
+                                            handleInputChange("secondMessageType", e.target.value)
+                                        }
                                     >
                                         {secondMessageTypeOptions.map((option) => (
                                             <option key={option.value} value={option.value}>
@@ -1013,7 +1010,7 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                                         <CheckboxInput
                                             type="checkbox"
                                             checked={formData.separateOutput || false}
-                                            onChange={(e) => {
+                                            onChange={(e: { target: { checked: any } }) => {
                                                 if (e.target.checked) {
                                                     handleInputChange("numOutputs", 2);
                                                 } else {
@@ -1021,7 +1018,7 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                                                 }
                                                 handleInputChange("separateOutput", e.target.checked);
                                             }}
-                                            onClick={(e) => e.stopPropagation()}
+                                            onClick={(e: { stopPropagation: () => any }) => e.stopPropagation()}
                                         />
                                         <span>Send second message to separate output</span>
                                     </CheckboxItem>
@@ -1058,7 +1055,9 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                                     <Input
                                         type="text"
                                         value={formData.label || ""}
-                                        onChange={(e) => handleInputChange("label", e.target.value)}
+                                        onChange={(e: { target: { value: any } }) =>
+                                            handleInputChange("label", e.target.value)
+                                        }
                                         placeholder="Node name"
                                     />
                                 </FormGroup>
@@ -1067,7 +1066,9 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                                     <Label>Model</Label>
                                     <Select
                                         value={formData.llmModel || "openai:gpt-oss-120b"}
-                                        onChange={(e) => handleInputChange("llmModel", e.target.value)}
+                                        onChange={(e: { target: { value: any } }) =>
+                                            handleInputChange("llmModel", e.target.value)
+                                        }
                                     >
                                         <option value="openai:gpt-oss-120b">openai/gpt-oss-120b</option>
                                         <option value="openai:gpt-oss-20b">openai/gpt-oss-20b</option>
@@ -1085,7 +1086,7 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                                         max="1.0"
                                         min="0.0"
                                         value={formData.llmTemperature || 0.7}
-                                        onChange={(e) =>
+                                        onChange={(e: { target: { value: string } }) =>
                                             handleInputChange("llmTemperature", parseFloat(e.target.value))
                                         }
                                         placeholder="0.7"
@@ -1099,7 +1100,9 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                                         max="100"
                                         min="1"
                                         value={formData.llmTopK || 40}
-                                        onChange={(e) => handleInputChange("llmTopK", parseInt(e.target.value))}
+                                        onChange={(e: { target: { value: string } }) =>
+                                            handleInputChange("llmTopK", parseInt(e.target.value))
+                                        }
                                         placeholder="40"
                                     />
                                 </FormGroup>
@@ -1111,7 +1114,9 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                                         max="1.0"
                                         min="0.0"
                                         value={formData.llmTopP || 0.95}
-                                        onChange={(e) => handleInputChange("llmTopP", parseFloat(e.target.value))}
+                                        onChange={(e: { target: { value: string } }) =>
+                                            handleInputChange("llmTopP", parseFloat(e.target.value))
+                                        }
                                         placeholder="0.95"
                                     />
                                 </FormGroup>
@@ -1123,7 +1128,9 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                                     {/* <Label>System Prompt</Label> */}
                                     <TextAreaSystemPrompt
                                         value={formData.systemPrompt || ""}
-                                        onChange={(e) => handleInputChange("systemPrompt", e.target.value)}
+                                        onChange={(e: { target: { value: any } }) =>
+                                            handleInputChange("systemPrompt", e.target.value)
+                                        }
                                         placeholder="Your system prompt"
                                         rows={4}
                                     />
@@ -1168,7 +1175,9 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                                     <Input
                                         type="text"
                                         value={formData.label || ""}
-                                        onChange={(e) => handleInputChange("label", e.target.value)}
+                                        onChange={(e: { target: { value: any } }) =>
+                                            handleInputChange("label", e.target.value)
+                                        }
                                         placeholder="Node name"
                                     />
                                 </FormGroup>
@@ -1177,7 +1186,7 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                                     <Label>Query mode</Label>
                                     <Select
                                         value={formData.queryMode || "static_query"}
-                                        onChange={(e) => {
+                                        onChange={(e: { target: { value: any } }) => {
                                             handleInputChange("queryMode", e.target.value);
                                         }}
                                     >
@@ -1191,7 +1200,7 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                                             <Label>Action</Label>
                                             <Select
                                                 value={formData.action || "Insert"}
-                                                onChange={(e) => {
+                                                onChange={(e: { target: { value: any } }) => {
                                                     handleInputChange("action", e.target.value);
                                                 }}
                                             >
@@ -1204,7 +1213,7 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                                                 <Label>Topic</Label>
                                                 <Select
                                                     value={formData.insertTopicRef}
-                                                    onChange={(e) =>
+                                                    onChange={(e: { target: { value: any } }) =>
                                                         handleInputChange("insertTopicRef", e.target.value)
                                                     }
                                                 >
@@ -1228,7 +1237,7 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                                         <CodeMirror
                                             value={
                                                 formData.sqlQuery ||
-                                                "SELECT * FROM iot_table WHERE topic = $__topicFun('dev2pdb_1') AND \n timestamp >= $__timeFun('now-25s') AND timestamp <= $__timeFun('now') ORDER BY timestamp DESC; ;"
+                                                "SELECT * FROM iot_table \nWHERE topic = $__topicFun('dev2pdb_1') \nAND timestamp >= $__timeFun('now-25s') \nAND timestamp <= $__timeFun('now') \nORDER BY timestamp DESC;"
                                             }
                                             height="auto"
                                             minHeight="500px"
@@ -1287,7 +1296,9 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                                     <Input
                                         type="text"
                                         value={formData.label || ""}
-                                        onChange={(e) => handleInputChange("label", e.target.value)}
+                                        onChange={(e: { target: { value: any } }) =>
+                                            handleInputChange("label", e.target.value)
+                                        }
                                         placeholder="Node name"
                                     />
                                 </FormGroup>
@@ -1296,7 +1307,7 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                                     <Label>Query mode</Label>
                                     <Select
                                         value={formData.queryMode || "static_query"}
-                                        onChange={(e) => {
+                                        onChange={(e: { target: { value: any } }) => {
                                             handleInputChange("queryMode", e.target.value);
                                         }}
                                     >
@@ -1310,7 +1321,7 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                                             <Label>Action</Label>
                                             <Select
                                                 value={formData.action || "Insert"}
-                                                onChange={(e) => {
+                                                onChange={(e: { target: { value: any } }) => {
                                                     handleInputChange("action", e.target.value);
                                                 }}
                                             >
@@ -1323,10 +1334,15 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                                                 <Label>Folder name</Label>
                                                 <Select
                                                     value={formData.folderName}
-                                                    onChange={(e) => handleInputChange("folderName", e.target.value)}
+                                                    onChange={(e: { target: { value: any } }) =>
+                                                        handleInputChange("folderName", e.target.value)
+                                                    }
                                                 >
                                                     {assetS3Folders.map((assetS3Folder) => (
-                                                        <option key={assetS3Folder.folderName} value={assetS3Folder.folderName}>
+                                                        <option
+                                                            key={assetS3Folder.folderName}
+                                                            value={assetS3Folder.folderName}
+                                                        >
                                                             {assetS3Folder.folderName}
                                                         </option>
                                                     ))}
@@ -1406,7 +1422,9 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                                     <Input
                                         type="text"
                                         value={formData.label || ""}
-                                        onChange={(e) => handleInputChange("label", e.target.value)}
+                                        onChange={(e: { target: { value: any } }) =>
+                                            handleInputChange("label", e.target.value)
+                                        }
                                         placeholder="Node name"
                                     />
                                 </FormGroup>
@@ -1415,7 +1433,7 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                                     <Label>Store type</Label>
                                     <Select
                                         value={formData.storeType || "IoTDB"}
-                                        onChange={(e) => {
+                                        onChange={(e: { target: { value: any } }) => {
                                             handleInputChange("storeType", e.target.value);
                                         }}
                                     >
@@ -1427,7 +1445,7 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                                     <Label>Action</Label>
                                     <Select
                                         value={formData.action || "Set or update state of current asset"}
-                                        onChange={(e) => {
+                                        onChange={(e: { target: { value: any } }) => {
                                             handleInputChange("action", e.target.value);
                                         }}
                                     >
@@ -1445,7 +1463,7 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                                         <Label>Set state mode</Label>
                                         <Select
                                             value={formData.setStateMode || "custom_state"}
-                                            onChange={(e) => {
+                                            onChange={(e: { target: { value: any } }) => {
                                                 handleInputChange("setStateMode", e.target.value);
                                             }}
                                         >
@@ -1526,7 +1544,7 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                         <Input
                             type="text"
                             value={formData.label || ""}
-                            onChange={(e) => handleInputChange("label", e.target.value)}
+                            onChange={(e: { target: { value: any } }) => handleInputChange("label", e.target.value)}
                             placeholder="Node name"
                         />
                     </FormGroup>
@@ -1550,7 +1568,9 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                             <Label>Listen To</Label>
                             <Select
                                 value={formData.listenTo || "Topic reference"}
-                                onChange={(e) => handleInputChange("listenTo", e.target.value)}
+                                onChange={(e: { target: { value: any } }) =>
+                                    handleInputChange("listenTo", e.target.value)
+                                }
                             >
                                 <option value="Topic reference">Topic reference</option>
                                 <option value="Generic nats">Generic nats</option>
@@ -1562,7 +1582,9 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                             {formData.listenTo === "Topic reference" ? (
                                 <Select
                                     value={formData.topic}
-                                    onChange={(e) => handleInputChange("topic", e.target.value)}
+                                    onChange={(e: { target: { value: any } }) =>
+                                        handleInputChange("topic", e.target.value)
+                                    }
                                 >
                                     {dev2pdbTopicsRef.length > 0 && (
                                         <>
@@ -1594,7 +1616,9 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                                 <Input
                                     type="text"
                                     value={listenTopicsRef.includes(formData.topic) ? "your_topic" : formData.topic}
-                                    onChange={(e) => handleInputChange("topic", e.target.value)}
+                                    onChange={(e: { target: { value: any } }) =>
+                                        handleInputChange("topic", e.target.value)
+                                    }
                                     placeholder="your_topic"
                                 />
                             )}
@@ -1609,7 +1633,7 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                             <Label>Publish To</Label>
                             <Select
                                 value={formData.publishTo || "Topic reference"}
-                                onChange={(e) => {
+                                onChange={(e: { target: { value: string } }) => {
                                     handleInputChange("publishTo", e.target.value);
                                     if (e.target.value === "Topic reference") {
                                         handleInputChange("topic", "dtm2sim");
@@ -1626,7 +1650,9 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                                 <Label>Topic</Label>
                                 <Select
                                     value={formData.topic}
-                                    onChange={(e) => handleInputChange("topic", e.target.value)}
+                                    onChange={(e: { target: { value: any } }) =>
+                                        handleInputChange("topic", e.target.value)
+                                    }
                                 >
                                     {publishTopicsRef.map((topic) => (
                                         <option key={topic} value={topic}>
@@ -1642,7 +1668,9 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                                 <Input
                                     type="text"
                                     value={publishTopicsRef.includes(formData.topic) ? "your_topic" : formData.topic}
-                                    onChange={(e) => handleInputChange("topic", e.target.value)}
+                                    onChange={(e: { target: { value: any } }) =>
+                                        handleInputChange("topic", e.target.value)
+                                    }
                                     placeholder="your_topic"
                                 />
                             </FormGroup>
@@ -1657,7 +1685,9 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                             type="number"
                             step="0.1"
                             value={formData.duration || 0}
-                            onChange={(e) => handleInputChange("duration", Math.max(0, parseFloat(e.target.value)))}
+                            onChange={(e: { target: { value: string } }) =>
+                                handleInputChange("duration", Math.max(0, parseFloat(e.target.value)))
+                            }
                             placeholder="0.0"
                         />
                     </FormGroup>
@@ -1670,7 +1700,9 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                             <Label>Machine learning model</Label>
                             <Select
                                 value={formData.mlModelId}
-                                onChange={(e) => handleInputChange("mlModelId", parseInt(e.target.value))}
+                                onChange={(e: { target: { value: string } }) =>
+                                    handleInputChange("mlModelId", parseInt(e.target.value))
+                                }
                             >
                                 {mlModelsTable.map((model) => (
                                     <option key={model.id} value={model.id}>
@@ -1684,7 +1716,9 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                             <Input
                                 type="number"
                                 value={formData.batchSize || 1}
-                                onChange={(e) => handleInputChange("batchSize", parseInt(e.target.value))}
+                                onChange={(e: { target: { value: string } }) =>
+                                    handleInputChange("batchSize", parseInt(e.target.value))
+                                }
                                 placeholder="1"
                             />
                         </FormGroup>
@@ -1698,7 +1732,9 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                             <Label>To Options</Label>
                             <Select
                                 value={formData.toOptions || "Group email notification channel"}
-                                onChange={(e) => handleInputChange("toOptions", e.target.value)}
+                                onChange={(e: { target: { value: any } }) =>
+                                    handleInputChange("toOptions", e.target.value)
+                                }
                             >
                                 <option value="Group email notification channel">
                                     Group email notification channel
@@ -1712,7 +1748,9 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                                 <Input
                                     type="email"
                                     value={formData.to || ""}
-                                    onChange={(e) => handleInputChange("to", e.target.value)}
+                                    onChange={(e: { target: { value: any } }) =>
+                                        handleInputChange("to", e.target.value)
+                                    }
                                     placeholder="myemail@example.com"
                                 />
                             </FormGroup>
@@ -1721,7 +1759,9 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                             <Label>Message Options</Label>
                             <Select
                                 value={formData.messageOptions || "Message received options"}
-                                onChange={(e) => handleInputChange("messageOptions", e.target.value)}
+                                onChange={(e: { target: { value: any } }) =>
+                                    handleInputChange("messageOptions", e.target.value)
+                                }
                             >
                                 <option value="Message received options">Message received options</option>
                                 <option value="Custom message">Custom message</option>
@@ -1734,7 +1774,9 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                                     <Input
                                         type="text"
                                         value={formData.subject || ""}
-                                        onChange={(e) => handleInputChange("subject", e.target.value)}
+                                        onChange={(e: { target: { value: any } }) =>
+                                            handleInputChange("subject", e.target.value)
+                                        }
                                         placeholder="Email Subject"
                                     />
                                 </FormGroup>
@@ -1742,7 +1784,9 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                                     <Label>Body</Label>
                                     <TextArea
                                         value={formData.body || ""}
-                                        onChange={(e) => handleInputChange("body", e.target.value)}
+                                        onChange={(e: { target: { value: any } }) =>
+                                            handleInputChange("body", e.target.value)
+                                        }
                                         placeholder="Email Body"
                                         rows={4}
                                     />
@@ -1760,7 +1804,9 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                             <Input
                                 type="text"
                                 value={formData.chatId || ""}
-                                onChange={(e) => handleInputChange("chatId", e.target.value)}
+                                onChange={(e: { target: { value: any } }) =>
+                                    handleInputChange("chatId", e.target.value)
+                                }
                                 placeholder="123456789"
                             />
                         </FormGroup>
@@ -1774,7 +1820,9 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                             <Input
                                 type="text"
                                 value={formData.chatId || ""}
-                                onChange={(e) => handleInputChange("chatId", e.target.value)}
+                                onChange={(e: { target: { value: any } }) =>
+                                    handleInputChange("chatId", e.target.value)
+                                }
                                 placeholder="123456789"
                             />
                         </FormGroup>
@@ -1782,7 +1830,9 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                             <Label>Message Options</Label>
                             <Select
                                 value={formData.messageOptions || "Message received options"}
-                                onChange={(e) => handleInputChange("messageOptions", e.target.value)}
+                                onChange={(e: { target: { value: any } }) =>
+                                    handleInputChange("messageOptions", e.target.value)
+                                }
                             >
                                 <option value="Message received options">Message received options</option>
                                 <option value="Custom message">Custom message</option>
@@ -1793,7 +1843,9 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                                 <Label>Message</Label>
                                 <TextArea
                                     value={formData.messageToSend || ""}
-                                    onChange={(e) => handleInputChange("messageToSend", e.target.value)}
+                                    onChange={(e: { target: { value: any } }) =>
+                                        handleInputChange("messageToSend", e.target.value)
+                                    }
                                     placeholder="Hello from OSI4IOT!"
                                     rows={4}
                                 />
@@ -1808,7 +1860,9 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                             <Label>Mode</Label>
                             <Select
                                 value={formData.batchMode || "Group by number of messages"}
-                                onChange={(e) => handleInputChange("batchMode", e.target.value)}
+                                onChange={(e: { target: { value: any } }) =>
+                                    handleInputChange("batchMode", e.target.value)
+                                }
                             >
                                 <option value="Group by number of messages">Group by number of messages</option>
                                 <option value="Group by time interval">Group by time interval</option>
@@ -1821,7 +1875,7 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                                     type="number"
                                     step="1"
                                     value={formData.batchSize || 1}
-                                    onChange={(e) =>
+                                    onChange={(e: { target: { value: string } }) =>
                                         handleInputChange("batchSize", Math.max(1, parseInt(e.target.value)))
                                     }
                                     placeholder="1"
@@ -1835,7 +1889,7 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                                     type="number"
                                     step="1"
                                     value={formData.batchInterval || 1}
-                                    onChange={(e) =>
+                                    onChange={(e: { target: { value: string } }) =>
                                         handleInputChange("batchInterval", Math.max(1, parseInt(e.target.value)))
                                     }
                                     placeholder="1"

@@ -311,6 +311,7 @@ const CreateOrganization: FC<CreateOrganizationProps> = ({
                     <FormContainer>
                         <Formik initialValues={initialOrgData} validationSchema={validationSchema} onSubmit={onSubmit}>
                             {(formik) => (
+                                // @ts-ignore
                                 <Form>
                                     <ControlsContainer>
                                         <FormikControl control="input" label="Org name" name="name" type="text" />

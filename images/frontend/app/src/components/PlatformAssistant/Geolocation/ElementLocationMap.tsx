@@ -1,4 +1,4 @@
-import { FC, useMemo, useCallback, useState, useEffect, ComponentType } from 'react'
+import { FC, useMemo, useCallback, useState, useEffect } from 'react'
 import L, { LatLngExpression } from 'leaflet';
 import centerOfMass from '@turf/center-of-mass';
 import { polygon } from '@turf/helpers';
@@ -64,33 +64,33 @@ const ZoomControlContainer = styled.div`
     background-color: #202226;
 `;
 
-const RiZoomInLineStyled = styled(RiZoomInLine as ComponentType<any>)`
+const RiZoomInLineStyled = styled(RiZoomInLine as any)`
     font-size: 30px;
     color: white;
 `;
 
-const RiZoomOutLineStyled = styled(RiZoomOutLine as ComponentType<any>)`
+const RiZoomOutLineStyled = styled(RiZoomOutLine as any)`
     font-size: 30px;
     color: white;
 `;
 
 
-const MdZoomOutMapStyled = styled(MdZoomOutMap as ComponentType<any>)`
+const MdZoomOutMapStyled = styled(MdZoomOutMap as any)`
     font-size: 30px;
     color: white;
 `;
 
-const FaRedoStyled = styled(FaRedo as ComponentType<any>)`
+const FaRedoStyled = styled(FaRedo as any)`
     font-size: 22px;
     color: white;
 `;
 
-const FaRegTimesCircleStyled = styled(FaRegTimesCircle as ComponentType<any>)`
+const FaRegTimesCircleStyled = styled(FaRegTimesCircle as any)`
     font-size: 28px;
     color: white;
 `;
 
-const FaRegCheckCircleStyled = styled(FaRegCheckCircle as ComponentType<any>)`
+const FaRegCheckCircleStyled = styled(FaRegCheckCircle as any)`
     font-size: 28px;
     color: white;
 `;

@@ -1,7 +1,7 @@
-import { FC, useEffect, useMemo, useState } from "react";
-import { Circle, useMap } from 'react-leaflet';
-import { StyledTooltip as Tooltip } from './Tooltip';
-import { LatLngTuple } from 'leaflet';
+import { FC, useEffect, useMemo, useRef, useState } from "react";
+import { Circle, useMap } from "react-leaflet";
+import { StyledTooltip as Tooltip } from "./Tooltip";
+import { LatLngTuple } from "leaflet";
 import { IDigitalTwinState, ISensorState } from "./GeolocationContainer";
 import { findOutStatus, STATUS_ALERTING, STATUS_OK, STATUS_PENDING } from "./statusTools";
 import calcGeoBounds from "../../../tools/calcGeoBounds";
@@ -14,7 +14,6 @@ import GeoSensors from "./GeoSensors";
 import { AssetSvgImages } from "./AssetSvgImages";
 import { IAssetType } from "../TableColumns/assetTypesColumns";
 import { ISensorType } from "../TableColumns/sensorTypesColumns";
-
 
 interface GeoAssetProps {
     assetTypeData: IAssetType;
@@ -53,43 +52,65 @@ const GeoAsset: FC<GeoAssetProps> = ({
     openDigitalTwin3DViewer,
     setGlftDataLoading,
     setGltfFileDownloadProgress,
-    setAssetWithMobilePhotoSelected
+    setAssetWithMobilePhotoSelected,
 }) => {
     const [status, setStatus] = useState("unknown");
     const [fillColor, setFillColor] = useState(STATUS_OK);
     const map = useMap();
-    const digitalTwinFiltered = digitalTwins.filter(digitalTwin => digitalTwin.assetId === assetSelected?.id)[0];
-    const digitalTwinStateFiltered = digitalTwinsState.filter(digitalTwin => digitalTwin.assetId === assetData.id)[0];
-    const sensorsFiltered = sensorDataArray.filter(sensor => sensor.assetId === assetData.id);
+    const digitalTwinFiltered = digitalTwins.filter((digitalTwin) => digitalTwin.assetId === assetSelected?.id)[0];
+    const digitalTwinStateFiltered = digitalTwinsState.filter((digitalTwin) => digitalTwin.assetId === assetData.id)[0];
+    const sensorsFiltered = sensorDataArray.filter((sensor) => sensor.assetId === assetData.id);
     sensorsFiltered.sort((a: any, b: any) => a.sensorRef.slice(7) - b.sensorRef.slice(7));
-    const sensorStateFiltered = sensorsState.filter(sensor => sensor.assetId === assetData.id);
+    const sensorStateFiltered = sensorsState.filter((sensor) => sensor.assetId === assetData.id);
+    const tooltipRef = useRef<any>(null);
+    const isSelected = assetSelected?.id === assetData.id;
 
     useEffect(() => {
-        const assetsStateFiltered = digitalTwinsState.filter(digitalTwin => digitalTwin.assetId === assetData.id);
+        const assetsStateFiltered = digitalTwinsState.filter((digitalTwin) => digitalTwin.assetId === assetData.id);
         const status = findOutStatus(assetsStateFiltered, sensorStateFiltered);
         setStatus(status);
-        if (status === "ok") setFillColor(STATUS_OK)
-        else if (status === "pending") setFillColor(STATUS_PENDING)
+        if (status === "ok") setFillColor(STATUS_OK);
+        else if (status === "pending") setFillColor(STATUS_PENDING);
         else if (status === "alerting") setFillColor(STATUS_ALERTING);
     }, [assetData, digitalTwinsState, sensorStateFiltered]);
 
-    const outerBounds = useMemo(() => calcGeoBounds(assetData.longitude, assetData.latitude, assetData.iconRadio * 0.001), [assetData]);
-    const bounds = useMemo(() => calcGeoBounds(
-        assetData.longitude, assetData.latitude, assetData.iconSizeFactor * assetData.iconRadio * 0.00045
-    ), [assetData]);
+    const outerBounds = useMemo(
+        () => calcGeoBounds(assetData.longitude, assetData.latitude, assetData.iconRadio * 0.001),
+        [assetData],
+    );
+    const bounds = useMemo(
+        () =>
+            calcGeoBounds(
+                assetData.longitude,
+                assetData.latitude,
+                assetData.iconSizeFactor * assetData.iconRadio * 0.00045,
+            ),
+        [assetData],
+    );
 
     useEffect(() => {
         if (assetSelected && assetSelected.id === assetData.id) {
-
             map.fitBounds(outerBounds as LatLngTuple[]);
         }
     }, [assetData, assetSelected, outerBounds, map]);
 
+    useEffect(() => {
+        if (isSelected && tooltipRef.current) {
+            const tooltip = tooltipRef.current;
+            if (tooltip._map) {
+                tooltip._map.closeTooltip(tooltip);
+            }
+        }
+    }, [isSelected]);
+
     const clickHandler = () => {
+        if (tooltipRef.current?._map) {
+            tooltipRef.current._map.closeTooltip(tooltipRef.current);
+        }
         selectAsset(assetData);
         selectDigitalTwin(null);
         map.fitBounds(outerBounds as LatLngTuple[]);
-    }
+    };
 
     useEffect(() => {
         if (assetSelected?.id === assetData.id) map.fitBounds(outerBounds as LatLngTuple[]);
@@ -113,17 +134,21 @@ const GeoAsset: FC<GeoAssetProps> = ({
                 outerBounds={outerBounds as LatLngTuple[]}
                 imageRef={null}
             />
-            {
-                (!assetSelected || !(assetSelected?.id === assetData.id)) &&
-                <Tooltip sticky>
-                    <span style={{ fontWeight: 'bold' }}>{`Asset_${assetData.assetUid}`}</span><br />
-                    Description: {assetData.description}<br />
-                    Type: {assetData.assetType}<br />
-                    Status: <span style={{ fontWeight: 'bold' }}>{status.charAt(0).toUpperCase() + status.slice(1)}</span>
-                </Tooltip>
-            }
-            {
-                (assetSelected && assetSelected.id === assetData.id) &&
+            <Tooltip
+                ref={tooltipRef}
+                sticky
+                opacity={isSelected ? 0 : 1} // ← ocultar en vez de desmontar
+            >
+                <span style={{ fontWeight: "bold" }}>{`Asset_${assetData.assetUid}`}</span>
+                <br />
+                Description: {assetData.description}
+                <br />
+                Type: {assetData.assetType}
+                <br />
+                Status: <span style={{ fontWeight: "bold" }}>{status.charAt(0).toUpperCase() + status.slice(1)}</span>
+            </Tooltip>
+
+            {isSelected && (
                 <GeoSensors
                     key={status}
                     assetSelected={assetSelected}
@@ -141,10 +166,9 @@ const GeoAsset: FC<GeoAssetProps> = ({
                     setGltfFileDownloadProgress={setGltfFileDownloadProgress}
                     setAssetWithMobilePhotoSelected={setAssetWithMobilePhotoSelected}
                 />
-
-            }
-        </Circle >
-    )
-}
+            )}
+        </Circle>
+    );
+};
 
 export default GeoAsset;

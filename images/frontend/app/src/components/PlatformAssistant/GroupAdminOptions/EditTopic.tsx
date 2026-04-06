@@ -225,6 +225,7 @@ const EditTopic: FC<EdiTopicProps> = ({ topics, backToTable, refreshTopics }) =>
             <DraggableFormContainer>
                 <Formik initialValues={initialTopicData} validationSchema={validationSchema} onSubmit={onSubmit}>
                     {(formik) => (
+                        // @ts-ignore
                         <Form>
                             <ControlsContainer>
                                 <FieldContainer>

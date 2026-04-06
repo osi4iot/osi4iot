@@ -401,6 +401,7 @@ const CreateSensorType: FC<CreateSensorTypeProps> = ({
                 <Formik initialValues={initialSensorTypeData} validationSchema={validationSchema} onSubmit={onSubmit} >
                     {
                         formik => (
+                            // @ts-ignore
                             <Form>
                                 <ControlsContainer>
                                     <FormikControl

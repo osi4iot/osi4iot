@@ -7,6 +7,8 @@ import { IGenericObject } from '../Main/Model';
 import { changeMaterialPropRecursively } from '../../../../tools/tools';
 import { IThreeMesh } from '../Types/threeInterfaces';
 
+const MeshComponent = 'mesh' as any;
+const PrimitivesComponent = 'primitive' as any;
 
 interface GenericObjectProps {
     obj: IThreeMesh;
@@ -151,19 +153,19 @@ const GenericObjectBase: FC<GenericObjectProps> = ({
             obj.customAnimationObjectNames.length !== 0 ||
             obj.children.length !== 0
         ) ?
-            <mesh
+            <MeshComponent
                 ref={meshRef as React.MutableRefObject<IThreeMesh>}
                 castShadow
                 receiveShadow
                 material={material}
             >
-                <primitive
+                <PrimitivesComponent
                     material={material}
                     object={obj}
                 />
-            </mesh>
+            </MeshComponent>
             :
-            <mesh
+            <MeshComponent
                 ref={meshRef as React.MutableRefObject<IThreeMesh>}
                 castShadow
                 receiveShadow

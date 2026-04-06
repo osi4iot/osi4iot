@@ -1,8 +1,8 @@
-import { ComponentType, FC, SyntheticEvent } from "react";
+import { FC, SyntheticEvent } from "react";
 import { FaExchangeAlt } from "react-icons/fa";
 import styled from "styled-components";
 
-const ExChangeStyled = styled(FaExchangeAlt as ComponentType<any>)`
+const ExChangeStyled = styled(FaExchangeAlt as any)`
     font-size: 18px;
     color: white;
 `;

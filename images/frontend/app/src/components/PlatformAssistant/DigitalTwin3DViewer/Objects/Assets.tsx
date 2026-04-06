@@ -6,6 +6,9 @@ import { AssetState, defaultOpacity, defaultVisibility, ObjectVisibilityState } 
 import { changeMaterialPropRecursively } from '../../../../tools/tools';
 import { IThreeMesh } from '../Types/threeInterfaces';
 
+const MeshComponent = 'mesh' as any;
+const PrimitivesComponent = 'primitive' as any;
+
 const assetOkColor = new THREE.Color(0x00ff00);
 const assetAlertingColor = new THREE.Color(0xff0000);
 const noEmitColor = new THREE.Color(0, 0, 0);
@@ -28,7 +31,7 @@ const AssetBase: FC<AssetProps> = ({
     assetsStateString
 }) => {
     const camera = useThree((state) => state.camera);
-    const meshRef = useRef<THREE.Mesh<THREE.BufferGeometry, THREE.Material | THREE.MeshLambertMaterial | THREE.Material[]>>();
+    const meshRef = useRef<THREE.Mesh<THREE.BufferGeometry, THREE.Material | THREE.MeshLambertMaterial | THREE.Material[]> | undefined>(undefined);
     const material = Object.assign(obj.material);
     const defOpacity = defaultOpacity(obj);
     const recursiveTransparency = obj.userData.recursiveTransparency;
@@ -140,18 +143,18 @@ const AssetBase: FC<AssetProps> = ({
             obj.customAnimationObjectNames.length !== 0 ||
             obj.children.length !== 0
         ) ?
-            <mesh
+            <MeshComponent
                 ref={meshRef as React.MutableRefObject<IThreeMesh>}
                 castShadow
                 receiveShadow
                 material={material}
             >
-                <primitive
+                <PrimitivesComponent
                     object={obj}
                 />
-            </mesh>
+            </MeshComponent>
             :
-            <mesh
+            <MeshComponent
                 ref={meshRef as React.MutableRefObject<IThreeMesh>}
                 castShadow
                 receiveShadow

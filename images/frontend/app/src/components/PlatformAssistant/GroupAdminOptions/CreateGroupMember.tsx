@@ -192,6 +192,7 @@ const CreateGroupMember: FC<CreateGroupMemberProps> = ({ refreshGroupMembers, ba
                             <Formik initialValues={initialGroupMembersData} validationSchema={validationSchema} onSubmit={onSubmit} >
                                 {
                                     formik => (
+                                        // @ts-ignore
                                         <Form>
                                             <ControlsContainer>
                                                 <FormikControl

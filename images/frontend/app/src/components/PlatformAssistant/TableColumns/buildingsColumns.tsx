@@ -204,7 +204,7 @@ export const Create_BUILDINGS_COLUMNS = (refreshBuildings: () => void): Column<I
             accessor: "edit",
             disableFilters: true,
             disableSortBy: true,
-            Cell: props => {
+            Cell: (props: { row: { id: string; }; rows: any[]; }) => {
                 const rowIndex = parseInt(props.row.id, 10);
                 const row = props.rows.filter(row => row.index === rowIndex)[0];
                 const buildingId = row?.cells[0]?.value;
@@ -216,7 +216,7 @@ export const Create_BUILDINGS_COLUMNS = (refreshBuildings: () => void): Column<I
             accessor: "delete",
             disableFilters: true,
             disableSortBy: true,
-            Cell: props => {
+            Cell: (props: { row: { id: string; }; rows: any[]; }) => {
                 const rowIndex = parseInt(props.row.id, 10);
                 const row = props.rows.filter(row => row.index === rowIndex)[0];
                 const buildingId = row?.cells[0]?.value;

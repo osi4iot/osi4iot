@@ -1,9 +1,9 @@
-import { ComponentType, FC, SyntheticEvent } from "react";
+import { FC, SyntheticEvent } from "react";
 import { FaTrashAlt } from "react-icons/fa";
 import styled from "styled-components";
 import { toast } from "react-toastify";
 
-const FaTrashAltStyled = styled(FaTrashAlt as ComponentType<any>)`
+const FaTrashAltStyled = styled(FaTrashAlt as any)`
     font-size: 17px;
     color: white;
  `;

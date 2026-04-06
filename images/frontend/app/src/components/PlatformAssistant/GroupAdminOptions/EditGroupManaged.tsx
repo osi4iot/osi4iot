@@ -147,6 +147,7 @@ const EditGroupManaged: FC<EditGroupManagedProps> = ({
                 <Formik initialValues={initialGroupManagedData} validationSchema={validationSchema} onSubmit={onSubmit} >
                     {
                         formik => (
+                            // @ts-ignore
                             <Form>
                                 <ControlsContainer>
                                     <FieldContainer>

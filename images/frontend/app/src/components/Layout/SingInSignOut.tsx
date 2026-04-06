@@ -1,4 +1,4 @@
-import { ComponentType, FC, SyntheticEvent } from "react";
+import { FC, SyntheticEvent } from "react";
 import { RiLoginCircleLine, RiLogoutCircleLine } from "react-icons/ri";
 import { useHistory } from "react-router-dom";
 import styled from "styled-components";
@@ -7,12 +7,12 @@ import { logout, useAuthDispatch, useIsUserAuth } from "../../contexts/authConte
 import { useLoggedUserLogin } from "../../contexts/authContext/authContext";
 import { setResetTables, usePlatformAssitantDispatch } from "../../contexts/platformAssistantContext";
 
-const SignOutIcon = styled(RiLogoutCircleLine as ComponentType<any>)`
+const SignOutIcon = styled(RiLogoutCircleLine as any)`
 	font-size: 30px;
 	color: #3274d9;
 `;
 
-const SignInIcon = styled(RiLoginCircleLine as ComponentType<any>)`
+const SignInIcon = styled(RiLoginCircleLine as any)`
 	font-size: 30px;
 	color: #3274d9;
 `;

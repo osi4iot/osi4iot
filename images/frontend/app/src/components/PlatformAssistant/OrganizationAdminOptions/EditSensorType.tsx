@@ -379,6 +379,7 @@ const EditSensorType: FC<EditSensorTypeProps> = ({
                 <Formik initialValues={initialSensorTypeData} validationSchema={validationSchema} onSubmit={onSubmit} >
                     {
                         formik => (
+                            // @ts-ignore
                             <Form>
                                 <ControlsContainer>
                                     <FieldContainer>

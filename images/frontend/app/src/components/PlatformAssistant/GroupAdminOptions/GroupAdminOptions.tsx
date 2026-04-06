@@ -99,13 +99,13 @@ import { IDigitalTwin } from "../TableColumns/digitalTwinsColumns";
 import elaspsedTimeFormat from "../../../tools/elapsedTimeFormat";
 import { IAssetType } from "../TableColumns/assetTypesColumns";
 import { ITopic } from "../TableColumns/topicsColumns";
-//import S3StorageForm from "../../Tools/S3StorageForm";
 import { ISensorType } from "../TableColumns/sensorTypesColumns";
 import { getDTStorageInfo, syncDigitalTwinsLocalStorage } from "../../../tools/fileSystem";
 import { AxiosResponse, AxiosError } from "axios";
 import { AssetS3FolderProvider } from "../../../contexts/assetS3FolderOptions";
 import AssetS3FolderContainer from "./AssetS3FolderContainer";
 import IAssetS3Folder from "../TableColumns/assetS3FolderColumns";
+import { Column } from "react-table";
 
 const GroupAdminOptionsContainer = styled.div`
     display: flex;
@@ -953,7 +953,7 @@ const GroupAdminOptions: FC<{}> = () => {
                         {optionToShow === GROUP_ADMIN_OPTIONS.DASHBOARDS && (
                             <TableWithPagination
                                 dataTable={dashboardsTable}
-                                columnsTable={DASHBOARD_COLUMNS}
+                                columnsTable={DASHBOARD_COLUMNS as Column<any>[]}
                                 reloadTable={refreshDashboards}
                                 componentName=""
                             />

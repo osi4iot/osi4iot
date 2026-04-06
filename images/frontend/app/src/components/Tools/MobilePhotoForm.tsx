@@ -1,20 +1,21 @@
-import { ComponentType, FC, SyntheticEvent } from 'react';
-import Jimp from 'jimp/es';
+import { FC, SyntheticEvent } from "react";
 import Paho from "paho-mqtt";
 import styled from "styled-components";
-import Camera, { FACING_MODES } from 'react-html5-camera-photo';
-import 'react-html5-camera-photo/build/css/index.css';
-import { IMobileTopic } from '../PlatformAssistant/TableColumns/topicsColumns';
-import { FaShareSquare } from 'react-icons/fa';
+import CameraComponent, { FACING_MODES } from 'react-html5-camera-photo';
+import "react-html5-camera-photo/build/css/index.css";
+import { IMobileTopic } from "../PlatformAssistant/TableColumns/topicsColumns";
+import { FaShareSquare } from "react-icons/fa";
+
+const Camera = CameraComponent as any;
 
 const Title = styled.h2`
-	font-size: 20px;
-	margin-top: 30px;
-	margin-bottom: 0px;
-	font-weight: 400;
-	text-align: center;
-	color: white;
-	width: 300px;
+    font-size: 20px;
+    margin-top: 30px;
+    margin-bottom: 0px;
+    font-weight: 400;
+    text-align: center;
+    color: white;
+    width: 300px;
 `;
 
 interface ConnectionLedProps {
@@ -22,34 +23,34 @@ interface ConnectionLedProps {
 }
 
 const ConnectionLed = styled.span<ConnectionLedProps>`
-	background-color: ${(props) => (props.isMqttConnected ? "#62f700" : "#f80000")};
-	width: 17px;
-	height: 17px;
-	margin: -2px 10px;
-	border-radius: 50%;
-	border: 2px solid #ffffff;
-	display: inline-block;
+    background-color: ${(props) => (props.isMqttConnected ? "#62f700" : "#f80000")};
+    width: 17px;
+    height: 17px;
+    margin: -2px 10px;
+    border-radius: 50%;
+    border: 2px solid #ffffff;
+    display: inline-block;
 `;
 
 const FormContainer = styled.div`
-	font-size: 12px;
+    font-size: 12px;
     height: calc(100vh - 190px);
-	width: calc(100vw - 40px);
-	position: relative;
-	margin: 0 5px;
-	color: white;
-	margin: 10px 0;
-	padding: 10px;
-	max-width: 400px;
-	border: 2px solid #3274d9;
-	border-radius: 15px;
+    width: calc(100vw - 40px);
+    position: relative;
+    margin: 0 5px;
+    color: white;
+    margin: 10px 0;
+    padding: 10px;
+    max-width: 400px;
+    border: 2px solid #3274d9;
+    border-radius: 15px;
 
     video {
         height: calc(100vh - 230px);
         max-width: 360px;
         object-fit: cover;
     }
-    
+
     img {
         height: calc(100vh - 230px);
         max-width: 360px;
@@ -57,20 +58,19 @@ const FormContainer = styled.div`
     }
 `;
 
-const ExitIcon = styled(FaShareSquare as ComponentType<any>)`
-  background-color: #141619;
-  font-size: 30px;
-  color: #3274d9;
-  position: absolute;
-  top: 5px;
-  right: 8px;
+const ExitIcon = styled(FaShareSquare as any)`
+    background-color: #141619;
+    font-size: 30px;
+    color: #3274d9;
+    position: absolute;
+    top: 5px;
+    right: 8px;
 
-  &:hover {
-    color: white;
-    cursor: pointer;
-  }
+    &:hover {
+        color: white;
+        cursor: pointer;
+    }
 `;
-
 
 interface MobileSensorSelectFormProps {
     mqttClient: Paho.Client;
@@ -79,26 +79,23 @@ interface MobileSensorSelectFormProps {
     mobileTopicSelected: IMobileTopic;
 }
 
-
-const MobilePhotoForm: FC<MobileSensorSelectFormProps> = (
-    {
-        mqttClient,
-        isMqttConnected,
-        setMobileSensorSelected,
-        mobileTopicSelected
-    }) => {
-
+const MobilePhotoForm: FC<MobileSensorSelectFormProps> = ({
+    mqttClient,
+    isMqttConnected,
+    setMobileSensorSelected,
+    mobileTopicSelected,
+}) => {
     const onCancel = (e: SyntheticEvent) => {
         e.preventDefault();
-        setMobileSensorSelected("none")
+        setMobileSensorSelected("none");
     };
 
     const handleTakePhoto = async (dataUri: string) => {
         if (isMqttConnected) {
-            const image = await Jimp.read(dataUri);
-            const bufferData = await image.getBufferAsync(Jimp.MIME_JPEG)
+            // Elimina el prefijo "data:image/jpeg;base64," y quédate solo con el base64
+            const base64 = dataUri.split(",")[1];
             const data2Send = {
-                image: bufferData.toString('base64')
+                image: base64,
             };
             const groupHash = mobileTopicSelected.groupUid;
             const topicHash = mobileTopicSelected.topicUid;
@@ -117,12 +114,14 @@ const MobilePhotoForm: FC<MobileSensorSelectFormProps> = (
             <FormContainer>
                 <Camera
                     idealFacingMode={FACING_MODES.ENVIRONMENT}
-                    onTakePhoto={(dataUri) => { handleTakePhoto(dataUri); }}
+                    onTakePhoto={(dataUri: string) => {
+                        handleTakePhoto(dataUri);
+                    }}
                 />
                 <ExitIcon onClick={onCancel} />
             </FormContainer>
         </>
-    )
-}
+    );
+};
 
 export default MobilePhotoForm;

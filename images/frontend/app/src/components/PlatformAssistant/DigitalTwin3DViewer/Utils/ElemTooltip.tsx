@@ -1,6 +1,8 @@
 import { Html } from "@react-three/drei";
 import styled from "styled-components";
 
+const GroupComponent = 'group' as any;
+
 const ElemTooltipContainer = styled.div`
     position: absolute;
     display: inline-block;
@@ -39,12 +41,12 @@ const ElemTooltipBox = styled.div`
 
 export const ElemTooltip = ({ elemId, position }: { elemId: number; position: THREE.Vector3 }) => {
     return (
-        <group position={position}>
+        <GroupComponent position={position}>
             <Html castShadow receiveShadow>
                 <ElemTooltipContainer>
                     <ElemTooltipBox>Elem {elemId}</ElemTooltipBox>
                 </ElemTooltipContainer>
             </Html>
-        </group>
+        </GroupComponent>
     );
 };

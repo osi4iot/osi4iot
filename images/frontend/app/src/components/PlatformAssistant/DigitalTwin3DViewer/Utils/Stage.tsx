@@ -3,6 +3,12 @@ import * as THREE from "three";
 import { useThree } from "@react-three/fiber";
 import { useHelper, Environment } from "@react-three/drei";
 
+const GroupComponent = 'group' as any;
+const PrimitiveComponent = 'primitive' as any;
+const AmbientLightComponent = 'ambientLight' as any;
+const SpotLightComponent = 'spotLight' as any;
+const PointLightComponent = 'pointLight' as any;
+
 const dirX = new THREE.Vector3(1, 0, 0);
 const redColor = new THREE.Color("#FF0000");
 const dirY = new THREE.Vector3(0, 1, 0);
@@ -66,7 +72,7 @@ export function Stage({
     const [sceneCenter, setSceneCenter] = useState(
         new THREE.Vector3(0.0, 0.0, 0.0)
     );
-    const spotLightRefBase = useRef();
+    const spotLightRefBase = useRef<THREE.SpotLight | null>(null);
     const spotLightRefNull = useRef(undefined);
     const spotLightRef = showSpotLightHelper
         ? spotLightRefBase
@@ -76,7 +82,7 @@ export function Stage({
         THREE.SpotLightHelper,
         "teal"
     );
-    const pointLightRefBase = useRef();
+    const pointLightRefBase = useRef(null);
     const pointLightRefNull = useRef(undefined);
     const pointLightRef = showPointLightHelper
         ? pointLightRefBase
@@ -136,7 +142,7 @@ export function Stage({
     }, [defaultControls, radius, height, width]);
 
     return (
-        <group {...props}>
+        <GroupComponent {...props}>
             {/* {environment !== "none" && <Environment preset={environment as any}/>} */}
             {environment === "sunset" && (
                 <Environment files={"venice_sunset_1k.hdr"} />
@@ -147,11 +153,11 @@ export function Stage({
             {environment === "night" && (
                 <Environment files={"dikhololo_night_1k.hdr"} />
             )}
-            <group ref={childrenGroup}>{children}</group>
-            {ambientLight && <ambientLight intensity={ambientLightIntensity} />}
+            <GroupComponent ref={childrenGroup}>{children}</GroupComponent>
+            {ambientLight && <AmbientLightComponent intensity={ambientLightIntensity} />}
             {spotLight && (
                 <>
-                    <spotLight
+                    <SpotLightComponent
                         ref={spotLightRefBase as React.MutableRefObject<any>}
                         penumbra={0.5}
                         position={[
@@ -169,7 +175,7 @@ export function Stage({
             )}
 
             {pointLight && (
-                <pointLight
+                <PointLightComponent
                     ref={pointLightRefBase as React.MutableRefObject<any>}
                     // position={[-2.0 * radius, -0.5 * radius, -1.8 * radius]}
                     position={[
@@ -182,7 +188,7 @@ export function Stage({
             )}
             {showAxes && (
                 <>
-                    <primitive
+                    <PrimitiveComponent
                         object={
                             new THREE.ArrowHelper(
                                 dirX,
@@ -192,7 +198,7 @@ export function Stage({
                             )
                         }
                     />
-                    <primitive
+                    <PrimitiveComponent
                         object={
                             new THREE.ArrowHelper(
                                 dirY,
@@ -202,7 +208,7 @@ export function Stage({
                             )
                         }
                     />
-                    <primitive
+                    <PrimitiveComponent
                         object={
                             new THREE.ArrowHelper(
                                 dirZ,
@@ -214,6 +220,6 @@ export function Stage({
                     />
                 </>
             )}
-        </group>
+        </GroupComponent>
     );
 }

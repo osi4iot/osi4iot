@@ -41,6 +41,7 @@ import { IBuilding } from '../TableColumns/buildingsColumns';
 import { IFloor } from '../TableColumns/floorsColumns';
 import { AxiosResponse, AxiosError } from 'axios';
 import OrgsContainer from './OrgContainer';
+import { Column } from 'react-table';
 
 const PlatformAdminOptionsContainer = styled.div`
 	display: flex;
@@ -378,7 +379,7 @@ const PlatformAdminOptions: FC<{}> = () => {
                                 optionToShow === "Refresh tokens" &&
                                 <TableWithPagination
                                     dataTable={refreshTokensTable}
-                                    columnsTable={Create_REFRESH_TOKENS_COLUMNS(refreshRefreshTokens)}
+                                    columnsTable={Create_REFRESH_TOKENS_COLUMNS(refreshRefreshTokens) as Column<any>[]}
                                     reloadTable={refreshRefreshTokens}
                                     componentName=""
                                 />

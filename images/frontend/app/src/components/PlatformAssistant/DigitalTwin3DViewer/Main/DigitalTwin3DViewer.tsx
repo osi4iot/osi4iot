@@ -3,7 +3,7 @@ import { FC, SetStateAction, useEffect, useLayoutEffect, useState } from "react"
 import { Canvas } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
 import Paho from "paho-mqtt";
-import "react-dat-gui/dist/dist/index.css";
+import "react-dat-gui/dist/index.css";
 
 // Types and constants
 import { IPipelineEdge, IPipelineNode, Viewer3DProps } from "../Types/types";

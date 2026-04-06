@@ -118,8 +118,8 @@ export const PanelContainer = styled.div.attrs<{ isOpen: boolean; isClosing: boo
     className: "resizable-panel",
 }))<{ isOpen: boolean; isClosing: boolean }>`
     position: fixed;
-    left: 220px;
-    top: 202px;
+    left: 262px;
+    top: 203px;
     height: calc(100vh - 219px);
     background-color: #2a2a2a;
     border-right: 1px solid #444;

@@ -8,6 +8,7 @@ import {
     useOrgUsersOptionToShow,
     setOrgUsersOptionToShow
 } from '../../../contexts/orgUsersOptions';
+import { Column } from 'react-table';
 
 interface OrgUsersContainerProps {
     orgUsers: IOrgUser[];
@@ -34,7 +35,7 @@ const OrgUsersContainer: FC<OrgUsersContainerProps> = ({ orgUsers, refreshOrgUse
             {orgUsersOptionToShow === ORG_USERS_OPTIONS.TABLE &&
                 <TableWithPagination
                     dataTable={orgUsers}
-                    columnsTable={Create_ORG_USERS_COLUMNS(refreshOrgUsers)}
+                    columnsTable={Create_ORG_USERS_COLUMNS(refreshOrgUsers) as Column<any>[]}
                     componentName=""
                     reloadTable={refreshOrgUsers}
                 />

@@ -1,7 +1,7 @@
 import { FC } from "react";
 import { BrowserRouter as Router, Redirect, Route, Switch } from "react-router-dom";
-import { ToastContainer } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css';
+import { ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 import styled from "styled-components";
 import HomePage from "../pages/HomePage";
 import LoginPage from "../pages/LoginPage";
@@ -19,62 +19,69 @@ import { PrivateRouteWithUserRole } from "./PrivateRouteWithUserRole";
 import DigitalTwinSimulatorMobilePage from "../pages/DigitalTwinSimulatorMobilePage";
 
 const StyledToastContainer = styled(ToastContainer)`
+    .Toastify__toast-body {
+        background-color: inherit;
+        color: white;
+    }
 
-	.Toastify__toast-body {
-		background-color: inherit;
-		color: white;
-	}
-
-	.Toastify__toast--warning {
-		background-color: #ff8a23;
-	}
-  
+    .Toastify__toast--warning {
+        background-color: #ff8a23;
+    }
 `;
 
 const AppRouter: FC<{}> = () => {
-	return (
-		<>
-			<Router>
-				<Switch>
-					<PublicRoute exact path="/register" component={RegisterPage} />
-					<PublicRoute exact path="/login" component={LoginPage} />
-					<PrivateRoute exact path="/mobile_sensors" component={MobileSensorsPage} />
-					<PrivateRoute exact path="/digital_twin_simulator_mobile" component={DigitalTwinSimulatorMobilePage} />
+    return (
+        <>
+            {/* @ts-ignore */}
+            <Router>
+                <Switch>
+                    <PublicRoute exact path="/register" component={RegisterPage} />
+                    <PublicRoute exact path="/login" component={LoginPage} />
+                    <PrivateRoute exact path="/mobile_sensors" component={MobileSensorsPage} />
+                    <PrivateRoute
+                        exact
+                        path="/digital_twin_simulator_mobile"
+                        component={DigitalTwinSimulatorMobilePage}
+                    />
 
-					<Route exact path="/" component={HomePage} />
+                    <Route exact path="/" component={HomePage} />
 
-					<PrivateRoute exact path="/platform_assistant" component={PlatformAssistantPage} />
+                    <PrivateRoute exact path="/platform_assistant" component={PlatformAssistantPage} />
 
-					<PrivateRouteWithUserRole
-						roleRequired="PlatformAdmin"
-						exact path="/platform_assistant/admin"
-						component={PlatformAssistantPageAdmin}
-					/>
-					<PrivateRouteWithUserRole
-						roleRequired="OrgAdmin"
-						exact path="/platform_assistant/org"
-						component={PlatformAssistantPageOrg}
-					/>
-					<PrivateRouteWithUserRole
-						roleRequired="GroupAdmin"
-						exact path="/platform_assistant/group"
-						component={PlatformAssistantPageGroup} /
-					>
-					<PrivateRouteWithUserRole
-						roleRequired="User"
-						exact path="/platform_assistant/user"
-						component={PlatformAssistantPageUser}
-					/>
+                    <PrivateRouteWithUserRole
+                        roleRequired="PlatformAdmin"
+                        exact
+                        path="/platform_assistant/admin"
+                        component={PlatformAssistantPageAdmin}
+                    />
+                    <PrivateRouteWithUserRole
+                        roleRequired="OrgAdmin"
+                        exact
+                        path="/platform_assistant/org"
+                        component={PlatformAssistantPageOrg}
+                    />
+                    <PrivateRouteWithUserRole
+                        roleRequired="GroupAdmin"
+                        exact
+                        path="/platform_assistant/group"
+                        component={PlatformAssistantPageGroup}
+                    />
+                    <PrivateRouteWithUserRole
+                        roleRequired="User"
+                        exact
+                        path="/platform_assistant/user"
+                        component={PlatformAssistantPageUser}
+                    />
 
-					<Route exact path="/404" component={NotFoundPage} />
-					<Route path="*">
-						<Redirect to="/404" />
-					</Route>
-				</Switch>
-			</Router>
-			<StyledToastContainer position="bottom-right" hideProgressBar={true} autoClose={5000} />
-		</>
-	);
+                    <Route exact path="/404" component={NotFoundPage} />
+                    <Route path="*">
+                        <Redirect to="/404" />
+                    </Route>
+                </Switch>
+            </Router>
+            <StyledToastContainer position="bottom-right" hideProgressBar={true} autoClose={5000} />
+        </>
+    );
 };
 
 export default AppRouter;

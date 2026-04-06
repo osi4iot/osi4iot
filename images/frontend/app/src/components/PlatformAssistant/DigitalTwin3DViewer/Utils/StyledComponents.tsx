@@ -20,7 +20,6 @@ import DatGui, {
     DatSelect, 
     DatButton 
 } from "react-dat-gui";
-import { ComponentType } from "react";
 
 // Layout components
 export const CanvasContainer = styled.div`
@@ -124,69 +123,69 @@ const IconBaseStyles = `
     }
 `;
 
-export const ExitIcon = styled(FaShareSquare as ComponentType<any>)`
+export const ExitIcon = styled(FaShareSquare as any)`
     ${IconBaseStyles}
 `;
 
-export const DashboardIcon = styled(FaChartLine as ComponentType<any>)`
+export const DashboardIcon = styled(FaChartLine as any)`
     ${IconBaseStyles}
 `;
 
-export const OpenFolderIcon = styled(FaFolderOpen as ComponentType<any>)`
+export const OpenFolderIcon = styled(FaFolderOpen as any)`
     ${IconBaseStyles}
 `;
 
-export const CloseFolderIcon = styled(FaFolderMinus as ComponentType<any>)`
+export const CloseFolderIcon = styled(FaFolderMinus as any)`
     ${IconBaseStyles}
 `;
 
-export const TiFlowMergeIcon = styled(TiFlowMerge as ComponentType<any>)`
+export const TiFlowMergeIcon = styled(TiFlowMerge as any)`
     ${IconBaseStyles}
     rotate: -90deg;
 `;
 
-export const SlidersHorizontalIcon = styled(SlidersHorizontal)`
+export const SlidersHorizontalIcon = styled(SlidersHorizontal as any)`
     ${IconBaseStyles}
 `;
 
-export const LogsIcon = styled(Logs)`
+export const LogsIcon = styled(Logs as any)`
     ${IconBaseStyles}
 `;
 
-export const BoxIcon = styled(Box)`
+export const BoxIcon = styled(Box as any)`
     ${IconBaseStyles}
 `;
 
-export const CameraIcon = styled(Camera)`
+export const CameraIcon = styled(Camera as any)`
     ${IconBaseStyles}
 `;
 
 
-export const RotateCcwIcon = styled(RotateCcw)`
+export const RotateCcwIcon = styled(RotateCcw as any)`
     ${IconBaseStyles}
 `;
 
-export const RefreshCwIcon = styled(RefreshCw)`
+export const RefreshCwIcon = styled(RefreshCw as any)`
     ${IconBaseStyles}
 `;
 
-export const DownloadIcon = styled(Download)`
+export const DownloadIcon = styled(Download as any)`
     ${IconBaseStyles}
 `;
 
-export const CircleXIcon = styled(CircleX)`
+export const CircleXIcon = styled(CircleX as any)`
     ${IconBaseStyles}
 `;
 
-export const UploadIcon = styled(Upload)`
+export const UploadIcon = styled(Upload as any)`
     ${IconBaseStyles}
 `;
 
-export const PlayIcon = styled(Play)`
+export const PlayIcon = styled(Play as any)`
     ${IconBaseStyles}
 `;
 
-export const StoppedIndicator = styled(FaRegStopCircle as ComponentType<any>)`
+export const StoppedIndicator = styled(FaRegStopCircle as any)`
     background-color: #141619;
     font-size: 25px;
     color: #ff4040;
@@ -197,7 +196,7 @@ export const StoppedIndicator = styled(FaRegStopCircle as ComponentType<any>)`
     }
 `;
 
-export const ErrorIndicator = styled(MdError as ComponentType<any>)`
+export const ErrorIndicator = styled(MdError as any)`
     background-color: #141619;
     font-size: 25px;
     color: #ff4040;
@@ -208,7 +207,7 @@ export const ErrorIndicator = styled(MdError as ComponentType<any>)`
     }
 `;
 
-export const RunningIndicator = styled(FaCheckCircle as ComponentType<any>)`
+export const RunningIndicator = styled(FaCheckCircle as any)`
     background-color: #141619;
     font-size: 25px;
     color: #62f700;
@@ -244,7 +243,7 @@ export const InstanceBadge = styled.div`
     box-sizing: border-box;
 `;
 
-export const UnknownIndicator = styled(FaQuestionCircle as ComponentType<any>)`
+export const UnknownIndicator = styled(FaQuestionCircle as any)`
     background-color: #141619;
     font-size: 25px;
     color: #806787;
@@ -256,8 +255,7 @@ export const UnknownIndicator = styled(FaQuestionCircle as ComponentType<any>)`
 `;
 
 
-
-export const ChatAssistantIcon = styled(BsChatDotsFill as ComponentType<any>)`
+export const ChatAssistantIcon = styled(BsChatDotsFill as any)`
     background-color: #141619;
     font-size: 28px;
     color: #3274d9;
@@ -269,7 +267,7 @@ export const ChatAssistantIcon = styled(BsChatDotsFill as ComponentType<any>)`
     }
 `;
 
-export const HiShieldCheckIcon = styled(HiShieldCheck as ComponentType<any>)`
+export const HiShieldCheckIcon = styled(HiShieldCheck as any)`
     background-color: #141619;
     font-size: 30px;
     color: #62f700;
@@ -281,7 +279,7 @@ export const HiShieldCheckIcon = styled(HiShieldCheck as ComponentType<any>)`
     }
 `;
 
-export const HiShieldExclamationIcon = styled(HiShieldExclamation as ComponentType<any>)`
+export const HiShieldExclamationIcon = styled(HiShieldExclamation as any)`
     background-color: #141619;
     font-size: 30px;
     color: #ff4040;
@@ -307,7 +305,7 @@ export const MqttText = styled.span`
     font-size: 14px;
 `;
 
-export const WifiIcon = styled(RiWifiLine as ComponentType<any>)`
+export const WifiIcon = styled(RiWifiLine as any)`
     background-color: #141619;
     font-size: 30px;
     color: #3274d9;
@@ -315,7 +313,7 @@ export const WifiIcon = styled(RiWifiLine as ComponentType<any>)`
     transform: rotate(90deg);
 `;
 
-export const NoWifiIcon = styled(RiWifiOffLine as ComponentType<any>)`
+export const NoWifiIcon = styled(RiWifiOffLine as any)`
     background-color: #141619;
     font-size: 30px;
     color: #3274d9;

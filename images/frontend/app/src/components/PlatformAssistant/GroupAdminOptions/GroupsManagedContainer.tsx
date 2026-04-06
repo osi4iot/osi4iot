@@ -15,6 +15,7 @@ import { IBuilding } from '../TableColumns/buildingsColumns';
 import { IFloor } from '../TableColumns/floorsColumns';
 import { IAsset } from '../TableColumns/assetsColumns';
 import { IAssetType } from '../TableColumns/assetTypesColumns';
+import { Column } from 'react-table';
 
 
 export interface IGroupMemberInput {
@@ -91,7 +92,7 @@ const GroupsManagedContainer: FC<GroupsManagedContainerProps> = ({
             {groupsManagedOptionToShow === GROUPS_MANAGED_OPTIONS.TABLE &&
                 <TableWithPagination
                     dataTable={groupsManaged}
-                    columnsTable={CREATE_GROUPS_MANAGED_COLUMNS(refreshGroupMembers, refreshGroupsManaged)}
+                    columnsTable={CREATE_GROUPS_MANAGED_COLUMNS(refreshGroupMembers, refreshGroupsManaged) as Column<any>[]}
                     reloadTable={refreshGroupsManaged}
                     componentName=""
                 />

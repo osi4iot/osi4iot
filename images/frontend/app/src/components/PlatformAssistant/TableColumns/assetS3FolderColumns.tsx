@@ -315,9 +315,9 @@ export const Create_ASSET_S3_FOLDER_COLUMNS = (refreshAssetS3Folders: () => void
             accessor: "downloadZipFile",
             disableFilters: true,
             disableSortBy: true,
-            Cell: (props) => {
+            Cell: (props: { row: { id: string; }; rows: any[]; }) => {
                 const rowIndex = parseInt(props.row.id, 10);
-                const row = props.rows.filter((row) => row.index === rowIndex)[0];
+                const row = props.rows.filter(row => row.index === rowIndex)[0];
                 const groupId = row?.cells[2]?.value;
                 const assetId = row?.cells[3]?.value;
                 const folderName = row?.cells[4]?.value;
@@ -338,9 +338,9 @@ export const Create_ASSET_S3_FOLDER_COLUMNS = (refreshAssetS3Folders: () => void
             accessor: "edit",
             disableFilters: true,
             disableSortBy: true,
-            Cell: (props) => {
+            Cell: (props: any) => {
                 const rowIndex = parseInt(props.row.id, 10);
-                const row = props.rows.filter((row) => row.index === rowIndex)[0];
+                const row = props.rows.filter((row: any) => row.index === rowIndex)[0];
                 const assetS3FolderId = row?.cells[0]?.value;
                 return (
                     <EditAssetS3Folder assetS3FolderId={assetS3FolderId} rowIndex={rowIndex} />
@@ -352,9 +352,9 @@ export const Create_ASSET_S3_FOLDER_COLUMNS = (refreshAssetS3Folders: () => void
             accessor: "delete",
             disableFilters: true,
             disableSortBy: true,
-            Cell: (props) => {
+            Cell: (props: any) => {
                 const rowIndex = parseInt(props.row.id, 10);
-                const row = props.rows.filter((row) => row.index === rowIndex)[0];
+                const row = props.rows.filter((row: any) => row.index === rowIndex)[0];
                 const groupId = row?.cells[2]?.value;
                 const assetId = row?.cells[3]?.value;
                 const folderName = row?.cells[4]?.value;

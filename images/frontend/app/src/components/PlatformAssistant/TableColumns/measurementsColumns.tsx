@@ -160,9 +160,9 @@ export const Create_MEASUREMENTS_COLUMNS =
                 accessor: "edit",
                 disableFilters: true,
                 disableSortBy: true,
-                Cell: props => {
+                Cell: (props: { row: { id: string; }; rows: any[]; }) => {
                     const rowIndex = parseInt(props.row.id, 10);
-                    const row = props.rows.filter(row => row.index === rowIndex)[0];
+                    const row = props.rows.filter((row: { index: number; }) => row.index === rowIndex)[0];
                     const timestamp = row?.cells[0]?.value;
                     return <EditMeasurement timestamp={timestamp} rowIndex={rowIndex} />
                 }
@@ -172,9 +172,9 @@ export const Create_MEASUREMENTS_COLUMNS =
                 accessor: "delete",
                 disableFilters: true,
                 disableSortBy: true,
-                Cell: props => {
+                Cell: (props: { row: { id: string; }; rows: any[]; }) => {
                     const rowIndex = parseInt(props.row.id, 10);
-                    const row = props.rows.filter(row => row.index === rowIndex)[0];
+                    const row = props.rows.filter((row: { index: number; }) => row.index === rowIndex)[0];
                     const timestamp = row?.cells[0]?.value;
                     return <DeleteMeasurementModal
                         groupId={groupId}

@@ -125,6 +125,7 @@ const EditMeasurement: FC<EditMeasurementProps> = ({ groupId, measurements, back
                 <Formik initialValues={initialMeasurementData} validationSchema={validationSchema} onSubmit={onSubmit} >
                     {
                         formik => (
+                            // @ts-ignore
                             <Form>
                                 <ControlsContainer>
                                     <FieldContainer>

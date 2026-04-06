@@ -8,6 +8,7 @@ import { SELECT_GROUP_MANAGED_COLUMNS, ISelectGroupManaged } from '../TableColum
 import { IDigitalTwinState, ISensorState } from './GeolocationContainer';
 import { findOutStatus } from './statusTools';
 import { IAsset } from '../TableColumns/assetsColumns';
+import { Column } from 'react-table';
 
 
 const FormContainer = styled.div`
@@ -165,7 +166,7 @@ const SelectGroupManaged: FC<SelectGroupManagedProps> = (
                 <TableContainer>
                     <TableWithPaginationAndRowSelection
                         dataTable={selectGroupsManaged}
-                        columnsTable={SELECT_GROUP_MANAGED_COLUMNS}
+                        columnsTable={SELECT_GROUP_MANAGED_COLUMNS as Column<any>[]}
                         selectedItem={groupSelected}
                         setSelectedItem={(selectedGroupManaged: ISelectGroupManaged) => setSelectedGroupManaged(selectedGroupManaged)}
                         multipleSelection={false}

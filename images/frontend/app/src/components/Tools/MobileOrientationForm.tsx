@@ -169,6 +169,7 @@ const MobileOrientationForm: FC<MobileOrientationSelectFormProps> = (
                 <Formik initialValues={initialMobileOrientationFormValues} validationSchema={validationSchema} onSubmit={handleSubmit} >
                     {
                         formik => (
+                            // @ts-ignore
                             <Form>
                                 <ControlsContainer>
                                     <FormikControl

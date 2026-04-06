@@ -235,9 +235,9 @@ export const Create_GROUPS_COLUMNS = (refreshGroups: () => void): Column<IGroupC
             Header: "Mqtt acc",
             accessor: "mqttAccessControl",
             disableFilters: true,
-            Cell: (props) => {
+            Cell: (props: { row: { id: string; }; rows: any[]; }) => {
                 const rowIndex = parseInt(props.row.id, 10);
-                const row = props.rows.filter((row) => row.index === rowIndex)[0];
+                const row = props.rows.filter((row: { index: number; }) => row.index === rowIndex)[0];
                 const mqttAccessControl = row?.cells[11]?.value;
                 const style: React.CSSProperties = {
                     color: mqttAccessControl === "None" ? "red" : "white",
@@ -249,9 +249,9 @@ export const Create_GROUPS_COLUMNS = (refreshGroups: () => void): Column<IGroupC
             Header: "LLM",
             accessor: "llmEnabled",
             disableFilters: true,
-            Cell: (props) => {
+            Cell: (props: { row: { id: string; }; rows: any[]; }) => {
                 const rowIndex = parseInt(props.row.id, 10);
-                const row = props.rows.filter((row) => row.index === rowIndex)[0];
+                const row = props.rows.filter((row: { index: number; }) => row.index === rowIndex)[0];
                 const llmEnabled = row?.cells[12]?.value || false;
                 const llmEnabledText = llmEnabled ? "Enabled" : "Disabled";
                 return <span>{llmEnabledText}</span>;
@@ -267,9 +267,9 @@ export const Create_GROUPS_COLUMNS = (refreshGroups: () => void): Column<IGroupC
             accessor: "edit",
             disableFilters: true,
             disableSortBy: true,
-            Cell: (props) => {
+            Cell: (props: { row: { id: string; }; rows: any[]; }) => {
                 const rowIndex = parseInt(props.row.id, 10);
-                const row = props.rows.filter((row) => row.index === rowIndex)[0];
+                const row = props.rows.filter((row: { index: number; }) => row.index === rowIndex)[0];
                 const groupId = row?.cells[0]?.value;
                 const name = row?.cells[2]?.value;
                 const acronym = row?.cells[3]?.value;
@@ -299,9 +299,9 @@ export const Create_GROUPS_COLUMNS = (refreshGroups: () => void): Column<IGroupC
             accessor: "delete",
             disableFilters: true,
             disableSortBy: true,
-            Cell: (props) => {
+            Cell: (props: { row: { id: string; }; rows: any[]; }) => {
                 const rowIndex = parseInt(props.row.id, 10);
-                const row = props.rows.filter((row) => row.index === rowIndex)[0];
+                const row = props.rows.filter((row: { index: number; }) => row.index === rowIndex)[0];
                 const groupId = row?.cells[0]?.value;
                 const orgpId = row?.cells[1]?.value;
                 return (

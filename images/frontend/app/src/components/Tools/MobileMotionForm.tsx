@@ -177,6 +177,7 @@ const MobileMotionForm: FC<MobileMotionSelectFormProps> = (
                 <Formik initialValues={initialMobileAccelerationFormValues} validationSchema={validationSchema} onSubmit={handleSubmit} >
                     {
                         formik => (
+                            // @ts-ignoreº
                             <Form>
                                 <ControlsContainer>
                                     <FormikControl

@@ -391,6 +391,7 @@ const CreateGroup: FC<CreateGroupProps> = ({
                             onSubmit={onSubmit}
                         >
                             {(formik) => (
+                                // @ts-ignore
                                 <Form>
                                     <ControlsContainer>
                                         <FormikControl

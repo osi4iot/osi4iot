@@ -174,6 +174,7 @@ const MobileAccelerationForm: FC<MobileSensorSelectFormProps> = (
                 <Formik initialValues={initialMobileAccelerationFormValues} validationSchema={validationSchema} onSubmit={handleSubmit} >
                     {
                         formik => (
+                            // @ts-ignore
                             <Form>
                                 <ControlsContainer>
                                     <FormikControl

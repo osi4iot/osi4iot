@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import React, { FC, useRef, useState, useLayoutEffect, useEffect, ComponentType } from 'react';
+import React, { FC, useRef, useState, useLayoutEffect, useEffect } from 'react';
 import { useThree, useFrame } from '@react-three/fiber';
 import { HiLocationMarker } from "react-icons/hi";
 import { Html } from "@react-three/drei";
@@ -11,14 +11,17 @@ import { changeMaterialPropRecursively } from '../../../../tools/tools';
 import { sensorDisplay } from '../../../../tools/sensorDisplay';
 import { IThreeMesh } from '../Types/threeInterfaces';
 
+const GroupComponent = 'group' as any;
+const MeshComponent = 'mesh' as any;
+const PrimitivesComponent = 'primitive' as any;
+
 const MarkerContainer = styled.div`
     position: absolute;
     top: -30px;
     right: -15px;
 `;
 
-
-const MarkerIcon = styled(HiLocationMarker as ComponentType<any>)`
+const MarkerIcon = styled(HiLocationMarker as any)`
 	font-size: 30px;
 	color: #62f700;
 
@@ -203,17 +206,17 @@ const SensorBase: FC<SensorProps> = ({
             obj.customAnimationObjectNames.length !== 0 ||
             obj.children.length !== 0
         ) ?
-            <group>
-                <mesh
+            <GroupComponent>
+                <MeshComponent
                     ref={meshRef as React.MutableRefObject<IThreeMesh>}
                     castShadow
                     receiveShadow
                     material={material}
                 >
-                    <primitive
+                    <PrimitivesComponent
                         object={obj}
                     />
-                </mesh>
+                </MeshComponent>
                 {
                     marker &&
                     <Html
@@ -225,14 +228,14 @@ const SensorBase: FC<SensorProps> = ({
                         </MarkerContainer>
                     </Html>
                 }
-            </group>
+            </GroupComponent>
             :
-            <group
+            <GroupComponent
                 position={obj.position}
                 quaternion={obj.quaternion}
                 scale={obj.scale}
             >
-                <mesh
+                <MeshComponent
                     ref={meshRef as React.MutableRefObject<IThreeMesh>}
                     castShadow
                     receiveShadow
@@ -253,7 +256,7 @@ const SensorBase: FC<SensorProps> = ({
                         </MarkerContainer>
                     </Html>
                 }
-            </group>
+            </GroupComponent>
     )
 }
 

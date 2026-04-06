@@ -318,6 +318,7 @@ const CreateFloor: FC<CreateFloorProps> = ({ buildingsTable, backToTable, refres
                     {
                         formik => {
                             return (
+                                // @ts-ignore
                                 <Form>
                                     <ControlsContainer>
                                         <FormikControl

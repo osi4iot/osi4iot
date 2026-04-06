@@ -8,7 +8,7 @@ import {
     useRowSelect,
     CellProps,
 } from "react-table";
-import { FC, useMemo, useState, forwardRef, useRef, useEffect, Ref, MutableRefObject, ChangeEvent, ComponentType } from "react";
+import { FC, useMemo, useState, forwardRef, useRef, useEffect, Ref, MutableRefObject, ChangeEvent, RefObject } from "react";
 import { Column } from "react-table";
 import styled from "styled-components";
 import { FaSearch } from "react-icons/fa";
@@ -230,7 +230,7 @@ const SearchContainer = styled.div`
     position: relative;
 `;
 
-const SearchIcon = styled(FaSearch as ComponentType<any>)`
+const SearchIcon = styled(FaSearch as any)`
     position: absolute;
     top: 10px;
     left: 5px;
@@ -239,7 +239,7 @@ const SearchIcon = styled(FaSearch as ComponentType<any>)`
     background-color: #0c0d0f;
 `;
 
-const GlobalSearchIcon = styled(FaSearch as ComponentType<any>)`
+const GlobalSearchIcon = styled(FaSearch as any)`
     position: absolute;
     top: 8px;
     left: 7px;
@@ -321,7 +321,7 @@ interface Props {
 
 const IndeterminateCheckbox = forwardRef<HTMLInputElement, Props & Record<string, any>>(
     ({ indeterminate, ...rest }, ref: Ref<HTMLInputElement>) => {
-        const defaultRef = useRef();
+        const defaultRef = useRef(null);
         const resolvedRef = ref || defaultRef;
 
         useEffect(() => {
@@ -354,7 +354,7 @@ const IndeterminateCheckboxUniqueSelection = forwardRef<
         { indeterminate, isSelected, numRowsSelected, toggleRowSelected, uncheckAllRowsSelected, ...rest },
         ref: Ref<HTMLInputElement>,
     ) => {
-        const defaultRef = useRef();
+        const defaultRef = useRef(null);
         const resolvedRef = ref || defaultRef;
 
         const handleClick = (e: ChangeEvent<HTMLInputElement>) => {
@@ -370,16 +370,16 @@ const IndeterminateCheckboxUniqueSelection = forwardRef<
             }
         };
 
-        useEffect(() => {
-            if ((resolvedRef as MutableRefObject<HTMLInputElement>)?.current) {
-                (resolvedRef as MutableRefObject<HTMLInputElement>).current.indeterminate = indeterminate ?? false;
-                (resolvedRef as MutableRefObject<HTMLInputElement>).current.checked = !!isSelected;
+       useEffect(() => {
+            if ((resolvedRef as RefObject<HTMLInputElement>)?.current) {
+                (resolvedRef as RefObject<HTMLInputElement>).current!.indeterminate = indeterminate ?? false;
+                (resolvedRef as RefObject<HTMLInputElement>).current!.checked = !!isSelected;
             }
         }, [resolvedRef, indeterminate, isSelected]);
 
         return (
             <>
-                <input type="checkbox" ref={resolvedRef as MutableRefObject<HTMLInputElement>} onChange={handleClick} />
+                <input type="checkbox" ref={resolvedRef as RefObject<HTMLInputElement>} onChange={handleClick} />
             </>
         );
     },

@@ -4,7 +4,7 @@ import styled from "styled-components";
 
 const FormContainerDiv = styled.div<{ width: number }>`
     font-size: 12px;
-    padding: 30px 10px 30px 20px;
+    padding: 30px 15px 30px 20px;
     border: 3px solid #3274d9;
     border-radius: 20px;
     width: ${({ width }) => width}px;
@@ -17,39 +17,43 @@ const FormContainerDiv = styled.div<{ width: number }>`
     }
 `;
 
-const ResizeHandle = styled.div`
+const ResizeHandle = styled.div<{ $active: boolean }>`
     position: absolute;
     top: 0;
-    right: -14px;
+    right: 2px;
     width: 10px;
     height: 100%;
     cursor: ew-resize;
     z-index: 10;
 
     &::after {
-        content: '';
+        content: "";
         position: absolute;
         right: 4px;
         top: 50%;
         transform: translateY(-50%);
         height: 100px;
-        width: 2px;
-        background: #3274d9;
-        opacity: 0.4;
-        transition: opacity 0.2s;
+        width: 4px;
+        background: ${({ $active }) => ($active ? "#3274d9" : "#4b5563")};
+        opacity: ${({ $active }) => ($active ? 1 : 0.4)};
+        transition: opacity 0.2s, background 0.2s;
         border-radius: 2px;
     }
 
     &:hover::after {
+        background: #3274d9;
         opacity: 1;
     }
 `;
 
 export const DraggableFormContainer: FC<{ children: React.ReactNode }> = ({ children }) => {
     const [width, setWidth] = useState(400);
+    const [isDragging, setIsDragging] = useState(false);
 
     const onMouseDown = (e: React.MouseEvent) => {
         e.preventDefault();
+        setIsDragging(true);
+
         const startX = e.clientX;
         const startWidth = width;
 
@@ -59,6 +63,7 @@ export const DraggableFormContainer: FC<{ children: React.ReactNode }> = ({ chil
         };
 
         const onMouseUp = () => {
+            setIsDragging(false);
             document.removeEventListener("mousemove", onMouseMove);
             document.removeEventListener("mouseup", onMouseUp);
         };
@@ -69,7 +74,7 @@ export const DraggableFormContainer: FC<{ children: React.ReactNode }> = ({ chil
 
     return (
         <FormContainerDiv width={width}>
-            <ResizeHandle onMouseDown={onMouseDown} />
+            <ResizeHandle $active={isDragging} onMouseDown={onMouseDown} />
             {children}
         </FormContainerDiv>
     );
@@ -109,7 +114,7 @@ export const FieldErrorScroller: FC<FieldErrorScrollerProps> = ({ name }) => {
 };
 
 export const StaticFormContainer = styled.div`
-	font-size: 12px;
+    font-size: 12px;
     padding: 30px 10px 30px 20px;
     border: 3px solid #3274d9;
     border-radius: 20px;
@@ -136,10 +141,10 @@ export const ControlsContainer = styled.div`
         background: #202226;
         border-radius: 5px;
     }
-    
+
     /* Handle */
     ::-webkit-scrollbar-thumb {
-        background: #2c3235; 
+        background: #2c3235;
         border-radius: 5px;
     }
 

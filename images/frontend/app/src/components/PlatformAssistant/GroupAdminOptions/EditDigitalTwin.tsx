@@ -877,6 +877,7 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
                         >
                             {(formik) => {
                                 return (
+                                    // @ts-ignore
                                     <Form>
                                         <ControlsContainer>
                                             <FieldContainer>

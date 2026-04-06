@@ -1,4 +1,4 @@
-import { FC, useEffect, useState, useRef, WheelEvent, ComponentType } from 'react';
+import { FC, useEffect, useState, useRef, WheelEvent } from 'react';
 import { useWindowHeight } from "@react-hook/window-size";
 import { Document, Page, pdfjs } from 'react-pdf';
 import 'react-pdf/dist/esm/Page/AnnotationLayer.css';
@@ -62,7 +62,7 @@ const PageControlsContainer = styled.div`
     margin-top: 10px;
 `;
 
-const FirstPageIcon = styled(ImFirst as ComponentType<any>)`
+const FirstPageIcon = styled(ImFirst as any)`
 	font-size: 20px;
 	color: white;
     &:hover {
@@ -71,7 +71,7 @@ const FirstPageIcon = styled(ImFirst as ComponentType<any>)`
 	}
 `;
 
-const PreviousPageIcon = styled(ImPrevious2 as ComponentType<any>)`
+const PreviousPageIcon = styled(ImPrevious2 as any)`
 	font-size: 20px;
 	color: white;
     &:hover {
@@ -80,7 +80,7 @@ const PreviousPageIcon = styled(ImPrevious2 as ComponentType<any>)`
 	}
 `;
 
-const NextPageIcon = styled(ImNext2 as ComponentType<any>)`
+const NextPageIcon = styled(ImNext2 as any)`
 	font-size: 20px;
 	color: white;
     &:hover {
@@ -89,7 +89,7 @@ const NextPageIcon = styled(ImNext2 as ComponentType<any>)`
 	}
 `;
 
-const LastPageIcon = styled(ImLast as ComponentType<any>)`
+const LastPageIcon = styled(ImLast as any)`
 	font-size: 20px;
 	color: white;
     &:hover {
@@ -98,7 +98,7 @@ const LastPageIcon = styled(ImLast as ComponentType<any>)`
 	}
 `;
 
-const ZoomInIcon = styled(AiOutlineZoomIn as ComponentType<any>)`
+const ZoomInIcon = styled(AiOutlineZoomIn as any)`
 	font-size: 20px;
 	color: white;
     &:hover {
@@ -118,7 +118,7 @@ const Separator = styled.div`
     user-select: none;
 `;
 
-const ZoomOutIcon = styled(AiOutlineZoomOut as ComponentType<any>)`
+const ZoomOutIcon = styled(AiOutlineZoomOut as any)`
 	font-size: 20px;
 	color: white;
     &:hover {
@@ -127,7 +127,7 @@ const ZoomOutIcon = styled(AiOutlineZoomOut as ComponentType<any>)`
 	}
 `;
 
-const StyledDocument = styled(Document)`
+const StyledDocument = styled(Document as any)`
     display: flex;
     flex-direction: column;
     justify-content: center;

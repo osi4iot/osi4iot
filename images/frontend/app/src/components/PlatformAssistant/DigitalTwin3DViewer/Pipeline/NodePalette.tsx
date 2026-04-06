@@ -12,7 +12,7 @@ import {
     Database,
 } from "lucide-react";
 import { FaTelegramPlane } from "react-icons/fa";
-import { TbDatabaseCog } from "react-icons/tb"
+import { TbDatabaseCog } from "react-icons/tb";
 import { FaRegCommentDots, FaMicrochip, FaGear } from "react-icons/fa6";
 import { BsBucket } from "react-icons/bs";
 import styled from "styled-components";
@@ -159,7 +159,7 @@ export const IoTDBIcon: React.FC<Props> = ({ size = 30, bgcolor = "#5B85A7" }) =
 export const S3StorageIcon: React.FC<Props> = ({ size = 30, bgcolor = "#5B85A7" }) => {
     return (
         <Wrapper size={size}>
-            <BsBucketIcon size={size}/>
+            <BsBucketIcon size={size} />
             <OverlayIcon size={size} bgcolor={bgcolor}>
                 <FaMicrochip size={size * 0.4} />
             </OverlayIcon>
@@ -178,6 +178,14 @@ export const AssetStateStoreIcon: React.FC<Props> = ({ size = 30, bgcolor = "#5B
     );
 };
 
+export const NODE_FUNCTION_SCRIPTS = {
+    onInitiation:
+        "function init() {\n    const go = Go();\n    const { log, time } = go.All();\n\n    // Your code here\n}",
+    onStart:
+        "function start() {\n    const go = Go();\n    const { log, time } = go.All();\n\n    // Your code here\n}",
+    onMessage:
+        "function process(msg) {\n    const go = Go();\n    const { log, time } = go.All();\n\n    // Your code here\n    return msg;\n}",
+} as const;
 
 const nodeTypes = [
     {
@@ -256,14 +264,7 @@ const nodeTypes = [
         icon: <SquareFunction size={30} color="#e7e3df" />,
         numOutputs: 1,
         debug: "off",
-        settings: {
-            onMessageScript:
-                "function process(msg) {\n    const go = Go();\n    const { log, time } = go.All();\n\n    // Your code here\n\n    return msg;\n}",
-            onInitializationScript:
-                "function init() {\n    const go = Go();\n    const { log, time } = go.All();\n\n    // Your code here\n}",
-            onStartScript:
-                "function start() {\n    const go = Go();\n    const { log, time } = go.All();\n\n    // Your code here\n}",
-        },
+        settings: NODE_FUNCTION_SCRIPTS,
     },
     {
         type: "Delay",
@@ -386,7 +387,7 @@ const nodeTypes = [
             action: "Insert",
             insertTopicRef: "dev2pdb_1",
             sqlQuery:
-                "SELECT * FROM iot_table WHERE topic = $__topicFun('dev2pdb_1') AND \n timestamp >= $__timeFun('now-25s') AND timestamp <= $__timeFun('now') ORDER BY timestamp DESC;",
+                "SELECT * FROM iot_table \nWHERE topic = $__topicFun('dev2pdb_1') \nAND timestamp >= $__timeFun('now-25s') \nAND timestamp <= $__timeFun('now') \nORDER BY timestamp DESC;",
         },
     },
     {
@@ -402,7 +403,7 @@ const nodeTypes = [
             action: "Insert",
             folderName: "telemetry",
             duckdbQuery:
-                "SELECT * FROM iot_table WHERE topic = $__topicFun('dev2pdb_1') AND \n timestamp >= $__timeFun('now-25s') AND timestamp <= $__timeFun('now') ORDER BY timestamp DESC;",
+                "SELECT * FROM s3_storage('telemetry') \nWHERE timestamp >= $__timeFun('now-10d/d') \nAND timestamp <= $__timeFun('now') \nORDER BY timestamp DESC;",
         },
     },
     {

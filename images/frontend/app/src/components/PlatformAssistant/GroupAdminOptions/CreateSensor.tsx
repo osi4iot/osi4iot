@@ -431,6 +431,7 @@ const CreateSensor: FC<CreateSensorProps> = ({ backToTable, refreshSensors }) =>
             <DraggableFormContainer>
                 <Formik initialValues={initialSensorData} validationSchema={validationSchema} onSubmit={onSubmit}>
                     {(formik) => (
+                        // @ts-ignore
                         <Form>
                             <ControlsContainer>
                                 <FormikControl

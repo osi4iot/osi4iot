@@ -378,6 +378,7 @@ const CreateAssetType: FC<CreateAssetTypeProps> = ({
                 <Formik initialValues={initialAssetTypeData} validationSchema={validationSchema} onSubmit={onSubmit} >
                     {
                         formik => (
+                            // @ts-ignore
                             <Form>
                                 <ControlsContainer>
                                     <FormikControl

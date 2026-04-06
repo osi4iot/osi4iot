@@ -1,4 +1,4 @@
-import React, { ComponentType, FC } from "react";
+import React, { FC } from "react";
 import styled, { StyledComponent } from "styled-components";
 import { FaHome, FaUser, FaUsers, FaUniversity } from "react-icons/fa";
 import { IconType } from "react-icons";
@@ -27,11 +27,11 @@ const Menu = styled.div`
 `;
 
 
-const StyledIcon = (icon: IconType): StyledComponent<ComponentType<any>, any, {}, never> => {
-    const styledIcon = (styled(icon as ComponentType<any>)`
+const StyledIcon = (icon: IconType): StyledComponent<any, any, {}, never> => {
+    const styledIcon = (styled(icon as any)`
         font-size: 30px;
         user-select: none;
-    `) as StyledComponent<ComponentType<any>, any, {}, never>;
+    `) as StyledComponent<any, any, {}, never>;
     return styledIcon;
 }
 

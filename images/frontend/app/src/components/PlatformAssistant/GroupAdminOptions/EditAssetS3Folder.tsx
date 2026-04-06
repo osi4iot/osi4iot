@@ -121,6 +121,7 @@ const EditAssetS3Folder: FC<EditAssetS3FolderProps> = ({ assetS3Folders, backToT
                     onSubmit={onSubmit}
                 >
                     {(formik) => (
+                        // @ts-ignore
                         <Form>
                             <ControlsContainer>
                                 <FieldContainer>

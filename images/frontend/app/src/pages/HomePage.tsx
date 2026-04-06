@@ -1,4 +1,4 @@
-import { ComponentType, FC } from "react";
+import { FC } from "react";
 import { NavLink } from "react-router-dom";
 import styled from "styled-components";
 import Main from "../components/Layout/Main";
@@ -107,7 +107,7 @@ const ButtonLink = styled.button`
     }
 `;
 
-const FaGithubStyled = styled(FaGithub as ComponentType<any>)`
+const FaGithubStyled = styled(FaGithub as any)`
     font-size: 50px;
     color: white;
     background-color: #0c0d0f;

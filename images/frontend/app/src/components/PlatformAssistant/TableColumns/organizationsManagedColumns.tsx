@@ -178,9 +178,9 @@ export const CREATE_ORGS_MANAGED_COLUMNS = (refreshOrgUsers: () => void): Column
             Header: "Mqtt acc",
             accessor: "mqttAccessControl",
             disableFilters: true,
-            Cell: props => {
+            Cell: (props: { row: { id: string; }; rows: any[]; }) => {
                 const rowIndex = parseInt(props.row.id, 10);
-                const row = props.rows.filter(row => row.index === rowIndex)[0];
+                const row = props.rows.filter((row: { index: number; }) => row.index === rowIndex)[0];
                 const mqttAccessControl = row?.cells[7]?.value;
                 const style: React.CSSProperties = {
                     color: mqttAccessControl === "None" ? 'red' : 'white'
@@ -193,9 +193,9 @@ export const CREATE_ORGS_MANAGED_COLUMNS = (refreshOrgUsers: () => void): Column
             accessor: "addOrgUsers",
             disableFilters: true,
             disableSortBy: true,
-            Cell: props => {
+            Cell: (props: { row: { id: string; }; rows: any[]; }) => {
                 const rowIndex = parseInt(props.row.id, 10);
-                const row = props.rows.filter(row => row.index === rowIndex)[0];
+                const row = props.rows.filter((row: { index: number; }) => row.index === rowIndex)[0];
                 const orgManagedId = row?.cells[0]?.value;
                 return <AddOrgUsers rowIndex={rowIndex} orgManagedId={parseInt(orgManagedId, 10)} />
             }
@@ -205,9 +205,9 @@ export const CREATE_ORGS_MANAGED_COLUMNS = (refreshOrgUsers: () => void): Column
             accessor: "removeAllOrgUsers",
             disableFilters: true,
             disableSortBy: true,
-            Cell: props => {
+            Cell: (props: { row: { id: string; }; rows: any[]; }) => {
                 const rowIndex = parseInt(props.row.id, 10);
-                const row = props.rows.filter(row => row.index === rowIndex)[0];
+                const row = props.rows.filter((row: { index: number; }) => row.index === rowIndex)[0];
                 const orgId = row?.cells[0]?.value;
                 return <RemoveAllOrgUsersModal orgId={orgId} rowIndex={rowIndex} refreshOrgUsers={refreshOrgUsers} />
             }

@@ -16,6 +16,10 @@ import femResultCalcWorkersManager from "../../../../webWorkers/femResultCalcWor
 import { ElemTooltip } from "../Utils/ElemTooltip";
 import { NodeTooltip } from "../Utils/NodeTooltip";
 
+const GroupComponent = 'group' as any;
+const MeshComponent = 'mesh' as any;
+const PrimitivesComponent = 'primitive' as any;
+
 interface FemSimulationObjectProps {
     femSimulationGeneralInfo: Record<string, IResultRenderInfo>;
     femResultData: any;
@@ -83,9 +87,9 @@ const FemSimulationObjectBase: FC<FemSimulationObjectProps> = ({
     const [workers, setWorkers] = useState<Worker[]>([]);
     const [nodalIndex, setNodalIndex] = useState<Map<number, number>>(new Map<number, number>());
 
-    const objectRef = useRef<THREE.Group>();
-    const meshRef = useRef<THREE.LineSegments>();
-    const geometryRef = useRef<THREE.Mesh>();
+    const objectRef = useRef<THREE.Group>(null);
+    const meshRef = useRef<THREE.LineSegments>(null);
+    const geometryRef = useRef<THREE.Mesh>(null);
     const defOpacity = defaultOpacity(femSimulationObject.node);
     const material =
         femSimulationResult === "None result"
@@ -515,8 +519,8 @@ const FemSimulationObjectBase: FC<FemSimulationObjectProps> = ({
     ]);
 
     return (
-        <group ref={objectRef as React.MutableRefObject<THREE.Group>}>
-            <mesh
+        <GroupComponent ref={objectRef as React.MutableRefObject<THREE.Group>}>
+            <MeshComponent
                 ref={
                     geometryRef as React.MutableRefObject<
                         THREE.Mesh<THREE.BufferGeometry, THREE.Material | THREE.Material[]>
@@ -526,11 +530,11 @@ const FemSimulationObjectBase: FC<FemSimulationObjectProps> = ({
                 receiveShadow
                 material={material}
             >
-                <primitive material={material} object={femSimulationObject.node} />
-            </mesh>
-            <primitive ref={meshRef} object={femSimulationObject.wireFrameMesh} />
+                <PrimitivesComponent material={material} object={femSimulationObject.node} />
+            </MeshComponent>
+            <PrimitivesComponent ref={meshRef} object={femSimulationObject.wireFrameMesh} />
             {showFemMesh && femElemLabels.length > 0 && (
-                <group>
+                <GroupComponent>
                     {femElemLabels.map((label, index) => (
                         <ElemTooltip
                             key={`elem-${index + 1}-${workersCompleted}`}
@@ -538,10 +542,10 @@ const FemSimulationObjectBase: FC<FemSimulationObjectProps> = ({
                             position={calcElemPosition(label) || new THREE.Vector3()}
                         />
                     ))}
-                </group>
+                </GroupComponent>
             )}
             {showFemMesh && femNodeLabels.length > 0 && (
-                <group>
+                <GroupComponent>
                     {femNodeLabels.map((label, index) => (
                         <NodeTooltip
                             key={`node-${index + 1}-${workersCompleted}`}
@@ -549,9 +553,9 @@ const FemSimulationObjectBase: FC<FemSimulationObjectProps> = ({
                             position={calcNodePosition(label) || new THREE.Vector3()}
                         />
                     ))}
-                </group>
+                </GroupComponent>
             )}
-        </group>
+        </GroupComponent>
     );
 };
 

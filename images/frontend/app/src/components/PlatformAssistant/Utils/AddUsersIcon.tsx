@@ -1,8 +1,8 @@
-import { ComponentType, FC } from "react";
+import { FC } from "react";
 import { FaUsers } from "react-icons/fa";
 import styled from "styled-components";
 
-const FaUsersStyled = styled(FaUsers as ComponentType<any>)`
+const FaUsersStyled = styled(FaUsers as any)`
     font-size: 20px;
     color: white;
 `;

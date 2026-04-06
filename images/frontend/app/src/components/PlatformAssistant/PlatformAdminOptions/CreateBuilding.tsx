@@ -276,6 +276,7 @@ const CreateBuilding: FC<CreateBuildingProps> = ({ backToTable, refreshBuildings
                     {
                         formik => {
                             return (
+                                // @ts-ignore
                                 <Form>
                                     <ControlsContainer>
                                         <FormikControl

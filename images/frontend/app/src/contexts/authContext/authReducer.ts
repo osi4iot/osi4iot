@@ -1,36 +1,27 @@
 import { AuthAction, AuthContextProps } from "./interfaces";
 
-let userName = localStorage.getItem("iot_platform_auth")
-	? JSON.parse(localStorage.getItem("iot_platform_auth") as string).userName
-	: "";
+const getAuthFromStorage = () => {
+    const stored = localStorage.getItem("iot_platform_auth");
+    return stored ? JSON.parse(stored) : {};
+};
 
-let accessToken = localStorage.getItem("iot_platform_auth")
-	? JSON.parse(localStorage.getItem("iot_platform_auth") as string).accessToken
-	: "";
-
-let refreshToken = localStorage.getItem("iot_platform_auth")
-	? JSON.parse(localStorage.getItem("iot_platform_auth") as string).refreshToken
-	: "";
-
-let expirationDate = localStorage.getItem("iot_platform_auth")
-	? JSON.parse(localStorage.getItem("iot_platform_auth") as string).expirationDate
-	: "";
+const auth = getAuthFromStorage();
 
 export const initialState = {
-	userName: "" || userName,
-	accessToken: "" || accessToken,
-	refreshToken: "" || refreshToken,
-	expirationDate: "" || expirationDate,
-	userRole: "user",
-	numOrganizationManaged: 0,
-	numGroupsManaged: 0,
-	numAssetTypesManaged: 0,
-	numAssetsManaged: 0,
-	numSensorsManaged: 0,
-	numDigitalTwinsManaged: 0,
-	numMLModelsManaged: 0,
-	loading: false,
-	errorMessage: null,
+    userName: auth.userName ?? "",
+    accessToken: auth.accessToken ?? "",
+    refreshToken: auth.refreshToken ?? "",
+    expirationDate: auth.expirationDate ?? "",
+    userRole: "user",
+    numOrganizationManaged: 0,
+    numGroupsManaged: 0,
+    numAssetTypesManaged: 0,
+    numAssetsManaged: 0,
+    numSensorsManaged: 0,
+    numDigitalTwinsManaged: 0,
+    numMLModelsManaged: 0,
+    loading: false,
+    errorMessage: null,
 };
 
 export const AuthReducer = (initialState: AuthContextProps, action: AuthAction) => {

@@ -223,7 +223,7 @@ export const Create_ORGANIZATIONS_COLUMNS = (refreshOrgs: () => void): Column<IO
             Header: "LLM",
             accessor: "llmEnabled",
             disableFilters: true,
-            Cell: (props) => {
+            Cell: (props: { row: { id: string; }; rows: any[]; }) => {
                 const rowIndex = parseInt(props.row.id, 10);
                 const row = props.rows.filter((row) => row.index === rowIndex)[0];
                 const llmEnabled = row?.cells[12]?.value || false;
@@ -235,9 +235,9 @@ export const Create_ORGANIZATIONS_COLUMNS = (refreshOrgs: () => void): Column<IO
             Header: "Telegram",
             accessor: "telegramEnabled",
             disableFilters: true,
-            Cell: (props) => {
+            Cell: (props: { row: { id: string; }; rows: any[]; }) => {
                 const rowIndex = parseInt(props.row.id, 10);
-                const row = props.rows.filter((row) => row.index === rowIndex)[0];
+                const row = props.rows.filter((row: { index: number; }) => row.index === rowIndex)[0];
                 const telegramEnabled = row?.cells[13]?.value || false;
                 const telegramEnabledText = telegramEnabled ? "Enabled" : "Disabled";
                 return <span>{telegramEnabledText}</span>;
@@ -248,9 +248,9 @@ export const Create_ORGANIZATIONS_COLUMNS = (refreshOrgs: () => void): Column<IO
             accessor: "edit",
             disableFilters: true,
             disableSortBy: true,
-            Cell: (props) => {
+            Cell: (props: { row: { id: string; }; rows: any[]; }) => {
                 const rowIndex = parseInt(props.row.id, 10);
-                const row = props.rows.filter((row) => row.index === rowIndex)[0];
+                const row = props.rows.filter((row: { index: number; }) => row.index === rowIndex)[0];
                 const orgId = row?.cells[0]?.value;
                 return <EditOrg orgId={orgId} rowIndex={rowIndex} />;
             },
@@ -260,9 +260,9 @@ export const Create_ORGANIZATIONS_COLUMNS = (refreshOrgs: () => void): Column<IO
             accessor: "delete",
             disableFilters: true,
             disableSortBy: true,
-            Cell: (props) => {
+            Cell: (props: { row: { id: string; }; rows: any[]; }) => {
                 const rowIndex = parseInt(props.row.id, 10);
-                const row = props.rows.filter((row) => row.index === rowIndex)[0];
+                const row = props.rows.filter((row: { index: number; }) => row.index === rowIndex)[0];
                 const orgId = row?.cells[0]?.value;
                 return <DeleteOrgModal orgId={orgId} rowIndex={rowIndex} refreshOrgs={refreshOrgs} />;
             },

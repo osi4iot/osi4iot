@@ -10,13 +10,13 @@ import { StyledTooltip as Tooltip } from './Tooltip';
 import calcGeoBounds from '../../../tools/calcGeoBounds';
 import { AssetSVGOverlays } from './svg_assets_overlay/AssetSVGOverlays';
 
-const CircleStyledDragging = styled(Circle)`
+const CircleStyledDragging = styled(Circle as any)`
     &:hover {
         cursor: all-scroll;
     }
 `;
 
-const CircleStyledNoDragging = styled(Circle)`
+const CircleStyledNoDragging = styled(Circle as any)`
     &:hover {
         cursor: auto;
     }
@@ -58,7 +58,7 @@ const DraggableAssetCircle: FC<DraggableAssetCircleProps> = ({
     setAssetDragging,
 }) => {
     const map = useMap();
-    const imageRef = useRef();
+    const imageRef = useRef(null as any);
 
     const [bounds, setBounds] = useState(
         calcGeoBounds((assetPosition as number[])[1], (assetPosition as number[])[0], assetRadio * 0.0004)

@@ -21,7 +21,7 @@ const IconButton = styled.button`
     &:hover {
         background-color: #374151 !important;
         color: white;
-        
+
         * {
             color: white !important;
             stroke: white !important;
@@ -32,11 +32,11 @@ const IconButton = styled.button`
     &:disabled {
         opacity: 0.5;
         cursor: not-allowed;
-        
+
         &:hover {
             background: none;
             color: #d1d5db;
-            
+
             * {
                 color: #d1d5db !important;
                 fill: #d1d5db !important;
@@ -60,7 +60,9 @@ const Tooltip = styled.div<{ visible: boolean }>`
     pointer-events: none;
     opacity: ${(props) => (props.visible ? 1 : 0)};
     visibility: ${(props) => (props.visible ? "visible" : "hidden")};
-    transition: opacity 0.2s, visibility 0.2s;
+    transition:
+        opacity 0.2s,
+        visibility 0.2s;
     z-index: 1000;
     margin-bottom: 7px;
     border: 1px solid #6b7280;
@@ -77,7 +79,7 @@ const Tooltip = styled.div<{ visible: boolean }>`
         border-right: 5px solid transparent;
         border-top: 5px solid #1f2937;
     }
-    
+
     &::before {
         content: "";
         position: absolute;
@@ -108,7 +110,7 @@ export const TooltipWrapper: FC<{
             onMouseEnter={() => setShowTooltip(true)}
             onMouseLeave={() => setShowTooltip(false)}
         >
-            {children}
+            {children as any}
             <Tooltip visible={showTooltip}>{tooltip}</Tooltip>
         </IconButton>
     );

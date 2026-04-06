@@ -321,7 +321,7 @@ export const Create_DIGITAL_TWINS_COLUMNS = (refreshDigitalTwins: () => void): C
             accessor: "removeLocalStorage",
             disableFilters: true,
             disableSortBy: true,
-            Cell: props => {
+            Cell: (props: { row: { id: string; }; rows: any[]; }) => {
                 const rowIndex = parseInt(props.row.id, 10);
                 const row = props.rows.filter(row => row.index === rowIndex)[0];
                 const dtReference = row?.cells[4]?.value;
@@ -342,7 +342,7 @@ export const Create_DIGITAL_TWINS_COLUMNS = (refreshDigitalTwins: () => void): C
             accessor: "edit",
             disableFilters: true,
             disableSortBy: true,
-            Cell: props => {
+            Cell: (props: { row: { id: string; }; rows: any[]; }) => {
                 const rowIndex = parseInt(props.row.id, 10);
                 const row = props.rows.filter(row => row.index === rowIndex)[0];
                 const digitalTwinId = row?.cells[0]?.value;
@@ -354,7 +354,7 @@ export const Create_DIGITAL_TWINS_COLUMNS = (refreshDigitalTwins: () => void): C
             accessor: "delete",
             disableFilters: true,
             disableSortBy: true,
-            Cell: props => {
+            Cell: (props: { row: { id: string; }; rows: any[]; }) => {
                 const rowIndex = parseInt(props.row.id, 10);
                 const row = props.rows.filter(row => row.index === rowIndex)[0];
                 const digitalTwinId = row?.cells[0]?.value;

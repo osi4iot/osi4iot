@@ -5,6 +5,7 @@ import CreateOrganization from './CreateOrganization';
 import EditOrganization from './EditOrganization';
 import { ORGS_OPTIONS } from '../Utils/platformAssistantOptions';
 import { useOrgsDispatch, setOrgsOptionToShow, useOrgsOptionToShow } from '../../../contexts/orgsOptions';
+import { Column } from 'react-table';
 
 
 interface OrgsContainerProps {
@@ -80,7 +81,7 @@ const OrgsContainer: FC<OrgsContainerProps> = ({ organizations, refreshOrgs }) =
             {orgsOptionToShow === ORGS_OPTIONS.TABLE &&
                 <TableWithPagination
                     dataTable={organizations}
-                    columnsTable={Create_ORGANIZATIONS_COLUMNS(refreshOrgs)}
+                    columnsTable={Create_ORGANIZATIONS_COLUMNS(refreshOrgs) as Column<any>[]}
                     componentName="organization"
                     reloadTable={refreshOrgs}
                     createComponent={() => setOrgsOptionToShow(orgsDispatch, { orgsOptionToShow: ORGS_OPTIONS.CREATE_ORG })}

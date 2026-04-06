@@ -523,6 +523,7 @@ const CreateMlModel: FC<CreateMlModelProps> = ({ backToTable, refreshMlModels, o
             <StaticFormContainer>
                 <Formik initialValues={initialMlModelData} validationSchema={validationSchema} onSubmit={onSubmit}>
                     {(formik) => (
+                        // @ts-ignore
                         <Form>
                             <ControlsContainer>
                                 <FormikControl

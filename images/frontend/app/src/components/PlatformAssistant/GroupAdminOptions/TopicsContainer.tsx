@@ -11,6 +11,7 @@ import {
 } from '../../../contexts/topicsOptions';
 import { IGroupManaged } from '../TableColumns/groupsManagedColumns';
 import { IOrgOfGroupsManaged } from '../TableColumns/orgsOfGroupsManagedColumns';
+import { Column } from 'react-table';
 
 interface TopicsContainerProps {
     orgsOfGroupManaged: IOrgOfGroupsManaged[];
@@ -54,7 +55,7 @@ const TopicsContainer: FC<TopicsContainerProps> = ({
             {topicsOptionToShow === TOPICS_OPTIONS.TABLE &&
                 <TableWithPagination
                     dataTable={topics}
-                    columnsTable={Create_TOPICS_COLUMNS(refreshTopics)}
+                    columnsTable={Create_TOPICS_COLUMNS(refreshTopics) as Column<any>[]}
                     componentName="topic"
                     reloadTable={refreshTopics}
                     createComponent={() => setTopicsOptionToShow(topicsDispatch, { topicsOptionToShow: TOPICS_OPTIONS.CREATE_TOPIC })}

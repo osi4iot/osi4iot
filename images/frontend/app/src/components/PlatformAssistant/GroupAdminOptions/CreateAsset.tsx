@@ -442,6 +442,7 @@ const CreateAsset: FC<CreateAssetProps> = ({
             <DraggableFormContainer>
                 <Formik initialValues={initialAssetData} validationSchema={validationSchema} onSubmit={onSubmit}>
                     {(formik) => (
+                        // @ts-ignore
                         <Form>
                             <ControlsContainer>
                                 <FormikControl

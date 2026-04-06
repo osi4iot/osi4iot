@@ -1,4 +1,4 @@
-import { FC } from "react";
+import { ComponentType, FC } from "react";
 import { Field, FieldArray, ErrorMessage } from 'formik';
 import styled from "styled-components";
 import TextError from "./TextError";
@@ -184,7 +184,7 @@ const InputArray: FC<InputArrayProps> = ({ name, label, labelArray, nameArray, t
                                                 <FieldContainer key={`${name}_${index}_${subIndex}`}>
                                                     <label htmlFor={`${nameArray[subIndex]}`}>{`${labelArray[subIndex]}`}</label>
                                                     <Field name={`${name}[${index}].${nameArray[subIndex]}`} type={typeArray[subIndex]} autoComplete={autocomplete} {...rest}/>
-                                                    <ErrorMessage name={`${name}[${index}].${nameArray[subIndex]}`} component={TextError} />
+                                                    <ErrorMessage name={`${name}[${index}].${nameArray[subIndex]}`} component={TextError as ComponentType<{}>} />
                                                 </FieldContainer>
                                             ))}
                                         </Item>

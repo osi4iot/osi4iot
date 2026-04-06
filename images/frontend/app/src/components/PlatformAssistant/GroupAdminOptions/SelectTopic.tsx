@@ -4,6 +4,7 @@ import FormTitle from "../../Tools/FormTitle";
 import TableWithPaginationAndRowSelection from '../Utils/TableWithPaginationAndRowSelection';
 import { SELECT_TOPIC_COLUMNS, ISelectTopic  } from '../TableColumns/selectTopicColumns';
 import { useTopicsTable } from '../../../contexts/platformAssistantContext';
+import { Column } from 'react-table';
 
 
 
@@ -126,7 +127,7 @@ const SelectTopic: FC<SelectTopicProps> = ({  backToTable, giveSelectedTopic }) 
                 <TableContainer>
                     <TableWithPaginationAndRowSelection
                         dataTable={topicsTable}
-                        columnsTable={SELECT_TOPIC_COLUMNS}
+                        columnsTable={SELECT_TOPIC_COLUMNS as Column<any>[]}
                         selectedItem={selectedTopic}
                         setSelectedItem={(selectedTopic: ISelectTopic) => setSelectedTopic(selectedTopic)}
                         multipleSelection={false}

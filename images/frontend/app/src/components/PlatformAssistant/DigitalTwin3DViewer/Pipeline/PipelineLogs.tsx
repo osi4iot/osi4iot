@@ -21,7 +21,7 @@ const Container = styled.div<{ width: number }>`
     position: fixed;
     top: 265px;
     right: 15px;
-    width: ${(props) => props.width}px;
+    width: ${(props: { width: any; }) => props.width}px;
     height: calc(100vh - 330px);
     background-color: #2c2c2c;
     border: 1px solid #444;
@@ -110,8 +110,8 @@ const Tooltip = styled.div<{ visible: boolean }>`
     font-size: 12px;
     white-space: nowrap;
     pointer-events: none;
-    opacity: ${(props) => (props.visible ? 1 : 0)};
-    visibility: ${(props) => (props.visible ? "visible" : "hidden")};
+    opacity: ${(props: { visible: any; }) => (props.visible ? 1 : 0)};
+    visibility: ${(props: { visible: any; }) => (props.visible ? "visible" : "hidden")};
     transition:
         opacity 0.2s,
         visibility 0.2s;
@@ -159,7 +159,7 @@ const FilterButton = styled.button<{ active: boolean }>`
     border: none;
     cursor: pointer;
 
-    ${(props) =>
+    ${(props: { active: any; }) =>
         props.active
             ? `
     background-color: #3B82F6;
@@ -177,7 +177,7 @@ const FilterButton = styled.button<{ active: boolean }>`
 
 const LogEntryContainer = styled.div<{ borderColor: string }>`
     background-color: #1f2937;
-    border: 1px solid ${(props) => props.borderColor};
+    border: 1px solid ${(props: { borderColor: any; }) => props.borderColor};
     border-radius: 4px;
     padding: 5px;
     margin-bottom: 8px;
@@ -198,14 +198,14 @@ const LogHeaderLeft = styled.div`
 `;
 
 const LogLevelContainer = styled.div<{ textColor: string }>`
-    color: ${(props) => props.textColor};
+    color: ${(props: { textColor: any; }) => props.textColor};
     display: flex;
     align-items: center;
     gap: 4px;
 `;
 
 const LogLevelBadge = styled.span<{ badgeColor: string }>`
-    ${(props) => props.badgeColor};
+    ${(props: { badgeColor: any; }) => props.badgeColor};
     padding: 2px 6px;
     border-radius: 2px;
     font-size: 12px;
@@ -317,7 +317,7 @@ const CodeBlock = styled.div`
 `;
 
 const NestedItem = styled.div<{ level: number }>`
-    margin-left: ${(props) => props.level * 16}px;
+    margin-left: ${(props: { level: number; }) => props.level * 16}px;
     margin-bottom: 4px;
     padding: 2px 0;
 `;
@@ -581,7 +581,7 @@ const TooltipWrapper: React.FC<{
             onMouseEnter={() => setShowTooltip(true)}
             onMouseLeave={() => setShowTooltip(false)}
         >
-            {children}
+            {children as any}
             <Tooltip visible={showTooltip}>{tooltip}</Tooltip>
         </IconButton>
     );

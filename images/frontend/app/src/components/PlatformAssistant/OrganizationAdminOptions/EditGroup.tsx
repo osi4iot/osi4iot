@@ -279,6 +279,7 @@ const EditGroup: FC<EditGroupProps> = ({
             <StaticFormContainer>
                 <Formik initialValues={editGroupInputData} validationSchema={validationSchema} onSubmit={onSubmit}>
                     {(formik) => (
+                        // @ts-ignore
                         <Form>
                             <ControlsContainer>
                                 <FieldContainer>

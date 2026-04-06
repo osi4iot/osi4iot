@@ -10,6 +10,7 @@ import { IBuilding } from '../TableColumns/buildingsColumns';
 import { IDigitalTwinState, ISensorState } from './GeolocationContainer';
 import { findOutStatus } from './statusTools';
 import { IGroupManaged } from '../TableColumns/groupsManagedColumns';
+import { Column } from 'react-table';
 
 
 const FormContainer = styled.div`
@@ -177,7 +178,7 @@ const SelectOrgOfGroupsManaged: FC<SelectOrgOfGroupsManagedProps> = (
                 <TableContainer>
                     <TableWithPaginationAndRowSelection
                         dataTable={selectOrgsTable}
-                        columnsTable={SELECT_ORG_OF_GROUPS_MANAGED_COLUMNS}
+                        columnsTable={SELECT_ORG_OF_GROUPS_MANAGED_COLUMNS as Column<any>[]}
                         selectedItem={orgSelected}
                         setSelectedItem={(selectedOrgOfGroupsManaged: ISelectOrgOfGroupsManaged) => setSelectedOrgOfGroupsManaged(selectedOrgOfGroupsManaged)}
                         multipleSelection={false}

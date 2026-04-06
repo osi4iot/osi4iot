@@ -312,6 +312,7 @@ const EditFloor: FC<EditFloorProps> = ({ buildingsTable, floors, backToTable, re
                     {
                         formik => {
                             return (
+                                // @ts-ignore
                                 <Form>
                                     <ControlsContainer>
                                         <FieldContainer>
