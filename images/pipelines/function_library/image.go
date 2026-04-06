@@ -12,7 +12,6 @@ import (
 	"image/gif"
 	"image/jpeg"
 	"image/png"
-	"os"
 	"pipelines/common"
 
 	"github.com/nfnt/resize"
@@ -59,22 +58,22 @@ func (img *Image) DecodeImageFromBase64(imageStr string) image.Image {
 	return pic
 }
 
-func (img *Image) DecodeImageFromFile(filename string) image.Image {
-	file, err := os.Open(filename)
-	if err != nil {
-		img.node.HandleError(fmt.Errorf("failed to open file %s: %v", filename, err))
-		return nil
-	}
-	defer file.Close()
+// func (img *Image) DecodeImageFromFile(filepath string) image.Image {
+// 	file, err := os.Open(filepath)
+// 	if err != nil {
+// 		img.node.HandleError(fmt.Errorf("failed to open file %s: %v", filepath, err))
+// 		return nil
+// 	}
+// 	defer file.Close()
 
-	pic, _, err := image.Decode(file)
-	if err != nil {
-		img.node.HandleError(fmt.Errorf("failed to decode image from file %s: %v", filename, err))
-		return nil
-	}
+// 	pic, _, err := image.Decode(file)
+// 	if err != nil {
+// 		img.node.HandleError(fmt.Errorf("failed to decode image from file %s: %v", filepath, err))
+// 		return nil
+// 	}
 
-	return pic
-}
+// 	return pic
+// }
 
 func (img *Image) EncodeImageToBase64(pic image.Image, format string, quality int) string {
 	var buf bytes.Buffer
@@ -112,36 +111,36 @@ func (img *Image) EncodeImageToBase64(pic image.Image, format string, quality in
 	return string(jsonBytes)
 }
 
-func (img *Image) EncodeImageToFile(filename string, format string, src image.Image) {
-	file, err := os.Create(filename)
-	if err != nil {
-		img.node.HandleError(fmt.Errorf("failed to create file %s: %v", filename, err))
-		return
-	}
-	defer file.Close()
+// func (img *Image) EncodeImageToFile(filepath string, format string, src image.Image) {
+// 	file, err := os.Create(filepath)
+// 	if err != nil {
+// 		img.node.HandleError(fmt.Errorf("failed to create file %s: %v", filepath, err))
+// 		return
+// 	}
+// 	defer file.Close()
 
-	switch format {
-	case "jpeg", "jpg":
-		options := &jpeg.Options{Quality: 80}
-		err = jpeg.Encode(file, src, options)
-		if err != nil {
-			img.node.HandleError(fmt.Errorf("failed to encode JPEG: %v", err))
-		}
-	case "png":
-		err = png.Encode(file, src)
-		if err != nil {
-			img.node.HandleError(fmt.Errorf("failed to encode PNG: %v", err))
-		}
-	case "gif":
-		options := &gif.Options{NumColors: 256, Quantizer: nil, Drawer: nil}
-		err = gif.Encode(file, src, options)
-		if err != nil {
-			img.node.HandleError(fmt.Errorf("failed to encode GIF: %v", err))
-		}
-	default:
-		img.node.HandleError(fmt.Errorf("unsupported format: %s. Use 'jpeg', 'png' or 'gif'", format))
-	}
-}
+// 	switch format {
+// 	case "jpeg", "jpg":
+// 		options := &jpeg.Options{Quality: 80}
+// 		err = jpeg.Encode(file, src, options)
+// 		if err != nil {
+// 			img.node.HandleError(fmt.Errorf("failed to encode JPEG: %v", err))
+// 		}
+// 	case "png":
+// 		err = png.Encode(file, src)
+// 		if err != nil {
+// 			img.node.HandleError(fmt.Errorf("failed to encode PNG: %v", err))
+// 		}
+// 	case "gif":
+// 		options := &gif.Options{NumColors: 256, Quantizer: nil, Drawer: nil}
+// 		err = gif.Encode(file, src, options)
+// 		if err != nil {
+// 			img.node.HandleError(fmt.Errorf("failed to encode GIF: %v", err))
+// 		}
+// 	default:
+// 		img.node.HandleError(fmt.Errorf("unsupported format: %s. Use 'jpeg', 'png' or 'gif'", format))
+// 	}
+// }
 
 func (img *Image) NewAlpha(r image.Rectangle) *image.Alpha {
 	return image.NewAlpha(r)

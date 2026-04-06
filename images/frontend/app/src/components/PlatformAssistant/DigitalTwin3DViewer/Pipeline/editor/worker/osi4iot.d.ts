@@ -322,13 +322,13 @@ interface KvStore {
 /** Yolo instance */
 interface Yolo {
     /** Preprocesses image */
-    Preprocess(pic: Image): number[];
+    Preprocess(pic: ImagePackage): number[];
 
     /** Postprocesses YOLO output */
     Postprocess(output: number[], w: number, h: number): YoloBoundingBox[];
 
     /** Draws bounding boxes */
-    DrawBoundingBoxes(pic: Image, boxes: YoloBoundingBox[], fontSize: number, opacity: number): Image;
+    DrawBoundingBoxes(pic: ImagePackage, boxes: YoloBoundingBox[], fontSize: number, opacity: number): ImagePackage;
 
     /** Returns YOLO class name */
     GetYoloClass(index: number): string;
@@ -357,6 +357,8 @@ interface YoloBoundingBox {
     /** Returns union area */
     Union(box: YoloBoundingBox): number;
 }
+
+type ExtrapolationMode = "zero" | "constant" | "linear";
 
 /** Dsp instance */
 interface DSP {
@@ -388,7 +390,7 @@ interface DSP {
         targetFs: number,
         startTime: number,
         endTime: number,
-        extrapolMode: string,
+        extrapolMode: ExtrapolationMode,
     ): DspInterpolationConfig;
 
     /** Interpolates to uniform grid */
@@ -405,17 +407,90 @@ interface DSP {
 }
 
 /** DspWelchConfig instance */
-interface DspWelchConfig {}
+interface DspWelchConfig {
+    /* Frequency resolution in Hz of the PSD estimate */
+    Fs: number;
+
+    /* Number of samples per window (e.g. ≈ Fs * window_duration) */
+    WinLen: number;
+
+    /* Fraction of overlap between windows (0.0..0.95) */
+    Overlap: number;
+
+    /* Number of FFT points (>= WinLen; if 0 => smallest 2^k >= WinLen) */
+    NFFT: number;
+
+    /* If true, use NFFT>=WinLen (recommended) */
+    ZeroPadToNFFT: boolean;
+
+    /* Min frequency of the band of interest [Hz], 0 to ignore */
+    MinFreq: number;
+
+    /* Max frequency of the band of interest [Hz], 0 to ignore */
+    MaxFreq: number;
+
+    /* Minimum prominence of peaks in dB, e.g., 6..12 dB */
+    MinProminenceDB: number;
+
+    /* Minimum separation between peaks in Hz */
+    MinDistanceHz: number;
+
+    /* Local median smoothing window size in bins (odd), e.g., 9..21 */
+    SmoothBins: number;
+}
 
 /** DspPeak instance */
-interface DspPeak {}
+interface DspPeak {
+    /* Frequency of the peak in Hz (interpolated) */
+    Freq: number;
+
+    /* Power of the peak in PSD units (e.g., μV^2/Hz) */
+    Power: number;
+
+    /* Power of the peak in dB (10*log10(PSD)) */
+    PowerdB: number;
+
+    /* Prominence of the peak in dB relative to local background */
+    PromdB: number;
+
+    /* -3 dB bandwidth of the peak in Hz */
+    BandwidthHz: number;
+
+    /* Quality factor of the peak (f0 / BW) */
+    Q: number;
+
+    /* Damping ratio of the peak (≈ 1/(2Q)) */
+    Zeta: number;
+
+    /* Bin index of the peak (for traceability) */
+    Idx: number;
+}
 
 /** DspInterpolationConfig instance */
-interface DspInterpolationConfig {}
+interface DspInterpolationConfig {
+    /* Target sampling rate in Hz */
+    TargetFs: number;
+
+    /* Start time for interpolation (0 for automatic) */
+    StartTime: number;
+
+    /* End time for interpolation (0 for automatic) */
+    EndTime: number;
+
+    /* Extrapolation mode for out-of-bounds values: "zero", "constant", "linear" */
+    ExtrapolMode: ExtrapolationMode;
+}
+
+type ImageFormat = "png" | "jpg" | "jpeg" | "gif";
 
 interface ImagePackage {
-    // ── Constructors ───────────────────────────────────────────────────────────
+    /** Decodes a base64-encoded image. */
+    DecodeImageFromBase64(base64String: string): ImagePackage;
 
+    /** Encodes an image to a base64 string. */
+    EncodeImageToBase64(img: ImagePackage, format: ImageFormat, quality: number): string;
+
+    // ── Constructors ───────────────────────────────────────────────────────────
     /** Creates a new RGBA image with the given bounds. */
     NewRGBA(r: ImageRectangle): ImageRGBA;
 
