@@ -52,8 +52,8 @@ const ChatContainer = styled.div`
     position: fixed;
     top: 268px;
     right: 15px;
-    width: 550px;
-    min-width: 550px;
+    width: 600px;
+    min-width: 600px;
     max-width: calc(100vw - 100px);
     height: calc(100vh - 330px);
     background-color: #2c2c2c;

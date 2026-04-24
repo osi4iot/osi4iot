@@ -3,6 +3,7 @@ package function_library
 import (
 	"fmt"
 	"pipelines/common"
+	"pipelines/message"
 	"pipelines/utils"
 )
 
@@ -17,17 +18,17 @@ func newLogger(node common.Node) *NodeLogger {
 }
 
 func (l *NodeLogger) Msg(rawMsg any) {
-	var message common.Message
 	jsonData, err := utils.MarshalData(rawMsg)
 	if err != nil {
 		return
 	}
-	err = utils.UnmarshalData(jsonData, &message)
-	if err != nil {
+
+	var msg message.Message
+	if err := utils.UnmarshalData(jsonData, &msg); err != nil {
 		return
 	}
 
-	l.node.HandleDebug(message, 0)
+	l.node.HandleDebug(&msg, 0)
 }
 
 func (l *NodeLogger) Infof(format string, args ...interface{}) {

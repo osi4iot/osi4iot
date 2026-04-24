@@ -11,14 +11,14 @@ import (
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/api/types/swarm"
-	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/configs"
-	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/networks"
-	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/resources"
-	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/secrets"
-	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/services"
-	pt "github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/types"
-	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/utils"
-	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/volumes"
+	"github.com/osi4iot/osi4iot/utils/osi4iot/internals/configs"
+	"github.com/osi4iot/osi4iot/utils/osi4iot/internals/networks"
+	"github.com/osi4iot/osi4iot/utils/osi4iot/internals/resources"
+	"github.com/osi4iot/osi4iot/utils/osi4iot/internals/secrets"
+	"github.com/osi4iot/osi4iot/utils/osi4iot/internals/services"
+	pt "github.com/osi4iot/osi4iot/utils/osi4iot/internals/types"
+	"github.com/osi4iot/osi4iot/utils/osi4iot/internals/utils"
+	"github.com/osi4iot/osi4iot/utils/osi4iot/internals/volumes"
 )
 
 // SecretUpdateConfig contains the configuration to update a secret

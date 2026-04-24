@@ -6,22 +6,22 @@ export const predefinedSensorTypes = [
 		markerSvgFileName: "-",
 		markerSvgString: "",
 		defaultPayloadJsonSchema: {
-			"type": "object",
-			"properties": {
-				"longitude": {
-					"type": "number",
-					"description": "Longitude",
-					"units": "-"
+			type: "object",
+			properties: {
+				longitude: {
+					type: "number",
+					description: "Longitude",
+					units: "-",
 				},
-				"latitude": {
-					"type": "number",
-					"description": "Latitude",
-					"units": "-"
-				}
-			}
+				latitude: {
+					type: "number",
+					description: "Latitude",
+					units: "-",
+				},
+			},
 		},
 		dashboardRefreshString: "1s",
-		dashboardTimeWindow: "5m"
+		dashboardTimeWindow: "5m",
 	},
 	{
 		type: "Mobile accelerations",
@@ -30,20 +30,20 @@ export const predefinedSensorTypes = [
 		markerSvgFileName: "-",
 		markerSvgString: "",
 		defaultPayloadJsonSchema: {
-			"type": "object",
-			"properties": {
-				"mobile_accelerations": {
-					"type": "array",
-					"description": "Ax,Ay,Az",
-					"units": "m/s^2",
-					"items": {
-						"type": "number"
-					}
-				}
-			}
+			type: "object",
+			properties: {
+				mobile_accelerations: {
+					type: "array",
+					description: "Ax,Ay,Az",
+					units: "m/s^2",
+					items: {
+						type: "number",
+					},
+				},
+			},
 		},
 		dashboardRefreshString: "200ms",
-		dashboardTimeWindow: "25s"
+		dashboardTimeWindow: "25s",
 	},
 	{
 		type: "Mobile orientation",
@@ -52,20 +52,20 @@ export const predefinedSensorTypes = [
 		markerSvgFileName: "-",
 		markerSvgString: "",
 		defaultPayloadJsonSchema: {
-			"type": "object",
-			"properties": {
-				"mobile_quaternion": {
-					"type": "array",
-					"description": "q0,q1,q2,q3",
-					"units": "-",
-					"items": {
-						"type": "number"
-					}
-				}
-			}
+			type: "object",
+			properties: {
+				mobile_quaternion: {
+					type: "array",
+					description: "q0,q1,q2,q3",
+					units: "-",
+					items: {
+						type: "number",
+					},
+				},
+			},
 		},
 		dashboardRefreshString: "200ms",
-		dashboardTimeWindow: "25s"
+		dashboardTimeWindow: "25s",
 	},
 	{
 		type: "Mobile motion",
@@ -74,20 +74,20 @@ export const predefinedSensorTypes = [
 		markerSvgFileName: "-",
 		markerSvgString: "",
 		defaultPayloadJsonSchema: {
-			"type": "object",
-			"properties": {
-				"mobile_motion": {
-					"type": "array",
-					"description": "ax(m/s^2),ay(m/s^2),az(m/s^2),q0,q1,q2,q3",
-					"units": "-",
-					"items": {
-						"type": "number"
-					}
-				}
-			}
+			type: "object",
+			properties: {
+				mobile_motion: {
+					type: "array",
+					description: "ax(m/s^2),ay(m/s^2),az(m/s^2),q0,q1,q2,q3",
+					units: "-",
+					items: {
+						type: "number",
+					},
+				},
+			},
 		},
 		dashboardRefreshString: "200ms",
-		dashboardTimeWindow: "25s"
+		dashboardTimeWindow: "25s",
 	},
 	{
 		type: "Mobile photo",
@@ -96,17 +96,36 @@ export const predefinedSensorTypes = [
 		markerSvgFileName: "-",
 		markerSvgString: "",
 		defaultPayloadJsonSchema: {
-			"type": "object",
-			"properties": {
-				"mobile_photo": {
-					"type": "string",
-					"description": "Buffer string",
-					"units": "-",
-				}
-			}
+			type: "object",
+			properties: {
+				mobile_photo: {
+					type: "string",
+					description: "Buffer string",
+					units: "-",
+				},
+			},
 		},
 		dashboardRefreshString: "1s",
-		dashboardTimeWindow: "5m"
+		dashboardTimeWindow: "5m",
+	},
+	{
+		type: "Mobile video",
+		iconSvgFileName: "mobile_video_sensor.svg",
+		iconSvgString: `<svg id="Layer_1" enable-background="new 0 0 512 512" viewBox="0 0 512 512" version="1.1"><path id="rect998" style="fill:#000000;stroke-width:0.933265" d="m 155.28547,8.59375e-4 c -27.397,0 -49.453,22.055999625 -49.453,49.452999625 v 96.010001 c 36.216,-42.329 90.062,-69.223001 150.168,-69.223001 60.105,0 113.947,26.893001 150.164,69.221001 V 90.730859 c 0,-1.846 -1.486,-3.332 -3.332,-3.332 v -37.945 c 0,-27.397 -22.055,-49.452999625 -49.451,-49.452999625 z m 99.047,9.996000025 a 6.3100381,6.3100381 0 0 1 6.31,6.3099996 6.3100381,6.3100381 0 0 1 -6.31,6.309 6.3100381,6.3100381 0 0 1 -6.309,-6.309 6.3100381,6.3100381 0 0 1 6.309,-6.3099996 z m -14.998,12.6349996 a 2.5,2.5 0 0 1 1.904,1.234 c 2.703,4.682 7.688,7.56 13.094,7.56 5.406,0 10.393,-2.878 13.096,-7.56 a 2.5,2.5 0 0 1 3.414,-0.914 2.5,2.5 0 0 1 0.916,3.414 c -3.592,6.222 -10.242,10.06 -17.426,10.06 -7.184,0 -13.832,-3.838 -17.424,-10.06 a 2.5,2.5 0 0 1 0.916,-3.414 2.5,2.5 0 0 1 1.51,-0.32 z m 16.666,68.609 c -100.818,0 -182.365001,81.301001 -182.365001,181.760001 0,100.458 81.547001,181.759 182.365001,181.759 100.818,0 182.363,-81.301 182.363,-181.759 0,-100.459 -81.545,-181.760001 -182.363,-181.760001 z m -23.486,88.684001 h 115.203 c 22.499,0 40.853,18.333 40.853,40.824 v 66.883 a 7.4999499,7.4999499 0 0 1 0.455,-0.05 7.4999499,7.4999499 0 0 1 7.5,7.5 v 27.521 a 7.4999499,7.4999499 0 0 1 -7.5,7.5 7.4999499,7.4999499 0 0 1 -0.761,-0.07 c -2.387,20.246 -19.669,36.043 -40.547,36.043 h -115.203 c -21.176,0 -38.476,-16.299 -40.463,-36.959 l -32.653,13.863 c -10.591,4.497 -20.959,5.371 -29.547,1.725 -8.587,-3.646 -14.378,-12.61 -14.378,-22.85 v -97.713 c 0,-10.24 5.791,-19.201 14.378,-22.847 8.588,-3.646 18.956,-2.772 29.547,1.724 l 32.653,13.862 c 1.987,-20.66 19.288,-36.957 40.463,-36.957 z m 0,15 c -14.457,0 -25.856,11.391 -25.856,25.824 v 7.299 a 7.5006999,7.5006999 0 0 1 -10.43,6.902 l -42.691,-18.123 c -7.907,-3.357 -14.287,-3.226 -17.822,-1.725 -3.535,1.501 -5.242,3.575 -5.242,9.041 v 97.713 c 0,5.467 1.707,7.54 5.242,9.041 3.535,1.501 9.915,1.632 17.822,-1.724 l 42.691,-18.123 a 7.5006999,7.5006999 0 0 1 10.43,6.902 v 7.299 c 0,14.433 11.4,25.826 25.856,25.826 h 115.203 c 14.456,0 25.853,-11.393 25.853,-25.826 v -104.502 c 0,-14.433 -11.397,-25.824 -25.853,-25.824 z m 113.757,10.074 a 17.948624,18.132271 0 0 1 17.948,18.131 17.948624,18.132271 0 0 1 -17.948,18.132 17.948624,18.132271 0 0 1 -17.949,-18.132 17.948624,18.132271 0 0 1 17.949,-18.131 z m -46.754,8.732 15.19,1.035 a 5,5 0 0 1 4.648,5.328 5,5 0 0 1 -5.328,4.649 l -15.189,-1.035 a 5,5 0 0 1 -4.649,-5.328 5,5 0 0 1 5.328,-4.649 z m 20.082,20.379 a 5,5 0 0 1 0.971,0.135 5,5 0 0 1 3.094,2.252 5,5 0 0 1 -1.654,6.873 l -16.213,9.924 a 5,5 0 0 1 -6.875,-1.655 5,5 0 0 1 1.654,-6.875 l 16.213,-9.922 a 5,5 0 0 1 2.81,-0.732 z m 15.674,12.584 a 5,5 0 0 1 1.909,0.41 5,5 0 0 1 2.605,6.574 l -6.818,15.764 a 5,5 0 0 1 -6.573,2.606 5,5 0 0 1 -2.605,-6.575 l 6.816,-15.763 a 5,5 0 0 1 2.748,-2.664 5,5 0 0 1 1.918,-0.352 z m -229.441,153.844 v 62.01 c 0,27.396 22.056,49.453 49.453,49.453 h 198.096 c 27.396,0 49.451,-22.057 49.451,-49.453 v -58.172 c -36.147,40.117 -88.554,65.384 -146.832,65.384 -60.106,0 -113.952,-26.894 -150.168,-69.222 z" /></svg>`,
+		markerSvgFileName: "-",
+		markerSvgString: "",
+		defaultPayloadJsonSchema: {
+			type: "object",
+			properties: {
+				mobile_photo: {
+					type: "string",
+					description: "Buffer string",
+					units: "-",
+				},
+			},
+		},
+		dashboardRefreshString: "1s",
+		dashboardTimeWindow: "5m",
 	},
 	{
 		type: "Generic sensor",
@@ -115,17 +134,17 @@ export const predefinedSensorTypes = [
 		markerSvgFileName: "-",
 		markerSvgString: "",
 		defaultPayloadJsonSchema: {
-			"type": "object",
-			"properties": {
-				"parameter": {
-					"type": "number",
-					"description": "parameter",
-					"units": "-"
-				}
-			}
+			type: "object",
+			properties: {
+				parameter: {
+					type: "number",
+					description: "parameter",
+					units: "-",
+				},
+			},
 		},
 		dashboardRefreshString: "1s",
-		dashboardTimeWindow: "5m"
+		dashboardTimeWindow: "5m",
 	},
 	{
 		type: "Temperature",
@@ -134,17 +153,17 @@ export const predefinedSensorTypes = [
 		markerSvgFileName: "-",
 		markerSvgString: "",
 		defaultPayloadJsonSchema: {
-			"type": "object",
-			"properties": {
-				"temperature": {
-					"type": "number",
-					"description": "Temperature",
-					"units": "°C"
-				}
-			}
+			type: "object",
+			properties: {
+				temperature: {
+					type: "number",
+					description: "Temperature",
+					units: "°C",
+				},
+			},
 		},
 		dashboardRefreshString: "1s",
-		dashboardTimeWindow: "5m"
+		dashboardTimeWindow: "5m",
 	},
 	{
 		type: "Pressure",
@@ -153,17 +172,17 @@ export const predefinedSensorTypes = [
 		markerSvgFileName: "-",
 		markerSvgString: "",
 		defaultPayloadJsonSchema: {
-			"type": "object",
-			"properties": {
-				"pressure": {
-					"type": "number",
-					"description": "Presure",
-					"units": "Pa"
-				}
-			}
+			type: "object",
+			properties: {
+				pressure: {
+					type: "number",
+					description: "Presure",
+					units: "Pa",
+				},
+			},
 		},
 		dashboardRefreshString: "1s",
-		dashboardTimeWindow: "5m"
+		dashboardTimeWindow: "5m",
 	},
 	{
 		type: "Humidity",
@@ -172,17 +191,17 @@ export const predefinedSensorTypes = [
 		markerSvgFileName: "-",
 		markerSvgString: "",
 		defaultPayloadJsonSchema: {
-			"type": "object",
-			"properties": {
-				"humidity": {
-					"type": "number",
-					"description": "Humidity",
-					"units": "%"
-				}
-			}
+			type: "object",
+			properties: {
+				humidity: {
+					type: "number",
+					description: "Humidity",
+					units: "%",
+				},
+			},
 		},
 		dashboardRefreshString: "1s",
-		dashboardTimeWindow: "5m"
+		dashboardTimeWindow: "5m",
 	},
 	{
 		type: "Power",
@@ -191,17 +210,17 @@ export const predefinedSensorTypes = [
 		markerSvgFileName: "-",
 		markerSvgString: "",
 		defaultPayloadJsonSchema: {
-			"type": "object",
-			"properties": {
-				"power": {
-					"type": "number",
-					"description": "Power",
-					"units": "kW"
-				}
-			}
+			type: "object",
+			properties: {
+				power: {
+					type: "number",
+					description: "Power",
+					units: "kW",
+				},
+			},
 		},
 		dashboardRefreshString: "1s",
-		dashboardTimeWindow: "5m"
+		dashboardTimeWindow: "5m",
 	},
 	{
 		type: "Energy consumption",
@@ -210,17 +229,17 @@ export const predefinedSensorTypes = [
 		markerSvgFileName: "-",
 		markerSvgString: "",
 		defaultPayloadJsonSchema: {
-			"type": "object",
-			"properties": {
-				"energy_consumption": {
-					"type": "number",
-					"description": "Energy_consumption",
-					"units": "kW"
-				}
-			}
+			type: "object",
+			properties: {
+				energy_consumption: {
+					type: "number",
+					description: "Energy_consumption",
+					units: "kW",
+				},
+			},
 		},
 		dashboardRefreshString: "1s",
-		dashboardTimeWindow: "5m"
+		dashboardTimeWindow: "5m",
 	},
 	{
 		type: "Flow",
@@ -229,17 +248,17 @@ export const predefinedSensorTypes = [
 		markerSvgFileName: "-",
 		markerSvgString: "",
 		defaultPayloadJsonSchema: {
-			"type": "object",
-			"properties": {
-				"flow": {
-					"type": "number",
-					"description": "Flow",
-					"units": "m^3/h"
-				}
-			}
+			type: "object",
+			properties: {
+				flow: {
+					type: "number",
+					description: "Flow",
+					units: "m^3/h",
+				},
+			},
 		},
 		dashboardRefreshString: "1s",
-		dashboardTimeWindow: "5m"
+		dashboardTimeWindow: "5m",
 	},
 	{
 		type: "Proximity",
@@ -248,17 +267,17 @@ export const predefinedSensorTypes = [
 		markerSvgFileName: "-",
 		markerSvgString: "",
 		defaultPayloadJsonSchema: {
-			"type": "object",
-			"properties": {
-				"proximity": {
-					"type": "number",
-					"description": "Proximity",
-					"units": "-"
-				}
-			}
+			type: "object",
+			properties: {
+				proximity: {
+					type: "number",
+					description: "Proximity",
+					units: "-",
+				},
+			},
 		},
 		dashboardRefreshString: "1s",
-		dashboardTimeWindow: "5m"
+		dashboardTimeWindow: "5m",
 	},
 	{
 		type: "Distance",
@@ -267,17 +286,17 @@ export const predefinedSensorTypes = [
 		markerSvgFileName: "-",
 		markerSvgString: "",
 		defaultPayloadJsonSchema: {
-			"type": "object",
-			"properties": {
-				"distance": {
-					"type": "number",
-					"description": "Distance",
-					"units": "m"
-				}
-			}
+			type: "object",
+			properties: {
+				distance: {
+					type: "number",
+					description: "Distance",
+					units: "m",
+				},
+			},
 		},
 		dashboardRefreshString: "1s",
-		dashboardTimeWindow: "5m"
+		dashboardTimeWindow: "5m",
 	},
 	{
 		type: "Counter",
@@ -286,17 +305,17 @@ export const predefinedSensorTypes = [
 		markerSvgFileName: "-",
 		markerSvgString: "",
 		defaultPayloadJsonSchema: {
-			"type": "object",
-			"properties": {
-				"counter": {
-					"type": "number",
-					"description": "Counter",
-					"units": "-"
-				}
-			}
+			type: "object",
+			properties: {
+				counter: {
+					type: "number",
+					description: "Counter",
+					units: "-",
+				},
+			},
 		},
 		dashboardRefreshString: "1s",
-		dashboardTimeWindow: "5m"
+		dashboardTimeWindow: "5m",
 	},
 	{
 		type: "Strain gauge",
@@ -305,17 +324,17 @@ export const predefinedSensorTypes = [
 		markerSvgFileName: "-",
 		markerSvgString: "",
 		defaultPayloadJsonSchema: {
-			"type": "object",
-			"properties": {
-				"strain": {
-					"type": "number",
-					"description": "Strain",
-					"units": "µε"
-				}
-			}
+			type: "object",
+			properties: {
+				strain: {
+					type: "number",
+					description: "Strain",
+					units: "µε",
+				},
+			},
 		},
 		dashboardRefreshString: "200ms",
-		dashboardTimeWindow: "25s"
+		dashboardTimeWindow: "25s",
 	},
 	{
 		type: "Inclinometer",
@@ -324,20 +343,20 @@ export const predefinedSensorTypes = [
 		markerSvgFileName: "-",
 		markerSvgString: "",
 		defaultPayloadJsonSchema: {
-			"type": "object",
-			"properties": {
-				"rotations": {
-					"type": "array",
-					"description": "Rot_x,Rot_y",
-					"units": "rad",
-					"items": {
-						"type": "number"
-					}
-				}
-			}
+			type: "object",
+			properties: {
+				rotations: {
+					type: "array",
+					description: "Rot_x,Rot_y",
+					units: "rad",
+					items: {
+						type: "number",
+					},
+				},
+			},
 		},
 		dashboardRefreshString: "200ms",
-		dashboardTimeWindow: "25s"
+		dashboardTimeWindow: "25s",
 	},
 	{
 		type: "Accelerometer",
@@ -346,20 +365,20 @@ export const predefinedSensorTypes = [
 		markerSvgFileName: "-",
 		markerSvgString: "",
 		defaultPayloadJsonSchema: {
-			"type": "object",
-			"properties": {
-				"accelerations": {
-					"type": "array",
-					"description": "Ax,Ay,Az",
-					"units": "m/s^2",
-					"items": {
-						"type": "number"
-					}
-				}
-			}
+			type: "object",
+			properties: {
+				accelerations: {
+					type: "array",
+					description: "Ax,Ay,Az",
+					units: "m/s^2",
+					items: {
+						type: "number",
+					},
+				},
+			},
 		},
 		dashboardRefreshString: "200ms",
-		dashboardTimeWindow: "25s"
+		dashboardTimeWindow: "25s",
 	},
 	{
 		type: "Angular velocity",
@@ -368,20 +387,20 @@ export const predefinedSensorTypes = [
 		markerSvgFileName: "-",
 		markerSvgString: "",
 		defaultPayloadJsonSchema: {
-			"type": "object",
-			"properties": {
-				"angular_velocity": {
-					"type": "array",
-					"description": "Vel_theta_x,Vel_theta_y,Vel_theta_z",
-					"units": "rad/s",
-					"items": {
-						"type": "number"
-					}
-				}
-			}
+			type: "object",
+			properties: {
+				angular_velocity: {
+					type: "array",
+					description: "Vel_theta_x,Vel_theta_y,Vel_theta_z",
+					units: "rad/s",
+					items: {
+						type: "number",
+					},
+				},
+			},
 		},
 		dashboardRefreshString: "200ms",
-		dashboardTimeWindow: "25s"
+		dashboardTimeWindow: "25s",
 	},
 	{
 		type: "Statistics",
@@ -390,27 +409,27 @@ export const predefinedSensorTypes = [
 		markerSvgFileName: "-",
 		markerSvgString: "",
 		defaultPayloadJsonSchema: {
-			"type": "object",
-			"properties": {
-				"Min_value": {
-					"type": "number",
-					"description": "Min_value",
-					"units": "-"
+			type: "object",
+			properties: {
+				Min_value: {
+					type: "number",
+					description: "Min_value",
+					units: "-",
 				},
-				"Mean_value": {
-					"type": "number",
-					"description": "Mean_value",
-					"units": "-"
+				Mean_value: {
+					type: "number",
+					description: "Mean_value",
+					units: "-",
 				},
-				"Max_value": {
-					"type": "number",
-					"description": "Max_value",
-					"units": "-"
-				}
-			}
+				Max_value: {
+					type: "number",
+					description: "Max_value",
+					units: "-",
+				},
+			},
 		},
 		dashboardRefreshString: "1s",
-		dashboardTimeWindow: "5m"
+		dashboardTimeWindow: "5m",
 	},
 	{
 		type: "Supply product",
@@ -419,17 +438,17 @@ export const predefinedSensorTypes = [
 		markerSvgFileName: "-",
 		markerSvgString: "",
 		defaultPayloadJsonSchema: {
-			"type": "object",
-			"properties": {
-				"product_state": {
-					"type": "number",
-					"description": "Product state",
-					"units": "-"
-				}
-			}
+			type: "object",
+			properties: {
+				product_state: {
+					type: "number",
+					description: "Product state",
+					units: "-",
+				},
+			},
 		},
 		dashboardRefreshString: "1h",
-		dashboardTimeWindow: "12h"
+		dashboardTimeWindow: "12h",
 	},
 	{
 		type: "Geolocation",
@@ -438,22 +457,21 @@ export const predefinedSensorTypes = [
 		markerSvgFileName: "-",
 		markerSvgString: "",
 		defaultPayloadJsonSchema: {
-			"type": "object",
-			"properties": {
-				"Longitude": {
-					"type": "number",
-					"description": "longitude",
-					"units": "°"
+			type: "object",
+			properties: {
+				Longitude: {
+					type: "number",
+					description: "longitude",
+					units: "°",
 				},
-				"Latitude": {
-					"type": "number",
-					"description": "latitude",
-					"units": "°"
-				}
-			}
+				Latitude: {
+					type: "number",
+					description: "latitude",
+					units: "°",
+				},
+			},
 		},
 		dashboardRefreshString: "5m",
-		dashboardTimeWindow: "25s"
-	}
-]
-
+		dashboardTimeWindow: "25s",
+	},
+];

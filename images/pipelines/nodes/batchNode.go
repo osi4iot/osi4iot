@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"pipelines/common"
 	"pipelines/logger"
+	"pipelines/message"
 	"pipelines/utils"
 	"slices"
 	"sync"
@@ -64,7 +65,7 @@ func CreateBatchNode(node common.NodeData, fm common.Manager, p common.Pipeline)
 			NumOutputs: node.NumOutputs,
 			Settings:   node.Settings,
 			Debug:      node.Debug,
-			Type:       "Inject",
+			Type:       "Batch",
 			LogSubject: logSubject,
 			Fm:         fm,
 			Pipeline:   p,
@@ -85,11 +86,11 @@ func (n *BatchNode) Start(ctx context.Context, log *logger.Logger, needReinitial
 	}
 
 	nodectx, nodeCancel := context.WithCancel(ctx)
-    n.Ctx = nodectx
-    n.Cancel = nodeCancel
+	n.Ctx = nodectx
+	n.Cancel = nodeCancel
 
 	log.Infof("Starting BatchNode with UID: %s", n.NodeUid)
-	
+
 	err := n.InitializeBatchData(ctx, log)
 	if err != nil {
 		errMsg := fmt.Sprintf("BatchNode %s: Failed to initialize batch data: %v", n.NodeUid, err)
@@ -99,7 +100,6 @@ func (n *BatchNode) Start(ctx context.Context, log *logger.Logger, needReinitial
 		return
 	}
 	n.SetStatus(common.NodeStatusRunning)
-	
 
 	if n.Mode == "Group by time interval" {
 		n.wg.Add(1)
@@ -126,13 +126,13 @@ func (n *BatchNode) Stop(log *logger.Logger) {
 		n.setIsCurrentlyLeader(false)
 	}
 
-    n.wg.Wait()
-    n.SetStatus(common.NodeStatusStopped)
-    log.Infof("Node %s stopped successfully", n.NodeUid)
+	n.wg.Wait()
+	n.SetStatus(common.NodeStatusStopped)
+	log.Infof("Node %s stopped successfully", n.NodeUid)
 }
 
 func (n *BatchNode) processMessage(msg common.Message, log *logger.Logger) error {
-	batchData, err := n.AddMessageToBatchData(msg.Payload, log)
+	batchData, err := n.AddMessageToBatchData(msg.GetPayload(), log)
 	if err != nil {
 		log.Errorf("BatchNode %s: Failed to add message to batch data: %v", n.NodeUid, err)
 		return err
@@ -140,11 +140,9 @@ func (n *BatchNode) processMessage(msg common.Message, log *logger.Logger) error
 
 	if n.Mode == "Group by number of messages" {
 		if len(batchData.Messages) >= n.BatchSize {
-			message := common.Message{
-				Payload: map[string]interface{}{
-					"batch": batchData.Messages,
-				},
-			}
+			message := message.NewMessageFromPayload(map[string]any{
+				"batch": batchData.Messages,
+			})
 			// Reset batch data
 			n.InitializeBatchData(n.Ctx, log)
 			n.sendToOutputs(message, log)
@@ -178,7 +176,7 @@ func (n *BatchNode) InitializeBatchData(ctx context.Context, log *logger.Logger)
 }
 
 func (n *BatchNode) GetBatchData(log *logger.Logger) (*BatchData, error) {
-	kvStore, err:= n.GetDigitalTwinKvStore(n.GetDigitalTwinId())
+	kvStore, err := n.GetDigitalTwinKvStore(n.GetDigitalTwinId())
 	if err != nil {
 		return nil, err
 	}
@@ -230,7 +228,7 @@ func (n *BatchNode) GetBatchData(log *logger.Logger) (*BatchData, error) {
 }
 
 func (n *BatchNode) AddMessageToBatchData(message map[string]interface{}, log *logger.Logger) (*BatchData, error) {
-	kvStore, err:= n.GetDigitalTwinKvStore(n.GetDigitalTwinId())
+	kvStore, err := n.GetDigitalTwinKvStore(n.GetDigitalTwinId())
 	if err != nil {
 		return nil, err
 	}
@@ -341,11 +339,10 @@ func (n *BatchNode) runTimeIntervalCheck(ctx context.Context, interval time.Dura
 			if len(batchData.Messages) > 0 && !batchData.InitialTime.IsZero() {
 				elapsed := time.Since(batchData.InitialTime)
 				if elapsed >= time.Duration(n.BatchInterval)*time.Second {
-					message := common.Message{
-						Payload: map[string]interface{}{
-							"batch": batchData.Messages,
-						},
-					}
+					message := message.NewMessageFromPayload(map[string]any{
+						"batch": batchData.Messages,
+					})
+
 					// Reset batch data
 					n.InitializeBatchData(ctx, n.Fm.Log())
 					n.sendToOutputs(message, n.Fm.Log())

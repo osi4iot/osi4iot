@@ -149,6 +149,13 @@ export interface MqttOptions {
     accessToken: string;
 }
 
+export interface INatsClientOptions {
+  clientId: string;
+  port: number;
+  username: string;
+  accessToken: string;
+}
+
 export interface ChatMessage {
     userName: string;
     message: string;

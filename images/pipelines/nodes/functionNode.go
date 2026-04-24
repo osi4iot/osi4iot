@@ -6,6 +6,7 @@ import (
 	"image"
 	"pipelines/common"
 	"pipelines/logger"
+	"pipelines/message"
 	"pipelines/utils"
 	"strings"
 	"sync"
@@ -110,8 +111,8 @@ func (n *FuncNode) Start(ctx context.Context, log *logger.Logger, needReinitiali
 	}
 
 	nodectx, nodeCancel := context.WithCancel(ctx)
-    n.Ctx = nodectx
-    n.Cancel = nodeCancel
+	n.Ctx = nodectx
+	n.Cancel = nodeCancel
 
 	n.SetStatus(common.NodeStatusRunning)
 	log.Infof("Starting FuncNode with UID: %s", n.NodeUid)
@@ -167,9 +168,9 @@ func (n *FuncNode) Stop(log *logger.Logger) {
 
 	n.resetVMPool(log)
 
-    n.wg.Wait()
-    n.SetStatus(common.NodeStatusStopped)
-    log.Infof("Node %s stopped successfully", n.NodeUid)
+	n.wg.Wait()
+	n.SetStatus(common.NodeStatusStopped)
+	log.Infof("Node %s stopped successfully", n.NodeUid)
 }
 
 func (n *FuncNode) resetVMPool(log *logger.Logger) {
@@ -203,18 +204,16 @@ func (n *FuncNode) QueryResponse(log *logger.Logger) {
 	queueName := fmt.Sprintf("org_%s.dt_%s.query_response.node_%s", n.GetOrgHash(), n.GetDigitalTwinUid(), n.NodeUid)
 	sub, err := n.Fm.NatsQueueSubscribe(queueName, n.NodeUid, func(natsMsg *nats.Msg) {
 		n.Fm.Log().Infof("Received NATS message in node %s: %s", n.NodeUid, string(natsMsg.Data))
-		queryMsg := common.Message{
-			Payload: map[string]interface{}{
-				"data": string(natsMsg.Data),
-			},
-		}
+		queryMsg := message.NewMessageFromPayload(map[string]any{
+			"data": string(natsMsg.Data),
+		})
 		processedData, err := n.processGojaFunc(queryMsg, log)
 		if err != nil || processedData == nil {
 			return
 		}
 
-		if replyMsg, ok := processedData.(common.Message); ok {
-			reply, ok2 := replyMsg.Payload["currentTime"].(string)
+		if replyMsg, ok := processedData.(message.Message); ok {
+			reply, ok2 := replyMsg.GetStringFromPayload("currentTime")
 			if ok2 {
 				n.Fm.Log().Infof("Replying to NATS message in node %s: %s", n.NodeUid, reply)
 				natsMsg.Respond([]byte(reply))
@@ -390,7 +389,6 @@ func (n *FuncNode) returnVM(vm *goja.Runtime) {
 	}
 }
 
-
 func (n *FuncNode) processGojaFunc(message common.Message, log *logger.Logger) (interface{}, error) {
 	vm, err := n.getVM()
 	if err != nil {
@@ -441,26 +439,72 @@ func (n *FuncNode) processMessage(message common.Message, log *logger.Logger) er
 	return nil
 }
 
-func (n *FuncNode) convertMessageToJS(vm *goja.Runtime, message common.Message) goja.Value {
+func (n *FuncNode) convertMessageToJS(vm *goja.Runtime, msg common.Message) goja.Value {
 	jsObj := vm.NewObject()
+	jsObj.Set("__goMsg", msg)
 
-	jsObj.Set("topic", message.Topic)
+	jsObj.Set("topic", msg.GetTopic())
 
-	if message.Payload != nil {
-		jsObj.Set("payload", vm.ToValue(message.Payload))
+	messagePayload := msg.GetPayload()
+	if messagePayload != nil {
+		jsObj.Set("payload", vm.ToValue(messagePayload))
 	} else {
 		jsObj.Set("payload", vm.NewObject())
 	}
 
-	if message.State != nil {
-		jsObj.Set("state", vm.ToValue(message.State))
+	messageState := msg.GetState()
+	if messageState != nil {
+		jsObj.Set("state", vm.ToValue(messageState))
 	} else {
 		jsObj.Set("state", vm.NewObject())
 	}
 
-	if message.Image != nil {
-		jsObj.Set("image", vm.ToValue(message.Image))
+	if msg.GetFile() != nil {
+		jsObj.Set("file", vm.ToValue(msg.GetFile()))
 	}
+
+	jsObj.Set("ClearFile", func() { msg.ClearFile() })
+	jsObj.Set("Clone", func() common.Message { return msg.Clone() })
+
+	jsObj.Set("GetTopic", func() string { return msg.GetTopic() })
+	jsObj.Set("GetPayload", func() map[string]any { return msg.GetPayload() })
+	jsObj.Set("GetContentType", func() string { return msg.GetContentType() })
+	jsObj.Set("GetJsonStructure", func() string { return msg.GetJsonStructure() })
+	jsObj.Set("GetState", func() map[string]any { return msg.GetState() })
+	jsObj.Set("HasFile", func() bool { return msg.HasFile() })
+	jsObj.Set("IsImage", func() bool { return msg.IsImage() })
+	jsObj.Set("SetImage", func(img image.Image, name string, contentType string) { msg.SetImage(img, name, contentType) })
+	jsObj.Set("GetImage", func() image.Image {
+		img, err := msg.GetImage()
+		if err != nil {
+			return nil
+		}
+		return img
+	})
+
+	jsObj.Set("GetFieldFromPayload", func(field string) goja.Value {
+		value, exists := msg.GetFieldFromPayload(field)
+		if !exists {
+			return goja.Undefined()
+		}
+		return vm.ToValue(value)
+	})
+
+	jsObj.Set("GetStringFromPayload", func(field string) goja.Value {
+		value, ok := msg.GetStringFromPayload(field)
+		if !ok {
+			return goja.Undefined()
+		}
+		return vm.ToValue(value)
+	})
+
+	jsObj.Set("GetMapFromPayload", func(field string) goja.Value {
+		value, ok := msg.GetMapFromPayload(field)
+		if !ok {
+			return goja.Undefined()
+		}
+		return vm.ToValue(value)
+	})
 
 	return jsObj
 }
@@ -470,6 +514,9 @@ func (n *FuncNode) convertFromJSToMessage(jsValue goja.Value) (interface{}, erro
 
 	switch v := exported.(type) {
 	case map[string]interface{}:
+		if goMsg, ok := v["__goMsg"].(common.Message); ok {
+			return n.mapToMessageFromOriginal(v, goMsg), nil
+		}
 		if n.isMessageLike(v) {
 			return n.mapToMessageDirect(v), nil
 		}
@@ -481,36 +528,82 @@ func (n *FuncNode) convertFromJSToMessage(jsValue goja.Value) (interface{}, erro
 	}
 }
 
+func (n *FuncNode) mapToMessageFromOriginal(data map[string]interface{}, original common.Message) common.Message {
+	msg := original.(*message.Message)
+
+	if t, ok := data["topic"].(string); ok {
+		msg.Topic = t
+	}
+
+	if p, ok := data["payload"].(map[string]any); ok {
+		msg.Payload = p
+	}
+
+	if s, ok := data["state"].(map[string]any); ok {
+		msg.State = s
+	}
+
+	if ct, ok := data["contentType"].(string); ok && ct != "" {
+		msg.ContentType = ct
+	}
+
+	if js, ok := data["jsonStructure"].(string); ok && js != "" {
+		msg.JsonStructure = js
+	}
+
+	msg.File = original.GetFile()
+
+	return msg
+}
+
+func stringOrDefault(m map[string]interface{}, key, defaultVal string) string {
+	if val, ok := m[key].(string); ok && val != "" {
+		return val
+	}
+	return defaultVal
+}
+
 func (n *FuncNode) isMessageLike(data map[string]interface{}) bool {
 	_, hasPayload := data["payload"]
 	return hasPayload
 }
 
 func (n *FuncNode) mapToMessageDirect(data map[string]interface{}) common.Message {
-	msg := common.Message{}
+	var topic, contentType string
+	var payload, state map[string]any
 
 	// Topic
-	if topic, ok := data["topic"].(string); ok {
-		msg.Topic = topic
+	if t, ok := data["topic"].(string); ok {
+		topic = t
 	}
 
 	// Payload
-	if payload, ok := data["payload"].(map[string]interface{}); ok {
-		msg.Payload = payload
+	if p, ok := data["payload"].(map[string]any); ok {
+		payload = p
 	} else {
-		msg.Payload = make(map[string]interface{})
+		payload = make(map[string]any)
 	}
 
 	// State
-	if state, ok := data["state"].(map[string]interface{}); ok {
-		msg.State = state
+	if s, ok := data["state"].(map[string]any); ok {
+		state = s
 	} else {
-		msg.State = make(map[string]interface{})
+		state = make(map[string]any)
 	}
+
+	msg := message.NewMessage(topic, payload, state, contentType, nil)
 
 	// Image
 	if img, ok := data["image"].(image.Image); ok {
-		msg.Image = img
+		name, _ := data["imageName"].(string)
+		if name == "" {
+			name = "image"
+		}
+		contentType, _ := data["contentType"].(string)
+		if contentType == "" {
+			contentType = "image/png"
+		}
+		msg.SetImage(img, name, contentType)
 	}
 
 	return msg
@@ -548,7 +641,17 @@ func (n *FuncNode) convertArrayToMessagesDirect(array []interface{}) interface{}
 	return mixedArray
 }
 
-func (n *FuncNode) handleProcessedData(processedData interface{}, originalMessage common.Message, nodeOutputWires [][]*common.Wire, log *logger.Logger) error {
+func (n *FuncNode) handleProcessedData(
+	processedData interface{},
+	originalMessage common.Message,
+	nodeOutputWires [][]*common.Wire,
+	log *logger.Logger,
+) error {
+	if processedData == nil {
+		log.Infof("FuncNode %s: process function returned null, skipping downstream nodes", n.NodeUid)
+		return nil
+	}
+
 	if len(nodeOutputWires) == 0 {
 		if msg, ok := processedData.(common.Message); ok {
 			if n.Debug == "on" {
@@ -561,7 +664,7 @@ func (n *FuncNode) handleProcessedData(processedData interface{}, originalMessag
 		}
 	} else if len(nodeOutputWires) == 1 {
 		if msg, ok := processedData.(common.Message); ok {
-			n.addEventTriggerTopicType(originalMessage.Topic, &msg)
+			n.addEventTriggerTopicType(originalMessage.GetTopic(), msg)
 			for _, wire := range nodeOutputWires[0] {
 				if n.Debug == "on" {
 					n.HandleDebug(msg, 0)
@@ -575,12 +678,17 @@ func (n *FuncNode) handleProcessedData(processedData interface{}, originalMessag
 		}
 	} else {
 		if msgs, ok := processedData.([]common.Message); ok {
-			for idx, msg := range msgs {
-				n.addEventTriggerTopicType(originalMessage.Topic, &msg)
-				msgs[idx] = msg
+			for _, msg := range msgs {
+				if msg == nil {
+					continue
+				}
+				n.addEventTriggerTopicType(originalMessage.GetTopic(), msg)
 			}
 			for idx, wireArray := range nodeOutputWires {
 				if idx < len(msgs) {
+					if msgs[idx] == nil {
+						continue
+					}
 					if n.Debug == "on" {
 						n.HandleDebug(msgs[idx], idx)
 					}
@@ -590,14 +698,19 @@ func (n *FuncNode) handleProcessedData(processedData interface{}, originalMessag
 				}
 			}
 		} else if msgs, ok := processedData.([]interface{}); ok {
-			for idx, msg := range msgs {
+			for _, msg := range msgs {
+				if msg == nil {
+					continue
+				}
 				if msg1, ok1 := msg.(common.Message); ok1 {
-					n.addEventTriggerTopicType(originalMessage.Topic, &msg1)
-					msgs[idx] = msg1
+					n.addEventTriggerTopicType(originalMessage.GetTopic(), msg1)
 				}
 			}
 			for idx, wireArray := range nodeOutputWires {
 				if idx < len(msgs) {
+					if msgs[idx] == nil {
+						continue
+					}
 					if msg1, ok1 := msgs[idx].(common.Message); ok1 {
 						if n.Debug == "on" {
 							n.HandleDebug(msg1, idx)
@@ -615,12 +728,12 @@ func (n *FuncNode) handleProcessedData(processedData interface{}, originalMessag
 	return nil
 }
 
-func (n *FuncNode) addEventTriggerTopicType(subject string, msg *common.Message) {
-	if msg.Payload["eventTriggerTopicType"] == nil {
+func (n *FuncNode) addEventTriggerTopicType(subject string, msg common.Message) {
+	if _, exists := msg.GetFieldFromPayload("eventTriggerTopicType"); !exists {
 		eventTriggerTopicType := "dev2pdb"
 		if strings.Contains(subject, "sim2dtm") {
 			eventTriggerTopicType = "sim2dtm"
 		}
-		msg.Payload["eventTriggerTopicType"] = eventTriggerTopicType
+		msg.GetPayload()["eventTriggerTopicType"] = eventTriggerTopicType
 	}
 }

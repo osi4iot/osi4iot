@@ -1,5 +1,5 @@
 import React, { useState, useLayoutEffect, useRef } from "react";
-import * as THREE from "three";
+import * as THREE from 'three';
 import { useThree } from "@react-three/fiber";
 import { useHelper, Environment } from "@react-three/drei";
 

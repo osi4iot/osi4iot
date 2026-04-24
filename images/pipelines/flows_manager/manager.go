@@ -303,6 +303,20 @@ func (fm *FlowsManager) NatsPublish(subject string, msg []byte) error {
 	return nil
 }
 
+func (fm *FlowsManager) NatsPublishWithHeaders(subject string, header nats.Header, data []byte) error {
+	msg := &nats.Msg{
+		Subject: subject,
+		Header:  header,
+		Data:    data,
+	}
+	if err := fm.Nats.PublishMsg(msg); err != nil {
+		fm.log.Errorf("Failed to publish message to subject %s: %v", subject, err)
+		return err
+	}
+	return nil
+}
+
+
 func (fm *FlowsManager) isPipelineInitialized(ctx context.Context, digitalTwin *common.DigitalTwin) bool {
 	kvstore := fm.GetDigitalTwinKvStore(digitalTwin.Id)
 	orgHash := fm.GetOrg(digitalTwin.OrgId).OrgHash

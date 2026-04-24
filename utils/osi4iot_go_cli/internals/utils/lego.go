@@ -15,7 +15,7 @@ import (
 	"github.com/go-acme/lego/lego"
 	"github.com/go-acme/lego/providers/dns/route53"
 	"github.com/go-acme/lego/registration"
-	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/types"
+	"github.com/osi4iot/osi4iot/utils/osi4iot/internals/types"
 )
 
 // SetOrUpdateAcmeCerts sets or updates the ACME certificates for the platform

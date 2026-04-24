@@ -117,7 +117,7 @@ const FieldContainer = styled.div`
 type FormikType = FormikProps<InitialMobileSensorData>
 
 interface MobileSensorSelectFormProps {
-    isMqttConnected: boolean;
+    isNatsConnected: boolean;
     handleMobileSensorSelection: (values: any, actions: any) => void
     mobileTopicsManaged: IMobileTopic[];
     initialMobileSensorData: InitialMobileSensorData;
@@ -199,7 +199,7 @@ const findMobileTopicSelected = (
 
 const MobileSensorSelectForm: FC<MobileSensorSelectFormProps> = (
     {
-        isMqttConnected,
+        isNatsConnected,
         handleMobileSensorSelection,
         mobileTopicsManaged,
         initialMobileSensorData,
@@ -346,7 +346,7 @@ const MobileSensorSelectForm: FC<MobileSensorSelectFormProps> = (
     return (
         <>
             <Title>
-                Mobile sensors <ConnectionLed isMqttConnected={isMqttConnected} />
+                Mobile sensors <ConnectionLed isMqttConnected={isNatsConnected} />
             </Title>
             <FormContainer>
                 <Formik initialValues={initialMobileSensorData as InitialMobileSensorData} onSubmit={handleMobileSensorSelection} >

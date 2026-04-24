@@ -7,8 +7,8 @@ import (
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/data"
-	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/utils"
+	"github.com/osi4iot/osi4iot/utils/osi4iot/internals/data"
+	"github.com/osi4iot/osi4iot/utils/osi4iot/internals/utils"
 	clipboard "github.com/tiagomelo/go-clipboard/clipboard"
 )
 

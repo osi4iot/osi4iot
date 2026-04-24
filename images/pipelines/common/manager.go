@@ -110,6 +110,7 @@ type Manager interface {
 	NatsSubscribe(subject string, handler nats.MsgHandler) (*nats.Subscription, error)
 	NatsQueueSubscribe(subject, queue string, handler nats.MsgHandler) (*nats.Subscription, error)
 	NatsPublish(subject string, msg []byte) error
+	NatsPublishWithHeaders(subject string, header nats.Header, data []byte) error
 
 	Log() *logger.Logger
 

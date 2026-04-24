@@ -4,7 +4,7 @@
 // Replaces the old GetVariableInfo / findMethodsAndConstants helpers.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import type { ClassDef, Method, VariableInfo } from "../types";
+import type {  VariableInfo } from "../types";
 import { TypeResolver } from "./TypeResolver";
 
 const resolver = new TypeResolver();
@@ -22,8 +22,8 @@ export function getVariableInfo(
         const [, pkgVar, constantName] = pkgConstantMatch;
         const [sourceClass] = resolver.resolve(pkgVar, fullDoc);
         if (sourceClass) {
-            const constant = sourceClass.methods.find(
-                (m) => m.type === "constant" && m.label === constantName
+            const constant = (sourceClass.methods as any).find(
+                (m: any) => m.type === "constant" && m.label === constantName
             );
             if (constant && (constantName === name || isAssignment(lineText, name))) {
                 return {
@@ -68,7 +68,7 @@ export function getVariableInfo(
             }
 
             // Hovering a direct method on the source class
-            const directMethod = sourceClass.methods.find((m) => m.label === name);
+            const directMethod = (sourceClass.methods as any).find((m: any) => m.label === name);
             if (directMethod) {
                 return buildMethodInfo(directMethod, sourceClass);
             }
@@ -78,7 +78,7 @@ export function getVariableInfo(
             if (chainResult) {
                 const [finalClass, lastMethod] = chainResult;
                 if (finalClass) {
-                    const m = finalClass.methods.find((m) => m.label === lastMethod);
+                    const m = (finalClass.methods as any).find((m: any) => m.label === lastMethod);
                     if (m) return buildMethodInfo(m, finalClass);
                 }
             }
@@ -124,7 +124,7 @@ function isAssignment(line: string, varName: string): boolean {
     return new RegExp(`(?:const|let|var)?\\s*${varName}\\s*=\\s*([^;]+);?`).test(line.trim());
 }
 
-function splitMethodsAndConstants(classDef: ClassDef): { methods: string[]; constants: string[] } {
+function splitMethodsAndConstants(classDef: any): { methods: string[]; constants: string[] } {
     const methods: string[] = [];
     const constants: string[] = [];
     for (const m of classDef.methods) {
@@ -135,14 +135,14 @@ function splitMethodsAndConstants(classDef: ClassDef): { methods: string[]; cons
     return { methods, constants };
 }
 
-function buildInstanceInfo(classDef: ClassDef): VariableInfo {
+function buildInstanceInfo(classDef: any): VariableInfo {
     const { methods, constants } = splitMethodsAndConstants(classDef);
     const properties: string[] = [];
     const pkg = classDef.name.split(".")[0];
     return { sig: "", doc: `Instance of ${pkg} package`, constants, methods, properties };
 }
 
-function buildMethodInfo(method: Method, classDef: ClassDef): VariableInfo {
+function buildMethodInfo(method: any, classDef: any): VariableInfo {
     const [pkg, type] = classDef.name.split(".");
     const sig = method.detail ? `${method.label}${method.detail}. ${method.info}` : "";
     return {
@@ -154,13 +154,13 @@ function buildMethodInfo(method: Method, classDef: ClassDef): VariableInfo {
     };
 }
 
-function buildGoAllMethods(classDef: ClassDef): string[] {
+function buildGoAllMethods(classDef: any): string[] {
     return classDef.methods
-        .filter((m) => m.instanceName)
-        .map((m) => `${m.instanceName}: ${m.info}.`);
+        .filter((m: any) => m.instanceName)
+        .map((m: any) => `${m.instanceName}: ${m.info}.`);
 }
 
-function formatConstant(m: Method): string {
+function formatConstant(m: any): string {
     return m.info ? `${m.label}: ${m.detail}. ${m.info}` : `${m.label}: ${m.detail}.`;
 }
 

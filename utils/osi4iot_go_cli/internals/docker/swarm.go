@@ -12,13 +12,13 @@ import (
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/errdefs"
-	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/configs"
-	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/networks"
-	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/secrets"
-	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/services"
-	pt "github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/types"
-	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/utils"
-	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/volumes"
+	"github.com/osi4iot/osi4iot/utils/osi4iot/internals/configs"
+	"github.com/osi4iot/osi4iot/utils/osi4iot/internals/networks"
+	"github.com/osi4iot/osi4iot/utils/osi4iot/internals/secrets"
+	"github.com/osi4iot/osi4iot/utils/osi4iot/internals/services"
+	pt "github.com/osi4iot/osi4iot/utils/osi4iot/internals/types"
+	"github.com/osi4iot/osi4iot/utils/osi4iot/internals/utils"
+	"github.com/osi4iot/osi4iot/utils/osi4iot/internals/volumes"
 )
 
 func InitPlatform(platformData *pt.PlatformData) error {

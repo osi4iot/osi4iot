@@ -13,7 +13,7 @@ import (
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/api/types/swarm"
-	osi_types "github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/types"
+	osi_types "github.com/osi4iot/osi4iot/utils/osi4iot/internals/types"
 )
 
 // ServiceUpdateProgress contains progress information for service updates

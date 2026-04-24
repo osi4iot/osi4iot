@@ -4,8 +4,8 @@ import (
 	"strconv"
 	"strings"
 
-	pt "github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/types"
-	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/utils"
+	pt "github.com/osi4iot/osi4iot/utils/osi4iot/internals/types"
+	"github.com/osi4iot/osi4iot/utils/osi4iot/internals/utils"
 )
 
 var Data *pt.PlatformData = &pt.PlatformData{}

@@ -42,7 +42,7 @@ func CreateTelegramSendNode(node common.NodeData, fm common.Manager, p common.Pi
 	}
 
 	switch messageOptions {
-	case "Message received options":
+	case "Use message from incoming payload":
 		botToken = org.TelegramBotToken
 	case "Custom message":
 		isCustomMessage = true
@@ -102,12 +102,12 @@ func (n *TelegramSendNode) processSendMessage(msg common.Message, log *logger.Lo
 	opts := []telegram.MessageOption{}
 	if !n.IsCustomMessage {
 		var ok bool
-		message, ok = msg.Payload["message"].(string)
+		message, ok = msg.GetStringFromPayload("message")
 		if !ok {
 			return fmt.Errorf("missing message in TelegramNode with UID: %s", n.NodeUid)
 		}
 
-		if parseMode, ok := msg.Payload["parseMode"].(string); ok && parseMode != "" {
+		if parseMode, ok := msg.GetStringFromPayload("parseMode"); ok && parseMode != "" {
 			if parseMode != telegram.ParseModeHTML && parseMode != telegram.ParseModeMarkdownV2 {
 				log.Warnf("Invalid parse mode '%s' in message payload, defaulting to no parse mode", parseMode)
 			} else {

@@ -8,10 +8,10 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/data"
-	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/docker"
-	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/utils"
-	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/ui/form"
+	"github.com/osi4iot/osi4iot/utils/osi4iot/internals/data"
+	"github.com/osi4iot/osi4iot/utils/osi4iot/internals/docker"
+	"github.com/osi4iot/osi4iot/utils/osi4iot/internals/utils"
+	"github.com/osi4iot/osi4iot/utils/osi4iot/ui/form"
 	"github.com/spf13/cobra"
 )
 

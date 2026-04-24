@@ -1,11 +1,21 @@
 // @ts-nocheck
 import { SquareFunction, WifiHigh, ArrowBigRight, Mail, ClockFading, BrainCog, Layers, Zap } from "lucide-react";
 import { Handle, Position } from "@xyflow/react";
-import Paho from "paho-mqtt";
 import styled from "styled-components";
 import { toast } from "react-toastify";
 import { useCallback, useState, useEffect } from "react";
-import { TelegramIcon, AssetStateIcon, CommentIcon, IoTDBIcon, S3StorageIcon, IconContainer } from "./NodePalette";
+import {
+    TelegramIcon,
+    AssetStateIcon,
+    CommentIcon,
+    IoTDBIcon,
+    S3StorageIcon,
+    SplitterIcon,
+    IconContainer,
+    TranscriptionIcon,
+} from "./NodePalette";
+import { headers, StringCodec } from "nats.ws";
+const sc = StringCodec();
 
 const NodeContainer = styled.div<{ bgColor: string; hoverColor?: string; selected?: boolean }>`
     padding: 2px 4px;
@@ -318,12 +328,14 @@ export function InjectNode({ data, selected }) {
     const handleButtonClick = useCallback(
         (e) => {
             e.stopPropagation();
-            const mqttClient = data.mqttClient;
-            const mqttTopics = data.mqttTopics || [];
-            if (mqttClient && mqttClient.isConnected()) {
+            const natClient = data.natsClient;
+            const natsSubjectsData = data.natsSubjectsData || [];
+            if (natClient) {
                 const topicRef = data.settings.injectRef;
-                const mqttTopic = mqttTopics.find((topic) => topic.topicRef === topicRef)?.mqttTopic;
-                if (mqttTopic) {
+                const natsSubject = natsSubjectsData.find(
+                    (natSubject) => natSubject.topicRef === topicRef,
+                )?.natsSubject;
+                if (natsSubject) {
                     let messageToSend: string;
                     if (data.settings.injectionType === "JSON") {
                         messageToSend = data.settings.json;
@@ -333,12 +345,13 @@ export function InjectNode({ data, selected }) {
                         });
                     }
                     try {
-                        const message = new Paho.Message(messageToSend);
-                        message.destinationName = mqttTopic;
-                        mqttClient.send(message);
+                        const h = headers();
+                        h.set("Content-Type", "application/json");
+                        h.set("Json-Structure", "object");
+                        natClient.publish(natsSubject, sc.encode(messageToSend), { headers: h });
                         toast.success(`Message sent to topicRef: ${topicRef} successfully`);
                     } catch (error) {
-                        console.error("Error sending MQTT message:", error);
+                        console.error("Error sending NATS message:", error);
                         toast.error(`Failed to send message to topicRef: ${topicRef}`);
                     }
                 }
@@ -409,6 +422,34 @@ export function DelayNode({ data, selected }) {
     );
 }
 
+export function SplitterNode({ data, selected }) {
+    const numOutputs = data?.numOutputs ?? 0;
+    return (
+        <NodeContainer bgColor="#a8a152ff" hoverColor="#b8b062ff" selected={selected}>
+            <StyledHandle type="target" position={Position.Left} style={{ top: "50%", left: "-1px" }} />
+            <NodeContent numOutputs={numOutputs}>
+                <IconContainer>
+                    <SplitterIcon size={20} color="#e7e3dfff" />
+                </IconContainer>
+                <NodeLabel>{data?.label || "Splitter Node"}</NodeLabel>
+            </NodeContent>
+            {numOutputs > 0 && (
+                <>
+                    {Array.from({ length: numOutputs }, (_, index) => (
+                        <StyledHandle
+                            key={index}
+                            type="source"
+                            position={Position.Right}
+                            id={`${data.nodeUid}-${index}`}
+                            style={getHandleStyle(index, numOutputs)}
+                        />
+                    ))}
+                </>
+            )}
+        </NodeContainer>
+    );
+}
+
 export function MlModelNode({ data, selected }) {
     const numOutputs = data?.numOutputs ?? 0;
     return (
@@ -447,6 +488,34 @@ export function AiAgentNode({ data, selected }) {
                     <BrainCog size={20} color="#e7e3dfff" />
                 </IconContainer>
                 <NodeLabel>{data?.label || "AiAgent Node"}</NodeLabel>
+            </NodeContent>
+            {numOutputs > 0 && (
+                <>
+                    {Array.from({ length: numOutputs }, (_, index) => (
+                        <StyledHandle
+                            key={index}
+                            type="source"
+                            position={Position.Right}
+                            id={`${data.nodeUid}-${index}`}
+                            style={getHandleStyle(index, numOutputs)}
+                        />
+                    ))}
+                </>
+            )}
+        </NodeContainer>
+    );
+}
+
+export function TranscriptorNode({ data, selected }) {
+    const numOutputs = data?.numOutputs ?? 0;
+    return (
+        <NodeContainer bgColor="#B8B1FB" hoverColor="#cdc8fcff" selected={selected}>
+            <StyledHandle type="target" position={Position.Left} style={{ top: "50%", left: "-1px" }} />
+            <NodeContent numOutputs={numOutputs}>
+                <IconContainer>
+                    <TranscriptionIcon size={20} color="#e7e3dfff" bgColor="#B8B1FB" />
+                </IconContainer>
+                <NodeLabel>{data?.label || "Transcriptor Node"}</NodeLabel>
             </NodeContent>
             {numOutputs > 0 && (
                 <>
@@ -628,7 +697,6 @@ export function S3StorageNode({ data, selected }) {
         </NodeContainer>
     );
 }
-
 
 export function AssetStateNode({ data, selected }) {
     const numOutputs = data?.numOutputs ?? 0;

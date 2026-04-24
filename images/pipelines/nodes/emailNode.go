@@ -111,8 +111,8 @@ func (n *EmailNode) processMessage(msg common.Message, log *logger.Logger) error
 	subject := n.Subject
 	body := n.Body
 	if !n.IsCustomMessage {
-		emailSubject, ok2 := msg.Payload["emailSubject"].(string)
-		emailBody, ok1 := msg.Payload["emailBody"].(string)
+		emailSubject, ok2 := msg.GetStringFromPayload("emailSubject")
+		emailBody, ok1 := msg.GetStringFromPayload("emailBody")
 
 		if !ok1 || !ok2 {
 			return fmt.Errorf("missing emailBody or emailSubject in Email node with UID: %s", n.NodeUid)

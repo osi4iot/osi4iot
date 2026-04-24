@@ -772,7 +772,7 @@ const LogEntry = React.memo(({ log }: { log: PipelineLog }) => {
 
 LogEntry.displayName = "LogEntry";
 
-const DEFAULT_WIDTH = 550;
+const DEFAULT_WIDTH = 600;
 const MIN_WIDTH = DEFAULT_WIDTH;
 
 interface PipelineLogsProps {

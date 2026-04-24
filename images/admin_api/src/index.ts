@@ -42,7 +42,7 @@ const main = async (): Promise<void> => {
 			new DashboardController(),
 		]);
 		app.listen();
-	} catch (error) {
+	} catch (error: any) {
 		logger.log("error", "Server initiation failed: %s ", error.message);
 		logger.log("error", "Process finished");
 		process.exit(1);

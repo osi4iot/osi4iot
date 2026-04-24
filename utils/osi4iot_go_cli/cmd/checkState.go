@@ -1,7 +1,7 @@
 package cmd
 
 import (
-	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/data"
+	"github.com/osi4iot/osi4iot/utils/osi4iot/internals/data"
 )
 
 // checkState checks the current state of the platform and performs actions based on the provided action string.

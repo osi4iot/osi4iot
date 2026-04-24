@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-package_name=osi4iot_go_cli
+package_name=osi4iot
 	
 platforms=("windows/amd64" "linux/amd64" "linux/arm64")
 

@@ -5,7 +5,7 @@ import (
 
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/network"
-	pt "github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/types"
+	pt "github.com/osi4iot/osi4iot/utils/osi4iot/internals/types"
 )
 
 func GenerateNetworks(platformData *pt.PlatformData) map[string]pt.Network {

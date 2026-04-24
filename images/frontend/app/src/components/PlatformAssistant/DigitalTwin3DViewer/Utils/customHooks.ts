@@ -14,6 +14,7 @@ import {
     IPipelineNode,
     IPipelineEdge,
     NodeWireData,
+    INatsClientOptions,
 } from "../Types/types";
 import { DEFAULT_VIEWER_OPTIONS, BUTTON_LABELS, PROTOCOL, DOMAIN_NAME } from "../Utils/constants";
 import { useAuthDispatch, useAuthState, useLoggedUserLogin } from "../../../../contexts/authContext/authContext";
@@ -33,8 +34,9 @@ import { toast } from "react-toastify";
 import formatDateString from "../../../../tools/formatDate";
 import { IDigitalTwin } from "../../TableColumns/digitalTwinsColumns";
 import axiosErrorHandler from "../../../../tools/axiosErrorHandler";
-import { IMqttTopicData } from "../Main/Model";
+import { IMqttTopicData, INatsSubjectData } from "../Main/Model";
 import { base64ToJpg } from "../../../../tools/base64ToJpg";
+import { connect, NatsConnection } from "nats.ws";
 
 export const useViewerState = () => {
     const [state, setState] = useState<ViewerState>({
@@ -256,6 +258,130 @@ export const useMqttConnection = () => {
     return { connectionStatus, mqttClient };
 };
 
+
+
+export const useNatsOptions = () => {
+    const userName = useLoggedUserLogin();
+    const { accessToken } = useAuthState();
+
+    const natsOptions: INatsClientOptions = {
+        clientId: `Client_${nanoid(16).replace(/-/g, "x").replace(/_/g, "X")}`,
+        port: 9001,
+        username: `jwt_${userName}`,
+        accessToken,
+    };
+
+    return natsOptions;
+};
+
+
+const MAX_RECONNECT_ATTEMPTS = 10;
+const INITIAL_RECONNECT_DELAY = 1000;  // 1 second
+const MAX_RECONNECT_DELAY = 30000;     // 30 seconds
+ 
+const calculateReconnectDelay = (attempt: number): number => {
+    return Math.min(INITIAL_RECONNECT_DELAY * Math.pow(2, attempt), MAX_RECONNECT_DELAY);
+};
+ 
+export const useNatsConnection = () => {
+    const [connectionStatus, setStatus] = useState("Offline");
+    const [natsClient, setNatsClient] = useState<NatsConnection | null>(null);
+    const options = useNatsOptions(); // replaces useMqttOptions — same shape: { username, accessToken }
+ 
+    const isConnectingRef = useRef(false);
+    const reconnectAttemptsRef = useRef(0);
+    const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    // Keep a ref to the active connection so the cleanup effect can close it
+    const natsClientRef = useRef<NatsConnection | null>(null);
+ 
+    const connectNats = useCallback(async () => {
+        if (isConnectingRef.current) return;
+ 
+        isConnectingRef.current = true;
+        setStatus("Connecting");
+ 
+        try {
+            const nc = await connect({
+                servers: `wss://${DOMAIN_NAME}:9001`,
+                user: options.username,
+                pass: options.accessToken,
+            });
+ 
+            isConnectingRef.current = false;
+            reconnectAttemptsRef.current = 0;
+            natsClientRef.current = nc;
+            setNatsClient(nc);
+            setStatus("Connected");
+ 
+            // Monitor connection status in background
+            (async () => {
+                for await (const s of nc.status()) {
+                    if (s.type === "disconnect" || s.type === "error") {
+                        setStatus("Offline");
+                        setNatsClient(null);
+                        natsClientRef.current = null;
+                        scheduleReconnect();
+                    } else if (s.type === "reconnect") {
+                        reconnectAttemptsRef.current = 0;
+                        setStatus("Connected");
+                        setNatsClient(nc);
+                        natsClientRef.current = nc;
+                    }
+                }
+            })();
+ 
+            // Handle clean close
+            nc.closed().then(() => {
+                setStatus("Offline");
+                setNatsClient(null);
+                natsClientRef.current = null;
+            });
+ 
+        } catch (err: any) {
+            isConnectingRef.current = false;
+            console.log(`NATS connection error: ${err?.message ?? err}`);
+            setStatus("Connection failed");
+            scheduleReconnect();
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [options.username, options.accessToken]);
+ 
+    const scheduleReconnect = useCallback(() => {
+        if (reconnectAttemptsRef.current >= MAX_RECONNECT_ATTEMPTS) {
+            setStatus("Connection failed - Max attempts reached");
+            return;
+        }
+ 
+        const delay = calculateReconnectDelay(reconnectAttemptsRef.current);
+        setStatus(`Reconnecting in ${Math.round(delay / 1000)}s...`);
+ 
+        reconnectTimeoutRef.current = setTimeout(() => {
+            reconnectAttemptsRef.current++;
+            connectNats();
+        }, delay);
+    }, [connectNats]);
+ 
+    useEffect(() => {
+        connectNats();
+ 
+        return () => {
+            if (reconnectTimeoutRef.current) {
+                clearTimeout(reconnectTimeoutRef.current);
+            }
+            if (natsClientRef.current) {
+                natsClientRef.current.close();
+                natsClientRef.current = null;
+            }
+            setNatsClient(null);
+            isConnectingRef.current = false;
+            reconnectAttemptsRef.current = 0;
+        };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [connectNats]);
+ 
+    return { connectionStatus, natsClient };
+};
+
 export const useChatMessages = (
     setOpts: (updater: ViewerOptions | ((prevOpts: ViewerOptions) => ViewerOptions)) => void
 ) => {
@@ -306,7 +432,7 @@ export const useChatMessages = (
 
 export const usePipelineState = (
     digitalTwinSelected: IDigitalTwin | null,
-    mqttClient: Paho.Client | null,
+    natsClient: NatsConnection | null,
     sim2stateTopic: string,
     setChatMessages: React.Dispatch<React.SetStateAction<ChatMessage[]>>
 ) => {
@@ -337,20 +463,20 @@ export const usePipelineState = (
     );
 
     const queryPipelineStatus = useCallback(() => {
-        if (digitalTwinSelected && digitalTwinSelected.pipelineFileData !== "" && mqttClient && sim2stateTopic !== "") {
-            mqttClient.send(sim2stateTopic, JSON.stringify({ action: "queryPipelineStatus" }));
+        if (digitalTwinSelected && digitalTwinSelected.pipelineFileData !== "" && natsClient && sim2stateTopic !== "") {
+            natsClient.publish(sim2stateTopic, JSON.stringify({ action: "queryPipelineStatus" }));
         }
-    }, [digitalTwinSelected, mqttClient, sim2stateTopic]);
+    }, [digitalTwinSelected, natsClient, sim2stateTopic]);
 
     const queryChatMessages = useCallback(() => {
         if (
             digitalTwinSelected &&
             digitalTwinSelected.pipelineFileData !== "" &&
-            mqttClient &&
+            natsClient &&
             sim2stateTopic !== "" &&
             digitalTwinSelected.chatAssistantEnabled
         ) {
-            mqttClient.send(
+            natsClient.publish(
                 sim2stateTopic,
                 JSON.stringify({
                     action: "queryChatMessages",
@@ -358,7 +484,7 @@ export const usePipelineState = (
                 })
             );
         }
-    }, [digitalTwinSelected, mqttClient, sim2stateTopic, userName]);
+    }, [digitalTwinSelected, natsClient, sim2stateTopic, userName]);
 
     const handleSetChatMessages = useCallback(
         (storedMessages: ChatMessage[]) => {
@@ -382,8 +508,8 @@ export const usePipelineState = (
     );
 
     const handleRemoveChatAssistantHistory = useCallback(() => {
-        if (digitalTwinSelected && digitalTwinSelected.pipelineFileData !== "" && mqttClient && sim2stateTopic !== "") {
-            mqttClient.send(
+        if (digitalTwinSelected && digitalTwinSelected.pipelineFileData !== "" && natsClient && sim2stateTopic !== "") {
+            natsClient.publish(
                 sim2stateTopic,
                 JSON.stringify({
                     action: "queryRemoveChatMessages",
@@ -391,7 +517,7 @@ export const usePipelineState = (
                 })
             );
         }
-    }, [digitalTwinSelected, mqttClient, sim2stateTopic, userName]);
+    }, [digitalTwinSelected, natsClient, sim2stateTopic, userName]);
 
     return {
         pipelineStatus,
@@ -776,20 +902,39 @@ export const useFormChanges = (selectedNode: any) => {
 
 export const useImageFrame = () => {
     const [imageUrl, setImageUrl] = useState<string>("");
-
-    const handleImageUrlChange = (base64Image: string) => {
-        const blob = base64ToJpg(base64Image);
-        if (blob) {
-            setImageUrl(URL.createObjectURL(blob));
-        }
+    const prevUrlRef = useRef<string>("");
+ 
+    useEffect(() => {
+        return () => {
+            if (prevUrlRef.current) URL.revokeObjectURL(prevUrlRef.current);
+            if (imageUrl) URL.revokeObjectURL(imageUrl);
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+ 
+    const handleImageUrlChange = (imageBytes: Uint8Array, mimeType: string) => {
+        const arrayBuffer = new ArrayBuffer(imageBytes.byteLength);
+        new Uint8Array(arrayBuffer).set(imageBytes);
+        const blob = new Blob([arrayBuffer], { type: mimeType });
+        const newUrl = URL.createObjectURL(blob);
+ 
+        setImageUrl((currentUrl) => {
+            if (currentUrl) {
+                requestAnimationFrame(() => URL.revokeObjectURL(currentUrl));
+            }
+            prevUrlRef.current = newUrl;
+            return newUrl;
+        });
     };
-
+ 
     return {
         imageUrl,
         handleImageUrlChange,
     };
 };
-
+ 
+ 
+ 
 const createPipelineData = (pipelineNodes: IPipelineNode[], pipelineEdges: IPipelineEdge[]): any => {
     const nodes = [] as any[];
     const wiresData = new Map<string, NodeWireData>();
@@ -1035,8 +1180,8 @@ export const createNodesAndEdges = (
     existingNodes: any[],
     existingEdges: any[],
     pipelineNodesData: any,
-    mqttClient: Paho.Client | null,
-    mqttTopicsData: IMqttTopicData[]
+    natsClient: NatsConnection | null,
+    natsSubjectsData: INatsSubjectData[]
 ) => {
     const nodes = [];
     const edges = [];
@@ -1128,8 +1273,8 @@ export const createNodesAndEdges = (
         };
 
         if (nodeItem.type === "Inject") {
-            (nodeData as any).mqttTopics = mqttTopicsData;
-            (nodeData as any).mqttClient = mqttClient;
+            (nodeData as any).natsSubjectsData = natsSubjectsData;
+            (nodeData as any).natsClient = natsClient;
         }
 
         nodes.push({
@@ -1248,8 +1393,8 @@ export const usePipelineActions = (
     setPipelineEdges: React.Dispatch<any>,
     handlePipelineUiChanged: (isChanged: boolean) => void,
     handleSetPipelineLogsOpen: (open: boolean) => void,
-    mqttClient: Paho.Client | null,
-    mqttTopicsData: IMqttTopicData[],
+    natsClient: NatsConnection | null,
+    natsSubjectsData: INatsSubjectData[],
     refreshDigitalTwins: () => void,
     params: UsePipelineActionsParamsProps
 ) => {
@@ -1279,8 +1424,8 @@ export const usePipelineActions = (
                             pipelineNodes,
                             pipelineEdges,
                             newPipelineNodes,
-                            mqttClient,
-                            mqttTopicsData
+                            natsClient,
+                            natsSubjectsData
                         );
                         setPipelineNodes(nodes);
                         setPipelineEdges(edges);
@@ -1299,7 +1444,7 @@ export const usePipelineActions = (
             event.target.value = "";
         },
         // eslint-disable-next-line react-hooks/exhaustive-deps
-        [pipelineNodes, pipelineEdges, mqttClient, mqttTopicsData]
+        [pipelineNodes, pipelineEdges, natsClient, natsSubjectsData]
     );
 
     const handleDownloadYamlFile = useCallback(() => {

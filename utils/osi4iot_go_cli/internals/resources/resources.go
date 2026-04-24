@@ -1,7 +1,7 @@
 package resources
 
 import (
-	pt "github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/types"
+	pt "github.com/osi4iot/osi4iot/utils/osi4iot/internals/types"
 )
 
 type SvcResources struct {

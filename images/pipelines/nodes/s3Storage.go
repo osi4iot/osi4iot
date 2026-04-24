@@ -8,6 +8,7 @@ import (
 	"pipelines/common"
 	"pipelines/duckdb"
 	"pipelines/logger"
+	"pipelines/message"
 	"pipelines/s3folder"
 	"pipelines/utils"
 	"slices"
@@ -110,6 +111,7 @@ func CreateS3StorageNode(node common.NodeData, fm common.Manager, p common.Pipel
 				fm.Log().Errorf("S3StorageNode %s: 'duckdbQuery' setting is required for Read action", node.NodeUid)
 				return nil, fmt.Errorf("duckdbQuery setting is required for Read action")
 			}
+			bucketPath = fmt.Sprintf("org_%d/group_%d/asset_%d", orgId, groupId, assetId)
 		case "Insert":
 			parquetHistory, exists := availableFolders[folderName]
 			if !exists || len(parquetHistory) == 0 {
@@ -194,7 +196,7 @@ func (n *S3StorageNode) processMessage(msg common.Message, log *logger.Logger) e
 		}
 		action = params.Action
 	default:
-		log.Errorf("IoTDbNode %s: unknown queryMode '%s'", n.NodeUid, n.QueryMode)
+		log.Errorf("S3StorageNode %s: unknown queryMode '%s'", n.NodeUid, n.QueryMode)
 		return fmt.Errorf("unknown queryMode '%s'", n.QueryMode)
 	}
 
@@ -204,8 +206,8 @@ func (n *S3StorageNode) processMessage(msg common.Message, log *logger.Logger) e
 	case "Read":
 		return n.processReadQuery(msg, params, log)
 	default:
-		log.Errorf("Unknown action '%s' for S3StorageNode %s", n.Params.Action, n.NodeUid)
-		return fmt.Errorf("unknown action '%s'", n.Params.Action)
+		log.Errorf("Unknown action '%s' for S3StorageNode %s", action, n.NodeUid)
+		return fmt.Errorf("unknown action '%s'", action)
 	}
 }
 
@@ -239,7 +241,7 @@ func (n *S3StorageNode) processInsertQuery(msg common.Message, params S3StorageP
 	}
 
 	// 5. ← Sincronizar stats en Postgres
-    var s3FolderRowID int
+	var s3FolderRowID int
 	for _, schema := range n.AvailableFolders[params.FolderName] {
 		if schema.IsCurrent {
 			s3FolderRowID = schema.S3FolderRowID
@@ -273,7 +275,7 @@ func (n *S3StorageNode) processInsertQuery(msg common.Message, params S3StorageP
 }
 
 func (n *S3StorageNode) extratsRowsFromPayload(msg common.Message) ([]map[string]any, error) {
-	s3StorageRaw, ok := msg.Payload["s3Storage"]
+	s3StorageRaw, ok := msg.GetFieldFromPayload("s3Storage")
 	if !ok {
 		return nil, fmt.Errorf("payload does not contain 's3Storage' field")
 	}
@@ -288,7 +290,6 @@ func (n *S3StorageNode) extratsRowsFromPayload(msg common.Message) ([]map[string
 		return nil, fmt.Errorf("'s3Storage' does not contain 'rows' field")
 	}
 
-	// Convert to []map[string]any
 	rowsSlice, ok := rowsRaw.([]any)
 	if !ok {
 		return nil, fmt.Errorf("'rows' field is not a valid array")
@@ -307,7 +308,7 @@ func (n *S3StorageNode) extratsRowsFromPayload(msg common.Message) ([]map[string
 }
 
 func (n *S3StorageNode) extractParamsFromPayload(msg common.Message) (S3StorageParams, error) {
-	s3StorageRaw, ok := msg.Payload["s3Storage"]
+	s3StorageRaw, ok := msg.GetFieldFromPayload("s3Storage")
 	if !ok {
 		return S3StorageParams{}, fmt.Errorf("payload does not contain 's3Storage' field")
 	}
@@ -340,8 +341,12 @@ func (n *S3StorageNode) extractParamsFromPayload(msg common.Message) (S3StorageP
 		if !ok {
 			return S3StorageParams{}, fmt.Errorf("'s3Storage' does not contain valid 'duckdbQuery' field for Read action")
 		}
+		bucketPath := fmt.Sprintf("org_%d/group_%d/asset_%d", n.Params.OrgId, n.Params.GroupId, n.Params.AssetId)
+		if n.Params.OrgId == 0 || n.Params.GroupId == 0 || n.Params.AssetId == 0 {
+			return S3StorageParams{}, fmt.Errorf("invalid IDs for bucket path: orgId=%d groupId=%d assetId=%d", n.Params.OrgId, n.Params.GroupId, n.Params.AssetId)
+		}
 		params.DuckdbQuery = duckdbQuery
-		params.BucketPath = fmt.Sprintf("org_%d/group_%d/asset_%d", n.Params.AssetId, n.Params.GroupId, n.Params.AssetId)
+		params.BucketPath = bucketPath
 	case "Insert":
 		folderName, ok := s3Storage["folder"].(string)
 		if !ok {
@@ -351,13 +356,12 @@ func (n *S3StorageNode) extractParamsFromPayload(msg common.Message) (S3StorageP
 
 		parquetHistory, exists := n.AvailableFolders[folderName]
 		if !exists || len(parquetHistory) == 0 {
-			n.Fm.Log().Errorf("S3StorageNode %s: folder '%s' not found for asset %d", n.NodeUid, folderName, n.Params.AssetId)
 			return S3StorageParams{}, fmt.Errorf("folder '%s' not found for asset %d", folderName, n.Params.AssetId)
 		}
 		currentSchema := parquetHistory[len(parquetHistory)-1]
 		params.ParquetSchema = currentSchema.Schema
-		version := currentSchema.Version
-		params.BucketPath = fmt.Sprintf("org_%d/group_%d/asset_%d/folder=%s/version=%d", n.Params.AssetId, n.Params.GroupId, n.Params.AssetId, folderName, version)
+		params.Version = currentSchema.Version
+		params.BucketPath = fmt.Sprintf("org_%d/group_%d/asset_%d/folder=%s/version=%d", n.Params.OrgId, n.Params.GroupId, n.Params.AssetId, folderName, currentSchema.Version)
 	}
 
 	return params, nil
@@ -369,6 +373,7 @@ func (n *S3StorageNode) processReadQuery(msg common.Message, params S3StoragePar
 		S3Config: duckdb.S3StorageConfig{
 			BucketName:       params.BucketName,
 			BucketPath:       params.BucketPath,
+			OrgId:            params.OrgId,
 			GroupId:          params.GroupId,
 			AssetId:          params.AssetId,
 			AvailableFolders: n.AvailableFolders,
@@ -389,24 +394,15 @@ func (n *S3StorageNode) processReadQuery(msg common.Message, params S3StoragePar
 		return fmt.Errorf("error processing rows: %w", err)
 	}
 
-	payload := msg.Payload
+	payload := msg.GetPayload()
 	payload["rows"] = sqlResults
-	resultMsg := common.Message{
-		Payload: payload,
-	}
-
-	n.sendToOutputs(resultMsg, log)
+	n.sendToOutputs(message.NewMessageFromPayload(payload), log)
 
 	return nil
 }
 
 func (n *S3StorageNode) handleSuccessfullyInsertedQuery(msg common.Message, log *logger.Logger) {
-	payload := msg.Payload
+	payload := msg.GetPayload()
 	payload["message"] = "Data inserted successfully into S3 Storage"
-
-	responseMsg := common.Message{
-		Payload: payload,
-	}
-
-	n.sendToOutputs(responseMsg, log)
+	n.sendToOutputs(message.NewMessageFromPayload(payload), log)
 }

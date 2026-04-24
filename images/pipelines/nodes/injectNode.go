@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"pipelines/common"
 	"pipelines/logger"
+	"pipelines/message"
 	"pipelines/utils"
 	"slices"
 	"strconv"
@@ -233,12 +234,9 @@ func (n *InjectNode) processNatsMessage(msg *nats.Msg, log *logger.Logger) error
 		return fmt.Errorf("failed to unmarshal message for node %s: %w", n.NodeUid, err)
 	}
 
-	message := common.Message{
-		Payload: rawMessage,
-		Topic:   msg.Subject,
-	}
+	message := message.NewMessage(msg.Subject, rawMessage, nil, "", nil)
 
-	topic := message.Topic
+	topic := message.GetTopic()
 	if topic != "" && topic != n.TopicIn {
 		return n.Fm.NatsPublish(topic, msg.Data)
 	}
@@ -248,11 +246,7 @@ func (n *InjectNode) processNatsMessage(msg *nats.Msg, log *logger.Logger) error
 }
 
 func (n *InjectNode) processMessage(msg common.Message, log *logger.Logger) error {
-	message := common.Message{
-		Payload: msg.Payload,
-		Topic:   msg.Topic,
-	}
-
+	message := message.NewMessage(msg.GetTopic(), msg.GetPayload(), nil, "", nil)
 	n.sendToOutputs(message, log)
 	return nil
 }
@@ -419,10 +413,9 @@ func (n *InjectNode) sendMessage() {
 			"timestamp": time.Now().UnixMilli(),
 		}
 	}
-	message := common.Message{
-		Payload: payload,
-		Topic:   "interval/" + n.NodeUid,
-	}
+
+	message := message.NewMessage("interval/"+n.NodeUid, payload, nil, "", nil)
+
 	n.MsgChan <- message
 }
 

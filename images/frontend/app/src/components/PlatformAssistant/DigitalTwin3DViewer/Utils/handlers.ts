@@ -4,7 +4,7 @@ import { AxiosError, AxiosResponse } from "axios";
 // import YAML from "yaml";
 
 import { OPACITY_SERIE, BUTTON_LABELS, PROTOCOL, DOMAIN_NAME } from "./constants";
-import {  ViewerOptions } from "../Types/types";
+import { ViewerOptions } from "../Types/types";
 import {
     generateInitialSensorsState,
     generateInitialAssetsState,
@@ -56,7 +56,7 @@ export const createHandlers = (
         setGeneralTransparencyIndex: (index: number) => void;
         setIsPipelineUiChanged: (changed: boolean) => void;
         setOpts: (updater: (prev: ViewerOptions) => ViewerOptions) => void;
-    }
+    },
 ) => {
     const handleGetLastMeasurementsButton = () => {
         const {
@@ -71,10 +71,10 @@ export const createHandlers = (
         const digitalTwinSimulationFormat = digitalTwinGltfData.digitalTwinSimulationFormat;
 
         if (digitalTwinSelected && Object.keys(digitalTwinSimulationFormat).length !== 0) {
-            const filteredTopics = digitalTwinGltfData.mqttTopicsData.filter(
-                (topic) => topic.topicRef.slice(0, 7) === "dev2pdb"
+            const filteredSubjects = digitalTwinGltfData.natsSubjectsData.filter(
+                (subjectData) => subjectData.topicRef.slice(0, 7) === "dev2pdb",
             );
-            const topicsIdArray = filteredTopics.map((topic) => topic.topicId);
+            const topicsIdArray = filteredSubjects.map((subject) => subject.topicId);
 
             if (topicsIdArray.length !== 0) {
                 setters.setGetLastMeasurementsButtomLabel(BUTTON_LABELS.LOADING);
@@ -119,7 +119,7 @@ export const createHandlers = (
             setters.setInitialSensorsState(generateInitialSensorsState(sensorObjects, digitalTwinGltfData));
             setters.setInitialAssetsState(generateInitialAssetsState(assetObjects, digitalTwinGltfData));
             setters.setInitialGenericObjectsState(
-                generateInitialGenericObjectsState(genericObjects, digitalTwinGltfData)
+                generateInitialGenericObjectsState(genericObjects, digitalTwinGltfData),
             );
         }
         setters.setDigitalTwinSimulatorSendData((prev) => !prev);
@@ -236,6 +236,15 @@ export const createHandlers = (
         }
     };
 
+    const handleSetActiveViewer = (newViewer: "3D" | "pipeline" | "image_frame") => {
+        setters.setActiveViewer(newViewer);
+        if (newViewer === "pipeline") {
+            setters.setIsControlPanelOpen(false);
+            setters.setChatAssistantOpen(false);
+            setters.setShowDtSimulatorModal(false);
+        }
+    };
+
     return {
         handleGetLastMeasurementsButton,
         handleLockReadMeasurementsButtonClick,
@@ -249,5 +258,6 @@ export const createHandlers = (
         handleOpenSimulator,
         updateDigitalTwinSimulatorState,
         handleToggleActiveViewer,
+        handleSetActiveViewer,
     };
 };

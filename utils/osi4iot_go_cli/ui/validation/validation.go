@@ -14,7 +14,7 @@ import (
 	"time"
 	"unicode"
 
-	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/utils"
+	"github.com/osi4iot/osi4iot/utils/osi4iot/internals/utils"
 )
 
 func isString(value interface{}, prompt string) (bool, string) {

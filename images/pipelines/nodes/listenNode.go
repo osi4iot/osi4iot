@@ -6,9 +6,12 @@ import (
 	"fmt"
 	"pipelines/common"
 	"pipelines/logger"
+	"pipelines/message"
 	"pipelines/utils"
 	"slices"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/nats-io/nats.go"
 )
@@ -56,7 +59,7 @@ func CreateListenNode(node common.NodeData, fm common.Manager, p common.Pipeline
 		if topicRef == "all_dev2pdb" {
 			topicsMap := fm.GetTopicsByAssetId(p.GetAssetId())
 			for _, topicInstance := range topicsMap {
-				if topicInstance != nil {
+				if topicInstance != nil && strings.HasPrefix(topicInstance.TopicType, "dev2pdb") {
 					topic := utils.TopicToNatsSubject(topicInstance.TopicType, topicInstance.GroupUid, topicInstance.TopicUid)
 					topics = append(topics, topic)
 				}
@@ -74,7 +77,6 @@ func CreateListenNode(node common.NodeData, fm common.Manager, p common.Pipeline
 
 	logTopic := fm.GetTopicByTopicRef(p.GetAssetId(), p.GetDigitalTwinId(), "dtmlog")
 	logSubject := utils.TopicToNatsSubject(logTopic.TopicType, logTopic.GroupUid, logTopic.TopicUid)
-
 
 	return &ListenNode{
 		BaseNode: BaseNode{
@@ -119,16 +121,72 @@ func (n *ListenNode) Start(ctx context.Context, log *logger.Logger, needReinitia
 }
 
 func (n *ListenNode) processNatsMessage(msg *nats.Msg, log *logger.Logger) error {
-	var rawMessage map[string]interface{}
-	if err := json.Unmarshal(msg.Data, &rawMessage); err != nil {
-		return fmt.Errorf("failed to unmarshal message for node %s: %w", n.NodeUid, err)
-	}
+    contentType := "application/json"
+    jsonStructure := "object"
 
-	message := common.Message{
-		Payload: rawMessage,
-		Topic:   msg.Subject,
-	}
+    if msg.Header != nil {
+        if ct := msg.Header.Get("Content-Type"); ct != "" {
+            contentType = ct
+        }
+        if js := msg.Header.Get("Json-Structure"); js != "" {
+            jsonStructure = js
+        }
+    }
 
-	n.sendToOutputs(message, log)
-	return nil
+    outMsg, err := n.buildMessageFromNats(msg, contentType, jsonStructure)
+    if err != nil {
+        return fmt.Errorf("failed to build message for node %s: %w", n.NodeUid, err)
+    }
+	
+    if msg.Reply != "" {
+        timeoutMs := int64(30000)
+        if msg.Header != nil {
+			if v := msg.Header.Get("Reply-Timeout-Ms"); v != "" {
+				if parsed, err := strconv.ParseInt(v, 10, 64); err == nil {
+					timeoutMs = parsed
+                }
+            }
+        }
+        outMsg.SetReplyContext(&common.ReplyContext{
+			Subject:   msg.Reply,
+            ExpiresAt: time.Now().Add(time.Duration(timeoutMs) * time.Millisecond),
+        })
+    }
+
+    n.sendToOutputs(outMsg, log)
+    return nil
+}
+
+func (n *ListenNode) buildMessageFromNats(msg *nats.Msg, contentType, jsonStructure string) (common.Message, error) {
+	switch contentType {
+	case "application/json":
+		switch jsonStructure {
+		case "array":
+			var rawArray []map[string]any
+			if err := json.Unmarshal(msg.Data, &rawArray); err != nil {
+				return nil, fmt.Errorf("failed to unmarshal JSON array: %w", err)
+			}
+			outMsg := message.NewMessage(msg.Subject, map[string]any{
+				"rows": rawArray,
+			}, nil, contentType, nil)
+			outMsg.JsonStructure = jsonStructure
+			return outMsg, nil
+
+		default:
+			var rawMessage map[string]any
+			if err := json.Unmarshal(msg.Data, &rawMessage); err != nil {
+				return nil, fmt.Errorf("failed to unmarshal JSON object: %w", err)
+			}
+			return message.NewMessage(msg.Subject, rawMessage, nil, contentType, nil), nil
+		}
+
+	default:
+		outMsg := message.NewMessage(msg.Subject, map[string]any{}, nil, contentType, &common.File{
+			Name:        msg.Subject,
+			ContentType: contentType,
+			Data:        msg.Data,
+		})
+		outMsg.JsonStructure = jsonStructure
+		return outMsg, nil
+	}
 }

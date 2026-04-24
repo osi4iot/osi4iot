@@ -7,6 +7,7 @@ import (
 	"pipelines/common"
 	"pipelines/iotdb"
 	"pipelines/logger"
+	"pipelines/message"
 	"pipelines/utils"
 	"slices"
 )
@@ -139,7 +140,7 @@ func (n *AssetStateNode) processUpsertQuery(msg common.Message, log *logger.Logg
 	var ok bool
 	switch n.SetStateMode {
 	case "state_from_payload":
-		state, ok = msg.Payload["state"].(map[string]any)
+		state, ok = msg.GetMapFromPayload("state")
 		if !ok {
 			log.Errorf("AssetStateNode %s: 'state' field missing or invalid in payload", n.NodeUid)
 			return fmt.Errorf("'state' field missing or invalid in payload")
@@ -165,9 +166,7 @@ func (n *AssetStateNode) processUpsertQuery(msg common.Message, log *logger.Logg
 		var payload map[string]any = make(map[string]any)
 		payload["message"] = fmt.Sprintf("State for asset %s upserted successfully in IoT DB", n.AssetUid)
 
-		responseMsg := common.Message{
-			Payload: payload,
-		}
+		responseMsg := message.NewMessageFromPayload(payload)
 		n.sendToOutputs(responseMsg, log)
 	case "key_value_store":
 		kvKey := n.GetAssetStateKvStoreKey(n.AssetUid, n.GroupUid)
@@ -185,9 +184,7 @@ func (n *AssetStateNode) processUpsertQuery(msg common.Message, log *logger.Logg
 		var payload map[string]any = make(map[string]any)
 		payload["message"] = fmt.Sprintf("State for asset %s upserted successfully in KV store", n.AssetUid)
 
-		responseMsg := common.Message{
-			Payload: payload,
-		}
+		responseMsg := message.NewMessageFromPayload(payload)
 		n.sendToOutputs(responseMsg, log)
 	}
 
@@ -224,13 +221,11 @@ func (n *AssetStateNode) processGetStateQuery(msg common.Message, log *logger.Lo
 		assetStateDescription = desc
 	}
 
-	payload := msg.Payload
+	payload := msg.GetPayload()
 	payload["state"] = assetState
 	payload["state_description"] = assetStateDescription
 
-	resultMsg := common.Message{
-		Payload: payload,
-	}
+	resultMsg := message.NewMessageFromPayload(payload)
 
 	n.sendToOutputs(resultMsg, log)
 
@@ -270,11 +265,9 @@ func (n *AssetStateNode) processGetStatesInGroupQuery(msg common.Message, log *l
 		}
 	}
 
-	payload := msg.Payload
+	payload := msg.GetPayload()
 	payload["assetStates"] = assetStates
-	resultMsg := common.Message{
-		Payload: payload,
-	}
+	resultMsg := message.NewMessageFromPayload(payload)
 
 	n.sendToOutputs(resultMsg, log)
 

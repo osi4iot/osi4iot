@@ -39,6 +39,7 @@ import mlModelAndGroupExist from "../../middleware/mlModelAndGroupExist.middlewa
 import UpdateMLModelDto from "./ml_modelUpdate.dto";
 import infoLogger from "../../utils/logger/infoLogger";
 import natsClient from "../../config/natsConfig";
+import asHandler from "../../utils/routeHelpers/asyncRequestHandler";
 
 const uploadMLModelFile = multer({
 	storage: multerS3({
@@ -89,28 +90,28 @@ class MLModelController implements IController {
 			)
 			.post(
 				`${this.path}_upload_file/:groupId/:mlModelId/:fileName`,
-				mlModelAndGroupExist,
+				asHandler(mlModelAndGroupExist),
 				groupAdminAuth,
 				uploadMLModelFile.single("file"),
-				this.uploadMLModelFile
+				asHandler(this.uploadMLModelFile)
 			)
 			.get(
 				`${this.path}_download_file/:groupId/:mlModelId/:fileName`,
-				mlModelAndGroupExist,
+				asHandler(mlModelAndGroupExist),
 				groupAdminAuth,
-				this.downloadMLModelFile
+				asHandler(this.downloadMLModelFile)
 			)
 			.get(
 				`${this.path}_file_list/:groupId/:mlModelId`,
-				mlModelAndGroupExist,
+				asHandler(mlModelAndGroupExist),
 				groupAdminAuth,
-				this.getMLModelFilesInfoList
+				asHandler(this.getMLModelFilesInfoList)
 			)
 			.delete(
 				`${this.path}_delete_file/:groupId/:mlModelId/:fileName`,
-				mlModelAndGroupExist,
+				asHandler(mlModelAndGroupExist),
 				groupAdminAuth,
-				this.deleteMLModelFile
+				asHandler(this.deleteMLModelFile)
 			);
 	}
 

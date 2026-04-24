@@ -6,7 +6,8 @@ import {
 	IFemSimulationObject,
 	IResultRenderInfo,
 	IGenericObject,
-	IMqttTopicData
+	IMqttTopicData,
+	INatsSubjectData
 } from '../Main/Model';
 import { toast } from "react-toastify";
 import { IMeasurement } from "../../TableColumns/measurementsColumns";
@@ -82,7 +83,7 @@ export interface IDigitalTwinGltfData {
 	gltfFile: any;
 	digitalTwinGltfUrl: string | null;
 	femResFileInfoList: IBucketFileInfoList[];
-	mqttTopicsData: IMqttTopicData[];
+	natsSubjectsData: INatsSubjectData[];
 	sensorsDashboards: IDigitalTwinSensorDashboard[];
 	topicIdBySensorRef: Record<string, number>;
 	digitalTwinSimulationFormat: Record<string, DigitalTwinSimulationParameter>;
@@ -92,16 +93,16 @@ export interface IDigitalTwinGltfData {
 
 const findLastMeasurement = (topicId: number, digitalTwinGltfData: IDigitalTwinGltfData): (IMeasurement | null) => {
 	let lastMeasurement = null;
-	const mqttTopicDataFiltered = digitalTwinGltfData.mqttTopicsData.filter(topicData => topicData.topicId === topicId);
-	if (mqttTopicDataFiltered.length !== 0) {
-		const mqttTopicData = mqttTopicDataFiltered[0];
-		const mqttTopic = mqttTopicData.mqttTopic;
-		const topicRef = mqttTopicData.topicRef;
-		if (mqttTopic &&
-			mqttTopic.slice(0, 7) !== "Warning" &&
+	const natsSubjectDataFiltered = digitalTwinGltfData.natsSubjectsData.filter(subjectData => subjectData.topicId === topicId);
+	if (natsSubjectDataFiltered.length !== 0) {
+		const natsSubjectData = natsSubjectDataFiltered[0];
+		const natsSubject = natsSubjectData.natsSubject;
+		const topicRef = natsSubjectData.topicRef;
+		if (natsSubject &&
+			natsSubject.slice(0, 7) !== "Warning" &&
 			(topicRef.slice(0, 7) === "dev2pdb" || topicRef === "dtm2pdb")
 		) {
-			lastMeasurement = mqttTopicData.lastMeasurement;
+			lastMeasurement = natsSubjectData.lastMeasurement;
 		}
 	}
 	return lastMeasurement;
@@ -109,12 +110,12 @@ const findLastMeasurement = (topicId: number, digitalTwinGltfData: IDigitalTwinG
 
 const findLastDtm2pdbMessage = (digitalTwinGltfData: IDigitalTwinGltfData): (IMeasurement | null) => {
 	let lastMeasurement = null;
-	const mqttTopicDataFiltered = digitalTwinGltfData.mqttTopicsData.filter(topicData => topicData.topicRef === "dtm2pdb");
-	if (mqttTopicDataFiltered.length !== 0) {
-		const mqttTopicData = mqttTopicDataFiltered[0];
-		const mqttTopic = mqttTopicData.mqttTopic;
-		if (mqttTopic && mqttTopic.slice(0, 7) !== "Warning") {
-			lastMeasurement = mqttTopicData.lastMeasurement;
+	const natsSubjectDataFiltered = digitalTwinGltfData.natsSubjectsData.filter(subjectData => subjectData.topicRef === "dtm2pdb");
+	if (natsSubjectDataFiltered.length !== 0) {
+		const natsSubjectData = natsSubjectDataFiltered[0];
+		const natsSubject = natsSubjectData.natsSubject;
+		if (natsSubject && natsSubject.slice(0, 7) !== "Warning") {
+			lastMeasurement = natsSubjectData.lastMeasurement;
 		}
 	}
 	return lastMeasurement;
@@ -220,9 +221,9 @@ export const generateInitialSensorsState = (
 		const clipSensorRef = obj.node.userData.clipSensorRef;
 		const clipTopicId = topicIdBySensorRef[clipSensorRef];
 		if (clipTopicId !== undefined) {
-			const mqttTopicsDataFiltered = digitalTwinGltfData.mqttTopicsData.filter(topicData => topicData.topicId === clipTopicId);
-			if (mqttTopicsDataFiltered.length !== 0) {
-				const lastMeasurement = mqttTopicsDataFiltered[0].lastMeasurement;
+			const natsSubjectsDataFiltered = digitalTwinGltfData.natsSubjectsData.filter(subjectData => subjectData.topicId === clipTopicId);
+			if (natsSubjectsDataFiltered.length !== 0) {
+				const lastMeasurement = natsSubjectsDataFiltered[0].lastMeasurement;
 				if (lastMeasurement) {
 					const fieldName = obj.node.userData.clipFieldName;
 					const payloadObject = lastMeasurement.payload as any;
@@ -295,9 +296,9 @@ export const generateInitialAssetsState = (
 		const clipSensorRef = obj.node.userData.clipSensorRef;
 		const clipTopicId = digitalTwinGltfData.topicIdBySensorRef[clipSensorRef];
 		if (clipTopicId !== undefined) {
-			const mqttTopicsDataFiltered = digitalTwinGltfData.mqttTopicsData.filter(topicData => topicData.topicId === clipTopicId);
-			if (mqttTopicsDataFiltered.length !== 0) {
-				const lastMeasurement = mqttTopicsDataFiltered[0].lastMeasurement;
+			const natsSubjectsDataFiltered = digitalTwinGltfData.natsSubjectsData.filter(subjectData => subjectData.topicId === clipTopicId);
+			if (natsSubjectsDataFiltered.length !== 0) {
+				const lastMeasurement = natsSubjectsDataFiltered[0].lastMeasurement;
 				if (lastMeasurement) {
 					const fieldName = obj.node.userData.clipFieldName;
 					const payloadObject = lastMeasurement.payload as any;
@@ -355,9 +356,9 @@ export const generateInitialGenericObjectsState = (
 		const clipSensorRef = obj.node.userData.clipSensorRef;
 		const clipTopicId = digitalTwinGltfData.topicIdBySensorRef[clipSensorRef];
 		if (clipTopicId !== undefined) {
-			const mqttTopicsDataFiltered = digitalTwinGltfData.mqttTopicsData.filter(topicData => topicData.topicId === clipTopicId);
-			if (mqttTopicsDataFiltered.length !== 0) {
-				const lastMeasurement = mqttTopicsDataFiltered[0].lastMeasurement;
+			const natsSubjectsDataFiltered = digitalTwinGltfData.natsSubjectsData.filter(subjectData => subjectData.topicId === clipTopicId);
+			if (natsSubjectsDataFiltered.length !== 0) {
+				const lastMeasurement = natsSubjectsDataFiltered[0].lastMeasurement;
 				if (lastMeasurement) {
 					const fieldName = obj.node.userData.clipFieldName;
 					const payloadObject = lastMeasurement.payload as any;
@@ -403,7 +404,7 @@ export const generateInitialFemSimObjectsState = (
 ) => {
 	const highlight = false;
 	const initialFemSimObjectsState: FemSimulationObjectState[] = [];
-	const femResultModalValuesTopic = digitalTwinGltfData.mqttTopicsData.filter(topic => topic.topicRef === "dtm2sim")[0].topicId;
+	const femResultModalValuesTopic = digitalTwinGltfData.natsSubjectsData.filter(subject => subject.topicRef === "dtm2sim")[0].topicId;
 	const lastMeasurement = findLastMeasurement(femResultModalValuesTopic, digitalTwinGltfData);
 	const lastDtm2pdbMessage = findLastDtm2pdbMessage(digitalTwinGltfData);
 	const customAnimationObjNamesDtm2pdb = getCustomAnimationObjNames(lastDtm2pdbMessage);
@@ -431,9 +432,9 @@ export const generateInitialFemSimObjectsState = (
 		const clipSensorRef = obj.node.userData.clipSensorRef;
 		const clipTopicId = digitalTwinGltfData.topicIdBySensorRef[clipSensorRef];
 		if (clipTopicId !== undefined) {
-			const mqttTopicsDataFiltered = digitalTwinGltfData.mqttTopicsData.filter(topicData => topicData.topicId === clipTopicId);
-			if (mqttTopicsDataFiltered.length !== 0) {
-				const lastMeasurement = mqttTopicsDataFiltered[0].lastMeasurement;
+			const natsSubjectsDataFiltered = digitalTwinGltfData.natsSubjectsData.filter(subjectData => subjectData.topicId === clipTopicId);
+			if (natsSubjectsDataFiltered.length !== 0) {
+				const lastMeasurement = natsSubjectsDataFiltered[0].lastMeasurement;
 				if (lastMeasurement) {
 					const fieldName = obj.node.userData.clipFieldName;
 					const payloadObject = lastMeasurement.payload as any;

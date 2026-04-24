@@ -2,7 +2,6 @@ package common
 
 import (
 	"context"
-	"image"
 	"time"
 
 	"github.com/nats-io/nats.go"
@@ -17,13 +16,6 @@ type AdminMessage struct {
 	Action    string         `json:"action"`    // create, update, delete
 	Id        int            `json:"id"`        // ID of the org, group, asset, digitalTwin, flow, or node
 	Context   map[string]any `json:"context"`   // Contextual information (e.g., groupId, orgId, assetId, digitalTwinId)
-}
-
-type Message struct {
-	Topic   string         `json:"topic"`
-	Payload map[string]any `json:"payload"`
-	State   map[string]any `json:"state"`
-	Image   image.Image    `json:"image"`
 }
 
 type Org struct {

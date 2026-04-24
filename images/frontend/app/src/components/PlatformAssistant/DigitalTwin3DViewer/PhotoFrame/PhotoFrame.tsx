@@ -2,7 +2,10 @@ import React, { useState, useRef, useCallback, useEffect } from "react";
 import styled from "styled-components";
 import { Camera } from "lucide-react";
 
-// Container principal del marco con overflow hidden para el zoom
+// ---------------------------------------------------------------------------
+// Styled components
+// ---------------------------------------------------------------------------
+
 const FrameContainer = styled.div`
     position: relative;
     display: flex;
@@ -20,7 +23,6 @@ const FrameContainer = styled.div`
     ${(props) => props.className}
 `;
 
-// Container para la imagen que permite el zoom y pan
 interface ZoomContainerProps {
     scale: number;
     translateX: number;
@@ -34,26 +36,22 @@ const ZoomContainer = styled.div.attrs<ZoomContainerProps>((props) => ({
 }))<ZoomContainerProps>`
     transition: transform 0.1s ease-out;
     transform-origin: center center;
+    position: relative;
 `;
 
-// Imagen con marco
-interface FramedImageProps extends React.ImgHTMLAttributes<HTMLImageElement> {
-    isLoaded: boolean;
-}
-
-const FramedImage = styled.img<FramedImageProps>`
+const FramedImage = styled.img`
     border: 8px solid #868585ff;
     border-radius: 2px;
     box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 10px 10px -5px rgba(0, 0, 0, 0.2),
         inset 0 0 0 1px rgba(0, 0, 0, 0.1);
-    transition: opacity 0.3s ease;
-    opacity: ${(props) => (props.isLoaded ? 1 : 0)};
-    ${(props) => !props.isLoaded && `position: absolute;`}
     user-select: none;
     pointer-events: none;
 `;
 
-// Controles de zoom
+const HiddenImg = styled.img`
+    display: none;
+`;
+
 const ZoomControls = styled.div`
     position: absolute;
     bottom: 10px;
@@ -102,7 +100,6 @@ const ZoomIndicator = styled.div`
     z-index: 10;
 `;
 
-// Componente principal
 interface ImageFrameProps {
     imageUrl: string;
     width?: string;
@@ -124,8 +121,13 @@ export const ImageFrame: React.FC<ImageFrameProps> = ({
     zoomStep = 0.1,
     showControls = true,
 }) => {
-    const [isLoaded, setIsLoaded] = useState(false);
+    // visibleUrl: what is currently shown to the user
+    // pendingUrl: loading silently in the background <img>
+    const [visibleUrl, setVisibleUrl] = useState<string>("");
+    const [pendingUrl, setPendingUrl] = useState<string>("");
+    const [hasFirstLoad, setHasFirstLoad] = useState(false);
     const [hasError, setHasError] = useState(false);
+
     const [scale, setScale] = useState(1);
     const [translateX, setTranslateX] = useState(0);
     const [translateY, setTranslateY] = useState(0);
@@ -134,59 +136,51 @@ export const ImageFrame: React.FC<ImageFrameProps> = ({
 
     const containerRef = useRef<HTMLDivElement>(null);
 
+    // Each new imageUrl goes into the hidden <img> to preload.
+    // The visible <img> only updates once onLoad fires.
     useEffect(() => {
-        setIsLoaded(false);
+        if (!imageUrl) return;
         setHasError(false);
-        setScale(1);
-        setTranslateX(0);
-        setTranslateY(0);
-        setIsDragging(false);
+        setPendingUrl(imageUrl);
     }, [imageUrl]);
 
+    // Called when the hidden img finishes loading — swap it to visible
+    const handlePendingLoad = useCallback(() => {
+        setVisibleUrl((prev) => {
+            // Revoke the previous object URL after the browser has painted
+            if (prev) requestAnimationFrame(() => URL.revokeObjectURL(prev));
+            return pendingUrl;
+        });
+        setHasFirstLoad(true);
+    }, [pendingUrl]);
+
+    const handleError = useCallback(() => {
+        setHasError(true);
+    }, []);
+
+    // Wheel zoom
     useEffect(() => {
         const container = containerRef.current;
         if (!container) return;
 
         const handleWheelEvent = (e: WheelEvent) => {
             e.preventDefault();
-
-            const delta = e.deltaY;
-            const zoomFactor = delta > 0 ? 1 - zoomStep : 1 + zoomStep;
+            const zoomFactor = e.deltaY > 0 ? 1 - zoomStep : 1 + zoomStep;
             const newScale = Math.min(Math.max(scale * zoomFactor, minZoom), maxZoom);
+            if (newScale === scale) return;
 
-            if (newScale !== scale) {
-                // Calcular el punto de zoom basado en la posición del cursor
-                const rect = container.getBoundingClientRect();
-                const mouseX = e.clientX - rect.left - rect.width / 2;
-                const mouseY = e.clientY - rect.top - rect.height / 2;
-
-                // Ajustar la traducción para mantener el punto bajo el cursor
-                const scaleDiff = newScale / scale - 1;
-                const newTranslateX = translateX - (mouseX * scaleDiff) / scale;
-                const newTranslateY = translateY - (mouseY * scaleDiff) / scale;
-
-                setScale(newScale);
-                setTranslateX(newTranslateX);
-                setTranslateY(newTranslateY);
-            }
+            const rect = container.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left - rect.width / 2;
+            const mouseY = e.clientY - rect.top - rect.height / 2;
+            const scaleDiff = newScale / scale - 1;
+            setScale(newScale);
+            setTranslateX((prev) => prev - (mouseX * scaleDiff) / scale);
+            setTranslateY((prev) => prev - (mouseY * scaleDiff) / scale);
         };
 
         container.addEventListener("wheel", handleWheelEvent, { passive: false });
-
-        return () => {
-            container.removeEventListener("wheel", handleWheelEvent);
-        };
-    }, [scale, translateX, translateY, minZoom, maxZoom, zoomStep]);
-
-    const handleImageLoad = () => {
-        setIsLoaded(true);
-        setHasError(false);
-    };
-
-    const handleImageError = () => {
-        setHasError(true);
-        setIsLoaded(false);
-    };
+        return () => container.removeEventListener("wheel", handleWheelEvent);
+    }, [scale, minZoom, maxZoom, zoomStep]);
 
     const handleMouseDown = useCallback(
         (e: React.MouseEvent) => {
@@ -203,7 +197,6 @@ export const ImageFrame: React.FC<ImageFrameProps> = ({
             if (isDragging && scale > 1) {
                 const deltaX = (e.clientX - lastMousePosition.x) / scale;
                 const deltaY = (e.clientY - lastMousePosition.y) / scale;
-
                 setTranslateX((prev) => prev + deltaX);
                 setTranslateY((prev) => prev + deltaY);
                 setLastMousePosition({ x: e.clientX, y: e.clientY });
@@ -212,25 +205,19 @@ export const ImageFrame: React.FC<ImageFrameProps> = ({
         [isDragging, lastMousePosition, scale]
     );
 
-    const handleMouseUp = useCallback(() => {
-        setIsDragging(false);
-    }, []);
+    const handleMouseUp = useCallback(() => setIsDragging(false), []);
 
     const zoomIn = useCallback(() => {
-        const newScale = Math.min(scale * (1 + zoomStep * 2), maxZoom);
-        setScale(newScale);
-    }, [scale, maxZoom, zoomStep]);
+        setScale((prev) => Math.min(prev * (1 + zoomStep * 2), maxZoom));
+    }, [maxZoom, zoomStep]);
 
     const zoomOut = useCallback(() => {
-        const newScale = Math.max(scale * (1 - zoomStep * 2), minZoom);
-        setScale(newScale);
-
-        // Reset position if zoom is back to 1 or less
-        if (newScale <= 1) {
-            setTranslateX(0);
-            setTranslateY(0);
-        }
-    }, [scale, minZoom, zoomStep]);
+        setScale((prev) => {
+            const next = Math.max(prev * (1 - zoomStep * 2), minZoom);
+            if (next <= 1) { setTranslateX(0); setTranslateY(0); }
+            return next;
+        });
+    }, [minZoom, zoomStep]);
 
     const resetZoom = useCallback(() => {
         setScale(1);
@@ -241,7 +228,7 @@ export const ImageFrame: React.FC<ImageFrameProps> = ({
     if (hasError) {
         return (
             <FrameContainer className={className}>
-                 <Camera size={100} color="#595858" />
+                <Camera size={100} color="#595858" />
             </FrameContainer>
         );
     }
@@ -255,37 +242,36 @@ export const ImageFrame: React.FC<ImageFrameProps> = ({
             onMouseUp={handleMouseUp}
             onMouseLeave={handleMouseUp}
         >
-            {!isLoaded && (
-                <Camera size={100} color="#595858" />
+            {!hasFirstLoad && <Camera size={100} color="#595858" />}
+
+            {/* Visible image — only updated after the pending one has loaded */}
+            {visibleUrl && (
+                <ZoomContainer scale={scale} translateX={translateX} translateY={translateY}>
+                    <FramedImage
+                        src={visibleUrl}
+                        alt="Image Frame"
+                        width={width}
+                        height={height}
+                    />
+                </ZoomContainer>
             )}
 
-            <ZoomContainer scale={scale} translateX={translateX} translateY={translateY}>
-                <FramedImage
-                    src={imageUrl}
-                    alt={"Image Frame"}
-                    width={width}
-                    height={height}
-                    isLoaded={isLoaded}
-                    onLoad={handleImageLoad}
-                    onError={handleImageError}
+            {/* Hidden preloader — decodes the next frame before showing it */}
+            {pendingUrl && pendingUrl !== visibleUrl && (
+                <HiddenImg
+                    src={pendingUrl}
+                    onLoad={handlePendingLoad}
+                    onError={handleError}
                 />
-            </ZoomContainer>
+            )}
 
-            {showControls && isLoaded && (
-                <>
-                    <ZoomControls>
-                        <ZoomIndicator>{Math.round(scale * 100)}%</ZoomIndicator>
-                        <ZoomButton onClick={zoomIn} title="Zoom In">
-                            +
-                        </ZoomButton>
-                        <ZoomButton onClick={zoomOut} title="Zoom Out">
-                            −
-                        </ZoomButton>
-                        <ZoomButton onClick={resetZoom} title="Reset Zoom">
-                            ⌂
-                        </ZoomButton>
-                    </ZoomControls>
-                </>
+            {showControls && hasFirstLoad && (
+                <ZoomControls>
+                    <ZoomIndicator>{Math.round(scale * 100)}%</ZoomIndicator>
+                    <ZoomButton onClick={zoomIn} title="Zoom In">+</ZoomButton>
+                    <ZoomButton onClick={zoomOut} title="Zoom Out">−</ZoomButton>
+                    <ZoomButton onClick={resetZoom} title="Reset Zoom">⌂</ZoomButton>
+                </ZoomControls>
             )}
         </FrameContainer>
     );

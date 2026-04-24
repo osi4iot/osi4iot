@@ -3,7 +3,7 @@ import styled, { keyframes, css } from "styled-components";
 // CSS estándar para el resizing - mejor performance
 export const resizableStyles = `
   .resizable-panel {
-    width: var(--panel-width, 550px);
+    width: var(--panel-width, 600px);
     transition: none;
   }
   
@@ -204,9 +204,9 @@ export const PanelTitle = styled.h2`
 export const NodeTypeIndicator = styled.span<{ nodeType: string }>`
     padding: 4px 8px;
     border-radius: 4px;
-    font-size: 12px;
+    font-size: 14px;
     font-weight: 500;
-    text-transform: uppercase;
+    // text-transform: uppercase;
     background-color: ${(props) => {
         switch (props.nodeType) {
             case "Function":
@@ -221,6 +221,8 @@ export const NodeTypeIndicator = styled.span<{ nodeType: string }>`
                 return "#a6bbcf";
             case "Delay":
                 return "#a8a152";
+            case "Splitter":
+                return "#a8a152";
             case "MlModel":
                 return "#bd5f25ff";
             case "AiAgent":
@@ -231,6 +233,14 @@ export const NodeTypeIndicator = styled.span<{ nodeType: string }>`
                 return "#4a90e2";
             case "TelegramSend":
                 return "#4a90e2";
+            case "Batch":
+                return "#b8ac2fff";
+            case "IoTDb":
+                return "#5B85A7";
+            case "S3Storage":
+                return "#5B85A7";
+            case "AssetState":
+                return "#5B85A7";
             default:
                 return "#6b7280";
         }
@@ -575,4 +585,129 @@ export const Button = styled.button<{ variant?: "primary" | "secondary" }>`
       background-color: #6b7280;
     }
   `}
+`;
+
+export const HelpSection = styled.div`
+    margin-bottom: 20px;
+`;
+
+export const HelpDescription = styled.p`
+    color: #d1d5db;
+    font-size: 15px;
+    font-family: Helvetica, Arial, sans-serif;
+    line-height: 1.6;
+    margin: 0 0 16px 0;
+    text-align: justify;
+`;
+
+
+export const HelpExampleBlock = styled.div`
+    margin-bottom: 16px;
+`;
+
+export const HelpExampleLabel = styled.div`
+    color: #9ca3af;
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    margin-bottom: 6px;
+`;
+
+export const HelpExampleCodeWrapper = styled.div`
+    position: relative;
+    z-index: 0; 
+`;
+
+export const HelpExampleCode = styled.div`
+    position: relative;
+    background-color: #1a1a1a;
+    border: 1px solid #374151;
+    border-radius: 6px;
+    padding: 12px 40px 12px 14px; /* right padding leaves room for copy button */
+    font-size: 14px;
+    font-family: "Monaco", "Menlo", "Ubuntu Mono", monospace;
+    color: #86efac;
+    white-space: pre;
+    overflow-x: auto;
+    line-height: 1.5;
+
+    &::-webkit-scrollbar {
+        height: 10px;   /* ← height para scrollbar horizontal */
+    }
+
+    &::-webkit-scrollbar-track {
+        background: #202226;
+        border-radius: 5px;
+    }
+
+    &::-webkit-scrollbar-thumb {
+        background: #2c3235;
+        border-radius: 5px;
+    }
+
+    &::-webkit-scrollbar-thumb:hover {
+        background-color: #343840;
+    }
+`;
+
+export const CopyButton = styled.button<{ copied: boolean }>`
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    z-index: 1;   /* ← por encima del código */
+    padding: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: ${(props) => (props.copied ? "#16a34a" : "#374151")};
+    color: ${(props) => (props.copied ? "#ffffff" : "#9ca3af")};
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+
+    &:hover {
+        background-color: ${(props) => (props.copied ? "#15803d" : "#4b5563")};
+        color: #ffffff;
+    }
+`;
+
+export const HelpNotesList = styled.ul`
+    margin: 0;
+    padding: 0 0 0 16px;
+    list-style: disc;
+`;
+
+export const HelpNotesItem = styled.li`
+    color: #9ca3af;
+    font-size: 14px;
+    font-family: Helvetica, Arial, sans-serif;
+    line-height: 1.6;
+    margin-bottom: 4px;
+`;
+
+export const HelpParamRow = styled.div`
+    display: grid;
+    grid-template-columns: 130px 1fr;
+    gap: 12px;
+    padding: 8px 0;
+    border-bottom: 1px solid #374151;
+
+    &:last-child {
+        border-bottom: none;
+    }
+`;
+
+export const HelpParamName = styled.span`
+    color: #e7e3df;
+    font-size: 14px;
+    font-family: "Monaco", "Menlo", "Ubuntu Mono", monospace;
+    padding-top: 1px;
+`;
+
+export const HelpParamDesc = styled.span`
+    color: #9ca3af;
+    font-size: 14px;
+    font-family: Helvetica, Arial, sans-serif;
+    line-height: 1.55;
 `;

@@ -1,5 +1,5 @@
 import { FC, useState, SyntheticEvent, useEffect } from 'react';
-import Paho from "paho-mqtt";
+import { NatsConnection } from "nats.ws";
 import styled from "styled-components";
 import { Formik, Form } from 'formik';
 import * as Yup from 'yup';
@@ -20,11 +20,11 @@ const Title = styled.h2`
 `;
 
 interface ConnectionLedProps {
-    readonly isMqttConnected: boolean;
+    readonly isNatsConnected: boolean;
 }
 
 const ConnectionLed = styled.span<ConnectionLedProps>`
-	background-color: ${(props) => (props.isMqttConnected ? "#62f700" : "#f80000")};
+	background-color: ${(props) => (props.isNatsConnected ? "#62f700" : "#f80000")};
 	width: 17px;
 	height: 17px;
 	margin: -2px 10px;
@@ -57,35 +57,12 @@ const ControlsContainer = styled.div`
     padding: 10px 5px;
     margin-bottom: 15px;
     overflow-y: auto;
-    /* width */
-    ::-webkit-scrollbar {
-        width: 10px;
-    }
-
-    /* Track */
-    ::-webkit-scrollbar-track {
-        background: #202226;
-        border-radius: 5px;
-    }
-    
-    /* Handle */
-    ::-webkit-scrollbar-thumb {
-        background: #2c3235; 
-        border-radius: 5px;
-    }
-
-    /* Handle on hover */
-    ::-webkit-scrollbar-thumb:hover {
-        background-color: #343840;
-    }
-
-    div:first-child {
-        margin-top: 0;
-    }
-
-    div:last-child {
-        margin-bottom: 3px;
-    }
+    ::-webkit-scrollbar { width: 10px; }
+    ::-webkit-scrollbar-track { background: #202226; border-radius: 5px; }
+    ::-webkit-scrollbar-thumb { background: #2c3235; border-radius: 5px; }
+    ::-webkit-scrollbar-thumb:hover { background-color: #343840; }
+    div:first-child { margin-top: 0; }
+    div:last-child { margin-bottom: 3px; }
 `;
 
 const ProgressBarContainer = styled.div`
@@ -99,10 +76,9 @@ const ProgressBarContainer = styled.div`
 	max-width: 375px;
 `;
 
-
-interface MobileOrientationSelectFormProps {
-    mqttClient: Paho.Client;
-    isMqttConnected: boolean;
+interface MobileOrientationFormProps {
+    natsClient: NatsConnection;
+    isNatsConnected: boolean;
     setMobileSensorSelected: React.Dispatch<React.SetStateAction<string>>;
     mobileTopicSelected: IMobileTopic;
 }
@@ -112,11 +88,10 @@ const initialMobileOrientationFormValues = {
     samplingFrequency: 25,
 };
 
-
-const MobileOrientationForm: FC<MobileOrientationSelectFormProps> = (
+const MobileOrientationForm: FC<MobileOrientationFormProps> = (
     {
-        mqttClient,
-        isMqttConnected,
+        natsClient,
+        isNatsConnected,
         setMobileSensorSelected,
         mobileTopicSelected,
     }) => {
@@ -128,7 +103,7 @@ const MobileOrientationForm: FC<MobileOrientationSelectFormProps> = (
         return () => {
             if (quaternionSensor) quaternionSensor.stop();
         }
-    }, [quaternionSensor])
+    }, [quaternionSensor]);
 
     const validationSchema = Yup.object().shape({
         totalReadingTime: Yup.number().min(20, "The minimum reading time is 20 seconds").max(300, "The maximum reading time is 300 seconds").required('Required'),
@@ -142,15 +117,15 @@ const MobileOrientationForm: FC<MobileOrientationSelectFormProps> = (
     };
 
     const handleSubmit = async (values: any, actions: any) => {
-        if (mqttClient && !isSensorReading && mobileTopicSelected != null) {
+        if (natsClient && !isSensorReading && mobileTopicSelected != null) {
             const totalReadingTime = values.totalReadingTime;
             const samplingFrequency = values.samplingFrequency;
             const groupHash = mobileTopicSelected.groupUid;
             const topicHash = mobileTopicSelected.topicUid;
-            const mqttTopic = `dev2pdb_wt/Group_${groupHash}/Topic_${topicHash}`;
+            const natsSubject = `dev2pdb_wt.Group_${groupHash}.Topic_${topicHash}`;
             const quaternionSensor = ReadMobileOrientation(
-                mqttClient as Paho.Client,
-                mqttTopic,
+                natsClient,
+                natsSubject,
                 totalReadingTime,
                 samplingFrequency,
                 setIsSensorReadings,
@@ -163,7 +138,7 @@ const MobileOrientationForm: FC<MobileOrientationSelectFormProps> = (
     return (
         <>
             <Title>
-                Mobile orientation <ConnectionLed isMqttConnected={isMqttConnected} />
+                Mobile orientation <ConnectionLed isNatsConnected={isNatsConnected} />
             </Title>
             <FormContainer>
                 <Formik initialValues={initialMobileOrientationFormValues} validationSchema={validationSchema} onSubmit={handleSubmit} >

@@ -2,9 +2,9 @@ package services
 
 import (
 	"github.com/docker/docker/api/types/swarm"
-	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/resources"
-	pt "github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/types"
-	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/utils"
+	"github.com/osi4iot/osi4iot/utils/osi4iot/internals/resources"
+	pt "github.com/osi4iot/osi4iot/utils/osi4iot/internals/types"
+	"github.com/osi4iot/osi4iot/utils/osi4iot/internals/utils"
 )
 
 func AuthCalloutService(

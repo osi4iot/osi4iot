@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"pipelines/common"
+	"pipelines/message"
+	"strings"
 )
 
 func MarshalData(data interface{}) ([]byte, error) {
@@ -20,8 +22,7 @@ func UnmarshalData(data []byte, v interface{}) error {
 		return fmt.Errorf("failed to unmarshal raw data: %v", err)
 	}
 
-	processedData := preprocessJSONStrings(raw)
-	processedBytes, err := json.Marshal(processedData)
+	processedBytes, err := json.Marshal(preprocessJSONStrings(raw))
 	if err != nil {
 		return fmt.Errorf("failed to marshal processed data: %v", err)
 	}
@@ -29,7 +30,6 @@ func UnmarshalData(data []byte, v interface{}) error {
 	if err := json.Unmarshal(processedBytes, v); err != nil {
 		return fmt.Errorf("failed to unmarshal processed data: %v", err)
 	}
-
 	return nil
 }
 
@@ -63,14 +63,14 @@ func preprocessJSONStrings(data interface{}) interface{} {
 			}
 		}
 		return result
-		
+
 	case []interface{}:
 		result := make([]interface{}, len(v))
 		for i, item := range v {
 			result[i] = preprocessJSONStrings(item)
 		}
 		return result
-		
+
 	default:
 		return v
 	}
@@ -81,18 +81,17 @@ func RemoveFieldFromInterface(data interface{}, fieldToRemove string) interface{
 	if !ok {
 		return data
 	}
-	
+
 	if _, exists := mapData[fieldToRemove]; !exists {
 		return data
 	}
-	
+
 	result := make(map[string]interface{}, len(mapData)-1)
 	for k, v := range mapData {
 		if k != fieldToRemove {
 			result[k] = v
 		}
 	}
-	
 	return result
 }
 
@@ -103,8 +102,7 @@ func DeepCopyPayload(src map[string]interface{}) map[string]interface{} {
 
 	data, err := json.Marshal(src)
 	if err != nil {
-		// Fallback to shallow copy
-		dst := make(map[string]interface{})
+		dst := make(map[string]interface{}, len(src))
 		for k, v := range src {
 			dst[k] = v
 		}
@@ -113,27 +111,60 @@ func DeepCopyPayload(src map[string]interface{}) map[string]interface{} {
 
 	var dst map[string]interface{}
 	if err := json.Unmarshal(data, &dst); err != nil {
-		// Fallback to shallow copy
-		dst := make(map[string]interface{})
+		dst := make(map[string]interface{}, len(src))
 		for k, v := range src {
 			dst[k] = v
 		}
 		return dst
 	}
-
 	return dst
 }
 
-func GetMessageFromRaw(rawMsg any) (common.Message, error) {
-	var message common.Message
-	jsonData, err := MarshalData(rawMsg)
-	if err != nil {
-		return common.Message{}, fmt.Errorf("failed to marshal raw message: %v", err)
-	}
-	err = UnmarshalData(jsonData, &message)
-	if err != nil {
-		return common.Message{}, fmt.Errorf("failed to unmarshal message: %v", err)
-	}
+// func GetMessageFromRaw(rawMsg any) (common.Message, error) {
+// 	jsonData, err := MarshalData(rawMsg)
+// 	if err != nil {
+// 		return nil, fmt.Errorf("failed to marshal raw message: %v", err)
+// 	}
 
-	return message, nil
+// 	var msg message.Message
+// 	if err := UnmarshalData(jsonData, &msg); err != nil {
+// 		return nil, fmt.Errorf("failed to unmarshal message: %v", err)
+// 	}
+// 	return &msg, nil
+// }
+
+func GetMessageFromRaw(rawMsg any) (common.Message, error) {
+    serializableFields := []string{"payload", "state", "topic", "__goMsg"}
+    
+    rawMap, ok := rawMsg.(map[string]any)
+    if !ok {
+        return nil, fmt.Errorf("rawMsg is not a map: %T", rawMsg)
+    }
+
+    filtered := make(map[string]any)
+    for _, key := range serializableFields {
+        if val, exists := rawMap[key]; exists {
+            filtered[key] = val
+        }
+    }
+
+    jsonData, err := MarshalData(filtered)
+    if err != nil {
+        return nil, fmt.Errorf("failed to marshal raw message: %v", err)
+    }
+
+    var msg message.Message
+    if err := UnmarshalData(jsonData, &msg); err != nil {
+        return nil, fmt.Errorf("failed to unmarshal message: %v", err)
+    }
+
+    return &msg, nil
+}
+
+func GetTopicTypeFromMessage(rawMsg any) string {
+	message, err := GetMessageFromRaw(rawMsg)
+	if err != nil || message.GetTopic() == "" {
+		return ""
+	}
+	return strings.Split(message.GetTopic(), ".")[0]
 }

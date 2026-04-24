@@ -37,6 +37,7 @@ COPY function_library/ ./function_library/
 COPY leader_election/ ./leader_election/
 COPY iotdb/ ./iotdb/
 COPY logger/ ./logger/
+COPY message/ ./message/
 COPY nats/ ./nats/
 COPY nodes/ ./nodes/
 COPY s3folder/ ./s3folder/

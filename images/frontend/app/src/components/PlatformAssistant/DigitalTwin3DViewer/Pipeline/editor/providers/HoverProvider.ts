@@ -22,30 +22,33 @@ function ensureScrollbarStyle() {
 
 // ─────────────────────────────────────────────────────────────────────────────
 
-export function hoverProvider(view: any, pos: number, _side: any) {
+export async function hoverProvider(view: any, pos: number, _side: any) {
     const { state } = view;
     const wordRange = state.wordAt(pos);
     if (!wordRange) return null;
 
-    const word     = state.sliceDoc(wordRange.from, wordRange.to);
+    const word = state.sliceDoc(wordRange.from, wordRange.to);
     if (!word) return null;
 
-    const line     = state.doc.lineAt(pos);
+    const line = state.doc.lineAt(pos);
     const lineText = line.text;
-    const doc      = state.doc.toString();
+    const doc = state.doc.toString();
 
-    // Use the start of the word as the LS position for most accurate quickInfo
     const lsPos = wordRange.from;
 
+    const info = await workerBridge.hover(doc, lsPos, lineText, word);
+
+    if (!info) return null;
+
     return {
-        pos:  wordRange.from,
-        end:  wordRange.to,
+        pos: wordRange.from,
+        end: wordRange.to,
         above: false,
         strictSide: true,
         create() {
-            ensureScrollbarStyle();
             const dom = document.createElement("div");
             dom.className = "osi-hover";
+
             Object.assign(dom.style, {
                 maxWidth: "600px",
                 maxHeight: "300px",
@@ -55,15 +58,7 @@ export function hoverProvider(view: any, pos: number, _side: any) {
                 fontSize: "12px",
             });
 
-            dom.innerHTML = `<div style="opacity:0.4;">…</div>`;
-
-            workerBridge
-                .hover(doc, lsPos, lineText, word)
-                .then((info) => {
-                    if (!info) { dom.innerHTML = ""; return; }
-                    dom.innerHTML = buildHoverHTML(info);
-                })
-                .catch(() => { dom.innerHTML = ""; });
+            dom.innerHTML = buildHoverHTML(info);
 
             return { dom };
         },

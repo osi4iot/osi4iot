@@ -8,8 +8,8 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/swarm"
-	pt "github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/types"
-	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/utils"
+	pt "github.com/osi4iot/osi4iot/utils/osi4iot/internals/types"
+	"github.com/osi4iot/osi4iot/utils/osi4iot/internals/utils"
 )
 
 func GenerateSecrets(pd *pt.PlatformData) map[string]pt.Secret {

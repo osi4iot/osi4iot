@@ -21,6 +21,8 @@ import { setReloadDigitalTwinsTable, usePlatformAssitantDispatch } from "../../.
 import load3DModelData from "../../../tools/load3DModelData";
 import formatDateString from "../../../tools/formatDate";
 import { AxiosError, AxiosResponse } from "axios";
+import { INatsSubjectData } from "../DigitalTwin3DViewer/Main/Model";
+import { mqttTopicToNatsSubject } from "../DigitalTwin3DViewer/NatsHook/tools";
 
 const SELECTED = "#3274d9";
 const NON_SELECTED = "#9c9a9a";
@@ -219,6 +221,17 @@ const GeoDigitalTwin: FC<GeoDigitalTwinProps> = ({
 
                 if (response.data) {
                     const digitalTwin3DModelData = response.data;
+                    const natsSubjectsData: INatsSubjectData[] = [];
+                    for (const mqttTopicData of digitalTwin3DModelData.mqttTopicsData) {
+                        const natsSubjectData: INatsSubjectData = {
+                            topicId: mqttTopicData.topicId,
+                            topicRef: mqttTopicData.topicRef,
+                            natsSubject: mqttTopicToNatsSubject(mqttTopicData.mqttTopic),
+                            lastMeasurement: mqttTopicData.lastMeasurement,
+                        }
+                        natsSubjectsData.push(natsSubjectData);
+                    }
+                    digitalTwin3DModelData.natsSubjectsData = natsSubjectsData;
 
                     let urlDigitalTwinGltfFile = `${protocol}://${domainName}/admin_api/digital_twin_gltffile`;
                     urlDigitalTwinGltfFile = `${urlDigitalTwinGltfFile}/${groupId}/${digitalTwinData.id}`;

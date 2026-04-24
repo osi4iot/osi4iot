@@ -1,8 +1,7 @@
-import { FC, useRef } from "react";
+import { FC, useRef, useState, useEffect } from "react";
 import {
     HeaderContainer,
     HeaderOptionsContainer,
-    MqttConnectionDiv,
     ExitIcon,
     DashboardIcon,
     HiShieldCheckIcon,
@@ -16,7 +15,7 @@ import {
     WifiIcon,
     NoWifiIcon,
     BoxIcon,
-    MqttText,
+    NatsText,
     CircleXIcon,
     DownloadIcon,
     PlayIcon,
@@ -29,21 +28,122 @@ import {
     UnknownIndicator,
     IndicatorContainer,
     InstanceBadge,
+    NatsConnectionDiv,
 } from "./StyledComponents";
 import { TooltipWrapper } from "./TooltipWrapper";
 import styled from "styled-components";
+import { ChevronDown } from "lucide-react";
 
 const HiddenFileInput = styled.input`
     display: none;
 `;
 
+const ViewerDropdownContainer = styled.div`
+    position: relative;
+    display: inline-block;
+`;
+
+const ViewerDropdownButton = styled.button`
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    background-color: #141619;
+    border: 1px solid #3274d9;
+    border-radius: 6px;
+    color: #3274d9;
+    padding: 4px 8px;
+    cursor: pointer;
+    font-size: 12px;
+    margin: 6px;
+    transition: all 0.2s;
+
+    &:hover {
+        background-color: #1e2a3a;
+        color: white;
+        border-color: white;
+
+        * {
+            color: white !important;
+            stroke: white !important;
+            background-color: transparent !important;
+        }
+    }
+
+    svg {
+        background-color: transparent !important;
+        margin: 0 !important;
+        font-size: 16px !important;
+        width: 16px;
+        height: 16px;
+    }
+`;
+
+const ViewerDropdownMenu = styled.div<{ open: boolean }>`
+    display: ${({ open }) => (open ? "flex" : "none")};
+    flex-direction: column;
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    background-color: #1a1d21;
+    border: 1px solid #3274d9;
+    border-radius: 6px;
+    z-index: 2000;
+    min-width: 160px;
+    overflow: hidden;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+`;
+
+const ViewerDropdownItem = styled.button<{ active: boolean }>`
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background-color: ${({ active }) => (active ? "#1e2a3a" : "transparent")};
+    border: none;
+    color: ${({ active }) => (active ? "white" : "#9ca3af")};
+    padding: 8px 12px;
+    cursor: pointer;
+    font-size: 12px;
+    text-align: left;
+    transition: all 0.15s;
+
+    &:hover {
+        background-color: #1e2a3a;
+        color: white;
+
+        * {
+            color: white !important;
+            stroke: white !important;
+            background-color: transparent !important;
+        }
+    }
+
+    svg {
+        background-color: transparent !important;
+        margin: 0 !important;
+        font-size: 16px !important;
+        width: 18px;
+        height: 18px;
+        flex-shrink: 0;
+    }
+`;
+
+const ChevronIcon = styled(ChevronDown)<{ open: boolean }>`
+    background-color: transparent !important;
+    margin: 0 !important;
+    width: 14px !important;
+    height: 14px !important;
+    transition: transform 0.2s;
+    transform: ${({ open }) => (open ? "rotate(180deg)" : "rotate(0deg)")};
+`;
+
 interface HeaderProps {
     isControlPanelOpen: boolean;
-    isMqttConnected: boolean;
+    isNatsConnected: boolean;
     digitalTwinState: string;
     activeViewer: "3D" | "pipeline" | "image_frame";
     handleControlPanelOpenAndClose: () => void;
     handleToggleActiveViewer: () => void;
+    handleSetActiveViewer: (viewer: "3D" | "pipeline" | "image_frame") => void;
     handleChatAssistantOpen: () => void;
     handlePipelineLogsOpen: () => void;
     handleOpenSimulator: () => void;
@@ -70,14 +170,24 @@ const RunningIndicatorWithBadge: FC<{ leaderIndex: number }> = ({ leaderIndex })
     );
 };
 
+const VIEWER_OPTIONS: {
+    value: "3D" | "pipeline" | "image_frame";
+    label: string;
+    icon: FC<{ className?: string }>;
+}[] = [
+    { value: "3D", label: "3D Model Viewer", icon: BoxIcon },
+    { value: "pipeline", label: "Pipeline Viewer", icon: TiFlowMergeIcon },
+    { value: "image_frame", label: "Photo Viewer", icon: CameraIcon },
+];
 
 export const Header: FC<HeaderProps> = ({
     isControlPanelOpen,
-    isMqttConnected,
+    isNatsConnected,
     digitalTwinState,
     activeViewer,
     handleControlPanelOpenAndClose,
     handleToggleActiveViewer,
+    handleSetActiveViewer,
     handleChatAssistantOpen,
     handlePipelineLogsOpen,
     handleOpenSimulator,
@@ -95,30 +205,51 @@ export const Header: FC<HeaderProps> = ({
     pipelineLeaderReplicaIndex,
 }) => {
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const [dropdownOpen, setDropdownOpen] = useState(false);
+    const dropdownRef = useRef<HTMLDivElement>(null);
 
-    const switchPipelineViewer = () => (
-        <>
-            {activeViewer === "3D" && (
-                <TooltipWrapper tooltip="Switch to pipeline viewer" onClick={handleToggleActiveViewer}>
-                    <TiFlowMergeIcon />
-                </TooltipWrapper>
-            )}
-            {activeViewer === "pipeline" && !assetWithMobilePhotoSelected && (
-                <TooltipWrapper tooltip="Switch to 3D model viewer" onClick={handleToggleActiveViewer}>
-                    <BoxIcon />
-                </TooltipWrapper>
-            )}
-            {activeViewer === "pipeline" && assetWithMobilePhotoSelected && (
-                <TooltipWrapper tooltip="Switch to photo viewer" onClick={handleToggleActiveViewer}>
-                    <CameraIcon />
-                </TooltipWrapper>
-            )}
-            {activeViewer === "image_frame" && assetWithMobilePhotoSelected && (
-                <TooltipWrapper tooltip="Switch to 3D model viewer" onClick={handleToggleActiveViewer}>
-                    <BoxIcon />
-                </TooltipWrapper>
-            )}
-        </>
+    // Close dropdown when clicking outside
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+                setDropdownOpen(false);
+            }
+        };
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, []);
+
+    const activeOption = VIEWER_OPTIONS.find((o) => o.value === activeViewer);
+    const ActiveIcon = activeOption?.icon;
+
+    const viewerDropdown = () => (
+        <ViewerDropdownContainer ref={dropdownRef}>
+            <ViewerDropdownButton onClick={() => setDropdownOpen((prev) => !prev)}>
+                {ActiveIcon && <ActiveIcon className="w-4 h-4" />}
+                <span>{activeOption?.label}</span>
+                <ChevronIcon open={dropdownOpen} />
+            </ViewerDropdownButton>
+
+            <ViewerDropdownMenu open={dropdownOpen}>
+                {VIEWER_OPTIONS.map(({ value, label, icon: Icon }) => {
+                    // Hide image_frame option if no mobile photo asset is selected
+                    if (value === "image_frame" && !assetWithMobilePhotoSelected) return null;
+                    return (
+                        <ViewerDropdownItem
+                            key={value}
+                            active={activeViewer === value}
+                            onClick={() => {
+                                handleSetActiveViewer(value);
+                                setDropdownOpen(false);
+                            }}
+                        >
+                            <Icon className="w-4 h-4" />
+                            {label}
+                        </ViewerDropdownItem>
+                    );
+                })}
+            </ViewerDropdownMenu>
+        </ViewerDropdownContainer>
     );
 
     const pipelineStatusIndicator = () => {
@@ -137,7 +268,6 @@ export const Header: FC<HeaderProps> = ({
                 </TooltipWrapper>
             );
         }
-
         if (pipelineStatus === "error") {
             return (
                 <TooltipWrapper tooltip="Status: Error">
@@ -145,7 +275,6 @@ export const Header: FC<HeaderProps> = ({
                 </TooltipWrapper>
             );
         }
-
         if (pipelineStatus === "unknown") {
             return (
                 <TooltipWrapper tooltip="Status: Unknown">
@@ -153,14 +282,13 @@ export const Header: FC<HeaderProps> = ({
                 </TooltipWrapper>
             );
         }
-
         return null;
     };
 
     return (
         <HeaderContainer>
             <HeaderOptionsContainer>
-                {switchPipelineViewer()}
+                {viewerDropdown()}
                 {pipelineStatusIndicator()}
 
                 {activeViewer === "3D" && (
@@ -180,15 +308,12 @@ export const Header: FC<HeaderProps> = ({
                         <TooltipWrapper tooltip="Open digital twin simulator" onClick={handleOpenSimulator}>
                             <SlidersHorizontalIcon className="w-4 h-4" />
                         </TooltipWrapper>
-
                         <TooltipWrapper tooltip="Open pipeline logs" onClick={handlePipelineLogsOpen}>
                             <LogsIcon />
                         </TooltipWrapper>
-
                         <TooltipWrapper tooltip="Open Grafana dashboard" onClick={handleOpenGrafanaDashboard}>
                             <DashboardIcon />
                         </TooltipWrapper>
-
                         {digitalTwinState === "OK" ? (
                             <TooltipWrapper tooltip="Digital twin state is OK">
                                 <HiShieldCheckIcon onClick={handleDigitalTwinStateShield} />
@@ -200,6 +325,7 @@ export const Header: FC<HeaderProps> = ({
                         )}
                     </>
                 )}
+
                 {activeViewer === "pipeline" && (
                     <>
                         <TooltipWrapper tooltip="Deploy changes" onClick={handleDeployPipeline}>
@@ -231,6 +357,7 @@ export const Header: FC<HeaderProps> = ({
                         </TooltipWrapper>
                     </>
                 )}
+
                 {activeViewer === "image_frame" && (
                     <>
                         <TooltipWrapper tooltip="Chat with assistant" onClick={handleChatAssistantOpen}>
@@ -239,11 +366,9 @@ export const Header: FC<HeaderProps> = ({
                         <TooltipWrapper tooltip="Open pipeline logs" onClick={handlePipelineLogsOpen}>
                             <LogsIcon />
                         </TooltipWrapper>
-
                         <TooltipWrapper tooltip="Open Grafana dashboard" onClick={handleOpenGrafanaDashboard}>
                             <DashboardIcon />
                         </TooltipWrapper>
-
                         {digitalTwinState === "OK" ? (
                             <TooltipWrapper tooltip="Digital twin state is OK">
                                 <HiShieldCheckIcon onClick={handleDigitalTwinStateShield} />
@@ -256,19 +381,19 @@ export const Header: FC<HeaderProps> = ({
                     </>
                 )}
 
-                <MqttConnectionDiv>
-                    {isMqttConnected ? (
-                        <TooltipWrapper tooltip="MQTT connection is active">
-                            <MqttText>MQTT</MqttText>
+                <NatsConnectionDiv>
+                    {isNatsConnected ? (
+                        <TooltipWrapper tooltip="NATS connection is active">
+                            <NatsText>NATS</NatsText>
                             <WifiIcon />
                         </TooltipWrapper>
                     ) : (
-                        <TooltipWrapper tooltip="MQTT connection is inactive">
-                            <MqttText>MQTT</MqttText>
+                        <TooltipWrapper tooltip="NATS connection is inactive">
+                            <NatsText>NATS</NatsText>
                             <NoWifiIcon />
                         </TooltipWrapper>
                     )}
-                </MqttConnectionDiv>
+                </NatsConnectionDiv>
 
                 <ExitIcon onClick={close3DViewer} />
             </HeaderOptionsContainer>

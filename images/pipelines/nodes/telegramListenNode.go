@@ -8,6 +8,7 @@ import (
 	// "os"
 	"pipelines/common"
 	"pipelines/logger"
+	"pipelines/message"
 	"pipelines/telegram"
 	"pipelines/utils"
 	"strconv"
@@ -112,8 +113,8 @@ func (n *TelegramListenNode) Start(ctx context.Context, log *logger.Logger, need
 	}
 
 	nodectx, nodeCancel := context.WithCancel(ctx)
-    n.Ctx = nodectx
-    n.Cancel = nodeCancel
+	n.Ctx = nodectx
+	n.Cancel = nodeCancel
 
 	n.SetStatus(common.NodeStatusRunning)
 	log.Infof("Starting TelegramListenNode with UID: %s", n.NodeUid)
@@ -156,7 +157,23 @@ func (n *TelegramListenNode) processListenMessage(log *logger.Logger) {
 					log.Warnf("Unrecognized callback command: %s", command)
 					continue
 				}
+			case telegram.MessageTypeAudio:
+				outMsg, err := n.buildAudioMessage(msg, log)
+				if err != nil {
+					log.Errorf("TelegramListenNode %s: failed to process audio message: %v", n.NodeUid, err)
+					continue
+				}
+				n.sendToOutputs(outMsg, log)
+				continue
 
+			case telegram.MessageTypeVoice:
+				outMsg, err := n.buildAudioMessage(msg, log)
+				if err != nil {
+					log.Errorf("TelegramListenNode %s: failed to process voice message: %v", n.NodeUid, err)
+					continue
+				}
+				n.sendToOutputs(outMsg, log)
+				continue
 			case telegram.MessageTypeText:
 				if msg.Text == "/start" {
 					var message strings.Builder
@@ -258,16 +275,14 @@ func (n *TelegramListenNode) processListenMessage(log *logger.Logger) {
 				}
 			}
 
-			outputMsg := common.Message{
-				Payload: map[string]any{
-					"message_id": msg.MessageID,
-					"chat_id":    msg.ChatID,
-					"text":       msg.Text,
-					"entities":   msg.Entities,
-					"message":    msg.Text,
-					"userName":   n.chatUserName(msg.ChatID),
-				},
-			}
+			outputMsg := message.NewMessageFromPayload(map[string]any{
+				"message_id": msg.MessageID,
+				"chat_id":    msg.ChatID,
+				"text":       msg.Text,
+				"entities":   msg.Entities,
+				"message":    msg.Text,
+				"userName":   n.chatUserName(msg.ChatID),
+			})
 
 			n.sendToOutputs(outputMsg, log)
 		}
@@ -289,8 +304,8 @@ func (n *TelegramListenNode) Stop(log *logger.Logger) {
 	}
 
 	n.wg.Wait()
-    n.SetStatus(common.NodeStatusStopped)
-    log.Infof("Node %s stopped successfully", n.NodeUid)
+	n.SetStatus(common.NodeStatusStopped)
+	log.Infof("Node %s stopped successfully", n.NodeUid)
 }
 
 func (n *TelegramListenNode) chatUserName(chatId int64) string {
@@ -443,4 +458,62 @@ func (n *TelegramListenNode) SendAssetCardImage(assetUid string, log *logger.Log
 			os.Remove(imagePath) // Remove the temporary image file after sending
 		}
 	}
+}
+
+func (n *TelegramListenNode) buildAudioMessage(msg *telegram.TelegramMessage, log *logger.Logger) (*message.Message, error) {
+	var fileID string
+	var mimeType string
+	var fileName string
+
+	switch msg.Type {
+	case telegram.MessageTypeAudio:
+		if msg.Audio == nil {
+			return nil, fmt.Errorf("audio message has no audio data")
+		}
+		fileID = msg.Audio.FileID
+		mimeType = msg.Audio.MimeType
+		if mimeType == "" {
+			mimeType = "audio/mpeg"
+		}
+		title := msg.Audio.Title
+		if title == "" {
+			title = msg.Audio.FileUniqueID
+		}
+		fileName = fmt.Sprintf("%s.mp3", title)
+
+	case telegram.MessageTypeVoice:
+		if msg.Voice == nil {
+			return nil, fmt.Errorf("voice message has no voice data")
+		}
+		fileID = msg.Voice.FileID
+		mimeType = msg.Voice.MimeType
+		if mimeType == "" {
+			mimeType = "audio/ogg"
+		}
+		fileName = fmt.Sprintf("%s.ogg", msg.Voice.FileUniqueID)
+	}
+
+	log.Infof("TelegramListenNode %s: downloading audio file %s", n.NodeUid, fileID)
+	data, _, err := telegram.DownloadFile(n.BotToken, fileID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to download audio file: %w", err)
+	}
+
+	outMsg := message.NewMessage(
+		"",
+		map[string]any{
+			"message_id": msg.MessageID,
+			"chat_id":    msg.ChatID,
+			"userName":   n.chatUserName(msg.ChatID),
+		},
+		nil,
+		mimeType,
+		&common.File{
+			Name:        fileName,
+			ContentType: mimeType,
+			Data:        data,
+		},
+	)
+
+	return outMsg, nil
 }

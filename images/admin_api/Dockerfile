@@ -5,7 +5,7 @@ RUN mkdir -p /app/node_modules && chown -R node:node /app
 WORKDIR /app
 COPY package*.json yarn.lock ./
 RUN yarn install
-RUN cat node_modules/typescript/package.json | grep '"version"'  # ← versión exacta
+RUN cat node_modules/typescript/package.json | grep '"version"'
 COPY . .
 RUN ./node_modules/.bin/tsc
 

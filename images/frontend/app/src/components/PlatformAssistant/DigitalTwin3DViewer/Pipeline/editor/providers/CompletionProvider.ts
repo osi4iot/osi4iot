@@ -6,7 +6,7 @@ import { workerBridge } from "../worker/WorkerBridge";
 
 const INSERT_PREFIX = "__insert__:";
 
-function deserializeApply(apply: string): Method["apply"] {
+function deserializeApply(apply: string): Method {
     if (!apply.startsWith(INSERT_PREFIX)) return apply; // plain string
 
     const rest = apply.slice(INSERT_PREFIX.length);

@@ -73,12 +73,16 @@ func WriteParquet(schemaJSON string, rows []map[string]any, outputPath string) e
 	}
 
 	for i, row := range rows {
-		// Validar que los campos REQUIRED están presentes antes de escribir
 		if err := validateRow(row, schemaFields, i); err != nil {
 			return err
 		}
 
-		rowBytes, err := json.Marshal(row)
+		normalizedRow, err := normalizeTimestamps(row, schemaFields)
+		if err != nil {
+			return fmt.Errorf("failed to normalize timestamps in row %d: %w", i, err)
+		}
+
+		rowBytes, err := json.Marshal(normalizedRow)
 		if err != nil {
 			return fmt.Errorf("failed to marshal row %d: %w", i, err)
 		}
@@ -91,6 +95,68 @@ func WriteParquet(schemaJSON string, rows []map[string]any, outputPath string) e
 		return fmt.Errorf("failed to finalize parquet file: %w", err)
 	}
 	return nil
+}
+
+func normalizeTimestamps(row map[string]any, fields []fieldInfo) (map[string]any, error) {
+	normalized := make(map[string]any, len(row))
+	for k, v := range row {
+		normalized[k] = v
+	}
+
+	for _, f := range fields {
+		if f.ConvertedType != "TIMESTAMP_MILLIS" && f.ConvertedType != "TIMESTAMP_MICROS" {
+			continue
+		}
+		val, exists := normalized[f.Name]
+		if !exists {
+			continue
+		}
+
+		var tsMillis int64
+		switch v := val.(type) {
+		case time.Time:
+			// time.Time de Go (expuesto por Goja como objeto)
+			if f.ConvertedType == "TIMESTAMP_MICROS" {
+				normalized[f.Name] = v.UnixMicro()
+			} else {
+				normalized[f.Name] = v.UnixMilli()
+			}
+			continue
+		case string:
+			// String RFC3339 o RFC3339Nano
+			t, err := time.Parse(time.RFC3339Nano, v)
+			if err != nil {
+				t, err = time.Parse(time.RFC3339, v)
+				if err != nil {
+					return nil, fmt.Errorf("field '%s': cannot parse '%s' as timestamp", f.Name, v)
+				}
+			}
+			if f.ConvertedType == "TIMESTAMP_MICROS" {
+				normalized[f.Name] = t.UnixMicro()
+			} else {
+				normalized[f.Name] = t.UnixMilli()
+			}
+			continue
+		case int64:
+			tsMillis = v
+		case int32:
+			tsMillis = int64(v)
+		case float64:
+			// JSON numbers deserializados por Goja llegan como float64
+			tsMillis = int64(v)
+		case int:
+			tsMillis = int64(v)
+		default:
+			return nil, fmt.Errorf("field '%s': unsupported timestamp type %T", f.Name, val)
+		}
+
+		if f.ConvertedType == "TIMESTAMP_MICROS" {
+			normalized[f.Name] = tsMillis * 1000
+		} else {
+			normalized[f.Name] = tsMillis
+		}
+	}
+	return normalized, nil
 }
 
 func extractSchemaFields(schemaJSON string) ([]fieldInfo, error) {
@@ -125,6 +191,8 @@ func parseTag(tag string) fieldInfo {
 			info.Name = val
 		case "type":
 			info.Type = val
+		case "convertedtype":
+			info.ConvertedType = val
 		case "repetitiontype":
 			info.Optional = strings.ToUpper(val) == "OPTIONAL"
 		}
@@ -133,9 +201,10 @@ func parseTag(tag string) fieldInfo {
 }
 
 type fieldInfo struct {
-	Name     string
-	Type     string
-	Optional bool
+	Name          string
+	Type          string
+	ConvertedType string
+	Optional      bool
 }
 
 func validateRow(row map[string]any, fields []fieldInfo, rowIndex int) error {
@@ -181,7 +250,7 @@ func GetParquetSchemaFromMap(schemaMap map[string]any) (string, error) {
 }
 
 func ParseTimestamp(timeStr string) (time.Time, error) {
-	t, err :=  time.Parse(time.RFC3339Nano, timeStr)
+	t, err := time.Parse(time.RFC3339Nano, timeStr)
 	if err != nil {
 		fmt.Println("Error:", err)
 		return time.Time{}, err

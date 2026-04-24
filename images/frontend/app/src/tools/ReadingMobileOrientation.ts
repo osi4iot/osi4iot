@@ -1,8 +1,9 @@
-import Paho from "paho-mqtt";
+import { NatsConnection, headers } from "nats.ws";
+import { sc } from "./Natsconnection";
 
 const ReadMobileOrientation = (
-	mqttClient: Paho.Client,
-	mqttTopic: string,
+	nc: NatsConnection,
+	natsSubject: string,
 	totalReadingTime: number,
 	samplingFrequency: number,
 	setIsSensorReadings: React.Dispatch<React.SetStateAction<boolean>>,
@@ -10,7 +11,11 @@ const ReadMobileOrientation = (
 ) => {
 	let readingsQuaternionCont = 0;
 	const deltaT = 1.0 / samplingFrequency;
-	const totalReadings = totalReadingTime / deltaT;;
+	const totalReadings = totalReadingTime / deltaT;
+
+	const h = headers();
+	h.set("Content-Type", "application/json");
+	h.set("Json-Structure", "object");
 
 	const quaternionSensor = new AbsoluteOrientationSensor({ frequency: samplingFrequency, referenceFrame: "device" });
 	quaternionSensor.start();
@@ -25,13 +30,9 @@ const ReadMobileOrientation = (
 			];
 
 			const timestamp = (new Date()).toJSON();
-			const payload = {
-				timestamp,
-				mobile_quaternion
-			};
-			const message = new Paho.Message(JSON.stringify(payload));
-			message.destinationName = mqttTopic;
-			mqttClient.send(message);
+			const payload = { timestamp, mobile_quaternion };
+			nc.publish(natsSubject, sc.encode(JSON.stringify(payload)), { headers: h });
+
 			const readingProgress = (readingsQuaternionCont / totalReadings) * 100;
 			setReadingProgress(readingProgress);
 			readingsQuaternionCont++;
@@ -42,7 +43,6 @@ const ReadMobileOrientation = (
 	};
 
 	return quaternionSensor;
-
 };
 
 export default ReadMobileOrientation;

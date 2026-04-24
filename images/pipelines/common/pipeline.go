@@ -37,37 +37,37 @@ type LeaderElector interface {
 }
 
 type Pipeline interface {
+	AddWire(wire *Wire)
+	ClearChatMessagesHistory(ctx context.Context, userName string)
+	CreateTelegramListenNodes(ctx context.Context, org *Org) error
+	DeleteWire(wireUid string) error
+	GetAssetId() int
+	GetDigitalTwinDescription() string
+	GetDigitalTwinId() int
+	GetDigitalTwinUid() string
+	GetGroupId() int
+	GetLeaderElector() LeaderElector
+	GetNode(nodeUid string) Node
+	GetNodeData(nodeUid string) *NodeData
+	GetNodeInputWires(nodeUid string) []*Wire
+	GetNodeOutputIndex(nodeUid string, outputIndex int) []*Wire
+	GetNodeOutputWires(nodeUid string) [][]*Wire
+	GetOrgHash() string
+	GetOrgId() int
+	GetPipelineWires() []*Wire
+	GetReplicaIndexLeader(ctx context.Context) int
+	GetStatus() PipelineStatus
+	HasTelegramListenNodes() bool
+	HasTelegramListenNodesData() bool
+	PublishChatMessages(ctx context.Context, userName string)
+	PublishPipelineStatus(payload PipelineStatusMessage)
+	ResetNode(ctx context.Context, nodeUid string) error
+	RestartNode(ctx context.Context, nodeUid string) error
+	SetStatus(ctx context.Context, status PipelineStatus)
 	Start(ctx context.Context, needReinitialization bool)
 	StartStatusPublisher(ctx context.Context)
 	Stop(ctx context.Context, action string) error
 	StopStatusPublisher()
-	SetStatus(ctx context.Context, status PipelineStatus)
-	GetStatus() PipelineStatus
-	ResetNode(ctx context.Context, nodeUid string) error
-	RestartNode(ctx context.Context, nodeUid string) error
-	GetNodeData(nodeUid string) *NodeData
-	GetNode(nodeUid string) Node
-	AddWire(wire *Wire)
-	DeleteWire(wireUid string) error
-	GetPipelineWires() []*Wire
-	GetNodeOutputWires(nodeUid string) [][]*Wire
-	GetNodeInputWires(nodeUid string) []*Wire
-	GetNodeOutputIndex(nodeUid string, outputIndex int) []*Wire
-	GetDigitalTwinId() int
-	GetDigitalTwinUid() string
-	GetDigitalTwinDescription() string
-	GetAssetId() int
-	GetOrgId() int
-	GetOrgHash() string
-	GetGroupId() int
-	PublishPipelineStatus(payload PipelineStatusMessage)
-	GetLeaderElector() LeaderElector
-	GetReplicaIndexLeader(ctx context.Context) int
-	PublishChatMessages(ctx context.Context, userName string)
-	ClearChatMessagesHistory(ctx context.Context, userName string)
-	CreateTelegramListenNodes(ctx context.Context, org *Org) error
-	HasTelegramListenNodesData() bool
-	HasTelegramListenNodes() bool
 }
 
 type PipelineStatusMessage struct {

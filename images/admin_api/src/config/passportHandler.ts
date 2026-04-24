@@ -1,4 +1,3 @@
-/* eslint-disable quotes */
 import passport from "passport";
 import jwt from "jsonwebtoken";
 import passportLocal from "passport-local";
@@ -38,7 +37,7 @@ const passportInitialize = () => {
 					return done(null, false, { message: 'Not a matching password' });
 				}
 
-				return done(null, user);
+				return done(null, user as unknown as Express.User);
 
 			}
 
@@ -64,7 +63,7 @@ const passportInitialize = () => {
 					if (!user || jwtPayload.action !== "access") {
 						return done(null, false);
 					}
-					return done(null, user);
+					return done(null, user as unknown as Express.User);
 				} catch (err) {
 					return done(err, null); // Error in DB
 				}

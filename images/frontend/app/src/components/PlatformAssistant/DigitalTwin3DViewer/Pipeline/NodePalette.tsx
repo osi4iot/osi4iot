@@ -10,12 +10,15 @@ import {
     Layers,
     Zap,
     Database,
+    MessageSquareText,
+    Mic,
 } from "lucide-react";
 import { FaTelegramPlane } from "react-icons/fa";
-import { TbDatabaseCog } from "react-icons/tb";
+import { TbDatabaseCog, TbArrowsSplit2 } from "react-icons/tb";
 import { FaRegCommentDots, FaMicrochip, FaGear } from "react-icons/fa6";
 import { BsBucket } from "react-icons/bs";
 import styled from "styled-components";
+import { useState, useRef } from "react";
 
 const PaletteContainer = styled.div`
     width: 190px;
@@ -100,14 +103,96 @@ const NodeLabel = styled.span`
     flex: 1;
 `;
 
+// ── Tooltip ──────────────────────────────────────────────────────────────────
+
+const TooltipBox = styled.div<{ visible: boolean; top: number; left: number }>`
+    position: fixed;
+    top: ${(props) => props.top}px;
+    left: ${(props) => props.left}px;
+    z-index: 9999;
+    pointer-events: none;
+
+    max-width: 220px;
+    padding: 8px 12px;
+    background-color: #1a1a1a;
+    border: 1px solid #4b5563;
+    border-radius: 6px;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5);
+
+    color: #d1d5db;
+    font-size: 12px;
+    font-family: Helvetica, Arial, sans-serif;
+    line-height: 1.55;
+
+    opacity: ${(props) => (props.visible ? 1 : 0)};
+    transform: translateX(${(props) => (props.visible ? "0" : "-6px")});
+    transition:
+        opacity 0.15s ease,
+        transform 0.15s ease;
+`;
+
+const NODE_DESCRIPTIONS: Record<string, string> = {
+    Listen: "Subscribes to a NATS subject and emits a message every time new data is published on it.",
+    Publish: "Publishes a message to a NATS subject. Supports JSON and binary payloads.",
+    Inject: "Manually injects a payload into the pipeline. Useful for testing and triggering flows on demand. Max 5 per pipeline.",
+    Trigger: "Fires when a configurable condition is met (e.g. threshold, schedule), activating downstream nodes.",
+    Function: "Executes a custom JavaScript function. Receives the incoming message and returns a transformed output.",
+    Delay: "Introduces a fixed time delay before passing the message to the next node.",
+    Splitter:
+        "Distributes messages across outputs using weighted round-robin. E.g. weights [2, 1] sends 2/3 of messages to output 0 and 1/3 to output 1.",
+    Comment: "A free-text annotation node. Does not process data — used to document the pipeline.",
+    MlModel: "Runs inference on an ML model registered in the platform and outputs the prediction result.",
+    AiAgent: "Sends the message to an LLM-based AI agent and returns its response. Requires LLM to be enabled.",
+    Transcriptor: "Transcribes incoming audio files into text and can optionally translate the result.",
+    Email: "Sends an email notification with the message payload to a configured recipient.",
+    TelegramListen: "Listens for incoming messages on a configured Telegram bot and emits them downstream.",
+    TelegramSend: "Sends a message via a configured Telegram bot to a target chat. Requires Telegram to be enabled.",
+    Batch: "Accumulates N messages and emits them together as a batch array.",
+    IoTDb: "Writes or queries time-series data to/from the IoT database using SQL.",
+    S3Storage: "Stores or retrieves files and objects from an S3-compatible storage bucket.",
+    AssetState: "Reads or updates the state of a digital twin asset registered in the platform.",
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 export const TelegramIcon = styled(FaTelegramPlane)<{ size?: string }>`
     font-size: ${(props) => props.size || "26px"};
     color: #ffffff;
     filter: drop-shadow(0px 2px 3px rgba(0, 0, 0, 0.2));
 `;
 
+export const TranscriptionIcon = ({ size = 24, color = "currentColor", bgColor = "#d375db" }) => {
+    const micSize = Math.round(size * 0.4);
+
+    return (
+        <div style={{ position: "relative", width: size, height: size, display: "inline-block" }}>
+            <MessageSquareText size={size} color={color} />
+            <div
+                style={{
+                    position: "absolute",
+                    bottom: 0,
+                    left: 0,
+                    transform: "translate(125%, -90%)",
+                    borderRadius: "50%",
+                    border: `${Math.max(1, Math.round(size * 0.05))}px solid ${color}`,
+                    background: bgColor,
+                    lineHeight: 0,
+                }}
+            >
+                <Mic size={micSize} color={color} />
+            </div>
+        </div>
+    );
+};
+
 export const AssetStateIcon = styled(TbDatabaseCog)<{ size?: string }>`
     font-size: 30px;
+    color: #ffffff;
+    filter: drop-shadow(0px 2px 3px rgba(0, 0, 0, 0.2));
+`;
+
+export const SplitterIcon = styled(TbArrowsSplit2)<{ size?: string }>`
+    font-size: ${(props) => props.size || "26px"};
     color: #ffffff;
     filter: drop-shadow(0px 2px 3px rgba(0, 0, 0, 0.2));
 `;
@@ -279,6 +364,18 @@ const nodeTypes = [
         },
     },
     {
+        type: "Splitter",
+        label: "Splitter",
+        bgColor: "#a8a152",
+        hoverColor: "#b8b062ff",
+        icon: <SplitterIcon size={30} color="#e7e3df" />,
+        numOutputs: 2,
+        debug: "off",
+        settings: {
+            weights: [1, 1],
+        },
+    },
+    {
         type: "Comment",
         label: "Comment",
         bgColor: "#9c9c9b",
@@ -319,6 +416,19 @@ const nodeTypes = [
         },
     },
     {
+        type: "Transcriptor",
+        label: "Transcriptor",
+        bgColor: "#B8B1FB",
+        hoverColor: "#cdc8fcff",
+        icon: <TranscriptionIcon size={30} color="#e7e3df" bgColor="#B8B1FB" />,
+        numOutputs: 1,
+        debug: "off",
+        settings: {
+            translate: false,
+            translationLanguage: "en",
+        },
+    },
+    {
         type: "Email",
         label: "Email",
         bgColor: "#4a90e2",
@@ -329,7 +439,7 @@ const nodeTypes = [
         settings: {
             toOptions: "Group email notification channel",
             to: "myemail@example.com",
-            messageOptions: "Message received options",
+            messageOptions: "Use subject and body from incoming message",
             subject: "Email Subject",
             body: "Email Body",
         },
@@ -424,7 +534,35 @@ const nodeTypes = [
 ];
 
 export default function NodePalette() {
+    const [tooltip, setTooltip] = useState({ visible: false, text: "", top: 0, left: 0 });
+    // Keep a hide timer ref to avoid flicker when moving between items
+    const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    const showTooltip = (e: React.MouseEvent<HTMLDivElement>, nodeType: string) => {
+        if (hideTimer.current) {
+            clearTimeout(hideTimer.current);
+            hideTimer.current = null;
+        }
+        const rect = e.currentTarget.getBoundingClientRect();
+        setTooltip({
+            visible: true,
+            text: NODE_DESCRIPTIONS[nodeType] ?? "",
+            // Vertically centred on the hovered item
+            top: rect.top + rect.height / 2 - 20,
+            // 12px gap to the right of the palette item
+            left: rect.right + 12,
+        });
+    };
+
+    const hideTooltip = () => {
+        hideTimer.current = setTimeout(() => {
+            setTooltip((prev) => ({ ...prev, visible: false }));
+        }, 80);
+    };
+
     const onDragStart = (event, nodeType, nodeUid, label, numOutputs, debug, settings) => {
+        // Hide tooltip immediately when dragging starts
+        setTooltip((prev) => ({ ...prev, visible: false }));
         event.dataTransfer.setData(
             "application/reactflow",
             JSON.stringify({ nodeType, nodeUid, label, numOutputs, debug, settings }),
@@ -433,46 +571,55 @@ export default function NodePalette() {
     };
 
     return (
-        <PaletteContainer>
-            <PaletteTitle>Node Palette</PaletteTitle>
+        <>
+            <PaletteContainer>
+                <PaletteTitle>Node Palette</PaletteTitle>
 
-            <NodesContainer>
-                {nodeTypes.map((node) => (
-                    <NodeItem
-                        key={node.type}
-                        bgColor={node.bgColor}
-                        draggable
-                        onDragStart={(event) =>
-                            onDragStart(
-                                event,
-                                node.type,
-                                node.nodeUid,
-                                node.label,
-                                node.numOutputs,
-                                node.debug,
-                                node.settings,
-                            )
-                        }
-                    >
-                        {node.type === "Publish" ||
-                        node.type === "Email" ||
-                        node.type === "TelegramSend" ||
-                        node.type === "IoTDb" ||
-                        node.type === "S3Storage" ||
-                        node.type === "AssetState" ? (
-                            <>
-                                <NodeLabel>{node.label}</NodeLabel>
-                                <IconContainer>{node.icon}</IconContainer>
-                            </>
-                        ) : (
-                            <>
-                                <IconContainer>{node.icon}</IconContainer>
-                                <NodeLabel>{node.label}</NodeLabel>
-                            </>
-                        )}
-                    </NodeItem>
-                ))}
-            </NodesContainer>
-        </PaletteContainer>
+                <NodesContainer>
+                    {nodeTypes.map((node) => (
+                        <NodeItem
+                            key={node.type}
+                            bgColor={node.bgColor}
+                            draggable
+                            onMouseEnter={(e) => showTooltip(e, node.type)}
+                            onMouseLeave={hideTooltip}
+                            onDragStart={(event) =>
+                                onDragStart(
+                                    event,
+                                    node.type,
+                                    node.nodeUid,
+                                    node.label,
+                                    node.numOutputs,
+                                    node.debug,
+                                    node.settings,
+                                )
+                            }
+                        >
+                            {node.type === "Publish" ||
+                            node.type === "Email" ||
+                            node.type === "TelegramSend" ||
+                            node.type === "IoTDb" ||
+                            node.type === "S3Storage" ||
+                            node.type === "AssetState" ? (
+                                <>
+                                    <NodeLabel>{node.label}</NodeLabel>
+                                    <IconContainer>{node.icon}</IconContainer>
+                                </>
+                            ) : (
+                                <>
+                                    <IconContainer>{node.icon}</IconContainer>
+                                    <NodeLabel>{node.label}</NodeLabel>
+                                </>
+                            )}
+                        </NodeItem>
+                    ))}
+                </NodesContainer>
+            </PaletteContainer>
+
+            {/* Rendered outside PaletteContainer to avoid overflow clipping */}
+            <TooltipBox visible={tooltip.visible} top={tooltip.top} left={tooltip.left}>
+                {tooltip.text}
+            </TooltipBox>
+        </>
     );
 }

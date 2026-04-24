@@ -7,10 +7,10 @@ import (
 	"slices"
 	"syscall"
 
-	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/cmd"
-	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/data"
-	docker "github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/docker"
-	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/utils"
+	"github.com/osi4iot/osi4iot/utils/osi4iot/cmd"
+	"github.com/osi4iot/osi4iot/utils/osi4iot/internals/data"
+	docker "github.com/osi4iot/osi4iot/utils/osi4iot/internals/docker"
+	"github.com/osi4iot/osi4iot/utils/osi4iot/internals/utils"
 )
 
 func main() {

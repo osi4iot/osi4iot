@@ -1,19 +1,24 @@
-import * as THREE from 'three';
-import React, { FC, useRef, useState, useLayoutEffect, useEffect } from 'react';
-import { useThree, useFrame } from '@react-three/fiber';
+import * as THREE from "three";
+import React, { FC, useRef, useState, useLayoutEffect, useEffect, useMemo } from "react";
+import { useThree, useFrame } from "@react-three/fiber";
 import { HiLocationMarker } from "react-icons/hi";
 import { Html } from "@react-three/drei";
-import styled from 'styled-components';
-import { toast } from 'react-toastify';
-import { ISensorObject } from '../Main/Model';
-import IDigitalTwinSensorDashboard, { defaultOpacity, defaultVisibility, ObjectVisibilityState, SensorState } from '../ViewerTools/ViewerUtils';
-import { changeMaterialPropRecursively } from '../../../../tools/tools';
-import { sensorDisplay } from '../../../../tools/sensorDisplay';
-import { IThreeMesh } from '../Types/threeInterfaces';
+import styled from "styled-components";
+import { toast } from "react-toastify";
+import { ISensorObject } from "../Main/Model";
+import IDigitalTwinSensorDashboard, {
+    defaultOpacity,
+    defaultVisibility,
+    ObjectVisibilityState,
+    SensorState,
+} from "../ViewerTools/ViewerUtils";
+import { changeMaterialPropRecursively } from "../../../../tools/tools";
+import { sensorDisplay } from "../../../../tools/sensorDisplay";
+import { IThreeMesh } from "../Types/threeInterfaces";
 
-const GroupComponent = 'group' as any;
-const MeshComponent = 'mesh' as any;
-const PrimitivesComponent = 'primitive' as any;
+const GroupComponent = "group" as any;
+const MeshComponent = "mesh" as any;
+const PrimitivesComponent = "primitive" as any;
 
 const MarkerContainer = styled.div`
     position: absolute;
@@ -22,8 +27,8 @@ const MarkerContainer = styled.div`
 `;
 
 const MarkerIcon = styled(HiLocationMarker as any)`
-	font-size: 30px;
-	color: #62f700;
+    font-size: 30px;
+    color: #62f700;
 
     &:hover {
         color: #4bbc00;
@@ -58,18 +63,21 @@ const SensorBase: FC<SensorProps> = ({
     updateSensorStateString,
     visible,
     sensorDashboardUrl,
-    openDashboardTab
+    openDashboardTab,
 }) => {
     const camera = useThree((state) => state.camera);
     const [lastTimestamp, setLastTimestamp] = useState<Date | null>(null);
     const meshRef = useRef<IThreeMesh>(null);
-    const material = Object.assign(obj.material);
+    const material = obj.material;
+
     const defOpacity = defaultOpacity(obj);
     const recursiveTransparency = obj.userData.recursiveTransparency;
+    const hasEndlessAnimations = obj.blenderAnimationTypes?.includes("blenderEndless");
     if (recursiveTransparency === undefined || recursiveTransparency === "true") {
-        changeMaterialPropRecursively(obj, 'transparent', (defOpacity * opacity) === 1 ? false : true);
+        const isTransparent = hasEndlessAnimations ? true : defOpacity * opacity < 1;
+        changeMaterialPropRecursively(obj, "transparent", isTransparent);
     }
-    const timeout = obj.userData.timeout as number || 60;
+    const timeout = (obj.userData.timeout as number) || 60;
     let lastIntervalTime = 0;
     const [mixer, setMixer] = useState<THREE.AnimationMixer | null>(null);
     const [clipsDuration, setClipsDuration] = useState(0);
@@ -80,7 +88,7 @@ const SensorBase: FC<SensorProps> = ({
         } else {
             openDashboardTab(sensorDashboardUrl);
         }
-    }
+    };
 
     useEffect(() => {
         if (obj.animations.length !== 0 && !(obj.animations as any).includes(undefined) && meshRef.current) {
@@ -115,19 +123,14 @@ const SensorBase: FC<SensorProps> = ({
     }, [mixer, sensorState.clipValue]);
 
     useEffect(() => {
-        if (
-            obj.userData.sensorObjectType === "display" &&
-            (sensorState.sensorValue !== null)
-        ) {
+        if (obj.userData.sensorObjectType === "display" && sensorState.sensorValue !== null) {
             sensorDisplay(obj, sensorState.sensorValue);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [sensorState.sensorValue]);
 
     useFrame(({ clock }, delta) => {
-        if (obj.userData.animationType &&
-            obj.userData.animationType === "blenderEndless"
-        ) {
+        if (obj.userData.animationType && obj.userData.animationType === "blenderEndless") {
             let newDelta = delta;
             if (sensorState.clipValue !== null) {
                 newDelta = sensorState.clipValue;
@@ -140,34 +143,34 @@ const SensorBase: FC<SensorProps> = ({
                     lastIntervalTime = clock.elapsedTime;
                 }
                 const deltaInterval = clock.elapsedTime - lastIntervalTime;
-                if (deltaInterval <= 0.30) {
+                if (deltaInterval <= 0.3) {
                     if (meshRef.current) meshRef.current.visible = defaultVisibility(obj);
-                    changeMaterialPropRecursively(obj, 'emissive', noEmitColor);
-                    changeMaterialPropRecursively(obj, 'opacity', defOpacity * opacity);
-                } else if (deltaInterval > 0.30 && deltaInterval <= 0.60) {
+                    changeMaterialPropRecursively(obj, "emissive", noEmitColor);
+                    changeMaterialPropRecursively(obj, "opacity", defOpacity * opacity);
+                } else if (deltaInterval > 0.3 && deltaInterval <= 0.6) {
                     if (meshRef.current) meshRef.current.visible = true;
-                    changeMaterialPropRecursively(obj, 'opacity', 1.0);
+                    changeMaterialPropRecursively(obj, "opacity", 1.0);
                     if (sensorState?.stateString === "on") {
-                        changeMaterialPropRecursively(obj, 'emissive', sensorOnColor);
+                        changeMaterialPropRecursively(obj, "emissive", sensorOnColor);
                     } else {
-                        changeMaterialPropRecursively(obj, 'emissive', sensorOffColor);
+                        changeMaterialPropRecursively(obj, "emissive", sensorOffColor);
                     }
-                } else if (deltaInterval > 0.60) {
+                } else if (deltaInterval > 0.6) {
                     lastIntervalTime = clock.elapsedTime;
                 }
             } else {
                 if (sensorState.highlight) {
                     if (meshRef.current) meshRef.current.visible = true;
-                    material.opacity = 1;
+                    changeMaterialPropRecursively(obj, "opacity", 1.0);
                     if (sensorState?.stateString === "on") {
-                        changeMaterialPropRecursively(obj, 'emissive', sensorOnColor);
+                        changeMaterialPropRecursively(obj, "emissive", sensorOnColor);
                     } else {
-                        changeMaterialPropRecursively(obj, 'emissive', sensorOffColor);
+                        changeMaterialPropRecursively(obj, "emissive", sensorOffColor);
                     }
                 } else {
                     if (meshRef.current) meshRef.current.visible = defaultVisibility(obj);
-                    changeMaterialPropRecursively(obj, 'emissive', noEmitColor);
-                    changeMaterialPropRecursively(obj, 'opacity', defOpacity * opacity);
+                    changeMaterialPropRecursively(obj, "emissive", noEmitColor);
+                    changeMaterialPropRecursively(obj, "opacity", defOpacity * opacity);
                 }
             }
         } else {
@@ -181,7 +184,7 @@ const SensorBase: FC<SensorProps> = ({
                 setLastTimestamp(null);
             }
         }
-    })
+    });
 
     useLayoutEffect(() => {
         if (sensorState.stateString === "on") {
@@ -191,86 +194,77 @@ const SensorBase: FC<SensorProps> = ({
             setLastTimestamp(null);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [sensorState.stateString])
+    }, [sensorState.stateString]);
 
     useLayoutEffect(() => {
         camera.updateProjectionMatrix();
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [opacity])
+    }, [opacity]);
 
-
-    return (
-        (
-            obj.type === "Group" ||
-            obj.animations.length !== 0 ||
-            obj.customAnimationObjectNames.length !== 0 ||
-            obj.children.length !== 0
-        ) ?
-            <GroupComponent>
-                <MeshComponent
-                    ref={meshRef as React.MutableRefObject<IThreeMesh>}
-                    castShadow
-                    receiveShadow
-                    material={material}
-                >
-                    <PrimitivesComponent
-                        object={obj}
-                    />
-                </MeshComponent>
-                {
-                    marker &&
-                    <Html
-                        castShadow // Make HTML cast a shadow
-                        receiveShadow // Make HTML receive shadows
-                    >
-                        <MarkerContainer>
-                            <MarkerIcon onClick={markerClickHandler} />
-                        </MarkerContainer>
-                    </Html>
-                }
-            </GroupComponent>
-            :
-            <GroupComponent
-                position={obj.position}
-                quaternion={obj.quaternion}
-                scale={obj.scale}
+    return obj.type === "Group" ||
+        obj.animations.length !== 0 ||
+        obj.customAnimationObjectNames.length !== 0 ||
+        obj.children.length !== 0 ? (
+        <GroupComponent>
+            <MeshComponent
+                ref={meshRef as React.MutableRefObject<IThreeMesh>}
+                castShadow
+                receiveShadow
+                material={material}
             >
-                <MeshComponent
-                    ref={meshRef as React.MutableRefObject<IThreeMesh>}
-                    castShadow
-                    receiveShadow
-                    geometry={obj.geometry}
-                    material={material}
-                    position={[0, 0, 0]}
-                    scale={[1.0, 1.0, 1.0]}
-                    rotation={[0, 0, 0]}
-                />
-                {
-                    marker &&
-                    <Html
-                        castShadow // Make HTML cast a shadow
-                        receiveShadow // Make HTML receive shadows
-                    >
-                        <MarkerContainer>
-                            <MarkerIcon onClick={markerClickHandler} />
-                        </MarkerContainer>
-                    </Html>
-                }
-            </GroupComponent>
-    )
-}
+                <PrimitivesComponent object={obj} />
+            </MeshComponent>
+            {marker && (
+                <Html
+                    castShadow // Make HTML cast a shadow
+                    receiveShadow // Make HTML receive shadows
+                >
+                    <MarkerContainer>
+                        <MarkerIcon onClick={markerClickHandler} />
+                    </MarkerContainer>
+                </Html>
+            )}
+        </GroupComponent>
+    ) : (
+        <GroupComponent position={obj.position} quaternion={obj.quaternion} scale={obj.scale}>
+            <MeshComponent
+                ref={meshRef as React.MutableRefObject<IThreeMesh>}
+                castShadow
+                receiveShadow
+                geometry={obj.geometry}
+                material={material}
+                position={[0, 0, 0]}
+                scale={[1.0, 1.0, 1.0]}
+                rotation={[0, 0, 0]}
+            />
+            {marker && (
+                <Html
+                    castShadow // Make HTML cast a shadow
+                    receiveShadow // Make HTML receive shadows
+                >
+                    <MarkerContainer>
+                        <MarkerIcon onClick={markerClickHandler} />
+                    </MarkerContainer>
+                </Html>
+            )}
+        </GroupComponent>
+    );
+};
 
 const areEqual = (prevProps: SensorProps, nextProps: SensorProps) => {
-    return (prevProps.sensorState.highlight === nextProps.sensorState.highlight || nextProps.blinking) &&
+    return (
+        prevProps.sensorState.highlight === nextProps.sensorState.highlight &&
         prevProps.sensorState.stateString === nextProps.sensorState.stateString &&
-        (prevProps.sensorsStateString === nextProps.sensorsStateString && nextProps.blinking) &&
+        prevProps.sensorsStateString === nextProps.sensorsStateString &&
         prevProps.sensorState.sensorValue === nextProps.sensorState.sensorValue &&
         prevProps.sensorState.clipValue === nextProps.sensorState.clipValue &&
         prevProps.blinking === nextProps.blinking &&
         prevProps.opacity === nextProps.opacity &&
         prevProps.marker === nextProps.marker &&
-        prevProps.visible === nextProps.visible;
-}
+        prevProps.visible === nextProps.visible
+    );
+};
+
 const Sensor = React.memo(SensorBase, areEqual);
 
 interface SensorsProps {
@@ -282,10 +276,9 @@ interface SensorsProps {
     sensorsState: Record<string, SensorState>;
     sensorsVisibilityState: Record<string, ObjectVisibilityState>;
     updateSensorStateString: (objName: string, state: string) => void;
-    sensorsDashboards: IDigitalTwinSensorDashboard[],
+    sensorsDashboards: IDigitalTwinSensorDashboard[];
     openDashboardTab: (url: string) => void;
 }
-
 
 const Sensors: FC<SensorsProps> = ({
     sensorObjects,
@@ -297,21 +290,23 @@ const Sensors: FC<SensorsProps> = ({
     sensorsVisibilityState,
     updateSensorStateString,
     sensorsDashboards,
-    openDashboardTab
+    openDashboardTab,
 }) => {
-    const sensorsStateString = Object.values(sensorsState).map(state => state.stateString === "off" ? "1" : "0").join("");
+    const sensorsStateString = Object.values(sensorsState)
+        .map((state) => (state.stateString === "off" ? "1" : "0"))
+        .join("");
 
     return (
         <>
-            {
-                sensorObjects.map((obj, index) => {
-                    const sensorRef = obj.node.userData.sensorRef;
-                    let sensorDashboardUrl = "";
-                    if (sensorRef && sensorsDashboards.length !== 0) {
-                        const sensorDashboard = sensorsDashboards.filter(sensor => sensor.sensorRef === sensorRef)[0];
-                        sensorDashboardUrl = sensorDashboard.dashboardUrl;
-                    }
-                    return <Sensor
+            {sensorObjects.map((obj, index) => {
+                const sensorRef = obj.node.userData.sensorRef;
+                let sensorDashboardUrl = "";
+                if (sensorRef && sensorsDashboards.length !== 0) {
+                    const sensorDashboard = sensorsDashboards.filter((sensor) => sensor.sensorRef === sensorRef)[0];
+                    sensorDashboardUrl = sensorDashboard.dashboardUrl;
+                }
+                return (
+                    <Sensor
                         key={obj.node.uuid}
                         obj={obj.node}
                         opacity={sensorsOpacity * sensorsVisibilityState[obj.collectionName].opacity}
@@ -319,15 +314,15 @@ const Sensors: FC<SensorsProps> = ({
                         sensorState={sensorsState[obj.node.name]}
                         sensorsStateString={sensorsStateString}
                         updateSensorStateString={(state) => updateSensorStateString(obj.node.name, state)}
-                        marker={(sensorsVisibilityState[obj.collectionName].showSensorMarker || showAllSensorsMarker)}
+                        marker={sensorsVisibilityState[obj.collectionName].showSensorMarker || showAllSensorsMarker}
                         visible={!(sensorsVisibilityState[obj.collectionName].hide || hideAllSensors)}
                         sensorDashboardUrl={sensorDashboardUrl}
                         openDashboardTab={openDashboardTab}
                     />
-                })
-            }
+                );
+            })}
         </>
-    )
-}
+    );
+};
 
 export default Sensors;

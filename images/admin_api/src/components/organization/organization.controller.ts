@@ -89,6 +89,7 @@ import { findGroupGeojsonData } from "../../utils/geolocation.ts/geolocation";
 import { predefinedAssetTypes } from "../../initialization/predefinedAssetTypes";
 import IAssetType from "../asset/assetType.interface";
 import natsClient from "../../config/natsConfig";
+import asHandler from "../../utils/routeHelpers/asyncRequestHandler";
 
 class OrganizationController implements IController {
 	public path = "/organization";
@@ -123,14 +124,14 @@ class OrganizationController implements IController {
 				organizationExists,
 				organizationAdminAuth,
 				validationMiddleware<CreateUserDto>(CreateUserDto),
-				this.addUserToOrganization
+				asHandler(this.addUserToOrganization)
 			)
 			.post(
 				`${this.path}/:orgId/users/`,
 				organizationExists,
 				organizationAdminAuth,
 				validationMiddleware<CreateUsersArrayDto>(CreateUsersArrayDto),
-				this.addUsersToOrganization
+				asHandler(this.addUsersToOrganization)
 			)
 			.get(
 				`${this.path}/:orgId/user/:propName/:propValue`,
@@ -143,7 +144,7 @@ class OrganizationController implements IController {
 				organizationAdminAuth,
 				organizationExists,
 				validationMiddleware<UserInOrgToUpdateDto>(UserInOrgToUpdateDto, true),
-				this.updateUserInOrganizationByProp
+				asHandler(this.updateUserInOrganizationByProp)
 			)
 			.delete(
 				`${this.path}/:orgId/user/:propName/:propValue`,
@@ -155,7 +156,7 @@ class OrganizationController implements IController {
 				`${this.path}/:orgId/users/:whoToRemove`,
 				organizationExists,
 				organizationAdminAuth,
-				this.removeOrganizationUsers
+				asHandler(this.removeOrganizationUsers)
 			);
 
 		this.router.get(
@@ -544,6 +545,16 @@ class OrganizationController implements IController {
 							s3Folder: "",
 							parquetSchema: "{}",
 						},
+						{
+							topicRef: "dev2pdb_6",
+							topicType: "dev2dtm",
+							description: `Mobile video topic`,
+							mqttAccessControl: "Pub & Sub",
+							payloadJsonSchema: JSON.stringify(predefinedSensorTypes[5].defaultPayloadJsonSchema),
+							requireS3Storage: false,
+							s3Folder: "",
+							parquetSchema: "{}",
+						},
 					],
 					sensorsRef: [
 						{
@@ -580,6 +591,13 @@ class OrganizationController implements IController {
 							topicRef: "dev2pdb_5",
 							description: `Mobile photo`,
 							payloadJsonSchema: JSON.stringify(predefinedSensorTypes[4].defaultPayloadJsonSchema),
+						},
+						{
+							sensorRef: "sensor_6",
+							sensorType: "Mobile video",
+							topicRef: "dev2pdb_6",
+							description: `Mobile video`,
+							payloadJsonSchema: JSON.stringify(predefinedSensorTypes[5].defaultPayloadJsonSchema),
 						},
 					],
 				};

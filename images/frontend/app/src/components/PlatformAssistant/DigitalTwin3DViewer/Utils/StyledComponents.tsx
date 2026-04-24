@@ -32,7 +32,7 @@ export const CanvasContainer = styled.div`
 
 export const HeaderContainer = styled.div`
     background-color: #141619;
-    width: 550px;
+    width: 600px;
     position: fixed;
     top: 210px;
     right: 15px;
@@ -56,7 +56,7 @@ export const SelectedObjectInfoContainer = styled.div`
     position: fixed;
     bottom: 20px;
     right: 5px;
-    width: 550px;
+    width: 600px;
 `;
 
 export const ObjectInfoContainer = styled.div`
@@ -99,7 +99,7 @@ export const FemMinValue = styled.div`
     margin: 0px 10px;
 `;
 
-export const MqttConnectionDiv = styled.div`
+export const NatsConnectionDiv = styled.div`
     background-color: #141619;
     padding: 20px 5px;
     font-size: 12px;
@@ -298,7 +298,7 @@ export const HiShieldExclamationIcon = styled(HiShieldExclamation as any)`
     }
 `;
 
-export const MqttText = styled.span`
+export const NatsText = styled.span`
     color: #3274d9;
     font-weight: bold;
     margin-right: 2px;
@@ -328,7 +328,7 @@ export const StyledDataGui = styled(DatGui)`
     }
 
     &.react-dat-gui {
-        width: 550px;
+        width: 600px;
         top: 10px;
         right: 15px;
         position: fixed;

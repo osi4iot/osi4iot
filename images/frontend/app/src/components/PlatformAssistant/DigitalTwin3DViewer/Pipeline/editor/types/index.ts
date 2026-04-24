@@ -70,3 +70,6 @@ export type WorkerResponse =
     | { id: number; type: "hover";     result: VariableInfo | null }
     | { id: number; type: "diagnose";  result: LSDiagnostic[] }
     | { id: number; type: "error";     message: string };
+
+
+export type Method = string | ((view: any, _completion: any, from: number, to: any) => void);

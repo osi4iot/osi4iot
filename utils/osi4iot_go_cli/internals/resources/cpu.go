@@ -3,7 +3,7 @@ package resources
 import (
 	"strconv"
 
-	pt "github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/types"
+	pt "github.com/osi4iot/osi4iot/utils/osi4iot/internals/types"
 )
 
 func GetNanoCPU(pd *pt.PlatformData, service string) int64 {

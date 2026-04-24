@@ -24,8 +24,6 @@ export class WorkerBridge {
 
     constructor() { this.spawnWorker(); }
 
-    // ── Lifecycle ─────────────────────────────────────────────────────────────
-
     private spawnWorker() {
         try {
             this.worker = new Worker(

@@ -19,11 +19,13 @@ import {
     InjectNode,
     TriggerNode,
     DelayNode,
+    SplitterNode,
     EmailNode,
     TelegramListenNode,
     TelegramSendNode,
     MlModelNode,
     AiAgentNode,
+    TranscriptorNode,
     BatchNode,
     IoTDbNode,
     S3StorageNode,
@@ -35,8 +37,9 @@ import NodePropertiesPanel from "./NodePropertiesPanel";
 import { createNodesAndEdges } from "../Utils/customHooks";
 import { toast } from "react-toastify";
 import { useMlModelsTableInGroup } from "../../../../contexts/platformAssistantContext/platformAssistantContext";
+import { Sampler } from "@react-three/drei";
 
-export const processInitialPipelineData = (digitalTwinSelected, mqttClient, mqttTopicsData) => {
+export const processInitialPipelineData = (digitalTwinSelected, natsClient, natsSubjectsData) => {
     if (!digitalTwinSelected.pipelineFileData || digitalTwinSelected.pipelineFileData === "") {
         return { nodes: [], edges: [] };
     }
@@ -50,7 +53,7 @@ export const processInitialPipelineData = (digitalTwinSelected, mqttClient, mqtt
 
         const existingNodes = []; // No existent nodes on initial load
         const existingEdges = []; // No existent edges on initial load
-        return createNodesAndEdges(existingNodes, existingEdges, pipelineNodes, mqttClient, mqttTopicsData);
+        return createNodesAndEdges(existingNodes, existingEdges, pipelineNodes, natsClient, natsSubjectsData);
     } catch (error) {
         toast.error(`Error processing pipeline data: ${error.message}`);
         return { nodes: [], edges: [] };
@@ -71,9 +74,9 @@ const ReactFlowWrapper = styled.div`
 `;
 
 export default function Flow({
-    mqttClient,
-    mqttConnectionStatus,
-    mqttTopicsData,
+    natsClient,
+    natsConnectionStatus,
+    natsSubjectsData,
     assetS3Folders,
     digitalTwinSelected,
     orgSelected,
@@ -103,7 +106,9 @@ export default function Flow({
             TelegramListen: 0,
             TelegramSend: 0,
             Delay: 0,
+            Splitter: 0,
             AiAgent: 0,
+            Transcriptor: 0,
             MlModel: 0,
             Batch: 0,
             IoTDb: 0,
@@ -190,7 +195,7 @@ export default function Flow({
 
     const onNodeDoubleClick = useCallback((event, node) => {
         event.stopPropagation();
-        if(node.type !== "Comment") {
+        if (node.type !== "Comment") {
             setSelectedNode(node);
             setIsPanelOpen(true);
         }
@@ -303,14 +308,14 @@ export default function Flow({
 
             if (nodeType === "Inject") {
                 newNode.data.settings.injectRef = `inject_${nodeNumber}`;
-                newNode.data.mqttClient = mqttClient;
-                newNode.data.mqttTopics = mqttTopicsData;
+                newNode.data.natsClient = natsClient;
+                newNode.data.natsSubjectsData = natsSubjectsData;
             }
 
             setNodes((nds) => nds.concat(newNode));
         },
         // eslint-disable-next-line react-hooks/exhaustive-deps
-        [screenToFlowPosition, mqttClient, mqttTopicsData, nodeCounters],
+        [screenToFlowPosition, natsClient, natsSubjectsData, nodeCounters],
     );
 
     const nodeTypes = useMemo(
@@ -324,15 +329,17 @@ export default function Flow({
             TelegramListen: TelegramListenNode,
             TelegramSend: TelegramSendNode,
             Delay: DelayNode,
-            Comment: ({data, id, selected}) => CommentNode(data, id, selected, onUpdateNode, handlePipelineUiChanged),
+            Splitter: SplitterNode,
+            Comment: ({ data, id, selected }) => CommentNode(data, id, selected, onUpdateNode, handlePipelineUiChanged),
             MlModel: MlModelNode,
             AiAgent: AiAgentNode,
+            Transcriptor: TranscriptorNode,
             Batch: BatchNode,
             IoTDb: IoTDbNode,
             S3Storage: S3StorageNode,
             AssetState: AssetStateNode,
         }),
-        
+
         // eslint-disable-next-line react-hooks/exhaustive-deps
         [],
     );
@@ -348,7 +355,7 @@ export default function Flow({
                 onUpdateNode={onUpdateNode}
                 digitalTwinSelected={digitalTwinSelected}
                 handlePipelineUiChanged={handlePipelineUiChanged}
-                mqttTopicsData={mqttTopicsData}
+                natsSubjectsData={natsSubjectsData}
                 assetS3Folders={assetS3Folders}
             />
 

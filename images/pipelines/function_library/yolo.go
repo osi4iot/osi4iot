@@ -113,6 +113,19 @@ func (b *BoundingBox) Iou(box *BoundingBox) float32 {
 }
 
 func (yolo *Yolo) NewBoundingBox(x1, y1, x2, y2 float32, confidence float32) BoundingBox {
+	if x2 <= x1 || y2 <= y1 {
+		errorMsg := fmt.Errorf("NewBoundingBox: invalid coordinates x1=%.2f y1=%.2f x2=%.2f y2=%.2f, x2 must be > x1 and y2 must be > y1", x1, y1, x2, y2)
+		yolo.log.Error(errorMsg)
+		yolo.node.HandleError(errorMsg)
+		return BoundingBox{}
+	}
+	if confidence < 0 || confidence > 1 {
+		errorMsg := fmt.Errorf("NewBoundingBox: confidence %.4f out of range [0, 1]", confidence)
+		yolo.log.Error(errorMsg)
+		yolo.node.HandleError(errorMsg)
+		return BoundingBox{}
+	}
+
 	return BoundingBox{
 		X1:         x1,
 		Y1:         y1,
@@ -133,7 +146,6 @@ func (yolo *Yolo) GetYoloClass(index int) string {
 func (yolo *Yolo) GetYoloColor(index int) color.RGBA {
 	return colors[index%len(colors)]
 }
-
 
 func (yolo *Yolo) DrawBoundingBoxes(pic image.Image, boxes []BoundingBox, fontSize float64, fillOpacity int) image.Image {
 	// RGBA copy of the original image
@@ -260,6 +272,14 @@ func (yolo *Yolo) Preprocess(pic image.Image) []float32 {
 }
 
 func (yolo *Yolo) Postprocess(output []float32, originalWidth, originalHeight int) []BoundingBox {
+	expectedSize := 8400 * 84
+	if len(output) != expectedSize {
+		errorMsg := fmt.Errorf("Postprocess: invalid output size %d, expected %d (8400 anchors × 84 values: 4 coords + 80 classes)", len(output), expectedSize)
+		yolo.log.Error(errorMsg)
+		yolo.node.HandleError(errorMsg)
+		return nil
+	}
+
 	boundingBoxes := make([]BoundingBox, 0, 8400)
 
 	var classID int

@@ -1,7 +1,76 @@
+interface File {
+    Name: string;
+    ContentType: string;
+    Data: Uint8Array;
+}
+
 interface Message {
     payload: Record<string, any>;
-    topic?: string;
-    [key: string]: any;
+    topic: string;
+    contentType: string;
+    jsonStructure: string;
+    state: Record<string, any> | null;
+    file: File | null;
+
+    /* Methods */
+
+    /* Returns the topic of the message. */
+    GetTopic(): string;
+
+    /* Returns the payload of the message. */
+    GetPayload(): Record<string, any>;
+
+    /* Returns the content type of the message. */
+    GetContentType(): string;
+
+    /* Returns the JSON structure of the message. */
+    GetJsonStructure(): string;
+
+    /* Returns the state of the message. */
+    GetState(): Record<string, any> | null;
+
+    /* Returns the file attached to the message, or null if none. */
+    GetFile(): File | null;
+
+    /* Returns true if the message has an attached file. */
+    HasFile(): boolean;
+
+    /* Returns true if the message's attached file is an image. */
+    IsImage(): boolean;
+
+    /* Returns the value of a field in the payload, or undefined if it doesn't exist. */
+
+    GetFieldFromPayload(field: string): any | undefined;
+
+    /* Returns the string value of a field in the payload, or undefined if it doesn't exist or isn't a string. */
+    GetStringFromPayload(field: string): string | undefined;
+
+    /* Returns the map value of a field in the payload, or undefined if it doesn't exist or isn't a map. */
+    GetMapFromPayload(field: string): Record<string, any> | undefined;
+
+    /* Clones the message, creating a deep copy of its payload and state. */
+    Clone(): Message;
+
+    /* Clears the attached file from the message. */
+    ClearFile(): void;
+
+    /* Returns the image attached to the message, or an error if there is no image or the file is not a valid image. */
+    GetImage(): MutableImage | null;
+
+    /* Attaches an image to the message with the given name and content type. */
+    SetImage(img: MutableImage, name: string, contentType: string): void;
+
+    /* Returns a boolean indicating whether the message has an attached file. */
+    HasFile(): boolean;
+
+    /* Returns a boolean indicating whether the message's attached file is an image. */
+    IsImage(): boolean;
+
+    /* Sets the subject for replies to this message. */
+    SetReplySubject(subject: string): void;
+
+    /* Returns true if the message is a request (i.e., has a reply subject). */
+    IsRequest(): boolean;
 }
 
 /** Logger instance */
@@ -322,13 +391,13 @@ interface KvStore {
 /** Yolo instance */
 interface Yolo {
     /** Preprocesses image */
-    Preprocess(pic: ImagePackage): number[];
+    Preprocess(pic: MutableImage): number[];
 
     /** Postprocesses YOLO output */
     Postprocess(output: number[], w: number, h: number): YoloBoundingBox[];
 
     /** Draws bounding boxes */
-    DrawBoundingBoxes(pic: ImagePackage, boxes: YoloBoundingBox[], fontSize: number, opacity: number): ImagePackage;
+    DrawBoundingBoxes(pic: MutableImage, boxes: YoloBoundingBox[], fontSize: number, opacity: number): MutableImage;
 
     /** Returns YOLO class name */
     GetYoloClass(index: number): string;
@@ -481,14 +550,32 @@ interface DspInterpolationConfig {
     ExtrapolMode: ExtrapolationMode;
 }
 
+interface Image {
+    ColorModel(): ColorModel;
+    Bounds(): Rectangle;
+    At(x: number, y: number): Color;
+}
+
+interface MutableImage extends Image {
+    Set(x: number, y: number, c: Color): void;
+}
+
+interface Color {
+    RGBA(): { r: number; g: number; b: number; a: number };
+}
+
+interface ColorModel {
+    Convert(c: Color): Color;
+}
+
 type ImageFormat = "png" | "jpg" | "jpeg" | "gif";
 
-interface ImagePackage {
+class ImagePackage {
     /** Decodes a base64-encoded image. */
-    DecodeImageFromBase64(base64String: string): ImagePackage;
+    DecodeImageFromBase64(base64String: string): MutableImage;
 
     /** Encodes an image to a base64 string. */
-    EncodeImageToBase64(img: ImagePackage, format: ImageFormat, quality: number): string;
+    EncodeImageToBase64(img: MutableImage, format: ImageFormat, quality: number): string;
 
     // ── Constructors ───────────────────────────────────────────────────────────
     /** Creates a new RGBA image with the given bounds. */
@@ -572,7 +659,10 @@ interface ImagePackage {
 }
 
 /** image.Rectangle instance */
-interface ImageRectangle {
+class ImageRectangle {
+    Min: ImagePoint;
+    Max: ImagePoint;
+
     /** Returns the width of the rectangle. */
     Dx(): number;
 
@@ -617,7 +707,11 @@ interface ImageRectangle {
 }
 
 /** image.Point instance */
-interface ImagePoint {
+class ImagePoint {
+    X: number;
+
+    Y: number;
+
     /** Returns the vector sum of p and q. */
     Add(q: ImagePoint): ImagePoint;
 
@@ -650,21 +744,30 @@ interface ImageYCbCrSubsampleRatio {
 }
 
 /** image.RGBA instance — in-memory image with At method returning color.RGBA values */
-interface ImageRGBA {
+class ImageRGBA implements MutableImage {
     /** Returns the RGBA color of the pixel at (x, y). */
-    At(x: number, y: number): ColorRGBA;
-
-    /** Returns the specific RGBA color of the pixel at (x, y). */
-    RGBAAt(x: number, y: number): ColorRGBA;
-
-    /** Returns the RGBA64 color of the pixel at (x, y). */
-    RGBA64At(x: number, y: number): ColorRGBA64;
+    At(x: number, y: number): Color;
 
     /** Returns the bounds of the image. */
     Bounds(): ImageRectangle;
 
+    /** Returns the color model of the image. */
+    ColorModel(): ColorModel;
+
+    /** Reports whether the image is fully opaque. */
+    Opaque(): boolean;
+
+    /** Returns the index of the first element of Pix for the pixel at (x, y). */
+    PixOffset(x: number, y: number): number;
+
+    /** Returns the RGBA64 color of the pixel at (x, y). */
+    RGBA64At(x: number, y: number): ColorRGBA64;
+
+    /** Returns the RGBA color of the pixel at (x, y). */
+    RGBAAt(x: number, y: number): ColorRGBA;
+
     /** Sets the pixel at (x, y) to the given color. */
-    Set(x: number, y: number, c: ColorPackage): void;
+    Set(x: number, y: number, c: Color): void;
 
     /** Sets the RGBA pixel at (x, y). */
     SetRGBA(x: number, y: number, c: ColorRGBA): void;
@@ -672,59 +775,62 @@ interface ImageRGBA {
     /** Sets the RGBA64 pixel at (x, y). */
     SetRGBA64(x: number, y: number, c: ColorRGBA64): void;
 
-    /** Returns the index of the first element of Pix for the pixel at (x, y). */
-    PixOffset(x: number, y: number): number;
+    /** Returns a sub-image sharing pixels with the original. */
+    SubImage(r: ImageRectangle): Image;
+}
+
+/** image.RGBA64 instance — in-memory image with At method returning color.RGBA64 values */
+class ImageRGBA64 implements MutableImage {
+    /** Returns the RGBA64 color of the pixel at (x, y). */
+    At(x: number, y: number): Color;
+
+    /** Returns the bounds of the image. */
+    Bounds(): ImageRectangle;
+
+    /** Returns the color model of the image. */
+    ColorModel(): ColorModel;
 
     /** Reports whether the image is fully opaque. */
     Opaque(): boolean;
 
-    /** Returns a sub-image sharing pixels with the original. */
-    SubImage(r: ImageRectangle): ImageRGBA;
-}
-
-/** image.RGBA64 instance — in-memory image with At method returning color.RGBA64 values */
-interface ImageRGBA64 {
-    /** Returns the RGBA64 color of the pixel at (x, y). */
-    At(x: number, y: number): ColorRGBA64;
+    /** Returns the index of the first element of Pix for the pixel at (x, y). */
+    PixOffset(x: number, y: number): number;
 
     /** Returns the specific RGBA64 color of the pixel at (x, y). */
     RGBA64At(x: number, y: number): ColorRGBA64;
 
-    /** Returns the bounds of the image. */
-    Bounds(): ImageRectangle;
-
     /** Sets the pixel at (x, y) to the given color. */
-    Set(x: number, y: number, c: ColorPackage): void;
+    Set(x: number, y: number, c: Color): void;
 
     /** Sets the RGBA64 pixel at (x, y). */
     SetRGBA64(x: number, y: number, c: ColorRGBA64): void;
 
-    /** Returns the index of the first element of Pix for the pixel at (x, y). */
-    PixOffset(x: number, y: number): number;
-
-    /** Reports whether the image is fully opaque. */
-    Opaque(): boolean;
-
     /** Returns a sub-image sharing pixels with the original. */
-    SubImage(r: ImageRectangle): ImageNRGBA64;
+    SubImage(r: ImageRectangle): Image;
 }
 
 /** image.NRGBA instance — in-memory image with At method returning non-alpha-premultiplied RGBA values */
-interface ImageNRGBA {
-    /** Returns the NRGBA color of the pixel at (x, y). */
-    At(x: number, y: number): ColorNRGBA;
-
-    /** Returns the specific NRGBA color of the pixel at (x, y). */
-    NRGBAAt(x: number, y: number): ColorNRGBA;
-
+class ImageNRGBA implements MutableImage {
     /** Returns the RGBA64 color of the pixel at (x, y). */
-    RGBA64At(x: number, y: number): ColorRGBA64;
+    At(x: number, y: number): Color;
 
     /** Returns the bounds of the image. */
     Bounds(): ImageRectangle;
 
+    /** Returns the color model of the image. */
+    ColorModel(): ColorModel;
+
+    /** Reports whether the image is fully opaque. */
+    Opaque(): boolean;
+
+    /** Returns the index of the first element of Pix for the pixel at (x, y). */
+    PixOffset(x: number, y: number): number;
+
+    /** Returns the specific RGBA64 color of the pixel at (x, y). */
+    RGBA64At(x: number, y: number): ColorRGBA64;
+
     /** Sets the pixel at (x, y) to the given color. */
-    Set(x: number, y: number, c: ColorPackage): void;
+    Set(x: number, y: number, c: Color): void;
 
     /** Sets the NRGBA pixel at (x, y). */
     SetNRGBA(x: number, y: number, c: ColorNRGBA): void;
@@ -732,32 +838,32 @@ interface ImageNRGBA {
     /** Sets the RGBA64 pixel at (x, y). */
     SetRGBA64(x: number, y: number, c: ColorRGBA64): void;
 
-    /** Returns the index of the first element of Pix for the pixel at (x, y). */
-    PixOffset(x: number, y: number): number;
-
-    /** Reports whether the image is fully opaque. */
-    Opaque(): boolean;
-
     /** Returns a sub-image sharing pixels with the original. */
-    SubImage(r: ImageRectangle): ImageNRGBA;
+    SubImage(r: ImageRectangle): Image;
 }
 
 /** image.NRGBA64 instance — in-memory image with At method returning 64-bit non-alpha-premultiplied RGBA values */
-interface ImageNRGBA64 {
-    /** Returns the NRGBA64 color of the pixel at (x, y). */
-    At(x: number, y: number): ColorNRGBA64;
-
-    /** Returns the specific NRGBA64 color of the pixel at (x, y). */
-    NRGBA64At(x: number, y: number): ColorNRGBA64;
-
+class ImageNRGBA64 implements MutableImage {
     /** Returns the RGBA64 color of the pixel at (x, y). */
-    RGBA64At(x: number, y: number): ColorRGBA64;
+    At(x: number, y: number): Color;
 
     /** Returns the bounds of the image. */
     Bounds(): ImageRectangle;
 
+    /** Returns the color model of the image. */
+    ColorModel(): ColorModel;
+
+    /** Reports whether the image is fully opaque. */
+    Opaque(): boolean;
+
+    /** Returns the index of the first element of Pix for the pixel at (x, y). */
+    PixOffset(x: number, y: number): number;
+
+    /** Returns the specific RGBA64 color of the pixel at (x, y). */
+    RGBA64At(x: number, y: number): ColorRGBA64;
+
     /** Sets the pixel at (x, y) to the given color. */
-    Set(x: number, y: number, c: ColorPackage): void;
+    Set(x: number, y: number, c: Color): void;
 
     /** Sets the NRGBA64 pixel at (x, y). */
     SetNRGBA64(x: number, y: number, c: ColorNRGBA64): void;
@@ -765,32 +871,35 @@ interface ImageNRGBA64 {
     /** Sets the RGBA64 pixel at (x, y). */
     SetRGBA64(x: number, y: number, c: ColorRGBA64): void;
 
-    /** Returns the index of the first element of Pix for the pixel at (x, y). */
-    PixOffset(x: number, y: number): number;
-
-    /** Reports whether the image is fully opaque. */
-    Opaque(): boolean;
-
     /** Returns a sub-image sharing pixels with the original. */
-    SubImage(r: ImageRectangle): ImageNRGBA64;
+    SubImage(r: ImageRectangle): Image;
 }
 
 /** image.Alpha instance — in-memory image with At method returning color.Alpha values */
-interface ImageAlpha {
+class ImageAlpha implements MutableImage {
     /** Returns the Alpha color of the pixel at (x, y). */
-    At(x: number, y: number): ColorAlpha;
-
-    /** Returns the specific Alpha color of the pixel at (x, y). */
     AlphaAt(x: number, y: number): ColorAlpha;
 
     /** Returns the RGBA64 color of the pixel at (x, y). */
-    RGBA64At(x: number, y: number): ColorRGBA64;
+    At(x: number, y: number): Color;
 
     /** Returns the bounds of the image. */
     Bounds(): ImageRectangle;
 
+    /** Returns the color model of the image. */
+    ColorModel(): ColorModel;
+
+    /** Reports whether the image is fully opaque. */
+    Opaque(): boolean;
+
+    /** Returns the index of the first element of Pix for the pixel at (x, y). */
+    PixOffset(x: number, y: number): number;
+
+    /** Returns the specific RGBA64 color of the pixel at (x, y). */
+    RGBA64At(x: number, y: number): ColorRGBA64;
+
     /** Sets the pixel at (x, y) to the given color. */
-    Set(x: number, y: number, c: ColorPackage): void;
+    Set(x: number, y: number, c: Color): void;
 
     /** Sets the Alpha pixel at (x, y). */
     SetAlpha(x: number, y: number, c: ColorAlpha): void;
@@ -798,32 +907,35 @@ interface ImageAlpha {
     /** Sets the RGBA64 pixel at (x, y). */
     SetRGBA64(x: number, y: number, c: ColorRGBA64): void;
 
-    /** Returns the index of the first element of Pix for the pixel at (x, y). */
-    PixOffset(x: number, y: number): number;
-
-    /** Reports whether the image is fully opaque. */
-    Opaque(): boolean;
-
     /** Returns a sub-image sharing pixels with the original. */
-    SubImage(r: ImageRectangle): ImageAlpha;
+    SubImage(r: ImageRectangle): Image;
 }
 
 /** image.Alpha16 instance — in-memory image with At method returning color.Alpha16 values */
-interface ImageAlpha16 {
+class ImageAlpha16 implements MutableImage {
     /** Returns the Alpha16 color of the pixel at (x, y). */
-    At(x: number, y: number): ColorAlpha16;
-
-    /** Returns the specific Alpha16 color of the pixel at (x, y). */
     Alpha16At(x: number, y: number): ColorAlpha16;
 
     /** Returns the RGBA64 color of the pixel at (x, y). */
-    RGBA64At(x: number, y: number): ColorRGBA64;
+    At(x: number, y: number): Color;
 
     /** Returns the bounds of the image. */
     Bounds(): ImageRectangle;
 
+    /** Returns the color model of the image. */
+    ColorModel(): ColorModel;
+
+    /** Reports whether the image is fully opaque. */
+    Opaque(): boolean;
+
+    /** Returns the index of the first element of Pix for the pixel at (x, y). */
+    PixOffset(x: number, y: number): number;
+
+    /** Returns the specific RGBA64 color of the pixel at (x, y). */
+    RGBA64At(x: number, y: number): ColorRGBA64;
+
     /** Sets the pixel at (x, y) to the given color. */
-    Set(x: number, y: number, c: ColorPackage): void;
+    Set(x: number, y: number, c: Color): void;
 
     /** Sets the Alpha16 pixel at (x, y). */
     SetAlpha16(x: number, y: number, c: ColorAlpha16): void;
@@ -831,32 +943,35 @@ interface ImageAlpha16 {
     /** Sets the RGBA64 pixel at (x, y). */
     SetRGBA64(x: number, y: number, c: ColorRGBA64): void;
 
-    /** Returns the index of the first element of Pix for the pixel at (x, y). */
-    PixOffset(x: number, y: number): number;
-
-    /** Reports whether the image is fully opaque. */
-    Opaque(): boolean;
-
     /** Returns a sub-image sharing pixels with the original. */
-    SubImage(r: ImageRectangle): ImageAlpha16;
+    SubImage(r: ImageRectangle): Image;
 }
 
 /** image.CMYK instance — in-memory image with At method returning color.CMYK values */
-interface ImageCMYK {
-    /** Returns the CMYK color of the pixel at (x, y). */
-    At(x: number, y: number): ColorCMYK;
-
-    /** Returns the specific CMYK color of the pixel at (x, y). */
-    CMYKAt(x: number, y: number): ColorCMYK;
-
+class ImageCMYK implements MutableImage {
     /** Returns the RGBA64 color of the pixel at (x, y). */
-    RGBA64At(x: number, y: number): ColorRGBA64;
+    At(x: number, y: number): Color;
 
     /** Returns the bounds of the image. */
     Bounds(): ImageRectangle;
 
+    /** Returns the CMYK color of the pixel at (x, y). */
+    CMYKAt(x: number, y: number): ColorCMYK;
+
+    /** Returns the color model of the image. */
+    ColorModel(): ColorModel;
+
+    /** Reports whether the image is fully opaque. */
+    Opaque(): boolean;
+
+    /** Returns the index of the first element of Pix for the pixel at (x, y). */
+    PixOffset(x: number, y: number): number;
+
+    /** Returns the specific RGBA64 color of the pixel at (x, y). */
+    RGBA64At(x: number, y: number): ColorRGBA64;
+
     /** Sets the pixel at (x, y) to the given color. */
-    Set(x: number, y: number, c: ColorPackage): void;
+    Set(x: number, y: number, c: Color): void;
 
     /** Sets the CMYK pixel at (x, y). */
     SetCMYK(x: number, y: number, c: ColorCMYK): void;
@@ -864,32 +979,35 @@ interface ImageCMYK {
     /** Sets the RGBA64 pixel at (x, y). */
     SetRGBA64(x: number, y: number, c: ColorRGBA64): void;
 
-    /** Returns the index of the first element of Pix for the pixel at (x, y). */
-    PixOffset(x: number, y: number): number;
-
-    /** Reports whether the image is fully opaque. */
-    Opaque(): boolean;
-
     /** Returns a sub-image sharing pixels with the original. */
-    SubImage(r: ImageRectangle): ImageCMYK;
+    SubImage(r: ImageRectangle): Image;
 }
 
 /** image.Gray instance — in-memory image with At method returning color.Gray values */
-interface ImageGray {
-    /** Returns the Gray color of the pixel at (x, y). */
-    At(x: number, y: number): ColorGray;
-
-    /** Returns the specific Gray color of the pixel at (x, y). */
-    GrayAt(x: number, y: number): ColorGray;
-
+class ImageGray implements MutableImage {
     /** Returns the RGBA64 color of the pixel at (x, y). */
-    RGBA64At(x: number, y: number): ColorRGBA64;
+    At(x: number, y: number): Color;
 
     /** Returns the bounds of the image. */
     Bounds(): ImageRectangle;
 
+    /** Returns the color model of the image. */
+    ColorModel(): ColorModel;
+
+    /** Returns the Gray color of the pixel at (x, y). */
+    GrayAt(x: number, y: number): ColorGray;
+
+    /** Reports whether the image is fully opaque. */
+    Opaque(): boolean;
+
+    /** Returns the index of the first element of Pix for the pixel at (x, y). */
+    PixOffset(x: number, y: number): number;
+
+    /** Returns the specific RGBA64 color of the pixel at (x, y). */
+    RGBA64At(x: number, y: number): ColorRGBA64;
+
     /** Sets the pixel at (x, y) to the given color. */
-    Set(x: number, y: number, c: ColorPackage): void;
+    Set(x: number, y: number, c: Color): void;
 
     /** Sets the Gray pixel at (x, y). */
     SetGray(x: number, y: number, c: ColorGray): void;
@@ -897,32 +1015,49 @@ interface ImageGray {
     /** Sets the RGBA64 pixel at (x, y). */
     SetRGBA64(x: number, y: number, c: ColorRGBA64): void;
 
-    /** Returns the index of the first element of Pix for the pixel at (x, y). */
-    PixOffset(x: number, y: number): number;
-
-    /** Reports whether the image is fully opaque. */
-    Opaque(): boolean;
-
     /** Returns a sub-image sharing pixels with the original. */
-    SubImage(r: ImageRectangle): ImageGray;
+    SubImage(r: ImageRectangle): Image;
 }
 
+// ype Gray16
+// func NewGray16(r Rectangle) *Gray16
+// func (p *Gray16) At(x, y int) color.Color
+// func (p *Gray16) Bounds() Rectangle
+// func (p *Gray16) ColorModel() color.Model
+// func (p *Gray16) Gray16At(x, y int) color.Gray16
+// func (p *Gray16) Opaque() bool
+// func (p *Gray16) PixOffset(x, y int) int
+// func (p *Gray16) RGBA64At(x, y int) color.RGBA64
+// func (p *Gray16) Set(x, y int, c color.Color)
+// func (p *Gray16) SetGray16(x, y int, c color.Gray16)
+// func (p *Gray16) SetRGBA64(x, y int, c color.RGBA64)
+// func (p *Gray16) SubImage(r Rectangle) Image
+
 /** image.Gray16 instance — in-memory image with At method returning color.Gray16 values */
-interface ImageGray16 {
-    /** Returns the Gray16 color of the pixel at (x, y). */
-    At(x: number, y: number): ColorGray16;
-
-    /** Returns the specific Gray16 color of the pixel at (x, y). */
-    Gray16At(x: number, y: number): ColorGray16;
-
+class ImageGray16 implements MutableImage {
     /** Returns the RGBA64 color of the pixel at (x, y). */
-    RGBA64At(x: number, y: number): ColorRGBA64;
+    At(x: number, y: number): Color;
 
     /** Returns the bounds of the image. */
     Bounds(): ImageRectangle;
 
+    /** Returns the color model of the image. */
+    ColorModel(): ColorModel;
+
+    /** Returns the Gray16 color of the pixel at (x, y). */
+    Gray16At(x: number, y: number): ColorGray16;
+
+    /** Reports whether the image is fully opaque. */
+    Opaque(): boolean;
+
+    /** Returns the index of the first element of Pix for the pixel at (x, y). */
+    PixOffset(x: number, y: number): number;
+
+    /** Returns the specific RGBA64 color of the pixel at (x, y). */
+    RGBA64At(x: number, y: number): ColorRGBA64;
+
     /** Sets the pixel at (x, y) to the given color. */
-    Set(x: number, y: number, c: ColorPackage): void;
+    Set(x: number, y: number, c: Color): void;
 
     /** Sets the Gray16 pixel at (x, y). */
     SetGray16(x: number, y: number, c: ColorGray16): void;
@@ -930,119 +1065,129 @@ interface ImageGray16 {
     /** Sets the RGBA64 pixel at (x, y). */
     SetRGBA64(x: number, y: number, c: ColorRGBA64): void;
 
-    /** Returns the index of the first element of Pix for the pixel at (x, y). */
-    PixOffset(x: number, y: number): number;
-
-    /** Reports whether the image is fully opaque. */
-    Opaque(): boolean;
-
     /** Returns a sub-image sharing pixels with the original. */
-    SubImage(r: ImageRectangle): ImageGray16;
+    SubImage(r: ImageRectangle): Image;
 }
 
 /** image.YCbCr instance — in-memory image with At method returning color.YCbCr values */
-interface ImageYCbCr {
-    /** Returns the YCbCr color of the pixel at (x, y). */
-    At(x: number, y: number): ColorYCbCr;
-
-    /** Returns the specific YCbCr color of the pixel at (x, y). */
-    YCbCrAt(x: number, y: number): ColorYCbCr;
-
+class ImageYCbCr implements MutableImage {
     /** Returns the RGBA64 color of the pixel at (x, y). */
-    RGBA64At(x: number, y: number): ColorRGBA64;
+    At(x: number, y: number): Color;
 
     /** Returns the bounds of the image. */
     Bounds(): ImageRectangle;
 
-    /** Returns the index into the Y slice for the pixel at (x, y). */
-    YOffset(x: number, y: number): number;
-
-    /** Returns the index into the Cb and Cr slices for the pixel at (x, y). */
+    /** Returns the color model of the image. */
     COffset(x: number, y: number): number;
+
+    /** Returns the color model of the image. */
+    ColorModel(): ColorModel;
 
     /** Reports whether the image is fully opaque. */
     Opaque(): boolean;
 
+    /** Returns the index of the first element of Pix for the pixel at (x, y). */
+    PixOffset(x: number, y: number): number;
+
+    /** Returns the specific RGBA64 color of the pixel at (x, y). */
+    RGBA64At(x: number, y: number): ColorRGBA64;
+
     /** Returns a sub-image sharing pixels with the original. */
-    SubImage(r: ImageRectangle): ImageYCbCr;
+    SubImage(r: ImageRectangle): Image;
+
+    /* Returns the YCbCr color of the pixel at (x, y). */
+    YCbCrAt(x: number, y: number): ColorYCbCr;
+
+    /** Returns the index into the Y slice for the pixel at (x, y). */
+    YOffset(x: number, y: number): number;
 }
 
 /** image.NYCbCrA instance — in-memory image with At method returning color.NYCbCrA values */
-interface ImageNYCbCrA {
-    /** Returns the NYCbCrA color of the pixel at (x, y). */
-    At(x: number, y: number): ColorNYCbCrA;
+class ImageNYCbCrA implements MutableImage {
+    /** Returns the index of the first element of A that corresponds to the pixel at (x, y). */
+    AOffset(x: number, y: number): number;
+
+    /** Returns the RGBA64 color of the pixel at (x, y). */
+    At(x: number, y: number): Color;
+
+    /** Returns the color model of the image. */
+    ColorModel(): ColorModel;
 
     /** Returns the specific NYCbCrA color of the pixel at (x, y). */
     NYCbCrAAt(x: number, y: number): ColorNYCbCrA;
 
-    /** Returns the RGBA64 color of the pixel at (x, y). */
-    RGBA64At(x: number, y: number): ColorRGBA64;
-
-    /** Returns the index into the alpha slice for the pixel at (x, y). */
-    AOffset(x: number, y: number): number;
-
     /** Reports whether the image is fully opaque. */
     Opaque(): boolean;
 
+    /** Returns the specific RGBA64 color of the pixel at (x, y). */
+    RGBA64At(x: number, y: number): ColorRGBA64;
+
     /** Returns a sub-image sharing pixels with the original. */
-    SubImage(r: ImageRectangle): ImageNYCbCrA;
+    SubImage(r: ImageRectangle): Image;
 }
 
 /** image.Paletted instance — in-memory image with palette-indexed pixels */
-interface ImagePaletted {
-    /** Returns the color of the pixel at (x, y). */
-    At(x: number, y: number): ColorPackage;
-
+class ImagePaletted implements MutableImage {
     /** Returns the RGBA64 color of the pixel at (x, y). */
-    RGBA64At(x: number, y: number): ColorRGBA64;
+    At(x: number, y: number): Color;
 
     /** Returns the bounds of the image. */
     Bounds(): ImageRectangle;
 
-    /** Sets the pixel at (x, y) to the given color. */
-    Set(x: number, y: number, c: ColorPackage): void;
-
-    /** Sets the RGBA64 pixel at (x, y). */
-    SetRGBA64(x: number, y: number, c: ColorRGBA64): void;
-
-    /** Returns the palette index of the pixel at (x, y). */
+    /** Returns the color index of the pixel at (x, y). */
     ColorIndexAt(x: number, y: number): number;
 
-    /** Sets the palette index of the pixel at (x, y). */
-    SetColorIndex(x: number, y: number, index: number): void;
-
-    /** Returns the index of the first element of Pix for the pixel at (x, y). */
-    PixOffset(x: number, y: number): number;
+    /** Returns the color model of the image. */
+    ColorModel(): ColorModel;
 
     /** Reports whether the image is fully opaque. */
     Opaque(): boolean;
 
+    /** Returns the index of the first element of Pix for the pixel at (x, y). */
+    PixOffset(x: number, y: number): number;
+
+    /** Returns the specific RGBA64 color of the pixel at (x, y). */
+    RGBA64At(x: number, y: number): ColorRGBA64;
+
+    /** Sets the pixel at (x, y) to the given color. */
+    Set(x: number, y: number, c: Color): void;
+
+    /** Sets the color index of the pixel at (x, y). */
+    SetColorIndex(x: number, y: number, index: number): void;
+
+    /** Sets the RGBA64 pixel at (x, y). */
+    SetRGBA64(x: number, y: number, c: ColorRGBA64): void;
+
     /** Returns a sub-image sharing pixels with the original. */
-    SubImage(r: ImageRectangle): ImagePaletted;
+    SubImage(r: ImageRectangle): Image;
 }
 
 /** image.Uniform instance — theoretically infinite-sized image of uniform color */
-interface ImageUniform {
-    /** Returns the color of the pixel at (x, y). */
-    At(x: number, y: number): ColorPackage;
-
+class ImageUniform implements MutableImage {
     /** Returns the RGBA64 color of the pixel at (x, y). */
-    RGBA64At(x: number, y: number): ColorRGBA64;
+    At(x: number, y: number): Color;
 
-    /** Returns the bounds of the image (theoretically infinite). */
+    /** Returns the bounds of the image. */
     Bounds(): ImageRectangle;
+
+    /** Returns the color model of the image. */
+    ColorModel(): ColorModel;
+
+    /* Converts the given color to the image's color model. */
+    Convert(c: Color): Color;
 
     /** Reports whether the image is fully opaque. */
     Opaque(): boolean;
 
     /** Returns the color's RGBA values as [r, g, b, a]. */
-    RGBA(): number[];
+    RGBA(): [number, number, number, number];
+
+    /** Returns the specific RGBA64 color of the pixel at (x, y). */
+    RGBA64At(x: number, y: number): ColorRGBA64;
 }
 
 /** ColorPackage functions and constants (image/color) */
-interface ColorPackage {
-    // ── Constructors ───────────────────────────────────────────────────────────
-
+class ColorPackage {
     /** Creates a new RGBA color with 8 bits per channel (alpha-premultiplied). */
     NewRGBA(r: number, g: number, b: number, a: number): ColorRGBA;
 
@@ -1106,7 +1251,7 @@ interface ColorPackage {
 }
 
 /** ColorRGBA instance — traditional 32-bit alpha-premultiplied color, 8 bits per channel */
-interface ColorRGBA {
+class ColorRGBA implements Color {
     /** Red channel [0, 255]. */
     readonly R: number;
 
@@ -1124,7 +1269,7 @@ interface ColorRGBA {
 }
 
 /** ColorRGBA64 instance — 64-bit alpha-premultiplied color, 16 bits per channel */
-interface ColorRGBA64 {
+class ColorRGBA64 implements Color {
     /** Red channel [0, 65535]. */
     readonly R: number;
 
@@ -1142,7 +1287,7 @@ interface ColorRGBA64 {
 }
 
 /** ColorNRGBA instance — non-alpha-premultiplied 32-bit color, 8 bits per channel */
-interface ColorNRGBA {
+class ColorNRGBA implements Color {
     /** Red channel [0, 255]. */
     readonly R: number;
 
@@ -1160,7 +1305,7 @@ interface ColorNRGBA {
 }
 
 /** ColorNRGBA64 instance — non-alpha-premultiplied 64-bit color, 16 bits per channel */
-interface ColorNRGBA64 {
+class ColorNRGBA64 implements Color {
     /** Red channel [0, 65535]. */
     readonly R: number;
 
@@ -1178,7 +1323,7 @@ interface ColorNRGBA64 {
 }
 
 /** ColorAlpha instance — 8-bit alpha color */
-interface ColorAlpha {
+class ColorAlpha implements Color {
     /** Alpha channel [0, 255]. */
     readonly A: number;
 
@@ -1187,7 +1332,7 @@ interface ColorAlpha {
 }
 
 /** ColorAlpha16 instance — 16-bit alpha color */
-interface ColorAlpha16 {
+class ColorAlpha16 implements Color {
     /** Alpha channel [0, 65535]. */
     readonly A: number;
 
@@ -1205,7 +1350,7 @@ interface ColorGray {
 }
 
 /** ColorGray16 instance — 16-bit grayscale color */
-interface ColorGray16 {
+class ColorGray16 implements Color {
     /** Luminance [0, 65535]. */
     readonly Y: number;
 
@@ -1214,7 +1359,7 @@ interface ColorGray16 {
 }
 
 /** ColorCMYK instance — fully opaque CMYK color, 8 bits per channel */
-interface ColorCMYK {
+class ColorCMYK implements Color {
     /** Cyan channel [0, 255]. */
     readonly C: number;
 
@@ -1232,7 +1377,7 @@ interface ColorCMYK {
 }
 
 /** ColorYCbCr instance — Y'CbCr color, 8 bits per channel. Used by JPEG, VP8, MPEG. */
-interface ColorYCbCr {
+class ColorYCbCr implements Color {
     /** Luma component [0, 255]. */
     readonly Y: number;
 
@@ -1247,7 +1392,7 @@ interface ColorYCbCr {
 }
 
 /** color.NYCbCrA instance — non-alpha-premultiplied Y'CbCr with alpha, 8 bits per channel */
-interface ColorNYCbCrA {
+class ColorNYCbCrA implements Color {
     /** Luma component [0, 255]. */
     readonly Y: number;
 
@@ -1265,7 +1410,7 @@ interface ColorNYCbCrA {
 }
 
 /** color.Palette instance — a palette of colors */
-interface ColorPalette {
+class ColorPalette {
     /** Returns the palette color closest to c in Euclidean R,G,B space. */
     Convert(c: Color): Color;
 

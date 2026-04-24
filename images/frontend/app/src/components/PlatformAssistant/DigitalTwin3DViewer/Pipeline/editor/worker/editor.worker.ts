@@ -1,7 +1,3 @@
-// ─────────────────────────────────────────────────────────────────────────────
-// editor/worker/editor.worker.ts
-// ─────────────────────────────────────────────────────────────────────────────
-
 import { getCompletions, getHoverInfo, getDiagnostics, getApplyForMethod } from "./LanguageServer";
 import { getVariableInfo } from "../inference/HoverInfoBuilder";
 import type { WorkerRequest, WorkerResponse, SerializableCompletionResult, SerializableMethod } from "../types";

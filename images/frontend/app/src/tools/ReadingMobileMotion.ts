@@ -1,20 +1,25 @@
-import Paho from "paho-mqtt";
+import { NatsConnection, headers } from "nats.ws";
+import { sc } from "./Natsconnection";
 
 const ReadMobileMotion = (
-	mqttClient: Paho.Client,
-	mqttTopic: string,
+	nc: NatsConnection,
+	natsSubject: string,
 	totalReadingTime: number,
 	samplingFrequency: number,
 	setIsSensorReadings: React.Dispatch<React.SetStateAction<boolean>>,
 	setReadingProgress: React.Dispatch<React.SetStateAction<number>>
 ) => {
-    const deltaT = 1.0 / samplingFrequency;
+	const deltaT = 1.0 / samplingFrequency;
 	const totalReadings = totalReadingTime / deltaT;
-    let gravity: number[] = [];
-    let accelerations: number[] = [];
+	let gravity: number[] = [];
+	let accelerations: number[] = [];
 	let readingsAccelerationCont = 0;
-    let readingsGravityCont = 0;
-    let readingsQuaternionCont = 0;
+	let readingsGravityCont = 0;
+	let readingsQuaternionCont = 0;
+
+	const h = headers();
+	h.set("Content-Type", "application/json");
+	h.set("Json-Structure", "object");
 
 	const gravitySensor = new GravitySensor({ frequency: samplingFrequency, referenceFrame: "device" });
 	gravitySensor.start();
@@ -39,23 +44,23 @@ const ReadMobileMotion = (
 					accelerationSensor.x - gravity[0],
 					accelerationSensor.y - gravity[1],
 					accelerationSensor.z - gravity[2]
-                ]
-                readingsAccelerationCont++;
+				];
+				readingsAccelerationCont++;
 			}
 		} else {
 			accelerationSensor.stop();
 		}
-    };
-    
-    const quaternionSensor = new AbsoluteOrientationSensor({ frequency: samplingFrequency, referenceFrame: "device" });
+	};
+
+	const quaternionSensor = new AbsoluteOrientationSensor({ frequency: samplingFrequency, referenceFrame: "device" });
 	quaternionSensor.start();
 	quaternionSensor.onreading = function () {
 		setIsSensorReadings(true);
 		if (readingsQuaternionCont <= totalReadings) {
-            const mobile_motion = [
-                accelerations[0],
-                accelerations[1],
-                accelerations[2],
+			const mobile_motion = [
+				accelerations[0],
+				accelerations[1],
+				accelerations[2],
 				quaternionSensor.quaternion[0],
 				quaternionSensor.quaternion[1],
 				quaternionSensor.quaternion[2],
@@ -63,13 +68,9 @@ const ReadMobileMotion = (
 			];
 
 			const timestamp = (new Date()).toJSON();
-			const payload = {
-				timestamp,
-				mobile_motion
-			};
-			const message = new Paho.Message(JSON.stringify(payload));
-			message.destinationName = mqttTopic;
-			mqttClient.send(message);
+			const payload = { timestamp, mobile_motion };
+			nc.publish(natsSubject, sc.encode(JSON.stringify(payload)), { headers: h });
+
 			const readingProgress = (readingsQuaternionCont / totalReadings) * 100;
 			setReadingProgress(readingProgress);
 			readingsQuaternionCont++;

@@ -1,5 +1,5 @@
 import { FC, SyntheticEvent } from "react";
-import Paho from "paho-mqtt";
+import { NatsConnection, headers } from "nats.ws";
 import styled from "styled-components";
 import CameraComponent, { FACING_MODES } from 'react-html5-camera-photo';
 import "react-html5-camera-photo/build/css/index.css";
@@ -19,11 +19,11 @@ const Title = styled.h2`
 `;
 
 interface ConnectionLedProps {
-    readonly isMqttConnected: boolean;
+    readonly isNatsConnected: boolean;
 }
 
 const ConnectionLed = styled.span<ConnectionLedProps>`
-    background-color: ${(props) => (props.isMqttConnected ? "#62f700" : "#f80000")};
+    background-color: ${(props) => (props.isNatsConnected ? "#62f700" : "#f80000")};
     width: 17px;
     height: 17px;
     margin: -2px 10px;
@@ -72,16 +72,16 @@ const ExitIcon = styled(FaShareSquare as any)`
     }
 `;
 
-interface MobileSensorSelectFormProps {
-    mqttClient: Paho.Client;
-    isMqttConnected: boolean;
+interface MobilePhotoFormProps {
+    natsClient: NatsConnection;
+    isNatsConnected: boolean;
     setMobileSensorSelected: React.Dispatch<React.SetStateAction<string>>;
     mobileTopicSelected: IMobileTopic;
 }
 
-const MobilePhotoForm: FC<MobileSensorSelectFormProps> = ({
-    mqttClient,
-    isMqttConnected,
+const MobilePhotoForm: FC<MobilePhotoFormProps> = ({
+    natsClient,
+    isNatsConnected,
     setMobileSensorSelected,
     mobileTopicSelected,
 }) => {
@@ -91,25 +91,27 @@ const MobilePhotoForm: FC<MobileSensorSelectFormProps> = ({
     };
 
     const handleTakePhoto = async (dataUri: string) => {
-        if (isMqttConnected) {
-            // Elimina el prefijo "data:image/jpeg;base64," y quédate solo con el base64
-            const base64 = dataUri.split(",")[1];
-            const data2Send = {
-                image: base64,
-            };
-            const groupHash = mobileTopicSelected.groupUid;
-            const topicHash = mobileTopicSelected.topicUid;
-            const mqttTopic = `dev2dtm/Group_${groupHash}/Topic_${topicHash}`;
-            const message = new Paho.Message(JSON.stringify(data2Send));
-            message.destinationName = mqttTopic;
-            mqttClient?.send(message);
-        }
+        if (!isNatsConnected || !natsClient) return;
+
+        const groupHash = mobileTopicSelected.groupUid;
+        const topicHash = mobileTopicSelected.topicUid;
+        const natsSubject = `dev2dtm.Group_${groupHash}.Topic_${topicHash}`;
+
+        // Decode data URI to raw bytes via Fetch API (native, no JS loop)
+        const res = await fetch(dataUri);
+        const buffer = await res.arrayBuffer();
+        const imageBytes = new Uint8Array(buffer);
+
+        const h = headers();
+        h.set("Content-Type", "image/jpeg");
+
+        natsClient.publish(natsSubject, imageBytes, { headers: h });
     };
 
     return (
         <>
             <Title>
-                Take photo <ConnectionLed isMqttConnected={isMqttConnected} />
+                Take photo <ConnectionLed isNatsConnected={isNatsConnected} />
             </Title>
             <FormContainer>
                 <Camera

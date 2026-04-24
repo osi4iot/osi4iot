@@ -233,7 +233,7 @@ class NATSClient {
 			await jsm.streams.add(streamConfig);
 			logger.log("info", `Stream '${streamConfig.name}' created/updated successfully`);
 			return true;
-		} catch (error) {
+		} catch (error: any) {
 			if (error.message.includes("stream name already in use")) {
 				logger.log("info", `Stream '${streamConfig.name}' already exists`);
 				return true;

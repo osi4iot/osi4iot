@@ -74,6 +74,13 @@ export interface IMqttTopicData {
     lastMeasurement: IMeasurement | null;
 }
 
+export interface INatsSubjectData {
+    topicId: number;
+    topicRef: string;
+    natsSubject: string;
+    lastMeasurement: IMeasurement | null;
+}
+
 interface ModelProps {
     digitalTwinGltfData: IDigitalTwinGltfData;
     femResultData: any;
@@ -93,7 +100,7 @@ interface ModelProps {
     genericObjects: IGenericObject[];
     initialGenericObjectsState: Record<string, GenericObjectState>;
     genericObjectsVisibilityState: Record<string, ObjectVisibilityState>;
-    mqttTopicsData: IMqttTopicData[];
+    natsSubjectsData: INatsSubjectData[];
     topicIdBySensorRef: Record<string, number>;
     dashboardUrl: string;
     sensorsOpacity: number;

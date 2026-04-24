@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"maps"
 	"sync"
 
 	"pipelines/common"
@@ -33,6 +32,8 @@ func CreateNode(
 		newNode, err = CreateTriggerNode(node, fm, p)
 	case "Delay":
 		newNode, err = CreateDelayNode(node, fm, p)
+	case "Splitter":
+		newNode, err = CreateSplitterNode(node, fm, p)
 	case "Function":
 		newNode, err = CreateFuncNode(node, fm, p)
 	case "TelegramListen":
@@ -45,6 +46,8 @@ func CreateNode(
 		newNode, err = CreateTelegramListenNode(node, fm, p, org)
 	case "TelegramSend":
 		newNode, err = CreateTelegramSendNode(node, fm, p)
+	case "Transcriptor":
+		newNode, err = CreateTranscriptorNode(node, fm, p)
 	case "Email":
 		newNode, err = CreateEmailNode(node, fm, p)
 	case "AiAgent":
@@ -170,17 +173,17 @@ func (n *BaseNode) IsStopped() bool {
 }
 
 func (n *BaseNode) Stop(log *logger.Logger) {
-    if n.GetStatus() == common.NodeStatusStopped {
-        log.Infof("Node %s is already stopped", n.NodeUid)
-        return
-    }
+	if n.GetStatus() == common.NodeStatusStopped {
+		log.Infof("Node %s is already stopped", n.NodeUid)
+		return
+	}
 
-    if n.Cancel != nil {
-        n.Cancel()
-    }
-    n.wg.Wait()
-    n.SetStatus(common.NodeStatusStopped)
-    log.Infof("Node %s stopped successfully", n.NodeUid)
+	if n.Cancel != nil {
+		n.Cancel()
+	}
+	n.wg.Wait()
+	n.SetStatus(common.NodeStatusStopped)
+	log.Infof("Node %s stopped successfully", n.NodeUid)
 }
 
 func (n *BaseNode) SetStatus(status common.NodeStatus) {
@@ -225,7 +228,7 @@ func (n *BaseNode) HandleDebug(message common.Message, outputIndex int) {
 		Uid:         n.NodeUid,
 		Message:     "Debug message sent to output",
 		OutputIndex: outputIndex,
-		Payload:     message.Payload,
+		Payload:     message.GetPayload(),
 	}
 
 	if logJSON, marshallErr := json.Marshal(logData); marshallErr == nil {
@@ -312,10 +315,11 @@ func (n *BaseNode) sendToOutputs(msg common.Message, log *logger.Logger) {
 	nodeOutputWires := n.GetNodeOutputWires()
 	for outputIndex, wireArray := range nodeOutputWires {
 		for idx, wire := range wireArray {
-			outMsg := msg
+			var outMsg common.Message
 			if idx > 0 || outputIndex > 0 {
-				outMsg.Payload = make(map[string]any, len(msg.Payload))
-				maps.Copy(outMsg.Payload, msg.Payload)
+				outMsg = msg.Clone()
+			} else {
+				outMsg = msg
 			}
 			select {
 			case wire.Channel <- outMsg:

@@ -1,14 +1,19 @@
-import * as THREE from 'three'
-import React, { FC, useEffect, useRef, useState } from 'react'
-import { useFrame } from '@react-three/fiber';
-import { toast } from 'react-toastify';
-import { defaultOpacity, defaultVisibility, GenericObjectState, ObjectVisibilityState } from '../ViewerTools/ViewerUtils';
-import { IGenericObject } from '../Main/Model';
-import { changeMaterialPropRecursively } from '../../../../tools/tools';
-import { IThreeMesh } from '../Types/threeInterfaces';
+import * as THREE from "three";
+import React, { FC, useEffect, useMemo, useRef, useState } from "react";
+import { useFrame } from "@react-three/fiber";
+import { toast } from "react-toastify";
+import {
+    defaultOpacity,
+    defaultVisibility,
+    GenericObjectState,
+    ObjectVisibilityState,
+} from "../ViewerTools/ViewerUtils";
+import { IGenericObject } from "../Main/Model";
+import { changeMaterialPropRecursively } from "../../../../tools/tools";
+import { IThreeMesh } from "../Types/threeInterfaces";
 
-const MeshComponent = 'mesh' as any;
-const PrimitivesComponent = 'primitive' as any;
+const MeshComponent = "mesh" as any;
+const PrimitivesComponent = "primitive" as any;
 
 interface GenericObjectProps {
     obj: IThreeMesh;
@@ -30,15 +35,20 @@ const GenericObjectBase: FC<GenericObjectProps> = ({
     visible = true,
     showDeepObjects = false,
     genericObjectState,
-    genericObjectStateString
+    genericObjectStateString,
 }) => {
-    const meshRef = useRef<THREE.Mesh<THREE.BufferGeometry, THREE.Material | THREE.MeshLambertMaterial | THREE.Material[]>>(null);
-    const material = Object.assign(obj.material);
+    const meshRef =
+        useRef<THREE.Mesh<THREE.BufferGeometry, THREE.Material | THREE.MeshLambertMaterial | THREE.Material[]>>(null);
+
+    const material = obj.material;
+
     const defOpacity = defaultOpacity(obj);
     const recursiveTransparency = obj.userData.recursiveTransparency;
+    const hasEndlessAnimations = obj.blenderAnimationTypes?.includes("blenderEndless");
     if (recursiveTransparency === undefined || recursiveTransparency === "true") {
-        changeMaterialPropRecursively(obj, 'transparent', (defOpacity * opacity) === 1 ? false : true);
-        changeMaterialPropRecursively(obj, 'depthWrite', !showDeepObjects);
+        const isTransparent = hasEndlessAnimations ? true : defOpacity * opacity < 1;
+        changeMaterialPropRecursively(obj, "transparent", isTransparent);
+        changeMaterialPropRecursively(obj, "depthWrite", !showDeepObjects);
     }
 
     let lastIntervalTime = 0;
@@ -48,7 +58,7 @@ const GenericObjectBase: FC<GenericObjectProps> = ({
     useEffect(() => {
         if (obj.animations.length !== 0 && !(obj.animations as any).includes(undefined) && meshRef.current) {
             const mixer = new THREE.AnimationMixer(meshRef.current as any);
-            obj.animations.forEach(clip => mixer.clipAction(clip).play());
+            obj.animations.forEach((clip) => mixer.clipAction(clip).play());
             const clipsDuration = obj.animations[0].duration - 0.00001;
             setClipsDuration(clipsDuration);
             setMixer(mixer);
@@ -70,7 +80,7 @@ const GenericObjectBase: FC<GenericObjectProps> = ({
                     const values = obj.userData.clipValues[key];
                     const customTrack = new THREE.NumberKeyframeTrack(trackName, time, values);
                     var customClip = new THREE.AnimationClip(clipName, clipDuration, [customTrack]);
-                    mixer.clipAction(customClip).play()
+                    mixer.clipAction(customClip).play();
                 }
                 setClipsDuration(clipDuration);
                 setMixer(mixer);
@@ -82,7 +92,8 @@ const GenericObjectBase: FC<GenericObjectProps> = ({
     }, [obj]);
 
     useEffect(() => {
-        if (mixer &&
+        if (
+            mixer &&
             clipsDuration &&
             genericObjectState.clipValue !== null &&
             obj.userData.animationType &&
@@ -97,7 +108,6 @@ const GenericObjectBase: FC<GenericObjectProps> = ({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [mixer, genericObjectState.clipValue]);
 
-    
     useFrame(({ clock }, delta) => {
         if (
             obj.blenderAnimationTypes.includes("blenderEndless") ||
@@ -115,78 +125,69 @@ const GenericObjectBase: FC<GenericObjectProps> = ({
                     lastIntervalTime = clock.elapsedTime;
                 }
                 const deltaInterval = clock.elapsedTime - lastIntervalTime;
-                if (deltaInterval <= 0.30) {
-                    changeMaterialPropRecursively(obj, 'emissive', noEmitColor);
-                    changeMaterialPropRecursively(obj, 'opacity', defOpacity * opacity);
-                } else if (deltaInterval > 0.30 && deltaInterval <= 0.60) {
-                    changeMaterialPropRecursively(obj, 'emissive', highlightColor);
-                    changeMaterialPropRecursively(obj, 'opacity', 1.0);
-                } else if (deltaInterval > 0.60) {
+                if (deltaInterval <= 0.3) {
+                    changeMaterialPropRecursively(obj, "emissive", noEmitColor);
+                    changeMaterialPropRecursively(obj, "opacity", defOpacity * opacity);
+                } else if (deltaInterval > 0.3 && deltaInterval <= 0.6) {
+                    changeMaterialPropRecursively(obj, "emissive", highlightColor);
+                    changeMaterialPropRecursively(obj, "opacity", 1.0);
+                } else if (deltaInterval > 0.6) {
                     lastIntervalTime = clock.elapsedTime;
                 }
             } else {
                 if (genericObjectState.highlight) {
                     if (meshRef.current) meshRef.current.visible = true;
-                    changeMaterialPropRecursively(obj, 'emissive', highlightColor);
-                    changeMaterialPropRecursively(obj, 'opacity', 1.0);
+                    changeMaterialPropRecursively(obj, "emissive", highlightColor);
+                    changeMaterialPropRecursively(obj, "opacity", 1.0);
                 } else {
                     if (meshRef.current) meshRef.current.visible = defaultVisibility(obj);
-                    changeMaterialPropRecursively(obj, 'emissive', noEmitColor);
-                    changeMaterialPropRecursively(obj, 'opacity', defOpacity * opacity);
+                    changeMaterialPropRecursively(obj, "emissive", noEmitColor);
+                    changeMaterialPropRecursively(obj, "opacity", defOpacity * opacity);
 
-                    if (recursiveTransparency === undefined || recursiveTransparency === "true")  {
-                        changeMaterialPropRecursively(obj, 'transparent', (defOpacity * opacity) === 1 ? false : true);
-                        changeMaterialPropRecursively(obj, 'depthWrite', !showDeepObjects);
+                    if (recursiveTransparency === undefined || recursiveTransparency === "true") {
+                        const isTransparent = hasEndlessAnimations ? true : defOpacity * opacity < 1;
+                        changeMaterialPropRecursively(obj, "transparent", isTransparent);
+                        changeMaterialPropRecursively(obj, "depthWrite", !showDeepObjects);
                     }
                 }
             }
         } else {
             if (meshRef.current) meshRef.current.visible = visible;
         }
-    })
+    });
 
-
-    return (
-        (
-            obj.type === "Group" ||
-            obj.animations.length !== 0 ||
-            obj.customAnimationObjectNames.length !== 0 ||
-            obj.children.length !== 0
-        ) ?
-            <MeshComponent
-                ref={meshRef as React.MutableRefObject<IThreeMesh>}
-                castShadow
-                receiveShadow
-                material={material}
-            >
-                <PrimitivesComponent
-                    material={material}
-                    object={obj}
-                />
-            </MeshComponent>
-            :
-            <MeshComponent
-                ref={meshRef as React.MutableRefObject<IThreeMesh>}
-                castShadow
-                receiveShadow
-                geometry={obj.geometry}
-                material={material}
-                position={obj.position}
-                scale={obj.scale}
-                quaternion={obj.quaternion}
-            />
-
-    )
-}
+    return obj.type === "Group" ||
+        obj.animations.length !== 0 ||
+        obj.customAnimationObjectNames.length !== 0 ||
+        obj.children.length !== 0 ? (
+        <MeshComponent ref={meshRef as React.MutableRefObject<IThreeMesh>} castShadow receiveShadow material={material}>
+            <PrimitivesComponent material={material} object={obj} />
+        </MeshComponent>
+    ) : (
+        <MeshComponent
+            ref={meshRef as React.MutableRefObject<IThreeMesh>}
+            castShadow
+            receiveShadow
+            geometry={obj.geometry}
+            material={material}
+            position={obj.position}
+            scale={obj.scale}
+            quaternion={obj.quaternion}
+        />
+    );
+};
 
 const areEqual = (prevProps: GenericObjectProps, nextProps: GenericObjectProps) => {
-    return (prevProps.blinking === nextProps.blinking &&
+    return (
+        prevProps.blinking === nextProps.blinking &&
         prevProps.opacity === nextProps.opacity &&
         prevProps.showDeepObjects === nextProps.showDeepObjects &&
-        prevProps.visible === nextProps.visible) &&
+        prevProps.visible === nextProps.visible &&
+        prevProps.genericObjectState.highlight === nextProps.genericObjectState.highlight &&
         prevProps.genericObjectState.clipValue === nextProps.genericObjectState.clipValue &&
-        prevProps.genericObjectStateString === nextProps.genericObjectStateString;
-}
+        prevProps.genericObjectStateString === nextProps.genericObjectStateString
+    );
+};
 
 const GenericObject = React.memo(GenericObjectBase, areEqual);
 
@@ -200,7 +201,6 @@ interface GenericObjectsProps {
     genericObjectsVisibilityState: Record<string, ObjectVisibilityState>;
 }
 
-
 const GenericObjects: FC<GenericObjectsProps> = ({
     genericObjects,
     genericObjectsOpacity = 1,
@@ -210,33 +210,34 @@ const GenericObjects: FC<GenericObjectsProps> = ({
     genericObjectsState,
     genericObjectsVisibilityState,
 }) => {
-
     return (
         <>
-            {
-                genericObjects.map((obj, index) => {
-                    let showDeepObjects = false;
-                    if(genericObjectsShowDeepObjects) {
+            {genericObjects.map((obj, index) => {
+                let showDeepObjects = false;
+                if (genericObjectsShowDeepObjects) {
+                    showDeepObjects = true;
+                } else {
+                    if (genericObjectsVisibilityState[obj.collectionName].showDeepObjects ?? false) {
                         showDeepObjects = true;
-                    } else {
-                        if(genericObjectsVisibilityState[obj.collectionName].showDeepObjects ?? false) {
-                            showDeepObjects= true;
-                        }
                     }
-                    return <GenericObject
+                }
+                return (
+                    <GenericObject
                         key={obj.node.uuid}
                         obj={obj.node}
-                        blinking={highlightAllGenericObjects || genericObjectsVisibilityState[obj.collectionName].highlight}
+                        blinking={
+                            highlightAllGenericObjects || genericObjectsVisibilityState[obj.collectionName].highlight
+                        }
                         opacity={genericObjectsOpacity * genericObjectsVisibilityState[obj.collectionName].opacity}
                         visible={!(genericObjectsVisibilityState[obj.collectionName].hide || hideAllGenericObjects)}
                         showDeepObjects={showDeepObjects}
                         genericObjectState={genericObjectsState[obj.node.name]}
                         genericObjectStateString={JSON.stringify(genericObjectsState[obj.node.name])}
                     />
-                })
-            }
+                );
+            })}
         </>
-    )
-}
+    );
+};
 
 export default GenericObjects;

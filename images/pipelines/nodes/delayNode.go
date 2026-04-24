@@ -11,16 +11,16 @@ import (
 
 type DelayNode struct {
 	BaseNode
-	Duration int // Delay in milliseconds
+	Duration time.Duration
 }
 
 func CreateDelayNode(node common.NodeData, fm common.Manager, p common.Pipeline) (*DelayNode, error) {
 	durationFloat, ok := node.Settings["duration"].(float64)
-	duration := int(durationFloat)
-	if !ok || duration <= 0 {
-		fm.Log().Errorf("DelayNode %s: 'duration' setting is required and must be a positive integer", node.NodeUid)
-		return nil, fmt.Errorf("duration setting is required and must be a positive integer")
+	if !ok || durationFloat < 0 {
+		fm.Log().Errorf("DelayNode %s: 'duration' setting is required and must be a positive number", node.NodeUid)
+		return nil, fmt.Errorf("duration setting is required and must be a positive number")
 	}
+	duration := time.Duration(durationFloat * float64(time.Second))
 
 	logTopic := fm.GetTopicByTopicRef(p.GetAssetId(), p.GetDigitalTwinId(), "dtmlog")
 	logSubject := utils.TopicToNatsSubject(logTopic.TopicType, logTopic.GroupUid, logTopic.TopicUid)
@@ -53,8 +53,8 @@ func (n *DelayNode) Start(ctx context.Context, log *logger.Logger, needReinitial
 	}
 
 	nodectx, nodeCancel := context.WithCancel(ctx)
-    n.Ctx = nodectx
-    n.Cancel = nodeCancel
+	n.Ctx = nodectx
+	n.Cancel = nodeCancel
 
 	n.SetStatus(common.NodeStatusRunning)
 	log.Infof("Starting DelayNode with UID: %s", n.NodeUid)
@@ -64,7 +64,7 @@ func (n *DelayNode) Start(ctx context.Context, log *logger.Logger, needReinitial
 
 func (n *DelayNode) processMessage(message common.Message, log *logger.Logger) error {
 	go func(msg common.Message, mylog *logger.Logger) {
-		timer := time.NewTimer(time.Duration(n.Duration*1000) * time.Millisecond)
+		timer := time.NewTimer(n.Duration)
 		defer timer.Stop()
 
 		select {

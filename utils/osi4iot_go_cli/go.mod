@@ -1,4 +1,4 @@
-module github.com/osi4iot/osi4iot/utils/osi4iot_go_cli
+module github.com/osi4iot/osi4iot/utils/osi4iot
 
 go 1.23.0
 

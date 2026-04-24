@@ -16,19 +16,19 @@ if (Get-PSDrive $DestinationDrive -ErrorAction SilentlyContinue) {
         }
 
         $DestinationPath = "$DestinationFolder\osi4iot.exe"
-        Write-Host "Downloading osi4iot_cli..."
-        $source = 'https://raw.githubusercontent.com/osi4iot/osi4iot/master/utils/osi4iot_go_cli/dist/windows-amd64/osi4iot_go_cli.exe'
+        Write-Host "Downloading osi4iot CLI..."
+        $source = 'https://raw.githubusercontent.com/osi4iot/osi4iot/master/utils/osi4iot_go_cli/dist/windows-amd64/osi4iot.exe'
         $ProgressPreference = 'SilentlyContinue'
         Invoke-WebRequest -Uri $source -OutFile $DestinationPath
         $ProgressPreference = 'Continue'
-        Write-Host "osi4iot_cli downloaded."
+        Write-Host "osi4iot CLI downloaded."
 
         Write-Host "Updating path."
         $persistedPaths = [Environment]::GetEnvironmentVariable('Path', 'User') -split ';'
         if ($persistedPaths -notcontains $DestinationFolder) {
             $persistedPaths = $persistedPaths + $DestinationFolder | where { $_ }
             [Environment]::SetEnvironmentVariable('Path', $persistedPaths -join ';', 'User')
-            Write-Host "osi4iot_cli installed."
+            Write-Host "osi4iot CLI installed."
         }
     } else {
         $Warning = "The folder $UserFolder not exits."

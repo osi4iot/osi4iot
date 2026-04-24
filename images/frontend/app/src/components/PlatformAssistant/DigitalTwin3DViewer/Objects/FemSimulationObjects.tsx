@@ -16,9 +16,9 @@ import femResultCalcWorkersManager from "../../../../webWorkers/femResultCalcWor
 import { ElemTooltip } from "../Utils/ElemTooltip";
 import { NodeTooltip } from "../Utils/NodeTooltip";
 
-const GroupComponent = 'group' as any;
-const MeshComponent = 'mesh' as any;
-const PrimitivesComponent = 'primitive' as any;
+const GroupComponent = "group" as any;
+const MeshComponent = "mesh" as any;
+const PrimitivesComponent = "primitive" as any;
 
 interface FemSimulationObjectProps {
     femSimulationGeneralInfo: Record<string, IResultRenderInfo>;
@@ -79,10 +79,10 @@ const FemSimulationObjectBase: FC<FemSimulationObjectProps> = ({
     const [elemConnectivitiesSAB, setElemConnectivitiesSAB] = useState<SharedArrayBuffer | null>(null);
     const [lutRgbArraySABMap, setLutRgbArraySABMap] = useState<Map<string, SharedArrayBuffer> | null>(null);
     const [femResultModalValueSABMap, setFemResultModalValueSABMap] = useState<Map<string, SharedArrayBuffer> | null>(
-        null
+        null,
     );
     const [femResultNodalValueSABMap, setFemResultNodalValueSABMap] = useState<Map<string, SharedArrayBuffer> | null>(
-        null
+        null,
     );
     const [workers, setWorkers] = useState<Worker[]>([]);
     const [nodalIndex, setNodalIndex] = useState<Map<number, number>>(new Map<number, number>());
@@ -131,10 +131,10 @@ const FemSimulationObjectBase: FC<FemSimulationObjectProps> = ({
             return new THREE.Vector3(
                 (pos[i] + pos[i + 3] + pos[i + 6]) * 0.3333333333333333,
                 (pos[i + 1] + pos[i + 4] + pos[i + 7]) * 0.3333333333333333,
-                (pos[i + 2] + pos[i + 5] + pos[i + 8]) * 0.3333333333333333
+                (pos[i + 2] + pos[i + 5] + pos[i + 8]) * 0.3333333333333333,
             );
         },
-        [meshResult, femSimulationObject.node.geometry, femElemLabels, showFemMesh]
+        [meshResult, femSimulationObject.node.geometry, femElemLabels, showFemMesh],
     );
 
     const calcNodePosition = useCallback(
@@ -157,7 +157,7 @@ const FemSimulationObjectBase: FC<FemSimulationObjectProps> = ({
             return new THREE.Vector3(
                 positionArray[nodeIndex * 3],
                 positionArray[nodeIndex * 3 + 1],
-                positionArray[nodeIndex * 3 + 2]
+                positionArray[nodeIndex * 3 + 2],
             );
         },
         [
@@ -166,7 +166,7 @@ const FemSimulationObjectBase: FC<FemSimulationObjectProps> = ({
             femSimulationObject.node.geometry.attributes.position.array,
             femNodeLabels,
             showFemMesh,
-        ]
+        ],
     );
 
     useEffect(() => {
@@ -193,7 +193,7 @@ const FemSimulationObjectBase: FC<FemSimulationObjectProps> = ({
                     setElemConnectivitiesSAB,
                     setLutRgbArraySABMap,
                     setFemResultModalValueSABMap,
-                    setFemResultNodalValueSABMap
+                    setFemResultNodalValueSABMap,
                 );
             } catch (e: any) {
                 toast.error("Error setting SharedArrayBuffer for FEM results. Check results bounds.");
@@ -265,7 +265,6 @@ const FemSimulationObjectBase: FC<FemSimulationObjectProps> = ({
         if (hideObject) {
             if (objectRef.current) objectRef.current.visible = false;
         } else {
-            material.opacity = 1.0;
             if (blinking) {
                 if (lastIntervalTime === 0) {
                     lastIntervalTime = clock.elapsedTime;
@@ -274,9 +273,12 @@ const FemSimulationObjectBase: FC<FemSimulationObjectProps> = ({
                 if (deltaInterval <= 0.3) {
                     material.emissive = noEmitColor;
                     material.opacity = defOpacity * opacity;
+                    material.transparent = defOpacity * opacity === 1 ? false : true;
+                    material.needsUpdate = true;
                 } else if (deltaInterval > 0.3 && deltaInterval <= 0.6) {
                     material.emissive = highlightColor;
                     material.opacity = 1;
+                    material.needsUpdate = true;
                 } else if (deltaInterval > 0.6) {
                     lastIntervalTime = clock.elapsedTime;
                 }
@@ -285,10 +287,13 @@ const FemSimulationObjectBase: FC<FemSimulationObjectProps> = ({
                     if (objectRef.current) objectRef.current.visible = true;
                     material.opacity = 1;
                     material.emissive = highlightColor;
+                    material.needsUpdate = true;
                 } else {
                     if (objectRef.current) objectRef.current.visible = defaultVisibility(femSimulationObject.node);
                     material.emissive = noEmitColor;
                     material.opacity = defOpacity * opacity;
+                    material.transparent = defOpacity * opacity === 1 ? false : true;
+                    material.needsUpdate = true;
                 }
             }
         }
@@ -305,7 +310,7 @@ const FemSimulationObjectBase: FC<FemSimulationObjectProps> = ({
                 const currentPositions = new Float32Array(femSimulationObject.originalGeometry);
                 femSimulationObject.node.geometry.setAttribute(
                     "position",
-                    new THREE.BufferAttribute(currentPositions, 3)
+                    new THREE.BufferAttribute(currentPositions, 3),
                 );
 
                 if (meshRef.current) {
@@ -350,7 +355,7 @@ const FemSimulationObjectBase: FC<FemSimulationObjectProps> = ({
                             meshRef.current,
                             meshResult,
                             currentJobIdRef,
-                            onWorkersCompleted
+                            onWorkersCompleted,
                         );
                         currentJobIdRef.current++;
                     } catch (e: any) {
@@ -430,7 +435,7 @@ const FemSimulationObjectBase: FC<FemSimulationObjectProps> = ({
                 resultColors = new Float32Array(lutColors);
                 femSimulationObject.node.geometry.setAttribute(
                     "color",
-                    new THREE.BufferAttribute(new Float32Array(resultColors), 3)
+                    new THREE.BufferAttribute(new Float32Array(resultColors), 3),
                 );
             }
 
@@ -479,7 +484,7 @@ const FemSimulationObjectBase: FC<FemSimulationObjectProps> = ({
 
             femSimulationObject.node.geometry.setAttribute(
                 "position",
-                new THREE.BufferAttribute(new Float32Array(currentPositions), 3)
+                new THREE.BufferAttribute(new Float32Array(currentPositions), 3),
             );
 
             if (meshRef.current) {
@@ -562,8 +567,7 @@ const FemSimulationObjectBase: FC<FemSimulationObjectProps> = ({
 const areEqual = (prevProps: FemSimulationObjectProps, nextProps: FemSimulationObjectProps) => {
     return (
         prevProps.femSimulationObjectState !== undefined &&
-        (prevProps.femSimulationObjectState.highlight === nextProps.femSimulationObjectState.highlight ||
-            nextProps.blinking) &&
+        prevProps.femSimulationObjectState.highlight === nextProps.femSimulationObjectState.highlight &&
         prevProps.femSimulationObjectState.clipValue === nextProps.femSimulationObjectState.clipValue &&
         prevProps.femSimulationObjectState.resultFieldModalValues ===
             nextProps.femSimulationObjectState.resultFieldModalValues &&

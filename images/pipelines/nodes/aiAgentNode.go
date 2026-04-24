@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"pipelines/common"
 	"pipelines/logger"
+	"pipelines/message"
 	"pipelines/utils"
 	"strings"
 
@@ -296,11 +297,11 @@ func (n *AiAgentNode) handleInputWires(log *logger.Logger, processor func(mcphos
 					}
 
 					var userName, prompt string
-					userName, ok = msg.Payload["userName"].(string)
+					userName, ok = msg.GetStringFromPayload("userName")
 					if !ok || userName == "" {
 						userName = "unknown"
 					}
-					prompt, ok = msg.Payload["message"].(string)
+					prompt, ok = msg.GetStringFromPayload("message")
 					if !ok || prompt == "" {
 						prompt = "no prompt"
 					}
@@ -347,7 +348,7 @@ func (n *AiAgentNode) handleMcpHostMessage(ctx context.Context, log *logger.Logg
 
 				parsed := utils.ParseMessage(msg.Message)
 				payload := utils.CreateCommonMessage(parsed, msg.McpToolCalls)
-				n.sendToOutputs(common.Message{Payload: payload}, log)
+				n.sendToOutputs(message.NewMessageFromPayload(payload), log)
 			}
 		}
 	}()

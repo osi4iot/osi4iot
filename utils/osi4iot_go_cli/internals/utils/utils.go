@@ -14,7 +14,7 @@ import (
 	"math/rand"
 
 	"github.com/charmbracelet/lipgloss"
-	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/types"
+	"github.com/osi4iot/osi4iot/utils/osi4iot/internals/types"
 	"golang.org/x/crypto/bcrypt"
 )
 

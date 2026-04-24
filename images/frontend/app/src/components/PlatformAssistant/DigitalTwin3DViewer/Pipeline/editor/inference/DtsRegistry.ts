@@ -18,28 +18,24 @@ import dtsContent from "../worker/osi4iot.d.ts?raw";
 // ─── Public types ─────────────────────────────────────────────────────────────
 
 export interface DtsMember {
-    label:      string;
-    kind:       "method" | "constant" | "property";
-    doc:        string;   // JSDoc text
-    detail:     string;   // full signature, e.g. "Now(): Time"
-    returnType: string;   // interface name of return, "" for primitives/void
-    apply:      string;   // insert text for completion
+    label: string;
+    kind: "method" | "constant" | "property";
+    doc: string; // JSDoc text
+    detail: string; // full signature, e.g. "Now(): Time"
+    returnType: string; // interface name of return, "" for primitives/void
+    apply: string; // insert text for completion
 }
 
 export interface DtsInterface {
-    name:    string;      // e.g. "TimePackage"
-    doc:     string;      // raw JSDoc on the interface
+    name: string; // e.g. "TimePackage"
+    doc: string; // raw JSDoc on the interface
     members: DtsMember[];
+    methods?: any[]; // for GoAllResult: "utils: Utils instance methods."
 }
 
 // ─── AST helpers ──────────────────────────────────────────────────────────────
 
-const src = ts.createSourceFile(
-    "osi4iot.d.ts",
-    dtsContent,
-    ts.ScriptTarget.ES2020,
-    /* setParentNodes */ true,
-);
+const src = ts.createSourceFile("osi4iot.d.ts", dtsContent, ts.ScriptTarget.ES2020, /* setParentNodes */ true);
 
 function getJsDoc(node: ts.Node): string {
     const ranges = ts.getLeadingCommentRanges(dtsContent, node.pos);
@@ -58,21 +54,21 @@ function getJsDoc(node: ts.Node): string {
 }
 
 function isReadonlyMember(member: ts.TypeElement): boolean {
-    return !!(
-        ts.getCombinedModifierFlags(member as ts.Declaration) & ts.ModifierFlags.Readonly
-    );
+    return !!(ts.getCombinedModifierFlags(member as ts.Declaration) & ts.ModifierFlags.Readonly);
 }
 
 /** Renders a method signature: "Now(): Time", "Add(d: TimeDuration | number): Time" */
 function renderMethodDetail(method: ts.MethodSignature): string {
-    const name   = (method.name as ts.Identifier).text;
-    const params = method.parameters.map((p) => {
-        const pname = (p.name as ts.Identifier).text;
-        const ptype = p.type ? p.type.getText(src) : "any";
-        const opt   = p.questionToken ? "?" : "";
-        const rest  = p.dotDotDotToken ? "..." : "";
-        return `${rest}${pname}${opt}: ${ptype}`;
-    }).join(", ");
+    const name = (method.name as ts.Identifier).text;
+    const params = method.parameters
+        .map((p) => {
+            const pname = (p.name as ts.Identifier).text;
+            const ptype = p.type ? p.type.getText(src) : "any";
+            const opt = p.questionToken ? "?" : "";
+            const rest = p.dotDotDotToken ? "..." : "";
+            return `${rest}${pname}${opt}: ${ptype}`;
+        })
+        .join(", ");
     const ret = method.type ? method.type.getText(src) : "void";
     return `${name}(${params}): ${ret}`;
 }
@@ -91,31 +87,35 @@ function renderMethodDetail(method: ts.MethodSignature): string {
  *  Format:  __insert__:<insertText>:<selectionStart>:<selectionEnd>
  */
 function buildApply(method: ts.MethodSignature): string {
-    const name   = (method.name as ts.Identifier).text;
+    const name = (method.name as ts.Identifier).text;
     const params = method.parameters.filter((p) => !p.questionToken);
 
     if (params.length === 0) return `${name}()`;
 
     const args = params.map((p) => {
-        const pname    = (p.name as ts.Identifier).text;
+        const pname = (p.name as ts.Identifier).text;
         const typeText = p.type ? p.type.getText(src) : "any";
-        const isRest   = !!p.dotDotDotToken;
+        const isRest = !!p.dotDotDotToken;
         const isString = /^string$/i.test(typeText.trim());
 
-        if (isRest)   return pname;           // ...args → args
-        if (isString) return `"${pname}"`;    // string  → "paramName"
-        return pname;                          // other   → paramName
+        if (isRest) return pname; // ...args → args
+        if (isString) return `"${pname}"`; // string  → "paramName"
+        return pname; // other   → paramName
     });
 
     const insertText = `${name}(${args.join(", ")})`;
 
     // Selection covers the first argument so the user can overwrite it
     // immediately after the completion is inserted.
-    const openParen  = name.length + 1;  // position of first char after "("
-    const firstArg   = args[0];
-    const selEnd     = openParen + firstArg.length;
+    const openParen = name.length + 1; // position of first char after "("
+    const firstArg = args[0];
+    const isFirstString = firstArg.startsWith('"');
+    const quoteOffset = isFirstString ? 1 : 0;
 
-    return `__insert__:${insertText}:${openParen}:${selEnd}`;
+    const selStart = openParen + quoteOffset;
+    const selEnd = openParen + firstArg.length - quoteOffset;
+
+    return `__insert__:${insertText}:${selStart}:${selEnd}`;
 }
 
 /** Extracts the first uppercase type name from a type node.
@@ -155,13 +155,13 @@ export const instanceVarMap = new Map<string, string>();
         if (!ts.isInterfaceDeclaration(node)) return;
 
         const ifaceName = node.name.text;
-        const ifaceDoc  = getJsDoc(node);
+        const ifaceDoc = getJsDoc(node);
 
         // ── GoAllResult → destructureMap + instanceVarMap ─────────────────────
         if (ifaceName === "GoAllResult") {
             for (const member of node.members) {
                 if (!ts.isPropertySignature(member) || !ts.isIdentifier(member.name)) continue;
-                const varName  = member.name.text;
+                const varName = member.name.text;
                 const typeName = member.type ? member.type.getText(src).trim() : "";
                 if (typeName) {
                     destructureMap.set(varName, typeName);
@@ -175,7 +175,7 @@ export const instanceVarMap = new Map<string, string>();
         if (ifaceName === "GoRoot") {
             for (const member of node.members) {
                 if (!ts.isMethodSignature(member) || !ts.isIdentifier(member.name)) continue;
-                const label      = member.name.text;
+                const label = member.name.text;
                 const returnName = extractReturnTypeName(member.type);
                 if (returnName && label !== "All") {
                     factoryMap.set(label, returnName);
@@ -192,9 +192,9 @@ export const instanceVarMap = new Map<string, string>();
 
             // Method
             if (ts.isMethodSignature(member) && ts.isIdentifier(member.name)) {
-                const label      = member.name.text;
-                const detail     = renderMethodDetail(member);
-                const apply      = buildApply(member);
+                const label = member.name.text;
+                const detail = renderMethodDetail(member);
+                const apply = buildApply(member);
                 const returnType = extractReturnTypeName(member.type);
 
                 if (returnType) {
@@ -207,10 +207,10 @@ export const instanceVarMap = new Map<string, string>();
 
             // Property (readonly → constant, otherwise property)
             if (ts.isPropertySignature(member) && ts.isIdentifier(member.name)) {
-                const label      = member.name.text;
-                const typeText   = member.type ? member.type.getText(src) : "any";
-                const detail     = `${label}: ${typeText}`;
-                const kind       = isReadonlyMember(member) ? "constant" : "property";
+                const label = member.name.text;
+                const typeText = member.type ? member.type.getText(src) : "any";
+                const detail = `${label}: ${typeText}`;
+                const kind = isReadonlyMember(member) ? "constant" : "property";
                 const returnType = extractReturnTypeName(member.type);
 
                 if (returnType) {

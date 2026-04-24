@@ -11,7 +11,7 @@ import { sql } from "@codemirror/lang-sql";
 import { oneDark } from "@codemirror/theme-one-dark";
 import { useUpdateNodeInternals } from "@xyflow/react";
 import { useFormChanges } from "../Utils/customHooks";
-import { IMqttTopicData } from "../Main/Model";
+import { IMqttTopicData, INatsSubjectData } from "../Main/Model";
 import { json } from "@codemirror/lang-json";
 import { IDigitalTwin } from "../../TableColumns/digitalTwinsColumns";
 import { useMlModelsTableInGroup } from "../../../../contexts/platformAssistantContext/platformAssistantContext";
@@ -51,6 +51,7 @@ import { CodeMirrorWrapper } from "../../../Tools/CodeMirrorWrapper";
 //New
 import { buildEditorExtensions, disposeEditor, restartEditor } from "./editor";
 import { NODE_FUNCTION_SCRIPTS } from "./NodePalette";
+import { HelpTab } from "./HelpTab";
 
 const CODEMIRROR_SETUP = {
     lineNumbers: true,
@@ -106,7 +107,7 @@ interface NodePropertiesPanelProps {
     onUpdateNode: (nodeId: string, newData: Partial<NodeData>) => void;
     digitalTwinSelected: IDigitalTwin;
     handlePipelineUiChanged: (isPipelineUiChanged: any) => void;
-    mqttTopicsData: IMqttTopicData[];
+    natsSubjectsData: INatsSubjectData[];
     assetS3Folders: IAssetS3Folder[];
 }
 
@@ -117,7 +118,7 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
     onUpdateNode,
     digitalTwinSelected,
     handlePipelineUiChanged,
-    mqttTopicsData,
+    natsSubjectsData,
     assetS3Folders,
 }) => {
     const [isClosing, setIsClosing] = useState(false);
@@ -227,11 +228,10 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
         const publishTopics: string[] = [];
         const dev2pdbTopics: string[] = [];
 
-        mqttTopicsData.forEach((topic) => {
-            if (topic.topicRef.slice(0, 7) === "dev2pdb") {
-                //listenTopics.push(topic.topicRef);
-                publishTopics.push(topic.topicRef);
-                dev2pdbTopics.push(topic.topicRef);
+        natsSubjectsData.forEach((subjectData) => {
+            if (subjectData.topicRef.slice(0, 7) === "dev2pdb") {
+                publishTopics.push(subjectData.topicRef);
+                dev2pdbTopics.push(subjectData.topicRef);
             }
         });
 
@@ -252,7 +252,7 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
         setListenTopicsRef(listenTopics);
         setPublishTopicsRef(publishTopics);
         setDev2pdbTopicsRef(dev2pdbTopics);
-    }, [mqttTopicsData]);
+    }, [natsSubjectsData]);
 
     useEffect(() => {
         if (selectedNode) {
@@ -339,98 +339,9 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
 
     // Función para determinar si un nodo debe mostrar el selector de outputs
     const shouldShowOutputSelector = (nodeType: string) => {
-        const excludedTypes = ["Publish", "Email"];
+        const excludedTypes = ["Publish", "Email", "Splitter"];
         return !excludedTypes.includes(nodeType);
     };
-
-    // const hoverFnDocs = useCallback((view: any, pos: any, side: any) => {
-    //     const { state } = view;
-    //     const word = state.wordAt(pos);
-    //     if (!word) return null;
-    //     const name = state.sliceDoc(word.from, word.to);
-    //     if (!name) return null;
-    //     const line = state.doc.lineAt(pos);
-    //     const lineFullText = line.text;
-    //     const fullDoc = state.doc.toString();
-    //     const info = GetVariableInfo(name, fullDoc, lineFullText);
-    //     if (!info) return null;
-
-    //     let methodsOptions = "Methods:";
-    //     if (info.doc === "Method for give access to different packages by destructuring") {
-    //         methodsOptions = "Destructuring options:";
-    //     }
-
-    //     return {
-    //         pos: word.from,
-    //         end: word.to,
-    //         above: false,
-    //         strictSide: true,
-    //         create() {
-    //             const dom = document.createElement("div");
-    //             dom.className = "scrollable";
-    //             dom.style.maxWidth = "600px";
-    //             dom.style.maxHeight = "300px";
-    //             dom.style.padding = "6px 8px";
-    //             dom.style.overflowY = "auto";
-    //             const style = document.createElement("style");
-    //             style.textContent = `
-    //                 .scrollable::-webkit-scrollbar { 
-    //                     width: 8px;
-    //                     height: 8px;
-    //                 }
-    //                 .scrollable::-webkit-scrollbar-track {
-    //                     background: #30363fff;
-    //                 }
-    //                 .scrollable::-webkit-scrollbar-thumb { 
-    //                     background: #4b5563;
-    //                     border-radius: 4px;
-    //                 }
-    //                 .scrollable::-webkit-scrollbar-thumb:hover {
-    //                     background: #6b7280;
-    //                 }
-    //             `;
-    //             document.head.appendChild(style);
-    //             dom.style.fontFamily = "ui-monospace, SFMono-Regular, Menlo, monospace";
-    //             dom.style.fontSize = "12px";
-    //             dom.innerHTML = `
-    //                 <div style="font-weight:600; margin-bottom:4px;">${info.doc}</div>
-    //                 <div style="line-height:1.35;">${info.sig}</div>
-    //                 ${
-    //                     info.constants && info.constants.length > 0
-    //                         ? `<div style="margin-top:6px; font-weight:600;">Constants:</div>
-    //                     <ul style="margin:4px 0 0 16px; padding:0; list-style-type: disc;">
-    //                         ${info.constants
-    //                             .map((constant) => `<li style="margin-bottom:2px;">${constant}</li>`)
-    //                             .join("")}
-    //                     </ul>`
-    //                         : ""
-    //                 }
-    //                 ${
-    //                     info.methods && info.methods.length > 0
-    //                         ? `<div style="margin-top:6px; font-weight:600;">${methodsOptions}</div>
-    //                     <ul style="margin:4px 0 0 16px; padding:0; list-style-type: disc;">
-    //                         ${info.methods.map((method) => `<li style="margin-bottom:2px;">${method}</li>`).join("")}
-    //                     </ul>`
-    //                         : ""
-    //                 }`;
-    //             return { dom };
-    //         },
-    //     };
-    // }, []);
-
-    // const codeMirrorJSExtensions = useMemo(
-    //     () => [
-    //         javascript({ typescript: true }),
-    //         javascriptLanguage.data.of({
-    //             autocomplete: GeneralizedCompletion,
-    //         }),
-    //         indentUnit.of("    "),
-    //         indentOnInput(),
-    //         hoverTooltip(hoverFnDocs, { hoverTime: 180 }),
-    //         keymap.of([...completionKeymap, indentWithTab, ReIndentCommand]),
-    //     ],
-    //     [hoverFnDocs],
-    // );
 
     const codeMirrorSqlExtensions = useMemo(
         () => [
@@ -450,12 +361,12 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
             }),
         [],
     );
-    
+
     useEffect(() => {
         restartEditor();
         return () => disposeEditor();
     }, []);
-    
+
     // Renderizar el selector de número de outputs
     const renderOutputSelector = () => {
         if (!selectedNode || !shouldShowOutputSelector(selectedNode.type)) {
@@ -485,6 +396,7 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
             { id: "onInitiation", label: "On Init" },
             { id: "onStart", label: "On Start" },
             { id: "onMessage", label: "On Message" },
+            { id: "help", label: "Help" },
         ];
 
         return (
@@ -530,6 +442,7 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                                 </CodeMirrorWrapper>
                             ) : null,
                         )}
+                        {activeTab === "help" && <HelpTab nodeType="Function" />}
                     </TabContentFunction>
                 </PanelContent>
             </>
@@ -540,6 +453,7 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
         const tabs = [
             { id: "settings", label: "Settings" },
             { id: "injection", label: "Injection" },
+            { id: "help", label: "Help" },
         ];
 
         return (
@@ -709,6 +623,7 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                                 )}
                             </>
                         )}
+                        {activeTab === "help" && <HelpTab nodeType="Inject" />}
                     </TabContentFunction>
                 </PanelContent>
             </>
@@ -720,6 +635,7 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
             { id: "settings", label: "Settings" },
             { id: "first_message", label: "First message" },
             { id: "second_message", label: "Second message" },
+            { id: "help", label: "Help" },
         ];
 
         if (formData.sendMode !== "wait_for") {
@@ -1025,6 +941,7 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                                 </CheckboxContainer>
                             </>
                         )}
+                        {activeTab === "help" && <HelpTab nodeType="Trigger" />}
                     </TabContentFunction>
                 </PanelContent>
             </>
@@ -1035,6 +952,7 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
         const tabs = [
             { id: "settings", label: "Settings" },
             { id: "system_prompt", label: "System prompt" },
+            { id: "help", label: "Help" },
         ];
 
         return (
@@ -1137,6 +1055,7 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                                 </FormGroup>
                             </>
                         )}
+                        {activeTab === "help" && <HelpTab nodeType="AiAgent" />}
                     </TabContentFunction>
                 </PanelContent>
             </>
@@ -1147,6 +1066,7 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
         const tabs = [
             { id: "settings", label: "Settings" },
             { id: "sql_query", label: "SQL Query" },
+            { id: "help", label: "Help" },
         ];
 
         return (
@@ -1212,7 +1132,7 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                                             <FormGroup>
                                                 <Label>Topic</Label>
                                                 <Select
-                                                    value={formData.insertTopicRef}
+                                                    value={formData.insertTopicRef ?? ""}
                                                     onChange={(e: { target: { value: any } }) =>
                                                         handleInputChange("insertTopicRef", e.target.value)
                                                     }
@@ -1258,6 +1178,7 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                                     </CodeMirrorWrapper>
                                 </FormGroup>
                             )}
+                        {activeTab === "help" && <HelpTab nodeType="IoTDb" />}
                     </TabContentFunction>
                 </PanelContent>
             </>
@@ -1268,6 +1189,7 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
         const tabs = [
             { id: "settings", label: "Settings" },
             { id: "duckdb_query", label: "DuckDB query" },
+            { id: "help", label: "Help" },
         ];
 
         return (
@@ -1333,7 +1255,7 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                                             <FormGroup>
                                                 <Label>Folder name</Label>
                                                 <Select
-                                                    value={formData.folderName}
+                                                    value={formData.folderName ?? ""}
                                                     onChange={(e: { target: { value: any } }) =>
                                                         handleInputChange("folderName", e.target.value)
                                                     }
@@ -1382,6 +1304,7 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                                     </CodeMirrorWrapper>
                                 </FormGroup>
                             )}
+                        {activeTab === "help" && <HelpTab nodeType="S3Storage" />}
                     </TabContentFunction>
                 </PanelContent>
             </>
@@ -1392,6 +1315,7 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
         const tabs = [
             { id: "settings", label: "Settings" },
             { id: "json", label: "JSON" },
+            { id: "help", label: "Help" },
         ];
 
         return (
@@ -1505,6 +1429,7 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                                     </CodeMirrorWrapper>
                                 </FormGroup>
                             )}
+                        {activeTab === "help" && <HelpTab nodeType="AssetState" />}
                     </TabContentFunction>
                 </PanelContent>
             </>
@@ -1537,21 +1462,38 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
 
         // Para otros tipos de nodos, mostrar contenido simple
         return (
-            <PanelContent>
-                <TabContent>
-                    <FormGroup>
-                        <Label>Node Name</Label>
-                        <Input
-                            type="text"
-                            value={formData.label || ""}
-                            onChange={(e: { target: { value: any } }) => handleInputChange("label", e.target.value)}
-                            placeholder="Node name"
-                        />
-                    </FormGroup>
-                    {renderOutputSelector()}
-                    {renderNodeSpecificFields()}
-                </TabContent>
-            </PanelContent>
+            <>
+                <TabsContainer>
+                    <Tab isActive={activeTab === "settings"} onClick={() => setActiveTab("settings")}>
+                        Settings
+                    </Tab>
+                    <Tab isActive={activeTab === "help"} onClick={() => setActiveTab("help")}>
+                        Help
+                    </Tab>
+                </TabsContainer>
+                <PanelContent>
+                    <TabContent>
+                        {activeTab === "settings" && (
+                            <>
+                                <FormGroup>
+                                    <Label>Node Name</Label>
+                                    <Input
+                                        type="text"
+                                        value={formData.label || ""}
+                                        onChange={(e: { target: { value: any } }) =>
+                                            handleInputChange("label", e.target.value)
+                                        }
+                                        placeholder="Node name"
+                                    />
+                                </FormGroup>
+                                {renderOutputSelector()}
+                                {renderNodeSpecificFields()}
+                            </>
+                        )}
+                        {activeTab === "help" && <HelpTab nodeType={nodeType} />}
+                    </TabContent>
+                </PanelContent>
+            </>
         );
     };
 
@@ -1581,7 +1523,7 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                             <Label>Topic</Label>
                             {formData.listenTo === "Topic reference" ? (
                                 <Select
-                                    value={formData.topic}
+                                    value={formData.topic ?? ""}
                                     onChange={(e: { target: { value: any } }) =>
                                         handleInputChange("topic", e.target.value)
                                     }
@@ -1615,7 +1557,9 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                             ) : (
                                 <Input
                                     type="text"
-                                    value={listenTopicsRef.includes(formData.topic) ? "your_topic" : formData.topic}
+                                    value={
+                                        listenTopicsRef.includes(formData.topic) ? "your_topic" : (formData.topic ?? "")
+                                    }
                                     onChange={(e: { target: { value: any } }) =>
                                         handleInputChange("topic", e.target.value)
                                     }
@@ -1643,13 +1587,14 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                                 <option value="Topic reference">Topic reference</option>
                                 <option value="Generic nats">Generic nats</option>
                                 <option value="Generic mqtt">Generic mqtt</option>
+                                <option value="Reply">Reply</option>
                             </Select>
                         </FormGroup>
                         {formData.publishTo === "Topic reference" && (
                             <FormGroup>
                                 <Label>Topic</Label>
                                 <Select
-                                    value={formData.topic}
+                                    value={formData.topic ?? ""}
                                     onChange={(e: { target: { value: any } }) =>
                                         handleInputChange("topic", e.target.value)
                                     }
@@ -1667,7 +1612,11 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                                 <Label>Topic</Label>
                                 <Input
                                     type="text"
-                                    value={publishTopicsRef.includes(formData.topic) ? "your_topic" : formData.topic}
+                                    value={
+                                        publishTopicsRef.includes(formData.topic)
+                                            ? "your_topic"
+                                            : (formData.topic ?? "")
+                                    }
                                     onChange={(e: { target: { value: any } }) =>
                                         handleInputChange("topic", e.target.value)
                                     }
@@ -1692,6 +1641,131 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                         />
                     </FormGroup>
                 );
+            case "Transcriptor":
+                return (
+                    <>
+                        <FormGroup>
+                            <Label>Language</Label>
+                            <Select
+                                value={formData.language || "en"}
+                                onChange={(e: { target: { value: any } }) =>
+                                    handleInputChange("language", e.target.value)
+                                }
+                            >
+                                <option value="en">English</option>
+                                <option value="es">Spanish</option>
+                                <option value="fr">French</option>
+                                <option value="de">German</option>
+                                <option value="it">Italian</option>
+                                <option value="pt">Portuguese</option>
+                                <option value="ca">Catalan</option>
+                            </Select>
+                        </FormGroup>
+                        <CheckboxContainer>
+                            <CheckboxItem data-checked={formData.translate || false}>
+                                <CheckboxInput
+                                    type="checkbox"
+                                    checked={formData.translate || false}
+                                    onChange={(e: { target: { checked: any } }) =>
+                                        handleInputChange("translate", e.target.checked)
+                                    }
+                                    onClick={(e: { stopPropagation: () => any }) => e.stopPropagation()}
+                                />
+                                <span>Translate transcription</span>
+                            </CheckboxItem>
+                        </CheckboxContainer>
+                        {formData.translate && (
+                            <FormGroup>
+                                <Label>Translation language</Label>
+                                <Select
+                                    value={formData.translationLanguage || "en"}
+                                    onChange={(e: { target: { value: any } }) =>
+                                        handleInputChange("translationLanguage", e.target.value)
+                                    }
+                                >
+                                    <option value="en">English</option>
+                                    <option value="es">Spanish</option>
+                                    <option value="fr">French</option>
+                                    <option value="de">German</option>
+                                    <option value="it">Italian</option>
+                                    <option value="pt">Portuguese</option>
+                                    <option value="ca">Catalan</option>
+                                </Select>
+                            </FormGroup>
+                        )}
+                    </>
+                );
+
+            case "Splitter":
+                return (
+                    <>
+                        <FormGroup>
+                            <Label>Node Name</Label>
+                            <Input
+                                type="text"
+                                value={formData.label || ""}
+                                onChange={(e: { target: { value: any } }) => handleInputChange("label", e.target.value)}
+                                placeholder="Node name"
+                            />
+                        </FormGroup>
+                        <FormGroup>
+                            <Label>
+                                Weights{" "}
+                                <span style={{ color: "#9ca3af", fontWeight: 400 }}>
+                                    (one per output, e.g. 1 4 → output 0 every 1 in 5, output 1 every 4 in 5)
+                                </span>
+                            </Label>
+                            {(formData.weights || [1, 1]).map((w: number, idx: number) => (
+                                <div
+                                    key={idx}
+                                    style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "6px" }}
+                                >
+                                    <span style={{ color: "#9ca3af", minWidth: "64px", fontSize: "12px" }}>
+                                        Output {idx}
+                                    </span>
+                                    <Input
+                                        type="number"
+                                        step="1"
+                                        min="1"
+                                        value={w}
+                                        onChange={(e: { target: { value: string } }) => {
+                                            const newWeights = [...(formData.weights || [1, 1])];
+                                            newWeights[idx] = Math.max(1, parseInt(e.target.value) || 1);
+                                            handleInputChange("weights", newWeights);
+                                            handleInputChange("numOutputs", newWeights.length);
+                                        }}
+                                    />
+                                    <Button
+                                        variant="secondary"
+                                        onClick={() => {
+                                            const newWeights = (formData.weights || [1, 1]).filter(
+                                                (_: number, i: number) => i !== idx,
+                                            );
+                                            if (newWeights.length >= 1) {
+                                                handleInputChange("weights", newWeights);
+                                                handleInputChange("numOutputs", newWeights.length);
+                                            }
+                                        }}
+                                        style={{ padding: "4px 8px", minWidth: "32px" }}
+                                    >
+                                        −
+                                    </Button>
+                                </div>
+                            ))}
+                            <Button
+                                variant="secondary"
+                                onClick={() => {
+                                    const newWeights = [...(formData.weights || [1, 1]), 1];
+                                    handleInputChange("weights", newWeights);
+                                    handleInputChange("numOutputs", newWeights.length);
+                                }}
+                                style={{ marginTop: "4px" }}
+                            >
+                                + Add output
+                            </Button>
+                        </FormGroup>
+                    </>
+                );
 
             case "MlModel":
                 return (
@@ -1699,7 +1773,7 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                         <FormGroup>
                             <Label>Machine learning model</Label>
                             <Select
-                                value={formData.mlModelId}
+                                value={formData.mlModelId ?? ""}
                                 onChange={(e: { target: { value: string } }) =>
                                     handleInputChange("mlModelId", parseInt(e.target.value))
                                 }
@@ -1715,7 +1789,7 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                             <Label>Batch size</Label>
                             <Input
                                 type="number"
-                                value={formData.batchSize || 1}
+                                value={formData.batchSize ?? 1}
                                 onChange={(e: { target: { value: string } }) =>
                                     handleInputChange("batchSize", parseInt(e.target.value))
                                 }
@@ -1758,12 +1832,14 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                         <FormGroup>
                             <Label>Message Options</Label>
                             <Select
-                                value={formData.messageOptions || "Message received options"}
+                                value={formData.messageOptions || "Use subject and body from incoming message"}
                                 onChange={(e: { target: { value: any } }) =>
                                     handleInputChange("messageOptions", e.target.value)
                                 }
                             >
-                                <option value="Message received options">Message received options</option>
+                                <option value="Use subject and body from incoming message">
+                                    Use subject and body from incoming message
+                                </option>
                                 <option value="Custom message">Custom message</option>
                             </Select>
                         </FormGroup>
@@ -1829,12 +1905,14 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                         <FormGroup>
                             <Label>Message Options</Label>
                             <Select
-                                value={formData.messageOptions || "Message received options"}
+                                value={formData.messageOptions || "Use message from incoming payload"}
                                 onChange={(e: { target: { value: any } }) =>
                                     handleInputChange("messageOptions", e.target.value)
                                 }
                             >
-                                <option value="Message received options">Message received options</option>
+                                <option value="Use message from incoming payload">
+                                    Use message from incoming payload
+                                </option>
                                 <option value="Custom message">Custom message</option>
                             </Select>
                         </FormGroup>

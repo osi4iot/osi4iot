@@ -11,24 +11,25 @@ type Logger struct {
 }
 
 func NewLogger() *Logger {
-	cfg := zap.NewProductionConfig()
-	cfg.EncoderConfig.TimeKey = ""
-	cfg.EncoderConfig.CallerKey = "line"
-	cfg.EncoderConfig.EncodeCaller = zapcore.ShortCallerEncoder
+    cfg := zap.NewProductionConfig()
+    cfg.EncoderConfig.TimeKey = ""
+    cfg.EncoderConfig.CallerKey = "line"
+    cfg.EncoderConfig.EncodeCaller = zapcore.ShortCallerEncoder
+    cfg.DisableCaller = true
 
-	cfg.DisableCaller = true
-	base, _ := cfg.Build()
-	baseSugar := base.Sugar()
+    base, _ := cfg.Build()
+    baseSugar := base.Sugar()
 
-	cfg.DisableCaller = false
-	cfg.DisableStacktrace = true
-	errorLog, _ := cfg.Build()
-	errorSugar := errorLog.Sugar()
+    cfg.DisableCaller = false
+    cfg.DisableStacktrace = true
 
-	return &Logger{
-		baseLogger:  baseSugar,
-		errorLogger: errorSugar,
-	}
+    errorLog, _ := cfg.Build(zap.AddCallerSkip(1))
+    errorSugar := errorLog.Sugar()
+
+    return &Logger{
+        baseLogger:  baseSugar,
+        errorLogger: errorSugar,
+    }
 }
 
 func (l *Logger) Info(args ...interface{}) {

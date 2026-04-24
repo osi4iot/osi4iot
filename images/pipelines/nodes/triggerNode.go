@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"pipelines/common"
 	"pipelines/logger"
+	"pipelines/message"
 	"pipelines/utils"
 	"slices"
 	"sync"
@@ -388,24 +389,17 @@ func (n *TriggerNode) stopPeriodicCheck() {
 }
 
 func (n *TriggerNode) checkResendEveryTrigger(state *TriggerState, now time.Time, log *logger.Logger) {
-	// Verify state still exists (could have been reset)
 	if state == nil {
 		return
 	}
 
-	// Use the state's DelayMs (which may have been overridden) if available
-	// Otherwise fall back to the node's ResendInterval
 	interval := n.ResendInterval
 	if state.DelayMs > 0 {
 		interval = state.DelayMs
 	}
 
-	timeSinceLastSend := now.Sub(state.LastSentTime)
-	if timeSinceLastSend >= time.Duration(interval)*time.Millisecond {
-		msg := common.Message{
-			Payload: state.OriginalPayload,
-			Topic:   state.OriginalTopic,
-		}
+	if time.Since(state.LastSentTime) >= time.Duration(interval)*time.Millisecond {
+		msg := message.NewMessage(state.OriginalTopic, state.OriginalPayload, nil, "", nil)
 		n.sendToOutputs(msg, log)
 
 		state.LastSentTime = now
@@ -416,67 +410,57 @@ func (n *TriggerNode) checkResendEveryTrigger(state *TriggerState, now time.Time
 }
 
 func (n *TriggerNode) recoverPendingTimers(ctx context.Context, log *logger.Logger) {
-    kvStore, err := n.GetDigitalTwinKvStore(n.GetDigitalTwinId())
-    if err != nil {
-        log.Errorf("TriggerNode %s: Failed to get KV store for recovery: %v", n.NodeUid, err)
-        return
-    }
+	kvStore, err := n.GetDigitalTwinKvStore(n.GetDigitalTwinId())
+	if err != nil {
+		log.Errorf("TriggerNode %s: Failed to get KV store for recovery: %v", n.NodeUid, err)
+		return
+	}
 
-    prefix := n.getTriggerKvStorePrefix()
-    keys, err := kvStore.ListKeys(ctx, prefix)
-    if err != nil {
-        log.Errorf("TriggerNode %s: Failed to list keys for recovery: %v", n.NodeUid, err)
-        return
-    }
+	keys, err := kvStore.ListKeys(ctx, n.getTriggerKvStorePrefix())
+	if err != nil {
+		log.Errorf("TriggerNode %s: Failed to list keys for recovery: %v", n.NodeUid, err)
+		return
+	}
 
-    for _, key := range keys {
-        state, err := n.getTriggerStateByKey(key)
-        if err != nil || state == nil || state.SecondMsgSent {
-            continue
-        }
+	for _, key := range keys {
+		state, err := n.getTriggerStateByKey(key)
+		if err != nil || state == nil || state.SecondMsgSent {
+			continue
+		}
 
-        elapsed := time.Since(state.StartTime)
-        remaining := time.Duration(state.DelayMs)*time.Millisecond - elapsed
+		elapsed := time.Since(state.StartTime)
+		remaining := time.Duration(state.DelayMs)*time.Millisecond - elapsed
 
-        if remaining > 0 {
-            // Timer aún no ha expirado, iniciar localTimer
-            log.Infof("TriggerNode %s: Recovering timer for stream %s, %v remaining", 
-                n.NodeUid, state.StreamKey, remaining)
-            n.startLocalTimer(state.StreamKey, state, log)
-        } else {
-            // ⭐ NUEVO: Timer ya expiró, enviar mensaje inmediatamente
-            log.Infof("TriggerNode %s: Timer already expired for stream %s, sending now", 
-                n.NodeUid, state.StreamKey)
-            
-            msg := common.Message{
-                Payload: state.OriginalPayload,
-                Topic:   state.OriginalTopic,
-            }
-            n.sendSecondMessage(msg, log)
-            
-            // Limpiar estado
-            if err := n.deleteTriggerState(state.StreamKey); err != nil {
-                log.Errorf("TriggerNode %s: Failed to delete expired trigger: %v", n.NodeUid, err)
-            }
-        }
-    }
+		if remaining > 0 {
+			log.Infof("TriggerNode %s: Recovering timer for stream %s, %v remaining",
+				n.NodeUid, state.StreamKey, remaining)
+			n.startLocalTimer(state.StreamKey, state, log)
+		} else {
+			log.Infof("TriggerNode %s: Timer already expired for stream %s, sending now",
+				n.NodeUid, state.StreamKey)
+
+			msg := message.NewMessage(state.OriginalTopic, state.OriginalPayload, nil, "", nil)
+			n.sendSecondMessage(msg, log)
+
+			if err := n.deleteTriggerState(state.StreamKey); err != nil {
+				log.Errorf("TriggerNode %s: Failed to delete expired trigger: %v", n.NodeUid, err)
+			}
+		}
+	}
 }
 
 func (n *TriggerNode) processMessage(msg common.Message, log *logger.Logger) error {
-	// Get stream key first (needed for reset as well)
 	streamKey := n.getStreamKey(msg)
 
-	// Check if this is a reset message
 	if n.isResetMessage(msg) {
 		log.Infof("TriggerNode %s: Reset message received for stream %s", n.NodeUid, streamKey)
 		return n.resetTrigger(msg, log)
 	}
 
-	// Get current delay (may be overridden by msg.delay)
 	delay := n.Delay
 	if n.OverrideDelay {
-		if msgDelay, ok := msg.Payload["delay"].(float64); ok && msgDelay > 0 {
-			delay = int(msgDelay * 1000) // Convert seconds to milliseconds
+		if msgDelay, ok := msg.GetPayload()["delay"].(float64); ok && msgDelay > 0 {
+			delay = int(msgDelay * 1000)
 		}
 	}
 
@@ -499,10 +483,8 @@ func (n *TriggerNode) handleWaitForMode(msg common.Message, streamKey string, de
 	}
 
 	if state != nil {
-		// Existing trigger
 		if n.ExtendDelay {
-			// Update the state with new message and reset timer
-			state.LatestPayload = utils.DeepCopyPayload(msg.Payload)
+			state.LatestPayload = utils.DeepCopyPayload(msg.GetPayload())
 			state.StartTime = time.Now()
 			state.DelayMs = delay
 
@@ -511,7 +493,6 @@ func (n *TriggerNode) handleWaitForMode(msg common.Message, streamKey string, de
 				return
 			}
 
-			// Restart local timer
 			n.localTimerMutex.Lock()
 			if localState, exists := n.localTimers[streamKey]; exists {
 				n.cleanupLocalTimer(localState)
@@ -521,8 +502,7 @@ func (n *TriggerNode) handleWaitForMode(msg common.Message, streamKey string, de
 
 			log.Infof("TriggerNode %s: Extended delay for stream %s", n.NodeUid, streamKey)
 		} else {
-			// Update latest message but don't reset timer
-			state.LatestPayload = utils.DeepCopyPayload(msg.Payload)
+			state.LatestPayload = utils.DeepCopyPayload(msg.GetPayload())
 			if err := n.saveTriggerState(streamKey, state); err != nil {
 				log.Errorf("TriggerNode %s: Failed to update latest payload: %v", n.NodeUid, err)
 			}
@@ -531,17 +511,16 @@ func (n *TriggerNode) handleWaitForMode(msg common.Message, streamKey string, de
 		return
 	}
 
-	// New trigger - send first message
 	n.sendFirstMessage(msg, log)
 
-	// Create new state if second message is needed
 	if n.SecondMessageType != "nothing" {
+		payload := utils.DeepCopyPayload(msg.GetPayload())
 		newState := &TriggerState{
 			StreamKey:       streamKey,
-			OriginalPayload: utils.DeepCopyPayload(msg.Payload),
-			OriginalTopic:   msg.Topic,
-			FirstPayload:    utils.DeepCopyPayload(msg.Payload), // Store first message
-			LatestPayload:   utils.DeepCopyPayload(msg.Payload),
+			OriginalPayload: payload,
+			OriginalTopic:   msg.GetTopic(),
+			FirstPayload:    payload,
+			LatestPayload:   utils.DeepCopyPayload(msg.GetPayload()),
 			StartTime:       time.Now(),
 			DelayMs:         delay,
 			SecondMsgSent:   false,
@@ -552,7 +531,6 @@ func (n *TriggerNode) handleWaitForMode(msg common.Message, streamKey string, de
 			return
 		}
 
-		// Start local timer for this trigger
 		n.startLocalTimer(streamKey, newState, log)
 	}
 }
@@ -564,21 +542,18 @@ func (n *TriggerNode) handleResendEveryMode(msg common.Message, streamKey string
 		return
 	}
 
-	// Get current resend interval (may be overridden by msg.delay)
 	resendInterval := n.ResendInterval
 	if n.OverrideDelay {
-		if msgDelay, ok := msg.Payload["delay"].(float64); ok && msgDelay > 0 {
-			resendInterval = int(msgDelay * 1000) // Convert seconds to milliseconds
+		if msgDelay, ok := msg.GetPayload()["delay"].(float64); ok && msgDelay > 0 {
+			resendInterval = int(msgDelay * 1000)
 			log.Infof("TriggerNode %s: Overriding resend interval to %d ms for stream %s", n.NodeUid, resendInterval, streamKey)
 		}
 	}
 
 	if state != nil {
-		// Update the message payload
-		state.OriginalPayload = utils.DeepCopyPayload(msg.Payload)
-		state.LatestPayload = utils.DeepCopyPayload(msg.Payload)
+		state.OriginalPayload = utils.DeepCopyPayload(msg.GetPayload())
+		state.LatestPayload = utils.DeepCopyPayload(msg.GetPayload())
 
-		// Update delay if overridden
 		if n.OverrideDelay && resendInterval != n.ResendInterval {
 			state.DelayMs = resendInterval
 			log.Infof("TriggerNode %s: Updated resend interval in state to %d ms for stream %s", n.NodeUid, resendInterval, streamKey)
@@ -590,15 +565,15 @@ func (n *TriggerNode) handleResendEveryMode(msg common.Message, streamKey string
 		return
 	}
 
-	// New trigger - send first message and create state
 	n.sendFirstMessage(msg, log)
 
+	payload := utils.DeepCopyPayload(msg.GetPayload())
 	newState := &TriggerState{
 		StreamKey:       streamKey,
-		OriginalPayload: utils.DeepCopyPayload(msg.Payload),
-		OriginalTopic:   msg.Topic,
-		FirstPayload:    utils.DeepCopyPayload(msg.Payload), // Store first message
-		LatestPayload:   utils.DeepCopyPayload(msg.Payload),
+		OriginalPayload: payload,
+		OriginalTopic:   msg.GetTopic(),
+		FirstPayload:    payload,
+		LatestPayload:   utils.DeepCopyPayload(msg.GetPayload()),
 		StartTime:       time.Now(),
 		LastSentTime:    time.Now(),
 		DelayMs:         resendInterval,
@@ -618,20 +593,19 @@ func (n *TriggerNode) handleWaitToBeResetMode(msg common.Message, streamKey stri
 	}
 
 	if state != nil && state.IsWaitingReset {
-		// Already waiting for reset, ignore new messages
 		log.Infof("TriggerNode %s: Ignoring message, waiting for reset on stream %s", n.NodeUid, streamKey)
 		return
 	}
 
-	// Send first message and enter waiting state
 	n.sendFirstMessage(msg, log)
 
+	payload := utils.DeepCopyPayload(msg.GetPayload())
 	newState := &TriggerState{
 		StreamKey:       streamKey,
-		OriginalPayload: utils.DeepCopyPayload(msg.Payload),
-		OriginalTopic:   msg.Topic,
-		FirstPayload:    utils.DeepCopyPayload(msg.Payload), // Store first message
-		LatestPayload:   utils.DeepCopyPayload(msg.Payload),
+		OriginalPayload: payload,
+		OriginalTopic:   msg.GetTopic(),
+		FirstPayload:    payload,
+		LatestPayload:   utils.DeepCopyPayload(msg.GetPayload()),
 		StartTime:       time.Now(),
 		IsWaitingReset:  true,
 	}
@@ -642,14 +616,12 @@ func (n *TriggerNode) handleWaitToBeResetMode(msg common.Message, streamKey stri
 }
 
 func (n *TriggerNode) startLocalTimer(streamKey string, state *TriggerState, log *logger.Logger) {
-	// Clean up any existing timer for this stream
 	n.localTimerMutex.Lock()
 	if existingState, exists := n.localTimers[streamKey]; exists {
 		n.cleanupLocalTimer(existingState)
 	}
 	n.localTimerMutex.Unlock()
 
-	// Calculate remaining time
 	elapsed := time.Since(state.StartTime)
 	remaining := time.Duration(state.DelayMs)*time.Millisecond - elapsed
 	if remaining <= 0 {
@@ -659,10 +631,7 @@ func (n *TriggerNode) startLocalTimer(streamKey string, state *TriggerState, log
 	timer := time.NewTimer(remaining)
 	ctx, cancel := context.WithCancel(n.Ctx)
 
-	localState := &localTimerState{
-		timer:  timer,
-		cancel: cancel,
-	}
+	localState := &localTimerState{timer: timer, cancel: cancel}
 
 	n.localTimerMutex.Lock()
 	n.localTimers[streamKey] = localState
@@ -673,26 +642,19 @@ func (n *TriggerNode) startLocalTimer(streamKey string, state *TriggerState, log
 		defer n.wg.Done()
 		select {
 		case <-timer.C:
-			// Limpiar el timer local
 			n.localTimerMutex.Lock()
 			delete(n.localTimers, streamKey)
 			n.localTimerMutex.Unlock()
 
-			// Verificar que el estado aún existe (podría haber sido reseteado)
 			currentState, err := n.getTriggerState(streamKey)
 			if err != nil || currentState == nil || currentState.SecondMsgSent {
 				log.Infof("TriggerNode %s: State already processed or reset for stream %s", n.NodeUid, streamKey)
 				return
 			}
 
-			// Construir mensaje y enviar segundo mensaje
-			msg := common.Message{
-				Payload: currentState.OriginalPayload,
-				Topic:   currentState.OriginalTopic,
-			}
+			msg := message.NewMessage(currentState.OriginalTopic, currentState.OriginalPayload, nil, "", nil)
 			n.sendSecondMessage(msg, log)
 
-			// Marcar como enviado y eliminar estado
 			currentState.SecondMsgSent = true
 			if err := n.saveTriggerState(streamKey, currentState); err != nil {
 				log.Errorf("TriggerNode %s: Failed to update trigger state: %v", n.NodeUid, err)
@@ -836,11 +798,10 @@ func (n *TriggerNode) deleteAllStreamStates() error {
 	return nil
 }
 
-// Message sending with improved type support
 func (n *TriggerNode) sendFirstMessage(msg common.Message, log *logger.Logger) {
 	outputMsg := n.buildMessage(msg, n.FirstMessageType, n.FirstMessagePayload, true, "")
 	if outputMsg != nil {
-		n.sendToOutputs(*outputMsg, log)
+		n.sendToOutputs(outputMsg, log)
 	}
 }
 
@@ -848,83 +809,59 @@ func (n *TriggerNode) sendSecondMessage(msg common.Message, log *logger.Logger) 
 	streamKey := n.getStreamKey(msg)
 	outputMsg := n.buildMessage(msg, n.SecondMessageType, n.SecondMessagePayload, false, streamKey)
 	if outputMsg != nil {
-		// If separate output is enabled, send to second output
 		if n.SeparateOutput {
-			n.sendToSpecificOutput(*outputMsg, 1, log)
+			n.sendToSpecificOutput(outputMsg, 1, log)
 		} else {
-			n.sendToOutputs(*outputMsg, log)
+			n.sendToOutputs(outputMsg, log)
 		}
 	}
 }
 
-// buildMessage constructs the message based on the message type
 func (n *TriggerNode) buildMessage(
 	originalMsg common.Message,
 	msgType string,
 	customPayload map[string]interface{},
 	isFirst bool,
 	streamKey string,
-) *common.Message {
+) common.Message {
 	switch msgType {
 	case "nothing":
 		return nil
 
 	case "Timestamp":
-		return &common.Message{
-			Payload: map[string]interface{}{
-				"timestamp": time.Now().UnixMilli(),
-			},
-			Topic: originalMsg.Topic,
-		}
+		return message.NewMessage(originalMsg.GetTopic(), map[string]any{
+			"timestamp": time.Now().UnixMilli(),
+		}, nil, "", nil)
 
 	case "first_message":
-		var payload map[string]interface{}
+		var payload map[string]any
 		if isFirst {
-			// For first message, use current message
-			payload = utils.DeepCopyPayload(originalMsg.Payload)
+			payload = utils.DeepCopyPayload(originalMsg.GetPayload())
 		} else {
-			// For second message, get from state
 			state, err := n.getTriggerState(streamKey)
 			if err == nil && state != nil && state.FirstPayload != nil {
 				payload = utils.DeepCopyPayload(state.FirstPayload)
 			} else {
-				payload = utils.DeepCopyPayload(originalMsg.Payload)
+				payload = utils.DeepCopyPayload(originalMsg.GetPayload())
 			}
 		}
-		return &common.Message{
-			Payload: payload,
-			Topic:   originalMsg.Topic,
-		}
+		return message.NewMessage(originalMsg.GetTopic(), payload, nil, "", nil)
 
 	case "latest_message":
-		// Only valid for second message
 		if !isFirst {
 			state, err := n.getTriggerState(streamKey)
 			if err == nil && state != nil && state.LatestPayload != nil {
-				return &common.Message{
-					Payload: utils.DeepCopyPayload(state.LatestPayload),
-					Topic:   originalMsg.Topic,
-				}
+				return message.NewMessage(originalMsg.GetTopic(), utils.DeepCopyPayload(state.LatestPayload), nil, "", nil)
 			}
-			return &common.Message{
-				Payload: utils.DeepCopyPayload(originalMsg.Payload),
-				Topic:   originalMsg.Topic,
-			}
+			return message.NewMessage(originalMsg.GetTopic(), utils.DeepCopyPayload(originalMsg.GetPayload()), nil, "", nil)
 		}
 		return nil
 
 	case "JSON":
-		return &common.Message{
-			Payload: utils.DeepCopyPayload(customPayload),
-			Topic:   originalMsg.Topic,
-		}
+		return message.NewMessage(originalMsg.GetTopic(), utils.DeepCopyPayload(customPayload), nil, "", nil)
 
 	default:
-		// Fallback to original message
-		return &common.Message{
-			Payload: utils.DeepCopyPayload(originalMsg.Payload),
-			Topic:   originalMsg.Topic,
-		}
+		return message.NewMessage(originalMsg.GetTopic(), utils.DeepCopyPayload(originalMsg.GetPayload()), nil, "", nil)
 	}
 }
 
@@ -935,8 +872,7 @@ func (n *TriggerNode) sendToSpecificOutput(msg common.Message, outputIndex int, 
 		return
 	}
 
-	wireArray := nodeOutputWires[outputIndex]
-	for idx, wire := range wireArray {
+	for idx, wire := range nodeOutputWires[outputIndex] {
 		select {
 		case wire.Channel <- msg:
 			if n.Debug == "on" && idx == 0 {
@@ -951,28 +887,20 @@ func (n *TriggerNode) sendToSpecificOutput(msg common.Message, outputIndex int, 
 	}
 }
 
-// Reset handling
 func (n *TriggerNode) isResetMessage(msg common.Message) bool {
 	switch n.ResetTriggerOption {
 	case "msg.payload.reset":
-		// Check for reset property in payload
-		if reset, ok := msg.Payload["reset"].(bool); ok && reset {
+		if reset, ok := msg.GetPayload()["reset"].(bool); ok && reset {
 			return true
 		}
-		return false
-
 	case "optional msg.payload field":
-		// Check if payload matches resetPayload string
 		if n.CustomPayloadFieldForReset != "" {
-			if reset, ok := msg.Payload[n.CustomPayloadFieldForReset].(bool); ok && reset {
+			if reset, ok := msg.GetPayload()[n.CustomPayloadFieldForReset].(bool); ok && reset {
 				return true
 			}
 		}
-		return false
-
-	default:
-		return false
 	}
+	return false
 }
 
 func (n *TriggerNode) resetTrigger(msg common.Message, log *logger.Logger) error {
@@ -1000,18 +928,13 @@ func (n *TriggerNode) resetTrigger(msg common.Message, log *logger.Logger) error
 
 // Helper methods
 func (n *TriggerNode) getStreamKey(msg common.Message) string {
-	switch n.HandleMessagesBy {
-	case "all":
-		return "all"
-	case "stream_name":
-		if value, exists := msg.Payload["stream"]; exists {
+	if n.HandleMessagesBy == "stream_name" {
+		if value, exists := msg.GetFieldFromPayload("stream"); exists {
 			if streamValue, ok := value.(string); ok {
 				return streamValue
 			}
 		}
 	}
-
-	// If property not found, fall back to "all"
 	return "all"
 }
 

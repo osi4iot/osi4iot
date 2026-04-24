@@ -18,6 +18,26 @@ type DynTensor struct {
 	Destroy func()
 }
 
+type MlmNode struct {
+	BaseNode
+	MlModelId     int
+	BatchSize     int64
+	Session       *ort.AdvancedSession
+	InputTensors  []*DynTensor
+	OutputTensors []*DynTensor
+	inputShapes   []ort.Shape
+	outputShapes  []ort.Shape
+	inputTypes    []ort.TensorElementDataType
+	outputTypes   []ort.TensorElementDataType
+	inputNames    []string
+	outputNames   []string
+
+	// Cached hot-path functions
+	inputSetters  []func(any) error
+	outputGetters []func() (any, error)
+	outputBuffer  []any
+}
+
 func NewInputDynTensor[T ort.TensorData](shape ort.Shape, data []T) (*DynTensor, error) {
 	t, err := ort.NewTensor(shape, data)
 	if err != nil {
@@ -66,20 +86,6 @@ func ReadDynTensor[T ort.TensorData](dt *DynTensor) ([]T, error) {
 	return t.GetData(), nil
 }
 
-type MlmNode struct {
-	BaseNode
-	MlModelId     int
-	BatchSize     int64
-	Session       *ort.AdvancedSession
-	InputTensors  []*DynTensor
-	OutputTensors []*DynTensor
-	inputShapes   []ort.Shape
-	outputShapes  []ort.Shape
-	inputTypes    []ort.TensorElementDataType
-	outputTypes   []ort.TensorElementDataType
-	inputNames    []string
-	outputNames   []string
-}
 
 func CreateMlmNode(node common.NodeData, fm common.Manager, p common.Pipeline) (*MlmNode, error) {
 	mlModelIdFloat, ok := node.Settings["mlModelId"].(float64)
@@ -262,7 +268,7 @@ func (n *MlmNode) createSession(log *logger.Logger) error {
 		tensor, err := n.CreateDynOutputTensorFromShape(shape, n.outputTypes[i])
 		if err != nil {
 			for _, t := range inputTensors {
-				(*t).Destroy()
+				t.Destroy()
 			}
 			return fmt.Errorf("error creating output tensor: %w", err)
 		}
@@ -273,10 +279,10 @@ func (n *MlmNode) createSession(log *logger.Logger) error {
 	options, err := ort.NewSessionOptions()
 	if err != nil {
 		for _, t := range inputTensors {
-			(*t).Destroy()
+			t.Destroy()
 		}
 		for _, t := range outputTensors {
-			(*t).Destroy()
+			t.Destroy()
 		}
 		return fmt.Errorf("error creating session options: %w", err)
 	}
@@ -289,13 +295,12 @@ func (n *MlmNode) createSession(log *logger.Logger) error {
 		sessionInputTensors,
 		sessionOutputTensors,
 		options)
-
 	if err != nil {
 		for _, t := range inputTensors {
-			(*t).Destroy()
+			t.Destroy()
 		}
 		for _, t := range outputTensors {
-			(*t).Destroy()
+			t.Destroy()
 		}
 		return fmt.Errorf("error creating ORT session: %w", err)
 	}
@@ -304,47 +309,96 @@ func (n *MlmNode) createSession(log *logger.Logger) error {
 	n.InputTensors = inputTensors
 	n.OutputTensors = outputTensors
 
+	// Cache setters — Set ya es type-safe por construcción en NewInputDynTensor
+	n.inputSetters = make([]func(any) error, len(inputTensors))
+	for i, t := range inputTensors {
+		n.inputSetters[i] = t.Set
+	}
+
+	// Cache getters — el switch de dtype ocurre solo aquí, una única vez
+	n.outputGetters = make([]func() (any, error), len(outputTensors))
+	for i, t := range outputTensors {
+		getter, err := n.buildOutputGetter(t, n.outputTypes[i])
+		if err != nil {
+			return fmt.Errorf("error building output getter for tensor %d: %w", i, err)
+		}
+		n.outputGetters[i] = getter
+	}
+
+	// Preallocate output buffer para evitar allocs en el hot path
+	n.outputBuffer = make([]any, len(outputTensors))
+
 	log.Infof("ONNX session created successfully")
 	return nil
 }
 
+func (n *MlmNode) buildOutputGetter(tensor *DynTensor, dtype ort.TensorElementDataType) (func() (any, error), error) {
+	switch dtype {
+	case ort.TensorElementDataTypeFloat:
+		return func() (any, error) { return ReadDynTensor[float32](tensor) }, nil
+	case ort.TensorElementDataTypeUint8:
+		return func() (any, error) { return ReadDynTensor[uint8](tensor) }, nil
+	case ort.TensorElementDataTypeInt8:
+		return func() (any, error) { return ReadDynTensor[int8](tensor) }, nil
+	case ort.TensorElementDataTypeUint16:
+		return func() (any, error) { return ReadDynTensor[uint16](tensor) }, nil
+	case ort.TensorElementDataTypeInt16:
+		return func() (any, error) { return ReadDynTensor[int16](tensor) }, nil
+	case ort.TensorElementDataTypeInt32:
+		return func() (any, error) { return ReadDynTensor[int32](tensor) }, nil
+	case ort.TensorElementDataTypeInt64:
+		return func() (any, error) { return ReadDynTensor[int64](tensor) }, nil
+	case ort.TensorElementDataTypeBool:
+		return func() (any, error) { return ReadDynTensor[bool](tensor) }, nil
+	case ort.TensorElementDataTypeDouble:
+		return func() (any, error) { return ReadDynTensor[float64](tensor) }, nil
+	case ort.TensorElementDataTypeUint32:
+		return func() (any, error) { return ReadDynTensor[uint32](tensor) }, nil
+	case ort.TensorElementDataTypeUint64:
+		return func() (any, error) { return ReadDynTensor[uint64](tensor) }, nil
+	default:
+		return nil, fmt.Errorf("unsupported tensor type: %v", dtype)
+	}
+}
+
 func (n *MlmNode) processMessage(msg common.Message, log *logger.Logger) error {
 	start := time.Now()
+	payload := msg.GetPayload()
 
-	if len(n.InputTensors) == 1 {
-		n.SetInputTensorFromPayload(msg.Payload["mlmInput"], 0)
+	if len(n.inputSetters) == 1 {
+		if err := n.inputSetters[0](payload["mlmInput"]); err != nil {
+			return fmt.Errorf("failed to set input tensor: %w", err)
+		}
 	} else {
-		for i := 0; i < len(n.InputTensors); i++ {
-			n.SetInputTensorFromPayload(msg.Payload[fmt.Sprintf("mlmInput%d", i)], i)
+		for i, setter := range n.inputSetters {
+			if err := setter(payload[fmt.Sprintf("mlmInput%d", i)]); err != nil {
+				return fmt.Errorf("failed to set input tensor %d: %w", i, err)
+			}
 		}
 	}
 
-	err := n.runInference(log)
-	if err != nil {
+	if err := n.runInference(log); err != nil {
 		return fmt.Errorf("inference failed: %w", err)
 	}
 
-	
-	if len(n.OutputTensors) == 1 {
-		mlmOutput, err := n.GetMlmOutput(n.OutputTensors[0], n.outputTypes[0])
+	if len(n.outputGetters) == 1 {
+		result, err := n.outputGetters[0]()
 		if err != nil {
-			return fmt.Errorf("failed to get MLM output: %w", err)
+			return fmt.Errorf("failed to get output tensor: %w", err)
 		}
-		msg.Payload["mlmOutput"] = mlmOutput
+		payload["mlmOutput"] = result
 	} else {
-		mlmOutput := make([]any, len(n.OutputTensors))
-		for i, output := range n.OutputTensors {
-			outputData, err := n.GetMlmOutput(output, n.outputTypes[i])
+		for i, getter := range n.outputGetters {
+			result, err := getter()
 			if err != nil {
-				return fmt.Errorf("failed to get MLM output: %w", err)
+				return fmt.Errorf("failed to get output tensor %d: %w", i, err)
 			}
-			mlmOutput[i] = outputData
+			n.outputBuffer[i] = result
 		}
-		msg.Payload["mlmOutput"] = mlmOutput
+		payload["mlmOutput"] = n.outputBuffer
 	}
 
-	msg.Payload["elapsedTime"] = time.Since(start).String()
-
+	payload["elapsedTime"] = time.Since(start).String()
 	n.sendToOutputs(msg, log)
 	return nil
 }

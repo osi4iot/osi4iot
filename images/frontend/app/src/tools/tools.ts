@@ -439,15 +439,11 @@ export const changeMaterialPropRecursively = (
     if ((obj.material as THREE.Material) && (obj.material as any)[prop] !== undefined) {
         (obj.material as any)[prop] = propValue;
     }
-    let newPropValue = propValue;
-    if (prop === 'transparent') {
-        newPropValue = true;
-    }
     for (let node of obj.children) {
         changeMaterialPropRecursively(
             node as IThreeMesh,
             prop,
-            newPropValue
+            propValue
         );
     }
 }

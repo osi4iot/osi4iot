@@ -8,7 +8,7 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/types"
+	"github.com/osi4iot/osi4iot/utils/osi4iot/internals/types"
 )
 
 type LoginData struct {
