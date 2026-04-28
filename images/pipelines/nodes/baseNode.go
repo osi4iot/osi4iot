@@ -48,6 +48,10 @@ func CreateNode(
 		newNode, err = CreateTelegramSendNode(node, fm, p)
 	case "Transcriptor":
 		newNode, err = CreateTranscriptorNode(node, fm, p)
+	case "Translator":
+		newNode, err = CreateTranslatorNode(node, fm, p)
+	case "Text2Speech":
+		newNode, err = CreateText2SpeechNode(node, fm, p)
 	case "Email":
 		newNode, err = CreateEmailNode(node, fm, p)
 	case "AiAgent":

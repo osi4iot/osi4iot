@@ -35,6 +35,7 @@ type Message interface {
 	GetFile() *File
 	GetImage() (image.Image, error)
 	SetImage(img image.Image, name string, contentType string) error
+	AttachAudio(data []byte, name string, contentType string) error
 	HasFile() bool
 	IsImage() bool
 	IsAudio() bool

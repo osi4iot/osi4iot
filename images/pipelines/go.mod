@@ -8,6 +8,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/config v1.31.6
 	github.com/aws/aws-sdk-go-v2/credentials v1.18.10
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.97.3
+	github.com/bytectlgo/edge-tts v1.0.5
 	github.com/cenkalti/backoff/v4 v4.3.0
 	github.com/cloudwego/eino v0.5.0-alpha.11
 	github.com/dop251/goja v0.0.0-20250630131328-58d95d85e994

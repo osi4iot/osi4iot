@@ -479,8 +479,8 @@ func UpdateSwarmServiceResources(
 		return "", fmt.Errorf("error finding service data: %v", err)
 	}
 
-	svcData.Cpu = strconv.FormatFloat(cpu, 'f', 2, 64)
-	svcData.Memory = strconv.FormatInt(mem, 10)
+	svcData.Cpu = fmt.Sprintf("%sCPU", strconv.FormatFloat(cpu, 'f', 2, 64))
+	svcData.Memory = fmt.Sprintf("%sMb", strconv.FormatInt(mem, 10))
 	pd.PlatformInfo.ServicesData[svcIdx] = *svcData
 	err = utils.WritePlatformDataToFile(pd)
 	if err != nil {

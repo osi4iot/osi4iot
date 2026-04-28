@@ -14,9 +14,11 @@ import {
     Mic,
 } from "lucide-react";
 import { FaTelegramPlane } from "react-icons/fa";
+import { PiFileAudioFill } from "react-icons/pi";
 import { TbDatabaseCog, TbArrowsSplit2 } from "react-icons/tb";
 import { FaRegCommentDots, FaMicrochip, FaGear } from "react-icons/fa6";
 import { BsBucket } from "react-icons/bs";
+import { MdGTranslate } from "react-icons/md";
 import styled from "styled-components";
 import { useState, useRef } from "react";
 
@@ -143,7 +145,9 @@ const NODE_DESCRIPTIONS: Record<string, string> = {
     Comment: "A free-text annotation node. Does not process data — used to document the pipeline.",
     MlModel: "Runs inference on an ML model registered in the platform and outputs the prediction result.",
     AiAgent: "Sends the message to an LLM-based AI agent and returns its response. Requires LLM to be enabled.",
-    Transcriptor: "Transcribes incoming audio files into text and can optionally translate the result.",
+    Transcriptor: "Transcribes incoming audio files into text.",
+    Text2Speech: "Converts incoming text messages into audio files.",
+    Translator: "Translates text from the incoming message into a target language using the configured LLM provider.",
     Email: "Sends an email notification with the message payload to a configured recipient.",
     TelegramListen: "Listens for incoming messages on a configured Telegram bot and emits them downstream.",
     TelegramSend: "Sends a message via a configured Telegram bot to a target chat. Requires Telegram to be enabled.",
@@ -156,6 +160,12 @@ const NODE_DESCRIPTIONS: Record<string, string> = {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const TelegramIcon = styled(FaTelegramPlane)<{ size?: string }>`
+    font-size: ${(props) => props.size || "26px"};
+    color: #ffffff;
+    filter: drop-shadow(0px 2px 3px rgba(0, 0, 0, 0.2));
+`;
+
+export const Text2SpeechIcon = styled(PiFileAudioFill)<{ size?: string }>`
     font-size: ${(props) => props.size || "26px"};
     color: #ffffff;
     filter: drop-shadow(0px 2px 3px rgba(0, 0, 0, 0.2));
@@ -204,6 +214,12 @@ export const CommentIcon = styled(FaRegCommentDots)<{ size?: string }>`
 `;
 
 export const BsBucketIcon = styled(BsBucket)<{ size?: string }>`
+    font-size: ${(props) => props.size || "26px"};
+    color: #ffffff;
+    filter: drop-shadow(0px 2px 3px rgba(0, 0, 0, 0.2));
+`;
+
+export const TranslatorIcon = styled(MdGTranslate)<{ size?: string }>`
     font-size: ${(props) => props.size || "26px"};
     color: #ffffff;
     filter: drop-shadow(0px 2px 3px rgba(0, 0, 0, 0.2));
@@ -410,6 +426,7 @@ const nodeTypes = [
         debug: "off",
         settings: {
             systemPrompt: "",
+            llmModel: "openai:gpt-4o-mini",
             llmTemperature: 0.7,
             llmTopK: 40,
             llmTopP: 0.95,
@@ -424,8 +441,34 @@ const nodeTypes = [
         numOutputs: 1,
         debug: "off",
         settings: {
-            translate: false,
-            translationLanguage: "en",
+            language: "en",
+        },
+    },
+    {
+        type: "Translator",
+        label: "Translator",
+        bgColor: "#B8B1FB",
+        hoverColor: "#cdc8fcff",
+        icon: <TranslatorIcon size="30px" />,
+        numOutputs: 1,
+        debug: "off",
+        settings: {
+            targetLanguage: "en",
+            llmModel: "openai:gpt-4o-mini",
+        },
+    },
+    {
+        type: "Text2Speech",
+        label: "Text2Speech",
+        bgColor: "#B8B1FB",
+        hoverColor: "#cdc8fcff",
+        icon: <Text2SpeechIcon size="30px" />,
+        numOutputs: 1,
+        debug: "off",
+        settings: {
+            ttsMode: "edge-tts",
+            voiceLanguage: "en",
+            voiceGender: "female",
         },
     },
     {

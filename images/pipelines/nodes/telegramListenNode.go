@@ -174,6 +174,16 @@ func (n *TelegramListenNode) processListenMessage(log *logger.Logger) {
 				}
 				n.sendToOutputs(outMsg, log)
 				continue
+
+			case telegram.MessageTypePhoto:
+				outMsg, err := n.buildImageMessage(msg, log)
+				if err != nil {
+					log.Errorf("TelegramListenNode %s: failed to process photo message: %v", n.NodeUid, err)
+					continue
+				}
+				n.sendToOutputs(outMsg, log)
+				continue
+
 			case telegram.MessageTypeText:
 				if msg.Text == "/start" {
 					var message strings.Builder
@@ -505,6 +515,45 @@ func (n *TelegramListenNode) buildAudioMessage(msg *telegram.TelegramMessage, lo
 			"message_id": msg.MessageID,
 			"chat_id":    msg.ChatID,
 			"userName":   n.chatUserName(msg.ChatID),
+		},
+		nil,
+		mimeType,
+		&common.File{
+			Name:        fileName,
+			ContentType: mimeType,
+			Data:        data,
+		},
+	)
+
+	return outMsg, nil
+}
+
+func (n *TelegramListenNode) buildImageMessage(msg *telegram.TelegramMessage, log *logger.Logger) (*message.Message, error) {
+	if msg.Photo == nil {
+		return nil, fmt.Errorf("photo message has no photo data")
+	}
+
+	// Telegram sends multiple resolutions; the last entry is always the largest.
+	photo := msg.Photo
+
+	mimeType := "image/jpeg"
+	fileName := fmt.Sprintf("%s.jpg", photo.FileUniqueID)
+
+	log.Infof("TelegramListenNode %s: downloading photo file %s", n.NodeUid, photo.FileID)
+	data, _, err := telegram.DownloadFile(n.BotToken, photo.FileID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to download photo file: %w", err)
+	}
+
+	caption := msg.Caption // optional caption sent alongside the photo
+
+	outMsg := message.NewMessage(
+		"",
+		map[string]any{
+			"message_id": msg.MessageID,
+			"chat_id":    msg.ChatID,
+			"userName":   n.chatUserName(msg.ChatID),
+			"message":    caption,
 		},
 		nil,
 		mimeType,

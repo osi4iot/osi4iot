@@ -3,7 +3,7 @@ import styled, { keyframes, css } from "styled-components";
 // CSS estándar para el resizing - mejor performance
 export const resizableStyles = `
   .resizable-panel {
-    width: var(--panel-width, 600px);
+    width: var(--panel-width, 550px);
     transition: none;
   }
   

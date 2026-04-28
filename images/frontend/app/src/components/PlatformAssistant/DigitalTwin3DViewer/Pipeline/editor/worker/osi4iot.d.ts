@@ -60,6 +60,9 @@ interface Message {
     /* Attaches an image to the message with the given name and content type. */
     SetImage(img: MutableImage, name: string, contentType: string): void;
 
+    /* Attaches audio data to the message with the given name and content type. */
+    AttachAudio(data: Uint8Array, name: string, contentType: string): void;
+
     /* Returns a boolean indicating whether the message has an attached file. */
     HasFile(): boolean;
 

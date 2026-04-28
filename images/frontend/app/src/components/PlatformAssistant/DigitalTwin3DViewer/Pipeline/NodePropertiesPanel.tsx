@@ -1661,37 +1661,94 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                                 <option value="ca">Catalan</option>
                             </Select>
                         </FormGroup>
-                        <CheckboxContainer>
-                            <CheckboxItem data-checked={formData.translate || false}>
-                                <CheckboxInput
-                                    type="checkbox"
-                                    checked={formData.translate || false}
-                                    onChange={(e: { target: { checked: any } }) =>
-                                        handleInputChange("translate", e.target.checked)
-                                    }
-                                    onClick={(e: { stopPropagation: () => any }) => e.stopPropagation()}
-                                />
-                                <span>Translate transcription</span>
-                            </CheckboxItem>
-                        </CheckboxContainer>
-                        {formData.translate && (
-                            <FormGroup>
-                                <Label>Translation language</Label>
-                                <Select
-                                    value={formData.translationLanguage || "en"}
-                                    onChange={(e: { target: { value: any } }) =>
-                                        handleInputChange("translationLanguage", e.target.value)
-                                    }
-                                >
-                                    <option value="en">English</option>
-                                    <option value="es">Spanish</option>
-                                    <option value="fr">French</option>
-                                    <option value="de">German</option>
-                                    <option value="it">Italian</option>
-                                    <option value="pt">Portuguese</option>
-                                    <option value="ca">Catalan</option>
-                                </Select>
-                            </FormGroup>
+                    </>
+                );
+            case "Translator":
+                return (
+                    <>
+                        <FormGroup>
+                            <Label>Target language</Label>
+                            <Select
+                                value={formData.targetLanguage || "en"}
+                                onChange={(e: { target: { value: any } }) =>
+                                    handleInputChange("targetLanguage", e.target.value)
+                                }
+                            >
+                                <option value="en">English</option>
+                                <option value="es">Spanish</option>
+                                <option value="fr">French</option>
+                                <option value="de">German</option>
+                                <option value="it">Italian</option>
+                                <option value="pt">Portuguese</option>
+                                <option value="ca">Catalan</option>
+                            </Select>
+                        </FormGroup>
+                        <FormGroup>
+                            <Label>LLM Model</Label>
+                            <Select
+                                value={formData.llmModel || "openai:gpt-4o-mini"}
+                                onChange={(e: { target: { value: any } }) =>
+                                    handleInputChange("llmModel", e.target.value)
+                                }
+                            >
+                                <option value="openai:gpt-oss-120b">openai:gpt-oss-120b</option>
+                                <option value="openai:gpt-oss-20b">openai:gpt-oss-20b</option>
+                                <option value="openai:gpt-4o">openai:gpt-4o</option>
+                                <option value="openai:gpt-4o-mini">openai:gpt-4o-mini</option>
+                                <option value="openai:gpt-5-mini">openai:gpt-5-mini</option>
+                                <option value="openai:gpt-5-nano">openai:gpt-5-nano</option>
+                            </Select>
+                        </FormGroup>
+                    </>
+                );
+
+            case "Text2Speech":
+                return (
+                    <>
+                        <FormGroup>
+                            <Label>TTS mode</Label>
+                            <Select
+                                value={formData.ttsMode || "edge-tts"}
+                                onChange={(e: { target: { value: any } }) =>
+                                    handleInputChange("ttsMode", e.target.value)
+                                }
+                            >
+                                <option value="edge-tts">Microsoft Edge's text-to-speech service</option>
+                                <option value="openai-tts">OpenAI's text-to-speech service</option>
+                            </Select>
+                        </FormGroup>
+                        {formData.ttsMode === "edge-tts" && (
+                            <>
+                                <FormGroup>
+                                    <Label>Voice language</Label>
+                                    <Select
+                                        value={formData.voiceLanguage || "en"}
+                                        onChange={(e: { target: { value: any } }) =>
+                                            handleInputChange("voiceLanguage", e.target.value)
+                                        }
+                                    >
+                                        <option value="en">English</option>
+                                        <option value="es">Spanish</option>
+                                        <option value="fr">French</option>
+                                        <option value="de">German</option>
+                                        <option value="it">Italian</option>
+                                        <option value="pt">Portuguese</option>
+                                        <option value="ca">Catalan</option>
+                                    </Select>
+                                </FormGroup>
+                                <FormGroup>
+                                    <Label>Voice gender</Label>
+                                    <Select
+                                        value={formData.voiceGender || "female"}
+                                        onChange={(e: { target: { value: any } }) =>
+                                            handleInputChange("voiceGender", e.target.value)
+                                        }
+                                    >
+                                        <option value="female">Female</option>
+                                        <option value="male">Male</option>
+                                    </Select>
+                                </FormGroup>
+                            </>
                         )}
                     </>
                 );

@@ -686,9 +686,9 @@ Use this node whenever a pipeline must react to live data published on NATS or M
         ],
     },
     Transcriptor: {
-        description: "Transcribes incoming audio files into text and can optionally translate the result.",
+        description: "Transcribes incoming audio files into text using the OpenAI Whisper API.",
         details:
-            "The Transcriptor node processes incoming messages that contain an audio file attachment. If the message does not include a file, or the file is not recognized as audio, the message is forwarded unchanged. For audio files, the node sends the file to the OpenAI transcription API using the configured language as a hint and returns a new message whose payload contains the transcription under 'message'. When translation is enabled, the node also sends the transcription to a language model and adds the translated result under 'translatedText'. The output is a new JSON message containing the transcription result, not the original input message. Supported transcription languages are the ones offered in the node settings, and translation uses the selected target language as the destination language.",
+            "The Transcriptor node processes incoming messages that contain an audio file attachment. If the message does not include a file, or the file is not recognized as audio, the message is forwarded unchanged. For audio files, the node sends the file to the OpenAI transcription API using the configured language as a hint and returns a new message whose payload contains the transcription under 'message'. The output is a new JSON message containing only the transcription result, not the original input message. Supported audio formats include OGG, MP3, MP4, FLAC, WAV, and WebM.",
 
         params: [
             {
@@ -696,19 +696,35 @@ Use this node whenever a pipeline must react to live data published on NATS or M
                 description:
                     "Language hint used for audio transcription. This value is sent to the transcription API to help recognize the spoken language.",
             },
+        ],
+        notes: [
+            "If the input message does not contain an audio file, it is forwarded unchanged.",
+            "The output of a successful transcription is a new message containing only the transcription payload.",
+            "The LLM provider must be configured to OpenAI, as Whisper is an OpenAI-exclusive API.",
+        ],
+    },
+
+    Translator: {
+        description:
+            "Translates the text in an incoming message into a target language using a configured LLM provider.",
+        details:
+            "The Translator node reads the 'message' field from the incoming payload and sends it to a language model for translation. The translated result overwrites the 'message' field in the output payload, preserving any other fields that were present in the original message. If the incoming payload does not contain a 'message' field, or if it is empty, the message is forwarded unchanged. The node is compatible with any OpenAI-compatible LLM provider by configuring its base URL, making it suitable for use with OpenAI, Azure OpenAI, Groq, Ollama, and similar services.",
+
+        params: [
             {
-                name: "Translate transcription",
-                description: "When enabled, the node also generates a translated version of the transcription.",
+                name: "Target language",
+                description:
+                    "The language into which the message text will be translated. For example: English, Spanish, French.",
             },
             {
-                name: "Translation language",
-                description: "Target language used when translation is enabled.",
+                name: "LLM model",
+                description:
+                    "The model used to perform the translation. Defaults to gpt-4o-mini. The 'openai:' prefix is stripped automatically if present.",
             },
         ],
-
-        outputExamples: [
+        inputExamples: [
             {
-                label: "Transcription result",
+                label: "Incoming message to translate",
                 code: JSON.stringify(
                     {
                         payload: {
@@ -719,13 +735,44 @@ Use this node whenever a pipeline must react to live data published on NATS or M
                     2,
                 ),
             },
+        ],
+
+        notes: [
+            "If the input payload does not contain a 'message' field, the message is forwarded unchanged.",
+            "The translated text replaces the original 'message' field; all other payload fields are preserved.",
+            "The LLM provider URL is taken from the organization settings. Any OpenAI-compatible provider is supported.",
+            "Model names with the 'openai:' prefix are normalized automatically.",
+        ],
+    },
+    Text2Speech: {
+        description:
+            "Converts the text in an incoming message into an audio file using either the OpenAI TTS API or the free Microsoft Edge TTS service.",
+        details:
+            "The Text2Speech node reads the 'message' field from the incoming payload and synthesizes it into speech. The resulting audio is attached to the output message as a file, while the original payload fields are preserved. If the incoming payload does not contain a 'message' field, or if it is empty, the message is forwarded unchanged. Two backends are supported: 'openai' uses the OpenAI TTS REST API and requires a valid API key configured in the organization settings; 'edge-tts' uses Microsoft Edge's neural speech service for free, requiring no API key but needing an internet connection. The output audio format defaults to MP3.",
+        params: [
             {
-                label: "Transcription with translation",
+                name: "TTS mode",
+                description:
+                    "Selects the speech synthesis backend. Accepted values: 'openai' (default) or 'edge-tts'. The 'openai' mode requires the organization LLM provider to be set to OpenAI. The 'edge-tts' mode is free and requires no API key.",
+            },
+            {
+                name: "Voice language",
+                description:
+                    "Only used in 'edge-tts' mode. Selects the language for automatic voice resolution. Supported values: english, spanish, french, german, italian, portuguese, catalan.",
+            },
+            {
+                name: "Voice gender",
+                description:
+                    "Only used in 'edge-tts' mode. Selects the gender of the automatically resolved voice. Accepted values: 'female' (default) or 'male'.",
+            },
+        ],
+        inputExamples: [
+            {
+                label: "Incoming message to synthesize",
                 code: JSON.stringify(
                     {
                         payload: {
-                            message: "La bomba uno está funcionando con normalidad.",
-                            translatedText: "Pump one is operating normally.",
+                            message: "Pump one is currently operating within normal temperature range.",
                         },
                     },
                     null,
@@ -733,10 +780,47 @@ Use this node whenever a pipeline must react to live data published on NATS or M
                 ),
             },
         ],
-
+        outputExamples: [
+            {
+                label: "Message with audio file attached (openai mode)",
+                code: JSON.stringify(
+                    {
+                        payload: {
+                            message: "Pump one is currently operating within normal temperature range.",
+                        },
+                        file: {
+                            name: "speech.mp3",
+                            content_type: "audio/mpeg",
+                        },
+                    },
+                    null,
+                    2,
+                ),
+            },
+            {
+                label: "Message with audio file attached (edge-tts mode, catalan female voice)",
+                code: JSON.stringify(
+                    {
+                        payload: {
+                            message: "La bomba u funciona dins del rang de temperatura normal.",
+                        },
+                        file: {
+                            name: "speech.mp3",
+                            content_type: "audio/mpeg",
+                        },
+                    },
+                    null,
+                    2,
+                ),
+            },
+        ],
         notes: [
-            "If the input message does not contain an audio file, it is forwarded unchanged.",
-            "The output of a successful transcription is a new message containing only the transcription payload.",
+            "If the input payload does not contain a 'message' field, the message is forwarded unchanged without generating audio.",
+            "The original payload fields are preserved in the output message alongside the attached audio file.",
+            "In 'openai' mode, the organization LLM provider URL must be set to 'https://api.openai.com/v1' and a valid API key must be configured.",
+            "In 'edge-tts' mode, no API key is required, but the service depends on Microsoft's online speech infrastructure and requires internet access.",
+            "The 'edge-tts' mode supports the following languages for automatic voice resolution: english, spanish, french, german, italian, portuguese and catalan.",
+            "The Text2Speech node pairs naturally with the Translator node: place Translator before Text2Speech to translate a message and then synthesize it in the target language.",
         ],
     },
     Email: {

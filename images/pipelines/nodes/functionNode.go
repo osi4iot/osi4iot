@@ -474,6 +474,7 @@ func (n *FuncNode) convertMessageToJS(vm *goja.Runtime, msg common.Message) goja
 	jsObj.Set("HasFile", func() bool { return msg.HasFile() })
 	jsObj.Set("IsImage", func() bool { return msg.IsImage() })
 	jsObj.Set("SetImage", func(img image.Image, name string, contentType string) { msg.SetImage(img, name, contentType) })
+	jsObj.Set("AttachAudio", func(data []byte, name string, contentType string) { msg.AttachAudio(data, name, contentType) })
 	jsObj.Set("GetImage", func() image.Image {
 		img, err := msg.GetImage()
 		if err != nil {

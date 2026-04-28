@@ -13,6 +13,8 @@ import {
     SplitterIcon,
     IconContainer,
     TranscriptionIcon,
+    TranslatorIcon,
+    Text2SpeechIcon,
 } from "./NodePalette";
 import { headers, StringCodec } from "nats.ws";
 const sc = StringCodec();
@@ -516,6 +518,62 @@ export function TranscriptorNode({ data, selected }) {
                     <TranscriptionIcon size={20} color="#e7e3dfff" bgColor="#B8B1FB" />
                 </IconContainer>
                 <NodeLabel>{data?.label || "Transcriptor Node"}</NodeLabel>
+            </NodeContent>
+            {numOutputs > 0 && (
+                <>
+                    {Array.from({ length: numOutputs }, (_, index) => (
+                        <StyledHandle
+                            key={index}
+                            type="source"
+                            position={Position.Right}
+                            id={`${data.nodeUid}-${index}`}
+                            style={getHandleStyle(index, numOutputs)}
+                        />
+                    ))}
+                </>
+            )}
+        </NodeContainer>
+    );
+}
+
+export function TranslatorNode({ data, selected }) {
+    const numOutputs = data?.numOutputs ?? 0;
+    return (
+        <NodeContainer bgColor="#B8B1FB" hoverColor="#cdc8fcff" selected={selected}>
+            <StyledHandle type="target" position={Position.Left} style={{ top: "50%", left: "-1px" }} />
+            <NodeContent numOutputs={numOutputs}>
+                <IconContainer>
+                    <TranslatorIcon size="20px" color="#e7e3dfff" />
+                </IconContainer>
+                <NodeLabel>{data?.label || "Translator Node"}</NodeLabel>
+            </NodeContent>
+            {numOutputs > 0 && (
+                <>
+                    {Array.from({ length: numOutputs }, (_, index) => (
+                        <StyledHandle
+                            key={index}
+                            type="source"
+                            position={Position.Right}
+                            id={`${data.nodeUid}-${index}`}
+                            style={getHandleStyle(index, numOutputs)}
+                        />
+                    ))}
+                </>
+            )}
+        </NodeContainer>
+    );
+}
+
+export function Text2SpeechNode({ data, selected }) {
+    const numOutputs = data?.numOutputs ?? 0;
+    return (
+        <NodeContainer bgColor="#B8B1FB" hoverColor="#cdc8fcff" selected={selected}>
+            <StyledHandle type="target" position={Position.Left} style={{ top: "50%", left: "-1px" }} />
+            <NodeContent numOutputs={numOutputs}>
+                <IconContainer>
+                    <Text2SpeechIcon size="20px" />
+                </IconContainer>
+                <NodeLabel>{data?.label || "Text2Speech Node"}</NodeLabel>
             </NodeContent>
             {numOutputs > 0 && (
                 <>

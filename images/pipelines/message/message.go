@@ -133,6 +133,20 @@ func (m *Message) SetImage(img image.Image, name string, contentType string) err
 	return nil
 }
 
+// AttachAudio attaches raw audio bytes to the message.
+// contentType should be a valid audio MIME type (e.g. "audio/mpeg", "audio/wav").
+func (m *Message) AttachAudio(data []byte, name string, contentType string) error {
+	if len(data) == 0 {
+		return fmt.Errorf("audio data is empty")
+	}
+	m.File = &common.File{
+		Name:        name,
+		ContentType: contentType,
+		Data:        data,
+	}
+	return nil
+}
+
 // GetImage gets the image.Image from the message
 func (m *Message) GetImage() (image.Image, error) {
 	if m.File == nil {
@@ -176,7 +190,9 @@ func (m *Message) IsAudio() bool {
 	switch m.File.ContentType {
 	case "audio/wav", "audio/wave", "audio/x-wav",
 		"audio/mp3", "audio/mpeg",
-		"audio/ogg", "audio/flac":
+		"audio/ogg", "audio/flac",
+		"audio/aac", "audio/pcm",
+		"audio/ogg; codecs=opus":
 		return true
 	}
 	return false
@@ -215,7 +231,7 @@ func (m *Message) Clone() common.Message {
 		ContentType:   m.ContentType,
 		JsonStructure: m.JsonStructure,
 		File:          fileCopy,
-        ReplyContext: m.ReplyContext,
+		ReplyContext:  m.ReplyContext,
 	}
 }
 

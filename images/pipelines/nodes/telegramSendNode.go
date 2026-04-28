@@ -87,39 +87,97 @@ func (n *TelegramSendNode) Start(ctx context.Context, log *logger.Logger, needRe
 	}
 
 	nodectx, nodeCancel := context.WithCancel(ctx)
-    n.Ctx = nodectx
-    n.Cancel = nodeCancel
+	n.Ctx = nodectx
+	n.Cancel = nodeCancel
 
 	n.SetStatus(common.NodeStatusRunning)
 	log.Infof("Starting TelegramSendNode with UID: %s", n.NodeUid)
 
 	n.handleInputWires(log, n.processSendMessage)
-
 }
 
+// processSendMessage dispatches to the appropriate sender based on the file
+// attached to the message (image, audio) or falls back to plain text.
 func (n *TelegramSendNode) processSendMessage(msg common.Message, log *logger.Logger) error {
-	message := n.MessageToSend
+	if msg.HasFile() {
+		if msg.IsImage() {
+			return n.sendImage(msg, log)
+		}
+		if msg.IsAudio() {
+			return n.sendAudio(msg, log)
+		}
+		// Unknown file type: log a warning and fall through to text.
+		log.Warnf("TelegramSendNode %s: unsupported file type '%s', falling back to text",
+			n.NodeUid, msg.GetFile().ContentType)
+	}
+
+	return n.sendText(msg, log)
+}
+
+// sendText sends a plain or formatted text message to Telegram.
+func (n *TelegramSendNode) sendText(msg common.Message, log *logger.Logger) error {
+	text := n.MessageToSend
 	opts := []telegram.MessageOption{}
+
 	if !n.IsCustomMessage {
 		var ok bool
-		message, ok = msg.GetStringFromPayload("message")
+		text, ok = msg.GetStringFromPayload("message")
 		if !ok {
-			return fmt.Errorf("missing message in TelegramNode with UID: %s", n.NodeUid)
+			return fmt.Errorf("TelegramSendNode %s: missing 'message' field in payload", n.NodeUid)
 		}
 
 		if parseMode, ok := msg.GetStringFromPayload("parseMode"); ok && parseMode != "" {
 			if parseMode != telegram.ParseModeHTML && parseMode != telegram.ParseModeMarkdownV2 {
-				log.Warnf("Invalid parse mode '%s' in message payload, defaulting to no parse mode", parseMode)
+				log.Warnf("TelegramSendNode %s: invalid parse mode '%s', defaulting to no parse mode",
+					n.NodeUid, parseMode)
 			} else {
 				opts = append(opts, telegram.WithParseMode(parseMode))
 			}
 		}
-
 	}
 
-	return telegram.SendTelegramMessage(n.BotToken, n.ChatID, message, log, opts...)
+	log.Infof("TelegramSendNode %s: sending text message", n.NodeUid)
+	return telegram.SendTelegramMessage(n.BotToken, n.ChatID, text, log, opts...)
 }
 
+// sendImage sends the attached image to Telegram, with an optional caption.
+func (n *TelegramSendNode) sendImage(msg common.Message, log *logger.Logger) error {
+	file := msg.GetFile()
+	log.Infof("TelegramSendNode %s: sending image '%s' (%s, %d bytes)",
+		n.NodeUid, file.Name, file.ContentType, len(file.Data))
+
+	opts := []telegram.PhotoOption{}
+	if caption := n.captionFor(msg); caption != "" {
+		opts = append(opts, telegram.WithCaption(caption))
+	}
+
+	return telegram.SendTelegramPhoto(n.BotToken, n.ChatID, file.Data, file.Name, log, opts...)
+}
+
+// sendAudio sends the attached audio file to Telegram, with an optional caption.
+func (n *TelegramSendNode) sendAudio(msg common.Message, log *logger.Logger) error {
+	file := msg.GetFile()
+	log.Infof("TelegramSendNode %s: sending audio '%s' (%s, %d bytes)",
+		n.NodeUid, file.Name, file.ContentType, len(file.Data))
+
+	opts := []telegram.AudioOption{}
+	if caption := n.captionFor(msg); caption != "" {
+		opts = append(opts, telegram.WithAudioCaption(caption))
+	}
+
+	return telegram.SendTelegramAudio(n.BotToken, n.ChatID, file.Data, file.Name, log, opts...)
+}
+
+// captionFor returns the caption to attach alongside a media file.
+// For custom-message nodes it uses the configured text; otherwise it reads the
+// optional "message" field from the payload (empty string is acceptable).
+func (n *TelegramSendNode) captionFor(msg common.Message) string {
+	if n.IsCustomMessage {
+		return n.MessageToSend
+	}
+	caption, _ := msg.GetStringFromPayload("message")
+	return caption
+}
 
 func (n *TelegramSendNode) Stop(log *logger.Logger) {
 	if n.GetStatus() != common.NodeStatusRunning {
@@ -131,7 +189,7 @@ func (n *TelegramSendNode) Stop(log *logger.Logger) {
 		n.Cancel()
 	}
 
-    n.wg.Wait()
-    n.SetStatus(common.NodeStatusStopped)
-    log.Infof("Node %s stopped successfully", n.NodeUid)
+	n.wg.Wait()
+	n.SetStatus(common.NodeStatusStopped)
+	log.Infof("TelegramSendNode %s stopped successfully", n.NodeUid)
 }
