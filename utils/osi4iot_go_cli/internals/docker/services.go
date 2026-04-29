@@ -777,14 +777,6 @@ func CreateNatsService(pd *pt.PlatformData, dc *pt.DockerClient, replica int, nu
 	sd.Networks["nats_network"] = *natsNetwork
 
 	sd.Secrets = make(map[string]pt.Secret)
-	if pd.PlatformInfo.UseCustomNatsCACert == "Yes" {
-		caCerts, err := secrets.GetSecretByKey(dc, "iot_platform_ca")
-		if err != nil {
-			return fmt.Errorf("error getting nats secrets: %v", err)
-		}
-		sd.Secrets["iot_platform_ca_cert"] = *caCerts
-	}
-
 	platformCerts, err := secrets.GetSecretByKey(dc, "iot_platform_cert")
 	if err != nil {
 		return fmt.Errorf("error getting nats secrets: %v", err)

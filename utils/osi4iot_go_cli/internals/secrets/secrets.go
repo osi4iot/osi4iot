@@ -58,7 +58,6 @@ func GenerateSecrets(pd *pt.PlatformData) map[string]pt.Secret {
 		fmt.Sprintf("NATS_ADMIN_PASSWORD=%s", pd.Certs.NatsCerts.NatsAdminPassword),
 		fmt.Sprintf("NATS_ISSUER_SEED=%s", pd.Certs.NatsCerts.NatsIssuerSeed),
 		fmt.Sprintf("NATS_XKEY_SEED=%s", pd.Certs.NatsCerts.NatsXKeySeed),
-		fmt.Sprintf("USE_CUSTOM_NATS_CA_CERT=%s", pd.PlatformInfo.UseCustomNatsCACert),
 	}
 	authCalloutSecretsData := strings.Join(authCalloutSecretsDataArray, "\n")
 	authCalloutSecretsHash := utils.GetMD5Hash(authCalloutSecretsData)
@@ -429,7 +428,6 @@ func CreateNatsConfigSecret(
 		NatsIssuerPublicKey: pd.Certs.NatsCerts.NatsIssuerPublicKey,
 		NatsXKeyPublicKey:   pd.Certs.NatsCerts.NatsXKeyPublicKey,
 		ClusterRoutes:       clusterRoutes,
-		UseCustomCACert:     pd.PlatformInfo.UseCustomNatsCACert,
 	}
 
 	cfgStr, _ := utils.NatsRenderConfig(params)
@@ -476,14 +474,6 @@ func CreateCertsSecrets(pd *pt.PlatformData, dc *pt.DockerClient) (map[string]pt
 		}
 
 		certsSecrets["iot_platform_key"] = iotPlatformKeySecret
-
-		if pd.PlatformInfo.UseCustomNatsCACert == "Yes" {
-			iotPlatformCaCertSecret := pt.Secret{
-				Name: pd.Certs.DomainCerts.IotPlatformCaName,
-				Data: pd.Certs.DomainCerts.SslCaPem,
-			}
-			certsSecrets["iot_platform_ca_cert"] = iotPlatformCaCertSecret
-		}
 	}
 	
 	for key, secret := range certsSecrets {

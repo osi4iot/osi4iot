@@ -117,8 +117,6 @@ func SetData(key string, value string) {
 	case "DEFAULT_NUMBER_OF_NATS_REPLICAS":
 		defaultNumNatsReplicas, _ := strconv.Atoi(value)
 		Data.PlatformInfo.DefaultNumOfNatsReplicas = defaultNumNatsReplicas
-	case "USE_CUSTOM_NATS_CA_CERT":
-		Data.PlatformInfo.UseCustomNatsCACert = value
 	case "DEPLOYMENT_LOCATION":
 		Data.PlatformInfo.DeploymentLocation = value
 	case "LOCAL_RESOURCE_UTILIZATION_PERCENTAGE":

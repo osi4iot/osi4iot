@@ -79,7 +79,6 @@ type PlatformInfo struct {
 
 	NumOfNatsNodes           int    `json:"NUMBER_OF_NATS_NODES"`
 	DefaultNumOfNatsReplicas int    `json:"DEFAULT_NUMBER_OF_NATS_REPLICAS"`
-	UseCustomNatsCACert      string `json:"USE_CUSTOM_NATS_CA_CERT"`
 	MQTTSslCertsValidityDays int    `json:"MQTT_SSL_CERTS_VALIDITY_DAYS"`
 	FloatingIPAddress        string `json:"FLOATING_IP_ADDRES"`
 	NetworkInterface         string `json:"NETWORK_INTERFACE"`

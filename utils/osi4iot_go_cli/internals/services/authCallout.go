@@ -27,19 +27,6 @@ func AuthCalloutService(
 		},
 	}
 
-	if pd.PlatformInfo.UseCustomNatsCACert == "Yes" {
-		secrets = append(secrets, &swarm.SecretReference{
-			File: &swarm.SecretReferenceFileTarget{
-				Name: "/etc/nats/ca.pem",
-				UID:  "0",
-				GID:  "0",
-				Mode: 0444,
-			},
-			SecretID:   sd.Secrets["iot_platform_ca_cert"].ID,
-			SecretName: sd.Secrets["iot_platform_ca_cert"].Name,
-		})
-	}
-
 	constraints := []string{
 		"node.role==worker",
 		"node.labels.platform_worker==true",

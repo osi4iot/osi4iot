@@ -179,7 +179,6 @@ func PipelinesConfig(pd *types.PlatformData, numNatsReplicas int) (string, error
 			Username:        pi.PlatformAdminUserName,
 			Password:        pi.PlatformAdminPassword,
 			Timeout:         "15s",
-			UseCustomCACert: pi.UseCustomNatsCACert,
 		},
 		TimescaleDB: TimescaleDBParams{
 			User:     pi.TimescaleUser,
