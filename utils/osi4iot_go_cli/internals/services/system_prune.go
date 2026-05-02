@@ -16,7 +16,16 @@ func SystemPruneService(pd *pt.PlatformData, sd pt.SwarmData, svcResource resour
 		WithImage(image).
 		WithCommand([]string{"docker", "system", "prune", "--all", "--force"}).
 		WithMounts([]mount.Mount{
-			{Type: mount.TypeBind, Source: "/var/run/docker.sock", Target: "/var/run/docker.sock"},
+			{
+				Type:   mount.TypeBind,
+				Source: "/var/run/docker.sock",
+				Target: "/var/run/docker.sock",
+			},
+			{
+				Type:   mount.TypeBind,
+				Source: "/var/lib/docker",
+				Target: "/var/lib/docker",
+			},
 		}).
 		WithResources(
 			svcResource.NanoCPUs,

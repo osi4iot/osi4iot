@@ -79,6 +79,7 @@ func GenerateVolumes(platformData *pt.PlatformData) map[string]pt.Volume {
 
 	if s3BucketType == "Local Minio" {
 		Volumes["minio_storage"] = SetVolumeConfig("minio_storage", deploymentLocation, volOptions)
+		Volumes["minio_data"] = SetVolumeConfig("minio_data", deploymentLocation, volOptions)
 	}
 
 	return Volumes

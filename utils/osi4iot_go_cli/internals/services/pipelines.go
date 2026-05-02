@@ -50,7 +50,8 @@ func PipelinesService(
 		WithMounts([]mount.Mount{
 			{
 				Type:   mount.TypeVolume,
-				Source: sd.Volumes[volName].Name,
+				// Source: sd.Volumes[volName].Name,
+				Source: volName,
 				Target: "/pipelines/data",
 			},
 		}).

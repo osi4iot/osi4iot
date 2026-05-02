@@ -112,6 +112,11 @@ func MinioService(
 				Source: sd.Volumes["minio_storage"].Name,
 				Target: "/mnt/data",
 			},
+			{
+				Type:   mount.TypeVolume,
+				Source: sd.Volumes["minio_data"].Name,
+				Target: "/data",
+			},
 		}).
 		WithResources(
 			svcResources.NanoCPUs,
