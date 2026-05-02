@@ -10,6 +10,7 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/image"
+	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/errdefs"
 	"github.com/osi4iot/osi4iot/utils/osi4iot/internals/configs"
@@ -67,51 +68,131 @@ func RunSwarm(dc *pt.DockerClient, pd *pt.PlatformData) error {
 }
 
 func createSwarmServices(platformData *pt.PlatformData, dc *pt.DockerClient) error {
-	secrets, err := secrets.CreateSwarmSecrets(platformData, dc)
+	createdSecrets, err := secrets.CreateSwarmSecrets(platformData, dc)
 	if err != nil {
 		return fmt.Errorf("error creating swarm secrets: %v", err)
 	}
 
-	configs, err := configs.CreateSwarmConfigs(platformData, dc)
+	createdConfigs, err := configs.CreateSwarmConfigs(platformData, dc)
 	if err != nil {
 		return fmt.Errorf("error creating swarm configs: %v", err)
 	}
 
 	volumesMap := volumes.GenerateVolumes(platformData)
-	volumes, err := volumes.CreateSwarmVolumes(platformData, volumesMap)
+	createdVolumes, err := volumes.CreateSwarmVolumes(platformData, volumesMap)
 	if err != nil {
 		return fmt.Errorf("error creating swarm volumes: %v", err)
 	}
 
-	networks, err := networks.CreateSwarmNetworks(platformData, dc)
+	createdNetworks, err := networks.CreateSwarmNetworks(platformData, dc)
 	if err != nil {
 		return fmt.Errorf("error creating swarm networks: %v", err)
 	}
 
-	// Wait for 10 seconds to ensure that the secrets, configs, volumes, and networks are created
-	time.Sleep(10 * time.Second)
+	if err := waitForSwarmResources(dc, createdSecrets, createdConfigs, createdNetworks); err != nil {
+		return fmt.Errorf("error waiting for swarm resources to be available: %v", err)
+	}
 
 	swarmData := pt.SwarmData{
-		Secrets:  secrets,
-		Configs:  configs,
-		Volumes:  volumes,
-		Networks: networks,
+		Secrets:  createdSecrets,
+		Configs:  createdConfigs,
+		Volumes:  createdVolumes,
+		Networks: createdNetworks,
 	}
 
 	services := services.GenerateServices(platformData, swarmData)
 	for _, service := range services {
-		err := CreateSwarmService(dc, service)
-		if err != nil {
-			return fmt.Errorf("error creating service %s: %v", service.Name, err)
+		if err := CreateSwarmService(dc, service); err != nil {
+			return fmt.Errorf("error creating service '%s': %v", service.Name, err)
 		}
 	}
 
-	err = waitUntilAllContainersAreHealthy(platformData, "all")
-	if err != nil {
+	if err := waitUntilAllContainersAreHealthy(platformData, "all"); err != nil {
 		return fmt.Errorf("error waiting for all containers to be healthy: %v", err)
 	}
 
+
+	allServiceNames := utils.GetAllServiceNames(platformData)
+	
+	knownSecretKeys := secrets.GetKnownSecretKeys(platformData)
+	if err := secrets.RemoveOrphanSecrets(dc, allServiceNames, knownSecretKeys); err != nil {
+		fmt.Printf("Warning: could not clean up orphan secrets: %v\n", err)
+	}
+
+	knownConfigKeys := configs.GetKnownConfigKeys(platformData)
+	if err := configs.RemoveOrphanConfigs(dc, allServiceNames, knownConfigKeys); err != nil {
+		fmt.Printf("Warning: could not clean up orphan configs: %v\n", err)
+	}
+
 	return nil
+}
+
+// waitForSwarmResources checks if the created secrets, configs, and networks are available in the swarm by inspecting them.
+// It retries the inspection multiple times with a delay in between to allow for propagation across the swarm.
+func waitForSwarmResources(
+	dc *pt.DockerClient,
+	createdSecrets map[string]pt.Secret,
+	createdConfigs map[string]pt.Config,
+	createdNetworks map[string]pt.Network,
+) error {
+	maxAttempts := 120
+	interval := 500 * time.Millisecond
+
+	secretIDs := make([]string, 0, len(createdSecrets))
+	for _, s := range createdSecrets {
+		secretIDs = append(secretIDs, s.ID)
+	}
+	configIDs := make([]string, 0, len(createdConfigs))
+	for _, c := range createdConfigs {
+		configIDs = append(configIDs, c.ID)
+	}
+	networkIDs := make([]string, 0, len(createdNetworks))
+	for _, n := range createdNetworks {
+		networkIDs = append(networkIDs, n.ID)
+	}
+
+	done := make(chan bool)
+	utils.Spinner("Waiting for swarm resources to propagate", "Swarm resources are ready", done)
+
+	for attempt := 1; attempt <= maxAttempts; attempt++ {
+		allReady := true
+
+		for _, id := range secretIDs {
+			if _, _, err := dc.Cli.SecretInspectWithRaw(dc.Ctx, id); err != nil {
+				allReady = false
+				break
+			}
+		}
+
+		if allReady {
+			for _, id := range configIDs {
+				if _, _, err := dc.Cli.ConfigInspectWithRaw(dc.Ctx, id); err != nil {
+					allReady = false
+					break
+				}
+			}
+		}
+
+		if allReady {
+			for _, id := range networkIDs {
+				if _, err := dc.Cli.NetworkInspect(dc.Ctx, id, network.InspectOptions{}); err != nil {
+					allReady = false
+					break
+				}
+			}
+		}
+
+		if allReady {
+			done <- true
+			return nil
+		}
+
+		time.Sleep(interval)
+	}
+
+	done <- false
+	return fmt.Errorf("swarm resources not available after %d attempts (%s)",
+		maxAttempts, time.Duration(maxAttempts)*interval)
 }
 
 func CreateSwarmService(dc *pt.DockerClient, swarmService pt.Service) error {

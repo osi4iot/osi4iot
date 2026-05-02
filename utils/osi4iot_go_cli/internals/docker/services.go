@@ -59,19 +59,22 @@ type ServiceUpdateOptions struct {
 	RemoveEnv     []string          // Environment variables to remove
 }
 
+type ServiceUpdateResult struct {
+	Warnings     string
+	OldSecretIDs []string
+	OldConfigIDs []string
+}
+
 func ServiceUpdate(
 	pd *pt.PlatformData,
 	dc *pt.DockerClient,
 	service *swarm.Service,
 	serviceName string,
 	options ServiceUpdateOptions,
-) (string, error) {
-	var oldSecretIDs []string
-	var oldConfigIDs []string
-	warningMessages := ""
+) (ServiceUpdateResult, error) {
+	result := ServiceUpdateResult{}
 	serviceUpdateOptions := types.ServiceUpdateOptions{}
 
-	// Determine if this is a rolling update (anything other than just replica scaling)
 	isRollingUpdate := len(options.SecretsUpdate) > 0 ||
 		len(options.ConfigsUpdate) > 0 ||
 		options.Resources != nil ||
@@ -79,7 +82,6 @@ func ServiceUpdate(
 		len(options.Env) > 0 ||
 		len(options.RemoveEnv) > 0
 
-	// Get target replicas (current or new)
 	targetReplicas := uint64(0)
 	if service.Spec.Mode.Replicated != nil && service.Spec.Mode.Replicated.Replicas != nil {
 		targetReplicas = *service.Spec.Mode.Replicated.Replicas
@@ -88,7 +90,7 @@ func ServiceUpdate(
 		targetReplicas = *options.Replicas
 	}
 
-	// 1. Update replicas if specified
+	// 1. Replicas
 	if options.Replicas != nil {
 		if service.Spec.Mode.Replicated == nil {
 			service.Spec.Mode.Replicated = &swarm.ReplicatedService{}
@@ -96,23 +98,20 @@ func ServiceUpdate(
 		service.Spec.Mode.Replicated.Replicas = options.Replicas
 	}
 
-	// 2. Update secrets if specified
+	// 2. Secrets
 	if len(options.SecretsUpdate) > 0 {
 		for _, secretUpdate := range options.SecretsUpdate {
-			// Find and replace the secret reference in the service
 			secretFound := false
 			for i, secretRef := range service.Spec.TaskTemplate.ContainerSpec.Secrets {
 				if secretRef.SecretName == secretUpdate.OldSecretName {
-					oldSecretIDs = append(oldSecretIDs, secretRef.SecretID)
+					result.OldSecretIDs = append(result.OldSecretIDs, secretRef.SecretID)
 
-					// Determine the target file
 					targetFile := secretUpdate.TargetFile
 					if targetFile == "" && secretRef.File != nil {
 						targetFile = secretRef.File.Name
 					}
 
-					// Create new reference
-					newSecretRef := &swarm.SecretReference{
+					service.Spec.TaskTemplate.ContainerSpec.Secrets[i] = &swarm.SecretReference{
 						SecretID:   secretUpdate.SecretID,
 						SecretName: secretUpdate.NewSecretName,
 						File: &swarm.SecretReferenceFileTarget{
@@ -122,49 +121,42 @@ func ServiceUpdate(
 							Mode: 0444,
 						},
 					}
-
-					service.Spec.TaskTemplate.ContainerSpec.Secrets[i] = newSecretRef
 					secretFound = true
 					break
 				}
 			}
-
 			if !secretFound {
-				return "", fmt.Errorf("secret %s not found in service %s", secretUpdate.NewSecretName, serviceName)
+				return result, fmt.Errorf("secret '%s' not found in service '%s'", secretUpdate.OldSecretName, serviceName)
 			}
 		}
 	}
 
-	// 3. Update configs if specified
+	// 3. Configs
 	if len(options.ConfigsUpdate) > 0 {
 		for _, configUpdate := range options.ConfigsUpdate {
-			// Create the new config with hash
 			configHash := utils.GetMD5Hash(configUpdate.NewConfigData)
 			newConfigName := fmt.Sprintf("%s_%s", configUpdate.ConfigKey, configHash)
 			newConfig := pt.Config{
 				Name: newConfigName,
 				Data: configUpdate.NewConfigData,
 			}
-			configCreateResponse, err := configs.CreateConfig(dc, configUpdate.ConfigKey, &newConfig)
+			newConfigID, err := configs.CreateConfig(dc, &newConfig)
 			if err != nil {
-				return "", fmt.Errorf("error creating new config %s: %v", newConfigName, err)
+				return result, fmt.Errorf("error creating new config '%s': %v", newConfigName, err)
 			}
 
-			// Find and replace the config reference in the service
 			configFound := false
 			for i, configRef := range service.Spec.TaskTemplate.ContainerSpec.Configs {
 				if configRef.ConfigName == configUpdate.OldConfigName {
-					oldConfigIDs = append(oldConfigIDs, configRef.ConfigID)
+					result.OldConfigIDs = append(result.OldConfigIDs, configRef.ConfigID)
 
-					// Determine the target file
 					targetFile := configUpdate.TargetFile
 					if targetFile == "" && configRef.File != nil {
 						targetFile = configRef.File.Name
 					}
 
-					// Create new reference
-					newConfigRef := &swarm.ConfigReference{
-						ConfigID:   configCreateResponse.ID,
+					service.Spec.TaskTemplate.ContainerSpec.Configs[i] = &swarm.ConfigReference{
+						ConfigID:   newConfigID,
 						ConfigName: newConfigName,
 						File: &swarm.ConfigReferenceFileTarget{
 							Name: targetFile,
@@ -173,26 +165,21 @@ func ServiceUpdate(
 							Mode: 0444,
 						},
 					}
-
-					service.Spec.TaskTemplate.ContainerSpec.Configs[i] = newConfigRef
 					configFound = true
 					break
 				}
 			}
-
 			if !configFound {
-				return "", fmt.Errorf("config %s not found in service %s", configUpdate.ConfigKey, serviceName)
+				return result, fmt.Errorf("config '%s' not found in service '%s'", configUpdate.ConfigKey, serviceName)
 			}
 		}
 	}
 
-	// 4. Update resources if specified
+	// 4. Resources
 	if options.Resources != nil {
 		if service.Spec.TaskTemplate.Resources == nil {
 			service.Spec.TaskTemplate.Resources = &swarm.ResourceRequirements{}
 		}
-
-		// Limits
 		if options.Resources.CPULimit > 0 || options.Resources.MemoryLimit > 0 {
 			if service.Spec.TaskTemplate.Resources.Limits == nil {
 				service.Spec.TaskTemplate.Resources.Limits = &swarm.Limit{}
@@ -204,8 +191,6 @@ func ServiceUpdate(
 				service.Spec.TaskTemplate.Resources.Limits.MemoryBytes = options.Resources.MemoryLimit
 			}
 		}
-
-		// Reservations
 		if options.Resources.CPUReservation > 0 || options.Resources.MemoryReservation > 0 {
 			if service.Spec.TaskTemplate.Resources.Reservations == nil {
 				service.Spec.TaskTemplate.Resources.Reservations = &swarm.Resources{}
@@ -219,38 +204,28 @@ func ServiceUpdate(
 		}
 	}
 
-	// 5. Update image if specified
+	// 5. Image
 	if options.Image != nil {
 		service.Spec.TaskTemplate.ContainerSpec.Image = *options.Image
 	}
 
-	// 6. Update environment variables
+	// 6. Env vars
 	if len(options.Env) > 0 || len(options.RemoveEnv) > 0 {
-		// Create a map of existing variables
 		envMap := make(map[string]string)
 		for _, envVar := range service.Spec.TaskTemplate.ContainerSpec.Env {
-			// Parse KEY=VALUE
 			for i := 0; i < len(envVar); i++ {
 				if envVar[i] == '=' {
-					key := envVar[:i]
-					value := envVar[i+1:]
-					envMap[key] = value
+					envMap[envVar[:i]] = envVar[i+1:]
 					break
 				}
 			}
 		}
-
-		// Remove specified variables
 		for _, key := range options.RemoveEnv {
 			delete(envMap, key)
 		}
-
-		// Add or update variables
 		for key, value := range options.Env {
 			envMap[key] = value
 		}
-
-		// Rebuild the environment variables slice
 		newEnv := make([]string, 0, len(envMap))
 		for key, value := range envMap {
 			newEnv = append(newEnv, fmt.Sprintf("%s=%s", key, value))
@@ -258,72 +233,44 @@ func ServiceUpdate(
 		service.Spec.TaskTemplate.ContainerSpec.Env = newEnv
 	}
 
-	// 7. Update the service with all changes
+	// 7. Apply the update in Docker
 	response, err := dc.Cli.ServiceUpdate(dc.Ctx, service.ID, service.Version, service.Spec, serviceUpdateOptions)
 	if err != nil {
-		return "", fmt.Errorf("error updating service %s: %v", serviceName, err)
+		return result, fmt.Errorf("error updating service '%s': %v", serviceName, err)
 	}
 
-	// 8. Monitor the update progress
+	// 8. Monitor until completion — returns error if it fails or rolls back
 	if isRollingUpdate {
-		// Monitor rolling update (secrets, configs, image, resources, env changes)
-		err = utils.MonitorServiceRollingUpdate(dc, service.ID, targetReplicas)
-		if err != nil {
-			return "", fmt.Errorf("error monitoring service update: %v", err)
+		if err := utils.MonitorServiceRollingUpdate(dc, service.ID, targetReplicas); err != nil {
+			return result, fmt.Errorf("error monitoring rolling update for service '%s': %v", serviceName, err)
 		}
 	} else if options.Replicas != nil {
-		// Monitor simple scaling operation
-		err = utils.MonitorServiceScaleWithProgressBar(dc, service.ID, targetReplicas)
-		if err != nil {
-			return "", fmt.Errorf("error monitoring service scale: %v", err)
+		if err := utils.MonitorServiceScaleWithProgressBar(dc, service.ID, targetReplicas); err != nil {
+			return result, fmt.Errorf("error monitoring scale for service '%s': %v", serviceName, err)
 		}
 	}
 
-	// 9. Process warnings
-	if len(response.Warnings) > 0 {
-		for _, warning := range response.Warnings {
-			warningMessages += fmt.Sprintf("  - %s\n", warning)
-		}
+	// 9. API warnings
+	for _, warning := range response.Warnings {
+		result.Warnings += fmt.Sprintf("  - %s\n", warning)
 	}
 
-	// 10. Update platform data if replicas were changed
+	// 10. Update platform data if replicas changed
 	if options.Replicas != nil {
 		svcIdx, svcData, err := utils.FindServiceDataByName(pd, serviceName)
 		if err != nil {
-			return warningMessages, fmt.Errorf("error finding service data: %v", err)
+			return result, fmt.Errorf("error finding service data: %v", err)
 		}
-
 		svcData.Replicas = int(*options.Replicas)
 		pd.PlatformInfo.ServicesData[svcIdx] = *svcData
-		err = utils.WritePlatformDataToFile(pd)
-		if err != nil {
-			return warningMessages, fmt.Errorf("error writing platform data to file: %v", err)
+		if err := utils.WritePlatformDataToFile(pd); err != nil {
+			return result, fmt.Errorf("error writing platform data to file: %v", err)
 		}
 	}
 
-	// 11. Wait before removing old secrets and configs (give time for rolling update)
-	if len(oldSecretIDs) > 0 || len(oldConfigIDs) > 0 {
-		// Wait for old tasks to finish
-		time.Sleep(10 * time.Second)
-
-		// Remove old secrets
-		for _, oldSecretID := range oldSecretIDs {
-			err := dc.Cli.SecretRemove(dc.Ctx, oldSecretID)
-			if err != nil {
-				warningMessages += fmt.Sprintf("  - Warning: Could not remove old secret %s: %v\n", oldSecretID, err)
-			}
-		}
-
-		// Remove old configs
-		for _, oldConfigID := range oldConfigIDs {
-			err := dc.Cli.ConfigRemove(dc.Ctx, oldConfigID)
-			if err != nil {
-				warningMessages += fmt.Sprintf("  - Warning: Could not remove old config %s: %v\n", oldConfigID, err)
-			}
-		}
-	}
-
-	return warningMessages, nil
+	// OldSecretIDs and OldConfigIDs are returned to the caller so they can be removed
+	// once ALL services have completed their rolling update.
+	return result, nil
 }
 
 func RemoveSwarmServicesByName(dc *pt.DockerClient, svcNamesToRemove []string) error {
@@ -365,24 +312,6 @@ func ListSwarmServices(dc *pt.DockerClient) ([]swarm.Service, error) {
 	}
 
 	return services, nil
-}
-
-func InspectService(dc *pt.DockerClient, serviceName string) (*swarm.Service, error) {
-	filterArgs := filters.NewArgs()
-	filterArgs.Add("label", "app=osi4iot")
-	filterArgs.Add("name", serviceName)
-	services, err := dc.Cli.ServiceList(dc.Ctx, types.ServiceListOptions{
-		Filters: filterArgs,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("error listing services: %v", err)
-	}
-
-	if len(services) == 0 {
-		return nil, fmt.Errorf("service %s not found", serviceName)
-	}
-
-	return &services[0], nil
 }
 
 func GetSwarmNetworks(dc *pt.DockerClient) ([]network.Summary, error) {
@@ -454,7 +383,7 @@ func UpdateSwarmServiceResources(
 	mem int64,
 	cpu float64,
 ) (string, error) {
-	service, err := InspectService(dc, serviceName)
+	service, err := utils.GetSwarmServiceByName(dc, serviceName)
 	if err != nil {
 		return "", fmt.Errorf("error inspecting service: %v", err)
 	}
@@ -469,7 +398,7 @@ func UpdateSwarmServiceResources(
 			MemoryReservation: memoryBytes,
 		},
 	}
-	warningMessages, err := ServiceUpdate(pd, dc, service, serviceName, updateOptions)
+	updateResult, err := ServiceUpdate(pd, dc, service, serviceName, updateOptions)
 	if err != nil {
 		return "", fmt.Errorf("error updating service resources: %v", err)
 	}
@@ -482,12 +411,11 @@ func UpdateSwarmServiceResources(
 	svcData.Cpu = fmt.Sprintf("%sCPU", strconv.FormatFloat(cpu, 'f', 2, 64))
 	svcData.Memory = fmt.Sprintf("%sMb", strconv.FormatInt(mem, 10))
 	pd.PlatformInfo.ServicesData[svcIdx] = *svcData
-	err = utils.WritePlatformDataToFile(pd)
-	if err != nil {
+	if err := utils.WritePlatformDataToFile(pd); err != nil {
 		return "", fmt.Errorf("error writing platform data to file: %v", err)
 	}
 
-	return warningMessages, nil
+	return updateResult.Warnings, nil
 }
 
 func UpdateSwarmServiceImage(
@@ -496,7 +424,7 @@ func UpdateSwarmServiceImage(
 	serviceName string,
 	image string,
 ) (string, error) {
-	service, err := InspectService(dc, serviceName)
+	service, err := utils.GetSwarmServiceByName(dc, serviceName)
 	if err != nil {
 		return "", fmt.Errorf("error inspecting service: %v", err)
 	}
@@ -504,7 +432,7 @@ func UpdateSwarmServiceImage(
 	updateOptions := ServiceUpdateOptions{
 		Image: &image,
 	}
-	warningMessages, err := ServiceUpdate(pd, dc, service, serviceName, updateOptions)
+	updateResult, err := ServiceUpdate(pd, dc, service, serviceName, updateOptions)
 	if err != nil {
 		return "", fmt.Errorf("error updating service image: %v", err)
 	}
@@ -521,82 +449,83 @@ func UpdateSwarmServiceImage(
 		return "", fmt.Errorf("error writing platform data to file: %v", err)
 	}
 
-	return warningMessages, nil
+	return updateResult.Warnings, nil
 }
 
 func ScaleSwarmService(pd *pt.PlatformData, dc *pt.DockerClient, serviceName string, replicas uint64) (string, error) {
 	var currentReplicas uint64
 	var service *swarm.Service
 	var err error
-	if serviceName == "nats" {
-		if serviceName == "nats" && utils.IsEven(replicas) {
-			errMsg := "NATS service requires an odd number of replicas: (1, 3, 5, ...)"
-			return "", fmt.Errorf("%s", errMsg)
-		}
 
+	if serviceName == "nats" {
+		if utils.IsEven(replicas) {
+			return "", fmt.Errorf("NATS service requires an odd number of replicas: (1, 3, 5, ...)")
+		}
 		currentReplicas, err = GetNatsReplicas(dc)
 		if err != nil {
 			return "", fmt.Errorf("error getting current nats replicas: %v", err)
 		}
 	} else {
-		service, err = InspectService(dc, serviceName)
+		service, err = utils.GetSwarmServiceByName(dc, serviceName)
 		if err != nil {
 			return "", fmt.Errorf("error inspecting service: %v", err)
 		}
-
 		if service.Spec.Mode.Replicated == nil {
 			return "", fmt.Errorf("service '%s' is in global mode and cannot be scaled", serviceName)
 		}
-
 		currentReplicas = *service.Spec.Mode.Replicated.Replicas
 		if currentReplicas == replicas {
-			message := fmt.Sprintf("Service '%s' is already scaled to %d replicas", serviceName, replicas)
-			return message, nil
+			return fmt.Sprintf("Service '%s' is already scaled to %d replicas", serviceName, replicas), nil
 		}
 	}
 
 	pi := pd.PlatformInfo
 	warningMessages := ""
+	var allOldSecretIDs []string
+
 	switch serviceName {
 	case "pipelines":
+		// Create volumes for new replicas before scaling up — the monitor inside ServiceUpdate ensures stabilization
 		for replica := currentReplicas + 1; replica <= replicas; replica++ {
-			err = volumes.CreatePipelinesVolume(pi, dc, int(replica))
-			if err != nil {
-				return "", fmt.Errorf("error creating pipelines volume for new replica %d: %v", replica, err)
+			if err := volumes.CreatePipelinesVolume(pi, dc, int(replica)); err != nil {
+				return "", fmt.Errorf("error creating pipelines volume for replica %d: %v", replica, err)
 			}
 		}
-		updateOptions := ServiceUpdateOptions{
+
+		updateResult, err := ServiceUpdate(pd, dc, service, serviceName, ServiceUpdateOptions{
 			Replicas: &replicas,
-		}
-		warningMessages, err = ServiceUpdate(pd, dc, service, serviceName, updateOptions)
+		})
 		if err != nil {
 			return "", fmt.Errorf("error updating pipelines service: %v", err)
 		}
+		warningMessages += updateResult.Warnings
 
-		if replicas < currentReplicas {
-			time.Sleep(10 * time.Second) // Wait for the service to stabilize
-			for replica := replicas + 1; replica <= currentReplicas; replica++ {
-				fmt.Println("Removing pipelines volume for removed replica", replica)
-				err = volumes.RemovePipelinesVolume(dc, int(replica))
-				if err != nil {
-					return "", fmt.Errorf("error removing pipelines volume for removed replica %d: %v", replica, err)
-				}
+		// Remove pipelines volumes for removed replicas — the monitor already ensured
+		// that the scale down completed before reaching here
+		for replica := replicas + 1; replica <= currentReplicas; replica++ {
+			fmt.Println("Removing pipelines volume for removed replica", replica)
+			if err := volumes.RemovePipelinesVolume(dc, int(replica)); err != nil {
+				return "", fmt.Errorf("error removing pipelines volume for replica %d: %v", replica, err)
 			}
 		}
+
 	case "nats":
-		// Fase 1: Create new nats config secret
 		numNodes := len(pd.PlatformInfo.NodesData)
+
+		// Step 1: Create new nats config secret
 		oldNatsConfigSecret, err := secrets.GetSecretByKey(dc, "nats_config")
 		if err != nil {
 			return "", fmt.Errorf("error getting old nats config secret: %v", err)
 		}
 
 		natsConfigSecret := secrets.CreateNatsConfigSecret(pd, int(replicas))
-		err = secrets.CreateSecretByName(dc, &natsConfigSecret)
+		id, err := secrets.CreateSecret(dc, &natsConfigSecret)
 		if err != nil {
-			return "", fmt.Errorf("error creating secret nats_config: %v", err)
+			return "", fmt.Errorf("error creating nats_config secret: %v", err)
 		}
-		secretUpdateConfig := SecretUpdateConfig{
+		natsConfigSecret.ID = id
+
+		natsSecretUpdateConfig := SecretUpdateConfig{
 			SecretKey:     "nats_config",
 			SecretID:      natsConfigSecret.ID,
 			NewSecretName: natsConfigSecret.Name,
@@ -604,62 +533,60 @@ func ScaleSwarmService(pd *pt.PlatformData, dc *pt.DockerClient, serviceName str
 			NewSecretData: natsConfigSecret.Data,
 			TargetFile:    "/etc/nats/nats.conf",
 		}
-		updateOptions := ServiceUpdateOptions{
-			SecretsUpdate: []SecretUpdateConfig{secretUpdateConfig},
+		natsUpdateOptions := ServiceUpdateOptions{
+			SecretsUpdate: []SecretUpdateConfig{natsSecretUpdateConfig},
 		}
 
-		// Fase 2: Scale up nats services if needed
+		// Step 2: Scale up if needed — the monitor inside ServiceUpdate ensures stabilization
 		for replica := currentReplicas + 1; replica <= replicas; replica++ {
-			err = CreateNatsService(pd, dc, int(replica), int(replicas), natsConfigSecret)
-			if err != nil {
-				return "", fmt.Errorf("error creating nats service for new replica %d: %v", replica, err)
+			if err := CreateNatsService(pd, dc, int(replica), int(replicas), natsConfigSecret); err != nil {
+				return "", fmt.Errorf("error creating nats service for replica %d: %v", replica, err)
 			}
 		}
 
-		// Fase 3: Scale down nats services if needed
+		// Step 3: Scale down if needed — the monitor inside RemoveNatsService (or Docker itself) ensures stabilization
 		if replicas < currentReplicas {
 			fmt.Println("Removing extra nats services")
 			for replica := replicas + 1; replica <= currentReplicas; replica++ {
-				err = RemoveNatsService(dc, int(replica))
-				if err != nil {
+				if err := RemoveNatsService(dc, int(replica)); err != nil {
 					return "", err
 				}
 			}
-			time.Sleep(10 * time.Second) // Wait for the services to stabilize
 		}
 
-		// Fase 4: Update existing nats services to new configuration
+		// Step 4: Update existing nats services with the new configuration
 		if AreNeededNatsDependentServiceUpdates(currentReplicas, replicas) {
 			fmt.Println("\nUpdating existing nats services to new configuration")
 			existingNatsServices := utils.Min(int(currentReplicas), int(replicas))
 			for replica := 1; replica <= existingNatsServices; replica++ {
 				natsServiceName := fmt.Sprintf("nats%d", replica)
 				fmt.Printf("\nUpdating nats service %s:", natsServiceName)
-				service, err := InspectService(dc, natsServiceName)
+
+				natsSvc, err := utils.GetSwarmServiceByName(dc, natsServiceName)
 				if err != nil {
-					return "", fmt.Errorf("error inspecting nats service %s: %v", natsServiceName, err)
+					return "", fmt.Errorf("error inspecting nats service '%s': %v", natsServiceName, err)
 				}
 				if numNodes == 1 && replicas > 1 {
-					service.Spec.UpdateConfig.Order = swarm.UpdateOrderStopFirst
-					service.Spec.RollbackConfig.Order = swarm.UpdateOrderStopFirst
+					natsSvc.Spec.UpdateConfig.Order = swarm.UpdateOrderStopFirst
+					natsSvc.Spec.RollbackConfig.Order = swarm.UpdateOrderStopFirst
 				}
-				warningMessages, err = ServiceUpdate(pd, dc, service, natsServiceName, updateOptions)
+
+				updateResult, err := ServiceUpdate(pd, dc, natsSvc, natsServiceName, natsUpdateOptions)
 				if err != nil {
-					return "", fmt.Errorf("error updating nats service: %v", err)
+					return "", fmt.Errorf("error updating nats service '%s': %v", natsServiceName, err)
 				}
-				if warningMessages != "" {
-					fmt.Println(warningMessages)
-				}
+				warningMessages += updateResult.Warnings
+				allOldSecretIDs = append(allOldSecretIDs, updateResult.OldSecretIDs...)
 			}
 		}
 
-		// Fase 5: Check health of all nats containers
-		err = waitUntilAllContainersAreHealthy(pd, "nats")
-		if err != nil {
+		// Step 5: Wait until all nats containers are healthy —
+		// this ensures that the new config is loaded and the service is stable before updating dependent services
+		if err := waitUntilAllContainersAreHealthy(pd, "nats"); err != nil {
 			return "", fmt.Errorf("error waiting for nats containers to be healthy: %v", err)
 		}
 
-		// Fase 6: Update nats dependent services to use new nats config secret
+		// Step 6: Update nats dependent services
 		if AreNeededNatsDependentServiceUpdates(currentReplicas, replicas) {
 			natsDependentServices := []string{"admin_api", "pipelines"}
 			secretsKeys := map[string]string{
@@ -670,59 +597,68 @@ func ScaleSwarmService(pd *pt.PlatformData, dc *pt.DockerClient, serviceName str
 				"admin_api": "admin_api.txt",
 				"pipelines": "/pipelines/config.yaml",
 			}
+
 			for _, dependentService := range natsDependentServices {
 				fmt.Printf("\nUpdating %s service to use new nats config:", dependentService)
-				service, err := InspectService(dc, dependentService)
+
+				depSvc, err := utils.GetSwarmServiceByName(dc, dependentService)
 				if err != nil {
-					return "", fmt.Errorf("error inspecting %s service: %v", dependentService, err)
+					return "", fmt.Errorf("error inspecting '%s' service: %v", dependentService, err)
 				}
 
 				oldSecret, err := secrets.GetSecretByKey(dc, secretsKeys[dependentService])
 				if err != nil {
-					return "", fmt.Errorf("error getting old secret for %s service: %v", dependentService, err)
+					return "", fmt.Errorf("error getting old secret for '%s': %v", dependentService, err)
 				}
 
 				newSecret, err := CreateNatsDependentServiceSecrets(pd, dc, dependentService, int(replicas))
 				if err != nil {
-					return "", fmt.Errorf("error creating new secret for %s service: %v", dependentService, err)
+					return "", fmt.Errorf("error creating new secret for '%s': %v", dependentService, err)
 				}
-				secretUpdateConfig := SecretUpdateConfig{
-					SecretKey:     secretsKeys[dependentService],
-					SecretID:      newSecret.ID,
-					NewSecretName: newSecret.Name,
-					OldSecretName: oldSecret.Name,
-					NewSecretData: newSecret.Data,
-					TargetFile:    targetFiles[dependentService],
-				}
-				updateOptions := ServiceUpdateOptions{
-					SecretsUpdate: []SecretUpdateConfig{secretUpdateConfig},
-				}
-				warningMessages, err = ServiceUpdate(pd, dc, service, dependentService, updateOptions)
+
+				updateResult, err := ServiceUpdate(pd, dc, depSvc, dependentService, ServiceUpdateOptions{
+					SecretsUpdate: []SecretUpdateConfig{{
+						SecretKey:     secretsKeys[dependentService],
+						SecretID:      newSecret.ID,
+						NewSecretName: newSecret.Name,
+						OldSecretName: oldSecret.Name,
+						NewSecretData: newSecret.Data,
+						TargetFile:    targetFiles[dependentService],
+					}},
+				})
 				if err != nil {
-					return "", fmt.Errorf("error updating %s service: %v", dependentService, err)
+					return "", fmt.Errorf("error updating '%s' service: %v", dependentService, err)
 				}
-				if warningMessages != "" {
-					fmt.Println(warningMessages)
-				}
+				warningMessages += updateResult.Warnings
+				allOldSecretIDs = append(allOldSecretIDs, updateResult.OldSecretIDs...)
 			}
 		}
 
 	default:
-		updateOptions := ServiceUpdateOptions{
+		updateResult, err := ServiceUpdate(pd, dc, service, serviceName, ServiceUpdateOptions{
 			Replicas: &replicas,
+		})
+		if err != nil {
+			return "", fmt.Errorf("error scaling service '%s': %v", serviceName, err)
 		}
-		warningMessages, err = ServiceUpdate(pd, dc, service, serviceName, updateOptions)
+		warningMessages += updateResult.Warnings
 	}
 
+	// Remove old secrets — all updates completed successfully
+	for _, oldSecretID := range allOldSecretIDs {
+		if err := dc.Cli.SecretRemove(dc.Ctx, oldSecretID); err != nil {
+			warningMessages += fmt.Sprintf("  - Warning: could not remove old secret '%s': %v\n", oldSecretID, err)
+		}
+	}
+
+	// Update platform data
 	svcIdx, svcData, err := utils.FindServiceDataByName(pd, serviceName)
 	if err != nil {
 		return "", fmt.Errorf("error finding service data: %v", err)
 	}
-
 	svcData.Replicas = int(replicas)
 	pd.PlatformInfo.ServicesData[svcIdx] = *svcData
-	err = utils.WritePlatformDataToFile(pd)
-	if err != nil {
+	if err := utils.WritePlatformDataToFile(pd); err != nil {
 		return "", fmt.Errorf("error writing platform data to file: %v", err)
 	}
 
@@ -824,7 +760,7 @@ func CreateNatsService(pd *pt.PlatformData, dc *pt.DockerClient, replica int, nu
 
 func RemoveNatsService(dc *pt.DockerClient, replica int) error {
 	serviceName := fmt.Sprintf("nats%d", replica)
-	service, err := InspectService(dc, serviceName)
+	service, err := utils.GetSwarmServiceByName(dc, serviceName)
 	if err != nil {
 		return fmt.Errorf("error inspecting nats service %s: %v", serviceName, err)
 	}
@@ -869,85 +805,181 @@ func UpdateCertsInServices(
 	pd *pt.PlatformData,
 	dc *pt.DockerClient,
 ) (string, error) {
+	// 1. Build the list of services to update
 	numNatsReplicas, err := GetNatsReplicas(dc)
 	if err != nil {
 		return "", fmt.Errorf("error getting nats replicas: %v", err)
 	}
 
-	servicesToUpdate := []string{
-		"traefik",
-	}
+	servicesToUpdate := []string{"traefik"}
 	for i := 1; i <= int(numNatsReplicas); i++ {
-		natsServiceName := fmt.Sprintf("nats%d", i)
-		servicesToUpdate = append(servicesToUpdate, natsServiceName)
+		servicesToUpdate = append(servicesToUpdate, fmt.Sprintf("nats%d", i))
 	}
 
-	certsSecrets, err := secrets.CreateCertsSecrets(pd, dc)
-	if err != nil {
-		return "", fmt.Errorf("error creating certs secrets: %v", err)
+	// 2. File mount paths by service family and secret key
+	targetFiles := map[string]map[string]string{
+		"nats": {
+			"iot_platform_cert": "/etc/nats/cert.pem",
+			"iot_platform_key":  "/etc/nats/key.pem",
+		},
+		"traefik": {
+			"iot_platform_cert": "iot_platform_cert.cer",
+			"iot_platform_key":  "iot_platform.key",
+		},
 	}
-	secretUpdateConfigs := []SecretUpdateConfig{}
-	for secretKey, certSecret := range certsSecrets {
-		oldCertSecret, err := secrets.GetSecretByKey(dc, secretKey)
-		if err != nil {
-			return "", fmt.Errorf("error getting old cert secret %s: %v", secretKey, err)
+
+	// 3. Clean up orphan secrets from previous failed runs
+	// An orphan secret is one whose name contains any of the known keys but is not referenced by any active service.
+	knownSecretKeys := make([]string, 0, len(targetFiles))
+	for _, paths := range targetFiles {
+		for key := range paths {
+			knownSecretKeys = append(knownSecretKeys, key)
 		}
+	}
+	knownSecretKeys = uniqueStrings(knownSecretKeys)
 
-		err = secrets.CreateSecretByName(dc, &certSecret)
-		if err != nil {
-			return "", fmt.Errorf("error creating new cert secret %s in docker: %v", secretKey, err)
-		}
-
-		secretUpdateConfig := creatSecretUpdateConfig(secretKey, certSecret, oldCertSecret.Name, "")
-		secretUpdateConfigs = append(secretUpdateConfigs, secretUpdateConfig)
+	if err := secrets.RemoveOrphanSecrets(dc, servicesToUpdate, knownSecretKeys); err != nil {
+		// Not a fatal error: we warn but continue
+		fmt.Printf("Warning: could not clean up orphan secrets: %v\n", err)
 	}
 
-	warningMessages := ""
+	// ── 4. Get the current (old) secrets before creating the new ones ─────────
+	//
+	// Indexed by secretKey for O(1) access later.
+	oldSecrets := make(map[string]pt.Secret, len(knownSecretKeys))
+	for _, secretKey := range knownSecretKeys {
+		oldSecret, err := secrets.GetSecretByKey(dc, secretKey)
+		if err != nil {
+			return "", fmt.Errorf("error getting current secret '%s': %v", secretKey, err)
+		}
+		oldSecrets[secretKey] = *oldSecret
+	}
+
+	// ── 5. Validate that each service references the expected secrets ─────────
+	//
+	// We perform this check BEFORE creating anything in Docker to avoid
+	// orphan secrets if a service does not reference the expected secret.
 	for _, serviceName := range servicesToUpdate {
-		service, err := InspectService(dc, serviceName)
+		service, err := utils.GetSwarmServiceByName(dc, serviceName)
 		if err != nil {
-			return "", fmt.Errorf("error inspecting service %s: %v", serviceName, err)
+			return "", fmt.Errorf("error inspecting service '%s': %v", serviceName, err)
 		}
 
-		if strings.HasPrefix(serviceName, "nats") {
-			// For nats services, set the target file for the certs
-			for i, secretUpdateConfig := range secretUpdateConfigs {
-				switch secretUpdateConfig.SecretKey {
-				case "iot_platform_cert":
-					secretUpdateConfigs[i].TargetFile = "/etc/nats/cert.pem"
-				case "iot_platform_key":
-					secretUpdateConfigs[i].TargetFile = "/etc/nats/key.pem"
-				case "iot_platform_ca_cert":
-					secretUpdateConfigs[i].TargetFile = "/etc/nats/ca.pem"
-				}
+		serviceFamily := resolveServiceFamily(serviceName)
+		pathsForService, ok := targetFiles[serviceFamily]
+		if !ok {
+			return "", fmt.Errorf("no target file mapping for service family '%s'", serviceFamily)
+		}
+
+		for secretKey := range pathsForService {
+			oldSecret := oldSecrets[secretKey]
+			if !serviceHasSecret(service, oldSecret.Name) {
+				return "", fmt.Errorf(
+					"service '%s' does not reference secret '%s' — aborting before creating any new secret",
+					serviceName, oldSecret.Name,
+				)
 			}
 		}
+	}
 
-		if serviceName == "traefik" {
-			// For traefik service, set the target file for the certs
-			for i, secretUpdateConfig := range secretUpdateConfigs {
-				switch secretUpdateConfig.SecretKey {
-				case "iot_platform_cert":
-					secretUpdateConfigs[i].TargetFile = "iot_platform_cert.cer"
-				case "iot_platform_key":
-					secretUpdateConfigs[i].TargetFile = "iot_platform.key"
-				}
-			}
+	// ── 6. Create the new secrets in Docker ────────────────────────────────
+	//
+	// We only reach this point if all validations passed.
+	newSecrets, err := secrets.CreateCertsSecrets(pd, dc)
+	if err != nil {
+		return "", fmt.Errorf("error creating new cert secrets: %v", err)
+	}
+
+	// Register the IDs of the old secrets to remove them at the end.
+	oldSecretIDs := make([]string, 0, len(oldSecrets))
+	for _, old := range oldSecrets {
+		oldSecretIDs = append(oldSecretIDs, old.ID)
+	}
+
+	// ── 7. Update each service with the new secrets ─────────────────────────
+	warningMessages := ""
+
+	for _, serviceName := range servicesToUpdate {
+		service, err := utils.GetSwarmServiceByName(dc, serviceName)
+		if err != nil {
+			return "", fmt.Errorf("error inspecting service '%s': %v", serviceName, err)
 		}
 
-		updateOptions := ServiceUpdateOptions{
+		serviceFamily := resolveServiceFamily(serviceName)
+		pathsForService := targetFiles[serviceFamily]
+
+		secretUpdateConfigs := make([]SecretUpdateConfig, 0, len(newSecrets))
+		for secretKey, newSecret := range newSecrets {
+			targetFile, defined := pathsForService[secretKey]
+			if !defined {
+				continue
+			}
+			oldSecret := oldSecrets[secretKey]
+			secretUpdateConfigs = append(secretUpdateConfigs, creatSecretUpdateConfig(
+				secretKey,
+				newSecret,
+				oldSecret.Name,
+				targetFile,
+			))
+		}
+
+		if len(secretUpdateConfigs) == 0 {
+			fmt.Printf("No cert secrets to update for service '%s', skipping\n", serviceName)
+			continue
+		}
+
+		fmt.Printf("\nUpdating service '%s' with new certificates:\n", serviceName)
+		updateResult, err := ServiceUpdate(pd, dc, service, serviceName, ServiceUpdateOptions{
 			SecretsUpdate: secretUpdateConfigs,
-		}
-
-		fmt.Printf("\nUpdating service %s with new certificates:\n", serviceName)
-		warnings, err := ServiceUpdate(pd, dc, service, serviceName, updateOptions)
+		})
 		if err != nil {
-			return "", fmt.Errorf("error updating service %s: %v", serviceName, err)
+			return "", fmt.Errorf("error updating service '%s': %v", serviceName, err)
 		}
-		if warnings != "" {
-			warningMessages += fmt.Sprintf("Warnings for service %s:\n%s", serviceName, warnings)
+		if updateResult.Warnings != "" {
+			warningMessages += fmt.Sprintf("Warnings for service '%s':\n%s\n", serviceName, updateResult.Warnings)
+		}
+	}
+
+	// ── 8. Delete old secrets — all rolling updates completed ────────────────
+	for _, oldSecretID := range oldSecretIDs {
+		if err := dc.Cli.SecretRemove(dc.Ctx, oldSecretID); err != nil {
+			warningMessages += fmt.Sprintf("  - Warning: could not remove old secret '%s': %v\n", oldSecretID, err)
 		}
 	}
 
 	return warningMessages, nil
+}
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
+// resolveServiceFamily returns the family key ("nats", "traefik", …)
+// used to look up in the targetFiles map.
+func resolveServiceFamily(serviceName string) string {
+	if strings.HasPrefix(serviceName, "nats") {
+		return "nats"
+	}
+	return serviceName
+}
+
+// serviceHasSecret checks if a service already references a secret by name.
+func serviceHasSecret(service *swarm.Service, secretName string) bool {
+	for _, ref := range service.Spec.TaskTemplate.ContainerSpec.Secrets {
+		if ref.SecretName == secretName {
+			return true
+		}
+	}
+	return false
+}
+
+// uniqueStrings removes duplicates while preserving order.
+func uniqueStrings(in []string) []string {
+	seen := make(map[string]struct{}, len(in))
+	out := make([]string, 0, len(in))
+	for _, s := range in {
+		if _, ok := seen[s]; !ok {
+			seen[s] = struct{}{}
+			out = append(out, s)
+		}
+	}
+	return out
 }

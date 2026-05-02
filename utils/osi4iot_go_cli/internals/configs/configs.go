@@ -124,58 +124,131 @@ tls:
 	return Configs
 }
 
-func CreateConfig(dc *pt.DockerClient, configKey string, config *pt.Config) (*types.ConfigCreateResponse, error) {
-	existingConfigs, err := dc.Cli.ConfigList(dc.Ctx, types.ConfigListOptions{})
+func CreateConfig(dc *pt.DockerClient, config *pt.Config) (string, error) {
+	existing, err := GetConfigByName(dc, config.Name)
+	if err != nil {
+		return "", fmt.Errorf("error checking existing config '%s': %v", config.Name, err)
+	}
+	if existing != nil {
+		return existing.ID, nil
+	}
+
+	resp, err := dc.Cli.ConfigCreate(dc.Ctx, swarm.ConfigSpec{
+		Annotations: swarm.Annotations{
+			Name: config.Name,
+			Labels: map[string]string{
+				"app": "osi4iot",
+			},
+		},
+		Data: []byte(config.Data),
+	})
+	if err != nil {
+		return "", fmt.Errorf("error creating config '%s': %v", config.Name, err)
+	}
+
+	return resp.ID, nil
+}
+
+func GetConfigByName(dc *pt.DockerClient, configName string) (*swarm.Config, error) {
+	filterArgs := filters.NewArgs()
+	filterArgs.Add("label", "app=osi4iot")
+	existingConfigs, err := dc.Cli.ConfigList(dc.Ctx, types.ConfigListOptions{
+		Filters: filterArgs,
+	})
 	if err != nil {
 		return nil, fmt.Errorf("error listing configs: %v", err)
 	}
-	var configResp types.ConfigCreateResponse
-	configExists := false
+
 	for _, c := range existingConfigs {
-		if c.Spec.Name == config.Name {
-			configExists = true
-			config.ID = c.ID
-			break
-		} else if c.Spec.Name != config.Name && c.Spec.Name[:len(configKey)] == configKey {
-			configExists = false
-			err = dc.Cli.ConfigRemove(dc.Ctx, c.ID)
-			if err != nil {
-				return nil, fmt.Errorf("error removing config: %v", err)
-			}
-			break
+		if c.Spec.Name == configName {
+			return &c, nil
 		}
 	}
 
-	if !configExists {
-		configResp, err := dc.Cli.ConfigCreate(dc.Ctx, swarm.ConfigSpec{
-			Annotations: swarm.Annotations{
-				Name: config.Name,
-				Labels: map[string]string{
-					"app": "osi4iot",
-				},
-			},
-			Data: []byte(config.Data),
-		})
-		if err != nil {
-			return nil, fmt.Errorf("error creating config: %v", err)
-		}
-		config.ID = configResp.ID
-	}
-
-	return &configResp, nil
+	return nil, nil
 }
 
 func CreateSwarmConfigs(platformData *pt.PlatformData, dc *pt.DockerClient) (map[string]pt.Config, error) {
-	configs := GenerateConfigs(platformData)
-	for key, config := range configs {
-		_,err := CreateConfig(dc, key, &config)
+	configsToCreate := GenerateConfigs(platformData)
+	createdConfigs := make(map[string]pt.Config, len(configsToCreate))
+
+	for key, config := range configsToCreate {
+		id, err := CreateConfig(dc, &config)
 		if err != nil {
-			return nil, fmt.Errorf("error creating config %s: %v", key, err)
+			return nil, fmt.Errorf("error creating config '%s': %v", key, err)
 		}
-		configs[key] = config
+		config.ID = id
+		createdConfigs[key] = config
 	}
 
-	return configs, nil
+	return createdConfigs, nil
+}
+
+func RemoveOrphanConfigs(
+	dc *pt.DockerClient,
+	activeServiceNames []string,
+	knownConfigKeys []string,
+) error {
+	// ── 1. Recopilar todos los configs referenciados por los servicios activos ──
+	referencedConfigIDs := make(map[string]struct{})
+	for _, serviceName := range activeServiceNames {
+		service, err := utils.GetSwarmServiceByName(dc, serviceName)
+		if err != nil {
+			return fmt.Errorf("error inspecting service '%s': %v", serviceName, err)
+		}
+		for _, ref := range service.Spec.TaskTemplate.ContainerSpec.Configs {
+			referencedConfigIDs[ref.ConfigID] = struct{}{}
+		}
+	}
+
+	// ── 2. Listar todos los configs de Docker que coincidan con algún prefijo ──
+	filterArgs := filters.NewArgs()
+	filterArgs.Add("label", "app=osi4iot")
+	allConfigs, err := dc.Cli.ConfigList(dc.Ctx, types.ConfigListOptions{
+		Filters: filterArgs,
+	})
+	if err != nil {
+		return fmt.Errorf("error listing configs: %v", err)
+	}
+
+	// ── 3. Identificar y eliminar los huérfanos ──────────────────────────────
+	var removalErrors []string
+	for _, config := range allConfigs {
+		if !utils.HasKnownPrefix(config.Spec.Name, knownConfigKeys) {
+			continue
+		}
+		if _, isReferenced := referencedConfigIDs[config.ID]; isReferenced {
+			continue
+		}
+
+		fmt.Printf("Removing orphan config '%s'...\n", config.Spec.Name)
+		if err := dc.Cli.ConfigRemove(dc.Ctx, config.ID); err != nil {
+			removalErrors = append(removalErrors, fmt.Sprintf("'%s': %v", config.Spec.Name, err))
+		}
+	}
+
+	if len(removalErrors) > 0 {
+		return fmt.Errorf("could not remove some orphan configs:\n  - %s",
+			strings.Join(removalErrors, "\n  - "))
+	}
+
+	return nil
+}
+
+func GetKnownConfigKeys(pd *pt.PlatformData) []string {
+	keys := []string{
+		"admin_api",
+		"main_org_building",
+		"main_org_floor",
+		"frontend",
+		"grafana",
+	}
+
+	if pd.PlatformInfo.DomainCertsType != "No certs" {
+		keys = append(keys, "traefik")
+	}
+
+	return keys
 }
 
 func RemoveSwarmConfigs(dc *pt.DockerClient) error {

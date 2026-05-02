@@ -37,49 +37,48 @@ func GenerateNetworks(platformData *pt.PlatformData) map[string]pt.Network {
 	return Networks
 }
 
-func createNetwork(dc *pt.DockerClient, swarmNetwork *pt.Network) error {
+func createNetwork(dc *pt.DockerClient, swarmNetwork *pt.Network) (string, error) {
 	existingNetworks, err := dc.Cli.NetworkList(dc.Ctx, network.ListOptions{})
 	if err != nil {
-		return fmt.Errorf("error listing networks: %v", err)
+		return "", fmt.Errorf("error listing networks: %v", err)
 	}
 
-	networkExists := false
 	for _, n := range existingNetworks {
 		if n.Name == swarmNetwork.Name {
-			swarmNetwork.Id = n.ID
-			networkExists = true
-			break
+			return n.ID, nil
 		}
 	}
 
-	if !networkExists {
-		net, err := dc.Cli.NetworkCreate(dc.Ctx, swarmNetwork.Name, network.CreateOptions{
-			Driver:     swarmNetwork.Driver,
-			Attachable: true,
-			Labels: map[string]string{
-				"app": "osi4iot",
-			},
-		})
-		if err != nil {
-			return fmt.Errorf("error creating network: %v", err)
-		}
-		swarmNetwork.Id = net.ID
+	net, err := dc.Cli.NetworkCreate(dc.Ctx, swarmNetwork.Name, network.CreateOptions{
+		Driver:     swarmNetwork.Driver,
+		Attachable: true,
+		Labels: map[string]string{
+			"app": "osi4iot",
+		},
+	})
+	if err != nil {
+		return "", fmt.Errorf("error creating network '%s': %v", swarmNetwork.Name, err)
 	}
 
-	return nil
+	return net.ID, nil
 }
 
 func CreateSwarmNetworks(platformData *pt.PlatformData, dc *pt.DockerClient) (map[string]pt.Network, error) {
-	networks := GenerateNetworks(platformData)
-	for _, network := range networks {
-		err := createNetwork(dc, &network)
+	networksToCreate := GenerateNetworks(platformData)
+	createdNetworks := make(map[string]pt.Network, len(networksToCreate))
+
+	for key, network := range networksToCreate {
+		id, err := createNetwork(dc, &network)
 		if err != nil {
-			return nil, fmt.Errorf("error creating network %s: %v", network.Name, err)
+			return nil, fmt.Errorf("error creating network '%s': %v", network.Name, err)
 		}
+		network.ID = id
+		createdNetworks[key] = network
 	}
 
-	return networks, nil
+	return createdNetworks, nil
 }
+
 
 func RemoveSwarmNetworks(dc *pt.DockerClient) error {
 	filterArgs := filters.NewArgs()
@@ -117,7 +116,7 @@ func GetNetworkByName(dc *pt.DockerClient, networkName string) (*pt.Network, err
 	}
 
 	network := &pt.Network{
-		Id:     existingNetworks[0].ID,
+		ID:     existingNetworks[0].ID,
 		Name:   existingNetworks[0].Name,
 		Driver: existingNetworks[0].Driver,
 	}

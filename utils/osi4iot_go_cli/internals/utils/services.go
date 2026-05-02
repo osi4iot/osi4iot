@@ -338,11 +338,11 @@ func GetServiceReplicas(pd *osi_types.PlatformData, serviceName string) int {
 	if svcData.Replicas < 1 {
 		return 1
 	}
-	
+
 	return svcData.Replicas
 }
 
-func GetServiceImage(pd *osi_types.PlatformData, serviceName string, defaultImage string) string{
+func GetServiceImage(pd *osi_types.PlatformData, serviceName string, defaultImage string) string {
 	_, svcData, err := FindServiceDataByName(pd, serviceName)
 	if err != nil {
 		return defaultImage
@@ -357,187 +357,218 @@ func GetServiceImage(pd *osi_types.PlatformData, serviceName string, defaultImag
 // MonitorServiceUpdateWithProgressBar monitors both scaling and rolling updates
 // It shows progress for new replicas, updated replicas, and failed tasks
 func MonitorServiceUpdateWithProgressBar(dc *osi_types.DockerClient, serviceID string, targetReplicas uint64, isUpdate bool) error {
-    ticker := time.NewTicker(500 * time.Millisecond)
-    defer ticker.Stop()
+	ticker := time.NewTicker(500 * time.Millisecond)
+	defer ticker.Stop()
 
-    timeout := time.After(10 * time.Minute)
+	timeout := time.After(10 * time.Minute)
+	var allRunningStableSince time.Time
+	const stableThreshold = 5 * time.Second
 
-    progressStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("34"))
-    successStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("40"))
-    warningStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("214"))
-    errorStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("196"))
+	progressStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("34"))
+	successStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("40"))
+	warningStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("214"))
+	errorStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("196"))
 
-    barWidth := 30
-    fmt.Println("")
-    ctx := context.Background()
+	barWidth := 30
+	fmt.Println("")
+	ctx := context.Background()
 
-    updateStarted := false
+	updateStarted := false
 
-    // Función helper para limpiar la línea
-    clearLine := func() {
-        fmt.Print("\r\033[K") // \r mueve al inicio, \033[K borra hasta el final de la línea
-    }
+	// Función helper para limpiar la línea
+	clearLine := func() {
+		fmt.Print("\r\033[K") // \r mueve al inicio, \033[K borra hasta el final de la línea
+	}
 
-    for {
-        select {
-        case <-timeout:
-            fmt.Println()
-            return fmt.Errorf("timeout waiting for service update to complete")
-        case <-ticker.C:
-            service, _, err := dc.Cli.ServiceInspectWithRaw(ctx, serviceID, types.ServiceInspectOptions{})
-            if err != nil {
-                fmt.Println()
-                return fmt.Errorf("failed to inspect service: %w", err)
-            }
+	for {
+		select {
+		case <-timeout:
+			fmt.Println()
+			return fmt.Errorf("timeout waiting for service update to complete")
+		case <-ticker.C:
+			service, _, err := dc.Cli.ServiceInspectWithRaw(ctx, serviceID, types.ServiceInspectOptions{})
+			if err != nil {
+				fmt.Println()
+				return fmt.Errorf("failed to inspect service: %w", err)
+			}
 
-            if isUpdate && service.UpdateStatus != nil {
-                if !updateStarted {
-                    updateStarted = true
-                }
-            }
+			if isUpdate && service.UpdateStatus != nil {
+				if !updateStarted {
+					updateStarted = true
+				}
+			}
 
-            taskFilters := filters.NewArgs()
-            taskFilters.Add("service", serviceID)
-            taskFilters.Add("desired-state", "running")
+			taskFilters := filters.NewArgs()
+			taskFilters.Add("service", serviceID)
+			taskFilters.Add("desired-state", "running")
 
-            tasks, err := dc.Cli.TaskList(ctx, types.TaskListOptions{
-                Filters: taskFilters,
-            })
-            if err != nil {
-                fmt.Println()
-                return fmt.Errorf("failed to list tasks: %w", err)
-            }
+			tasks, err := dc.Cli.TaskList(ctx, types.TaskListOptions{
+				Filters: taskFilters,
+			})
+			if err != nil {
+				fmt.Println()
+				return fmt.Errorf("failed to list tasks: %w", err)
+			}
 
-            progress := analyzeTaskProgress(tasks, targetReplicas)
+			progress := analyzeTaskProgress(tasks, targetReplicas)
 
-            var progressPercent float64
-            if isUpdate {
-                progressPercent = float64(progress.Running) / float64(targetReplicas)
-            } else {
-                progressPercent = float64(progress.Running) / float64(targetReplicas)
-            }
+			var progressPercent float64
+			if isUpdate {
+				progressPercent = float64(progress.Running) / float64(targetReplicas)
+			} else {
+				progressPercent = float64(progress.Running) / float64(targetReplicas)
+			}
 
-            if progressPercent > 1.0 {
-                progressPercent = 1.0
-            }
+			if progressPercent > 1.0 {
+				progressPercent = 1.0
+			}
 
-            filled := int(progressPercent * float64(barWidth))
-            bar := strings.Repeat("█", filled) + strings.Repeat("░", barWidth-filled)
+			filled := int(progressPercent * float64(barWidth))
+			bar := strings.Repeat("█", filled) + strings.Repeat("░", barWidth-filled)
 
-            var statusMsg, coloredBar string
-            if progress.Failed > 0 {
-                coloredBar = errorStyle.Render(bar)
-                statusMsg = errorStyle.Render("ERROR")
-            } else if progress.Preparing > 0 {
-                coloredBar = warningStyle.Render(bar)
-                statusMsg = warningStyle.Render("UPDATING")
-            } else if uint64(progress.Running) == targetReplicas {
-                coloredBar = successStyle.Render(bar)
-                statusMsg = successStyle.Render("COMPLETE")
-            } else {
-                coloredBar = progressStyle.Render(bar)
-                statusMsg = progressStyle.Render("PROGRESS")
-            }
+			var statusMsg, coloredBar string
+			if progress.Failed > 0 {
+				coloredBar = errorStyle.Render(bar)
+				statusMsg = errorStyle.Render("ERROR")
+			} else if progress.Preparing > 0 {
+				coloredBar = warningStyle.Render(bar)
+				statusMsg = warningStyle.Render("UPDATING")
+			} else if uint64(progress.Running) == targetReplicas {
+				coloredBar = successStyle.Render(bar)
+				statusMsg = successStyle.Render("COMPLETE")
+			} else {
+				coloredBar = progressStyle.Render(bar)
+				statusMsg = progressStyle.Render("PROGRESS")
+			}
 
-            percentage := int(progressPercent * 100)
-            status := fmt.Sprintf("%s [%s] %d%% | %s | Running: %d/%d",
-                statusMsg,
-                coloredBar,
-                percentage,
-                buildTaskStats(progress),
-                progress.Running,
-                targetReplicas,
-            )
+			percentage := int(progressPercent * 100)
+			status := fmt.Sprintf("%s [%s] %d%% | %s | Running: %d/%d",
+				statusMsg,
+				coloredBar,
+				percentage,
+				buildTaskStats(progress),
+				progress.Running,
+				targetReplicas,
+			)
 
-            if isUpdate && service.UpdateStatus != nil {
-                status += fmt.Sprintf(" | Update: %s", service.UpdateStatus.State)
-            }
+			if isUpdate && service.UpdateStatus != nil {
+				status += fmt.Sprintf(" | Update: %s", service.UpdateStatus.State)
+			}
 
-            // Limpiar línea y escribir nuevo estado
-            clearLine()
-            fmt.Print(status)
+			// Clear line and write new status
+			clearLine()
+			fmt.Print(status)
 
-            if isUpdateComplete(progress, targetReplicas, service, isUpdate) {
-                fmt.Println()
-                if progress.Failed > 0 {
-                    return fmt.Errorf("service update completed with %d failed tasks", progress.Failed)
-                }
-                return nil
-            }
+			allStable := uint64(progress.Running) == targetReplicas &&
+				progress.Preparing == 0 &&
+				progress.Failed == 0
 
-            if progress.Failed > 0 && progress.Running+progress.Preparing == 0 {
-                fmt.Println()
-                return fmt.Errorf("all tasks failed to start")
-            }
+			if allStable {
+				if allRunningStableSince.IsZero() {
+					allRunningStableSince = time.Now()
+				}
+			} else {
+				allRunningStableSince = time.Time{} // Reset timer if not all running or if there are preparing/failed tasks
+			}
 
-            if isUpdate && service.UpdateStatus != nil {
-                if service.UpdateStatus.State == swarm.UpdateStatePaused {
-                    fmt.Println()
-                    return fmt.Errorf("service update paused: %s", service.UpdateStatus.Message)
-                }
-                if service.UpdateStatus.State == swarm.UpdateStateRollbackCompleted {
-                    fmt.Println()
-                    return fmt.Errorf("service update rolled back: %s", service.UpdateStatus.Message)
-                }
-            }
-        }
-    }
+			if isUpdateComplete(progress, targetReplicas, service, isUpdate, allRunningStableSince, stableThreshold) {
+				fmt.Println()
+				if progress.Failed > 0 {
+					return fmt.Errorf("service update completed with %d failed tasks", progress.Failed)
+				}
+				return nil
+			}
+
+			if progress.Failed > 0 && progress.Running+progress.Preparing == 0 {
+				fmt.Println()
+				return fmt.Errorf("all tasks failed to start")
+			}
+
+			if isUpdate && service.UpdateStatus != nil {
+				if service.UpdateStatus.State == swarm.UpdateStatePaused {
+					fmt.Println()
+					return fmt.Errorf("service update paused: %s", service.UpdateStatus.Message)
+				}
+				if service.UpdateStatus.State == swarm.UpdateStateRollbackCompleted {
+					fmt.Println()
+					return fmt.Errorf("service update rolled back: %s", service.UpdateStatus.Message)
+				}
+			}
+		}
+	}
 }
 
 func analyzeTaskProgress(tasks []swarm.Task, targetReplicas uint64) ServiceUpdateProgress {
-    progress := ServiceUpdateProgress{
-        Total: int(targetReplicas),
-    }
+	progress := ServiceUpdateProgress{
+		Total: int(targetReplicas),
+	}
 
-    for _, task := range tasks {
-        switch task.Status.State {
-        case swarm.TaskStateRunning:
-            progress.Running++
-            if task.Status.ContainerStatus != nil && task.Status.ContainerStatus.ContainerID != "" {
-                progress.Ready++
-            }
-        case swarm.TaskStatePreparing, swarm.TaskStateAssigned, swarm.TaskStateAccepted, swarm.TaskStateNew, swarm.TaskStateStarting:
-            progress.Preparing++
-        case swarm.TaskStateFailed, swarm.TaskStateRejected:
-            progress.Failed++
-        case swarm.TaskStateShutdown, swarm.TaskStateComplete, swarm.TaskStateOrphaned, swarm.TaskStateRemove:
-            progress.Shutdown++
-        }
-    }
+	for _, task := range tasks {
+		switch task.Status.State {
+		case swarm.TaskStateRunning:
+			progress.Running++
+			if task.Status.ContainerStatus != nil && task.Status.ContainerStatus.ContainerID != "" {
+				progress.Ready++
+			}
+		case swarm.TaskStatePreparing, swarm.TaskStateAssigned, swarm.TaskStateAccepted, swarm.TaskStateNew, swarm.TaskStateStarting:
+			progress.Preparing++
+		case swarm.TaskStateFailed, swarm.TaskStateRejected:
+			progress.Failed++
+		case swarm.TaskStateShutdown, swarm.TaskStateComplete, swarm.TaskStateOrphaned, swarm.TaskStateRemove:
+			progress.Shutdown++
+		}
+	}
 
-    return progress
+	return progress
 }
 
 func buildTaskStats(progress ServiceUpdateProgress) string {
-    stats := []string{}
+	stats := []string{}
 
-    if progress.Preparing > 0 {
-        stats = append(stats, fmt.Sprintf("Preparing: %d", progress.Preparing))
-    }
-    if progress.Failed > 0 {
-        stats = append(stats, fmt.Sprintf("Failed: %d", progress.Failed))
-    }
+	if progress.Preparing > 0 {
+		stats = append(stats, fmt.Sprintf("Preparing: %d", progress.Preparing))
+	}
+	if progress.Failed > 0 {
+		stats = append(stats, fmt.Sprintf("Failed: %d", progress.Failed))
+	}
 
-    if len(stats) == 0 {
-        return "All tasks ready"
-    }
+	if len(stats) == 0 {
+		return "All tasks ready"
+	}
 
-    return strings.Join(stats, " | ")
+	return strings.Join(stats, " | ")
 }
 
-func isUpdateComplete(progress ServiceUpdateProgress, targetReplicas uint64, service swarm.Service, isUpdate bool) bool {
-    runningComplete := uint64(progress.Running) == targetReplicas
-    noTransitional := progress.Preparing == 0
-    noFailed := progress.Failed == 0
+func isUpdateComplete(
+	progress ServiceUpdateProgress,
+	targetReplicas uint64,
+	service swarm.Service,
+	isUpdate bool,
+	stableSince time.Time,
+	stableThreshold time.Duration,
+) bool {
+	runningComplete := uint64(progress.Running) == targetReplicas
+	noTransitional := progress.Preparing == 0
+	noFailed := progress.Failed == 0
 
-    if isUpdate && service.UpdateStatus != nil {
-        updateComplete := service.UpdateStatus.State == swarm.UpdateStateCompleted
-        // Si el update está completed Y tenemos todas las réplicas running, estamos listos
-        return updateComplete && runningComplete && noFailed
-    }
+	if isUpdate && service.UpdateStatus != nil {
+		if service.UpdateStatus.State == swarm.UpdateStateCompleted {
+			return runningComplete && noFailed
+		}
 
-    // Para scaling simple, solo necesitamos que todas estén running
-    return runningComplete && noTransitional && noFailed
+		// Fix: usar el timer externo en lugar de CompletedAt,
+		// que Docker no setea en estado "updating"
+		if service.UpdateStatus.State == swarm.UpdateStateUpdating &&
+			runningComplete && noTransitional && noFailed &&
+			!stableSince.IsZero() &&
+			time.Since(stableSince) > stableThreshold {
+			return true
+		}
+
+		return false
+	}
+
+	return runningComplete && noTransitional && noFailed
 }
 
 // MonitorServiceScaleWithProgressBar is a wrapper for backward compatibility
@@ -549,4 +580,86 @@ func MonitorServiceScaleWithProgressBar(dc *osi_types.DockerClient, serviceID st
 // MonitorServiceRollingUpdate monitors a service rolling update with detailed progress
 func MonitorServiceRollingUpdate(dc *osi_types.DockerClient, serviceID string, targetReplicas uint64) error {
 	return MonitorServiceUpdateWithProgressBar(dc, serviceID, targetReplicas, true)
+}
+
+func GetSwarmServiceByName(dc *osi_types.DockerClient, serviceName string) (*swarm.Service, error) {
+	filterArgs := filters.NewArgs()
+	filterArgs.Add("label", "app=osi4iot")
+	filterArgs.Add("name", serviceName)
+	services, err := dc.Cli.ServiceList(dc.Ctx, types.ServiceListOptions{
+		Filters: filterArgs,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("error listing services: %v", err)
+	}
+
+	if len(services) == 0 {
+		return nil, fmt.Errorf("service %s not found", serviceName)
+	}
+
+	return &services[0], nil
+}
+
+// hasKnownPrefix checks if name starts with any of the known keys
+func HasKnownPrefix(name string, knownKeys []string) bool {
+	for _, key := range knownKeys {
+		if strings.HasPrefix(name, key+"_") || name == key {
+			return true
+		}
+	}
+	return false
+}
+
+func GetAllServiceNames(pd *osi_types.PlatformData) []string {
+	excluded := make(map[string]struct{}, len(pd.PlatformInfo.ExcludedServices))
+	for _, name := range pd.PlatformInfo.ExcludedServices {
+		excluded[name] = struct{}{}
+	}
+
+	pi := pd.PlatformInfo
+	s3BucketType := pi.S3BucketType
+	if s3BucketType != "Local Minio" {
+		excluded["minio"] = struct{}{}
+	}
+
+	existArmArchNodes := false
+	for _, node := range pi.NodesData {
+		if node.NodeArch == "aarch64" {
+			existArmArchNodes = true
+			break
+		}
+	}
+
+	if existArmArchNodes {
+		excluded["grafana_renderer"] = struct{}{}
+	}
+
+	numSwarmNodes := len(pi.NodesData)
+	deploymentLocation := pi.DeploymentLocation
+	if numSwarmNodes <= 1 || existArmArchNodes || deploymentLocation != "On-premise cluster deployment" {
+		excluded["keepalived"] = struct{}{}
+	}
+
+	deploymentMode := pi.DeploymentMode
+	if deploymentMode == "production" {
+		excluded["pgadmin4"] = struct{}{}
+	}
+
+	serviceNames := make([]string, 0, len(pi.ServicesData))
+	for _, svcData := range pi.ServicesData {
+		if _, isExcluded := excluded[svcData.ServiceName]; isExcluded {
+			continue
+		}
+
+		if svcData.ServiceName == "nats" {
+			for i := 1; i <= svcData.Replicas; i++ {
+				serviceNames = append(serviceNames, fmt.Sprintf("nats%d", i))
+			}
+			continue
+		}
+
+		serviceNames = append(serviceNames, svcData.ServiceName)
+	}
+
+	return serviceNames
 }

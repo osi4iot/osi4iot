@@ -15,7 +15,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var SwarmActions = []string{"create", "init", "run", "stop", "delete", "service"}
+var SwarmActions = []string{"create", "init", "run", "stop", "delete", "service", "certs"}
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
@@ -162,7 +162,7 @@ var subCmdServiceInspect = &cobra.Command{
 			exitWithError(errMsg)
 		}
 
-		service, err := docker.InspectService(dc, serviceName)
+		service, err := utils.GetSwarmServiceByName(dc, serviceName)
 		if err != nil {
 			errMsg := fmt.Sprintf("Error inspecting service: %v", err)
 			exitWithError(errMsg)
@@ -366,7 +366,6 @@ var subCmdCertsUpdate = &cobra.Command{
 	Long:  "Update platform certificates",
 	Run: func(cmd *cobra.Command, args []string) {
 		pd := data.GetData()
-
 		expirationInfo, err := utils.GetCertsExpirationInfo(pd)
 		if err != nil {
 			errMsg := fmt.Sprintf("Error checking certificates: %v", err)
@@ -382,13 +381,34 @@ var subCmdCertsUpdate = &cobra.Command{
 		domainCertsType := pd.PlatformInfo.DomainCertsType
 		switch domainCertsType {
 		case "Let's encrypt certs with DNS-01 challenge and AWS Route 53 provider":
-			err = utils.SetOrUpdateAcmeCerts(pd)
+			err := utils.SetOrUpdateAcmeCerts(pd)
 			if err != nil {
 				errMsg := fmt.Sprintf("Error updating ACME certificates: %v", err)
 				exitWithError(errMsg)
 			}
-			okMsg := utils.StyleOKMsg.Render("ACME certificates have been updated successfully")
-			fmt.Println(okMsg)
+
+			dc, err := docker.GetManagerDC()
+			if err != nil {
+				errMsg := fmt.Sprintf("Error getting docker client: %v", err)
+				exitWithError(errMsg)
+			}
+			warnings, err := docker.UpdateCertsInServices(pd, dc)
+			if err != nil {
+				errMsg := fmt.Sprintf("Error updating certs: %v", err)
+				exitWithError(errMsg)
+			}
+
+			if warnings != "" {
+				warningMsg := utils.StyleWarningMsg.Render("\nWarnings:\n" + warnings)
+				fmt.Println(warningMsg)
+			}
+
+			fmt.Println()
+			if warnings == "" {
+				okMsg := utils.StyleOKMsg.Render("ACME certificates have been updated successfully")
+				fmt.Println(okMsg)
+			}
+
 		case "Certs provided by an CA":
 			errMsg := fmt.Sprintf("Certificate update not supported for domain certs type: %s", domainCertsType)
 			exitWithError(errMsg)

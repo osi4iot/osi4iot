@@ -152,7 +152,6 @@ func GenerateSecrets(pd *pt.PlatformData) map[string]pt.Secret {
 	}
 	Secrets["timescale_data_ret_int"] = timescaleDataRetIntSecret
 
-
 	Secrets["pipelines_config"] = CreatePipelinesConfigSecret(pd, numNatsReplicas)
 
 	minioSecrets := []string{
@@ -205,45 +204,29 @@ func GetSecretByName(dc *pt.DockerClient, secretName string) (*swarm.Secret, err
 	return nil, nil
 }
 
-func CreateSecret(dc *pt.DockerClient, secretKey string, secret *pt.Secret) error {
-	existingSecrets, err := dc.Cli.SecretList(dc.Ctx, types.SecretListOptions{})
+func CreateSecret(dc *pt.DockerClient, secret *pt.Secret) (string, error) {
+	existing, err := GetSecretByName(dc, secret.Name)
 	if err != nil {
-		return fmt.Errorf("error listing secrets: %v", err)
+		return "", fmt.Errorf("error checking existing secret '%s': %v", secret.Name, err)
+	}
+	if existing != nil {
+		return existing.ID, nil
 	}
 
-	secretExists := false
-	for _, s := range existingSecrets {
-		if s.Spec.Name == secret.Name {
-			secretExists = true
-			secret.ID = s.ID
-			break
-		} else if s.Spec.Name != secret.Name && s.Spec.Name[:len(secretKey)] == secretKey {
-			secretExists = false
-			err = dc.Cli.SecretRemove(dc.Ctx, s.ID)
-			if err != nil {
-				return fmt.Errorf("error removing secret: %v", err)
-			}
-			break
-		}
-	}
-
-	if !secretExists {
-		secResp, err := dc.Cli.SecretCreate(dc.Ctx, swarm.SecretSpec{
-			Annotations: swarm.Annotations{
-				Name: secret.Name,
-				Labels: map[string]string{
-					"app": "osi4iot",
-				},
+	resp, err := dc.Cli.SecretCreate(dc.Ctx, swarm.SecretSpec{
+		Annotations: swarm.Annotations{
+			Name: secret.Name,
+			Labels: map[string]string{
+				"app": "osi4iot",
 			},
-			Data: []byte(secret.Data),
-		})
-		if err != nil {
-			return fmt.Errorf("error creating secret: %v", err)
-		}
-		secret.ID = secResp.ID
+		},
+		Data: []byte(secret.Data),
+	})
+	if err != nil {
+		return "", fmt.Errorf("error creating secret '%s': %v", secret.Name, err)
 	}
 
-	return nil
+	return resp.ID, nil
 }
 
 func CreateSecretByName(dc *pt.DockerClient, secret *pt.Secret) error {
@@ -296,16 +279,74 @@ func RemoveSecretByName(dc *pt.DockerClient, secretName string) error {
 }
 
 func CreateSwarmSecrets(platformData *pt.PlatformData, dc *pt.DockerClient) (map[string]pt.Secret, error) {
-	secrets := GenerateSecrets(platformData)
-	for key, secret := range secrets {
-		err := CreateSecret(dc, key, &secret)
+	secretsToCreate := GenerateSecrets(platformData)
+	createdSecrets := make(map[string]pt.Secret, len(secretsToCreate))
+
+	for key, secret := range secretsToCreate {
+		id, err := CreateSecret(dc, &secret)
 		if err != nil {
-			return nil, fmt.Errorf("error creating secret %s: %v", key, err)
+			return nil, fmt.Errorf("error creating secret '%s': %v", key, err)
 		}
-		secrets[key] = secret
+		secret.ID = id
+		createdSecrets[key] = secret
 	}
 
-	return secrets, nil
+	return createdSecrets, nil
+}
+
+// RemoveOrphanSecrets remove secrets de Docker that are considered "orphaned" based on the following criteria:
+//
+//	a) The secret's name starts with any of the knownSecretKeys (indicating it's managed by our platform).
+//	b) The secret is not referenced by any of the active services (not in referencedSecretIDs).
+func RemoveOrphanSecrets(
+	dc *pt.DockerClient,
+	activeServiceNames []string,
+	knownSecretKeys []string,
+) error {
+	// 1. Collect all secret IDs referenced by active services
+	referencedSecretIDs := make(map[string]struct{})
+	for _, serviceName := range activeServiceNames {
+		service, err := utils.GetSwarmServiceByName(dc, serviceName)
+		if err != nil {
+			return fmt.Errorf("error inspecting service '%s': %v", serviceName, err)
+		}
+		for _, ref := range service.Spec.TaskTemplate.ContainerSpec.Secrets {
+			referencedSecretIDs[ref.SecretID] = struct{}{}
+		}
+	}
+
+	// 2. List all Docker secrets that match any of the known prefixes
+	allSecrets, err := dc.Cli.SecretList(dc.Ctx, types.SecretListOptions{})
+	if err != nil {
+		return fmt.Errorf("error listing secrets: %v", err)
+	}
+
+	// 3. Indetify and remove orphans
+	// A secret is an orphan if:
+	//   a) Its name starts with any knownSecretKey (it's ours)
+	//   b) It's not in referencedSecretIDs (nobody uses it)
+	var removalErrors []string
+	for _, secret := range allSecrets {
+		if !utils.HasKnownPrefix(secret.Spec.Name, knownSecretKeys) {
+			continue // no es nuestro, ignorar
+		}
+		if _, isReferenced := referencedSecretIDs[secret.ID]; isReferenced {
+			continue // in use, it's not an orphan
+		}
+
+		fmt.Printf("Removing orphan secret '%s'...\n", secret.Spec.Name)
+		if err := dc.Cli.SecretRemove(dc.Ctx, secret.ID); err != nil {
+			// Accumulate errors instead of stopping: we want to clean as much as possible
+			removalErrors = append(removalErrors, fmt.Sprintf("'%s': %v", secret.Spec.Name, err))
+		}
+	}
+
+	if len(removalErrors) > 0 {
+		return fmt.Errorf("could not remove some orphan secrets:\n  - %s",
+			strings.Join(removalErrors, "\n  - "))
+	}
+
+	return nil
 }
 
 func RemoveSwarmSecrets(dc *pt.DockerClient) error {
@@ -457,32 +498,57 @@ func CreatePipelinesConfigSecret(
 }
 
 func CreateCertsSecrets(pd *pt.PlatformData, dc *pt.DockerClient) (map[string]pt.Secret, error) {
-	certsSecrets := make(map[string]pt.Secret)
 	domainCertsType := pd.PlatformInfo.DomainCertsType
 
+	secretsToCreate := make(map[string]pt.Secret)
 	if domainCertsType == "Certs provided by an CA" ||
 		domainCertsType == "Let's encrypt certs with DNS-01 challenge and AWS Route 53 provider" {
-		iotPlatformCertSecret := pt.Secret{
+		secretsToCreate["iot_platform_cert"] = pt.Secret{
 			Name: pd.Certs.DomainCerts.IotPlatformCertName,
 			Data: pd.Certs.DomainCerts.SslCertCrt,
 		}
-		certsSecrets["iot_platform_cert"] = iotPlatformCertSecret
-
-		iotPlatformKeySecret := pt.Secret{
+		secretsToCreate["iot_platform_key"] = pt.Secret{
 			Name: pd.Certs.DomainCerts.IotPlatformKeyName,
 			Data: pd.Certs.DomainCerts.PrivateKey,
 		}
-
-		certsSecrets["iot_platform_key"] = iotPlatformKeySecret
 	}
-	
-	for key, secret := range certsSecrets {
-		err := CreateSecret(dc, key, &secret)
+
+	if len(secretsToCreate) == 0 {
+		return nil, fmt.Errorf("unsupported domain certs type: %s", domainCertsType)
+	}
+
+	createdSecrets := make(map[string]pt.Secret, len(secretsToCreate))
+	for key, secret := range secretsToCreate {
+		id, err := CreateSecret(dc, &secret)
 		if err != nil {
-			return nil, fmt.Errorf("error creating secret %s: %v", key, err)
+			return nil, fmt.Errorf("error creating secret '%s': %v", key, err)
 		}
-		certsSecrets[key] = secret
+		secret.ID = id
+		createdSecrets[key] = secret
 	}
 
-	return certsSecrets, nil
+	return createdSecrets, nil
+}
+
+func GetKnownSecretKeys(pd *pt.PlatformData) []string {
+	keys := []string{
+		"iot_platform_cert",
+		"iot_platform_key",
+		"iot_platform_ca_cert",
+		"admin_api",
+		"auth_callout",
+		"nats_config",
+		"grafana",
+		"postgres_password",
+		"postgres_user",
+		"postgres_grafana",
+		"timescale_password",
+		"timescale_user",
+		"timescale_grafana",
+		"timescale_data_ret_int",
+		"pipelines_config",
+		"minio",
+		"pgadmin4",
+	}
+	return keys
 }

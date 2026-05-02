@@ -63,7 +63,7 @@ func SetOrUpdateAcmeCerts(platformData *types.PlatformData) error {
 			os.Exit(1)
 		}
 	} else {
-		threshold := 15 * 24 * time.Hour // 15 days
+		threshold := 15 * 24 * time.Hour // 15 days 
 		err = renewIfNeeded(platformData, client, domains, threshold)
 		if err != nil {
 			fmt.Printf("error renewing certificate: %v", err)

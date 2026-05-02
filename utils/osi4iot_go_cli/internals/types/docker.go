@@ -22,7 +22,7 @@ type Config struct {
 }
 
 type Network struct {
-	Id     string
+	ID     string
 	Name   string
 	Driver string
 }
