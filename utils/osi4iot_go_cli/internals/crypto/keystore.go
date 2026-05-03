@@ -98,6 +98,15 @@ func PromptPassphrase() ([]byte, error) {
 }
 
 func passphraseFilePath() string {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		// Fallback al directorio del binario
+		return fallbackPassphraseFilePath()
+	}
+	return filepath.Join(home, ".osi4iot", passphraseFile)
+}
+
+func fallbackPassphraseFilePath() string {
 	execPath, err := os.Executable()
 	if err != nil {
 		return passphraseFile
