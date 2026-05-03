@@ -94,11 +94,6 @@ func DecryptWithPassphrase(encoded []byte, passphrase []byte) ([]byte, error) {
 	return decrypt(encoded, passphrase)
 }
 
-// PromptPassphrase prompts the user to enter a passphrase securely.
-func PromptPassphrase() ([]byte, error) {
-	return readPassphrase()
-}
-
 // IsNoEncrypt checks if the NO_ENCRYPT environment variable is set to "true".
 func decrypt(encoded []byte, passphrase []byte) ([]byte, error) {
 	data := make([]byte, base64.StdEncoding.DecodedLen(len(encoded)))

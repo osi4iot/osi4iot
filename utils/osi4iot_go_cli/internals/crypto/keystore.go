@@ -3,6 +3,7 @@ package crypto
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/zalando/go-keyring"
 )
@@ -10,61 +11,120 @@ import (
 const (
 	keyringService = "osi4iot"
 	keyringUser    = "encryption-key"
+	passphraseFile = ".passphrase"
 )
 
 var noEncrypt bool
 
 func SetNoEncrypt(val bool) {
-    noEncrypt = val
-    if val {
-        fmt.Println("⚠️  Modo sin cifrado activado. NO usar en producción.")
-    }
+	noEncrypt = val
+	if val {
+		fmt.Println("⚠️  Encryption disabled. DO NOT use in production.")
+	}
 }
 
 func IsNoEncrypt() bool {
-    return noEncrypt
+	return noEncrypt
 }
 
-// GetPassphrase obtiene la passphrase por este orden de prioridad:
-// 1. Variable de entorno OSI4IOT_PASSPHRASE (CI/CD)
-// 2. Keystore del SO (sesiones posteriores)
-// 3. Prompt interactivo al usuario (primera vez)
+// GetPassphrase obtains the passphrase in this order of priority:
+// 1. Environment variable OSI4IOT_PASSPHRASE (CI/CD)
+// 2. OS keystore (macOS Keychain, Linux libsecret, Windows Credential Manager)
+// 3. Encrypted local file (headless servers, EC2)
+// 4. Interactive prompt to the user (first time)
 func GetPassphrase() ([]byte, error) {
-    if noEncrypt {
-        return nil, nil
-    }
+	if noEncrypt {
+		return nil, nil
+	}
 
-	// 1. Variable de entorno
+	// 1. Environment variable
 	if val := os.Getenv("OSI4IOT_PASSPHRASE"); val != "" {
 		return []byte(val), nil
 	}
 
-	// 2. Keystore del SO
+	// 2. OS keystore
 	if val, err := keyring.Get(keyringService, keyringUser); err == nil {
 		return []byte(val), nil
 	}
 
-	// 3. Prompt interactivo
-	fmt.Print("🔑 Introduce la passphrase de osi4iot: ")
+	// 3. Encrypted local file (headless servers, EC2)
+	if val, err := readPassphraseFile(); err == nil {
+		return val, nil
+	}
+
+	// 4. Interactive prompt (first time)
+	fmt.Print("🔑 Enter the osi4iot passphrase: ")
 	passphrase, err := readPassphrase()
 	if err != nil {
-		return nil, fmt.Errorf("error leyendo passphrase: %w", err)
+		return nil, fmt.Errorf("error reading passphrase: %w", err)
 	}
 	fmt.Println()
 
-	// Guardar en keystore para no pedirla de nuevo
+	// Try OS keystore first
 	if err := keyring.Set(keyringService, keyringUser, string(passphrase)); err != nil {
-		// No es un error fatal, simplemente no se guarda
-		fmt.Println("⚠️  No se pudo guardar la passphrase en el keystore del SO.")
+		// Keystore not available (headless server), fall back to encrypted file
+		if err := savePassphraseFile(passphrase); err != nil {
+			fmt.Println("⚠️  Could not save the passphrase. You will be prompted on every command.")
+		} else {
+			fmt.Printf("🔑 Passphrase saved to %s\n", passphraseFilePath())
+		}
 	}
 
 	return passphrase, nil
 }
 
-// ClearPassphrase elimina la passphrase del keystore (útil en "osi4iot delete")
+// ClearPassphrase removes the passphrase from the keystore and local file (useful in "osi4iot delete")
 func ClearPassphrase() {
 	if noEncrypt {
 		return
 	}
 	keyring.Delete(keyringService, keyringUser)
+	os.Remove(passphraseFilePath())
+}
+
+// PromptPassphrase asks the user for the passphrase explicitly, bypassing the keystore.
+// Used in commands that require conscious user confirmation (e.g. state export).
+func PromptPassphrase() ([]byte, error) {
+	return readPassphrase()
+}
+
+func passphraseFilePath() string {
+	execPath, err := os.Executable()
+	if err != nil {
+		return passphraseFile
+	}
+	resolved, err := filepath.EvalSymlinks(execPath)
+	if err != nil {
+		resolved = execPath
+	}
+	return filepath.Join(filepath.Dir(resolved), passphraseFile)
+}
+
+func savePassphraseFile(passphrase []byte) error {
+	machineKey, err := getMachineKey()
+	if err != nil {
+		return err
+	}
+
+	encrypted, err := Encrypt(passphrase, machineKey)
+	if err != nil {
+		return err
+	}
+
+	os.MkdirAll(filepath.Dir(passphraseFilePath()), 0700)
+	return os.WriteFile(passphraseFilePath(), encrypted, 0600)
+}
+
+func readPassphraseFile() ([]byte, error) {
+	encrypted, err := os.ReadFile(passphraseFilePath())
+	if err != nil {
+		return nil, err
+	}
+
+	machineKey, err := getMachineKey()
+	if err != nil {
+		return nil, err
+	}
+
+	return decrypt(encrypted, machineKey)
 }
