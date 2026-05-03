@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -662,4 +663,132 @@ func GetAllServiceNames(pd *osi_types.PlatformData) []string {
 	}
 
 	return serviceNames
+}
+
+func GetDefaultServicesDataMap(pd *osi_types.PlatformData) map[string]osi_types.ServiceData {
+	pi := pd.PlatformInfo
+	messagingSvcCpus := strings.Split(pi.MessagingSvcResources, "-")[0]
+	messagingSvcCpusFloat, _ := strconv.ParseFloat(messagingSvcCpus[0:len(messagingSvcCpus)-3], 64)
+	messagingSvcCpus_025 := fmt.Sprintf("%.2fCPU", 0.25*messagingSvcCpusFloat)
+	iotStorageDataSvcCpus := strings.Split(pi.IotDataStorageSvcResources, "-")[0]
+	adminDataStorageSvcCpus := strings.Split(pi.AdminDataStorageSvcResources, "-")[0]
+	uiSvcCpus := strings.Split(pi.UiSvcResources, "-")[0]
+	uiSvcCpusFloat, _ := strconv.ParseFloat(uiSvcCpus[0:len(uiSvcCpus)-3], 64)
+	uiSvcCpus_050 := fmt.Sprintf("%.2fCPU", 0.50*uiSvcCpusFloat)
+	pipelinesSvcCpus := strings.Split(pi.PipelinesSvcResources, "-")[0]
+
+	messagingSvcMem := strings.Split(pi.MessagingSvcResources, "-")[1]
+	messagingSvcMemFloat, _ := strconv.ParseFloat(messagingSvcMem[0:len(messagingSvcMem)-2], 64)
+	messagingSvcMem_025 := fmt.Sprintf("%.2fMb", 0.25*messagingSvcMemFloat)
+	iotDataStorageSvcMem := strings.Split(pi.IotDataStorageSvcResources, "-")[1]
+
+	adminDataStorageSvcMem := strings.Split(pi.AdminDataStorageSvcResources, "-")[1]
+	uiSvcMem := strings.Split(pi.UiSvcResources, "-")[1]
+	uiSvcMemFloat, _ := strconv.ParseFloat(uiSvcMem[0:len(uiSvcMem)-2], 64)
+	uiSvcMem_050 := fmt.Sprintf("%.2fMb", 0.50*uiSvcMemFloat)
+	pipelinesSvcMem := strings.Split(pi.PipelinesSvcResources, "-")[1]
+	defaultNumNatsReplicas := Max(pi.DefaultNumOfNatsReplicas, 1)
+
+	defaultServicesDataMap := map[string]osi_types.ServiceData{
+		"admin_api": {
+			ServiceName: "admin_api",
+			Image: "ghcr.io/osi4iot/admin_api_nats:1.3.0",
+			Replicas:    1,
+			Cpu:         uiSvcCpus,
+			Memory:      uiSvcMem,
+		},
+		"frontend": {
+			ServiceName: "frontend",
+			Image: "ghcr.io/osi4iot/frontend_nats:1.3.0",
+			Replicas:    1,
+			Cpu:         uiSvcCpus,
+			Memory:      uiSvcMem,
+		},
+		"nats": {
+			ServiceName: "nats",
+			Image: "ghcr.io/osi4iot/nats:2.11.1-alpine",
+			Replicas:    defaultNumNatsReplicas,
+			Cpu:         messagingSvcCpus,
+			Memory:      messagingSvcMem,
+		},
+		"auth_callout": {
+			ServiceName: "auth_callout",
+			Image: "ghcr.io/osi4iot/auth_callout:1.3.0",
+			Replicas:    1,
+			Cpu:         messagingSvcCpus_025,
+			Memory:      messagingSvcMem_025,
+		},
+		"grafana": {
+			ServiceName: "grafana",
+			Image: "ghcr.io/osi4iot/grafana:8.4.1-ubuntu",
+			Replicas:    1,
+			Cpu:         uiSvcCpus,
+			Memory:      uiSvcMem,
+		},
+		"pipelines": {
+			ServiceName: "pipelines",
+			Image: "ghcr.io/osi4iot/pipelines:1.3.0",
+			Replicas:    pi.DefaultNumPipelinesInstances,
+			Cpu:         pipelinesSvcCpus,
+			Memory:      pipelinesSvcMem,
+		},
+		"traefik": {
+			ServiceName: "traefik",
+			Image: "ghcr.io/osi4iot/traefik_go_cli:v3.6",
+			Replicas:    1,
+			Cpu:         uiSvcCpus,
+			Memory:      uiSvcMem,
+		},
+		"system-prune": {
+			ServiceName: "system-prune",
+			Image: "ghcr.io/osi4iot/system_prune:latest",
+			Replicas:    1,
+			Cpu:         "0.125CPU",
+			Memory:      "100Mb",
+		},
+		"postgres": {
+			ServiceName: "postgres",
+			Image: "ghcr.io/osi4iot/postgres:14.6-alpine",
+			Replicas:    1,
+			Cpu:         adminDataStorageSvcCpus,
+			Memory:      adminDataStorageSvcMem,
+		},
+		"timescaledb": {
+			ServiceName: "timescaledb",
+			Image: "ghcr.io/osi4iot/timescaledb:2.20.0-pg17",
+			Replicas:    1,
+			Cpu:         iotStorageDataSvcCpus,
+			Memory:      iotDataStorageSvcMem,
+		},
+		"pgadmin4": {
+			ServiceName: "pgadmin4",
+			Image: "ghcr.io/osi4iot/pgadmin4:2023-10-18-2",
+			Replicas:    1,
+			Cpu:         uiSvcCpus_050,
+			Memory:      uiSvcMem_050,
+		},
+		"grafana_renderer": {
+			ServiceName: "grafana_renderer",
+			Image: "ghcr.io/osi4iot/grafana_renderer:3.12.0",
+			Replicas:    1,
+			Cpu:         uiSvcCpus_050,
+			Memory:      uiSvcMem_050,
+		},
+		"minio": {
+			ServiceName: "minio",
+			Image: "ghcr.io/osi4iot/minio:RELEASE.2023-10-16T04-13-43Z",
+			Replicas:    1,
+			Cpu:         adminDataStorageSvcCpus,
+			Memory:      iotDataStorageSvcMem,
+		},
+		"keepalived": {
+			ServiceName: "keepalived",
+			Image: "ghcr.io/osi4iot/keepalived:latest",
+			Replicas:    1,
+			Cpu:         "0.25CPU",
+			Memory:      "250Mb",
+		},
+	}
+	return defaultServicesDataMap
+
 }

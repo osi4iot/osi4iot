@@ -1,4 +1,4 @@
-package utils
+package certrenewer
 
 import (
 	"crypto/ecdsa"
@@ -16,6 +16,7 @@ import (
 	"github.com/go-acme/lego/providers/dns/route53"
 	"github.com/go-acme/lego/registration"
 	"github.com/osi4iot/osi4iot/utils/osi4iot/internals/types"
+	"github.com/osi4iot/osi4iot/utils/osi4iot/internals/utils"
 )
 
 // SetOrUpdateAcmeCerts sets or updates the ACME certificates for the platform
@@ -146,7 +147,7 @@ func ObtainCert(platformData *types.PlatformData,
 	platformData.Certs.DomainCerts.SslCaPem = string(res.IssuerCertificate)
 	SetCertsNamesAndExpirationTime(platformData)
 
-	err = WritePlatformDataToFile(platformData)
+	err = utils.WritePlatformDataToFile(platformData)
 	if err != nil {
 		return fmt.Errorf("error writing platform data to file: %w", err)
 	}
@@ -187,7 +188,7 @@ func renewIfNeeded(platformData *types.PlatformData,
 		platformData.Certs.DomainCerts.SslCaPem = string(res.IssuerCertificate)
 		SetCertsNamesAndExpirationTime(platformData)
 
-		err = WritePlatformDataToFile(platformData)
+		err = utils.WritePlatformDataToFile(platformData)
 		if err != nil {
 			return fmt.Errorf("error writing platform data to file: %w", err)
 		}
@@ -206,7 +207,7 @@ func setRoute53EnvVars(platformData *types.PlatformData) error {
 	if err := os.Setenv("AWS_SECRET_ACCESS_KEY", awsSecretAccessKeyRoute53); err != nil {
 		return fmt.Errorf("error setting AWS_SECRET_ACCESS_KEY: %v", err)
 	}
-	awsRegionRoute53 := AwsRegionsMap[platformData.PlatformInfo.AWSRegionRoute53]
+	awsRegionRoute53 := utils.AwsRegionsMap[platformData.PlatformInfo.AWSRegionRoute53]
 	if err := os.Setenv("AWS_REGION", awsRegionRoute53); err != nil {
 		return fmt.Errorf("error setting AWS_REGION: %v", err)
 	}
@@ -219,16 +220,16 @@ func setRoute53EnvVars(platformData *types.PlatformData) error {
 
 // SetCertsNamesAndExpirationTime sets the names and expiration timestamps for the certificates
 func SetCertsNamesAndExpirationTime(platformData *types.PlatformData) {
-	keyHash := GetMD5Hash(platformData.Certs.DomainCerts.PrivateKey)
+	keyHash := utils.GetMD5Hash(platformData.Certs.DomainCerts.PrivateKey)
 	platformData.Certs.DomainCerts.IotPlatformKeyName = fmt.Sprintf("iot_platform_key_%s", keyHash)
 
-	caHash := GetMD5Hash(platformData.Certs.DomainCerts.SslCaPem)
+	caHash := utils.GetMD5Hash(platformData.Certs.DomainCerts.SslCaPem)
 	platformData.Certs.DomainCerts.IotPlatformCaName = fmt.Sprintf("iot_platform_ca_%s", caHash)
-	caExpirationTimestamp := GetCertExpirationTimestamp(platformData.Certs.DomainCerts.SslCaPem)
+	caExpirationTimestamp := utils.GetCertExpirationTimestamp(platformData.Certs.DomainCerts.SslCaPem)
 	platformData.Certs.DomainCerts.CaPemExpirationTimestamp = caExpirationTimestamp
 
-	certHash := GetMD5Hash(platformData.Certs.DomainCerts.SslCertCrt)
+	certHash := utils.GetMD5Hash(platformData.Certs.DomainCerts.SslCertCrt)
 	platformData.Certs.DomainCerts.IotPlatformCertName = fmt.Sprintf("iot_platform_cert_%s", certHash)
-	certExpirationTimestamp := GetCertExpirationTimestamp(platformData.Certs.DomainCerts.SslCertCrt)
+	certExpirationTimestamp := utils.GetCertExpirationTimestamp(platformData.Certs.DomainCerts.SslCertCrt)
 	platformData.Certs.DomainCerts.CertCrtExpirationTimestamp = certExpirationTimestamp
 }

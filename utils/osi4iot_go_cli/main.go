@@ -25,9 +25,10 @@ func main() {
 		os.Exit(0)
 	}()
 
-	existStateFile := data.ExistStateFile()
+	existStateFile := utils.ExistStateFile()
 	if existStateFile {
-		err := data.ReadPlatformDataFromFile()
+		pd := data.GetData()
+		err := utils.ReadPlatformDataFromFile(pd)
 		if err != nil {
 			errMsg := utils.StyleErrMsg.Render(fmt.Sprintf("Error loading json file: %v", err))
 			exitWithError(errMsg)
@@ -41,8 +42,7 @@ func main() {
 		}
 		
 		if slices.Contains(cmd.SwarmActions, action) {
-			platformData := data.GetData()
-			DCMap, dcMapErr := docker.SetDockerClientsMap(platformData, action)
+			DCMap, dcMapErr := docker.SetDockerClientsMap(pd, action)
 			if dcMapErr != nil {
 				err := docker.CheckDockerClientsMap(DCMap, action)
 				if err != nil {

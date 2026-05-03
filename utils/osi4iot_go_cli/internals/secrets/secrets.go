@@ -8,6 +8,7 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/swarm"
+	"github.com/osi4iot/osi4iot/utils/osi4iot/internals/certrenewer"
 	pt "github.com/osi4iot/osi4iot/utils/osi4iot/internals/types"
 	"github.com/osi4iot/osi4iot/utils/osi4iot/internals/utils"
 )
@@ -19,7 +20,7 @@ func GenerateSecrets(pd *pt.PlatformData) map[string]pt.Secret {
 	Secrets["admin_api"] = CreateAdminApiConfigSecret(pd, numNatsReplicas)
 
 	if domainCertsType == "Let's encrypt certs with DNS-01 challenge and AWS Route 53 provider" {
-		utils.SetOrUpdateAcmeCerts(pd)
+		certrenewer.SetOrUpdateAcmeCerts(pd)
 	}
 
 	if domainCertsType == "Certs provided by an CA" ||

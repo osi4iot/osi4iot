@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/osi4iot/osi4iot/utils/osi4iot/internals/certrenewer"
 	"github.com/osi4iot/osi4iot/utils/osi4iot/internals/data"
 	"github.com/osi4iot/osi4iot/utils/osi4iot/internals/types"
 	"github.com/osi4iot/osi4iot/utils/osi4iot/internals/utils"
@@ -645,7 +646,7 @@ func createPlatform(m *Model) (platformCreatingMsg, error) {
 	data.SetData("PGADMIN_DEFAULT_PASSWORD", pgAdminDefaultPassword)
 
 	if platformData.PlatformInfo.DomainCertsType == "Certs provided by an CA" {
-		utils.SetCertsNamesAndExpirationTime(platformData)
+		certrenewer.SetCertsNamesAndExpirationTime(platformData)
 	}
 
 	err = utils.NatsCredentials(platformData)

@@ -3,7 +3,6 @@ package utils
 import (
 	"bufio"
 	"bytes"
-	"encoding/json"
 	"fmt"
 	"net"
 	"os"
@@ -14,7 +13,6 @@ import (
 	"math/rand"
 
 	"github.com/charmbracelet/lipgloss"
-	"github.com/osi4iot/osi4iot/utils/osi4iot/internals/types"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -535,17 +533,6 @@ func GetFileData(filePath string) string {
 	buf := new(bytes.Buffer)
 	buf.ReadFrom(file)
 	return buf.String()
-}
-
-var osi4iotStateFile = "osi4iot_state.json"
-
-func WritePlatformDataToFile(platformData *types.PlatformData) error {
-	file, _ := json.Marshal(platformData)
-	err := os.WriteFile(osi4iotStateFile, file, 0644)
-	if err != nil {
-		return err
-	}
-	return nil
 }
 
 func GetLocalNodeIP() (string, error) {

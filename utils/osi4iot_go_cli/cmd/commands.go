@@ -8,6 +8,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/osi4iot/osi4iot/utils/osi4iot/internals/certrenewer"
+	"github.com/osi4iot/osi4iot/utils/osi4iot/internals/crypto"
 	"github.com/osi4iot/osi4iot/utils/osi4iot/internals/data"
 	"github.com/osi4iot/osi4iot/utils/osi4iot/internals/docker"
 	"github.com/osi4iot/osi4iot/utils/osi4iot/internals/utils"
@@ -19,9 +21,13 @@ var SwarmActions = []string{"create", "init", "run", "stop", "delete", "service"
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
-	Use:   "osi4iot_go_cli",
-	Short: "osi4iot_go_cli is a CLI tool for OSI4IOT",
-	Long:  `osi4iot_go_cli is a CLI tool for OSI4IOT`,
+	Use:   "osi4iot",
+	Short: "osi4iot is a CLI tool for OSI4IOT",
+	Long:  `osi4iot is a CLI tool for OSI4IOT`,
+	PersistentPreRun: func(cmd *cobra.Command, args []string) {
+		noEncrypt, _ := cmd.Flags().GetBool("no-encrypt")
+		crypto.SetNoEncrypt(noEncrypt)
+	},
 	// Run: func(cmd *cobra.Command, args []string) {},
 }
 
@@ -65,17 +71,22 @@ var cmdInit = &cobra.Command{
 	Long:  "Init a new osi4iot platform using the existing configuration",
 	Run: func(cmd *cobra.Command, args []string) {
 		checkState("init")
-		platformData := data.GetData()
-		err := docker.InitPlatform(platformData)
+		pd := data.GetData()
+		err := docker.InitPlatform(pd)
 		if err != nil {
 			errMsg := fmt.Sprintf("Error starting platform: %v", err)
 			exitWithError(errMsg)
 		}
 		okMessage := "Platform has been initialized successfully and is ready to to be used"
-		err = docker.SwarmInitiationInfo(platformData, okMessage)
+		err = docker.SwarmInitiationInfo(pd, okMessage)
 		if err != nil {
 			errMsg := fmt.Sprintf("Error: initializing the platform %v", err)
 			exitWithError(errMsg)
+		}
+
+		if err := certrenewer.Start(pd); err != nil {
+			errMsg := fmt.Sprintf("⚠️  Warning: it was not possible to start cert-renewer: %v\n", err)
+			fmt.Print(errMsg)
 		}
 	},
 }
@@ -86,25 +97,30 @@ var cmdRun = &cobra.Command{
 	Long:  "Start osi4iot platform",
 	Run: func(cmd *cobra.Command, args []string) {
 		checkState("run")
-		platformData := data.GetData()
+		pd := data.GetData()
 		excludedServices, _ := cmd.Flags().GetStringSlice("exclude")
-		platformData.PlatformInfo.ExcludedServices = excludedServices
+		pd.PlatformInfo.ExcludedServices = excludedServices
 		dc, err := docker.GetManagerDC()
 		if err != nil {
 			errMsg := fmt.Sprintf("Error: getting docker client %v", err)
 			exitWithError(errMsg)
 		}
-		err = docker.RunSwarm(dc, platformData)
+		err = docker.RunSwarm(dc, pd)
 		if err != nil {
 			errMsg := fmt.Sprintf("Error: runing the platform %v", err)
 			exitWithError(errMsg)
 		} else {
-			platformData := data.GetData()
+			pd := data.GetData()
 			okMessage := "Platform has been started successfully and is ready to to be used"
-			err = docker.SwarmInitiationInfo(platformData, okMessage)
+			err = docker.SwarmInitiationInfo(pd, okMessage)
 			if err != nil {
 				errMsg := fmt.Sprintf("Error: initializing the platform %v", err)
 				exitWithError(errMsg)
+			}
+
+			if err := certrenewer.Start(pd); err != nil {
+				errMsg := fmt.Sprintf("⚠️  Warning: it was not possible to start cert-renewer: %v\n", err)
+				fmt.Print(errMsg)
 			}
 		}
 	},
@@ -365,54 +381,41 @@ var subCmdCertsUpdate = &cobra.Command{
 	Short: "Update platform certificates",
 	Long:  "Update platform certificates",
 	Run: func(cmd *cobra.Command, args []string) {
-		pd := data.GetData()
-		expirationInfo, err := utils.GetCertsExpirationInfo(pd)
-		if err != nil {
-			errMsg := fmt.Sprintf("Error checking certificates: %v", err)
-			exitWithError(errMsg)
+		if err := runCertsUpdate(); err != nil {
+			exitWithError(err.Error())
 		}
+	},
+}
 
-		if expirationInfo.DaysToExpiry > 15 {
-			fmt.Printf("Certificates are not close to expiration (%d days to expiry).\n", expirationInfo.DaysToExpiry)
-			fmt.Println("Less than 15 days are required to update the certificates.")
-			return
-		}
+var subCmdCertsRenewer = &cobra.Command{
+	Use:   "renewer",
+	Short: "Cert-renewer background process management",
+	Long:  "Manage the certificate auto-renewal background process",
+}
 
-		domainCertsType := pd.PlatformInfo.DomainCertsType
-		switch domainCertsType {
-		case "Let's encrypt certs with DNS-01 challenge and AWS Route 53 provider":
-			err := utils.SetOrUpdateAcmeCerts(pd)
-			if err != nil {
-				errMsg := fmt.Sprintf("Error updating ACME certificates: %v", err)
-				exitWithError(errMsg)
-			}
+var subCmdCertsRenewerDaemon = &cobra.Command{
+	Use:    "daemon",
+	Hidden: true,
+	Run: func(cmd *cobra.Command, args []string) {
+		certrenewer.RunDaemon(runCertsUpdate)
+	},
+}
 
-			dc, err := docker.GetManagerDC()
-			if err != nil {
-				errMsg := fmt.Sprintf("Error getting docker client: %v", err)
-				exitWithError(errMsg)
-			}
-			warnings, err := docker.UpdateCertsInServices(pd, dc)
-			if err != nil {
-				errMsg := fmt.Sprintf("Error updating certs: %v", err)
-				exitWithError(errMsg)
-			}
+var subCmdCertsRenewerLogs = &cobra.Command{
+	Use:   "logs",
+	Short: "Show cert-renewer logs",
+	Run: func(cmd *cobra.Command, args []string) {
+		follow, _ := cmd.Flags().GetBool("follow")
+		lines, _ := cmd.Flags().GetInt("lines")
+		certrenewer.ShowLogs(follow, lines)
+	},
+}
 
-			if warnings != "" {
-				warningMsg := utils.StyleWarningMsg.Render("\nWarnings:\n" + warnings)
-				fmt.Println(warningMsg)
-			}
-
-			fmt.Println()
-			if warnings == "" {
-				okMsg := utils.StyleOKMsg.Render("ACME certificates have been updated successfully")
-				fmt.Println(okMsg)
-			}
-
-		case "Certs provided by an CA":
-			errMsg := fmt.Sprintf("Certificate update not supported for domain certs type: %s", domainCertsType)
-			exitWithError(errMsg)
-		}
+var subCmdCertsRenewerStatus = &cobra.Command{
+	Use:   "status",
+	Short: "Show cert-renewer background process status",
+	Run: func(cmd *cobra.Command, args []string) {
+		certrenewer.Status()
 	},
 }
 
@@ -493,7 +496,7 @@ var subCmdRemoveNode = &cobra.Command{
 	Short: "Remove node",
 	Long:  "Remove node",
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("Add node")
+		fmt.Println("Remove node")
 	},
 }
 
@@ -515,14 +518,47 @@ var cmdStatus = &cobra.Command{
 	},
 }
 
+var cmdState = &cobra.Command{
+	Use:   "state",
+	Short: "Platform state management",
+	Long:  "Manage the platform state file",
+}
+
+var subCmdStateExport = &cobra.Command{
+	Use:   "export",
+	Short: "Export platform state as unencrypted JSON",
+	Long:  "Decrypt and export osi4iot_state.json to osi4iot_state_unencrypted.json",
+	Run: func(cmd *cobra.Command, args []string) {
+		if !utils.ExistStateFile() {
+			exitWithError("No state file found. Create a platform first.")
+		}
+
+		// Forzar solicitud de passphrase aunque esté en el keystore
+		fmt.Print("🔑 Enter passphrase to decrypt the state file: ")
+		passphrase, err := crypto.PromptPassphrase()
+		if err != nil {
+			exitWithError(fmt.Sprintf("Error reading passphrase: %v", err))
+		}
+		fmt.Println()
+
+		if err := utils.ExportUnencrypted(passphrase); err != nil {
+			exitWithError(fmt.Sprintf("Error exporting state file: %v", err))
+		}
+
+		okMsg := utils.StyleOKMsg.Render("State exported to osi4iot_state_unencrypted.json")
+		fmt.Println(okMsg)
+	},
+}
+
 var cmdStop = &cobra.Command{
 	Use:   "stop",
 	Short: "Stop platform",
 	Long:  "Stop platform",
 	Run: func(cmd *cobra.Command, args []string) {
 		checkState("stop")
-		platformData := data.GetData()
-		err := docker.StopPlatform(platformData)
+		certrenewer.Stop()
+		pd := data.GetData()
+		err := docker.StopPlatform(pd)
 		if err != nil {
 			errMsg := fmt.Sprintf("Error: stopping the platform %v", err)
 			exitWithError(errMsg)
@@ -539,8 +575,9 @@ var cmdDelete = &cobra.Command{
 	Long:  "Delete platform",
 	Run: func(cmd *cobra.Command, args []string) {
 		checkState("delete")
-		platformData := data.GetData()
-		err := docker.DeletePlatform(platformData)
+		certrenewer.Stop()
+		pd := data.GetData()
+		err := docker.DeletePlatform(pd)
 		if err != nil {
 			errMsg := fmt.Sprintf("Error: deleting the platform %v", err)
 			exitWithError(errMsg)
@@ -548,6 +585,7 @@ var cmdDelete = &cobra.Command{
 			okMsg := utils.StyleOKMsg.Render("Platform has been deleted successfully")
 			fmt.Println(okMsg)
 		}
+		crypto.ClearPassphrase()
 	},
 }
 
@@ -559,6 +597,7 @@ func Execute() {
 }
 
 func init() {
+	rootCmd.PersistentFlags().Bool("no-encrypt", false, "Disable encryption for debugging (plain text osi4iot_state.json)")
 	rootCmd.AddCommand(cmdCreate)
 	rootCmd.AddCommand(cmdInit)
 	cmdInit.PersistentFlags().StringSlice("exclude", []string{}, "List of services to exclude")
@@ -583,7 +622,16 @@ func init() {
 
 	cmdCerts.AddCommand(subCmdCertsCheck)
 	cmdCerts.AddCommand(subCmdCertsUpdate)
+	subCmdCertsRenewer.AddCommand(subCmdCertsRenewerDaemon)
+	subCmdCertsRenewerLogs.Flags().BoolP("follow", "f", false, "Follow log output")
+	subCmdCertsRenewerLogs.Flags().IntP("lines", "n", 50, "Number of lines to show")
+	subCmdCertsRenewer.AddCommand(subCmdCertsRenewerLogs)
+	subCmdCertsRenewer.AddCommand(subCmdCertsRenewerStatus)
+	cmdCerts.AddCommand(subCmdCertsRenewer)
 	rootCmd.AddCommand(cmdCerts)
+
+	cmdState.AddCommand(subCmdStateExport)
+	rootCmd.AddCommand(cmdState)
 
 	cmdNodes.AddCommand(subCmdNodesList)
 	cmdNodes.AddCommand(subCmdAddNode)
