@@ -72,7 +72,7 @@ func GetPassphrase() ([]byte, error) {
 	if err := keyring.Set(keyringService, keyringUser, string(passphrase)); err != nil {
 		// Keystore not available (headless server), fall back to encrypted file
 		if err := savePassphraseFile(passphrase); err != nil {
-			fmt.Printf("⚠️  Could not save the passphrase: %v\n", err) // 👈 mostrar el error concreto
+			fmt.Printf("⚠️  XXXXXXXXXXXXXXXX Could not save the passphrase: %v\n", err) // 👈 mostrar el error concreto
 			fmt.Println("⚠️  You will be prompted on every command.")
 		} else {
 			fmt.Printf("🔑 Passphrase saved to %s\n", passphraseFilePath())
