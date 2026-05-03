@@ -122,13 +122,20 @@ func Status() {
 	fmt.Printf("cert-renewer: running ✅ (PID %d)\n", pid)
 }
 
-func appDir() string {
+func osi4iotDir() string {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		// Fallback al directorio del binario
+		return fallbackOsi4iotDir()
+	}
+	return filepath.Join(home, ".osi4iot")
+}
+
+func fallbackOsi4iotDir() string {
 	execPath, err := os.Executable()
 	if err != nil {
-		// fallback in case of error
 		return "."
 	}
-	// Resolve symlinks (go run, go install, etc.)
 	resolved, err := filepath.EvalSymlinks(execPath)
 	if err != nil {
 		resolved = execPath
@@ -137,11 +144,11 @@ func appDir() string {
 }
 
 func logDir() string {
-	return filepath.Join(appDir(), "logs")
+	return filepath.Join(osi4iotDir(), "logs")
 }
 
 func pidFile() string {
-	return filepath.Join(appDir(), "cert-renewer.pid")
+	return filepath.Join(osi4iotDir(), "cert-renewer.pid")
 }
 
 func savePID(pid int) error {
