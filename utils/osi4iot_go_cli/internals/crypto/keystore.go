@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/osi4iot/osi4iot/utils/osi4iot/paths"
 	"github.com/zalando/go-keyring"
 )
 
@@ -89,24 +90,7 @@ func PromptPassphrase() ([]byte, error) {
 }
 
 func passphraseFilePath() string {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		// Fallback al directorio del binario
-		return fallbackPassphraseFilePath()
-	}
-	return filepath.Join(home, ".osi4iot", passphraseFile)
-}
-
-func fallbackPassphraseFilePath() string {
-	execPath, err := os.Executable()
-	if err != nil {
-		return passphraseFile
-	}
-	resolved, err := filepath.EvalSymlinks(execPath)
-	if err != nil {
-		resolved = execPath
-	}
-	return filepath.Join(filepath.Dir(resolved), passphraseFile)
+	return filepath.Join(paths.Osi4iotDir(), passphraseFile)
 }
 
 func savePassphraseFile(passphrase []byte) error {

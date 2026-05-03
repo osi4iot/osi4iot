@@ -12,6 +12,7 @@ import (
 
 var osi4iotStateFile = "osi4iot_state.json"
 
+
 func ExistFile(filePath string) bool {
     _, err := os.Stat(filePath)
     return err == nil

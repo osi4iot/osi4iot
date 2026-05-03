@@ -10,6 +10,7 @@ import (
 
 	pt "github.com/osi4iot/osi4iot/utils/osi4iot/internals/types"
 	"github.com/osi4iot/osi4iot/utils/osi4iot/internals/utils"
+	"github.com/osi4iot/osi4iot/utils/osi4iot/paths"
 )
 
 const defaultIntervalHours = 12
@@ -122,33 +123,12 @@ func Status() {
 	fmt.Printf("cert-renewer: running ✅ (PID %d)\n", pid)
 }
 
-func osi4iotDir() string {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		// Fallback al directorio del binario
-		return fallbackOsi4iotDir()
-	}
-	return filepath.Join(home, ".osi4iot")
-}
-
-func fallbackOsi4iotDir() string {
-	execPath, err := os.Executable()
-	if err != nil {
-		return "."
-	}
-	resolved, err := filepath.EvalSymlinks(execPath)
-	if err != nil {
-		resolved = execPath
-	}
-	return filepath.Dir(resolved)
-}
-
 func logDir() string {
-	return filepath.Join(osi4iotDir(), "logs")
+	return filepath.Join(paths.Osi4iotDir(), "logs")
 }
 
 func pidFile() string {
-	return filepath.Join(osi4iotDir(), "cert-renewer.pid")
+	return filepath.Join(paths.Osi4iotDir(), "cert-renewer.pid")
 }
 
 func savePID(pid int) error {

@@ -37,11 +37,13 @@ func GenerateSecrets(pd *pt.PlatformData) map[string]pt.Secret {
 		}
 		Secrets["iot_platform_key"] = iotPlatformKeySecret
 
-		iotPlatformCaCertSecret := pt.Secret{
-			Name: pd.Certs.DomainCerts.IotPlatformCaName,
-			Data: pd.Certs.DomainCerts.SslCaPem,
+		if domainCertsType == "Certs provided by an CA" {
+			iotPlatformCaCertSecret := pt.Secret{
+				Name: pd.Certs.DomainCerts.IotPlatformCaName,
+				Data: pd.Certs.DomainCerts.SslCaPem,
+			}
+			Secrets["iot_platform_ca_cert"] = iotPlatformCaCertSecret
 		}
-		Secrets["iot_platform_ca_cert"] = iotPlatformCaCertSecret
 	}
 
 	authCalloutSecretsDataArray := []string{
