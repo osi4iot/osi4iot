@@ -124,14 +124,14 @@ func decrypt(encoded []byte, passphrase []byte) ([]byte, error) {
 
 	nonceSize := aesGCM.NonceSize()
 	if len(ciphertext) < nonceSize {
-		return nil, fmt.Errorf("ciphertext demasiado corto")
+		return nil, fmt.Errorf("ciphertext too short")
 	}
 
 	nonce, ciphertext := ciphertext[:nonceSize], ciphertext[nonceSize:]
 	plaintext, err := aesGCM.Open(nil, nonce, ciphertext, nil)
 	if err != nil {
 		// Generic error to avoid revealing if it was an incorrect passphrase or corrupted data
-		return nil, fmt.Errorf("error al descifrar: passphrase incorrecta o datos corruptos")
+		return nil, fmt.Errorf("error: Decryption error due to an incorrect passphrase or corrupted data")
 	}
 
 	return plaintext, nil

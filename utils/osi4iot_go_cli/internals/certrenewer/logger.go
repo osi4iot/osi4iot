@@ -1,12 +1,28 @@
 package certrenewer
 
 import (
-    "bufio"
-    "fmt"
-    "io"
-    "os"
-    "time"
+	"bufio"
+	"fmt"
+	"io"
+	"os"
+	"path/filepath"
+	"time"
 )
+
+// newFileLogger opens (or creates) the log file and returns a writer
+// suitable for log.SetOutput. The caller owns the file handle; since the
+// daemon process runs for the lifetime of the OS service, we intentionally
+// never close it.
+func newFileLogger(logPath string) (io.Writer, error) {
+	if err := os.MkdirAll(filepath.Dir(logPath), 0755); err != nil {
+		return nil, err
+	}
+	f, err := os.OpenFile(logPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		return nil, err
+	}
+	return f, nil
+}
 
 func ShowLogs(follow bool, lines int) {
     logPath := logFilePath()

@@ -40,8 +40,8 @@ var cmdCreate = &cobra.Command{
 		form.CreatePlatform()
 		platformState := data.GetPlatformState()
 		if platformState == data.Initiating {
-			platformData := data.GetData()
-			_, err := docker.SetDockerClientsMap(platformData, "create")
+			pd := data.GetData()
+			_, err := docker.SetDockerClientsMap(pd, "create")
 			if err != nil {
 				errMsg := fmt.Sprintf("Error setting Docker clients map: %v", err)
 				exitWithError(errMsg)
@@ -49,22 +49,29 @@ var cmdCreate = &cobra.Command{
 			defer func() {
 				docker.CleanResources()
 			}()
-
-			err = docker.InitPlatform(platformData)
+ 
+			err = docker.InitPlatform(pd)
 			if err != nil {
 				errMsg := fmt.Sprintf("Error initializing platform: %v", err)
 				exitWithError(errMsg)
 			}
 			okMessage := "Platform has been created successfully and is ready to be used"
-			err = docker.SwarmInitiationInfo(platformData, okMessage)
+			err = docker.SwarmInitiationInfo(pd, okMessage)
 			if err != nil {
 				errMsg := fmt.Sprintf("Error: initializing the platform %v", err)
 				exitWithError(errMsg)
 			}
+ 
+			if err := certrenewer.InstallService(pd); err != nil {
+				fmt.Printf("⚠️  Warning: could not install cert-renewer service: %v\n", err)
+			}
+			if err := certrenewer.Start(pd); err != nil {
+				fmt.Printf("⚠️  Warning: could not start cert-renewer: %v\n", err)
+			}
 		}
 	},
 }
-
+ 
 var cmdInit = &cobra.Command{
 	Use:   "init",
 	Short: "Init a new osi4iot platform using the existing configuration",
@@ -83,10 +90,12 @@ var cmdInit = &cobra.Command{
 			errMsg := fmt.Sprintf("Error: initializing the platform %v", err)
 			exitWithError(errMsg)
 		}
-
+ 
+		if err := certrenewer.InstallService(pd); err != nil {
+			fmt.Printf("⚠️  Warning: could not install cert-renewer service: %v\n", err)
+		}
 		if err := certrenewer.Start(pd); err != nil {
-			errMsg := fmt.Sprintf("⚠️  Warning: it was not possible to start cert-renewer: %v\n", err)
-			fmt.Print(errMsg)
+			fmt.Printf("⚠️  Warning: could not start cert-renewer: %v\n", err)
 		}
 	},
 }
@@ -119,10 +128,48 @@ var cmdRun = &cobra.Command{
 			}
 
 			if err := certrenewer.Start(pd); err != nil {
-				errMsg := fmt.Sprintf("⚠️  Warning: it was not possible to start cert-renewer: %v\n", err)
-				fmt.Print(errMsg)
+				fmt.Printf("⚠️  Warning: could not start cert-renewer: %v\n", err)
 			}
 		}
+	},
+}
+
+var cmdStop = &cobra.Command{
+	Use:   "stop",
+	Short: "Stop platform",
+	Long:  "Stop platform",
+	Run: func(cmd *cobra.Command, args []string) {
+		checkState("stop")
+		certrenewer.Stop()
+		pd := data.GetData()
+		err := docker.StopPlatform(pd)
+		if err != nil {
+			errMsg := fmt.Sprintf("Error: stopping the platform %v", err)
+			exitWithError(errMsg)
+		} else {
+			okMsg := utils.StyleOKMsg.Render("Platform has been stopped successfully")
+			fmt.Println(okMsg)
+		}
+	},
+}
+
+var cmdDelete = &cobra.Command{
+	Use:   "delete",
+	Short: "Delete platform",
+	Long:  "Delete platform",
+	Run: func(cmd *cobra.Command, args []string) {
+		checkState("delete")
+		certrenewer.Stop()
+		pd := data.GetData()
+		err := docker.DeletePlatform(pd)
+		if err != nil {
+			errMsg := fmt.Sprintf("Error: deleting the platform %v", err)
+			exitWithError(errMsg)
+		} else {
+			okMsg := utils.StyleOKMsg.Render("Platform has been deleted successfully")
+			fmt.Println(okMsg)
+		}
+		crypto.ClearPassphrase()
 	},
 }
 
@@ -130,9 +177,6 @@ var cmdService = &cobra.Command{
 	Use:   "service",
 	Short: "Services management",
 	Long:  "Services management",
-	// Run: func(cmd *cobra.Command, args []string) {
-	// 	fmt.Println("Services management")
-	// },
 }
 
 var subCmdServiceList = &cobra.Command{
@@ -359,6 +403,52 @@ var subCmdServiceUpdateImage = &cobra.Command{
 	},
 }
 
+var subCmdCertsRenewerInstall = &cobra.Command{
+	Use:   "install",
+	Short: "Register cert-renewer with the OS service manager",
+	Long:  "Install cert-renewer as a system service (systemd / Windows Service / launchd) so it starts automatically on boot",
+	Run: func(cmd *cobra.Command, args []string) {
+		pd := data.GetData()
+		if err := certrenewer.InstallService(pd); err != nil {
+			exitWithError(fmt.Sprintf("Error installing cert-renewer service: %v", err))
+		}
+	},
+}
+
+var subCmdCertsRenewerUninstall = &cobra.Command{
+	Use:   "uninstall",
+	Short: "Remove cert-renewer from the OS service manager",
+	Long:  "Uninstall the cert-renewer system service (stops it first if running)",
+	Run: func(cmd *cobra.Command, args []string) {
+		if err := certrenewer.UninstallService(); err != nil {
+			exitWithError(fmt.Sprintf("Error uninstalling cert-renewer service: %v", err))
+		}
+	},
+}
+
+var subCmdCertsRenewerStart = &cobra.Command{
+	Use:   "start",
+	Short: "Start cert-renewer background process",
+	Long:  "Start the certificate auto-renewal background process",
+	Run: func(cmd *cobra.Command, args []string) {
+		pd := data.GetData()
+		if err := certrenewer.Start(pd); err != nil {
+			exitWithError(fmt.Sprintf("Error starting cert-renewer: %v", err))
+		}
+	},
+}
+
+var subCmdCertsRenewerStop = &cobra.Command{
+	Use:   "stop",
+	Short: "Stop cert-renewer background process",
+	Long:  "Stop the certificate auto-renewal background process",
+	Run: func(cmd *cobra.Command, args []string) {
+		if err := certrenewer.Stop(); err != nil {
+			exitWithError(fmt.Sprintf("Error stopping cert-renewer: %v", err))
+		}
+	},
+}
+
 var subCmdCertsCheck = &cobra.Command{
 	Use:   "check",
 	Short: "Check certificates expiration",
@@ -468,9 +558,6 @@ var cmdNodes = &cobra.Command{
 	Use:   "nodes",
 	Short: "Nodes management",
 	Long:  "Add, update, list and remove nodes from the platform",
-	// Run: func(cmd *cobra.Command, args []string) {
-	// 	fmt.Println("Nodes management")
-	// },
 }
 
 var subCmdNodesList = &cobra.Command{
@@ -533,7 +620,6 @@ var subCmdStateExport = &cobra.Command{
 			exitWithError("No state file found. Create a platform first.")
 		}
 
-		// Forzar solicitud de passphrase aunque esté en el keystore
 		fmt.Print("🔑 Enter passphrase to decrypt the state file: ")
 		passphrase, err := crypto.PromptPassphrase()
 		if err != nil {
@@ -550,42 +636,20 @@ var subCmdStateExport = &cobra.Command{
 	},
 }
 
-var cmdStop = &cobra.Command{
-	Use:   "stop",
-	Short: "Stop platform",
-	Long:  "Stop platform",
-	Run: func(cmd *cobra.Command, args []string) {
-		checkState("stop")
-		certrenewer.Stop()
-		pd := data.GetData()
-		err := docker.StopPlatform(pd)
-		if err != nil {
-			errMsg := fmt.Sprintf("Error: stopping the platform %v", err)
-			exitWithError(errMsg)
-		} else {
-			okMsg := utils.StyleOKMsg.Render("Platform has been stopped successfully")
-			fmt.Println(okMsg)
-		}
-	},
+var cmdPassphrase = &cobra.Command{
+	Use:   "passphrase",
+	Short: "Passphrase management",
+	Long:  "Manage the osi4iot state file passphrase",
 }
 
-var cmdDelete = &cobra.Command{
-	Use:   "delete",
-	Short: "Delete platform",
-	Long:  "Delete platform",
+var subCmdPassphraseReset = &cobra.Command{
+	Use:   "reset",
+	Short: "Reset the saved passphrase",
+	Long:  "Remove the saved passphrase so it will be prompted again on the next command",
 	Run: func(cmd *cobra.Command, args []string) {
-		checkState("delete")
-		certrenewer.Stop()
-		pd := data.GetData()
-		err := docker.DeletePlatform(pd)
-		if err != nil {
-			errMsg := fmt.Sprintf("Error: deleting the platform %v", err)
-			exitWithError(errMsg)
-		} else {
-			okMsg := utils.StyleOKMsg.Render("Platform has been deleted successfully")
-			fmt.Println(okMsg)
-		}
 		crypto.ClearPassphrase()
+		okMsg := utils.StyleOKMsg.Render("Passphrase cleared. You will be prompted on the next command.")
+		fmt.Println(okMsg)
 	},
 }
 
@@ -620,23 +684,31 @@ func init() {
 	cmdService.AddCommand(subCmdServiceUpdateImage)
 	rootCmd.AddCommand(cmdService)
 
-	cmdCerts.AddCommand(subCmdCertsCheck)
-	cmdCerts.AddCommand(subCmdCertsUpdate)
-	subCmdCertsRenewer.AddCommand(subCmdCertsRenewerDaemon)
+	subCmdCertsRenewer.AddCommand(subCmdCertsRenewerInstall)
+	subCmdCertsRenewer.AddCommand(subCmdCertsRenewerUninstall)
+	subCmdCertsRenewer.AddCommand(subCmdCertsRenewerStart)
+	subCmdCertsRenewer.AddCommand(subCmdCertsRenewerStop)
+	subCmdCertsRenewer.AddCommand(subCmdCertsRenewerDaemon) // hidden
 	subCmdCertsRenewerLogs.Flags().BoolP("follow", "f", false, "Follow log output")
 	subCmdCertsRenewerLogs.Flags().IntP("lines", "n", 50, "Number of lines to show")
 	subCmdCertsRenewer.AddCommand(subCmdCertsRenewerLogs)
 	subCmdCertsRenewer.AddCommand(subCmdCertsRenewerStatus)
+	cmdCerts.AddCommand(subCmdCertsCheck)
+	cmdCerts.AddCommand(subCmdCertsUpdate)
 	cmdCerts.AddCommand(subCmdCertsRenewer)
 	rootCmd.AddCommand(cmdCerts)
 
 	cmdState.AddCommand(subCmdStateExport)
 	rootCmd.AddCommand(cmdState)
 
+	cmdPassphrase.AddCommand(subCmdPassphraseReset)
+	rootCmd.AddCommand(cmdPassphrase)
+
 	cmdNodes.AddCommand(subCmdNodesList)
 	cmdNodes.AddCommand(subCmdAddNode)
 	cmdNodes.AddCommand(subCmdRemoveNode)
 	rootCmd.AddCommand(cmdNodes)
+
 }
 
 func exitWithWarning(errMsg string) {

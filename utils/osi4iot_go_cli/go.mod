@@ -8,6 +8,7 @@ require (
 	github.com/docker/cli v27.5.1+incompatible
 	github.com/docker/docker v27.4.1+incompatible
 	github.com/go-acme/lego v2.7.2+incompatible
+	github.com/kardianos/service v1.2.4
 	github.com/nats-io/nkeys v0.4.11
 	github.com/pkg/errors v0.9.1
 	github.com/shirou/gopsutil v3.21.11+incompatible
@@ -79,7 +80,7 @@ require (
 	go.opentelemetry.io/otel/sdk v1.34.0 // indirect
 	go.opentelemetry.io/otel/trace v1.34.0 // indirect
 	golang.org/x/sync v0.13.0 // indirect
-	golang.org/x/sys v0.32.0 // indirect
+	golang.org/x/sys v0.34.0 // indirect
 	golang.org/x/text v0.24.0 // indirect
 	gotest.tools/v3 v3.5.1 // indirect
 )

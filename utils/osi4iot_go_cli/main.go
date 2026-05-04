@@ -25,6 +25,17 @@ func main() {
 		os.Exit(0)
 	}()
 
+	noStateCommands := []string{"--help", "-h", "help", "passphrase"}
+	args := os.Args[1:]
+	for _, arg := range args {
+		for _, noState := range noStateCommands {
+			if arg == noState {
+				cmd.Execute()
+				return
+			}
+		}
+	}
+
 	existStateFile := utils.ExistStateFile()
 	if existStateFile {
 		pd := data.GetData()
@@ -34,13 +45,11 @@ func main() {
 			exitWithError(errMsg)
 		}
 
-		
-		args := os.Args[1:]
 		action := "none"
 		if len(args) != 0 {
 			action = args[0]
 		}
-		
+
 		if slices.Contains(cmd.SwarmActions, action) {
 			DCMap, dcMapErr := docker.SetDockerClientsMap(pd, action)
 			if dcMapErr != nil {

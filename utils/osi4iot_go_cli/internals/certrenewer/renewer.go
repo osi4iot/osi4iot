@@ -4,10 +4,11 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"os/exec"
 	"path/filepath"
-	"syscall"
 	"time"
 
+	"github.com/kardianos/service"
 	pt "github.com/osi4iot/osi4iot/utils/osi4iot/internals/types"
 	"github.com/osi4iot/osi4iot/utils/osi4iot/internals/utils"
 	"github.com/osi4iot/osi4iot/utils/osi4iot/paths"
@@ -15,22 +16,47 @@ import (
 
 const defaultIntervalHours = 12
 
-// RunDaemon is the main loop, called from "certs renewer --daemon"
-func RunDaemon(renewFn func() error) {
+var svcConfig = &service.Config{
+	Name:        "osi4iot-cert-renewer",
+	DisplayName: "OSI4IOT Certificate Renewer",
+	Description: "Automatically renews TLS certificates for the OSI4IOT platform.",
+	Arguments:   []string{"certs", "renewer", "daemon"},
+}
+
+type program struct {
+	renewFn func() error
+	quit    chan struct{}
+}
+
+func (p *program) Start(_ service.Service) error {
+	p.quit = make(chan struct{})
+	go p.run()
+	return nil
+}
+
+func (p *program) Stop(_ service.Service) error {
+	close(p.quit)
+	return nil
+}
+
+func (p *program) run() {
 	interval := defaultIntervalHours * time.Hour
-	log.Printf("[cert-renewer] Iniciado. Intervalo: %v", interval)
-
-	run(renewFn)
-
+	log.Printf("[cert-renewer] Started. Interval: %v", interval)
+	runOnce(p.renewFn)
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
-
-	for range ticker.C {
-		run(renewFn)
+	for {
+		select {
+		case <-ticker.C:
+			runOnce(p.renewFn)
+		case <-p.quit:
+			log.Println("[cert-renewer] Stopped.")
+			return
+		}
 	}
 }
 
-func run(renewFn func() error) {
+func runOnce(renewFn func() error) {
 	log.Println("[cert-renewer] Renewing certificates...")
 	if err := renewFn(); err != nil {
 		log.Printf("[cert-renewer] Error: %v", err)
@@ -39,113 +65,156 @@ func run(renewFn func() error) {
 	log.Println("[cert-renewer] Certificates renewed successfully.")
 }
 
-// Start launches the daemon in the background (called from run/init/create)
+// RunDaemon is called by the hidden "certs renewer daemon" subcommand.
+func RunDaemon(renewFn func() error) {
+	prg := &program{renewFn: renewFn}
+	s, err := service.New(prg, svcConfig)
+	if err != nil {
+		log.Fatalf("[cert-renewer] could not create service: %v", err)
+	}
+	logPath := filepath.Join(logDir(), "cert-renewer.log")
+	if logger, err := newFileLogger(logPath); err == nil {
+		log.SetOutput(logger)
+	}
+	if err := s.Run(); err != nil {
+		log.Fatalf("[cert-renewer] service exited with error: %v", err)
+	}
+}
+
+// isRoot returns true when the process is running as root (UID 0).
+func isRoot() bool {
+	return os.Getuid() == 0
+}
+
+// sudoRun re-executes the current binary with sudo, forwarding the given
+// arguments. The OS handles the password prompt (terminal or GUI popup).
+func sudoRun(args ...string) error {
+	self, err := os.Executable()
+	if err != nil {
+		return fmt.Errorf("could not resolve executable path: %w", err)
+	}
+	cmd := exec.Command("sudo", append([]string{self}, args...)...)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	cmd.Stdin = os.Stdin
+	return cmd.Run()
+}
+
+
+// InstallService registers the service with the OS init system.
+// If the service is already installed it is a no-op, so calling it on every
+// "create" and "init" is safe.
+// Automatically escalates to sudo if not running as root.
+func InstallService(pd *pt.PlatformData) error {
+	if pd.PlatformInfo.DomainCertsType != "Let's encrypt certs with DNS-01 challenge and AWS Route 53 provider" {
+		return nil
+	}
+	if !isRoot() {
+		return sudoRun("certs", "renewer", "install")
+	}
+	prg := &program{}
+	s, err := service.New(prg, svcConfig)
+	if err != nil {
+		return fmt.Errorf("could not create service object: %w", err)
+	}
+	// If the service is already installed just skip — not an error.
+	if _, err := os.Stat(serviceFilePath()); err == nil {
+		return nil
+	}
+	if err := s.Install(); err != nil {
+		return fmt.Errorf("could not install service: %w", err)
+	}
+	fmt.Println(utils.StyleOKMsg.Render("Cert-renewer service installed (will start automatically on boot)"))
+	return nil
+}
+
+// UninstallService removes the service registration from the OS init system.
+// Automatically escalates to sudo if not running as root.
+func UninstallService() error {
+	if !isRoot() {
+		return sudoRun("certs", "renewer", "uninstall")
+	}
+	prg := &program{}
+	s, err := service.New(prg, svcConfig)
+	if err != nil {
+		return fmt.Errorf("could not create service object: %w", err)
+	}
+	_ = s.Stop()
+	if err := s.Uninstall(); err != nil {
+		return fmt.Errorf("could not uninstall service: %w", err)
+	}
+	fmt.Println(utils.StyleOKMsg.Render("Cert-renewer service uninstalled"))
+	return nil
+}
+
+// Start starts the already-installed service.
+// Escalates to sudo if the call fails due to permissions.
 func Start(pd *pt.PlatformData) error {
 	if pd.PlatformInfo.DomainCertsType != "Let's encrypt certs with DNS-01 challenge and AWS Route 53 provider" {
 		return nil
 	}
-
-	execPath, err := os.Executable()
+	prg := &program{}
+	s, err := service.New(prg, svcConfig)
 	if err != nil {
-		return fmt.Errorf("could not get executable path: %w", err)
+		return fmt.Errorf("could not create service object: %w", err)
 	}
-
-	logPath := filepath.Join(logDir(), "cert-renewer.log")
-	os.MkdirAll(logDir(), 0755)
-	logF, err := os.OpenFile(logPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-	if err != nil {
-		return fmt.Errorf("error opening log: %w", err)
+	if err := s.Start(); err != nil {
+		if !isRoot() {
+			return sudoRun("certs", "renewer", "start")
+		}
+		return fmt.Errorf("could not start service: %w", err)
 	}
-
-	cmd := buildDaemonCmd(execPath, logF)
-	if err := cmd.Start(); err != nil {
-		return fmt.Errorf("error starting cert-renewer: %w", err)
-	}
-
-	if err := savePID(cmd.Process.Pid); err != nil {
-		return err
-	}
-
-	okMessage := fmt.Sprintf("Cert-renewer started in background (PID %d)", cmd.Process.Pid)
-	okMsg := utils.StyleOKMsg.Render(okMessage)
-	fmt.Println(okMsg)
-
-	go cmd.Wait()
+	fmt.Println(utils.StyleOKMsg.Render("Cert-renewer service started"))
 	return nil
 }
 
-// Stop stop the daemon (called from stop/delete)
+// Stop stops the running service.
+// Escalates to sudo if the call fails due to permissions.
 func Stop() error {
-	pid, err := readPID()
+	prg := &program{}
+	s, err := service.New(prg, svcConfig)
 	if err != nil {
-		// It was not running, not a critical error
-		return nil
+		return fmt.Errorf("could not create service object: %w", err)
 	}
-
-	proc, err := os.FindProcess(pid)
-	if err != nil {
-		removePID()
-		return nil
+	if err := s.Stop(); err != nil {
+		if !isRoot() {
+			return sudoRun("certs", "renewer", "stop")
+		}
+		return nil // not running is not a critical error
 	}
-
-	if err := proc.Signal(os.Interrupt); err != nil {
-		return fmt.Errorf("error stopping cert-renewer (PID %d): %w", pid, err)
-	}
-
-	removePID()
-	okMessage := fmt.Sprintf("Cert-renewer stopped (PID %d)", pid)
-	okMsg := utils.StyleOKMsg.Render(okMessage)
-	fmt.Println(okMsg)
+	fmt.Println(utils.StyleOKMsg.Render("Cert-renewer service stopped"))
 	return nil
 }
 
+// Status prints the current service status to stdout.
 func Status() {
-	pid, err := readPID()
+	prg := &program{}
+	s, err := service.New(prg, svcConfig)
 	if err != nil {
-		fmt.Println("cert-renewer: stopped ⛔")
+		fmt.Printf("cert-renewer: error querying status: %v\n", err)
 		return
 	}
-
-	proc, err := os.FindProcess(pid)
+	status, err := s.Status()
 	if err != nil {
-		removePID()
+		fmt.Printf("cert-renewer: not installed ⛔ (%v)\n", err)
+		return
+	}
+	switch status {
+	case service.StatusRunning:
+		fmt.Println("cert-renewer: running ✅")
+	case service.StatusStopped:
 		fmt.Println("cert-renewer: stopped ⛔")
-		return
+	default:
+		fmt.Println("cert-renewer: unknown status ⚠️")
 	}
-
-	// En Unix, kill -0 verifica si el proceso existe sin matarlo
-	if err := proc.Signal(syscall.Signal(0)); err != nil {
-		removePID() // PID file obsoleto, limpiar
-		fmt.Printf("cert-renewer: stopped ⛔ (stale PID %d)\n", pid)
-		return
-	}
-
-	fmt.Printf("cert-renewer: running ✅ (PID %d)\n", pid)
 }
 
 func logDir() string {
 	return filepath.Join(paths.Osi4iotDir(), "logs")
 }
 
-func pidFile() string {
-	return filepath.Join(paths.Osi4iotDir(), "cert-renewer.pid")
-}
-
-func savePID(pid int) error {
-	os.MkdirAll(filepath.Dir(pidFile()), 0755)
-	return os.WriteFile(pidFile(), []byte(fmt.Sprintf("%d", pid)), 0644)
-}
-
-func readPID() (int, error) {
-	data, err := os.ReadFile(pidFile())
-	if err != nil {
-		return 0, err
-	}
-	var pid int
-	_, err = fmt.Sscanf(string(data), "%d", &pid)
-	return pid, err
-}
-
-func removePID() {
-	os.Remove(pidFile())
+// serviceFilePath returns the path where kardianos/service writes the systemd
+// unit file on Linux. Used to detect whether the service is already installed.
+func serviceFilePath() string {
+	return "/etc/systemd/system/" + svcConfig.Name + ".service"
 }
