@@ -126,7 +126,10 @@ var cmdRun = &cobra.Command{
 				errMsg := fmt.Sprintf("Error: initializing the platform %v", err)
 				exitWithError(errMsg)
 			}
-
+ 
+			if err := certrenewer.InstallService(pd); err != nil {
+				fmt.Printf("⚠️  Warning: could not install cert-renewer service: %v\n", err)
+			}
 			if err := certrenewer.Start(pd); err != nil {
 				fmt.Printf("⚠️  Warning: could not start cert-renewer: %v\n", err)
 			}
