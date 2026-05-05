@@ -28,7 +28,7 @@ func main() {
 
 	args := os.Args[1:]
 
-	noStateCommands := []string{"--help", "-h", "help", "passphrase"}
+	noStateCommands := []string{"--help", "-h", "help"}
 	for _, arg := range args {
 		for _, noState := range noStateCommands {
 			if arg == noState {
@@ -43,7 +43,7 @@ func main() {
 		action = args[0]
 	}
 
-	sudoActions := []string{"create", "init", "run", "stop", "delete", "certs", "nodes"}
+	sudoActions := []string{"create", "init", "run", "stop", "delete", "certs", "nodes", "passphrase"}
 	if slices.Contains(sudoActions, action) && os.Getuid() != 0 {
 		selfPath, err := os.Executable()
 		if err != nil {
@@ -56,6 +56,11 @@ func main() {
 		if err := c.Run(); err != nil {
 			exitWithError(utils.StyleErrMsg.Render(err.Error()))
 		}
+		return
+	}
+
+	if action == "passphrase" {
+		cmd.Execute()
 		return
 	}
 

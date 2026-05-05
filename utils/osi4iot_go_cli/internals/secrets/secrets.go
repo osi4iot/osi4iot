@@ -2,6 +2,7 @@ package secrets
 
 import (
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -14,8 +15,9 @@ import (
 )
 
 func GenerateSecrets(pd *pt.PlatformData) map[string]pt.Secret {
+	pi := pd.PlatformInfo
 	Secrets := make(map[string]pt.Secret)
-	domainCertsType := pd.PlatformInfo.DomainCertsType
+	domainCertsType := pi.DomainCertsType
 	numNatsReplicas := utils.GetServiceReplicas(pd, "nats")
 	Secrets["admin_api"] = CreateAdminApiConfigSecret(pd, numNatsReplicas)
 
@@ -155,35 +157,42 @@ func GenerateSecrets(pd *pt.PlatformData) map[string]pt.Secret {
 	}
 	Secrets["timescale_data_ret_int"] = timescaleDataRetIntSecret
 
-	Secrets["pipelines_config"] = CreatePipelinesConfigSecret(pd, numNatsReplicas)
+	if !slices.Contains(pd.PlatformInfo.ExcludedServices, "pipelines") {
+		Secrets["pipelines_config"] = CreatePipelinesConfigSecret(pd, numNatsReplicas)
+	}
 
-	minioSecrets := []string{
-		fmt.Sprintf("MINIO_ROOT_USER=%s", pd.PlatformInfo.PlatformAdminUserName),
-		fmt.Sprintf("MINIO_ROOT_PASSWORD=%s", pd.PlatformInfo.PlatformAdminPassword),
+	s3BucketType := pi.S3BucketType
+	if s3BucketType == "Local Minio" && !slices.Contains(pd.PlatformInfo.ExcludedServices, "minio") {
+		minioSecrets := []string{
+			fmt.Sprintf("MINIO_ROOT_USER=%s", pd.PlatformInfo.PlatformAdminUserName),
+			fmt.Sprintf("MINIO_ROOT_PASSWORD=%s", pd.PlatformInfo.PlatformAdminPassword),
+		}
+		minioSecretsData := strings.Join(minioSecrets, "\n")
+		minioSecretsHash := utils.GetMD5Hash(minioSecretsData)
+		minioSecretsName := fmt.Sprintf("minio_%s", minioSecretsHash)
+		minioSecret := pt.Secret{
+			Name: minioSecretsName,
+			Data: minioSecretsData,
+		}
+		Secrets["minio"] = minioSecret
 	}
-	minioSecretsData := strings.Join(minioSecrets, "\n")
-	minioSecretsHash := utils.GetMD5Hash(minioSecretsData)
-	minioSecretsName := fmt.Sprintf("minio_%s", minioSecretsHash)
-	minioSecret := pt.Secret{
-		Name: minioSecretsName,
-		Data: minioSecretsData,
-	}
-	Secrets["minio"] = minioSecret
 
-	pgadmin4Secrets := []string{
-		fmt.Sprintf("PGADMIN_DEFAULT_EMAIL=%s", pd.PlatformInfo.PGAdminDefaultEmail),
-		fmt.Sprintf("PGADMIN_DEFAULT_PASSWORD=%s", pd.PlatformInfo.PGAdminDefaultPassword),
-		fmt.Sprintf("POSTGRES_USER=%s", pd.PlatformInfo.PostgresUser),
-		fmt.Sprintf("TIMESCALE_USER=%s", pd.PlatformInfo.TimescaleUser),
+	if !slices.Contains(pd.PlatformInfo.ExcludedServices, "pgadmin4") {
+		pgadmin4Secrets := []string{
+			fmt.Sprintf("PGADMIN_DEFAULT_EMAIL=%s", pd.PlatformInfo.PGAdminDefaultEmail),
+			fmt.Sprintf("PGADMIN_DEFAULT_PASSWORD=%s", pd.PlatformInfo.PGAdminDefaultPassword),
+			fmt.Sprintf("POSTGRES_USER=%s", pd.PlatformInfo.PostgresUser),
+			fmt.Sprintf("TIMESCALE_USER=%s", pd.PlatformInfo.TimescaleUser),
+		}
+		pgadmin4SecretsData := strings.Join(pgadmin4Secrets, "\n")
+		pgadmin4SecretsHash := utils.GetMD5Hash(pgadmin4SecretsData)
+		pgadmin4SecretsName := fmt.Sprintf("pgadmin4_%s", pgadmin4SecretsHash)
+		pgadmin4Secret := pt.Secret{
+			Name: pgadmin4SecretsName,
+			Data: pgadmin4SecretsData,
+		}
+		Secrets["pgadmin4"] = pgadmin4Secret
 	}
-	pgadmin4SecretsData := strings.Join(pgadmin4Secrets, "\n")
-	pgadmin4SecretsHash := utils.GetMD5Hash(pgadmin4SecretsData)
-	pgadmin4SecretsName := fmt.Sprintf("pgadmin4_%s", pgadmin4SecretsHash)
-	pgadmin4Secret := pt.Secret{
-		Name: pgadmin4SecretsName,
-		Data: pgadmin4SecretsData,
-	}
-	Secrets["pgadmin4"] = pgadmin4Secret
 
 	return Secrets
 }

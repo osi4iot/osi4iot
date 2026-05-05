@@ -611,6 +611,7 @@ func HasKnownPrefix(name string, knownKeys []string) bool {
 	return false
 }
 
+
 func GetAllServiceNames(pd *osi_types.PlatformData) []string {
 	excluded := make(map[string]struct{}, len(pd.PlatformInfo.ExcludedServices))
 	for _, name := range pd.PlatformInfo.ExcludedServices {

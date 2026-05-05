@@ -38,7 +38,7 @@ func WritePlatformDataToFile(data *pt.PlatformData) error {
 		return fmt.Errorf("error serializing platform data: %w", err)
 	}
 
-	passphrase, err := crypto.GetPassphrase()
+	passphrase, err := crypto.GetPassphrase(nil)
 	if err != nil {
 		return fmt.Errorf("error getting passphrase: %w", err)
 	}
@@ -62,7 +62,7 @@ func ReadPlatformDataFromFile(data *pt.PlatformData) error {
 		return err
 	}
 
-	passphrase, err := crypto.GetPassphrase()
+	passphrase, err := crypto.GetPassphrase(encoded)
 	if err != nil {
 		return fmt.Errorf("error getting passphrase: %w", err)
 	}
