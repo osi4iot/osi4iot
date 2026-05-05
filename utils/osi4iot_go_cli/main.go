@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"os/signal"
 	"slices"
 	"syscall"
@@ -37,6 +38,27 @@ func main() {
 		}
 	}
 
+	action := "none"
+	if len(args) != 0 {
+		action = args[0]
+	}
+
+	sudoActions := []string{"create", "init", "run", "stop", "delete", "certs", "nodes"}
+	if slices.Contains(sudoActions, action) && os.Getuid() != 0 {
+		selfPath, err := os.Executable()
+		if err != nil {
+			exitWithError(utils.StyleErrMsg.Render("Cannot determine executable path: " + err.Error()))
+		}
+		c := exec.Command("sudo", append([]string{selfPath}, os.Args[1:]...)...)
+		c.Stdout = os.Stdout
+		c.Stderr = os.Stderr
+		c.Stdin = os.Stdin
+		if err := c.Run(); err != nil {
+			exitWithError(utils.StyleErrMsg.Render(err.Error()))
+		}
+		return
+	}
+
 	existStateFile := utils.ExistStateFile()
 	if existStateFile {
 		pd := data.GetData()
@@ -44,11 +66,6 @@ func main() {
 		if err != nil {
 			errMsg := utils.StyleErrMsg.Render(fmt.Sprintf("Error loading json file: %v", err))
 			exitWithError(errMsg)
-		}
-
-		action := "none"
-		if len(args) != 0 {
-			action = args[0]
 		}
 
 		if slices.Contains(cmd.SwarmActions, action) {
