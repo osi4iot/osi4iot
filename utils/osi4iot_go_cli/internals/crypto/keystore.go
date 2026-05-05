@@ -54,7 +54,7 @@ func GetPassphrase() ([]byte, error) {
 	}
 
 	// 4. Interactive prompt (first time)
-	fmt.Print("🔑 Enter the osi4iot passphrase: ")
+	fmt.Print("🔑 Enter the osi4iot state file passphrase: ")
 	passphrase, err := readPassphrase()
 	if err != nil {
 		return nil, fmt.Errorf("error reading passphrase: %w", err)

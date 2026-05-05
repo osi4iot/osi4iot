@@ -25,8 +25,9 @@ func main() {
 		os.Exit(0)
 	}()
 
-	noStateCommands := []string{"--help", "-h", "help", "passphrase"}
 	args := os.Args[1:]
+
+	noStateCommands := []string{"--help", "-h", "help", "passphrase"}
 	for _, arg := range args {
 		for _, noState := range noStateCommands {
 			if arg == noState {

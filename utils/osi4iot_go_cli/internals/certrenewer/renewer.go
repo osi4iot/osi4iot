@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"time"
 
@@ -81,26 +80,6 @@ func RunDaemon(renewFn func() error) {
 	}
 }
 
-// isRoot returns true when the process is running as root (UID 0).
-func isRoot() bool {
-	return os.Getuid() == 0
-}
-
-// sudoRun re-executes the current binary with sudo, forwarding the given
-// arguments. The OS handles the password prompt (terminal or GUI popup).
-func sudoRun(args ...string) error {
-	self, err := os.Executable()
-	if err != nil {
-		return fmt.Errorf("could not resolve executable path: %w", err)
-	}
-	cmd := exec.Command("sudo", append([]string{self}, args...)...)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	cmd.Stdin = os.Stdin
-	return cmd.Run()
-}
-
-
 // InstallService registers the service with the OS init system.
 // If the service is already installed it is a no-op, so calling it on every
 // "create" and "init" is safe.
@@ -108,9 +87,6 @@ func sudoRun(args ...string) error {
 func InstallService(pd *pt.PlatformData) error {
 	if pd.PlatformInfo.DomainCertsType != "Let's encrypt certs with DNS-01 challenge and AWS Route 53 provider" {
 		return nil
-	}
-	if !isRoot() {
-		return sudoRun("certs", "renewer", "install")
 	}
 	prg := &program{}
 	s, err := service.New(prg, svcConfig)
@@ -131,9 +107,6 @@ func InstallService(pd *pt.PlatformData) error {
 // UninstallService removes the service registration from the OS init system.
 // Automatically escalates to sudo if not running as root.
 func UninstallService() error {
-	if !isRoot() {
-		return sudoRun("certs", "renewer", "uninstall")
-	}
 	prg := &program{}
 	s, err := service.New(prg, svcConfig)
 	if err != nil {
@@ -159,9 +132,6 @@ func Start(pd *pt.PlatformData) error {
 		return fmt.Errorf("could not create service object: %w", err)
 	}
 	if err := s.Start(); err != nil {
-		if !isRoot() {
-			return sudoRun("certs", "renewer", "start")
-		}
 		return fmt.Errorf("could not start service: %w", err)
 	}
 	fmt.Println(utils.StyleOKMsg.Render("Cert-renewer service started"))
@@ -177,9 +147,6 @@ func Stop() error {
 		return fmt.Errorf("could not create service object: %w", err)
 	}
 	if err := s.Stop(); err != nil {
-		if !isRoot() {
-			return sudoRun("certs", "renewer", "stop")
-		}
 		return nil // not running is not a critical error
 	}
 	fmt.Println(utils.StyleOKMsg.Render("Cert-renewer service stopped"))

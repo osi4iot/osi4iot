@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"slices"
 	"strings"
 	"sync"
 
@@ -78,6 +79,7 @@ func SetDockerClientsMap(platformData *pt.PlatformData, action string) (map[stri
 		return nil, fmt.Errorf("deployment location is not set")
 	}
 	nodesData := platformData.PlatformInfo.NodesData
+	actionsWithSpinner := []string{"init", "update", "run", "stop"}
 
 	once.Do(func() {
 		var err error
@@ -89,14 +91,14 @@ func SetDockerClientsMap(platformData *pt.PlatformData, action string) (map[stri
 
 		var wg sync.WaitGroup
 		dcResponses := make(chan DcResp, len(nodesData))
-
-		spinnerDone := make(chan bool)
-		spinnerMsg := "Getting docker clients from each node"
-		endMsg := "Docker clients of all nodes have been successfully obtained."
-		if action == "org" {
-			endMsg = ""
+		var spinnerDone chan bool
+		if slices.Contains(actionsWithSpinner, action) {
+			spinnerDone = make(chan bool)
+			spinnerMsg := "Getting docker clients from each node"
+			endMsg := "Docker clients of all nodes have been successfully obtained."
+			utils.Spinner(spinnerMsg, endMsg, spinnerDone)
 		}
-		utils.Spinner(spinnerMsg, endMsg, spinnerDone)
+
 		for _, node := range nodesData {
 			wg.Add(1)
 			go func(node pt.NodeData) {
@@ -117,11 +119,17 @@ func SetDockerClientsMap(platformData *pt.PlatformData, action string) (map[stri
 				pt.DCMap[resp.IP] = resp.DockerClient
 			}
 		}
+
+		if slices.Contains(actionsWithSpinner, action) {
+			if len(errorLines) > 0 {
+				spinnerDone <- false
+			} else {
+				spinnerDone <- true
+			}
+		}
+
 		if len(errorLines) > 0 {
 			swarmErr = fmt.Errorf("%s", strings.Join(errorLines, "\n"))
-			spinnerDone <- false
-		} else {
-			spinnerDone <- true
 		}
 	})
 

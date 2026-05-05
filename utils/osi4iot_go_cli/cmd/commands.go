@@ -691,7 +691,7 @@ func init() {
 	subCmdCertsRenewer.AddCommand(subCmdCertsRenewerUninstall)
 	subCmdCertsRenewer.AddCommand(subCmdCertsRenewerStart)
 	subCmdCertsRenewer.AddCommand(subCmdCertsRenewerStop)
-	subCmdCertsRenewer.AddCommand(subCmdCertsRenewerDaemon) // hidden
+	subCmdCertsRenewer.AddCommand(subCmdCertsRenewerDaemon)
 	subCmdCertsRenewerLogs.Flags().BoolP("follow", "f", false, "Follow log output")
 	subCmdCertsRenewerLogs.Flags().IntP("lines", "n", 50, "Number of lines to show")
 	subCmdCertsRenewer.AddCommand(subCmdCertsRenewerLogs)
