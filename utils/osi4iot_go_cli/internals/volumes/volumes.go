@@ -51,35 +51,35 @@ func GenerateVolumes(platformData *pt.PlatformData) map[string]pt.Volume {
 
 	volOptions := createDefalutOptions(pi)
 	if domainCertsType[0:19] == "Let's encrypt certs" {
-		Volumes["letsencrypt"] = SetVolumeConfig("letsencrypt", deploymentLocation, volOptions)
+		Volumes["letsencrypt"] = SetVolumeConfig("letsencrypt", "global", deploymentLocation, volOptions)
 	}
 
 	numNatsReplicas := utils.GetServiceReplicas(platformData, "nats")
 	for replica := 1; replica <= numNatsReplicas; replica++ {
 		volumeName := fmt.Sprintf("nats%d_data", replica)
-		Volumes[volumeName] = SetVolumeConfig(volumeName, deploymentLocation, volOptions)
+		serviceName := fmt.Sprintf("nats%d", replica)
+		Volumes[volumeName] = SetVolumeConfig(volumeName,serviceName, deploymentLocation, volOptions)
 	}
 
-	Volumes["pgdata"] = SetVolumeConfig("pgdata", deploymentLocation, volOptions)
-	Volumes["grafana_data"] = SetVolumeConfig("grafana_data", deploymentLocation, volOptions)
-	Volumes["timescaledb_data"] = SetVolumeConfig("timescaledb_data", deploymentLocation, volOptions)
-	Volumes["timescaledb_wal"] = SetVolumeConfig("timescaledb_wal", deploymentLocation, volOptions)
-	Volumes["admin_api_log"] = SetVolumeConfig("admin_api_log", deploymentLocation, volOptions)
+	Volumes["pgdata"] = SetVolumeConfig("pgdata", "postgres", deploymentLocation, volOptions)
+	Volumes["grafana_data"] = SetVolumeConfig("grafana_data", "grafana", deploymentLocation, volOptions)
+	Volumes["timescaledb_data"] = SetVolumeConfig("timescaledb_data", "timescaledb",deploymentLocation, volOptions)
+	Volumes["timescaledb_wal"] = SetVolumeConfig("timescaledb_wal", "timescaledb", deploymentLocation, volOptions)
+	Volumes["vector_buffer"] = SetVolumeConfig("vector_buffer", "vector", deploymentLocation, volOptions)
 
 	numPipelinesReplicas := utils.GetServiceReplicas(platformData, "pipelines")
 	for i := 1; i <= numPipelinesReplicas; i++ {
 		volName := fmt.Sprintf("pipelines_data_%d", i)
-		Volumes[volName] = SetVolumeConfig(volName, deploymentLocation, volOptions)
+		Volumes[volName] = SetVolumeConfig(volName, "pipelines", deploymentLocation, volOptions)
 	}
 
 	if deploymentMode == "development" {
-		Volumes["portainer_data"] = SetVolumeConfig("portainer_data", deploymentLocation, volOptions)
-		Volumes["pgadmin4_data"] = SetVolumeConfig("pgadmin4_data", deploymentLocation, volOptions)
+		Volumes["pgadmin4_data"] = SetVolumeConfig("pgadmin4_data", "pgadmin4", deploymentLocation, volOptions)
 	}
 
 	if s3BucketType == "Local Minio" {
-		Volumes["minio_storage"] = SetVolumeConfig("minio_storage", deploymentLocation, volOptions)
-		Volumes["minio_data"] = SetVolumeConfig("minio_data", deploymentLocation, volOptions)
+		Volumes["minio_storage"] = SetVolumeConfig("minio_storage", "minio", deploymentLocation, volOptions)
+		Volumes["minio_data"] = SetVolumeConfig("minio_data", "minio", deploymentLocation, volOptions)
 	}
 
 	return Volumes
@@ -107,6 +107,7 @@ func CreateVolume(dc *pt.DockerClient, swarmVol *pt.Volume) error {
 			DriverOpts: swarmVol.DriverOpts,
 			Labels: map[string]string{
 				"app": "osi4iot",
+				"service": swarmVol.ServiceName,
 			},
 		})
 		if err != nil {
@@ -200,10 +201,9 @@ func getVolumeFilterByNames(pd *pt.PlatformData) filters.Args {
 		"pgdata",
 		"grafana_data",
 		"timescaledb_data",
-		"admin_api_log",
-		"portainer_data",
 		"pgadmin4_data",
 		"minio_storage",
+		"vector_buffer",
 	}
 	numNatsReplicas := utils.GetServiceReplicas(pd, "nats")
 	for replica := 1; replica <= numNatsReplicas; replica++ {
@@ -231,8 +231,6 @@ func getVolumesMapByNodeRole(volumesMap map[string]pt.Volume, nodeRole string, p
 		volumeNames = append(volumeNames,
 			"pgdata",
 			"timescaledb_data",
-			"admin_api_log",
-			"portainer_data",
 			"pgadmin4_data",
 			"minio_storage",
 		)
@@ -254,11 +252,12 @@ func getVolumesMapByNodeRole(volumesMap map[string]pt.Volume, nodeRole string, p
 	return filteredVolumes
 }
 
-func SetVolumeConfig(volumeName string, deploymentLocation string, volOpts VolumeOptions) pt.Volume {
+func SetVolumeConfig(volumeName string, serviceName string, deploymentLocation string, volOpts VolumeOptions) pt.Volume {
 	vol := pt.Volume{
-		Name:       volumeName,
-		Driver:     "local",
-		DriverOpts: map[string]string{},
+		Name:        volumeName,
+		ServiceName: serviceName,
+		Driver:      "local",
+		DriverOpts:  map[string]string{},
 	}
 	switch deploymentLocation {
 	case "On-premise cluster deployment":
@@ -283,7 +282,8 @@ func SetVolumeConfig(volumeName string, deploymentLocation string, volOpts Volum
 func CreateNatsVolume(pi pt.PlatformInfo, dc *pt.DockerClient, replica int) (*pt.Volume, error) {
 	volOptions := createDefalutOptions(pi)
 	volumeName := fmt.Sprintf("nats%d_data", replica)
-	volume := SetVolumeConfig(volumeName, pi.DeploymentLocation, volOptions)
+	serviceName := fmt.Sprintf("nats%d", replica)
+	volume := SetVolumeConfig(volumeName, serviceName, pi.DeploymentLocation, volOptions)
 	err := CreateVolume(dc, &volume)
 	if err != nil {
 		return nil, fmt.Errorf("error creating volume %s in node %s: %v", volume.Name, dc.Node.NodeIP, err)
@@ -307,7 +307,7 @@ func RemoveNatsVolume(dc *pt.DockerClient, replica int) error {
 func CreatePipelinesVolume(pi pt.PlatformInfo, dc *pt.DockerClient, replica int) error {
 	volOptions := createDefalutOptions(pi)
 	volumeName := fmt.Sprintf("pipelines_data_%d", replica)
-	volume := SetVolumeConfig(volumeName, pi.DeploymentLocation, volOptions)
+	volume := SetVolumeConfig(volumeName, "pipelines", pi.DeploymentLocation, volOptions)
 	err := CreateVolume(dc, &volume)
 	if err != nil {
 		return fmt.Errorf("error creating volume %s in node %s: %v", volume.Name, dc.Node.NodeIP, err)

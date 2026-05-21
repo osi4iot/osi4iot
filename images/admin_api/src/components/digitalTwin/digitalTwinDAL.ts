@@ -14,7 +14,7 @@ import { IDigitalTwinData, IMqttTopicData, IMqttTopicDataShort } from "./digital
 // import IMeasurement from "../mesurement/measurement.interface";
 import IDigitalTwinSimulator from "./digitalTwinSimulator.interface";
 import IDigitalTwinTopic from "./digitalTwinTopic.interface";
-import { createDashboard, deleteDashboard } from "../group/dashboardDAL";
+import { createDashboard, createSystemMonitoringDashboard, deleteDashboard } from "../group/dashboardDAL";
 import IMqttDigitalTwinTopicInfo from "./mqttDigitalTwinTopicInfo.interface";
 import process_env from "../../config/api_config";
 import s3Client from "../../config/s3Config";
@@ -927,10 +927,14 @@ export const createDigitalTwin = async (
 	let digitalTwinDashboardId = dashboardId;
 	if (!dashboardId) {
 		const dashboardTitle = `DT_${digitalTwinUid}`;
-		const assetTopic = await getAssetTopicByAssetIdAndTopicRef(assetId, "dev2pdb_1");
-		const topic = await getTopicByProp("id", assetTopic.topicId);
-		const topicUid = topic.topicUid;
-		digitalTwinDashboardId = await createDashboard(group, topicUid, dashboardTitle);
+		if (group.id === 1 && asset.description === "System monitoring for main group") {
+			digitalTwinDashboardId = await createSystemMonitoringDashboard(group, dashboardTitle);
+		} else {
+			const assetTopic = await getAssetTopicByAssetIdAndTopicRef(assetId, "dev2pdb_1");
+			const topic = await getTopicByProp("id", assetTopic.topicId);
+			const topicUid = topic.topicUid;
+			digitalTwinDashboardId = await createDashboard(group, topicUid, dashboardTitle);
+		}
 	}
 
 	const digitalTwinUpdated: Partial<IDigitalTwin> = {
@@ -954,209 +958,207 @@ export const createDigitalTwin = async (
 		await natsClient.jsPublish("digitalTwin", "create", digitalTwin.id, context);
 	}
 
-	if (digitalTwinInput.type === "Gltf 3D model" || digitalTwinInput.type === "Glb 3D model") {
-		const sim2dtmTopicData = {
-			topicType: "sim2dtm",
-			description: `sim2dtm for DT_${digitalTwinUid}`,
-			mqttAccessControl: "Pub & Sub",
-			payloadJsonSchema: "{}",
-			requireS3Storage: false,
-			s3Folder: "",
-			parquetSchema: "{}",
-		};
-		const sim2dtmTopic = await createTopic(groupId, sim2dtmTopicData, isDefault);
-		await createDigitalTwinTopic(digitalTwin.id, sim2dtmTopic.id, "sim2dtm", isDefault);
+	const sim2dtmTopicData = {
+		topicType: "sim2dtm",
+		description: `sim2dtm for DT_${digitalTwinUid}`,
+		mqttAccessControl: "Pub & Sub",
+		payloadJsonSchema: "{}",
+		requireS3Storage: false,
+		s3Folder: "",
+		parquetSchema: "{}",
+	};
+	const sim2dtmTopic = await createTopic(groupId, sim2dtmTopicData, isDefault);
+	await createDigitalTwinTopic(digitalTwin.id, sim2dtmTopic.id, "sim2dtm", isDefault);
 
-		const dtm2simTopicData = {
-			topicType: "dtm2sim",
-			topicName: `${digitalTwinUid}_dtm2sim`,
-			description: `dtm2sim for DT_${digitalTwinUid}`,
-			mqttAccessControl: "Pub & Sub",
-			payloadJsonSchema: "{}",
-			requireS3Storage: false,
-			s3Folder: "",
-			parquetSchema: "{}",
-		};
-		const dtm2simTopic = await createTopic(groupId, dtm2simTopicData, isDefault);
-		await createDigitalTwinTopic(digitalTwin.id, dtm2simTopic.id, "dtm2sim", isDefault);
+	const dtm2simTopicData = {
+		topicType: "dtm2sim",
+		topicName: `${digitalTwinUid}_dtm2sim`,
+		description: `dtm2sim for DT_${digitalTwinUid}`,
+		mqttAccessControl: "Pub & Sub",
+		payloadJsonSchema: "{}",
+		requireS3Storage: false,
+		s3Folder: "",
+		parquetSchema: "{}",
+	};
+	const dtm2simTopic = await createTopic(groupId, dtm2simTopicData, isDefault);
+	await createDigitalTwinTopic(digitalTwin.id, dtm2simTopic.id, "dtm2sim", isDefault);
 
-		const dtm2pdbTopicData = {
-			topicType: "dtm2pdb",
-			topicName: `${digitalTwinUid}_dtm2pdb`,
-			description: `dtm2pdb for DT_${digitalTwinUid}`,
-			mqttAccessControl: "Pub & Sub",
-			payloadJsonSchema: "{}",
-			requireS3Storage: false,
-			s3Folder: "",
-			parquetSchema: "{}",
-		};
-		const dtm2pdbTopic = await createTopic(groupId, dtm2pdbTopicData, isDefault);
-		await createDigitalTwinTopic(digitalTwin.id, dtm2pdbTopic.id, "dtm2pdb", isDefault);
+	const dtm2pdbTopicData = {
+		topicType: "dtm2pdb",
+		topicName: `${digitalTwinUid}_dtm2pdb`,
+		description: `dtm2pdb for DT_${digitalTwinUid}`,
+		mqttAccessControl: "Pub & Sub",
+		payloadJsonSchema: "{}",
+		requireS3Storage: false,
+		s3Folder: "",
+		parquetSchema: "{}",
+	};
+	const dtm2pdbTopic = await createTopic(groupId, dtm2pdbTopicData, isDefault);
+	await createDigitalTwinTopic(digitalTwin.id, dtm2pdbTopic.id, "dtm2pdb", isDefault);
 
-		const dev2dtmTopicData = {
-			topicType: "dev2dtm",
-			description: `dev2dtm for DT_${digitalTwinUid}`,
-			mqttAccessControl: "Pub & Sub",
-			payloadJsonSchema: "{}",
-			requireS3Storage: false,
-			s3Folder: "",
-			parquetSchema: "{}",
-		};
-		const dev2dtmTopic = await createTopic(groupId, dev2dtmTopicData, isDefault);
-		await createDigitalTwinTopic(digitalTwin.id, dev2dtmTopic.id, "dev2dtm", isDefault);
+	const dev2dtmTopicData = {
+		topicType: "dev2dtm",
+		description: `dev2dtm for DT_${digitalTwinUid}`,
+		mqttAccessControl: "Pub & Sub",
+		payloadJsonSchema: "{}",
+		requireS3Storage: false,
+		s3Folder: "",
+		parquetSchema: "{}",
+	};
+	const dev2dtmTopic = await createTopic(groupId, dev2dtmTopicData, isDefault);
+	await createDigitalTwinTopic(digitalTwin.id, dev2dtmTopic.id, "dev2dtm", isDefault);
 
-		const dtm2devTopicData = {
-			topicType: "dtm2dev",
-			description: `dtm2dev for DT_${digitalTwinUid}`,
-			mqttAccessControl: "Pub & Sub",
-			payloadJsonSchema: "{}",
-			requireS3Storage: false,
-			s3Folder: "",
-			parquetSchema: "{}",
-		};
-		const dtm2devTopic = await createTopic(groupId, dtm2devTopicData, isDefault);
-		await createDigitalTwinTopic(digitalTwin.id, dtm2devTopic.id, "dtm2dev", isDefault);
+	const dtm2devTopicData = {
+		topicType: "dtm2dev",
+		description: `dtm2dev for DT_${digitalTwinUid}`,
+		mqttAccessControl: "Pub & Sub",
+		payloadJsonSchema: "{}",
+		requireS3Storage: false,
+		s3Folder: "",
+		parquetSchema: "{}",
+	};
+	const dtm2devTopic = await createTopic(groupId, dtm2devTopicData, isDefault);
+	await createDigitalTwinTopic(digitalTwin.id, dtm2devTopic.id, "dtm2dev", isDefault);
 
-		const dev2simTopicData = {
-			topicType: "dev2sim",
-			description: `dev2sim for DT_${digitalTwinUid}`,
-			mqttAccessControl: "Pub & Sub",
-			payloadJsonSchema: "{}",
-			requireS3Storage: false,
-			s3Folder: "",
-			parquetSchema: "{}",
-		};
-		const dev2simTopic = await createTopic(groupId, dev2simTopicData, isDefault);
-		await createDigitalTwinTopic(digitalTwin.id, dev2simTopic.id, "dev2sim", isDefault);
+	const dev2simTopicData = {
+		topicType: "dev2sim",
+		description: `dev2sim for DT_${digitalTwinUid}`,
+		mqttAccessControl: "Pub & Sub",
+		payloadJsonSchema: "{}",
+		requireS3Storage: false,
+		s3Folder: "",
+		parquetSchema: "{}",
+	};
+	const dev2simTopic = await createTopic(groupId, dev2simTopicData, isDefault);
+	await createDigitalTwinTopic(digitalTwin.id, dev2simTopic.id, "dev2sim", isDefault);
 
-		const sim2llmTopicData = {
-			topicType: "sim2llm",
-			description: `sim2llm for DT_${digitalTwinUid}`,
-			mqttAccessControl: "Pub & Sub",
-			payloadJsonSchema: "{}",
-			requireS3Storage: false,
-			s3Folder: "",
-			parquetSchema: "{}",
-		};
-		const sim2llmTopic = await createTopic(groupId, sim2llmTopicData, isDefault);
-		await createDigitalTwinTopic(digitalTwin.id, sim2llmTopic.id, "sim2llm", isDefault);
+	const sim2llmTopicData = {
+		topicType: "sim2llm",
+		description: `sim2llm for DT_${digitalTwinUid}`,
+		mqttAccessControl: "Pub & Sub",
+		payloadJsonSchema: "{}",
+		requireS3Storage: false,
+		s3Folder: "",
+		parquetSchema: "{}",
+	};
+	const sim2llmTopic = await createTopic(groupId, sim2llmTopicData, isDefault);
+	await createDigitalTwinTopic(digitalTwin.id, sim2llmTopic.id, "sim2llm", isDefault);
 
-		const llm2simTopicData = {
-			topicType: "llm2sim",
-			description: `llm2sim for DT_${digitalTwinUid}`,
-			mqttAccessControl: "Pub & Sub",
-			payloadJsonSchema: "{}",
-			requireS3Storage: false,
-			s3Folder: "",
-			parquetSchema: "{}",
-		};
-		const llm2simTopic = await createTopic(groupId, llm2simTopicData, isDefault);
-		await createDigitalTwinTopic(digitalTwin.id, llm2simTopic.id, "llm2sim", isDefault);
+	const llm2simTopicData = {
+		topicType: "llm2sim",
+		description: `llm2sim for DT_${digitalTwinUid}`,
+		mqttAccessControl: "Pub & Sub",
+		payloadJsonSchema: "{}",
+		requireS3Storage: false,
+		s3Folder: "",
+		parquetSchema: "{}",
+	};
+	const llm2simTopic = await createTopic(groupId, llm2simTopicData, isDefault);
+	await createDigitalTwinTopic(digitalTwin.id, llm2simTopic.id, "llm2sim", isDefault);
 
-		const dtmlogTopicData = {
-			topicType: "dtmlog",
-			topicName: `${digitalTwinUid}_dtmlog`,
-			description: `Log topic for DT_${digitalTwinUid}`,
-			mqttAccessControl: "Pub & Sub",
-			payloadJsonSchema: "{}",
-			requireS3Storage: false,
-			s3Folder: "",
-			parquetSchema: "{}",
-		};
-		const dtmlogTopic = await createTopic(groupId, dtmlogTopicData, isDefault);
-		await createDigitalTwinTopic(digitalTwin.id, dtmlogTopic.id, "dtmlog", isDefault);
+	const dtmlogTopicData = {
+		topicType: "dtmlog",
+		topicName: `${digitalTwinUid}_dtmlog`,
+		description: `Log topic for DT_${digitalTwinUid}`,
+		mqttAccessControl: "Pub & Sub",
+		payloadJsonSchema: "{}",
+		requireS3Storage: false,
+		s3Folder: "",
+		parquetSchema: "{}",
+	};
+	const dtmlogTopic = await createTopic(groupId, dtmlogTopicData, isDefault);
+	await createDigitalTwinTopic(digitalTwin.id, dtmlogTopic.id, "dtmlog", isDefault);
 
-		const sim2stateTopicData = {
-			topicType: "sim2state",
-			topicName: `${digitalTwinUid}_sim2state`,
-			description: `sim2state for DT_${digitalTwinUid}`,
-			mqttAccessControl: "Pub & Sub",
-			payloadJsonSchema: "{}",
-			requireS3Storage: false,
-			s3Folder: "",
-			parquetSchema: "{}",
-		};
-		const sim2stateTopic = await createTopic(groupId, sim2stateTopicData, isDefault);
-		await createDigitalTwinTopic(digitalTwin.id, sim2stateTopic.id, "sim2state", isDefault);
+	const sim2stateTopicData = {
+		topicType: "sim2state",
+		topicName: `${digitalTwinUid}_sim2state`,
+		description: `sim2state for DT_${digitalTwinUid}`,
+		mqttAccessControl: "Pub & Sub",
+		payloadJsonSchema: "{}",
+		requireS3Storage: false,
+		s3Folder: "",
+		parquetSchema: "{}",
+	};
+	const sim2stateTopic = await createTopic(groupId, sim2stateTopicData, isDefault);
+	await createDigitalTwinTopic(digitalTwin.id, sim2stateTopic.id, "sim2state", isDefault);
 
-		const state2simTopicData = {
-			topicType: "state2sim",
-			topicName: `${digitalTwinUid}_state2sim`,
-			description: `state2sim for DT_${digitalTwinUid}`,
-			mqttAccessControl: "Pub & Sub",
-			payloadJsonSchema: "{}",
-			requireS3Storage: false,
-			s3Folder: "",
-			parquetSchema: "{}",
-		};
-		const state2simTopic = await createTopic(groupId, state2simTopicData, isDefault);
-		await createDigitalTwinTopic(digitalTwin.id, state2simTopic.id, "state2sim", isDefault);
+	const state2simTopicData = {
+		topicType: "state2sim",
+		topicName: `${digitalTwinUid}_state2sim`,
+		description: `state2sim for DT_${digitalTwinUid}`,
+		mqttAccessControl: "Pub & Sub",
+		payloadJsonSchema: "{}",
+		requireS3Storage: false,
+		s3Folder: "",
+		parquetSchema: "{}",
+	};
+	const state2simTopic = await createTopic(groupId, state2simTopicData, isDefault);
+	await createDigitalTwinTopic(digitalTwin.id, state2simTopic.id, "state2sim", isDefault);
 
-		const inject_1_TopicData = {
-			topicType: "inject_1",
-			topicName: `${digitalTwinUid}_inject_1`,
-			description: `Inject_1 for DT_${digitalTwinUid}`,
-			mqttAccessControl: "Pub & Sub",
-			payloadJsonSchema: "{}",
-			requireS3Storage: false,
-			s3Folder: "",
-			parquetSchema: "{}",
-		};
-		const inject_1_Topic = await createTopic(groupId, inject_1_TopicData, isDefault);
-		await createDigitalTwinTopic(digitalTwin.id, inject_1_Topic.id, "inject_1", isDefault);
+	const inject_1_TopicData = {
+		topicType: "inject_1",
+		topicName: `${digitalTwinUid}_inject_1`,
+		description: `Inject_1 for DT_${digitalTwinUid}`,
+		mqttAccessControl: "Pub & Sub",
+		payloadJsonSchema: "{}",
+		requireS3Storage: false,
+		s3Folder: "",
+		parquetSchema: "{}",
+	};
+	const inject_1_Topic = await createTopic(groupId, inject_1_TopicData, isDefault);
+	await createDigitalTwinTopic(digitalTwin.id, inject_1_Topic.id, "inject_1", isDefault);
 
-		const inject_2_TopicData = {
-			topicType: "inject_2",
-			topicName: `${digitalTwinUid}_inject_2`,
-			description: `Inject_2 for DT_${digitalTwinUid}`,
-			mqttAccessControl: "Pub & Sub",
-			payloadJsonSchema: "{}",
-			requireS3Storage: false,
-			s3Folder: "",
-			parquetSchema: "{}",
-		};
-		const inject_2_Topic = await createTopic(groupId, inject_2_TopicData, isDefault);
-		await createDigitalTwinTopic(digitalTwin.id, inject_2_Topic.id, "inject_2", isDefault);
+	const inject_2_TopicData = {
+		topicType: "inject_2",
+		topicName: `${digitalTwinUid}_inject_2`,
+		description: `Inject_2 for DT_${digitalTwinUid}`,
+		mqttAccessControl: "Pub & Sub",
+		payloadJsonSchema: "{}",
+		requireS3Storage: false,
+		s3Folder: "",
+		parquetSchema: "{}",
+	};
+	const inject_2_Topic = await createTopic(groupId, inject_2_TopicData, isDefault);
+	await createDigitalTwinTopic(digitalTwin.id, inject_2_Topic.id, "inject_2", isDefault);
 
-		const inject_3_TopicData = {
-			topicType: "inject_3",
-			topicName: `${digitalTwinUid}_inject_3`,
-			description: `Inject_3 for DT_${digitalTwinUid}`,
-			mqttAccessControl: "Pub & Sub",
-			payloadJsonSchema: "{}",
-			requireS3Storage: false,
-			s3Folder: "",
-			parquetSchema: "{}",
-		};
-		const inject_3_Topic = await createTopic(groupId, inject_3_TopicData, isDefault);
-		await createDigitalTwinTopic(digitalTwin.id, inject_3_Topic.id, "inject_3", isDefault);
+	const inject_3_TopicData = {
+		topicType: "inject_3",
+		topicName: `${digitalTwinUid}_inject_3`,
+		description: `Inject_3 for DT_${digitalTwinUid}`,
+		mqttAccessControl: "Pub & Sub",
+		payloadJsonSchema: "{}",
+		requireS3Storage: false,
+		s3Folder: "",
+		parquetSchema: "{}",
+	};
+	const inject_3_Topic = await createTopic(groupId, inject_3_TopicData, isDefault);
+	await createDigitalTwinTopic(digitalTwin.id, inject_3_Topic.id, "inject_3", isDefault);
 
-		const inject_4_TopicData = {
-			topicType: "inject_4",
-			topicName: `${digitalTwinUid}_inject_4`,
-			description: `Inject_4 for DT_${digitalTwinUid}`,
-			mqttAccessControl: "Pub & Sub",
-			payloadJsonSchema: "{}",
-			requireS3Storage: false,
-			s3Folder: "",
-			parquetSchema: "{}",
-		};
-		const inject_4_Topic = await createTopic(groupId, inject_4_TopicData, isDefault);
-		await createDigitalTwinTopic(digitalTwin.id, inject_4_Topic.id, "inject_4", isDefault);
+	const inject_4_TopicData = {
+		topicType: "inject_4",
+		topicName: `${digitalTwinUid}_inject_4`,
+		description: `Inject_4 for DT_${digitalTwinUid}`,
+		mqttAccessControl: "Pub & Sub",
+		payloadJsonSchema: "{}",
+		requireS3Storage: false,
+		s3Folder: "",
+		parquetSchema: "{}",
+	};
+	const inject_4_Topic = await createTopic(groupId, inject_4_TopicData, isDefault);
+	await createDigitalTwinTopic(digitalTwin.id, inject_4_Topic.id, "inject_4", isDefault);
 
-		const inject_5_TopicData = {
-			topicType: "inject_5",
-			topicName: `${digitalTwinUid}_inject_5`,
-			description: `Inject_5 for DT_${digitalTwinUid}`,
-			mqttAccessControl: "Pub & Sub",
-			payloadJsonSchema: "{}",
-			requireS3Storage: false,
-			s3Folder: "",
-			parquetSchema: "{}",
-		};
-		const inject_5_Topic = await createTopic(groupId, inject_5_TopicData, isDefault);
-		await createDigitalTwinTopic(digitalTwin.id, inject_5_Topic.id, "inject_5", isDefault);
-	}
+	const inject_5_TopicData = {
+		topicType: "inject_5",
+		topicName: `${digitalTwinUid}_inject_5`,
+		description: `Inject_5 for DT_${digitalTwinUid}`,
+		mqttAccessControl: "Pub & Sub",
+		payloadJsonSchema: "{}",
+		requireS3Storage: false,
+		s3Folder: "",
+		parquetSchema: "{}",
+	};
+	const inject_5_Topic = await createTopic(groupId, inject_5_TopicData, isDefault);
+	await createDigitalTwinTopic(digitalTwin.id, inject_5_Topic.id, "inject_5", isDefault);
 
 	const sensorsRef = digitalTwinInput.sensorsRef;
 	const sensorsInAsset = await getSensorsByAssetId(assetId);

@@ -172,7 +172,7 @@ func run() error {
 				}
 				user, err = authModel.GetUserByUsernameOrEmail(userName)
 				if err != nil || user == nil {
-					fmt.Println("XXX user not found error=", err)
+					fmt.Println("user not found error=", err)
 					respondMsg(req, userName, userNkey, serverId, "", "user not found")
 					return
 				}

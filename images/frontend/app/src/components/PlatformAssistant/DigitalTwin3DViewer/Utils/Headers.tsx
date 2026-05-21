@@ -82,13 +82,13 @@ const ViewerDropdownMenu = styled.div<{ open: boolean }>`
     display: ${({ open }) => (open ? "flex" : "none")};
     flex-direction: column;
     position: absolute;
-    top: calc(100% + 4px);
-    left: 0;
+    top: calc(100% + 2px);
+    right: 5px;
     background-color: #1a1d21;
     border: 1px solid #3274d9;
     border-radius: 6px;
     z-index: 2000;
-    min-width: 160px;
+    min-width: 110px;
     overflow: hidden;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
 `;
@@ -141,6 +141,7 @@ interface HeaderProps {
     isNatsConnected: boolean;
     digitalTwinState: string;
     activeViewer: "3D" | "pipeline" | "image_frame";
+    showOnlyPipelineViewer: boolean;
     handleControlPanelOpenAndClose: () => void;
     handleToggleActiveViewer: () => void;
     handleSetActiveViewer: (viewer: "3D" | "pipeline" | "image_frame") => void;
@@ -175,9 +176,9 @@ const VIEWER_OPTIONS: {
     label: string;
     icon: FC<{ className?: string }>;
 }[] = [
-    { value: "3D", label: "3D Model Viewer", icon: BoxIcon },
-    { value: "pipeline", label: "Pipeline Viewer", icon: TiFlowMergeIcon },
-    { value: "image_frame", label: "Photo Viewer", icon: CameraIcon },
+    { value: "3D", label: "3D Model", icon: BoxIcon },
+    { value: "pipeline", label: "Pipeline", icon: TiFlowMergeIcon },
+    { value: "image_frame", label: "Photo", icon: CameraIcon },
 ];
 
 export const Header: FC<HeaderProps> = ({
@@ -185,6 +186,7 @@ export const Header: FC<HeaderProps> = ({
     isNatsConnected,
     digitalTwinState,
     activeViewer,
+    showOnlyPipelineViewer,
     handleControlPanelOpenAndClose,
     handleToggleActiveViewer,
     handleSetActiveViewer,
@@ -288,7 +290,7 @@ export const Header: FC<HeaderProps> = ({
     return (
         <HeaderContainer>
             <HeaderOptionsContainer>
-                {viewerDropdown()}
+                {!showOnlyPipelineViewer && viewerDropdown()}
                 {pipelineStatusIndicator()}
 
                 {activeViewer === "3D" && (
@@ -355,6 +357,22 @@ export const Header: FC<HeaderProps> = ({
                         <TooltipWrapper tooltip="Upload YAML" onClick={() => fileInputRef.current?.click()}>
                             <UploadIcon className="w-4 h-4" />
                         </TooltipWrapper>
+                        {showOnlyPipelineViewer && (
+                            <>
+                                <TooltipWrapper tooltip="Open Grafana dashboard" onClick={handleOpenGrafanaDashboard}>
+                                    <DashboardIcon />
+                                </TooltipWrapper>
+                                {digitalTwinState === "OK" ? (
+                                    <TooltipWrapper tooltip="Digital twin state is OK">
+                                        <HiShieldCheckIcon onClick={handleDigitalTwinStateShield} />
+                                    </TooltipWrapper>
+                                ) : (
+                                    <TooltipWrapper tooltip="Digital twin state is not OK">
+                                        <HiShieldExclamationIcon onClick={handleDigitalTwinStateShield} />
+                                    </TooltipWrapper>
+                                )}
+                            </>
+                        )}
                     </>
                 )}
 

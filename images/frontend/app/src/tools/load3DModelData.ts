@@ -24,7 +24,7 @@ const load3DModelData = (
         gltfFile = digitalTwin3DModelFile;
     }
 
-    let digitalTwin3DModelUrl: string | null;
+    let digitalTwin3DModelUrl: string | null = null;
     if (gltfFile !== '{}') {
         digitalTwin3DModelUrl = createUrl(gltfFile);
     } else digitalTwin3DModelUrl = null;

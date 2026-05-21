@@ -1,6 +1,6 @@
 // DigitalTwin3DViewer.tsx
 import { FC, SetStateAction, useEffect, useLayoutEffect, useState, useRef } from "react";
-import { Canvas } from "@react-three/fiber";
+import { Canvas, useThree } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
 import { NatsConnection, StringCodec, headers } from "nats.ws";
 import "react-dat-gui/dist/index.css";
@@ -64,12 +64,22 @@ import { toast } from "react-toastify";
 import { ImageFrame } from "../PhotoFrame/PhotoFrame";
 import useNatsSubscription from "../NatsHook/useNatsSubcription";
 import { filterNatsSubject } from "../NatsHook/tools";
-import * as THREE from 'three';
+import * as THREE from "three";
 
 const sc = StringCodec();
 
 const resolveSetStateAction = <T extends unknown>(action: SetStateAction<T>, prevValue: T): T => {
     return typeof action === "function" ? (action as (prev: T) => T)(prevValue) : action;
+};
+
+const ShaderPrewarm: FC<{ gltfData: any }> = ({ gltfData }) => {
+    const { gl, scene, camera } = useThree();
+
+    useEffect(() => {
+        gl.compile(scene, camera);
+    }, [gl, scene, camera, gltfData]);
+
+    return null;
 };
 
 const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
@@ -91,6 +101,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
     const { connectionStatus, natsClient } = useNatsConnection();
     const openDashboardTab = useOpenWindowTab();
     const { imageUrl, handleImageUrlChange } = useImageFrame();
+    const [isReady, setIsReady] = useState(false);
 
     const {
         canvasContainerRef,
@@ -139,15 +150,6 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
         femResults.femResultData,
         femResults.femSimulationGeneralInfo,
     ]);
-
-    // useEffect(() => {
-    //     if (digitalTwinSelected) {
-    //         setTimeout(() => {
-    //             queryPipelineStatus();
-    //             queryChatMessages();
-    //         }, 500);
-    //     }
-    // }, [queryPipelineStatus, digitalTwinSelected, queryChatMessages]);
 
     useEffect(() => {
         if (digitalTwinSelected && natsClient) {
@@ -535,6 +537,12 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
         }
     }, [digitalTwinSelected, natsClient, digitalTwinGltfData.natsSubjectsData]);
 
+    useEffect(() => {
+        if (digitalTwinSelected && !digitalTwinGltfData.digitalTwinGltfUrl) {
+            handlers.handleSetActiveViewer("pipeline");
+        }
+    }, [digitalTwinSelected]);
+
     const {
         handleDeployPipeline,
         handleStopPipeline,
@@ -610,7 +618,14 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
             )}
 
             <CanvasContainer ref={canvasContainerRef}>
-                {state.activeViewer === "3D" && (
+                <div
+                    style={{
+                        display:
+                            state.activeViewer === "3D" && digitalTwinGltfData?.digitalTwinGltfUrl ? "block" : "none",
+                        width: "100%",
+                        height: "100%",
+                    }}
+                >
                     <Canvas
                         ref={canvasRef}
                         dpr={window.devicePixelRatio}
@@ -626,6 +641,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
                         }}
                         camera={{ position: [4, 4, 0], zoom: 300 }}
                     >
+                        <ShaderPrewarm gltfData={digitalTwinGltfData} />
                         <Stage
                             controls={controlsRef}
                             environment={opts.environment}
@@ -737,7 +753,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
                         </Stage>
                         <OrbitControls ref={controlsRef} mouseButtons={MOUSE_BUTTONS} />
                     </Canvas>
-                )}
+                </div>
                 {state.activeViewer === "pipeline" && (
                     <ReactFlowProvider>
                         <Flow
@@ -794,6 +810,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
                     isNatsConnected={connectionStatus === "Connected"}
                     digitalTwinState={state.digitalTwinState}
                     activeViewer={state.activeViewer}
+                    showOnlyPipelineViewer={digitalTwinGltfData.gltfFile == null}
                     handleControlPanelOpenAndClose={handlers.handleControlPanelOpenAndClose}
                     handleToggleActiveViewer={handlers.handleToggleActiveViewer}
                     handleSetActiveViewer={handlers.handleSetActiveViewer}

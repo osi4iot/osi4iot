@@ -3,7 +3,6 @@ package secrets
 import (
 	"fmt"
 	"slices"
-	"strconv"
 	"strings"
 
 	"github.com/docker/docker/api/types"
@@ -193,6 +192,20 @@ func GenerateSecrets(pd *pt.PlatformData) map[string]pt.Secret {
 		}
 		Secrets["pgadmin4"] = pgadmin4Secret
 	}
+
+	vectorSecretsDataArray := []string{
+		fmt.Sprintf("DB_PASS=%s", timescalePassword),
+		fmt.Sprintf("NATS_USER=%s", pi.PlatformAdminUserName),
+		fmt.Sprintf("NATS_PASS=%s", pi.PlatformAdminPassword),
+	}
+	vectorSecretsData := strings.Join(vectorSecretsDataArray, "\n")
+	vectorSecretsHash := utils.GetMD5Hash(vectorSecretsData)
+	vectorSecretName := fmt.Sprintf("vector_%s", vectorSecretsHash)
+	vectorSecret := pt.Secret{
+		Name: vectorSecretName,
+		Data: vectorSecretsData,
+	}
+	Secrets["vector_credentials"] = vectorSecret
 
 	return Secrets
 }
@@ -414,99 +427,6 @@ func GetSecretByKey(dc *pt.DockerClient, secretKey string) (*pt.Secret, error) {
 	}
 
 	return secret, nil
-}
-
-func CreateAdminApiConfigSecret(
-	pd *pt.PlatformData,
-	numNatsReplicas int,
-) pt.Secret {
-	adminApiSecretsDataArray := []string{
-		fmt.Sprintf("REGISTRATION_TOKEN_LIFETIME=%s", strconv.Itoa(pd.PlatformInfo.RegistrationTokenLifetime)),
-		fmt.Sprintf("REFRESH_TOKEN_LIFETIME=%s", strconv.Itoa(pd.PlatformInfo.RefreshTokenLifetime)),
-		fmt.Sprintf("REFRESH_TOKEN_SECRET=%s", pd.PlatformInfo.RefreshTokenSecret),
-		fmt.Sprintf("ACCESS_TOKEN_SECRET=%s", pd.PlatformInfo.AccessTokenSecret),
-		fmt.Sprintf("ACCESS_TOKEN_LIFETIME=%s", strconv.Itoa(pd.PlatformInfo.AccessTokenLifetime)),
-		fmt.Sprintf("MQTT_SSL_CERTS_VALIDITY_DAYS=%s", strconv.Itoa(pd.PlatformInfo.MQTTSslCertsValidityDays)),
-		fmt.Sprintf("ENCRYPTION_SECRET_KEY=%s", pd.PlatformInfo.EncryptionSecretKey),
-		fmt.Sprintf("PLATFORM_ADMIN_FIRST_NAME=\"%s\"", pd.PlatformInfo.PlatformAdminFirstName),
-		fmt.Sprintf("PLATFORM_ADMIN_SURNAME=\"%s\"", pd.PlatformInfo.PlatformAdminSurname),
-		fmt.Sprintf("PLATFORM_ADMIN_USER_NAME=%s", pd.PlatformInfo.PlatformAdminUserName),
-		fmt.Sprintf("PLATFORM_ADMIN_EMAIL=%s", pd.PlatformInfo.PlatformAdminEmail),
-		fmt.Sprintf("PLATFORM_ADMIN_PASSWORD=%s", pd.PlatformInfo.PlatformAdminPassword),
-		fmt.Sprintf("PLATFORM_ADMIN_NATS_PUBLIC=%s", pd.PlatformInfo.PlatformAdminNatsPublicKey),
-		fmt.Sprintf("GRAFANA_ADMIN_PASSWORD=%s", pd.PlatformInfo.GrafanaAdminPassword),
-		fmt.Sprintf("POSTGRES_USER=%s", pd.PlatformInfo.PostgresUser),
-		fmt.Sprintf("POSTGRES_PASSWORD=%s", pd.PlatformInfo.PostgresPassword),
-		fmt.Sprintf("POSTGRES_DB=%s", pd.PlatformInfo.PostgresDB),
-		fmt.Sprintf("TIMESCALE_USER=%s", pd.PlatformInfo.TimescaleUser),
-		fmt.Sprintf("TIMESCALE_PASSWORD=%s", pd.PlatformInfo.TimescalePassword),
-		fmt.Sprintf("TIMESCALE_DB=%s", pd.PlatformInfo.TimescaleDB),
-		fmt.Sprintf("NATS_ADMIN_USERNAME=%s", pd.Certs.NatsCerts.NatsAdminUsername),
-		fmt.Sprintf("NATS_ADMIN_PASSWORD=%s", pd.Certs.NatsCerts.NatsAdminPassword),
-		fmt.Sprintf("NATS_NUM_REPLICAS=%d", numNatsReplicas),
-		fmt.Sprintf("NATS_NUM_NODES=%d", pd.PlatformInfo.NumOfNatsNodes),
-		fmt.Sprintf("NATS_ADMIN_NKEY_PUBLIC=%s", pd.Certs.NatsCerts.NatsAdminNkeyPublic),
-		fmt.Sprintf("NOTIFICATIONS_EMAIL_USER=%s", pd.PlatformInfo.NotificationsEmailUser),
-		fmt.Sprintf("NOTIFICATIONS_EMAIL_PASSWORD=%s", pd.PlatformInfo.NotificationsEmailPassword),
-		fmt.Sprintf("MAIN_ORGANIZATION_TELEGRAM_CHAT_ID=%s", pd.PlatformInfo.MainOrganizationTelegramChatID),
-		fmt.Sprintf("MAIN_ORGANIZATION_TELEGRAM_INVITATION_LINK=%s", pd.PlatformInfo.MainOrganizationTelegramInviteLink),
-		fmt.Sprintf("TELEGRAM_BOTTOKEN=%s", pd.PlatformInfo.TelegramBotToken),
-		fmt.Sprintf("AWS_ACCESS_KEY_ID=%s", pd.PlatformInfo.AWSAccessKeyIDS3Bucket),
-		fmt.Sprintf("AWS_SECRET_ACCESS_KEY=%s", pd.PlatformInfo.AWSSecretAccessKeyS3Bucket),
-	}
-
-	adminApiSecretsData := strings.Join(adminApiSecretsDataArray, "\n")
-	adminApiSecretsHash := utils.GetMD5Hash(adminApiSecretsData)
-	adminApiSecretsName := fmt.Sprintf("admin_api_%s", adminApiSecretsHash)
-	adminApiSecret := pt.Secret{
-		Name: adminApiSecretsName,
-		Data: adminApiSecretsData,
-	}
-	return adminApiSecret
-}
-
-func CreateNatsConfigSecret(
-	pd *pt.PlatformData,
-	numNatsReplicas int,
-) pt.Secret {
-	clusterRoutes := []string{}
-	for iNatsNode := 1; iNatsNode <= numNatsReplicas; iNatsNode++ {
-		clusterRoutes = append(clusterRoutes, fmt.Sprintf("nats%d:6222", iNatsNode))
-	}
-
-	params := utils.NatsConfigParams{
-		NatsAdminUsername:   pd.Certs.NatsCerts.NatsAdminUsername,
-		NatsAdminPassword:   pd.Certs.NatsCerts.NatsAdminPassword,
-		NatsAdminNkeyPublic: pd.Certs.NatsCerts.NatsAdminNkeyPublic,
-		NatsIssuerPublicKey: pd.Certs.NatsCerts.NatsIssuerPublicKey,
-		NatsXKeyPublicKey:   pd.Certs.NatsCerts.NatsXKeyPublicKey,
-		ClusterRoutes:       clusterRoutes,
-	}
-
-	cfgStr, _ := utils.NatsRenderConfig(params)
-	natsConfigHash := utils.GetMD5Hash(cfgStr)
-	natsConfigName := fmt.Sprintf("nats_config_%s", natsConfigHash)
-	natsConfigSecret := pt.Secret{
-		Name: natsConfigName,
-		Data: cfgStr,
-	}
-
-	return natsConfigSecret
-}
-
-func CreatePipelinesConfigSecret(
-	pd *pt.PlatformData,
-	numNatsReplicas int,
-) pt.Secret {
-	cfgStr, _ := utils.PipelinesConfig(pd, numNatsReplicas)
-	pipelinesConfigHash := utils.GetMD5Hash(cfgStr)
-	pipelinesConfigName := fmt.Sprintf("pipelines_config_%s", pipelinesConfigHash)
-	pipelinesConfigSecret := pt.Secret{
-		Name: pipelinesConfigName,
-		Data: cfgStr,
-	}
-
-	return pipelinesConfigSecret
 }
 
 func CreateCertsSecrets(pd *pt.PlatformData, dc *pt.DockerClient) (map[string]pt.Secret, error) {

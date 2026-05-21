@@ -10,7 +10,7 @@ import (
 	"strings"
 	"sync"
 
-	duckdbdrv "github.com/marcboeker/go-duckdb/v2"
+	duckdbdrv "github.com/duckdb/duckdb-go/v2"
 
 	"pipelines/config"
 	"pipelines/logger"
@@ -21,6 +21,27 @@ var (
 	installOnce sync.Once
 	installErr  error
 )
+
+// extensionDir returns the directory where DuckDB extensions are pre-installed.
+// In Docker it matches DUCKDB_EXT_DIR; locally falls back to ~/.duckdb/extensions.
+func extensionDir() string {
+	if dir := os.Getenv("DUCKDB_EXT_DIR"); dir != "" {
+		return dir
+	}
+	home := os.Getenv("HOME")
+	if home == "" || home == "/nonexistent" {
+		home = "/tmp/duckdb"
+	}
+	return home + "/.duckdb/extensions"
+}
+
+// inDockerEnv returns true when DUCKDB_EXT_DIR is explicitly set,
+// which signals that extensions are pre-downloaded on disk (Docker/CI).
+// In local dev environments the variable is absent and DuckDB is allowed
+// to pull extensions from extensions.duckdb.org on first run.
+func inDockerEnv() bool {
+	return os.Getenv("DUCKDB_EXT_DIR") != ""
+}
 
 // NewDB creates and configures an in-memory DuckDB connection with:
 //   - httpfs, parquet, and postgres extensions loaded
@@ -42,51 +63,102 @@ func NewDB(ctx context.Context, cfg *config.Config, log *logger.Logger) (*sql.DB
 		S3BucketName:      cfg.AwsS3.Bucket,
 	}
 
+	docker := inDockerEnv()
+	extDir := extensionDir()
+
 	connector, err := duckdbdrv.NewConnector(":memory:", func(execer driver.ExecerContext) error {
 		initCtx := context.Background()
 
 		// Fix home directory for Docker environments where $HOME may not exist.
-		// DuckDB needs a writable home dir to install/cache extensions.
 		homeDir := os.Getenv("HOME")
 		if homeDir == "" || homeDir == "/nonexistent" {
 			homeDir = "/tmp/duckdb"
 		}
-		
 		if _, err := execer.ExecContext(initCtx,
 			fmt.Sprintf("SET home_directory='%s'", escapeSQLString(homeDir)), nil,
 		); err != nil {
 			return fmt.Errorf("duckdb set home_directory: %w", err)
 		}
 
-		// INSTALL happens only once per process (downloads the extension if missing).
+		// Point DuckDB to the pre-downloaded extensions directory.
+		// Must be set before any INSTALL or LOAD call.
+		if _, err := execer.ExecContext(initCtx,
+			fmt.Sprintf("SET extension_directory='%s'", escapeSQLString(extDir)), nil,
+		); err != nil {
+			return fmt.Errorf("duckdb set extension_directory: %w", err)
+		}
+
+		// In Docker, extensions are already on disk: disable all network access
+		// so DuckDB never tries to reach extensions.duckdb.org.
+		// In local dev, leave autoinstall enabled so the first run can pull them.
+		if docker {
+			for _, stmt := range []string{
+				"SET autoinstall_known_extensions=false",
+				"SET autoload_known_extensions=false",
+			} {
+				if _, err := execer.ExecContext(initCtx, stmt, nil); err != nil {
+					return fmt.Errorf("duckdb set extension policy: %w", err)
+				}
+			}
+		}
+
+		// INSTALL runs only once per process lifetime.
+		//
+		// Docker:    installs from the local .duckdb_extension file on disk.
+		//            parquet is built-in and only needs LOAD, never INSTALL.
+		//
+		// Local dev: installs from extensions.duckdb.org (network required on
+		//            first run; subsequent runs find the cached files and no-op).
 		installOnce.Do(func() {
-			for _, ext := range []string{"httpfs", "parquet", "postgres"} {
-				stmt := fmt.Sprintf("INSTALL %s", ext)
-				if _, e := execer.ExecContext(initCtx, stmt, nil); e != nil {
-					installErr = fmt.Errorf("duckdb install %s: %w", ext, e)
-					return
+			if docker {
+				localExts := map[string]string{
+					"httpfs":   "httpfs",
+					"postgres": "postgres_scanner",
+				}
+				for ext, filename := range localExts {
+					path := fmt.Sprintf("%s/%s.duckdb_extension", extDir, filename)
+					if _, e := execer.ExecContext(initCtx,
+						fmt.Sprintf("INSTALL '%s'", escapeSQLString(path)), nil,
+					); e != nil {
+						installErr = fmt.Errorf("duckdb install %s from %s: %w", ext, path, e)
+						return
+					}
+				}
+			} else {
+				// Network install: DuckDB caches the result under extDir so
+				// subsequent process starts skip the download entirely.
+				for _, ext := range []string{"httpfs", "postgres"} {
+					if _, e := execer.ExecContext(initCtx,
+						fmt.Sprintf("INSTALL %s", ext), nil,
+					); e != nil {
+						installErr = fmt.Errorf("duckdb install %s: %w", ext, e)
+						return
+					}
 				}
 			}
 		})
+
+		// installOnce masks panics but not errors: surface any install failure
+		// before attempting LOAD so the error message is actionable.
 		if installErr != nil {
-			return installErr
+			return fmt.Errorf("duckdb extension setup: %w", installErr)
 		}
 
-		// LOAD is required for every new connection.
+		// LOAD is required for every new connection, even for built-ins like parquet.
 		for _, ext := range []string{"httpfs", "parquet", "postgres"} {
 			if _, err := execer.ExecContext(initCtx, "LOAD "+ext, nil); err != nil {
 				return fmt.Errorf("duckdb load %s: %w", ext, err)
 			}
 		}
 
-		// S3 MinIO configuration.
+		// S3 / MinIO credentials.
 		for _, stmt := range buildS3Stmts(cfg) {
 			if _, err := execer.ExecContext(initCtx, stmt, nil); err != nil {
 				return sc.Redact(fmt.Errorf("duckdb s3 config: %w", err))
 			}
 		}
 
-		// Attach Postgres / TimescaleDB.
+		// Attach Postgres / TimescaleDB as "tsdb".
 		attachStmt := fmt.Sprintf(
 			"ATTACH '%s' AS tsdb (TYPE postgres)",
 			escapeSQLString(pgConnStr),

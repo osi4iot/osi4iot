@@ -3,7 +3,6 @@ package services
 import (
 	"fmt"
 
-	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/osi4iot/osi4iot/utils/osi4iot/internals/resources"
 	pt "github.com/osi4iot/osi4iot/utils/osi4iot/internals/types"
@@ -106,13 +105,6 @@ func AdminApiService(
 		WithAnnotationsLabels(annotationsLabels).
 		WithSecrets(secrets).
 		WithConfigs(configs).
-		WithMounts([]mount.Mount{
-			{
-				Type:   mount.TypeVolume,
-				Source: sd.Volumes["admin_api_log"].Name,
-				Target: "/app/logs",
-			},
-		}).
 		WithResources(
 			svcResources.NanoCPUs,
 			svcResources.MemoryBytes,

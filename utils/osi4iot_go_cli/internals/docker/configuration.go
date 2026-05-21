@@ -160,11 +160,6 @@ if [ ! -d /var/nfs_osi4iot ]; then
 	sudo chown nobody:nogroup /var/nfs_osi4iot
 fi
 
-if [ ! -d /var/nfs_osi4iot/admin_api_log ]; then
-	sudo mkdir /var/nfs_osi4iot/admin_api_log
-	sudo chown nobody:nogroup /var/nfs_osi4iot/admin_api_log
-fi
-
 if [ ! -d /var/nfs_osi4iot/grafana_data ]; then
 	sudo mkdir /var/nfs_osi4iot/grafana_data
 	sudo chown nobody:nogroup /var/nfs_osi4iot/grafana_data
@@ -258,11 +253,6 @@ if [ ! -d /home/ubuntu/efs_osi4iot ]; then
     sudo chown ubuntu:ubuntu /home/ubuntu/efs_osi4iot
     sudo mount -t nfs4 -o nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2,noresvport $efs_dns:/ /home/ubuntu/efs_osi4iot
     sudo -E sh -c 'echo "$efs_dns:/ /home/ubuntu/efs_osi4iot nfs4 nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2,noresvport,_netdev 0 0" >> /etc/fstab'
-fi
-
-if [ ! -d /home/ubuntu/efs_osi4iot/admin_api_log ]; then
-    sudo mkdir /home/ubuntu/efs_osi4iot/admin_api_log
-    sudo chown ubuntu:ubuntu /home/ubuntu/efs_osi4iot/admin_api_log
 fi
 
 if [ ! -d /home/ubuntu/efs_osi4iot/grafana_data ]; then

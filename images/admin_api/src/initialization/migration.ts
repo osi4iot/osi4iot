@@ -20,12 +20,17 @@ import { CreateBucketCommand, ListBucketsCommand } from "@aws-sdk/client-s3";
 import { getOrganizations } from "../components/organization/organizationDAL";
 import { createTimescaledbOrgDataSource } from "../components/group/datasourceDAL";
 import IAsset from "../components/asset/asset.interface";
-import { createNewAsset, createNewAssetType, updateGroupAssetsLocation } from "../components/asset/assetDAL";
+import {
+	createNewAsset,
+	createNewAssetType,
+	createSystemMonitoringAsset,
+	updateGroupAssetsLocation,
+} from "../components/asset/assetDAL";
 import { createNewSensorType } from "../components/sensor/sensorDAL";
 import { nanoid } from "nanoid";
 import { createDigitalTwin, uploadMobilePhoneGltfFile } from "../components/digitalTwin/digitalTwinDAL";
 import IAssetType from "../components/asset/assetType.interface";
-import { predefinedAssetTypes } from "./predefinedAssetTypes";
+import { predefinedAssetTypes, systemMonitoringAssetType } from "./predefinedAssetTypes";
 import { emptyBucket } from "./emptyS3Bucket";
 import IFloor from "../components/building/floor.interface";
 import {
@@ -35,7 +40,7 @@ import {
 	findGroupGeojsonData,
 } from "../utils/geolocation.ts/geolocation";
 import ISensorType from "../components/sensor/sensorType.interface";
-import { predefinedSensorTypes } from "./predefinedSensorTypes";
+import { predefinedSensorTypes, systemMonitoringSensorTypes } from "./predefinedSensorTypes";
 import process_env from "../config/api_config";
 
 export const dataBaseInitialization = async () => {
@@ -559,7 +564,8 @@ export const dataBaseInitialization = async () => {
 
 				const sensorTypes: ISensorType[] = [];
 				try {
-					for (const sensorType of predefinedSensorTypes) {
+					const defaultSensorTypes = [...predefinedSensorTypes, ...systemMonitoringSensorTypes];
+					for (const sensorType of defaultSensorTypes) {
 						const defaultSensorTypeData = {
 							orgId: 1,
 							type: sensorType.type,
@@ -632,6 +638,19 @@ export const dataBaseInitialization = async () => {
 						const newAssetType = await createNewAssetType(defaultAssetTypeData);
 						assetTypes.push(newAssetType);
 					}
+					const systemMonitoringAssetTypeData = {
+						orgId: 1,
+						type: "System monitoring",
+						iconSvgFileName: systemMonitoringAssetType.iconSvgFileName,
+						iconSvgString: systemMonitoringAssetType.iconSvgString,
+						geolocationMode: systemMonitoringAssetType.geolocationMode,
+						markerSvgFileName: systemMonitoringAssetType.markerSvgFileName,
+						markerSvgString: systemMonitoringAssetType.markerSvgString,
+						assetStateFormat: "{}",
+						isPredefined: true,
+					};
+					const newSystemMonitoringAssetType = await createNewAssetType(systemMonitoringAssetTypeData);
+					assetTypes.push(newSystemMonitoringAssetType);
 					logger.log("info", `Default asset types for main org has been created sucessfully`);
 				} catch (err) {
 					const message = err instanceof Error ? err.message : String(err);
@@ -1034,9 +1053,100 @@ export const dataBaseInitialization = async () => {
 					logger.log("error", `Table ${tableMLModel} can not be created: %s`, message);
 				}
 
-				let asset: IAsset;
+				let mobileSensorsAsset: IAsset;
+				let systemMonitoringAsset: IAsset;
 				try {
-					const defaultAssetData = {
+					const systemMonitoringAssetData = {
+						assetTypeId: assetTypes[predefinedAssetTypes.length].id,
+						description: `System monitoring for main group`,
+						type: "system_monitoring",
+						iconRadio: 1.0,
+						iconSizeFactor: 1.0,
+						longitude: 0.0,
+						latitude: 0.0,
+						geolocationMode: "dynamic",
+						topicsRef: [
+							{
+								topicRef: "dev2pdb_1",
+								topicType: "dev2dtm",
+								description: `Log entries topic`,
+								mqttAccessControl: "Pub & Sub",
+								payloadJsonSchema: "{}",
+								requireS3Storage: false,
+								s3Folder: "",
+								parquetSchema: "{}",
+							},
+							{
+								topicRef: "dev2pdb_2",
+								topicType: "dev2dtm",
+								description: `Host metrics topic`,
+								mqttAccessControl: "Pub & Sub",
+								payloadJsonSchema: "{}",
+								requireS3Storage: false,
+								s3Folder: "",
+								parquetSchema: "{}",
+							},
+							{
+								topicRef: "dev2pdb_3",
+								topicType: "dev2dtm",
+								description: `Container metrics topic`,
+								mqttAccessControl: "Pub & Sub",
+								payloadJsonSchema: "{}",
+								requireS3Storage: false,
+								s3Folder: "",
+								parquetSchema: "{}",
+							},
+							{
+								topicRef: "dev2pdb_4",
+								topicType: "dev2dtm",
+								description: `Volumen metrics topic`,
+								mqttAccessControl: "Pub & Sub",
+								payloadJsonSchema: "{}",
+								requireS3Storage: false,
+								s3Folder: "",
+								parquetSchema: "{}",
+							},
+						],
+						sensorsRef: [
+							{
+								sensorRef: "sensor_1",
+								sensorType: "Service logs",
+								topicRef: "dev2pdb_1",
+								description: `Log entries sensor`,
+								payloadJsonSchema: "{}",
+							},
+							{
+								sensorRef: "sensor_2",
+								sensorType: "Host metrics",
+								topicRef: "dev2pdb_2",
+								description: `Host metrics sensor`,
+								payloadJsonSchema: "{}",
+							},
+							{
+								sensorRef: "sensor_3",
+								sensorType: "Container metrics",
+								topicRef: "dev2pdb_3",
+								description: `Container metrics sensor`,
+								payloadJsonSchema: "{}",
+							},
+							{
+								sensorRef: "sensor_4",
+								sensorType: "Volume metrics",
+								topicRef: "dev2pdb_4",
+								description: `Volume metrics sensor`,
+								payloadJsonSchema: "{}",
+							},
+						],
+					};
+					systemMonitoringAsset = await createSystemMonitoringAsset(group, systemMonitoringAssetData, true);
+					logger.log("info", `System monitoring asset for main group has been created sucessfully`);
+				} catch (err) {
+					const message = err instanceof Error ? err.message : String(err);
+					logger.log("error", `Default asset for main group can not be created: %s`, message);
+				}
+
+				try {
+					const mobileSensorsAssetData = {
 						assetTypeId: assetTypes[5].id,
 						description: `Mobile for group ${group.acronym}`,
 						type: "Mobile",
@@ -1143,16 +1253,9 @@ export const dataBaseInitialization = async () => {
 								description: `Mobile photo`,
 								payloadJsonSchema: JSON.stringify(predefinedSensorTypes[4].defaultPayloadJsonSchema),
 							},
-							{
-								sensorRef: "sensor_6",
-								sensorType: "Mobile video",
-								topicRef: "dev2pdb_6",
-								description: `Mobile video`,
-								payloadJsonSchema: JSON.stringify(predefinedSensorTypes[5].defaultPayloadJsonSchema),
-							},
 						],
 					};
-					asset = await createNewAsset(group, defaultAssetData, true);
+					mobileSensorsAsset = await createNewAsset(group, mobileSensorsAssetData, true);
 					logger.log("info", `Default asset for main group has been created sucessfully`);
 				} catch (err) {
 					const message = err instanceof Error ? err.message : String(err);
@@ -1172,7 +1275,32 @@ export const dataBaseInitialization = async () => {
 					);
 				}
 
-				const digitalTwinData = {
+				const systemMonitoringDigitalTwinData = {
+					description: "System monitoring default DT",
+					type: "Grafana dashboard",
+					digitalTwinUid: nanoid(20).replace(/-/g, "x").replace(/_/g, "X"),
+					maxNumResFemFiles: 0,
+					digitalTwinSimulationFormat: "{}",
+					chatAssistantEnabled: false,
+					chatAssistantLanguage: "none",
+					sensorsRef: [] as string[],
+				};
+
+				try {
+					await createDigitalTwin(
+						group,
+						systemMonitoringAsset,
+						systemMonitoringDigitalTwinData,
+						null,
+						true
+					);
+					logger.log("info", `System monitoring digital twin has been created sucessfully`);
+				} catch (err) {
+					const message = err instanceof Error ? err.message : String(err);
+					logger.log("error", `System monitoring digital twin can not be created: %s`, message);
+				}
+
+				const mobileSensorsDigitalTwinData = {
 					description: "Mobile phone default DT",
 					type: "Gltf 3D model",
 					digitalTwinUid: nanoid(20).replace(/-/g, "x").replace(/_/g, "X"),
@@ -1184,8 +1312,14 @@ export const dataBaseInitialization = async () => {
 				};
 
 				try {
-					const digitalTwin = await createDigitalTwin(group, asset, digitalTwinData, null, true);
-					const keyBase = `org_1/group_${group.id}/digitalTwin_${digitalTwin.id}`;
+					const mobileSensorsDigitalTwin = await createDigitalTwin(
+						group,
+						mobileSensorsAsset,
+						mobileSensorsDigitalTwinData,
+						null,
+						true
+					);
+					const keyBase = `org_1/group_${group.id}/digitalTwin_${mobileSensorsDigitalTwin.id}`;
 					const gltfFileName = `${keyBase}/gltfFile/mobile_phone.gltf`;
 					await uploadMobilePhoneGltfFile(gltfFileName);
 					logger.log("info", `Default mobile phone digital twin has been created sucessfully`);

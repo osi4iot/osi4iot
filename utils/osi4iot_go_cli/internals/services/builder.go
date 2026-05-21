@@ -293,6 +293,7 @@ func GenerateServices(pd *pt.PlatformData, sd pt.SwarmData) map[string]pt.Servic
 		"grafana":      GrafanaService(pd, sd, svcResourcesMap["grafana"]),
 		"pipelines":    PipelinesService(pd, sd, svcResourcesMap["pipelines"], nodeRoleNumMap),
 		"auth_callout": AuthCalloutService(pd, sd, svcResourcesMap["auth_callout"], nodeRoleNumMap),
+		"vector":       VectorService(pd, sd, svcResourcesMap["vector"]),
 	}
 
 	pi := pd.PlatformInfo

@@ -19,8 +19,8 @@ func SetInitialPlatformState() error {
 		return nil
 	}
 
-	platformData := GetData()
-	isSwarmInitialized, err := docker.CheckSwarmInitiation(platformData)
+	pd := GetData()
+	isSwarmInitialized, err := docker.CheckSwarmInitiation(pd)
 	if err != nil {
 		return fmt.Errorf("error checking swarm initiation: %v", err)
 	}
@@ -60,7 +60,18 @@ func SetInitialPlatformState() error {
 			if err != nil {
 				return fmt.Errorf("error listing tasks: %v", err)
 			}
-			numTasksRequired := int(*service.Spec.Mode.Replicated.Replicas)
+			var numTasksRequired int
+			if service.Spec.Mode.Replicated != nil && service.Spec.Mode.Replicated.Replicas != nil {
+				numTasksRequired = int(*service.Spec.Mode.Replicated.Replicas)
+			} else if service.Spec.Mode.Global != nil {
+				nodes, err := dc.Cli.NodeList(dc.Ctx, types.NodeListOptions{})
+				if err != nil {
+					return fmt.Errorf("error listing nodes: %v", err)
+				}
+				numTasksRequired = len(nodes)
+			} else {
+				numTasksRequired = 1
+			}
 			numTasksRunning := 0
 			for _, task := range tasks {
 				if task.Status.State == swarm.TaskStateRunning {
@@ -115,7 +126,6 @@ func SetInitialPlatformState() error {
 	}
 	return nil
 }
-
 
 func SetInitialServicesData(pd *pt.PlatformData) {
 	pd.PlatformInfo.ServicesData = []pt.ServiceData{}

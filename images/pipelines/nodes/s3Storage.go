@@ -14,7 +14,7 @@ import (
 	"slices"
 	"time"
 
-	_ "github.com/marcboeker/go-duckdb/v2"
+	_ "github.com/duckdb/duckdb-go/v2"
 )
 
 /* NOTE: To use ParamOptions="query_from_payload" the msg.Payload should contain a "s3Storage" field with the following structure:

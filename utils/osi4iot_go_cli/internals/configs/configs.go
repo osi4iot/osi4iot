@@ -121,6 +121,8 @@ tls:
 
 	}
 
+	Configs["vector"] = CreateVectorConfig(platformData)
+
 	return Configs
 }
 

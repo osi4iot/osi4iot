@@ -85,6 +85,7 @@ import {
     setReloadMlModelsTable,
 } from "../../../contexts/platformAssistantContext/platformAssistantAction";
 import IAssetS3Folder from "../TableColumns/assetS3FolderColumns";
+import WebGLErrorBoundary from "./WebGLErrorBoundary";
 
 const PlatformAssistantHomeOptionsContainer = styled.div`
     display: flex;
@@ -829,7 +830,7 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
             getAxiosInstance(refreshToken, authDispatch)
                 .get(urlAssetS3Folders, config)
                 .then((response: AxiosResponse<any, any>) => {
-                   const assetS3Folders: IAssetS3Folder[] = response.data;
+                    const assetS3Folders: IAssetS3Folder[] = response.data;
                     for (const assetS3Folder of assetS3Folders) {
                         if (assetS3Folder.lastS3Storage == null) {
                             assetS3Folder.lastS3Storage = "-";
@@ -862,8 +863,14 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
         } else {
             setAssetS3FoldersLoading(false);
         }
-    }, [accessToken, refreshToken, authDispatch, plaformAssistantDispatch, reloadAssetS3FoldersTable, assetS3FoldersTable.length]);
-
+    }, [
+        accessToken,
+        refreshToken,
+        authDispatch,
+        plaformAssistantDispatch,
+        reloadAssetS3FoldersTable,
+        assetS3FoldersTable.length,
+    ]);
 
     const clickHandler = (optionToShow: string) => {
         setOptionToShow(optionToShow);
@@ -971,19 +978,21 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
                                 />
                             )}
                             {optionToShow === PLATFORM_ASSISTANT_HOME_OPTIONS.DIGITAL_TWINS && digitalTwinGltfData && (
-                                <Suspense fallback={<SceneLoader />}>
-                                    <DigitalTwin3DViewer
-                                        digitalTwinSelected={digitalTwinSelected}
-                                        digitalTwinGltfData={digitalTwinGltfData}
-                                        assetS3Folders={assetS3Folders}
-                                        orgSelected={orgSelected}
-                                        groupSelected={groupSelected}
-                                        close3DViewer={handleCloseViewer}
-                                        fetchFemResFileWorker={fetchFemResFileWorker}
-                                        refreshDigitalTwins={refreshDigitalTwins}
-                                        assetWithMobilePhotoSelected={assetWithMobilePhotoSelected}
-                                    />
-                                </Suspense>
+                                <WebGLErrorBoundary>
+                                    <Suspense fallback={<SceneLoader />}>
+                                        <DigitalTwin3DViewer
+                                            digitalTwinSelected={digitalTwinSelected}
+                                            digitalTwinGltfData={digitalTwinGltfData}
+                                            assetS3Folders={assetS3Folders}
+                                            orgSelected={orgSelected}
+                                            groupSelected={groupSelected}
+                                            close3DViewer={handleCloseViewer}
+                                            fetchFemResFileWorker={fetchFemResFileWorker}
+                                            refreshDigitalTwins={refreshDigitalTwins}
+                                            assetWithMobilePhotoSelected={assetWithMobilePhotoSelected}
+                                        />
+                                    </Suspense>
+                                </WebGLErrorBoundary>
                             )}
                             {optionToShow === PLATFORM_ASSISTANT_HOME_OPTIONS.TUTORIAL && <Tutorial />}
                         </>

@@ -149,8 +149,8 @@ const protocol = getProtocol();
 
 const digitalTwinTypeOptions = [
     {
-        label: "Grafana dashboard",
-        value: "Grafana dashboard",
+        label: "None",
+        value: "None",
     },
     {
         label: "Glb 3D model",
@@ -392,7 +392,7 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
     const [docInfoFile, setDocInfoFile] = useState<File>();
     const [localDocInfoFileLoaded, setLocalDocInfoFileLoaded] = useState(false);
     const [docInfoFileData, setDocInfoFileData] = useState("");
-    const [digitalTwinType, setDigitalTwinType] = useState("Grafana dashboard");
+    const [digitalTwinType, setDigitalTwinType] = useState("None");
     const [isGlftDataReady, setIsGlftDataReady] = useState(false);
     const [sensorsRef, setSensorsRef] = useState<string[]>([]);
     const [isChatAssistantEnabled, setIsChatAssistantEnabled] = useState(false);
@@ -720,18 +720,15 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
                         .post(urlUploadFemResFile, femResData, configMultipart)
                         .then((response: AxiosResponse<any, any>) => {
                             toast.success(response.data.message);
-                            if (Object.keys(digitalTwinPipelineData).length !== 0) {
-                                submitPipeline(config, groupId, data.digitalTwinId);
-                            }
                         })
                         .catch((error: AxiosError) => {
                             axiosErrorHandler(error, authDispatch);
                             // backToTable();
                         });
-                } else {
-                    if (Object.keys(digitalTwinPipelineData).length !== 0) {
-                        submitPipeline(config, groupId, data.digitalTwinId);
-                    }
+                }
+
+                if (Object.keys(digitalTwinPipelineData).length !== 0) {
+                    submitPipeline(configMultipart, groupId, data.digitalTwinId);
                 }
 
                 if (docInfoFileData !== "") {
@@ -877,7 +874,7 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
         groupAcronym: initGroup.acronym,
         assetName: initAssetName,
         description: "",
-        type: "Grafana dashboard",
+        type: "None",
         digitalTwinUid,
         maxNumResFemFiles: "1",
         chatAssistantEnabled: false,
@@ -930,6 +927,25 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
                                         type="text"
                                     />
                                     <FormikControl control="input" label="Description" name="description" type="text" />
+                                    <DataFileTitle>Pipeline</DataFileTitle>
+                                    <DataFileContainer>
+                                        <FieldContainer>
+                                            <label>File name</label>
+                                            <div>{pipelineFileName}</div>
+                                        </FieldContainer>
+                                        <FieldContainer>
+                                            <label>Last modification date</label>
+                                            <div>{pipelineFileLastModifDateString}</div>
+                                        </FieldContainer>
+                                        <SelectDataFilenButtonContainer>
+                                            <FileButton type="button" onClick={clearPipelineFile}>
+                                                Clear
+                                            </FileButton>
+                                            <FileButton type="button" onClick={() => localPipelineFileButtonHandler()}>
+                                                Select local file
+                                            </FileButton>
+                                        </SelectDataFilenButtonContainer>
+                                    </DataFileContainer>
                                     <FormikControl
                                         control="select"
                                         label="Type"
@@ -985,28 +1001,6 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
                                                     <FileButton
                                                         type="button"
                                                         onClick={() => localFemResFileButtonHandler()}
-                                                    >
-                                                        Select local file
-                                                    </FileButton>
-                                                </SelectDataFilenButtonContainer>
-                                            </DataFileContainer>
-                                            <DataFileTitle>Pipeline</DataFileTitle>
-                                            <DataFileContainer>
-                                                <FieldContainer>
-                                                    <label>File name</label>
-                                                    <div>{pipelineFileName}</div>
-                                                </FieldContainer>
-                                                <FieldContainer>
-                                                    <label>Last modification date</label>
-                                                    <div>{pipelineFileLastModifDateString}</div>
-                                                </FieldContainer>
-                                                <SelectDataFilenButtonContainer>
-                                                    <FileButton type="button" onClick={clearPipelineFile}>
-                                                        Clear
-                                                    </FileButton>
-                                                    <FileButton
-                                                        type="button"
-                                                        onClick={() => localPipelineFileButtonHandler()}
                                                     >
                                                         Select local file
                                                     </FileButton>

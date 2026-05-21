@@ -91,7 +91,30 @@ COPY --from=builder /usr/local/bin/fem_results   /usr/local/bin/fem_results
 COPY --from=python-builder --chown=pipelines:pipelines_group /opt/venv /opt/venv
 ENV PATH="/opt/venv/bin:${PATH}"
 
-# This grants write permissions to the /tmp directory for the pipelines user, 
+# ── DuckDB extensions ──────────────────────────────────────────────────────────
+ENV DUCKDB_VERSION=v1.5.2
+ENV DUCKDB_EXT_DIR=/tmp/duckdb/extensions
+
+RUN mkdir -p ${DUCKDB_EXT_DIR} \
+    && case "${TARGETARCH}" in \
+         amd64) DUCKDB_ARCH="linux_amd64" ;; \
+         arm64) DUCKDB_ARCH="linux_arm64" ;; \
+         *) echo "Architecture not supported: ${TARGETARCH}" && exit 1 ;; \
+       esac \
+    && curl -fsSL "https://extensions.duckdb.org/${DUCKDB_VERSION}/${DUCKDB_ARCH}/httpfs.duckdb_extension.gz" \
+         -o /tmp/httpfs.duckdb_extension.gz \
+    && gunzip /tmp/httpfs.duckdb_extension.gz \
+    && mv /tmp/httpfs.duckdb_extension ${DUCKDB_EXT_DIR}/httpfs.duckdb_extension \
+    \
+    && curl -fsSL "https://extensions.duckdb.org/${DUCKDB_VERSION}/${DUCKDB_ARCH}/postgres_scanner.duckdb_extension.gz" \
+         -o /tmp/postgres_scanner.duckdb_extension.gz \
+    && gunzip /tmp/postgres_scanner.duckdb_extension.gz \
+    && mv /tmp/postgres_scanner.duckdb_extension ${DUCKDB_EXT_DIR}/postgres_scanner.duckdb_extension \
+    \
+    && chown -R pipelines:pipelines_group ${DUCKDB_EXT_DIR}
+# ──────────────────────────────────────────────────────────────────────────────
+
+# This grants write permissions to the /tmp directory for the pipelines user
 RUN mkdir -p /tmp/duckdb && chown pipelines:pipelines_group /tmp/duckdb
 ENV HOME=/tmp/duckdb
 

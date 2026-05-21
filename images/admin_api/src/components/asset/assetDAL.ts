@@ -12,7 +12,7 @@ import { findGroupGeojsonData } from "../../utils/geolocation.ts/geolocation";
 import { getFloorByOrgIdAndFloorNumber } from "../building/buildingDAL";
 import { createTopic } from "../topic/topicDAL";
 import ITopic from "../topic/topic.interface";
-import { createSensorDashboard } from "../group/dashboardDAL";
+import { createSensorDashboard, createSystemMonitoringSensorDashboard } from "../group/dashboardDAL";
 import { getDashboardsInfoFromIdArray } from "../dashboard/dashboardDAL";
 import { generateDashboardsUrl } from "../digitalTwin/digitalTwinDAL";
 import { createNewSensor, getSensorTypeByPropName } from "../sensor/sensorDAL";
@@ -277,6 +277,44 @@ export const createNewAsset = async (group: IGroup, assetData: CreateAssetDto, i
 		const sensorType = await getSensorTypeByPropName(group.orgId, "type", sensorsRef[i].sensorType);
 		sensorsRef[i].sensorTypeId = sensorType.id;
 		dashboarsId[i] = await createSensorDashboard(group, sensorsRef[i], sensorsUid[i]);
+	}
+
+	const dashboardsInfo = await getDashboardsInfoFromIdArray(dashboarsId);
+	const dashboardsUrl = generateDashboardsUrl(dashboardsInfo);
+	for (let i = 0; i < sensorsRef.length; i++) {
+		sensors[i] = await createNewSensor(newAsset.id, sensorsRef[i], dashboarsId[i], dashboardsUrl[i], sensorsUid[i]);
+	}
+
+	return newAsset;
+};
+
+export const createSystemMonitoringAsset = async (group: IGroup, assetData: CreateAssetDto, isDefault = false): Promise<IAsset> => {
+	const assetUid = nanoid(20).replace(/-/g, "x").replace(/_/g, "X");
+	const groupId = group.id;
+
+	const assetInput: IAsset = { ...assetData, groupId, assetUid };
+	const newAsset = await insertAsset(assetInput);
+
+	const topicsRef = assetData.topicsRef;
+	const topics: ITopic[] = [];
+	const assetTopics: IAssetTopic[] = [];
+	for (let i = 0; i < topicsRef.length; i++) {
+		topics[i] = await createTopic(group.id, topicsRef[i], isDefault);
+		const assetTopic = await createAssetTopic(newAsset.id, topics[i].id, topicsRef[i].topicRef, isDefault);
+		assetTopics.push(assetTopic);
+	}
+
+	const sensorsRef = assetData.sensorsRef;
+	const sensors: ISensor[] = [];
+	const dashboarsId: number[] = [];
+	const sensorsUid: string[] = [];
+	for (let i = 0; i < sensorsRef.length; i++) {
+		sensorsUid[i] = nanoid(20).replace(/-/g, "x").replace(/_/g, "X");
+		const topicId = assetTopics.filter((assetTopic) => assetTopic.topicRef === sensorsRef[i].topicRef)[0].topicId;
+		sensorsRef[i].topicId = topicId;
+		const sensorType = await getSensorTypeByPropName(group.orgId, "type", sensorsRef[i].sensorType);
+		sensorsRef[i].sensorTypeId = sensorType.id;
+		dashboarsId[i] = await createSystemMonitoringSensorDashboard(group, sensorsRef[i], sensorsUid[i]);
 	}
 
 	const dashboardsInfo = await getDashboardsInfoFromIdArray(dashboarsId);
@@ -577,8 +615,8 @@ export const updateGroupAssetsLocation = async (geoJsonDataString: string, group
 		const ptCenterGroupArea = point([centerGroupAreaLongitude, centerGroupAreaLatitude]);
 		let interAssetDistance = 0.0;
 		for (const asset of groupAssets) {
-			if (0.002 * asset.iconRadio > interAssetDistance) {
-				interAssetDistance = 0.002 * asset.iconRadio;
+			if (0.0025 * asset.iconRadio > interAssetDistance) {
+				interAssetDistance = 0.0025 * asset.iconRadio;
 			}
 		}
 		const pt = rhumbDestination(ptCenterGroupArea, 0.5 * interAssetDistance, 180);

@@ -585,12 +585,24 @@ export const useLegendRenderer = () => {
     const [legendRenderer, setLegendRenderer] = useState<THREE.WebGLRenderer | null>(null);
 
     useEffect(() => {
-        const renderer = new THREE.WebGLRenderer({ antialias: true });
-        setLegendRenderer(renderer);
+        let renderer: THREE.WebGLRenderer | null = null;
+        let active = true;
+
+        try {
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            if (active) setLegendRenderer(renderer);
+        } catch (e) {
+            console.warn("useLegendRenderer: It can't create WebGL context", e);
+            return;
+        }
 
         return () => {
-            renderer.dispose();
-            renderer.forceContextLoss();
+            active = false;
+            if (renderer) {
+                renderer.forceContextLoss();
+                renderer.dispose();
+            }
+            setLegendRenderer(null);
         };
     }, []);
 

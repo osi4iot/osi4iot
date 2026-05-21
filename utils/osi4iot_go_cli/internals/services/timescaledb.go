@@ -83,7 +83,8 @@ func TimescaledbService(
 		}
 	}
 
-	image := utils.GetServiceImage(pd, "timescaledb", "ghcr.io/osi4iot/timescaledb:2.20.0-pg17")
+	// image := utils.GetServiceImage(pd, "timescaledb", "ghcr.io/osi4iot/timescaledb:2.20.0-pg17")
+	image := utils.GetServiceImage(pd, "timescaledb", "ghcr.io/osi4iot/patroni:2.27.0-pg18")
 	return NewService("timescaledb", pd, sd).
 		WithImage(image).
 		WithEnv([]string{
@@ -97,7 +98,7 @@ func TimescaledbService(
 			{
 				Type:   mount.TypeVolume,
 				Source: sd.Volumes["timescaledb_data"].Name,
-				Target: "/var/lib/postgresql/data",
+				Target: "/var/lib/postgresql",
 			},
 			{
 				Type:   mount.TypeVolume,

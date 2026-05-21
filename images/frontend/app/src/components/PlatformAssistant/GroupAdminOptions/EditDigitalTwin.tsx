@@ -52,7 +52,6 @@ import { CodeMirrorWrapper } from "../../Tools/CodeMirrorWrapper";
 import { ControlsContainer, DraggableFormContainer, FieldErrorScroller } from "../../Tools/FormTools";
 import { ReIndentCommand } from "../DigitalTwin3DViewer/Pipeline/types";
 
-
 const DataFileTitle = styled.div`
     margin-bottom: 5px;
 `;
@@ -898,6 +897,44 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
                                                 name="description"
                                                 type="text"
                                             />
+                                            <DataFileTitle>Pipeline</DataFileTitle>
+                                            <DataFileContainer>
+                                                <FieldContainer>
+                                                    <label>File name</label>
+                                                    <div>{pipelineFileName}</div>
+                                                </FieldContainer>
+                                                <FieldContainer>
+                                                    <label>Last modification date</label>
+                                                    <div>{pipelineFileLastModifDateString}</div>
+                                                </FieldContainer>
+                                                <FormikControl
+                                                    control="select"
+                                                    label="Need reinitialization"
+                                                    name="reinitializePipeline"
+                                                    options={reinitializePipelineOptions}
+                                                    type="text"
+                                                    onChange={(e) => onReinitializePipelineSelectChange(e, formik)}
+                                                />
+                                                <FormikControl
+                                                    control="select"
+                                                    label="Restart pipeline"
+                                                    name="restartPipeline"
+                                                    options={restartPipelineOptions}
+                                                    type="text"
+                                                    onChange={(e) => onRestartPipelineSelectChange(e, formik)}
+                                                />
+                                                <SelectDataFilenButtonContainer>
+                                                    <FileButton type="button" onClick={clearPipelineFile}>
+                                                        Clear
+                                                    </FileButton>
+                                                    <FileButton
+                                                        type="button"
+                                                        onClick={() => localPipelineFileButtonHandler()}
+                                                    >
+                                                        Select local file
+                                                    </FileButton>
+                                                </SelectDataFilenButtonContainer>
+                                            </DataFileContainer>
                                             <FormikControl
                                                 control="select"
                                                 label="Type"
@@ -954,46 +991,6 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
                                                             <FileButton
                                                                 type="button"
                                                                 onClick={() => localFemResFileButtonHandler()}
-                                                            >
-                                                                Select local file
-                                                            </FileButton>
-                                                        </SelectDataFilenButtonContainer>
-                                                    </DataFileContainer>
-                                                    <DataFileTitle>Pipeline</DataFileTitle>
-                                                    <DataFileContainer>
-                                                        <FieldContainer>
-                                                            <label>File name</label>
-                                                            <div>{pipelineFileName}</div>
-                                                        </FieldContainer>
-                                                        <FieldContainer>
-                                                            <label>Last modification date</label>
-                                                            <div>{pipelineFileLastModifDateString}</div>
-                                                        </FieldContainer>
-                                                        <FormikControl
-                                                            control="select"
-                                                            label="Need reinitialization"
-                                                            name="reinitializePipeline"
-                                                            options={reinitializePipelineOptions}
-                                                            type="text"
-                                                            onChange={(e) =>
-                                                                onReinitializePipelineSelectChange(e, formik)
-                                                            }
-                                                        />
-                                                        <FormikControl
-                                                            control="select"
-                                                            label="Restart pipeline"
-                                                            name="restartPipeline"
-                                                            options={restartPipelineOptions}
-                                                            type="text"
-                                                            onChange={(e) => onRestartPipelineSelectChange(e, formik)}
-                                                        />
-                                                        <SelectDataFilenButtonContainer>
-                                                            <FileButton type="button" onClick={clearPipelineFile}>
-                                                                Clear
-                                                            </FileButton>
-                                                            <FileButton
-                                                                type="button"
-                                                                onClick={() => localPipelineFileButtonHandler()}
                                                             >
                                                                 Select local file
                                                             </FileButton>
@@ -1102,8 +1099,7 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
                                         <FormButtonsProps
                                             onCancel={onCancel}
                                             isValid={
-                                                formik.isValid &&
-                                                (isGlftDataReady || formik.values.type === "Grafana dashboard")
+                                                formik.isValid && (isGlftDataReady || formik.values.type === "Grafana dashboard")
                                             }
                                             isSubmitting={formik.isSubmitting}
                                         />

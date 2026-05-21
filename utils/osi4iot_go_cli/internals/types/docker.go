@@ -6,7 +6,6 @@ import (
 
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/client"
-
 )
 
 type Secret struct {
@@ -28,10 +27,11 @@ type Network struct {
 }
 
 type Volume struct {
-	Name       string
-	Driver     string
-	ID         string
-	DriverOpts map[string]string
+	Name        string
+	Driver      string
+	ID          string
+	ServiceName string
+	DriverOpts  map[string]string
 }
 
 type Service struct {

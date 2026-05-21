@@ -20,13 +20,14 @@ import IDataSource from "./interfaces/DataSource.interface";
 import CreateSensorDto from "../sensor/sensor.dto";
 import { getTopicByProp } from "../topic/topicDAL";
 import { getSensorTypeByPropName } from "../sensor/sensorDAL";
+import logEntriesDashboard from './defaultDashboards/logEntriesDashboard.json';
+import hostMetricsDashboard from './defaultDashboards/hostMetricsDashboard.json';
+import containerMetricsDashboard from './defaultDashboards/containerMetricsDashboard.json';
+import volumeMetricsDashboard from './defaultDashboards/volumeMetricsDashboard.json';
+import systemMonitoringDashboard from './defaultDashboards/systemMonitoringDashboard.json';
 
-export const insertDashboard = async (
-	orgId: number,
-	folderId: number,
-	title: string,
-	data: any
-): Promise<any> => {
+
+export const insertDashboard = async (orgId: number, folderId: number, title: string, data: any): Promise<any> => {
 	const now = new Date();
 	const slug = title.replace(/ /g, "_").toLocaleLowerCase();
 	const uuid = uuidv4();
@@ -36,14 +37,26 @@ export const insertDashboard = async (
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
 		RETURNING *`;
 
-	const response = await pool.query(
-		queryString,
-		[1, slug, title, data, orgId, now, now, -1, -1, 0, '', folderId, false, false, uuid]
-	);
+	const response = await pool.query(queryString, [
+		1,
+		slug,
+		title,
+		data,
+		orgId,
+		now,
+		now,
+		-1,
+		-1,
+		0,
+		"",
+		folderId,
+		false,
+		false,
+		uuid,
+	]);
 	// eslint-disable-next-line @typescript-eslint/no-unsafe-return
 	return response.rows[0];
 };
-
 
 export const deleteDashboard = async (dashboardId: number): Promise<void> => {
 	await pool.query(`DELETE FROM grafanadb.dashboard WHERE grafanadb.dashboard.id = $1`, [dashboardId]);
@@ -56,19 +69,25 @@ export const deleteDashboardsByIdArray = async (idArray: number[]): Promise<void
 
 export const getDashboardsDataOfGroup = async (group: IGroup): Promise<IDashboardData[]> => {
 	const folderId = group.folderId;
-	const response = await pool.query(`SELECT id, data FROM grafanadb.dashboard WHERE folder_id = $1 AND is_folder = $2`, [folderId, false]);
+	const response = await pool.query(
+		`SELECT id, data FROM grafanadb.dashboard WHERE folder_id = $1 AND is_folder = $2`,
+		[folderId, false]
+	);
 	return response.rows as IDashboardData[];
 };
 
 export const getDashboardDataByUid = async (orgId: number, uid: string): Promise<IDashboardData> => {
-	const response = await pool.query(`SELECT id, data FROM grafanadb.dashboard WHERE org_id=$1 AND uid= $2`, [orgId, uid]);
+	const response = await pool.query(`SELECT id, data FROM grafanadb.dashboard WHERE org_id=$1 AND uid= $2`, [
+		orgId,
+		uid,
+	]);
 	return response.rows[0] as IDashboardData;
 };
 
 export const getDashboardsDataWithRawSqlOfGroup = async (group: IGroup): Promise<IDashboardData[]> => {
 	const dashboards = await getDashboardsDataOfGroup(group);
 	const dashboardsWithRawSql: IDashboardData[] = [];
-	dashboards.forEach(dashboard => {
+	dashboards.forEach((dashboard) => {
 		const data = JSON.parse(dashboard.data);
 		for (const panel of data.panels) {
 			if (panel.datasource) {
@@ -80,9 +99,13 @@ export const getDashboardsDataWithRawSqlOfGroup = async (group: IGroup): Promise
 	return dashboardsWithRawSql;
 };
 
-export const updateDashboardsDataRawSqlOfGroup = async (group: IGroup, newGroupUid: string, dashboardsWithRawSql: IDashboardData[]): Promise<void> => {
+export const updateDashboardsDataRawSqlOfGroup = async (
+	group: IGroup,
+	newGroupUid: string,
+	dashboardsWithRawSql: IDashboardData[]
+): Promise<void> => {
 	const updateRawSqlQueries: any[] = [];
-	dashboardsWithRawSql.forEach(dashboard => {
+	dashboardsWithRawSql.forEach((dashboard) => {
 		const data = JSON.parse(dashboard.data);
 		for (const panel of data.panels) {
 			if (panel.datasource) {
@@ -95,15 +118,23 @@ export const updateDashboardsDataRawSqlOfGroup = async (group: IGroup, newGroupU
 			}
 		}
 		const now = new Date();
-		const query = pool.query('UPDATE grafanadb.dashboard SET updated = $1, data = $2 WHERE id = $3', [now, data, dashboard.id]);
+		const query = pool.query("UPDATE grafanadb.dashboard SET updated = $1, data = $2 WHERE id = $3", [
+			now,
+			data,
+			dashboard.id,
+		]);
 		updateRawSqlQueries.push(query);
 	});
 	await Promise.all(updateRawSqlQueries);
 };
 
-export const updateDashboardsDataRawSqlOfTopic = async (topic: ITopic, newTopicUid: string, dashboardsWithRawSql: IDashboardData[]): Promise<void> => {
+export const updateDashboardsDataRawSqlOfTopic = async (
+	topic: ITopic,
+	newTopicUid: string,
+	dashboardsWithRawSql: IDashboardData[]
+): Promise<void> => {
 	const updateRawSqlQueries: any[] = [];
-	dashboardsWithRawSql.forEach(dashboard => {
+	dashboardsWithRawSql.forEach((dashboard) => {
 		const data = JSON.parse(dashboard.data);
 		for (const panel of data.panels) {
 			if (panel.datasource) {
@@ -116,7 +147,11 @@ export const updateDashboardsDataRawSqlOfTopic = async (topic: ITopic, newTopicU
 			}
 		}
 		const now = new Date();
-		const query = pool.query('UPDATE grafanadb.dashboard SET updated = $1, data = $2 WHERE id = $3', [now, data, dashboard.id]);
+		const query = pool.query("UPDATE grafanadb.dashboard SET updated = $1, data = $2 WHERE id = $3", [
+			now,
+			data,
+			dashboard.id,
+		]);
 		updateRawSqlQueries.push(query);
 	});
 	await Promise.all(updateRawSqlQueries);
@@ -124,7 +159,7 @@ export const updateDashboardsDataRawSqlOfTopic = async (topic: ITopic, newTopicU
 
 export const updateDashboardData = async (dashboardId: number, data: any): Promise<void> => {
 	const now = new Date();
-	await pool.query('UPDATE grafanadb.dashboard SET updated = $1, data = $2 WHERE id = $3', [now, data, dashboardId]);
+	await pool.query("UPDATE grafanadb.dashboard SET updated = $1, data = $2 WHERE id = $3", [now, data, dashboardId]);
 };
 
 export const insertPreference = async (orgId: number, homeDashboardId: number): Promise<void> => {
@@ -132,10 +167,7 @@ export const insertPreference = async (orgId: number, homeDashboardId: number): 
 	const queryString = `INSERT INTO grafanadb.preferences (org_id, user_id, version,
 		home_dashboard_id, timezone, theme, created, updated, team_id)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`;
-	await pool.query(
-		queryString,
-		[orgId, 0, 0, homeDashboardId, '', '', now, now, 0]
-	);
+	await pool.query(queryString, [orgId, 0, 0, homeDashboardId, "", "", now, now, 0]);
 };
 
 export const createHomeDashboard = async (
@@ -147,19 +179,19 @@ export const createHomeDashboard = async (
 	const homeDashboard = JSON.parse(homeDashboardJson);
 	const title = `Home ${orgAcronym.replace(/ /g, "_").replace(/"/g, "").toUpperCase()}`;
 	const platformName = `${process_env.PLATFORM_NAME.replace(/_/g, " ").toUpperCase()} PLATFORM`;
-	const html_content = `<br/>\n<h1>${platformName}</h1>\n<h2>${orgName}</h2>\n`
+	const html_content = `<br/>\n<h1>${platformName}</h1>\n<h2>${orgName}</h2>\n`;
 	homeDashboard.panels[0].options.content = html_content;
 	homeDashboard.panels[0].gridPos = {
 		h: 4,
 		w: 24,
 		x: 0,
-		y: 0
+		y: 0,
 	};
 	homeDashboard.panels[1].gridPos = {
 		h: 18,
 		w: 24,
 		x: 0,
-		y: 4
+		y: 4,
 	};
 	homeDashboard.uid = uuidv4();
 	const response = await insertDashboard(orgId, folderId, title, homeDashboard);
@@ -169,7 +201,7 @@ export const createHomeDashboard = async (
 export const createDemoDashboards = async (group: IGroup, topics: Partial<ITopic>[]): Promise<number[]> => {
 	const dataSourceName = generateGrafanaDataSourceName(group.orgId, "timescaledb");
 	const orgKey = await getOrganizationKey(group.orgId);
-	const dataSource = await grafanaApi.getDataSourceByName(dataSourceName, orgKey) as IDataSource;
+	const dataSource = (await grafanaApi.getDataSourceByName(dataSourceName, orgKey)) as IDataSource;
 	const grouAcronym = group.acronym;
 	const tempDashboard = JSON.parse(tempDashboardJson);
 	const titleTempDashboard = `${grouAcronym.replace(/ /g, "_")}_Temp_demo`;
@@ -202,11 +234,16 @@ export const createDemoDashboards = async (group: IGroup, topics: Partial<ITopic
 	accelDashboard.title = titleAccelDashboard;
 	accelDashboard.panels[0].datasource = dataSourceName;
 	accelDashboard.panels[0].alert.notifications[0].uid = emailNotificationChannelUid;
-	accelDashboard.panels[0].alert.notifications[1].uid = telegramNotificationChannelUid;;
+	accelDashboard.panels[0].alert.notifications[1].uid = telegramNotificationChannelUid;
 	const topic2Hash = `Topic_${topics[1].topicUid}`;
 	const rawSqlAccel = `SELECT timestamp AS \"time\", CAST(payload->'accelerations'->>0 AS DOUBLE PRECISION) AS \"Ax\", CAST(payload->'accelerations'->>1 AS DOUBLE PRECISION) AS \"Ay\", CAST(payload->'accelerations'->>2 AS DOUBLE PRECISION) AS \"Az\" FROM  iot_datasource.${tableHash} WHERE topic = '${topic2Hash}' AND $__timeFilter(timestamp) ORDER BY time DESC;`;
 	accelDashboard.panels[0].targets[0].rawSql = rawSqlAccel;
-	const accelDashboardCreated = await insertDashboard(group.orgId, group.folderId, titleAccelDashboard, accelDashboard);
+	const accelDashboardCreated = await insertDashboard(
+		group.orgId,
+		group.folderId,
+		titleAccelDashboard,
+		accelDashboard
+	);
 
 	const accelAlertData = JSON.parse(accelAlertJson);
 	accelAlertData.conditions[0].query.datasourceId = dataSource.id;
@@ -222,7 +259,7 @@ export const createDemoDashboards = async (group: IGroup, topics: Partial<ITopic
 export const createDashboard = async (group: IGroup, topicUid: string, dashboardTitle: string): Promise<number> => {
 	const dataSourceName = generateGrafanaDataSourceName(group.orgId, "timescaledb");
 	const orgKey = await getOrganizationKey(group.orgId);
-	const dataSource = await grafanaApi.getDataSourceByName(dataSourceName, orgKey) as IDataSource;;
+	const dataSource = (await grafanaApi.getDataSourceByName(dataSourceName, orgKey)) as IDataSource;
 	const dashboard = JSON.parse(defaultDashboard);
 	dashboard.uid = uuidv4();
 	dashboard.title = dashboardTitle;
@@ -239,6 +276,14 @@ export const createDashboard = async (group: IGroup, topicUid: string, dashboard
 	return dashboardCreated.id as number;
 };
 
+export const createSystemMonitoringDashboard = async (group: IGroup,  dashboardTitle: string): Promise<number> => {
+	const dashboard = structuredClone(systemMonitoringDashboard) as any;
+	dashboard.uid = uuidv4();
+	dashboard.title = dashboardTitle;
+	const dashboardCreated = await insertDashboard(group.orgId, group.folderId, dashboardTitle, dashboard);
+	return dashboardCreated.id as number;
+};
+
 export const createSensorDashboard = async (
 	group: IGroup,
 	sensorData: Partial<CreateSensorDto>,
@@ -249,7 +294,7 @@ export const createSensorDashboard = async (
 
 	const dataSourceName = generateGrafanaDataSourceName(group.orgId, "timescaledb");
 	const orgKey = await getOrganizationKey(group.orgId);
-	const dataSource = await grafanaApi.getDataSourceByName(dataSourceName, orgKey) as IDataSource;
+	const dataSource = (await grafanaApi.getDataSourceByName(dataSourceName, orgKey)) as IDataSource;
 	const dashboard = JSON.parse(defaultDashboard);
 	dashboard.uid = uuidv4();
 	dashboard.title = `Sensor_${sensorsUid}`;
@@ -277,8 +322,8 @@ export const createSensorDashboard = async (
 				const itemLabels = payloadJsonSchema.properties[keys[0]].description.split(",") as string[];
 				rawSql = `SELECT timestamp AS \"time\",`;
 				for (let i = 0; i < itemLabels.length; i++) {
-					rawSql = `${rawSql} CAST(payload->'${payloadKey}'->>${i} AS DOUBLE PRECISION) AS "${itemLabels[i]}"`
-					if (i < (itemLabels.length - 1)) {
+					rawSql = `${rawSql} CAST(payload->'${payloadKey}'->>${i} AS DOUBLE PRECISION) AS "${itemLabels[i]}"`;
+					if (i < itemLabels.length - 1) {
 						rawSql = `${rawSql},`;
 					}
 				}
@@ -290,8 +335,8 @@ export const createSensorDashboard = async (
 			for (let i = 0; i < keys.length; i++) {
 				const payloadKey = keys[i];
 				const paramLabel = payloadJsonSchema.properties[keys[i]].description as string;
-				rawSql = `${rawSql} CAST(payload->>'${payloadKey}' AS DOUBLE PRECISION) AS "${paramLabel}"`
-				if (i < (keys.length - 1)) {
+				rawSql = `${rawSql} CAST(payload->>'${payloadKey}' AS DOUBLE PRECISION) AS "${paramLabel}"`;
+				if (i < keys.length - 1) {
 					rawSql = `${rawSql},`;
 				}
 			}
@@ -317,7 +362,7 @@ const createTempDemoAlert = (orgId: number, dashboardId: number, panelId: number
 		orgId,
 		name: "Temperature evolution alert",
 		message: "Device temperature has exceeded 50°C, please try to fix it as soon as possible",
-		state: 'unknown',
+		state: "unknown",
 		settings,
 		frequency: 60,
 		handler: 1,
@@ -326,10 +371,10 @@ const createTempDemoAlert = (orgId: number, dashboardId: number, panelId: number
 		executionError: "",
 		evalData: "",
 		stateChanges: 0,
-		for: 180000000000
-	}
+		for: 180000000000,
+	};
 	return alert;
-}
+};
 
 const createAccelDemoAlert = (orgId: number, dashboardId: number, panelId: number, settings: any): Partial<IAlert> => {
 	const alert: Partial<IAlert> = {
@@ -339,7 +384,7 @@ const createAccelDemoAlert = (orgId: number, dashboardId: number, panelId: numbe
 		orgId,
 		name: "Acceleration evolution alert",
 		message: "Acceleration of some axis of the mobile has exceeded 40 m/s^2.",
-		state: 'unknown',
+		state: "unknown",
 		settings,
 		frequency: 20,
 		handler: 1,
@@ -348,7 +393,41 @@ const createAccelDemoAlert = (orgId: number, dashboardId: number, panelId: numbe
 		executionError: "",
 		evalData: "",
 		stateChanges: 0,
-		for: 180000000000
-	}
+		for: 180000000000,
+	};
 	return alert;
-}
+};
+
+export const createSystemMonitoringSensorDashboard = async (
+    group: IGroup,
+    sensorData: Partial<CreateSensorDto>,
+    sensorsUid: string
+): Promise<number> => {
+    const dataSourceName = generateGrafanaDataSourceName(group.orgId, "timescaledb");
+    const orgKey = await getOrganizationKey(group.orgId);
+    const dataSource = (await grafanaApi.getDataSourceByName(dataSourceName, orgKey)) as IDataSource;
+
+    const dashboardMap: Record<string, object> = {
+        "Log entries sensor":       logEntriesDashboard,
+        "Host metrics sensor":      hostMetricsDashboard,
+        "Container metrics sensor": containerMetricsDashboard,
+        "Volume metrics sensor":    volumeMetricsDashboard,
+    };
+
+    const baseDashboard = dashboardMap[sensorData.description ?? ""];
+    if (!baseDashboard) throw new Error("Unknown system monitoring sensor type");
+
+    // Deep clone para no mutar el objeto importado
+    const dashboard = structuredClone(baseDashboard) as any;
+
+    dashboard.uid = uuidv4();
+    dashboard.title = `Sensor_${sensorsUid}`;
+    for (const panel of dashboard.panels) {
+        for (const target of panel.targets) {
+            target.datasource.uid = dataSource.uid;
+        }
+    }
+
+    const dashboardCreated = await insertDashboard(group.orgId, group.folderId, dashboard.title, dashboard);
+    return dashboardCreated.id as number;
+};
