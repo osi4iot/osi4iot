@@ -276,7 +276,11 @@ export const createNewAsset = async (group: IGroup, assetData: CreateAssetDto, i
 		sensorsRef[i].topicId = topicId;
 		const sensorType = await getSensorTypeByPropName(group.orgId, "type", sensorsRef[i].sensorType);
 		sensorsRef[i].sensorTypeId = sensorType.id;
-		dashboarsId[i] = await createSensorDashboard(group, sensorsRef[i], sensorsUid[i]);
+		if (sensorsRef[i].payloadJsonSchema === "{}") {
+			dashboarsId[i] = null;
+		} else {
+			dashboarsId[i] = await createSensorDashboard(group, sensorsRef[i], sensorsUid[i]);
+		}
 	}
 
 	const dashboardsInfo = await getDashboardsInfoFromIdArray(dashboarsId);
@@ -288,7 +292,11 @@ export const createNewAsset = async (group: IGroup, assetData: CreateAssetDto, i
 	return newAsset;
 };
 
-export const createSystemMonitoringAsset = async (group: IGroup, assetData: CreateAssetDto, isDefault = false): Promise<IAsset> => {
+export const createSystemMonitoringAsset = async (
+	group: IGroup,
+	assetData: CreateAssetDto,
+	isDefault = false
+): Promise<IAsset> => {
 	const assetUid = nanoid(20).replace(/-/g, "x").replace(/_/g, "X");
 	const groupId = group.id;
 
@@ -488,7 +496,12 @@ export const getAssetsByOrgId = async (orgId: number): Promise<IAsset[]> => {
 	return response.rows as IAsset[];
 };
 
-export const createAssetTopic = async (assetId: number, topicId: number, topicRef: string, isDefault?: boolean): Promise<IAssetTopic> => {
+export const createAssetTopic = async (
+	assetId: number,
+	topicId: number,
+	topicRef: string,
+	isDefault?: boolean
+): Promise<IAssetTopic> => {
 	const queryString = `INSERT INTO grafanadb.asset_topic (
 		asset_id, topic_id, topic_ref)
 		VALUES ($1, $2, $3)
@@ -496,11 +509,11 @@ export const createAssetTopic = async (assetId: number, topicId: number, topicRe
 		topic_ref AS "topicRef"`;
 	const result = await pool.query(queryString, [assetId, topicId, topicRef]);
 
-	if(!isDefault) {
+	if (!isDefault) {
 		const context = {
 			topicRef: result.rows[0].topicRef,
 			topicId: result.rows[0].topicId,
-		}
+		};
 		await natsClient.jsPublish("asset_topic", "create", result.rows[0].assetId, context);
 	}
 	return result.rows[0] as IAssetTopic;

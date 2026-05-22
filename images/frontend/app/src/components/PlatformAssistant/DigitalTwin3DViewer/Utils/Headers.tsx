@@ -157,7 +157,7 @@ interface HeaderProps {
     handleReinitiatePipeline: () => void;
     isPipelineUiChanged: boolean;
     close3DViewer: () => void;
-    assetWithMobilePhotoSelected: boolean;
+    assetWithCameraSelected: boolean;
     pipelineStatus: string;
     pipelineLeaderReplicaIndex: number;
 }
@@ -202,7 +202,7 @@ export const Header: FC<HeaderProps> = ({
     handleReinitiatePipeline,
     isPipelineUiChanged,
     close3DViewer,
-    assetWithMobilePhotoSelected,
+    assetWithCameraSelected,
     pipelineStatus,
     pipelineLeaderReplicaIndex,
 }) => {
@@ -234,8 +234,8 @@ export const Header: FC<HeaderProps> = ({
 
             <ViewerDropdownMenu open={dropdownOpen}>
                 {VIEWER_OPTIONS.map(({ value, label, icon: Icon }) => {
-                    // Hide image_frame option if no mobile photo asset is selected
-                    if (value === "image_frame" && !assetWithMobilePhotoSelected) return null;
+                    // Hide image_frame option if no camera asset is selected
+                    if (value === "image_frame" && !assetWithCameraSelected) return null;
                     return (
                         <ViewerDropdownItem
                             key={value}

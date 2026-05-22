@@ -1251,7 +1251,14 @@ export const dataBaseInitialization = async () => {
 								sensorType: "Mobile photo",
 								topicRef: "dev2pdb_5",
 								description: `Mobile photo`,
-								payloadJsonSchema: JSON.stringify(predefinedSensorTypes[4].defaultPayloadJsonSchema),
+								payloadJsonSchema: "{}",
+							},
+							{
+								sensorRef: "sensor_6",
+								sensorType: "Mobile video",
+								topicRef: "dev2pdb_6",
+								description: `Mobile video`,
+								payloadJsonSchema: "{}",
 							},
 						],
 					};
@@ -1287,13 +1294,7 @@ export const dataBaseInitialization = async () => {
 				};
 
 				try {
-					await createDigitalTwin(
-						group,
-						systemMonitoringAsset,
-						systemMonitoringDigitalTwinData,
-						null,
-						true
-					);
+					await createDigitalTwin(group, systemMonitoringAsset, systemMonitoringDigitalTwinData, null, true);
 					logger.log("info", `System monitoring digital twin has been created sucessfully`);
 				} catch (err) {
 					const message = err instanceof Error ? err.message : String(err);

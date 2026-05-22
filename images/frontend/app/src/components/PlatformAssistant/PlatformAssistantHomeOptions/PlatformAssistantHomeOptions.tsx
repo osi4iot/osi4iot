@@ -310,7 +310,8 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
     const [sensorsState, setSensorsState] = useState<ISensorState[]>([]);
     const [assetMarkerSelected, setAssetMarkerSelected] = useState(false);
     const fetchFemResFileWorker: Worker = useMemo(() => new Worker(fetchFemResFileCode), []);
-    const [assetWithMobilePhotoSelected, setAssetWithMobilePhotoSelected] = useState(false);
+    const [assetWithCameraSelected, setAssetWithCameraSelected] = useState(false);
+    const [sensorWithCameraSelected, setSensorWithCameraSelected] = useState(false);
 
     const refreshBuildings = useCallback(() => {
         setBuildingsLoading(true);
@@ -974,7 +975,8 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
                                     setGltfFileDownloadProgress={(progress: number) =>
                                         setGltfFileDownloadProgress(progress)
                                     }
-                                    setAssetWithMobilePhotoSelected={setAssetWithMobilePhotoSelected}
+                                    setAssetWithCameraSelected={setAssetWithCameraSelected}
+                                    setSensorWithCameraSelected={setSensorWithCameraSelected}
                                 />
                             )}
                             {optionToShow === PLATFORM_ASSISTANT_HOME_OPTIONS.DIGITAL_TWINS && digitalTwinGltfData && (
@@ -989,7 +991,8 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
                                             close3DViewer={handleCloseViewer}
                                             fetchFemResFileWorker={fetchFemResFileWorker}
                                             refreshDigitalTwins={refreshDigitalTwins}
-                                            assetWithMobilePhotoSelected={assetWithMobilePhotoSelected}
+                                            assetWithCameraSelected={assetWithCameraSelected}
+                                            sensorWithCameraSelected={sensorWithCameraSelected}
                                         />
                                     </Suspense>
                                 </WebGLErrorBoundary>

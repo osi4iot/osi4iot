@@ -14,6 +14,7 @@ import { IDigitalTwin } from "../TableColumns/digitalTwinsColumns";
 import { ISensorState } from "./GeolocationContainer";
 import { ISensorType } from "../TableColumns/sensorTypesColumns";
 import { useOpenWindowTab } from "../DigitalTwin3DViewer/Utils/customHooks";
+import { IDigitalTwinGltfData } from "../DigitalTwin3DViewer/ViewerTools/ViewerUtils";
 
 interface GeoSensorProps {
     sensorLabel: string;
@@ -25,13 +26,15 @@ interface GeoSensorProps {
     selectSensor: (sensorSelected: ISensor | null) => void;
     selectDigitalTwin: (digitalTwinSelected: IDigitalTwin | null) => void;
     sensorsState: ISensorState[];
+    setSensorWithCameraSelected: (selected: boolean) => void;
+    clickToOpenDigitalTwin3DViewer: () => void;
 }
 
 const calcGeoPointPosition = (
     pointLongitude: number,
     pointLatitude: number,
     distance: number,
-    angle: number
+    angle: number,
 ): number[] => {
     const pt = point([pointLongitude, pointLatitude]);
     let bearing: number = angle;
@@ -52,6 +55,8 @@ const GeoSensor: FC<GeoSensorProps> = ({
     selectSensor,
     selectDigitalTwin,
     sensorsState,
+    setSensorWithCameraSelected,
+    clickToOpenDigitalTwin3DViewer,
 }) => {
     const arrayLength = parseInt(sensorLabel.split("/")[1], 10);
     const initialAngle = arrayLength > 10 ? 32.0 : 5.0;
@@ -61,7 +66,7 @@ const GeoSensor: FC<GeoSensorProps> = ({
         assetData.longitude,
         assetData.latitude,
         positionRadius,
-        angle
+        angle,
     );
     const [status, setStatus] = useState("unknown");
     const [fillColor, setFillColor] = useState(STATUS_OK);
@@ -79,23 +84,34 @@ const GeoSensor: FC<GeoSensorProps> = ({
     const sensorRadio = 0.000085 * assetData.iconRadio;
     const boundsSensor = useMemo(
         () => calcGeoBounds(centerLongitude, centerLatitude - 2.0e-7 * assetData.iconRadio, sensorRadio),
-        [centerLongitude, centerLatitude, sensorRadio, assetData.iconRadio]
+        [centerLongitude, centerLatitude, sensorRadio, assetData.iconRadio],
     );
 
     const sensorOuterRadio = 0.00016 * assetData.iconRadio;
     const outerBoundsSensor = useMemo(
         () => calcGeoBounds(centerLongitude, centerLatitude, sensorOuterRadio),
-        [centerLongitude, centerLatitude, sensorOuterRadio]
+        [centerLongitude, centerLatitude, sensorOuterRadio],
     );
 
     const clickHandler = () => {
         selectSensor(sensorData);
         selectDigitalTwin(null);
-        const url = sensorData.dashboardUrl as string;
-        if (url.slice(0, 7) === "Warning") {
-            toast.warning(url);
+        if (
+            sensorData.sensorType === "Mobile photo" ||
+            sensorData.sensorType === "Mobile video" ||
+            sensorData.sensorType === "Photo camera" ||
+            sensorData.sensorType === "Video camera"
+        ) {
+            setSensorWithCameraSelected(true);
+            clickToOpenDigitalTwin3DViewer();
         } else {
-            openDashboardTab(url);
+            const url = sensorData.dashboardUrl as string;
+            if (url.slice(0, 7) === "Warning") {
+                toast.warning(url);
+            } else {
+                setSensorWithCameraSelected(false);
+                openDashboardTab(url);
+            }
         }
     };
 

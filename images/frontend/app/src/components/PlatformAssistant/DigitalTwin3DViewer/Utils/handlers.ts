@@ -20,7 +20,7 @@ interface HandlersParams {
     digitalTwinSelected: IDigitalTwin | null;
     digitalTwinGltfData: IDigitalTwinGltfData;
     activeViewer: "3D" | "pipeline" | "image_frame";
-    assetWithMobilePhotoSelected: boolean;
+    assetWithCameraSelected: boolean;
     accessToken: string;
     refreshToken: string;
     authDispatch: any;
@@ -221,7 +221,7 @@ export const createHandlers = (
     const handleToggleActiveViewer = () => {
         const { activeViewer } = params;
         const viewerOptions = ["3D", "pipeline"];
-        if (params.assetWithMobilePhotoSelected) {
+        if (params.assetWithCameraSelected) {
             viewerOptions.push("image_frame");
         }
         const currentIndex = viewerOptions.indexOf(activeViewer);

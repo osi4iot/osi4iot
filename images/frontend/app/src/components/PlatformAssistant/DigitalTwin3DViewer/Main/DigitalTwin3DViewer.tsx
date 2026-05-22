@@ -91,7 +91,8 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
     close3DViewer,
     fetchFemResFileWorker,
     refreshDigitalTwins,
-    assetWithMobilePhotoSelected,
+    assetWithCameraSelected,
+    sensorWithCameraSelected,
 }) => {
     // Hooks
     const { accessToken, refreshToken } = useAuthState();
@@ -101,7 +102,6 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
     const { connectionStatus, natsClient } = useNatsConnection();
     const openDashboardTab = useOpenWindowTab();
     const { imageUrl, handleImageUrlChange } = useImageFrame();
-    const [isReady, setIsReady] = useState(false);
 
     const {
         canvasContainerRef,
@@ -164,7 +164,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
             digitalTwinSelected,
             digitalTwinGltfData,
             activeViewer: state.activeViewer,
-            assetWithMobilePhotoSelected,
+            assetWithCameraSelected,
             accessToken,
             refreshToken,
             authDispatch: authDispatch,
@@ -538,10 +538,16 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
     }, [digitalTwinSelected, natsClient, digitalTwinGltfData.natsSubjectsData]);
 
     useEffect(() => {
-        if (digitalTwinSelected && !digitalTwinGltfData.digitalTwinGltfUrl) {
-            handlers.handleSetActiveViewer("pipeline");
+        if (digitalTwinSelected) {
+            if (sensorWithCameraSelected) {
+                handlers.handleSetActiveViewer("image_frame");
+            } else {
+                if (!digitalTwinGltfData.digitalTwinGltfUrl) {
+                    handlers.handleSetActiveViewer("pipeline");
+                }
+            }
         }
-    }, [digitalTwinSelected]);
+    }, [digitalTwinSelected, sensorWithCameraSelected]);
 
     const {
         handleDeployPipeline,
@@ -773,9 +779,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
                     </ReactFlowProvider>
                 )}
 
-                {assetWithMobilePhotoSelected && state.activeViewer === "image_frame" && (
-                    <ImageFrame imageUrl={imageUrl} />
-                )}
+                {assetWithCameraSelected && state.activeViewer === "image_frame" && <ImageFrame imageUrl={imageUrl} />}
 
                 {/* FEM Simulation Legend */}
                 {state.activeViewer === "3D" &&
@@ -826,7 +830,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
                     handleReinitiatePipeline={handleReinitiatePipeline}
                     isPipelineUiChanged={state.isPipelineUiChanged}
                     close3DViewer={close3DViewer}
-                    assetWithMobilePhotoSelected={assetWithMobilePhotoSelected}
+                    assetWithCameraSelected={assetWithCameraSelected}
                     pipelineStatus={pipelineStatus}
                     pipelineLeaderReplicaIndex={pipelineLeaderReplicaIndex}
                 />

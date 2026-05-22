@@ -73,7 +73,8 @@ interface GeoGroupProps {
     openDigitalTwin3DViewer: (digitalTwinGltfData: IDigitalTwinGltfData) => void;
     setGlftDataLoading: (gtGlftDataLoading: boolean) => void;
     setGltfFileDownloadProgress: (gltfFileDownloadProgress: number) => void;
-    setAssetWithMobilePhotoSelected: (selected: boolean) => void;
+    setAssetWithCameraSelected: (selected: boolean) => void;
+    setSensorWithCameraSelected: (selected: boolean) => void;
 }
 
 const GeoGroup: FC<GeoGroupProps> = (
@@ -100,7 +101,8 @@ const GeoGroup: FC<GeoGroupProps> = (
         openDigitalTwin3DViewer,
         setGlftDataLoading,
         setGltfFileDownloadProgress,
-        setAssetWithMobilePhotoSelected
+        setAssetWithCameraSelected,
+        setSensorWithCameraSelected,
     }) => {
     const map = useMap();
     const geoJsonLayerGroupRef = useRef(null);
@@ -168,7 +170,8 @@ const GeoGroup: FC<GeoGroupProps> = (
                             openDigitalTwin3DViewer={openDigitalTwin3DViewer}
                             setGlftDataLoading={setGlftDataLoading}
                             setGltfFileDownloadProgress={setGltfFileDownloadProgress}
-                            setAssetWithMobilePhotoSelected={setAssetWithMobilePhotoSelected}
+                            setAssetWithCameraSelected={setAssetWithCameraSelected}
+                            setSensorWithCameraSelected={setSensorWithCameraSelected}
                         />
                     </LayerGroup >
                     :

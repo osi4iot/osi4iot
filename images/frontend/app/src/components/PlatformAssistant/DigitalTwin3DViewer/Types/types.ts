@@ -31,7 +31,8 @@ export interface Viewer3DProps {
     close3DViewer: () => void;
     fetchFemResFileWorker: Worker;
     refreshDigitalTwins: () => void;
-    assetWithMobilePhotoSelected: boolean;
+    assetWithCameraSelected: boolean;
+    sensorWithCameraSelected: boolean;
 }
 
 export interface ViewerState {
