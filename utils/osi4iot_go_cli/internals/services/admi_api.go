@@ -99,6 +99,14 @@ func AdminApiService(
 
 	return NewService("admin_api", pd, sd).
 		WithImage(image).
+		WithCommand([]string{"sh", "-c"}).
+		WithArgs([]string{
+			"until wget -qO- http://auth_callout:3300/health > /dev/null 2>&1; do " +
+				"echo 'Waiting for auth_callout...'; sleep 3; " +
+				"done && " +
+				"echo 'auth_callout ready, starting admin_api' && " +
+				"exec yarn start",
+		}).
 		WithEnv([]string{
 			"REPLICA={{.Task.Slot}}",
 		}).

@@ -58,7 +58,13 @@ func VectorService(
 				"until wget -qO- http://auth_callout:3300/health > /dev/null 2>&1; do " +
 				"  sleep 3; " +
 				"done && " +
-				"echo 'auth_callout ready, starting Vector' && " +
+				"echo 'auth_callout ready' && " +
+				"echo 'Waiting for timescaledb...' && " +
+				"until nc -z timescaledb 5432 > /dev/null 2>&1; do " +
+				"  sleep 2; " +
+				"done && " +
+				"echo 'timescaledb ready' && " +
+				"echo 'All dependencies ready, starting Vector...' && " +
 				"exec /usr/local/bin/vector --config /etc/vector/vector.yaml",
 		}).
 		WithEnv([]string{

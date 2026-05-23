@@ -23,6 +23,6 @@ RUN yarn install --production
 USER node
 COPY --from=0 /app/build ./build
 CMD ["yarn", "start"]
-HEALTHCHECK --interval=10s --timeout=300s --retries=30 \
+HEALTHCHECK --interval=10s --timeout=5s --start-period=30s --retries=10 \
   CMD curl --fail --insecure http://localhost:3200/health || exit 1
 EXPOSE 3200

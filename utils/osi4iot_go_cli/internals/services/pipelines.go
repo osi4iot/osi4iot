@@ -43,6 +43,21 @@ func PipelinesService(
 	image := utils.GetServiceImage(pd, "pipelines", "ghcr.io/osi4iot/pipelines:1.3.0")
 	return NewService("pipelines", pd, sd).
 		WithImage(image).
+		WithCommand([]string{"sh", "-c"}).
+		WithArgs([]string{
+			"echo 'Waiting for auth_callout...' && " +
+				"until curl -sf http://auth_callout:3300/health > /dev/null 2>&1; do " +
+				"  sleep 3; " +
+				"done && " +
+				"echo 'auth_callout ready' && " +
+				"echo 'Waiting for timescaledb...' && " +
+				"until nc -z timescaledb 5432 > /dev/null 2>&1; do " +
+				"  sleep 2; " +
+				"done && " +
+				"echo 'timescaledb ready' && " +
+				"echo 'All dependencies ready, starting pipelines...' && " +
+				"exec pipelines",
+		}).
 		WithEnv([]string{
 			"REPLICA={{.Task.Slot}}",
 		}).
@@ -50,7 +65,6 @@ func PipelinesService(
 		WithMounts([]mount.Mount{
 			{
 				Type:   mount.TypeVolume,
-				// Source: sd.Volumes[volName].Name,
 				Source: volName,
 				Target: "/pipelines/data",
 			},
