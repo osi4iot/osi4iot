@@ -14,6 +14,6 @@ COPY --from=builder /auth_callout/server ./server
 RUN apk add --no-cache tzdata curl ca-certificates \
  && update-ca-certificates
 EXPOSE 3300
-HEALTHCHECK --interval=10s --timeout=300s --retries=30 \
+HEALTHCHECK --interval=10s --timeout=5s --start-period=30s --retries=10 \
   CMD curl --fail --insecure http://localhost:3300/health || exit 1
 ENTRYPOINT ["./server"]

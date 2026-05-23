@@ -9,10 +9,14 @@ import (
 
 	"log/slog"
 
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/nats-io/jwt/v2"
+	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/micro"
 	"github.com/nats-io/nkeys"
 )
+
+var nc *nats.Conn
 
 func main() {
 	if err := run(); err != nil {
@@ -33,9 +37,10 @@ func run() error {
 
 	authModel := NewAuthModel(dbpool)
 
-	nc, err := NatsConnection(config)
-	if err != nil {
-		return fmt.Errorf("error connecting to NATS: %s", err)
+    var connErr error
+    nc, connErr = NatsConnection(config) 
+	if connErr != nil {
+		return fmt.Errorf("error connecting to NATS: %s", connErr)
 	}
 	defer nc.Drain()
 	slog.Info("Connected to NATS server successfully", slog.String("server", nc.ConnectedServerName()))
@@ -275,7 +280,7 @@ func run() error {
 
 	slog.Info("auth callout service is running")
 
-	go HealthCheck()
+	go HealthCheck(dbpool)
 
 	// Block and wait for interrupt.
 	sigch := make(chan os.Signal, 1)
@@ -285,12 +290,22 @@ func run() error {
 	return nil
 }
 
-func HealthCheck() {
-	mux := http.NewServeMux()
-	mux.HandleFunc("/health", func(rw http.ResponseWriter, r *http.Request) { io.WriteString(rw, "Healthy") })
-	err := http.ListenAndServe(fmt.Sprintf(":%s", "3300"), mux)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error listenging on port 3300: %v", err)
-		os.Exit(1)
-	}
+func HealthCheck(dbpool *pgxpool.Pool) {
+    mux := http.NewServeMux()
+    mux.HandleFunc("/health", func(rw http.ResponseWriter, r *http.Request) {
+        // Verifica NATS
+        if nc == nil || !nc.IsConnected() {
+            rw.WriteHeader(http.StatusServiceUnavailable)
+            io.WriteString(rw, "NATS not connected")
+            return
+        }
+        // Verifica PostgreSQL
+        if err := dbpool.Ping(r.Context()); err != nil {
+            rw.WriteHeader(http.StatusServiceUnavailable)
+            io.WriteString(rw, "DB not reachable")
+            return
+        }
+        io.WriteString(rw, "Healthy")
+    })
+    http.ListenAndServe(":3300", mux)
 }
