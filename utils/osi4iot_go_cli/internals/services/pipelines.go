@@ -51,7 +51,9 @@ func PipelinesService(
 				"done && " +
 				"echo 'auth_callout ready' && " +
 				"echo 'Waiting for timescaledb...' && " +
-				"until nc -z timescaledb 5432 > /dev/null 2>&1; do " +
+				"until python3 -c \"" +
+				"import socket; s=socket.socket(); s.settimeout(2); " +
+				"s.connect(('timescaledb', 5432)); s.close()\" 2>/dev/null; do " +
 				"  sleep 2; " +
 				"done && " +
 				"echo 'timescaledb ready' && " +
