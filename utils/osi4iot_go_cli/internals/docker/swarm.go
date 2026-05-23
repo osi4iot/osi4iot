@@ -23,39 +23,43 @@ import (
 )
 
 func InitPlatform(platformData *pt.PlatformData) error {
-	fmt.Println("Initializing platform...")
-	nodesData := platformData.PlatformInfo.NodesData
-	err := initSwarm()
-	if err != nil {
-		return fmt.Errorf("error: initializing swarm %s", err.Error())
+    fmt.Println("Initializing platform...")
+
+	deployLocation := platformData.PlatformInfo.DeploymentLocation
+	if deployLocation == "Local deployment" {
+		localNodeData, err := utils.GetLocalNodeData()
+		if err != nil {
+			return fmt.Errorf("error: getting local node data: %v", err)
+		}
+		platformData.PlatformInfo.NodesData = []pt.NodeData{localNodeData}
 	}
 
-	dc, err := GetManagerDC()
-	if err != nil {
-		return fmt.Errorf("error: getting docker client %s", err.Error())
-	}
-	err = nodesConfiguration(platformData)
-	if err != nil {
-		return fmt.Errorf("error: configuring nodes %s", err.Error())
-	}
+    err := initSwarm()
+    if err != nil {
+        return fmt.Errorf("error: initializing swarm %s", err.Error())
+    }
+    dc, err := GetManagerDC()
+    if err != nil {
+        return fmt.Errorf("error: getting docker client %s", err.Error())
+    }
+    err = nodesConfiguration(platformData)
+    if err != nil {
+        return fmt.Errorf("error: configuring nodes %s", err.Error())
+    }
+    err = joinAllNodesToSwarm(dc)
+    if err != nil {
+        return fmt.Errorf("error: joining nodes to swarm %s", err.Error())
+    }
 
-	err = joinAllNodesToSwarm(dc)
-	if err != nil {
-		return fmt.Errorf("error: joining nodes to swarm %s", err.Error())
-	}
-
-	err = updateNodesData(dc, nodesData)
-	if err != nil {
-		return fmt.Errorf("error: updating nodes data %s", err.Error())
-	}
-	platformData.PlatformInfo.NodesData = nodesData
-
-	err = RunSwarm(dc, platformData)
-	if err != nil {
-		return fmt.Errorf("error: running swarm %s", err.Error())
-	}
-
-	return nil
+    err = updateNodesData(dc, &platformData.PlatformInfo.NodesData)
+    if err != nil {
+        return fmt.Errorf("error: updating nodes data %s", err.Error())
+    }
+    err = RunSwarm(dc, platformData)
+    if err != nil {
+        return fmt.Errorf("error: running swarm %s", err.Error())
+    }
+    return nil
 }
 
 func RunSwarm(dc *pt.DockerClient, pd *pt.PlatformData) error {
@@ -111,9 +115,8 @@ func createSwarmServices(platformData *pt.PlatformData, dc *pt.DockerClient) err
 		return fmt.Errorf("error waiting for all containers to be healthy: %v", err)
 	}
 
-
 	allServiceNames := utils.GetAllServiceNames(platformData)
-	
+
 	knownSecretKeys := secrets.GetKnownSecretKeys(platformData)
 	if err := secrets.RemoveOrphanSecrets(dc, allServiceNames, knownSecretKeys); err != nil {
 		fmt.Printf("Warning: could not clean up orphan secrets: %v\n", err)

@@ -2,10 +2,6 @@ package form
 
 import (
 	"fmt"
-	"os"
-	"os/exec"
-	"os/user"
-	"runtime"
 	"strconv"
 	"strings"
 
@@ -13,7 +9,6 @@ import (
 	"github.com/osi4iot/osi4iot/utils/osi4iot/internals/data"
 	"github.com/osi4iot/osi4iot/utils/osi4iot/internals/types"
 	"github.com/osi4iot/osi4iot/utils/osi4iot/internals/utils"
-	"github.com/shirou/gopsutil/mem"
 )
 
 func creatingNodeQuestions(m *Model) (submissionResultMsg, error) {
@@ -658,7 +653,7 @@ func createPlatform(m *Model) (platformCreatingMsg, error) {
 	nodesData := []types.NodeData{}
 	numNodes := platformData.PlatformInfo.NumberOfSwarmNodes
 	if deployLocation == "Local deployment" {
-		localNodeData, err := GetLocalNodeData()
+		localNodeData, err := utils.GetLocalNodeData()
 		if err != nil {
 			return platformCreatingMsg("Error: getting local node data"), err
 		}
@@ -679,46 +674,4 @@ func createPlatform(m *Model) (platformCreatingMsg, error) {
 	}
 
 	return platformCreatingMsg("osi4iot_state.json file created successfully"), nil
-}
-
-func GetLocalNodeData() (types.NodeData, error) {
-	hostname, err := os.Hostname()
-	if err != nil {
-		return types.NodeData{}, err
-	}
-
-	usr, err := user.Current()
-	if err != nil {
-		return types.NodeData{}, err
-	}
-
-	cmd := exec.Command("uname", "-m")
-	output, err := cmd.Output()
-	if err != nil {
-		return types.NodeData{}, err
-	}
-	nodeArch := strings.TrimSpace(string(output))
-
-	localIP, err := utils.GetLocalNodeIP()
-	if err != nil {
-		return types.NodeData{}, fmt.Errorf("error getting local node IP: %v", err)
-	}
-
-	nodeNanoCpus := int64(runtime.NumCPU() * 1e9)
-
-	vm, err := mem.VirtualMemory()
-	if err != nil {
-		return types.NodeData{}, fmt.Errorf("error getting memory: %v", err)
-	}
-
-	nodeData := types.NodeData{
-		NodeHostName:    hostname,
-		NodeIP:          localIP,
-		NodeUserName:    usr.Username,
-		NodeRole:        "Manager",
-		NodeArch:        nodeArch,
-		NodeNanoCPUs:    nodeNanoCpus,
-		NodeMemoryBytes: int64(vm.Total),
-	}
-	return nodeData, nil
 }
