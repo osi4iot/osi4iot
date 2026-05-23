@@ -53,7 +53,12 @@ func VectorService(
 		WithHostname("{{.Node.Hostname}}").
 		WithCommand([]string{"sh", "-c"}).
 		WithArgs([]string{
-			"export $(cat /run/secrets/vector_credentials.txt | xargs)\n" +
+			"export $(cat /run/secrets/vector_credentials.txt | xargs) && " +
+				"echo 'Waiting for auth_callout...' && " +
+				"until wget -qO- http://auth_callout:3300/health > /dev/null 2>&1; do " +
+				"  sleep 3; " +
+				"done && " +
+				"echo 'auth_callout ready, starting Vector' && " +
 				"exec /usr/local/bin/vector --config /etc/vector/vector.yaml",
 		}).
 		WithEnv([]string{
