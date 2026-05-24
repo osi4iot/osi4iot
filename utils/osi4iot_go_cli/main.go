@@ -3,13 +3,11 @@ package main
 import (
 	"fmt"
 	"os"
-	"os/exec"
 	"os/signal"
 	"slices"
 	"syscall"
 
 	"github.com/osi4iot/osi4iot/utils/osi4iot/cmd"
-	"github.com/osi4iot/osi4iot/utils/osi4iot/internals/crypto"
 	"github.com/osi4iot/osi4iot/utils/osi4iot/internals/data"
 	docker "github.com/osi4iot/osi4iot/utils/osi4iot/internals/docker"
 	"github.com/osi4iot/osi4iot/utils/osi4iot/internals/utils"
@@ -45,49 +43,8 @@ func main() {
 	}
 
 	sudoActions := []string{"create", "init", "run", "stop", "delete", "certs", "nodes", "passphrase"}
-	if slices.Contains(sudoActions, action) && os.Getuid() != 0 {
-		selfPath, err := os.Executable()
-		if err != nil {
-			exitWithError(utils.StyleErrMsg.Render("Cannot determine executable path: " + err.Error()))
-		}
-
-		// Resolve the state file path before handing control to sudo,
-		// since CWD resolution may differ in the child process.
-		absStatePath := utils.GetStateFilePath()
-
-		// If OSI4IOT_PASSPHRASE is not already set, try to obtain it now
-		// (from keystore, encrypted file or prompt) and pass it explicitly
-		// to the child. This is necessary because the sudo child may not
-		// have access to the user's D-Bus session or keystore.
-		if os.Getenv("OSI4IOT_PASSPHRASE") == "" {
-			var encodedFile []byte
-			if utils.ExistStateFile() {
-				encodedFile, _ = os.ReadFile(absStatePath)
-			}
-			result, err := crypto.GetPassphrase(encodedFile)
-			if err != nil {
-				exitWithError(utils.StyleErrMsg.Render("Error getting passphrase: " + err.Error()))
-			}
-			if result != nil && len(result.Value) > 0 {
-				os.Setenv("OSI4IOT_PASSPHRASE", string(result.Value))
-			}
-		}
-
-		preserveEnv := "--preserve-env=OSI4IOT_PASSPHRASE"
-
-		signal.Reset(os.Interrupt, syscall.SIGTERM)
-
-		c := exec.Command("sudo", append([]string{preserveEnv, selfPath}, os.Args[1:]...)...)
-		c.Stdout = os.Stdout
-		c.Stderr = os.Stderr
-		c.Stdin = os.Stdin
-		if err := c.Run(); err != nil {
-			fmt.Println(utils.StyleErrMsg.Render(err.Error()))
-			os.Exit(1)
-		}
-		os.Exit(0)
-	}
-
+	reexecAsRootIfNeeded(sudoActions, action)
+	
 	if action == "passphrase" {
 		cmd.Execute()
 		return
