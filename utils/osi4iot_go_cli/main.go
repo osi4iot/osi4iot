@@ -54,7 +54,6 @@ func main() {
 		// Resolve the state file path before handing control to sudo,
 		// since CWD resolution may differ in the child process.
 		absStatePath := utils.GetStateFilePath()
-		os.Setenv("OSI4IOT_STATE_PATH", absStatePath)
 
 		// If OSI4IOT_PASSPHRASE is not already set, try to obtain it now
 		// (from keystore, encrypted file or prompt) and pass it explicitly
@@ -74,7 +73,7 @@ func main() {
 			}
 		}
 
-		preserveEnv := "--preserve-env=OSI4IOT_STATE_PATH,OSI4IOT_PASSPHRASE"
+		preserveEnv := "--preserve-env=OSI4IOT_PASSPHRASE"
 
 		signal.Reset(os.Interrupt, syscall.SIGTERM)
 

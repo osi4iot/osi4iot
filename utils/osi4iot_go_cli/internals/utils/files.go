@@ -32,9 +32,6 @@ func CreateDirectoryIfNotExists(dirPath string) error {
 }
 
 func GetStateFilePath() string {
-    if envPath := os.Getenv("OSI4IOT_STATE_PATH"); envPath != "" {
-        return envPath
-    }
     abs, err := filepath.Abs(osi4iotStateFile)
     if err != nil {
         return osi4iotStateFile
