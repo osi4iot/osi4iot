@@ -96,7 +96,6 @@ func main() {
 
 	existStateFile := utils.ExistStateFile()
 	if existStateFile {
-		fmt.Printf("XXXXXXXXXXXXXXXXXXX existStateFile 1: %v\n", existStateFile)
 		pd := data.GetData()
 		err := utils.ReadPlatformDataFromFile(pd)
 		if err != nil {
@@ -105,7 +104,6 @@ func main() {
 		}
 
 		if slices.Contains(cmd.SwarmActions, action) {
-			fmt.Printf("XXXXXXXXXXXXXXXXXXX Paso por swarm actions: %s\n", action)
 			DCMap, dcMapErr := docker.SetDockerClientsMap(pd, action)
 			if dcMapErr != nil {
 				err := docker.CheckDockerClientsMap(DCMap, action)
