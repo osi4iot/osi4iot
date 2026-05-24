@@ -498,56 +498,68 @@ func SwarmInitiationInfo(platformData *pt.PlatformData, okMessage string) error 
 
 func CheckSwarmInitiation(platformData *pt.PlatformData) (bool, error) {
 	nodesData := platformData.PlatformInfo.NodesData
+	if len(nodesData) == 0 {
+		return false, nil
+	}
+
 	clusterId := ""
 	var managerClient *pt.DockerClient
+
+	// Verify all managers agree on the same cluster ID and have control available.
 	for _, node := range nodesData {
-		if node.NodeRole == "Manager" {
-			dc := pt.DCMap[node.NodeIP]
-			if dc == nil {
-				return false, fmt.Errorf("error getting docker client for node %s", node.NodeIP)
-			}
+		if node.NodeRole != "Manager" {
+			continue
+		}
 
-			info, err := dc.Cli.Info(dc.Ctx)
-			if err != nil {
-				return false, fmt.Errorf("error getting docker info: %v", err)
-			}
+		dc := pt.DCMap[node.NodeIP]
+		if dc == nil {
+			return false, fmt.Errorf("error getting docker client for node %s", node.NodeIP)
+		}
 
-			if !info.Swarm.ControlAvailable {
-				fmt.Println("XXXXXXXXXXXXXXXXXXXXXXX !info.Swarm.ControlAvailable")
+		info, err := dc.Cli.Info(dc.Ctx)
+		if err != nil {
+			return false, fmt.Errorf("error getting docker info for node %s: %v", node.NodeIP, err)
+		}
+
+		if !info.Swarm.ControlAvailable {
+			return false, nil
+		}
+
+		if info.Swarm.Cluster != nil {
+			if clusterId == "" {
+				clusterId = info.Swarm.Cluster.ID
+			} else if clusterId != info.Swarm.Cluster.ID {
+				// Managers disagree on cluster ID: split-brain or misconfiguration.
 				return false, nil
-			} else {
-				if info.Swarm.Cluster != nil {
-					if clusterId == "" {
-						clusterId = info.Swarm.Cluster.ID
-					} else if clusterId != info.Swarm.Cluster.ID {
-						fmt.Println("XXXXXXXXXXXXXXXXXXXXXXX clusterId != info.Swarm.Cluster.ID")
-						return false, nil
-					}
-				}
 			}
-			if managerClient == nil {
-				managerClient = dc
-			}
+		}
+
+		if managerClient == nil {
+			managerClient = dc
 		}
 	}
 
+	if managerClient == nil {
+		return false, nil
+	}
+
+	// Verify that the swarm has at least as many ready nodes as we expect.
+	// We deliberately avoid matching by IP because the swarm advertise address
+	// may differ from the SSH connection address stored in NodesData.
 	swarmNodes, err := managerClient.Cli.NodeList(managerClient.Ctx, types.NodeListOptions{})
 	if err != nil {
 		return false, fmt.Errorf("error listing swarm nodes: %v", err)
 	}
 
-	swarmNodeIpMap := make(map[string]swarm.Node)
-	for _, node := range swarmNodes {
-		swarmNodeIpMap[node.Status.Addr] = node
+	readyNodes := 0
+	for _, n := range swarmNodes {
+		if n.Status.State == swarm.NodeStateReady {
+			readyNodes++
+		}
 	}
 
-	fmt.Printf("XXXXXXXXXXXXXXXXXXXXXXX  swarmNodeIpMap: %v\n", swarmNodeIpMap)
-
-	for _, node := range nodesData {
-		if _, ok := swarmNodeIpMap[node.NodeIP]; !ok {
-			fmt.Printf("XXXXXXXXXXXXXXXXXXXXXXX node %s not found in swarm nodes\n", node.NodeIP)
-			return false, nil
-		}
+	if readyNodes < len(nodesData) {
+		return false, nil
 	}
 
 	return true, nil
