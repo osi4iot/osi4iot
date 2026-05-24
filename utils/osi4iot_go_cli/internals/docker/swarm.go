@@ -513,12 +513,14 @@ func CheckSwarmInitiation(platformData *pt.PlatformData) (bool, error) {
 			}
 
 			if !info.Swarm.ControlAvailable {
+				fmt.Println("XXXXXXXXXXXXXXXXXXXXXXX !info.Swarm.ControlAvailable")
 				return false, nil
 			} else {
 				if info.Swarm.Cluster != nil {
 					if clusterId == "" {
 						clusterId = info.Swarm.Cluster.ID
 					} else if clusterId != info.Swarm.Cluster.ID {
+						fmt.Println("XXXXXXXXXXXXXXXXXXXXXXX clusterId != info.Swarm.Cluster.ID")
 						return false, nil
 					}
 				}
@@ -541,6 +543,7 @@ func CheckSwarmInitiation(platformData *pt.PlatformData) (bool, error) {
 
 	for _, node := range nodesData {
 		if _, ok := swarmNodeIpMap[node.NodeIP]; !ok {
+			fmt.Printf("XXXXXXXXXXXXXXXXXXXXXXX node %s not found in swarm nodes\n", node.NodeIP)
 			return false, nil
 		}
 	}

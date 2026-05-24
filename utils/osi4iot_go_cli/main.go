@@ -118,7 +118,6 @@ func main() {
 			}()
 
 			if action != "none" {
-				fmt.Printf("XXXXXXXXXXXXXXXXXXX Paso por action != \"none\": %s\n", action)
 				err := data.SetInitialPlatformState()
 				if err != nil {
 					errMsg := utils.StyleErrMsg.Render(fmt.Sprintf("Error setting initial platform state: %v", err))
