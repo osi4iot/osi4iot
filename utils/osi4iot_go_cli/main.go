@@ -9,6 +9,7 @@ import (
 	"syscall"
 
 	"github.com/osi4iot/osi4iot/utils/osi4iot/cmd"
+	"github.com/osi4iot/osi4iot/utils/osi4iot/internals/crypto"
 	"github.com/osi4iot/osi4iot/utils/osi4iot/internals/data"
 	docker "github.com/osi4iot/osi4iot/utils/osi4iot/internals/docker"
 	"github.com/osi4iot/osi4iot/utils/osi4iot/internals/utils"
@@ -43,19 +44,39 @@ func main() {
 		action = args[0]
 	}
 
+	fmt.Printf("XXXXXXXXXXXXXXXXXXX Action: %s\n", action)
+
 	sudoActions := []string{"create", "init", "run", "stop", "delete", "certs", "nodes", "passphrase"}
 	if slices.Contains(sudoActions, action) && os.Getuid() != 0 {
+		fmt.Printf("XXXXXXXXXXXXXXXXXXX Paso por sudo actions: %s\n", action)
 		selfPath, err := os.Executable()
 		if err != nil {
 			exitWithError(utils.StyleErrMsg.Render("Cannot determine executable path: " + err.Error()))
 		}
 
+		// Resolve the state file path before handing control to sudo,
+		// since CWD resolution may differ in the child process.
 		absStatePath := utils.GetStateFilePath()
 		os.Setenv("OSI4IOT_STATE_PATH", absStatePath)
 
-		// Preserve all env vars that the child process needs:
-		// - OSI4IOT_STATE_PATH: absolute path to the state file resolved before sudo
-		// - OSI4IOT_PASSPHRASE: passphrase for CI/CD environments
+		// If OSI4IOT_PASSPHRASE is not already set, try to obtain it now
+		// (from keystore, encrypted file or prompt) and pass it explicitly
+		// to the child. This is necessary because the sudo child may not
+		// have access to the user's D-Bus session or keystore.
+		if os.Getenv("OSI4IOT_PASSPHRASE") == "" {
+			var encodedFile []byte
+			if utils.ExistStateFile() {
+				encodedFile, _ = os.ReadFile(absStatePath)
+			}
+			result, err := crypto.GetPassphrase(encodedFile)
+			if err != nil {
+				exitWithError(utils.StyleErrMsg.Render("Error getting passphrase: " + err.Error()))
+			}
+			if result != nil && len(result.Value) > 0 {
+				os.Setenv("OSI4IOT_PASSPHRASE", string(result.Value))
+			}
+		}
+
 		preserveEnv := "--preserve-env=OSI4IOT_STATE_PATH,OSI4IOT_PASSPHRASE"
 
 		signal.Reset(os.Interrupt, syscall.SIGTERM)
@@ -78,6 +99,7 @@ func main() {
 
 	existStateFile := utils.ExistStateFile()
 	if existStateFile {
+		fmt.Printf("XXXXXXXXXXXXXXXXXXX existStateFile: %v\n", existStateFile)
 		pd := data.GetData()
 		err := utils.ReadPlatformDataFromFile(pd)
 		if err != nil {
@@ -108,6 +130,7 @@ func main() {
 			}
 		}
 	} else {
+		fmt.Printf("XXXXXXXXXXXXXXXXXXX Paso por empty %s\n", action)
 		data.SetPlatformState(data.Empty)
 	}
 
