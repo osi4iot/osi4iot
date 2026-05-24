@@ -17,6 +17,40 @@ const (
 
 var noEncrypt bool
 
+// PassphraseSource identifies where the passphrase was obtained from or stored to.
+type PassphraseSource int
+
+const (
+	PassphraseFromEnv     PassphraseSource = iota // OSI4IOT_PASSPHRASE environment variable (CI/CD)
+	PassphraseFromKeyring                         // OS keystore (macOS Keychain, Linux libsecret, Windows Credential Manager)
+	PassphraseFromFile                            // Encrypted local file (headless servers, EC2)
+	PassphraseFromPrompt                          // Interactive prompt (first-time setup)
+)
+
+func (s PassphraseSource) String() string {
+	switch s {
+	case PassphraseFromEnv:
+		return "environment variable OSI4IOT_PASSPHRASE"
+	case PassphraseFromKeyring:
+		return "OS keystore"
+	case PassphraseFromFile:
+		return "local encrypted file"
+	case PassphraseFromPrompt:
+		return "interactive prompt"
+	default:
+		return "unknown"
+	}
+}
+
+// PassphraseResult holds the passphrase value together with metadata about
+// where it was obtained from. FilePath is only populated when Source is
+// PassphraseFromFile.
+type PassphraseResult struct {
+	Value    []byte
+	Source   PassphraseSource
+	FilePath string
+}
+
 func SetNoEncrypt(val bool) {
 	noEncrypt = val
 	if val {
@@ -28,29 +62,41 @@ func IsNoEncrypt() bool {
 	return noEncrypt
 }
 
-// GetPassphrase obtains the passphrase in this order of priority:
-// 1. Environment variable OSI4IOT_PASSPHRASE (CI/CD)
-// 2. OS keystore (macOS Keychain, Linux libsecret, Windows Credential Manager)
-// 3. Encrypted local file (headless servers, EC2)
-// 4. Interactive prompt to the user (first time)
-func GetPassphrase(encodedFile []byte) ([]byte, error) {
+// GetPassphrase obtains the passphrase using the following priority order:
+//  1. Environment variable OSI4IOT_PASSPHRASE (CI/CD)
+//  2. OS keystore (macOS Keychain, Linux libsecret, Windows Credential Manager)
+//  3. Encrypted local file (headless servers, EC2)
+//  4. Interactive prompt (first-time setup)
+//
+// Returns nil when encryption is disabled via SetNoEncrypt.
+func GetPassphrase(encodedFile []byte) (*PassphraseResult, error) {
 	if noEncrypt {
 		return nil, nil
 	}
 
 	// 1. Environment variable
 	if val := os.Getenv("OSI4IOT_PASSPHRASE"); val != "" {
-		return []byte(val), nil
+		return &PassphraseResult{
+			Value:  []byte(val),
+			Source: PassphraseFromEnv,
+		}, nil
 	}
 
 	// 2. OS keystore
 	if val, err := keyring.Get(keyringService, keyringUser); err == nil {
-		return []byte(val), nil
+		return &PassphraseResult{
+			Value:  []byte(val),
+			Source: PassphraseFromKeyring,
+		}, nil
 	}
 
-	// 3. Encrypted local file (headless servers, EC2)
-	if val, err := readPassphraseFile(); err == nil {
-		return val, nil
+	// 3. Encrypted local file
+	if val, filePath, err := readPassphraseFile(); err == nil {
+		return &PassphraseResult{
+			Value:    val,
+			Source:   PassphraseFromFile,
+			FilePath: filePath,
+		}, nil
 	}
 
 	// 4. Interactive prompt with validation loop
@@ -62,7 +108,7 @@ func GetPassphrase(encodedFile []byte) ([]byte, error) {
 		}
 		fmt.Println()
 
-		// Verify passphrase before storing it
+		// Verify the passphrase can decrypt the state file before storing it.
 		if encodedFile != nil {
 			if err := VerifyPassphrase(passphrase, encodedFile); err != nil {
 				fmt.Printf("❌ %v. Please try again.\n", err)
@@ -70,33 +116,40 @@ func GetPassphrase(encodedFile []byte) ([]byte, error) {
 			}
 		}
 
-		// Try OS keystore first
+		result := &PassphraseResult{
+			Value:  passphrase,
+			Source: PassphraseFromPrompt,
+		}
+
+		// Try the OS keystore first; fall back to an encrypted local file on
+		// headless servers where a keystore is not available.
 		if err := keyring.Set(keyringService, keyringUser, string(passphrase)); err != nil {
-			// Keystore not available (headless server), fall back to encrypted file
+			filePath := passphraseFilePath()
 			if err := savePassphraseFile(passphrase); err != nil {
 				fmt.Println("⚠️  Could not save the passphrase. You will be prompted on every command.")
 			} else {
-				fmt.Printf("🔑 Passphrase saved to %s\n", passphraseFilePath())
+				result.FilePath = filePath
+				fmt.Printf("🔑 Passphrase saved to %s\n", filePath)
 			}
 		}
 
-		return passphrase, nil
+		return result, nil
 	}
 }
 
 // VerifyPassphrase checks that the passphrase can decrypt the state file.
 // If the state file does not exist yet (first-time setup), any passphrase is accepted.
 func VerifyPassphrase(passphrase []byte, encodedFile []byte) error {
-	// json.Valid check is already inside Decrypt, so if the file is plaintext it
-	// will be returned as-is. If it IS encrypted, a wrong passphrase will surface
-	// as a decryption error from AES-GCM's authentication tag check.
+	// json.Valid is checked inside Decrypt, so plaintext files are returned as-is.
+	// For encrypted files, a wrong passphrase surfaces as an AES-GCM auth tag error.
 	if _, err := Decrypt(encodedFile, passphrase); err != nil {
 		return fmt.Errorf("incorrect passphrase")
 	}
 	return nil
 }
 
-// ClearPassphrase removes the passphrase from the keystore and local file
+// ClearPassphrase removes the passphrase from both the OS keystore and any
+// local encrypted passphrase files found across all candidate directories.
 func ClearPassphrase() {
 	if noEncrypt {
 		return
@@ -111,25 +164,32 @@ func ClearPassphrase() {
 	}
 }
 
-// PromptPassphrase asks the user for the passphrase explicitly, bypassing the keystore.
+// PromptPassphrase asks the user for the passphrase explicitly, bypassing all
+// automatic lookup mechanisms (keystore, file, environment variable).
 func PromptPassphrase() ([]byte, error) {
 	return readPassphrase()
 }
 
+// passphraseFilePath returns the default path for the encrypted passphrase file.
 func passphraseFilePath() string {
 	return filepath.Join(paths.Osi4iotDir(), passphraseFile)
 }
 
-func findPassphraseFile() string {
+// findPassphraseFile searches all candidate directories for an existing
+// passphrase file. Returns the path and true if found, or the default path
+// and false if not found.
+func findPassphraseFile() (string, bool) {
 	for _, dir := range paths.Osi4iotDirCandidates() {
 		p := filepath.Join(dir, passphraseFile)
 		if _, err := os.Stat(p); err == nil {
-			return p
+			return p, true
 		}
 	}
-	return passphraseFilePath()
+	return passphraseFilePath(), false
 }
 
+// savePassphraseFile encrypts the passphrase with the machine key and writes
+// it to the default passphrase file path, creating parent directories as needed.
 func savePassphraseFile(passphrase []byte) error {
 	machineKey, err := getMachineKey()
 	if err != nil {
@@ -145,14 +205,28 @@ func savePassphraseFile(passphrase []byte) error {
 	return os.WriteFile(passphraseFilePath(), encrypted, 0600)
 }
 
-func readPassphraseFile() ([]byte, error) {
-	encrypted, err := os.ReadFile(findPassphraseFile())
-	if err != nil {
-		return nil, err
+// readPassphraseFile finds, reads and decrypts the passphrase file using the
+// machine key. Returns the plaintext passphrase and the path where it was found.
+func readPassphraseFile() ([]byte, string, error) {
+	filePath, found := findPassphraseFile()
+	if !found {
+		return nil, "", fmt.Errorf("passphrase file not found")
 	}
+
+	encrypted, err := os.ReadFile(filePath)
+	if err != nil {
+		return nil, "", err
+	}
+
 	machineKey, err := getMachineKey()
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
-	return decrypt(encrypted, machineKey)
+
+	val, err := decrypt(encrypted, machineKey)
+	if err != nil {
+		return nil, "", err
+	}
+
+	return val, filePath, nil
 }

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/osi4iot/osi4iot/utils/osi4iot/internals/crypto"
 	pt "github.com/osi4iot/osi4iot/utils/osi4iot/internals/types"
@@ -18,6 +19,8 @@ func ExistFile(filePath string) bool {
     return err == nil
 }
 
+
+
 func CreateDirectoryIfNotExists(dirPath string) error {
 	if _, err := os.Stat(dirPath); os.IsNotExist(err) {
 		err := os.MkdirAll(dirPath, os.ModePerm)
@@ -28,8 +31,19 @@ func CreateDirectoryIfNotExists(dirPath string) error {
 	return nil
 }
 
+func GetStateFilePath() string {
+    if envPath := os.Getenv("OSI4IOT_STATE_PATH"); envPath != "" {
+        return envPath
+    }
+    abs, err := filepath.Abs(osi4iotStateFile)
+    if err != nil {
+        return osi4iotStateFile
+    }
+    return abs
+}
+
 func ExistStateFile() bool {
-	return ExistFile(osi4iotStateFile)
+    return ExistFile(GetStateFilePath())
 }
 
 func WritePlatformDataToFile(data *pt.PlatformData) error {
@@ -38,12 +52,12 @@ func WritePlatformDataToFile(data *pt.PlatformData) error {
 		return fmt.Errorf("error serializing platform data: %w", err)
 	}
 
-	passphrase, err := crypto.GetPassphrase(nil)
+	result, err := crypto.GetPassphrase(nil)
 	if err != nil {
 		return fmt.Errorf("error getting passphrase: %w", err)
 	}
 
-	encoded, err := crypto.Encrypt(plaintext, passphrase)
+	encoded, err := crypto.Encrypt(plaintext, result.Value)
 	if err != nil {
 		return fmt.Errorf("error encrypting state file: %w", err)
 	}
@@ -62,12 +76,12 @@ func ReadPlatformDataFromFile(data *pt.PlatformData) error {
 		return err
 	}
 
-	passphrase, err := crypto.GetPassphrase(encoded)
+	result, err := crypto.GetPassphrase(encoded)
 	if err != nil {
 		return fmt.Errorf("error getting passphrase: %w", err)
 	}
 
-	plaintext, err := crypto.Decrypt(encoded, passphrase)
+	plaintext, err := crypto.Decrypt(encoded, result.Value)
 	if err != nil {
 		return fmt.Errorf("error decrypting state file: %w", err)
 	}

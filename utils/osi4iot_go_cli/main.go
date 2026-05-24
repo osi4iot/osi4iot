@@ -49,14 +49,26 @@ func main() {
 		if err != nil {
 			exitWithError(utils.StyleErrMsg.Render("Cannot determine executable path: " + err.Error()))
 		}
-		c := exec.Command("sudo", append([]string{selfPath}, os.Args[1:]...)...)
+
+		absStatePath := utils.GetStateFilePath()
+		os.Setenv("OSI4IOT_STATE_PATH", absStatePath)
+
+		// Preserve all env vars that the child process needs:
+		// - OSI4IOT_STATE_PATH: absolute path to the state file resolved before sudo
+		// - OSI4IOT_PASSPHRASE: passphrase for CI/CD environments
+		preserveEnv := "--preserve-env=OSI4IOT_STATE_PATH,OSI4IOT_PASSPHRASE"
+
+		signal.Reset(os.Interrupt, syscall.SIGTERM)
+
+		c := exec.Command("sudo", append([]string{preserveEnv, selfPath}, os.Args[1:]...)...)
 		c.Stdout = os.Stdout
 		c.Stderr = os.Stderr
 		c.Stdin = os.Stdin
 		if err := c.Run(); err != nil {
-			exitWithError(utils.StyleErrMsg.Render(err.Error()))
+			fmt.Println(utils.StyleErrMsg.Render(err.Error()))
+			os.Exit(1)
 		}
-		return
+		os.Exit(0)
 	}
 
 	if action == "passphrase" {
