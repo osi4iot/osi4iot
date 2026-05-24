@@ -541,6 +541,8 @@ func CheckSwarmInitiation(platformData *pt.PlatformData) (bool, error) {
 		swarmNodeIpMap[node.Status.Addr] = node
 	}
 
+	fmt.Printf("XXXXXXXXXXXXXXXXXXXXXXX swarmNodeIpMap: %v\n", swarmNodeIpMap)
+
 	for _, node := range nodesData {
 		if _, ok := swarmNodeIpMap[node.NodeIP]; !ok {
 			fmt.Printf("XXXXXXXXXXXXXXXXXXXXXXX node %s not found in swarm nodes\n", node.NodeIP)
