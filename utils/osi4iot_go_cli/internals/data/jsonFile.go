@@ -21,6 +21,7 @@ func SetInitialPlatformState() error {
 
 	pd := GetData()
 	isSwarmInitialized, err := docker.CheckSwarmInitiation(pd)
+	fmt.Printf("XXXXXXXXXXXXXXXXXXX isSwarmInitialized: %v\n", isSwarmInitialized)
 	if err != nil {
 		return fmt.Errorf("error checking swarm initiation: %v", err)
 	}
