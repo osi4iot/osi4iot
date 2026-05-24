@@ -44,11 +44,8 @@ func main() {
 		action = args[0]
 	}
 
-	fmt.Printf("XXXXXXXXXXXXXXXXXXX Action: %s\n", action)
-
 	sudoActions := []string{"create", "init", "run", "stop", "delete", "certs", "nodes", "passphrase"}
 	if slices.Contains(sudoActions, action) && os.Getuid() != 0 {
-		fmt.Printf("XXXXXXXXXXXXXXXXXXX Paso por sudo actions: %s\n", action)
 		selfPath, err := os.Executable()
 		if err != nil {
 			exitWithError(utils.StyleErrMsg.Render("Cannot determine executable path: " + err.Error()))
@@ -99,7 +96,7 @@ func main() {
 
 	existStateFile := utils.ExistStateFile()
 	if existStateFile {
-		fmt.Printf("XXXXXXXXXXXXXXXXXXX existStateFile: %v\n", existStateFile)
+		fmt.Printf("XXXXXXXXXXXXXXXXXXX existStateFile 1: %v\n", existStateFile)
 		pd := data.GetData()
 		err := utils.ReadPlatformDataFromFile(pd)
 		if err != nil {
@@ -108,6 +105,7 @@ func main() {
 		}
 
 		if slices.Contains(cmd.SwarmActions, action) {
+			fmt.Printf("XXXXXXXXXXXXXXXXXXX Paso por swarm actions: %s\n", action)
 			DCMap, dcMapErr := docker.SetDockerClientsMap(pd, action)
 			if dcMapErr != nil {
 				err := docker.CheckDockerClientsMap(DCMap, action)
@@ -122,6 +120,7 @@ func main() {
 			}()
 
 			if action != "none" {
+				fmt.Printf("XXXXXXXXXXXXXXXXXXX Paso por action != \"none\": %s\n", action)
 				err := data.SetInitialPlatformState()
 				if err != nil {
 					errMsg := utils.StyleErrMsg.Render(fmt.Sprintf("Error setting initial platform state: %v", err))
@@ -130,7 +129,6 @@ func main() {
 			}
 		}
 	} else {
-		fmt.Printf("XXXXXXXXXXXXXXXXXXX Paso por empty %s\n", action)
 		data.SetPlatformState(data.Empty)
 	}
 

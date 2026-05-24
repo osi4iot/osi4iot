@@ -14,7 +14,9 @@ import (
 
 func SetInitialPlatformState() error {
 	existStateFile := utils.ExistStateFile()
+	fmt.Printf("XXXXXXXXXXXXXXXXXXX existStateFile 2: %v\n", existStateFile)
 	if !existStateFile {
+		fmt.Printf("XXXXXXXXXXXXXXXXXXX Paso por empty\n")
 		PlatformState = Empty
 		return nil
 	}
