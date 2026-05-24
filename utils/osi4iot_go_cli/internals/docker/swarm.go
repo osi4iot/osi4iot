@@ -34,6 +34,11 @@ func InitPlatform(platformData *pt.PlatformData) error {
 		platformData.PlatformInfo.NodesData = []pt.NodeData{localNodeData}
 	}
 
+	err1 := utils.NatsCredentials(platformData)
+	if err1 != nil {
+		return fmt.Errorf("error: generating NATS credentials %s", err1.Error())
+	}
+
     err := initSwarm()
     if err != nil {
         return fmt.Errorf("error: initializing swarm %s", err.Error())

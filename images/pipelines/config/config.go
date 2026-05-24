@@ -44,8 +44,7 @@ type Config struct {
 
 type NATSConfig struct {
 	ServersUrl      []string      `mapstructure:"serversUrl"`
-	Username        string        `mapstructure:"username"`
-	Password        string        `mapstructure:"password"`
+	NKeySeed        string        `mapstructure:"nkeySeed"`
 	Timeout         time.Duration `mapstructure:"timeout"`
 	UseCustomCACert string        `mapstructure:"useCustomCACert"`
 }

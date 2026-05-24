@@ -16,6 +16,7 @@ require (
 	github.com/golang-jwt/jwt/v5 v5.2.2
 	github.com/jackc/pgx/v5 v5.8.0
 	github.com/nats-io/nats.go v1.45.0
+	github.com/nats-io/nkeys v0.4.11
 	github.com/nfnt/resize v0.0.0-20180221191011-83c6a9932646
 	github.com/osi4iot/mcphost v0.31.0-osi4iot
 	github.com/pganalyze/pg_query_go/v5 v5.1.0
@@ -136,7 +137,6 @@ require (
 	github.com/muesli/ansi v0.0.0-20230316100256-276c6243b2f6 // indirect
 	github.com/muesli/cancelreader v0.2.2 // indirect
 	github.com/muesli/termenv v0.16.0 // indirect
-	github.com/nats-io/nkeys v0.4.11 // indirect
 	github.com/nats-io/nuid v1.0.1 // indirect
 	github.com/nikolalohinski/gonja v1.5.3 // indirect
 	github.com/ollama/ollama v0.11.8 // indirect

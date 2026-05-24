@@ -14,21 +14,24 @@ import (
 )
 
 type Config struct {
-	Env               string `mapstructure:"ENV"`
-	AccessTokenSecret string `mapstructure:"ACCESS_TOKEN_SECRET"`
-	DomainName        string `mapstructure:"DOMAIN_NAME"`
-	PGHost            string `mapstructure:"PG_HOST"`
-	PGPort            int    `mapstructure:"PG_PORT"`
-	PGUserName        string `mapstructure:"PG_USERNAME"`
-	PGPassword        string `mapstructure:"PG_PASSWORD"`
-	PGDBName          string `mapstructure:"PG_DBNAME"`
-	NatsHost          string `mapstructure:"NATS_HOST"`
-	NatsPort          int    `mapstructure:"NATS_PORT"`
-	NatsProtocol      string `mapstructure:"NATS_PROTOCOL"`
-	NatsAdminUserName string `mapstructure:"NATS_ADMIN_USERNAME"`
-	NatsAdminPassword string `mapstructure:"NATS_ADMIN_PASSWORD"`
-	NatsIssuerSeed    string `mapstructure:"NATS_ISSUER_SEED"`
-	NatsXkeySeed      string `mapstructure:"NATS_XKEY_SEED"`
+	Env                 string `mapstructure:"ENV"`
+	AccessTokenSecret   string `mapstructure:"ACCESS_TOKEN_SECRET"`
+	DomainName          string `mapstructure:"DOMAIN_NAME"`
+	PGHost              string `mapstructure:"PG_HOST"`
+	PGPort              int    `mapstructure:"PG_PORT"`
+	PGUserName          string `mapstructure:"PG_USERNAME"`
+	PGPassword          string `mapstructure:"PG_PASSWORD"`
+	PGDBName            string `mapstructure:"PG_DBNAME"`
+	NatsHost            string `mapstructure:"NATS_HOST"`
+	NatsPort            int    `mapstructure:"NATS_PORT"`
+	NatsProtocol        string `mapstructure:"NATS_PROTOCOL"`
+	NatsAdminUserName   string `mapstructure:"NATS_ADMIN_USERNAME"`
+	NatsAdminPassword   string `mapstructure:"NATS_ADMIN_PASSWORD"`
+	NatsIssuerSeed      string `mapstructure:"NATS_ISSUER_SEED"`
+	NatsXkeySeed        string `mapstructure:"NATS_XKEY_SEED"`
+	VectorNKeyPublic    string `mapstructure:"VECTOR_NATS_NKEY_PUBLIC"`
+	AdminApiNKeyPublic  string `mapstructure:"ADMIN_API_NATS_NKEY_PUBLIC"`
+	PipelinesNKeyPublic string `mapstructure:"PIPELINES_NATS_NKEY_PUBLIC"`
 }
 
 func LoadConfig() (*Config, error) {

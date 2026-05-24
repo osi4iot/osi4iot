@@ -34,13 +34,13 @@ func main() {
 
 	nc, err := nats.Connect(cfg, log)
 	if err != nil {
-		log.Fatal("Application startup failed")
+		log.Fatalf("Application startup failed: %v", err)
 	}
 	defer nc.Drain()
 
 	js, err := nats.JetStreamConnect(nc, log)
 	if err != nil {
-		log.Fatal("Application startup failed")
+		log.Fatalf("Application startup failed: %v", err)
 	}
 
 	ctx, cancel := utils.ContextWithCancel()
@@ -49,13 +49,13 @@ func main() {
 	// Create or update the stream
 	stream, err := nats.CreateAdminStream(ctx, cfg.ShardIndex, cfg.NumStreamReplicas, log, js)
 	if err != nil {
-		log.Fatal("Application startup failed")
+		log.Fatalf("Application startup failed: %v", err)
 	}
 
 	// Create or update the consumer
 	jsConsumer, err := nats.CreateAdminConsumer(ctx, cfg.ShardIndex, cfg.ReplicaIndex, log, stream)
 	if err != nil {
-		log.Fatal("Application startup failed")
+		log.Fatalf("Application startup failed: %v", err)
 	}
 
 	admin, err := admin.CreateAdmin(cfg, log)

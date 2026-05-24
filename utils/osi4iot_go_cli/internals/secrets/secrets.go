@@ -62,6 +62,9 @@ func GenerateSecrets(pd *pt.PlatformData) map[string]pt.Secret {
 		fmt.Sprintf("NATS_ADMIN_PASSWORD=%s", pd.Certs.NatsCerts.NatsAdminPassword),
 		fmt.Sprintf("NATS_ISSUER_SEED=%s", pd.Certs.NatsCerts.NatsIssuerSeed),
 		fmt.Sprintf("NATS_XKEY_SEED=%s", pd.Certs.NatsCerts.NatsXKeySeed),
+		fmt.Sprintf("VECTOR_NATS_NKEY_PUBLIC=%s", pd.Certs.NatsCerts.VectorNKeyPublic),
+		fmt.Sprintf("ADMIN_API_NATS_NKEY_PUBLIC=%s", pd.Certs.NatsCerts.AdminApiNKeyPublic),
+		fmt.Sprintf("PIPELINES_NATS_NKEY_PUBLIC=%s", pd.Certs.NatsCerts.PipelinesNKeyPublic),
 	}
 	authCalloutSecretsData := strings.Join(authCalloutSecretsDataArray, "\n")
 	authCalloutSecretsHash := utils.GetMD5Hash(authCalloutSecretsData)
@@ -195,8 +198,8 @@ func GenerateSecrets(pd *pt.PlatformData) map[string]pt.Secret {
 
 	vectorSecretsDataArray := []string{
 		fmt.Sprintf("DB_PASS=%s", timescalePassword),
-		fmt.Sprintf("NATS_USER=%s", pi.PlatformAdminUserName),
-		fmt.Sprintf("NATS_PASS=%s", pi.PlatformAdminPassword),
+		fmt.Sprintf("NATS_NKEY_PUB=%s", pd.Certs.NatsCerts.VectorNKeyPublic),
+		fmt.Sprintf("NATS_NKEY_SEED=%s", pd.Certs.NatsCerts.VectorNKeySeed),
 	}
 	vectorSecretsData := strings.Join(vectorSecretsDataArray, "\n")
 	vectorSecretsHash := utils.GetMD5Hash(vectorSecretsData)

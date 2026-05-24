@@ -37,8 +37,8 @@ func run() error {
 
 	authModel := NewAuthModel(dbpool)
 
-    var connErr error
-    nc, connErr = NatsConnection(config) 
+	var connErr error
+	nc, connErr = NatsConnection(config)
 	if connErr != nil {
 		return fmt.Errorf("error connecting to NATS: %s", connErr)
 	}
@@ -60,8 +60,17 @@ func run() error {
 		}
 	}
 
+	// Build the list of infrastructure services for nkey authentication.
+	infraServices := buildInfraServices(config)
+
 	// Helper function to construct an authorization response.
 	respondMsg := func(req micro.Request, userName, userNkey, serverId, userJwt, errMsg string) {
+		if userNkey == "" {
+			slog.Error("respondMsg called with empty userNkey", slog.String("error", errMsg))
+			req.Error("401", errMsg, nil)
+			return
+		}
+
 		rc := jwt.NewAuthorizationResponseClaims(userNkey)
 		rc.Audience = serverId
 		rc.Error = errMsg
@@ -76,9 +85,13 @@ func run() error {
 
 		data := []byte(token)
 
-		// Check if encryption is required.
 		xkey := req.Headers().Get("Nats-Server-Xkey")
 		if len(xkey) > 0 {
+			if curveKeyPair == nil {
+				slog.Error("xkey header present but curveKeyPair is nil")
+				req.Respond(nil)
+				return
+			}
 			data, err = curveKeyPair.Seal(data, xkey)
 			if err != nil {
 				slog.Error("error encrypting response JWT", slog.String("error", err.Error()))
@@ -188,6 +201,29 @@ func run() error {
 				}
 			}
 		} else if rc.ConnectOptions.Nkey != "" {
+			if infraSvc := findInfraServiceByNKey(connOpts, rc.ClientInformation.Nonce, infraServices); infraSvc != nil {
+				uc := jwt.NewUserClaims(rc.UserNkey)
+				uc.Name = infraSvc.Name
+				uc.Audience = "APP"
+				uc.Permissions = infraSvc.Permissions
+
+				vr := jwt.CreateValidationResults()
+				uc.Validate(vr)
+				if len(vr.Errors()) > 0 {
+					respondMsg(req, infraSvc.Name, userNkey, serverId, "", "error validating infra claims")
+					return
+				}
+
+				ejwt, err := uc.Encode(issuerKeyPair)
+				if err != nil {
+					respondMsg(req, infraSvc.Name, userNkey, serverId, "", "error signing infra JWT")
+					return
+				}
+
+				respondMsg(req, infraSvc.Name, userNkey, serverId, ejwt, "")
+				return
+			}
+
 			user, err = authModel.GetUserByNatsNKey(rc.ConnectOptions.Nkey)
 			if err != nil || user == nil {
 				respondMsg(req, "", "", "", "", "error getting user by NKey")
@@ -291,21 +327,21 @@ func run() error {
 }
 
 func HealthCheck(dbpool *pgxpool.Pool) {
-    mux := http.NewServeMux()
-    mux.HandleFunc("/health", func(rw http.ResponseWriter, r *http.Request) {
-        // Verifica NATS
-        if nc == nil || !nc.IsConnected() {
-            rw.WriteHeader(http.StatusServiceUnavailable)
-            io.WriteString(rw, "NATS not connected")
-            return
-        }
-        // Verifica PostgreSQL
-        if err := dbpool.Ping(r.Context()); err != nil {
-            rw.WriteHeader(http.StatusServiceUnavailable)
-            io.WriteString(rw, "DB not reachable")
-            return
-        }
-        io.WriteString(rw, "Healthy")
-    })
-    http.ListenAndServe(":3300", mux)
+	mux := http.NewServeMux()
+	mux.HandleFunc("/health", func(rw http.ResponseWriter, r *http.Request) {
+		// Verifica NATS
+		if nc == nil || !nc.IsConnected() {
+			rw.WriteHeader(http.StatusServiceUnavailable)
+			io.WriteString(rw, "NATS not connected")
+			return
+		}
+		// Verifica PostgreSQL
+		if err := dbpool.Ping(r.Context()); err != nil {
+			rw.WriteHeader(http.StatusServiceUnavailable)
+			io.WriteString(rw, "DB not reachable")
+			return
+		}
+		io.WriteString(rw, "Healthy")
+	})
+	http.ListenAndServe(":3300", mux)
 }

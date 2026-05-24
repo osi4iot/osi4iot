@@ -16,6 +16,7 @@ import (
 
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
+	"github.com/nats-io/nkeys"
 )
 
 type KVStore struct {
@@ -27,9 +28,23 @@ func Connect(cfg *config.Config, log *logger.Logger) (*nats.Conn, error) {
 	opts := []nats.Option{
 		nats.Timeout(cfg.NATS.Timeout),
 	}
-	if cfg.NATS.Username != "" || cfg.NATS.Password != "" {
-		opts = append(opts, nats.UserInfo(cfg.NATS.Username, cfg.NATS.Password))
-	}
+	
+    if cfg.NATS.NKeySeed != "" {
+        // Parse the NKey seed and create a signer function
+        kp, err := nkeys.FromSeed([]byte(cfg.NATS.NKeySeed))
+        if err != nil {
+            return nil, fmt.Errorf("error parsing NKey seed: %w", err)
+        }
+
+        pubKey, err := kp.PublicKey()
+        if err != nil {
+            return nil, fmt.Errorf("error getting NKey public key: %w", err)
+        }
+
+        opts = append(opts, nats.Nkey(pubKey, func(nonce []byte) ([]byte, error) {
+            return kp.Sign(nonce)
+        }))
+    } 
 
 	if cfg.Mode == "prod" {
 		tlsCfg := &tls.Config{

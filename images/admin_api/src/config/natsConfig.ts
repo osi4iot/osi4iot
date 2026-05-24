@@ -10,6 +10,7 @@ import {
 	Codec,
 	StreamConfig,
 	PubAck,
+	nkeyAuthenticator,
 } from "nats";
 import process_env from "./api_config";
 import { logger } from "./winston";
@@ -70,10 +71,15 @@ class NATSClient {
 			}
 		}
 
+		const authOptions: Partial<ConnectionOptions> = {};
+		if (process_env.NATS_SEED !== undefined && process_env.NATS_SEED.trim() !== "") {
+			const seed = new TextEncoder().encode(process_env.NATS_SEED);
+			authOptions.authenticator = nkeyAuthenticator(seed);
+		}
+
 		this.config = {
 			servers: serversUrl,
-			pass: process_env.PLATFORM_ADMIN_PASSWORD,
-			user: process_env.PLATFORM_ADMIN_USER_NAME,
+			...authOptions,
 			reconnect: true,
 			maxReconnectAttempts: -1,
 			reconnectTimeWait: 1000,

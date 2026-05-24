@@ -37,8 +37,7 @@ nats:
 {{- range .NATS.ServersURL }}
     - "{{ . }}"
 {{- end }}
-  username: "{{ .NATS.Username }}"
-  password: "{{ .NATS.Password }}"
+  nkeySeed: "{{ .NATS.NKeySeed }}"
   timeout: {{ .NATS.Timeout }}
   useCustomCACert: {{ .NATS.UseCustomCACert }}
 
@@ -59,10 +58,9 @@ awsS3:
 `
 
 type NATSParams struct {
-	ServersURL []string
-	Username   string
-	Password   string
-	Timeout    string
+	ServersURL      []string
+	NKeySeed        string
+	Timeout         string
 	UseCustomCACert string
 }
 type TimescaleDBParams struct {
@@ -132,7 +130,7 @@ func PipelinesConfig(pd *types.PlatformData, numNatsReplicas int) (string, error
 	awsAccessKeyId := pi.PlatformAdminUserName
 	awsSecretAccessKey := pi.PlatformAdminPassword
 	awsEndpoint := "http://minio:9000/"
-	if (pi.DeploymentLocation == "AWS cluster deployment" || pi.S3BucketType == "Cloud AWS S3") {
+	if pi.DeploymentLocation == "AWS cluster deployment" || pi.S3BucketType == "Cloud AWS S3" {
 		awsAccessKeyId = pi.AWSAccessKeyIDS3Bucket
 		awsSecretAccessKey = pi.AWSSecretAccessKeyS3Bucket
 		awsEndpoint = ""
@@ -163,10 +161,9 @@ func PipelinesConfig(pd *types.PlatformData, numNatsReplicas int) (string, error
 		PipelinesDataPath:        "/pipelines/data/",
 
 		NATS: NATSParams{
-			ServersURL:      serversUrl,
-			Username:        pi.PlatformAdminUserName,
-			Password:        pi.PlatformAdminPassword,
-			Timeout:         "15s",
+			ServersURL: serversUrl,
+			NKeySeed:   pd.Certs.NatsCerts.PipelinesNKeySeed,
+			Timeout:    "15s",
 		},
 		TimescaleDB: TimescaleDBParams{
 			User:     pi.TimescaleUser,

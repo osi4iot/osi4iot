@@ -128,7 +128,6 @@ type PlatformInfo struct {
 
 type Certs struct {
 	DomainCerts DomainCerts `json:"domain_certs"`
-	MqttCerts   MqttCerts   `json:"mqtt_certs"`
 	NatsCerts   NatsCerts   `json:"nats_certs"`
 }
 
@@ -144,11 +143,6 @@ type DomainCerts struct {
 	CertCrtExpirationTimestamp int64    `json:"cert_crt_expiration_timestamp"`
 }
 
-type MqttCerts struct {
-	CaCerts CaCerts `json:"ca_certs"`
-	Broker  Broker  `json:"broker"`
-}
-
 type NatsCerts struct {
 	NatsAdminUsername       string `json:"nats_admin_username"`
 	NatsAdminPassword       string `json:"nats_admin_password"`
@@ -159,6 +153,12 @@ type NatsCerts struct {
 	NatsIssuerPublicKey     string `json:"nats_issuer_pub_key"`
 	NatsXKeySeed            string `json:"nats_xkey_seed"`
 	NatsXKeyPublicKey       string `json:"nats_xkey_pub_key"`
+	VectorNKeyPublic        string `json:"vector_nkey_pub"`
+	VectorNKeySeed          string `json:"vector_nkey_seed"`
+	AdminApiNKeyPublic      string `json:"admin_api_nkey_pub"`
+	AdminApiNKeySeed        string `json:"admin_api_nkey_seed"`
+	PipelinesNKeyPublic     string `json:"pipelines_nkey_pub"`
+	PipelinesNKeySeed       string `json:"pipelines_nkey_seed"`
 }
 
 type CaCerts struct {

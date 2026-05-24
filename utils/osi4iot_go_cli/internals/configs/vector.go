@@ -245,10 +245,10 @@ sinks:
     encoding:
       codec: json
     auth:
-      strategy: user_password
-      user_password:
-        user: "${NATS_USER}"
-        password: "${NATS_PASS}"
+      strategy: nkey 
+      nkey:
+        nkey: "${NATS_NKEY_PUB}"
+        seed: "${NATS_NKEY_SEED}"
     tls:
       enabled: true    
     buffer:
@@ -285,10 +285,10 @@ sinks:
     encoding:
       codec: json
     auth:
-      strategy: user_password  
-      user_password:
-        user: "${NATS_USER}"
-        password: "${NATS_PASS}"
+      strategy: nkey 
+      nkey:
+        nkey: "${NATS_NKEY_PUB}"
+        seed: "${NATS_NKEY_SEED}"
     tls:
       enabled: true                
     buffer:
@@ -323,10 +323,10 @@ sinks:
     encoding:
       codec: json
     auth:
-      strategy: user_password
-      user_password:
-        user: "${NATS_USER}"
-        password: "${NATS_PASS}"
+      strategy: nkey
+      nkey:
+        nkey: "${NATS_NKEY_PUB}"
+        seed: "${NATS_NKEY_SEED}"
     tls:
       enabled: true      
     buffer:
@@ -361,10 +361,10 @@ sinks:
     encoding:
       codec: json
     auth:
-      strategy: user_password
-      user_password:
-        user: "${NATS_USER}"
-        password: "${NATS_PASS}"
+      strategy: nkey
+      nkey:
+        nkey: "${NATS_NKEY_PUB}"
+        seed: "${NATS_NKEY_SEED}"
     tls:
       enabled: true        
     buffer:
