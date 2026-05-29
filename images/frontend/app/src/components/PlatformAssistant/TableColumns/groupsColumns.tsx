@@ -42,6 +42,7 @@ export interface IGroup {
     telegramInvitationLink: string;
     telegramChatId: string;
     isOrgDefaultGroup: boolean;
+    isAdminGroup: boolean;
     floorNumber: number;
     featureIndex: number;
     geoJsonData: FeatureCollection;

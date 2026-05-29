@@ -34,7 +34,8 @@ import { getSensorDashboardByAssetId, getSensorsByAssetId } from "../sensor/sens
 import natsClient from "../../config/natsConfig";
 import { getOrganizationByProp } from "../organization/organizationDAL";
 import PipelineFileDataDto from "./pipelineFileData.dto";
-import { createDefaultPipelineDataForDigitalTwin, createDigitalTwinPipeline } from "./pipeline";
+import { createDefaultPipelineDataForDigitalTwin, createDefaultPipelineDataForSystemMonitoring, createDigitalTwinPipeline } from "./pipeline";
+import PipelineDto from "./pipeline.dto";
 
 export const insertDigitalTwin = async (digitalTwinData: Partial<IDigitalTwin>): Promise<IDigitalTwin> => {
 	const queryString = `INSERT INTO grafanadb.digital_twin (group_id, asset_id,
@@ -792,10 +793,22 @@ export const verifyAndCorrectDigitalTwinReferences = async (
 	}
 };
 
-export const getMqttTopicsDataFromDigitalTwinData = async (digitalTwinId: number): Promise<IMqttTopicData[]> => {
+const SystemMonitoringTopicMap = new Map();
+SystemMonitoringTopicMap.set("system_1", "system/observability/logs");
+SystemMonitoringTopicMap.set("system_2", "system/observability/host_metrics");
+SystemMonitoringTopicMap.set("system_3", "system/observability/container_metrics");
+SystemMonitoringTopicMap.set("system_4", "system/observability/volume_metrics");
+SystemMonitoringTopicMap.set("system_5", "system/observability/system_alert");
+
+export const getMqttTopicsDataFromDigitalTwinData = async (
+	digitalTwin: IDigitalTwin,
+	group: IGroup
+): Promise<IMqttTopicData[]> => {
 	const mqttTopicsData: IMqttTopicData[] = [];
-	const digitalTwinTopics = await getDTTopicsByDigitalTwinId(digitalTwinId);
-	const assetTopics = await getAssetTopicsByDigitalTwinId(digitalTwinId);
+	const digitalTwinTopics = await getDTTopicsByDigitalTwinId(digitalTwin.id);
+	const assetTopics = await getAssetTopicsByDigitalTwinId(digitalTwin.id);
+	const isAdminGroup = group.isAdminGroup;
+	const isSystemMonitoringDT = isAdminGroup && digitalTwin.description === "System monitoring";
 	const digitalTwinTopicsList = [...digitalTwinTopics, ...assetTopics];
 	if (digitalTwinTopicsList.length !== 0) {
 		for (const digitalTwinTopic of digitalTwinTopicsList) {
@@ -821,6 +834,7 @@ export const getMqttTopicsDataFromDigitalTwinData = async (digitalTwinId: number
 				].mqttTopic = `Warning: Topic with id: ${mqttTopicsData[index].topicId} not exists any more`;
 			}
 		});
+
 		const topicsInfo = await getMqttTopicsInfoFromIdArray(markedTopicsId);
 		topicsInfo.forEach((topicInfo) => {
 			const topicDataIndex = mqttTopicsData.findIndex((topicData) => topicData.topicId === topicInfo.topicId);
@@ -831,26 +845,13 @@ export const getMqttTopicsDataFromDigitalTwinData = async (digitalTwinId: number
 			}
 		});
 
-		// const mesurementsQueries: any[] = [];
-		// mqttTopicsData.forEach(mqttTopicData => {
-		// 	if (
-		// 		mqttTopicData.sqlTopic &&
-		// 		(mqttTopicData.topicRef.slice(0, 7) === "dev2pdb" || mqttTopicData.topicRef.slice(0, 7) === "dtm2pdb")
-		// 	) {
-		// 		const query = getLastMeasurementInChunk(mqttTopicData.groupUid, mqttTopicData.sqlTopic);
-		// 		mesurementsQueries.push(query);
-		// 	}
-		// });
-		// const mesurements: IMeasurement[] = await Promise.all(mesurementsQueries).then(responses => responses as IMeasurement[]);
-
-		// mesurements.forEach(mesurement => {
-		// 	if (mesurement !== undefined) {
-		// 		const topicDataIndex = mqttTopicsData.findIndex(topicData => topicData.sqlTopic === mesurement.topic);
-		// 		if (topicDataIndex !== -1) {
-		// 			mqttTopicsData[topicDataIndex].lastMeasurement = mesurement;
-		// 		}
-		// 	}
-		// })
+		if (isSystemMonitoringDT) {
+			mqttTopicsData.forEach((topicData) => {
+				if (topicData.topicRef.indexOf("system_") !== -1) {
+					topicData.mqttTopic = SystemMonitoringTopicMap.get(topicData.topicRef) || topicData.mqttTopic;
+				}
+			});
+		}
 
 		mqttTopicsData.sort((topicData1, topicData2) => {
 			if (topicData1.topicId > topicData2.topicId) {
@@ -1095,70 +1096,23 @@ export const createDigitalTwin = async (
 	const state2simTopic = await createTopic(groupId, state2simTopicData, isDefault);
 	await createDigitalTwinTopic(digitalTwin.id, state2simTopic.id, "state2sim", isDefault);
 
-	const inject_1_TopicData = {
-		topicType: "inject_1",
-		topicName: `${digitalTwinUid}_inject_1`,
-		description: `Inject_1 for DT_${digitalTwinUid}`,
-		mqttAccessControl: "Pub & Sub",
-		payloadJsonSchema: "{}",
-		requireS3Storage: false,
-		s3Folder: "",
-		parquetSchema: "{}",
-	};
-	const inject_1_Topic = await createTopic(groupId, inject_1_TopicData, isDefault);
-	await createDigitalTwinTopic(digitalTwin.id, inject_1_Topic.id, "inject_1", isDefault);
-
-	const inject_2_TopicData = {
-		topicType: "inject_2",
-		topicName: `${digitalTwinUid}_inject_2`,
-		description: `Inject_2 for DT_${digitalTwinUid}`,
-		mqttAccessControl: "Pub & Sub",
-		payloadJsonSchema: "{}",
-		requireS3Storage: false,
-		s3Folder: "",
-		parquetSchema: "{}",
-	};
-	const inject_2_Topic = await createTopic(groupId, inject_2_TopicData, isDefault);
-	await createDigitalTwinTopic(digitalTwin.id, inject_2_Topic.id, "inject_2", isDefault);
-
-	const inject_3_TopicData = {
-		topicType: "inject_3",
-		topicName: `${digitalTwinUid}_inject_3`,
-		description: `Inject_3 for DT_${digitalTwinUid}`,
-		mqttAccessControl: "Pub & Sub",
-		payloadJsonSchema: "{}",
-		requireS3Storage: false,
-		s3Folder: "",
-		parquetSchema: "{}",
-	};
-	const inject_3_Topic = await createTopic(groupId, inject_3_TopicData, isDefault);
-	await createDigitalTwinTopic(digitalTwin.id, inject_3_Topic.id, "inject_3", isDefault);
-
-	const inject_4_TopicData = {
-		topicType: "inject_4",
-		topicName: `${digitalTwinUid}_inject_4`,
-		description: `Inject_4 for DT_${digitalTwinUid}`,
-		mqttAccessControl: "Pub & Sub",
-		payloadJsonSchema: "{}",
-		requireS3Storage: false,
-		s3Folder: "",
-		parquetSchema: "{}",
-	};
-	const inject_4_Topic = await createTopic(groupId, inject_4_TopicData, isDefault);
-	await createDigitalTwinTopic(digitalTwin.id, inject_4_Topic.id, "inject_4", isDefault);
-
-	const inject_5_TopicData = {
-		topicType: "inject_5",
-		topicName: `${digitalTwinUid}_inject_5`,
-		description: `Inject_5 for DT_${digitalTwinUid}`,
-		mqttAccessControl: "Pub & Sub",
-		payloadJsonSchema: "{}",
-		requireS3Storage: false,
-		s3Folder: "",
-		parquetSchema: "{}",
-	};
-	const inject_5_Topic = await createTopic(groupId, inject_5_TopicData, isDefault);
-	await createDigitalTwinTopic(digitalTwin.id, inject_5_Topic.id, "inject_5", isDefault);
+	await Promise.all(
+		Array.from({ length: 5 }, async (_, i) => {
+			const topicType = `inject_${i + 1}`;
+			const topicData = {
+				topicType,
+				topicName: `${digitalTwinUid}_${topicType}`,
+				description: `Inject_${i + 1} for DT_${digitalTwinUid}`,
+				mqttAccessControl: "Pub & Sub",
+				payloadJsonSchema: "{}",
+				requireS3Storage: false,
+				s3Folder: "",
+				parquetSchema: "{}",
+			};
+			const topic = await createTopic(groupId, topicData, isDefault);
+			await createDigitalTwinTopic(digitalTwin.id, topic.id, topicType, isDefault);
+		})
+	);
 
 	const sensorsRef = digitalTwinInput.sensorsRef;
 	const sensorsInAsset = await getSensorsByAssetId(assetId);
@@ -1167,7 +1121,12 @@ export const createDigitalTwin = async (
 		await createSensorInDigitalTwin(digitalTwin.id, sensor.id);
 	}
 
-	const defaultPipelineData = createDefaultPipelineDataForDigitalTwin();
+	let defaultPipelineData: PipelineDto;
+	if (group.isAdminGroup && digitalTwin.description === "System monitoring") {
+		defaultPipelineData = createDefaultPipelineDataForSystemMonitoring();
+	} else {
+		defaultPipelineData = createDefaultPipelineDataForDigitalTwin();
+	}
 	await createDigitalTwinPipeline(digitalTwin.id, defaultPipelineData, group.id, isDefault);
 
 	return digitalTwin;
@@ -1196,9 +1155,9 @@ export const getGltfFileData = async (digitalTwin: IDigitalTwin): Promise<IGltfF
 	return { gltfFileName, gltfFileData };
 };
 
-export const getDigitalTwinData = async (digitalTwin: IDigitalTwin): Promise<IDigitalTwinData> => {
+export const getDigitalTwinData = async (group: IGroup, digitalTwin: IDigitalTwin): Promise<IDigitalTwinData> => {
 	const digitalTwinId = digitalTwin.id;
-	const mqttTopicsData = await getMqttTopicsData(digitalTwinId);
+	const mqttTopicsData = await getMqttTopicsData(group, digitalTwin);
 	const sensorsDashboards = await getSensorDashboardByAssetId(digitalTwin.assetId);
 	const topicIdBySensorRef = await getTopicIdBySensorRef(digitalTwinId);
 
@@ -1260,8 +1219,8 @@ export const getDigitalTwinGlbFile = async (digitalTwin: IDigitalTwin): Promise<
 	return response;
 };
 
-export const getMqttTopicsData = async (digitalTwinId: number): Promise<IMqttTopicDataShort[]> => {
-	const topicsData = await getMqttTopicsDataFromDigitalTwinData(digitalTwinId);
+export const getMqttTopicsData = async (group: IGroup, digitalTwin: IDigitalTwin): Promise<IMqttTopicDataShort[]> => {
+	const topicsData = await getMqttTopicsDataFromDigitalTwinData(digitalTwin, group);
 	const mqttTopicsData = topicsData.map((topicData) => {
 		const topicRef = topicData.topicRef;
 		return {
@@ -1332,12 +1291,12 @@ export const generateSqlTopic = (mqttTopicInfo: IMqttTopicInfo): string => {
 export const getSensorsRefInDigitalTwin = async (digitalTwinId: number): Promise<ISensorRef[]> => {
 	const response = await pool.query(
 		`SELECT grafanadb.sensor.id AS "sensorId", 
-									grafanadb.sensor.sensor_ref AS "sensorRef",
-									grafanadb.sensor.topic_id AS "topicId"
-									FROM grafanadb.sensor
-									INNER JOIN grafanadb.digital_twin_sensor ON grafanadb.digital_twin_sensor.sensor_id = grafanadb.sensor.id
-									WHERE grafanadb.digital_twin_sensor.digital_twin_id = $1
-									ORDER BY grafanadb.sensor.id ASC`,
+			grafanadb.sensor.sensor_ref AS "sensorRef",
+			grafanadb.sensor.topic_id AS "topicId"
+			FROM grafanadb.sensor
+			INNER JOIN grafanadb.digital_twin_sensor ON grafanadb.digital_twin_sensor.sensor_id = grafanadb.sensor.id
+			WHERE grafanadb.digital_twin_sensor.digital_twin_id = $1
+			ORDER BY grafanadb.sensor.id ASC`,
 		[digitalTwinId]
 	);
 	return response.rows as ISensorRef[];

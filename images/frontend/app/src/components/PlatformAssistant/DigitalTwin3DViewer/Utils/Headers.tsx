@@ -178,7 +178,7 @@ const VIEWER_OPTIONS: {
 }[] = [
     { value: "3D", label: "3D Model", icon: BoxIcon },
     { value: "pipeline", label: "Pipeline", icon: TiFlowMergeIcon },
-    { value: "image_frame", label: "Photo", icon: CameraIcon },
+    { value: "image_frame", label: "Image", icon: CameraIcon },
 ];
 
 export const Header: FC<HeaderProps> = ({

@@ -52,6 +52,7 @@ import { CodeMirrorWrapper } from "../../../Tools/CodeMirrorWrapper";
 import { buildEditorExtensions, disposeEditor, restartEditor } from "./editor";
 import { NODE_FUNCTION_SCRIPTS } from "./NodePalette";
 import { HelpTab } from "./HelpTab";
+import { IGroup } from "../../TableColumns/groupsColumns";
 
 const CODEMIRROR_SETUP = {
     lineNumbers: true,
@@ -87,6 +88,13 @@ const handleDayChange = (
     handleInputChange("daysOfWeek", updatedDays);
 };
 
+const SystemMonitoringTopicMap = new Map();
+SystemMonitoringTopicMap.set("system_1", "System logs");
+SystemMonitoringTopicMap.set("system_2", "Host metrics");
+SystemMonitoringTopicMap.set("system_3", "Container metrics");
+SystemMonitoringTopicMap.set("system_4", "Volume metrics");
+SystemMonitoringTopicMap.set("system_5", "System alert");
+
 export interface NodeData {
     label: string;
     nodeUid: string;
@@ -106,9 +114,15 @@ interface NodePropertiesPanelProps {
     } | null;
     onUpdateNode: (nodeId: string, newData: Partial<NodeData>) => void;
     digitalTwinSelected: IDigitalTwin;
+    groupSelected: IGroup;
     handlePipelineUiChanged: (isPipelineUiChanged: any) => void;
     natsSubjectsData: INatsSubjectData[];
     assetS3Folders: IAssetS3Folder[];
+}
+
+interface SysMonitoringTopic {
+    topicRef: string;
+    description: string;
 }
 
 const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
@@ -117,6 +131,7 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
     selectedNode,
     onUpdateNode,
     digitalTwinSelected,
+    groupSelected,
     handlePipelineUiChanged,
     natsSubjectsData,
     assetS3Folders,
@@ -131,6 +146,7 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
     const [listenTopicsRef, setListenTopicsRef] = useState<string[]>([]);
     const [publishTopicsRef, setPublishTopicsRef] = useState<string[]>([]);
     const [dev2pdbTopicsRef, setDev2pdbTopicsRef] = useState<string[]>([]);
+    const [systemMonitoringTopicsRef, setSystemMonitoringTopicsRef] = useState<SysMonitoringTopic[]>([]);
 
     // Estados para el redimensionamiento - Enfoque híbrido optimizado
     const [width, setWidth] = useState(MIN_WIDTH);
@@ -227,31 +243,47 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
         const listenTopics: string[] = [];
         const publishTopics: string[] = [];
         const dev2pdbTopics: string[] = [];
+        const systemMonitoringTopics: SysMonitoringTopic[] = [];
 
         natsSubjectsData.forEach((subjectData) => {
             if (subjectData.topicRef.slice(0, 7) === "dev2pdb") {
                 publishTopics.push(subjectData.topicRef);
                 dev2pdbTopics.push(subjectData.topicRef);
             }
+            if (
+                groupSelected.isAdminGroup &&
+                digitalTwinSelected.description === "System monitoring" &&
+                subjectData.topicRef.indexOf("system_") !== -1
+            ) {
+                const sysMonDescription = SystemMonitoringTopicMap.get(subjectData.topicRef);
+                if (sysMonDescription) {
+                    systemMonitoringTopics.push({ topicRef: subjectData.topicRef, description: sysMonDescription });
+                }
+            }
         });
 
-        listenTopics.push("sim2dtm", "dev2dtm", "sim2llm", "sim2state");
-        publishTopics.push(
-            "dtm2sim",
-            "sim2dtm",
-            "dtm2pdb",
-            "dev2dtm",
-            "dtm2dev",
-            "dev2sim",
-            "sim2llm",
-            "llm2sim",
-            "state2sim",
-            "sim2state",
-        );
+        if (groupSelected.isAdminGroup && digitalTwinSelected.description === "System monitoring") {
+            publishTopics.push("System alert");
+        } else {
+            listenTopics.push("sim2dtm", "dev2dtm", "sim2llm", "sim2state");
+            publishTopics.push(
+                "dtm2sim",
+                "sim2dtm",
+                "dtm2pdb",
+                "dev2dtm",
+                "dtm2dev",
+                "dev2sim",
+                "sim2llm",
+                "llm2sim",
+                "state2sim",
+                "sim2state",
+            );
+        }
 
         setListenTopicsRef(listenTopics);
         setPublishTopicsRef(publishTopics);
         setDev2pdbTopicsRef(dev2pdbTopics);
+        setSystemMonitoringTopicsRef(systemMonitoringTopics);
     }, [natsSubjectsData]);
 
     useEffect(() => {
@@ -1524,7 +1556,7 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                             {formData.listenTo === "Topic reference" ? (
                                 <Select
                                     value={formData.topic ?? ""}
-                                    onChange={(e: { target: { value: any } }) =>
+                                    onChange={(e: { target: { value: any } }) => 
                                         handleInputChange("topic", e.target.value)
                                     }
                                 >
@@ -1549,6 +1581,15 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                                             {listenTopicsRef.map((topic) => (
                                                 <option key={topic} value={topic}>
                                                     {topic}
+                                                </option>
+                                            ))}
+                                        </optgroup>
+                                    )}
+                                    {systemMonitoringTopicsRef.length > 0 && (
+                                        <optgroup label="Select system monitoring topics">
+                                            {systemMonitoringTopicsRef.map((topic) => (
+                                                <option key={topic.topicRef} value={topic.topicRef}>
+                                                    {topic.description}
                                                 </option>
                                             ))}
                                         </optgroup>

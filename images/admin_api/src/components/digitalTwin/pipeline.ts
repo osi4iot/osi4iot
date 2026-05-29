@@ -1,7 +1,7 @@
 import natsClient from "../../config/natsConfig";
 import { nanoid } from "nanoid";
 import PipelineDto from "./pipeline.dto";
-import { updateDigitalTwinPipelineFileDataById } from "./digitalTwinDAL";
+import { getDigitalTwinByProp, updateDigitalTwinPipelineFileDataById } from "./digitalTwinDAL";
 import PipelineFileDataDto from "./pipelineFileData.dto";
 import { areCyclesInPipeline, areThereInjectTopicsInPublish } from "./pipeline_cycles_detection";
 import IDigitalTwin from "./digitalTwin.interface";
@@ -23,13 +23,14 @@ export const createDigitalTwinPipeline = async (
 	const pipelineNodes = pipelineData.nodes;
 	const group = await getGroupByProp("id", groupId);
 	const org = await getOrganizationByProp("id", group.orgId);
+	const digitalTwin = await getDigitalTwinByProp("id", digitalTwinId);
 
 	const hasInjectNodesInPublish = areThereInjectTopicsInPublish(pipelineNodes);
 	if (hasInjectNodesInPublish) {
 		throw new Error("The pipeline contains 'inject' topics in 'Publish' nodes, which is not allowed.");
 	}
 
-	const hasCycles = await areCyclesInPipeline(digitalTwinId, pipelineNodes);
+	const hasCycles = await areCyclesInPipeline(digitalTwin, pipelineNodes, group);
 	if (hasCycles) {
 		throw new Error("The pipeline contains cycles, which is not allowed.");
 	}
@@ -79,12 +80,13 @@ export const updateDigitalTwinPipeline = async (
 ): Promise<void> => {
 	const group = await getGroupByProp("id", groupId);
 	const org = await getOrganizationByProp("id", group.orgId);
+	const digitalTwin = await getDigitalTwinByProp("id", digitalTwinId);
 	const hasInjectNodesInPublish = areThereInjectTopicsInPublish(pipelineData.nodes);
 	if (hasInjectNodesInPublish) {
 		throw new Error("The pipeline contains 'inject' topics in 'Publish' nodes, which is not allowed.");
 	}
 
-	const hasCycles = await areCyclesInPipeline(digitalTwinId, pipelineData.nodes);
+	const hasCycles = await areCyclesInPipeline(digitalTwin, pipelineData.nodes, group);
 	if (hasCycles) {
 		throw new Error("The pipeline contains cycles, which is not allowed.");
 	}
@@ -259,5 +261,83 @@ export const createDefaultPipelineDataForDigitalTwin = (): PipelineDto => {
 		}
 	);
 
+	return defaultPipeline;
+};
+
+export const createDefaultPipelineDataForSystemMonitoring = (): PipelineDto => {
+	const defaultPipeline: PipelineDto = {
+		pipelineFileName: "pipeline_system_monitoring.yml",
+		pipelineFileLastModifDate: new Date().toISOString(),
+		nodes: [],
+	};
+
+	const nodeCommentUid: string = generateUid();
+	const nodeCommentSettings = {
+		comment: "Listen system alerts",
+	};
+
+	const nodeListenerUid: string = generateUid();
+	const nodeListenerSettings = {
+		listenTo: "Topic reference",
+		topic: "system_5",
+	};
+	const nodeFunctionUid: string = generateUid();
+	const nodeFunctionSettings = {
+		onMessageScript: `function process(msg) {
+    const go = Go();
+    const { log, utils } = go.All();
+
+    const payload = msg.payload;
+    log.Infof("Payload=%+v", payload);
+
+    return msg;
+}`,
+		onInitializationScript: `function init() {
+    const go = Go();
+    const { log, time } = go.All();
+
+    // Your code here
+}`,
+		onStartScript: `function start() {
+    const go = Go();
+    const { log, time } = go.All();
+
+    // Your code here
+}`,
+		debugEnabled: false,
+	};
+
+	defaultPipeline.nodes.push(
+		{
+			nodeUid: nodeCommentUid,
+			name: "Comment 1",
+			type: "Comment",
+			x: 30,
+			y: 40,
+			numOutputs: 0,
+			settings: JSON.stringify(nodeCommentSettings),
+			wires: [],
+		},
+		{
+			nodeUid: nodeListenerUid,
+			name: "Listen alert",
+			type: "Listen",
+			x: 30,
+			y: 90,
+			numOutputs: 1,
+			settings: JSON.stringify(nodeListenerSettings),
+			wires: [[{ nodeEndUid: nodeFunctionUid }]],
+		},
+		{
+			nodeUid: nodeFunctionUid,
+			name: "Log alert",
+			type: "Function",
+			x: 150,
+			y: 90,
+			numOutputs: 1,
+			settings: JSON.stringify(nodeFunctionSettings),
+			wires: [],
+		},
+	);
 	return defaultPipeline;
 };

@@ -47,7 +47,7 @@ func CreateListenNode(node common.NodeData, fm common.Manager, p common.Pipeline
 		return nil, fmt.Errorf("topic setting is required")
 	}
 	var topics []string
-	
+
 	switch listenTo {
 	case "Generic nats":
 		topics = append(topics, singleTopic)
@@ -65,13 +65,30 @@ func CreateListenNode(node common.NodeData, fm common.Manager, p common.Pipeline
 				}
 			}
 		} else {
-			topicInstance := fm.GetTopicByTopicRef(p.GetAssetId(), p.GetDigitalTwinId(), topicRef)
-			if topicInstance == nil {
-				fm.Log().Errorf("ListenNode %s: topic reference '%s' not found", node.NodeUid, topicRef)
-				return nil, fmt.Errorf("topic reference '%s' not found", topicRef)
+			group := fm.GetGroup(p.GetGroupId())
+			if group == nil {
+				fm.Log().Errorf("ListenNode %s: group with ID %d not found", node.NodeUid, p.GetGroupId())
+				return nil, fmt.Errorf("group with ID %d not found", p.GetGroupId())
 			}
-			topic := utils.TopicToNatsSubject(topicInstance.TopicType, topicInstance.GroupUid, topicInstance.TopicUid)
-			topics = append(topics, topic)
+
+			if group.IsAdminGroup && strings.HasPrefix(topicRef, "system_") {
+				topicsMap := fm.GetTopicsByAssetId(p.GetAssetId())
+				topicInstance, ok := topicsMap[topicRef]
+				if !ok || topicInstance == nil {
+					fm.Log().Errorf("ListenNode %s: topic reference '%s' not found", node.NodeUid, topicRef)
+					return nil, fmt.Errorf("topic reference '%s' not found", topicRef)
+				}
+				topic := utils.SystemMonitoringNatsSubject(topicInstance.Description)
+				topics = append(topics, topic)
+			} else {
+				topicInstance := fm.GetTopicByTopicRef(p.GetAssetId(), p.GetDigitalTwinId(), topicRef)
+				if topicInstance == nil {
+					fm.Log().Errorf("ListenNode %s: topic reference '%s' not found", node.NodeUid, topicRef)
+					return nil, fmt.Errorf("topic reference '%s' not found", topicRef)
+				}
+				topic := utils.TopicToNatsSubject(topicInstance.TopicType, topicInstance.GroupUid, topicInstance.TopicUid)
+				topics = append(topics, topic)
+			}
 		}
 	}
 
@@ -107,8 +124,8 @@ func (n *ListenNode) Start(ctx context.Context, log *logger.Logger, needReinitia
 	}
 
 	nodectx, nodeCancel := context.WithCancel(ctx)
-    n.Ctx = nodectx
-    n.Cancel = nodeCancel
+	n.Ctx = nodectx
+	n.Cancel = nodeCancel
 
 	n.SetStatus(common.NodeStatusRunning)
 	log.Infof("Starting ListenNode with UID: %s", n.NodeUid)
@@ -121,40 +138,40 @@ func (n *ListenNode) Start(ctx context.Context, log *logger.Logger, needReinitia
 }
 
 func (n *ListenNode) processNatsMessage(msg *nats.Msg, log *logger.Logger) error {
-    contentType := "application/json"
-    jsonStructure := "object"
+	contentType := "application/json"
+	jsonStructure := "object"
 
-    if msg.Header != nil {
-        if ct := msg.Header.Get("Content-Type"); ct != "" {
-            contentType = ct
-        }
-        if js := msg.Header.Get("Json-Structure"); js != "" {
-            jsonStructure = js
-        }
-    }
+	if msg.Header != nil {
+		if ct := msg.Header.Get("Content-Type"); ct != "" {
+			contentType = ct
+		}
+		if js := msg.Header.Get("Json-Structure"); js != "" {
+			jsonStructure = js
+		}
+	}
 
-    outMsg, err := n.buildMessageFromNats(msg, contentType, jsonStructure)
-    if err != nil {
-        return fmt.Errorf("failed to build message for node %s: %w", n.NodeUid, err)
-    }
-	
-    if msg.Reply != "" {
-        timeoutMs := int64(30000)
-        if msg.Header != nil {
+	outMsg, err := n.buildMessageFromNats(msg, contentType, jsonStructure)
+	if err != nil {
+		return fmt.Errorf("failed to build message for node %s: %w", n.NodeUid, err)
+	}
+
+	if msg.Reply != "" {
+		timeoutMs := int64(30000)
+		if msg.Header != nil {
 			if v := msg.Header.Get("Reply-Timeout-Ms"); v != "" {
 				if parsed, err := strconv.ParseInt(v, 10, 64); err == nil {
 					timeoutMs = parsed
-                }
-            }
-        }
-        outMsg.SetReplyContext(&common.ReplyContext{
+				}
+			}
+		}
+		outMsg.SetReplyContext(&common.ReplyContext{
 			Subject:   msg.Reply,
-            ExpiresAt: time.Now().Add(time.Duration(timeoutMs) * time.Millisecond),
-        })
-    }
+			ExpiresAt: time.Now().Add(time.Duration(timeoutMs) * time.Millisecond),
+		})
+	}
 
-    n.sendToOutputs(outMsg, log)
-    return nil
+	n.sendToOutputs(outMsg, log)
+	return nil
 }
 
 func (n *ListenNode) buildMessageFromNats(msg *nats.Msg, contentType, jsonStructure string) (common.Message, error) {

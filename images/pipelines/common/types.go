@@ -50,6 +50,7 @@ type Group struct {
 	EmailNotificationChannelId    int    `json:"emailNotificationChannelId"`
 	TelegramNotificationChannelId int    `json:"telegramNotificationChannelId"`
 	IsOrgDefaultGroup             bool   `json:"isOrgDefaultGroup"`
+	IsAdminGroup                  bool   `json:"isAdminGroup"`
 	FloorNumber                   int    `json:"floorNumber"`
 	FeatureIndex                  int    `json:"featureIndex"`
 	LlmEnabled                    bool   `json:"llmEnabled"`
@@ -255,13 +256,11 @@ type SchemaDef struct {
 // 	public lastS3Storage: string;
 // }
 
-
 type S3FolderStats struct {
-	ParquetFileCount     int       `json:"parquetFileCount"`
-	ParquetTotalBytes    int64     `json:"parquetTotalBytes"`
-	LastS3Storage time.Time `json:"lastS3Storage"` // timestamp of the most recent file
+	ParquetFileCount  int       `json:"parquetFileCount"`
+	ParquetTotalBytes int64     `json:"parquetTotalBytes"`
+	LastS3Storage     time.Time `json:"lastS3Storage"` // timestamp of the most recent file
 }
-
 
 type NodeData struct {
 	NodeUid    string         `json:"nodeUid"`

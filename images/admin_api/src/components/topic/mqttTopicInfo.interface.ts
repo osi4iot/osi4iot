@@ -1,6 +1,6 @@
 export default interface IMqttTopicInfo {
 	topicId: number;
-	topicType: string
+	topicType: string;
 	groupHash: string;
 	topicHash: string;
 }

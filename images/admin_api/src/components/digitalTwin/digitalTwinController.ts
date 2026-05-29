@@ -354,12 +354,12 @@ class DigitalTwinController implements IController {
 		}
 	};
 
-	private getDigitalTwinData = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+	private getDigitalTwinData = async (req: IRequestWithGroup, res: Response, next: NextFunction): Promise<void> => {
 		try {
 			const { digitalTwinId } = req.params;
 			const digitalTwin = await getDigitalTwinByProp("id", parseInt(digitalTwinId, 10));
 			if (!digitalTwin) throw new ItemNotFoundException(req, res, "The digital twin", "id", digitalTwinId);
-			const digitalTwinData = await getDigitalTwinData(digitalTwin);
+			const digitalTwinData = await getDigitalTwinData(req.group, digitalTwin);
 			res.status(200).send(digitalTwinData);
 		} catch (error) {
 			next(error);

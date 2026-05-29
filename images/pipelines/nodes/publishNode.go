@@ -51,12 +51,28 @@ func CreatePublishNode(node common.NodeData, fm common.Manager, p common.Pipelin
 			topic = strings.ReplaceAll(topic, "/", ".")
 		case "Topic reference":
 			topicRef := topic
-			topicInstance := fm.GetTopicByTopicRef(p.GetAssetId(), p.GetDigitalTwinId(), topicRef)
-			if topicInstance == nil {
-				fm.Log().Errorf("PublishNode %s: topic reference '%s' not found", node.NodeUid, topicRef)
-				return nil, fmt.Errorf("topic reference '%s' not found", topicRef)
+			group := fm.GetGroup(p.GetGroupId())
+			if group == nil {
+				fm.Log().Errorf("PublishNode %s: group with ID %d not found", node.NodeUid, p.GetGroupId())
+				return nil, fmt.Errorf("group with ID %d not found", p.GetGroupId())
 			}
-			topic = utils.TopicToNatsSubject(topicInstance.TopicType, topicInstance.GroupUid, topicInstance.TopicUid)
+
+			if group.IsAdminGroup && strings.HasPrefix(topicRef, "system_") {
+				topicsMap := fm.GetTopicsByAssetId(p.GetAssetId())
+				topicInstance, ok := topicsMap[topicRef]
+				if !ok || topicInstance == nil {
+					fm.Log().Errorf("PublishNode %s: topic reference '%s' not found", node.NodeUid, topicRef)
+					return nil, fmt.Errorf("topic reference '%s' not found", topicRef)
+				}
+				topic = utils.SystemMonitoringNatsSubject(topicInstance.Description)
+			} else {
+				topicInstance := fm.GetTopicByTopicRef(p.GetAssetId(), p.GetDigitalTwinId(), topicRef)
+				if topicInstance == nil {
+					fm.Log().Errorf("PublishNode %s: topic reference '%s' not found", node.NodeUid, topicRef)
+					return nil, fmt.Errorf("topic reference '%s' not found", topicRef)
+				}
+				topic = utils.TopicToNatsSubject(topicInstance.TopicType, topicInstance.GroupUid, topicInstance.TopicUid)
+			}
 		}
 	}
 

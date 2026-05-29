@@ -13,6 +13,7 @@ export default interface IGroup {
 	emailNotificationChannelId: number;
 	telegramNotificationChannelId: number;
 	isOrgDefaultGroup: boolean;
+	isAdminGroup: boolean;
 	outerBounds: number[][];
 	floorNumber: number;
 	featureIndex: number;

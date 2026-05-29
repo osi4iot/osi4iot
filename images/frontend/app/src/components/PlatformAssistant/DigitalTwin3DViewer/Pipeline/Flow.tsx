@@ -360,6 +360,7 @@ export default function Flow({
                 selectedNode={selectedNode}
                 onUpdateNode={onUpdateNode}
                 digitalTwinSelected={digitalTwinSelected}
+                groupSelected={groupSelected}
                 handlePipelineUiChanged={handlePipelineUiChanged}
                 natsSubjectsData={natsSubjectsData}
                 assetS3Folders={assetS3Folders}

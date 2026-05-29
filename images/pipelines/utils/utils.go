@@ -49,7 +49,7 @@ func HealthCheck(cfg *config.Config) {
 		replicaIndex := cfg.ReplicaIndex
 		port = fmt.Sprintf(":%d", 3300+replicaIndex-1)
 	}
-	
+
 	srv := &http.Server{Addr: port, Handler: mux}
 	go func() {
 		if err := srv.ListenAndServe(); err != http.ErrServerClosed {
@@ -60,4 +60,20 @@ func HealthCheck(cfg *config.Config) {
 
 func TopicToNatsSubject(topicType, groupUid, topicUid string) string {
 	return fmt.Sprintf("%s.Group_%s.Topic_%s", topicType, groupUid, topicUid)
+}
+
+var SystemMonitoringTopicMap = map[string]string{
+	"Log entries":       "system.observability.logs",
+	"Host metrics":      "system.observability.host_metrics",
+	"Container metrics": "system.observability.container_metrics",
+	"Volume metrics":    "system.observability.volume_metrics",
+	"System alert":      "system.observability.system_alert",
+}
+
+func SystemMonitoringNatsSubject(description string) string {
+	natsSubject := ""
+	if mapped, ok := SystemMonitoringTopicMap[description]; ok {
+		natsSubject = mapped
+	}
+	return natsSubject
 }

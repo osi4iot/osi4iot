@@ -28,7 +28,7 @@ func Connect(cfg *config.Config, log *logger.Logger) (*nats.Conn, error) {
 	opts := []nats.Option{
 		nats.Timeout(cfg.NATS.Timeout),
 	}
-	
+
     if cfg.NATS.NKeySeed != "" {
         // Parse the NKey seed and create a signer function
         kp, err := nkeys.FromSeed([]byte(cfg.NATS.NKeySeed))

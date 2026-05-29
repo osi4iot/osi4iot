@@ -153,6 +153,7 @@ export const createGroup = async (
 	const mqttPassword = crypto.pbkdf2Sync(password, mqttSalt, iterations, 50, "sha256").toString("hex");
 
 	const llmEnabled = groupInput.llmEnabled;
+	const isAdminGroup = isMainOrgDefaultGroup;
 
 	const group: IGroup = {
 		orgId,
@@ -167,6 +168,7 @@ export const createGroup = async (
 		emailNotificationChannelId,
 		telegramNotificationChannelId,
 		isOrgDefaultGroup,
+		isAdminGroup,
 		floorNumber,
 		featureIndex,
 		outerBounds,
@@ -261,6 +263,7 @@ export const getAllGroups = async (): Promise<IGroup[]> => {
 				email_notification_channel_id AS "emailNotificationChannelId",
 				telegram_notification_channel_id AS "telegramNotificationChannelId",
 				is_org_default_group AS "isOrgDefaultGroup",
+				is_admin_group AS "isAdminGroup",
 				floor_number AS "floorNumber",
 				feature_index AS "featureIndex",
 				outer_bounds AS "outerBounds",
@@ -293,6 +296,7 @@ export const getGroupsThatCanBeEditatedAndAdministratedByUserId = async (userId:
 				email_notification_channel_id AS "emailNotificationChannelId",
 				telegram_notification_channel_id AS "telegramNotificationChannelId",
 				is_org_default_group AS "isOrgDefaultGroup",
+				is_admin_group AS "isAdminGroup",
 				floor_number AS "floorNumber",
 				feature_index AS "featureIndex",
 				outer_bounds AS "outerBounds",
@@ -321,6 +325,7 @@ export const getGroupsManagedByUserId = async (userId: number): Promise<IGroup[]
 				email_notification_channel_id AS "emailNotificationChannelId",
 				telegram_notification_channel_id AS "telegramNotificationChannelId",
 				is_org_default_group AS "isOrgDefaultGroup",
+				is_admin_group AS "isAdminGroup",
 				floor_number AS "floorNumber",
 				feature_index AS "featureIndex",
 				outer_bounds AS "outerBounds",
@@ -376,7 +381,8 @@ export const getGroupsOfOrgIdWhereUserIdIsMember = async (orgId: number, userId:
 				telegram_chatid AS "telegramChatId",
 				email_notification_channel_id AS "emailNotificationChannelId",
 				telegram_notification_channel_id AS "telegramNotificationChannelId",
-				is_org_default_group AS "isOrgDefaultGroup"
+				is_org_default_group AS "isOrgDefaultGroup",
+				is_admin_group AS "isAdminGroup"
 				FROM grafanadb.group
 				INNER JOIN grafanadb.dashboard_acl ON grafanadb.group.team_id = grafanadb.dashboard_acl.team_id
 				INNER JOIN grafanadb.team_member ON grafanadb.team_member.team_id = grafanadb.group.team_id
@@ -398,7 +404,8 @@ export const getGroupsWhereUserIdIsMember = async (userId: number): Promise<IGro
 				telegram_chatid AS "telegramChatId",
 				email_notification_channel_id AS "emailNotificationChannelId",
 				telegram_notification_channel_id AS "telegramNotificationChannelId",
-				is_org_default_group AS "isOrgDefaultGroup"
+				is_org_default_group AS "isOrgDefaultGroup",
+				is_admin_group AS "isAdminGroup"
 				FROM grafanadb.group
 				INNER JOIN grafanadb.dashboard_acl ON grafanadb.group.team_id = grafanadb.dashboard_acl.team_id
 				INNER JOIN grafanadb.team_member ON grafanadb.team_member.team_id = grafanadb.group.team_id
@@ -430,6 +437,7 @@ export const getAllGroupsInOrganization = async (orgId: number): Promise<IGroup[
 				email_notification_channel_id AS "emailNotificationChannelId",
 				telegram_notification_channel_id AS "telegramNotificationChannelId",
 				is_org_default_group AS "isOrgDefaultGroup",
+				is_admin_group AS "isAdminGroup",
 				floor_number AS "floorNumber",
 				feature_index AS "featureIndex",
 				outer_bounds AS "outerBounds",
@@ -457,6 +465,7 @@ export const getAllGroupsInOrgArray = async (orgIdsArray: number[]): Promise<IGr
 				email_notification_channel_id AS "emailNotificationChannelId",
 				telegram_notification_channel_id AS "telegramNotificationChannelId",
 				is_org_default_group AS "isOrgDefaultGroup",
+				is_admin_group AS "isAdminGroup",
 				floor_number AS "floorNumber",
 				feature_index AS "featureIndex",
 				outer_bounds AS "outerBounds",
@@ -486,6 +495,7 @@ export const getGroupByWithFolderPermissionProp = async (
 				email_notification_channel_id AS "emailNotificationChannelId",
 				telegram_notification_channel_id AS "telegramNotificationChannelId",
 				is_org_default_group AS "isOrgDefaultGroup",
+				is_admin_group AS "isAdminGroup",
 				floor_number AS "floorNumber",
 				feature_index AS "featureIndex",
 				outer_bounds AS "outerBounds",
@@ -510,6 +520,7 @@ export const getGroupByProp = async (propName: string, propValue: string | numbe
 				email_notification_channel_id AS "emailNotificationChannelId",
 				telegram_notification_channel_id AS "telegramNotificationChannelId",
 				is_org_default_group AS "isOrgDefaultGroup",
+				is_admin_group AS "isAdminGroup",
 				floor_number AS "floorNumber",
 				feature_index AS "featureIndex",
 				outer_bounds AS "outerBounds",
@@ -531,6 +542,7 @@ export const getFullGroupDataById = async (groupId: number): Promise<IGroup> => 
 				email_notification_channel_id AS "emailNotificationChannelId",
 				telegram_notification_channel_id AS "telegramNotificationChannelId",
 				is_org_default_group AS "isOrgDefaultGroup",
+				is_admin_group AS "isAdminGroup",
 				floor_number AS "floorNumber",
 				feature_index AS "featureIndex",
 				outer_bounds AS "outerBounds",
@@ -559,6 +571,7 @@ export const getDefaultOrgGroup = async (orgId: number): Promise<IGroup> => {
 				outer_bounds AS "outerBounds",
 				mqtt_access_control AS "mqttAccessControl",
 				llm_enabled AS "llmEnabled",
+				is_admin_group AS "isAdminGroup",
 				grafanadb.group.created, grafanadb.group.updated
 				FROM grafanadb.group
 				WHERE grafanadb.group.org_id = $1 AND is_org_default_group = $2;`;
@@ -572,12 +585,12 @@ export const insertGroup = async (group: IGroup): Promise<IGroup> => {
 					folder_uid, name, acronym, group_uid,
 					telegram_invitation_link, telegram_chatid,
 					email_notification_channel_id,
-					telegram_notification_channel_id, is_org_default_group,
+					telegram_notification_channel_id, is_org_default_group, is_admin_group,
 					floor_number, feature_index, outer_bounds,  mqtt_access_control,
 					mqtt_password, mqtt_salt, llm_enabled,
 					created, updated)
 					VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13,
-						    $14, $15, $16, $17, $18, $19, NOW(), NOW())
+						    $14, $15, $16, $17, $18, $19, $20, NOW(), NOW())
 					RETURNING *`,
 		[
 			group.orgId,
@@ -592,6 +605,7 @@ export const insertGroup = async (group: IGroup): Promise<IGroup> => {
 			group.emailNotificationChannelId,
 			group.telegramNotificationChannelId,
 			group.isOrgDefaultGroup,
+			group.isAdminGroup,
 			group.floorNumber,
 			group.featureIndex,
 			group.outerBounds,

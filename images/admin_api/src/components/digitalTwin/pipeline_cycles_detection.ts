@@ -1,3 +1,5 @@
+import IGroup from "../group/interfaces/Group.interface";
+import IDigitalTwin from "./digitalTwin.interface";
 import { getMqttTopicsData } from "./digitalTwinDAL";
 import { IMqttTopicDataShort } from "./digitalTwinGltfData.interface";
 import PipelineNodeDto from "./pipelineNode.dto";
@@ -8,10 +10,11 @@ interface NodeConnections {
 }
 
 export const areCyclesInPipeline = async (
-	digitalTwinId: number,
-	pipelineNodes: PipelineNodeDto[]
+	digitalTwin: IDigitalTwin,
+	pipelineNodes: PipelineNodeDto[],
+	group: IGroup,
 ): Promise<boolean> => {
-	const mqttTopicsData = await getMqttTopicsData(digitalTwinId);
+	const mqttTopicsData = await getMqttTopicsData(group, digitalTwin);
 
 	const topicGraph = new Map(); // topic -> Set of topics that can be reached
 	const nodeConnections = new Map<string, NodeConnections>();
