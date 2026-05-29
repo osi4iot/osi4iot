@@ -455,7 +455,7 @@ export const dataBaseInitialization = async () => {
 					email_notification_channel_id bigint,
 					telegram_notification_channel_id bigint,
 					is_org_default_group BOOLEAN DEFAULT true,
-					is_admin_group BOOLEAN DEFAULT false,
+					is_admin_group BOOLEAN NOT NULL DEFAULT false,
 					floor_number integer NOT NULL DEFAULT 0,
 					feature_index integer NOT NULL DEFAULT 0,
 					outer_bounds float8[2][2],

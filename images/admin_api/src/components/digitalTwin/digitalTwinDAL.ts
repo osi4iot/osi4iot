@@ -928,7 +928,7 @@ export const createDigitalTwin = async (
 	let digitalTwinDashboardId = dashboardId;
 	if (!dashboardId) {
 		const dashboardTitle = `DT_${digitalTwinUid}`;
-		if (group.id === 1 && asset.description === "System monitoring for main group") {
+		if (group.isAdminGroup && asset.description === "System monitoring") {
 			digitalTwinDashboardId = await createSystemMonitoringDashboard(group, dashboardTitle);
 		} else {
 			const assetTopic = await getAssetTopicByAssetIdAndTopicRef(assetId, "dev2pdb_1");

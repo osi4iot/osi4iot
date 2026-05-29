@@ -149,8 +149,8 @@ const protocol = getProtocol();
 
 const digitalTwinTypeOptions = [
     {
-        label: "None",
-        value: "None",
+        label: "Grafana dashboard",
+        value: "Grafana dashboard",
     },
     {
         label: "Glb 3D model",
@@ -874,7 +874,7 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
         groupAcronym: initGroup.acronym,
         assetName: initAssetName,
         description: "",
-        type: "None",
+        type: "Grafana dashboard",
         digitalTwinUid,
         maxNumResFemFiles: "1",
         chatAssistantEnabled: false,
