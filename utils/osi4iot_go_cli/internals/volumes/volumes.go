@@ -2,6 +2,7 @@ package volumes
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/volume"
@@ -196,6 +197,9 @@ func RemoveSwarmVolumes(pd *pt.PlatformData) error {
 			err = dc.Cli.VolumeRemove(dc.Ctx, v.Name, true)
 			if err != nil {
 				if errdefs.IsNotFound(err) {
+					continue
+				}
+				if strings.Contains(err.Error(), "already been removed") {
 					continue
 				}
 				errors = append(errors, fmt.Errorf("error removing volume: %v", err))
