@@ -19,8 +19,6 @@ func ExistFile(filePath string) bool {
     return err == nil
 }
 
-
-
 func CreateDirectoryIfNotExists(dirPath string) error {
 	if _, err := os.Stat(dirPath); os.IsNotExist(err) {
 		err := os.MkdirAll(dirPath, os.ModePerm)

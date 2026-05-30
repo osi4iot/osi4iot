@@ -21,7 +21,7 @@ func installRexRayPlugin(pd *types.PlatformData) error {
 	}
 
 	if useRexRayPlugin {
-		pi.UseRexRayPlugin = true
+		pd.PlatformInfo.UseRexRayPlugin = true
 		pluginName := "ghcr.io/osi4iot/rexray-ebs:latest"
 
 		installScript := fmt.Sprintf(`
@@ -68,13 +68,17 @@ func installRexRayPlugin(pd *types.PlatformData) error {
 			fmt.Printf("Node %s: %s\n", nodes[i].NodeIP, resp)
 		}
 	} else {
-		pi.UseRexRayPlugin = false
+		pd.PlatformInfo.UseRexRayPlugin = false
 	}
 
 	return nil
 }
 
 func uninstallRexRayPlugin(pd *types.PlatformData) error {
+	if !pd.PlatformInfo.UseRexRayPlugin {
+		return nil
+	}
+
 	nodes := pd.PlatformInfo.NodesData
 	if len(nodes) == 0 {
 		return fmt.Errorf("no nodes found in platform data")
