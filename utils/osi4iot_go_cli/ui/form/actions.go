@@ -322,31 +322,6 @@ func addAwsSsHKeyQuestions(index int, m *Model) {
 	}
 }
 
-func addAwsEFSQuestion(index int, m *Model) {
-	numNodes := m.Data["numNodes"].(int)
-	if numNodes > 1 {
-		idx := m.FindQuestionIdByKey("AWS_EFS_DNS")
-		if idx == -1 {
-			efsQuestion := Question{
-				Key:           "AWS_EFS_DNS",
-				QuestionType:  "generic",
-				Prompt:        "AWS Elastic File System DNS",
-				Answer:        data.Data.PlatformInfo.AwsEfsDNS,
-				DefaultAnswer: "",
-				Choices:       []string{},
-				ChoiceFocus:   0,
-				ErrorMessage:  "",
-				Rules:         []string{"required", "string"},
-				ActionKey:     "",
-				Margin:        0,
-			}
-			m.addQuestions(index, efsQuestion)
-		}
-	} else {
-		m.removeQuestionByKey("AWS_EFS_DNS")
-	}
-}
-
 func addNetworkInterfaceQuestions(m *Model) {
 	deploymentLocation := m.FindAnswerByKey("DEPLOYMENT_LOCATION")
 	numNodes := m.Data["numNodes"].(int)
@@ -412,7 +387,6 @@ func DeployLocationQuestions(m *Model) (submissionResultMsg, error) {
 		m.removeQuestionByKey("NETWORK_INTERFACE")
 		m.removeQuestionByKey("LOCAL_RESOURCE_UTILIZATION_PERCENTAGE")
 		addAwsSsHKeyQuestions(qIdx+1, m)
-		addAwsEFSQuestion(qIdx+2, m)
 		addNumNodesQuestion(qIdx+3, m)
 		addNodesDataQuestions(m)
 	}

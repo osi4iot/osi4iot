@@ -10,16 +10,35 @@ import (
 	"github.com/osi4iot/osi4iot/utils/osi4iot/internals/utils"
 )
 
-type VolumeOptions struct {
-	driverOptsO string
-	awsEfsDNS   string
+type EBSVolumeOptions struct {
+	size       string
+	volumeType string
+	iops       string
+	throughput string
+	encrypted  string
 }
 
-func createDefalutOptions(pi pt.PlatformInfo) VolumeOptions {
+var DefaultEBSVolumeVolumeOptions = EBSVolumeOptions{
+	size:       "20",
+	volumeType: "gp3",
+	iops:       "3000",
+	throughput: "125",
+	encrypted:  "true",
+}
+
+type VolumeOptions struct {
+	driverOptsO string
+	ebsOpts     EBSVolumeOptions
+}
+
+func createDefaultOptions(pi pt.PlatformInfo) VolumeOptions {
 	deploymentLocation := pi.DeploymentLocation
 	driverOptsO := ""
 	nodesData := pi.NodesData
-	awsEfsDNS := ""
+	ebsOpts := EBSVolumeOptions{}
+	if pi.UseRexRayPlugin {
+		ebsOpts = DefaultEBSVolumeVolumeOptions
+	}
 	if deploymentLocation == "On-premise cluster deployment" && len(nodesData) > 1 {
 		nfsServerIP := ""
 		for _, node := range nodesData {
@@ -29,13 +48,10 @@ func createDefalutOptions(pi pt.PlatformInfo) VolumeOptions {
 			}
 		}
 		driverOptsO = fmt.Sprintf("nfsvers=4,addr=%s,rw", nfsServerIP)
-	} else if deploymentLocation == "AWS cluster deployment" && len(nodesData) > 1 {
-		driverOptsO = fmt.Sprintf("addr=%s,nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2,noresvport", awsEfsDNS)
-		awsEfsDNS = pi.AwsEfsDNS
 	}
 	volOptions := VolumeOptions{
 		driverOptsO: driverOptsO,
-		awsEfsDNS:   awsEfsDNS,
+		ebsOpts:     ebsOpts,
 	}
 	return volOptions
 }
@@ -49,37 +65,37 @@ func GenerateVolumes(platformData *pt.PlatformData) map[string]pt.Volume {
 	s3BucketType := pi.S3BucketType
 	domainCertsType := pi.DomainCertsType
 
-	volOptions := createDefalutOptions(pi)
+	volOptions := createDefaultOptions(pi)
 	if domainCertsType[0:19] == "Let's encrypt certs" {
-		Volumes["letsencrypt"] = SetVolumeConfig("letsencrypt", "global", deploymentLocation, volOptions)
+		Volumes["letsencrypt"] = SetVolumeConfig(pi, "letsencrypt", "global", deploymentLocation, volOptions)
 	}
 
 	numNatsReplicas := utils.GetServiceReplicas(platformData, "nats")
 	for replica := 1; replica <= numNatsReplicas; replica++ {
 		volumeName := fmt.Sprintf("nats%d_data", replica)
 		serviceName := fmt.Sprintf("nats%d", replica)
-		Volumes[volumeName] = SetVolumeConfig(volumeName,serviceName, deploymentLocation, volOptions)
+		Volumes[volumeName] = SetVolumeConfig(pi, volumeName, serviceName, deploymentLocation, volOptions)
 	}
 
-	Volumes["pgdata"] = SetVolumeConfig("pgdata", "postgres", deploymentLocation, volOptions)
-	Volumes["grafana_data"] = SetVolumeConfig("grafana_data", "grafana", deploymentLocation, volOptions)
-	Volumes["timescaledb_data"] = SetVolumeConfig("timescaledb_data", "timescaledb",deploymentLocation, volOptions)
-	Volumes["timescaledb_wal"] = SetVolumeConfig("timescaledb_wal", "timescaledb", deploymentLocation, volOptions)
-	Volumes["vector_buffer"] = SetVolumeConfig("vector_buffer", "vector", deploymentLocation, volOptions)
+	Volumes["pgdata"] = SetVolumeConfig(pi, "pgdata", "postgres", deploymentLocation, volOptions)
+	Volumes["grafana_data"] = SetVolumeConfig(pi, "grafana_data", "grafana", deploymentLocation, volOptions)
+	Volumes["timescaledb_data"] = SetVolumeConfig(pi, "timescaledb_data", "timescaledb", deploymentLocation, volOptions)
+	Volumes["timescaledb_wal"] = SetVolumeConfig(pi, "timescaledb_wal", "timescaledb", deploymentLocation, volOptions)
+	Volumes["vector_buffer"] = SetVolumeConfig(pi, "vector_buffer", "vector", deploymentLocation, volOptions)
 
 	numPipelinesReplicas := utils.GetServiceReplicas(platformData, "pipelines")
 	for i := 1; i <= numPipelinesReplicas; i++ {
 		volName := fmt.Sprintf("pipelines_data_%d", i)
-		Volumes[volName] = SetVolumeConfig(volName, "pipelines", deploymentLocation, volOptions)
+		Volumes[volName] = SetVolumeConfig(pi, volName, "pipelines", deploymentLocation, volOptions)
 	}
 
 	if deploymentMode == "development" {
-		Volumes["pgadmin4_data"] = SetVolumeConfig("pgadmin4_data", "pgadmin4", deploymentLocation, volOptions)
+		Volumes["pgadmin4_data"] = SetVolumeConfig(pi, "pgadmin4_data", "pgadmin4", deploymentLocation, volOptions)
 	}
 
 	if s3BucketType == "Local Minio" {
-		Volumes["minio_storage"] = SetVolumeConfig("minio_storage", "minio", deploymentLocation, volOptions)
-		Volumes["minio_data"] = SetVolumeConfig("minio_data", "minio", deploymentLocation, volOptions)
+		Volumes["minio_storage"] = SetVolumeConfig(pi, "minio_storage", "minio", deploymentLocation, volOptions)
+		Volumes["minio_data"] = SetVolumeConfig(pi, "minio_data", "minio", deploymentLocation, volOptions)
 	}
 
 	return Volumes
@@ -106,7 +122,7 @@ func CreateVolume(dc *pt.DockerClient, swarmVol *pt.Volume) error {
 			Driver:     swarmVol.Driver,
 			DriverOpts: swarmVol.DriverOpts,
 			Labels: map[string]string{
-				"app": "osi4iot",
+				"app":     "osi4iot",
 				"service": swarmVol.ServiceName,
 			},
 		})
@@ -252,7 +268,7 @@ func getVolumesMapByNodeRole(volumesMap map[string]pt.Volume, nodeRole string, p
 	return filteredVolumes
 }
 
-func SetVolumeConfig(volumeName string, serviceName string, deploymentLocation string, volOpts VolumeOptions) pt.Volume {
+func SetVolumeConfig(pi pt.PlatformInfo, volumeName string, serviceName string, deploymentLocation string, volOpts VolumeOptions) pt.Volume {
 	vol := pt.Volume{
 		Name:        volumeName,
 		ServiceName: serviceName,
@@ -260,6 +276,17 @@ func SetVolumeConfig(volumeName string, serviceName string, deploymentLocation s
 		DriverOpts:  map[string]string{},
 	}
 	switch deploymentLocation {
+	case "Local deployment":
+		if pi.UseRexRayPlugin {
+			vol.Driver = "rexray-ebs"
+			vol.DriverOpts = map[string]string{
+				"size":       volOpts.ebsOpts.size,
+				"volumeType": volOpts.ebsOpts.volumeType,
+				"iops":       volOpts.ebsOpts.iops,
+				"throughput": volOpts.ebsOpts.throughput,
+				"encrypted":  volOpts.ebsOpts.encrypted,
+			}
+		}
 	case "On-premise cluster deployment":
 		vol.Driver = "nfs"
 		vol.DriverOpts = map[string]string{
@@ -268,11 +295,13 @@ func SetVolumeConfig(volumeName string, serviceName string, deploymentLocation s
 			"device": fmt.Sprintf(":/var/nfs_osi4iot/%s", volumeName),
 		}
 	case "AWS cluster deployment":
-		vol.Driver = "nfs"
+		vol.Driver = "rexray-ebs"
 		vol.DriverOpts = map[string]string{
-			"type":   "nfs",
-			"o":      volOpts.driverOptsO,
-			"device": fmt.Sprintf("%s:/%s", volOpts.awsEfsDNS, volumeName),
+			"size":       volOpts.ebsOpts.size,
+			"volumeType": volOpts.ebsOpts.volumeType,
+			"iops":       volOpts.ebsOpts.iops,
+			"throughput": volOpts.ebsOpts.throughput,
+			"encrypted":  volOpts.ebsOpts.encrypted,
 		}
 	}
 
@@ -280,10 +309,10 @@ func SetVolumeConfig(volumeName string, serviceName string, deploymentLocation s
 }
 
 func CreateNatsVolume(pi pt.PlatformInfo, dc *pt.DockerClient, replica int) (*pt.Volume, error) {
-	volOptions := createDefalutOptions(pi)
+	volOptions := createDefaultOptions(pi)
 	volumeName := fmt.Sprintf("nats%d_data", replica)
 	serviceName := fmt.Sprintf("nats%d", replica)
-	volume := SetVolumeConfig(volumeName, serviceName, pi.DeploymentLocation, volOptions)
+	volume := SetVolumeConfig(pi, volumeName, serviceName, pi.DeploymentLocation, volOptions)
 	err := CreateVolume(dc, &volume)
 	if err != nil {
 		return nil, fmt.Errorf("error creating volume %s in node %s: %v", volume.Name, dc.Node.NodeIP, err)
@@ -305,9 +334,9 @@ func RemoveNatsVolume(dc *pt.DockerClient, replica int) error {
 }
 
 func CreatePipelinesVolume(pi pt.PlatformInfo, dc *pt.DockerClient, replica int) error {
-	volOptions := createDefalutOptions(pi)
+	volOptions := createDefaultOptions(pi)
 	volumeName := fmt.Sprintf("pipelines_data_%d", replica)
-	volume := SetVolumeConfig(volumeName, "pipelines", pi.DeploymentLocation, volOptions)
+	volume := SetVolumeConfig(pi, volumeName, "pipelines", pi.DeploymentLocation, volOptions)
 	err := CreateVolume(dc, &volume)
 	if err != nil {
 		return fmt.Errorf("error creating volume %s in node %s: %v", volume.Name, dc.Node.NodeIP, err)

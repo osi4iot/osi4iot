@@ -79,7 +79,6 @@ var cmdInit = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		checkState("init")
 		pd := data.GetData()
-		pd.PlatformInfo.ExcludedServices = []string{}
 		err := docker.InitPlatform(pd)
 		if err != nil {
 			errMsg := fmt.Sprintf("Error starting platform: %v", err)

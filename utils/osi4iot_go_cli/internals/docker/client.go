@@ -24,6 +24,9 @@ func getNodeDockerClient(node pt.NodeData, deploymentLocation string, sshPrivKey
 		return nil, fmt.Errorf("error getting host IP: %v", err)
 	}
 
+
+	// If the deployment location is "Local deployment" or the node IP is the same as host IP, create a local docker client. 
+	// Otherwise, create a remote docker client using SSH connection.
 	if deploymentLocation == "Local deployment" || runningInLocalHost {
 		cli, err = client.NewClientWithOpts(
 			client.FromEnv,
@@ -36,7 +39,7 @@ func getNodeDockerClient(node pt.NodeData, deploymentLocation string, sshPrivKey
 		daemonUrl := fmt.Sprintf("ssh://%s@%s:22", node.NodeUserName, node.NodeIP)
 		helper, err := getConnectionHelper(daemonUrl, sshPrivKeyTempFile)
 		if err != nil {
-			panic(fmt.Errorf("error obteniendo el helper SSH: %w", err))
+			return nil, fmt.Errorf("error getting SSH helper: %w", err)
 		}
 
 		httpClient := &http.Client{

@@ -8,23 +8,23 @@ import (
 	"github.com/osi4iot/osi4iot/utils/osi4iot/internals/utils"
 )
 
-func nodesConfiguration(platformData *types.PlatformData) error {
-	err := installUFWOnNodes(platformData)
+func nodesConfiguration(pd *types.PlatformData) error {
+	err := installUFWOnNodes(pd)
 	if err != nil {
 		return fmt.Errorf("error installing UFW on nodes: %w", err)
 	}
 
-	err = installNFS(platformData)
+	err = installNFS(pd)
 	if err != nil {
 		return fmt.Errorf("error installing NFS on nodes: %w", err)
 	}
 
-	err = installEFS(platformData)
+	err = installRexRayPlugin(pd)
 	if err != nil {
-		return fmt.Errorf("error installing EFS on nodes: %w", err)
+		return fmt.Errorf("error installing RexRay plugin on nodes: %w", err)
 	}
 
-	err = addNodesLabels(platformData)
+	err = addNodesLabels(pd)
 	if err != nil {
 		return fmt.Errorf("error adding labels to nodes: %w", err)
 	}
@@ -32,8 +32,8 @@ func nodesConfiguration(platformData *types.PlatformData) error {
 	return nil
 }
 
-func installUFWOnNodes(platformData *types.PlatformData) error {
-	pi := platformData.PlatformInfo
+func installUFWOnNodes(pd *types.PlatformData) error {
+	pi := pd.PlatformInfo
 	deploymentLocation := pi.DeploymentLocation
 	numSwarmNodes := len(pi.NodesData)
 
@@ -115,7 +115,7 @@ sudo ufw enable
 			}
 			nodeSripts = append(nodeSripts, nodeScript)
 		}
-		_, err := utils.RunScriptInNodes(platformData, nodeSripts)
+		_, err := utils.RunScriptInNodes(pd, nodeSripts)
 		if err != nil {
 			spinnerDone <- false
 			return err
@@ -126,14 +126,14 @@ sudo ufw enable
 	return nil
 }
 
-func installNFS(platformData *types.PlatformData) error {
-	pi := platformData.PlatformInfo
+func installNFS(pd *types.PlatformData) error {
+	pi := pd.PlatformInfo
 	deploymentLocation := pi.DeploymentLocation
 	numSwarmNodes := len(pi.NodesData)
 
 	if deploymentLocation == "On-premise cluster deployment" && numSwarmNodes > 1 {
 		spinnerDone := make(chan bool)
-		spinnerMsg := "Intalling NFS"
+		spinnerMsg := "Installing NFS"
 		endMsg := "NFS installed successfully"
 		utils.Spinner(spinnerMsg, endMsg, spinnerDone)
 		nodesData := pi.NodesData
@@ -217,7 +217,7 @@ sudo systemctl restart nfs-kernel-server
 				Script: nfsScript,
 				Args:   []string{ipsString},
 			}
-			_, err := utils.RunScriptInNodes(platformData, []utils.NodeScript{nodeScript})
+			_, err := utils.RunScriptInNodes(pd, []utils.NodeScript{nodeScript})
 			if err != nil {
 				spinnerDone <- false
 				return err
@@ -229,87 +229,8 @@ sudo systemctl restart nfs-kernel-server
 	return nil
 }
 
-func installEFS(platformData *types.PlatformData) error {
-	pi := platformData.PlatformInfo
-	deploymentLocation := pi.DeploymentLocation
-	numSwarmNodes := len(pi.NodesData)
-
-	if deploymentLocation == "AWS cluster deployment" && numSwarmNodes > 1 {
-		spinnerDone := make(chan bool)
-		spinnerMsg := "Installing EFS client"
-		endMsg := "EFS client installed successfully"
-		utils.Spinner(spinnerMsg, endMsg, spinnerDone)
-		nodeData := pi.NodesData[0]
-		efsScript := `#!/bin/bash
-export efs_dns=$1
-
-if ! command -v mount.nfs &>/dev/null; then
-    sudo apt-get update
-    sudo apt-get install -y nfs-common
-fi
-
-if [ ! -d /home/ubuntu/efs_osi4iot ]; then
-    sudo mkdir /home/ubuntu/efs_osi4iot
-    sudo chown ubuntu:ubuntu /home/ubuntu/efs_osi4iot
-    sudo mount -t nfs4 -o nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2,noresvport $efs_dns:/ /home/ubuntu/efs_osi4iot
-    sudo -E sh -c 'echo "$efs_dns:/ /home/ubuntu/efs_osi4iot nfs4 nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2,noresvport,_netdev 0 0" >> /etc/fstab'
-fi
-
-if [ ! -d /home/ubuntu/efs_osi4iot/grafana_data ]; then
-    sudo mkdir /home/ubuntu/efs_osi4iot/grafana_data
-    #sudo chown ubuntu:ubuntu /home/ubuntu/efs_osi4iot/grafana_data
-	sudo chown 472:472 /home/ubuntu/efs_osi4iot/grafana_data
-fi
-
-if [ ! -d  /home/ubuntu/efs_osi4iot/portainer_data ]; then
-    sudo mkdir /home/ubuntu/efs_osi4iot/portainer_data
-    sudo chown ubuntu:ubuntu /home/ubuntu/efs_osi4iot/portainer_data
-fi
-
-if [ ! -d  /home/ubuntu/efs_osi4iot/pgadmin4_data ]; then
-    sudo mkdir /home/ubuntu/efs_osi4iot/pgadmin4_data
-    sudo chown ubuntu:ubuntu /home/ubuntu/efs_osi4iot/pgadmin4_data
-fi
-
-if [ ! -d  /home/ubuntu/efs_osi4iot/pgdata ]; then
-    sudo mkdir /home/ubuntu/efs_osi4iot/pgdata
-    sudo chown ubuntu:ubuntu /home/ubuntu/efs_osi4iot/pgdata
-fi
-
-if [ ! -d  /home/ubuntu/efs_osi4iot/timescaledb_data ]; then
-    sudo mkdir /home/ubuntu/efs_osi4iot/timescaledb_data
-    sudo chown ubuntu:ubuntu /home/ubuntu/efs_osi4iot/timescaledb_data
-fi
-
-if [ ! -d  /home/ubuntu/efs_osi4iot/minio_storage ]; then
-    sudo mkdir /home/ubuntu/efs_osi4iot/minio_storage
-    sudo chown ubuntu:ubuntu /home/ubuntu/efs_osi4iot/minio_storage
-fi
-
-if [ ! -d  /home/ubuntu/efs_osi4iot/letsencrypt ]; then
-    sudo mkdir /home/ubuntu/efs_osi4iot/letsencrypt
-    sudo chown ubuntu:ubuntu /home/ubuntu/efs_osi4iot/letsencrypt
-fi
-`
-		efsDns := platformData.PlatformInfo.AwsEfsDNS
-		nodeScript := utils.NodeScript{
-			Node:   nodeData,
-			Script: efsScript,
-			Args:   []string{efsDns},
-		}
-		_, err := utils.RunScriptInNodes(platformData, []utils.NodeScript{nodeScript})
-		if err != nil {
-			spinnerDone <- false
-			return err
-		}
-		spinnerDone <- true
-	}
-
-	return nil
-}
-
-func addNodesLabels(platformData *types.PlatformData) error {
-	pi := platformData.PlatformInfo
+func addNodesLabels(pd *types.PlatformData) error {
+	pi := pd.PlatformInfo
 	spinnerDone := make(chan bool)
 	spinnerMsg := "Adding node labels"
 	endMsg := "Node labels added successfully"
@@ -373,42 +294,8 @@ func addNodesLabels(platformData *types.PlatformData) error {
 	return nil
 }
 
-func removeEfsRootFolder(platformData *types.PlatformData) error {
-	pi := platformData.PlatformInfo
-	deploymentLocation := pi.DeploymentLocation
-	numSwarmNodes := len(pi.NodesData)
-
-	if deploymentLocation == "AWS cluster deployment" && numSwarmNodes > 1 {
-		spinnerDone := make(chan bool)
-		spinnerMsg := "Removing EFS root folder"
-		endMsg := "EFS root folder removed successfully"
-		utils.Spinner(spinnerMsg, endMsg, spinnerDone)
-		nodeData := pi.NodesData[0]
-		efsScript := `#!/bin/bash
-if [ -d /home/ubuntu/efs_osi4iot ]; then
-	sudo rm -rf /home/ubuntu/efs_osi4iot/*
-    sudo umount /home/ubuntu/efs_osi4iot
-	sudo rm -rf /home/ubuntu/efs_osi4iot
-	sudo sed -i '/efs_osi4iot nfs4 nfsvers=4.1/d' /etc/fstab
-fi
-`
-		nodeScript := utils.NodeScript{
-			Node:   nodeData,
-			Script: efsScript,
-			Args:   []string{},
-		}
-		_, err := utils.RunScriptInNodes(platformData, []utils.NodeScript{nodeScript})
-		if err != nil {
-			spinnerDone <- false
-			return err
-		}
-		spinnerDone <- true
-	}
-	return nil
-}
-
-func removeNfsRootFolder(platformData *types.PlatformData) error {
-	pi := platformData.PlatformInfo
+func removeNfsRootFolder(pd *types.PlatformData) error {
+	pi := pd.PlatformInfo
 	deploymentLocation := pi.DeploymentLocation
 	numSwarmNodes := len(pi.NodesData)
 
@@ -436,7 +323,7 @@ fi
 				Script: nfsScript,
 				Args:   []string{},
 			}
-			_, err := utils.RunScriptInNodes(platformData, []utils.NodeScript{nodeScript})
+			_, err := utils.RunScriptInNodes(pd, []utils.NodeScript{nodeScript})
 			if err != nil {
 				spinnerDone <- false
 				return err

@@ -22,19 +22,21 @@ import (
 	"github.com/osi4iot/osi4iot/utils/osi4iot/internals/volumes"
 )
 
-func InitPlatform(platformData *pt.PlatformData) error {
+func InitPlatform(pd *pt.PlatformData) error {
     fmt.Println("Initializing platform...")
 
-	deployLocation := platformData.PlatformInfo.DeploymentLocation
+	pd.PlatformInfo.ExcludedServices = []string{}
+
+	deployLocation := pd.PlatformInfo.DeploymentLocation
 	if deployLocation == "Local deployment" {
 		localNodeData, err := utils.GetLocalNodeData()
 		if err != nil {
 			return fmt.Errorf("error: getting local node data: %v", err)
 		}
-		platformData.PlatformInfo.NodesData = []pt.NodeData{localNodeData}
+		pd.PlatformInfo.NodesData = []pt.NodeData{localNodeData}
 	}
 
-	err1 := utils.NatsCredentials(platformData)
+	err1 := utils.NatsCredentials(pd)
 	if err1 != nil {
 		return fmt.Errorf("error: generating NATS credentials %s", err1.Error())
 	}
@@ -47,7 +49,7 @@ func InitPlatform(platformData *pt.PlatformData) error {
     if err != nil {
         return fmt.Errorf("error: getting docker client %s", err.Error())
     }
-    err = nodesConfiguration(platformData)
+    err = nodesConfiguration(pd)
     if err != nil {
         return fmt.Errorf("error: configuring nodes %s", err.Error())
     }
@@ -56,11 +58,11 @@ func InitPlatform(platformData *pt.PlatformData) error {
         return fmt.Errorf("error: joining nodes to swarm %s", err.Error())
     }
 
-    err = updateNodesData(dc, &platformData.PlatformInfo.NodesData)
+    err = updateNodesData(dc, &pd.PlatformInfo.NodesData)
     if err != nil {
         return fmt.Errorf("error: updating nodes data %s", err.Error())
     }
-    err = RunSwarm(dc, platformData)
+    err = RunSwarm(dc, pd)
     if err != nil {
         return fmt.Errorf("error: running swarm %s", err.Error())
     }
@@ -349,9 +351,9 @@ func DeletePlatform(platformData *pt.PlatformData) error {
 		return fmt.Errorf("error removing NFS root folder: %v", err)
 	}
 
-	err = removeEfsRootFolder(platformData)
+	err = uninstallRexRayPlugin(platformData)
 	if err != nil {
-		return fmt.Errorf("error removing EFS root folder: %v", err)
+		return fmt.Errorf("error uninstalling RexRay plugin: %v", err)
 	}
 
 	err = nodesLeaveSwarm()

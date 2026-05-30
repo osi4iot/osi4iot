@@ -130,7 +130,7 @@ func PipelinesConfig(pd *types.PlatformData, numNatsReplicas int) (string, error
 	awsAccessKeyId := pi.PlatformAdminUserName
 	awsSecretAccessKey := pi.PlatformAdminPassword
 	awsEndpoint := "http://minio:9000/"
-	if pi.DeploymentLocation == "AWS cluster deployment" || pi.S3BucketType == "Cloud AWS S3" {
+	if pi.S3BucketType == "Cloud AWS S3" {
 		awsAccessKeyId = pi.AWSAccessKeyIDS3Bucket
 		awsSecretAccessKey = pi.AWSSecretAccessKeyS3Bucket
 		awsEndpoint = ""

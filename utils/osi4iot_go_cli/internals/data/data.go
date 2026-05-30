@@ -169,8 +169,6 @@ func SetData(key string, value string) {
 			awsSshKey := utils.GetFileData(value)
 			Data.PlatformInfo.AwsSshKey = awsSshKey
 		}
-	case "AWS_EFS_DNS":
-		Data.PlatformInfo.AwsEfsDNS = value
 	case "FLOATING_IP_ADDRES":
 		Data.PlatformInfo.FloatingIPAddress = value
 	case "NETWORK_INTERFACE":

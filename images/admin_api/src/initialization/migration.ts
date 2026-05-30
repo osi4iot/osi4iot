@@ -1059,7 +1059,7 @@ export const dataBaseInitialization = async () => {
 				try {
 					const systemMonitoringAssetData = {
 						assetTypeId: assetTypes[predefinedAssetTypes.length].id,
-						description: `System monitoring for main group`,
+						description: "System monitoring",
 						type: "system_monitoring",
 						iconRadio: 1.0,
 						iconSizeFactor: 1.0,
