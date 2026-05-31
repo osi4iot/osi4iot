@@ -575,3 +575,155 @@ func GetNumVolumes(pd *pt.PlatformData) (int, error) {
 
 	return numVolumes, nil
 }
+
+func DeleteAndWaitForEBSVolumesToBeDeleted(ctx context.Context, domainName string) error {
+	cfg, err := utils.GetEC2RoleConfig(ctx)
+	if err != nil {
+		return fmt.Errorf("error loading AWS config: %w", err)
+	}
+	ec2Client := ec2.NewFromConfig(cfg)
+
+	// 1. Get all EBS volumes for the platform
+	result, err := ec2Client.DescribeVolumes(ctx, &ec2.DescribeVolumesInput{
+		Filters: []ec2types.Filter{
+			{
+				Name:   aws.String("tag:app"),
+				Values: []string{"osi4iot"},
+			},
+			{
+				Name:   aws.String("tag:domainName"),
+				Values: []string{domainName},
+			},
+			{
+				Name:   aws.String("status"),
+				Values: []string{"available", "in-use", "creating"},
+			},
+		},
+	})
+	if err != nil {
+		return fmt.Errorf("error describing EBS volumes: %w", err)
+	}
+
+	if len(result.Volumes) == 0 {
+		fmt.Println("No EBS volumes to delete")
+		return nil
+	} else {
+		fmt.Printf("result.Volumes: %+v\n", result.Volumes)
+		return fmt.Errorf("expected to find EBS volumes to delete, but found none")
+	}
+
+	fmt.Printf("Deleting %d EBS volumes...\n", len(result.Volumes))
+
+	// 2. Delete each volume directly using the AWS SDK
+	deleteErrors := []error{}
+	for _, v := range result.Volumes {
+		volumeID := aws.ToString(v.VolumeId)
+
+		// If the volume is still attached (in-use), detach it first
+		if v.State == ec2types.VolumeStateInUse {
+			fmt.Printf("Detaching volume %s...\n", volumeID)
+			_, err := ec2Client.DetachVolume(ctx, &ec2.DetachVolumeInput{
+				VolumeId: aws.String(volumeID),
+				Force:    aws.Bool(true),
+			})
+			if err != nil {
+				deleteErrors = append(deleteErrors,
+					fmt.Errorf("error detaching volume %s: %w", volumeID, err))
+				continue
+			}
+
+			// Wait for the volume to be available before deleting
+			if err := waitForVolumeAvailable(ctx, ec2Client, volumeID); err != nil {
+				deleteErrors = append(deleteErrors, err)
+				continue
+			}
+		}
+
+		// Delete the volume
+		fmt.Printf("Deleting EBS volume %s...\n", volumeID)
+		_, err := ec2Client.DeleteVolume(ctx, &ec2.DeleteVolumeInput{
+			VolumeId: aws.String(volumeID),
+		})
+		if err != nil {
+			deleteErrors = append(deleteErrors,
+				fmt.Errorf("error deleting volume %s: %w", volumeID, err))
+			continue
+		}
+		fmt.Printf("EBS volume %s deleted\n", volumeID)
+	}
+
+	if len(deleteErrors) > 0 {
+		return fmt.Errorf("errors deleting EBS volumes: %v", deleteErrors)
+	}
+
+	// 3. Verify all volumes have been deleted
+	for i := 0; i <= 30; i++ {
+		time.Sleep(2 * time.Second)
+
+		remaining, err := ec2Client.DescribeVolumes(ctx, &ec2.DescribeVolumesInput{
+			Filters: []ec2types.Filter{
+				{
+					Name:   aws.String("tag:app"),
+					Values: []string{"osi4iot"},
+				},
+				{
+					Name:   aws.String("tag:domainName"),
+					Values: []string{domainName},
+				},
+				{
+					// Only volumes that have not been deleted yet
+					Name:   aws.String("status"),
+					Values: []string{"creating", "available", "in-use", "deleting"},
+				},
+			},
+		})
+		if err != nil {
+			return fmt.Errorf("error describing EBS volumes: %w", err)
+		}
+
+		if len(remaining.Volumes) == 0 {
+			fmt.Println("All EBS volumes deleted successfully")
+			return nil
+		}
+
+		fmt.Printf("Waiting for %d EBS volumes to be deleted...\n", len(remaining.Volumes))
+
+		if i == 30 {
+			for _, v := range remaining.Volumes {
+				fmt.Printf("Pending EBS volume: %s (state: %s)\n",
+					aws.ToString(v.VolumeId), v.State)
+			}
+			return fmt.Errorf("timeout: %d EBS volumes were not deleted",
+				len(remaining.Volumes))
+		}
+	}
+
+	return nil
+}
+
+func waitForVolumeAvailable(ctx context.Context, ec2Client *ec2.Client, volumeID string) error {
+	for i := 0; i <= 30; i++ {
+		time.Sleep(2 * time.Second)
+
+		result, err := ec2Client.DescribeVolumes(ctx, &ec2.DescribeVolumesInput{
+			VolumeIds: []string{volumeID},
+		})
+		if err != nil {
+			return fmt.Errorf("error describing volume %s: %w", volumeID, err)
+		}
+
+		// Volume no longer exists, nothing to wait for
+		if len(result.Volumes) == 0 {
+			return nil
+		}
+
+		if result.Volumes[0].State == ec2types.VolumeStateAvailable {
+			return nil
+		}
+
+		if i == 30 {
+			return fmt.Errorf("timeout waiting for volume %s to be available", volumeID)
+		}
+	}
+	return nil
+}
