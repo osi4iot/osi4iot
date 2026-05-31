@@ -607,9 +607,6 @@ func DeleteAndWaitForEBSVolumesToBeDeleted(ctx context.Context, domainName strin
 	if len(result.Volumes) == 0 {
 		fmt.Println("No EBS volumes to delete")
 		return nil
-	} else {
-		fmt.Printf("result.Volumes: %+v\n", result.Volumes)
-		return fmt.Errorf("expected to find EBS volumes to delete, but found none")
 	}
 
 	fmt.Printf("Deleting %d EBS volumes...\n", len(result.Volumes))
