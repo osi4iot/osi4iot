@@ -155,13 +155,19 @@ func verifyIMDSv1(ctx context.Context) (bool, error) {
 }
 
 func GetEC2RoleConfig(ctx context.Context) (aws.Config, error) {
-    return config.LoadDefaultConfig(ctx,
-        // Ignorar variables de entorno y usar solo el IAM Role del EC2
+	// Obtain the region from the EC2 IMDS
+    cfg, err := config.LoadDefaultConfig(ctx,
         config.WithCredentialsProvider(
             aws.NewCredentialsCache(
                 ec2rolecreds.New(),
             ),
         ),
+		// Load the region from IMDS automatically
+        config.WithEC2IMDSRegion(),
     )
+    if err != nil {
+        return aws.Config{}, fmt.Errorf("error loading AWS config: %w", err)
+    }
+    return cfg, nil
 }
 

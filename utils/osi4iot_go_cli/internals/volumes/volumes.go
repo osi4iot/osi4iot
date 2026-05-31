@@ -265,16 +265,8 @@ func RemoveSwarmVolumes(pd *pt.PlatformData) error {
 		}
 
 		for _, v := range existingVolumes {
-			fmt.Printf("XXXXXXXXXXX Nombre: %s\n", v.Name)
-			fmt.Printf("XXXXXXXXXXX Driver: %s\n", v.Driver)
-			fmt.Printf("XXXXXXXXXXX Mountpoint: %s\n", v.Mountpoint)
-			fmt.Printf("XXXXXXXXXXX Status: %+v\n", v.Status)
-			fmt.Printf("XXXXXXXXXXX Labels: %+v\n", v.Labels)
-			fmt.Println("XXXXXXXXXXX ---")
-
 			err = dc.Cli.VolumeRemove(dc.Ctx, v.Name, true)
 			if err != nil {
-				fmt.Printf("XXXXXXXXXXX Error VolumeRemove: %v\n", err)
 				if errdefs.IsNotFound(err) {
 					continue
 				}
@@ -282,11 +274,8 @@ func RemoveSwarmVolumes(pd *pt.PlatformData) error {
 					continue
 				}
 				errors = append(errors, fmt.Errorf("error removing volume: %v", err))
-			} else {
-				fmt.Printf("XXXXXXXXXXXX VolumeRemove ejecutado sin error para: %s\n", v.Name)
 			}
 		}
-
 	}
 
 	if len(errors) > 0 {
