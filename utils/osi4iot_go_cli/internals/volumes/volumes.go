@@ -119,48 +119,90 @@ func GenerateVolumes(platformData *pt.PlatformData) map[string]pt.Volume {
 }
 
 func CreateVolume(dc *pt.DockerClient, domainName string, swarmVol *pt.Volume) error {
-	existingVolumes, err := dc.Cli.VolumeList(dc.Ctx, volume.ListOptions{})
-	if err != nil {
-		return fmt.Errorf("error listing volumes: %v", err)
-	}
+    existingVolumes, err := dc.Cli.VolumeList(dc.Ctx, volume.ListOptions{})
+    if err != nil {
+        return fmt.Errorf("error listing volumes: %v", err)
+    }
 
-	volumeExists := false
-	for _, v := range existingVolumes.Volumes {
-		if v.Name == swarmVol.Name {
-			swarmVol.ID = v.Name
-			volumeExists = true
-			break
-		}
-	}
+    volumeExists := false
+    for _, v := range existingVolumes.Volumes {
+        if v.Name == swarmVol.Name {
+            swarmVol.ID = v.Name
+            volumeExists = true
+            break
+        }
+    }
 
-	if !volumeExists {
-		driverOpts := swarmVol.DriverOpts
-		if driverOpts == nil {
-			driverOpts = map[string]string{}
-		}
+    if !volumeExists {
+        vol, err := dc.Cli.VolumeCreate(dc.Ctx, volume.CreateOptions{
+            Name:       swarmVol.Name,
+            Driver:     swarmVol.Driver,
+            DriverOpts: swarmVol.DriverOpts,
+            Labels: map[string]string{
+                "app":        "osi4iot",
+                "service":    swarmVol.ServiceName,
+                "domainName": domainName,
+            },
+        })
+        if err != nil {
+            return fmt.Errorf("error creating volume: %v", err)
+        }
+        swarmVol.ID = vol.Name
 
-		driverOpts["tags"] = fmt.Sprintf("app=osi4iot,service=%s,domainName=%s",
-			swarmVol.ServiceName,
-			domainName,
-		)
+        if swarmVol.Driver == "rexray-ebs" || swarmVol.Driver == "rexray-ebs:latest" {
+            if err := tagEBSVolume(dc.Ctx, swarmVol.Name, swarmVol.ServiceName, domainName); err != nil {
+                fmt.Printf("Warning: error tagging EBS volume %s: %v\n", swarmVol.Name, err)
+            }
+        }
+    }
 
-		vol, err := dc.Cli.VolumeCreate(dc.Ctx, volume.CreateOptions{
-			Name:       swarmVol.Name,
-			Driver:     swarmVol.Driver,
-			DriverOpts: driverOpts,
-			Labels: map[string]string{
-				"app":        "osi4iot",
-				"service":    swarmVol.ServiceName,
-				"domainName": domainName,
-			},
-		})
-		if err != nil {
-			return fmt.Errorf("error creating volume: %v", err)
-		}
-		swarmVol.ID = vol.Name
-	}
+    return nil
+}
 
-	return nil
+func tagEBSVolume(ctx context.Context, volumeName, serviceName, domainName string) error {
+    cfg, err := config.LoadDefaultConfig(ctx)
+    if err != nil {
+        return fmt.Errorf("error loading AWS config: %w", err)
+    }
+    ec2Client := ec2.NewFromConfig(cfg)
+
+    result, err := ec2Client.DescribeVolumes(ctx, &ec2.DescribeVolumesInput{
+        Filters: []ec2types.Filter{
+            {
+                Name:   aws.String("tag:Name"),
+                Values: []string{volumeName},
+            },
+            {
+                // Solo volúmenes recién creados o en uso
+                Name:   aws.String("status"),
+                Values: []string{"available", "in-use"},
+            },
+        },
+    })
+    if err != nil {
+        return fmt.Errorf("error describing EBS volume %s: %w", volumeName, err)
+    }
+
+    if len(result.Volumes) == 0 {
+        return fmt.Errorf("EBS volume with Name=%s not found in AWS", volumeName)
+    }
+
+    volumeID := aws.ToString(result.Volumes[0].VolumeId)
+
+    _, err = ec2Client.CreateTags(ctx, &ec2.CreateTagsInput{
+        Resources: []string{volumeID},
+        Tags: []ec2types.Tag{
+            {Key: aws.String("app"),        Value: aws.String("osi4iot")},
+            {Key: aws.String("service"),    Value: aws.String(serviceName)},
+            {Key: aws.String("domainName"), Value: aws.String(domainName)},
+        },
+    })
+    if err != nil {
+        return fmt.Errorf("error tagging EBS volume %s (%s): %w", volumeName, volumeID, err)
+    }
+
+    fmt.Printf("EBS volume %s (%s) tagged correctly\n", volumeName, volumeID)
+    return nil
 }
 
 func CreateSwarmVolumes(pd *pt.PlatformData, volumesMap map[string]pt.Volume) (map[string]pt.Volume, error) {
