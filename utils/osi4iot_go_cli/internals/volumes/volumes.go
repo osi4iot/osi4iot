@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/volume"
@@ -12,7 +13,6 @@ import (
 	"github.com/osi4iot/osi4iot/utils/osi4iot/internals/utils"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 )
@@ -160,10 +160,11 @@ func CreateVolume(dc *pt.DockerClient, domainName string, swarmVol *pt.Volume) e
 }
 
 func tagEBSVolume(ctx context.Context, volumeName, serviceName, domainName string) error {
-    cfg, err := config.LoadDefaultConfig(ctx)
+    cfg, err := utils.GetEC2RoleConfig(ctx)
     if err != nil {
         return fmt.Errorf("error loading AWS config: %w", err)
     }
+
     ec2Client := ec2.NewFromConfig(cfg)
 
     result, err := ec2Client.DescribeVolumes(ctx, &ec2.DescribeVolumesInput{
@@ -444,10 +445,10 @@ func RemovePipelinesVolume(dc *pt.DockerClient, replica int) error {
 }
 
 func ListEBSVolumes(ctx context.Context, filters ...ec2types.Filter) ([]EBSVolumeInfo, error) {
-	cfg, err := config.LoadDefaultConfig(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("error loading AWS config: %w", err)
-	}
+    cfg, err := utils.GetEC2RoleConfig(ctx)
+    if err != nil {
+        return nil, fmt.Errorf("error loading AWS config: %w", err)
+    }
 	ec2Client := ec2.NewFromConfig(cfg)
 
 	input := &ec2.DescribeVolumesInput{}
@@ -505,6 +506,55 @@ func ListEBSVolumesByState(ctx context.Context, states ...string) ([]EBSVolumeIn
 			Values: states,
 		},
 	)
+}
+
+func WaitForEBSVolumesToBeDeleted(ctx context.Context, domainName string) error {
+    cfg, err := utils.GetEC2RoleConfig(ctx)
+    if err != nil {
+        return fmt.Errorf("error loading AWS config: %w", err)
+    }
+    ec2Client := ec2.NewFromConfig(cfg)
+
+    for i := 0; i <= 30; i++ {
+        time.Sleep(2 * time.Second)
+
+        result, err := ec2Client.DescribeVolumes(ctx, &ec2.DescribeVolumesInput{
+            Filters: []ec2types.Filter{
+                {
+                    Name:   aws.String("tag:app"),
+                    Values: []string{"osi4iot"},
+                },
+                {
+                    Name:   aws.String("tag:domainName"),
+                    Values: []string{domainName},
+                },
+                {
+                    Name:   aws.String("status"),
+                    Values: []string{"creating", "available", "in-use", "deleting"},
+                },
+            },
+        })
+        if err != nil {
+            return fmt.Errorf("error describing EBS volumes: %w", err)
+        }
+
+        if len(result.Volumes) == 0 {
+            fmt.Println("All EBS volumes have been deleted")
+            return nil
+        }
+
+        fmt.Printf("Waiting for deletion of %d EBS volumes...\n", len(result.Volumes))
+
+        if i == 30 {
+            for _, v := range result.Volumes {
+                fmt.Printf("Pending EBS volume: %s (state: %s)\n",
+                    aws.ToString(v.VolumeId), v.State)
+            }
+            return fmt.Errorf("timeout: %d EBS volumes were not deleted", len(result.Volumes))
+        }
+    }
+
+    return nil
 }
 
 func GetNumVolumes(pd *pt.PlatformData) (int, error) {

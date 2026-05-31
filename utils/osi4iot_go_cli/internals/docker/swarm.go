@@ -1,6 +1,7 @@
 package docker
 
 import (
+	"context"
 	"fmt"
 	"slices"
 	"strings"
@@ -23,7 +24,7 @@ import (
 )
 
 func InitPlatform(pd *pt.PlatformData) error {
-    fmt.Println("Initializing platform...")
+	fmt.Println("Initializing platform...")
 
 	pd.PlatformInfo.ExcludedServices = []string{}
 
@@ -41,32 +42,32 @@ func InitPlatform(pd *pt.PlatformData) error {
 		return fmt.Errorf("error: generating NATS credentials %s", err1.Error())
 	}
 
-    err := initSwarm()
-    if err != nil {
-        return fmt.Errorf("error: initializing swarm %s", err.Error())
-    }
-    dc, err := GetManagerDC()
-    if err != nil {
-        return fmt.Errorf("error: getting docker client %s", err.Error())
-    }
-    err = nodesConfiguration(pd)
-    if err != nil {
-        return fmt.Errorf("error: configuring nodes %s", err.Error())
-    }
-    err = joinAllNodesToSwarm(dc)
-    if err != nil {
-        return fmt.Errorf("error: joining nodes to swarm %s", err.Error())
-    }
+	err := initSwarm()
+	if err != nil {
+		return fmt.Errorf("error: initializing swarm %s", err.Error())
+	}
+	dc, err := GetManagerDC()
+	if err != nil {
+		return fmt.Errorf("error: getting docker client %s", err.Error())
+	}
+	err = nodesConfiguration(pd)
+	if err != nil {
+		return fmt.Errorf("error: configuring nodes %s", err.Error())
+	}
+	err = joinAllNodesToSwarm(dc)
+	if err != nil {
+		return fmt.Errorf("error: joining nodes to swarm %s", err.Error())
+	}
 
-    err = updateNodesData(dc, &pd.PlatformInfo.NodesData)
-    if err != nil {
-        return fmt.Errorf("error: updating nodes data %s", err.Error())
-    }
-    err = RunSwarm(dc, pd)
-    if err != nil {
-        return fmt.Errorf("error: running swarm %s", err.Error())
-    }
-    return nil
+	err = updateNodesData(dc, &pd.PlatformInfo.NodesData)
+	if err != nil {
+		return fmt.Errorf("error: updating nodes data %s", err.Error())
+	}
+	err = RunSwarm(dc, pd)
+	if err != nil {
+		return fmt.Errorf("error: running swarm %s", err.Error())
+	}
+	return nil
 }
 
 func RunSwarm(dc *pt.DockerClient, pd *pt.PlatformData) error {
@@ -268,7 +269,7 @@ func StopPlatform(platformData *pt.PlatformData) error {
 	return nil
 }
 
-func DeletePlatform(platformData *pt.PlatformData) error {
+func DeletePlatform(pd *pt.PlatformData) error {
 	docker, err := GetManagerDC()
 	if err != nil {
 		return fmt.Errorf("error getting docker client: %v", err)
@@ -331,7 +332,7 @@ func DeletePlatform(platformData *pt.PlatformData) error {
 	timeOut := false
 	for i := 0; i <= 60; i++ {
 		time.Sleep(1 * time.Second) // wait for containers to stop completely
-		err = volumes.RemoveSwarmVolumes(platformData)
+		err = volumes.RemoveSwarmVolumes(pd)
 		if err == nil {
 			break
 		}
@@ -344,14 +345,23 @@ func DeletePlatform(platformData *pt.PlatformData) error {
 		done <- false
 		return fmt.Errorf("error timeout removing volumes: %v", err)
 	}
+
+	if pd.PlatformInfo.UseRexRayPlugin {
+		domainName := pd.PlatformInfo.DomainName
+		if err := volumes.WaitForEBSVolumesToBeDeleted(context.Background(), domainName); err != nil {
+			done <- false
+			return fmt.Errorf("error waiting for EBS volumes to be deleted: %v", err)
+		}
+	}
+
 	done <- true
 
-	err = removeNfsRootFolder(platformData)
+	err = removeNfsRootFolder(pd)
 	if err != nil {
 		return fmt.Errorf("error removing NFS root folder: %v", err)
 	}
 
-	err = uninstallRexRayPlugin(platformData)
+	err = uninstallRexRayPlugin(pd)
 	if err != nil {
 		return fmt.Errorf("error uninstalling RexRay plugin: %v", err)
 	}
@@ -361,7 +371,7 @@ func DeletePlatform(platformData *pt.PlatformData) error {
 		return fmt.Errorf("error leaving swarm: %v", err)
 	}
 
-	err = utils.WritePlatformDataToFile(platformData)
+	err = utils.WritePlatformDataToFile(pd)
 	if err != nil {
 		return fmt.Errorf("error writing platform data to file: %v", err)
 	}

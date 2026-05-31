@@ -1,11 +1,15 @@
 package utils
 
 import (
-    "context"
-    "fmt"
-    "io"
-    "net/http"
-    "time"
+	"context"
+	"fmt"
+	"io"
+	"net/http"
+	"time"
+
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/credentials/ec2rolecreds"
 )
 
 var AwsRegions = []string{
@@ -148,5 +152,16 @@ func verifyIMDSv1(ctx context.Context) (bool, error) {
     defer resp.Body.Close()
 
     return resp.StatusCode == http.StatusOK, nil
+}
+
+func GetEC2RoleConfig(ctx context.Context) (aws.Config, error) {
+    return config.LoadDefaultConfig(ctx,
+        // Ignorar variables de entorno y usar solo el IAM Role del EC2
+        config.WithCredentialsProvider(
+            aws.NewCredentialsCache(
+                ec2rolecreds.New(),
+            ),
+        ),
+    )
 }
 
