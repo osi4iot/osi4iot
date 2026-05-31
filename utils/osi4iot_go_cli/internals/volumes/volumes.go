@@ -134,10 +134,20 @@ func CreateVolume(dc *pt.DockerClient, domainName string, swarmVol *pt.Volume) e
 	}
 
 	if !volumeExists {
+		driverOpts := swarmVol.DriverOpts
+		if driverOpts == nil {
+			driverOpts = map[string]string{}
+		}
+
+		driverOpts["tags"] = fmt.Sprintf("app=osi4iot,service=%s,domainName=%s",
+			swarmVol.ServiceName,
+			domainName,
+		)
+
 		vol, err := dc.Cli.VolumeCreate(dc.Ctx, volume.CreateOptions{
 			Name:       swarmVol.Name,
 			Driver:     swarmVol.Driver,
-			DriverOpts: swarmVol.DriverOpts,
+			DriverOpts: driverOpts,
 			Labels: map[string]string{
 				"app":        "osi4iot",
 				"service":    swarmVol.ServiceName,
@@ -212,6 +222,13 @@ func RemoveSwarmVolumes(pd *pt.PlatformData) error {
 		}
 
 		for _, v := range existingVolumes {
+			fmt.Printf("Nombre: %s\n", v.Name)
+			fmt.Printf("Driver: %s\n", v.Driver)
+			fmt.Printf("Mountpoint: %s\n", v.Mountpoint)
+			fmt.Printf("Status: %+v\n", v.Status)
+			fmt.Printf("Labels: %+v\n", v.Labels)
+			fmt.Println("---")
+
 			err = dc.Cli.VolumeRemove(dc.Ctx, v.Name, true)
 			if err != nil {
 				if errdefs.IsNotFound(err) {
