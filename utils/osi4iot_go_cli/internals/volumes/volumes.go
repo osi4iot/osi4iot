@@ -1,6 +1,7 @@
 package volumes
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -9,6 +10,11 @@ import (
 	"github.com/docker/docker/errdefs"
 	pt "github.com/osi4iot/osi4iot/utils/osi4iot/internals/types"
 	"github.com/osi4iot/osi4iot/utils/osi4iot/internals/utils"
+
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 )
 
 type EBSVolumeOptions struct {
@@ -30,6 +36,16 @@ var DefaultEBSVolumeVolumeOptions = EBSVolumeOptions{
 type VolumeOptions struct {
 	driverOptsO string
 	ebsOpts     EBSVolumeOptions
+}
+
+type EBSVolumeInfo struct {
+	VolumeID   string
+	State      string
+	Size       int32
+	VolumeType string
+	AZ         string
+	Encrypted  bool
+	Tags       map[string]string
 }
 
 func createDefaultOptions(pi pt.PlatformInfo) VolumeOptions {
@@ -102,7 +118,7 @@ func GenerateVolumes(platformData *pt.PlatformData) map[string]pt.Volume {
 	return Volumes
 }
 
-func CreateVolume(dc *pt.DockerClient, swarmVol *pt.Volume) error {
+func CreateVolume(dc *pt.DockerClient, domainName string, swarmVol *pt.Volume) error {
 	existingVolumes, err := dc.Cli.VolumeList(dc.Ctx, volume.ListOptions{})
 	if err != nil {
 		return fmt.Errorf("error listing volumes: %v", err)
@@ -123,8 +139,9 @@ func CreateVolume(dc *pt.DockerClient, swarmVol *pt.Volume) error {
 			Driver:     swarmVol.Driver,
 			DriverOpts: swarmVol.DriverOpts,
 			Labels: map[string]string{
-				"app":     "osi4iot",
-				"service": swarmVol.ServiceName,
+				"app":        "osi4iot",
+				"service":    swarmVol.ServiceName,
+				"domainName": domainName,
 			},
 		})
 		if err != nil {
@@ -138,6 +155,7 @@ func CreateVolume(dc *pt.DockerClient, swarmVol *pt.Volume) error {
 
 func CreateSwarmVolumes(pd *pt.PlatformData, volumesMap map[string]pt.Volume) (map[string]pt.Volume, error) {
 	numNodes := len(pd.PlatformInfo.NodesData)
+	domainName := pd.PlatformInfo.DomainName
 	errors := []error{}
 	for _, dc := range pt.DCMap {
 		var filteredVolumes map[string]pt.Volume
@@ -148,7 +166,7 @@ func CreateSwarmVolumes(pd *pt.PlatformData, volumesMap map[string]pt.Volume) (m
 		}
 
 		for key, volume := range filteredVolumes {
-			err := CreateVolume(dc, &volume)
+			err := CreateVolume(dc, domainName, &volume)
 			if err != nil {
 				errors = append(errors, fmt.Errorf("error creating volume %s in node %s: %v", volume.Name, dc.Node.NodeIP, err))
 			}
@@ -316,8 +334,9 @@ func CreateNatsVolume(pi pt.PlatformInfo, dc *pt.DockerClient, replica int) (*pt
 	volOptions := createDefaultOptions(pi)
 	volumeName := fmt.Sprintf("nats%d_data", replica)
 	serviceName := fmt.Sprintf("nats%d", replica)
+	domainName := pi.DomainName
 	volume := SetVolumeConfig(pi, volumeName, serviceName, pi.DeploymentLocation, volOptions)
-	err := CreateVolume(dc, &volume)
+	err := CreateVolume(dc, domainName, &volume)
 	if err != nil {
 		return nil, fmt.Errorf("error creating volume %s in node %s: %v", volume.Name, dc.Node.NodeIP, err)
 	}
@@ -340,8 +359,9 @@ func RemoveNatsVolume(dc *pt.DockerClient, replica int) error {
 func CreatePipelinesVolume(pi pt.PlatformInfo, dc *pt.DockerClient, replica int) error {
 	volOptions := createDefaultOptions(pi)
 	volumeName := fmt.Sprintf("pipelines_data_%d", replica)
+	domainName := pi.DomainName
 	volume := SetVolumeConfig(pi, volumeName, "pipelines", pi.DeploymentLocation, volOptions)
-	err := CreateVolume(dc, &volume)
+	err := CreateVolume(dc, domainName, &volume)
 	if err != nil {
 		return fmt.Errorf("error creating volume %s in node %s: %v", volume.Name, dc.Node.NodeIP, err)
 	}
@@ -359,4 +379,98 @@ func RemovePipelinesVolume(dc *pt.DockerClient, replica int) error {
 		return fmt.Errorf("error removing volume: %v", err)
 	}
 	return nil
+}
+
+func ListEBSVolumes(ctx context.Context, filters ...ec2types.Filter) ([]EBSVolumeInfo, error) {
+	cfg, err := config.LoadDefaultConfig(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("error loading AWS config: %w", err)
+	}
+	ec2Client := ec2.NewFromConfig(cfg)
+
+	input := &ec2.DescribeVolumesInput{}
+	if len(filters) > 0 {
+		input.Filters = filters
+	}
+
+	var volumes []EBSVolumeInfo
+
+	paginator := ec2.NewDescribeVolumesPaginator(ec2Client, input)
+	for paginator.HasMorePages() {
+		page, err := paginator.NextPage(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("error describing EBS volumes: %w", err)
+		}
+
+		for _, v := range page.Volumes {
+			tags := make(map[string]string)
+			for _, tag := range v.Tags {
+				tags[aws.ToString(tag.Key)] = aws.ToString(tag.Value)
+			}
+
+			volumes = append(volumes, EBSVolumeInfo{
+				VolumeID:   aws.ToString(v.VolumeId),
+				State:      string(v.State),
+				Size:       aws.ToInt32(v.Size),
+				VolumeType: string(v.VolumeType),
+				AZ:         aws.ToString(v.AvailabilityZone),
+				Encrypted:  aws.ToBool(v.Encrypted),
+				Tags:       tags,
+			})
+		}
+	}
+
+	return volumes, nil
+}
+
+func ListOsi4iotEBSVolumes(ctx context.Context, domainName string) ([]EBSVolumeInfo, error) {
+	return ListEBSVolumes(ctx,
+		ec2types.Filter{
+			Name:   aws.String("tag:app"),
+			Values: []string{"osi4iot"},
+		},
+		ec2types.Filter{
+			Name:   aws.String("tag:domainName"),
+			Values: []string{domainName},
+		},
+	)
+}
+
+func ListEBSVolumesByState(ctx context.Context, states ...string) ([]EBSVolumeInfo, error) {
+	return ListEBSVolumes(ctx,
+		ec2types.Filter{
+			Name:   aws.String("status"),
+			Values: states,
+		},
+	)
+}
+
+func GetNumVolumes(pd *pt.PlatformData) (int, error) {
+	pi := pd.PlatformInfo
+	domainName := pi.DomainName
+	useRexRay := pi.UseRexRayPlugin
+	numVolumes := 0
+	filterArgs := filters.NewArgs()
+	filterArgs.Add("label", "app=osi4iot")
+	filterArgs.Add("label", fmt.Sprintf("domainName=%s", domainName))
+
+	if useRexRay {
+		volumes, err := ListOsi4iotEBSVolumes(context.Background(), domainName)
+		if err != nil {
+			return 0, fmt.Errorf("error listing EBS volumes: %w", err)
+		}
+		numVolumes = len(volumes)
+	} else {
+		for _, dc := range pt.DCMap {
+			existingVolumes, err := dc.Cli.VolumeList(dc.Ctx, volume.ListOptions{
+				Filters: filterArgs,
+			})
+			if err != nil {
+				return 0, fmt.Errorf("error listing volumes: %v", err)
+			}
+			numVolumes += len(existingVolumes.Volumes)
+		}
+	}
+
+	return numVolumes, nil
 }
