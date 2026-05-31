@@ -605,11 +605,8 @@ func DeleteAndWaitForEBSVolumesToBeDeleted(ctx context.Context, domainName strin
 	}
 
 	if len(result.Volumes) == 0 {
-		fmt.Println("No EBS volumes to delete")
 		return nil
 	}
-
-	fmt.Printf("Deleting %d EBS volumes...\n", len(result.Volumes))
 
 	// 2. Delete each volume directly using the AWS SDK
 	deleteErrors := []error{}
@@ -618,7 +615,6 @@ func DeleteAndWaitForEBSVolumesToBeDeleted(ctx context.Context, domainName strin
 
 		// If the volume is still attached (in-use), detach it first
 		if v.State == ec2types.VolumeStateInUse {
-			fmt.Printf("Detaching volume %s...\n", volumeID)
 			_, err := ec2Client.DetachVolume(ctx, &ec2.DetachVolumeInput{
 				VolumeId: aws.String(volumeID),
 				Force:    aws.Bool(true),
@@ -637,16 +633,13 @@ func DeleteAndWaitForEBSVolumesToBeDeleted(ctx context.Context, domainName strin
 		}
 
 		// Delete the volume
-		fmt.Printf("Deleting EBS volume %s...\n", volumeID)
 		_, err := ec2Client.DeleteVolume(ctx, &ec2.DeleteVolumeInput{
 			VolumeId: aws.String(volumeID),
 		})
 		if err != nil {
 			deleteErrors = append(deleteErrors,
 				fmt.Errorf("error deleting volume %s: %w", volumeID, err))
-			continue
 		}
-		fmt.Printf("EBS volume %s deleted\n", volumeID)
 	}
 
 	if len(deleteErrors) > 0 {
@@ -679,17 +672,10 @@ func DeleteAndWaitForEBSVolumesToBeDeleted(ctx context.Context, domainName strin
 		}
 
 		if len(remaining.Volumes) == 0 {
-			fmt.Println("All EBS volumes deleted successfully")
 			return nil
 		}
 
-		fmt.Printf("Waiting for %d EBS volumes to be deleted...\n", len(remaining.Volumes))
-
 		if i == 30 {
-			for _, v := range remaining.Volumes {
-				fmt.Printf("Pending EBS volume: %s (state: %s)\n",
-					aws.ToString(v.VolumeId), v.State)
-			}
 			return fmt.Errorf("timeout: %d EBS volumes were not deleted",
 				len(remaining.Volumes))
 		}

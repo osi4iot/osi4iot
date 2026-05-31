@@ -345,15 +345,16 @@ func DeletePlatform(pd *pt.PlatformData) error {
 		done <- false
 		return fmt.Errorf("error timeout removing volumes: %v", err)
 	}
-	
-	done <- true
 
 	if pd.PlatformInfo.UseRexRayPlugin {
 		domainName := pd.PlatformInfo.DomainName
 		if err := volumes.DeleteAndWaitForEBSVolumesToBeDeleted(context.Background(), domainName); err != nil {
+			done <- false
 			return fmt.Errorf("error waiting for EBS volumes to be deleted: %v", err)
 		}
 	}
+
+	done <- true
 
 	err = removeNfsRootFolder(pd)
 	if err != nil {
