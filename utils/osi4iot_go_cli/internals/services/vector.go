@@ -97,6 +97,9 @@ func VectorService(
 				Source:   "/var/lib/docker/volumes",
 				Target:   "/var/lib/docker/volumes",
 				ReadOnly: true,
+				BindOptions: &mount.BindOptions{
+					Propagation: mount.PropagationRSlave,
+				},
 			},
 			{
 				Type:     mount.TypeBind,

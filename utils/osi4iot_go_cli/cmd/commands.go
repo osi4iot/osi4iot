@@ -17,6 +17,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
+const version = "0.1.0"
+
 var SwarmActions = []string{"create", "init", "run", "stop", "delete", "service", "certs"}
 
 // rootCmd represents the base command when called without any subcommands
@@ -29,6 +31,15 @@ var rootCmd = &cobra.Command{
 		crypto.SetNoEncrypt(noEncrypt)
 	},
 	// Run: func(cmd *cobra.Command, args []string) {},
+}
+
+var cmdVersion = &cobra.Command{
+	Use:   "version",
+	Short: "Show osi4iot version",
+	Long:  "Show osi4iot version",
+	Run: func(cmd *cobra.Command, args []string) {
+		fmt.Printf("osi4iot CLI version: %s\n", version)
+	},
 }
 
 var cmdCreate = &cobra.Command{
@@ -665,6 +676,7 @@ func Execute() {
 
 func init() {
 	rootCmd.PersistentFlags().Bool("no-encrypt", false, "Disable encryption for debugging (plain text osi4iot_state.json)")
+	rootCmd.AddCommand(cmdVersion)
 	rootCmd.AddCommand(cmdCreate)
 	rootCmd.AddCommand(cmdInit)
 	cmdInit.PersistentFlags().StringSlice("exclude", []string{}, "List of services to exclude")

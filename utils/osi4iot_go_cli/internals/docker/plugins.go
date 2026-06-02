@@ -2,6 +2,7 @@ package docker
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/osi4iot/osi4iot/utils/osi4iot/internals/types"
 	"github.com/osi4iot/osi4iot/utils/osi4iot/internals/utils"
@@ -86,13 +87,13 @@ func uninstallRexRayPlugin(pd *types.PlatformData) error {
 
 	uninstallScript := `
         if ! docker plugin ls --format '{{.Name}}' | grep -q "rexray-ebs"; then
-            echo "rexray-ebs plugin is not installed"
+            echo "not_installed"
             exit 0
         fi
 
         docker plugin disable rexray-ebs --force
         docker plugin rm rexray-ebs
-        echo "rexray-ebs plugin uninstalled successfully"
+        echo "uninstalled"
     `
 	nodeScripts := make([]utils.NodeScript, len(nodes))
 	for i, node := range nodes {
@@ -107,8 +108,22 @@ func uninstallRexRayPlugin(pd *types.PlatformData) error {
 		return fmt.Errorf("error uninstalling rexray plugin: %w", err)
 	}
 
-	for i, resp := range responses {
-		fmt.Printf("Node %s: %s\n", nodes[i].NodeIP, resp)
+	uninstalled := 0
+	alreadyRemoved := 0
+	for _, resp := range responses {
+		switch strings.TrimSpace(resp) {
+		case "uninstalled":
+			uninstalled++
+		case "not_installed":
+			alreadyRemoved++
+		}
+	}
+
+	if uninstalled > 0 {
+		fmt.Printf("rexray-ebs plugin uninstalled successfully on %d node(s)\n", uninstalled)
+	}
+	if alreadyRemoved > 0 {
+		fmt.Printf("rexray-ebs plugin was not installed on %d node(s)\n", alreadyRemoved)
 	}
 
 	return nil

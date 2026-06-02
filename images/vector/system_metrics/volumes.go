@@ -171,7 +171,7 @@ func collectVolumes(pretty bool) error {
 				continue
 			}
 
-			hostPath := resolveHostPath(dockerRoot, hostfsRoot, mountType, m.Name, m.Source)
+			hostPath := resolveHostPath(dockerRoot, hostfsRoot, mountType, m.Name, m.Source, m.Driver)
 			used, avail, total := volumeSizeBytes(hostPath)
 
 			usagePct := 0.0
@@ -223,11 +223,16 @@ func collectVolumes(pretty bool) error {
 }
 
 // resolveHostPath maps a container mount to its absolute path on the host filesystem. 
-// For bind mounts, this is just the source path. For named volumes, 
-// this is typically /var/lib/docker/volumes/<volume>/_data, 
-// but we verify the driver to be sure (some drivers may use a different structure or be inaccessible via HOSTFS_ROOT).
-func resolveHostPath(dockerRoot, hostfsRoot, mountType, volumeName, source string) string {
+// For bind mounts, this is usually the source path. For named volumes, 
+// this is typically /var/lib/docker/volumes/<volume>/_data, but we verify the driver to be sure (some drivers may use a different structure or be inaccessible via HOSTFS_ROOT).
+func resolveHostPath(dockerRoot, hostfsRoot, mountType, volumeName, source, driver string) string {
     if mountType == "volume" && volumeName != "" {
+        if isExternalDriver(driver) {
+            if source != "" {
+                return hostfsRoot + source
+            }
+            return ""
+        }
         return dockerRoot + "/volumes/" + volumeName + "/_data"
     }
     return hostfsRoot + source
@@ -262,17 +267,33 @@ func isSystemMount(mountType, source string) bool {
 	return false
 }
 
-// Get filesystem size info for the given path using syscall.Statfs.
+// // Get filesystem size info for the given path using syscall.Statfs.
+// func volumeSizeBytes(path string) (used, avail, total int64) {
+// 	var s syscall.Statfs_t
+// 	if err := syscall.Statfs(path, &s); err != nil {
+// 		return
+// 	}
+// 	bs := int64(s.Bsize)
+// 	total = int64(s.Blocks) * bs
+// 	avail = int64(s.Bavail) * bs
+// 	used, _ = dirSizeBytes(path) // WalkDir solo sobre el directorio del volumen
+// 	return
+// }
+
 func volumeSizeBytes(path string) (used, avail, total int64) {
-	var s syscall.Statfs_t
-	if err := syscall.Statfs(path, &s); err != nil {
-		return
-	}
-	bs := int64(s.Bsize)
-	total = int64(s.Blocks) * bs
-	avail = int64(s.Bavail) * bs
-	used, _ = dirSizeBytes(path) // WalkDir solo sobre el directorio del volumen
-	return
+    if path == "" {
+        return
+    }
+    var s syscall.Statfs_t
+    if err := syscall.Statfs(path, &s); err != nil {
+        fmt.Fprintf(os.Stderr, "[volumes] statfs(%s): %v\n", path, err)
+        return
+    }
+    bs := int64(s.Bsize)
+    total = int64(s.Blocks) * bs
+    avail = int64(s.Bavail) * bs
+    used = (int64(s.Blocks) - int64(s.Bfree)) * bs
+    return
 }
 
 
@@ -300,4 +321,21 @@ func hasAllowedVolumeNamePrefix(name string, prefixes []string) bool {
 		}
 	}
 	return false
+}
+
+// isExternalDriver detecta drivers de volumen que no usan el almacenamiento
+// local de Docker y montan en rutas propias.
+func isExternalDriver(driver string) bool {
+    external := []string{
+        "rexray", "rexray/ebs", "rexray/s3fs", "rexray/efs",
+        "storageos", "nfs", "cifs", "glusterfs",
+        "convoy", "flocker", "portworx",
+    }
+    d := strings.ToLower(driver)
+    for _, e := range external {
+        if strings.HasPrefix(d, e) {
+            return true
+        }
+    }
+    return false
 }
