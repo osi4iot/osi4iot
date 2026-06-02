@@ -106,6 +106,9 @@ func VectorService(
 				Source:   "/proc",
 				Target:   "/host/proc",
 				ReadOnly: true,
+				BindOptions: &mount.BindOptions{
+					Propagation: mount.PropagationRSlave,
+				},
 			},
 			{
 				Type:     mount.TypeBind,
@@ -123,6 +126,9 @@ func VectorService(
 				Source:   "/",
 				Target:   "/host",
 				ReadOnly: true,
+				BindOptions: &mount.BindOptions{
+					Propagation: mount.PropagationRSlave,
+				},
 			},
 		}).
 		WithResources(

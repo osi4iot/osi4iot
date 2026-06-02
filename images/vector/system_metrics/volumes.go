@@ -53,10 +53,13 @@ type ContainerVolumeMetric struct {
 	MountSource string `json:"mount_source"` // host path or volume name
 	Driver      string `json:"driver,omitempty"`
 
-	// Filesystem usage — obtained by parsing /proc/<pid>/mountinfo to find
-	// the block device backing the mount destination, then calling statfs(2)
-	// on the device path via HOSTFS_ROOT. This approach is driver-agnostic
-	// and works with Rex-Ray/EBS, NFS, and any other volume plugin.
+	// Filesystem usage — obtained by:
+	//   1. Parsing /proc/<pid>/mountinfo of the target container to find the
+	//      block device (e.g. /dev/xvdf) backing the mount destination.
+	//   2. Finding that device's mountpoint in Vector's own mountinfo, which
+	//      sees Rex-Ray/EBS volumes via RSlave propagation at:
+	//      /host/var/lib/docker/plugins/<id>/propagated-mount/volumes/<name>
+	//   3. Calling statfs(2) on that mountpoint.
 	UsedBytes      int64   `json:"used_bytes"`
 	AvailableBytes int64   `json:"available_bytes"`
 	TotalBytes     int64   `json:"total_bytes"`
@@ -71,14 +74,10 @@ type ContainerVolumeMetric struct {
 // ContainerVolumeMetric per meaningful mount (skipping tmpfs and OS-internal
 // bind mounts).
 //
-// Disk usage is measured by parsing /proc/<pid>/mountinfo to find the block
-// device backing each mount destination, then calling statfs(2) on the device
-// path through HOSTFS_ROOT. No nsenter or docker exec required.
-//
 // Required in the Vector/collector container:
-//   - /var/run/docker.sock mounted        (Docker API access)
-//   - /proc mounted at PROCFS_ROOT        (mountinfo parsing)
-//   - / mounted at HOSTFS_ROOT            (statfs on block devices)
+//   - /var/run/docker.sock mounted                  (Docker API access)
+//   - /proc mounted at PROCFS_ROOT with RSlave       (mountinfo access)
+//   - / mounted at HOSTFS_ROOT with RSlave           (statfs on Rex-Ray mountpoints)
 //
 // Environment variables:
 //
@@ -128,6 +127,10 @@ func collectVolumes(pretty bool) error {
 	if err != nil {
 		return fmt.Errorf("error listing containers: %w", err)
 	}
+
+	// Read Vector's own mountinfo once — it contains all Rex-Ray/EBS volumes
+	// visible via RSlave propagation. We use it to resolve device→mountpoint.
+	selfMountinfo := procfsRoot + "/self/mountinfo"
 
 	now := time.Now().UTC()
 	enc := json.NewEncoder(os.Stdout)
@@ -181,7 +184,7 @@ func collectVolumes(pretty bool) error {
 				driver = m.Driver
 			}
 
-			used, avail, total := volumeSizeBytesViaMountInfo(procfsRoot, hostfsRoot, pid, m.Destination)
+			used, avail, total := volumeSizeBytesViaMountInfo(procfsRoot, selfMountinfo, pid, m.Destination)
 
 			usagePct := 0.0
 			if usable := used + avail; usable > 0 {
@@ -221,63 +224,38 @@ func collectVolumes(pretty bool) error {
 	return nil
 }
 
-// volumeSizeBytesViaMountInfo parses /proc/<pid>/mountinfo to find the block
-// device backing destination inside the container, then calls statfs(2) on
-// the device path via hostfsRoot.
-//
-// /proc/<pid>/mountinfo line format (space-separated):
-//
-//	mountID parentID major:minor root mountpoint options ... - fstype source mountoptions
-//
-// Example:
-//
-//	1425 1387 202:80 /data /var/lib/postgresql/data rw,relatime master:727 - ext4 /dev/xvdf rw
-//
-// The block device ("source", field after "-" separator) is accessible from
-// the collector container at hostfsRoot+devicePath (e.g. /host/dev/xvdf).
-func volumeSizeBytesViaMountInfo(procfsRoot, hostfsRoot string, pid int, destination string) (used, avail, total int64) {
+// volumeSizeBytesViaMountInfo resolves disk usage for a container mount in
+// two steps:
+//  1. Parse /proc/<pid>/mountinfo to find the block device (e.g. /dev/xvdf)
+//     backing destination inside the target container.
+//  2. Find that device's mountpoint in Vector's own mountinfo (selfMountinfo),
+//     where Rex-Ray volumes appear via RSlave propagation at paths like:
+//     /host/var/lib/docker/plugins/<id>/propagated-mount/volumes/<name>
+//  3. Call statfs(2) on that mountpoint.
+func volumeSizeBytesViaMountInfo(procfsRoot, selfMountinfo string, pid int, destination string) (used, avail, total int64) {
 	if pid == 0 || destination == "" {
 		return
 	}
 
-	mountinfoPath := fmt.Sprintf("%s/%d/mountinfo", procfsRoot, pid)
-	data, err := os.ReadFile(mountinfoPath)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "[volumes] mountinfo(%d): %v\n", pid, err)
+	// Step 1: find block device for destination in the target container's mountinfo.
+	device := findDeviceForDestination(procfsRoot, pid, destination)
+	if device == "" {
+		fmt.Fprintf(os.Stderr, "[volumes] no device found for pid=%d destination=%s\n", pid, destination)
 		return
 	}
 
-	// Find the line whose mountpoint (field index 4) matches destination.
-	var devicePath string
-	for _, line := range strings.Split(strings.TrimSpace(string(data)), "\n") {
-		fields := strings.Fields(line)
-		if len(fields) < 10 {
-			continue
-		}
-		if fields[4] != destination {
-			continue
-		}
-		// Fields after the "-" separator: fstype source mountoptions
-		for i, f := range fields {
-			if f == "-" && i+2 < len(fields) {
-				devicePath = fields[i+2] // e.g. /dev/xvdf
-				break
-			}
-		}
-		break
-	}
-
-	if devicePath == "" {
-		fmt.Fprintf(os.Stderr, "[volumes] mountinfo: no device found for %s (pid=%d)\n", destination, pid)
+	// Step 2: find where that device is mounted in Vector's own namespace.
+	mountpoint := findMountpointForDevice(selfMountinfo, device)
+	if mountpoint == "" {
+		fmt.Fprintf(os.Stderr, "[volumes] no mountpoint found in self for device=%s (pid=%d destination=%s)\n",
+			device, pid, destination)
 		return
 	}
 
-	// The block device is accessible from the collector container via hostfsRoot.
-	// e.g. /dev/xvdf → /host/dev/xvdf
-	hostDevicePath := hostfsRoot + devicePath
+	// Step 3: statfs on the resolved mountpoint.
 	var s syscall.Statfs_t
-	if err := syscall.Statfs(hostDevicePath, &s); err != nil {
-		fmt.Fprintf(os.Stderr, "[volumes] statfs(%s): %v\n", hostDevicePath, err)
+	if err := syscall.Statfs(mountpoint, &s); err != nil {
+		fmt.Fprintf(os.Stderr, "[volumes] statfs(%s): %v\n", mountpoint, err)
 		return
 	}
 
@@ -286,6 +264,57 @@ func volumeSizeBytesViaMountInfo(procfsRoot, hostfsRoot string, pid int, destina
 	avail = int64(s.Bavail) * bs
 	used = (int64(s.Blocks) - int64(s.Bfree)) * bs
 	return
+}
+
+// findDeviceForDestination parses /proc/<pid>/mountinfo and returns the block
+// device (source field after the "-" separator) for the given mountpoint.
+//
+// mountinfo line format:
+//
+//	mountID parentID major:minor root mountpoint options ... - fstype source mountoptions
+func findDeviceForDestination(procfsRoot string, pid int, destination string) string {
+	data, err := os.ReadFile(fmt.Sprintf("%s/%d/mountinfo", procfsRoot, pid))
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "[volumes] read mountinfo(pid=%d): %v\n", pid, err)
+		return ""
+	}
+	for _, line := range strings.Split(strings.TrimSpace(string(data)), "\n") {
+		fields := strings.Fields(line)
+		if len(fields) < 10 || fields[4] != destination {
+			continue
+		}
+		for i, f := range fields {
+			if f == "-" && i+2 < len(fields) {
+				return fields[i+2] // e.g. /dev/xvdf
+			}
+		}
+	}
+	return ""
+}
+
+// findMountpointForDevice parses selfMountinfo (Vector's own /proc/self/mountinfo)
+// and returns the first mountpoint where device is mounted. Rex-Ray volumes
+// appear here via RSlave propagation at paths like:
+//
+//	/host/var/lib/docker/plugins/<id>/propagated-mount/volumes/<name>
+func findMountpointForDevice(selfMountinfo, device string) string {
+	data, err := os.ReadFile(selfMountinfo)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "[volumes] read self mountinfo: %v\n", err)
+		return ""
+	}
+	for _, line := range strings.Split(strings.TrimSpace(string(data)), "\n") {
+		fields := strings.Fields(line)
+		if len(fields) < 10 {
+			continue
+		}
+		for i, f := range fields {
+			if f == "-" && i+2 < len(fields) && fields[i+2] == device {
+				return fields[4] // mountpoint visible from Vector
+			}
+		}
+	}
+	return ""
 }
 
 // systemMountPrefixes lists host paths whose bind mounts into containers are
