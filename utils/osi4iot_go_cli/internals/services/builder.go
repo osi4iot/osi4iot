@@ -271,6 +271,14 @@ func (b *ServiceBuilder) WithGlobal() *ServiceBuilder {
 	return b
 }
 
+// WithCapabilities adds Linux capabilities to the container spec.
+func (b *ServiceBuilder) WithCapabilities(add []string) *ServiceBuilder {
+	b.svc.TaskTemplate.ContainerSpec.CapabilityAdd = append(
+		b.svc.TaskTemplate.ContainerSpec.CapabilityAdd, add...,
+	)
+	return b
+}
+
 func (b *ServiceBuilder) Build() pt.Service { return b.svc }
 
 func durationPtr(d time.Duration) *time.Duration {

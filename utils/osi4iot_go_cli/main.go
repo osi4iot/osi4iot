@@ -27,7 +27,7 @@ func main() {
 
 	args := os.Args[1:]
 
-	noStateCommands := []string{"--help", "-h", "help"}
+	noStateCommands := []string{"--help", "-h", "help", "version"}
 	for _, arg := range args {
 		for _, noState := range noStateCommands {
 			if arg == noState {

@@ -4,11 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/fs"
 	"os"
-	"path/filepath"
+	"os/exec"
+	"strconv"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/docker/docker/api/types"
@@ -55,41 +54,42 @@ type ContainerVolumeMetric struct {
 	MountSource string `json:"mount_source"` // host path or volume name
 	Driver      string `json:"driver,omitempty"`
 
-	// Filesystem usage — obtained via statfs(2) on the host path.
-	// Requires HOSTFS_ROOT to be set (see collectContainerVolumes).
+	// Filesystem usage — obtained via nsenter(1) into the container's mount
+	// namespace, running df(1) against the mount destination. This approach
+	// works regardless of the volume driver (local, Rex-Ray/EBS, NFS, etc.)
+	// because we observe the filesystem exactly as the container sees it.
 	UsedBytes      int64   `json:"used_bytes"`
 	AvailableBytes int64   `json:"available_bytes"`
 	TotalBytes     int64   `json:"total_bytes"`
-	UsagePercent   float64 `json:"usage_percent"` // used / (used + avail) x 100
+	UsagePercent   float64 `json:"usage_percent"` // used / (used + avail) × 100
 
 	// Mount flags
 	ReadOnly    bool   `json:"read_only"`
 	Propagation string `json:"propagation,omitempty"`
 }
 
-// collectContainerVolumes inspects every running container's mount list and
-// emits one ContainerVolumeMetric per meaningful mount (skipping tmpfs and
-// OS-internal bind mounts). Disk usage is measured via statfs(2) on the real
-// host paths, which are reached through HOSTFS_ROOT.
+// collectVolumes inspects every running container's mount list and emits one
+// ContainerVolumeMetric per meaningful mount (skipping tmpfs and OS-internal
+// bind mounts).
 //
-// Required bind mounts in the Vector / collector container:
+// Disk usage is measured by entering the container's mount namespace via
+// nsenter(1) and running df(1) against the mount destination inside the
+// container. This is driver-agnostic: it works for local volumes, Rex-Ray/EBS,
+// NFS, and any other volume plugin without needing to resolve host-side paths.
 //
-//	-v /var/run/docker.sock:/var/run/docker.sock   (Docker API access)
-//	-v /:/host:ro                                  (host filesystem for statfs)
+// Required in the Vector/collector container:
+//   - /var/run/docker.sock mounted        (Docker API access)
+//   - /proc mounted at PROCFS_ROOT        (mount namespace entry via nsenter)
+//   - util-linux installed in the image   (provides nsenter)
 //
-// The HOSTFS_ROOT env var controls where the host root is mounted (default "/host").
-// If the volume driver is external (EFS, NFS, etc.) and not accessible via HOSTFS_ROOT,
-// statfs returns zeros but the row is still emitted for identity tracking.
+// Environment variables:
+//
+//	PROCFS_ROOT   host /proc bind-mount path  (default: /host/proc)
 func collectVolumes(pretty bool) error {
-	hostfsRoot := os.Getenv("HOSTFS_ROOT")
-	if hostfsRoot == "" {
-		hostfsRoot = "/host"
+	procfsRoot := os.Getenv("PROCFS_ROOT")
+	if procfsRoot == "" {
+		procfsRoot = "/host/proc"
 	}
-
-	dockerRoot := os.Getenv("DOCKER_ROOT")
-    if dockerRoot == "" {
-        dockerRoot = "/var/lib/docker"
-    }
 
 	cli, err := client.NewClientWithOpts(
 		client.FromEnv,
@@ -110,8 +110,7 @@ func collectVolumes(pretty bool) error {
 	nodeID := info.Swarm.NodeID
 	nodeName := info.Name
 
-	// Build a name->driver map for named volumes. We reuse DiskUsage (already
-	// called by the volumes collector) to avoid an extra VolumeList call.
+	// Build a name→driver map from DiskUsage to avoid an extra VolumeList call.
 	volDrivers := map[string]string{}
 	if du, err := cli.DiskUsage(ctx, types.DiskUsageOptions{}); err == nil {
 		for _, v := range du.Volumes {
@@ -132,13 +131,12 @@ func collectVolumes(pretty bool) error {
 		enc.SetIndent("", "  ")
 	}
 
-	
 	for _, c := range containers {
 		name := ""
 		if len(c.Names) > 0 {
 			name = strings.TrimPrefix(c.Names[0], "/")
 		}
-		
+
 		labels := c.Labels
 		app := labelOrDefault(labels, "app", "unknown")
 		stack := labelOrDefault(labels, "com.docker.stack.namespace", app)
@@ -146,13 +144,15 @@ func collectVolumes(pretty bool) error {
 		taskID := labelOrDefault(labels, "com.docker.swarm.task.id", "")
 		taskName := labelOrDefault(labels, "com.docker.swarm.task.name", "")
 		replicaSlot := parseReplicaSlot(taskName)
-		
+
 		inspect, err := cli.ContainerInspect(ctx, c.ID)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "[volume_metrics] inspect(%s): %v\n", c.ID[:12], err)
 			continue
 		}
-		
+
+		pid := inspect.State.Pid
+
 		for _, m := range inspect.Mounts {
 			mountType := string(m.Type)
 
@@ -160,26 +160,14 @@ func collectVolumes(pretty bool) error {
 				continue
 			}
 
-			// tmpfs lives entirely in RAM; statfs would return memory stats,
-			// not disk stats — skip.
+			// tmpfs lives entirely in RAM — skip.
 			if mountType == "tmpfs" {
 				continue
 			}
 
-			// Skip bind mounts to OS or Docker infrastructure paths that carry no useful disk-usage information. 
+			// Skip bind mounts to OS or Docker infrastructure paths.
 			if isSystemMount(mountType, m.Source) {
 				continue
-			}
-
-			hostPath := resolveHostPath(dockerRoot, hostfsRoot, mountType, m.Name, m.Source, m.Driver)
-			used, avail, total := volumeSizeBytes(hostPath)
-
-			usagePct := 0.0
-			if usable := used + avail; usable > 0 {
-				// Percentage = used / (used + available-to-users) x 100.
-				// This matches the convention used by df and Prometheus node_exporter:
-				// reserved blocks are counted as used, not available.
-				usagePct = float64(used) / float64(usable) * 100.0
 			}
 
 			// Prefer the driver from the volume list (more authoritative);
@@ -189,28 +177,35 @@ func collectVolumes(pretty bool) error {
 				driver = m.Driver
 			}
 
+			used, avail, total := volumeSizeBytesViaNsenter(procfsRoot, pid, m.Destination)
+
+			usagePct := 0.0
+			if usable := used + avail; usable > 0 {
+				usagePct = float64(used) / float64(usable) * 100.0
+			}
+
 			metric := ContainerVolumeMetric{
-				Time:               now,
-				ContainerID:        c.ID,
-				ContainerName:      name,
-				NodeID:             nodeID,
-				NodeName:           nodeName,
-				Stack:              stack,
-				Service:            service,
-				TaskID:             taskID,
-				TaskName:           taskName,
-				ReplicaSlot:        replicaSlot,
-				VolumeName:         m.Name,
-				MountType:          mountType,
-				MountSource:        m.Source,
-				MountDestination:   m.Destination,
-				Driver:             driver,
-				UsedBytes:          used,
-				AvailableBytes:     avail,
-				TotalBytes:         total,
-				UsagePercent:       usagePct,
-				ReadOnly:           !m.RW,
-				Propagation:        string(m.Propagation),
+				Time:             now,
+				ContainerID:      c.ID,
+				ContainerName:    name,
+				NodeID:           nodeID,
+				NodeName:         nodeName,
+				Stack:            stack,
+				Service:          service,
+				TaskID:           taskID,
+				TaskName:         taskName,
+				ReplicaSlot:      replicaSlot,
+				VolumeName:       m.Name,
+				MountType:        mountType,
+				MountSource:      m.Source,
+				MountDestination: m.Destination,
+				Driver:           driver,
+				UsedBytes:        used,
+				AvailableBytes:   avail,
+				TotalBytes:       total,
+				UsagePercent:     usagePct,
+				ReadOnly:         !m.RW,
+				Propagation:      string(m.Propagation),
 			}
 
 			if err := enc.Encode(metric); err != nil {
@@ -222,20 +217,61 @@ func collectVolumes(pretty bool) error {
 	return nil
 }
 
-// resolveHostPath maps a container mount to its absolute path on the host filesystem. 
-// For bind mounts, this is usually the source path. For named volumes, 
-// this is typically /var/lib/docker/volumes/<volume>/_data, but we verify the driver to be sure (some drivers may use a different structure or be inaccessible via HOSTFS_ROOT).
-func resolveHostPath(dockerRoot, hostfsRoot, mountType, volumeName, source, driver string) string {
-    if mountType == "volume" && volumeName != "" {
-        if isExternalDriver(driver) {
-            if source != "" {
-                return hostfsRoot + source
-            }
-            return ""
-        }
-        return dockerRoot + "/volumes/" + volumeName + "/_data"
-    }
-    return hostfsRoot + source
+// volumeSizeBytesViaNsenter enters the mount namespace of the process with the
+// given PID (via nsenter) and runs df(1) against destination to obtain
+// filesystem usage as the container sees it.
+//
+// This is driver-agnostic: it works for local volumes, Rex-Ray/EBS, NFS, and
+// any other volume plugin without needing to resolve host-side paths.
+//
+// nsenter requires:
+//   - util-linux installed in the collector image (apk add util-linux)
+//   - /proc of the host mounted at procfsRoot (e.g. /host/proc)
+//   - the target process to still be running
+//
+// Returns all zeros if the namespace cannot be entered or df fails (e.g. the
+// container exited between inspect and this call).
+func volumeSizeBytesViaNsenter(procfsRoot string, pid int, destination string) (used, avail, total int64) {
+	if pid == 0 || destination == "" {
+		return
+	}
+
+	nsPath := fmt.Sprintf("%s/%d/ns/mnt", procfsRoot, pid)
+
+	// df --output=size,avail,used prints three columns (in bytes with -B1):
+	//   1-KiB-blocks  Available  Used
+	// The first line is a header; values are on the second line.
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx,
+		"nsenter",
+		fmt.Sprintf("--mount=%s", nsPath),
+		"--",
+		"df", "-B1", "--output=size,avail,used", destination,
+	)
+	out, err := cmd.Output()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "[volumes] nsenter df(pid=%d, %s): %v\n", pid, destination, err)
+		return
+	}
+
+	lines := strings.Split(strings.TrimSpace(string(out)), "\n")
+	if len(lines) < 2 {
+		fmt.Fprintf(os.Stderr, "[volumes] nsenter df: unexpected output for %s: %q\n", destination, string(out))
+		return
+	}
+
+	fields := strings.Fields(lines[1])
+	if len(fields) < 3 {
+		fmt.Fprintf(os.Stderr, "[volumes] nsenter df: cannot parse fields for %s: %q\n", destination, lines[1])
+		return
+	}
+
+	total, _ = strconv.ParseInt(fields[0], 10, 64)
+	avail, _ = strconv.ParseInt(fields[1], 10, 64)
+	used, _ = strconv.ParseInt(fields[2], 10, 64)
+	return
 }
 
 // systemMountPrefixes lists host paths whose bind mounts into containers are
@@ -267,53 +303,6 @@ func isSystemMount(mountType, source string) bool {
 	return false
 }
 
-// // Get filesystem size info for the given path using syscall.Statfs.
-// func volumeSizeBytes(path string) (used, avail, total int64) {
-// 	var s syscall.Statfs_t
-// 	if err := syscall.Statfs(path, &s); err != nil {
-// 		return
-// 	}
-// 	bs := int64(s.Bsize)
-// 	total = int64(s.Blocks) * bs
-// 	avail = int64(s.Bavail) * bs
-// 	used, _ = dirSizeBytes(path) // WalkDir solo sobre el directorio del volumen
-// 	return
-// }
-
-func volumeSizeBytes(path string) (used, avail, total int64) {
-    if path == "" {
-        return
-    }
-    var s syscall.Statfs_t
-    if err := syscall.Statfs(path, &s); err != nil {
-        fmt.Fprintf(os.Stderr, "[volumes] statfs(%s): %v\n", path, err)
-        return
-    }
-    bs := int64(s.Bsize)
-    total = int64(s.Blocks) * bs
-    avail = int64(s.Bavail) * bs
-    used = (int64(s.Blocks) - int64(s.Bfree)) * bs
-    return
-}
-
-
-func dirSizeBytes(path string) (int64, error) {
-    var total int64
-    err := filepath.WalkDir(path, func(_ string, d fs.DirEntry, err error) error {
-        if err != nil {
-            return nil // skip inaccessible paths
-        }
-        if !d.IsDir() {
-            info, err := d.Info()
-            if err == nil {
-                total += info.Size()
-            }
-        }
-        return nil
-    })
-    return total, err
-}
-
 func hasAllowedVolumeNamePrefix(name string, prefixes []string) bool {
 	for _, p := range prefixes {
 		if strings.HasPrefix(name, p) {
@@ -321,21 +310,4 @@ func hasAllowedVolumeNamePrefix(name string, prefixes []string) bool {
 		}
 	}
 	return false
-}
-
-// isExternalDriver detecta drivers de volumen que no usan el almacenamiento
-// local de Docker y montan en rutas propias.
-func isExternalDriver(driver string) bool {
-    external := []string{
-        "rexray", "rexray/ebs", "rexray/s3fs", "rexray/efs",
-        "storageos", "nfs", "cifs", "glusterfs",
-        "convoy", "flocker", "portworx",
-    }
-    d := strings.ToLower(driver)
-    for _, e := range external {
-        if strings.HasPrefix(d, e) {
-            return true
-        }
-    }
-    return false
 }
