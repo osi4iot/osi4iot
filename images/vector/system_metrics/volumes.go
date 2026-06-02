@@ -5,9 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"os/exec"
-	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/docker/docker/api/types"
@@ -54,10 +53,10 @@ type ContainerVolumeMetric struct {
 	MountSource string `json:"mount_source"` // host path or volume name
 	Driver      string `json:"driver,omitempty"`
 
-	// Filesystem usage — obtained via nsenter(1) into the container's mount
-	// namespace, running df(1) against the mount destination. This approach
-	// works regardless of the volume driver (local, Rex-Ray/EBS, NFS, etc.)
-	// because we observe the filesystem exactly as the container sees it.
+	// Filesystem usage — obtained by parsing /proc/<pid>/mountinfo to find
+	// the block device backing the mount destination, then calling statfs(2)
+	// on the device path via HOSTFS_ROOT. This approach is driver-agnostic
+	// and works with Rex-Ray/EBS, NFS, and any other volume plugin.
 	UsedBytes      int64   `json:"used_bytes"`
 	AvailableBytes int64   `json:"available_bytes"`
 	TotalBytes     int64   `json:"total_bytes"`
@@ -72,23 +71,28 @@ type ContainerVolumeMetric struct {
 // ContainerVolumeMetric per meaningful mount (skipping tmpfs and OS-internal
 // bind mounts).
 //
-// Disk usage is measured by entering the container's mount namespace via
-// nsenter(1) and running df(1) against the mount destination inside the
-// container. This is driver-agnostic: it works for local volumes, Rex-Ray/EBS,
-// NFS, and any other volume plugin without needing to resolve host-side paths.
+// Disk usage is measured by parsing /proc/<pid>/mountinfo to find the block
+// device backing each mount destination, then calling statfs(2) on the device
+// path through HOSTFS_ROOT. No nsenter or docker exec required.
 //
 // Required in the Vector/collector container:
 //   - /var/run/docker.sock mounted        (Docker API access)
-//   - /proc mounted at PROCFS_ROOT        (mount namespace entry via nsenter)
-//   - util-linux installed in the image   (provides nsenter)
+//   - /proc mounted at PROCFS_ROOT        (mountinfo parsing)
+//   - / mounted at HOSTFS_ROOT            (statfs on block devices)
 //
 // Environment variables:
 //
 //	PROCFS_ROOT   host /proc bind-mount path  (default: /host/proc)
+//	HOSTFS_ROOT   host root bind-mount path   (default: /host)
 func collectVolumes(pretty bool) error {
 	procfsRoot := os.Getenv("PROCFS_ROOT")
 	if procfsRoot == "" {
 		procfsRoot = "/host/proc"
+	}
+
+	hostfsRoot := os.Getenv("HOSTFS_ROOT")
+	if hostfsRoot == "" {
+		hostfsRoot = "/host"
 	}
 
 	cli, err := client.NewClientWithOpts(
@@ -177,7 +181,7 @@ func collectVolumes(pretty bool) error {
 				driver = m.Driver
 			}
 
-			used, avail, total := volumeSizeBytesViaNsenter(procfsRoot, pid, m.Destination)
+			used, avail, total := volumeSizeBytesViaMountInfo(procfsRoot, hostfsRoot, pid, m.Destination)
 
 			usagePct := 0.0
 			if usable := used + avail; usable > 0 {
@@ -217,60 +221,70 @@ func collectVolumes(pretty bool) error {
 	return nil
 }
 
-// volumeSizeBytesViaNsenter enters the mount namespace of the process with the
-// given PID (via nsenter) and runs df(1) against destination to obtain
-// filesystem usage as the container sees it.
+// volumeSizeBytesViaMountInfo parses /proc/<pid>/mountinfo to find the block
+// device backing destination inside the container, then calls statfs(2) on
+// the device path via hostfsRoot.
 //
-// This is driver-agnostic: it works for local volumes, Rex-Ray/EBS, NFS, and
-// any other volume plugin without needing to resolve host-side paths.
+// /proc/<pid>/mountinfo line format (space-separated):
 //
-// nsenter requires:
-//   - util-linux installed in the collector image (apk add util-linux)
-//   - /proc of the host mounted at procfsRoot (e.g. /host/proc)
-//   - the target process to still be running
+//	mountID parentID major:minor root mountpoint options ... - fstype source mountoptions
 //
-// Returns all zeros if the namespace cannot be entered or df fails (e.g. the
-// container exited between inspect and this call).
-func volumeSizeBytesViaNsenter(procfsRoot string, pid int, destination string) (used, avail, total int64) {
+// Example:
+//
+//	1425 1387 202:80 /data /var/lib/postgresql/data rw,relatime master:727 - ext4 /dev/xvdf rw
+//
+// The block device ("source", field after "-" separator) is accessible from
+// the collector container at hostfsRoot+devicePath (e.g. /host/dev/xvdf).
+func volumeSizeBytesViaMountInfo(procfsRoot, hostfsRoot string, pid int, destination string) (used, avail, total int64) {
 	if pid == 0 || destination == "" {
 		return
 	}
 
-	nsPath := fmt.Sprintf("%s/%d/ns/mnt", procfsRoot, pid)
-
-	// df --output=size,avail,used prints three columns (in bytes with -B1):
-	//   1-KiB-blocks  Available  Used
-	// The first line is a header; values are on the second line.
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
-	cmd := exec.CommandContext(ctx,
-		"nsenter",
-		fmt.Sprintf("--mount=%s", nsPath),
-		"--",
-		"df", "-B1", "--output=size,avail,used", destination,
-	)
-	out, err := cmd.Output()
+	mountinfoPath := fmt.Sprintf("%s/%d/mountinfo", procfsRoot, pid)
+	data, err := os.ReadFile(mountinfoPath)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "[volumes] nsenter df(pid=%d, %s): %v\n", pid, destination, err)
+		fmt.Fprintf(os.Stderr, "[volumes] mountinfo(%d): %v\n", pid, err)
 		return
 	}
 
-	lines := strings.Split(strings.TrimSpace(string(out)), "\n")
-	if len(lines) < 2 {
-		fmt.Fprintf(os.Stderr, "[volumes] nsenter df: unexpected output for %s: %q\n", destination, string(out))
+	// Find the line whose mountpoint (field index 4) matches destination.
+	var devicePath string
+	for _, line := range strings.Split(strings.TrimSpace(string(data)), "\n") {
+		fields := strings.Fields(line)
+		if len(fields) < 10 {
+			continue
+		}
+		if fields[4] != destination {
+			continue
+		}
+		// Fields after the "-" separator: fstype source mountoptions
+		for i, f := range fields {
+			if f == "-" && i+2 < len(fields) {
+				devicePath = fields[i+2] // e.g. /dev/xvdf
+				break
+			}
+		}
+		break
+	}
+
+	if devicePath == "" {
+		fmt.Fprintf(os.Stderr, "[volumes] mountinfo: no device found for %s (pid=%d)\n", destination, pid)
 		return
 	}
 
-	fields := strings.Fields(lines[1])
-	if len(fields) < 3 {
-		fmt.Fprintf(os.Stderr, "[volumes] nsenter df: cannot parse fields for %s: %q\n", destination, lines[1])
+	// The block device is accessible from the collector container via hostfsRoot.
+	// e.g. /dev/xvdf → /host/dev/xvdf
+	hostDevicePath := hostfsRoot + devicePath
+	var s syscall.Statfs_t
+	if err := syscall.Statfs(hostDevicePath, &s); err != nil {
+		fmt.Fprintf(os.Stderr, "[volumes] statfs(%s): %v\n", hostDevicePath, err)
 		return
 	}
 
-	total, _ = strconv.ParseInt(fields[0], 10, 64)
-	avail, _ = strconv.ParseInt(fields[1], 10, 64)
-	used, _ = strconv.ParseInt(fields[2], 10, 64)
+	bs := int64(s.Bsize)
+	total = int64(s.Blocks) * bs
+	avail = int64(s.Bavail) * bs
+	used = (int64(s.Blocks) - int64(s.Bfree)) * bs
 	return
 }
 

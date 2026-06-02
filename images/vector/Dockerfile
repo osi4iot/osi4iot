@@ -34,9 +34,6 @@ FROM timberio/vector:0.46.1-alpine
 
 COPY --from=builder /bin/system_metrics /usr/local/bin/system_metrics
 
-RUN apk add --no-cache util-linux && \
-    test -x /usr/local/bin/system_metrics
-
 RUN test -x /usr/local/bin/system_metrics
 
 HEALTHCHECK --interval=10s --timeout=5s --start-period=30s --retries=3 \

@@ -134,6 +134,5 @@ func VectorService(
 			{Target: sd.Networks["internal_net"].Name},
 			{Target: sd.Networks["nats_network"].Name},
 		}).
-		WithCapabilities([]string{"CAP_SYS_ADMIN", "CAP_SYS_PTRACE"}).
 		Build()
 }
