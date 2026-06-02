@@ -119,7 +119,7 @@ type PlatformInfo struct {
 	SshPubKeyPath  string `json:"SSH_PUB_KEY_PATH"`
 	SshPubKey      string `json:"SSH_PUB_KEY"`
 
-	UseRexRayPlugin bool `json:"USE_REXRAY_PLUGIN"`
+	UseAwsEbsVolumes bool `json:"USE_AWS_EBS_VOLUMES"`
 
 	DOMAIN_SSL_PRIVATE_KEY_PATH string `json:"DOMAIN_SSL_PRIVATE_KEY_PATH"`
 	DOMAIN_SSL_CA_PEM_PATH      string `json:"DOMAIN_SSL_CA_PEM_PATH"`

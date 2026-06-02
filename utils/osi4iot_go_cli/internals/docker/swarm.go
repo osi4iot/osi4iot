@@ -346,7 +346,7 @@ func DeletePlatform(pd *pt.PlatformData) error {
 		return fmt.Errorf("error timeout removing volumes: %v", err)
 	}
 
-	if pd.PlatformInfo.UseRexRayPlugin {
+	if pd.PlatformInfo.UseAwsEbsVolumes {
 		domainName := pd.PlatformInfo.DomainName
 		if err := volumes.DeleteAndWaitForEBSVolumesToBeDeleted(context.Background(), domainName); err != nil {
 			done <- false

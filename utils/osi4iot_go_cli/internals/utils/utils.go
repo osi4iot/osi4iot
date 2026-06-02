@@ -362,6 +362,13 @@ func IntValueToStr(value int) string {
 	return strconv.Itoa(value)
 }
 
+func BoolValueToStr(value bool) string {
+	if !value {
+		return "no"
+	}
+	return "yes"
+}
+
 func GiveChoiceFocus(choice string, choices []string, defaultFocus int) int {
 	if choice == "" {
 		return defaultFocus

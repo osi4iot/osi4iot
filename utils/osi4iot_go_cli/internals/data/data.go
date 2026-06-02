@@ -119,6 +119,12 @@ func SetData(key string, value string) {
 		Data.PlatformInfo.DefaultNumOfNatsReplicas = defaultNumNatsReplicas
 	case "DEPLOYMENT_LOCATION":
 		Data.PlatformInfo.DeploymentLocation = value
+		if value == "AWS cluster deployment" {
+			Data.PlatformInfo.UseAwsEbsVolumes = true
+		}
+	case "USE_AWS_EBS_VOLUMES":
+		useAwsEbsVolumes := strings.ToLower(value) == "yes"
+		Data.PlatformInfo.UseAwsEbsVolumes = useAwsEbsVolumes
 	case "LOCAL_RESOURCE_UTILIZATION_PERCENTAGE":
 		localResourceUtilization, _ := strconv.Atoi(value)
 		Data.PlatformInfo.LocalResourceUtilization = localResourceUtilization

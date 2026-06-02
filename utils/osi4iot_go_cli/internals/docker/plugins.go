@@ -12,17 +12,17 @@ func installRexRayPlugin(pd *types.PlatformData) error {
 	pi := pd.PlatformInfo
 	deploymentLocation := pi.DeploymentLocation
 
-	useRexRayPlugin := false
-	isEC2, err := utils.IsEC2Instance()
-	if err != nil {
-		return fmt.Errorf("error checking EC2 instance: %v", err)
-	}
-	if (deploymentLocation == "Local deployment" && isEC2) || deploymentLocation == "AWS cluster deployment" {
-		useRexRayPlugin = true
+	useAwsEbsVolumes := pi.UseAwsEbsVolumes
+	if (deploymentLocation == "Local deployment" && useAwsEbsVolumes) {
+		useAwsEbsVolumes = true
 	}
 
-	if useRexRayPlugin {
-		pd.PlatformInfo.UseRexRayPlugin = true
+	if deploymentLocation == "AWS cluster deployment" {
+		useAwsEbsVolumes = true
+		pi.UseAwsEbsVolumes = true
+	}
+
+	if useAwsEbsVolumes {
 		pluginName := "ghcr.io/osi4iot/rexray-ebs:latest"
 
 		installScript := fmt.Sprintf(`
@@ -68,15 +68,13 @@ func installRexRayPlugin(pd *types.PlatformData) error {
 		for i, resp := range responses {
 			fmt.Printf("Node %s: %s\n", nodes[i].NodeIP, resp)
 		}
-	} else {
-		pd.PlatformInfo.UseRexRayPlugin = false
 	}
 
 	return nil
 }
 
 func uninstallRexRayPlugin(pd *types.PlatformData) error {
-	if !pd.PlatformInfo.UseRexRayPlugin {
+	if !pd.PlatformInfo.UseAwsEbsVolumes {
 		return nil
 	}
 

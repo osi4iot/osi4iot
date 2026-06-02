@@ -172,6 +172,26 @@ func addNumNodesQuestion(index int, m *Model) {
 	}
 }
 
+func addAwsEbsVolumesQuestion(index int, m *Model) {
+	idx := m.FindQuestionIdByKey("USE_AWS_EBS_VOLUMES")
+	if idx == -1 {
+		awsEbsVolumesQuestion := Question{
+			Key:           "USE_AWS_EBS_VOLUMES",
+			QuestionType:  "confirm",
+			Prompt:        "Use AWS EBS volumes for data persistence (only for AWS cluster deployment)?",
+			Answer:        utils.BoolValueToStr(data.Data.PlatformInfo.UseAwsEbsVolumes),
+			DefaultAnswer: "no",
+			ErrorMessage:  "",
+			Choices:       []string{"yes", "no"},
+			ChoiceFocus:   utils.GiveChoiceFocus(utils.BoolValueToStr(data.Data.PlatformInfo.UseAwsEbsVolumes), []string{"yes", "no"}, 1),
+			Rules:         []string{"required", "string"},
+			ActionKey:     "",
+			Margin:        0,
+		}
+		m.addQuestions(index, awsEbsVolumesQuestion)
+	}
+}
+
 func addAWSRoute53Questions(m *Model) {
 	domainCertsType := m.FindAnswerByKey("DOMAIN_CERTS_TYPE")
 	if domainCertsType == "Let's encrypt certs with DNS-01 challenge and AWS Route 53 provider" {
@@ -366,6 +386,7 @@ func addNetworkInterfaceQuestions(m *Model) {
 func DeployLocationQuestions(m *Model) (submissionResultMsg, error) {
 	qIdx := m.FindQuestionIdByKey("DEPLOYMENT_LOCATION")
 	deployLocation := m.Questions[qIdx].Answer
+	isEC2, _ := utils.IsEC2Instance()
 	switch deployLocation {
 	case "Local deployment":
 		m.removeQuestionByKey("AWS_SSH_KEY_PATH")
@@ -375,14 +396,19 @@ func DeployLocationQuestions(m *Model) (submissionResultMsg, error) {
 		m.removeQuestionByKey("NETWORK_INTERFACE")
 		removingNodeQuestions(m)
 		addLocalResourceUtilizationQuestion(qIdx+1, m)
+		if isEC2 {
+			addAwsEbsVolumesQuestion(qIdx+2, m)
+		}
 	case "On-premise cluster deployment":
 		m.removeQuestionByKey("AWS_SSH_KEY_PATH")
 		m.removeQuestionByKey("AWS_EFS_DNS")
 		m.removeQuestionByKey("LOCAL_RESOURCE_UTILIZATION_PERCENTAGE")
+		m.removeQuestionByKey("USE_AWS_EBS_VOLUMES")
 		addNumNodesQuestion(qIdx+1, m)
 		addNodesDataQuestions(m)
 		addNetworkInterfaceQuestions(m)
 	case "AWS cluster deployment":
+		m.removeQuestionByKey("USE_AWS_EBS_VOLUMES")
 		m.removeQuestionByKey("FLOATING_IP_ADDRESS")
 		m.removeQuestionByKey("NETWORK_INTERFACE")
 		m.removeQuestionByKey("LOCAL_RESOURCE_UTILIZATION_PERCENTAGE")

@@ -53,7 +53,7 @@ func createDefaultOptions(pi pt.PlatformInfo) VolumeOptions {
 	driverOptsO := ""
 	nodesData := pi.NodesData
 	ebsOpts := EBSVolumeOptions{}
-	if pi.UseRexRayPlugin {
+	if pi.UseAwsEbsVolumes {
 		ebsOpts = DefaultEBSVolumeVolumeOptions
 	}
 	if deploymentLocation == "On-premise cluster deployment" && len(nodesData) > 1 {
@@ -351,7 +351,7 @@ func SetVolumeConfig(pi pt.PlatformInfo, volumeName string, serviceName string, 
 	}
 	switch deploymentLocation {
 	case "Local deployment":
-		if pi.UseRexRayPlugin {
+		if pi.UseAwsEbsVolumes {
 			vol.Driver = "rexray-ebs"
 			vol.DriverOpts = map[string]string{
 				"size":       volOpts.ebsOpts.size,
@@ -549,13 +549,13 @@ func WaitForEBSVolumesToBeDeleted(ctx context.Context, domainName string) error 
 func GetNumVolumes(pd *pt.PlatformData) (int, error) {
 	pi := pd.PlatformInfo
 	domainName := pi.DomainName
-	useRexRay := pi.UseRexRayPlugin
+	useAwsEbsVolumes := pi.UseAwsEbsVolumes
 	numVolumes := 0
 	filterArgs := filters.NewArgs()
 	filterArgs.Add("label", "app=osi4iot")
 	filterArgs.Add("label", fmt.Sprintf("domainName=%s", domainName))
 
-	if useRexRay {
+	if useAwsEbsVolumes {
 		volumes, err := ListOsi4iotEBSVolumes(context.Background(), domainName)
 		if err != nil {
 			return 0, fmt.Errorf("error listing EBS volumes: %w", err)

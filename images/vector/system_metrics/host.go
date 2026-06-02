@@ -444,13 +444,14 @@ func isVirtual(iface string) bool {
 //
 // Returns all zeros when the path is inaccessible (e.g. external volume driver).
 func statfsPath(path string) (used, avail, total int64) {
-	var s syscall.Statfs_t
-	if err := syscall.Statfs(path, &s); err != nil {
-		return
-	}
-	bs := int64(s.Bsize)
-	total = int64(s.Blocks) * bs
-	avail = int64(s.Bavail) * bs
-	used = (int64(s.Blocks) - int64(s.Bfree)) * bs
-	return
+    var s syscall.Statfs_t
+    if err := syscall.Statfs(path, &s); err != nil {
+        fmt.Fprintf(os.Stderr, "[volumes] statfs(%s): %v\n", path, err)
+        return
+    }
+    bs := int64(s.Bsize)
+    total = int64(s.Blocks) * bs
+    avail = int64(s.Bavail) * bs
+    used = (int64(s.Blocks) - int64(s.Bfree)) * bs
+    return
 }

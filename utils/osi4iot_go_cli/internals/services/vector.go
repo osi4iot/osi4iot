@@ -76,26 +76,16 @@ func VectorService(
 			fmt.Sprintf("DB_USER=%s", pd.PlatformInfo.TimescaleUser),
 			"PROCFS_ROOT=/host/proc",
 			"SYSFS_ROOT=/host/sys",
-			"DOCKER_ROOT=/var/lib/docker",
+			"DOCKER_ROOT=/host/var/lib/docker",
 			"HOSTFS_ROOT=/host",
 		}).
 		WithSecrets(secrets).
 		WithConfigs(configs).
 		WithMounts([]mount.Mount{
 			{
-				Type:   mount.TypeBind,
-				Source: "/var/run/docker.sock",
-				Target: "/var/run/docker.sock",
-			},
-			{
-				Type:   mount.TypeBind,
-				Source: "/var/lib/docker/containers",
-				Target: "/var/lib/docker/containers",
-			},
-			{
 				Type:     mount.TypeBind,
-				Source:   "/var/lib/docker/volumes",
-				Target:   "/var/lib/docker/volumes",
+				Source:   "/",
+				Target:   "/host",
 				ReadOnly: true,
 				BindOptions: &mount.BindOptions{
 					Propagation: mount.PropagationRSlave,
@@ -117,18 +107,32 @@ func VectorService(
 				ReadOnly: true,
 			},
 			{
-				Type:   mount.TypeVolume,
-				Source: sd.Volumes["vector_buffer"].Name,
-				Target: "/var/lib/vector",
-			},
-			{
 				Type:     mount.TypeBind,
-				Source:   "/",
-				Target:   "/host",
+				Source:   "/var/lib/docker/volumes",
+				Target:   "/var/lib/docker/volumes",
 				ReadOnly: true,
 				BindOptions: &mount.BindOptions{
 					Propagation: mount.PropagationRSlave,
 				},
+			},
+			{
+				Type:   mount.TypeBind,
+				Source: "/var/run/docker.sock",
+				Target: "/var/run/docker.sock",
+			},
+			{
+				Type:     mount.TypeBind,
+				Source:   "/var/lib/docker/containers",
+				Target:   "/var/lib/docker/containers",
+				ReadOnly: true,
+				BindOptions: &mount.BindOptions{
+					Propagation: mount.PropagationRSlave,
+				},
+			},
+			{
+				Type:   mount.TypeVolume,
+				Source: sd.Volumes["vector_buffer"].Name,
+				Target: "/var/lib/vector",
 			},
 		}).
 		WithResources(

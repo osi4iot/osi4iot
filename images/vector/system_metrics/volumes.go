@@ -4,9 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io/fs"
 	"os"
+	"path/filepath"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/docker/docker/api/types"
@@ -89,9 +90,9 @@ func collectVolumes(pretty bool) error {
 		procfsRoot = "/host/proc"
 	}
 
-	hostfsRoot := os.Getenv("HOSTFS_ROOT")
-	if hostfsRoot == "" {
-		hostfsRoot = "/host"
+	dockerRoot := os.Getenv("DOCKER_ROOT")
+	if dockerRoot == "" {
+		dockerRoot = "/host/var/lib/docker"
 	}
 
 	cli, err := client.NewClientWithOpts(
@@ -184,7 +185,10 @@ func collectVolumes(pretty bool) error {
 				driver = m.Driver
 			}
 
-			used, avail, total := volumeSizeBytesViaMountInfo(procfsRoot, selfMountinfo, pid, m.Destination)
+			used, avail, total := volumeSizeBytesViaMountInfo(
+				procfsRoot, selfMountinfo, dockerRoot,
+				pid, m.Destination, driver, m.Name,
+			)
 
 			usagePct := 0.0
 			if usable := used + avail; usable > 0 {
@@ -224,46 +228,64 @@ func collectVolumes(pretty bool) error {
 	return nil
 }
 
-// volumeSizeBytesViaMountInfo resolves disk usage for a container mount in
-// two steps:
-//  1. Parse /proc/<pid>/mountinfo to find the block device (e.g. /dev/xvdf)
-//     backing destination inside the target container.
-//  2. Find that device's mountpoint in Vector's own mountinfo (selfMountinfo),
-//     where Rex-Ray volumes appear via RSlave propagation at paths like:
-//     /host/var/lib/docker/plugins/<id>/propagated-mount/volumes/<name>
-//  3. Call statfs(2) on that mountpoint.
-func volumeSizeBytesViaMountInfo(procfsRoot, selfMountinfo string, pid int, destination string) (used, avail, total int64) {
-	if pid == 0 || destination == "" {
-		return
-	}
+func volumeSizeBytesViaMountInfo(procfsRoot, selfMountinfo, dockerRoot string, pid int, destination, driver, volumeName string) (used, avail, total int64) {
+    if pid == 0 || destination == "" {
+        return
+    }
 
-	// Step 1: find block device for destination in the target container's mountinfo.
-	device := findDeviceForDestination(procfsRoot, pid, destination)
-	if device == "" {
-		fmt.Fprintf(os.Stderr, "[volumes] no device found for pid=%d destination=%s\n", pid, destination)
-		return
-	}
+    if isExternalDriver(driver) {
+        device := findDeviceForDestination(procfsRoot, pid, destination)
+        if device == "" {
+            fmt.Fprintf(os.Stderr, "[volumes] no device found for pid=%d destination=%s\n", pid, destination)
+            return
+        }
+        mountpoint := findMountpointForDevice(selfMountinfo, device)
+        if mountpoint == "" {
+            fmt.Fprintf(os.Stderr, "[volumes] no mountpoint found in self for device=%s\n", device)
+            return
+        }
+        return statfsPath(mountpoint)
+    }
 
-	// Step 2: find where that device is mounted in Vector's own namespace.
-	mountpoint := findMountpointForDevice(selfMountinfo, device)
-	if mountpoint == "" {
-		fmt.Fprintf(os.Stderr, "[volumes] no mountpoint found in self for device=%s (pid=%d destination=%s)\n",
-			device, pid, destination)
-		return
-	}
+    // Local driver: statfs gives partition-level total/avail (shared across
+    // all local volumes), and dirSize gives the actual bytes used by this
+    // specific volume directory.
+    localPath := dockerRoot + "/volumes/" + volumeName + "/_data"
+    _, avail, total = statfsPath(localPath)
+    used, _ = dirSizeBytes(localPath)
+    return
+}
 
-	// Step 3: statfs on the resolved mountpoint.
-	var s syscall.Statfs_t
-	if err := syscall.Statfs(mountpoint, &s); err != nil {
-		fmt.Fprintf(os.Stderr, "[volumes] statfs(%s): %v\n", mountpoint, err)
-		return
-	}
+func dirSizeBytes(path string) (int64, error) {
+    var total int64
+    err := filepath.WalkDir(path, func(_ string, d fs.DirEntry, err error) error {
+        if err != nil {
+            return nil
+        }
+        if !d.IsDir() {
+            info, err := d.Info()
+            if err == nil {
+                total += info.Size()
+            }
+        }
+        return nil
+    })
+    return total, err
+}
 
-	bs := int64(s.Bsize)
-	total = int64(s.Blocks) * bs
-	avail = int64(s.Bavail) * bs
-	used = (int64(s.Blocks) - int64(s.Bfree)) * bs
-	return
+func isExternalDriver(driver string) bool {
+    d := strings.ToLower(driver)
+    external := []string{
+        "rexray", "rexray-ebs", "storageos",
+        "nfs", "cifs", "glusterfs",
+        "convoy", "flocker", "portworx",
+    }
+    for _, e := range external {
+        if strings.HasPrefix(d, e) {
+            return true
+        }
+    }
+    return false
 }
 
 // findDeviceForDestination parses /proc/<pid>/mountinfo and returns the block
