@@ -323,7 +323,6 @@ func getVolumesMapByNodeRole(volumesMap map[string]pt.Volume, nodeRole string, p
 			"timescaledb_data",
 			"timescaledb_wal",
 			"pgadmin4_data",
-			"minio_storage",
 			"vector_buffer",
 		)
 		numNatsReplicas := utils.GetServiceReplicas(pd, "nats")
@@ -335,6 +334,11 @@ func getVolumesMapByNodeRole(volumesMap map[string]pt.Volume, nodeRole string, p
 		for i := 1; i <= numPipelinesReplicas; i++ {
 			volName := fmt.Sprintf("pipelines_data_%d", i)
 			volumeNames = append(volumeNames, volName)
+		}
+
+		if pd.PlatformInfo.S3BucketType == "Local Minio" {
+			volumeNames = append(volumeNames, "minio_storage")
+			volumeNames = append(volumeNames, "minio_data")
 		}
 
 	case "NfsWorker":
