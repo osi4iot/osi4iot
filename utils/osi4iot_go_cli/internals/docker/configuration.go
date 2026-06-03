@@ -42,7 +42,7 @@ func installUFWOnNodes(pd *types.PlatformData) error {
 		spinnerMsg := "Intalling UFW on nodes..."
 		endMsg := "UFW installed on all nodes"
 		utils.Spinner(spinnerMsg, endMsg, spinnerDone)
-		
+
 		managerScript := `#!/bin/bash
 REQUIRED_PKG="ufw"
 if [ $(dpkg-query -W -f='${Status}' $REQUIRED_PKG 2>/dev/null | grep -c "ok installed") -eq 0 ];
@@ -256,6 +256,8 @@ func addNodesLabels(pd *types.PlatformData) error {
 			numManagerNodes++
 		}
 	}
+
+	natsReplica := 1
 	priorities := []string{"300", "200", "100"}
 	priorityIndex := 0
 	for _, node := range nodesData {
@@ -278,7 +280,14 @@ func addNodesLabels(pd *types.PlatformData) error {
 			}
 			spec.Labels["KEEPALIVED_PRIORITY"] = "0"
 		case "Platform worker":
+			for k := range spec.Labels {
+				if strings.HasPrefix(k, "nats_") {
+					delete(spec.Labels, k)
+				}
+			}
 			spec.Labels["platform_worker"] = "true"
+			spec.Labels[fmt.Sprintf("nats_%d", natsReplica)] = "true"
+			natsReplica++
 		case "NFS server":
 			spec.Labels["nfs_server"] = "true"
 		}
