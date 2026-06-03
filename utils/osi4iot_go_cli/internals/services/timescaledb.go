@@ -11,11 +11,11 @@ import (
 )
 
 func TimescaledbService(
-	pd *pt.PlatformData, 
-	sd pt.SwarmData, 
+	pd *pt.PlatformData,
+	sd pt.SwarmData,
 	svcResources resources.SvcResources,
 	nodeRoleNumMaps map[string]int,
-	) pt.Service {
+) pt.Service {
 
 	secrets := []*swarm.SecretReference{
 		{
@@ -91,7 +91,7 @@ func TimescaledbService(
 			fmt.Sprintf("POSTGRES_DB=%s", pd.PlatformInfo.TimescaleDB),
 			"POSTGRES_PASSWORD_FILE=/run/secrets/timescaledb_password.txt",
 			"POSTGRES_USER_FILE=/run/secrets/timescaledb_user.txt",
-			"POSTGRES_INITDB_WALDIR=/var/lib/postgresql/pg_wal",
+			"POSTGRES_INITDB_WALDIR=/var/lib/postgresql_wal",
 		}).
 		WithSecrets(secrets).
 		WithMounts([]mount.Mount{
@@ -103,7 +103,7 @@ func TimescaledbService(
 			{
 				Type:   mount.TypeVolume,
 				Source: sd.Volumes["timescaledb_wal"].Name,
-				Target: "/var/lib/postgresql/pg_wal",
+				Target: "/var/lib/postgresql_wal",
 			},
 		}).
 		WithResources(
