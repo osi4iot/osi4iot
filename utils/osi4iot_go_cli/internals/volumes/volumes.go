@@ -98,7 +98,6 @@ func GenerateVolumes(platformData *pt.PlatformData) map[string]pt.Volume {
 	Volumes["grafana_data"] = SetVolumeConfig(pi, "grafana_data", "grafana", deploymentLocation, volOptions)
 	Volumes["timescaledb_data"] = SetVolumeConfig(pi, "timescaledb_data", "timescaledb", deploymentLocation, volOptions)
 	Volumes["timescaledb_wal"] = SetVolumeConfig(pi, "timescaledb_wal", "timescaledb", deploymentLocation, volOptions)
-	Volumes["vector_buffer"] = SetVolumeConfig(pi, "vector_buffer", "vector", deploymentLocation, volOptions)
 
 	numPipelinesReplicas := utils.GetServiceReplicas(platformData, "pipelines")
 	for i := 1; i <= numPipelinesReplicas; i++ {
@@ -114,6 +113,12 @@ func GenerateVolumes(platformData *pt.PlatformData) map[string]pt.Volume {
 		Volumes["minio_storage"] = SetVolumeConfig(pi, "minio_storage", "minio", deploymentLocation, volOptions)
 		Volumes["minio_data"] = SetVolumeConfig(pi, "minio_data", "minio", deploymentLocation, volOptions)
 	}
+
+	vectorVolOptions := VolumeOptions{
+		driverOptsO: "",
+		ebsOpts:     EBSVolumeOptions{},
+	}
+	Volumes["vector_buffer"] = SetVolumeConfig(pi, "vector_buffer", "vector", deploymentLocation, vectorVolOptions)
 
 	return Volumes
 }
@@ -310,7 +315,7 @@ func getVolumeFilterByNames(pd *pt.PlatformData) filters.Args {
 }
 
 func getVolumesMapByNodeRole(volumesMap map[string]pt.Volume, nodeRole string, pd *pt.PlatformData) map[string]pt.Volume {
-	volumeNames := []string{}
+	volumeNames := []string{"vector_buffer"}
 	switch nodeRole {
 	case "Manager":
 		volumeNames = append(volumeNames,
@@ -323,7 +328,6 @@ func getVolumesMapByNodeRole(volumesMap map[string]pt.Volume, nodeRole string, p
 			"timescaledb_data",
 			"timescaledb_wal",
 			"pgadmin4_data",
-			"vector_buffer",
 		)
 		numNatsReplicas := utils.GetServiceReplicas(pd, "nats")
 		for replica := 1; replica <= numNatsReplicas; replica++ {
