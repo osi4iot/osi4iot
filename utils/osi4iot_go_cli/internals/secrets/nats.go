@@ -120,10 +120,11 @@ func CreateNatsConfigSecret(
 	pd *pt.PlatformData,
 	numNatsReplicas int,
 ) pt.Secret {
-	clusterRoutes := []string{}
-	for iNatsNode := 1; iNatsNode <= numNatsReplicas; iNatsNode++ {
-		clusterRoutes = append(clusterRoutes, fmt.Sprintf("nats%d:6222", iNatsNode))
-	}
+    domainName := pd.PlatformInfo.DomainName
+    clusterRoutes := []string{}
+    for iNatsNode := 1; iNatsNode <= numNatsReplicas; iNatsNode++ {
+        clusterRoutes = append(clusterRoutes, fmt.Sprintf("nats%d.%s:6222", iNatsNode, domainName))
+    }
 
 	params := NatsConfigParams{
 		NatsAdminUsername:   pd.Certs.NatsCerts.NatsAdminUsername,
