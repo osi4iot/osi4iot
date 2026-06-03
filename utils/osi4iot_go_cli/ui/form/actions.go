@@ -153,7 +153,7 @@ func removingNodeQuestions(m *Model) {
 
 func addNumNodesQuestion(index int, m *Model) {
 	idx := m.FindQuestionIdByKey("NUMBER_OF_SWARM_NODES")
-	numNatsNodes := m.FindAnswerByKey("NUM_NATS_CLUSTER_NODES")
+	numNatsNodes := m.FindAnswerByKey("NUMBER_OF_NATS_NODES")
 	if idx == -1 {
 		numNodesQuestion := Question{
 			Key:           "NUMBER_OF_SWARM_NODES",
