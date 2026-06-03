@@ -119,91 +119,91 @@ func GenerateVolumes(platformData *pt.PlatformData) map[string]pt.Volume {
 }
 
 func CreateVolume(dc *pt.DockerClient, domainName string, swarmVol *pt.Volume) error {
-    existingVolumes, err := dc.Cli.VolumeList(dc.Ctx, volume.ListOptions{})
-    if err != nil {
-        return fmt.Errorf("error listing volumes: %v", err)
-    }
+	existingVolumes, err := dc.Cli.VolumeList(dc.Ctx, volume.ListOptions{})
+	if err != nil {
+		return fmt.Errorf("error listing volumes: %v", err)
+	}
 
-    volumeExists := false
-    for _, v := range existingVolumes.Volumes {
-        if v.Name == swarmVol.Name {
-            swarmVol.ID = v.Name
-            volumeExists = true
-            break
-        }
-    }
+	volumeExists := false
+	for _, v := range existingVolumes.Volumes {
+		if v.Name == swarmVol.Name {
+			swarmVol.ID = v.Name
+			volumeExists = true
+			break
+		}
+	}
 
-    if !volumeExists {
-        vol, err := dc.Cli.VolumeCreate(dc.Ctx, volume.CreateOptions{
-            Name:       swarmVol.Name,
-            Driver:     swarmVol.Driver,
-            DriverOpts: swarmVol.DriverOpts,
-            Labels: map[string]string{
-                "app":        "osi4iot",
-                "service":    swarmVol.ServiceName,
-                "domainName": domainName,
-            },
-        })
-        if err != nil {
-            return fmt.Errorf("error creating volume: %v", err)
-        }
-        swarmVol.ID = vol.Name
+	if !volumeExists {
+		vol, err := dc.Cli.VolumeCreate(dc.Ctx, volume.CreateOptions{
+			Name:       swarmVol.Name,
+			Driver:     swarmVol.Driver,
+			DriverOpts: swarmVol.DriverOpts,
+			Labels: map[string]string{
+				"app":        "osi4iot",
+				"service":    swarmVol.ServiceName,
+				"domainName": domainName,
+			},
+		})
+		if err != nil {
+			return fmt.Errorf("error creating volume: %v", err)
+		}
+		swarmVol.ID = vol.Name
 
-        if swarmVol.Driver == "rexray-ebs" || swarmVol.Driver == "rexray-ebs:latest" {
-            if err := tagEBSVolume(dc.Ctx, swarmVol.Name, swarmVol.ServiceName, domainName); err != nil {
-                fmt.Printf("Warning: error tagging EBS volume %s: %v\n", swarmVol.Name, err)
-            }
-        }
-    }
+		if swarmVol.Driver == "rexray-ebs" || swarmVol.Driver == "rexray-ebs:latest" {
+			if err := tagEBSVolume(dc.Ctx, swarmVol.Name, swarmVol.ServiceName, domainName); err != nil {
+				fmt.Printf("Warning: error tagging EBS volume %s: %v\n", swarmVol.Name, err)
+			}
+		}
+	}
 
-    return nil
+	return nil
 }
 
 func tagEBSVolume(ctx context.Context, volumeName, serviceName, domainName string) error {
-    cfg, err := utils.GetEC2RoleConfig(ctx)
-    if err != nil {
-        return fmt.Errorf("error loading AWS config: %w", err)
-    }
+	cfg, err := utils.GetEC2RoleConfig(ctx)
+	if err != nil {
+		return fmt.Errorf("error loading AWS config: %w", err)
+	}
 
-    ec2Client := ec2.NewFromConfig(cfg)
+	ec2Client := ec2.NewFromConfig(cfg)
 
-    result, err := ec2Client.DescribeVolumes(ctx, &ec2.DescribeVolumesInput{
-        Filters: []ec2types.Filter{
-            {
-                Name:   aws.String("tag:Name"),
-                Values: []string{volumeName},
-            },
-            {
-                // Solo volúmenes recién creados o en uso
-                Name:   aws.String("status"),
-                Values: []string{"available", "in-use"},
-            },
-        },
-    })
-    if err != nil {
-        return fmt.Errorf("error describing EBS volume %s: %w", volumeName, err)
-    }
+	result, err := ec2Client.DescribeVolumes(ctx, &ec2.DescribeVolumesInput{
+		Filters: []ec2types.Filter{
+			{
+				Name:   aws.String("tag:Name"),
+				Values: []string{volumeName},
+			},
+			{
+				// Solo volúmenes recién creados o en uso
+				Name:   aws.String("status"),
+				Values: []string{"available", "in-use"},
+			},
+		},
+	})
+	if err != nil {
+		return fmt.Errorf("error describing EBS volume %s: %w", volumeName, err)
+	}
 
-    if len(result.Volumes) == 0 {
-        return fmt.Errorf("EBS volume with Name=%s not found in AWS", volumeName)
-    }
+	if len(result.Volumes) == 0 {
+		return fmt.Errorf("EBS volume with Name=%s not found in AWS", volumeName)
+	}
 
-    volumeID := aws.ToString(result.Volumes[0].VolumeId)
+	volumeID := aws.ToString(result.Volumes[0].VolumeId)
 
-    _, err = ec2Client.CreateTags(ctx, &ec2.CreateTagsInput{
-        Resources: []string{volumeID},
-        Tags: []ec2types.Tag{
-            {Key: aws.String("app"),        Value: aws.String("osi4iot")},
-            {Key: aws.String("service"),    Value: aws.String(serviceName)},
-            {Key: aws.String("domainName"), Value: aws.String(domainName)},
-        },
-    })
-    if err != nil {
-        return fmt.Errorf("error tagging EBS volume %s (%s): %w", volumeName, volumeID, err)
-    }
+	_, err = ec2Client.CreateTags(ctx, &ec2.CreateTagsInput{
+		Resources: []string{volumeID},
+		Tags: []ec2types.Tag{
+			{Key: aws.String("app"), Value: aws.String("osi4iot")},
+			{Key: aws.String("service"), Value: aws.String(serviceName)},
+			{Key: aws.String("domainName"), Value: aws.String(domainName)},
+		},
+	})
+	if err != nil {
+		return fmt.Errorf("error tagging EBS volume %s (%s): %w", volumeName, volumeID, err)
+	}
 
-    fmt.Printf("EBS volume %s (%s) tagged correctly\n", volumeName, volumeID)
-    return nil
+	fmt.Printf("EBS volume %s (%s) tagged correctly\n", volumeName, volumeID)
+	return nil
 }
 
 func CreateSwarmVolumes(pd *pt.PlatformData, volumesMap map[string]pt.Volume) (map[string]pt.Volume, error) {
@@ -321,12 +321,19 @@ func getVolumesMapByNodeRole(volumesMap map[string]pt.Volume, nodeRole string, p
 		volumeNames = append(volumeNames,
 			"pgdata",
 			"timescaledb_data",
+			"timescaledb_wal",
 			"pgadmin4_data",
 			"minio_storage",
+			"vector_buffer",
 		)
 		numNatsReplicas := utils.GetServiceReplicas(pd, "nats")
 		for replica := 1; replica <= numNatsReplicas; replica++ {
 			volName := fmt.Sprintf("nats%d_data", replica)
+			volumeNames = append(volumeNames, volName)
+		}
+		numPipelinesReplicas := utils.GetServiceReplicas(pd, "pipelines")
+		for i := 1; i <= numPipelinesReplicas; i++ {
+			volName := fmt.Sprintf("pipelines_data_%d", i)
 			volumeNames = append(volumeNames, volName)
 		}
 
@@ -434,10 +441,10 @@ func RemovePipelinesVolume(dc *pt.DockerClient, replica int) error {
 }
 
 func ListEBSVolumes(ctx context.Context, filters ...ec2types.Filter) ([]EBSVolumeInfo, error) {
-    cfg, err := utils.GetEC2RoleConfig(ctx)
-    if err != nil {
-        return nil, fmt.Errorf("error loading AWS config: %w", err)
-    }
+	cfg, err := utils.GetEC2RoleConfig(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("error loading AWS config: %w", err)
+	}
 	ec2Client := ec2.NewFromConfig(cfg)
 
 	input := &ec2.DescribeVolumesInput{}
@@ -498,52 +505,52 @@ func ListEBSVolumesByState(ctx context.Context, states ...string) ([]EBSVolumeIn
 }
 
 func WaitForEBSVolumesToBeDeleted(ctx context.Context, domainName string) error {
-    cfg, err := utils.GetEC2RoleConfig(ctx)
-    if err != nil {
-        return fmt.Errorf("error loading AWS config: %w", err)
-    }
-    ec2Client := ec2.NewFromConfig(cfg)
+	cfg, err := utils.GetEC2RoleConfig(ctx)
+	if err != nil {
+		return fmt.Errorf("error loading AWS config: %w", err)
+	}
+	ec2Client := ec2.NewFromConfig(cfg)
 
-    for i := 0; i <= 30; i++ {
-        time.Sleep(2 * time.Second)
+	for i := 0; i <= 30; i++ {
+		time.Sleep(2 * time.Second)
 
-        result, err := ec2Client.DescribeVolumes(ctx, &ec2.DescribeVolumesInput{
-            Filters: []ec2types.Filter{
-                {
-                    Name:   aws.String("tag:app"),
-                    Values: []string{"osi4iot"},
-                },
-                {
-                    Name:   aws.String("tag:domainName"),
-                    Values: []string{domainName},
-                },
-                {
-                    Name:   aws.String("status"),
-                    Values: []string{"creating", "available", "in-use", "deleting"},
-                },
-            },
-        })
-        if err != nil {
-            return fmt.Errorf("error describing EBS volumes: %w", err)
-        }
+		result, err := ec2Client.DescribeVolumes(ctx, &ec2.DescribeVolumesInput{
+			Filters: []ec2types.Filter{
+				{
+					Name:   aws.String("tag:app"),
+					Values: []string{"osi4iot"},
+				},
+				{
+					Name:   aws.String("tag:domainName"),
+					Values: []string{domainName},
+				},
+				{
+					Name:   aws.String("status"),
+					Values: []string{"creating", "available", "in-use", "deleting"},
+				},
+			},
+		})
+		if err != nil {
+			return fmt.Errorf("error describing EBS volumes: %w", err)
+		}
 
-        if len(result.Volumes) == 0 {
-            fmt.Println("All EBS volumes have been deleted")
-            return nil
-        }
+		if len(result.Volumes) == 0 {
+			fmt.Println("All EBS volumes have been deleted")
+			return nil
+		}
 
-        fmt.Printf("Waiting for deletion of %d EBS volumes...\n", len(result.Volumes))
+		fmt.Printf("Waiting for deletion of %d EBS volumes...\n", len(result.Volumes))
 
-        if i == 30 {
-            for _, v := range result.Volumes {
-                fmt.Printf("Pending EBS volume: %s (state: %s)\n",
-                    aws.ToString(v.VolumeId), v.State)
-            }
-            return fmt.Errorf("timeout: %d EBS volumes were not deleted", len(result.Volumes))
-        }
-    }
+		if i == 30 {
+			for _, v := range result.Volumes {
+				fmt.Printf("Pending EBS volume: %s (state: %s)\n",
+					aws.ToString(v.VolumeId), v.State)
+			}
+			return fmt.Errorf("timeout: %d EBS volumes were not deleted", len(result.Volumes))
+		}
+	}
 
-    return nil
+	return nil
 }
 
 func GetNumVolumes(pd *pt.PlatformData) (int, error) {
