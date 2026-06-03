@@ -114,11 +114,7 @@ func GenerateVolumes(platformData *pt.PlatformData) map[string]pt.Volume {
 		Volumes["minio_data"] = SetVolumeConfig(pi, "minio_data", "minio", deploymentLocation, volOptions)
 	}
 
-	vectorVolOptions := VolumeOptions{
-		driverOptsO: "",
-		ebsOpts:     EBSVolumeOptions{},
-	}
-	Volumes["vector_buffer"] = SetVolumeConfig(pi, "vector_buffer", "vector", deploymentLocation, vectorVolOptions)
+	Volumes["vector_buffer"] = SetVolumeConfig(pi, "vector_buffer", "vector", deploymentLocation, volOptions, true)
 
 	return Volumes
 }
@@ -357,13 +353,26 @@ func getVolumesMapByNodeRole(volumesMap map[string]pt.Volume, nodeRole string, p
 	return filteredVolumes
 }
 
-func SetVolumeConfig(pi pt.PlatformInfo, volumeName string, serviceName string, deploymentLocation string, volOpts VolumeOptions) pt.Volume {
+func SetVolumeConfig(
+	pi pt.PlatformInfo,
+	volumeName string,
+	serviceName string,
+	deploymentLocation string,
+	volOpts VolumeOptions,
+	forceLocal ...bool,
+) pt.Volume {
 	vol := pt.Volume{
 		Name:        volumeName,
 		ServiceName: serviceName,
 		Driver:      "local",
 		DriverOpts:  map[string]string{},
 	}
+
+	isForceLocal := len(forceLocal) > 0 && forceLocal[0]
+	if isForceLocal {
+		return vol
+	}
+
 	switch deploymentLocation {
 	case "Local deployment":
 		if pi.UseAwsEbsVolumes {
