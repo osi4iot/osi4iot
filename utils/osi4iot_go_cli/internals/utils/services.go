@@ -756,7 +756,7 @@ func GetDefaultServicesDataMap(pd *osi_types.PlatformData) map[string]osi_types.
 		},
 		"timescaledb": {
 			ServiceName: "timescaledb",
-			Image: "ghcr.io/osi4iot/timescaledb:2.20.0-pg17",
+			Image: "ghcr.io/osi4iot/patroni:2.27.0-pg18",
 			Replicas:    1,
 			Cpu:         iotStorageDataSvcCpus,
 			Memory:      iotDataStorageSvcMem,
