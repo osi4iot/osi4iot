@@ -170,6 +170,19 @@ func (b *ServiceBuilder) WithHealthCheck(commands []string) *ServiceBuilder {
 	return b
 }
 
+// WithHealthCheckForNats sets the service health check for NATS.
+func (b *ServiceBuilder) WithHealthCheckForNats(commands []string) *ServiceBuilder {
+    b.svc.TaskTemplate.ContainerSpec.Healthcheck = &container.HealthConfig{
+        Test:           commands,
+        Interval:       time.Duration(15 * time.Second),
+        Timeout:        time.Duration(5 * time.Second),
+        Retries:        5,
+        StartPeriod:    time.Duration(60 * time.Second),
+        StartInterval:  time.Duration(5 * time.Second),
+    }
+    return b
+}
+
 // WithRestartPolicy sets the service restart policy.
 func (b *ServiceBuilder) WithRestartPolicy(delay time.Duration, condition swarm.RestartPolicyCondition) *ServiceBuilder {
 	b.svc.TaskTemplate.RestartPolicy = &swarm.RestartPolicy{

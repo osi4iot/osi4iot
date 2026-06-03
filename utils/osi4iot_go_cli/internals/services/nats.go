@@ -152,7 +152,7 @@ func NatsService(
 		WithStopGracePeriod(3 * time.Minute).
 		WithModeReplicated(svcResources.ReplicasPtr).
 		WithPorts(ports).
-		WithHealthCheck([]string{
+		WithHealthCheckForNats([]string{
 			"CMD-SHELL",
 			"wget -qO- http://localhost:8222/healthz | grep -q '\"status\":\"ok\"' || exit 1",
 		}).
