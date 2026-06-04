@@ -16,7 +16,7 @@ import {
     NodeWireData,
     INatsClientOptions,
 } from "../Types/types";
-import { DEFAULT_VIEWER_OPTIONS, BUTTON_LABELS, PROTOCOL, DOMAIN_NAME } from "../Utils/constants";
+import { DEFAULT_VIEWER_OPTIONS, BUTTON_LABELS, PROTOCOL, DOMAIN_NAME, NATS_SEED_SERVERS } from "../Utils/constants";
 import { useAuthDispatch, useAuthState, useLoggedUserLogin } from "../../../../contexts/authContext/authContext";
 import { PipelineLog } from "../Pipeline/PipelineLogs";
 import {
@@ -302,7 +302,7 @@ export const useNatsConnection = () => {
  
         try {
             const nc = await connect({
-                servers: `wss://${DOMAIN_NAME}:9001`,
+                servers: NATS_SEED_SERVERS.split(",").map((s: string) => s.trim()),
                 user: options.username,
                 pass: options.accessToken,
             });

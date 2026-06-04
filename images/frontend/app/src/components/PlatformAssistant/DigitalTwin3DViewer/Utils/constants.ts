@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { getDomainName, getProtocol, giveDefaultNumWebWorkers } from "../../../../tools/tools";
+import { getDomainName, getNatsSeedServers, getProtocol, giveDefaultNumWebWorkers } from "../../../../tools/tools";
 
 export const ENVIRONMENT_OPTIONS = [
     "none",
@@ -25,6 +25,7 @@ export const DAT_GUI_STYLE = {
 
 export const DOMAIN_NAME = getDomainName();
 export const PROTOCOL = getProtocol();
+export const NATS_SEED_SERVERS = getNatsSeedServers();
 
 export const DEFAULT_VIEWER_OPTIONS = {
     environment: "sunset",

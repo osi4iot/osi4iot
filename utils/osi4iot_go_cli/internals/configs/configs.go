@@ -11,8 +11,8 @@ import (
 	"github.com/osi4iot/osi4iot/utils/osi4iot/internals/utils"
 )
 
-func GenerateConfigs(platformData *pt.PlatformData) map[string]pt.Config {
-	pi := platformData.PlatformInfo
+func GenerateConfigs(pd *pt.PlatformData) map[string]pt.Config {
+	pi := pd.PlatformInfo
 	Configs := make(map[string]pt.Config)
 	platformName := strings.Replace(pi.PlatformName, " ", "_", -1)
 	protocol := "https"
@@ -62,6 +62,8 @@ func GenerateConfigs(platformData *pt.PlatformData) map[string]pt.Config {
 		Data: mainOrgFloor,
 	}
 
+	numNatsReplicas := utils.GetServiceReplicas(pd, "nats")
+	natsSeedServers := natsSeedServersForFrontend(pd, numNatsReplicas, pi.DomainName)
 	frontendConfigArray := []string{
 		fmt.Sprintf("PLATFORM_NAME=%s", platformName),
 		fmt.Sprintf("DOMAIN_NAME=%s", pi.DomainName),
@@ -72,6 +74,7 @@ func GenerateConfigs(platformData *pt.PlatformData) map[string]pt.Config {
 		fmt.Sprintf("MAX_LONGITUDE=%f", pi.MaxLongitude),
 		fmt.Sprintf("MIN_LATITUDE=%f", pi.MinLatitude),
 		fmt.Sprintf("MAX_LATITUDE=%f", pi.MaxLatitude),
+		fmt.Sprintf("NATS_SEED_SERVERS=%s", strings.Join(natsSeedServers, ",")),
 	}
 	frontendConfig := strings.Join(frontendConfigArray, "\n")
 	frontendConfigHash := utils.GetMD5Hash(frontendConfig)
@@ -121,7 +124,7 @@ tls:
 
 	}
 
-	Configs["vector"] = CreateVectorConfig(platformData)
+	Configs["vector"] = CreateVectorConfig(pd)
 
 	return Configs
 }
@@ -306,4 +309,30 @@ func GetConfigByKey(dc *pt.DockerClient, configKey string) (*pt.Config, error) {
 	}
 
 	return config, nil
+}
+
+func natsSeedServersForFrontend(pd *pt.PlatformData, numNatsReplicas int, hostName string) []string {
+	serversUrl := []string{}
+	numNatsNodes := pd.PlatformInfo.NumOfNatsNodes
+	numNatsSeedServers := utils.Min(numNatsReplicas, 3)
+	if numNatsNodes == 1 {
+		for replica := 1; replica <= numNatsSeedServers; replica++ {
+			port := 4222 + (replica - 1)
+			natUrl := fmt.Sprintf("wss://nats%d:%d", replica, port)
+			if hostName != "" {
+				natUrl = fmt.Sprintf("wss://nats%d.%s:%d", replica, hostName, port)
+			}
+			serversUrl = append(serversUrl, natUrl)
+		}
+	} else if numNatsNodes >= 3 {
+		for replica := 1; replica <= numNatsSeedServers; replica++ {
+			natUrl := fmt.Sprintf("wss://nats%d:4222", replica)
+			if hostName != "" {
+				natUrl = fmt.Sprintf("wss://nats%d.%s:4222", replica, hostName)
+			}
+			serversUrl = append(serversUrl, natUrl)
+		}
+	}
+
+	return serversUrl
 }

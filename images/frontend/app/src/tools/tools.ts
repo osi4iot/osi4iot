@@ -38,6 +38,14 @@ export const getProtocol = (): string => {
     return protocol;
 }
 
+export const getNatsSeedServers = (): string => {
+    let natsSeedServers = "";
+    if (window._env_ && window._env_.NATS_SEED_SERVERS) {
+        natsSeedServers = window._env_.NATS_SEED_SERVERS;
+    }
+    return natsSeedServers;
+}
+
 export const isValidText = (text: string): boolean => {
     let isValid = true;
     if (text.trim() === "") isValid = false;
