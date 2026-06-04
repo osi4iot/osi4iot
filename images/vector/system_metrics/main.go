@@ -15,10 +15,9 @@ func main() {
 		"comma-separated collectors to run (required).\n"+
 			"  Wide-format (→ dedicated TimescaleDB tables):\n"+
 			"    host              → host_metrics\n"+
+			"    host_state        → host_node_state  (managers only)\n"+
 			"    containers        → container_metrics\n"+
-			"    volumes           → volumes_metrics\n"+
-			"  Narrow-format (→ observability.metrics, legacy):\n"+
-			"    volumes, network, swarm",
+			"    volumes           → volumes_metrics\n",
 	)
 	pretty := flag.Bool("pretty", false, "output indented JSON (for debugging)")
 	interval := flag.Duration("interval", 0, "if > 0, run collectors in a loop with this interval")
@@ -46,6 +45,8 @@ func main() {
 			switch c {
 			case "host":
 				err = collectHost(*pretty)
+			case "host_state":
+				err = collectHostState(*pretty)
 			case "containers":
 				err = collectContainers(*pretty)
 			case "volumes":
@@ -74,9 +75,10 @@ func main() {
 
 func parseCollectors(raw string) []string {
 	valid := map[string]bool{
-		"host":              true,
-		"containers":        true,
-		"volumes": true,
+		"host":       true,
+		"host_state": true,
+		"containers": true,
+		"volumes":    true,
 	}
 	var out []string
 	for _, part := range strings.Split(raw, ",") {

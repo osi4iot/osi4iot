@@ -91,9 +91,10 @@ const handleDayChange = (
 const SystemMonitoringTopicMap = new Map();
 SystemMonitoringTopicMap.set("system_1", "System logs");
 SystemMonitoringTopicMap.set("system_2", "Host metrics");
-SystemMonitoringTopicMap.set("system_3", "Container metrics");
-SystemMonitoringTopicMap.set("system_4", "Volume metrics");
-SystemMonitoringTopicMap.set("system_5", "System alert");
+SystemMonitoringTopicMap.set("system_3", "Host state");
+SystemMonitoringTopicMap.set("system_4", "Container metrics");
+SystemMonitoringTopicMap.set("system_5", "Volume metrics");
+SystemMonitoringTopicMap.set("system_6", "System alert");
 
 export interface NodeData {
     label: string;

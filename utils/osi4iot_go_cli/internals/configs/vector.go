@@ -67,6 +67,23 @@ sources:
       exec_interval_secs: 60
     command: ["/usr/local/bin/system_metrics", "--collect", "volumes"]
 
+  # ---------------------------------------------------------------------------
+  # Swarm node state  ->  observability.host_node_state
+  #
+  # Only manager nodes emit rows - collectHostState() exits cleanly with no
+  # output on workers, so this source produces nothing there and the pipeline
+  # stays silent.
+  #
+  # Interval longer than host_metrics: role/availability changes are
+  # infrequent and the table is upserted, not appended.
+  # ---------------------------------------------------------------------------
+  host_state_exec:
+    type: exec
+    mode: scheduled
+    scheduled:
+      exec_interval_secs: 30
+    command: ["/usr/local/bin/system_metrics", "--collect", "host_state"]
+
 
 # =============================================================================
 # TRANSFORMS
@@ -211,6 +228,30 @@ transforms:
 
       . = parsed
       .time = parse_timestamp!(string(.time) ?? "", format: "%+")
+
+
+  # ---------------------------------------------------------------------------
+  # Swarm node state pipeline
+  #
+  # host_node_state has no time column — the table uses last_seen (DEFAULT NOW())
+  # set by the upsert. We drop .time so Vector does not try to insert a column
+  # that does not exist in the target table.
+  # ---------------------------------------------------------------------------
+  host_state_parse:
+    type: remap
+    inputs: ["host_state_exec"]
+    drop_on_abort: true
+    source: |
+      msg = strip_whitespace(string(.message) ?? "")
+      if msg == "" { abort }
+
+      parsed, err = parse_json(msg)
+      if err != null { abort }
+
+      . = parsed
+      # last_seen is a server-side DEFAULT NOW() — do not send it from the client
+      # to avoid clock-skew issues between nodes.
+      del(.last_seen)
 
 
 # =============================================================================
@@ -371,6 +412,44 @@ sinks:
       type: disk
       max_size: 268435488
       when_full: block
+
+  timescaledb_host_node_state:
+    type: postgres
+    inputs: ["host_state_parse"]
+    endpoint: "postgresql://${DB_USER}:${DB_PASS}@${DB_HOST}:${DB_PORT}/${DB_NAME}"
+    table: "observability.host_node_state"
+    batch:
+      max_events: 50
+      timeout_secs: 30
+    buffer:
+      type: disk
+      max_size: 268435488
+      when_full: block
+    request:
+      retry_attempts: 5
+      retry_initial_backoff_secs: 1
+      retry_max_duration_secs: 30
+    healthcheck:
+      enabled: true
+
+  nats_host_node_state:
+    type: nats
+    inputs: ["host_node_state_parse"]
+    url: "${NATS_SEED_SERVERS_URL}"
+    subject: "system.observability.host_node_state"
+    encoding:
+      codec: json
+    auth:
+      strategy: nkey
+      nkey:
+        nkey: "${NATS_NKEY_PUB}"
+        seed: "${NATS_NKEY_SEED}"
+    tls:
+      enabled: true        
+    buffer:
+      type: disk
+      max_size: 268435488
+      when_full: block      
 `
 
 func CreateVectorConfig(

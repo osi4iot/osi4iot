@@ -65,6 +65,7 @@ func TopicToNatsSubject(topicType, groupUid, topicUid string) string {
 var SystemMonitoringTopicMap = map[string]string{
 	"Log entries":       "system.observability.logs",
 	"Host metrics":      "system.observability.host_metrics",
+	"Host state":        "system.observability.host_state",
 	"Container metrics": "system.observability.container_metrics",
 	"Volume metrics":    "system.observability.volume_metrics",
 	"System alert":      "system.observability.system_alert",

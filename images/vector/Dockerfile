@@ -11,7 +11,8 @@ RUN go mod download
 # Copy all collector sources
 COPY system_metrics/main.go    ./
 COPY system_metrics/containers.go ./
-COPY system_metrics/host.go ./
+COPY system_metrics/hostMetrics.go ./
+COPY system_metrics/hostState.go ./
 COPY system_metrics/volumes.go   ./
 
 ARG TARGETOS

@@ -124,11 +124,7 @@ CREATE TABLE IF NOT EXISTS observability.host_metrics (
     time TIMESTAMPTZ NOT NULL,
 
 -- Identidad del host/nodo
-node_id TEXT NOT NULL,
-node_name TEXT NOT NULL,
-hostname TEXT,
-swarm_role TEXT, -- manager / worker
-availability TEXT, -- active / drain / pause
+node_id TEXT NOT NULL, node_name TEXT NOT NULL, hostname TEXT,
 
 -- CPU
 cpu_cores INTEGER,
@@ -193,6 +189,52 @@ SELECT add_retention_policy (
 GRANT
 SELECT ON TABLE observability.host_metrics TO data_source_user_org_1;
 
+
+-- Host/node state (collected from Vector) — separate table for the latest state of each node, updated on every scrape
+CREATE TABLE IF NOT EXISTS observability.host_node_state (
+    node_id      TEXT        NOT NULL,
+    node_name    TEXT        NOT NULL,
+    hostname     TEXT,
+    swarm_role   TEXT,           -- manager | worker
+    availability TEXT,           -- active | drain | pause
+    labels       JSONB,
+    last_seen    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+ 
+    CONSTRAINT host_node_state_pkey PRIMARY KEY (node_id)
+);
+ 
+GRANT SELECT ON TABLE observability.host_node_state TO data_source_user_org_1;
+ 
+CREATE OR REPLACE FUNCTION observability.upsert_host_node_state()
+RETURNS TRIGGER LANGUAGE plpgsql AS $$
+BEGIN
+    INSERT INTO observability.host_node_state
+        (node_id, node_name, hostname, swarm_role, availability, labels, last_seen)
+    VALUES
+        (NEW.node_id, NEW.node_name, NEW.hostname,
+         NEW.swarm_role, NEW.availability, NEW.labels, NOW())
+    ON CONFLICT (node_id) DO UPDATE SET
+        node_name    = EXCLUDED.node_name,
+        hostname     = EXCLUDED.hostname,
+        swarm_role   = EXCLUDED.swarm_role,
+        availability = EXCLUDED.availability,
+        labels       = EXCLUDED.labels,
+        last_seen    = NOW();
+    RETURN NULL; -- NULL cancels the original INSERT (trigger handles it)
+END;
+$$;
+ 
+CREATE OR REPLACE TRIGGER trg_upsert_host_node_state
+BEFORE INSERT ON observability.host_node_state
+FOR EACH ROW EXECUTE FUNCTION observability.upsert_host_node_state();
+ 
+-- Index for dashboard queries that filter by role or availability
+CREATE INDEX IF NOT EXISTS idx_host_node_state_role
+    ON observability.host_node_state (swarm_role);
+ 
+CREATE INDEX IF NOT EXISTS idx_host_node_state_availability
+    ON observability.host_node_state (availability);
+
 -- CONTAINER METRICS: CPU, RAM, Network, etc. (collected from Vector)
 CREATE TABLE IF NOT EXISTS observability.container_metrics (
     time TIMESTAMPTZ NOT NULL,
@@ -239,6 +281,7 @@ network_rx_errors_total BIGINT,
 network_tx_errors_total BIGINT,
 
 -- Block I/O
+
 
 block_read_bytes_total BIGINT,
     block_write_bytes_total BIGINT,
@@ -308,6 +351,7 @@ usage_percent DOUBLE PRECISION,
 
 -- Flags
 
+
 read_only BOOLEAN,
     propagation TEXT,
 
@@ -367,104 +411,88 @@ SELECT ON TABLE observability.volume_metrics TO data_source_user_org_1;
 CREATE MATERIALIZED VIEW observability.host_metrics_1m
 WITH (timescaledb.continuous) AS
 SELECT
-    time_bucket ('1 minute', time) AS bucket,
+    time_bucket('1 minute', time)                       AS bucket,
     node_id,
     node_name,
-
--- Identity (static values within the bucket)
-last (hostname, time) AS hostname,
-last (swarm_role, time) AS swarm_role,
-last (availability, time) AS availability,
-
--- CPU
-last (cpu_cores, time) AS cpu_cores,
-avg(cpu_usage_percent) AS cpu_usage_percent_avg,
-max(cpu_usage_percent) AS cpu_usage_percent_max,
-avg(cpu_load1) AS cpu_load1_avg,
-avg(cpu_load5) AS cpu_load5_avg,
-avg(cpu_load15) AS cpu_load15_avg,
-
--- Memory
-last (memory_total_bytes, time) AS memory_total_bytes,
-avg(memory_used_bytes) AS memory_used_bytes_avg,
-max(memory_used_bytes) AS memory_used_bytes_max,
-avg(memory_available_bytes) AS memory_available_bytes_avg,
-avg(memory_usage_percent) AS memory_usage_percent_avg,
-max(memory_usage_percent) AS memory_usage_percent_max,
-
--- Swap
-last (swap_total_bytes, time) AS swap_total_bytes,
-avg(swap_used_bytes) AS swap_used_bytes_avg,
-max(swap_used_bytes) AS swap_used_bytes_max,
-
--- Root filesystem
-last (rootfs_total_bytes, time) AS rootfs_total_bytes,
-avg(rootfs_used_bytes) AS rootfs_used_bytes_avg,
-avg(rootfs_available_bytes) AS rootfs_available_bytes_avg,
-avg(rootfs_usage_percent) AS rootfs_usage_percent_avg,
-max(rootfs_usage_percent) AS rootfs_usage_percent_max,
-
--- Network (cumulative counters — use last() to preserve the latest value in the bucket)
-last (network_rx_bytes_total, time) AS network_rx_bytes_total,
-last (network_tx_bytes_total, time) AS network_tx_bytes_total,
-last (network_rx_errors_total, time) AS network_rx_errors_total,
-last (network_tx_errors_total, time) AS network_tx_errors_total,
-
--- Docker / Swarm
-avg(docker_containers_running) AS docker_containers_running_avg,
-max(docker_containers_running) AS docker_containers_running_max,
-last (
-    docker_containers_paused,
-    time
-) AS docker_containers_paused,
-last (
-    docker_containers_stopped,
-    time
-) AS docker_containers_stopped,
-last (docker_images_count, time) AS docker_images_count
+ 
+    -- Identity
+    last(hostname,              time)                   AS hostname,
+ 
+    -- CPU
+    last(cpu_cores,             time)                   AS cpu_cores,
+    avg(cpu_usage_percent)                              AS cpu_usage_percent_avg,
+    max(cpu_usage_percent)                              AS cpu_usage_percent_max,
+    avg(cpu_load1)                                      AS cpu_load1_avg,
+    avg(cpu_load5)                                      AS cpu_load5_avg,
+    avg(cpu_load15)                                     AS cpu_load15_avg,
+ 
+    -- Memory
+    last(memory_total_bytes,    time)                   AS memory_total_bytes,
+    avg(memory_used_bytes)                              AS memory_used_bytes_avg,
+    max(memory_used_bytes)                              AS memory_used_bytes_max,
+    avg(memory_available_bytes)                         AS memory_available_bytes_avg,
+    avg(memory_usage_percent)                           AS memory_usage_percent_avg,
+    max(memory_usage_percent)                           AS memory_usage_percent_max,
+ 
+    -- Swap
+    last(swap_total_bytes,      time)                   AS swap_total_bytes,
+    avg(swap_used_bytes)                                AS swap_used_bytes_avg,
+    max(swap_used_bytes)                                AS swap_used_bytes_max,
+ 
+    -- Root filesystem
+    last(rootfs_total_bytes,    time)                   AS rootfs_total_bytes,
+    avg(rootfs_used_bytes)                              AS rootfs_used_bytes_avg,
+    avg(rootfs_available_bytes)                         AS rootfs_available_bytes_avg,
+    avg(rootfs_usage_percent)                           AS rootfs_usage_percent_avg,
+    max(rootfs_usage_percent)                           AS rootfs_usage_percent_max,
+ 
+    -- Network (cumulative counters — last() preserves the latest value)
+    last(network_rx_bytes_total,  time)                 AS network_rx_bytes_total,
+    last(network_tx_bytes_total,  time)                 AS network_tx_bytes_total,
+    last(network_rx_errors_total, time)                 AS network_rx_errors_total,
+    last(network_tx_errors_total, time)                 AS network_tx_errors_total,
+ 
+    -- Docker daemon state
+    avg(docker_containers_running)                      AS docker_containers_running_avg,
+    max(docker_containers_running)                      AS docker_containers_running_max,
+    last(docker_containers_paused,  time)               AS docker_containers_paused,
+    last(docker_containers_stopped, time)               AS docker_containers_stopped,
+    last(docker_images_count,       time)               AS docker_images_count
+ 
 FROM observability.host_metrics
-GROUP BY
-    bucket,
-    node_id,
-    node_name
-WITH
-    NO DATA;
-
--- Real-time data is included for the non-yet-materialized tail period
+GROUP BY bucket, node_id, node_name
+WITH NO DATA;
+ 
 ALTER MATERIALIZED VIEW observability.host_metrics_1m
-SET (
-        timescaledb.materialized_only = false
-    );
-
--- Refresh every minute; keep a 10-minute look-back window to handle late data
-SELECT
-    add_continuous_aggregate_policy (
-        'observability.host_metrics_1m',
-        start_offset => INTERVAL '10 minutes',
-        end_offset => INTERVAL '1 minute',
-        schedule_interval => INTERVAL '1 minute',
-        if_not_exists => TRUE
-    );
-
--- Compress chunks older than 1 hour (must be > start_offset to avoid conflicts with the refresh policy)
-ALTER MATERIALIZED VIEW observability.host_metrics_1m
-SET (
-        timescaledb.compress,
-        timescaledb.compress_segmentby = 'node_id, node_name',
-        timescaledb.compress_orderby = 'bucket DESC'
-    );
-
-SELECT add_compression_policy (
-        'observability.host_metrics_1m', compress_after => INTERVAL '1 hour', if_not_exists => TRUE
-    );
-
--- Drop chunks older than 7 days
-SELECT add_retention_policy (
-        'observability.host_metrics_1m', drop_after => INTERVAL '7 days', if_not_exists => TRUE
-    );
-
-GRANT
-SELECT ON observability.host_metrics_1m TO data_source_user_org_1;
+    SET (timescaledb.materialized_only = false);
+ 
+SELECT add_continuous_aggregate_policy(
+    'observability.host_metrics_1m',
+    start_offset      => INTERVAL '10 minutes',
+    end_offset        => INTERVAL '1 minute',
+    schedule_interval => INTERVAL '1 minute',
+    if_not_exists     => TRUE
+);
+ 
+ALTER MATERIALIZED VIEW observability.host_metrics_1m SET (
+    timescaledb.compress,
+    timescaledb.compress_segmentby = 'node_id, node_name',
+    timescaledb.compress_orderby   = 'bucket DESC'
+);
+ 
+SELECT add_compression_policy(
+    'observability.host_metrics_1m',
+    compress_after => INTERVAL '1 hour',
+    if_not_exists  => TRUE
+);
+ 
+SELECT add_retention_policy(
+    'observability.host_metrics_1m',
+    drop_after    => INTERVAL '7 days',
+    if_not_exists => TRUE
+);
+ 
+GRANT SELECT ON observability.host_metrics_1m TO data_source_user_org_1;
 
 -- =============================================================================
 -- 2. CONTAINER METRICS — 1 minute

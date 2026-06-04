@@ -1,5 +1,5 @@
 import { connect, NatsConnection, StringCodec } from "nats.ws";
-import { getDomainName } from "./tools";
+import { getDomainName, getNatsSeedServers } from "./tools";
 
 const sc = StringCodec();
 
@@ -8,12 +8,12 @@ const NatsConnect = async (
 	userName: string,
 	accessToken: string
 ): Promise<NatsConnection> => {
-	const domainName = getDomainName();
-	const url = `wss://${domainName}:9001`;
+	const natsSeedServers = getNatsSeedServers();
+	const urls = natsSeedServers.split(",").map((s: string) => s.trim());
 
 	try {
 		const nc = await connect({
-			servers: url,
+			servers: urls,
 			user: `jwt_${userName}`,
 			pass: accessToken,
 		});

@@ -796,9 +796,10 @@ export const verifyAndCorrectDigitalTwinReferences = async (
 const SystemMonitoringTopicMap = new Map();
 SystemMonitoringTopicMap.set("system_1", "system/observability/logs");
 SystemMonitoringTopicMap.set("system_2", "system/observability/host_metrics");
-SystemMonitoringTopicMap.set("system_3", "system/observability/container_metrics");
-SystemMonitoringTopicMap.set("system_4", "system/observability/volume_metrics");
-SystemMonitoringTopicMap.set("system_5", "system/observability/system_alert");
+SystemMonitoringTopicMap.set("system_3", "system/observability/host_state");
+SystemMonitoringTopicMap.set("system_4", "system/observability/container_metrics");
+SystemMonitoringTopicMap.set("system_5", "system/observability/volume_metrics");
+SystemMonitoringTopicMap.set("system_6", "system/observability/system_alert");
 
 export const getMqttTopicsDataFromDigitalTwinData = async (
 	digitalTwin: IDigitalTwin,
