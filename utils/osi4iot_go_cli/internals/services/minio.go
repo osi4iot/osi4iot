@@ -84,7 +84,7 @@ func MinioService(
 			{
 				Protocol:      swarm.PortConfigProtocolTCP,
 				TargetPort:    9090,
-				PublishedPort: 9090,
+				PublishedPort: 9092, // ← libre
 				PublishMode:   swarm.PortConfigPublishModeHost,
 			},
 		}

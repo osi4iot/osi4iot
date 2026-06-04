@@ -42,8 +42,8 @@ func AuthCalloutService(
 
     return NewService("auth_callout", pd, sd).
         WithImage(image).
-        WithCommand([]string{"sh", "-c"}).        // ← añadido
-        WithArgs([]string{                         // ← añadido
+        WithCommand([]string{"sh", "-c"}).
+        WithArgs([]string{
             "until nc -z postgres 5432 > /dev/null 2>&1; do " +
                 "echo 'Waiting for postgres...'; sleep 2; " +
                 "done && " +

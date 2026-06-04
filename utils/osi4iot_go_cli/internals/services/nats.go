@@ -163,7 +163,13 @@ func NatsService(
 		}).
 		WithNetworks([]swarm.NetworkAttachmentConfig{
 			{Target: sd.Networks["internal_net"].Name},
-			{Target: sd.Networks["nats_network"].Name, Aliases: []string{fmt.Sprintf("nats%d.%s", replica, domainName)}},
+			{
+				Target: sd.Networks["nats_network"].Name,
+				Aliases: []string{
+					fmt.Sprintf("nats%d", replica),
+					fmt.Sprintf("nats%d.%s", replica, domainName),
+				},
+			},
 		}).
 		WithUpdateConfig(updateConfig).
 		WithRollbackConfig(rollbackConfig).

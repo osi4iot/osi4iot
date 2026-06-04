@@ -17,7 +17,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const version = "0.1.11"
+const version = "0.1.12"
 
 var SwarmActions = []string{"create", "init", "run", "stop", "delete", "service", "certs"}
 

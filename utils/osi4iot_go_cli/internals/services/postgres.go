@@ -11,12 +11,11 @@ import (
 )
 
 func PostgresService(
-	pd *pt.PlatformData, 
+	pd *pt.PlatformData,
 	sd pt.SwarmData,
 	svcResources resources.SvcResources,
 	nodeRoleNumMaps map[string]int,
-	) pt.Service {
-
+) pt.Service {
 
 	secrets := []*swarm.SecretReference{
 		{
@@ -85,7 +84,10 @@ func PostgresService(
 		WithPlacement(constraints).
 		WithModeReplicated(svcResources.ReplicasPtr).
 		WithNetworks([]swarm.NetworkAttachmentConfig{
-			{Target: sd.Networks["internal_net"].Name},
+			{
+				Target:  sd.Networks["internal_net"].Name,
+				Aliases: []string{"postgres"},
+			},
 		}).
 		Build()
 }

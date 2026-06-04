@@ -114,7 +114,10 @@ func TimescaledbService(
 		WithPlacement(constraints).
 		WithModeReplicated(svcResources.ReplicasPtr).
 		WithNetworks([]swarm.NetworkAttachmentConfig{
-			{Target: sd.Networks["internal_net"].Name},
+			{
+				Target:  sd.Networks["internal_net"].Name,
+				Aliases: []string{"timescaledb"},
+			},
 		}).
 		Build()
 }

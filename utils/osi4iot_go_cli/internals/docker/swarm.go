@@ -71,6 +71,13 @@ func InitPlatform(pd *pt.PlatformData) error {
 }
 
 func RunSwarm(dc *pt.DockerClient, pd *pt.PlatformData) error {
+    // Clean orphan network namespaces before deploying to prevent
+    // "vxlan interface: file exists" errors on redeployment
+    if err := cleanOrphanNetNS(dc); err != nil {
+        fmt.Printf("Warning: could not clean orphan netns: %v\n", err)
+        // Non-fatal: log and continue
+    }
+
 	err := createSwarmServices(pd, dc)
 	if err != nil {
 		return fmt.Errorf("error creating swarm services: %v", err)
@@ -297,6 +304,7 @@ func DeletePlatform(pd *pt.PlatformData) error {
 		return fmt.Errorf("error removing configs: %v", err)
 	}
 
+	_ = cleanOrphanNetNS(docker)
 	err = networks.RemoveSwarmNetworks(docker)
 	if err != nil {
 		done <- false
