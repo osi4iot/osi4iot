@@ -434,7 +434,7 @@ sinks:
 
   nats_host_node_state:
     type: nats
-    inputs: ["host_node_state_parse"]
+    inputs: ["host_state_parse"]
     url: "${NATS_SEED_SERVERS_URL}"
     subject: "system.observability.host_node_state"
     encoding:
