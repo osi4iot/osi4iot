@@ -23,7 +23,7 @@
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
   "id": 6,
-  "iteration": 1779293884760,
+  "iteration": 1780591000524,
   "links": [],
   "liveNow": false,
   "panels": [
@@ -78,7 +78,7 @@
             "properties": [
               {
                 "id": "custom.width",
-                "value": 250
+                "value": 180
               }
             ]
           },
@@ -90,7 +90,7 @@
             "properties": [
               {
                 "id": "custom.width",
-                "value": 100
+                "value": 130
               }
             ]
           },
@@ -118,7 +118,7 @@
             "properties": [
               {
                 "id": "custom.width",
-                "value": 120
+                "value": 150
               }
             ]
           },
@@ -304,7 +304,7 @@
           "group": [],
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "SELECT\n    time,\n    node_name || ' → ' || volume_name AS metric,\n    usage_percent\nFROM observability.volume_metrics\nWHERE\n    $__timeFilter(time)\n    AND node_name = $node\n    AND service IN ($service)\n    AND volume_name IS NOT NULL\nORDER BY time ASC;",
+          "rawSql": "SELECT\n    time,\n    node_name || ' → ' || volume_name AS metric,\n    usage_percent\nFROM observability.volume_metrics\nWHERE\n    $__timeFilter(time)\n    AND node_name IN ($node)\n    AND service IN ($service)\n    AND volume_name IS NOT NULL\nORDER BY time ASC; \n",
           "refId": "A",
           "select": [
             [
@@ -338,7 +338,7 @@
     "list": [
       {
         "current": {
-          "selected": false,
+          "selected": true,
           "text": "All",
           "value": "$__all"
         },
@@ -359,18 +359,18 @@
       },
       {
         "current": {
-          "selected": true,
+          "selected": false,
           "text": "All",
           "value": "$__all"
         },
-        "definition": "SELECT DISTINCT service\nFROM observability.volume_metrics\nWHERE node_name = $node\nORDER BY 1;",
+        "definition": "SELECT DISTINCT service\nFROM observability.volume_metrics\nWHERE node_name IN ($node)\nORDER BY 1;",
         "hide": 0,
         "includeAll": true,
         "label": "Service",
         "multi": false,
         "name": "service",
         "options": [],
-        "query": "SELECT DISTINCT service\nFROM observability.volume_metrics\nWHERE node_name = $node\nORDER BY 1;",
+        "query": "SELECT DISTINCT service\nFROM observability.volume_metrics\nWHERE node_name IN ($node)\nORDER BY 1;",
         "refresh": 1,
         "regex": "",
         "skipUrlSync": false,
@@ -402,6 +402,6 @@
   "timezone": "",
   "title": "",
   "uid": "",
-  "version": 8,
+  "version": 3,
   "weekStart": ""
 }

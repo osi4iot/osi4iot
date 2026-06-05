@@ -22,8 +22,8 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
-  "id": 11,
-  "iteration": 1778738394331,
+  "id": 4,
+  "iteration": 1780590672258,
   "links": [],
   "liveNow": false,
   "panels": [
@@ -77,13 +77,13 @@
         {
           "datasource": {
             "type": "postgres",
-            "uid": ""
+            "uid": "PC9F690ACD2F736A4"
           },
           "format": "table",
           "group": [],
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "SELECT\n  COUNT(*) FILTER (WHERE availability = 'active') AS active,\n  COUNT(*)                                         AS total\nFROM (\n  SELECT DISTINCT ON (node_id)\n    availability\n  FROM observability.host_metrics\n  WHERE time > NOW() - INTERVAL '1 minute'\n  ORDER BY node_id, time DESC\n) latest\n",
+          "rawSql": "SELECT\n    COUNT(*)                                            AS total,\n    COUNT(*) FILTER (WHERE availability = 'active')    AS active\nFROM observability.host_node_state\nWHERE last_seen >= NOW() - INTERVAL '1 minutes';\n",
           "refId": "A",
           "select": [
             [
@@ -210,7 +210,7 @@
         {
           "datasource": {
             "type": "postgres",
-            "uid": ""
+            "uid": "PC9F690ACD2F736A4"
           },
           "format": "table",
           "group": [],
@@ -267,7 +267,7 @@
               "type": "linear"
             },
             "showPoints": "auto",
-            "spanNulls": false,
+            "spanNulls": true,
             "stacking": {
               "group": "A",
               "mode": "none"
@@ -320,7 +320,7 @@
         {
           "datasource": {
             "type": "postgres",
-            "uid": ""
+            "uid": "PC9F690ACD2F736A4"
           },
           "format": "time_series",
           "group": [],
@@ -521,7 +521,7 @@
         {
           "datasource": {
             "type": "postgres",
-            "uid": ""
+            "uid": "PC9F690ACD2F736A4"
           },
           "format": "table",
           "group": [],
@@ -578,7 +578,7 @@
               "type": "linear"
             },
             "showPoints": "auto",
-            "spanNulls": false,
+            "spanNulls": true,
             "stacking": {
               "group": "A",
               "mode": "none"
@@ -623,7 +623,7 @@
         {
           "datasource": {
             "type": "postgres",
-            "uid": ""
+            "uid": "PC9F690ACD2F736A4"
           },
           "format": "time_series",
           "group": [],
@@ -680,7 +680,7 @@
               "type": "linear"
             },
             "showPoints": "auto",
-            "spanNulls": false,
+            "spanNulls": true,
             "stacking": {
               "group": "A",
               "mode": "none"
@@ -729,7 +729,7 @@
         {
           "datasource": {
             "type": "postgres",
-            "uid": ""
+            "uid": "PC9F690ACD2F736A4"
           },
           "format": "time_series",
           "group": [],
@@ -770,7 +770,7 @@
       {
         "allValue": "node",
         "current": {
-          "selected": true,
+          "selected": false,
           "text": "All",
           "value": "$__all"
         },
@@ -814,6 +814,6 @@
   "timezone": "",
   "title": "",
   "uid": "",
-  "version": 17,
+  "version": 2,
   "weekStart": ""
 }

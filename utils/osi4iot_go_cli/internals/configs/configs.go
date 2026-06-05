@@ -316,7 +316,7 @@ func natsSeedServersForFrontend(pd *pt.PlatformData, numNatsReplicas int, hostNa
 	numNatsNodes := pd.PlatformInfo.NumOfNatsNodes
 	numNatsSeedServers := utils.Min(numNatsReplicas, 3)
 	if numNatsNodes == 1 {
-			natUrl := fmt.Sprintf("wss://nats1.%s:9001", hostName)
+			natUrl := fmt.Sprintf("wss://%s:9001", hostName)
 			serversUrl = append(serversUrl, natUrl)
 	} else if numNatsNodes >= 3 {
 		for replica := 1; replica <= numNatsSeedServers; replica++ {

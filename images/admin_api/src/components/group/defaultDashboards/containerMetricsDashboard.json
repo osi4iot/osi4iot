@@ -23,7 +23,7 @@
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
   "id": 5,
-  "iteration": 1779290131380,
+  "iteration": 1780592502512,
   "links": [],
   "liveNow": false,
   "panels": [
@@ -86,7 +86,7 @@
           "group": [],
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "SELECT\n  COUNT(*)                                    AS \"running\",\n  COUNT(*) FILTER (WHERE state = 'running')   AS \"total\"\nFROM (\n  SELECT DISTINCT ON (container_id)\n    state\n  FROM observability.container_metrics\n  WHERE time > NOW() - INTERVAL '2 minutes'\n  AND node_name = $node\n  ORDER BY container_id, time DESC\n) latest;",
+          "rawSql": "SELECT\n    COUNT(*)                                          AS \"total\",\n    COUNT(*) FILTER (WHERE state = 'running')        AS \"running\"\nFROM (\n    SELECT DISTINCT ON (container_id)\n        state\n    FROM observability.container_metrics\n    WHERE time > NOW() - INTERVAL '2 minutes'\n        AND node_name IN ($node)\n    ORDER BY container_id, time DESC\n) latest;",
           "refId": "A",
           "select": [
             [
@@ -420,7 +420,7 @@
             "scaleDistribution": {
               "type": "linear"
             },
-            "showPoints": "always",
+            "showPoints": "auto",
             "spanNulls": true,
             "stacking": {
               "group": "A",
@@ -476,7 +476,7 @@
           "group": [],
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "SELECT\n  time,\n  service || '.' || replica_slot AS \"Container\",\n  cpu_usage_percent               AS \"CPU %\"\nFROM observability.container_metrics\nWHERE $__timeFilter(time)\n  AND service IN ($service)\n  AND replica_slot IN ($replica)\n  AND node_name = $node\nORDER BY time ASC;",
+          "rawSql": "SELECT\n  time,\n  service || '.' || replica_slot AS \"Container\",\n  cpu_usage_percent               AS \"CPU %\"\nFROM observability.container_metrics\nWHERE $__timeFilter(time)\n  AND service IN ($service)\n  AND replica_slot IN ($replica)\n  AND node_name IN ($node)\nORDER BY time ASC;",
           "refId": "A",
           "select": [
             [
@@ -582,7 +582,7 @@
           "group": [],
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "SELECT\n  time,\n  service || '.' || replica_slot AS \"Container\",\n  memory_usage_percent            AS \"Memory %\"\nFROM observability.container_metrics\nWHERE $__timeFilter(time)\n  AND service IN ($service)\n  AND replica_slot IN ($replica)\n  AND node_name = $node\nORDER BY time ASC;",
+          "rawSql": "SELECT\n  time,\n  service || '.' || replica_slot AS \"Container\",\n  memory_usage_percent            AS \"Memory %\"\nFROM observability.container_metrics\nWHERE $__timeFilter(time)\n  AND service IN ($service)\n  AND replica_slot IN ($replica)\n  AND node_name IN ($node)\nORDER BY time ASC;",
           "refId": "A",
           "select": [
             [
@@ -687,7 +687,7 @@
           "group": [],
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "SELECT\n  time,\n  service || '.' || replica_slot AS \"Container\",\n  CASE\n    WHEN network_rx_bytes_total < LAG(network_rx_bytes_total) OVER w THEN NULL\n    ELSE (network_rx_bytes_total - LAG(network_rx_bytes_total) OVER w)\n         / NULLIF(EXTRACT(EPOCH FROM (time - LAG(time) OVER w)), 0)\n  END AS \"RX bytes/s\",\n  CASE\n    WHEN network_tx_bytes_total < LAG(network_tx_bytes_total) OVER w THEN NULL\n    ELSE (network_tx_bytes_total - LAG(network_tx_bytes_total) OVER w)\n         / NULLIF(EXTRACT(EPOCH FROM (time - LAG(time) OVER w)), 0)\n  END AS \"TX bytes/s\"\nFROM observability.container_metrics\nWHERE $__timeFilter(time)\n  AND service IN ($service)\n  AND replica_slot IN ($replica)\n  AND node_name = $node\nWINDOW w AS (PARTITION BY container_id ORDER BY time)\nORDER BY time ASC;",
+          "rawSql": "SELECT\n  time,\n  service || '.' || replica_slot AS \"Container\",\n  CASE\n    WHEN network_rx_bytes_total < LAG(network_rx_bytes_total) OVER w THEN NULL\n    ELSE (network_rx_bytes_total - LAG(network_rx_bytes_total) OVER w)\n         / NULLIF(EXTRACT(EPOCH FROM (time - LAG(time) OVER w)), 0)\n  END AS \"RX bytes/s\",\n  CASE\n    WHEN network_tx_bytes_total < LAG(network_tx_bytes_total) OVER w THEN NULL\n    ELSE (network_tx_bytes_total - LAG(network_tx_bytes_total) OVER w)\n         / NULLIF(EXTRACT(EPOCH FROM (time - LAG(time) OVER w)), 0)\n  END AS \"TX bytes/s\"\nFROM observability.container_metrics\nWHERE $__timeFilter(time)\n  AND service IN ($service)\n  AND replica_slot IN ($replica)\n  AND node_name IN ($node)\nWINDOW w AS (PARTITION BY container_id ORDER BY time)\nORDER BY time ASC;",
           "refId": "A",
           "select": [
             [
@@ -765,8 +765,8 @@
         "allValue": "",
         "current": {
           "selected": false,
-          "text": "ASUS",
-          "value": "ASUS"
+          "text": "All",
+          "value": "$__all"
         },
         "definition": "SELECT DISTINCT node_name\nFROM observability.container_metrics\nWHERE time > NOW() - INTERVAL '2 minutes'\nORDER BY node_name ASC;",
         "hide": 0,
