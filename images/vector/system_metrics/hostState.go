@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/api/types/filters"
-	dockertypes "github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/client"
 )
 
@@ -23,6 +23,7 @@ type NodeStateMetric struct {
 	Hostname     string            `json:"hostname"`
 	SwarmRole    string            `json:"swarm_role"`   // manager | worker
 	Availability string            `json:"availability"` // active | drain | pause
+	State        string            `json:"state"`        // ready | down | disconnected
 	Labels       map[string]string `json:"labels,omitempty"`
 	LastSeen     time.Time         `json:"last_seen"`
 }
@@ -61,7 +62,19 @@ func collectHostState(pretty bool) error {
 		return nil
 	}
 
-	nodes, err := cli.NodeList(ctx, dockertypes.NodeListOptions{
+	// Guard: only the Raft leader emits metrics to avoid redundant upserts
+	// from all 3 managers writing the same data every 30 seconds.
+	node, _, err := cli.NodeInspectWithRaw(ctx, info.Swarm.NodeID)
+	if err != nil {
+		return fmt.Errorf("NodeInspect(%s): %w", info.Name, err)
+	}
+	if !node.ManagerStatus.Leader {
+		fmt.Fprintf(os.Stderr,
+			"[host_state] skipping: node %s is not the Swarm leader\n", info.Name)
+		return nil
+	}
+
+	nodes, err := cli.NodeList(ctx, swarm.NodeListOptions{
 		Filters: filters.NewArgs(),
 	})
 	if err != nil {
@@ -81,6 +94,7 @@ func collectHostState(pretty bool) error {
 			Hostname:     node.Description.Hostname,
 			SwarmRole:    strings.ToLower(string(node.Spec.Role)),
 			Availability: strings.ToLower(string(node.Spec.Availability)),
+			State:        strings.ToLower(string(node.Status.State)),
 			Labels:       node.Spec.Labels,
 			LastSeen:     now,
 		}

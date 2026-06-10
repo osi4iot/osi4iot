@@ -27,6 +27,11 @@ func main() {
 
 	args := os.Args[1:]
 
+	if len(args) >= 3 && args[0] == "certs" && args[1] == "renewer" && args[2] == "daemon" {
+		cmd.Execute()
+		return
+	}
+
 	noStateCommands := []string{"--help", "-h", "help", "version"}
 	for _, arg := range args {
 		for _, noState := range noStateCommands {
@@ -44,7 +49,7 @@ func main() {
 
 	sudoActions := []string{"create", "init", "run", "stop", "delete", "certs", "nodes", "passphrase"}
 	reexecAsRootIfNeeded(sudoActions, action)
-	
+
 	if action == "passphrase" {
 		cmd.Execute()
 		return

@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"log"
 
 	"github.com/osi4iot/osi4iot/utils/osi4iot/internals/certrenewer"
 	"github.com/osi4iot/osi4iot/utils/osi4iot/internals/data"
@@ -9,14 +10,20 @@ import (
 	"github.com/osi4iot/osi4iot/utils/osi4iot/internals/utils"
 )
 
-func runCertsUpdate() error {
+func runCertsUpdate(logger *log.Logger) error {
     pd := data.GetData()
+    if pd.PlatformInfo.DomainName == "" {
+        if err := utils.ReadPlatformDataFromFile(pd); err != nil {
+            return fmt.Errorf("error reading platform data: %w", err)
+        }
+    }
+
     expirationInfo, err := utils.GetCertsExpirationInfo(pd)
     if err != nil {
         return fmt.Errorf("error checking certificates: %w", err)
     }
     if expirationInfo.DaysToExpiry > 15 {
-        fmt.Printf("Certificates are not close to expiration (%d days to expiry).\n", expirationInfo.DaysToExpiry)
+        logger.Printf("Certificates are not close to expiration (%d days to expiry).", expirationInfo.DaysToExpiry)
         return nil
     }
     switch pd.PlatformInfo.DomainCertsType {
@@ -33,9 +40,9 @@ func runCertsUpdate() error {
             return fmt.Errorf("error updating certs: %w", err)
         }
         if warnings != "" {
-            fmt.Println(utils.StyleWarningMsg.Render("\nWarnings:\n" + warnings))
+            logger.Printf("Warnings:\n%s", warnings)
         } else {
-            fmt.Println(utils.StyleOKMsg.Render("ACME certificates have been updated successfully"))
+            logger.Printf("ACME certificates updated successfully")
         }
     case "Certs provided by an CA":
         return fmt.Errorf("certificate update not supported for type: %s", pd.PlatformInfo.DomainCertsType)

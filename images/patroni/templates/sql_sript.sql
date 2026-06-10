@@ -210,6 +210,7 @@ CREATE TABLE IF NOT EXISTS observability.host_node_state_data (
     hostname     TEXT,
     swarm_role   TEXT,           -- manager | worker
     availability TEXT,           -- active | drain | pause
+    state        TEXT,           -- ready | down | disconnected
     labels       JSONB,
     last_seen    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 
@@ -222,6 +223,9 @@ CREATE INDEX IF NOT EXISTS idx_host_node_state_role
 CREATE INDEX IF NOT EXISTS idx_host_node_state_availability
     ON observability.host_node_state_data (availability);
 
+CREATE INDEX IF NOT EXISTS idx_host_node_state_state
+    ON observability.host_node_state_data (state);
+
 -- View — this is the target Vector writes to
 CREATE OR REPLACE VIEW observability.host_node_state AS
     SELECT * FROM observability.host_node_state_data;
@@ -232,15 +236,16 @@ CREATE OR REPLACE FUNCTION observability.upsert_host_node_state()
 RETURNS TRIGGER LANGUAGE plpgsql AS $$
 BEGIN
     INSERT INTO observability.host_node_state_data
-        (node_id, node_name, hostname, swarm_role, availability, labels, last_seen)
+        (node_id, node_name, hostname, swarm_role, availability, state, labels, last_seen)
     VALUES
         (NEW.node_id, NEW.node_name, NEW.hostname,
-         NEW.swarm_role, NEW.availability, NEW.labels, NOW())
+         NEW.swarm_role, NEW.availability, NEW.state, NEW.labels, NOW())
     ON CONFLICT (node_id) DO UPDATE SET
         node_name    = EXCLUDED.node_name,
         hostname     = EXCLUDED.hostname,
         swarm_role   = EXCLUDED.swarm_role,
         availability = EXCLUDED.availability,
+        state        = EXCLUDED.state,
         labels       = EXCLUDED.labels,
         last_seen    = NOW();
     RETURN NULL;

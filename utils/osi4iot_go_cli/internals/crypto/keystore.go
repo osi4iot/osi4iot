@@ -9,6 +9,8 @@ import (
 	"github.com/zalando/go-keyring"
 )
 
+const rootPassphraseFile = "/root/.osi4iot/.passphrase"
+
 const (
 	keyringService = "osi4iot"
 	keyringUser    = "encryption-key"
@@ -179,13 +181,14 @@ func passphraseFilePath() string {
 // passphrase file. Returns the path and true if found, or the default path
 // and false if not found.
 func findPassphraseFile() (string, bool) {
-	for _, dir := range paths.Osi4iotDirCandidates() {
-		p := filepath.Join(dir, passphraseFile)
-		if _, err := os.Stat(p); err == nil {
-			return p, true
-		}
-	}
-	return passphraseFilePath(), false
+    candidates := append(paths.Osi4iotDirCandidates(), "/root/.osi4iot")
+    for _, dir := range candidates {
+        p := filepath.Join(dir, passphraseFile)
+        if _, err := os.Stat(p); err == nil {
+            return p, true
+        }
+    }
+    return passphraseFilePath(), false
 }
 
 // savePassphraseFile encrypts the passphrase with the machine key and writes
@@ -229,4 +232,36 @@ func readPassphraseFile() ([]byte, string, error) {
 	}
 
 	return val, filePath, nil
+}
+
+func EnsureRootPassphraseFile() error {
+    // Si ya existe, no hacer nada
+    if _, err := os.Stat(rootPassphraseFile); err == nil {
+        return nil
+    }
+
+    // Leer el passphrase del keystore o archivo del usuario actual
+    passphrase, _, err := readPassphraseFile()
+    if err != nil {
+        // Intentar también desde el keyring
+        val, kerr := keyring.Get(keyringService, keyringUser)
+        if kerr != nil {
+            return fmt.Errorf("could not obtain passphrase: %w", err)
+        }
+        passphrase = []byte(val)
+    }
+
+    // Cifrarlo con la machine key y guardarlo en /root/.osi4iot/
+    machineKey, err := getMachineKey()
+    if err != nil {
+        return err
+    }
+    encrypted, err := Encrypt(passphrase, machineKey)
+    if err != nil {
+        return err
+    }
+    if err := os.MkdirAll(filepath.Dir(rootPassphraseFile), 0700); err != nil {
+        return err
+    }
+    return os.WriteFile(rootPassphraseFile, encrypted, 0600)
 }

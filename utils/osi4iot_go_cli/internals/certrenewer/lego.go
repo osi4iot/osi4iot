@@ -19,31 +19,32 @@ import (
 	"github.com/osi4iot/osi4iot/utils/osi4iot/internals/utils"
 )
 
-// SetOrUpdateAcmeCerts sets or updates the ACME certificates for the platform
+// SetOrUpdateAcmeCerts sets or updates the ACME certificates for the platform.
 func SetOrUpdateAcmeCerts(platformData *types.PlatformData) error {
-	setRoute53EnvVars(platformData)
+	// Propagate errors instead of calling os.Exit so the daemon's logger
+	// captures them and systemd can report the failure correctly.
+	if err := setRoute53EnvVars(platformData); err != nil {
+		return fmt.Errorf("could not configure Route53 credentials: %w", err)
+	}
 
 	caDir := lego.LEDirectoryProduction
 	// caDir := lego.LEDirectoryStaging
 
 	acmeUser, err := loadOrCreateAcmeUser(platformData, caDir)
 	if err != nil {
-		fmt.Printf("could not initialize ACME user: %v", err)
-		os.Exit(1)
+		return fmt.Errorf("could not initialize ACME user: %w", err)
 	}
 
 	config := lego.NewConfig(acmeUser)
 	config.CADirURL = caDir
 	client, err := lego.NewClient(config)
 	if err != nil {
-		fmt.Printf("lego client: %v", err)
-		os.Exit(1)
+		return fmt.Errorf("could not create lego client: %w", err)
 	}
 
 	provider, err := route53.NewDNSProvider()
 	if err != nil {
-		fmt.Printf("Error initializing Route53 provider: %v", err)
-		os.Exit(1)
+		return fmt.Errorf("could not initialize Route53 DNS provider: %w", err)
 	}
 	client.Challenge.SetDNS01Provider(provider)
 
@@ -58,26 +59,22 @@ func SetOrUpdateAcmeCerts(platformData *types.PlatformData) error {
 	}
 
 	if privateKey == "" || sslCertCrt == "" || sslCaPem == "" {
-		err = ObtainCert(platformData, client, domains)
-		if err != nil {
-			fmt.Printf("error obtaining certificate: %v", err)
-			os.Exit(1)
+		if err := ObtainCert(platformData, client, domains); err != nil {
+			return fmt.Errorf("error obtaining certificate: %w", err)
 		}
 	} else {
-		threshold := 15 * 24 * time.Hour // 15 days 
-		err = renewIfNeeded(platformData, client, domains, threshold)
-		if err != nil {
-			fmt.Printf("error renewing certificate: %v", err)
-			os.Exit(1)
+		threshold := 15 * 24 * time.Hour // 15 days
+		if err := renewIfNeeded(platformData, client, domains, threshold); err != nil {
+			return fmt.Errorf("error renewing certificate: %w", err)
 		}
 	}
 
 	return nil
 }
 
-// LoadOrCreateAcmeUser loads the ACME user from the platformData or creates a new one if it doesn't exist
-// It initializes the ACME client and registers the user with the ACME server
-// It uses the Route53 DNS provider for DNS challenges
+// loadOrCreateAcmeUser loads the ACME user from platformData or creates a new
+// one if it does not exist, registers it with the ACME server, and persists it
+// back into platformData.
 func loadOrCreateAcmeUser(platformData *types.PlatformData, caDirUrl string) (*types.AcmeUser, error) {
 	acmeUser := &platformData.Certs.DomainCerts.AcmeUser
 	if acmeUser.Email != "" && acmeUser.Key != nil {
@@ -86,11 +83,11 @@ func loadOrCreateAcmeUser(platformData *types.PlatformData, caDirUrl string) (*t
 
 	priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("could not generate ECDSA key: %w", err)
 	}
 	der, err := x509.MarshalECPrivateKey(priv)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("could not marshal ECDSA key: %w", err)
 	}
 	keyPem := pem.EncodeToMemory(&pem.Block{Type: "EC PRIVATE KEY", Bytes: der})
 
@@ -100,18 +97,18 @@ func loadOrCreateAcmeUser(platformData *types.PlatformData, caDirUrl string) (*t
 	config.CADirURL = caDirUrl
 	client, err := lego.NewClient(config)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("could not create lego client for registration: %w", err)
 	}
 
 	provider, err := route53.NewDNSProvider()
 	if err != nil {
-		fmt.Printf("Error initializing Route53 provider: %v", err)
-		os.Exit(1)
+		return nil, fmt.Errorf("could not initialize Route53 DNS provider: %w", err)
 	}
 	client.Challenge.SetDNS01Provider(provider)
+
 	reg, err := client.Registration.Register(registration.RegisterOptions{TermsOfServiceAgreed: true})
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("could not register ACME user: %w", err)
 	}
 	u.Registration = reg
 
@@ -119,7 +116,8 @@ func loadOrCreateAcmeUser(platformData *types.PlatformData, caDirUrl string) (*t
 	return &u, nil
 }
 
-// timeToExpiry parses a PEM encoded certificate and returns the duration until it expires
+// timeToExpiry parses a PEM-encoded certificate and returns the duration until
+// it expires.
 func timeToExpiry(pemCert []byte) (time.Duration, error) {
 	block, _ := pem.Decode(pemCert)
 	if block == nil || block.Type != "CERTIFICATE" {
@@ -132,7 +130,8 @@ func timeToExpiry(pemCert []byte) (time.Duration, error) {
 	return time.Until(cert.NotAfter), nil
 }
 
-// ObtainCert generates a new certificate for the given domains and saves it in platformData.Certs.DomainCerts
+// ObtainCert generates a new certificate for the given domains and saves it in
+// platformData.Certs.DomainCerts.
 func ObtainCert(platformData *types.PlatformData,
 	client *lego.Client,
 	domains []string,
@@ -147,8 +146,7 @@ func ObtainCert(platformData *types.PlatformData,
 	platformData.Certs.DomainCerts.SslCaPem = string(res.IssuerCertificate)
 	SetCertsNamesAndExpirationTime(platformData)
 
-	err = utils.WritePlatformDataToFile(platformData)
-	if err != nil {
+	if err := utils.WritePlatformDataToFile(platformData); err != nil {
 		return fmt.Errorf("error writing platform data to file: %w", err)
 	}
 
@@ -156,9 +154,8 @@ func ObtainCert(platformData *types.PlatformData,
 	return nil
 }
 
-// RenewIfNeeded checks if the certificate is about to expire and renews it if necessary
-// It uses a threshold to determine when to renew the certificate
-// The threshold is the time before expiration when the certificate should be renewed
+// renewIfNeeded checks whether the certificate is close to expiry and renews
+// it when the remaining lifetime is below the given threshold.
 func renewIfNeeded(platformData *types.PlatformData,
 	client *lego.Client,
 	domains []string,
@@ -188,37 +185,40 @@ func renewIfNeeded(platformData *types.PlatformData,
 		platformData.Certs.DomainCerts.SslCaPem = string(res.IssuerCertificate)
 		SetCertsNamesAndExpirationTime(platformData)
 
-		err = utils.WritePlatformDataToFile(platformData)
-		if err != nil {
+		if err := utils.WritePlatformDataToFile(platformData); err != nil {
 			return fmt.Errorf("error writing platform data to file: %w", err)
 		}
 	}
 	return nil
 }
 
-// SetRoute53EnvVars sets the environment variables for AWS Route53 credentials
+// setRoute53EnvVars sets the environment variables required by the AWS Route53
+// DNS provider.
 func setRoute53EnvVars(platformData *types.PlatformData) error {
 	awsAccessKeyIDRoute53 := platformData.PlatformInfo.AWSAccessKeyIDRoute53
 	if err := os.Setenv("AWS_ACCESS_KEY_ID", awsAccessKeyIDRoute53); err != nil {
-		return fmt.Errorf("error setting AWS_ACCESS_KEY_ID: %v", err)
+		return fmt.Errorf("error setting AWS_ACCESS_KEY_ID: %w", err)
 	}
 
 	awsSecretAccessKeyRoute53 := platformData.PlatformInfo.AWSSecretAccessKeyRoute53
 	if err := os.Setenv("AWS_SECRET_ACCESS_KEY", awsSecretAccessKeyRoute53); err != nil {
-		return fmt.Errorf("error setting AWS_SECRET_ACCESS_KEY: %v", err)
+		return fmt.Errorf("error setting AWS_SECRET_ACCESS_KEY: %w", err)
 	}
+
 	awsRegionRoute53 := utils.AwsRegionsMap[platformData.PlatformInfo.AWSRegionRoute53]
 	if err := os.Setenv("AWS_REGION", awsRegionRoute53); err != nil {
-		return fmt.Errorf("error setting AWS_REGION: %v", err)
+		return fmt.Errorf("error setting AWS_REGION: %w", err)
 	}
+
 	awsHostedZoneIdRoute53 := platformData.PlatformInfo.AWSHostedZoneIdRoute53
 	if err := os.Setenv("AWS_HOSTED_ZONE_ID", awsHostedZoneIdRoute53); err != nil {
-		return fmt.Errorf("error setting AWS_HOSTED_ZONE_ID: %v", err)
+		return fmt.Errorf("error setting AWS_HOSTED_ZONE_ID: %w", err)
 	}
 	return nil
 }
 
-// SetCertsNamesAndExpirationTime sets the names and expiration timestamps for the certificates
+// SetCertsNamesAndExpirationTime sets the names and expiration timestamps for
+// the domain certificates stored in platformData.
 func SetCertsNamesAndExpirationTime(platformData *types.PlatformData) {
 	keyHash := utils.GetMD5Hash(platformData.Certs.DomainCerts.PrivateKey)
 	platformData.Certs.DomainCerts.IotPlatformKeyName = fmt.Sprintf("iot_platform_key_%s", keyHash)

@@ -23,7 +23,7 @@
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
   "id": 6,
-  "iteration": 1780591000524,
+  "iteration": 1780667146696,
   "links": [],
   "liveNow": false,
   "panels": [
@@ -192,7 +192,7 @@
           "group": [],
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "SELECT\n  service                AS \"Service\",\n  node_name              AS \"Node\",\n  volume_name            AS \"Volume\",\n  driver                 AS \"Driver\",\n  used_bytes             AS \"Used\",\n  total_bytes            AS \"Total\",\n  time                   AS \"Last update\"\nFROM (\n  SELECT DISTINCT ON (volume_name)\n    service,\n    node_name,\n    volume_name,\n    driver,\n    used_bytes,\n    total_bytes,\n    time\n  FROM observability.volume_metrics\n  WHERE volume_name != ''\n  ORDER BY volume_name, time DESC\n) latest\nORDER BY service, volume_name;",
+          "rawSql": "SELECT\n    service        AS \"Service\",\n    node_name      AS \"Node\",\n    volume_name    AS \"Volume\",\n    driver         AS \"Driver\",\n    used_bytes     AS \"Used\",\n    total_bytes    AS \"Total\",\n    time           AS \"Last update\"\nFROM (\n    SELECT DISTINCT ON (node_name, volume_name)\n        service,\n        node_name,\n        volume_name,\n        driver,\n        used_bytes,\n        total_bytes,\n        time\n    FROM observability.volume_metrics\n    WHERE volume_name != ''\n    ORDER BY node_name, volume_name, time DESC\n) latest\nORDER BY service, node_name, volume_name;",
           "refId": "A",
           "select": [
             [
@@ -338,7 +338,7 @@
     "list": [
       {
         "current": {
-          "selected": true,
+          "selected": false,
           "text": "All",
           "value": "$__all"
         },

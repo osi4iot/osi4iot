@@ -4,22 +4,43 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/kardianos/service"
+	"github.com/osi4iot/osi4iot/utils/osi4iot/internals/crypto"
 	pt "github.com/osi4iot/osi4iot/utils/osi4iot/internals/types"
 	"github.com/osi4iot/osi4iot/utils/osi4iot/internals/utils"
-	"github.com/osi4iot/osi4iot/utils/osi4iot/paths"
+	// "github.com/osi4iot/osi4iot/utils/osi4iot/paths"
 )
 
 const defaultIntervalHours = 12
 
-var svcConfig = &service.Config{
-	Name:        "osi4iot-cert-renewer",
-	DisplayName: "OSI4IOT Certificate Renewer",
-	Description: "Automatically renews TLS certificates for the OSI4IOT platform.",
-	Arguments:   []string{"certs", "renewer", "daemon"},
+// buildSvcConfig builds the service.Config dynamically so that Executable
+// always points to the resolved absolute path of the running binary.
+// Using a package-level var with os.Executable() at init time is not safe
+// because the value is evaluated before the binary may have been moved to
+// its final location. Calling this function right before service.New ensures
+// the path is always correct.
+func buildSvcConfig() (*service.Config, error) {
+	exePath, err := os.Executable()
+	if err != nil {
+		return nil, fmt.Errorf("could not determine executable path: %w", err)
+	}
+	exePath, err = filepath.EvalSymlinks(exePath)
+	if err != nil {
+		return nil, fmt.Errorf("could not resolve executable symlinks: %w", err)
+	}
+
+	return &service.Config{
+		Name:        "osi4iot-cert-renewer",
+		DisplayName: "OSI4IOT Certificate Renewer",
+		Description: "Automatically renews TLS certificates for the OSI4IOT platform.",
+		Executable:  exePath,
+		Arguments:   []string{"certs", "renewer", "daemon"},
+	}, nil
 }
 
 type program struct {
@@ -61,54 +82,120 @@ func runOnce(renewFn func() error) {
 		log.Printf("[cert-renewer] Error: %v", err)
 		return
 	}
-	log.Println("[cert-renewer] Certificates renewed successfully.")
 }
 
 // RunDaemon is called by the hidden "certs renewer daemon" subcommand.
-func RunDaemon(renewFn func() error) {
-	prg := &program{renewFn: renewFn}
-	s, err := service.New(prg, svcConfig)
-	if err != nil {
-		log.Fatalf("[cert-renewer] could not create service: %v", err)
+// It must configure the logger FIRST so that every subsequent log call,
+// including any fatal errors, is captured in the log file and not lost
+// to the systemd journal (which may be discarded in some configurations).
+func RunDaemon(renewFn func(*log.Logger) error, domainName string) {
+	// 1. Configure the logger before anything else.
+	logPath := filepath.Join(logDir(domainName), "cert-renewer.log")
+	fileLogger := log.New(os.Stderr, "", log.LstdFlags)
+	if fw, err := newFileLogger(logPath); err == nil {
+		fileLogger = log.New(fw, "", log.LstdFlags)
+	} else {
+		fileLogger.Printf("[cert-renewer] WARNING: could not open log file: %v", err)
 	}
-	logPath := filepath.Join(logDir(), "cert-renewer.log")
-	if logger, err := newFileLogger(logPath); err == nil {
-		log.SetOutput(logger)
+
+	// 2. Build the service config with the resolved executable path.
+	cfg, err := buildSvcConfig()
+	if err != nil {
+		fileLogger.Fatalf("[cert-renewer] could not build service config: %v", err)
+	}
+
+	prg := &program{renewFn: func() error {
+		return renewFn(fileLogger)
+	}}
+	s, err := service.New(prg, cfg)
+	if err != nil {
+		fileLogger.Fatalf("[cert-renewer] could not create service: %v", err)
 	}
 	if err := s.Run(); err != nil {
-		log.Fatalf("[cert-renewer] service exited with error: %v", err)
+		fileLogger.Fatalf("[cert-renewer] service exited with error: %v", err)
 	}
 }
 
 // InstallService registers the service with the OS init system.
 // If the service is already installed it is a no-op, so calling it on every
 // "create" and "init" is safe.
-// Automatically escalates to sudo if not running as root.
 func InstallService(pd *pt.PlatformData) error {
 	if pd.PlatformInfo.DomainCertsType != "Let's encrypt certs with DNS-01 challenge and AWS Route 53 provider" {
 		return nil
 	}
-	prg := &program{}
-	s, err := service.New(prg, svcConfig)
+
+	workDir, err := os.Getwd()
 	if err != nil {
-		return fmt.Errorf("could not create service object: %w", err)
+		return fmt.Errorf("could not determine working directory: %w", err)
 	}
-	// If the service is already installed just skip — not an error.
-	if _, err := os.Stat(serviceFilePath()); err == nil {
-		return nil
+
+	if err := os.MkdirAll(logDir(pd.PlatformInfo.DomainName), 0755); err != nil {
+		fmt.Printf("⚠️  Warning: could not create log directory: %v\n", err)
 	}
-	if err := s.Install(); err != nil {
-		return fmt.Errorf("could not install service: %w", err)
+
+	if _, err := os.Stat(serviceFilePath()); err != nil {
+		cfg, err := buildSvcConfig()
+		if err != nil {
+			return fmt.Errorf("could not build service config: %w", err)
+		}
+		prg := &program{}
+		s, err := service.New(prg, cfg)
+		if err != nil {
+			return fmt.Errorf("could not create service object: %w", err)
+		}
+		if err := s.Install(); err != nil {
+			return fmt.Errorf("could not install service: %w", err)
+		}
+		fmt.Println(utils.StyleOKMsg.Render("Cert-renewer service installed (will start automatically on boot)"))
 	}
-	fmt.Println(utils.StyleOKMsg.Render("Cert-renewer service installed (will start automatically on boot)"))
+
+	if err := patchServiceFileWorkingDir(workDir); err != nil {
+		return fmt.Errorf("could not patch service file: %w", err)
+	}
+
+	if err := crypto.EnsureRootPassphraseFile(); err != nil {
+		fmt.Printf("⚠️  Warning: could not create root passphrase file: %v\n", err)
+	}
+
+	return nil
+}
+
+func patchServiceFileWorkingDir(workDir string) error {
+	path := serviceFilePath()
+
+	content, err := os.ReadFile(path)
+	if err != nil {
+		return fmt.Errorf("could not read service file: %w", err)
+	}
+	if strings.Contains(string(content), "WorkingDirectory=") {
+		return nil // ya está, no hacer nada
+	}
+
+	cmd := exec.Command("sed", "-i",
+		"/^ExecStart=/a WorkingDirectory="+workDir,
+		path,
+	)
+	if out, err := cmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("sed failed: %v — %s", err, out)
+	}
+
+	// Recarga systemd
+	cmd = exec.Command("systemctl", "daemon-reload")
+	if out, err := cmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("systemctl daemon-reload failed: %v — %s", err, out)
+	}
+
 	return nil
 }
 
 // UninstallService removes the service registration from the OS init system.
-// Automatically escalates to sudo if not running as root.
 func UninstallService() error {
+	cfg, err := buildSvcConfig()
+	if err != nil {
+		return fmt.Errorf("could not build service config: %w", err)
+	}
 	prg := &program{}
-	s, err := service.New(prg, svcConfig)
+	s, err := service.New(prg, cfg)
 	if err != nil {
 		return fmt.Errorf("could not create service object: %w", err)
 	}
@@ -121,13 +208,16 @@ func UninstallService() error {
 }
 
 // Start starts the already-installed service.
-// Escalates to sudo if the call fails due to permissions.
 func Start(pd *pt.PlatformData) error {
 	if pd.PlatformInfo.DomainCertsType != "Let's encrypt certs with DNS-01 challenge and AWS Route 53 provider" {
 		return nil
 	}
+	cfg, err := buildSvcConfig()
+	if err != nil {
+		return fmt.Errorf("could not build service config: %w", err)
+	}
 	prg := &program{}
-	s, err := service.New(prg, svcConfig)
+	s, err := service.New(prg, cfg)
 	if err != nil {
 		return fmt.Errorf("could not create service object: %w", err)
 	}
@@ -139,10 +229,13 @@ func Start(pd *pt.PlatformData) error {
 }
 
 // Stop stops the running service.
-// Escalates to sudo if the call fails due to permissions.
 func Stop() error {
+	cfg, err := buildSvcConfig()
+	if err != nil {
+		return fmt.Errorf("could not build service config: %w", err)
+	}
 	prg := &program{}
-	s, err := service.New(prg, svcConfig)
+	s, err := service.New(prg, cfg)
 	if err != nil {
 		return fmt.Errorf("could not create service object: %w", err)
 	}
@@ -155,8 +248,13 @@ func Stop() error {
 
 // Status prints the current service status to stdout.
 func Status() {
+	cfg, err := buildSvcConfig()
+	if err != nil {
+		fmt.Printf("cert-renewer: could not build service config: %v\n", err)
+		return
+	}
 	prg := &program{}
-	s, err := service.New(prg, svcConfig)
+	s, err := service.New(prg, cfg)
 	if err != nil {
 		fmt.Printf("cert-renewer: error querying status: %v\n", err)
 		return
@@ -176,12 +274,8 @@ func Status() {
 	}
 }
 
-func logDir() string {
-	return filepath.Join(paths.Osi4iotDir(), "logs")
-}
-
 // serviceFilePath returns the path where kardianos/service writes the systemd
 // unit file on Linux. Used to detect whether the service is already installed.
 func serviceFilePath() string {
-	return "/etc/systemd/system/" + svcConfig.Name + ".service"
+	return "/etc/systemd/system/osi4iot-cert-renewer.service"
 }

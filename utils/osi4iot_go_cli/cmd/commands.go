@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"regexp"
 	"slices"
@@ -481,14 +482,13 @@ var subCmdCertsCheck = &cobra.Command{
 }
 
 var subCmdCertsUpdate = &cobra.Command{
-	Use:   "update",
-	Short: "Update platform certificates",
-	Long:  "Update platform certificates",
-	Run: func(cmd *cobra.Command, args []string) {
-		if err := runCertsUpdate(); err != nil {
-			exitWithError(err.Error())
-		}
-	},
+    Use:   "update",
+    Run: func(cmd *cobra.Command, args []string) {
+		stdoutLogger := log.New(os.Stdout, "", 0)
+        if err := runCertsUpdate(stdoutLogger); err != nil {
+            exitWithError(err.Error())
+        }
+    },
 }
 
 var subCmdCertsRenewer = &cobra.Command{
@@ -499,10 +499,13 @@ var subCmdCertsRenewer = &cobra.Command{
 
 var subCmdCertsRenewerDaemon = &cobra.Command{
 	Use:    "daemon",
-	Hidden: true,
-	Run: func(cmd *cobra.Command, args []string) {
-		certrenewer.RunDaemon(runCertsUpdate)
-	},
+    Hidden: true,
+    Run: func(cmd *cobra.Command, args []string) {
+		domainName := data.GetDomainName()
+        certrenewer.RunDaemon(func(logger *log.Logger) error {
+            return runCertsUpdate(logger)
+        }, domainName)
+    },
 }
 
 var subCmdCertsRenewerLogs = &cobra.Command{
@@ -511,7 +514,8 @@ var subCmdCertsRenewerLogs = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		follow, _ := cmd.Flags().GetBool("follow")
 		lines, _ := cmd.Flags().GetInt("lines")
-		certrenewer.ShowLogs(follow, lines)
+		domainName := data.GetDomainName()
+		certrenewer.ShowLogs(follow, lines, domainName)
 	},
 }
 

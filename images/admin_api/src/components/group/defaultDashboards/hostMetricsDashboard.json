@@ -23,7 +23,7 @@
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
   "id": 4,
-  "iteration": 1780590672258,
+  "iteration": 1780816741251,
   "links": [],
   "liveNow": false,
   "panels": [
@@ -83,7 +83,7 @@
           "group": [],
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "SELECT\n    COUNT(*)                                            AS total,\n    COUNT(*) FILTER (WHERE availability = 'active')    AS active\nFROM observability.host_node_state\nWHERE last_seen >= NOW() - INTERVAL '1 minutes';\n",
+          "rawSql": "SELECT\n    COUNT(*)                                            AS total,\n    COUNT(*) FILTER (WHERE availability = 'active' AND state = 'ready')    AS active\nFROM observability.host_node_state\nWHERE last_seen >= NOW() - INTERVAL '1 minutes';\n",
           "refId": "A",
           "select": [
             [

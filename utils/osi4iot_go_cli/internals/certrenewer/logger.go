@@ -24,8 +24,8 @@ func newFileLogger(logPath string) (io.Writer, error) {
 	return f, nil
 }
 
-func ShowLogs(follow bool, lines int) {
-    logPath := logFilePath()
+func ShowLogs(follow bool, lines int, domainName string) {
+    logPath := logFilePath(domainName)
 
     f, err := os.Open(logPath)
     if err != nil {
@@ -87,6 +87,6 @@ func tailFollow(f *os.File) {
     }
 }
 
-func logFilePath() string {
-    return logDir() + "/cert-renewer.log"
+func logFilePath(domainName string) string {
+    return logDir(domainName) + "/cert-renewer.log"
 }

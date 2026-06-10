@@ -284,3 +284,13 @@ func GetPlatformState() PlatformStatus {
 func GetData() *pt.PlatformData {
 	return Data
 }
+
+func GetDomainName() string {
+    if Data.PlatformInfo.DomainName == "" {
+        _ = utils.ReadPlatformDataFromFile(Data)
+    }
+    if Data.PlatformInfo.DomainName == "" {
+        return "default"
+    }
+    return Data.PlatformInfo.DomainName
+}
