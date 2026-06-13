@@ -18,7 +18,6 @@ import (
 var allowedVolumeNamesPrefix = []string{
 	"admin_api_log",
 	"grafana_data",
-	"letsencrypt",
 	"minio_data",
 	"minio_storage",
 	"pgadmin4_data",

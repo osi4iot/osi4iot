@@ -80,12 +80,8 @@ func GenerateVolumes(platformData *pt.PlatformData) map[string]pt.Volume {
 	deploymentLocation := pi.DeploymentLocation
 	deploymentMode := pi.DeploymentMode
 	s3BucketType := pi.S3BucketType
-	domainCertsType := pi.DomainCertsType
 
 	volOptions := createDefaultOptions(pi)
-	if domainCertsType[0:19] == "Let's encrypt certs" {
-		Volumes["letsencrypt"] = SetVolumeConfig(pi, "letsencrypt", "global", deploymentLocation, volOptions)
-	}
 
 	numNatsReplicas := utils.GetServiceReplicas(platformData, "nats")
 	for replica := 1; replica <= numNatsReplicas; replica++ {
@@ -94,16 +90,21 @@ func GenerateVolumes(platformData *pt.PlatformData) map[string]pt.Volume {
 		Volumes[volumeName] = SetVolumeConfig(pi, volumeName, serviceName, deploymentLocation, volOptions)
 	}
 
-	Volumes["pgdata"] = SetVolumeConfig(pi, "pgdata", "postgres", deploymentLocation, volOptions)
-	Volumes["grafana_data"] = SetVolumeConfig(pi, "grafana_data", "grafana", deploymentLocation, volOptions)
-	Volumes["timescaledb_data"] = SetVolumeConfig(pi, "timescaledb_data", "timescaledb", deploymentLocation, volOptions)
-	Volumes["timescaledb_wal"] = SetVolumeConfig(pi, "timescaledb_wal", "timescaledb", deploymentLocation, volOptions)
+	numGrafanaReplicas := utils.GetServiceReplicas(platformData, "grafana")
+	for replica := 1; replica <= numGrafanaReplicas; replica++ {
+		volumeName := fmt.Sprintf("grafana_data_%d", replica)
+		Volumes[volumeName] = SetVolumeConfig(pi, volumeName, "grafana", deploymentLocation, volOptions)
+	}
 
 	numPipelinesReplicas := utils.GetServiceReplicas(platformData, "pipelines")
 	for i := 1; i <= numPipelinesReplicas; i++ {
 		volName := fmt.Sprintf("pipelines_data_%d", i)
 		Volumes[volName] = SetVolumeConfig(pi, volName, "pipelines", deploymentLocation, volOptions)
 	}
+
+	Volumes["pgdata"] = SetVolumeConfig(pi, "pgdata", "postgres", deploymentLocation, volOptions)
+	Volumes["timescaledb_data"] = SetVolumeConfig(pi, "timescaledb_data", "timescaledb", deploymentLocation, volOptions)
+	Volumes["timescaledb_wal"] = SetVolumeConfig(pi, "timescaledb_wal", "timescaledb", deploymentLocation, volOptions)
 
 	if deploymentMode == "development" {
 		Volumes["pgadmin4_data"] = SetVolumeConfig(pi, "pgadmin4_data", "pgadmin4", deploymentLocation, volOptions)
@@ -288,17 +289,22 @@ func RemoveSwarmVolumes(pd *pt.PlatformData) error {
 
 func getVolumeFilterByNames(pd *pt.PlatformData) filters.Args {
 	volumeNames := []string{
-		"letsencrypt",
 		"pgdata",
-		"grafana_data",
 		"timescaledb_data",
 		"pgadmin4_data",
 		"minio_storage",
 		"vector_buffer",
 	}
+
 	numNatsReplicas := utils.GetServiceReplicas(pd, "nats")
 	for replica := 1; replica <= numNatsReplicas; replica++ {
 		volName := fmt.Sprintf("nats%d_data", replica)
+		volumeNames = append(volumeNames, volName)
+	}
+
+	numGrafanaReplicas := utils.GetServiceReplicas(pd, "grafana")
+	for replica := 1; replica <= numGrafanaReplicas; replica++ {
+		volName := fmt.Sprintf("grafana_data_%d", replica)
 		volumeNames = append(volumeNames, volName)
 	}
 
@@ -314,10 +320,11 @@ func getVolumesMapByNodeRole(volumesMap map[string]pt.Volume, nodeRole string, p
 	volumeNames := []string{"vector_buffer"}
 	switch nodeRole {
 	case "Manager":
-		volumeNames = append(volumeNames,
-			"letsencrypt",
-			"grafana_data",
-		)
+		numGrafanaReplicas := utils.GetServiceReplicas(pd, "grafana")
+		for replica := 1; replica <= numGrafanaReplicas; replica++ {
+			volName := fmt.Sprintf("grafana_data_%d", replica)
+			volumeNames = append(volumeNames, volName)
+		}
 	case "Platform worker":
 		volumeNames = append(volumeNames,
 			"pgdata",
@@ -447,6 +454,30 @@ func CreatePipelinesVolume(pi pt.PlatformInfo, dc *pt.DockerClient, replica int)
 
 func RemovePipelinesVolume(dc *pt.DockerClient, replica int) error {
 	volumeName := fmt.Sprintf("pipelines_data_%d", replica)
+	err := dc.Cli.VolumeRemove(dc.Ctx, volumeName, true)
+	if err != nil {
+		if errdefs.IsNotFound(err) {
+			return nil
+		}
+		return fmt.Errorf("error removing volume: %v", err)
+	}
+	return nil
+}
+
+func CreateGrafanaVolume(pi pt.PlatformInfo, dc *pt.DockerClient, replica int) error {
+	volOptions := createDefaultOptions(pi)
+	volumeName := fmt.Sprintf("grafana_data_%d", replica)
+	domainName := pi.DomainName
+	volume := SetVolumeConfig(pi, volumeName, "grafana", pi.DeploymentLocation, volOptions)
+	err := CreateVolume(dc, domainName, &volume)
+	if err != nil {
+		return fmt.Errorf("error creating volume %s in node %s: %v", volume.Name, dc.Node.NodeIP, err)
+	}
+	return nil
+}
+
+func RemoveGrafanaVolume(dc *pt.DockerClient, replica int) error {
+	volumeName := fmt.Sprintf("grafana_data_%d", replica)
 	err := dc.Cli.VolumeRemove(dc.Ctx, volumeName, true)
 	if err != nil {
 		if errdefs.IsNotFound(err) {

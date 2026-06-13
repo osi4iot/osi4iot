@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -71,12 +72,12 @@ func InitPlatform(pd *pt.PlatformData) error {
 }
 
 func RunSwarm(dc *pt.DockerClient, pd *pt.PlatformData) error {
-    // Clean orphan network namespaces before deploying to prevent
-    // "vxlan interface: file exists" errors on redeployment
-    if err := cleanOrphanNetNS(dc); err != nil {
-        fmt.Printf("Warning: could not clean orphan netns: %v\n", err)
-        // Non-fatal: log and continue
-    }
+	// Clean orphan network namespaces before deploying to prevent
+	// "vxlan interface: file exists" errors on redeployment
+	if err := cleanOrphanNetNS(dc); err != nil {
+		fmt.Printf("Warning: could not clean orphan netns: %v\n", err)
+		// Non-fatal: log and continue
+	}
 
 	err := createSwarmServices(pd, dc)
 	if err != nil {
@@ -503,6 +504,50 @@ func waitUntilAllContainersAreHealthy(pd *pt.PlatformData, serviceType string) e
 	done <- true
 
 	return nil
+}
+
+// waitUntilContainersOfRemovedSlotsAreGone waits until all containers of the removed slots of a service are destroyed.
+func waitUntilContainersOfRemovedSlotsAreGone(dc *pt.DockerClient, serviceName string, firstRemovedSlot int) error {
+    deadline := time.Now().Add(2 * time.Minute)
+
+    for {
+        if time.Now().After(deadline) {
+            return fmt.Errorf("timeout waiting for containers of removed slots of '%s' to be destroyed", serviceName)
+        }
+
+        filterArgs := filters.NewArgs()
+        filterArgs.Add("label", fmt.Sprintf("com.docker.swarm.service.name=%s", serviceName))
+        containers, err := dc.Cli.ContainerList(dc.Ctx, container.ListOptions{
+            All:     true,
+            Filters: filterArgs,
+        })
+        if err != nil {
+            return fmt.Errorf("error listing containers: %v", err)
+        }
+
+        allGone := true
+        for _, c := range containers {
+            taskName := c.Labels["com.docker.swarm.task.name"]
+            parts := strings.Split(taskName, ".")
+            if len(parts) < 2 {
+                continue
+            }
+            slot, err := strconv.Atoi(parts[1])
+            if err != nil {
+                continue
+            }
+            if slot >= firstRemovedSlot {
+                allGone = false
+                break
+            }
+        }
+
+        if allGone {
+            return nil
+        }
+
+        time.Sleep(2 * time.Second)
+    }
 }
 
 func SwarmInitiationInfo(platformData *pt.PlatformData, okMessage string) error {

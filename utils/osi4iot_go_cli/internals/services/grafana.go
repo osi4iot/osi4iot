@@ -11,11 +11,12 @@ import (
 )
 
 func GrafanaService(
-	pd *pt.PlatformData, 
-	sd pt.SwarmData, 
+	pd *pt.PlatformData,
+	sd pt.SwarmData,
 	svcResources resources.SvcResources,
-	) pt.Service {
+) pt.Service {
 	domainName := pd.PlatformInfo.DomainName
+	volName := "grafana_data_{{.Task.Slot}}"
 
 	grafanaRule := fmt.Sprintf("Host(`%s`) && PathPrefix(`/grafana/`)", domainName)
 	grafanaRedirectRegex := fmt.Sprintf("%s/(grafana*)", domainName)
@@ -70,7 +71,7 @@ func GrafanaService(
 		"node.role==manager",
 	}
 
-	image := utils.GetServiceImage(pd, "grafana","ghcr.io/osi4iot/grafana:8.4.1-ubuntu")
+	image := utils.GetServiceImage(pd, "grafana", "ghcr.io/osi4iot/grafana:8.4.1-ubuntu")
 	return NewService("grafana", pd, sd).
 		WithImage(image).
 		//WithImage("ghcr.io/osi4iot/grafana:12.3.0-17718666199-ubuntu").
@@ -80,7 +81,7 @@ func GrafanaService(
 		WithMounts([]mount.Mount{
 			{
 				Type:   mount.TypeVolume,
-				Source: sd.Volumes["grafana_data"].Name,
+				Source: volName,
 				Target: "/var/lib/grafana",
 			},
 		}).

@@ -500,12 +500,49 @@ func ScaleSwarmService(pd *pt.PlatformData, dc *pt.DockerClient, serviceName str
 		}
 		warningMessages += updateResult.Warnings
 
+		if replicas < currentReplicas {
+			if err := waitUntilContainersOfRemovedSlotsAreGone(dc, serviceName, int(replicas)+1); err != nil {
+				return "", fmt.Errorf("error waiting: %v", err)
+			}
+		}
+
 		// Remove pipelines volumes for removed replicas — the monitor already ensured
 		// that the scale down completed before reaching here
 		for replica := replicas + 1; replica <= currentReplicas; replica++ {
 			fmt.Println("Removing pipelines volume for removed replica", replica)
 			if err := volumes.RemovePipelinesVolume(dc, int(replica)); err != nil {
 				return "", fmt.Errorf("error removing pipelines volume for replica %d: %v", replica, err)
+			}
+		}
+	case "grafana":
+		for replica := currentReplicas + 1; replica <= replicas; replica++ {
+			if err := volumes.CreateGrafanaVolume(pi, dc, int(replica)); err != nil {
+				return "", fmt.Errorf("error creating grafana volume for replica %d: %v", replica, err)
+			}
+		}
+
+		updateResult, err := ServiceUpdate(pd, dc, service, serviceName, ServiceUpdateOptions{
+			Replicas: &replicas,
+		})
+		if err != nil {
+			return "", fmt.Errorf("error updating grafana service: %v", err)
+		}
+		warningMessages += updateResult.Warnings
+
+		if err := waitUntilAllContainersAreHealthy(pd, "grafana"); err != nil {
+			return "", fmt.Errorf("error waiting for grafana containers to be healthy: %v", err)
+		}
+
+		if replicas < currentReplicas {
+			if err := waitUntilContainersOfRemovedSlotsAreGone(dc, serviceName, int(replicas)+1); err != nil {
+				return "", fmt.Errorf("error waiting for removed grafana containers to be destroyed: %v", err)
+			}
+		}
+
+		for replica := replicas + 1; replica <= currentReplicas; replica++ {
+			fmt.Println("Removing grafana volume for removed replica", replica)
+			if err := volumes.RemoveGrafanaVolume(dc, int(replica)); err != nil {
+				return "", fmt.Errorf("error removing grafana volume for replica %d: %v", replica, err)
 			}
 		}
 
