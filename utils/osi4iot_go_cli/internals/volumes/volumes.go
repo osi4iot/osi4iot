@@ -239,15 +239,42 @@ func CreateSwarmVolumes(pd *pt.PlatformData, volumesMap map[string]pt.Volume) (m
 // removeReplicaVolume removes a volume identified by volumeName from all nodes
 // in the swarm, tolerating drivers (like rexray-ebs) that are not idempotent
 // when the underlying volume has already been removed.
+// func removeReplicaVolume(volumeName string) error {
+// 	errors := []error{}
+// 	for _, dc := range pt.DCMap {
+// 		err := dc.Cli.VolumeRemove(dc.Ctx, volumeName, true)
+// 		if err != nil {
+// 			if isVolumeAlreadyRemovedError(err) {
+// 				continue
+// 			}
+// 			errors = append(errors, fmt.Errorf("error removing volume %s in node %s: %v", volumeName, dc.Node.NodeIP, err))
+// 		}
+// 	}
+
+// 	if len(errors) > 0 {
+// 		return fmt.Errorf("errors removing volume %s: %v", volumeName, errors)
+// 	}
+
+// 	return nil
+// }
 func removeReplicaVolume(volumeName string) error {
 	errors := []error{}
-	for _, dc := range pt.DCMap {
+
+	fmt.Printf("DEBUG: removeReplicaVolume called for '%s', iterating %d nodes\n", volumeName, len(pt.DCMap))
+
+	for nodeIP, dc := range pt.DCMap {
 		err := dc.Cli.VolumeRemove(dc.Ctx, volumeName, true)
 		if err != nil {
-			if isVolumeAlreadyRemovedError(err) {
+			fmt.Printf("DEBUG: node %s -> VolumeRemove('%s') error: %v\n", nodeIP, volumeName, err)
+			if errdefs.IsNotFound(err) {
+				continue
+			}
+			if strings.Contains(err.Error(), "already been removed") {
 				continue
 			}
 			errors = append(errors, fmt.Errorf("error removing volume %s in node %s: %v", volumeName, dc.Node.NodeIP, err))
+		} else {
+			fmt.Printf("DEBUG: node %s -> VolumeRemove('%s') succeeded\n", nodeIP, volumeName)
 		}
 	}
 
@@ -257,6 +284,7 @@ func removeReplicaVolume(volumeName string) error {
 
 	return nil
 }
+
 
 func RemoveSwarmVolumes(pd *pt.PlatformData) error {
 	errors := []error{}

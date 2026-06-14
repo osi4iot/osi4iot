@@ -693,11 +693,18 @@ func scaleReplicatedServiceWithVolumes(
 		}
 	}
 
+	// for replica := replicas + 1; replica <= currentReplicas; replica++ {
+	// 	fmt.Printf("Removing %s volume for removed replica %d\n", serviceName, replica)
+	// 	if err := removeVolume(int(replica)); err != nil {
+	// 		return "", fmt.Errorf("error removing %s volume for replica %d: %v", serviceName, replica, err)
+	// 	}
+	// }
 	for replica := replicas + 1; replica <= currentReplicas; replica++ {
-		fmt.Printf("Removing %s volume for removed replica %d\n", serviceName, replica)
+		fmt.Printf("DEBUG: about to call removeVolume for replica %d\n", replica)
 		if err := removeVolume(int(replica)); err != nil {
 			return "", fmt.Errorf("error removing %s volume for replica %d: %v", serviceName, replica, err)
 		}
+		fmt.Printf("DEBUG: removeVolume for replica %d returned no error\n", replica)
 	}
 
 	return updateResult.Warnings, nil
