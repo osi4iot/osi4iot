@@ -434,6 +434,9 @@ func RemoveNatsVolume(dc *pt.DockerClient, replica int) error {
 		if errdefs.IsNotFound(err) {
 			return nil
 		}
+		if strings.Contains(err.Error(), "volume has already been removed") {
+			return nil
+		}
 		return fmt.Errorf("error removing volume: %v", err)
 	}
 	return nil
@@ -459,6 +462,9 @@ func RemovePipelinesVolume(dc *pt.DockerClient, replica int) error {
 		if errdefs.IsNotFound(err) {
 			return nil
 		}
+		if strings.Contains(err.Error(), "volume has already been removed") {
+			return nil
+		}
 		return fmt.Errorf("error removing volume: %v", err)
 	}
 	return nil
@@ -481,6 +487,9 @@ func RemoveGrafanaVolume(dc *pt.DockerClient, replica int) error {
 	err := dc.Cli.VolumeRemove(dc.Ctx, volumeName, true)
 	if err != nil {
 		if errdefs.IsNotFound(err) {
+			return nil
+		}
+		if strings.Contains(err.Error(), "volume has already been removed") {
 			return nil
 		}
 		return fmt.Errorf("error removing volume: %v", err)
