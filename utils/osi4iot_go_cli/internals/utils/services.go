@@ -92,7 +92,6 @@ func ServicesList(services []swarm.Service) {
 	// Preparar filas
 	rows := make([]table.Row, 0, len(services))
 	for _, service := range services {
-		fmt.Printf("XXXXXXXXXXXXXXXXXXX DEBUG: procesando servicio '%s'\n", service.Spec.Name)
 		shortID := service.ID
 		if len(shortID) > 12 {
 			shortID = shortID[:12]
@@ -133,12 +132,10 @@ func ServicesList(services []swarm.Service) {
 		})
 	}
 
-	fmt.Printf("XXXXXXXXXXXXXXXXXXX DEBUG: total rows construidas: %d (servicios recibidos: %d)\n", len(rows), len(services))
-
 	t := table.New(
 		table.WithColumns(columns),
 		table.WithRows(rows),
-		table.WithHeight(len(rows)),
+		table.WithHeight(len(rows) + 1),
 		table.WithFocused(false),
 	)
 
