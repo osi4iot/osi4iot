@@ -236,45 +236,31 @@ func CreateSwarmVolumes(pd *pt.PlatformData, volumesMap map[string]pt.Volume) (m
 	return volumesMap, nil
 }
 
-// removeReplicaVolume removes a volume identified by volumeName from all nodes
-// in the swarm, tolerating drivers (like rexray-ebs) that are not idempotent
-// when the underlying volume has already been removed.
-// func removeReplicaVolume(volumeName string) error {
-// 	errors := []error{}
-// 	for _, dc := range pt.DCMap {
-// 		err := dc.Cli.VolumeRemove(dc.Ctx, volumeName, true)
-// 		if err != nil {
-// 			if isVolumeAlreadyRemovedError(err) {
-// 				continue
-// 			}
-// 			errors = append(errors, fmt.Errorf("error removing volume %s in node %s: %v", volumeName, dc.Node.NodeIP, err))
-// 		}
-// 	}
+// removeReplicaVolume removes a volume with the given name from all nodes in the swarm.
+func removeReplicaVolume(pd *pt.PlatformData, volumeName string) error {
+	if pd.PlatformInfo.UseAwsEbsVolumes {
+		if err := DeleteEBSVolumeByName(context.Background(), volumeName); err != nil {
+			return fmt.Errorf("error deleting EBS volume %s: %w", volumeName, err)
+		}
+		// Cleaning up the local Docker volume reference is best-effort, as the EBS volume has already been deleted.
+		for _, dc := range pt.DCMap {
+			err := dc.Cli.VolumeRemove(dc.Ctx, volumeName, true)
+			if err != nil && !isVolumeAlreadyRemovedError(err) && !errdefs.IsNotFound(err) {
+				fmt.Printf("Warning: could not remove local volume reference %s on node %s: %v\n", volumeName, dc.Node.NodeIP, err)
+			}
+		}
+		return nil
+	}
 
-// 	if len(errors) > 0 {
-// 		return fmt.Errorf("errors removing volume %s: %v", volumeName, errors)
-// 	}
-
-// 	return nil
-// }
-func removeReplicaVolume(volumeName string) error {
+	// Non-EBS drivers (local/nfs): docker volume rm is reliable and idempotent.
 	errors := []error{}
-
-	fmt.Printf("DEBUG: removeReplicaVolume called for '%s', iterating %d nodes\n", volumeName, len(pt.DCMap))
-
-	for nodeIP, dc := range pt.DCMap {
+	for _, dc := range pt.DCMap {
 		err := dc.Cli.VolumeRemove(dc.Ctx, volumeName, true)
 		if err != nil {
-			fmt.Printf("DEBUG: node %s -> VolumeRemove('%s') error: %v\n", nodeIP, volumeName, err)
-			if errdefs.IsNotFound(err) {
-				continue
-			}
-			if strings.Contains(err.Error(), "already been removed") {
+			if isVolumeAlreadyRemovedError(err) {
 				continue
 			}
 			errors = append(errors, fmt.Errorf("error removing volume %s in node %s: %v", volumeName, dc.Node.NodeIP, err))
-		} else {
-			fmt.Printf("DEBUG: node %s -> VolumeRemove('%s') succeeded\n", nodeIP, volumeName)
 		}
 	}
 
@@ -329,6 +315,91 @@ func RemoveSwarmVolumes(pd *pt.PlatformData) error {
 
 	if len(errors) > 0 {
 		return fmt.Errorf("errors removing volumes: %v", errors)
+	}
+
+	return nil
+}
+
+// DeleteEBSVolumeByName deletes an EBS volume by its Name tag, detaching it first if necessary.
+func DeleteEBSVolumeByName(ctx context.Context, volumeName string) error {
+	cfg, err := utils.GetEC2RoleConfig(ctx)
+	if err != nil {
+		return fmt.Errorf("error loading AWS config: %w", err)
+	}
+	ec2Client := ec2.NewFromConfig(cfg)
+
+	result, err := ec2Client.DescribeVolumes(ctx, &ec2.DescribeVolumesInput{
+		Filters: []ec2types.Filter{
+			{
+				Name:   aws.String("tag:Name"),
+				Values: []string{volumeName},
+			},
+			{
+				Name:   aws.String("status"),
+				Values: []string{"available", "in-use", "creating"},
+			},
+		},
+	})
+	if err != nil {
+		return fmt.Errorf("error describing EBS volume %s: %w", volumeName, err)
+	}
+
+	if len(result.Volumes) == 0 {
+		// Nothing to delete — already gone or never tagged.
+		return nil
+	}
+
+	for _, v := range result.Volumes {
+		volumeID := aws.ToString(v.VolumeId)
+
+		if v.State == ec2types.VolumeStateInUse {
+			_, err := ec2Client.DetachVolume(ctx, &ec2.DetachVolumeInput{
+				VolumeId: aws.String(volumeID),
+				Force:    aws.Bool(true),
+			})
+			if err != nil {
+				return fmt.Errorf("error detaching volume %s (%s): %w", volumeName, volumeID, err)
+			}
+
+			if err := waitForVolumeAvailable(ctx, ec2Client, volumeID); err != nil {
+				return err
+			}
+		}
+
+		if _, err := ec2Client.DeleteVolume(ctx, &ec2.DeleteVolumeInput{
+			VolumeId: aws.String(volumeID),
+		}); err != nil {
+			return fmt.Errorf("error deleting volume %s (%s): %w", volumeName, volumeID, err)
+		}
+	}
+
+	// Wait until the volume is fully gone.
+	for i := 0; i <= 30; i++ {
+		time.Sleep(2 * time.Second)
+
+		remaining, err := ec2Client.DescribeVolumes(ctx, &ec2.DescribeVolumesInput{
+			Filters: []ec2types.Filter{
+				{
+					Name:   aws.String("tag:Name"),
+					Values: []string{volumeName},
+				},
+				{
+					Name:   aws.String("status"),
+					Values: []string{"creating", "available", "in-use", "deleting"},
+				},
+			},
+		})
+		if err != nil {
+			return fmt.Errorf("error describing EBS volume %s: %w", volumeName, err)
+		}
+
+		if len(remaining.Volumes) == 0 {
+			return nil
+		}
+
+		if i == 30 {
+			return fmt.Errorf("timeout: EBS volume %s was not deleted", volumeName)
+		}
 	}
 
 	return nil
@@ -509,8 +580,8 @@ func CreatePipelinesVolume(pi pt.PlatformInfo, dc *pt.DockerClient, replica int)
 	return nil
 }
 
-func RemovePipelinesVolume(replica int) error {
-	return removeReplicaVolume(fmt.Sprintf("pipelines_data_%d", replica))
+func RemovePipelinesVolume(pd *pt.PlatformData, replica int) error {
+	return removeReplicaVolume(pd, fmt.Sprintf("pipelines_data_%d", replica))
 }
 
 func CreateGrafanaVolume(pi pt.PlatformInfo, dc *pt.DockerClient, replica int) error {
@@ -525,8 +596,8 @@ func CreateGrafanaVolume(pi pt.PlatformInfo, dc *pt.DockerClient, replica int) e
 	return nil
 }
 
-func RemoveGrafanaVolume(replica int) error {
-	return removeReplicaVolume(fmt.Sprintf("grafana_data_%d", replica))
+func RemoveGrafanaVolume(pd *pt.PlatformData, replica int) error {
+	return removeReplicaVolume(pd, fmt.Sprintf("grafana_data_%d", replica))
 }
 
 func ListEBSVolumes(ctx context.Context, filters ...ec2types.Filter) ([]EBSVolumeInfo, error) {
