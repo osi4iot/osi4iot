@@ -239,7 +239,8 @@ func CreateSwarmVolumes(pd *pt.PlatformData, volumesMap map[string]pt.Volume) (m
 // removeReplicaVolume removes a volume with the given name from all nodes in the swarm.
 func removeReplicaVolume(pd *pt.PlatformData, volumeName string) error {
 	if pd.PlatformInfo.UseAwsEbsVolumes {
-		if err := DeleteEBSVolumeByName(context.Background(), volumeName); err != nil {
+		domainName := pd.PlatformInfo.DomainName
+		if err := DeleteEBSVolumeByName(context.Background(), domainName, volumeName); err != nil {
 			return fmt.Errorf("error deleting EBS volume %s: %w", volumeName, err)
 		}
 		// Cleaning up the local Docker volume reference is best-effort, as the EBS volume has already been deleted.
@@ -320,8 +321,13 @@ func RemoveSwarmVolumes(pd *pt.PlatformData) error {
 	return nil
 }
 
-// DeleteEBSVolumeByName deletes an EBS volume by its Name tag, detaching it first if necessary.
-func DeleteEBSVolumeByName(ctx context.Context, volumeName string) error {
+// DeleteEBSVolumeByName deletes a single EBS volume identified by its Docker
+// volume name (tag:Name), scoped to the current platform (tag:app=osi4iot
+// and tag:domainName=<domainName>), detaching it first if necessary.
+// This bypasses the rexray-ebs plugin's VolumeRemove, which can fail with
+// "already been removed" if the plugin's configured region doesn't match
+// the volume's actual region.
+func DeleteEBSVolumeByName(ctx context.Context, domainName, volumeName string) error {
 	cfg, err := utils.GetEC2RoleConfig(ctx)
 	if err != nil {
 		return fmt.Errorf("error loading AWS config: %w", err)
@@ -330,6 +336,14 @@ func DeleteEBSVolumeByName(ctx context.Context, volumeName string) error {
 
 	result, err := ec2Client.DescribeVolumes(ctx, &ec2.DescribeVolumesInput{
 		Filters: []ec2types.Filter{
+			{
+				Name:   aws.String("tag:app"),
+				Values: []string{"osi4iot"},
+			},
+			{
+				Name:   aws.String("tag:domainName"),
+				Values: []string{domainName},
+			},
 			{
 				Name:   aws.String("tag:Name"),
 				Values: []string{volumeName},
@@ -345,7 +359,7 @@ func DeleteEBSVolumeByName(ctx context.Context, volumeName string) error {
 	}
 
 	if len(result.Volumes) == 0 {
-		// Nothing to delete — already gone or never tagged.
+		// Nothing to delete — already gone, or never tagged.
 		return nil
 	}
 
@@ -379,6 +393,14 @@ func DeleteEBSVolumeByName(ctx context.Context, volumeName string) error {
 
 		remaining, err := ec2Client.DescribeVolumes(ctx, &ec2.DescribeVolumesInput{
 			Filters: []ec2types.Filter{
+				{
+					Name:   aws.String("tag:app"),
+					Values: []string{"osi4iot"},
+				},
+				{
+					Name:   aws.String("tag:domainName"),
+					Values: []string{domainName},
+				},
 				{
 					Name:   aws.String("tag:Name"),
 					Values: []string{volumeName},
