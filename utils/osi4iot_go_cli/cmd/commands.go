@@ -18,7 +18,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const version = "0.1.23"
+const version = "0.1.24"
 
 var SwarmActions = []string{"create", "init", "run", "stop", "delete", "service", "certs"}
 
@@ -211,8 +211,6 @@ var subCmdServiceList = &cobra.Command{
 			errMsg := fmt.Sprintf("Error listing services: %v", err)
 			exitWithError(errMsg)
 		}
-
-		fmt.Printf("XXXXXXXXXXXXXXXX len(services): %d\n", len(services))
 
 		if len(services) == 0 {
 			errMsg := "⚠️  No services found in the swarm"
