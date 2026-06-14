@@ -479,72 +479,29 @@ func ScaleSwarmService(pd *pt.PlatformData, dc *pt.DockerClient, serviceName str
 		}
 	}
 
-	pi := pd.PlatformInfo
 	warningMessages := ""
 	var allOldSecretIDs []string
 
 	switch serviceName {
 	case "pipelines":
-		// Create volumes for new replicas before scaling up — the monitor inside ServiceUpdate ensures stabilization
-		for replica := currentReplicas + 1; replica <= replicas; replica++ {
-			if err := volumes.CreatePipelinesVolume(pi, dc, int(replica)); err != nil {
-				return "", fmt.Errorf("error creating pipelines volume for replica %d: %v", replica, err)
-			}
-		}
-
-		updateResult, err := ServiceUpdate(pd, dc, service, serviceName, ServiceUpdateOptions{
-			Replicas: &replicas,
-		})
+		warnings, err := scaleReplicatedServiceWithVolumes(
+			pd, dc, service, serviceName, currentReplicas, replicas,
+			volumes.CreatePipelinesVolume, volumes.RemovePipelinesVolume,
+		)
 		if err != nil {
-			return "", fmt.Errorf("error updating pipelines service: %v", err)
+			return "", err
 		}
-		warningMessages += updateResult.Warnings
+		warningMessages += warnings
 
-		if replicas < currentReplicas {
-			if err := waitUntilContainersOfRemovedSlotsAreGone(dc, serviceName, int(replicas)+1); err != nil {
-				return "", fmt.Errorf("error waiting: %v", err)
-			}
-		}
-
-		// Remove pipelines volumes for removed replicas — the monitor already ensured
-		// that the scale down completed before reaching here
-		for replica := replicas + 1; replica <= currentReplicas; replica++ {
-			fmt.Println("Removing pipelines volume for removed replica", replica)
-			if err := volumes.RemovePipelinesVolume(dc, int(replica)); err != nil {
-				return "", fmt.Errorf("error removing pipelines volume for replica %d: %v", replica, err)
-			}
-		}
 	case "grafana":
-		for replica := currentReplicas + 1; replica <= replicas; replica++ {
-			if err := volumes.CreateGrafanaVolume(pi, dc, int(replica)); err != nil {
-				return "", fmt.Errorf("error creating grafana volume for replica %d: %v", replica, err)
-			}
-		}
-
-		updateResult, err := ServiceUpdate(pd, dc, service, serviceName, ServiceUpdateOptions{
-			Replicas: &replicas,
-		})
+		warnings, err := scaleReplicatedServiceWithVolumes(
+			pd, dc, service, serviceName, currentReplicas, replicas,
+			volumes.CreateGrafanaVolume, volumes.RemoveGrafanaVolume,
+		)
 		if err != nil {
-			return "", fmt.Errorf("error updating grafana service: %v", err)
+			return "", err
 		}
-		warningMessages += updateResult.Warnings
-
-		if err := waitUntilAllContainersAreHealthy(pd, "grafana"); err != nil {
-			return "", fmt.Errorf("error waiting for grafana containers to be healthy: %v", err)
-		}
-
-		if replicas < currentReplicas {
-			if err := waitUntilContainersOfRemovedSlotsAreGone(dc, serviceName, int(replicas)+1); err != nil {
-				return "", fmt.Errorf("error waiting for removed grafana containers to be destroyed: %v", err)
-			}
-		}
-
-		for replica := replicas + 1; replica <= currentReplicas; replica++ {
-			fmt.Println("Removing grafana volume for removed replica", replica)
-			if err := volumes.RemoveGrafanaVolume(dc, int(replica)); err != nil {
-				return "", fmt.Errorf("error removing grafana volume for replica %d: %v", replica, err)
-			}
-		}
+		warningMessages += warnings
 
 	case "nats":
 		numNodes := len(pd.PlatformInfo.NodesData)
@@ -700,6 +657,50 @@ func ScaleSwarmService(pd *pt.PlatformData, dc *pt.DockerClient, serviceName str
 	}
 
 	return warningMessages, nil
+}
+
+func scaleReplicatedServiceWithVolumes(
+	pd *pt.PlatformData,
+	dc *pt.DockerClient,
+	service *swarm.Service,
+	serviceName string,
+	currentReplicas, replicas uint64,
+	createVolume func(pt.PlatformInfo, *pt.DockerClient, int) error,
+	removeVolume func(int) error,
+) (string, error) {
+	pi := pd.PlatformInfo
+
+	for replica := currentReplicas + 1; replica <= replicas; replica++ {
+		if err := createVolume(pi, dc, int(replica)); err != nil {
+			return "", fmt.Errorf("error creating %s volume for replica %d: %v", serviceName, replica, err)
+		}
+	}
+
+	updateResult, err := ServiceUpdate(pd, dc, service, serviceName, ServiceUpdateOptions{
+		Replicas: &replicas,
+	})
+	if err != nil {
+		return "", fmt.Errorf("error updating %s service: %v", serviceName, err)
+	}
+
+	if err := waitUntilAllContainersAreHealthy(pd, serviceName); err != nil {
+		return "", fmt.Errorf("error waiting for %s containers to be healthy: %v", serviceName, err)
+	}
+
+	if replicas < currentReplicas {
+		if err := waitUntilContainersOfRemovedSlotsAreGone(dc, serviceName, int(replicas)+1); err != nil {
+			return "", fmt.Errorf("error waiting for removed %s containers to be destroyed: %v", serviceName, err)
+		}
+	}
+
+	for replica := replicas + 1; replica <= currentReplicas; replica++ {
+		fmt.Printf("Removing %s volume for removed replica %d\n", serviceName, replica)
+		if err := removeVolume(int(replica)); err != nil {
+			return "", fmt.Errorf("error removing %s volume for replica %d: %v", serviceName, replica, err)
+		}
+	}
+
+	return updateResult.Warnings, nil
 }
 
 func AreNeededNatsDependentServiceUpdates(currentNumNatsReplicas, numNatsReplicas uint64) bool {

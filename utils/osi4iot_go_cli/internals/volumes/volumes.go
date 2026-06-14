@@ -236,6 +236,28 @@ func CreateSwarmVolumes(pd *pt.PlatformData, volumesMap map[string]pt.Volume) (m
 	return volumesMap, nil
 }
 
+// removeReplicaVolume removes a volume identified by volumeName from all nodes
+// in the swarm, tolerating drivers (like rexray-ebs) that are not idempotent
+// when the underlying volume has already been removed.
+func removeReplicaVolume(volumeName string) error {
+	errors := []error{}
+	for _, dc := range pt.DCMap {
+		err := dc.Cli.VolumeRemove(dc.Ctx, volumeName, true)
+		if err != nil {
+			if isVolumeAlreadyRemovedError(err) {
+				continue
+			}
+			errors = append(errors, fmt.Errorf("error removing volume %s in node %s: %v", volumeName, dc.Node.NodeIP, err))
+		}
+	}
+
+	if len(errors) > 0 {
+		return fmt.Errorf("errors removing volume %s: %v", volumeName, errors)
+	}
+
+	return nil
+}
+
 func RemoveSwarmVolumes(pd *pt.PlatformData) error {
 	errors := []error{}
 	filterByNames := getVolumeFilterByNames(pd)
@@ -269,10 +291,7 @@ func RemoveSwarmVolumes(pd *pt.PlatformData) error {
 		for _, v := range existingVolumes {
 			err = dc.Cli.VolumeRemove(dc.Ctx, v.Name, true)
 			if err != nil {
-				if errdefs.IsNotFound(err) {
-					continue
-				}
-				if strings.Contains(err.Error(), "already been removed") {
+				if isVolumeAlreadyRemovedError(err) {
 					continue
 				}
 				errors = append(errors, fmt.Errorf("error removing volume: %v", err))
@@ -413,6 +432,16 @@ func SetVolumeConfig(
 	return vol
 }
 
+func isVolumeAlreadyRemovedError(err error) bool {
+	if err == nil {
+		return false
+	}
+	if errdefs.IsNotFound(err) {
+		return true
+	}
+	return strings.Contains(err.Error(), "volume has already been removed")
+}
+
 func CreateNatsVolume(pi pt.PlatformInfo, dc *pt.DockerClient, replica int) (*pt.Volume, error) {
 	volOptions := createDefaultOptions(pi)
 	volumeName := fmt.Sprintf("nats%d_data", replica)
@@ -431,10 +460,7 @@ func RemoveNatsVolume(dc *pt.DockerClient, replica int) error {
 	volumeName := fmt.Sprintf("nats%d_data", replica)
 	err := dc.Cli.VolumeRemove(dc.Ctx, volumeName, true)
 	if err != nil {
-		if errdefs.IsNotFound(err) {
-			return nil
-		}
-		if strings.Contains(err.Error(), "volume has already been removed") {
+		if isVolumeAlreadyRemovedError(err) {
 			return nil
 		}
 		return fmt.Errorf("error removing volume: %v", err)
@@ -455,19 +481,8 @@ func CreatePipelinesVolume(pi pt.PlatformInfo, dc *pt.DockerClient, replica int)
 	return nil
 }
 
-func RemovePipelinesVolume(dc *pt.DockerClient, replica int) error {
-	volumeName := fmt.Sprintf("pipelines_data_%d", replica)
-	err := dc.Cli.VolumeRemove(dc.Ctx, volumeName, true)
-	if err != nil {
-		if errdefs.IsNotFound(err) {
-			return nil
-		}
-		if strings.Contains(err.Error(), "volume has already been removed") {
-			return nil
-		}
-		return fmt.Errorf("error removing volume: %v", err)
-	}
-	return nil
+func RemovePipelinesVolume(replica int) error {
+	return removeReplicaVolume(fmt.Sprintf("pipelines_data_%d", replica))
 }
 
 func CreateGrafanaVolume(pi pt.PlatformInfo, dc *pt.DockerClient, replica int) error {
@@ -482,19 +497,8 @@ func CreateGrafanaVolume(pi pt.PlatformInfo, dc *pt.DockerClient, replica int) e
 	return nil
 }
 
-func RemoveGrafanaVolume(dc *pt.DockerClient, replica int) error {
-	volumeName := fmt.Sprintf("grafana_data_%d", replica)
-	err := dc.Cli.VolumeRemove(dc.Ctx, volumeName, true)
-	if err != nil {
-		if errdefs.IsNotFound(err) {
-			return nil
-		}
-		if strings.Contains(err.Error(), "volume has already been removed") {
-			return nil
-		}
-		return fmt.Errorf("error removing volume: %v", err)
-	}
-	return nil
+func RemoveGrafanaVolume(replica int) error {
+	return removeReplicaVolume(fmt.Sprintf("grafana_data_%d", replica))
 }
 
 func ListEBSVolumes(ctx context.Context, filters ...ec2types.Filter) ([]EBSVolumeInfo, error) {
