@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/api/types/swarm"
@@ -808,7 +809,7 @@ func RemoveNatsService(dc *pt.DockerClient, replica int) error {
 		return fmt.Errorf("error removing nats service %s: %v", serviceName, err)
 	}
 
-	waitUntilServiceIsRemoved(serviceName)
+	waitUntilServiceContainersAreGone(dc, serviceName)
 
 	err = volumes.RemoveNatsVolume(dc, int(replica))
 	if err != nil {
@@ -818,16 +819,41 @@ func RemoveNatsService(dc *pt.DockerClient, replica int) error {
 	return nil
 }
 
-func waitUntilServiceIsRemoved(serviceName string) {
+// waitUntilServiceContainersAreGone waits until every container belonging to
+// the given (already removed) swarm service no longer exists on any node.
+func waitUntilServiceContainersAreGone(dc *pt.DockerClient, serviceName string) error {
+	deadline := time.Now().Add(2 * time.Minute)
+
 	done := make(chan bool)
 	spinnerMsg := fmt.Sprintf("Waiting for service %s to be removed", serviceName)
 	endMsg := fmt.Sprintf("Service %s has been removed", serviceName)
 	utils.Spinner(spinnerMsg, endMsg, done)
 
-	time.Sleep(10 * time.Second)
-	done <- true
-}
+	for {
+		if time.Now().After(deadline) {
+			done <- false
+			return fmt.Errorf("timeout waiting for containers of service '%s' to be destroyed", serviceName)
+		}
 
+		filterArgs := filters.NewArgs()
+		filterArgs.Add("label", fmt.Sprintf("com.docker.swarm.service.name=%s", serviceName))
+		containers, err := dc.Cli.ContainerList(dc.Ctx, container.ListOptions{
+			All:     true,
+			Filters: filterArgs,
+		})
+		if err != nil {
+			done <- false
+			return fmt.Errorf("error listing containers: %v", err)
+		}
+
+		if len(containers) == 0 {
+			done <- true
+			return nil
+		}
+
+		time.Sleep(2 * time.Second)
+	}
+}
 func creatSecretUpdateConfig(secretKey string, certSecret pt.Secret, oldCertSecretName string, targetFile string) SecretUpdateConfig {
 	return SecretUpdateConfig{
 		SecretKey:     secretKey,
