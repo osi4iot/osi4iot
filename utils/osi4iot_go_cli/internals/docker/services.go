@@ -533,35 +533,34 @@ func ScaleSwarmService(pd *pt.PlatformData, dc *pt.DockerClient, serviceName str
 		}
 
 		if replicas > currentReplicas {
-			// ── SCALE UP (e.g. 1 → 3) ──────────────────────────────────────────
-			//
-			// Orden crítico:
-			//   1. Crear nats2, nats3, ... PRIMERO. Arrancarán con el config de N
-			//      réplicas e intentarán conectar a sus peers — fallarán en DNS
-			//      inicialmente, pero NATS reintenta automáticamente. No hay
-			//      healthcheck bloqueante aquí porque usamos js-enabled-only=1
-			//      y JetStream local arranca sin necesidad de quórum.
-			//   2. Esperar a que las nuevas tareas estén Running (DNS registrado
-			//      en la overlay) — NO esperar healthy, solo Running.
-			//   3. Actualizar nats1 con el nuevo config. En este punto nats2:6222
-			//      y nats3:6222 ya resuelven en el DNS de la overlay, el cluster
-			//      se forma inmediatamente al arrancar el nuevo nats1.
-
+			// Crear los nuevos nodos PRIMERO, antes de actualizar nats1.
+			// Cuando nats1 arranque con el nuevo config, necesita encontrar
+			// nats2/nats3 en menos de 30 segundos — si no hay quórum en ese
+			// tiempo, NATS marca los streams del standalone como "orphaned"
+			// y los elimina del store, perdiendo todos los datos de JetStream.
 			for replica := currentReplicas + 1; replica <= replicas; replica++ {
 				if err := CreateNatsService(pd, dc, int(replica), int(replicas), natsConfigSecret); err != nil {
 					return "", fmt.Errorf("error creating nats service for replica %d: %v", replica, err)
 				}
 			}
 
-			// Esperar a que las nuevas tareas estén Running (no healthy) para que
-			// sus aliases DNS estén registrados en la overlay antes de actualizar nats1.
+			// Esperar a que TODOS los nuevos nodos estén Running antes de
+			// actualizar nats1. "Running" significa que el proceso nats-server
+			// está activo y escuchando en :6222, no que el healthcheck haya
+			// pasado. Con esto garantizamos que cuando nats1 arranque con el
+			// nuevo config, el cluster forma quórum en segundos y los streams
+			// existentes no son detectados como orphaned.
 			for replica := currentReplicas + 1; replica <= replicas; replica++ {
 				natsServiceName := fmt.Sprintf("nats%d", replica)
 				if err := waitUntilServiceTaskIsRunning(dc, natsServiceName); err != nil {
-					return "", fmt.Errorf("error waiting for nats service '%s' to be running: %v", natsServiceName, err)
+					return "", fmt.Errorf("error waiting for '%s' to be running: %v", natsServiceName, err)
 				}
 			}
 
+			// Ahora actualizar nats1 con stop-first. El nuevo contenedor de
+			// nats1 arranca, restaura los streams del volumen, y encuentra
+			// nats2/nats3 disponibles inmediatamente → quórum en <5s →
+			// streams promovidos a cluster streams con raft group → no orphaned.
 			if AreNeededNatsDependentServiceUpdates(currentReplicas, replicas) {
 				fmt.Println("\nUpdating existing nats services to new configuration")
 				for replica := 1; replica <= int(currentReplicas); replica++ {
