@@ -561,7 +561,7 @@ func ScaleSwarmService(pd *pt.PlatformData, dc *pt.DockerClient, serviceName str
 				if err != nil {
 					return "", fmt.Errorf("error inspecting nats service '%s': %v", natsServiceName, err)
 				}
-				if numNodes == 1 && replicas > 1 {
+				if replicas < currentReplicas || (numNodes == 1 && replicas > 1) {
 					natsSvc.Spec.UpdateConfig.Order = swarm.UpdateOrderStopFirst
 					natsSvc.Spec.RollbackConfig.Order = swarm.UpdateOrderStopFirst
 				}
@@ -575,12 +575,20 @@ func ScaleSwarmService(pd *pt.PlatformData, dc *pt.DockerClient, serviceName str
 			}
 		}
 
-		// Step 5: Wait until all nats containers are healthy —
+		// Step 5a: Wait until all nats containers are healthy —
 		// this ensures that the new config is loaded and the service is stable before updating dependent services
 		if err := waitUntilAllContainersAreHealthy(pd, "nats"); err != nil {
 			return "", fmt.Errorf("error waiting for nats containers to be healthy: %v", err)
 		}
 
+		// Step 5b: Wait until the NATS cluster has fully formed (all routes connected)
+		// before updating dependent services — otherwise pipelines/admin_api may fail
+		// to connect to NATS during their rolling update healthcheck.
+		if numNodes > 1 && replicas >= 3 {
+			if err := waitUntilNatsClusterIsFormed(dc, int(replicas)); err != nil {
+				return "", fmt.Errorf("error waiting for nats cluster to form: %v", err)
+			}
+		}
 		// Step 6: Update nats dependent services
 		if AreNeededNatsDependentServiceUpdates(currentReplicas, replicas) {
 			natsDependentServices := []string{"admin_api", "pipelines"}

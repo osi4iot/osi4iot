@@ -2,7 +2,9 @@ package docker
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"net/http"
 	"slices"
 	"strconv"
 	"strings"
@@ -547,6 +549,73 @@ func waitUntilContainersOfRemovedSlotsAreGone(dc *pt.DockerClient, serviceName s
         }
 
         time.Sleep(2 * time.Second)
+    }
+}
+
+func getNats1NodeIP(dc *pt.DockerClient) (string, error) {
+    filterArgs := filters.NewArgs()
+    filterArgs.Add("name", "nats1")
+    tasks, err := dc.Cli.TaskList(dc.Ctx, types.TaskListOptions{Filters: filterArgs})
+    if err != nil {
+        return "", fmt.Errorf("error listing nats1 tasks: %v", err)
+    }
+    for _, task := range tasks {
+        if task.Status.State != swarm.TaskStateRunning {
+            continue
+        }
+        node, _, err := dc.Cli.NodeInspectWithRaw(dc.Ctx, task.NodeID)
+        if err != nil {
+            return "", fmt.Errorf("error inspecting node for nats1: %v", err)
+        }
+        return node.Status.Addr, nil
+    }
+    return "", fmt.Errorf("no running task found for nats1")
+}
+
+// waitUntilNatsClusterIsFormed polls the NATS monitoring endpoint of nats1
+// until it reports numExpectedNodes members in the cluster (or timeout).
+func waitUntilNatsClusterIsFormed(dc *pt.DockerClient, numExpectedNodes int) error {
+    if numExpectedNodes <= 1 {
+        return nil
+    }
+
+    nodeIP, err := getNats1NodeIP(dc)
+    if err != nil {
+        return fmt.Errorf("error getting nats1 node IP: %v", err)
+    }
+    monitoringURL := fmt.Sprintf("http://%s:8222/routez", nodeIP)
+
+    deadline := time.Now().Add(3 * time.Minute)
+    done := make(chan bool)
+    utils.Spinner(
+        fmt.Sprintf("Waiting for NATS cluster to form (%d nodes)", numExpectedNodes),
+        fmt.Sprintf("NATS cluster formed with %d nodes", numExpectedNodes),
+        done,
+    )
+
+    for {
+        if time.Now().After(deadline) {
+            done <- false
+            return fmt.Errorf("timeout waiting for NATS cluster to form with %d nodes", numExpectedNodes)
+        }
+
+        resp, err := http.Get(monitoringURL)
+        if err == nil {
+            var routez struct {
+                NumRoutes int `json:"num_routes"`
+            }
+            if json.NewDecoder(resp.Body).Decode(&routez) == nil {
+                resp.Body.Close()
+                if routez.NumRoutes >= numExpectedNodes-1 {
+                    done <- true
+                    return nil
+                }
+            } else {
+                resp.Body.Close()
+            }
+        }
+
+        time.Sleep(3 * time.Second)
     }
 }
 
