@@ -535,17 +535,32 @@ func ScaleSwarmService(pd *pt.PlatformData, dc *pt.DockerClient, serviceName str
 		if replicas > currentReplicas {
 			// ── SCALE UP (e.g. 1 → 3) ──────────────────────────────────────────
 			//
-			// Correct order:
-			//   1. Update nats1 (and the existing services) with the new
-			//      configuration FIRST, using stop-first to prevent two instances
-			//      with incompatible configurations from running simultaneously.
-			//      This is critical: when nats2/nats3 start, they will attempt to
-			//      connect to nats1:6222. If nats1 still has the single-replica
-			//      configuration, without a cluster configuration, it will reject
-			//      those connections and the cluster will never be formed.
-			//   2. Create nats2, nats3, ... once nats1 is already listening on 6222.
-			//   3. Wait until the NATS cluster is fully formed before updating
-			//      the dependent services.
+			// Orden crítico:
+			//   1. Crear nats2, nats3, ... PRIMERO. Arrancarán con el config de N
+			//      réplicas e intentarán conectar a sus peers — fallarán en DNS
+			//      inicialmente, pero NATS reintenta automáticamente. No hay
+			//      healthcheck bloqueante aquí porque usamos js-enabled-only=1
+			//      y JetStream local arranca sin necesidad de quórum.
+			//   2. Esperar a que las nuevas tareas estén Running (DNS registrado
+			//      en la overlay) — NO esperar healthy, solo Running.
+			//   3. Actualizar nats1 con el nuevo config. En este punto nats2:6222
+			//      y nats3:6222 ya resuelven en el DNS de la overlay, el cluster
+			//      se forma inmediatamente al arrancar el nuevo nats1.
+
+			for replica := currentReplicas + 1; replica <= replicas; replica++ {
+				if err := CreateNatsService(pd, dc, int(replica), int(replicas), natsConfigSecret); err != nil {
+					return "", fmt.Errorf("error creating nats service for replica %d: %v", replica, err)
+				}
+			}
+
+			// Esperar a que las nuevas tareas estén Running (no healthy) para que
+			// sus aliases DNS estén registrados en la overlay antes de actualizar nats1.
+			for replica := currentReplicas + 1; replica <= replicas; replica++ {
+				natsServiceName := fmt.Sprintf("nats%d", replica)
+				if err := waitUntilServiceTaskIsRunning(dc, natsServiceName); err != nil {
+					return "", fmt.Errorf("error waiting for nats service '%s' to be running: %v", natsServiceName, err)
+				}
+			}
 
 			if AreNeededNatsDependentServiceUpdates(currentReplicas, replicas) {
 				fmt.Println("\nUpdating existing nats services to new configuration")
@@ -557,14 +572,6 @@ func ScaleSwarmService(pd *pt.PlatformData, dc *pt.DockerClient, serviceName str
 					if err != nil {
 						return "", fmt.Errorf("error inspecting nats service '%s': %v", natsServiceName, err)
 					}
-
-					// Always use stop-first when scaling up: the old nats1 instance
-					// uses the single-replica configuration, without the
-					// cluster/routes block, and must stop BEFORE the new instance,
-					// which uses the N-replica configuration with cluster/routes,
-					// starts. With start-first, both instances would run
-					// simultaneously with incompatible configurations, and the
-					// new instance would never pass the js-enabled-only=1 health check.
 					natsSvc.Spec.UpdateConfig.Order = swarm.UpdateOrderStopFirst
 					natsSvc.Spec.RollbackConfig.Order = swarm.UpdateOrderStopFirst
 
@@ -576,16 +583,6 @@ func ScaleSwarmService(pd *pt.PlatformData, dc *pt.DockerClient, serviceName str
 					allOldSecretIDs = append(allOldSecretIDs, updateResult.OldSecretIDs...)
 				}
 			}
-
-			// Create the new NATS services. At this point, nats1 already has the
-			// correct configuration and is listening on :6222, allowing
-			// nats2/nats3 to establish their routes when they start.
-			for replica := currentReplicas + 1; replica <= replicas; replica++ {
-				if err := CreateNatsService(pd, dc, int(replica), int(replicas), natsConfigSecret); err != nil {
-					return "", fmt.Errorf("error creating nats service for replica %d: %v", replica, err)
-				}
-			}
-
 		} else {
 			// ── SCALE DOWN (e.g. 3 → 1) ────────────────────────────────────────
 			//

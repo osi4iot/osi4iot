@@ -619,6 +619,38 @@ func waitUntilNatsClusterIsFormed(dc *pt.DockerClient, numExpectedNodes int) err
     }
 }
 
+// waitUntilServiceTaskIsRunning waits until at least one task of the given
+// service reaches the Running state. This is distinct from healthy — Running
+// means the container process has started and its network aliases are
+// registered in the overlay DNS, which is what we need before other services
+// attempt to resolve them.
+func waitUntilServiceTaskIsRunning(dc *pt.DockerClient, serviceName string) error {
+    deadline := time.Now().Add(2 * time.Minute)
+
+    for {
+        if time.Now().After(deadline) {
+            return fmt.Errorf("timeout waiting for service '%s' to have a running task", serviceName)
+        }
+
+        filterArgs := filters.NewArgs()
+        filterArgs.Add("name", serviceName)
+        filterArgs.Add("desired-state", "running")
+        tasks, err := dc.Cli.TaskList(dc.Ctx, types.TaskListOptions{Filters: filterArgs})
+        if err != nil {
+            time.Sleep(2 * time.Second)
+            continue
+        }
+
+        for _, task := range tasks {
+            if task.Status.State == swarm.TaskStateRunning {
+                return nil
+            }
+        }
+
+        time.Sleep(2 * time.Second)
+    }
+}
+
 func SwarmInitiationInfo(platformData *pt.PlatformData, okMessage string) error {
 	err := utils.WritePlatformDataToFile(platformData)
 	if err != nil {
