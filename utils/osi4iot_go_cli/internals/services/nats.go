@@ -129,7 +129,7 @@ func NatsService(
 
 	healthCheckCmd := "wget -qO- http://localhost:8222/healthz | grep -q '\"status\":\"ok\"' || exit 1"
 	if numReplicas > 1 {
-		healthCheckCmd = "wget -qO- 'http://localhost:8222/healthz?js-server-only=1' | grep -q '\"status\":\"ok\"' || exit 1"
+		healthCheckCmd = "wget -qO- 'http://localhost:8222/healthz?js-enabled-only=1' | grep -q '\"status\":\"ok\"' || exit 1"
 	}
 
 	image := utils.GetServiceImage(pd, "nats", "ghcr.io/osi4iot/nats:2.11.1-alpine")

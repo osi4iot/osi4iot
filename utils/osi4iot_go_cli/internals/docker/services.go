@@ -507,7 +507,7 @@ func ScaleSwarmService(pd *pt.PlatformData, dc *pt.DockerClient, serviceName str
 	case "nats":
 		numNodes := len(pd.PlatformInfo.NodesData)
 
-		// Step 1: Create new nats config secret
+		// Step 1: Create the new nats_config secret for the target number of replicas.
 		oldNatsConfigSecret, err := secrets.GetSecretByKey(dc, "nats_config")
 		if err != nil {
 			return "", fmt.Errorf("error getting old nats config secret: %v", err)
@@ -532,64 +532,136 @@ func ScaleSwarmService(pd *pt.PlatformData, dc *pt.DockerClient, serviceName str
 			SecretsUpdate: []SecretUpdateConfig{natsSecretUpdateConfig},
 		}
 
-		// Step 2: Scale up if needed — the monitor inside ServiceUpdate ensures stabilization
-		for replica := currentReplicas + 1; replica <= replicas; replica++ {
-			if err := CreateNatsService(pd, dc, int(replica), int(replicas), natsConfigSecret); err != nil {
-				return "", fmt.Errorf("error creating nats service for replica %d: %v", replica, err)
-			}
-		}
+		if replicas > currentReplicas {
+			// ── SCALE UP (e.g. 1 → 3) ──────────────────────────────────────────
+			//
+			// Correct order:
+			//   1. Update nats1 (and the existing services) with the new
+			//      configuration FIRST, using stop-first to prevent two instances
+			//      with incompatible configurations from running simultaneously.
+			//      This is critical: when nats2/nats3 start, they will attempt to
+			//      connect to nats1:6222. If nats1 still has the single-replica
+			//      configuration, without a cluster configuration, it will reject
+			//      those connections and the cluster will never be formed.
+			//   2. Create nats2, nats3, ... once nats1 is already listening on 6222.
+			//   3. Wait until the NATS cluster is fully formed before updating
+			//      the dependent services.
 
-		// Step 3: Scale down if needed — the monitor inside RemoveNatsService (or Docker itself) ensures stabilization
-		if replicas < currentReplicas {
-			fmt.Println("Removing extra nats services")
-			for replica := replicas + 1; replica <= currentReplicas; replica++ {
-				if err := RemoveNatsService(dc, int(replica)); err != nil {
-					return "", err
-				}
-			}
-		}
+			if AreNeededNatsDependentServiceUpdates(currentReplicas, replicas) {
+				fmt.Println("\nUpdating existing nats services to new configuration")
+				for replica := 1; replica <= int(currentReplicas); replica++ {
+					natsServiceName := fmt.Sprintf("nats%d", replica)
+					fmt.Printf("\nUpdating nats service %s:", natsServiceName)
 
-		// Step 4: Update existing nats services with the new configuration
-		if AreNeededNatsDependentServiceUpdates(currentReplicas, replicas) {
-			fmt.Println("\nUpdating existing nats services to new configuration")
-			existingNatsServices := utils.Min(int(currentReplicas), int(replicas))
-			for replica := 1; replica <= existingNatsServices; replica++ {
-				natsServiceName := fmt.Sprintf("nats%d", replica)
-				fmt.Printf("\nUpdating nats service %s:", natsServiceName)
+					natsSvc, err := utils.GetSwarmServiceByName(dc, natsServiceName)
+					if err != nil {
+						return "", fmt.Errorf("error inspecting nats service '%s': %v", natsServiceName, err)
+					}
 
-				natsSvc, err := utils.GetSwarmServiceByName(dc, natsServiceName)
-				if err != nil {
-					return "", fmt.Errorf("error inspecting nats service '%s': %v", natsServiceName, err)
-				}
-				if replicas < currentReplicas || (numNodes == 1 && replicas > 1) {
+					// Always use stop-first when scaling up: the old nats1 instance
+					// uses the single-replica configuration, without the
+					// cluster/routes block, and must stop BEFORE the new instance,
+					// which uses the N-replica configuration with cluster/routes,
+					// starts. With start-first, both instances would run
+					// simultaneously with incompatible configurations, and the
+					// new instance would never pass the js-enabled-only=1 health check.
 					natsSvc.Spec.UpdateConfig.Order = swarm.UpdateOrderStopFirst
 					natsSvc.Spec.RollbackConfig.Order = swarm.UpdateOrderStopFirst
-				}
 
-				updateResult, err := ServiceUpdate(pd, dc, natsSvc, natsServiceName, natsUpdateOptions)
-				if err != nil {
-					return "", fmt.Errorf("error updating nats service '%s': %v", natsServiceName, err)
+					updateResult, err := ServiceUpdate(pd, dc, natsSvc, natsServiceName, natsUpdateOptions)
+					if err != nil {
+						return "", fmt.Errorf("error updating nats service '%s': %v", natsServiceName, err)
+					}
+					warningMessages += updateResult.Warnings
+					allOldSecretIDs = append(allOldSecretIDs, updateResult.OldSecretIDs...)
 				}
-				warningMessages += updateResult.Warnings
-				allOldSecretIDs = append(allOldSecretIDs, updateResult.OldSecretIDs...)
+			}
+
+			// Create the new NATS services. At this point, nats1 already has the
+			// correct configuration and is listening on :6222, allowing
+			// nats2/nats3 to establish their routes when they start.
+			for replica := currentReplicas + 1; replica <= replicas; replica++ {
+				if err := CreateNatsService(pd, dc, int(replica), int(replicas), natsConfigSecret); err != nil {
+					return "", fmt.Errorf("error creating nats service for replica %d: %v", replica, err)
+				}
+			}
+
+		} else {
+			// ── SCALE DOWN (e.g. 3 → 1) ────────────────────────────────────────
+			//
+			// Correct order:
+			//   1. Remove the extra nodes (nats2, nats3, ...) and wait until their
+			//      containers and volumes have been fully released.
+			//   2. Update nats1 with the new configuration AFTER the peers have
+			//      disappeared. Using stop-first prevents the new nats1 instance,
+			//      configured for one replica, and the old nats1 instance,
+			//      configured for three replicas and trying to find nonexistent
+			//      peers, from running simultaneously.
+
+			if replicas < currentReplicas {
+				fmt.Println("Removing extra nats services")
+				for replica := replicas + 1; replica <= currentReplicas; replica++ {
+					if err := RemoveNatsService(dc, int(replica)); err != nil {
+						return "", err
+					}
+				}
+			}
+
+			if AreNeededNatsDependentServiceUpdates(currentReplicas, replicas) {
+				fmt.Println("\nUpdating existing nats services to new configuration")
+				existingNatsServices := int(replicas)
+				for replica := 1; replica <= existingNatsServices; replica++ {
+					natsServiceName := fmt.Sprintf("nats%d", replica)
+					fmt.Printf("\nUpdating nats service %s:", natsServiceName)
+
+					natsSvc, err := utils.GetSwarmServiceByName(dc, natsServiceName)
+					if err != nil {
+						return "", fmt.Errorf("error inspecting nats service '%s': %v", natsServiceName, err)
+					}
+
+					// Use stop-first when scaling down: the old nats1 instance has
+					// routes pointing to nats2/nats3, which have already been
+					// removed. With start-first, the new and old instances would
+					// run simultaneously with incompatible configurations. With
+					// stop-first, the old instance stops first and the new one
+					// starts cleanly with the single-replica configuration.
+					natsSvc.Spec.UpdateConfig.Order = swarm.UpdateOrderStopFirst
+					natsSvc.Spec.RollbackConfig.Order = swarm.UpdateOrderStopFirst
+
+					updateResult, err := ServiceUpdate(pd, dc, natsSvc, natsServiceName, natsUpdateOptions)
+					if err != nil {
+						return "", fmt.Errorf("error updating nats service '%s': %v", natsServiceName, err)
+					}
+					warningMessages += updateResult.Warnings
+					allOldSecretIDs = append(allOldSecretIDs, updateResult.OldSecretIDs...)
+				}
 			}
 		}
 
-		// Step 5a: Wait until all nats containers are healthy —
-		// this ensures that the new config is loaded and the service is stable before updating dependent services
+		// Step 5: Wait until all NATS containers are healthy.
+		// At this point, when scaling up, nats1..N are running with the new
+		// configuration. When scaling down, only nats1 exists and uses the new
+		// configuration.
 		if err := waitUntilAllContainersAreHealthy(pd, "nats"); err != nil {
 			return "", fmt.Errorf("error waiting for nats containers to be healthy: %v", err)
 		}
 
-		// Step 5b: Wait until the NATS cluster has fully formed (all routes connected)
-		// before updating dependent services — otherwise pipelines/admin_api may fail
-		// to connect to NATS during their rolling update healthcheck.
+		// Step 5b: In multi-node clusters with three or more replicas, wait until
+		// the NATS cluster has established all routes and elected a JetStream
+		// meta-leader before updating the dependent services. In single-node
+		// deployments, the overlay network is local and convergence is immediate,
+		// so this step is unnecessary.
 		if numNodes > 1 && replicas >= 3 {
 			if err := waitUntilNatsClusterIsFormed(dc, int(replicas)); err != nil {
 				return "", fmt.Errorf("error waiting for nats cluster to form: %v", err)
 			}
 		}
-		// Step 6: Update nats dependent services
+
+		// Step 6: Update the services that depend on the NATS configuration
+		// (admin_api and pipelines) only when the number of replicas changes
+		// between standalone mode (1) and cluster mode (>=3), since this changes
+		// their connection configuration, including URLs, cluster credentials,
+		// and other related settings.
 		if AreNeededNatsDependentServiceUpdates(currentReplicas, replicas) {
 			natsDependentServices := []string{"admin_api", "pipelines"}
 			secretsKeys := map[string]string{
