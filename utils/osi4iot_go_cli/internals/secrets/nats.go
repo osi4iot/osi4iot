@@ -95,6 +95,7 @@ authorization {
 cluster {
   name: "NATS_CLUSTER"
   listen: "0.0.0.0:6222"
+
   routes: [
     {{- range .ClusterRoutes }}
     "nats://{{ . }}",

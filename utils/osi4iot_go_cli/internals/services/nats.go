@@ -111,18 +111,18 @@ func NatsService(
 
 	updateConfig := &swarm.UpdateConfig{
 		Parallelism:     1,
-		Delay:           10 * time.Second,                  // Delay entre nodos del cluster
-		FailureAction:   swarm.UpdateFailureActionRollback, // Rollback automático
-		Monitor:         15 * time.Second,                  // NATS arranca rápido, 15s es suficiente
-		MaxFailureRatio: 0,                                 // Con 1 réplica, cualquier fallo es crítico
-		Order:           updateOrder,                       // Importante para mantener disponibilidad
+		Delay:           10 * time.Second,
+		FailureAction:   swarm.UpdateFailureActionRollback,
+		Monitor:         60 * time.Second,
+		MaxFailureRatio: 0,
+		Order:           updateOrder,
 	}
 
 	rollbackConfig := &swarm.UpdateConfig{
 		Parallelism:     1,
 		Delay:           5 * time.Second,
-		FailureAction:   swarm.UpdateFailureActionRollback, // Rollback automático
-		Monitor:         15 * time.Second,
+		FailureAction:   swarm.UpdateFailureActionRollback,
+		Monitor:         60 * time.Second,
 		MaxFailureRatio: 0,
 		Order:           updateOrder,
 	}

@@ -794,3 +794,58 @@ func CleanResources() error {
 	}
 	return nil
 }
+
+func clearNatsJetStreamStore(dc *pt.DockerClient, replica int) error {
+    serviceName := fmt.Sprintf("nats%d", replica)
+
+    // Find the running task for this service
+    filterArgs := filters.NewArgs()
+    filterArgs.Add("name", serviceName)
+    filterArgs.Add("desired-state", "running")
+    tasks, err := dc.Cli.TaskList(dc.Ctx, types.TaskListOptions{Filters: filterArgs})
+    if err != nil {
+        return fmt.Errorf("error listing tasks for '%s': %v", serviceName, err)
+    }
+
+    var containerID string
+    for _, task := range tasks {
+        if task.Status.State == swarm.TaskStateRunning {
+            containerID = task.Status.ContainerStatus.ContainerID
+            break
+        }
+    }
+    if containerID == "" {
+        return fmt.Errorf("no running container found for service '%s'", serviceName)
+    }
+
+    // Execute rm -rf inside the container
+    execConfig := container.ExecOptions{
+        Cmd:          []string{"sh", "-c", "rm -rf /data/nats/jetstream"},
+        AttachStdout: true,
+        AttachStderr: true,
+    }
+    execID, err := dc.Cli.ContainerExecCreate(dc.Ctx, containerID, execConfig)
+    if err != nil {
+        return fmt.Errorf("error creating exec for '%s': %v", serviceName, err)
+    }
+
+    err = dc.Cli.ContainerExecStart(dc.Ctx, execID.ID, container.ExecStartOptions{})
+    if err != nil {
+        return fmt.Errorf("error executing rm on '%s': %v", serviceName, err)
+    }
+
+    // Wait for exec to complete and verify exit code
+    for {
+        inspect, err := dc.Cli.ContainerExecInspect(dc.Ctx, execID.ID)
+        if err != nil {
+            return fmt.Errorf("error inspecting exec on '%s': %v", serviceName, err)
+        }
+        if !inspect.Running {
+            if inspect.ExitCode != 0 {
+                return fmt.Errorf("rm -rf /data/nats/jetstream failed on '%s' with exit code %d", serviceName, inspect.ExitCode)
+            }
+            return nil
+        }
+        time.Sleep(500 * time.Millisecond)
+    }
+}

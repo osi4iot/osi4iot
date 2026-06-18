@@ -18,7 +18,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const version = "0.1.30"
+const version = "0.1.31"
 
 var SwarmActions = []string{"create", "init", "run", "stop", "delete", "service", "certs"}
 
@@ -61,7 +61,7 @@ var cmdCreate = &cobra.Command{
 			defer func() {
 				docker.CleanResources()
 			}()
- 
+
 			err = docker.InitPlatform(pd)
 			if err != nil {
 				errMsg := fmt.Sprintf("Error initializing platform: %v", err)
@@ -73,7 +73,7 @@ var cmdCreate = &cobra.Command{
 				errMsg := fmt.Sprintf("Error: initializing the platform %v", err)
 				exitWithError(errMsg)
 			}
- 
+
 			if err := certrenewer.InstallService(pd); err != nil {
 				fmt.Printf("⚠️  Warning: could not install cert-renewer service: %v\n", err)
 			}
@@ -83,7 +83,7 @@ var cmdCreate = &cobra.Command{
 		}
 	},
 }
- 
+
 var cmdInit = &cobra.Command{
 	Use:   "init",
 	Short: "Init a new osi4iot platform using the existing configuration",
@@ -102,7 +102,7 @@ var cmdInit = &cobra.Command{
 			errMsg := fmt.Sprintf("Error: initializing the platform %v", err)
 			exitWithError(errMsg)
 		}
- 
+
 		if err := certrenewer.InstallService(pd); err != nil {
 			fmt.Printf("⚠️  Warning: could not install cert-renewer service: %v\n", err)
 		}
@@ -138,7 +138,7 @@ var cmdRun = &cobra.Command{
 				errMsg := fmt.Sprintf("Error: initializing the platform %v", err)
 				exitWithError(errMsg)
 			}
- 
+
 			if err := certrenewer.InstallService(pd); err != nil {
 				fmt.Printf("⚠️  Warning: could not install cert-renewer service: %v\n", err)
 			}
@@ -288,6 +288,31 @@ var subCmdServiceScale = &cobra.Command{
 		if err != nil {
 			errMsg := fmt.Sprintf("Error parsing replicas argument: %v", err)
 			exitWithError(errMsg)
+		}
+
+		if serviceName == "nats" && replicas == 1 {
+			currentNatsReplicas, err := docker.GetNatsReplicas(dc)
+			if err == nil && currentNatsReplicas >= 3 {
+				warningText := fmt.Sprintf(
+					"WARNING: Scaling NATS from %d replicas to 1 (standalone mode) will "+
+						"permanently delete ALL JetStream data stored on disk, including:\n"+
+						"  - Streams \n"+
+						"  - KV stores (pipeline state, digital twin state, group state, ...)\n"+
+						"  - Consumers\n\n"+
+						"This data CANNOT be recovered. Any state stored exclusively in JetStream will be lost permanently.\n"+
+						"Only proceed if you are sure this data is not needed.\n",
+					currentNatsReplicas,
+				)
+				fmt.Print(utils.StyleWarningMsg.Render(warningText))
+				fmt.Print("\nType 'yes' to confirm: ")
+
+				var confirmation string
+				fmt.Scanln(&confirmation)
+				if strings.ToLower(strings.TrimSpace(confirmation)) != "yes" {
+					fmt.Println("Operation cancelled.")
+					return
+				}
+			}
 		}
 
 		warnings, err := docker.ScaleSwarmService(pd, dc, serviceName, replicas)
@@ -482,13 +507,13 @@ var subCmdCertsCheck = &cobra.Command{
 }
 
 var subCmdCertsUpdate = &cobra.Command{
-    Use:   "update",
-    Run: func(cmd *cobra.Command, args []string) {
+	Use: "update",
+	Run: func(cmd *cobra.Command, args []string) {
 		stdoutLogger := log.New(os.Stdout, "", 0)
-        if err := runCertsUpdate(stdoutLogger); err != nil {
-            exitWithError(err.Error())
-        }
-    },
+		if err := runCertsUpdate(stdoutLogger); err != nil {
+			exitWithError(err.Error())
+		}
+	},
 }
 
 var subCmdCertsRenewer = &cobra.Command{
@@ -499,13 +524,13 @@ var subCmdCertsRenewer = &cobra.Command{
 
 var subCmdCertsRenewerDaemon = &cobra.Command{
 	Use:    "daemon",
-    Hidden: true,
-    Run: func(cmd *cobra.Command, args []string) {
+	Hidden: true,
+	Run: func(cmd *cobra.Command, args []string) {
 		domainName := data.GetDomainName()
-        certrenewer.RunDaemon(func(logger *log.Logger) error {
-            return runCertsUpdate(logger)
-        }, domainName)
-    },
+		certrenewer.RunDaemon(func(logger *log.Logger) error {
+			return runCertsUpdate(logger)
+		}, domainName)
+	},
 }
 
 var subCmdCertsRenewerLogs = &cobra.Command{

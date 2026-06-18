@@ -571,8 +571,24 @@ func ScaleSwarmService(pd *pt.PlatformData, dc *pt.DockerClient, serviceName str
 					if err != nil {
 						return "", fmt.Errorf("error inspecting nats service '%s': %v", natsServiceName, err)
 					}
-					natsSvc.Spec.UpdateConfig.Order = swarm.UpdateOrderStopFirst
-					natsSvc.Spec.RollbackConfig.Order = swarm.UpdateOrderStopFirst
+
+					// start-first en scale-up multinode: el nuevo nats1 arranca junto al
+					// viejo, nats2/nats3 conectan al nuevo → el cluster mantiene quórum
+					// en todo momento → los streams del volumen nunca se marcan orphaned.
+					// Con stop-first, durante la transición solo hay nats2+nats3 y si el
+					// nuevo nats1 tarda en arrancar el Monitor expira → rollback → orphaned.
+					if numNodes == 1 {
+						// En single-node los puertos colisionarían con start-first
+						natsSvc.Spec.UpdateConfig.Order = swarm.UpdateOrderStopFirst
+						natsSvc.Spec.RollbackConfig.Order = swarm.UpdateOrderStopFirst
+					} else {
+						natsSvc.Spec.UpdateConfig.Order = swarm.UpdateOrderStartFirst
+						natsSvc.Spec.RollbackConfig.Order = swarm.UpdateOrderStartFirst
+					}
+					// Monitor ampliado para dar tiempo a JetStream a integrar los streams
+					// del volumen al cluster raft antes de que Docker decida hacer rollback.
+					natsSvc.Spec.UpdateConfig.Monitor = 60 * time.Second
+					natsSvc.Spec.RollbackConfig.Monitor = 60 * time.Second
 
 					updateResult, err := ServiceUpdate(pd, dc, natsSvc, natsServiceName, natsUpdateOptions)
 					if err != nil {
@@ -604,6 +620,11 @@ func ScaleSwarmService(pd *pt.PlatformData, dc *pt.DockerClient, serviceName str
 			}
 
 			if AreNeededNatsDependentServiceUpdates(currentReplicas, replicas) {
+				fmt.Println("\nClearing JetStream store on nats1 for standalone mode")
+				if err := clearNatsJetStreamStore(dc, 1); err != nil {
+					return "", fmt.Errorf("error clearing JetStream store on nats1: %v", err)
+				}
+
 				fmt.Println("\nUpdating existing nats services to new configuration")
 				existingNatsServices := int(replicas)
 				for replica := 1; replica <= existingNatsServices; replica++ {
