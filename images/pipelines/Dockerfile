@@ -136,10 +136,14 @@ RUN if [ "$TARGETARCH" = "amd64" ]; then \
     rm -rf /tmp/assets
 
 RUN mkdir data && chown -R pipelines:pipelines_group /pipelines
+
+COPY --chown=pipelines:pipelines_group entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod 755 /usr/local/bin/entrypoint.sh
+
 USER pipelines
 
 EXPOSE 3300
 HEALTHCHECK --interval=10s --timeout=3s --start-period=30s --retries=3 \
     CMD curl -f http://localhost:3300/health || exit 1
 
-ENTRYPOINT ["pipelines"]
+ENTRYPOINT ["entrypoint.sh"]

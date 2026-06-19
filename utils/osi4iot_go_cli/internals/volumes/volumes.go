@@ -99,7 +99,7 @@ func GenerateVolumes(platformData *pt.PlatformData) map[string]pt.Volume {
 	numPipelinesReplicas := utils.GetServiceReplicas(platformData, "pipelines")
 	for i := 1; i <= numPipelinesReplicas; i++ {
 		volName := fmt.Sprintf("pipelines_data_%d", i)
-		Volumes[volName] = SetVolumeConfig(pi, volName, "pipelines", deploymentLocation, volOptions)
+		Volumes[volName] = SetVolumeConfig(pi, volName, "pipelines", deploymentLocation, volOptions, true)
 	}
 
 	Volumes["pgdata"] = SetVolumeConfig(pi, "pgdata", "postgres", deploymentLocation, volOptions)
@@ -593,7 +593,9 @@ func CreatePipelinesVolume(pi pt.PlatformInfo, dc *pt.DockerClient, replica int)
 	volOptions := createDefaultOptions(pi)
 	volumeName := fmt.Sprintf("pipelines_data_%d", replica)
 	domainName := pi.DomainName
-	volume := SetVolumeConfig(pi, volumeName, "pipelines", pi.DeploymentLocation, volOptions)
+	// pipelines_data holds regenerable cache/temp data — see GenerateVolumes
+	// for the full rationale on using a local volume here.
+	volume := SetVolumeConfig(pi, volumeName, "pipelines", pi.DeploymentLocation, volOptions, true)
 	err := CreateVolume(dc, domainName, &volume)
 	if err != nil {
 		return fmt.Errorf("error creating volume %s in node %s: %v", volume.Name, dc.Node.NodeIP, err)

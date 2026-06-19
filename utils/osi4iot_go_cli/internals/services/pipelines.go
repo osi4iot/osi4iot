@@ -43,23 +43,6 @@ func PipelinesService(
 	image := utils.GetServiceImage(pd, "pipelines", "ghcr.io/osi4iot/pipelines:1.3.0")
 	return NewService("pipelines", pd, sd).
 		WithImage(image).
-		WithCommand([]string{"sh", "-c"}).
-		WithArgs([]string{
-			"echo 'Waiting for auth_callout...' && " +
-				"until curl -sf http://auth_callout:3300/health > /dev/null 2>&1; do " +
-				"  sleep 3; " +
-				"done && " +
-				"echo 'auth_callout ready' && " +
-				"echo 'Waiting for timescaledb...' && " +
-				"until python3 -c \"" +
-				"import socket; s=socket.socket(); s.settimeout(2); " +
-				"s.connect(('timescaledb', 5432)); s.close()\" 2>/dev/null; do " +
-				"  sleep 2; " +
-				"done && " +
-				"echo 'timescaledb ready' && " +
-				"echo 'All dependencies ready, starting pipelines...' && " +
-				"exec pipelines",
-		}).
 		WithEnv([]string{
 			"REPLICA={{.Task.Slot}}",
 		}).
