@@ -533,23 +533,12 @@ func ScaleSwarmService(pd *pt.PlatformData, dc *pt.DockerClient, serviceName str
 		}
 
 		if replicas > currentReplicas {
-			// Crear los nuevos nodos PRIMERO, antes de actualizar nats1.
-			// Cuando nats1 arranque con el nuevo config, necesita encontrar
-			// nats2/nats3 en menos de 30 segundos — si no hay quórum en ese
-			// tiempo, NATS marca los streams del standalone como "orphaned"
-			// y los elimina del store, perdiendo todos los datos de JetStream.
 			for replica := currentReplicas + 1; replica <= replicas; replica++ {
 				if err := CreateNatsService(pd, dc, int(replica), int(replicas), natsConfigSecret); err != nil {
 					return "", fmt.Errorf("error creating nats service for replica %d: %v", replica, err)
 				}
 			}
 
-			// Esperar a que TODOS los nuevos nodos estén Running antes de
-			// actualizar nats1. "Running" significa que el proceso nats-server
-			// está activo y escuchando en :6222, no que el healthcheck haya
-			// pasado. Con esto garantizamos que cuando nats1 arranque con el
-			// nuevo config, el cluster forma quórum en segundos y los streams
-			// existentes no son detectados como orphaned.
 			for replica := currentReplicas + 1; replica <= replicas; replica++ {
 				natsServiceName := fmt.Sprintf("nats%d", replica)
 				if err := waitUntilServiceTaskIsRunning(dc, natsServiceName); err != nil {
@@ -557,10 +546,6 @@ func ScaleSwarmService(pd *pt.PlatformData, dc *pt.DockerClient, serviceName str
 				}
 			}
 
-			// Ahora actualizar nats1 con stop-first. El nuevo contenedor de
-			// nats1 arranca, restaura los streams del volumen, y encuentra
-			// nats2/nats3 disponibles inmediatamente → quórum en <5s →
-			// streams promovidos a cluster streams con raft group → no orphaned.
 			if AreNeededNatsDependentServiceUpdates(currentReplicas, replicas) {
 				fmt.Println("\nUpdating existing nats services to new configuration")
 				for replica := 1; replica <= int(currentReplicas); replica++ {
@@ -571,22 +556,8 @@ func ScaleSwarmService(pd *pt.PlatformData, dc *pt.DockerClient, serviceName str
 					if err != nil {
 						return "", fmt.Errorf("error inspecting nats service '%s': %v", natsServiceName, err)
 					}
-
-					// start-first en scale-up multinode: el nuevo nats1 arranca junto al
-					// viejo, nats2/nats3 conectan al nuevo → el cluster mantiene quórum
-					// en todo momento → los streams del volumen nunca se marcan orphaned.
-					// Con stop-first, durante la transición solo hay nats2+nats3 y si el
-					// nuevo nats1 tarda en arrancar el Monitor expira → rollback → orphaned.
-					if numNodes == 1 {
-						// En single-node los puertos colisionarían con start-first
-						natsSvc.Spec.UpdateConfig.Order = swarm.UpdateOrderStopFirst
-						natsSvc.Spec.RollbackConfig.Order = swarm.UpdateOrderStopFirst
-					} else {
-						natsSvc.Spec.UpdateConfig.Order = swarm.UpdateOrderStartFirst
-						natsSvc.Spec.RollbackConfig.Order = swarm.UpdateOrderStartFirst
-					}
-					// Monitor ampliado para dar tiempo a JetStream a integrar los streams
-					// del volumen al cluster raft antes de que Docker decida hacer rollback.
+					natsSvc.Spec.UpdateConfig.Order = swarm.UpdateOrderStopFirst
+					natsSvc.Spec.RollbackConfig.Order = swarm.UpdateOrderStopFirst
 					natsSvc.Spec.UpdateConfig.Monitor = 60 * time.Second
 					natsSvc.Spec.RollbackConfig.Monitor = 60 * time.Second
 
@@ -600,16 +571,6 @@ func ScaleSwarmService(pd *pt.PlatformData, dc *pt.DockerClient, serviceName str
 			}
 		} else {
 			// ── SCALE DOWN (e.g. 3 → 1) ────────────────────────────────────────
-			//
-			// Correct order:
-			//   1. Remove the extra nodes (nats2, nats3, ...) and wait until their
-			//      containers and volumes have been fully released.
-			//   2. Update nats1 with the new configuration AFTER the peers have
-			//      disappeared. Using stop-first prevents the new nats1 instance,
-			//      configured for one replica, and the old nats1 instance,
-			//      configured for three replicas and trying to find nonexistent
-			//      peers, from running simultaneously.
-
 			if replicas < currentReplicas {
 				fmt.Println("Removing extra nats services")
 				for replica := replicas + 1; replica <= currentReplicas; replica++ {

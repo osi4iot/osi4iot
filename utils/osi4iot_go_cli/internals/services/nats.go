@@ -62,13 +62,12 @@ func NatsService(
 	var metricPort uint32 = 8222
 	var mqttPort uint32 = 1883
 	var websocketPort uint32 = 9001
-	updateOrder := swarm.UpdateOrderStartFirst
+	updateOrder := swarm.UpdateOrderStopFirst
 	if numNodes == 1 && numReplicas > 1 {
 		natsPort = uint32(4222 + (replica - 1))
 		metricPort = uint32(8222 + (replica - 1))
 		websocketPort = uint32(9001 + (replica - 1))
 		mqttPort = uint32(1883 + (replica - 1))
-		updateOrder = swarm.UpdateOrderStopFirst
 	}
 
 	ports := []swarm.PortConfig{
