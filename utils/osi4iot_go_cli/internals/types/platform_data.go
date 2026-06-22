@@ -159,6 +159,8 @@ type NatsCerts struct {
 	AdminApiNKeySeed        string `json:"admin_api_nkey_seed"`
 	PipelinesNKeyPublic     string `json:"pipelines_nkey_pub"`
 	PipelinesNKeySeed       string `json:"pipelines_nkey_seed"`
+	DeployCliNKeyPublic string `json:"deploy_cli_nkey_pub"`
+	DeployCliNKeySeed   string `json:"deploy_cli_nkey_seed"`
 }
 
 type CaCerts struct {

@@ -505,8 +505,6 @@ func ScaleSwarmService(pd *pt.PlatformData, dc *pt.DockerClient, serviceName str
 		warningMessages += warnings
 
 	case "nats":
-		numNodes := len(pd.PlatformInfo.NodesData)
-
 		// Step 1: Create the new nats_config secret for the target number of replicas.
 		oldNatsConfigSecret, err := secrets.GetSecretByKey(dc, "nats_config")
 		if err != nil {
@@ -532,7 +530,32 @@ func ScaleSwarmService(pd *pt.PlatformData, dc *pt.DockerClient, serviceName str
 			SecretsUpdate: []SecretUpdateConfig{natsSecretUpdateConfig},
 		}
 
+		// Backup of every JetStream stream, taken while NATS is still in its
+		// source topology, and the names backed up. Only populated when
+		// crossing the standalone<->cluster boundary, where NATS has no
+		// in-place data migration and the cluster must be rebuilt empty and
+		// restored from this backup. Declared here so both the scale-up
+		// (backup/clear, below) and the restore (further down) can see them.
+		var natsBackupDir string
+		var natsBackupStreams []string
+
 		if replicas > currentReplicas {
+			// Growing out of standalone mode (1 -> N): snapshot every stream
+			// now, while nats1 is still standalone and healthy. The streams
+			// are NOT cleared here — that happens just before the restore,
+			// once the cluster is confirmed formed (Step 5c). Deleting only
+			// at the last moment means that if anything between here and the
+			// restore fails (peer creation, the nats1 config update, cluster
+			// formation), nats1 still holds the original standalone data and
+			// the scale command can simply be re-run.
+			if currentReplicas == 1 && replicas >= 3 {
+				var err error
+				natsBackupDir, natsBackupStreams, err = backupNatsStreams(pd, dc)
+				if err != nil {
+					return "", fmt.Errorf("error backing up NATS streams before scale-up: %v", err)
+				}
+			}
+
 			for replica := currentReplicas + 1; replica <= replicas; replica++ {
 				if err := CreateNatsService(pd, dc, int(replica), int(replicas), natsConfigSecret); err != nil {
 					return "", fmt.Errorf("error creating nats service for replica %d: %v", replica, err)
@@ -572,6 +595,20 @@ func ScaleSwarmService(pd *pt.PlatformData, dc *pt.DockerClient, serviceName str
 		} else {
 			// ── SCALE DOWN (e.g. 3 → 1) ────────────────────────────────────────
 			if replicas < currentReplicas {
+				// Step: before removing the nats2..nats3 containers, reduce
+				// every stream's Replicas to the target count while the full
+				// cluster is still alive and reachable, making sure nats1 leads
+				// each stream first so its copy is the one that survives. This
+				// must succeed for every stream before continuing — once the
+				// containers below are gone, a stream that wasn't reduced here
+				// would lose its data. See reduceNatsStreamsReplicas for the
+				// full rationale (it replaces the previous "wipe nats1's
+				// JetStream store and start over" approach, which discarded
+				// all stream data unconditionally on every scale-down).
+				if err := reduceNatsStreamsReplicas(pd, dc, int(replicas)); err != nil {
+					return "", fmt.Errorf("error reducing NATS stream replicas before scale-down: %v", err)
+				}
+
 				fmt.Println("Removing extra nats services")
 				for replica := replicas + 1; replica <= currentReplicas; replica++ {
 					if err := RemoveNatsService(dc, int(replica)); err != nil {
@@ -581,11 +618,6 @@ func ScaleSwarmService(pd *pt.PlatformData, dc *pt.DockerClient, serviceName str
 			}
 
 			if AreNeededNatsDependentServiceUpdates(currentReplicas, replicas) {
-				fmt.Println("\nClearing JetStream store on nats1 for standalone mode")
-				if err := clearNatsJetStreamStore(dc, 1); err != nil {
-					return "", fmt.Errorf("error clearing JetStream store on nats1: %v", err)
-				}
-
 				fmt.Println("\nUpdating existing nats services to new configuration")
 				existingNatsServices := int(replicas)
 				for replica := 1; replica <= existingNatsServices; replica++ {
@@ -624,14 +656,58 @@ func ScaleSwarmService(pd *pt.PlatformData, dc *pt.DockerClient, serviceName str
 			return "", fmt.Errorf("error waiting for nats containers to be healthy: %v", err)
 		}
 
-		// Step 5b: In multi-node clusters with three or more replicas, wait until
-		// the NATS cluster has established all routes and elected a JetStream
-		// meta-leader before updating the dependent services. In single-node
-		// deployments, the overlay network is local and convergence is immediate,
-		// so this step is unnecessary.
-		if numNodes > 1 && replicas >= 3 {
+		// Step 5b: Once three or more replicas exist, wait until the NATS
+		// cluster has established all routes and elected a JetStream
+		// meta-leader before updating the dependent services.
+		//
+		// This used to be skipped when numNodes == 1 (all replicas on a
+		// single Docker host), on the assumption that overlay-network
+		// convergence is "instant" when there's no real network between
+		// nodes. That assumption doesn't hold for JetStream's own raft
+		// route formation between nats1..N processes, which is still an
+		// asynchronous startup step regardless of host topology — and
+		// skipping the wait here left the Replicas migration below
+		// unreachable on single-host deployments, which is exactly the
+		// topology where this was observed losing data fastest (route
+		// formation between containers on the same host is faster, which
+		// shortens the window before the orphan-stream cleanup fires).
+		if replicas >= 3 {
 			if err := waitUntilNatsClusterIsFormed(dc, int(replicas)); err != nil {
 				return "", fmt.Errorf("error waiting for nats cluster to form: %v", err)
+			}
+
+			// Step 5c: The cluster is now formed and empty (its streams were
+			// backed up and cleared before the rebuild, in the scale-up block
+			// above). Restore every stream from that backup into the cluster
+			// and widen it to the cluster size. Restoring into a clean,
+			// already-formed cluster and then widening within it is reliable,
+			// unlike the previous approach of trying to make the meta-cluster
+			// adopt standalone streams in place (which intermittently lost KV
+			// data when the orphan-stream cleanup won the race).
+			//
+			// On failure the cluster is up but the data has NOT been loaded;
+			// the snapshot is still on disk at natsBackupDir and can be
+			// restored manually (or by re-running, once the cause is fixed),
+			// so no data is lost.
+			if AreNeededNatsDependentServiceUpdates(currentReplicas, replicas) {
+				// Clear any streams left over from the standalone era (now
+				// orphaned in the freshly formed cluster) immediately before
+				// restoring, so the restore recreates each one cleanly instead
+				// of hitting "stream already exists". Doing the delete here,
+				// at the last possible moment, is what keeps the operation
+				// safe to retry: every earlier step is non-destructive to the
+				// standalone data.
+				if err := deleteNatsStreams(pd, dc, natsBackupStreams); err != nil {
+					return "", fmt.Errorf("error clearing leftover NATS streams before restore "+
+						"(your data backup is at %s): %w", natsBackupDir, err)
+				}
+				restoreWarnings, err := restoreNatsStreams(pd, dc, natsBackupDir, natsBackupStreams, int(replicas))
+				if err != nil {
+					return "", fmt.Errorf("error restoring NATS streams after cluster rebuild "+
+						"(the cluster is up; your data backup is at %s and can be restored manually "+
+						"or by re-running the scale command): %w", natsBackupDir, err)
+				}
+				warningMessages += restoreWarnings
 			}
 		}
 

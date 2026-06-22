@@ -65,6 +65,7 @@ func GenerateSecrets(pd *pt.PlatformData) map[string]pt.Secret {
 		fmt.Sprintf("VECTOR_NATS_NKEY_PUBLIC=%s", pd.Certs.NatsCerts.VectorNKeyPublic),
 		fmt.Sprintf("ADMIN_API_NATS_NKEY_PUBLIC=%s", pd.Certs.NatsCerts.AdminApiNKeyPublic),
 		fmt.Sprintf("PIPELINES_NATS_NKEY_PUBLIC=%s", pd.Certs.NatsCerts.PipelinesNKeyPublic),
+		fmt.Sprintf("DEPLOY_CLI_NATS_NKEY_PUBLIC=%s", pd.Certs.NatsCerts.DeployCliNKeyPublic),
 	}
 	authCalloutSecretsData := strings.Join(authCalloutSecretsDataArray, "\n")
 	authCalloutSecretsHash := utils.GetMD5Hash(authCalloutSecretsData)

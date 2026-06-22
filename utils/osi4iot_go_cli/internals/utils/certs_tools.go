@@ -128,6 +128,13 @@ func NatsCredentials(platformData *types.PlatformData) error {
     platformData.Certs.NatsCerts.PipelinesNKeyPublic = pipelinesPub
     platformData.Certs.NatsCerts.PipelinesNKeySeed = pipelinesSeed
 
+    deployCliPub, deployCliSeed, err := CreateUserNatsNkey()
+    if err != nil {
+        return err
+    }
+    platformData.Certs.NatsCerts.DeployCliNKeyPublic = deployCliPub
+    platformData.Certs.NatsCerts.DeployCliNKeySeed = deployCliSeed
+
     return nil
 }
 
@@ -171,4 +178,3 @@ func GetCertsExpirationInfo(pd *types.PlatformData) (CertExpirationInfo, error) 
 
 	return expirationInfo, nil
 }
-

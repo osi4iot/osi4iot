@@ -47,7 +47,7 @@ func main() {
 		action = args[0]
 	}
 
-	sudoActions := []string{"create", "init", "run", "stop", "delete", "certs", "nodes", "passphrase"}
+	sudoActions := []string{"create", "init", "run", "stop", "delete", "certs", "nodes", "passphrase", "streams"}
 	reexecAsRootIfNeeded(sudoActions, action)
 
 	if action == "passphrase" {

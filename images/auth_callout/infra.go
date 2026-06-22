@@ -54,6 +54,34 @@ func buildInfraServices(config *Config) []InfraService {
 				Resp: &jwt.ResponsePermission{MaxMsgs: 1},
 			},
 		},
+		{
+			// deploy_cli identifies the osi4iot deployment CLI. Unlike
+			// admin_api/pipelines, it doesn't need general pub/sub access to
+			// application subjects — it only manages JetStream (creating,
+			// deleting, snapshotting and restoring streams during a NATS
+			// scale-up/down), so its permissions are scoped to the JetStream
+			// subject space and its own inbox.
+			//
+			// Note it must allow the WHOLE "$JS.>" space, not just "$JS.API.>":
+			// stream backup/restore use additional subjects outside the API
+			// tree. A snapshot pushes data to the client and the client must
+			// publish flow-control ACKs to "$JS.SNAPSHOT.ACK.>"; a restore
+			// pushes chunks back on a server-assigned "$JS.SNAPSHOT.>" subject.
+			// Granting only "$JS.API.>" lets the snapshot/restore request
+			// through but then fails with "Permissions Violation for Publish
+			// to $JS.SNAPSHOT.ACK..." mid-transfer.
+			Name:       "deploy_cli",
+			NKeyPublic: config.DeployCliNKeyPublic,
+			Permissions: jwt.Permissions{
+				Pub: jwt.Permission{
+					Allow: []string{"$JS.>", "_INBOX.>"},
+				},
+				Sub: jwt.Permission{
+					Allow: []string{"$JS.>", "_INBOX.>"},
+				},
+				Resp: &jwt.ResponsePermission{MaxMsgs: 1},
+			},
+		},
 	}
 }
 
