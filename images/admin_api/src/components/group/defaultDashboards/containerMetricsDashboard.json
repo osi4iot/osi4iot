@@ -23,7 +23,7 @@
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
   "id": 5,
-  "iteration": 1780592502512,
+  "iteration": 1782198100184,
   "links": [],
   "liveNow": false,
   "panels": [
@@ -370,7 +370,7 @@
           "group": [],
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "WITH ranked AS (\n  SELECT *,\n    ROW_NUMBER() OVER (PARTITION BY service, replica_slot ORDER BY time DESC) AS rn\n  FROM observability.container_metrics\n  WHERE time > NOW() - INTERVAL '2 minutes'\n    AND service IN ($service)\n    AND replica_slot IN ($replica)\n),\nlatest AS (SELECT * FROM ranked WHERE rn = 1),\nprev   AS (SELECT * FROM ranked WHERE rn = 2)\nSELECT\n  l.service                                                AS \"Service\",\n  l.node_name                                             AS \"Node\",\n  l.replica_slot                                          AS \"Replica\",\n  l.state                                                 AS \"State\",\n  l.cpu_usage_percent                                     AS \"CPU %\",\n  l.memory_working_set_bytes                              AS \"Memory used\",\n  l.memory_limit_bytes                                    AS \"Memory total\",\n  l.memory_usage_percent                                  AS \"Memory %\",\n  CASE\n    WHEN l.network_rx_bytes_total < p.network_rx_bytes_total THEN NULL\n    ELSE (l.network_rx_bytes_total - p.network_rx_bytes_total)\n         / NULLIF(EXTRACT(EPOCH FROM (l.time - p.time)), 0)\n  END                                                     AS \"Net received\",\n  CASE\n    WHEN l.network_tx_bytes_total < p.network_tx_bytes_total THEN NULL\n    ELSE (l.network_tx_bytes_total - p.network_tx_bytes_total)\n         / NULLIF(EXTRACT(EPOCH FROM (l.time - p.time)), 0)\n  END                                                     AS \"Net transmitted\",\n  l.time                                                  AS \"Last update\"\nFROM latest l\nLEFT JOIN prev p ON p.service = l.service AND p.replica_slot = l.replica_slot\nORDER BY l.service, l.replica_slot;",
+          "rawSql": "WITH ranked AS (\n  SELECT *,\n    ROW_NUMBER() OVER (\n      PARTITION BY service, node_name, replica_slot   -- ← añadir node_name\n      ORDER BY time DESC\n    ) AS rn\n  FROM observability.container_metrics\n  WHERE time > NOW() - INTERVAL '2 minutes'\n    AND service IN ($service)\n    AND replica_slot IN ($replica)\n),\nlatest AS (SELECT * FROM ranked WHERE rn = 1),\nprev   AS (SELECT * FROM ranked WHERE rn = 2)\n\nSELECT\n  l.service                   AS \"Service\",\n  l.node_name                 AS \"Node\",\n  l.replica_slot              AS \"Replica\",\n  l.state                     AS \"State\",\n  l.cpu_usage_percent         AS \"CPU %\",\n  l.memory_working_set_bytes  AS \"Memory used\",\n  l.memory_limit_bytes        AS \"Memory total\",\n  l.memory_usage_percent      AS \"Memory %\",\n  CASE\n    WHEN l.network_rx_bytes_total < p.network_rx_bytes_total THEN NULL\n    ELSE (l.network_rx_bytes_total - p.network_rx_bytes_total)\n         / NULLIF(EXTRACT(EPOCH FROM (l.time - p.time)), 0)\n  END                         AS \"Net received\",\n  CASE\n    WHEN l.network_tx_bytes_total < p.network_tx_bytes_total THEN NULL\n    ELSE (l.network_tx_bytes_total - p.network_tx_bytes_total)\n         / NULLIF(EXTRACT(EPOCH FROM (l.time - p.time)), 0)\n  END                         AS \"Net transmitted\",\n  l.time                      AS \"Last update\"\nFROM latest l\nLEFT JOIN prev p\n  ON  p.service      = l.service\n  AND p.node_name    = l.node_name\n  AND p.replica_slot = l.replica_slot\nORDER BY l.service, l.node_name, l.replica_slot;",
           "refId": "A",
           "select": [
             [
@@ -476,7 +476,7 @@
           "group": [],
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "SELECT\n  time,\n  service || '.' || replica_slot AS \"Container\",\n  cpu_usage_percent               AS \"CPU %\"\nFROM observability.container_metrics\nWHERE $__timeFilter(time)\n  AND service IN ($service)\n  AND replica_slot IN ($replica)\n  AND node_name IN ($node)\nORDER BY time ASC;",
+          "rawSql": "SELECT\n  time,\n  service || '.' || CASE\n    WHEN replica_slot = 0 THEN node_name\n    ELSE replica_slot::text\n  END                   AS \"Container\",\n  cpu_usage_percent     AS \"CPU %\"\nFROM observability.container_metrics\nWHERE $__timeFilter(time)\n  AND service   IN ($service)\n  AND node_name IN ($node)\n  AND replica_slot IN ($replica)\nORDER BY time ASC;",
           "refId": "A",
           "select": [
             [
@@ -582,7 +582,7 @@
           "group": [],
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "SELECT\n  time,\n  service || '.' || replica_slot AS \"Container\",\n  memory_usage_percent            AS \"Memory %\"\nFROM observability.container_metrics\nWHERE $__timeFilter(time)\n  AND service IN ($service)\n  AND replica_slot IN ($replica)\n  AND node_name IN ($node)\nORDER BY time ASC;",
+          "rawSql": "SELECT\n  time,\n  service || '.' || CASE\n    WHEN replica_slot = 0 THEN node_name\n    ELSE replica_slot::text\n  END                   AS \"Container\",\n  memory_usage_percent  AS \"Memory %\"\nFROM observability.container_metrics\nWHERE $__timeFilter(time)\n  AND service   IN ($service)\n  AND node_name IN ($node)\n  AND replica_slot IN ($replica)\nORDER BY time ASC;",
           "refId": "A",
           "select": [
             [
@@ -687,7 +687,7 @@
           "group": [],
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "SELECT\n  time,\n  service || '.' || replica_slot AS \"Container\",\n  CASE\n    WHEN network_rx_bytes_total < LAG(network_rx_bytes_total) OVER w THEN NULL\n    ELSE (network_rx_bytes_total - LAG(network_rx_bytes_total) OVER w)\n         / NULLIF(EXTRACT(EPOCH FROM (time - LAG(time) OVER w)), 0)\n  END AS \"RX bytes/s\",\n  CASE\n    WHEN network_tx_bytes_total < LAG(network_tx_bytes_total) OVER w THEN NULL\n    ELSE (network_tx_bytes_total - LAG(network_tx_bytes_total) OVER w)\n         / NULLIF(EXTRACT(EPOCH FROM (time - LAG(time) OVER w)), 0)\n  END AS \"TX bytes/s\"\nFROM observability.container_metrics\nWHERE $__timeFilter(time)\n  AND service IN ($service)\n  AND replica_slot IN ($replica)\n  AND node_name IN ($node)\nWINDOW w AS (PARTITION BY container_id ORDER BY time)\nORDER BY time ASC;",
+          "rawSql": "SELECT\n  time,\n  service || '.' || CASE\n    WHEN replica_slot = 0 THEN node_name\n    ELSE replica_slot::text\n  END AS \"Container\",\n  CASE\n    WHEN network_rx_bytes_total < LAG(network_rx_bytes_total) OVER w THEN NULL\n    ELSE (network_rx_bytes_total - LAG(network_rx_bytes_total) OVER w)\n         / NULLIF(EXTRACT(EPOCH FROM (time - LAG(time) OVER w)), 0)\n  END AS \"RX bytes/s\",\n  CASE\n    WHEN network_tx_bytes_total < LAG(network_tx_bytes_total) OVER w THEN NULL\n    ELSE (network_tx_bytes_total - LAG(network_tx_bytes_total) OVER w)\n         / NULLIF(EXTRACT(EPOCH FROM (time - LAG(time) OVER w)), 0)\n  END AS \"TX bytes/s\"\nFROM observability.container_metrics\nWHERE $__timeFilter(time)\n  AND service      IN ($service)\n  AND node_name    IN ($node)\n  AND replica_slot IN ($replica)\nWINDOW w AS (PARTITION BY container_id ORDER BY time)\nORDER BY time ASC;",
           "refId": "A",
           "select": [
             [
@@ -807,6 +807,6 @@
   "timezone": "",
   "title": "",
   "uid": "",
-  "version": 2,
+  "version": 4,
   "weekStart": ""
 }

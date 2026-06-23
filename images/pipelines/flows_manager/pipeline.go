@@ -881,7 +881,7 @@ func (p *Pipeline) StartStatusPublisher(ctx context.Context) {
 	go func() {
 		defer p.statusPublisherWg.Done()
 
-		ticker := time.NewTicker(5 * time.Second)
+		ticker := time.NewTicker(1 * time.Second)
 		defer ticker.Stop()
 
 		// Publish immediately at the start
