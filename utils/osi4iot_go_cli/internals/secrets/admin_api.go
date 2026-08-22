@@ -13,39 +13,56 @@ func CreateAdminApiConfigSecret(
 	pd *pt.PlatformData,
 	numNatsReplicas int,
 ) pt.Secret {
+
+	pi := pd.PlatformInfo
+	postgresHost := "postgres"
+	postgresPort := "5432"
+	timescaleHost := "timescaledb"
+	timescalePort := "5432"
+	if pi.UsePatroniTool {
+		postgresHost = "haproxy_patroni"
+		postgresPort = "5000"
+		timescaleHost = "haproxy_patroni"
+		timescalePort = "5100"
+	}
+	
 	adminApiSecretsDataArray := []string{
-		fmt.Sprintf("REGISTRATION_TOKEN_LIFETIME=%s", strconv.Itoa(pd.PlatformInfo.RegistrationTokenLifetime)),
-		fmt.Sprintf("REFRESH_TOKEN_LIFETIME=%s", strconv.Itoa(pd.PlatformInfo.RefreshTokenLifetime)),
-		fmt.Sprintf("REFRESH_TOKEN_SECRET=%s", pd.PlatformInfo.RefreshTokenSecret),
-		fmt.Sprintf("ACCESS_TOKEN_SECRET=%s", pd.PlatformInfo.AccessTokenSecret),
-		fmt.Sprintf("ACCESS_TOKEN_LIFETIME=%s", strconv.Itoa(pd.PlatformInfo.AccessTokenLifetime)),
-		fmt.Sprintf("MQTT_SSL_CERTS_VALIDITY_DAYS=%s", strconv.Itoa(pd.PlatformInfo.MQTTSslCertsValidityDays)),
-		fmt.Sprintf("ENCRYPTION_SECRET_KEY=%s", pd.PlatformInfo.EncryptionSecretKey),
-		fmt.Sprintf("PLATFORM_ADMIN_FIRST_NAME=\"%s\"", pd.PlatformInfo.PlatformAdminFirstName),
-		fmt.Sprintf("PLATFORM_ADMIN_SURNAME=\"%s\"", pd.PlatformInfo.PlatformAdminSurname),
-		fmt.Sprintf("PLATFORM_ADMIN_USER_NAME=%s", pd.PlatformInfo.PlatformAdminUserName),
-		fmt.Sprintf("PLATFORM_ADMIN_EMAIL=%s", pd.PlatformInfo.PlatformAdminEmail),
-		fmt.Sprintf("PLATFORM_ADMIN_PASSWORD=%s", pd.PlatformInfo.PlatformAdminPassword),
-		fmt.Sprintf("PLATFORM_ADMIN_NATS_PUBLIC=%s", pd.PlatformInfo.PlatformAdminNatsPublicKey),
-		fmt.Sprintf("GRAFANA_ADMIN_PASSWORD=%s", pd.PlatformInfo.GrafanaAdminPassword),
-		fmt.Sprintf("POSTGRES_USER=%s", pd.PlatformInfo.PostgresUser),
-		fmt.Sprintf("POSTGRES_PASSWORD=%s", pd.PlatformInfo.PostgresPassword),
-		fmt.Sprintf("POSTGRES_DB=%s", pd.PlatformInfo.PostgresDB),
-		fmt.Sprintf("TIMESCALE_USER=%s", pd.PlatformInfo.TimescaleUser),
-		fmt.Sprintf("TIMESCALE_PASSWORD=%s", pd.PlatformInfo.TimescalePassword),
-		fmt.Sprintf("TIMESCALE_DB=%s", pd.PlatformInfo.TimescaleDB),
+		fmt.Sprintf("REGISTRATION_TOKEN_LIFETIME=%s", strconv.Itoa(pi.RegistrationTokenLifetime)),
+		fmt.Sprintf("REFRESH_TOKEN_LIFETIME=%s", strconv.Itoa(pi.RefreshTokenLifetime)),
+		fmt.Sprintf("REFRESH_TOKEN_SECRET=%s", pi.RefreshTokenSecret),
+		fmt.Sprintf("ACCESS_TOKEN_SECRET=%s", pi.AccessTokenSecret),
+		fmt.Sprintf("ACCESS_TOKEN_LIFETIME=%s", strconv.Itoa(pi.AccessTokenLifetime)),
+		fmt.Sprintf("MQTT_SSL_CERTS_VALIDITY_DAYS=%s", strconv.Itoa(pi.MQTTSslCertsValidityDays)),
+		fmt.Sprintf("ENCRYPTION_SECRET_KEY=%s", pi.EncryptionSecretKey),
+		fmt.Sprintf("PLATFORM_ADMIN_FIRST_NAME=\"%s\"", pi.PlatformAdminFirstName),
+		fmt.Sprintf("PLATFORM_ADMIN_SURNAME=\"%s\"", pi.PlatformAdminSurname),
+		fmt.Sprintf("PLATFORM_ADMIN_USER_NAME=%s", pi.PlatformAdminUserName),
+		fmt.Sprintf("PLATFORM_ADMIN_EMAIL=%s", pi.PlatformAdminEmail),
+		fmt.Sprintf("PLATFORM_ADMIN_PASSWORD=%s", pi.PlatformAdminPassword),
+		fmt.Sprintf("PLATFORM_ADMIN_NATS_PUBLIC=%s", pi.PlatformAdminNatsPublicKey),
+		fmt.Sprintf("GRAFANA_ADMIN_PASSWORD=%s", pi.GrafanaAdminPassword),
+		fmt.Sprintf("POSTGRES_USER=%s", pi.PostgresUser),
+		fmt.Sprintf("POSTGRES_PASSWORD=%s", pi.PostgresPassword),
+		fmt.Sprintf("POSTGRES_DB=%s", pi.PostgresDB),
+		fmt.Sprintf("POSTGRES_HOST=%s", postgresHost),
+		fmt.Sprintf("POSTGRES_PORT=%s", postgresPort),
+		fmt.Sprintf("TIMESCALE_USER=%s", pi.TimescaleUser),
+		fmt.Sprintf("TIMESCALE_PASSWORD=%s", pi.TimescalePassword),
+		fmt.Sprintf("TIMESCALE_DB=%s", pi.TimescaleDB),
+		fmt.Sprintf("TIMESCALE_HOST=%s", timescaleHost),
+		fmt.Sprintf("TIMESCALE_PORT=%s", timescalePort),
 		fmt.Sprintf("NATS_ADMIN_USERNAME=%s", pd.Certs.NatsCerts.NatsAdminUsername),
 		fmt.Sprintf("NATS_ADMIN_PASSWORD=%s", pd.Certs.NatsCerts.NatsAdminPassword),
 		fmt.Sprintf("NATS_NUM_REPLICAS=%d", numNatsReplicas),
-		fmt.Sprintf("NATS_NUM_NODES=%d", pd.PlatformInfo.NumOfNatsNodes),
+		fmt.Sprintf("NATS_NUM_NODES=%d", pi.NumOfNatsNodes),
 		fmt.Sprintf("NATS_SEED=%s", pd.Certs.NatsCerts.AdminApiNKeySeed),
-		fmt.Sprintf("NOTIFICATIONS_EMAIL_USER=%s", pd.PlatformInfo.NotificationsEmailUser),
-		fmt.Sprintf("NOTIFICATIONS_EMAIL_PASSWORD=%s", pd.PlatformInfo.NotificationsEmailPassword),
-		fmt.Sprintf("MAIN_ORGANIZATION_TELEGRAM_CHAT_ID=%s", pd.PlatformInfo.MainOrganizationTelegramChatID),
-		fmt.Sprintf("MAIN_ORGANIZATION_TELEGRAM_INVITATION_LINK=%s", pd.PlatformInfo.MainOrganizationTelegramInviteLink),
-		fmt.Sprintf("TELEGRAM_BOTTOKEN=%s", pd.PlatformInfo.TelegramBotToken),
-		fmt.Sprintf("AWS_ACCESS_KEY_ID=%s", pd.PlatformInfo.AWSAccessKeyIDS3Bucket),
-		fmt.Sprintf("AWS_SECRET_ACCESS_KEY=%s", pd.PlatformInfo.AWSSecretAccessKeyS3Bucket),
+		fmt.Sprintf("NOTIFICATIONS_EMAIL_USER=%s", pi.NotificationsEmailUser),
+		fmt.Sprintf("NOTIFICATIONS_EMAIL_PASSWORD=%s", pi.NotificationsEmailPassword),
+		fmt.Sprintf("MAIN_ORGANIZATION_TELEGRAM_CHAT_ID=%s", pi.MainOrganizationTelegramChatID),
+		fmt.Sprintf("MAIN_ORGANIZATION_TELEGRAM_INVITATION_LINK=%s", pi.MainOrganizationTelegramInviteLink),
+		fmt.Sprintf("TELEGRAM_BOTTOKEN=%s", pi.TelegramBotToken),
+		fmt.Sprintf("AWS_ACCESS_KEY_ID=%s", pi.AWSAccessKeyIDS3Bucket),
+		fmt.Sprintf("AWS_SECRET_ACCESS_KEY=%s", pi.AWSSecretAccessKeyS3Bucket),
 	}
 
 	adminApiSecretsData := strings.Join(adminApiSecretsDataArray, "\n")

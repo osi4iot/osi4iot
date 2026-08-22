@@ -445,10 +445,6 @@ func waitUntilAllContainersAreHealthy(pd *pt.PlatformData, serviceType string) e
 		allHealthy := true
 
 		for _, service := range filteredServices {
-			if service.Spec.Name == "system-prune" {
-				continue
-			}
-
 			serviceFilter := filters.NewArgs()
 			serviceFilter.Add("service", service.ID)
 			tasks, err := docker.Cli.TaskList(docker.Ctx, types.TaskListOptions{

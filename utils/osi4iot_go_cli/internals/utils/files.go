@@ -101,6 +101,7 @@ func fixingPlatformData(pd *pt.PlatformData) error {
 	}
 
 	servicesList := []string{
+		"system_manager",
 		"admin_api",
 		"frontend",
 		"nats",
@@ -108,13 +109,28 @@ func fixingPlatformData(pd *pt.PlatformData) error {
 		"grafana",
 		"pipelines",
 		"traefik",
-		"system-prune",
-		"postgres",
-		"timescaledb",
 		"pgadmin4",
 		"grafana_renderer",
 		"minio",
 		"keepalived",
+	}
+
+	if pd.PlatformInfo.UsePatroniTool {
+		servicesList = append(servicesList, "haproxy_patroni")
+				
+		numPatroniAdminNodes := Max(pd.PlatformInfo.NumPatroniAdminNodes, 1)
+		for i := 1; i <= numPatroniAdminNodes; i++ {
+			name := fmt.Sprintf("patroni-admin%d", i)
+			servicesList = append(servicesList, name)
+		}
+
+		numPatroniMetricsNodes := Max(pd.PlatformInfo.NumPatroniMetricsNodes, 1)
+		for i := 1; i <= numPatroniMetricsNodes; i++ {
+			name := fmt.Sprintf("patroni-metrics%d", i)
+			servicesList = append(servicesList, name)
+		}
+	} else {
+		servicesList = append(servicesList, "postgres", "timescaledb")
 	}
 
 	defaultServicesDataMap := GetDefaultServicesDataMap(pd)
@@ -157,6 +173,7 @@ func fixingPlatformData(pd *pt.PlatformData) error {
 		}
 	}
 
+	pd.PlatformInfo.ServicesData = servicesData
 	return nil
 }
 

@@ -18,6 +18,14 @@ func VectorService(
 	svcResources resources.SvcResources,
 ) pt.Service {
 
+	dbHost := "timescaledb"
+	dbPort := "5432"
+	pi := pd.PlatformInfo
+	if pi.UsePatroniTool {
+		dbHost = "haproxy_patroni"
+		dbPort = "5100"
+	}
+
 	configs := []*swarm.ConfigReference{
 		{
 			File: &swarm.ConfigReferenceFileTarget{
@@ -45,7 +53,7 @@ func VectorService(
 	}
 
 	numNatsReplicas := utils.GetServiceReplicas(pd, "nats")
-	natsSeedServers := secrets_pkg.NatsSeedServers(pd, numNatsReplicas, pd.PlatformInfo.DomainName)
+	natsSeedServers := secrets_pkg.NatsSeedServers(pd, numNatsReplicas, pi.DomainName)
 
 	image := utils.GetServiceImage(pd, "vector", "ghcr.io/osi4iot/vector:0.46.1-alpine")
 	return NewService("vector", pd, sd).
@@ -59,21 +67,21 @@ func VectorService(
 				"  sleep 3; " +
 				"done && " +
 				"echo 'auth_callout ready' && " +
-				"echo 'Waiting for timescaledb...' && " +
-				"until nc -z timescaledb 5432 > /dev/null 2>&1; do " +
+				fmt.Sprintf("echo 'Waiting for %s...' && ", dbHost) +
+				fmt.Sprintf("until nc -z %s %s > /dev/null 2>&1; do ", dbHost, dbPort) +
 				"  sleep 2; " +
 				"done && " +
-				"echo 'timescaledb ready' && " +
+				fmt.Sprintf("echo '%s ready' && ", dbHost) +
 				"echo 'All dependencies ready, starting Vector...' && " +
 				"exec /usr/local/bin/vector --config /etc/vector/vector.yaml",
 		}).
 		WithEnv([]string{
 			"VECTOR_LOG=warn",
-			"DB_HOST=timescaledb",
-			"DB_PORT=5432",
+			fmt.Sprintf("DB_HOST=%s", dbHost),
+			fmt.Sprintf("DB_PORT=%s", dbPort),
 			fmt.Sprintf("NATS_SEED_SERVERS_URL=%s", strings.Join(natsSeedServers, ",")),
-			fmt.Sprintf("DB_NAME=%s", pd.PlatformInfo.TimescaleDB),
-			fmt.Sprintf("DB_USER=%s", pd.PlatformInfo.TimescaleUser),
+			fmt.Sprintf("DB_NAME=%s", pi.TimescaleDB),
+			fmt.Sprintf("DB_USER=%s", pi.TimescaleUser),
 			"PROCFS_ROOT=/host/proc",
 			"SYSFS_ROOT=/host/sys",
 			"DOCKER_ROOT=/host/var/lib/docker",

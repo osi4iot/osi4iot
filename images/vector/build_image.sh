@@ -1,2 +1,1 @@
 docker buildx build --platform linux/amd64,linux/arm64 -t ghcr.io/osi4iot/vector:0.46.1-alpine --push .
-# docker buildx build --platform linux/amd64,linux/arm64 -t ghcr.io/osi4iot/timescaledb:latest --push .

@@ -127,6 +127,13 @@ func PipelinesConfig(pd *types.PlatformData, numNatsReplicas int) (string, error
 	numReplicas := utils.GetServiceReplicas(pd, "pipelines")
 	numStreamReplicas := utils.Min(numNatsReplicas, 3)
 
+	tsHost := "timescaledb"
+	tsPort := 5432
+	if pi.UsePatroniTool {
+		tsHost = "haproxy_patroni"
+		tsPort = 5100
+	}
+
 	awsAccessKeyId := pi.PlatformAdminUserName
 	awsSecretAccessKey := pi.PlatformAdminPassword
 	awsEndpoint := "http://minio:9000/"
@@ -168,8 +175,8 @@ func PipelinesConfig(pd *types.PlatformData, numNatsReplicas int) (string, error
 		TimescaleDB: TimescaleDBParams{
 			User:     pi.TimescaleUser,
 			Password: pi.TimescalePassword,
-			Host:     "timescaledb",
-			Port:     5432,
+			Host:     tsHost,
+			Port:     tsPort,
 			DBName:   "iot_data_db",
 			SSLMode:  "disable",
 		},

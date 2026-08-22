@@ -140,6 +140,24 @@ func (b *ServiceBuilder) WithResources(cpus, mem int64) *ServiceBuilder {
 	return b
 }
 
+// WithBurstableResources sets CPU/memory reservations (the guaranteed
+// minimum Swarm uses for placement/bin-packing) separately from limits
+// (the hard cgroup cap actually enforced at runtime).
+//
+// Use this instead of WithResources for services that sit mostly idle but
+// need to burst well above their steady-state usage briefly — typically
+// at startup (importing a large codebase, JIT/bytecode compilation, etc.)
+// — without either reserving that peak capacity permanently (wasting
+// cluster capacity at rest) or being CFS-throttled during the burst
+// itself, which can turn a few seconds of real work into minutes.
+func (b *ServiceBuilder) WithBurstableResources(reservedCPUs, reservedMem, limitCPUs, limitMem int64) *ServiceBuilder {
+	b.svc.TaskTemplate.Resources.Reservations.NanoCPUs = reservedCPUs
+	b.svc.TaskTemplate.Resources.Reservations.MemoryBytes = reservedMem
+	b.svc.TaskTemplate.Resources.Limits.NanoCPUs = limitCPUs
+	b.svc.TaskTemplate.Resources.Limits.MemoryBytes = limitMem
+	return b
+}
+
 // WithMode sets the service mode.
 func (b *ServiceBuilder) WithMode(mode swarm.ServiceMode) *ServiceBuilder {
 	b.svc.Mode = mode
@@ -166,6 +184,21 @@ func (b *ServiceBuilder) WithHealthCheck(commands []string) *ServiceBuilder {
 		Timeout:       time.Duration(1 * time.Second),
 		Retries:       3,
 		StartInterval: time.Duration(10 * time.Second),
+	}
+	return b
+}
+
+func (b *ServiceBuilder) WithHealthCheckOptions(
+	commands []string,
+	interval, timeout, startPeriod time.Duration,
+	retries int,
+) *ServiceBuilder {
+	b.svc.TaskTemplate.ContainerSpec.Healthcheck = &container.HealthConfig{
+		Test:        commands,
+		Interval:    interval,
+		Timeout:     timeout,
+		Retries:     retries,
+		StartPeriod: startPeriod,
 	}
 	return b
 }
@@ -284,16 +317,22 @@ func GenerateServices(pd *pt.PlatformData, sd pt.SwarmData) map[string]pt.Servic
 	nodeRoleNumMap := resources.GetNodeRoleNumMap(pd)
 
 	services := map[string]pt.Service{
-		"system-prune": SystemPruneService(pd, sd, svcResourcesMap["system_prune"]),
 		"traefik":      TraefikService(pd, sd, svcResourcesMap["traefik"]),
-		"postgres":     PostgresService(pd, sd, svcResourcesMap["postgres"], nodeRoleNumMap),
-		"timescaledb":  TimescaledbService(pd, sd, svcResourcesMap["timescaledb"], nodeRoleNumMap),
 		"admin_api":    AdminApiService(pd, sd, svcResourcesMap["admin_api"], nodeRoleNumMap),
 		"frontend":     FrontendService(pd, sd, svcResourcesMap["frontend"], nodeRoleNumMap),
 		"grafana":      GrafanaService(pd, sd, svcResourcesMap["grafana"]),
 		"pipelines":    PipelinesService(pd, sd, svcResourcesMap["pipelines"], nodeRoleNumMap),
 		"auth_callout": AuthCalloutService(pd, sd, svcResourcesMap["auth_callout"], nodeRoleNumMap),
 		"vector":       VectorService(pd, sd, svcResourcesMap["vector"]),
+	}
+
+	if pd.PlatformInfo.UsePatroniTool {
+		services["haproxy_patroni"] = HaproxyPatroniService(pd, sd, svcResourcesMap["haproxy_patroni"])
+		maps.Copy(services, PatroniAdminServices(pd, sd, svcResourcesMap["patroni_admin"]))
+		maps.Copy(services, PatroniMetricsServices(pd, sd, svcResourcesMap["patroni_metrics"]))
+	} else {
+		services["postgres"] = PostgresService(pd, sd, svcResourcesMap["postgres"], nodeRoleNumMap)
+		services["timescaledb"] = TimescaledbService(pd, sd, svcResourcesMap["timescaledb"], nodeRoleNumMap)
 	}
 
 	pi := pd.PlatformInfo
@@ -330,6 +369,8 @@ func GenerateServices(pd *pt.PlatformData, sd pt.SwarmData) map[string]pt.Servic
 		services["pgadmin4"] = Pgadmin4Service(pd, sd, svcResourcesMap["pgadmin4"], nodeRoleNumMap)
 	}
 
+	services["system_manager"] = SystemManagerService(pd, sd, svcResourcesMap["system_manager"])
+	
 	filteredServices := map[string]pt.Service{}
 	for name, svc := range services {
 		excluded := slices.Contains(pd.PlatformInfo.ExcludedServices, name)

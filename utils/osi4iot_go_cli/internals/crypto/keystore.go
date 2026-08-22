@@ -240,15 +240,23 @@ func EnsureRootPassphraseFile() error {
         return nil
     }
 
-    // Leer el passphrase del keystore o archivo del usuario actual
-    passphrase, _, err := readPassphraseFile()
-    if err != nil {
-        // Intentar también desde el keyring
-        val, kerr := keyring.Get(keyringService, keyringUser)
-        if kerr != nil {
-            return fmt.Errorf("could not obtain passphrase: %w", err)
-        }
+    var passphrase []byte
+
+    // 1. Variable de entorno (ya resuelta y preservada por reexecAsRootIfNeeded)
+    if val := os.Getenv("OSI4IOT_PASSPHRASE"); val != "" {
         passphrase = []byte(val)
+    } else {
+        // 2. Archivo cifrado del usuario actual
+        var err error
+        passphrase, _, err = readPassphraseFile()
+        if err != nil {
+            // 3. Keyring como último recurso
+            val, kerr := keyring.Get(keyringService, keyringUser)
+            if kerr != nil {
+                return fmt.Errorf("could not obtain passphrase: %w", kerr)
+            }
+            passphrase = []byte(val)
+        }
     }
 
     // Cifrarlo con la machine key y guardarlo en /root/.osi4iot/

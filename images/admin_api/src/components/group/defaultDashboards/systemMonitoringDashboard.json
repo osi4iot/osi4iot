@@ -82,7 +82,7 @@
           "group": [],
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "SELECT\n  COUNT(*) FILTER (WHERE availability = 'active') AS active,\n  COUNT(*)                                         AS total\nFROM (\n  SELECT DISTINCT ON (node_id)\n    availability\n  FROM observability.host_metrics\n  WHERE time > NOW() - INTERVAL '1 minute'\n  ORDER BY node_id, time DESC\n) latest;\n",
+          "rawSql": "SELECT\n  COUNT(DISTINCT node_id) FILTER (\n    WHERE time > NOW() - INTERVAL '1 minute'\n  ) AS active,\n  COUNT(DISTINCT node_id) AS total\nFROM observability.host_metrics\nWHERE time > NOW() - INTERVAL '1 day';\n",
           "refId": "A",
           "select": [
             [

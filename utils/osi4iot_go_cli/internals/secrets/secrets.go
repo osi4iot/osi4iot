@@ -2,6 +2,7 @@ package secrets
 
 import (
 	"fmt"
+	"maps"
 	"slices"
 	"strings"
 
@@ -47,11 +48,18 @@ func GenerateSecrets(pd *pt.PlatformData) map[string]pt.Secret {
 		}
 	}
 
+	pgHost := "postgres"
+	pgPort := "5432"
+	if pi.UsePatroniTool {
+		pgHost = "haproxy_patroni"
+		pgPort = "5000"
+	}
+
 	authCalloutSecretsDataArray := []string{
 		fmt.Sprintf("DOMAIN_NAME=%s", pd.PlatformInfo.DomainName),
 		fmt.Sprintf("ACCESS_TOKEN_SECRET=%s", pd.PlatformInfo.AccessTokenSecret),
-		fmt.Sprintf("PG_HOST=%s", "postgres"),
-		fmt.Sprintf("PG_PORT=%s", "5432"),
+		fmt.Sprintf("PG_HOST=%s", pgHost),
+		fmt.Sprintf("PG_PORT=%s", pgPort),
 		fmt.Sprintf("PG_USERNAME=%s", pd.PlatformInfo.PostgresUser),
 		fmt.Sprintf("PG_PASSWORD=%s", pd.PlatformInfo.PostgresPassword),
 		fmt.Sprintf("PG_DBNAME=%s", pd.PlatformInfo.PostgresDB),
@@ -66,6 +74,7 @@ func GenerateSecrets(pd *pt.PlatformData) map[string]pt.Secret {
 		fmt.Sprintf("ADMIN_API_NATS_NKEY_PUBLIC=%s", pd.Certs.NatsCerts.AdminApiNKeyPublic),
 		fmt.Sprintf("PIPELINES_NATS_NKEY_PUBLIC=%s", pd.Certs.NatsCerts.PipelinesNKeyPublic),
 		fmt.Sprintf("DEPLOY_CLI_NATS_NKEY_PUBLIC=%s", pd.Certs.NatsCerts.DeployCliNKeyPublic),
+		fmt.Sprintf("SYSTEM_MANAGER_NATS_NKEY_PUBLIC=%s", pd.Certs.NatsCerts.SystemManagerNKeyPublic),
 	}
 	authCalloutSecretsData := strings.Join(authCalloutSecretsDataArray, "\n")
 	authCalloutSecretsHash := utils.GetMD5Hash(authCalloutSecretsData)
@@ -78,15 +87,30 @@ func GenerateSecrets(pd *pt.PlatformData) map[string]pt.Secret {
 
 	Secrets["nats_config"] = CreateNatsConfigSecret(pd, numNatsReplicas)
 
+	grafanaPostgresHost := "postgres"
+	grafanaPostgresPort := "5432"
+	grafanaTimescaleHost := "timescaledb"
+	grafanaTimescalePort := "5432"
+	if pi.UsePatroniTool {
+		grafanaPostgresHost = "haproxy_patroni"
+		grafanaPostgresPort = "5000"
+		grafanaTimescaleHost = "haproxy_patroni"
+		grafanaTimescalePort = "5100"
+	}
+
 	grafanaSecretsDataArray := []string{
-		fmt.Sprintf("GRAFANA_ADMIN_PASSWORD=%s", pd.PlatformInfo.GrafanaAdminPassword),
-		fmt.Sprintf("NOTIFICATIONS_EMAIL_USER=%s", pd.PlatformInfo.NotificationsEmailUser),
-		fmt.Sprintf("NOTIFICATIONS_EMAIL_PASSWORD=%s", pd.PlatformInfo.NotificationsEmailPassword),
-		fmt.Sprintf("NOTIFICATIONS_EMAIL_ADDRESS=%s", pd.PlatformInfo.NotificationsEmailAddress),
-		fmt.Sprintf("POSTGRES_DB=%s", pd.PlatformInfo.PostgresDB),
-		fmt.Sprintf("GRAFANA_DB_PASSWORD=%s", pd.PlatformInfo.GrafanaDBPassword),
-		fmt.Sprintf("TIMESCALE_DB=%s", pd.PlatformInfo.TimescaleDB),
-		fmt.Sprintf("GRAFANA_DATASOURCE_PASSWORD=%s", pd.PlatformInfo.GrafanaDatasourcePassword),
+		fmt.Sprintf("GRAFANA_ADMIN_PASSWORD=%s", pi.GrafanaAdminPassword),
+		fmt.Sprintf("NOTIFICATIONS_EMAIL_USER=%s", pi.NotificationsEmailUser),
+		fmt.Sprintf("NOTIFICATIONS_EMAIL_PASSWORD=%s", pi.NotificationsEmailPassword),
+		fmt.Sprintf("NOTIFICATIONS_EMAIL_ADDRESS=%s", pi.NotificationsEmailAddress),
+		fmt.Sprintf("POSTGRES_DB=%s", pi.PostgresDB),
+		fmt.Sprintf("GRAFANA_DB_PASSWORD=%s", pi.GrafanaDBPassword),
+		fmt.Sprintf("POSTGRES_HOST=%s", grafanaPostgresHost),
+		fmt.Sprintf("POSTGRES_PORT=%s", grafanaPostgresPort),
+		fmt.Sprintf("TIMESCALE_HOST=%s", grafanaTimescaleHost),
+		fmt.Sprintf("TIMESCALE_PORT=%s", grafanaTimescalePort),
+		fmt.Sprintf("TIMESCALE_DB=%s", pi.TimescaleDB),
+		fmt.Sprintf("GRAFANA_DATASOURCE_PASSWORD=%s", pi.GrafanaDatasourcePassword),
 	}
 	grafanaSecretsData := strings.Join(grafanaSecretsDataArray, "\n")
 	grafanaSecretsHash := utils.GetMD5Hash(grafanaSecretsData)
@@ -97,78 +121,51 @@ func GenerateSecrets(pd *pt.PlatformData) map[string]pt.Secret {
 	}
 	Secrets["grafana"] = grafanaSecret
 
-	postgresPassword := pd.PlatformInfo.PostgresPassword
-	postgresPasswordHash := utils.GetMD5Hash(postgresPassword)
-	postgresPasswordSecretName := fmt.Sprintf("postgres_password_%s", postgresPasswordHash)
-	postgresPasswordSecret := pt.Secret{
-		Name: postgresPasswordSecretName,
-		Data: postgresPassword,
-	}
-	Secrets["postgres_password"] = postgresPasswordSecret
-
-	postgresUser := pd.PlatformInfo.PostgresUser
-	postgresUserHash := utils.GetMD5Hash(postgresUser)
-	postgresUserSecretName := fmt.Sprintf("postgres_user_%s", postgresUserHash)
-	postgresUserSecret := pt.Secret{
-		Name: postgresUserSecretName,
-		Data: postgresUser,
-	}
-	Secrets["postgres_user"] = postgresUserSecret
-
-	postgresGrafana := fmt.Sprintf("GRAFANA_DB_PASSWORD=%s", pd.PlatformInfo.GrafanaDBPassword)
-	postgresGrafanaHash := utils.GetMD5Hash(postgresGrafana)
-	postgresGrafanaSecretName := fmt.Sprintf("postgres_grafana_%s", postgresGrafanaHash)
-	postgresGrafanaSecret := pt.Secret{
-		Name: postgresGrafanaSecretName,
-		Data: postgresGrafana,
-	}
-	Secrets["postgres_grafana"] = postgresGrafanaSecret
-
-	timescalePassword := pd.PlatformInfo.TimescalePassword
-	timescalePasswordHash := utils.GetMD5Hash(timescalePassword)
-	timescalePasswordSecretName := fmt.Sprintf("timescale_password_%s", timescalePasswordHash)
-	timescalePasswordSecret := pt.Secret{
-		Name: timescalePasswordSecretName,
-		Data: timescalePassword,
-	}
-	Secrets["timescale_password"] = timescalePasswordSecret
-
-	timescaleUser := pd.PlatformInfo.TimescaleUser
-	timescaleUserHash := utils.GetMD5Hash(timescaleUser)
-	timescaleUserSecretName := fmt.Sprintf("timescale_user_%s", timescaleUserHash)
-	timescaleUserSecret := pt.Secret{
-		Name: timescaleUserSecretName,
-		Data: timescaleUser,
-	}
-	Secrets["timescale_user"] = timescaleUserSecret
-
-	timescaleGrafana := fmt.Sprintf("GRAFANA_DATASOURCE_PASSWORD=%s", pd.PlatformInfo.GrafanaDatasourcePassword)
-	timescaleGrafanaHash := utils.GetMD5Hash(timescaleGrafana)
-	timescaleGrafanaSecretName := fmt.Sprintf("timescale_grafana_%s", timescaleGrafanaHash)
-	timescaleGrafanaSecret := pt.Secret{
-		Name: timescaleGrafanaSecretName,
-		Data: timescaleGrafana,
-	}
-	Secrets["timescale_grafana"] = timescaleGrafanaSecret
-
-	timescaleDataRetInt := fmt.Sprintf("DATA_RETENTION_INTERVAL=%s", pd.PlatformInfo.TimescaleDataRetentionInterval)
-	timescaleDataRetIntHash := utils.GetMD5Hash(timescaleDataRetInt)
-	timescaleDataRetIntSecretName := fmt.Sprintf("timescale_data_ret_int_%s", timescaleDataRetIntHash)
-	timescaleDataRetIntSecret := pt.Secret{
-		Name: timescaleDataRetIntSecretName,
-		Data: timescaleDataRetInt,
-	}
-	Secrets["timescale_data_ret_int"] = timescaleDataRetIntSecret
-
-	if !slices.Contains(pd.PlatformInfo.ExcludedServices, "pipelines") {
+	if !slices.Contains(pi.ExcludedServices, "pipelines") {
 		Secrets["pipelines_config"] = CreatePipelinesConfigSecret(pd, numNatsReplicas)
 	}
 
+	timescalePassword := pi.TimescalePassword
+	if pi.UsePatroniTool {
+		patroniSecrets := createPatroniSecrets(pd)
+		maps.Copy(Secrets, patroniSecrets)
+	} else {
+		postgresSecretsDataArray := []string{
+			fmt.Sprintf("POSTGRES_USER=%s", pi.PostgresUser),
+			fmt.Sprintf("POSTGRES_PASSWORD=%s", pi.PostgresPassword),
+			fmt.Sprintf("GRAFANA_DB_PASSWORD=%s", pi.GrafanaDBPassword),
+			fmt.Sprintf("SUPERADMIN_USER=%s", pi.PlatformAdminUserName),
+			fmt.Sprintf("SUPERADMIN_PASSWORD=%s", pi.PlatformAdminPassword),
+		}
+		postgresSecretsData := strings.Join(postgresSecretsDataArray, "\n")
+		postgresSecretsHash := utils.GetMD5Hash(postgresSecretsData)
+		Secrets["postgres"] = pt.Secret{
+			Name: fmt.Sprintf("postgres_%s", postgresSecretsHash),
+			Data: postgresSecretsData,
+		}
+
+		timescaleUser := pi.TimescaleUser
+		timescaledbSecretsDataArray := []string{
+			fmt.Sprintf("POSTGRES_USER=%s", timescaleUser),
+			fmt.Sprintf("POSTGRES_PASSWORD=%s", timescalePassword),
+			fmt.Sprintf("GRAFANA_DATASOURCE_PASSWORD=%s", pi.GrafanaDatasourcePassword),
+			fmt.Sprintf("DATA_RETENTION_INTERVAL=%s", utils.ShellQuote(pi.TimescaleDataRetentionInterval)),
+			fmt.Sprintf("SUPERADMIN_USER=%s", pi.PlatformAdminUserName),
+			fmt.Sprintf("SUPERADMIN_PASSWORD=%s", pi.PlatformAdminPassword),
+		}
+		timescaledbSecretsData := strings.Join(timescaledbSecretsDataArray, "\n")
+		timescaledbSecretsHash := utils.GetMD5Hash(timescaledbSecretsData)
+		Secrets["timescaledb"] = pt.Secret{
+			Name: fmt.Sprintf("timescaledb_%s", timescaledbSecretsHash),
+			Data: timescaledbSecretsData,
+		}
+	}
+
 	s3BucketType := pi.S3BucketType
-	if s3BucketType == "Local Minio" && !slices.Contains(pd.PlatformInfo.ExcludedServices, "minio") {
+	if s3BucketType == "Local Minio" && !slices.Contains(pi.ExcludedServices, "minio") {
 		minioSecrets := []string{
-			fmt.Sprintf("MINIO_ROOT_USER=%s", pd.PlatformInfo.PlatformAdminUserName),
-			fmt.Sprintf("MINIO_ROOT_PASSWORD=%s", pd.PlatformInfo.PlatformAdminPassword),
+			fmt.Sprintf("MINIO_ROOT_USER=%s", pi.PlatformAdminUserName),
+			fmt.Sprintf("MINIO_ROOT_PASSWORD=%s", pi.PlatformAdminPassword),
 		}
 		minioSecretsData := strings.Join(minioSecrets, "\n")
 		minioSecretsHash := utils.GetMD5Hash(minioSecretsData)
@@ -180,12 +177,18 @@ func GenerateSecrets(pd *pt.PlatformData) map[string]pt.Secret {
 		Secrets["minio"] = minioSecret
 	}
 
-	if !slices.Contains(pd.PlatformInfo.ExcludedServices, "pgadmin4") {
+	if !slices.Contains(pi.ExcludedServices, "pgadmin4") {
+		pgUser := pi.PlatformAdminUserName
+		tsUser := pi.PlatformAdminUserName
 		pgadmin4Secrets := []string{
-			fmt.Sprintf("PGADMIN_DEFAULT_EMAIL=%s", pd.PlatformInfo.PGAdminDefaultEmail),
-			fmt.Sprintf("PGADMIN_DEFAULT_PASSWORD=%s", pd.PlatformInfo.PGAdminDefaultPassword),
-			fmt.Sprintf("POSTGRES_USER=%s", pd.PlatformInfo.PostgresUser),
-			fmt.Sprintf("TIMESCALE_USER=%s", pd.PlatformInfo.TimescaleUser),
+			fmt.Sprintf("PGADMIN_DEFAULT_EMAIL=%s", pi.PGAdminDefaultEmail),
+			fmt.Sprintf("PGADMIN_DEFAULT_PASSWORD=%s", pi.PGAdminDefaultPassword),
+			fmt.Sprintf("POSTGRES_USER=%s", pgUser),
+			fmt.Sprintf("TIMESCALE_USER=%s", tsUser),
+			fmt.Sprintf("POSTGRES_HOST=%s", grafanaPostgresHost),
+			fmt.Sprintf("POSTGRES_PORT=%s", grafanaPostgresPort),
+			fmt.Sprintf("TIMESCALE_HOST=%s", grafanaTimescaleHost),
+			fmt.Sprintf("TIMESCALE_PORT=%s", grafanaTimescalePort),
 		}
 		pgadmin4SecretsData := strings.Join(pgadmin4Secrets, "\n")
 		pgadmin4SecretsHash := utils.GetMD5Hash(pgadmin4SecretsData)
@@ -210,6 +213,10 @@ func GenerateSecrets(pd *pt.PlatformData) map[string]pt.Secret {
 		Data: vectorSecretsData,
 	}
 	Secrets["vector_credentials"] = vectorSecret
+
+	if pi.UsePatroniTool || pi.DomainCertsType == "Let's encrypt certs with DNS-01 challenge and AWS Route 53 provider" {
+		Secrets["system_manager"] = CreateSystemManagerSecrets(pd)
+	}
 
 	return Secrets
 }

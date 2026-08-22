@@ -47,10 +47,10 @@ export const dataBaseInitialization = async () => {
 	const timescaledb_pool = new Pool({
 		max: 20,
 		user: process_env.TIMESCALE_USER,
-		host: "timescaledb",
+		host: process_env.TIMESCALE_HOST,
 		password: process_env.TIMESCALE_PASSWORD,
 		database: process_env.TIMESCALE_DB,
-		port: 5432,
+		port: parseInt(process_env.TIMESCALE_PORT, 10),
 		idleTimeoutMillis: 30000,
 	});
 
@@ -58,10 +58,10 @@ export const dataBaseInitialization = async () => {
 
 	const pool = new Pool({
 		user: process_env.POSTGRES_USER,
-		host: "postgres",
+		host: process_env.POSTGRES_HOST,
 		password: process_env.POSTGRES_PASSWORD,
 		database: process_env.POSTGRES_DB,
-		port: 5432,
+		port: parseInt(process_env.POSTGRES_PORT, 10),
 	});
 	const postgresClient = await pool.connect();
 

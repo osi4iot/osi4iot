@@ -530,7 +530,7 @@ export default class GrafanaApi implements IDashboardApi {
 			orgId,
 			password: "",
 			type: "postgres",
-			url: "timescaledb:5432",
+			url: `${process_env.TIMESCALE_HOST}:${process_env.TIMESCALE_PORT}`,
 			user,
 			isDefault: true,
 			secureJsonData: {

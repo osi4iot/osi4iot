@@ -1,6 +1,8 @@
 package resources
 
 import (
+	"fmt"
+
 	pt "github.com/osi4iot/osi4iot/utils/osi4iot/internals/types"
 )
 
@@ -38,7 +40,7 @@ func getServiceReplicasPtr(pd *pt.PlatformData, serviceName string) *uint64 {
 	for _, svc := range services {
 		if svc.ServiceName == serviceName {
 			numReplicas := svc.Replicas
-			if serviceName == "nats"  {
+			if serviceName == "nats" {
 				numReplicas = 1
 			}
 			replics := uint64(numReplicas)
@@ -61,8 +63,6 @@ func NewSvcResourcesMap(pd *pt.PlatformData) map[string]SvcResources {
 		"traefik",
 		"nats",
 		"auth_callout",
-		"postgres",
-		"timescaledb",
 		"pipelines",
 		"grafana",
 		"admin_api",
@@ -76,6 +76,29 @@ func NewSvcResourcesMap(pd *pt.PlatformData) map[string]SvcResources {
 		"keepalived",
 	}
 
+	if pd.PlatformInfo.UsePatroniTool {
+		serviceList = append(serviceList, "haproxy_patroni")
+		numAdminNodes := pd.PlatformInfo.NumPatroniAdminNodes
+		for i := 1; i <= numAdminNodes; i++ {
+			name := fmt.Sprintf("patroni-admin%d", i)
+			serviceList = append(serviceList, name)
+		}
+
+		// Metrics cluster nodes — one entry per node
+		numMetricsNodes := pd.PlatformInfo.NumPatroniMetricsNodes
+		for i := 1; i <= numMetricsNodes; i++ {
+			name := fmt.Sprintf("patroni-metrics%d", i)
+			serviceList = append(serviceList, name)
+		}
+
+	} else {
+		serviceList = append(serviceList, "postgres", "timescaledb")
+	}
+
+	if pd.PlatformInfo.UsePatroniTool || pd.PlatformInfo.DomainCertsType == "Let's encrypt certs with DNS-01 challenge and AWS Route 53 provider" {
+		serviceList = append(serviceList, "system_manager")
+	}
+
 	for _, svcName := range serviceList {
 		svcResources := SvcResources{
 			MemoryBytes: GetMemoryBytes(pd, svcName),
@@ -83,7 +106,7 @@ func NewSvcResourcesMap(pd *pt.PlatformData) map[string]SvcResources {
 			ReplicasPtr: getServiceReplicasPtr(pd, svcName),
 		}
 		svcResourcesMap[svcName] = svcResources
-	}	
+	}
 
 	return svcResourcesMap
 }

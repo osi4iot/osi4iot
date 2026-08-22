@@ -17,10 +17,10 @@ types.setTypeParser(types.builtins.NUMERIC, (value: string) => {
 const pool = new Pool({
 	max: 20,
 	user: process_env.POSTGRES_USER,
-	host: "postgres",
+	host: process_env.POSTGRES_HOST,
 	password: process_env.POSTGRES_PASSWORD,
 	database: process_env.POSTGRES_DB,
-	port: 5432,
+	port: parseInt(process_env.POSTGRES_PORT, 10),
 	idleTimeoutMillis: 30000,
 });
 

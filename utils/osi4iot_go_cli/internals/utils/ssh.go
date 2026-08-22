@@ -194,32 +194,6 @@ fi
 	return nil
 }
 
-func executeScriptOnRemoteHost(nodeData types.NodeData, privateKey, script string, args ...string) (string, error) {
-	sshConfig := SshConfigWithKey(nodeData.NodeUserName, privateKey)
-	client, err := ssh.Dial("tcp", nodeData.NodeIP+":22", sshConfig)
-	if err != nil {
-		return "", fmt.Errorf("error connecting to remote host: %w", err)
-	}
-	defer client.Close()
-
-	session, err := client.NewSession()
-	if err != nil {
-		return "", fmt.Errorf("error creating SSH session: %w", err)
-	}
-	defer session.Close()
-
-	cmdStr := fmt.Sprintf("bash -s %s", strings.Join(args, " "))
-
-	session.Stdin = strings.NewReader(script)
-
-	output, err := session.CombinedOutput(cmdStr)
-	if err != nil {
-		return "", fmt.Errorf("error executing remote script: %w\nOutput: %s", err, output)
-	}
-
-	return string(output), nil
-}
-
 func readSshPrivateKeyFromFile(platformData *types.PlatformData) (string, error) {
 	sshPrivateKeyPath := giveSshPrivateKeyPath(platformData)
 	keyBytes, err := os.ReadFile(sshPrivateKeyPath)

@@ -117,6 +117,12 @@ func SetData(key string, value string) {
 	case "DEFAULT_NUMBER_OF_NATS_REPLICAS":
 		defaultNumNatsReplicas, _ := strconv.Atoi(value)
 		Data.PlatformInfo.DefaultNumOfNatsReplicas = defaultNumNatsReplicas
+	case "NUM_PATRONI_ADMIN_NODES":
+		numPatroniAdminNodes, _ := strconv.Atoi(value)
+		Data.PlatformInfo.NumPatroniAdminNodes = numPatroniAdminNodes
+	case "NUM_PATRONI_METRICS_NODES":
+		numPatroniMetricsNodes, _ := strconv.Atoi(value)
+		Data.PlatformInfo.NumPatroniMetricsNodes = numPatroniMetricsNodes
 	case "DEPLOYMENT_LOCATION":
 		Data.PlatformInfo.DeploymentLocation = value
 		if value == "AWS cluster deployment" {
@@ -125,6 +131,9 @@ func SetData(key string, value string) {
 	case "USE_AWS_EBS_VOLUMES":
 		useAwsEbsVolumes := strings.ToLower(value) == "yes"
 		Data.PlatformInfo.UseAwsEbsVolumes = useAwsEbsVolumes
+	case "USE_PATRONI_TOOL":
+		usePatroniTool := strings.ToLower(value) == "yes"
+		Data.PlatformInfo.UsePatroniTool = usePatroniTool
 	case "LOCAL_RESOURCE_UTILIZATION_PERCENTAGE":
 		localResourceUtilization, _ := strconv.Atoi(value)
 		Data.PlatformInfo.LocalResourceUtilization = localResourceUtilization
@@ -203,29 +212,55 @@ func SetData(key string, value string) {
 		}
 	case "GRAFANA_ADMIN_PASSWORD":
 		Data.PlatformInfo.GrafanaAdminPassword = value
+
+	// ── Admin database ────────────────────────────────────────────────────────
 	case "POSTGRES_USER":
 		Data.PlatformInfo.PostgresUser = value
 	case "POSTGRES_PASSWORD":
 		Data.PlatformInfo.PostgresPassword = value
 	case "POSTGRES_DB":
 		Data.PlatformInfo.PostgresDB = value
+	case "POSTGRES_REPLICATOR_PASSWORD":
+		Data.PlatformInfo.PostgresReplicatorPassword = value
+	case "POSTGRES_REWIND_PASSWORD":
+		Data.PlatformInfo.PostgresRewindPassword = value
+	case "GRAFANA_DB_PASSWORD":
+		if Data.PlatformInfo.GrafanaDBPassword == "" {
+			Data.PlatformInfo.GrafanaDBPassword = value
+		}
+
+	// ── Metrics database ──────────────────────────────────────────────────────
 	case "TIMESCALE_USER":
 		Data.PlatformInfo.TimescaleUser = value
 	case "TIMESCALE_PASSWORD":
 		Data.PlatformInfo.TimescalePassword = value
 	case "TIMESCALE_DB":
 		Data.PlatformInfo.TimescaleDB = value
+	case "TIMESCALE_REPLICATOR_PASSWORD":
+		Data.PlatformInfo.TimescaleReplicatorPassword = value
+	case "TIMESCALE_REWIND_PASSWORD":
+		Data.PlatformInfo.TimescaleRewindPassword = value
 	case "TIMESCALE_DATA_RET_INT_DAYS":
-		timescaleDataRetentionInterval := value + " days"
-		Data.PlatformInfo.TimescaleDataRetentionInterval = timescaleDataRetentionInterval
-	case "GRAFANA_DB_PASSWORD":
-		if Data.PlatformInfo.GrafanaDBPassword == "" {
-			Data.PlatformInfo.GrafanaDBPassword = value
-		}
+		Data.PlatformInfo.TimescaleDataRetentionInterval = value + " days"
 	case "GRAFANA_DATASOURCE_PASSWORD":
 		if Data.PlatformInfo.GrafanaDatasourcePassword == "" {
 			Data.PlatformInfo.GrafanaDatasourcePassword = value
 		}
+
+	// ── WAL-G ─────────────────────────────────────────────────────────────────
+	case "WALG_S3_PREFIX_ADMIN":
+		Data.PlatformInfo.WalgS3PrefixAdmin = value
+	case "WALG_S3_PREFIX_METRICS":
+		Data.PlatformInfo.WalgS3PrefixMetrics = value
+	case "WALG_LIBSODIUM_KEY":
+		if Data.PlatformInfo.WalgLibsodiumKey == "" {
+			Data.PlatformInfo.WalgLibsodiumKey = value
+		}
+	case "WALG_COMPRESSION_METHOD":
+		Data.PlatformInfo.WalgCompressionMethod = value
+	case "MINIO_ENDPOINT":
+		Data.PlatformInfo.MinioEndpoint = value
+
 	case "NODE_RED_ADMIN":
 		Data.PlatformInfo.NodeRedAdmin = value
 	case "NODE_RED_ADMIN_HASH":
@@ -286,11 +321,11 @@ func GetData() *pt.PlatformData {
 }
 
 func GetDomainName() string {
-    if Data.PlatformInfo.DomainName == "" {
-        _ = utils.ReadPlatformDataFromFile(Data)
-    }
-    if Data.PlatformInfo.DomainName == "" {
-        return "default"
-    }
-    return Data.PlatformInfo.DomainName
+	if Data.PlatformInfo.DomainName == "" {
+		_ = utils.ReadPlatformDataFromFile(Data)
+	}
+	if Data.PlatformInfo.DomainName == "" {
+		return "default"
+	}
+	return Data.PlatformInfo.DomainName
 }

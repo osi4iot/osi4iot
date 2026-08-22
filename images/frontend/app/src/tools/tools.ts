@@ -39,7 +39,7 @@ export const getProtocol = (): string => {
 }
 
 export const getNatsSeedServers = (): string => {
-    let natsSeedServers = "";
+    let natsSeedServers = `wss://${getDomainName()}:9001`;
     if (window._env_ && window._env_.NATS_SEED_SERVERS) {
         natsSeedServers = window._env_.NATS_SEED_SERVERS;
     }

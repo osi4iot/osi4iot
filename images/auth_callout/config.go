@@ -33,6 +33,7 @@ type Config struct {
 	AdminApiNKeyPublic  string `mapstructure:"ADMIN_API_NATS_NKEY_PUBLIC"`
 	PipelinesNKeyPublic string `mapstructure:"PIPELINES_NATS_NKEY_PUBLIC"`
 	DeployCliNKeyPublic string `mapstructure:"DEPLOY_CLI_NATS_NKEY_PUBLIC"`
+	SystemManagerNKeyPublic string `mapstructure:"SYSTEM_MANAGER_NATS_NKEY_PUBLIC"`
 }
 
 func LoadConfig() (*Config, error) {

@@ -1,0 +1,95 @@
+scope: postgres-admin
+namespace: /db/
+name: ${PATRONI_NAME}
+
+restapi:
+  listen: 0.0.0.0:8008
+  connect_address: ${PATRONI_NAME}:8008
+
+# ── DCS: embedded Raft ───────────────────────────────────────
+# partner_addrs is built dynamically in entrypoint.sh based on
+# PATRONI_NUM_NODES so a 1-node local deployment has no partners
+# and a 3-node cluster lists all 3 peers.
+raft:
+  data_dir: /data/raft
+  self_addr: ${PATRONI_NAME}:5010
+  partner_addrs: ${PATRONI_PARTNER_ADDRS}
+
+bootstrap:
+  dcs:
+    ttl: 30
+    loop_wait: 10
+    retry_timeout: 10
+    maximum_lag_on_failover: 1048576
+    postgresql:
+      use_pg_rewind: true
+      use_slots: true
+      parameters:
+        wal_level: replica
+        hot_standby: "on"
+        wal_keep_size: 128MB
+        max_wal_senders: 10
+        max_replication_slots: 10
+        wal_log_hints: "on"
+        archive_mode: "on"
+        archive_timeout: 1800s
+        archive_command: 'wal-g wal-push %p'
+        restore_command: 'wal-g wal-fetch %f %p'
+
+  initdb:
+    - encoding: UTF8
+    - data-checksums
+
+  pg_hba:
+    - host replication replicator 0.0.0.0/0 md5
+    - host all all 0.0.0.0/0 md5
+
+
+  post_init: /etc/patroni/post_init.sh
+
+postgresql:
+  listen: 0.0.0.0:5432
+  connect_address: ${PATRONI_NAME}:5432
+  data_dir: /data/patroni
+  bin_dir: /usr/lib/postgresql/18/bin
+  pgpass: /tmp/pgpass
+
+  authentication:
+    replication:
+      username: replicator
+      password: ${PATRONI_ADMIN_REPLICATOR_PASSWORD}
+    superuser:
+      username: patroni_admin
+      password: ${PATRONI_ADMIN_PASSWORD}
+    rewind:
+      username: rewind_user
+      password: ${PATRONI_ADMIN_REWIND_PASSWORD}
+
+  parameters:
+    unix_socket_directories: '/var/run/postgresql'
+    wal_log_hints: "on"
+    shared_preload_libraries: 'pg_search,postgis-3'
+    shared_buffers: 256MB
+    effective_cache_size: 768MB
+    maintenance_work_mem: 64MB
+    checkpoint_completion_target: 0.9
+    wal_buffers: 16MB
+    default_statistics_target: 100
+    random_page_cost: 1.1
+    effective_io_concurrency: 200
+    work_mem: 4MB
+    min_wal_size: 1GB
+    max_wal_size: 4GB
+    max_worker_processes: 4
+    max_parallel_workers_per_gather: 2
+    max_parallel_workers: 4
+    max_parallel_maintenance_workers: 2
+
+tags:
+  nofailover: false
+  noloadbalance: false
+  clonefrom: false
+  nosync: false
+
+watchdog:
+  mode: off

@@ -62,7 +62,7 @@ func Pgadmin4Service(
 		}
 	}
 
-	image := utils.GetServiceImage(pd, "pgadmin4", "ghcr.io/osi4iot/pgadmin4:2023-10-18-2")
+	image := utils.GetServiceImage(pd, "pgadmin4", "ghcr.io/osi4iot/pgadmin4:2026-07-30-1")
 	return NewService("pgadmin4", pd, sd).
 		WithImage(image).
 		WithAnnotationsLabels(annotationsLabels).
@@ -75,9 +75,11 @@ func Pgadmin4Service(
 				Target: "/var/lib/pgadmin",
 			},
 		}).
-		WithResources(
+		WithBurstableResources(
 			svcResources.NanoCPUs,
 			svcResources.MemoryBytes,
+			svcResources.NanoCPUs*4,
+			svcResources.MemoryBytes*4,
 		).
 		WithPlacement(constraints).
 		WithModeReplicated(svcResources.ReplicasPtr).

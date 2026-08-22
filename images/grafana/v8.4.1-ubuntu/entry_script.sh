@@ -1,6 +1,6 @@
 #!/bin/bash
 
-echo "################################## Run template_script"
+echo "################################## Run entry_script"
 
 if [ -f "/run/secrets/grafana.txt" ]
 then
@@ -12,6 +12,10 @@ then
     export $(cat /run/secrets/grafana.txt | grep GRAFANA_DB_PASSWORD)
     export $(cat /run/secrets/grafana.txt | grep TIMESCALE_DB)
     export $(cat /run/secrets/grafana.txt | grep GRAFANA_DATASOURCE_PASSWORD)
+    export $(cat /run/secrets/grafana.txt | grep POSTGRES_HOST)
+    export $(cat /run/secrets/grafana.txt | grep POSTGRES_PORT)
+    export $(cat /run/secrets/grafana.txt | grep TIMESCALE_HOST)
+    export $(cat /run/secrets/grafana.txt | grep TIMESCALE_PORT)
 fi
 
 if [ -f "/run/configs/grafana.conf" ]
@@ -24,6 +28,10 @@ then
     export $(cat /run/configs/grafana.conf | grep DEFAULT_TIME_ZONE)
     MAIN_ORGANIZATION_NAME_LINE=$(cat /run/configs/grafana.conf | grep MAIN_ORGANIZATION_NAME)
     export MAIN_ORGANIZATION_NAME=$(echo $MAIN_ORGANIZATION_NAME_LINE | sed -e 's/^[^=]*=//' | sed -e 's/"//g')
-fi 
+fi
+
+envsubst '${DOMAIN_NAME} ${POSTGRES_DB} ${GRAFANA_DB_PASSWORD} ${GRAFANA_ADMIN_PASSWORD} ${NOTIFICATIONS_EMAIL_USER} ${NOTIFICATIONS_EMAIL_PASSWORD} ${NOTIFICATIONS_EMAIL_ADDRESS} ${MAIN_ORGANIZATION_ACRONYM} ${DEFAULT_TIME_ZONE} ${POSTGRES_HOST} ${POSTGRES_PORT}' \
+    < /etc/grafana/grafana.ini > /tmp/grafana.ini
+export GF_PATHS_CONFIG=/tmp/grafana.ini
 
 /run.sh

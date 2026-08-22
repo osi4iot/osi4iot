@@ -1,1 +1,0 @@
-docker buildx build --platform linux/amd64,linux/arm64 -t ghcr.io/osi4iot/patroni:2.27.0-pg18 --push .

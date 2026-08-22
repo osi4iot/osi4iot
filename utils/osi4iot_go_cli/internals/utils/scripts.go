@@ -5,9 +5,11 @@ import (
 	"fmt"
 	"io"
 	"os/exec"
+	"strings"
 	"sync"
 
 	"github.com/osi4iot/osi4iot/utils/osi4iot/internals/types"
+	"golang.org/x/crypto/ssh"
 )
 
 func executeScriptOnLocalHost(script string, args ...string) (string, error) {
@@ -105,4 +107,30 @@ func RunScriptInNodes(platformData *types.PlatformData, nodeScripts []NodeScript
 	}
 
 	return responses, nil
+}
+
+func executeScriptOnRemoteHost(nodeData types.NodeData, privateKey, script string, args ...string) (string, error) {
+	sshConfig := SshConfigWithKey(nodeData.NodeUserName, privateKey)
+	client, err := ssh.Dial("tcp", nodeData.NodeIP+":22", sshConfig)
+	if err != nil {
+		return "", fmt.Errorf("error connecting to remote host: %w", err)
+	}
+	defer client.Close()
+
+	session, err := client.NewSession()
+	if err != nil {
+		return "", fmt.Errorf("error creating SSH session: %w", err)
+	}
+	defer session.Close()
+
+	cmdStr := fmt.Sprintf("bash -s %s", strings.Join(args, " "))
+
+	session.Stdin = strings.NewReader(script)
+
+	output, err := session.CombinedOutput(cmdStr)
+	if err != nil {
+		return "", fmt.Errorf("error executing remote script: %w\nOutput: %s", err, output)
+	}
+
+	return string(output), nil
 }

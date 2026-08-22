@@ -102,9 +102,24 @@ func GenerateVolumes(platformData *pt.PlatformData) map[string]pt.Volume {
 		Volumes[volName] = SetVolumeConfig(pi, volName, "pipelines", deploymentLocation, volOptions, true)
 	}
 
-	Volumes["pgdata"] = SetVolumeConfig(pi, "pgdata", "postgres", deploymentLocation, volOptions)
-	Volumes["timescaledb_data"] = SetVolumeConfig(pi, "timescaledb_data", "timescaledb", deploymentLocation, volOptions)
-	Volumes["timescaledb_wal"] = SetVolumeConfig(pi, "timescaledb_wal", "timescaledb", deploymentLocation, volOptions)
+	if pi.UsePatroniTool {
+		for i := 1; i <= pi.NumPatroniAdminNodes; i++ {
+			serviceName := fmt.Sprintf("patroni-admin%d", i)
+			volumeName := fmt.Sprintf("patroni-admin%d-data", i)
+			Volumes[volumeName] = SetVolumeConfig(pi, volumeName, serviceName, deploymentLocation, volOptions)
+		}
+		for i := 1; i <= pi.NumPatroniMetricsNodes; i++ {
+			serviceName := fmt.Sprintf("patroni-metrics%d", i)
+			volumeData := fmt.Sprintf("patroni-metrics%d-data", i)
+			Volumes[volumeData] = SetVolumeConfig(pi, volumeData, serviceName, deploymentLocation, volOptions)
+			volumeWAL := fmt.Sprintf("patroni-metrics%d-wal", i)
+			Volumes[volumeWAL] = SetVolumeConfig(pi, volumeWAL, serviceName, deploymentLocation, volOptions)
+		}
+	} else {
+		Volumes["pgdata"] = SetVolumeConfig(pi, "pgdata", "postgres", deploymentLocation, volOptions)
+		Volumes["timescaledb_data"] = SetVolumeConfig(pi, "timescaledb_data", "timescaledb", deploymentLocation, volOptions)
+		Volumes["timescaledb_wal"] = SetVolumeConfig(pi, "timescaledb_wal", "timescaledb", deploymentLocation, volOptions)
+	}
 
 	if deploymentMode == "development" {
 		Volumes["pgadmin4_data"] = SetVolumeConfig(pi, "pgadmin4_data", "pgadmin4", deploymentLocation, volOptions)
@@ -116,6 +131,8 @@ func GenerateVolumes(platformData *pt.PlatformData) map[string]pt.Volume {
 	}
 
 	Volumes["vector_buffer"] = SetVolumeConfig(pi, "vector_buffer", "vector", deploymentLocation, volOptions, true)
+
+	Volumes["system_manager-data"] = SetVolumeConfig(pi, "system_manager-data", "system_manager", deploymentLocation, volOptions)
 
 	return Volumes
 }
@@ -271,7 +288,6 @@ func removeReplicaVolume(pd *pt.PlatformData, volumeName string) error {
 
 	return nil
 }
-
 
 func RemoveSwarmVolumes(pd *pt.PlatformData) error {
 	errors := []error{}

@@ -253,8 +253,14 @@ func addNodesLabels(pd *types.PlatformData) error {
 	}
 
 	natsReplica := 1
+	adminReplica := 1
+	metricsReplica := 1
 	priorities := []string{"300", "200", "100"}
 	priorityIndex := 0
+
+	numPatroniAdminNodes := utils.Max(pi.NumPatroniAdminNodes, 1)
+	numPatroniMetricsNodes := utils.Max(pi.NumPatroniMetricsNodes, 1)
+
 	for _, node := range nodesData {
 		swarmNode, ok := swarmNodesMap[node.NodeIP]
 		if !ok {
@@ -275,14 +281,33 @@ func addNodesLabels(pd *types.PlatformData) error {
 			}
 			spec.Labels["KEEPALIVED_PRIORITY"] = "0"
 		case "Platform worker":
+			// Clean stale nats and patroni labels before reassigning
 			for k := range spec.Labels {
-				if strings.HasPrefix(k, "nats_") {
+				if strings.HasPrefix(k, "nats_") ||
+					strings.HasPrefix(k, "admin-id") ||
+					strings.HasPrefix(k, "metrics-id") {
 					delete(spec.Labels, k)
 				}
 			}
 			spec.Labels["platform_worker"] = "true"
 			spec.Labels[fmt.Sprintf("nats_%d", natsReplica)] = "true"
 			natsReplica++
+
+			// Assign Patroni placement labels when UsePatroniTool is enabled
+			// and the cluster has more than one node (single-node deployments
+			// use no placement constraints — see patroniAdminPlacement).
+			if pi.UsePatroniTool && numPatroniAdminNodes > 1 {
+				if adminReplica <= numPatroniAdminNodes {
+					spec.Labels["admin-id"] = fmt.Sprintf("%d", adminReplica)
+					adminReplica++
+				}
+			}
+			if pi.UsePatroniTool && numPatroniMetricsNodes > 1 {
+				if metricsReplica <= numPatroniMetricsNodes {
+					spec.Labels["metrics-id"] = fmt.Sprintf("%d", metricsReplica)
+					metricsReplica++
+				}
+			}
 		case "NFS server":
 			spec.Labels["nfs_server"] = "true"
 		}

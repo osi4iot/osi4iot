@@ -1,13 +1,17 @@
 #!/usr/bin/env bash
+set -euo pipefail
 
 echo "################################## Run template_script"
 
-if [ -f "/run/secrets/timescaledb_grafana.txt" ]
-then
-    export $(cat /run/secrets/timescaledb_grafana.txt | grep GRAFANA_DATASOURCE_PASSWORD)
-    DATA_RETENTION_INTERVAL_LINE=$(cat /run/secrets/timescaledb_data_ret_int.txt | grep DATA_RETENTION_INTERVAL)
-    export DATA_RETENTION_INTERVAL=$(echo $DATA_RETENTION_INTERVAL_LINE | sed -e 's/^[^=]*=//' | sed -e 's/"//g')
+if [ -f "/run/secrets/timescaledb.txt" ]; then
+    set -a
+    source /run/secrets/timescaledb.txt
+    set +a
 fi
 
 envsubst < /etc/postgres/templates/sql_sript.sql.template > /docker-entrypoint-initdb.d/sql_sript.sql
-((sleep 300; rm /docker-entrypoint-initdb.d/sql_sript.sql) & docker-entrypoint.sh postgres)
+
+docker-entrypoint.sh postgres -c max_connections=200 &
+PG_PID=$!
+sleep 300 && rm -f /docker-entrypoint-initdb.d/sql_sript.sql
+wait $PG_PID

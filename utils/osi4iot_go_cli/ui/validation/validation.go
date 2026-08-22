@@ -467,13 +467,6 @@ func Run(value string, prompt string, rules []string, data map[string]string) (b
 					errMsg = "No certs case is only allowed for local deployments"
 					break
 				}
-			} else if value == "AWS Certificate Manager" {
-				if deploymentLocation == "AWS cluster deployment" {
-					isValid = true
-				} else {
-					errMsg = "AWS Certificate Manager option is only available for AWS cluster deployment"
-					break
-				}
 			} else {
 				isValid = true
 			}

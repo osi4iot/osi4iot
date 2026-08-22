@@ -574,6 +574,41 @@ func copyKeyInNode(m *Model) (submissionResultMsg, error) {
 	return submissionResultMsg(msg), nil
 }
 
+func usePatroniToolQuestions(m *Model) (submissionResultMsg, error) {
+	usePatroni := m.FindAnswerByKey("USE_PATRONI_TOOL") == "yes"
+	if usePatroni {
+		addPatroniNodesQuestions(m.Focus+1, m)
+	} else {
+		m.removeQuestionByKey("NUM_PATRONI_ADMIN_NODES")
+		m.removeQuestionByKey("NUM_PATRONI_METRICS_NODES")
+	}
+	return submissionResultMsg("Patroni questions updated"), nil
+}
+
+func addPatroniNodesQuestions(index int, m *Model) {
+	adminQ := Question{
+		Key:           "NUM_PATRONI_ADMIN_NODES",
+		QuestionType:  "list",
+		Prompt:        "Number of nodes for the admin database cluster (PostgreSQL 18)",
+		Answer:        utils.IntValueToStr(data.Data.PlatformInfo.NumPatroniAdminNodes),
+		DefaultAnswer: "3",
+		Choices:       []string{"1", "3", "5"},
+		ChoiceFocus:   1,
+		Rules:         []string{"required", "isInt", "minval:1", "maxval:5", "oddNumber"},
+	}
+	metricsQ := Question{
+		Key:           "NUM_PATRONI_METRICS_NODES",
+		QuestionType:  "list",
+		Prompt:        "Number of nodes for the metrics database cluster (TimescaleDB)",
+		Answer:        utils.IntValueToStr(data.Data.PlatformInfo.NumPatroniMetricsNodes),
+		DefaultAnswer: "3",
+		Choices:       []string{"1", "3", "5"},
+		ChoiceFocus:   1,
+		Rules:         []string{"required", "isInt", "minval:1", "maxval:5", "oddNumber"},
+	}
+	m.addQuestions(index, adminQ, metricsQ)
+}
+
 func createPlatform(m *Model) (platformCreatingMsg, error) {
 	platformData := data.GetData()
 	areAllQuestionsOK := true
@@ -606,21 +641,14 @@ func createPlatform(m *Model) (platformCreatingMsg, error) {
 	data.SetData("GRAFANA_ADMIN_PASSWORD", platformAdminPassword)
 
 	platformAdminUserName := m.FindAnswerByKey("PLATFORM_ADMIN_USER_NAME")
-	data.SetData("POSTGRES_USER", platformAdminUserName)
 
-	data.SetData("POSTGRES_PASSWORD", platformAdminPassword)
+	CreateDatabaseData(platformData)
 
-	postgresDB := "iot_platform_db"
-	data.SetData("POSTGRES_DB", postgresDB)
-
-	data.SetData("TIMESCALE_USER", platformAdminUserName)
-	data.SetData("TIMESCALE_PASSWORD", platformAdminPassword)
-
-	timescaleDB := "iot_data_db"
-	data.SetData("TIMESCALE_DB", timescaleDB)
-
-	grafanaDBPassword := utils.GeneratePassword(20)
-	data.SetData("GRAFANA_DB_PASSWORD", grafanaDBPassword)
+	// MinIO endpoint — only relevant when S3BucketType == "Local Minio".
+	// For Local Minio the service name is "minio" inside the internal_net overlay.
+	if platformData.PlatformInfo.S3BucketType == "Local Minio" {
+		data.SetData("MINIO_ENDPOINT", "http://minio:9000")
+	}
 
 	grafanaDatasourcePassword := utils.GeneratePassword(20)
 	data.SetData("GRAFANA_DATASOURCE_PASSWORD", grafanaDatasourcePassword)
@@ -674,4 +702,76 @@ func createPlatform(m *Model) (platformCreatingMsg, error) {
 	}
 
 	return platformCreatingMsg("osi4iot_state.json file created successfully"), nil
+}
+
+func CreateDatabaseData(pd *types.PlatformData) {
+	if pd.PlatformInfo.UsePatroniTool {
+		// ── Patroni — Admin cluster ───────────────────────────────────────────────────
+		postgresUser := "patroni_admin"
+		data.SetData("POSTGRES_USER", postgresUser)
+
+		postgresReplicatorPassword := utils.GeneratePassword(20)
+		data.SetData("POSTGRES_REPLICATOR_PASSWORD", postgresReplicatorPassword)
+
+		postgresRewindPassword := utils.GeneratePassword(20)
+		data.SetData("POSTGRES_REWIND_PASSWORD", postgresRewindPassword)
+
+		// ── Patroni — Metrics cluster ─────────────────────────────────────────────────
+		timescaleUser := "patroni_metrics"
+		data.SetData("TIMESCALE_USER", timescaleUser)
+
+		timescaleReplicatorPassword := utils.GeneratePassword(20)
+		data.SetData("TIMESCALE_REPLICATOR_PASSWORD", timescaleReplicatorPassword)
+
+		timescaleRewindPassword := utils.GeneratePassword(20)
+		data.SetData("TIMESCALE_REWIND_PASSWORD", timescaleRewindPassword)
+
+		// ── WAL-G ─────────────────────────────────────────────────────────────────────
+		// 32 random bytes hex-encoded = 64 hex chars. WAL-G reads this as the
+		// AES-256 libsodium key. Generated once and never shown to the admin.
+		walgLibsodiumKey := utils.GenerateHexKey(32)
+		data.SetData("WALG_LIBSODIUM_KEY", walgLibsodiumKey)
+
+		// S3 prefix derived from the platform name so it's unique per deployment.
+		// The admin can override these after creation via the state file if needed.
+		data.SetData("WALG_S3_PREFIX_ADMIN", "s3://"+pd.PlatformInfo.S3BucketName+"/backups/patroni-admin")
+		data.SetData("WALG_S3_PREFIX_METRICS", "s3://"+pd.PlatformInfo.S3BucketName+"/backups/patroni-metrics")
+
+		// lz4 is the default: fast compression, low CPU, ideal for continuous WAL
+		// archiving. The admin can change this before the first backup is taken.
+		data.SetData("WALG_COMPRESSION_METHOD", "lz4")
+
+		if pd.PlatformInfo.DeploymentLocation == "Local deployment" {
+			data.SetData("NUM_PATRONI_ADMIN_NODES", "1")
+			data.SetData("NUM_PATRONI_METRICS_NODES", "1")
+		} else {
+			if pd.PlatformInfo.NumPatroniAdminNodes == 0 {
+				data.SetData("NUM_PATRONI_ADMIN_NODES", "1")
+			}
+			if pd.PlatformInfo.NumPatroniMetricsNodes == 0 {
+				data.SetData("NUM_PATRONI_METRICS_NODES", "1")
+			}
+		}
+	} else {
+		postgresUser := "postgres"
+		data.SetData("POSTGRES_USER", postgresUser)
+
+		timescaleUser := "timescale"
+		data.SetData("TIMESCALE_USER", timescaleUser)
+	}
+
+	postgresPassword := utils.GeneratePassword(20)
+	data.SetData("POSTGRES_PASSWORD", postgresPassword)
+
+	timescalePassword := utils.GeneratePassword(20)
+	data.SetData("TIMESCALE_PASSWORD", timescalePassword)
+
+	postgresDB := "iot_platform_db"
+	data.SetData("POSTGRES_DB", postgresDB)
+
+	timescaleDB := "iot_data_db"
+	data.SetData("TIMESCALE_DB", timescaleDB)
+
+	grafanaDBPassword := utils.GeneratePassword(20)
+	data.SetData("GRAFANA_DB_PASSWORD", grafanaDBPassword)
 }

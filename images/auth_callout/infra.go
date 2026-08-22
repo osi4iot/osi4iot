@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/base64"
+	"fmt"
 	"log/slog"
 
 	"github.com/nats-io/jwt/v2"
@@ -78,6 +79,38 @@ func buildInfraServices(config *Config) []InfraService {
 				},
 				Sub: jwt.Permission{
 					Allow: []string{"$JS.>", "_INBOX.>"},
+				},
+				Resp: &jwt.ResponsePermission{MaxMsgs: 1},
+			},
+		},
+		{
+			// system_manager exposes manual backup triggers as a NATS
+			// request-reply service under system_manager.backup.patroni.>
+			// (see system_manager's internal/natssvc). It never publishes
+			// on its own initiative -- Pub is fully denied -- it only
+			// replies to requests it receives, which Resp authorizes
+			// without needing broad Pub access.
+			Name:       "system_manager",
+			NKeyPublic: config.SystemManagerNKeyPublic,
+			Permissions: jwt.Permissions{
+				Pub: jwt.Permission{
+					Allow: []string{
+						"_INBOX.*.*",
+					},
+				},
+				Sub: jwt.Permission{
+					Allow: []string{
+						"$SRV.INFO",
+						fmt.Sprintf("$SRV.INFO.%s","system_manager"),
+						fmt.Sprintf("$SRV.INFO.%s.*", "system_manager"),
+						"$SRV.PING",
+						fmt.Sprintf("$SRV.PING.%s", "system_manager"),
+						fmt.Sprintf("$SRV.PING.%s.*", "system_manager"),
+						"$SRV.STATS",
+						fmt.Sprintf("$SRV.STATS.%s", "system_manager"),
+						fmt.Sprintf("$SRV.STATS.%s.*", "system_manager"),
+						fmt.Sprintf("%s.>", "system_manager"),
+					},
 				},
 				Resp: &jwt.ResponsePermission{MaxMsgs: 1},
 			},

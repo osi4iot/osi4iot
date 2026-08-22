@@ -20,33 +20,13 @@ func PostgresService(
 	secrets := []*swarm.SecretReference{
 		{
 			File: &swarm.SecretReferenceFileTarget{
-				Name: "postgres_user.txt",
+				Name: "postgres.txt",
 				UID:  "0",
 				GID:  "0",
 				Mode: 0444,
 			},
-			SecretID:   sd.Secrets["postgres_user"].ID,
-			SecretName: sd.Secrets["postgres_user"].Name,
-		},
-		{
-			File: &swarm.SecretReferenceFileTarget{
-				Name: "postgres_password.txt",
-				UID:  "0",
-				GID:  "0",
-				Mode: 0444,
-			},
-			SecretID:   sd.Secrets["postgres_password"].ID,
-			SecretName: sd.Secrets["postgres_password"].Name,
-		},
-		{
-			File: &swarm.SecretReferenceFileTarget{
-				Name: "postgres_grafana.txt",
-				UID:  "0",
-				GID:  "0",
-				Mode: 0444,
-			},
-			SecretID:   sd.Secrets["postgres_grafana"].ID,
-			SecretName: sd.Secrets["postgres_grafana"].Name,
+			SecretID:   sd.Secrets["postgres"].ID,
+			SecretName: sd.Secrets["postgres"].Name,
 		},
 	}
 
@@ -66,8 +46,6 @@ func PostgresService(
 		WithImage(image).
 		WithEnv([]string{
 			fmt.Sprintf("POSTGRES_DB=%s", pd.PlatformInfo.PostgresDB),
-			"POSTGRES_PASSWORD_FILE=/run/secrets/postgres_password.txt",
-			"POSTGRES_USER_FILE=/run/secrets/postgres_user.txt",
 		}).
 		WithSecrets(secrets).
 		WithMounts([]mount.Mount{

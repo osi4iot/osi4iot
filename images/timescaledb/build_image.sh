@@ -1,2 +1,1 @@
-docker buildx build --platform linux/amd64,linux/arm64 -t ghcr.io/osi4iot/timescaledb:2.20.0-pg17 --push .
-# docker buildx build --platform linux/amd64,linux/arm64 -t ghcr.io/osi4iot/timescaledb:latest --push .
+docker buildx build --platform linux/amd64,linux/arm64 -t ghcr.io/osi4iot/timescaledb:2.27.0-pg18 --push .

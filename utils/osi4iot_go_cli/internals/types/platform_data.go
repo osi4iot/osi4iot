@@ -77,28 +77,47 @@ type PlatformInfo struct {
 	AccessTokenSecret         string `json:"ACCESS_TOKEN_SECRET"`
 	AccessTokenLifetime       int    `json:"ACCESS_TOKEN_LIFETIME"`
 
-	NumOfNatsNodes           int    `json:"NUMBER_OF_NATS_NODES"`
-	DefaultNumOfNatsReplicas int    `json:"DEFAULT_NUMBER_OF_NATS_REPLICAS"`
+	NumOfNatsNodes           int `json:"NUMBER_OF_NATS_NODES"`
+	DefaultNumOfNatsReplicas int `json:"DEFAULT_NUMBER_OF_NATS_REPLICAS"`
+	// Patroni cluster sizes — must be odd (1, 3 or 5) for Raft quorum.
+	// Set to 1 automatically for local deployments; default 3 for clusters.
+	NumPatroniAdminNodes     int    `json:"NUM_PATRONI_ADMIN_NODES"`
+	NumPatroniMetricsNodes   int    `json:"NUM_PATRONI_METRICS_NODES"`
 	MQTTSslCertsValidityDays int    `json:"MQTT_SSL_CERTS_VALIDITY_DAYS"`
 	FloatingIPAddress        string `json:"FLOATING_IP_ADDRES"`
 	NetworkInterface         string `json:"NETWORK_INTERFACE"`
 	EncryptionSecretKey      string `json:"ENCRYPTION_SECRET_KEY"`
 	GrafanaAdminPassword     string `json:"GRAFANA_ADMIN_PASSWORD"`
 
+	// ── Admin database (PostgreSQL 18 via Patroni) ────────────────────────────
+	// PostgresUser and PostgresPassword are the superuser credentials,
+	// consistent with the legacy single-node postgres service.
 	PostgresUser     string `json:"POSTGRES_USER"`
 	PostgresPassword string `json:"POSTGRES_PASSWORD"`
 	PostgresDB       string `json:"POSTGRES_DB"`
+	// Additional Patroni-specific credentials for the admin cluster
+	PostgresReplicatorPassword string `json:"POSTGRES_REPLICATOR_PASSWORD"`
+	PostgresRewindPassword     string `json:"POSTGRES_REWIND_PASSWORD"`
+	// Grafana role created by post_init.sh on first bootstrap
+	GrafanaDBPassword string `json:"GRAFANA_DB_PASSWORD"`
 
-	TimescaleUser                  string `json:"TIMESCALE_USER"`
-	TimescalePassword              string `json:"TIMESCALE_PASSWORD"`
-	TimescaleDB                    string `json:"TIMESCALE_DB"`
+	// ── Metrics database (TimescaleDB 2.27 / PG18 via Patroni) ───────────────
+	// TimescaleUser and TimescalePassword are the superuser credentials,
+	// consistent with the legacy single-node timescaledb service.
+	TimescaleUser     string `json:"TIMESCALE_USER"`
+	TimescalePassword string `json:"TIMESCALE_PASSWORD"`
+	TimescaleDB       string `json:"TIMESCALE_DB"`
+	// Additional Patroni-specific credentials for the metrics cluster
+	TimescaleReplicatorPassword string `json:"TIMESCALE_REPLICATOR_PASSWORD"`
+	TimescaleRewindPassword     string `json:"TIMESCALE_REWIND_PASSWORD"`
+	// Grafana datasource role and retention policy created by post_init.sh
 	TimescaleDataRetentionInterval string `json:"TIMESCALE_DATA_RET_INT_DAYS"`
-	GrafanaDBPassword              string `json:"GRAFANA_DB_PASSWORD"`
 	GrafanaDatasourcePassword      string `json:"GRAFANA_DATASOURCE_PASSWORD"`
-	NodeRedAdmin                   string `json:"NODE_RED_ADMIN"`
-	NodeRedAdminHash               string `json:"NODE_RED_ADMIN_HASH"`
-	PGAdminDefaultEmail            string `json:"PGADMIN_DEFAULT_EMAIL"`
-	PGAdminDefaultPassword         string `json:"PGADMIN_DEFAULT_PASSWORD"`
+
+	NodeRedAdmin           string `json:"NODE_RED_ADMIN"`
+	NodeRedAdminHash       string `json:"NODE_RED_ADMIN_HASH"`
+	PGAdminDefaultEmail    string `json:"PGADMIN_DEFAULT_EMAIL"`
+	PGAdminDefaultPassword string `json:"PGADMIN_DEFAULT_PASSWORD"`
 
 	MessagingSvcResources        string `json:"MESSAGING_SVC_RESOURCES"`
 	IotDataStorageSvcResources   string `json:"IOT_DATA_STORAGE_SVC_RESOURCES"`
@@ -120,10 +139,26 @@ type PlatformInfo struct {
 	SshPubKey      string `json:"SSH_PUB_KEY"`
 
 	UseAwsEbsVolumes bool `json:"USE_AWS_EBS_VOLUMES"`
+	UsePatroniTool   bool `json:"USE_PATRONI_TOOL"`
 
 	DOMAIN_SSL_PRIVATE_KEY_PATH string `json:"DOMAIN_SSL_PRIVATE_KEY_PATH"`
 	DOMAIN_SSL_CA_PEM_PATH      string `json:"DOMAIN_SSL_CA_PEM_PATH"`
 	DOMAIN_SSL_CERT_CRT_PATH    string `json:"DOMAIN_SSL_CERT_CRT_PATH"`
+
+	// ── WAL-G — shared between both Patroni clusters ─────────────────────────
+	// S3/MinIO prefix per cluster — must be different to avoid mixing backups.
+	// The AWS credentials reuse AWSAccessKeyIDS3Bucket / AWSSecretAccessKeyS3Bucket
+	// / AWSRegionS3Bucket which already exist above.
+	WalgS3PrefixAdmin   string `json:"WALG_S3_PREFIX_ADMIN"`
+	WalgS3PrefixMetrics string `json:"WALG_S3_PREFIX_METRICS"`
+	// AES-256 encryption key (hex-encoded). Generate with: openssl rand -hex 32
+	// Stored as Swarm secret walg_libsodium_key. Only written once.
+	WalgLibsodiumKey string `json:"WALG_LIBSODIUM_KEY"`
+	// "lz4" (fast, low CPU) or "brotli" (better ratio). Never change once
+	// backups exist — WAL-G cannot restore with a different algorithm.
+	WalgCompressionMethod string `json:"WALG_COMPRESSION_METHOD"`
+	// MinIO endpoint — only used when S3BucketType == "Local Minio"
+	MinioEndpoint string `json:"MINIO_ENDPOINT"`
 }
 
 type Certs struct {
@@ -159,8 +194,10 @@ type NatsCerts struct {
 	AdminApiNKeySeed        string `json:"admin_api_nkey_seed"`
 	PipelinesNKeyPublic     string `json:"pipelines_nkey_pub"`
 	PipelinesNKeySeed       string `json:"pipelines_nkey_seed"`
-	DeployCliNKeyPublic string `json:"deploy_cli_nkey_pub"`
-	DeployCliNKeySeed   string `json:"deploy_cli_nkey_seed"`
+	DeployCliNKeyPublic     string `json:"deploy_cli_nkey_pub"`
+	DeployCliNKeySeed       string `json:"deploy_cli_nkey_seed"`
+	SystemManagerNKeyPublic string `json:"system_manager_nkey_pub"`
+	SystemManagerNKeySeed   string `json:"system_manager_nkey_seed"`
 }
 
 type CaCerts struct {

@@ -2,9 +2,10 @@
 
 echo "################################## Run template_script"
 
-if [ -f "/run/secrets/postgres_grafana.txt" ]
-then
-    export $(cat /run/secrets/postgres_grafana.txt | grep GRAFANA_DB_PASSWORD)
+if [ -f "/run/secrets/postgres.txt" ]; then
+    set -a
+    source /run/secrets/postgres.txt
+    set +a
 fi
 
 envsubst < /etc/postgres/templates/sql_sript.sql.template > /docker-entrypoint-initdb.d/sql_sript.sql

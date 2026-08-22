@@ -10,8 +10,7 @@ import (
 
 func GenerateNetworks(platformData *pt.PlatformData) map[string]pt.Network {
 	Networks := make(map[string]pt.Network)
-	deploymentMode := platformData.PlatformInfo.DeploymentMode
-	numNodes := len(platformData.PlatformInfo.NodesData)
+	pi := platformData.PlatformInfo
 
 	Networks["traefik_public"] = pt.Network{
 		Name:   "traefik_public",
@@ -22,7 +21,7 @@ func GenerateNetworks(platformData *pt.PlatformData) map[string]pt.Network {
 		Driver: "overlay",
 	}
 
-	if deploymentMode == "development" && numNodes > 1 {
+	if pi.DeploymentMode == "development" && len(pi.NodesData) > 1 {
 		Networks["agent_network"] = pt.Network{
 			Name:   "agent_network",
 			Driver: "overlay",
@@ -32,6 +31,18 @@ func GenerateNetworks(platformData *pt.PlatformData) map[string]pt.Network {
 	Networks["nats_network"] = pt.Network{
 		Name:   "nats_network",
 		Driver: "overlay",
+	}
+
+	if pi.UsePatroniTool {
+		// Dedicated overlay network for the Patroni clusters and HAProxy.
+		// Keeps Raft (5010/5011), REST API (8008) and PostgreSQL (5432) traffic
+		// isolated from the rest of the platform services.
+		// HAProxy also joins internal_net so other services can reach it via
+		// haproxy_patroni:5000/5001/5100/5101.
+		Networks["patroni_net"] = pt.Network{
+			Name:   "patroni_net",
+			Driver: "overlay",
+		}
 	}
 
 	return Networks
@@ -78,7 +89,6 @@ func CreateSwarmNetworks(platformData *pt.PlatformData, dc *pt.DockerClient) (ma
 
 	return createdNetworks, nil
 }
-
 
 func RemoveSwarmNetworks(dc *pt.DockerClient) error {
 	filterArgs := filters.NewArgs()

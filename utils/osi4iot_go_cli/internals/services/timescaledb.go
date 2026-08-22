@@ -20,43 +20,13 @@ func TimescaledbService(
 	secrets := []*swarm.SecretReference{
 		{
 			File: &swarm.SecretReferenceFileTarget{
-				Name: "timescaledb_user.txt",
+				Name: "timescaledb.txt",
 				UID:  "0",
 				GID:  "0",
 				Mode: 0444,
 			},
-			SecretID:   sd.Secrets["timescale_user"].ID,
-			SecretName: sd.Secrets["timescale_user"].Name,
-		},
-		{
-			File: &swarm.SecretReferenceFileTarget{
-				Name: "timescaledb_password.txt",
-				UID:  "0",
-				GID:  "0",
-				Mode: 0444,
-			},
-			SecretID:   sd.Secrets["timescale_password"].ID,
-			SecretName: sd.Secrets["timescale_password"].Name,
-		},
-		{
-			File: &swarm.SecretReferenceFileTarget{
-				Name: "timescaledb_grafana.txt",
-				UID:  "0",
-				GID:  "0",
-				Mode: 0444,
-			},
-			SecretID:   sd.Secrets["timescale_grafana"].ID,
-			SecretName: sd.Secrets["timescale_grafana"].Name,
-		},
-		{
-			File: &swarm.SecretReferenceFileTarget{
-				Name: "timescaledb_data_ret_int.txt",
-				UID:  "0",
-				GID:  "0",
-				Mode: 0444,
-			},
-			SecretID:   sd.Secrets["timescale_data_ret_int"].ID,
-			SecretName: sd.Secrets["timescale_data_ret_int"].Name,
+			SecretID:   sd.Secrets["timescaledb"].ID,
+			SecretName: sd.Secrets["timescaledb"].Name,
 		},
 	}
 
@@ -83,14 +53,11 @@ func TimescaledbService(
 		}
 	}
 
-	// image := utils.GetServiceImage(pd, "timescaledb", "ghcr.io/osi4iot/timescaledb:2.20.0-pg17")
-	image := utils.GetServiceImage(pd, "timescaledb", "ghcr.io/osi4iot/patroni:2.27.0-pg18")
+	image := utils.GetServiceImage(pd, "timescaledb", "ghcr.io/osi4iot/timescaledb:2.27.0-pg18")
 	return NewService("timescaledb", pd, sd).
 		WithImage(image).
 		WithEnv([]string{
 			fmt.Sprintf("POSTGRES_DB=%s", pd.PlatformInfo.TimescaleDB),
-			"POSTGRES_PASSWORD_FILE=/run/secrets/timescaledb_password.txt",
-			"POSTGRES_USER_FILE=/run/secrets/timescaledb_user.txt",
 			"POSTGRES_INITDB_WALDIR=/var/lib/postgresql_wal",
 		}).
 		WithSecrets(secrets).

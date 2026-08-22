@@ -521,6 +521,9 @@ func runAction(actionKey string, m *Model) tea.Msg {
 	case "domainCertsQuestions":
 		response, _ := DomainCertsQuestions(m)
 		return response
+	case "usePatroniToolQuestions":
+		response, _ := usePatroniToolQuestions(m)
+		return response
 	case "copyKeyInNode":
 		response, err := copyKeyInNode(m)
 		if err != nil {
