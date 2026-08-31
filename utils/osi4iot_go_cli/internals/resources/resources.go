@@ -80,14 +80,14 @@ func NewSvcResourcesMap(pd *pt.PlatformData) map[string]SvcResources {
 		serviceList = append(serviceList, "haproxy_patroni")
 		numAdminNodes := pd.PlatformInfo.NumPatroniAdminNodes
 		for i := 1; i <= numAdminNodes; i++ {
-			name := fmt.Sprintf("patroni-admin%d", i)
+			name := fmt.Sprintf("patroni_admin%d", i)
 			serviceList = append(serviceList, name)
 		}
 
 		// Metrics cluster nodes — one entry per node
 		numMetricsNodes := pd.PlatformInfo.NumPatroniMetricsNodes
 		for i := 1; i <= numMetricsNodes; i++ {
-			name := fmt.Sprintf("patroni-metrics%d", i)
+			name := fmt.Sprintf("patroni_metrics%d", i)
 			serviceList = append(serviceList, name)
 		}
 

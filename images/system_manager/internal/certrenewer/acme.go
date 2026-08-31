@@ -28,7 +28,21 @@ import (
 func SetOrUpdateAcmeCerts(pd *platform.PlatformData) error {
 	// Propagate errors instead of calling os.Exit so the daemon's logger
 	// captures them and systemd can report the failure correctly.
-	if err := setRoute53EnvVars(pd); err != nil {
+	//
+	// setRoute53EnvVars overwrites AWS_ACCESS_KEY_ID/AWS_SECRET_ACCESS_KEY/
+	// AWS_REGION process-wide for go-acme/lego's Route53 provider (it only
+	// knows how to read those exact names) — restoreEnv puts back
+	// whatever was there before (nats_backup's own S3 credentials, in
+	// this process) once this function returns, success or failure, so
+	// the window where those env vars hold Route53's identity instead of
+	// S3's is bounded to this call rather than lasting for the rest of
+	// the process's life. (nats_backup itself no longer depends on this
+	// at all — see s3store.Config's doc comment — but this restore stays
+	// as defense-in-depth for anything else in this process that might
+	// read those env vars ambiently in the future.)
+	restoreEnv, err := setRoute53EnvVars(pd)
+	defer restoreEnv()
+	if err != nil {
 		return fmt.Errorf("could not configure Route53 credentials: %w", err)
 	}
 
@@ -183,21 +197,44 @@ func renewIfNeeded(pd *platform.PlatformData, client *lego.Client, domains []str
 }
 
 // setRoute53EnvVars sets the environment variables required by the AWS
-// Route53 DNS provider.
-func setRoute53EnvVars(pd *platform.PlatformData) error {
+// Route53 DNS provider, and returns a function that restores whatever
+// those variables held before this call (or unsets them, if they were
+// unset) — callers should defer it immediately so the values are put
+// back regardless of how this function's caller returns. See
+// SetOrUpdateAcmeCerts's call site for why this matters: these are the
+// same env var names other AWS-consuming code in this same process
+// reads (or used to read — see s3store.Config's doc comment), and
+// os.Setenv is process-wide, not scoped to this call.
+func setRoute53EnvVars(pd *platform.PlatformData) (restore func(), err error) {
+	keys := []string{"AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_REGION", "AWS_HOSTED_ZONE_ID"}
+	prevValue := make(map[string]string, len(keys))
+	prevWasSet := make(map[string]bool, len(keys))
+	for _, k := range keys {
+		prevValue[k], prevWasSet[k] = os.LookupEnv(k)
+	}
+	restore = func() {
+		for _, k := range keys {
+			if prevWasSet[k] {
+				os.Setenv(k, prevValue[k])
+			} else {
+				os.Unsetenv(k)
+			}
+		}
+	}
+
 	if err := os.Setenv("AWS_ACCESS_KEY_ID", pd.PlatformInfo.AWSAccessKeyIDRoute53); err != nil {
-		return fmt.Errorf("error setting AWS_ACCESS_KEY_ID: %w", err)
+		return restore, fmt.Errorf("error setting AWS_ACCESS_KEY_ID: %w", err)
 	}
 	if err := os.Setenv("AWS_SECRET_ACCESS_KEY", pd.PlatformInfo.AWSSecretAccessKeyRoute53); err != nil {
-		return fmt.Errorf("error setting AWS_SECRET_ACCESS_KEY: %w", err)
+		return restore, fmt.Errorf("error setting AWS_SECRET_ACCESS_KEY: %w", err)
 	}
 	if err := os.Setenv("AWS_REGION", awsRegionsMap[pd.PlatformInfo.AWSRegionRoute53]); err != nil {
-		return fmt.Errorf("error setting AWS_REGION: %w", err)
+		return restore, fmt.Errorf("error setting AWS_REGION: %w", err)
 	}
 	if err := os.Setenv("AWS_HOSTED_ZONE_ID", pd.PlatformInfo.AWSHostedZoneIdRoute53); err != nil {
-		return fmt.Errorf("error setting AWS_HOSTED_ZONE_ID: %w", err)
+		return restore, fmt.Errorf("error setting AWS_HOSTED_ZONE_ID: %w", err)
 	}
-	return nil
+	return restore, nil
 }
 
 // setCertsNamesAndExpirationTime derives the Docker secret names

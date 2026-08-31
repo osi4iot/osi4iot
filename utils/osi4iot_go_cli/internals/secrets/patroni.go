@@ -15,12 +15,10 @@ func createPatroniSecrets(pd *pt.PlatformData) map[string]pt.Secret {
 	awsAccessKeyId := pi.PlatformAdminUserName
 	awsSecretAccessKey := pi.PlatformAdminPassword
 	awsRegion := "us-east-1"
-	awsEndpoint := "http://minio:9000/"
 	if pi.S3BucketType == "Cloud AWS S3" {
 		awsAccessKeyId = pi.AWSAccessKeyIDS3Bucket
 		awsSecretAccessKey = pi.AWSSecretAccessKeyS3Bucket
 		awsRegion = pi.AWSRegionS3Bucket
-		awsEndpoint = ""
 	}
  
 	adminLines := []string{
@@ -37,13 +35,6 @@ func createPatroniSecrets(pd *pt.PlatformData) map[string]pt.Secret {
 		fmt.Sprintf("AWS_ACCESS_KEY_ID=%s", awsAccessKeyId),
 		fmt.Sprintf("AWS_SECRET_ACCESS_KEY=%s", awsSecretAccessKey),
 		fmt.Sprintf("AWS_REGION=%s", awsRegion),
-	}
-
-	if pi.S3BucketType == "Local Minio" {
-		adminLines = append(adminLines,
-			fmt.Sprintf("AWS_ENDPOINT=%s", awsEndpoint),
-			"AWS_S3_FORCE_PATH_STYLE=true",
-		)
 	}
 	adminData := strings.Join(adminLines, "\n")
 	adminHash := utils.GetMD5Hash(adminData)
@@ -66,12 +57,6 @@ func createPatroniSecrets(pd *pt.PlatformData) map[string]pt.Secret {
 		fmt.Sprintf("AWS_ACCESS_KEY_ID=%s", awsAccessKeyId),
 		fmt.Sprintf("AWS_SECRET_ACCESS_KEY=%s", awsSecretAccessKey),
 		fmt.Sprintf("AWS_REGION=%s", awsRegion),
-	}
-	if pi.S3BucketType == "Local Minio" {
-		metricsLines = append(metricsLines,
-			fmt.Sprintf("AWS_ENDPOINT=%s", awsEndpoint),
-			"AWS_S3_FORCE_PATH_STYLE=true",
-		)
 	}
 	metricsData := strings.Join(metricsLines, "\n")
 	metricsHash := utils.GetMD5Hash(metricsData)

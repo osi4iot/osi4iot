@@ -21,6 +21,7 @@ set +a
 REQUIRED_VARS=(
     "DOMAIN_NAME" "NATS_NKEY_SEED"
     "AWS_ACCESS_KEY_ID" "AWS_SECRET_ACCESS_KEY" "AWS_REGION"
+    "NATS_BACKUP_S3_PREFIX"
 )
 if [ "${CERT_RENEWAL_ENABLED:-}" = "true" ]; then
     REQUIRED_VARS+=(
@@ -29,6 +30,7 @@ if [ "${CERT_RENEWAL_ENABLED:-}" = "true" ]; then
         "AWS_REGION_ROUTE53" "AWS_HOSTED_ZONE_ID_ROUTE53"
     )
 fi
+
 for var in "${REQUIRED_VARS[@]}"; do
     if [ -z "${!var}" ]; then
         echo "ERROR: Required variable '$var' is missing from $SECRET_FILE"
@@ -37,7 +39,8 @@ for var in "${REQUIRED_VARS[@]}"; do
 done
 
 echo "Starting system_manager"
-[ "${USE_PATRONI_TOOL:-}" = "true" ] && echo "  backup triggers: NATS request-reply (system_manager.backup.patroni.*)"
+[ "${USE_PATRONI_TOOL:-}" = "true" ] && echo "  patroni tasks: NATS request-reply (system_manager.patroni.trigger_backup.*, system_manager.patroni.leader.*)"
 [ "${CERT_RENEWAL_ENABLED:-}" = "true" ] && echo "  cert renewal: ${DOMAIN_NAME}"
+echo "  nats backup tasks: NATS request-reply (system_manager.nats_streams.backup, system_manager.nats_streams.restore) -> ${NATS_BACKUP_S3_PREFIX:-}"
 
 exec /usr/local/bin/system_manager

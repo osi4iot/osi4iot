@@ -46,6 +46,7 @@ timescaledb:
   password: "{{ .TimescaleDB.Password }}"
   host: "{{ .TimescaleDB.Host }}"
   port: {{ .TimescaleDB.Port }}
+  readPort: {{ .TimescaleDB.ReadPort }}
   dbName: "{{ .TimescaleDB.DBName }}"
   sslmode: "{{ .TimescaleDB.SSLMode }}"
 
@@ -68,6 +69,7 @@ type TimescaleDBParams struct {
 	Password string
 	Host     string
 	Port     int
+	ReadPort int
 	DBName   string
 	SSLMode  string
 }
@@ -129,9 +131,11 @@ func PipelinesConfig(pd *types.PlatformData, numNatsReplicas int) (string, error
 
 	tsHost := "timescaledb"
 	tsPort := 5432
+	tsReadPort := 5432
 	if pi.UsePatroniTool {
 		tsHost = "haproxy_patroni"
 		tsPort = 5100
+		tsReadPort = 5101
 	}
 
 	awsAccessKeyId := pi.PlatformAdminUserName
@@ -177,6 +181,7 @@ func PipelinesConfig(pd *types.PlatformData, numNatsReplicas int) (string, error
 			Password: pi.TimescalePassword,
 			Host:     tsHost,
 			Port:     tsPort,
+			ReadPort: tsReadPort,
 			DBName:   "iot_data_db",
 			SSLMode:  "disable",
 		},

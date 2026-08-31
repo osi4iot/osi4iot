@@ -672,6 +672,9 @@ func createPlatform(m *Model) (platformCreatingMsg, error) {
 		certrenewer.SetCertsNamesAndExpirationTime(platformData)
 	}
 
+	natsBackupS3Prefix := "s3://" + platformData.PlatformInfo.S3BucketName + "/backups/nats_streams"
+	data.SetData("NATS_BACKUP_S3_PREFIX", natsBackupS3Prefix)
+
 	err = utils.NatsCredentials(platformData)
 	if err != nil {
 		return platformCreatingMsg("Error: creating nats certs"), err
@@ -734,8 +737,8 @@ func CreateDatabaseData(pd *types.PlatformData) {
 
 		// S3 prefix derived from the platform name so it's unique per deployment.
 		// The admin can override these after creation via the state file if needed.
-		data.SetData("WALG_S3_PREFIX_ADMIN", "s3://"+pd.PlatformInfo.S3BucketName+"/backups/patroni-admin")
-		data.SetData("WALG_S3_PREFIX_METRICS", "s3://"+pd.PlatformInfo.S3BucketName+"/backups/patroni-metrics")
+		data.SetData("WALG_S3_PREFIX_ADMIN", "s3://"+pd.PlatformInfo.S3BucketName+"/backups/patroni_admin")
+		data.SetData("WALG_S3_PREFIX_METRICS", "s3://"+pd.PlatformInfo.S3BucketName+"/backups/patroni_metrics")
 
 		// lz4 is the default: fast compression, low CPU, ideal for continuous WAL
 		// archiving. The admin can change this before the first backup is taken.

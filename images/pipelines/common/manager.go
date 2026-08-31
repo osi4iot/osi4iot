@@ -82,7 +82,7 @@ type Manager interface {
 
 	GetGroups() []*Group
 	GetGroup(groupId int) *Group
-	AddGroup(ctx context.Context,group *Group)
+	AddGroup(ctx context.Context, group *Group)
 	AddGroups(ctx context.Context, groups []*Group)
 	DeleteGroup(ctx context.Context, groupId int) error
 	UpdateGroup(group *Group) error
@@ -155,6 +155,7 @@ type Manager interface {
 	SetPipelineStatusSubscription(ctx context.Context, digitalTwin *DigitalTwin) *nats.Subscription
 
 	GetDbPool() *pgxpool.Pool
+	GetDbReadPool() *pgxpool.Pool
 	GetDuckdbPool() *sql.DB
 	GetS3Client() *s3.Client
 	GetS3BucketName() string

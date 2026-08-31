@@ -77,14 +77,29 @@ func main() {
 	}
 	defer dbpool.Close()
 
-	// Verifica la conexión
+	// Verify the write database connection
 	pingCtx, pingCancel := context.WithTimeout(ctx, 10*time.Second)
 	defer pingCancel()
 	if err := dbpool.Ping(pingCtx); err != nil {
-		log.Fatalf("ping error: %v", err)
+		log.Fatalf("ping error for write database: %v", err)
 	}
 
-	log.Info("Connected to iot database")
+	log.Info("Connected to iot write database")
+
+	dbReadPool, err := pgxpool.NewWithConfig(ctx, pgxConfig)
+	if err != nil {
+		log.Fatalf("read pool creation error: %v", err)
+	}
+	defer dbReadPool.Close()
+
+	// Verify the read database connection
+	pingReadCtx, pingReadCancel := context.WithTimeout(ctx, 10*time.Second)
+	defer pingReadCancel()
+	if err := dbReadPool.Ping(pingReadCtx); err != nil {
+		log.Fatalf("ping error for read database: %v", err)
+	}
+
+	log.Info("Connected to iot read database")
 
 	// Create S3 client
 	s3Client, err := utils.CreateS3Client(ctx, cfg.AwsS3, log)
@@ -100,8 +115,18 @@ func main() {
 	log.Infof("DuckDB connection pool created successfully")
 	defer duckdbPool.Close()
 
-
-	manager := flows_manager.CreateFlowsManager(ctx, cfg, nc, js, jsConsumer, dbpool, duckdbPool, s3Client, admin, log)
+	manager := flows_manager.CreateFlowsManager(
+		ctx,
+		cfg,
+		nc,
+		js,
+		jsConsumer,
+		dbpool,
+		dbReadPool,
+		duckdbPool,
+		s3Client,
+		admin,
+		log)
 
 	utils.HealthCheck(cfg)
 

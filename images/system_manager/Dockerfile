@@ -1,6 +1,6 @@
 # =============================================================================
-# system_manager — scheduled backup triggers for patroni-admin and
-# patroni-metrics (delegated over HTTP to backup_trigger on each node),
+# system_manager — scheduled backup triggers for patroni_admin and
+# patroni_metrics (delegated over HTTP to patroni_sidecar on each node),
 # plus ACME/Route53 certificate renewal (traefik + nats), gated
 # independently via BACKUPS_ENABLED / CERT_RENEWAL_ENABLED. Fully
 # standalone module (module system_manager, see go.mod) — no dependency
@@ -12,7 +12,7 @@
 #     so this needs no QEMU even for arm64.
 #
 # This image never touches Postgres or S3 directly: backups are
-# triggered over HTTP against backup_trigger (running inside
+# triggered over HTTP against patroni_sidecar (running inside
 # patroni_admin/patroni_metrics, with local PGDATA access and its own
 # S3/WAL-G credentials) — so this image needs no wal-g binary, no
 # Postgres/Patroni packages, and no S3/WAL-G credentials of its own.

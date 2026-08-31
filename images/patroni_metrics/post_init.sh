@@ -46,6 +46,12 @@ GRANT EXECUTE ON FUNCTION pg_catalog.pg_ls_dir(text, boolean, boolean) TO rewind
 GRANT EXECUTE ON FUNCTION pg_catalog.pg_stat_file(text, boolean) TO rewind_user;
 GRANT EXECUTE ON FUNCTION pg_catalog.pg_read_binary_file(text) TO rewind_user;
 GRANT EXECUTE ON FUNCTION pg_catalog.pg_read_binary_file(text, bigint, bigint, boolean) TO rewind_user;
+-- See the identical comment in patroni_admin's post_init.sh: pg_rewind's
+-- remote file-list query always joins against pg_tablespace, and the
+-- blanket pg_catalog REVOKE above strips rewind_user's (normally
+-- default-granted) SELECT on it, breaking every pg_rewind attempt with
+-- "permission denied for table pg_tablespace" until this is restored.
+GRANT SELECT ON pg_tablespace TO rewind_user;
 
 -- Platform administrator — same superadmin as the admin cluster
 CREATE ROLE ${SUPERADMIN_USER}

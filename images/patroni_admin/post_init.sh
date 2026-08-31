@@ -36,6 +36,15 @@ GRANT EXECUTE ON FUNCTION pg_catalog.pg_ls_dir(text, boolean, boolean) TO rewind
 GRANT EXECUTE ON FUNCTION pg_catalog.pg_stat_file(text, boolean) TO rewind_user;
 GRANT EXECUTE ON FUNCTION pg_catalog.pg_read_binary_file(text) TO rewind_user;
 GRANT EXECUTE ON FUNCTION pg_catalog.pg_read_binary_file(text, bigint, bigint, boolean) TO rewind_user;
+-- pg_rewind's remote file-list query joins against pg_tablespace to
+-- resolve tablespace paths (it does this unconditionally, even with no
+-- custom tablespaces in use) — normally unnecessary to grant explicitly
+-- since pg_catalog tables are readable by PUBLIC out of the box, but the
+-- blanket REVOKE two lines above strips that, so rewind_user needs it
+-- back explicitly or every pg_rewind attempt fails with "permission
+-- denied for table pg_tablespace" and the node never rejoins the
+-- cluster after diverging onto a different timeline.
+GRANT SELECT ON pg_tablespace TO rewind_user;
 
 -- Platform administrator — introduced by the platform admin in the wizard
 CREATE ROLE ${SUPERADMIN_USER}

@@ -49,6 +49,10 @@ func GetScalableServices(pd *osi_types.PlatformData) []string {
 		"traefik",
 	}
 
+	if pd.PlatformInfo.UsePatroniTool {
+		scalableServices = append(scalableServices, "patroni_admin", "patroni_metrics")
+	}
+
 	return scalableServices
 }
 
@@ -790,7 +794,7 @@ func GetDefaultServicesDataMap(pd *osi_types.PlatformData) map[string]osi_types.
 		// Admin cluster nodes — one entry per node
 		numAdminNodes := Max(pi.NumPatroniAdminNodes, 1)
 		for i := 1; i <= numAdminNodes; i++ {
-			name := fmt.Sprintf("patroni-admin%d", i)
+			name := fmt.Sprintf("patroni_admin%d", i)
 			replicas, _ := findServiceReplicasByName(pd, name)
 			defaultServicesDataMap[name] = osi_types.ServiceData{
 				ServiceName: name,
@@ -804,7 +808,7 @@ func GetDefaultServicesDataMap(pd *osi_types.PlatformData) map[string]osi_types.
 		// Metrics cluster nodes — one entry per node
 		numMetricsNodes := Max(pi.NumPatroniMetricsNodes, 1)
 		for i := 1; i <= numMetricsNodes; i++ {
-			name := fmt.Sprintf("patroni-metrics%d", i)
+			name := fmt.Sprintf("patroni_metrics%d", i)
 			replicas, _ := findServiceReplicasByName(pd, name)
 			defaultServicesDataMap[name] = osi_types.ServiceData{
 				ServiceName: name,

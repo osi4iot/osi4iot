@@ -1,4 +1,4 @@
-import pool from "../../config/dbconfig";
+import pool, { readQuery } from "../../config/dbconfig";
 import IRefreshToken from "./refreshToken.interface";
 
 export const insertRefreshToken = async (userId: number, refreshToken: string): Promise<void> => {
@@ -11,7 +11,7 @@ export const insertRefreshToken = async (userId: number, refreshToken: string): 
 };
 
 export const exitsRefreshToken = async (refreshToken: string): Promise<boolean> => {
-	const result = await pool.query('SELECT COUNT(*) FROM grafanadb.refresh_token WHERE token = $1',
+	const result = await readQuery('SELECT COUNT(*) FROM grafanadb.refresh_token WHERE token = $1',
 		[refreshToken]);
 	return result.rows[0].count !== 0;
 };
@@ -48,7 +48,7 @@ export const updateRefreshToken = async (oldRefreshToken: string, newRefreshToke
 };
 
 export const getRefreshTokenByUserId = async (userId: number): Promise<IRefreshToken> => {
-	const result = await pool.query(`SELECT id, user_id AS "userId", token,
+	const result = await readQuery(`SELECT id, user_id AS "userId", token,
 									AGE(NOW(), created) AS "createdAtAge",
 									AGE(NOW(), updated) AS "updatedAtAge"
 							 		FROM grafanadb.refresh_token WHERE user_id = $1`, [userId]);
@@ -56,7 +56,7 @@ export const getRefreshTokenByUserId = async (userId: number): Promise<IRefreshT
 };
 
 export const getAllRefreshTokens = async (): Promise<IRefreshToken[]> => {
-	const result = await pool.query(`SELECT id, user_id AS "userId", token,
+	const result = await readQuery(`SELECT id, user_id AS "userId", token,
 									AGE(NOW(), created) AS "createdAtAge",
 									AGE(NOW(), updated) AS "updatedAtAge"
 	 								FROM grafanadb.refresh_token

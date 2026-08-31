@@ -1,9 +1,9 @@
 // Package backup triggers the scheduled WAL-G backups for the
-// patroni-admin and patroni-metrics Postgres clusters.
+// patroni_admin and patroni_metrics Postgres clusters.
 //
 // The backup itself (backup-push) AND its retention cleanup (delete
 // retain) are NOT run here — both are delegated over HTTP, in a single
-// call, to the backup_trigger sidecar running inside whichever node is
+// call, to the patroni_sidecar sidecar running inside whichever node is
 // currently primary (routed there by haproxy_patroni, regardless of
 // which physical node that is). That sidecar runs wal-g in LOCAL mode,
 // with direct filesystem access to PGDATA — the mature, well-tested
@@ -16,7 +16,7 @@
 // parameter on each trigger call — even though the retention command
 // itself now runs on the Patroni node. This process needs no wal-g
 // binary and no S3/WAL-G credentials of its own anymore.
-package backup
+package patroni_backup
 
 import (
 	"context"
@@ -32,21 +32,22 @@ import (
 	"system_manager/internal/task"
 )
 
-// triggerTimeout bounds how long we wait for the backup_trigger sidecar
+// triggerTimeout bounds how long we wait for the patroni_sidecar sidecar
 // to finish backup-push + retention cleanup. Generous and matched to
-// backup_trigger's own internal timeout, so our request doesn't time
+// patroni_sidecar's own internal timeout, so our request doesn't time
 // out before it would.
 const triggerTimeout = 2 * time.Hour
 
 // Target is one Postgres cluster this service takes backups of. It
 // implements task.Scheduled: Subject/Run so it can be triggered on
 // demand over NATS (via internal/natssvc), and NextRun so it also runs
-// automatically once a day (via internal/schedule).
+// automatically once a day by default (via internal/schedule).
 type Target struct {
 	Name string
 
 	triggerURL string
-	backupHour int // UTC hour of day to run backup-push
+	backupHour int // UTC hour of day this Target's schedule starts at
+	everyHours int // repeats every this many hours after backupHour; 24 (once a day) if unset — see schedule.EveryNHoursAt
 	retain     int // number of full backups to keep
 }
 
@@ -56,25 +57,34 @@ var _ task.Scheduled = Target{}
 // Aborts the process (via config.MustEnv) if a required variable is
 // missing — entrypoint.sh checks the same list before this process ever
 // starts, so in practice this only fires on a misconfigured deployment.
+//
+// Default hours are staggered (0, 1) rather than identical: distinct
+// clock times, both still clustered near midnight, keep admin and
+// metrics' backup-push calls from landing on patroni_sidecar in the
+// exact same instant by default, on top of whatever taskpool.Pool
+// itself already bounds. Override with SYSTEM_MANAGER_BACKUP_HOUR_ADMIN/
+// _METRICS if a deployment wants them further apart, or the same.
 func LoadTargets() []Target {
 	return []Target{
 		{
 			Name:       "admin",
-			triggerURL: config.EnvStringDefault("BACKUP_TRIGGER_URL_ADMIN", "http://haproxy_patroni:5002/trigger/backup"),
-			backupHour: config.EnvIntDefault("SYSTEM_MANAGER_BACKUP_HOUR_ADMIN", 3),
+			triggerURL: config.EnvStringDefault("PATRONI_SIDECAR_URL_ADMIN", "http://haproxy_patroni:5002/trigger_backup"),
+			backupHour: config.EnvIntDefault("SYSTEM_MANAGER_BACKUP_HOUR_ADMIN", 0),
+			everyHours: config.EnvIntDefault("SYSTEM_MANAGER_BACKUP_EVERY_HOURS_ADMIN", 24),
 			retain:     config.EnvIntDefault("SYSTEM_MANAGER_RETAIN_ADMIN", 7),
 		},
 		{
 			Name:       "metrics",
-			triggerURL: config.EnvStringDefault("BACKUP_TRIGGER_URL_METRICS", "http://haproxy_patroni:5102/trigger/backup"),
-			backupHour: config.EnvIntDefault("SYSTEM_MANAGER_BACKUP_HOUR_METRICS", 4),
+			triggerURL: config.EnvStringDefault("PATRONI_SIDECAR_URL_METRICS", "http://haproxy_patroni:5102/trigger_backup"),
+			backupHour: config.EnvIntDefault("SYSTEM_MANAGER_BACKUP_HOUR_METRICS", 1),
+			everyHours: config.EnvIntDefault("SYSTEM_MANAGER_BACKUP_EVERY_HOURS_METRICS", 24),
 			retain:     config.EnvIntDefault("SYSTEM_MANAGER_RETAIN_METRICS", 7),
 		},
 	}
 }
 
 // requestURL builds t.triggerURL with the retention policy attached as
-// ?retain=N, so backup_trigger knows how many full backups to keep
+// ?retain=N, so patroni_sidecar knows how many full backups to keep
 // without system_manager's retention policy having to be duplicated
 // into every Patroni node's own configuration.
 func (t Target) requestURL() (string, error) {
@@ -88,11 +98,11 @@ func (t Target) requestURL() (string, error) {
 	return u.String(), nil
 }
 
-// TriggerBackup asks the primary node's backup_trigger sidecar to run
+// TriggerBackup asks the primary node's patroni_sidecar sidecar to run
 // backup-push (then prune to t.retain full backups) locally, and blocks
-// until it's done — backup_trigger itself is synchronous for exactly
+// until it's done — patroni_sidecar itself is synchronous for exactly
 // this reason, so the caller knows whether it actually succeeded.
-// Returns backup_trigger's own response body (the raw wal-g output)
+// Returns patroni_sidecar's own response body (the raw wal-g output)
 // alongside any error, so callers can both log or relay it.
 func (t Target) TriggerBackup(ctx context.Context) (string, error) {
 	reqURL, err := t.requestURL()
@@ -111,7 +121,7 @@ func (t Target) TriggerBackup(ctx context.Context) (string, error) {
 	client := &http.Client{Timeout: triggerTimeout}
 	resp, err := client.Do(req)
 	if err != nil {
-		return "", fmt.Errorf("calling backup_trigger: %w", err)
+		return "", fmt.Errorf("calling patroni_sidecar: %w", err)
 	}
 	defer resp.Body.Close()
 
@@ -119,7 +129,7 @@ func (t Target) TriggerBackup(ctx context.Context) (string, error) {
 	output := string(body)
 
 	if resp.StatusCode != http.StatusOK {
-		return output, fmt.Errorf("backup_trigger returned %s", resp.Status)
+		return output, fmt.Errorf("patroni_sidecar returned %s", resp.Status)
 	}
 	return output, nil
 }
@@ -128,22 +138,29 @@ func (t Target) TriggerBackup(ctx context.Context) (string, error) {
 // task.Task. It's used both by schedule.Loop, for t's own daily
 // schedule, and by natssvc, for on-demand NATS triggers — main.go wraps
 // every Target with task.SerializeScheduled so the two never run
-// concurrently against the same target.
-func (t Target) Run(ctx context.Context) (string, error) {
+// concurrently against the same target. params is unused — nothing
+// about a backup-push is caller-configurable beyond t's own retention
+// policy.
+func (t Target) Run(ctx context.Context, params map[string]any) (string, error) {
 	return t.TriggerBackup(ctx)
 }
 
 // Subject identifies this target for NATS routing and logging as
-// "backup.patroni.<name>" (e.g. "backup.patroni.admin"), which
-// natssvc turns into the subject "system_manager.backup.patroni.admin".
-// See auth_callout's infra.go for the permissions granted to
-// system_manager's NKey on this subject tree.
+// "patroni.trigger_backup.<name>" (e.g. "patroni.trigger_backup.admin"),
+// which natssvc turns into the subject
+// "system_manager.patroni.trigger_backup.admin" — grouped under
+// "patroni." alongside patroni.LeaderQuery's "patroni.leader.<name>", so
+// every Patroni-related task (mutating or read-only) lives under one
+// prefix ("system_manager.patroni.>"), with "trigger_backup" vs
+// "leader" as the next segment for anyone who wants to grant NATS
+// permissions at that finer grain instead. See auth_callout's infra.go.
 func (t Target) Subject() string {
-	return "backup.patroni." + t.Name
+	return "patroni.trigger_backup." + t.Name
 }
 
 // NextRun returns the next UTC occurrence of t's configured backup
-// hour, satisfying task.Scheduled.
+// schedule — once a day by default, or every t.everyHours if
+// configured — satisfying task.Scheduled. See schedule.EveryNHoursAt.
 func (t Target) NextRun(now time.Time) time.Time {
-	return schedule.DailyAt(now, t.backupHour)
+	return schedule.EveryNHoursAt(now, t.backupHour, t.everyHours)
 }

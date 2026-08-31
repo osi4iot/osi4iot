@@ -120,13 +120,13 @@ func fixingPlatformData(pd *pt.PlatformData) error {
 				
 		numPatroniAdminNodes := Max(pd.PlatformInfo.NumPatroniAdminNodes, 1)
 		for i := 1; i <= numPatroniAdminNodes; i++ {
-			name := fmt.Sprintf("patroni-admin%d", i)
+			name := fmt.Sprintf("patroni_admin%d", i)
 			servicesList = append(servicesList, name)
 		}
 
 		numPatroniMetricsNodes := Max(pd.PlatformInfo.NumPatroniMetricsNodes, 1)
 		for i := 1; i <= numPatroniMetricsNodes; i++ {
-			name := fmt.Sprintf("patroni-metrics%d", i)
+			name := fmt.Sprintf("patroni_metrics%d", i)
 			servicesList = append(servicesList, name)
 		}
 	} else {

@@ -49,20 +49,22 @@ func LoadConfig() Config {
 // obtains/renews it via ACME and rolls the new secret out to every
 // service that consumes it. It implements task.Scheduled: Subject/Run so
 // it can be triggered on demand over NATS (via internal/natssvc), and
-// NextRun so it also runs automatically once a day (via
+// NextRun so it also runs automatically once a day by default (via
 // internal/schedule).
 type Renewer struct {
-	cfg  Config
-	hour int
+	cfg        Config
+	hour       int
+	everyHours int // repeats every this many hours after hour; 24 (once a day) if unset — see schedule.EveryNHoursAt
 }
 
 var _ task.Scheduled = (*Renewer)(nil)
 
-// New returns a Renewer configured from cfg, due to run automatically at
-// hour:00 UTC each day (see NextRun) in addition to being triggerable on
-// demand over NATS.
-func New(cfg Config, hour int) *Renewer {
-	return &Renewer{cfg: cfg, hour: hour}
+// New returns a Renewer configured from cfg, due to run automatically
+// starting at hour:00 UTC and repeating every everyHours (see NextRun),
+// in addition to being triggerable on demand over NATS. everyHours <= 0
+// means once a day, at hour:00 — see schedule.EveryNHoursAt.
+func New(cfg Config, hour, everyHours int) *Renewer {
+	return &Renewer{cfg: cfg, hour: hour, everyHours: everyHours}
 }
 
 // Subject identifies this task for NATS routing and logging as
@@ -71,10 +73,10 @@ func New(cfg Config, hour int) *Renewer {
 // permissions granted to system_manager's NKey on this subject.
 func (r *Renewer) Subject() string { return "certs.renew" }
 
-// NextRun returns the next UTC occurrence of r's configured check hour,
-// satisfying task.Scheduled.
+// NextRun returns the next UTC occurrence of r's configured check
+// schedule, satisfying task.Scheduled. See schedule.EveryNHoursAt.
 func (r *Renewer) NextRun(now time.Time) time.Time {
-	return schedule.DailyAt(now, r.hour)
+	return schedule.EveryNHoursAt(now, r.hour, r.everyHours)
 }
 
 // loadDomainCerts reads previously persisted ACME account + cert material.
@@ -132,8 +134,9 @@ func daysToExpiry(domainName string) (int, error) {
 // service that consumes it (via internal/dockersvc). It satisfies
 // task.Task/task.Scheduled — the returned string is a short summary of
 // what happened, relayed to NATS callers and logged the same way as
-// every other task in this service.
-func (r *Renewer) Run(ctx context.Context) (string, error) {
+// every other task in this service. params is unused — nothing about
+// cert renewal is caller-configurable today.
+func (r *Renewer) Run(ctx context.Context, params map[string]any) (string, error) {
 	log.Println("[certs] checking expiry")
 	if days, err := daysToExpiry(r.cfg.domainName); err != nil {
 		log.Printf("[certs] could not read live certificate (%v) — proceeding with renewal to be safe", err)

@@ -27,6 +27,9 @@ var allowedVolumeNamesPrefix = []string{
 	"timescaledb_wal",
 	"vector_buffer",
 	"nats",
+	"patroni_admin",
+	"patroni_metrics",
+	"system_manager",
 }
 
 // ContainerVolumeMetric maps 1-to-1 to the volume_metrics TimescaleDB table.

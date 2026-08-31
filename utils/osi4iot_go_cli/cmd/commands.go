@@ -21,7 +21,7 @@ import (
 
 const version = "0.1.36"
 
-var SwarmActions = []string{"create", "init", "run", "stop", "delete", "service", "certs", "streams"}
+var SwarmActions = []string{"create", "init", "run", "stop", "delete", "service", "certs", "streams", "backup"}
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
@@ -675,7 +675,9 @@ var subCmdPassphraseReset = &cobra.Command{
 var cmdStreams = &cobra.Command{
 	Use:   "streams",
 	Short: "NATS JetStream streams management",
-	Long:  "List, back up and restore NATS JetStream streams",
+	Long: "List NATS JetStream streams, and manage the local snapshots the scale up/down flow " +
+		"takes of its own accord mid-operation (see 'osi4iot backup' for the S3-backed periodic " +
+		"backup/restore of NATS, patroni_admin and patroni_metrics).",
 }
  
 var subCmdStreamsList = &cobra.Command{
@@ -724,166 +726,7 @@ var subCmdStreamsList = &cobra.Command{
 		w.Flush()
 	},
 }
- 
-var subCmdStreamsBackup = &cobra.Command{
-	Use:   "backup",
-	Short: "Back up all NATS JetStream streams to a local directory",
-	Long: "Snapshots every JetStream stream (data + consumers) to a fresh " +
-		"timestamped directory under ~/.osi4iot/nats_backups.",
-	Run: func(cmd *cobra.Command, args []string) {
-		pd := data.GetData()
- 
-		dc, err := docker.GetManagerDC()
-		if err != nil {
-			exitWithError(fmt.Sprintf("Error getting docker client: %v", err))
-		}
- 
-		dir, names, err := docker.BackupNatsStreams(pd, dc)
-		if err != nil {
-			exitWithError(fmt.Sprintf("Error backing up NATS streams: %v", err))
-		}
- 
-		if len(names) == 0 {
-			fmt.Println(utils.StyleOKMsg.Render("No NATS streams found to back up"))
-			return
-		}
- 
-		msg := fmt.Sprintf("Backed up %d NATS stream(s) to %s:\n", len(names), dir)
-		for _, n := range names {
-			msg += fmt.Sprintf("  - %s\n", n)
-		}
-		fmt.Println(utils.StyleOKMsg.Render(msg))
-	},
-}
- 
-var subCmdStreamsBackups = &cobra.Command{
-	Use:   "backups",
-	Short: "List the available NATS stream backups",
-	Long:  "Lists the backup directories under ~/.osi4iot/nats_backups, newest first, with the streams each contains.",
-	Run: func(cmd *cobra.Command, args []string) {
-		backups, err := docker.ListNatsBackups()
-		if err != nil {
-			exitWithError(fmt.Sprintf("Error listing backups: %v", err))
-		}
- 
-		if len(backups) == 0 {
-			fmt.Println(utils.StyleOKMsg.Render("No NATS stream backups found"))
-			return
-		}
- 
-		for _, b := range backups {
-			fmt.Printf("%s  (%d stream(s))  %s\n", b.Name, len(b.Streams), b.Path)
-			for _, s := range b.Streams {
-				fmt.Printf("    - %s\n", s)
-			}
-		}
-	},
-}
- 
-var subCmdStreamsRestore = &cobra.Command{
-	Use:   "restore",
-	Short: "Restore NATS JetStream streams from a backup directory",
-	Long: "Restores streams (data + consumers) from a backup directory into the " +
-		"running NATS cluster and raises each restored stream to the target replica count.",
-	Run: func(cmd *cobra.Command, args []string) {
-		dir, _ := cmd.Flags().GetString("dir")
-		replicas, _ := cmd.Flags().GetInt("replicas")
-		deleteExisting, _ := cmd.Flags().GetBool("delete-existing")
- 
-		pd := data.GetData()
- 
-		dc, err := docker.GetManagerDC()
-		if err != nil {
-			exitWithError(fmt.Sprintf("Error getting docker client: %v", err))
-		}
- 
-		// Default to the most recent backup when no directory is given.
-		if dir == "" {
-			dir, err = docker.LatestNatsBackupDir()
-			if err != nil {
-				exitWithError(fmt.Sprintf("Error finding latest backup: %v", err))
-			}
-			fmt.Printf("No --dir given; using latest backup: %s\n", dir)
-		}
- 
-		names, err := docker.ListBackupStreamNames(dir)
-		if err != nil {
-			exitWithError(fmt.Sprintf("Error reading backup directory: %v", err))
-		}
- 
-		// Default the target replica count to the cluster's current NATS replicas.
-		if replicas <= 0 {
-			current, err := docker.GetNatsReplicas(dc)
-			if err != nil {
-				exitWithError(fmt.Sprintf("Error detecting current NATS replicas: %v", err))
-			}
-			replicas = int(current)
-			if replicas < 1 {
-				replicas = 1
-			}
-		}
- 
-		fmt.Printf("Restoring %d stream(s) from %s at %d replica(s)...\n", len(names), dir, replicas)
-		for _, n := range names {
-			fmt.Printf("  - %s\n", n)
-		}
- 
-		warning, err := docker.RestoreNatsStreams(pd, dc, dir, names, replicas, deleteExisting)
-		if err != nil {
-			exitWithError(fmt.Sprintf("Error restoring NATS streams: %v", err))
-		}
- 
-		if warning != "" {
-			fmt.Println(utils.StyleWarningMsg.Render("Warnings:\n" + warning))
-		}
-		fmt.Println(utils.StyleOKMsg.Render(
-			fmt.Sprintf("Restored %d NATS stream(s) from %s", len(names), dir)))
-	},
-}
- 
-var subCmdStreamsBackupsRm = &cobra.Command{
-	Use:     "rm [NAME]",
-	Aliases: []string{"delete"},
-	Short:   "Delete a NATS stream backup, or all backups with --all",
-	Long:    "Deletes the named backup directory under ~/.osi4iot/nats_backups, or every backup with --all.",
-	Args:    cobra.MaximumNArgs(1),
-	Run: func(cmd *cobra.Command, args []string) {
-		all, _ := cmd.Flags().GetBool("all")
-		yes, _ := cmd.Flags().GetBool("yes")
- 
-		if all && len(args) > 0 {
-			exitWithError("Use either a backup NAME or --all, not both")
-		}
-		if !all && len(args) == 0 {
-			exitWithError("Specify a backup NAME or use --all (see 'osi4iot streams backups')")
-		}
- 
-		if all {
-			if !yes && !confirmStreamsAction("Delete ALL NATS stream backups? This cannot be undone.") {
-				fmt.Println("Cancelled.")
-				return
-			}
-			n, err := docker.DeleteAllNatsBackups()
-			if err != nil {
-				exitWithError(fmt.Sprintf("Error deleting backups: %v", err))
-			}
-			fmt.Println(utils.StyleOKMsg.Render(fmt.Sprintf("Deleted %d backup(s)", n)))
-			return
-		}
- 
-		name := args[0]
-		if !yes && !confirmStreamsAction(fmt.Sprintf("Delete backup %q? This cannot be undone.", name)) {
-			fmt.Println("Cancelled.")
-			return
-		}
-		path, err := docker.DeleteNatsBackup(name)
-		if err != nil {
-			exitWithError(fmt.Sprintf("Error deleting backup: %v", err))
-		}
-		fmt.Println(utils.StyleOKMsg.Render(fmt.Sprintf("Deleted backup %s", path)))
-	},
-}
- 
+
 // confirmStreamsAction prompts the user for a yes/no confirmation and returns
 // true only on an explicit "y"/"yes".
 func confirmStreamsAction(prompt string) bool {
@@ -945,19 +788,8 @@ func init() {
 
 	cmdPassphrase.AddCommand(subCmdPassphraseReset)
 	rootCmd.AddCommand(cmdPassphrase)
-
-	subCmdStreamsRestore.Flags().String("dir", "", "Backup directory to restore from (default: latest under ~/.osi4iot/nats_backups)")
-	subCmdStreamsRestore.Flags().Int("replicas", 0, "Target replica count for restored streams (default: current NATS replicas)")
-	subCmdStreamsRestore.Flags().Bool("delete-existing", false, "Delete the streams first if they already exist (a snapshot restore fails when the stream is already present)")
- 
-	subCmdStreamsBackupsRm.Flags().Bool("all", false, "Delete all backups")
-	subCmdStreamsBackupsRm.Flags().BoolP("yes", "y", false, "Skip the confirmation prompt")
-	subCmdStreamsBackups.AddCommand(subCmdStreamsBackupsRm)
  
 	cmdStreams.AddCommand(subCmdStreamsList)
-	cmdStreams.AddCommand(subCmdStreamsBackup)
-	cmdStreams.AddCommand(subCmdStreamsBackups)
-	cmdStreams.AddCommand(subCmdStreamsRestore)
 	rootCmd.AddCommand(cmdStreams)
 
 	cmdNodes.AddCommand(subCmdNodesList)

@@ -1,4 +1,4 @@
-import pool from "../../config/dbconfig";
+import pool, { readQuery } from "../../config/dbconfig";
 import grafanaApi from "../../GrafanaApi";
 import { QueryResult } from "pg";
 import CreateUserDto from "./interfaces/User.dto";
@@ -15,7 +15,7 @@ import normalizeString from "../../utils/helpers/normalizeString";
 export const getUserLoginDatadByEmailOrLogin = async (
 	emailOrLogin: string
 ): Promise<IUserLoginData> => {
-	const response: QueryResult = await pool.query(
+	const response: QueryResult = await readQuery(
 		"SELECT id, login, email, password, salt FROM grafanadb.user WHERE email = $1 OR login = $1",
 		[emailOrLogin]
 	);
@@ -25,7 +25,7 @@ export const getUserLoginDatadByEmailOrLogin = async (
 export const getUsersIdByEmailsArray = async (
 	emailArray: string[]
 ): Promise<(Partial<IUser> | null)[]> => {
-	const response: QueryResult = await pool.query(
+	const response: QueryResult = await readQuery(
 		"SELECT id, name, login, email FROM grafanadb.user WHERE email =  ANY($1::varchar(190)[])",
 		[emailArray]
 	);
@@ -36,7 +36,7 @@ export const getUserByProp = async (
 	propName: string,
 	propValue: string | number
 ): Promise<IUser> => {
-	const response: QueryResult = await pool.query(
+	const response: QueryResult = await readQuery(
 		`SELECT id, name, login, email, is_admin as "isGrafanaAdmin",
 					is_disabled as "isDisabled", last_seen_at as lastSeenAt,
 					AGE(NOW(),last_seen_at) as "lastSeenAtAge"
@@ -52,19 +52,19 @@ export const getGlobalUsers = async (): Promise<IUser[]> => {
 					AGE(NOW(),last_seen_at) as "lastSeenAtAge"
 					FROM grafanadb.user WHERE login != $1
 					ORDER BY id ASC`;
-	const result = await pool.query(query, ["dev2pdb"]);
+	const result = await readQuery(query, ["dev2pdb"]);
 	return result.rows as IUser[];
 };
 
 export const getUserdByEmailOrLogin = async (
 	emailOrLogin: string
 ): Promise<IUser> => {
-	const response: QueryResult = await pool.query(
+	const response: QueryResult = await readQuery(
 		`SELECT id, first_name as "firstName", surname, login, email,
-					is_admin as "isGrafanaAdmin",
-					is_disabled as "isDisabled", last_seen_at as "lastSeenAt",
-					AGE(NOW(),last_seen_at) as "lastSeenAtAge"
-					FROM grafanadb.user WHERE email = $1 OR login = $1`,
+		is_admin as "isGrafanaAdmin",
+		is_disabled as "isDisabled", last_seen_at as "lastSeenAt",
+		AGE(NOW(),last_seen_at) as "lastSeenAtAge"
+		FROM grafanadb.user WHERE email = $1 OR login = $1`,
 		[emailOrLogin]
 	);
 	return response.rows[0] as IUser;
@@ -170,7 +170,7 @@ export const isThisUserOrgAdmin = async (
 	userId: number,
 	orgId: number
 ): Promise<boolean> => {
-	const result = await pool.query(
+	const result = await readQuery(
 		"SELECT COUNT(*) FROM grafanadb.org_user WHERE user_id = $1 AND org_id = $2 AND role = $3",
 		[userId, orgId, "Admin"]
 	);
@@ -180,7 +180,7 @@ export const isThisUserOrgAdmin = async (
 export const isThisUserAdminOfSomeOrg = async (
 	userId: number
 ): Promise<boolean> => {
-	const result = await pool.query(
+	const result = await readQuery(
 		"SELECT COUNT(*) FROM grafanadb.org_user WHERE user_id = $1 AND role = $2",
 		[userId, "Admin"]
 	);
@@ -197,7 +197,7 @@ export const getOrganizationUsers = async (
 					INNER JOIN grafanadb.org_user ON grafanadb.org_user.user_id = grafanadb.user.id
 					WHERE grafanadb.org_user.org_id = $1 AND login != $2
 					ORDER BY grafanadb.user.id ASC`;
-	const result = await pool.query(query, [orgId, "dev2pdb"]);
+	const result = await readQuery(query, [orgId, "dev2pdb"]);
 	return result.rows as IUserInOrg[];
 };
 
@@ -211,7 +211,7 @@ export const getOrganizationUsersForOrgIdsArray = async (
 					INNER JOIN grafanadb.org_user ON grafanadb.org_user.user_id = grafanadb.user.id
 					WHERE grafanadb.org_user.org_id = ANY($1::bigint[]) AND login != $2
 					ORDER BY grafanadb.user.id ASC, grafanadb.org_user.org_id ASC`;
-	const result = await pool.query(query, [orgIdsArray, "dev2pdb"]);
+	const result = await readQuery(query, [orgIdsArray, "dev2pdb"]);
 	return result.rows as IUserInOrg[];
 };
 
@@ -226,7 +226,7 @@ export const getOrganizationUsersWithGrafanaAdmin = async (
 					INNER JOIN grafanadb.org_user ON grafanadb.org_user.user_id = grafanadb.user.id
 					WHERE grafanadb.org_user.org_id = $1
 					ORDER BY grafanadb.user.id ASC`;
-	const result = await pool.query(query, [orgId]);
+	const result = await readQuery(query, [orgId]);
 	return result.rows as IUserInOrg[];
 };
 
@@ -241,7 +241,7 @@ export const getOrganizationUserWithGrafanaAdminByProp = async (
 					FROM grafanadb.user
 					INNER JOIN grafanadb.org_user ON grafanadb.org_user.user_id = grafanadb.user.id
 					WHERE grafanadb.org_user.org_id = $1 AND grafanadb.user.${propName} = $2`;
-	const result = await pool.query(query, [orgId, propValue]);
+	const result = await readQuery(query, [orgId, propValue]);
 	return result.rows[0] as IUserInOrg;
 };
 
@@ -257,7 +257,7 @@ export const getOrganizationUserByProp = async (
 					FROM grafanadb.user
 					INNER JOIN grafanadb.org_user ON grafanadb.org_user.user_id = grafanadb.user.id
 					WHERE grafanadb.org_user.org_id = $1 AND grafanadb.user.${propName} = $2  AND login != $3`;
-	const result = await pool.query(query, [orgId, propValue, "dev2pdb"]);
+	const result = await readQuery(query, [orgId, propValue, "dev2pdb"]);
 	return result.rows[0] as IUserInOrg;
 };
 
@@ -271,7 +271,7 @@ export const getOrganizationUsersByEmailArray = async (
 					FROM grafanadb.user
 					INNER JOIN grafanadb.org_user ON grafanadb.org_user.user_id = grafanadb.user.id
 					WHERE grafanadb.org_user.org_id = $1 AND grafanadb.user.email =  ANY($2::varchar(190)[]) AND login != $3`;
-	const result = await pool.query(query, [orgId, emailsArray, "dev2pdb"]);
+	const result = await readQuery(query, [orgId, emailsArray, "dev2pdb"]);
 	return result.rows as IUserInOrg[];
 };
 

@@ -248,7 +248,7 @@ func (n *IoTDbNode) processReadQuery(msg common.Message, params IotDbParams, log
 		Variables: params.Variables,
 	}
 
-	rows, err := iotdb.ParseAndExecuteSQL(n.Ctx, n.Fm.GetDbPool(), sqlTemplate)
+	rows, err := iotdb.ParseAndExecuteSQL(n.Ctx, n.Fm.GetDbReadPool(), sqlTemplate)
 	if err != nil {
 		log.Errorf("Error executing read query in IoTDbNode %s: %v", n.NodeUid, err)
 		return fmt.Errorf("error executing read query: %w", err)

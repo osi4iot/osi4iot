@@ -1,4 +1,4 @@
-import pool from "../../config/dbconfig";
+import pool, { readQuery } from "../../config/dbconfig";
 import { removeFilesFromBucketFolder } from "../digitalTwin/digitalTwinDAL";
 import CreateS3FolderDto from "./s3_folder.dto";
 import IS3Folder from "./s3_folder.interface";
@@ -20,10 +20,10 @@ export const insertS3Folder = async (
 ): Promise<IS3Folder> => {
 	const result = await pool.query(
 		`INSERT INTO grafanadb.s3_folder (group_id, asset_id, folderName, parquet_schema, created, updated)
-					VALUES ($1, $2, $3, $4, NOW(), NOW())
-					RETURNING  id, group_id AS "groupId", asset_id AS "assetId", folderName, 
-					parquet_schema AS "parquetSchema", last_s3_storage AS "lastS3Storage",
-					created, updated`,
+		VALUES ($1, $2, $3, $4, NOW(), NOW())
+		RETURNING  id, group_id AS "groupId", asset_id AS "assetId", folderName, 
+		parquet_schema AS "parquetSchema", last_s3_storage AS "lastS3Storage",
+		created, updated`,
 		[groupId, assetId, s3FolderData.folderName, JSON.stringify(s3FolderData.parquetSchema)]
 	);
 
@@ -89,7 +89,7 @@ export const getS3FolderByProp = async (
 	propName: string,
 	propValue: string | number
 ): Promise<IS3Folder> => {
-	const result = await pool.query(
+	const result = await readQuery(
 		`SELECT grafanadb.s3_folder.id, 
 		grafanadb.group.org_id AS "orgId",
 		grafanadb.s3_folder.group_id AS "groupId",
@@ -118,7 +118,7 @@ export const getS3FolderByProp = async (
 };
 
 export const getAllS3Folders = async (): Promise<IS3Folder[]> => {
-	const result = await pool.query(
+	const result = await readQuery(
 		`SELECT grafanadb.s3_folder.id,
 		grafanadb.group.org_id AS "orgId",
 		grafanadb.s3_folder.group_id AS "groupId",
@@ -145,7 +145,7 @@ export const getAllS3Folders = async (): Promise<IS3Folder[]> => {
 };
 
 export const getAllS3FoldersWithHistory = async (): Promise<IS3Folder[]> => {
-	const result = await pool.query(
+	const result = await readQuery(
 		`SELECT grafanadb.s3_folder.id,
 		grafanadb.group.org_id AS "orgId",
 		grafanadb.s3_folder.group_id AS "groupId",
@@ -171,7 +171,7 @@ export const getAllS3FoldersWithHistory = async (): Promise<IS3Folder[]> => {
 };
 
 export const getS3FoldersByGroupsIdArray = async (groupsIdArray: number[]): Promise<IS3Folder[]> => {
-	const result = await pool.query(
+	const result = await readQuery(
 		`SELECT grafanadb.s3_folder.id,
 		grafanadb.group.org_id AS "orgId",
 		grafanadb.s3_folder.group_id AS "groupId",
@@ -199,7 +199,7 @@ export const getS3FoldersByGroupsIdArray = async (groupsIdArray: number[]): Prom
 };
 
 export const getS3FoldersWithHistoryByGroupsIdArray = async (groupsIdArray: number[]): Promise<IS3Folder[]> => {
-	const result = await pool.query(
+	const result = await readQuery(
 		`SELECT grafanadb.s3_folder.id,
 		grafanadb.group.org_id AS "orgId",
 		grafanadb.s3_folder.group_id AS "groupId",
@@ -227,7 +227,7 @@ export const getS3FoldersWithHistoryByGroupsIdArray = async (groupsIdArray: numb
 };
 
 export const getS3FoldersByOrgId = async (orgId: number): Promise<IS3Folder[]> => {
-	const result = await pool.query(
+	const result = await readQuery(
 		`SELECT grafanadb.s3_folder.id,
 		grafanadb.group.org_id AS "orgId",
 		grafanadb.s3_folder.group_id AS "groupId",
@@ -255,7 +255,7 @@ export const getS3FoldersByOrgId = async (orgId: number): Promise<IS3Folder[]> =
 };
 
 export const getS3FoldersByGroupId = async (groupId: number): Promise<IS3Folder[]> => {
-	const result = await pool.query(
+	const result = await readQuery(
 		`SELECT grafanadb.s3_folder.id,
 		grafanadb.group.org_id AS "orgId",
 		grafanadb.s3_folder.group_id AS "groupId",
@@ -283,7 +283,7 @@ export const getS3FoldersByGroupId = async (groupId: number): Promise<IS3Folder[
 };
 
 export const getS3FoldersByAssetId = async (groupId: number, assetId: number): Promise<IS3Folder[]> => {
-	const result = await pool.query(
+	const result = await readQuery(
 		`SELECT grafanadb.s3_folder.id,
 		grafanadb.group.org_id AS "orgId",
 		grafanadb.s3_folder.group_id AS "groupId",
@@ -315,7 +315,7 @@ export const getS3FolderHistoryByName = async (
 	assetId: number,
 	folderName: string
 ): Promise<IS3Folder[]> => {
-	const result = await pool.query(
+	const result = await readQuery(
 		`SELECT grafanadb.s3_folder.id,
 		grafanadb.group.org_id AS "orgId",
 		grafanadb.s3_folder.group_id AS "groupId",

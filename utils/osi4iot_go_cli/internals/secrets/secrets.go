@@ -95,7 +95,7 @@ func GenerateSecrets(pd *pt.PlatformData) map[string]pt.Secret {
 		grafanaPostgresHost = "haproxy_patroni"
 		grafanaPostgresPort = "5000"
 		grafanaTimescaleHost = "haproxy_patroni"
-		grafanaTimescalePort = "5100"
+		grafanaTimescalePort = "5101"
 	}
 
 	grafanaSecretsDataArray := []string{

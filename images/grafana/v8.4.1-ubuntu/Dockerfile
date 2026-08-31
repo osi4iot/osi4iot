@@ -21,7 +21,7 @@ RUN grafana-cli plugins install neocat-cal-heatmap-panel
 
 USER grafana
 
-HEALTHCHECK --interval=10s --timeout=300s --retries=30 \
+HEALTHCHECK --interval=10s --timeout=5s --start-period=180s --retries=5 \
   CMD curl -f localhost:5000/api/health || exit 1
 
 ENTRYPOINT ["/src/scripts/entry_script.sh"]

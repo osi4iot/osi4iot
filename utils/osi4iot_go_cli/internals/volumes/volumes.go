@@ -104,15 +104,15 @@ func GenerateVolumes(platformData *pt.PlatformData) map[string]pt.Volume {
 
 	if pi.UsePatroniTool {
 		for i := 1; i <= pi.NumPatroniAdminNodes; i++ {
-			serviceName := fmt.Sprintf("patroni-admin%d", i)
-			volumeName := fmt.Sprintf("patroni-admin%d-data", i)
+			serviceName := fmt.Sprintf("patroni_admin%d", i)
+			volumeName := fmt.Sprintf("patroni_admin%d-data", i)
 			Volumes[volumeName] = SetVolumeConfig(pi, volumeName, serviceName, deploymentLocation, volOptions)
 		}
 		for i := 1; i <= pi.NumPatroniMetricsNodes; i++ {
-			serviceName := fmt.Sprintf("patroni-metrics%d", i)
-			volumeData := fmt.Sprintf("patroni-metrics%d-data", i)
+			serviceName := fmt.Sprintf("patroni_metrics%d", i)
+			volumeData := fmt.Sprintf("patroni_metrics%d-data", i)
 			Volumes[volumeData] = SetVolumeConfig(pi, volumeData, serviceName, deploymentLocation, volOptions)
-			volumeWAL := fmt.Sprintf("patroni-metrics%d-wal", i)
+			volumeWAL := fmt.Sprintf("patroni_metrics%d-wal", i)
 			Volumes[volumeWAL] = SetVolumeConfig(pi, volumeWAL, serviceName, deploymentLocation, volOptions)
 		}
 	} else {
@@ -601,6 +601,84 @@ func RemoveNatsVolume(dc *pt.DockerClient, replica int) error {
 			return nil
 		}
 		return fmt.Errorf("error removing volume: %v", err)
+	}
+	return nil
+}
+
+// CreatePatroniAdminVolume provisions the single "patroni_adminN-data"
+// volume for one new admin-cluster node. Like nats (and unlike
+// pipelines/grafana), patroni_adminN nodes are pinned to a specific node
+// via a node.labels.admin-id placement constraint, so — mirroring
+// CreateNatsVolume — this only needs to create the volume on the single dc
+// the caller passes in, not sweep every node in pt.DCMap.
+func CreatePatroniAdminVolume(pi pt.PlatformInfo, dc *pt.DockerClient, replica int) (*pt.Volume, error) {
+	volOptions := createDefaultOptions(pi)
+	volumeName := fmt.Sprintf("patroni_admin%d-data", replica)
+	serviceName := fmt.Sprintf("patroni_admin%d", replica)
+	domainName := pi.DomainName
+	volume := SetVolumeConfig(pi, volumeName, serviceName, pi.DeploymentLocation, volOptions)
+	err := CreateVolume(dc, domainName, &volume)
+	if err != nil {
+		return nil, fmt.Errorf("error creating volume %s in node %s: %v", volume.Name, dc.Node.NodeIP, err)
+	}
+
+	return &volume, nil
+}
+
+// RemovePatroniAdminVolume removes the "patroni_adminN-data" volume for a
+// removed admin-cluster node. Mirrors RemoveNatsVolume: single dc, not a
+// pt.DCMap sweep, for the same node-pinning reason as CreatePatroniAdminVolume.
+func RemovePatroniAdminVolume(dc *pt.DockerClient, replica int) error {
+	volumeName := fmt.Sprintf("patroni_admin%d-data", replica)
+	err := dc.Cli.VolumeRemove(dc.Ctx, volumeName, true)
+	if err != nil {
+		if isVolumeAlreadyRemovedError(err) {
+			return nil
+		}
+		return fmt.Errorf("error removing volume: %v", err)
+	}
+	return nil
+}
+
+// CreatePatroniMetricsVolumes provisions the two volumes ("...-data" and
+// "...-wal") a new metrics-cluster node needs. Same single-dc reasoning as
+// CreatePatroniAdminVolume.
+func CreatePatroniMetricsVolumes(pi pt.PlatformInfo, dc *pt.DockerClient, replica int) (dataVol *pt.Volume, walVol *pt.Volume, err error) {
+	volOptions := createDefaultOptions(pi)
+	serviceName := fmt.Sprintf("patroni_metrics%d", replica)
+	domainName := pi.DomainName
+
+	dataVolumeName := fmt.Sprintf("patroni_metrics%d-data", replica)
+	dataVolume := SetVolumeConfig(pi, dataVolumeName, serviceName, pi.DeploymentLocation, volOptions)
+	if err := CreateVolume(dc, domainName, &dataVolume); err != nil {
+		return nil, nil, fmt.Errorf("error creating volume %s in node %s: %v", dataVolume.Name, dc.Node.NodeIP, err)
+	}
+
+	walVolumeName := fmt.Sprintf("patroni_metrics%d-wal", replica)
+	walVolume := SetVolumeConfig(pi, walVolumeName, serviceName, pi.DeploymentLocation, volOptions)
+	if err := CreateVolume(dc, domainName, &walVolume); err != nil {
+		return nil, nil, fmt.Errorf("error creating volume %s in node %s: %v", walVolume.Name, dc.Node.NodeIP, err)
+	}
+
+	return &dataVolume, &walVolume, nil
+}
+
+// RemovePatroniMetricsVolumes removes both volumes of a removed
+// metrics-cluster node. Best-effort on both: it tries the WAL volume even
+// if the data volume fails, and reports every failure it hit.
+func RemovePatroniMetricsVolumes(dc *pt.DockerClient, replica int) error {
+	dataVolumeName := fmt.Sprintf("patroni_metrics%d-data", replica)
+	walVolumeName := fmt.Sprintf("patroni_metrics%d-wal", replica)
+
+	var errs []error
+	if err := dc.Cli.VolumeRemove(dc.Ctx, dataVolumeName, true); err != nil && !isVolumeAlreadyRemovedError(err) {
+		errs = append(errs, fmt.Errorf("error removing volume %s: %v", dataVolumeName, err))
+	}
+	if err := dc.Cli.VolumeRemove(dc.Ctx, walVolumeName, true); err != nil && !isVolumeAlreadyRemovedError(err) {
+		errs = append(errs, fmt.Errorf("error removing volume %s: %v", walVolumeName, err))
+	}
+	if len(errs) > 0 {
+		return fmt.Errorf("errors removing patroni_metrics volumes: %v", errs)
 	}
 	return nil
 }

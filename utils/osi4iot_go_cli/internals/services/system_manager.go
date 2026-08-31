@@ -39,30 +39,31 @@ func SystemManagerService(
 
 	env := []string{
 		fmt.Sprintf("NATS_SEED_SERVERS_URL=%s", strings.Join(natsSeedServers, ",")),
+		"NATS_BACKUP_ENABLED=true",
+		fmt.Sprintf("NATS_BACKUP_S3_PREFIX=%s", pi.NATSBackupS3Prefix),
 	}
 
 	if pi.UsePatroniTool {
 		env = append(env, "USE_PATRONI_TOOL=true")
 	}
 
-	mounts := []mount.Mount{}
-	placement := []string{}
+	mounts := []mount.Mount{
+		{
+			Type:   mount.TypeBind,
+			Source: "/var/run/docker.sock",
+			Target: "/var/run/docker.sock",
+		},
+	}
+	placement := []string{"node.role==manager"}
+
 	certRenewalEnabled := pi.DomainCertsType == "Let's encrypt certs with DNS-01 challenge and AWS Route 53 provider"
 	if certRenewalEnabled {
 		env = append(env, "CERT_RENEWAL_ENABLED=true")
-		mounts = append(mounts,
-			mount.Mount{
-				Type:   mount.TypeBind,
-				Source: "/var/run/docker.sock",
-				Target: "/var/run/docker.sock",
-			},
-			mount.Mount{
-				Type:   mount.TypeVolume,
-				Source: sd.Volumes["system_manager-data"].Name,
-				Target: "/data/certrenewer",
-			},
-		)
-		placement = append(placement, "node.role==manager")
+		mounts = append(mounts, mount.Mount{
+			Type:   mount.TypeVolume,
+			Source: sd.Volumes["system_manager-data"].Name,
+			Target: "/data/certrenewer",
+		})
 	}
 
 	image := utils.GetServiceImage(pd, "system_manager", "ghcr.io/osi4iot/system_manager:1.0.0")

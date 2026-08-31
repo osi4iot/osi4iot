@@ -1,7 +1,7 @@
 import { v4 as uuidv4 } from "uuid";
 import { logger } from "../../config/winston";
 import crypto from "crypto";
-import pool from "../../config/dbconfig";
+import pool, { readQuery } from "../../config/dbconfig";
 import grafanaApi from "../../GrafanaApi";
 import IEmailNotificationChannelSettings from "../../GrafanaApi/interfaces/EmailNotificationChannelSettings";
 import IGrafanaNotificationChannelSettings from "../../GrafanaApi/interfaces/GrafanaNotificationChannelSettings";
@@ -273,7 +273,7 @@ export const getAllGroups = async (): Promise<IGroup[]> => {
 				FROM grafanadb.group
 				INNER JOIN grafanadb.dashboard_acl ON grafanadb.group.team_id = grafanadb.dashboard_acl.team_id
 				ORDER BY id ASC;`;
-	const result = await pool.query(query);
+	const result = await readQuery(query);
 	const permissionCodes = ["None", "Viewer", "Editor"];
 	result.rows.forEach((row) => (row.folderPermission = permissionCodes[row.folderPermission]));
 	return result.rows as IGroup[];
@@ -281,7 +281,7 @@ export const getAllGroups = async (): Promise<IGroup[]> => {
 
 export const getNumGroups = async (): Promise<number> => {
 	const query = `SELECT COUNT(*) FROM grafanadb.group;`;
-	const result = await pool.query(query);
+	const result = await readQuery(query);
 	return parseInt(result.rows[0].count, 10);
 };
 
@@ -308,7 +308,7 @@ export const getGroupsThatCanBeEditatedAndAdministratedByUserId = async (userId:
 				INNER JOIN grafanadb.team_member ON grafanadb.team_member.team_id = grafanadb.group.team_id
 				WHERE grafanadb.team_member.user_id = $1 AND (grafanadb.team_member.permission = $2 OR grafanadb.team_member.permission = $3)
 				ORDER BY id ASC;`;
-	const result = await pool.query(query, [userId, 2, 4]);
+	const result = await readQuery(query, [userId, 2, 4]);
 	const permissionCodes = ["None", "Viewer", "Editor"];
 	result.rows.forEach((row) => (row.folderPermission = permissionCodes[row.folderPermission]));
 	return result.rows as IGroup[];
@@ -337,7 +337,7 @@ export const getGroupsManagedByUserId = async (userId: number): Promise<IGroup[]
 				INNER JOIN grafanadb.team_member ON grafanadb.team_member.team_id = grafanadb.group.team_id
 				WHERE grafanadb.team_member.user_id = $1 AND grafanadb.team_member.permission = $2
 				ORDER BY id ASC;`;
-	const result = await pool.query(query, [userId, 4]);
+	const result = await readQuery(query, [userId, 4]);
 	const permissionCodes = ["None", "Viewer", "Editor"];
 	result.rows.forEach((row) => (row.folderPermission = permissionCodes[row.folderPermission]));
 	return result.rows as IGroup[];
@@ -350,7 +350,7 @@ export const getOrgsIdArrayForGroupsManagedByUserId = async (userId: number): Pr
 				INNER JOIN grafanadb.team_member ON grafanadb.team_member.team_id = grafanadb.group.team_id
 				WHERE grafanadb.team_member.user_id = $1 AND grafanadb.team_member.permission = $2
 				ORDER BY grafanadb.group.org_id ASC;`;
-	const result = await pool.query(query, [userId, 4]);
+	const result = await readQuery(query, [userId, 4]);
 	return result.rows as { orgId: number }[];
 };
 
@@ -365,7 +365,7 @@ export const groupsWhichTheLoggedUserIsMember = async (userId: number): Promise<
 				INNER JOIN grafanadb.team_member ON grafanadb.team_member.team_id = grafanadb.group.team_id
 				WHERE grafanadb.team_member.user_id = $1
 				ORDER BY grafanadb.group.id ASC;`;
-	const result = await pool.query(query, [userId]);
+	const result = await readQuery(query, [userId]);
 	const permissionCodes = ["None", "Viewer", "Editor", "None", "Admin"];
 	result.rows.forEach((row) => (row.roleInGroup = permissionCodes[row.roleInGroup]));
 	return result.rows as IMembershipInGroups[];
@@ -388,7 +388,7 @@ export const getGroupsOfOrgIdWhereUserIdIsMember = async (orgId: number, userId:
 				INNER JOIN grafanadb.team_member ON grafanadb.team_member.team_id = grafanadb.group.team_id
 				WHERE grafanadb.team_member.user_id = $1 AND grafanadb.group.org_id = $2
 				ORDER BY id ASC;`;
-	const result = await pool.query(query, [userId, orgId]);
+	const result = await readQuery(query, [userId, orgId]);
 	const permissionCodes = ["None", "Viewer", "Editor"];
 	result.rows.forEach((row) => (row.folderPermission = permissionCodes[row.folderPermission]));
 	return result.rows as IGroup[];
@@ -411,7 +411,7 @@ export const getGroupsWhereUserIdIsMember = async (userId: number): Promise<IGro
 				INNER JOIN grafanadb.team_member ON grafanadb.team_member.team_id = grafanadb.group.team_id
 				WHERE grafanadb.team_member.user_id = $1
 				ORDER BY id ASC;`;
-	const result = await pool.query(query, [userId]);
+	const result = await readQuery(query, [userId]);
 	const permissionCodes = ["None", "Viewer", "Editor"];
 	result.rows.forEach((row) => (row.folderPermission = permissionCodes[row.folderPermission]));
 	return result.rows as IGroup[];
@@ -422,7 +422,7 @@ export const getNumGroupsManagedByUserId = async (userId: number): Promise<numbe
 				INNER JOIN grafanadb.dashboard_acl ON grafanadb.group.team_id = grafanadb.dashboard_acl.team_id
 				INNER JOIN grafanadb.team_member ON grafanadb.team_member.team_id = grafanadb.group.team_id
 				WHERE grafanadb.team_member.user_id = $1 AND grafanadb.team_member.permission = $2;`;
-	const result = await pool.query(query, [userId, 4]);
+	const result = await readQuery(query, [userId, 4]);
 	return parseInt(result.rows[0].count, 10);
 };
 
@@ -448,7 +448,7 @@ export const getAllGroupsInOrganization = async (orgId: number): Promise<IGroup[
 				INNER JOIN grafanadb.dashboard_acl ON grafanadb.group.team_id = grafanadb.dashboard_acl.team_id
 				WHERE grafanadb.group.org_id = $1
 				ORDER BY id ASC;`;
-	const result = await pool.query(query, [orgId]);
+	const result = await readQuery(query, [orgId]);
 	const permissionCodes = ["None", "Viewer", "Editor"];
 	result.rows.forEach((row) => (row.folderPermission = permissionCodes[row.folderPermission]));
 	return result.rows as IGroup[];
@@ -476,7 +476,7 @@ export const getAllGroupsInOrgArray = async (orgIdsArray: number[]): Promise<IGr
 				INNER JOIN grafanadb.dashboard_acl ON grafanadb.group.team_id = grafanadb.dashboard_acl.team_id
 				WHERE grafanadb.group.org_id = ANY($1::bigint[])
 				ORDER BY id ASC;`;
-	const result = await pool.query(query, [orgIdsArray]);
+	const result = await readQuery(query, [orgIdsArray]);
 	const permissionCodes = ["None", "Viewer", "Editor"];
 	result.rows.forEach((row) => (row.folderPermission = permissionCodes[row.folderPermission]));
 	return result.rows as IGroup[];
@@ -505,7 +505,7 @@ export const getGroupByWithFolderPermissionProp = async (
 				FROM grafanadb.group
 				INNER JOIN grafanadb.dashboard_acl ON grafanadb.group.team_id = grafanadb.dashboard_acl.team_id
 				WHERE grafanadb.group.${propName} = $1;`;
-	const result = await pool.query(query, [propValue]);
+	const result = await readQuery(query, [propValue]);
 	const permissionCodes = ["None", "Viewer", "Editor"];
 	result.rows[0].folderPermission = permissionCodes[result.rows[0].folderPermission];
 	return result.rows[0] as IGroup;
@@ -529,7 +529,7 @@ export const getGroupByProp = async (propName: string, propValue: string | numbe
 				grafanadb.group.created, grafanadb.group.updated
 				FROM grafanadb.group
 				WHERE grafanadb.group.${propName} = $1;`;
-	const result = await pool.query(query, [propValue]);
+	const result = await readQuery(query, [propValue]);
 	return result.rows[0] as IGroup;
 };
 
@@ -553,7 +553,7 @@ export const getFullGroupDataById = async (groupId: number): Promise<IGroup> => 
 				grafanadb.group.created, grafanadb.group.updated
 				FROM grafanadb.group
 				WHERE grafanadb.group.id = $1;`;
-	const result = await pool.query(query, [groupId]);
+	const result = await readQuery(query, [groupId]);
 	return result.rows[0] as IGroup;
 };
 
@@ -575,7 +575,7 @@ export const getDefaultOrgGroup = async (orgId: number): Promise<IGroup> => {
 				grafanadb.group.created, grafanadb.group.updated
 				FROM grafanadb.group
 				WHERE grafanadb.group.org_id = $1 AND is_org_default_group = $2;`;
-	const result = await pool.query(query, [orgId, true]);
+	const result = await readQuery(query, [orgId, true]);
 	return result.rows[0] as IGroup;
 };
 
@@ -722,23 +722,23 @@ export const updateNotificationChannelName = async (id: number, newName: string)
 };
 
 export const getNotificationChannelSettings = async (id: number): Promise<any> => {
-	const result = await pool.query("SELECT settings FROM grafanadb.alert_notification WHERE id = $1", [id]);
+	const result = await readQuery("SELECT settings FROM grafanadb.alert_notification WHERE id = $1", [id]);
 	// eslint-disable-next-line @typescript-eslint/no-unsafe-return
 	return result.rows[0];
 };
 
 export const getNotificationChannelName = async (id: number): Promise<string> => {
-	const result = await pool.query("SELECT name FROM grafanadb.alert_notification WHERE id = $1", [id]);
+	const result = await readQuery("SELECT name FROM grafanadb.alert_notification WHERE id = $1", [id]);
 	return result.rows[0].name as string;
 };
 
 export const getNotificationChannelUid = async (id: number): Promise<string> => {
-	const result = await pool.query("SELECT uid FROM grafanadb.alert_notification WHERE id = $1", [id]);
+	const result = await readQuery("SELECT uid FROM grafanadb.alert_notification WHERE id = $1", [id]);
 	return result.rows[0].uid as string;
 };
 
 export const getNotificationChannelById = async (id: number): Promise<INotificationChannel> => {
-	const result = await pool.query(
+	const result = await readQuery(
 		`SELECT id, org_id AS "orgId", name, type, settings,
 		is_default AS "isDefault", frequency, send_reminder AS "sendReminder",
 		disable_resolve_message AS "disableResolveMessage",
@@ -750,7 +750,7 @@ export const getNotificationChannelById = async (id: number): Promise<INotificat
 };
 
 export const getNotificationAllChannels = async (): Promise<INotificationChannel[]> => {
-	const result = await pool.query(
+	const result = await readQuery(
 		`SELECT id, org_id AS "orgId", name, type, settings,
 		is_default AS "isDefault", frequency, send_reminder AS "sendReminder",
 		disable_resolve_message AS "disableResolveMessage",
@@ -893,7 +893,7 @@ export const haveThisUserGroupAdminPermissions = async (
 	orgId: number
 ): Promise<boolean> => {
 	let havePermissions = false;
-	const result = await pool.query(
+	const result = await readQuery(
 		"SELECT COUNT(*) FROM grafanadb.team_member WHERE team_id = $1 AND user_id = $2 AND permission = $3",
 		[teamId, userId, 4]
 	);
@@ -907,7 +907,7 @@ export const haveThisUserGroupAdminPermissions = async (
 };
 
 export const isThisUserGroupAdmin = async (userId: number, teamId: number): Promise<boolean> => {
-	const result = await pool.query(
+	const result = await readQuery(
 		"SELECT COUNT(*) FROM grafanadb.team_member WHERE team_id = $1 AND user_id = $2 AND permission = $3",
 		[teamId, userId, 4]
 	);
@@ -916,7 +916,7 @@ export const isThisUserGroupAdmin = async (userId: number, teamId: number): Prom
 };
 
 export const getNumberOfGroupMemberWithAdminRole = async (teamId: number): Promise<number> => {
-	const result = await pool.query(
+	const result = await readQuery(
 		"SELECT COUNT(*) FROM grafanadb.team_member WHERE team_id = $1 AND permission = $2",
 		[teamId, 4]
 	);
@@ -933,7 +933,7 @@ export const getGroupMembers = async (group: IGroup): Promise<IGroupMember[]> =>
 					INNER JOIN grafanadb.group ON grafanadb.group.team_id = grafanadb.team_member.team_id
 					WHERE grafanadb.team_member.team_id = $1
 					ORDER BY grafanadb.user.id ASC`;
-	const result = await pool.query(query, [group.teamId]);
+	const result = await readQuery(query, [group.teamId]);
 	result.rows.forEach((member) => (member.roleInGroup = permissionCodes[member.roleInGroup]));
 	return result.rows as IGroupMember[];
 };
@@ -949,7 +949,7 @@ export const getGroupMembersInTeamIdArray = async (teamIdsArray: number[]): Prom
 					INNER JOIN grafanadb.group ON grafanadb.group.team_id = grafanadb.team_member.team_id
 					WHERE grafanadb.team_member.team_id = ANY($1::bigint[])
 					ORDER BY grafanadb.user.id ASC`;
-	const result = await pool.query(query, [teamIdsArray]);
+	const result = await readQuery(query, [teamIdsArray]);
 	result.rows.forEach((member) => (member.roleInGroup = permissionCodes[member.roleInGroup]));
 	return result.rows as IGroupMember[];
 };
@@ -964,7 +964,7 @@ export const getGroupMembersByEmailsArray = async (group: IGroup, emailsArray: s
 					INNER JOIN grafanadb.team_member ON grafanadb.team_member.user_id = grafanadb.user.id
 					INNER JOIN grafanadb.group ON grafanadb.group.team_id = grafanadb.team_member.team_id
 					WHERE grafanadb.team_member.team_id = $1 AND grafanadb.user.email =  ANY($2::varchar(190)[])`;
-	const result = await pool.query(query, [group.teamId, emailsArray]);
+	const result = await readQuery(query, [group.teamId, emailsArray]);
 	result.rows.forEach((member) => (member.roleInGroup = permissionCodes[member.roleInGroup]));
 	return result.rows as IGroupMember[];
 };
@@ -984,7 +984,7 @@ export const getGroupMemberByProp = async (
 					INNER JOIN grafanadb.group ON grafanadb.group.team_id = grafanadb.team_member.team_id
 					WHERE grafanadb.team_member.team_id = $1
 					AND  grafanadb.user.${propName} = $2`;
-	const result = await pool.query(query, [group.teamId, propValue]);
+	const result = await readQuery(query, [group.teamId, propValue]);
 	if (result.rows[0]) result.rows[0].roleInGroup = permissionCodes[result.rows[0].roleInGroup];
 	return result.rows[0] as IGroupMember;
 };
@@ -1171,9 +1171,9 @@ export const createAllViews = async (groups: IGroup[], viewsNames: string[]): Pr
 export const updateMqttPasswordOfGroupById = async (groupId: number, newMqttPassword: string): Promise<void> => {
 	const iterations = 10000;
 
-	const response = await pool.query(
+	const response = await readQuery(
 		`SELECT grafanadb.group.mqtt_salt AS "mqttSalt"
-	                                FROM grafanadb.group WHERE grafanadb.group.id = $1`,
+			FROM grafanadb.group WHERE grafanadb.group.id = $1`,
 		[groupId]
 	);
 	const mqttSalt = response.rows[0].mqttSalt;

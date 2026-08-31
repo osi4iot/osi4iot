@@ -104,8 +104,9 @@ func (p *Pruner) NextRun(now time.Time) time.Time {
 // the service back down — even on failure or timeout — so a stuck node
 // doesn't leave system_prune permanently occupying that name. The
 // returned string is a one-line-per-node summary of how each node's
-// prune went; a non-nil error means at least one node failed.
-func (p *Pruner) Run(ctx context.Context) (string, error) {
+// prune went; a non-nil error means at least one node failed. params is
+// unused — a cluster-wide prune has nothing per-request to configure.
+func (p *Pruner) Run(ctx context.Context, params map[string]any) (string, error) {
 	cli, err := dockersvc.NewClient()
 	if err != nil {
 		return "", fmt.Errorf("connecting to Docker: %w", err)
@@ -144,7 +145,15 @@ func (p *Pruner) Run(ctx context.Context) (string, error) {
 // command in the package doc comment. Leaving ContainerSpec.Command
 // unset keeps the docker:cli image's own ENTRYPOINT ("docker"); Args
 // becomes the CMD appended after it, so the task runs exactly
-// `docker system prune -a -f --volumes`.
+// `docker system prune -a -f`.
+//
+// Deliberately WITHOUT --volumes. In Swarm, "volume not referenced by
+// any container" is not "volume nobody wants" — it is "volume whose
+// task container does not exist at this instant", which includes any
+// service mid-rolling-update, mid-restart, or scaled to zero, and every
+// volume belonging to a service not scheduled on this node. No volume
+// in this platform is disposable, so there is nothing for --volumes to
+// legitimately reclaim and a great deal for it to destroy.
 func jobSpec() swarm.ServiceSpec {
 	return swarm.ServiceSpec{
 		Annotations: swarm.Annotations{
@@ -154,7 +163,7 @@ func jobSpec() swarm.ServiceSpec {
 		TaskTemplate: swarm.TaskSpec{
 			ContainerSpec: &swarm.ContainerSpec{
 				Image: "ghcr.io/osi4iot/system_prune:latest",
-				Args:  []string{"system", "prune", "-a", "-f", "--volumes"},
+				Args:  []string{"system", "prune", "-a", "-f"},
 				Mounts: []mount.Mount{
 					{
 						Type:   mount.TypeBind,

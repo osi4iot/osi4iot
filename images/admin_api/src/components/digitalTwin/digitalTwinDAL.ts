@@ -1,5 +1,5 @@
 import { nanoid } from "nanoid";
-import pool from "../../config/dbconfig";
+import pool, { readQuery } from "../../config/dbconfig";
 import IGroup from "../group/interfaces/Group.interface";
 import CreateDigitalTwinDto from "./digitalTwin.dto";
 import IDigitalTwin from "./digitalTwin.interface";
@@ -10,8 +10,6 @@ import IMqttTopicInfo from "../topic/mqttTopicInfo.interface";
 import getDomainUrl from "../../utils/helpers/getDomainUrl";
 import IDashboardInfo from "../dashboard/dashboardInfo.interfase";
 import { IDigitalTwinData, IMqttTopicData, IMqttTopicDataShort } from "./digitalTwinGltfData.interface";
-// import {  getLastMeasurementInChunk } from "../mesurement/measurementDAL";
-// import IMeasurement from "../mesurement/measurement.interface";
 import IDigitalTwinSimulator from "./digitalTwinSimulator.interface";
 import IDigitalTwinTopic from "./digitalTwinTopic.interface";
 import { createDashboard, createSystemMonitoringDashboard, deleteDashboard } from "../group/dashboardDAL";
@@ -34,7 +32,11 @@ import { getSensorDashboardByAssetId, getSensorsByAssetId } from "../sensor/sens
 import natsClient from "../../config/natsConfig";
 import { getOrganizationByProp } from "../organization/organizationDAL";
 import PipelineFileDataDto from "./pipelineFileData.dto";
-import { createDefaultPipelineDataForDigitalTwin, createDefaultPipelineDataForSystemMonitoring, createDigitalTwinPipeline } from "./pipeline";
+import {
+	createDefaultPipelineDataForDigitalTwin,
+	createDefaultPipelineDataForSystemMonitoring,
+	createDigitalTwinPipeline,
+} from "./pipeline";
 import PipelineDto from "./pipeline.dto";
 
 export const insertDigitalTwin = async (digitalTwinData: Partial<IDigitalTwin>): Promise<IDigitalTwin> => {
@@ -70,163 +72,164 @@ export const insertDigitalTwin = async (digitalTwinData: Partial<IDigitalTwin>):
 };
 
 export const getAllDigitalTwins = async (): Promise<IDigitalTwin[]> => {
-	const response = await pool.query(`SELECT grafanadb.digital_twin.id, grafanadb.group.org_id AS "orgId",
-										grafanadb.digital_twin.group_id AS "groupId", grafanadb.digital_twin.asset_id AS "assetId",
-										grafanadb.digital_twin.digital_twin_uid AS "digitalTwinUid",
-										grafanadb.digital_twin.scope, grafanadb.digital_twin.description,
-										grafanadb.digital_twin.type, grafanadb.digital_twin.max_num_resfem_files AS "maxNumResFemFiles",
-										grafanadb.digital_twin.dashboard_id AS "dashboardId",
-										grafanadb.digital_twin.chat_assistant_enabled AS "chatAssistantEnabled",
-										grafanadb.digital_twin.chat_assistant_language AS "chatAssistantLanguage",
-										grafanadb.digital_twin.digital_twin_simulation_format AS "digitalTwinSimulationFormat",
-										grafanadb.digital_twin.pipeline_file_name AS "pipelineFileName",
-										grafanadb.digital_twin.pipeline_file_last_modif_date AS "pipelineFileLastModifDate",
-										grafanadb.digital_twin.pipeline_file_data AS "pipelineFileData",
-										grafanadb.digital_twin.created, grafanadb.digital_twin.updated
-										FROM grafanadb.digital_twin
-										INNER JOIN grafanadb.group ON grafanadb.digital_twin.group_id = grafanadb.group.id
-										ORDER BY grafanadb.digital_twin.id ASC,
-											grafanadb.group.org_id ASC,
-											grafanadb.digital_twin.group_id ASC,
-											grafanadb.digital_twin.asset_id ASC;`);
+	const response = await readQuery(`
+		SELECT grafanadb.digital_twin.id, grafanadb.group.org_id AS "orgId",
+		grafanadb.digital_twin.group_id AS "groupId", grafanadb.digital_twin.asset_id AS "assetId",
+		grafanadb.digital_twin.digital_twin_uid AS "digitalTwinUid",
+		grafanadb.digital_twin.scope, grafanadb.digital_twin.description,
+		grafanadb.digital_twin.type, grafanadb.digital_twin.max_num_resfem_files AS "maxNumResFemFiles",
+		grafanadb.digital_twin.dashboard_id AS "dashboardId",
+		grafanadb.digital_twin.chat_assistant_enabled AS "chatAssistantEnabled",
+		grafanadb.digital_twin.chat_assistant_language AS "chatAssistantLanguage",
+		grafanadb.digital_twin.digital_twin_simulation_format AS "digitalTwinSimulationFormat",
+		grafanadb.digital_twin.pipeline_file_name AS "pipelineFileName",
+		grafanadb.digital_twin.pipeline_file_last_modif_date AS "pipelineFileLastModifDate",
+		grafanadb.digital_twin.pipeline_file_data AS "pipelineFileData",
+		grafanadb.digital_twin.created, grafanadb.digital_twin.updated
+		FROM grafanadb.digital_twin
+		INNER JOIN grafanadb.group ON grafanadb.digital_twin.group_id = grafanadb.group.id
+		ORDER BY grafanadb.digital_twin.id ASC,
+			grafanadb.group.org_id ASC,
+			grafanadb.digital_twin.group_id ASC,
+			grafanadb.digital_twin.asset_id ASC;`);
 	return response.rows as IDigitalTwin[];
 };
 
 export const getNumDigitalTwins = async (): Promise<number> => {
-	const result = await pool.query(`SELECT COUNT(*) FROM grafanadb.digital_twin;`);
+	const result = await readQuery(`SELECT COUNT(*) FROM grafanadb.digital_twin;`);
 	return parseInt(result.rows[0].count, 10);
 };
 
 export const getNumDigitalTwinsByGroupsIdArray = async (groupsIdArray: number[]): Promise<number> => {
-	const result = await pool.query(
+	const result = await readQuery(
 		`SELECT COUNT(*) FROM grafanadb.digital_twin
-									WHERE grafanadb.digital_twin.group_id = ANY($1::bigint[])`,
+		WHERE grafanadb.digital_twin.group_id = ANY($1::bigint[])`,
 		[groupsIdArray]
 	);
 	return parseInt(result.rows[0].count, 10);
 };
 
 export const getNumDigitalTwinsByAssetId = async (assetId: number): Promise<number> => {
-	const result = await pool.query(
+	const result = await readQuery(
 		`SELECT COUNT(*) FROM grafanadb.digital_twin
-									WHERE grafanadb.digital_twin.assetId = $1`,
+		WHERE grafanadb.digital_twin.assetId = $1`,
 		[assetId]
 	);
 	return parseInt(result.rows[0].count, 10);
 };
 
 export const getDigitalTwinsByOrgId = async (orgId: number): Promise<IDigitalTwin[]> => {
-	const response = await pool.query(
+	const response = await readQuery(
 		`SELECT grafanadb.digital_twin.id, grafanadb.group.org_id AS "orgId",
-									grafanadb.digital_twin.group_id AS "groupId", grafanadb.digital_twin.asset_id AS "assetId",
-									grafanadb.digital_twin.digital_twin_uid AS "digitalTwinUid",
-									grafanadb.digital_twin.scope, grafanadb.digital_twin.description,
-									grafanadb.digital_twin.type, grafanadb.digital_twin.max_num_resfem_files AS "maxNumResFemFiles",
-									grafanadb.digital_twin.dashboard_id AS "dashboardId",
-									grafanadb.digital_twin.chat_assistant_enabled AS "chatAssistantEnabled",
-									grafanadb.digital_twin.chat_assistant_language AS "chatAssistantLanguage",
-									grafanadb.digital_twin.digital_twin_simulation_format AS "digitalTwinSimulationFormat",
-									grafanadb.digital_twin.pipeline_file_name AS "pipelineFileName",
-									grafanadb.digital_twin.pipeline_file_last_modif_date AS "pipelineFileLastModifDate",
-									grafanadb.digital_twin.pipeline_file_data AS "pipelineFileData",
-									grafanadb.digital_twin.created, grafanadb.digital_twin.updated
-									FROM grafanadb.digital_twin
-									INNER JOIN grafanadb.group ON grafanadb.digital_twin.group_id = grafanadb.group.id
-									WHERE grafanadb.group.org_id = $1
-									ORDER BY grafanadb.digital_twin.id ASC,
-										grafanadb.group.org_id ASC,
-										grafanadb.digital_twin.group_id ASC,
-										grafanadb.digital_twin.asset_id ASC;`,
+		grafanadb.digital_twin.group_id AS "groupId", grafanadb.digital_twin.asset_id AS "assetId",
+		grafanadb.digital_twin.digital_twin_uid AS "digitalTwinUid",
+		grafanadb.digital_twin.scope, grafanadb.digital_twin.description,
+		grafanadb.digital_twin.type, grafanadb.digital_twin.max_num_resfem_files AS "maxNumResFemFiles",
+		grafanadb.digital_twin.dashboard_id AS "dashboardId",
+		grafanadb.digital_twin.chat_assistant_enabled AS "chatAssistantEnabled",
+		grafanadb.digital_twin.chat_assistant_language AS "chatAssistantLanguage",
+		grafanadb.digital_twin.digital_twin_simulation_format AS "digitalTwinSimulationFormat",
+		grafanadb.digital_twin.pipeline_file_name AS "pipelineFileName",
+		grafanadb.digital_twin.pipeline_file_last_modif_date AS "pipelineFileLastModifDate",
+		grafanadb.digital_twin.pipeline_file_data AS "pipelineFileData",
+		grafanadb.digital_twin.created, grafanadb.digital_twin.updated
+		FROM grafanadb.digital_twin
+		INNER JOIN grafanadb.group ON grafanadb.digital_twin.group_id = grafanadb.group.id
+		WHERE grafanadb.group.org_id = $1
+		ORDER BY grafanadb.digital_twin.id ASC,
+			grafanadb.group.org_id ASC,
+			grafanadb.digital_twin.group_id ASC,
+			grafanadb.digital_twin.asset_id ASC;`,
 		[orgId]
 	);
 	return response.rows as IDigitalTwin[];
 };
 
 export const getDigitalTwinsByGroupId = async (groupId: number): Promise<IDigitalTwin[]> => {
-	const response = await pool.query(
+	const response = await readQuery(
 		`SELECT grafanadb.digital_twin.id, grafanadb.group.org_id AS "orgId",
-										grafanadb.digital_twin.group_id AS "groupId", grafanadb.digital_twin.asset_id AS "assetId",
-										grafanadb.digital_twin.digital_twin_uid AS "digitalTwinUid",
-										grafanadb.digital_twin.scope, grafanadb.digital_twin.description,
-										grafanadb.digital_twin.type, grafanadb.digital_twin.max_num_resfem_files AS "maxNumResFemFiles",
-										grafanadb.digital_twin.dashboard_id AS "dashboardId",
-										grafanadb.digital_twin.chat_assistant_enabled AS "chatAssistantEnabled",
-										grafanadb.digital_twin.chat_assistant_language AS "chatAssistantLanguage",
-										grafanadb.digital_twin.digital_twin_simulation_format AS "digitalTwinSimulationFormat",
-										grafanadb.digital_twin.pipeline_file_name AS "pipelineFileName",
-										grafanadb.digital_twin.pipeline_file_last_modif_date AS "pipelineFileLastModifDate",
-										grafanadb.digital_twin.pipeline_file_data AS "pipelineFileData",
-										grafanadb.digital_twin.created, grafanadb.digital_twin.updated
-										FROM grafanadb.digital_twin
-										INNER JOIN grafanadb.group ON grafanadb.digital_twin.group_id = grafanadb.group.id
-										WHERE grafanadb.digital_twin.group_id = $1
-										ORDER BY grafanadb.digital_twin.id ASC,
-										grafanadb.group.org_id ASC,
-										grafanadb.digital_twin.group_id ASC,
-										grafanadb.digital_twin.asset_id ASC;`,
+		grafanadb.digital_twin.group_id AS "groupId", grafanadb.digital_twin.asset_id AS "assetId",
+		grafanadb.digital_twin.digital_twin_uid AS "digitalTwinUid",
+		grafanadb.digital_twin.scope, grafanadb.digital_twin.description,
+		grafanadb.digital_twin.type, grafanadb.digital_twin.max_num_resfem_files AS "maxNumResFemFiles",
+		grafanadb.digital_twin.dashboard_id AS "dashboardId",
+		grafanadb.digital_twin.chat_assistant_enabled AS "chatAssistantEnabled",
+		grafanadb.digital_twin.chat_assistant_language AS "chatAssistantLanguage",
+		grafanadb.digital_twin.digital_twin_simulation_format AS "digitalTwinSimulationFormat",
+		grafanadb.digital_twin.pipeline_file_name AS "pipelineFileName",
+		grafanadb.digital_twin.pipeline_file_last_modif_date AS "pipelineFileLastModifDate",
+		grafanadb.digital_twin.pipeline_file_data AS "pipelineFileData",
+		grafanadb.digital_twin.created, grafanadb.digital_twin.updated
+		FROM grafanadb.digital_twin
+		INNER JOIN grafanadb.group ON grafanadb.digital_twin.group_id = grafanadb.group.id
+		WHERE grafanadb.digital_twin.group_id = $1
+		ORDER BY grafanadb.digital_twin.id ASC,
+		grafanadb.group.org_id ASC,
+		grafanadb.digital_twin.group_id ASC,
+		grafanadb.digital_twin.asset_id ASC;`,
 		[groupId]
 	);
 	return response.rows as IDigitalTwin[];
 };
 
 export const getDigitalTwinsByGroupsIdArray = async (groupsIdArray: number[]): Promise<IDigitalTwin[]> => {
-	const response = await pool.query(
+	const response = await readQuery(
 		`SELECT grafanadb.digital_twin.id, grafanadb.group.org_id AS "orgId",
-									grafanadb.digital_twin.group_id AS "groupId", grafanadb.digital_twin.asset_id AS "assetId",
-									grafanadb.digital_twin.digital_twin_uid AS "digitalTwinUid",
-									grafanadb.digital_twin.scope, grafanadb.digital_twin.description,
-									grafanadb.digital_twin.type, grafanadb.digital_twin.max_num_resfem_files AS "maxNumResFemFiles",
-									grafanadb.digital_twin.dashboard_id AS "dashboardId",
-									grafanadb.digital_twin.chat_assistant_enabled AS "chatAssistantEnabled",
-									grafanadb.digital_twin.chat_assistant_language AS "chatAssistantLanguage",
-									grafanadb.digital_twin.digital_twin_simulation_format AS "digitalTwinSimulationFormat",
-									grafanadb.digital_twin.pipeline_file_name AS "pipelineFileName",
-									grafanadb.digital_twin.pipeline_file_last_modif_date AS "pipelineFileLastModifDate",
-									grafanadb.digital_twin.pipeline_file_data AS "pipelineFileData",
-									grafanadb.digital_twin.created, grafanadb.digital_twin.updated
-									FROM grafanadb.digital_twin
-									INNER JOIN grafanadb.group ON grafanadb.digital_twin.group_id = grafanadb.group.id
-									WHERE grafanadb.digital_twin.group_id = ANY($1::bigint[])
-									ORDER BY grafanadb.digital_twin.id ASC,
-										grafanadb.group.org_id ASC,
-										grafanadb.digital_twin.group_id ASC,
-										grafanadb.digital_twin.asset_id ASC;`,
+		grafanadb.digital_twin.group_id AS "groupId", grafanadb.digital_twin.asset_id AS "assetId",
+		grafanadb.digital_twin.digital_twin_uid AS "digitalTwinUid",
+		grafanadb.digital_twin.scope, grafanadb.digital_twin.description,
+		grafanadb.digital_twin.type, grafanadb.digital_twin.max_num_resfem_files AS "maxNumResFemFiles",
+		grafanadb.digital_twin.dashboard_id AS "dashboardId",
+		grafanadb.digital_twin.chat_assistant_enabled AS "chatAssistantEnabled",
+		grafanadb.digital_twin.chat_assistant_language AS "chatAssistantLanguage",
+		grafanadb.digital_twin.digital_twin_simulation_format AS "digitalTwinSimulationFormat",
+		grafanadb.digital_twin.pipeline_file_name AS "pipelineFileName",
+		grafanadb.digital_twin.pipeline_file_last_modif_date AS "pipelineFileLastModifDate",
+		grafanadb.digital_twin.pipeline_file_data AS "pipelineFileData",
+		grafanadb.digital_twin.created, grafanadb.digital_twin.updated
+		FROM grafanadb.digital_twin
+		INNER JOIN grafanadb.group ON grafanadb.digital_twin.group_id = grafanadb.group.id
+		WHERE grafanadb.digital_twin.group_id = ANY($1::bigint[])
+		ORDER BY grafanadb.digital_twin.id ASC,
+			grafanadb.group.org_id ASC,
+			grafanadb.digital_twin.group_id ASC,
+			grafanadb.digital_twin.asset_id ASC;`,
 		[groupsIdArray]
 	);
 	return response.rows as IDigitalTwin[];
 };
 
 export const getDigitalTwinByProp = async (propName: string, propValue: string | number): Promise<IDigitalTwin> => {
-	const response = await pool.query(
+	const response = await readQuery(
 		`SELECT grafanadb.digital_twin.id, grafanadb.group.org_id AS "orgId",
-									grafanadb.digital_twin.group_id AS "groupId", 
-									grafanadb.digital_twin.asset_id AS "assetId",
-									grafanadb.digital_twin.digital_twin_uid AS "digitalTwinUid",
-									grafanadb.digital_twin.scope, grafanadb.digital_twin.description,
-									grafanadb.digital_twin.type, 
-									grafanadb.digital_twin.max_num_resfem_files AS "maxNumResFemFiles",
-									grafanadb.digital_twin.dashboard_id AS "dashboardId",
-									grafanadb.digital_twin.chat_assistant_enabled AS "chatAssistantEnabled",
-									grafanadb.digital_twin.chat_assistant_language AS "chatAssistantLanguage",
-									grafanadb.digital_twin.digital_twin_simulation_format AS "digitalTwinSimulationFormat",
-									grafanadb.digital_twin.pipeline_file_name AS "pipelineFileName",
-									grafanadb.digital_twin.pipeline_file_last_modif_date AS "pipelineFileLastModifDate",
-									grafanadb.digital_twin.pipeline_file_data AS "pipelineFileData",
-									grafanadb.digital_twin.created, grafanadb.digital_twin.updated
-									FROM grafanadb.digital_twin
-									INNER JOIN grafanadb.group ON grafanadb.digital_twin.group_id = grafanadb.group.id
-									WHERE grafanadb.digital_twin.${propName} = $1`,
+		grafanadb.digital_twin.group_id AS "groupId", 
+		grafanadb.digital_twin.asset_id AS "assetId",
+		grafanadb.digital_twin.digital_twin_uid AS "digitalTwinUid",
+		grafanadb.digital_twin.scope, grafanadb.digital_twin.description,
+		grafanadb.digital_twin.type, 
+		grafanadb.digital_twin.max_num_resfem_files AS "maxNumResFemFiles",
+		grafanadb.digital_twin.dashboard_id AS "dashboardId",
+		grafanadb.digital_twin.chat_assistant_enabled AS "chatAssistantEnabled",
+		grafanadb.digital_twin.chat_assistant_language AS "chatAssistantLanguage",
+		grafanadb.digital_twin.digital_twin_simulation_format AS "digitalTwinSimulationFormat",
+		grafanadb.digital_twin.pipeline_file_name AS "pipelineFileName",
+		grafanadb.digital_twin.pipeline_file_last_modif_date AS "pipelineFileLastModifDate",
+		grafanadb.digital_twin.pipeline_file_data AS "pipelineFileData",
+		grafanadb.digital_twin.created, grafanadb.digital_twin.updated
+		FROM grafanadb.digital_twin
+		INNER JOIN grafanadb.group ON grafanadb.digital_twin.group_id = grafanadb.group.id
+		WHERE grafanadb.digital_twin.${propName} = $1`,
 		[propValue]
 	);
 	return response.rows[0] as IDigitalTwin;
 };
 
 export const checkDigitalTwinConstraint = async (groupId: number, assetId: number, scope: string): Promise<boolean> => {
-	const response = await pool.query(
+	const response = await readQuery(
 		`SELECT grafanadb.digital_twin.id FROM grafanadb.digital_twin
-									WHERE grafanadb.digital_twin.group_id = $1 AND
-									grafanadb.digital_twin.asset_id = $2 AND
-									grafanadb.digital_twin.scope = $3;`,
+		WHERE grafanadb.digital_twin.group_id = $1 AND
+		grafanadb.digital_twin.asset_id = $2 AND
+		grafanadb.digital_twin.scope = $3;`,
 		[groupId, assetId, scope]
 	);
 	return response.rows[0] === undefined;
@@ -319,29 +322,29 @@ export const deleteTopicsOfDT = async (digitalTwinId: number): Promise<void> => 
 };
 
 export const getAllDigitalTwinSimulators = async (): Promise<IDigitalTwinSimulator[]> => {
-	const response = await pool.query(
+	const response = await readQuery(
 		`SELECT grafanadb.digital_twin.id, grafanadb.org.acronym AS "orgAcronym",
-						grafanadb.group.acronym AS "groupAcronym",
-						grafanadb.group.id AS "groupId",
-						grafanadb.asset.asset_uid AS "assetUid",
-						grafanadb.asset.description AS "assetDescription",
-						grafanadb.digital_twin.digital_twin_uid AS "digitalTwinUid", 
-						grafanadb.digital_twin.description AS "digitalTwinDescription", 
-						grafanadb.digital_twin.digital_twin_simulation_format AS "digitalTwinSimulationFormat",
-						grafanadb.digital_twin_topic.topic_id AS "sensorSimulationTopicId"
-						FROM grafanadb.digital_twin
-						INNER JOIN grafanadb.group ON grafanadb.digital_twin.group_id = grafanadb.group.id
-						INNER JOIN grafanadb.org ON grafanadb.group.org_id = grafanadb.org.id
-						INNER JOIN grafanadb.asset ON grafanadb.digital_twin.asset_id = grafanadb.asset.id
-						INNER JOIN grafanadb.digital_twin_topic ON
-							grafanadb.digital_twin_topic.digital_twin_id = grafanadb.digital_twin.id
-						WHERE  (grafanadb.digital_twin.type = $1 OR grafanadb.digital_twin.type = $2) AND
-						grafanadb.digital_twin.digital_twin_simulation_format != '{}'::jsonb AND
-						grafanadb.digital_twin_topic.topic_ref = $3
-						ORDER BY grafanadb.group.org_id ASC,
-							grafanadb.digital_twin.group_id ASC,
-							grafanadb.digital_twin.asset_id ASC,
-							grafanadb.digital_twin.id ASC;`,
+		grafanadb.group.acronym AS "groupAcronym",
+		grafanadb.group.id AS "groupId",
+		grafanadb.asset.asset_uid AS "assetUid",
+		grafanadb.asset.description AS "assetDescription",
+		grafanadb.digital_twin.digital_twin_uid AS "digitalTwinUid", 
+		grafanadb.digital_twin.description AS "digitalTwinDescription", 
+		grafanadb.digital_twin.digital_twin_simulation_format AS "digitalTwinSimulationFormat",
+		grafanadb.digital_twin_topic.topic_id AS "sensorSimulationTopicId"
+		FROM grafanadb.digital_twin
+		INNER JOIN grafanadb.group ON grafanadb.digital_twin.group_id = grafanadb.group.id
+		INNER JOIN grafanadb.org ON grafanadb.group.org_id = grafanadb.org.id
+		INNER JOIN grafanadb.asset ON grafanadb.digital_twin.asset_id = grafanadb.asset.id
+		INNER JOIN grafanadb.digital_twin_topic ON
+			grafanadb.digital_twin_topic.digital_twin_id = grafanadb.digital_twin.id
+		WHERE  (grafanadb.digital_twin.type = $1 OR grafanadb.digital_twin.type = $2) AND
+		grafanadb.digital_twin.digital_twin_simulation_format != '{}'::jsonb AND
+		grafanadb.digital_twin_topic.topic_ref = $3
+		ORDER BY grafanadb.group.org_id ASC,
+			grafanadb.digital_twin.group_id ASC,
+			grafanadb.digital_twin.asset_id ASC,
+			grafanadb.digital_twin.id ASC;`,
 		["Gltf 3D model", "Glb 3D model", "sim2dtm"]
 	);
 	return response.rows as IDigitalTwinSimulator[];
@@ -350,60 +353,61 @@ export const getAllDigitalTwinSimulators = async (): Promise<IDigitalTwinSimulat
 export const getDigitalTwinSimulatorsByGroupsIdArray = async (
 	groupsIdArray: number[]
 ): Promise<IDigitalTwinSimulator[]> => {
-	const response = await pool.query(
+	const response = await readQuery(
 		`SELECT grafanadb.digital_twin.id, grafanadb.org.acronym AS "orgAcronym",
-						grafanadb.group.acronym AS "groupAcronym",
-						grafanadb.group.id AS "groupId",
-						grafanadb.asset.asset_uid AS "assetUid",
-						grafanadb.asset.description AS "assetDescription",
-						grafanadb.digital_twin.digital_twin_uid AS "digitalTwinUid", 
-						grafanadb.digital_twin.description AS "digitalTwinDescription", 
-						grafanadb.digital_twin.digital_twin_simulation_format AS "digitalTwinSimulationFormat",
-						grafanadb.digital_twin_topic.topic_id AS "sensorSimulationTopicId"
-						FROM grafanadb.digital_twin
-						INNER JOIN grafanadb.group ON grafanadb.digital_twin.group_id = grafanadb.group.id
-						INNER JOIN grafanadb.org ON grafanadb.group.org_id = grafanadb.org.id
-						INNER JOIN grafanadb.asset ON grafanadb.digital_twin.asset_id = grafanadb.asset.id
-						INNER JOIN grafanadb.digital_twin_topic ON
-							grafanadb.digital_twin_topic.digital_twin_id = grafanadb.digital_twin.id
-						WHERE grafanadb.digital_twin.group_id = ANY($1::bigint[]) AND
-						(grafanadb.digital_twin.type = $2 OR grafanadb.digital_twin.type = $3) AND
-						grafanadb.digital_twin.digital_twin_simulation_format != '{}'::jsonb AND
-						grafanadb.digital_twin_topic.topic_ref = $4
-						ORDER BY grafanadb.group.org_id ASC,
-							grafanadb.group.id ASC,
-							grafanadb.digital_twin.id ASC;`,
+		grafanadb.group.acronym AS "groupAcronym",
+		grafanadb.group.id AS "groupId",
+		grafanadb.asset.asset_uid AS "assetUid",
+		grafanadb.asset.description AS "assetDescription",
+		grafanadb.digital_twin.digital_twin_uid AS "digitalTwinUid", 
+		grafanadb.digital_twin.description AS "digitalTwinDescription", 
+		grafanadb.digital_twin.digital_twin_simulation_format AS "digitalTwinSimulationFormat",
+		grafanadb.digital_twin_topic.topic_id AS "sensorSimulationTopicId"
+		FROM grafanadb.digital_twin
+		INNER JOIN grafanadb.group ON grafanadb.digital_twin.group_id = grafanadb.group.id
+		INNER JOIN grafanadb.org ON grafanadb.group.org_id = grafanadb.org.id
+		INNER JOIN grafanadb.asset ON grafanadb.digital_twin.asset_id = grafanadb.asset.id
+		INNER JOIN grafanadb.digital_twin_topic ON
+			grafanadb.digital_twin_topic.digital_twin_id = grafanadb.digital_twin.id
+		WHERE grafanadb.digital_twin.group_id = ANY($1::bigint[]) AND
+		(grafanadb.digital_twin.type = $2 OR grafanadb.digital_twin.type = $3) AND
+		grafanadb.digital_twin.digital_twin_simulation_format != '{}'::jsonb AND
+		grafanadb.digital_twin_topic.topic_ref = $4
+		ORDER BY grafanadb.group.org_id ASC,
+			grafanadb.group.id ASC,
+			grafanadb.digital_twin.id ASC;`,
 		[groupsIdArray, "Gltf 3D model", "Glb 3D model", "sim2dtm"]
 	);
 	return response.rows as IDigitalTwinSimulator[];
 };
 
 export const getStateOfAllDigitalTwins = async (): Promise<IDigitalTwinState[]> => {
-	const response =
-		await pool.query(`SELECT grafanadb.digital_twin.id AS "digitalTwinId", grafanadb.group.org_id AS "orgId",
-									grafanadb.digital_twin.group_id AS "groupId", grafanadb.digital_twin.asset_id AS "assetId",
-									grafanadb.alert.state
-									FROM grafanadb.digital_twin
-									INNER JOIN grafanadb.group ON grafanadb.digital_twin.group_id = grafanadb.group.id
-									LEFT JOIN grafanadb.alert ON grafanadb.digital_twin.dashboard_id = grafanadb.alert.dashboard_id
-									ORDER BY grafanadb.group.org_id ASC,
-											grafanadb.digital_twin.group_id ASC,
-											grafanadb.digital_twin.id ASC;`);
+	const response = await readQuery(
+		`SELECT grafanadb.digital_twin.id AS "digitalTwinId", grafanadb.group.org_id AS "orgId",
+			grafanadb.digital_twin.group_id AS "groupId", grafanadb.digital_twin.asset_id AS "assetId",
+			grafanadb.alert.state
+			FROM grafanadb.digital_twin
+			INNER JOIN grafanadb.group ON grafanadb.digital_twin.group_id = grafanadb.group.id
+			LEFT JOIN grafanadb.alert ON grafanadb.digital_twin.dashboard_id = grafanadb.alert.dashboard_id
+			ORDER BY grafanadb.group.org_id ASC,
+					grafanadb.digital_twin.group_id ASC,
+					grafanadb.digital_twin.id ASC;`
+	);
 	return response.rows as IDigitalTwinState[];
 };
 
 export const getStateOfDigitalTwinsByGroupsIdArray = async (groupsIdArray: number[]): Promise<IDigitalTwinState[]> => {
-	const response = await pool.query(
+	const response = await readQuery(
 		`SELECT grafanadb.digital_twin.id AS "digitalTwinId", grafanadb.group.org_id AS "orgId",
-									grafanadb.digital_twin.group_id AS "groupId", grafanadb.digital_twin.asset_id AS "assetId",
-									grafanadb.alert.state
-									FROM grafanadb.digital_twin
-									INNER JOIN grafanadb.group ON grafanadb.digital_twin.group_id = grafanadb.group.id
-									LEFT JOIN grafanadb.alert ON grafanadb.digital_twin.dashboard_id = grafanadb.alert.dashboard_id
-									WHERE grafanadb.digital_twin.group_id = ANY($1::bigint[])
-									ORDER BY grafanadb.group.org_id ASC,
-											grafanadb.digital_twin.group_id ASC,
-											grafanadb.digital_twin.id ASC;`,
+		grafanadb.digital_twin.group_id AS "groupId", grafanadb.digital_twin.asset_id AS "assetId",
+		grafanadb.alert.state
+		FROM grafanadb.digital_twin
+		INNER JOIN grafanadb.group ON grafanadb.digital_twin.group_id = grafanadb.group.id
+		LEFT JOIN grafanadb.alert ON grafanadb.digital_twin.dashboard_id = grafanadb.alert.dashboard_id
+		WHERE grafanadb.digital_twin.group_id = ANY($1::bigint[])
+		ORDER BY grafanadb.group.org_id ASC,
+				grafanadb.digital_twin.group_id ASC,
+				grafanadb.digital_twin.id ASC;`,
 		[groupsIdArray]
 	);
 	return response.rows as IDigitalTwinState[];
@@ -438,7 +442,7 @@ export const getAllDTTopics = async (): Promise<IDigitalTwinTopic[]> => {
 						FROM grafanadb.digital_twin_topic
 						ORDER BY grafanadb.digital_twin_topic.digital_twin_id ASC,
 						         grafanadb.digital_twin_topic.topic_id ASC;`;
-	const response = await pool.query(queryString);
+	const response = await readQuery(queryString);
 	return response.rows as IDigitalTwinTopic[];
 };
 
@@ -451,7 +455,7 @@ export const getDTTopicsByGroupsIdArray = async (groupsIdArray: number[]): Promi
 						WHERE grafanadb.digital_twin.group_id = ANY($1::bigint[])
 						ORDER BY grafanadb.digital_twin_topic.digital_twin_id ASC,
 						         grafanadb.digital_twin_topic.topic_id ASC;`;
-	const response = await pool.query(queryString, [groupsIdArray]);
+	const response = await readQuery(queryString, [groupsIdArray]);
 	return response.rows as IDigitalTwinTopic[];
 };
 
@@ -462,27 +466,27 @@ export const getDTTopicsByDigitalTwinId = async (digitalTwinId: number): Promise
 						WHERE grafanadb.digital_twin_topic.digital_twin_id = $1
 						ORDER BY grafanadb.digital_twin_topic.digital_twin_id ASC,
 						         grafanadb.digital_twin_topic.topic_id ASC;`;
-	const response = await pool.query(queryString, [digitalTwinId]);
+	const response = await readQuery(queryString, [digitalTwinId]);
 	return response.rows as IDigitalTwinTopic[];
 };
 
 export const getDigitalTwinMqttTopicsInfoFromByDTIdsArray = async (
 	digitalTwinIdsArray: number[]
 ): Promise<IMqttDigitalTwinTopicInfo[]> => {
-	const response = await pool.query(
+	const response = await readQuery(
 		`SELECT grafanadb.digital_twin.digital_twin_uid AS "digitalTwinUid",
-	                                grafanadb.topic.id AS "topicId", 
-									grafanadb.digital_twin_topic.topic_ref AS "topicRef",
-									grafanadb.topic.topic_type AS "topicType",
-									grafanadb.group.group_uid AS "groupHash",
-									grafanadb.topic.topic_uid AS "topicHash"
-									FROM grafanadb.topic
-									INNER JOIN grafanadb.group ON grafanadb.topic.group_id = grafanadb.group.id
-									INNER JOIN grafanadb.digital_twin_topic ON grafanadb.digital_twin_topic.topic_id = grafanadb.topic.id
-									INNER JOIN grafanadb.digital_twin ON
-										grafanadb.digital_twin.id = grafanadb.digital_twin_topic.digital_twin_id
-									WHERE grafanadb.digital_twin_topic.digital_twin_id = ANY($1::bigint[])
-									ORDER BY grafanadb.topic.id ASC;`,
+		grafanadb.topic.id AS "topicId", 
+		grafanadb.digital_twin_topic.topic_ref AS "topicRef",
+		grafanadb.topic.topic_type AS "topicType",
+		grafanadb.group.group_uid AS "groupHash",
+		grafanadb.topic.topic_uid AS "topicHash"
+		FROM grafanadb.topic
+		INNER JOIN grafanadb.group ON grafanadb.topic.group_id = grafanadb.group.id
+		INNER JOIN grafanadb.digital_twin_topic ON grafanadb.digital_twin_topic.topic_id = grafanadb.topic.id
+		INNER JOIN grafanadb.digital_twin ON
+			grafanadb.digital_twin.id = grafanadb.digital_twin_topic.digital_twin_id
+		WHERE grafanadb.digital_twin_topic.digital_twin_id = ANY($1::bigint[])
+		ORDER BY grafanadb.topic.id ASC;`,
 		[digitalTwinIdsArray]
 	);
 
@@ -1264,7 +1268,7 @@ export const addDashboardUrls = async (digitalTwins: IDigitalTwin[]): Promise<ID
 	});
 
 	const markedDashboards = await markInexistentDashboards(dashboardIdArray);
-	const dashboardsInfo = await getDashboardsInfoFromIdArray(markedDashboards);
+	const dashboardsInfo = await getDashboardsInfoFromIdArray(markedDashboards, "read");
 	const digitalTwinsExtended = [...digitalTwins];
 	digitalTwinsExtended.forEach((digitalTwin) => {
 		const dashboardInformation = dashboardsInfo.filter(
@@ -1290,14 +1294,14 @@ export const generateSqlTopic = (mqttTopicInfo: IMqttTopicInfo): string => {
 };
 
 export const getSensorsRefInDigitalTwin = async (digitalTwinId: number): Promise<ISensorRef[]> => {
-	const response = await pool.query(
+	const response = await readQuery(
 		`SELECT grafanadb.sensor.id AS "sensorId", 
-			grafanadb.sensor.sensor_ref AS "sensorRef",
-			grafanadb.sensor.topic_id AS "topicId"
-			FROM grafanadb.sensor
-			INNER JOIN grafanadb.digital_twin_sensor ON grafanadb.digital_twin_sensor.sensor_id = grafanadb.sensor.id
-			WHERE grafanadb.digital_twin_sensor.digital_twin_id = $1
-			ORDER BY grafanadb.sensor.id ASC`,
+		grafanadb.sensor.sensor_ref AS "sensorRef",
+		grafanadb.sensor.topic_id AS "topicId"
+		FROM grafanadb.sensor
+		INNER JOIN grafanadb.digital_twin_sensor ON grafanadb.digital_twin_sensor.sensor_id = grafanadb.sensor.id
+		WHERE grafanadb.digital_twin_sensor.digital_twin_id = $1
+		ORDER BY grafanadb.sensor.id ASC`,
 		[digitalTwinId]
 	);
 	return response.rows as ISensorRef[];

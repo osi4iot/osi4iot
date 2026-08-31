@@ -17,13 +17,17 @@ func CreateAdminApiConfigSecret(
 	pi := pd.PlatformInfo
 	postgresHost := "postgres"
 	postgresPort := "5432"
+	postgresReadPort := "5432"
 	timescaleHost := "timescaledb"
 	timescalePort := "5432"
+	timescaleReadPort := "5432"
 	if pi.UsePatroniTool {
 		postgresHost = "haproxy_patroni"
 		postgresPort = "5000"
+		postgresReadPort = "5001"
 		timescaleHost = "haproxy_patroni"
 		timescalePort = "5100"
+		timescaleReadPort = "5101"
 	}
 	
 	adminApiSecretsDataArray := []string{
@@ -46,11 +50,13 @@ func CreateAdminApiConfigSecret(
 		fmt.Sprintf("POSTGRES_DB=%s", pi.PostgresDB),
 		fmt.Sprintf("POSTGRES_HOST=%s", postgresHost),
 		fmt.Sprintf("POSTGRES_PORT=%s", postgresPort),
+		fmt.Sprintf("POSTGRES_READ_PORT=%s", postgresReadPort),
 		fmt.Sprintf("TIMESCALE_USER=%s", pi.TimescaleUser),
 		fmt.Sprintf("TIMESCALE_PASSWORD=%s", pi.TimescalePassword),
 		fmt.Sprintf("TIMESCALE_DB=%s", pi.TimescaleDB),
 		fmt.Sprintf("TIMESCALE_HOST=%s", timescaleHost),
 		fmt.Sprintf("TIMESCALE_PORT=%s", timescalePort),
+		fmt.Sprintf("TIMESCALE_READ_PORT=%s", timescaleReadPort),
 		fmt.Sprintf("NATS_ADMIN_USERNAME=%s", pd.Certs.NatsCerts.NatsAdminUsername),
 		fmt.Sprintf("NATS_ADMIN_PASSWORD=%s", pd.Certs.NatsCerts.NatsAdminPassword),
 		fmt.Sprintf("NATS_NUM_REPLICAS=%d", numNatsReplicas),

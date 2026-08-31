@@ -30,6 +30,7 @@ type TimescaleDBConfig struct {
 	User     string `mapstructure:"user"`
 	Password string `mapstructure:"password"`
 	Host     string `mapstructure:"host"`
+	ReadPort int    `mapstructure:"readPort"`
 	Port     int    `mapstructure:"port"`
 	DBName   string `mapstructure:"dbName"`
 	SSLMode  string `mapstructure:"sslmode"`
@@ -80,6 +81,19 @@ func (c *Config) TimescaledbDNS() string {
 		c.TimescaleDB.Password,
 		c.TimescaleDB.Host,
 		c.TimescaleDB.Port,
+		c.TimescaleDB.DBName,
+		c.TimescaleDB.SSLMode,
+	)
+}
+
+// PostgresDNS returns a PostgreSQL connection string based on the loaded config.
+func (c *Config) TimescaledbReadDNS() string {
+	return fmt.Sprintf(
+		"postgres://%s:%s@%s:%d/%s?sslmode=%s",
+		c.TimescaleDB.User,
+		c.TimescaleDB.Password,
+		c.TimescaleDB.Host,
+		c.TimescaleDB.ReadPort,
 		c.TimescaleDB.DBName,
 		c.TimescaleDB.SSLMode,
 	)

@@ -11,12 +11,12 @@ import (
 	"github.com/osi4iot/osi4iot/utils/osi4iot/internals/utils"
 )
 
-// patroniAdminNode builds the service spec for one patroni-admin node.
+// patroniAdminNode builds the service spec for one patroni_admin node.
 //
 // Each of the 3 nodes is identical except for:
-//   - PATRONI_NAME  (patroni-admin1 / patroni-admin2 / patroni-admin3)
+//   - PATRONI_NAME  (patroni_admin1 / patroni_admin2 / patroni_admin3)
 //   - placement constraint  (node.labels.admin-id == 1/2/3)
-//   - data volume  (patroni-admin1-data / patroni-admin2-data / patroni-admin3-data)
+//   - data volume  (patroni_admin1-data / patroni_admin2-data / patroni_admin3-data)
 //
 // Secrets read by entrypoint.sh and post_init.sh:
 //   - admin_postgres_password       → POSTGRES_PASSWORD (superuser)
@@ -36,8 +36,8 @@ func patroniAdminNode(
 	sd pt.SwarmData,
 	svcResources resources.SvcResources,
 ) pt.Service {
-	name := fmt.Sprintf("patroni-admin%d", replica)
-	volumeName := fmt.Sprintf("patroni-admin%d-data", replica)
+	name := fmt.Sprintf("patroni_admin%d", replica)
+	volumeName := fmt.Sprintf("patroni_admin%d-data", replica)
 
 	pi := pd.PlatformInfo
 
@@ -59,10 +59,11 @@ func patroniAdminNode(
 		fmt.Sprintf("PATRONI_NUM_NODES=%d", pd.PlatformInfo.NumPatroniAdminNodes),
 	}
 
+	awsEndpoint := "http://minio:9000/"
 	// MinIO: only set endpoint and path-style when not using AWS S3
 	if pi.S3BucketType == "Local Minio" {
 		env = append(env,
-			fmt.Sprintf("AWS_ENDPOINT=%s", pi.MinioEndpoint),
+			fmt.Sprintf("AWS_ENDPOINT=%s", awsEndpoint),
 			"AWS_S3_FORCE_PATH_STYLE=true",
 		)
 	}
@@ -93,9 +94,11 @@ func patroniAdminNode(
 			},
 			10*time.Second,
 			5*time.Second,
-			90*time.Second,
+			150*time.Second,
 			5,
 		).
+		WithStatefulUpdateConfig(180 * time.Second).
+		WithStopGracePeriod(90 * time.Second).
 		WithModeReplicated(svcResources.ReplicasPtr).
 		WithNetworks([]swarm.NetworkAttachmentConfig{
 			{Target: sd.Networks["patroni_net"].Name},
@@ -104,7 +107,21 @@ func patroniAdminNode(
 		Build()
 }
 
-// PatroniAdminServices returns the 3 patroni-admin node services keyed by name.
+// PatroniAdminNodeService builds the service spec for a single patroni_admin
+// node. It's the exported counterpart of the internal patroniAdminNode,
+// added so the CLI's scale command (package docker) can create individual
+// nodes when growing the admin cluster — the same way services.NatsService
+// is reused by docker.CreateNatsService for nats1..N.
+func PatroniAdminNodeService(
+	replica int,
+	pd *pt.PlatformData,
+	sd pt.SwarmData,
+	svcResources resources.SvcResources,
+) pt.Service {
+	return patroniAdminNode(replica, pd, sd, svcResources)
+}
+
+// PatroniAdminServices returns the 3 patroni_admin node services keyed by name.
 // Call this from GenerateServices and merge into the services map.
 func PatroniAdminServices(
 	pd *pt.PlatformData,
@@ -124,9 +141,10 @@ func PatroniAdminServices(
 }
 
 func patroniAdminPlacement(replica int, pi pt.PlatformInfo) []string {
-	if pi.NumPatroniAdminNodes <= 1 || pi.NumberOfSwarmNodes == 1 {
+	if pi.NumberOfSwarmNodes == 1 {
 		return []string{}
 	}
+
 	return []string{
 		fmt.Sprintf("node.labels.admin-id==%d", replica),
 	}

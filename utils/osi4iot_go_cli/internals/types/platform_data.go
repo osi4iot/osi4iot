@@ -77,8 +77,10 @@ type PlatformInfo struct {
 	AccessTokenSecret         string `json:"ACCESS_TOKEN_SECRET"`
 	AccessTokenLifetime       int    `json:"ACCESS_TOKEN_LIFETIME"`
 
-	NumOfNatsNodes           int `json:"NUMBER_OF_NATS_NODES"`
-	DefaultNumOfNatsReplicas int `json:"DEFAULT_NUMBER_OF_NATS_REPLICAS"`
+	NumOfNatsNodes           int    `json:"NUMBER_OF_NATS_NODES"`
+	DefaultNumOfNatsReplicas int    `json:"DEFAULT_NUMBER_OF_NATS_REPLICAS"`
+	NATSBackupS3Prefix       string `json:"NATS_BACKUP_S3_PREFIX"`
+
 	// Patroni cluster sizes — must be odd (1, 3 or 5) for Raft quorum.
 	// Set to 1 automatically for local deployments; default 3 for clusters.
 	NumPatroniAdminNodes     int    `json:"NUM_PATRONI_ADMIN_NODES"`

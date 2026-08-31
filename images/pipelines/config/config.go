@@ -54,6 +54,7 @@ type TimescaleDBConfig struct {
 	Password string `mapstructure:"password"`
 	Host     string `mapstructure:"host"`
 	Port     int    `mapstructure:"port"`
+	ReadPort int    `mapstructure:"readPort"`
 	DBName   string `mapstructure:"dbName"`
 	SSLMode  string `mapstructure:"sslmode"`
 }

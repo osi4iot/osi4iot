@@ -416,7 +416,16 @@ func waitUntilAllContainersAreHealthy(pd *pt.PlatformData, serviceType string) e
 		for _, service := range services {
 			val, ok := service.Spec.Labels["service_type"]
 			if ok {
+				// nats1..N and patroni_admin1..N / patroni_metrics1..N are
+				// each spread across several individually-named services,
+				// so matching by prefix (like "nats") rather than exact
+				// equality is what lets a single call here wait on the
+				// whole family instead of one numbered node at a time.
 				if strings.Contains(val, "nats") && serviceType == "nats" {
+					filteredServices = append(filteredServices, service)
+				} else if strings.Contains(val, "patroni_admin") && serviceType == "patroni_admin" {
+					filteredServices = append(filteredServices, service)
+				} else if strings.Contains(val, "patroni_metrics") && serviceType == "patroni_metrics" {
 					filteredServices = append(filteredServices, service)
 				} else if val == serviceType {
 					filteredServices = append(filteredServices, service)
@@ -790,14 +799,3 @@ func CleanResources() error {
 	}
 	return nil
 }
-
-// Note: this file used to have a clearNatsJetStreamStore function that
-// ran `rm -rf /data/nats/jetstream` on nats1 before reconfiguring it as
-// standalone during a scale-down. That unconditionally discarded every
-// stream's data on every scale-down, even though nats1 already held a
-// complete, up-to-date copy of each stream as one of its replicas. It
-// was replaced by removeNatsStreamPeers (see nats_replicas.go), which
-// explicitly removes the nats2/nats3 peers from each stream's replica
-// set via NATS's documented peer-remove mechanism, while the full
-// cluster is still alive — leaving nats1's copy intact instead of
-// wiping it.

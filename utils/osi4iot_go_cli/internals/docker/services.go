@@ -458,7 +458,8 @@ func ScaleSwarmService(pd *pt.PlatformData, dc *pt.DockerClient, serviceName str
 	var service *swarm.Service
 	var err error
 
-	if serviceName == "nats" {
+	switch serviceName {
+	case "nats":
 		if utils.IsEven(replicas) {
 			return "", fmt.Errorf("NATS service requires an odd number of replicas: (1, 3, 5, ...)")
 		}
@@ -466,7 +467,20 @@ func ScaleSwarmService(pd *pt.PlatformData, dc *pt.DockerClient, serviceName str
 		if err != nil {
 			return "", fmt.Errorf("error getting current nats replicas: %v", err)
 		}
-	} else {
+	case "patroni_admin":
+		// Like "nats", there is no single swarm service literally named
+		// "patroni_admin"/"patroni_metrics" to inspect — the family is
+		// spread across patroni_admin1..N / patroni_metrics1..N. All the
+		// validation (odd node count, already-at-target early return) and
+		// the current-node-count lookup happen inside ScalePatroniFamily.
+		if utils.IsEven(replicas) {
+			return "", fmt.Errorf("Patroni admin service requires an odd number of replicas: (1, 3, 5, ...)")
+		}
+	case "patroni_metrics":
+		if utils.IsEven(replicas) {
+			return "", fmt.Errorf("Patroni metrics service requires an odd number of replicas: (1, 3, 5, ...)")
+		}		
+	default:
 		service, err = utils.GetSwarmServiceByName(dc, serviceName)
 		if err != nil {
 			return "", fmt.Errorf("error inspecting service: %v", err)
@@ -503,6 +517,19 @@ func ScaleSwarmService(pd *pt.PlatformData, dc *pt.DockerClient, serviceName str
 			return "", err
 		}
 		warningMessages += warnings
+
+	case "patroni_admin":
+		// Returns directly instead of falling through to the shared tail
+		// below: patroni_admin has no single ServicesData entry named
+		// "patroni_admin" for that tail's FindServiceDataByName(pd,
+		// serviceName) to find (see patroni_scale.go) — ServicesData is
+		// tracked per node ("patroni_admin1", "patroni_admin2", ...), and
+		// ScalePatroniFamily already persists everything itself.
+		return ScalePatroniFamily(pd, dc, patroniAdminFamily, replicas)
+
+	case "patroni_metrics":
+		// Same reasoning as "patroni_admin" above.
+		return ScalePatroniFamily(pd, dc, patroniMetricsFamily, replicas)
 
 	case "nats":
 		// Step 1: Create the new nats_config secret for the target number of replicas.
@@ -760,6 +787,12 @@ func ScaleSwarmService(pd *pt.PlatformData, dc *pt.DockerClient, serviceName str
 				}
 				warningMessages += updateResult.Warnings
 				allOldSecretIDs = append(allOldSecretIDs, updateResult.OldSecretIDs...)
+			}
+		}
+
+		if natsBackupDir != "" {
+			if err := deleteNatsBackup(natsBackupDir); err != nil {
+				fmt.Printf("Warning: could not delete NATS backup directory '%s': %v\n", natsBackupDir, err)
 			}
 		}
 

@@ -1,5 +1,5 @@
 import { nanoid } from "nanoid";
-import pool from "../../config/dbconfig";
+import pool, { readQuery } from "../../config/dbconfig";
 import CreateSensorDto from "./sensor.dto";
 import ISensor from "./sensor.interface";
 import ISensorState from "./sensorState.interface";
@@ -79,65 +79,67 @@ export const deleteSensorTypeByPropName = async (propName: string, propValue: st
 };
 
 export const getAllSensorTypes = async (): Promise<ISensorType[]> => {
-	const response = await pool.query(`SELECT grafanadb.sensor_type.id, 
-	                                grafanadb.sensor_type.org_id AS "orgId",
-									grafanadb.sensor_type.sensor_type_uid AS "sensorTypeUid",
-									grafanadb.sensor_type.type,
-									grafanadb.sensor_type.icon_svg_file_name AS "iconSvgFileName",
-									grafanadb.sensor_type.icon_svg_string AS "iconSvgString",
-									grafanadb.sensor_type.marker_svg_file_name AS "markerSvgFileName",
-									grafanadb.sensor_type.marker_svg_string AS "markerSvgString",
-									grafanadb.sensor_type.default_payload_json_schema AS "defaultPayloadJsonSchema",
-									grafanadb.sensor_type.dashboard_refresh_string AS "dashboardRefreshString",
-									grafanadb.sensor_type.dashboard_time_window AS "dashboardTimeWindow",
-									grafanadb.sensor_type.is_predefined AS "isPredefined",
-									grafanadb.sensor_type.created, grafanadb.sensor_type.updated
-									FROM grafanadb.sensor_type
-									ORDER BY grafanadb.sensor_type.id  ASC;`);
+	const response = await readQuery(
+		`SELECT grafanadb.sensor_type.id, 
+		grafanadb.sensor_type.org_id AS "orgId",
+		grafanadb.sensor_type.sensor_type_uid AS "sensorTypeUid",
+		grafanadb.sensor_type.type,
+		grafanadb.sensor_type.icon_svg_file_name AS "iconSvgFileName",
+		grafanadb.sensor_type.icon_svg_string AS "iconSvgString",
+		grafanadb.sensor_type.marker_svg_file_name AS "markerSvgFileName",
+		grafanadb.sensor_type.marker_svg_string AS "markerSvgString",
+		grafanadb.sensor_type.default_payload_json_schema AS "defaultPayloadJsonSchema",
+		grafanadb.sensor_type.dashboard_refresh_string AS "dashboardRefreshString",
+		grafanadb.sensor_type.dashboard_time_window AS "dashboardTimeWindow",
+		grafanadb.sensor_type.is_predefined AS "isPredefined",
+		grafanadb.sensor_type.created, grafanadb.sensor_type.updated
+		FROM grafanadb.sensor_type
+		ORDER BY grafanadb.sensor_type.id  ASC;`
+	);
 	return response.rows as ISensorType[];
 };
 
 export const getSensorTypesByOrgsIdArray = async (orgsIdArray: number[]): Promise<ISensorType[]> => {
-	const response = await pool.query(
+	const response = await readQuery(
 		`SELECT grafanadb.sensor_type.id, 
-									grafanadb.sensor_type.org_id AS "orgId",
-									grafanadb.sensor_type.sensor_type_uid AS "sensorTypeUid",
-									grafanadb.sensor_type.type,
-									grafanadb.sensor_type.icon_svg_file_name AS "iconSvgFileName",
-									grafanadb.sensor_type.icon_svg_string AS "iconSvgString",
-									grafanadb.sensor_type.marker_svg_file_name AS "markerSvgFileName",
-									grafanadb.sensor_type.marker_svg_string AS "markerSvgString",
-									grafanadb.sensor_type.default_payload_json_schema AS "defaultPayloadJsonSchema",
-									grafanadb.sensor_type.dashboard_refresh_string AS "dashboardRefreshString",
-									grafanadb.sensor_type.dashboard_time_window AS "dashboardTimeWindow",
-									grafanadb.sensor_type.is_predefined AS "isPredefined",
-									grafanadb.sensor_type.created, grafanadb.sensor_type.updated
-									FROM grafanadb.sensor_type
-									WHERE grafanadb.sensor_type.org_id = ANY($1::bigint[])
-									ORDER BY grafanadb.sensor_type.id  ASC;`,
+		grafanadb.sensor_type.org_id AS "orgId",
+		grafanadb.sensor_type.sensor_type_uid AS "sensorTypeUid",
+		grafanadb.sensor_type.type,
+		grafanadb.sensor_type.icon_svg_file_name AS "iconSvgFileName",
+		grafanadb.sensor_type.icon_svg_string AS "iconSvgString",
+		grafanadb.sensor_type.marker_svg_file_name AS "markerSvgFileName",
+		grafanadb.sensor_type.marker_svg_string AS "markerSvgString",
+		grafanadb.sensor_type.default_payload_json_schema AS "defaultPayloadJsonSchema",
+		grafanadb.sensor_type.dashboard_refresh_string AS "dashboardRefreshString",
+		grafanadb.sensor_type.dashboard_time_window AS "dashboardTimeWindow",
+		grafanadb.sensor_type.is_predefined AS "isPredefined",
+		grafanadb.sensor_type.created, grafanadb.sensor_type.updated
+		FROM grafanadb.sensor_type
+		WHERE grafanadb.sensor_type.org_id = ANY($1::bigint[])
+		ORDER BY grafanadb.sensor_type.id  ASC;`,
 		[orgsIdArray]
 	);
 	return response.rows as ISensorType[];
 };
 
 export const getSensorTypesByOrgId = async (orgId: number): Promise<ISensorType[]> => {
-	const response = await pool.query(
+	const response = await readQuery(
 		`SELECT grafanadb.sensor_type.id, 
-									grafanadb.sensor_type.org_id AS "orgId",
-									grafanadb.sensor_type.sensor_type_uid AS "sensorTypeUid",
-									grafanadb.sensor_type.type,
-									grafanadb.sensor_type.icon_svg_file_name AS "iconSvgFileName",
-									grafanadb.sensor_type.icon_svg_string AS "iconSvgString",
-									grafanadb.sensor_type.marker_svg_file_name AS "markerSvgFileName",
-									grafanadb.sensor_type.marker_svg_string AS "markerSvgString",
-									grafanadb.sensor_type.default_payload_json_schema AS "defaultPayloadJsonSchema",
-									grafanadb.sensor_type.dashboard_refresh_string AS "dashboardRefreshString",
-									grafanadb.sensor_type.dashboard_time_window AS "dashboardTimeWindow",
-									grafanadb.sensor_type.is_predefined AS "isPredefined",
-									grafanadb.sensor_type.created, grafanadb.sensor_type.updated
-									FROM grafanadb.sensor_type
-									WHERE grafanadb.sensor_type.org_id = $1
-									ORDER BY grafanadb.sensor_type.id  ASC;`,
+		grafanadb.sensor_type.org_id AS "orgId",
+		grafanadb.sensor_type.sensor_type_uid AS "sensorTypeUid",
+		grafanadb.sensor_type.type,
+		grafanadb.sensor_type.icon_svg_file_name AS "iconSvgFileName",
+		grafanadb.sensor_type.icon_svg_string AS "iconSvgString",
+		grafanadb.sensor_type.marker_svg_file_name AS "markerSvgFileName",
+		grafanadb.sensor_type.marker_svg_string AS "markerSvgString",
+		grafanadb.sensor_type.default_payload_json_schema AS "defaultPayloadJsonSchema",
+		grafanadb.sensor_type.dashboard_refresh_string AS "dashboardRefreshString",
+		grafanadb.sensor_type.dashboard_time_window AS "dashboardTimeWindow",
+		grafanadb.sensor_type.is_predefined AS "isPredefined",
+		grafanadb.sensor_type.created, grafanadb.sensor_type.updated
+		FROM grafanadb.sensor_type
+		WHERE grafanadb.sensor_type.org_id = $1
+		ORDER BY grafanadb.sensor_type.id  ASC;`,
 		[orgId]
 	);
 	return response.rows as ISensorType[];
@@ -148,60 +150,60 @@ export const getSensorTypeByPropName = async (
 	propName: string,
 	propValue: string | number
 ): Promise<ISensorType> => {
-	const response = await pool.query(
+	const response = await readQuery(
 		`SELECT grafanadb.sensor_type.id, 
-									grafanadb.sensor_type.org_id AS "orgId",
-									grafanadb.sensor_type.sensor_type_uid AS "sensorTypeUid",
-									grafanadb.sensor_type.type,
-									grafanadb.sensor_type.icon_svg_file_name AS "iconSvgFileName",
-									grafanadb.sensor_type.icon_svg_string AS "iconSvgString",
-									grafanadb.sensor_type.marker_svg_file_name AS "markerSvgFileName",
-									grafanadb.sensor_type.marker_svg_string AS "markerSvgString",
-									grafanadb.sensor_type.default_payload_json_schema AS "defaultPayloadJsonSchema",
-									grafanadb.sensor_type.dashboard_refresh_string AS "dashboardRefreshString",
-									grafanadb.sensor_type.dashboard_time_window AS "dashboardTimeWindow",
-									grafanadb.sensor_type.is_predefined AS "isPredefined",
-									grafanadb.sensor_type.created, grafanadb.sensor_type.updated
-									FROM grafanadb.sensor_type
-									WHERE grafanadb.sensor_type.${propName} = $1 AND
-									grafanadb.sensor_type.org_id = $2`,
+		grafanadb.sensor_type.org_id AS "orgId",
+		grafanadb.sensor_type.sensor_type_uid AS "sensorTypeUid",
+		grafanadb.sensor_type.type,
+		grafanadb.sensor_type.icon_svg_file_name AS "iconSvgFileName",
+		grafanadb.sensor_type.icon_svg_string AS "iconSvgString",
+		grafanadb.sensor_type.marker_svg_file_name AS "markerSvgFileName",
+		grafanadb.sensor_type.marker_svg_string AS "markerSvgString",
+		grafanadb.sensor_type.default_payload_json_schema AS "defaultPayloadJsonSchema",
+		grafanadb.sensor_type.dashboard_refresh_string AS "dashboardRefreshString",
+		grafanadb.sensor_type.dashboard_time_window AS "dashboardTimeWindow",
+		grafanadb.sensor_type.is_predefined AS "isPredefined",
+		grafanadb.sensor_type.created, grafanadb.sensor_type.updated
+		FROM grafanadb.sensor_type
+		WHERE grafanadb.sensor_type.${propName} = $1 AND
+		grafanadb.sensor_type.org_id = $2`,
 		[propValue, orgId]
 	);
 	return response.rows[0] as ISensorType;
 };
 
 export const getSensorTypeByTypeAndOrgId = async (orgId: number, type: string): Promise<ISensorType> => {
-	const response = await pool.query(
+	const response = await readQuery(
 		`SELECT grafanadb.sensor_type.id, 
-									grafanadb.sensor_type.org_id AS "orgId",
-									grafanadb.sensor_type.sensor_type_uid AS "sensorTypeUid",
-									grafanadb.sensor_type.type,
-									grafanadb.sensor_type.icon_svg_file_name AS "iconSvgFileName",
-									grafanadb.sensor_type.icon_svg_string AS "iconSvgString",
-									grafanadb.sensor_type.marker_svg_file_name AS "markerSvgFileName",
-									grafanadb.sensor_type.marker_svg_string AS "markerSvgString",
-									grafanadb.sensor_type.default_payload_json_schema AS "defaultPayloadJsonSchema",
-									grafanadb.sensor_type.dashboard_refresh_string AS "dashboardRefreshString",
-									grafanadb.sensor_type.dashboard_time_window AS "dashboardTimeWindow",
-									grafanadb.sensor_type.is_predefined AS "isPredefined",
-									grafanadb.sensor_type.created, grafanadb.sensor_type.updated
-									FROM grafanadb.sensor_type
-									WHERE grafanadb.sensor_type.type = $1 AND
-									grafanadb.sensor_type.org_id = $2`,
+		grafanadb.sensor_type.org_id AS "orgId",
+		grafanadb.sensor_type.sensor_type_uid AS "sensorTypeUid",
+		grafanadb.sensor_type.type,
+		grafanadb.sensor_type.icon_svg_file_name AS "iconSvgFileName",
+		grafanadb.sensor_type.icon_svg_string AS "iconSvgString",
+		grafanadb.sensor_type.marker_svg_file_name AS "markerSvgFileName",
+		grafanadb.sensor_type.marker_svg_string AS "markerSvgString",
+		grafanadb.sensor_type.default_payload_json_schema AS "defaultPayloadJsonSchema",
+		grafanadb.sensor_type.dashboard_refresh_string AS "dashboardRefreshString",
+		grafanadb.sensor_type.dashboard_time_window AS "dashboardTimeWindow",
+		grafanadb.sensor_type.is_predefined AS "isPredefined",
+		grafanadb.sensor_type.created, grafanadb.sensor_type.updated
+		FROM grafanadb.sensor_type
+		WHERE grafanadb.sensor_type.type = $1 AND
+		grafanadb.sensor_type.org_id = $2`,
 		[type, orgId]
 	);
 	return response.rows[0] as ISensorType;
 };
 
 export const getNumASensorTypes = async (): Promise<number> => {
-	const result = await pool.query(`SELECT COUNT(*) FROM grafanadb.sensor_type;`);
+	const result = await readQuery(`SELECT COUNT(*) FROM grafanadb.sensor_type;`);
 	return parseInt(result.rows[0].count, 10);
 };
 
 export const getNumSensorTypesByOrgsIdArray = async (orgsIdArray: number[]): Promise<number> => {
-	const result = await pool.query(
+	const result = await readQuery(
 		`SELECT COUNT(*) FROM grafanadb.sensor_type
-									WHERE grafanadb.sensor_type.org_id = ANY($1::bigint[])`,
+		WHERE grafanadb.sensor_type.org_id = ANY($1::bigint[])`,
 		[orgsIdArray]
 	);
 	return parseInt(result.rows[0].count, 10);
@@ -277,135 +279,137 @@ export const createNewSensor = async (
 };
 
 export const getSensorByPropName = async (propName: string, propValue: string | number): Promise<ISensor> => {
-	const response = await pool.query(
+	const response = await readQuery(
 		`SELECT grafanadb.sensor.id, 
-	                                grafanadb.group.org_id AS "orgId",
-	                                grafanadb.group.id AS "groupId", 
-									grafanadb.group.group_uid AS "groupUid", 
-									grafanadb.sensor.asset_id AS "assetId",
-									grafanadb.asset.asset_uid AS "assetUid",
-									grafanadb.sensor.sensor_uid AS "sensorUid",
-									grafanadb.sensor.sensor_ref AS "sensorRef",
-									grafanadb.sensor_type.type AS "sensorType",
-									grafanadb.sensor.sensor_type_id AS "sensorTypeId",
-									grafanadb.sensor.topic_id AS "topicId",
-									grafanadb.topic.topic_uid AS "topicUid",
-									grafanadb.asset_topic.topic_ref AS "topicRef",
-									grafanadb.sensor.description,
-									grafanadb.sensor.dashboard_id AS "dashboardId",
-									grafanadb.sensor.dashboard_url AS "dashboardUrl",
-									grafanadb.sensor.payload_json_schema AS "payloadJsonSchema",
-									grafanadb.sensor.created, grafanadb.sensor.updated
-									FROM grafanadb.sensor
-									INNER JOIN grafanadb.asset ON grafanadb.sensor.asset_id = grafanadb.asset.id
-									INNER JOIN grafanadb.group ON grafanadb.asset.group_id = grafanadb.group.id
-									INNER JOIN grafanadb.topic ON grafanadb.topic.id = grafanadb.sensor.topic_id
-									INNER JOIN grafanadb.asset_topic ON grafanadb.topic.id = grafanadb.asset_topic.topic_id
-									INNER JOIN grafanadb.sensor_type ON grafanadb.sensor_type.id = grafanadb.sensor.sensor_type_id
-									WHERE grafanadb.sensor.${propName} = $1`,
+		grafanadb.group.org_id AS "orgId",
+		grafanadb.group.id AS "groupId", 
+		grafanadb.group.group_uid AS "groupUid", 
+		grafanadb.sensor.asset_id AS "assetId",
+		grafanadb.asset.asset_uid AS "assetUid",
+		grafanadb.sensor.sensor_uid AS "sensorUid",
+		grafanadb.sensor.sensor_ref AS "sensorRef",
+		grafanadb.sensor_type.type AS "sensorType",
+		grafanadb.sensor.sensor_type_id AS "sensorTypeId",
+		grafanadb.sensor.topic_id AS "topicId",
+		grafanadb.topic.topic_uid AS "topicUid",
+		grafanadb.asset_topic.topic_ref AS "topicRef",
+		grafanadb.sensor.description,
+		grafanadb.sensor.dashboard_id AS "dashboardId",
+		grafanadb.sensor.dashboard_url AS "dashboardUrl",
+		grafanadb.sensor.payload_json_schema AS "payloadJsonSchema",
+		grafanadb.sensor.created, grafanadb.sensor.updated
+		FROM grafanadb.sensor
+		INNER JOIN grafanadb.asset ON grafanadb.sensor.asset_id = grafanadb.asset.id
+		INNER JOIN grafanadb.group ON grafanadb.asset.group_id = grafanadb.group.id
+		INNER JOIN grafanadb.topic ON grafanadb.topic.id = grafanadb.sensor.topic_id
+		INNER JOIN grafanadb.asset_topic ON grafanadb.topic.id = grafanadb.asset_topic.topic_id
+		INNER JOIN grafanadb.sensor_type ON grafanadb.sensor_type.id = grafanadb.sensor.sensor_type_id
+		WHERE grafanadb.sensor.${propName} = $1`,
 		[propValue]
 	);
 	return response.rows[0] as ISensor;
 };
 
 export const getAllSensors = async (): Promise<ISensor[]> => {
-	const response = await pool.query(`SELECT grafanadb.sensor.id, 
-									grafanadb.group.org_id AS "orgId",
-									grafanadb.group.id AS "groupId", 
-									grafanadb.group.group_uid AS "groupUid",
-									grafanadb.sensor.asset_id AS "assetId",
-									grafanadb.asset.asset_uid AS "assetUid",
-									grafanadb.sensor.sensor_uid AS "sensorUid",
-									grafanadb.sensor.sensor_ref AS "sensorRef",
-									grafanadb.sensor_type.type AS "sensorType",
-									grafanadb.sensor.sensor_type_id AS "sensorTypeId",
-									grafanadb.sensor.topic_id AS "topicId",
-									grafanadb.topic.topic_uid AS "topicUid",
-									grafanadb.asset_topic.topic_ref AS "topicRef",
-									grafanadb.sensor.description,
-									grafanadb.sensor.dashboard_id AS "dashboardId",
-									grafanadb.sensor.dashboard_url AS "dashboardUrl",
-									grafanadb.sensor.payload_json_schema AS "payloadJsonSchema",
-									grafanadb.sensor.created, grafanadb.sensor.updated
-									FROM grafanadb.sensor
-									INNER JOIN grafanadb.asset ON grafanadb.sensor.asset_id = grafanadb.asset.id
-									INNER JOIN grafanadb.group ON grafanadb.asset.group_id = grafanadb.group.id
-									INNER JOIN grafanadb.topic ON grafanadb.topic.id = grafanadb.sensor.topic_id
-									INNER JOIN grafanadb.asset_topic ON grafanadb.topic.id = grafanadb.asset_topic.topic_id
-									INNER JOIN grafanadb.sensor_type ON grafanadb.sensor_type.id = grafanadb.sensor.sensor_type_id
-									ORDER BY grafanadb.sensor.asset_id ASC,
-									grafanadb.sensor.sensor_ref ASC;`);
+	const response = await readQuery(
+		`SELECT grafanadb.sensor.id, 
+		grafanadb.group.org_id AS "orgId",
+		grafanadb.group.id AS "groupId", 
+		grafanadb.group.group_uid AS "groupUid",
+		grafanadb.sensor.asset_id AS "assetId",
+		grafanadb.asset.asset_uid AS "assetUid",
+		grafanadb.sensor.sensor_uid AS "sensorUid",
+		grafanadb.sensor.sensor_ref AS "sensorRef",
+		grafanadb.sensor_type.type AS "sensorType",
+		grafanadb.sensor.sensor_type_id AS "sensorTypeId",
+		grafanadb.sensor.topic_id AS "topicId",
+		grafanadb.topic.topic_uid AS "topicUid",
+		grafanadb.asset_topic.topic_ref AS "topicRef",
+		grafanadb.sensor.description,
+		grafanadb.sensor.dashboard_id AS "dashboardId",
+		grafanadb.sensor.dashboard_url AS "dashboardUrl",
+		grafanadb.sensor.payload_json_schema AS "payloadJsonSchema",
+		grafanadb.sensor.created, grafanadb.sensor.updated
+		FROM grafanadb.sensor
+		INNER JOIN grafanadb.asset ON grafanadb.sensor.asset_id = grafanadb.asset.id
+		INNER JOIN grafanadb.group ON grafanadb.asset.group_id = grafanadb.group.id
+		INNER JOIN grafanadb.topic ON grafanadb.topic.id = grafanadb.sensor.topic_id
+		INNER JOIN grafanadb.asset_topic ON grafanadb.topic.id = grafanadb.asset_topic.topic_id
+		INNER JOIN grafanadb.sensor_type ON grafanadb.sensor_type.id = grafanadb.sensor.sensor_type_id
+		ORDER BY grafanadb.sensor.asset_id ASC,
+		grafanadb.sensor.sensor_ref ASC;`
+	);
 	return response.rows as ISensor[];
 };
 
 export const getNumSensors = async (): Promise<number> => {
-	const result = await pool.query(`SELECT COUNT(*) FROM grafanadb.sensor;`);
+	const result = await readQuery(`SELECT COUNT(*) FROM grafanadb.sensor;`);
 	return parseInt(result.rows[0].count, 10);
 };
 
 export const getSensorsByGroupId = async (groupId: number): Promise<ISensor[]> => {
-	const response = await pool.query(
+	const response = await readQuery(
 		`SELECT grafanadb.sensor.id, 
-									grafanadb.group.org_id AS "orgId",
-									grafanadb.group.id AS "groupId",
-									grafanadb.group.group_uid AS "groupUid",
-									grafanadb.sensor.asset_id AS "assetId",
-									grafanadb.asset.asset_uid AS "assetUid",
-									grafanadb.sensor.sensor_uid AS "sensorUid",
-									grafanadb.sensor.sensor_ref AS "sensorRef",
-									grafanadb.sensor_type.type AS "sensorType",
-									grafanadb.sensor.sensor_type_id AS "sensorTypeId",
-									grafanadb.sensor.topic_id AS "topicId",
-									grafanadb.topic.topic_uid AS "topicUid",
-									grafanadb.asset_topic.topic_ref AS "topicRef",
-									grafanadb.sensor.description,
-									grafanadb.sensor.dashboard_id AS "dashboardId",
-									grafanadb.sensor.dashboard_url AS "dashboardUrl",
-									grafanadb.sensor.payload_json_schema AS "payloadJsonSchema",
-									grafanadb.sensor.created, grafanadb.sensor.updated
-									FROM grafanadb.sensor
-									INNER JOIN grafanadb.asset ON grafanadb.sensor.asset_id = grafanadb.asset.id
-									INNER JOIN grafanadb.group ON grafanadb.asset.group_id = grafanadb.group.id
-									INNER JOIN grafanadb.topic ON grafanadb.topic.id = grafanadb.sensor.topic_id
-									INNER JOIN grafanadb.asset_topic ON grafanadb.topic.id = grafanadb.asset_topic.topic_id
-									INNER JOIN grafanadb.sensor_type ON grafanadb.sensor_type.id = grafanadb.sensor.sensor_type_id
-									WHERE grafanadb.asset.group_id = $1
-									ORDER BY grafanadb.sensor.asset_id ASC,
-									grafanadb.sensor.sensor_ref ASC;`,
+		grafanadb.group.org_id AS "orgId",
+		grafanadb.group.id AS "groupId",
+		grafanadb.group.group_uid AS "groupUid",
+		grafanadb.sensor.asset_id AS "assetId",
+		grafanadb.asset.asset_uid AS "assetUid",
+		grafanadb.sensor.sensor_uid AS "sensorUid",
+		grafanadb.sensor.sensor_ref AS "sensorRef",
+		grafanadb.sensor_type.type AS "sensorType",
+		grafanadb.sensor.sensor_type_id AS "sensorTypeId",
+		grafanadb.sensor.topic_id AS "topicId",
+		grafanadb.topic.topic_uid AS "topicUid",
+		grafanadb.asset_topic.topic_ref AS "topicRef",
+		grafanadb.sensor.description,
+		grafanadb.sensor.dashboard_id AS "dashboardId",
+		grafanadb.sensor.dashboard_url AS "dashboardUrl",
+		grafanadb.sensor.payload_json_schema AS "payloadJsonSchema",
+		grafanadb.sensor.created, grafanadb.sensor.updated
+		FROM grafanadb.sensor
+		INNER JOIN grafanadb.asset ON grafanadb.sensor.asset_id = grafanadb.asset.id
+		INNER JOIN grafanadb.group ON grafanadb.asset.group_id = grafanadb.group.id
+		INNER JOIN grafanadb.topic ON grafanadb.topic.id = grafanadb.sensor.topic_id
+		INNER JOIN grafanadb.asset_topic ON grafanadb.topic.id = grafanadb.asset_topic.topic_id
+		INNER JOIN grafanadb.sensor_type ON grafanadb.sensor_type.id = grafanadb.sensor.sensor_type_id
+		WHERE grafanadb.asset.group_id = $1
+		ORDER BY grafanadb.sensor.asset_id ASC,
+		grafanadb.sensor.sensor_ref ASC;`,
 		[groupId]
 	);
 	return response.rows as ISensor[];
 };
 
 export const getSensorsByAssetId = async (assetId: number): Promise<ISensor[]> => {
-	const response = await pool.query(
+	const response = await readQuery(
 		`SELECT grafanadb.sensor.id, 
-									grafanadb.group.org_id AS "orgId",
-									grafanadb.group.id AS "groupId",
-									grafanadb.group.group_uid AS "groupUid",
-									grafanadb.sensor.asset_id AS "assetId",
-									grafanadb.asset.asset_uid AS "assetUid",
-									grafanadb.sensor.sensor_uid AS "sensorUid",
-									grafanadb.sensor.sensor_ref AS "sensorRef",
-									grafanadb.sensor_type.type AS "sensorType",
-									grafanadb.sensor.sensor_type_id AS "sensorTypeId",
-									grafanadb.sensor.topic_id AS "topicId",
-									grafanadb.topic.topic_uid AS "topicUid",
-									grafanadb.asset_topic.topic_ref AS "topicRef",
-									grafanadb.sensor.description,
-									grafanadb.sensor.dashboard_id AS "dashboardId",
-									grafanadb.sensor.dashboard_url AS "dashboardUrl",
-									grafanadb.sensor.payload_json_schema AS "payloadJsonSchema",
-									grafanadb.sensor.created, grafanadb.sensor.updated
-									FROM grafanadb.sensor
-									INNER JOIN grafanadb.asset ON grafanadb.sensor.asset_id = grafanadb.asset.id
-									INNER JOIN grafanadb.group ON grafanadb.asset.group_id = grafanadb.group.id
-									INNER JOIN grafanadb.topic ON grafanadb.topic.id = grafanadb.sensor.topic_id
-									INNER JOIN grafanadb.asset_topic ON grafanadb.topic.id = grafanadb.asset_topic.topic_id
-									INNER JOIN grafanadb.sensor_type ON grafanadb.sensor_type.id = grafanadb.sensor.sensor_type_id
-									WHERE grafanadb.asset.id = $1
-									ORDER BY grafanadb.sensor.asset_id ASC,
-								    grafanadb.sensor.sensor_ref ASC;`,
+		grafanadb.group.org_id AS "orgId",
+		grafanadb.group.id AS "groupId",
+		grafanadb.group.group_uid AS "groupUid",
+		grafanadb.sensor.asset_id AS "assetId",
+		grafanadb.asset.asset_uid AS "assetUid",
+		grafanadb.sensor.sensor_uid AS "sensorUid",
+		grafanadb.sensor.sensor_ref AS "sensorRef",
+		grafanadb.sensor_type.type AS "sensorType",
+		grafanadb.sensor.sensor_type_id AS "sensorTypeId",
+		grafanadb.sensor.topic_id AS "topicId",
+		grafanadb.topic.topic_uid AS "topicUid",
+		grafanadb.asset_topic.topic_ref AS "topicRef",
+		grafanadb.sensor.description,
+		grafanadb.sensor.dashboard_id AS "dashboardId",
+		grafanadb.sensor.dashboard_url AS "dashboardUrl",
+		grafanadb.sensor.payload_json_schema AS "payloadJsonSchema",
+		grafanadb.sensor.created, grafanadb.sensor.updated
+		FROM grafanadb.sensor
+		INNER JOIN grafanadb.asset ON grafanadb.sensor.asset_id = grafanadb.asset.id
+		INNER JOIN grafanadb.group ON grafanadb.asset.group_id = grafanadb.group.id
+		INNER JOIN grafanadb.topic ON grafanadb.topic.id = grafanadb.sensor.topic_id
+		INNER JOIN grafanadb.asset_topic ON grafanadb.topic.id = grafanadb.asset_topic.topic_id
+		INNER JOIN grafanadb.sensor_type ON grafanadb.sensor_type.id = grafanadb.sensor.sensor_type_id
+		WHERE grafanadb.asset.id = $1
+		ORDER BY grafanadb.sensor.asset_id ASC,
+		grafanadb.sensor.sensor_ref ASC;`,
 		[assetId]
 	);
 	return response.rows as ISensor[];
@@ -423,183 +427,185 @@ export const getSensorDashboardByAssetId = async (assetId: number): Promise<ISen
 };
 
 export const getSensorsByGroupsIdArray = async (groupsIdArray: number[]): Promise<ISensor[]> => {
-	const response = await pool.query(
+	const response = await readQuery(
 		`SELECT grafanadb.sensor.id, 
-									grafanadb.group.org_id AS "orgId",
-									grafanadb.group.id AS "groupId",
-									grafanadb.group.group_uid AS "groupUid", 
-									grafanadb.sensor.asset_id AS "assetId",
-									grafanadb.asset.asset_uid AS "assetUid",
-									grafanadb.sensor.sensor_uid AS "sensorUid",
-									grafanadb.sensor.sensor_ref AS "sensorRef",
-									grafanadb.sensor_type.type AS "sensorType",
-									grafanadb.sensor.sensor_type_id AS "sensorTypeId",
-									grafanadb.sensor.topic_id AS "topicId",
-									grafanadb.topic.topic_uid AS "topicUid",
-									grafanadb.asset_topic.topic_ref AS "topicRef",
-									grafanadb.sensor.description,
-									grafanadb.sensor.dashboard_id AS "dashboardId",
-									grafanadb.sensor.dashboard_url AS "dashboardUrl",
-									grafanadb.sensor.payload_json_schema AS "payloadJsonSchema",
-									grafanadb.sensor.created, grafanadb.sensor.updated
-									FROM grafanadb.sensor
-									INNER JOIN grafanadb.asset ON grafanadb.sensor.asset_id = grafanadb.asset.id
-									INNER JOIN grafanadb.group ON grafanadb.asset.group_id = grafanadb.group.id
-									INNER JOIN grafanadb.topic ON grafanadb.topic.id = grafanadb.sensor.topic_id
-									INNER JOIN grafanadb.asset_topic ON grafanadb.topic.id = grafanadb.asset_topic.topic_id
-									INNER JOIN grafanadb.sensor_type ON grafanadb.sensor_type.id = grafanadb.sensor.sensor_type_id
-									WHERE grafanadb.asset.group_id = ANY($1::bigint[])
-									ORDER BY grafanadb.sensor.asset_id ASC,
-								    grafanadb.sensor.sensor_ref ASC;`,
+		grafanadb.group.org_id AS "orgId",
+		grafanadb.group.id AS "groupId",
+		grafanadb.group.group_uid AS "groupUid", 
+		grafanadb.sensor.asset_id AS "assetId",
+		grafanadb.asset.asset_uid AS "assetUid",
+		grafanadb.sensor.sensor_uid AS "sensorUid",
+		grafanadb.sensor.sensor_ref AS "sensorRef",
+		grafanadb.sensor_type.type AS "sensorType",
+		grafanadb.sensor.sensor_type_id AS "sensorTypeId",
+		grafanadb.sensor.topic_id AS "topicId",
+		grafanadb.topic.topic_uid AS "topicUid",
+		grafanadb.asset_topic.topic_ref AS "topicRef",
+		grafanadb.sensor.description,
+		grafanadb.sensor.dashboard_id AS "dashboardId",
+		grafanadb.sensor.dashboard_url AS "dashboardUrl",
+		grafanadb.sensor.payload_json_schema AS "payloadJsonSchema",
+		grafanadb.sensor.created, grafanadb.sensor.updated
+		FROM grafanadb.sensor
+		INNER JOIN grafanadb.asset ON grafanadb.sensor.asset_id = grafanadb.asset.id
+		INNER JOIN grafanadb.group ON grafanadb.asset.group_id = grafanadb.group.id
+		INNER JOIN grafanadb.topic ON grafanadb.topic.id = grafanadb.sensor.topic_id
+		INNER JOIN grafanadb.asset_topic ON grafanadb.topic.id = grafanadb.asset_topic.topic_id
+		INNER JOIN grafanadb.sensor_type ON grafanadb.sensor_type.id = grafanadb.sensor.sensor_type_id
+		WHERE grafanadb.asset.group_id = ANY($1::bigint[])
+		ORDER BY grafanadb.sensor.asset_id ASC,
+		grafanadb.sensor.sensor_ref ASC;`,
 		[groupsIdArray]
 	);
 	return response.rows as ISensor[];
 };
 
 export const getSensorsByOrgId = async (orgId: number): Promise<ISensor[]> => {
-	const response = await pool.query(
+	const response = await readQuery(
 		`SELECT grafanadb.sensor.id, 
-									grafanadb.group.org_id AS "orgId",
-									grafanadb.group.id AS "groupId",
-									grafanadb.group.group_uid AS "groupUid",
-									grafanadb.sensor.asset_id AS "assetId",
-									grafanadb.asset.asset_uid AS "assetUid",
-									grafanadb.sensor.sensor_uid AS "sensorUid",
-									grafanadb.sensor.sensor_ref AS "sensorRef",
-									grafanadb.sensor_type.type AS "sensorType",
-									grafanadb.sensor.sensor_type_id AS "sensorTypeId",
-									grafanadb.sensor.topic_id AS "topicId",
-									grafanadb.topic.topic_uid AS "topicUid",
-									grafanadb.asset_topic.topic_ref AS "topicRef",
-									grafanadb.sensor.description,
-									grafanadb.sensor.dashboard_id AS "dashboardId",
-									grafanadb.sensor.dashboard_url AS "dashboardUrl",
-									grafanadb.sensor.payload_json_schema AS "payloadJsonSchema",
-									grafanadb.sensor.created, grafanadb.sensor.updated
-									FROM grafanadb.sensor
-									INNER JOIN grafanadb.asset ON grafanadb.sensor.asset_id = grafanadb.asset.id
-									INNER JOIN grafanadb.group ON grafanadb.asset.group_id = grafanadb.group.id
-									INNER JOIN grafanadb.topic ON grafanadb.topic.id = grafanadb.sensor.topic_id
-									INNER JOIN grafanadb.asset_topic ON grafanadb.topic.id = grafanadb.asset_topic.topic_id
-									INNER JOIN grafanadb.sensor_type ON grafanadb.sensor_type.id = grafanadb.sensor.sensor_type_id
-									WHERE grafanadb.group.org_id = $1
-									ORDER BY grafanadb.sensor.asset_id ASC,
-								    grafanadb.sensor.sensor_ref ASC;`,
+		grafanadb.group.org_id AS "orgId",
+		grafanadb.group.id AS "groupId",
+		grafanadb.group.group_uid AS "groupUid",
+		grafanadb.sensor.asset_id AS "assetId",
+		grafanadb.asset.asset_uid AS "assetUid",
+		grafanadb.sensor.sensor_uid AS "sensorUid",
+		grafanadb.sensor.sensor_ref AS "sensorRef",
+		grafanadb.sensor_type.type AS "sensorType",
+		grafanadb.sensor.sensor_type_id AS "sensorTypeId",
+		grafanadb.sensor.topic_id AS "topicId",
+		grafanadb.topic.topic_uid AS "topicUid",
+		grafanadb.asset_topic.topic_ref AS "topicRef",
+		grafanadb.sensor.description,
+		grafanadb.sensor.dashboard_id AS "dashboardId",
+		grafanadb.sensor.dashboard_url AS "dashboardUrl",
+		grafanadb.sensor.payload_json_schema AS "payloadJsonSchema",
+		grafanadb.sensor.created, grafanadb.sensor.updated
+		FROM grafanadb.sensor
+		INNER JOIN grafanadb.asset ON grafanadb.sensor.asset_id = grafanadb.asset.id
+		INNER JOIN grafanadb.group ON grafanadb.asset.group_id = grafanadb.group.id
+		INNER JOIN grafanadb.topic ON grafanadb.topic.id = grafanadb.sensor.topic_id
+		INNER JOIN grafanadb.asset_topic ON grafanadb.topic.id = grafanadb.asset_topic.topic_id
+		INNER JOIN grafanadb.sensor_type ON grafanadb.sensor_type.id = grafanadb.sensor.sensor_type_id
+		WHERE grafanadb.group.org_id = $1
+		ORDER BY grafanadb.sensor.asset_id ASC,
+		grafanadb.sensor.sensor_ref ASC;`,
 		[orgId]
 	);
 	return response.rows as ISensor[];
 };
 
 export const getAllGeolocationSensors = async (): Promise<ISensor[]> => {
-	const response = await pool.query(
+	const response = await readQuery(
 		`SELECT grafanadb.sensor.id, 
-									grafanadb.group.org_id AS "orgId",
-									grafanadb.group.id AS "groupId",
-									grafanadb.group.group_uid AS "groupUid",
-									grafanadb.sensor.asset_id AS "assetId",
-									grafanadb.asset.asset_uid AS "assetUid",
-									grafanadb.sensor.sensor_uid AS "sensorUid",
-									grafanadb.sensor.sensor_ref AS "sensorRef",
-									grafanadb.sensor_type.type AS "sensorType",
-									grafanadb.sensor.sensor_type_id AS "sensorTypeId",
-									grafanadb.sensor.topic_id AS "topicId",
-									grafanadb.topic.topic_uid AS "topicUid",
-									grafanadb.asset_topic.topic_ref AS "topicRef",
-									grafanadb.sensor.description,
-									grafanadb.sensor.dashboard_id AS "dashboardId",
-									grafanadb.sensor.dashboard_url AS "dashboardUrl",
-									grafanadb.sensor.payload_json_schema AS "payloadJsonSchema",
-									grafanadb.sensor.created, grafanadb.sensor.updated
-									FROM grafanadb.sensor
-									INNER JOIN grafanadb.asset ON grafanadb.sensor.asset_id = grafanadb.asset.id
-									INNER JOIN grafanadb.asset_type ON grafanadb.asset.asset_type_id = grafanadb.asset_type.id
-									INNER JOIN grafanadb.group ON grafanadb.asset.group_id = grafanadb.group.id
-									INNER JOIN grafanadb.topic ON grafanadb.topic.id = grafanadb.sensor.topic_id
-									INNER JOIN grafanadb.asset_topic ON grafanadb.topic.id = grafanadb.asset_topic.topic_id
-									INNER JOIN grafanadb.sensor_type ON grafanadb.sensor_type.id = grafanadb.sensor.sensor_type_id
-									WHERE grafanadb.asset_type.geolocation_mode = $1 AND 
-									(grafanadb.sensor_type.type = $2 OR grafanadb.sensor_type.type = $3)
-									ORDER BY grafanadb.sensor.asset_id ASC,
-									grafanadb.sensor.sensor_ref ASC;`,
+		grafanadb.group.org_id AS "orgId",
+		grafanadb.group.id AS "groupId",
+		grafanadb.group.group_uid AS "groupUid",
+		grafanadb.sensor.asset_id AS "assetId",
+		grafanadb.asset.asset_uid AS "assetUid",
+		grafanadb.sensor.sensor_uid AS "sensorUid",
+		grafanadb.sensor.sensor_ref AS "sensorRef",
+		grafanadb.sensor_type.type AS "sensorType",
+		grafanadb.sensor.sensor_type_id AS "sensorTypeId",
+		grafanadb.sensor.topic_id AS "topicId",
+		grafanadb.topic.topic_uid AS "topicUid",
+		grafanadb.asset_topic.topic_ref AS "topicRef",
+		grafanadb.sensor.description,
+		grafanadb.sensor.dashboard_id AS "dashboardId",
+		grafanadb.sensor.dashboard_url AS "dashboardUrl",
+		grafanadb.sensor.payload_json_schema AS "payloadJsonSchema",
+		grafanadb.sensor.created, grafanadb.sensor.updated
+		FROM grafanadb.sensor
+		INNER JOIN grafanadb.asset ON grafanadb.sensor.asset_id = grafanadb.asset.id
+		INNER JOIN grafanadb.asset_type ON grafanadb.asset.asset_type_id = grafanadb.asset_type.id
+		INNER JOIN grafanadb.group ON grafanadb.asset.group_id = grafanadb.group.id
+		INNER JOIN grafanadb.topic ON grafanadb.topic.id = grafanadb.sensor.topic_id
+		INNER JOIN grafanadb.asset_topic ON grafanadb.topic.id = grafanadb.asset_topic.topic_id
+		INNER JOIN grafanadb.sensor_type ON grafanadb.sensor_type.id = grafanadb.sensor.sensor_type_id
+		WHERE grafanadb.asset_type.geolocation_mode = $1 AND 
+		(grafanadb.sensor_type.type = $2 OR grafanadb.sensor_type.type = $3)
+		ORDER BY grafanadb.sensor.asset_id ASC,
+		grafanadb.sensor.sensor_ref ASC;`,
 		["dynamic", "Mobile geolocation", "Geolocation"]
 	);
 	return response.rows as ISensor[];
 };
 
 export const getGeolocationSensorsByGroupsIdArray = async (groupsIdArray: number[]): Promise<ISensor[]> => {
-	const response = await pool.query(
+	const response = await readQuery(
 		`SELECT grafanadb.sensor.id, 
-									grafanadb.group.org_id AS "orgId",
-									grafanadb.group.id AS "groupId",
-									grafanadb.group.group_uid AS "groupUid",
-									grafanadb.sensor.asset_id AS "assetId",
-									grafanadb.asset.asset_uid AS "assetUid",
-									grafanadb.sensor.sensor_uid AS "sensorUid",
-									grafanadb.sensor.sensor_ref AS "sensorRef",
-									grafanadb.sensor_type.type AS "sensorType",
-									grafanadb.sensor.sensor_type_id AS "sensorTypeId",
-									grafanadb.sensor.topic_id AS "topicId",
-									grafanadb.topic.topic_uid AS "topicUid",
-									grafanadb.asset_topic.topic_ref AS "topicRef",
-									grafanadb.sensor.description,
-									grafanadb.sensor.dashboard_id AS "dashboardId",
-									grafanadb.sensor.dashboard_url AS "dashboardUrl",
-									grafanadb.sensor.payload_json_schema AS "payloadJsonSchema",
-									grafanadb.sensor.created, grafanadb.sensor.updated
-									FROM grafanadb.sensor
-									INNER JOIN grafanadb.asset ON grafanadb.sensor.asset_id = grafanadb.asset.id
-									INNER JOIN grafanadb.asset_type ON grafanadb.asset.asset_type_id = grafanadb.asset_type.id
-									INNER JOIN grafanadb.group ON grafanadb.asset.group_id = grafanadb.group.id
-									INNER JOIN grafanadb.topic ON grafanadb.topic.id = grafanadb.sensor.topic_id
-									INNER JOIN grafanadb.asset_topic ON grafanadb.topic.id = grafanadb.asset_topic.topic_id
-									INNER JOIN grafanadb.sensor_type ON grafanadb.sensor_type.id = grafanadb.sensor.sensor_type_id
-									WHERE grafanadb.asset.group_id = ANY($1::bigint[]) AND
-									grafanadb.asset_type.geolocation_mode = $2 AND 
-									(grafanadb.sensor_type.type = $3 OR grafanadb.sensor_type.type = $4)
-									ORDER BY grafanadb.sensor.asset_id ASC,
-								    grafanadb.sensor.sensor_ref ASC;`,
+		grafanadb.group.org_id AS "orgId",
+		grafanadb.group.id AS "groupId",
+		grafanadb.group.group_uid AS "groupUid",
+		grafanadb.sensor.asset_id AS "assetId",
+		grafanadb.asset.asset_uid AS "assetUid",
+		grafanadb.sensor.sensor_uid AS "sensorUid",
+		grafanadb.sensor.sensor_ref AS "sensorRef",
+		grafanadb.sensor_type.type AS "sensorType",
+		grafanadb.sensor.sensor_type_id AS "sensorTypeId",
+		grafanadb.sensor.topic_id AS "topicId",
+		grafanadb.topic.topic_uid AS "topicUid",
+		grafanadb.asset_topic.topic_ref AS "topicRef",
+		grafanadb.sensor.description,
+		grafanadb.sensor.dashboard_id AS "dashboardId",
+		grafanadb.sensor.dashboard_url AS "dashboardUrl",
+		grafanadb.sensor.payload_json_schema AS "payloadJsonSchema",
+		grafanadb.sensor.created, grafanadb.sensor.updated
+		FROM grafanadb.sensor
+		INNER JOIN grafanadb.asset ON grafanadb.sensor.asset_id = grafanadb.asset.id
+		INNER JOIN grafanadb.asset_type ON grafanadb.asset.asset_type_id = grafanadb.asset_type.id
+		INNER JOIN grafanadb.group ON grafanadb.asset.group_id = grafanadb.group.id
+		INNER JOIN grafanadb.topic ON grafanadb.topic.id = grafanadb.sensor.topic_id
+		INNER JOIN grafanadb.asset_topic ON grafanadb.topic.id = grafanadb.asset_topic.topic_id
+		INNER JOIN grafanadb.sensor_type ON grafanadb.sensor_type.id = grafanadb.sensor.sensor_type_id
+		WHERE grafanadb.asset.group_id = ANY($1::bigint[]) AND
+		grafanadb.asset_type.geolocation_mode = $2 AND 
+		(grafanadb.sensor_type.type = $3 OR grafanadb.sensor_type.type = $4)
+		ORDER BY grafanadb.sensor.asset_id ASC,
+		grafanadb.sensor.sensor_ref ASC;`,
 		[groupsIdArray, "dynamic", "Mobile geolocation", "Geolocation"]
 	);
 	return response.rows as ISensor[];
 };
 
 export const getNumSensorsByGroupsIdArray = async (groupsIdArray: number[]): Promise<number> => {
-	const result = await pool.query(
+	const result = await readQuery(
 		`SELECT COUNT(*) FROM grafanadb.sensor
-									INNER JOIN grafanadb.asset ON grafanadb.sensor.asset_id = grafanadb.asset.id
-									WHERE grafanadb.asset.group_id = ANY($1::bigint[])`,
+		INNER JOIN grafanadb.asset ON grafanadb.sensor.asset_id = grafanadb.asset.id
+		WHERE grafanadb.asset.group_id = ANY($1::bigint[])`,
 		[groupsIdArray]
 	);
 	return parseInt(result.rows[0].count, 10);
 };
 
 export const getStateOfAllSensors = async (): Promise<ISensorState[]> => {
-	const response = await pool.query(`SELECT grafanadb.sensor.id AS "sensorId", grafanadb.group.org_id AS "orgId",
-									grafanadb.group.id AS "groupId", grafanadb.sensor.asset_id AS "assetId",
-									grafanadb.alert.state
-									FROM grafanadb.sensor
-									INNER JOIN grafanadb.asset ON grafanadb.sensor.asset_id = grafanadb.asset.id
-									INNER JOIN grafanadb.group ON grafanadb.asset.group_id = grafanadb.group.id
-									LEFT JOIN grafanadb.alert ON grafanadb.sensor.dashboard_id = grafanadb.alert.dashboard_id
-									ORDER BY grafanadb.group.org_id ASC,
-											grafanadb.asset.group_id ASC,
-											grafanadb.sensor.id ASC;`);
+	const response = await readQuery(
+		`SELECT grafanadb.sensor.id AS "sensorId", grafanadb.group.org_id AS "orgId",
+		grafanadb.group.id AS "groupId", grafanadb.sensor.asset_id AS "assetId",
+		grafanadb.alert.state
+		FROM grafanadb.sensor
+		INNER JOIN grafanadb.asset ON grafanadb.sensor.asset_id = grafanadb.asset.id
+		INNER JOIN grafanadb.group ON grafanadb.asset.group_id = grafanadb.group.id
+		LEFT JOIN grafanadb.alert ON grafanadb.sensor.dashboard_id = grafanadb.alert.dashboard_id
+		ORDER BY grafanadb.group.org_id ASC,
+				grafanadb.asset.group_id ASC,
+				grafanadb.sensor.id ASC;`
+	);
 	return response.rows as ISensorState[];
 };
 
 export const getStateOfSensorsByGroupsIdArray = async (groupsIdArray: number[]): Promise<ISensorState[]> => {
-	const response = await pool.query(
+	const response = await readQuery(
 		`SELECT grafanadb.sensor.id AS "sensorId", grafanadb.group.org_id AS "orgId",
-									grafanadb.group.id AS "groupId", grafanadb.sensor.asset_id AS "assetId",
-									grafanadb.alert.state
-									FROM grafanadb.sensor
-									INNER JOIN grafanadb.asset ON grafanadb.sensor.asset_id = grafanadb.asset.id
-									INNER JOIN grafanadb.group ON grafanadb.asset.group_id = grafanadb.group.id
-									LEFT JOIN grafanadb.alert ON grafanadb.sensor.dashboard_id = grafanadb.alert.dashboard_id
-									WHERE grafanadb.asset.group_id = ANY($1::bigint[])
-									ORDER BY grafanadb.group.org_id ASC,
-									grafanadb.asset.group_id ASC,
-									grafanadb.sensor.id ASC;`,
+		grafanadb.group.id AS "groupId", grafanadb.sensor.asset_id AS "assetId",
+		grafanadb.alert.state
+		FROM grafanadb.sensor
+		INNER JOIN grafanadb.asset ON grafanadb.sensor.asset_id = grafanadb.asset.id
+		INNER JOIN grafanadb.group ON grafanadb.asset.group_id = grafanadb.group.id
+		LEFT JOIN grafanadb.alert ON grafanadb.sensor.dashboard_id = grafanadb.alert.dashboard_id
+		WHERE grafanadb.asset.group_id = ANY($1::bigint[])
+		ORDER BY grafanadb.group.org_id ASC,
+		grafanadb.asset.group_id ASC,
+		grafanadb.sensor.id ASC;`,
 		[groupsIdArray]
 	);
 	return response.rows as ISensorState[];

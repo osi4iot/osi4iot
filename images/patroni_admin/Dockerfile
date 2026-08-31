@@ -6,7 +6,7 @@
 #   arm64 → multi-stage build: golang:1.24 builder compiles WAL-G natively,
 #            avoiding the QEMU tar failure caused by Go test filenames with
 #            special characters that the emulated kernel cannot handle.
-#   backup_trigger (both archs) → pure stdlib Go, cross-compiled with
+#   patroni_sidecar (both archs) → pure stdlib Go, cross-compiled with
 #            CGO_ENABLED=0 from BUILDPLATFORM — no QEMU needed either way.
 #
 # Extensions installed:
@@ -24,15 +24,15 @@ ARG PATRONI_VERSION=4.0.4
 ARG PGSEARCH_VERSION=0.24.1
 ARG PGVECTOR_VERSION=v0.8.6
 
-# ── Stage 0: backup_trigger builder (cross-compiled, no QEMU needed) ────────
+# ── Stage 0: patroni_sidecar builder (cross-compiled, no QEMU needed) ────────
 # Pure stdlib Go binary — same cross-compile trick as system_manager's own
 # sm-builder stage, so this needs no QEMU emulation even for arm64.
-FROM --platform=$BUILDPLATFORM golang:1.25-bookworm AS backup-trigger-builder
+FROM --platform=$BUILDPLATFORM golang:1.25-bookworm AS patroni-sidecar-builder
 ARG TARGETARCH
 WORKDIR /src
-COPY backup_trigger/go.mod ./
-COPY backup_trigger/main.go ./
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=${TARGETARCH} go build -o /usr/local/bin/backup_trigger .
+COPY patroni_sidecar/go.mod ./
+COPY patroni_sidecar/main.go ./
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=${TARGETARCH} go build -o /usr/local/bin/patroni_sidecar .
 
 # ── Stage 1: WAL-G builder (ARM64 only) ──────────────────────────────────────
 # Runs natively on the target platform — no QEMU emulation involved.
@@ -165,8 +165,8 @@ RUN ARCH=$(dpkg --print-architecture) \
     fi \
     && chmod +x /usr/local/bin/wal-g
 
-# ── backup_trigger sidecar ───────────────────────────────────────────────────
-COPY --from=backup-trigger-builder /usr/local/bin/backup_trigger /usr/local/bin/backup_trigger
+# ── patroni_sidecar ───────────────────────────────────────────────────
+COPY --from=patroni-sidecar-builder /usr/local/bin/patroni_sidecar /usr/local/bin/patroni_sidecar
 
 # ── WAL-G environment (S3/MinIO) ─────────────────────────────────────────────
 # Sensitive values (WALG_LIBSODIUM_KEY, AWS credentials) are injected at

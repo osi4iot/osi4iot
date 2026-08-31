@@ -56,13 +56,21 @@ func main() {
 	}
 	sugar.Info("Admin API healthy, proceeding...")
 
-	// DB connection
+	// Write DB connection
 	dbpool, err := pgxpool.Connect(context.Background(), cfg.TimescaledbDNS())
 	if err != nil {
-		sugar.Fatalf("db connect error: %v", err)
+		sugar.Fatalf("db write connect error: %v", err)
 	}
 	defer dbpool.Close()
-	sugar.Info("Connected to database")
+	sugar.Info("Connected to write database")
+
+	// Read DB connection
+	dbpoolRead, err := pgxpool.Connect(context.Background(), cfg.TimescaledbReadDNS())
+	if err != nil {
+		sugar.Fatalf("db read connect error: %v", err)
+	}
+	defer dbpoolRead.Close()
+	sugar.Info("Connected to read database")
 
 	// 1-) Connect to messaging broker (Mosquitto or NATS)
 	natsClient, err := messaging.NewNATSClient(cfg)

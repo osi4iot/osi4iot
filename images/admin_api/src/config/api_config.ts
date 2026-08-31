@@ -34,11 +34,13 @@ interface IProcessEnv extends Record<string, string | string[] | string[][]> {
 	POSTGRES_DB: string;
 	POSTGRES_HOST: string;
 	POSTGRES_PORT: string;
+	POSTGRES_READ_PORT: string;
 	TIMESCALE_USER: string;
 	TIMESCALE_PASSWORD: string;
 	TIMESCALE_DB: string;
 	TIMESCALE_HOST: string;
 	TIMESCALE_PORT: string;
+	TIMESCALE_READ_PORT: string;
 	S3_BUCKET_NAME: string;
 	AWS_ACCESS_KEY_ID: string;
 	AWS_SECRET_ACCESS_KEY: string;
@@ -90,11 +92,13 @@ const process_env: IProcessEnv = {
 	POSTGRES_DB: process.env.POSTGRES_DB,
 	POSTGRES_HOST: process.env.POSTGRES_HOST || "postgres",
 	POSTGRES_PORT: process.env.POSTGRES_PORT || "5432",
+	POSTGRES_READ_PORT: process.env.POSTGRES_READ_PORT || process.env.POSTGRES_PORT || "5432",
 	TIMESCALE_USER: process.env.TIMESCALE_USER,
 	TIMESCALE_PASSWORD: process.env.TIMESCALE_PASSWORD,
 	TIMESCALE_DB: process.env.TIMESCALE_DB,
 	TIMESCALE_HOST: process.env.TIMESCALE_HOST || "timescaledb",
 	TIMESCALE_PORT: process.env.TIMESCALE_PORT || "5432",
+	TIMESCALE_READ_PORT: process.env.TIMESCALE_READ_PORT || process.env.TIMESCALE_PORT || "5432",
 	S3_BUCKET_NAME: process.env.S3_BUCKET_NAME,
 	AWS_ACCESS_KEY_ID: process.env.AWS_ACCESS_KEY_ID,
 	AWS_SECRET_ACCESS_KEY: process.env.AWS_SECRET_ACCESS_KEY,

@@ -127,16 +127,25 @@ tls:
 	Configs["vector"] = CreateVectorConfig(pd)
 
 	if pi.UsePatroniTool {
-		Configs["haproxy_patroni"] = createHaproxyPatroniConfig(pd)
+		Configs["haproxy_patroni"] = CreateHaproxyPatroniConfig(pd)
 	}
 
 	return Configs
 }
 
-// createHaproxyPatroniConfig generates the haproxy.cfg content dynamically
+// CreateHaproxyPatroniConfig generates the haproxy.cfg content dynamically
 // based on NumPatroniAdminNodes and NumPatroniMetricsNodes so the config
 // is correct for 1-node local deployments as well as 3- or 5-node clusters.
-func createHaproxyPatroniConfig(pd *pt.PlatformData) pt.Config {
+//
+// Exported (not just called from GenerateConfigs at platform-init time)
+// because docker.ScalePatroniFamily also needs to call this directly,
+// every time it scales a Patroni cluster up or down — see
+// docker.refreshHaproxyPatroniConfig for why: this function bakes the
+// node count into a static list of "server patroni_adminN ..." lines at
+// generation time, so nothing keeps a previously-created config in sync
+// as nodes are later added or removed unless something explicitly
+// regenerates and re-applies it.
+func CreateHaproxyPatroniConfig(pd *pt.PlatformData) pt.Config {
 	pi := pd.PlatformInfo
 	numAdmin := utils.Max(pi.NumPatroniAdminNodes, 1)
 	numMetrics := utils.Max(pi.NumPatroniMetricsNodes, 1)
@@ -151,6 +160,7 @@ defaults
     log     global
     mode    tcp
     retries 2
+	option redispatch
     timeout client      30m
     timeout connect     4s
     timeout server      30m
@@ -186,10 +196,10 @@ listen admin-primary
     bind *:5000
     option httpchk GET /primary
     http-check expect status 200
-    default-server inter 3s fall 3 rise 2 on-marked-down shutdown-sessions
+	default-server inter 3s fastinter 500ms downinter 5s fall 3 rise 2 on-marked-down shutdown-sessions
 `)
 	for i := 1; i <= numAdmin; i++ {
-		fmt.Fprintf(&b, "    server patroni-admin%d patroni-admin%d:5432 check port 8008 resolvers docker_dns init-addr none\n", i, i)
+		fmt.Fprintf(&b, "    server patroni_admin%d patroni_admin%d:5432 check port 8008 resolvers docker_dns init-addr none\n", i, i)
 	}
 
 	b.WriteString(`
@@ -197,29 +207,30 @@ listen admin-primary
 # /read-only returns HTTP 200 on all healthy cluster members
 listen admin-replicas
     bind *:5001
+	balance leastconn
     option httpchk GET /read-only
     http-check expect status 200
-    default-server inter 3s fall 3 rise 2 on-marked-down shutdown-sessions
+    default-server inter 3s fastinter 500ms downinter 5s fall 3 rise 2 on-marked-down shutdown-sessions
 `)
 	for i := 1; i <= numAdmin; i++ {
-		fmt.Fprintf(&b, "    server patroni-admin%d patroni-admin%d:5432 check port 8008 resolvers docker_dns init-addr none\n", i, i)
+		fmt.Fprintf(&b, "    server patroni_admin%d patroni_admin%d:5432 check port 8008 resolvers docker_dns init-addr none\n", i, i)
 	}
 
 	b.WriteString(`
-# Port 5002 — Admin backup trigger (primary only)
-# Forwards to backup_trigger's sidecar HTTP server (see patroni_admin's
+# Port 5002 — Admin patroni sidecar (primary only)
+# Forwards to patroni_sidecar's sidecar HTTP server (see patroni_admin's
 # entrypoint.sh), which runs "wal-g backup-push" locally against this
 # node's own PGDATA. Always routed to the primary, same health check as
 # admin-primary, so system_manager never needs to know which physical
 # node currently holds that role.
-listen admin-backup-trigger
+listen admin-patroni-sidecar
     bind *:5002
     option httpchk GET /primary
     http-check expect status 200
-    default-server inter 3s fall 3 rise 2 on-marked-down shutdown-sessions
+    default-server inter 3s fastinter 500ms downinter 5s fall 3 rise 2 on-marked-down shutdown-sessions
 `)
 	for i := 1; i <= numAdmin; i++ {
-		fmt.Fprintf(&b, "    server patroni-admin%d patroni-admin%d:8091 check port 8008 resolvers docker_dns init-addr none\n", i, i)
+		fmt.Fprintf(&b, "    server patroni_admin%d patroni_admin%d:8091 check port 8008 resolvers docker_dns init-addr none\n", i, i)
 	}
 
 	b.WriteString(`
@@ -228,12 +239,13 @@ listen admin-backup-trigger
 # Port 5100 — Metrics writes (primary only)
 listen metrics-primary
     bind *:5100
+	balance leastconn
     option httpchk GET /primary
     http-check expect status 200
-    default-server inter 3s fall 3 rise 2 on-marked-down shutdown-sessions
+    default-server inter 3s fastinter 500ms downinter 5s fall 3 rise 2 on-marked-down shutdown-sessions
 `)
 	for i := 1; i <= numMetrics; i++ {
-		fmt.Fprintf(&b, "    server patroni-metrics%d patroni-metrics%d:5432 check port 8008 resolvers docker_dns init-addr none\n", i, i)
+		fmt.Fprintf(&b, "    server patroni_metrics%d patroni_metrics%d:5432 check port 8008 resolvers docker_dns init-addr none\n", i, i)
 	}
 
 	b.WriteString(`
@@ -242,23 +254,23 @@ listen metrics-replicas
     bind *:5101
     option httpchk GET /read-only
     http-check expect status 200
-    default-server inter 3s fall 3 rise 2 on-marked-down shutdown-sessions
+    default-server inter 3s fastinter 500ms downinter 5s fall 3 rise 2 on-marked-down shutdown-sessions
 `)
 	for i := 1; i <= numMetrics; i++ {
-		fmt.Fprintf(&b, "    server patroni-metrics%d patroni-metrics%d:5432 check port 8008 resolvers docker_dns init-addr none\n", i, i)
+		fmt.Fprintf(&b, "    server patroni_metrics%d patroni_metrics%d:5432 check port 8008 resolvers docker_dns init-addr none\n", i, i)
 	}
 
 	b.WriteString(`
-# Port 5102 — Metrics backup trigger (primary only)
-# Same purpose as admin-backup-trigger, for the metrics cluster.
-listen metrics-backup-trigger
+# Port 5102 — Metrics patroni sidecar (primary only)
+# Same purpose as admin-patroni-sidecar, for the metrics cluster.
+listen metrics-patroni-sidecar
     bind *:5102
     option httpchk GET /primary
     http-check expect status 200
-    default-server inter 3s fall 3 rise 2 on-marked-down shutdown-sessions
+    default-server inter 3s fastinter 500ms downinter 5s fall 3 rise 2 on-marked-down shutdown-sessions
 `)
 	for i := 1; i <= numMetrics; i++ {
-		fmt.Fprintf(&b, "    server patroni-metrics%d patroni-metrics%d:8091 check port 8008 resolvers docker_dns init-addr none\n", i, i)
+		fmt.Fprintf(&b, "    server patroni_metrics%d patroni_metrics%d:8091 check port 8008 resolvers docker_dns init-addr none\n", i, i)
 	}
 
 	data := b.String()

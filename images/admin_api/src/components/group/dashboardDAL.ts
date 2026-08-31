@@ -1,5 +1,5 @@
 import { v4 as uuidv4 } from "uuid";
-import pool from "../../config/dbconfig";
+import pool, { readQuery } from "../../config/dbconfig";
 import ITopic from "../topic/topic.interface";
 import { createAlert } from "./alertDAL";
 import { accelDashboardJson } from "./defaultDashboards/accelDashboardJson";
@@ -69,7 +69,7 @@ export const deleteDashboardsByIdArray = async (idArray: number[]): Promise<void
 
 export const getDashboardsDataOfGroup = async (group: IGroup): Promise<IDashboardData[]> => {
 	const folderId = group.folderId;
-	const response = await pool.query(
+	const response = await readQuery(
 		`SELECT id, data FROM grafanadb.dashboard WHERE folder_id = $1 AND is_folder = $2`,
 		[folderId, false]
 	);
@@ -77,7 +77,7 @@ export const getDashboardsDataOfGroup = async (group: IGroup): Promise<IDashboar
 };
 
 export const getDashboardDataByUid = async (orgId: number, uid: string): Promise<IDashboardData> => {
-	const response = await pool.query(`SELECT id, data FROM grafanadb.dashboard WHERE org_id=$1 AND uid= $2`, [
+	const response = await readQuery(`SELECT id, data FROM grafanadb.dashboard WHERE org_id=$1 AND uid= $2`, [
 		orgId,
 		uid,
 	]);

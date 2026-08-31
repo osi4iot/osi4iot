@@ -47,6 +47,7 @@ type FlowsManager struct {
 	JetStream                jetstream.JetStream
 	NumStreamReplicas        int
 	DBPool                   *pgxpool.Pool
+	DBReadPool               *pgxpool.Pool
 	DuckdbPool               *sql.DB
 	S3Client                 *s3.Client
 	S3BucketName             string
@@ -77,6 +78,7 @@ func CreateFlowsManager(
 	jetStream jetstream.JetStream,
 	jsConsumer jetstream.Consumer,
 	dbpool *pgxpool.Pool,
+	dbReadPool *pgxpool.Pool,
 	duckdbPool *sql.DB,
 	s3Client *s3.Client,
 	admin *admin.Admin,
@@ -143,6 +145,7 @@ func CreateFlowsManager(
 		JetStream:                jetStream,
 		NumStreamReplicas:        config.NumStreamReplicas,
 		DBPool:                   dbpool,
+		DBReadPool:               dbReadPool,
 		DuckdbPool:               duckdbPool,
 		IotDataCh:                iotDataCh,
 		IotDataCancel:            iotDataCancel,
@@ -489,6 +492,10 @@ func (fm *FlowsManager) SendToIotDataChannel(data common.ThingData) {
 
 func (fm *FlowsManager) GetDbPool() *pgxpool.Pool {
 	return fm.DBPool
+}
+
+func (fm *FlowsManager) GetDbReadPool() *pgxpool.Pool {
+	return fm.DBReadPool
 }
 
 func (fm *FlowsManager) GetS3Client() *s3.Client {

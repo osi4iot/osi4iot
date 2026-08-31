@@ -1,4 +1,4 @@
-import pool from "../../config/dbconfig";
+import pool, { readQuery } from "../../config/dbconfig";
 import CreateOrganizationDto from "./interfaces/organization.dto";
 import IOrganization, { IOrganizationWichTheLoggedUserIsUser } from "./interfaces/organization.interface";
 import grafanaApi from "../../GrafanaApi";
@@ -15,12 +15,12 @@ import IGroupMember from "../group/interfaces/GroupMember.interface";
 import natsClient from "../../config/natsConfig";
 
 export const exitsOrganizationWithName = async (orgName: string): Promise<boolean> => {
-	const result = await pool.query("SELECT COUNT(*) FROM grafanadb.org WHERE name = $1", [orgName]);
+	const result = await readQuery("SELECT COUNT(*) FROM grafanadb.org WHERE name = $1", [orgName]);
 	return result.rows[0].count !== 0;
 };
 
 export const exitsOrganizationWithAcronym = async (orgAcronym: string): Promise<boolean> => {
-	const result = await pool.query("SELECT COUNT(*) FROM grafanadb.org WHERE acronym = $1", [orgAcronym]);
+	const result = await readQuery("SELECT COUNT(*) FROM grafanadb.org WHERE acronym = $1", [orgAcronym]);
 	return result.rows[0].count !== 0;
 };
 
@@ -67,7 +67,7 @@ export const updateOrganizationHashById = async (orgId: number, newOrgHash: stri
 };
 
 export const getApiKeyIdByName = async (apiKeyName: string): Promise<number> => {
-	const result = await pool.query(`SELECT id FROM grafanadb.api_key WHERE name = $1`, [apiKeyName]);
+	const result = await readQuery(`SELECT id FROM grafanadb.api_key WHERE name = $1`, [apiKeyName]);
 	return result.rows[0].id as number;
 };
 
@@ -91,7 +91,7 @@ export const getOrganizations = async (): Promise<IOrganization[]> => {
 					FROM grafanadb.org
 					INNER JOIN grafanadb.building ON grafanadb.org.building_id = grafanadb.building.id
 					ORDER BY grafanadb.org.id ASC;`;
-	const result = await pool.query(query);
+	const result = await readQuery(query);
 	return result.rows as IOrganization[];
 };
 
@@ -110,7 +110,7 @@ export const getOrganizationsFullInfo = async (): Promise<IOrganization[]> => {
 					FROM grafanadb.org
 					INNER JOIN grafanadb.building ON grafanadb.org.building_id = grafanadb.building.id
 					ORDER BY grafanadb.org.id ASC;`;
-	const result = await pool.query(query);
+	const result = await readQuery(query);
 	return result.rows as IOrganization[];
 };
 
@@ -127,13 +127,13 @@ export const getOrganizationsWithIdsArray = async (orgIdsArray: number[]): Promi
 					INNER JOIN grafanadb.building ON grafanadb.org.building_id = grafanadb.building.id
 					WHERE grafanadb.org.id = ANY($1::integer[])
 					ORDER BY grafanadb.org.id ASC;`;
-	const result = await pool.query(query, [orgIdsArray]);
+	const result = await readQuery(query, [orgIdsArray]);
 	return result.rows as IOrganization[];
 };
 
 export const getNumOrganizations = async (): Promise<number> => {
 	const query = `SELECT COUNT(*) FROM grafanadb.org;`;
-	const result = await pool.query(query);
+	const result = await readQuery(query);
 	return parseInt(result.rows[0].count, 10);
 };
 
@@ -149,7 +149,7 @@ export const getOrganizationByProp = async (propName: string, propValue: string 
 					FROM grafanadb.org
 					INNER JOIN grafanadb.building ON grafanadb.org.building_id = grafanadb.building.id
 					WHERE grafanadb.org.${propName} = $1;`;
-	const result = await pool.query(query, [propValue]);
+	const result = await readQuery(query, [propValue]);
 	return result.rows[0] as IOrganization;
 };
 
@@ -171,14 +171,14 @@ export const getOrganizationFullInfoByProp = async (
 					FROM grafanadb.org
 					INNER JOIN grafanadb.building ON grafanadb.org.building_id = grafanadb.building.id
 					WHERE grafanadb.org.${propName} = $1;`;
-	const result = await pool.query(query, [propValue]);
+	const result = await readQuery(query, [propValue]);
 	return result.rows[0] as IOrganization;
 };
 
 export const getOrganizationKey = async (orgId: number): Promise<string> => {
 	const query = `SELECT organization_key as "orgKey"
 					FROM grafanadb.org_token WHERE org_id = $1;`;
-	const result = await pool.query(query, [orgId]);
+	const result = await readQuery(query, [orgId]);
 	const apiKey = decrypt(result.rows[0].orgKey);
 	return apiKey;
 };
@@ -230,7 +230,7 @@ export const getOrganizationAdmin = async (orgId: number): Promise<Partial<IUser
 					FROM grafanadb.user
 					INNER JOIN grafanadb.org_user ON grafanadb.org_user.user_id = grafanadb.user.id
 					WHERE grafanadb.org_user.org_id = $1 AND grafanadb.org_user.role = $2`;
-	const result = await pool.query(query, [orgId, "Admin"]);
+	const result = await readQuery(query, [orgId, "Admin"]);
 	return result.rows as Partial<IUser>[];
 };
 
@@ -248,7 +248,7 @@ export const getOrganizationsManagedByUserId = async (userId: number): Promise<I
 					INNER JOIN grafanadb.org_user ON grafanadb.org.id = grafanadb.org_user.org_id					
 					WHERE grafanadb.org_user.user_id = $1 AND grafanadb.org_user.role = $2
 					ORDER BY id ASC`;
-	const result = await pool.query(query, [userId, "Admin"]);
+	const result = await readQuery(query, [userId, "Admin"]);
 	return result.rows as IOrganization[];
 };
 
@@ -268,7 +268,7 @@ export const organizationsWhichTheLoggedUserIsUser = async (
 					INNER JOIN grafanadb.org_user ON grafanadb.org.id = grafanadb.org_user.org_id
 					WHERE grafanadb.org_user.user_id = $1
 					ORDER BY id ASC`;
-	const result = await pool.query(query, [userId]);
+	const result = await readQuery(query, [userId]);
 	return result.rows as IOrganizationWichTheLoggedUserIsUser[];
 };
 

@@ -6,7 +6,7 @@
 #   Releases (wal-g-pg-24.04-<arch>.tar.gz) — nothing is compiled from
 #   source, so no Go toolchain or libsodium build dependencies are needed
 #   in this image for WAL-G itself.
-#   backup_trigger (both archs) → pure stdlib Go, cross-compiled with
+#   patroni_sidecar (both archs) → pure stdlib Go, cross-compiled with
 #   CGO_ENABLED=0 from BUILDPLATFORM — no QEMU needed either way.
 #
 # Extensions installed:
@@ -24,15 +24,15 @@ ARG PATRONI_VERSION=4.0.4
 ARG TIMESCALE_VERSION=2.29.1
 ARG PGVECTOR_VERSION=v0.8.6
 
-# ── Stage 0: backup_trigger builder (cross-compiled, no QEMU needed) ────────
+# ── Stage 0: patroni_sidecar builder (cross-compiled, no QEMU needed) ────────
 # Pure stdlib Go binary — same cross-compile trick as system_manager's own
 # sm-builder stage, so this needs no QEMU emulation even for arm64.
-FROM --platform=$BUILDPLATFORM golang:1.25-bookworm AS backup-trigger-builder
+FROM --platform=$BUILDPLATFORM golang:1.25-bookworm AS patroni-sidecar-builder
 ARG TARGETARCH
 WORKDIR /src
-COPY backup_trigger/go.mod ./
-COPY backup_trigger/main.go ./
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=${TARGETARCH} go build -o /usr/local/bin/backup_trigger .
+COPY patroni_sidecar/go.mod ./
+COPY patroni_sidecar/main.go ./
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=${TARGETARCH} go build -o /usr/local/bin/patroni_sidecar .
 
 # ── Stage 1: final image ─────────────────────────────────────────────────────
 FROM ubuntu:24.04
@@ -122,8 +122,8 @@ RUN ARCH=$(dpkg --print-architecture) \
     && mv "/usr/local/bin/wal-g-pg-24.04-${WALG_ARCH}" /usr/local/bin/wal-g \
     && chmod +x /usr/local/bin/wal-g
 
-# ── backup_trigger sidecar ───────────────────────────────────────────────────
-COPY --from=backup-trigger-builder /usr/local/bin/backup_trigger /usr/local/bin/backup_trigger
+# ── patroni_sidecar sidecar ───────────────────────────────────────────────────
+COPY --from=patroni-sidecar-builder /usr/local/bin/patroni_sidecar /usr/local/bin/patroni_sidecar
 
 # ── WAL-G environment (S3/MinIO) ─────────────────────────────────────────────
 ENV WALG_COMPRESSION_METHOD=lz4 \

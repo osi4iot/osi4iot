@@ -298,6 +298,28 @@ func (b *ServiceBuilder) WithStopGracePeriod(duration time.Duration) *ServiceBui
 	return b
 }
 
+// WithStatefulUpdateConfig switches this service to a stop-first rolling
+// update. Use it for every service with a persistent volume.
+func (b *ServiceBuilder) WithStatefulUpdateConfig(monitor time.Duration) *ServiceBuilder {
+	b.svc.UpdateConfig = &swarm.UpdateConfig{
+		Parallelism:     1,
+		Delay:           5 * time.Second,
+		FailureAction:   swarm.UpdateFailureActionPause,
+		Monitor:         monitor,
+		MaxFailureRatio: 0,
+		Order:           "stop-first",
+	}
+	b.svc.RollbackConfig = &swarm.UpdateConfig{
+		Parallelism:     1,
+		Delay:           5 * time.Second,
+		FailureAction:   swarm.UpdateFailureActionContinue,
+		Monitor:         monitor,
+		MaxFailureRatio: 0,
+		Order:           "stop-first",
+	}
+	return b
+}
+
 // WithGlobal sets the service to global mode.
 func (b *ServiceBuilder) WithGlobal() *ServiceBuilder {
 	b.svc.Mode = swarm.ServiceMode{Global: &swarm.GlobalService{}}

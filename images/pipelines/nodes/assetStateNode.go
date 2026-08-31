@@ -197,7 +197,7 @@ func (n *AssetStateNode) processGetStateQuery(msg common.Message, log *logger.Lo
 
 	switch n.StoreType {
 	case "IoTDB":
-		assetState, err = iotdb.GetStateFromAssetState(n.Ctx, n.Fm.GetDbPool(), n.GroupUid, n.AssetUid)
+		assetState, err = iotdb.GetStateFromAssetState(n.Ctx, n.Fm.GetDbReadPool(), n.GroupUid, n.AssetUid)
 		if err != nil {
 			log.Errorf("AssetStateNode %s: failed to get asset state: %v", n.NodeUid, err)
 			return fmt.Errorf("failed to get asset state: %w", err)
@@ -238,7 +238,7 @@ func (n *AssetStateNode) processGetStatesInGroupQuery(msg common.Message, log *l
 
 	switch n.StoreType {
 	case "IoTDB":
-		assetStates, err = iotdb.GetAssetStatesByGroup(n.Ctx, n.Fm.GetDbPool(), n.GroupUid)
+		assetStates, err = iotdb.GetAssetStatesByGroup(n.Ctx, n.Fm.GetDbReadPool(), n.GroupUid)
 		if err != nil {
 			log.Errorf("AssetStateNode %s: failed to get asset states in group: %v", n.NodeUid, err)
 			return fmt.Errorf("failed to get asset states in group: %w", err)

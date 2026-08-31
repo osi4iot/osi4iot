@@ -74,11 +74,17 @@ func buildInfraServices(config *Config) []InfraService {
 			Name:       "deploy_cli",
 			NKeyPublic: config.DeployCliNKeyPublic,
 			Permissions: jwt.Permissions{
+				// Pub: jwt.Permission{
+				// 	Allow: []string{"$JS.>", "_INBOX.>"},
+				// },
+				// Sub: jwt.Permission{
+				// 	Allow: []string{"$JS.>", "_INBOX.>"},
+				// },
 				Pub: jwt.Permission{
-					Allow: []string{"$JS.>", "_INBOX.>"},
+					Allow: []string{">"},
 				},
 				Sub: jwt.Permission{
-					Allow: []string{"$JS.>", "_INBOX.>"},
+					Allow: []string{">"},
 				},
 				Resp: &jwt.ResponsePermission{MaxMsgs: 1},
 			},
@@ -96,12 +102,14 @@ func buildInfraServices(config *Config) []InfraService {
 				Pub: jwt.Permission{
 					Allow: []string{
 						"_INBOX.*.*",
+						"$JS.>",
 					},
 				},
 				Sub: jwt.Permission{
 					Allow: []string{
+						"_INBOX.*.*",
 						"$SRV.INFO",
-						fmt.Sprintf("$SRV.INFO.%s","system_manager"),
+						fmt.Sprintf("$SRV.INFO.%s", "system_manager"),
 						fmt.Sprintf("$SRV.INFO.%s.*", "system_manager"),
 						"$SRV.PING",
 						fmt.Sprintf("$SRV.PING.%s", "system_manager"),

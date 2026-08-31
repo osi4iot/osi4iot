@@ -358,94 +358,6 @@ func waitForStreamFullySynced(js jetstream.JetStream, streamName string, targetR
 	return fmt.Errorf("stream %s did not fully sync to %d replicas within %s (last observed: %s)",
 		streamName, targetReplicas, timeout, lastSeen)
 }
-
- 
-// BackupNatsStreams snapshots every JetStream stream (data + consumer state)
-// to a fresh timestamped directory and returns that directory and the names of
-// the streams that were backed up. It is an exported wrapper around the
-// internal backupNatsStreams used by the scale flow, exposed for the manual
-// `osi4iot nats backup` command.
-func BackupNatsStreams(pd *pt.PlatformData, dc *pt.DockerClient) (string, []string, error) {
-	return backupNatsStreams(pd, dc)
-}
- 
-// RestoreNatsStreams restores the named streams from backupDir into the running
-// NATS and raises each restored stream to targetReplicas. When deleteExisting
-// is true, any existing copies of those streams are removed first (a snapshot
-// restore fails if the stream already exists, so this is required when
-// restoring on top of a cluster that already holds the streams).
-//
-// It returns (warning, error): a non-empty warning means everything was
-// restored but one or more streams had not reached targetReplicas before the
-// wait timed out (degraded but not lost); a non-nil error means a snapshot
-// could not be restored. Exported wrapper for the manual `osi4iot nats restore`
-// command.
-func RestoreNatsStreams(
-	pd *pt.PlatformData,
-	dc *pt.DockerClient,
-	backupDir string,
-	names []string,
-	targetReplicas int,
-	deleteExisting bool,
-) (string, error) {
-	if deleteExisting && len(names) > 0 {
-		if err := deleteNatsStreams(pd, dc, names); err != nil {
-			return "", fmt.Errorf("error deleting existing streams before restore: %w", err)
-		}
-	}
-	return restoreNatsStreams(pd, dc, backupDir, names, targetReplicas)
-}
- 
-// ListBackupStreamNames returns the stream names contained in a backup
-// directory. Each stream was snapshotted into its own subdirectory, so the
-// stream names are simply the subdirectory names.
-func ListBackupStreamNames(backupDir string) ([]string, error) {
-	entries, err := os.ReadDir(backupDir)
-	if err != nil {
-		return nil, fmt.Errorf("error reading backup directory %s: %w", backupDir, err)
-	}
- 
-	var names []string
-	for _, e := range entries {
-		if e.IsDir() {
-			names = append(names, e.Name())
-		}
-	}
-	if len(names) == 0 {
-		return nil, fmt.Errorf("no stream snapshots found in %s", backupDir)
-	}
- 
-	sort.Strings(names)
-	return names, nil
-}
- 
-// LatestNatsBackupDir returns the most recent backup directory under the base
-// backups directory. Backup directories are named with a sortable UTC
-// timestamp, so the lexicographically largest name is the newest.
-func LatestNatsBackupDir() (string, error) {
-	base, err := natsBackupBaseDir()
-	if err != nil {
-		return "", err
-	}
- 
-	entries, err := os.ReadDir(base)
-	if err != nil {
-		return "", fmt.Errorf("error reading backups directory %s: %w", base, err)
-	}
- 
-	var dirs []string
-	for _, e := range entries {
-		if e.IsDir() {
-			dirs = append(dirs, e.Name())
-		}
-	}
-	if len(dirs) == 0 {
-		return "", fmt.Errorf("no backups found under %s", base)
-	}
- 
-	sort.Strings(dirs)
-	return filepath.Join(base, dirs[len(dirs)-1]), nil
-}
  
 // NatsStreamInfo is a compact, display-oriented view of a single JetStream
 // stream, decoupling the CLI from the underlying NATS API types.
@@ -529,96 +441,27 @@ func ListNatsStreams(pd *pt.PlatformData, dc *pt.DockerClient) ([]NatsStreamInfo
 	return out, nil
 }
  
-// NatsBackupInfo describes one backup directory: its timestamped name, full
-// path, and the streams it contains.
-type NatsBackupInfo struct {
-	Name    string
-	Path    string
-	Streams []string
-}
- 
-// ListNatsBackups returns the available backups under the base backups
-// directory, newest first. A missing base directory simply yields no backups.
-func ListNatsBackups() ([]NatsBackupInfo, error) {
-	base, err := natsBackupBaseDir()
-	if err != nil {
-		return nil, err
-	}
- 
-	entries, err := os.ReadDir(base)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return nil, nil
-		}
-		return nil, fmt.Errorf("error reading backups directory %s: %w", base, err)
-	}
- 
-	var backups []NatsBackupInfo
-	for _, e := range entries {
-		if !e.IsDir() {
-			continue
-		}
-		path := filepath.Join(base, e.Name())
-		streams, _ := ListBackupStreamNames(path) // best-effort; empty if unreadable
-		backups = append(backups, NatsBackupInfo{
-			Name:    e.Name(),
-			Path:    path,
-			Streams: streams,
-		})
-	}
- 
-	sort.Slice(backups, func(i, j int) bool { return backups[i].Name > backups[j].Name })
-	return backups, nil
-}
- 
-// DeleteNatsBackup removes a single backup directory by its name (the
-// timestamped directory name, not a path). The name is validated to be a direct
-// child of the backups base directory so this can never delete anything outside
-// it. It returns the deleted path.
-func DeleteNatsBackup(name string) (string, error) {
-	base, err := natsBackupBaseDir()
-	if err != nil {
-		return "", err
-	}
- 
+// deleteNatsBackup removes a single backup directory
+func deleteNatsBackup(natsBackupDir string) error {
 	// Reject anything that is not a plain directory name, to prevent escaping
 	// the backups base directory (e.g. "..", "a/b", absolute paths).
-	if name == "" || name == "." || name == ".." || name != filepath.Base(name) {
-		return "", fmt.Errorf("invalid backup name %q", name)
+	if natsBackupDir == "" || natsBackupDir == "." || natsBackupDir == ".." {
+		return  fmt.Errorf("invalid backup name %q", natsBackupDir)
 	}
  
-	path := filepath.Join(base, name)
-	info, err := os.Stat(path)
+	info, err := os.Stat(natsBackupDir)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return "", fmt.Errorf("backup %q not found", name)
+			return fmt.Errorf("backup %q not found", natsBackupDir)
 		}
-		return "", fmt.Errorf("error accessing backup %q: %w", name, err)
+		return fmt.Errorf("error accessing backup %q: %w", natsBackupDir, err)
 	}
 	if !info.IsDir() {
-		return "", fmt.Errorf("%q is not a backup directory", name)
+		return fmt.Errorf("%q is not a backup directory", natsBackupDir)
 	}
  
-	if err := os.RemoveAll(path); err != nil {
-		return "", fmt.Errorf("error deleting backup %q: %w", name, err)
+	if err := os.RemoveAll(natsBackupDir); err != nil {
+		return fmt.Errorf("error deleting backup %q: %w", natsBackupDir, err)
 	}
-	return path, nil
-}
- 
-// DeleteAllNatsBackups removes every backup directory under the backups base
-// directory and returns how many were deleted.
-func DeleteAllNatsBackups() (int, error) {
-	backups, err := ListNatsBackups()
-	if err != nil {
-		return 0, err
-	}
- 
-	count := 0
-	for _, b := range backups {
-		if err := os.RemoveAll(b.Path); err != nil {
-			return count, fmt.Errorf("error deleting backup %q: %w", b.Name, err)
-		}
-		count++
-	}
-	return count, nil
+	return nil
 }
