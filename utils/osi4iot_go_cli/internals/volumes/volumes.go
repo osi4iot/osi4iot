@@ -112,8 +112,6 @@ func GenerateVolumes(platformData *pt.PlatformData) map[string]pt.Volume {
 			serviceName := fmt.Sprintf("patroni_metrics%d", i)
 			volumeData := fmt.Sprintf("patroni_metrics%d-data", i)
 			Volumes[volumeData] = SetVolumeConfig(pi, volumeData, serviceName, deploymentLocation, volOptions)
-			volumeWAL := fmt.Sprintf("patroni_metrics%d-wal", i)
-			Volumes[volumeWAL] = SetVolumeConfig(pi, volumeWAL, serviceName, deploymentLocation, volOptions)
 		}
 	} else {
 		Volumes["pgdata"] = SetVolumeConfig(pi, "pgdata", "postgres", deploymentLocation, volOptions)
@@ -148,6 +146,26 @@ func CreateVolume(dc *pt.DockerClient, domainName string, swarmVol *pt.Volume) e
 		if v.Name == swarmVol.Name {
 			swarmVol.ID = v.Name
 			volumeExists = true
+
+			// Docker creates a volume automatically when a service
+			// mounts one that does not exist yet, and those come with
+			// no labels at all. Skipping silently here is how such a
+			// volume becomes permanent: RemoveSwarmVolumes looks for
+			// app=osi4iot, finds nothing, and `osi4iot delete` leaves
+			// it behind for good.
+			//
+			// It cannot be repaired from here — a volume's labels are
+			// immutable in Docker, there is no update API — so the most
+			// this can do is say so. See ServiceBuilder.WithMounts for
+			// the change that stops them being created unlabelled in
+			// the first place.
+			if v.Labels["app"] != "osi4iot" {
+				fmt.Printf("Warning: volume '%s' already exists without the app=osi4iot label, "+
+					"so 'osi4iot delete' will not remove it.\n"+
+					"  It was most likely auto-created by Docker. Remove it by hand with "+
+					"'docker volume rm %s' if you want a clean slate.\n",
+					v.Name, v.Name)
+			}
 			break
 		}
 	}
@@ -292,8 +310,13 @@ func removeReplicaVolume(pd *pt.PlatformData, volumeName string) error {
 func RemoveSwarmVolumes(pd *pt.PlatformData) error {
 	errors := []error{}
 	filterByNames := getVolumeFilterByNames(pd)
+	knownNames := platformVolumeNames(pd)
 
 	for _, dc := range pt.DCMap {
+		if dc == nil || dc.Cli == nil {
+			continue
+		}
+
 		existingVolumes := make(map[string]*volume.Volume)
 		volumesByNameResp, err := dc.Cli.VolumeList(dc.Ctx, volume.ListOptions{
 			Filters: filterByNames,
@@ -302,7 +325,11 @@ func RemoveSwarmVolumes(pd *pt.PlatformData) error {
 			return fmt.Errorf("error listing volumes by name: %v", err)
 		}
 		for _, v := range volumesByNameResp.Volumes {
-			existingVolumes[v.Name] = v
+			// The name filter is a substring match and this loop ends
+			// in VolumeRemove, so only exact matches get through.
+			if knownNames[v.Name] {
+				existingVolumes[v.Name] = v
+			}
 		}
 
 		filterByLabel := filters.NewArgs()
@@ -443,32 +470,38 @@ func DeleteEBSVolumeByName(ctx context.Context, domainName, volumeName string) e
 	return nil
 }
 
+// platformVolumeNames returns every volume name this platform's
+// configuration defines.
+//
+// Derived from GenerateVolumes rather than from a list maintained by
+// hand. The hand-maintained one had drifted badly: it still carried the
+// pre-Patroni names and was missing patroni_admin%d-data,
+// patroni_metrics%d-data, pipelines_data_%d,
+// minio_data, timescaledb_wal and system_manager-data. That only shows
+// up when a volume has lost its app=osi4iot label, because then the
+// name list is the only thing left that can find it — and a volume
+// nobody can find is a volume `osi4iot delete` leaves behind.
+func platformVolumeNames(pd *pt.PlatformData) map[string]bool {
+	names := make(map[string]bool)
+	for name := range GenerateVolumes(pd) {
+		names[name] = true
+	}
+	return names
+}
+
+// getVolumeFilterByNames narrows a VolumeList to this platform's
+// volumes.
+//
+// Docker's "name" filter matches SUBSTRINGS, so the result still has to
+// be checked against the exact names — see platformVolumeNames and its
+// use in RemoveSwarmVolumes. Without that, a user volume called
+// something like "my-pgdata-backup" matches the "pgdata" filter and
+// gets deleted along with the platform.
 func getVolumeFilterByNames(pd *pt.PlatformData) filters.Args {
-	volumeNames := []string{
-		"pgdata",
-		"timescaledb_data",
-		"pgadmin4_data",
-		"minio_storage",
-		"vector_buffer",
-	}
-
-	numNatsReplicas := utils.GetServiceReplicas(pd, "nats")
-	for replica := 1; replica <= numNatsReplicas; replica++ {
-		volName := fmt.Sprintf("nats%d_data", replica)
-		volumeNames = append(volumeNames, volName)
-	}
-
-	numGrafanaReplicas := utils.GetServiceReplicas(pd, "grafana")
-	for replica := 1; replica <= numGrafanaReplicas; replica++ {
-		volName := fmt.Sprintf("grafana_data_%d", replica)
-		volumeNames = append(volumeNames, volName)
-	}
-
 	volumeFilters := filters.NewArgs()
-	for _, name := range volumeNames {
+	for name := range platformVolumeNames(pd) {
 		volumeFilters.Add("name", name)
 	}
-
 	return volumeFilters
 }
 
@@ -640,10 +673,20 @@ func RemovePatroniAdminVolume(dc *pt.DockerClient, replica int) error {
 	return nil
 }
 
-// CreatePatroniMetricsVolumes provisions the two volumes ("...-data" and
-// "...-wal") a new metrics-cluster node needs. Same single-dc reasoning as
+// CreatePatroniMetricsVolume provisions the data volume a new
+// metrics-cluster node needs. Same single-dc reasoning as
 // CreatePatroniAdminVolume.
-func CreatePatroniMetricsVolumes(pi pt.PlatformInfo, dc *pt.DockerClient, replica int) (dataVol *pt.Volume, walVol *pt.Volume, err error) {
+//
+// There used to be a second, "...-wal" volume mounted at /wal. Nothing
+// ever used it: no initdb --waldir, no symlink, no postgresql.conf
+// setting. Wiring it up properly would have made PGDATA and pg_wal one
+// state split across two volumes — to be wiped together on a restore,
+// and silently corrupt if they ever diverged — and the symlink would
+// not have survived a wal-g backup-fetch anyway, so a restored cluster
+// would have quietly gone back to writing WAL inside the data volume.
+// The I/O separation it was presumably meant to buy was never measured;
+// the failure modes were not hypothetical.
+func CreatePatroniMetricsVolume(pi pt.PlatformInfo, dc *pt.DockerClient, replica int) (*pt.Volume, error) {
 	volOptions := createDefaultOptions(pi)
 	serviceName := fmt.Sprintf("patroni_metrics%d", replica)
 	domainName := pi.DomainName
@@ -651,34 +694,19 @@ func CreatePatroniMetricsVolumes(pi pt.PlatformInfo, dc *pt.DockerClient, replic
 	dataVolumeName := fmt.Sprintf("patroni_metrics%d-data", replica)
 	dataVolume := SetVolumeConfig(pi, dataVolumeName, serviceName, pi.DeploymentLocation, volOptions)
 	if err := CreateVolume(dc, domainName, &dataVolume); err != nil {
-		return nil, nil, fmt.Errorf("error creating volume %s in node %s: %v", dataVolume.Name, dc.Node.NodeIP, err)
+		return nil, fmt.Errorf("error creating volume %s in node %s: %v", dataVolume.Name, dc.Node.NodeIP, err)
 	}
 
-	walVolumeName := fmt.Sprintf("patroni_metrics%d-wal", replica)
-	walVolume := SetVolumeConfig(pi, walVolumeName, serviceName, pi.DeploymentLocation, volOptions)
-	if err := CreateVolume(dc, domainName, &walVolume); err != nil {
-		return nil, nil, fmt.Errorf("error creating volume %s in node %s: %v", walVolume.Name, dc.Node.NodeIP, err)
-	}
-
-	return &dataVolume, &walVolume, nil
+	return &dataVolume, nil
 }
 
-// RemovePatroniMetricsVolumes removes both volumes of a removed
-// metrics-cluster node. Best-effort on both: it tries the WAL volume even
-// if the data volume fails, and reports every failure it hit.
-func RemovePatroniMetricsVolumes(dc *pt.DockerClient, replica int) error {
+// RemovePatroniMetricsVolume removes the volume of a removed
+// metrics-cluster node.
+func RemovePatroniMetricsVolume(dc *pt.DockerClient, replica int) error {
 	dataVolumeName := fmt.Sprintf("patroni_metrics%d-data", replica)
-	walVolumeName := fmt.Sprintf("patroni_metrics%d-wal", replica)
 
-	var errs []error
 	if err := dc.Cli.VolumeRemove(dc.Ctx, dataVolumeName, true); err != nil && !isVolumeAlreadyRemovedError(err) {
-		errs = append(errs, fmt.Errorf("error removing volume %s: %v", dataVolumeName, err))
-	}
-	if err := dc.Cli.VolumeRemove(dc.Ctx, walVolumeName, true); err != nil && !isVolumeAlreadyRemovedError(err) {
-		errs = append(errs, fmt.Errorf("error removing volume %s: %v", walVolumeName, err))
-	}
-	if len(errs) > 0 {
-		return fmt.Errorf("errors removing patroni_metrics volumes: %v", errs)
+		return fmt.Errorf("error removing volume %s: %v", dataVolumeName, err)
 	}
 	return nil
 }

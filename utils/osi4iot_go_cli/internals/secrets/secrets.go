@@ -14,7 +14,13 @@ import (
 	"github.com/osi4iot/osi4iot/utils/osi4iot/internals/utils"
 )
 
-func GenerateSecrets(pd *pt.PlatformData) map[string]pt.Secret {
+// GenerateSecrets builds every Docker secret the platform needs.
+//
+// It returns an error now (it used to return only the map): obtaining
+// the domain certificates happens in here, and swallowing a failure
+// there meant a platform could deploy with empty DomainCerts and only
+// fail much later, at traefik.
+func GenerateSecrets(pd *pt.PlatformData) (map[string]pt.Secret, error) {
 	pi := pd.PlatformInfo
 	Secrets := make(map[string]pt.Secret)
 	domainCertsType := pi.DomainCertsType
@@ -22,7 +28,15 @@ func GenerateSecrets(pd *pt.PlatformData) map[string]pt.Secret {
 	Secrets["admin_api"] = CreateAdminApiConfigSecret(pd, numNatsReplicas)
 
 	if domainCertsType == "Let's encrypt certs with DNS-01 challenge and AWS Route 53 provider" {
-		certrenewer.SetOrUpdateAcmeCerts(pd)
+		// pd.Certs.DomainCerts must already be in sync with whatever
+		// system_manager holds before this runs — see
+		// docker.SyncCertsFromSystemManager, called from
+		// createSwarmServices. Otherwise this reads a stale certificate
+		// from the state file and, if it looks close to expiry, asks
+		// Let's Encrypt for another one that the platform already has.
+		if err := certrenewer.SetOrUpdateAcmeCerts(pd); err != nil {
+			return nil, fmt.Errorf("error obtaining domain certificates: %w", err)
+		}
 	}
 
 	if domainCertsType == "Certs provided by an CA" ||
@@ -218,7 +232,20 @@ func GenerateSecrets(pd *pt.PlatformData) map[string]pt.Secret {
 		Secrets["system_manager"] = CreateSystemManagerSecrets(pd)
 	}
 
-	return Secrets
+	if pi.DomainCertsType == "Let's encrypt certs with DNS-01 challenge and AWS Route 53 provider" {
+		// The certificates this CLI just issued, encrypted, so
+		// system_manager can seed its volume with them on first start
+		// instead of finding it empty and going straight back to ACME
+		// for something we already have. See
+		// CreateSystemManagerCertsSecret.
+		certsSeed, err := CreateSystemManagerCertsSecret(pd)
+		if err != nil {
+			return nil, err
+		}
+		Secrets["system_manager_certs"] = certsSeed
+	}
+
+	return Secrets, nil
 }
 
 func GetSecretByName(dc *pt.DockerClient, secretName string) (*swarm.Secret, error) {
@@ -315,7 +342,10 @@ func RemoveSecretByName(dc *pt.DockerClient, secretName string) error {
 }
 
 func CreateSwarmSecrets(platformData *pt.PlatformData, dc *pt.DockerClient) (map[string]pt.Secret, error) {
-	secretsToCreate := GenerateSecrets(platformData)
+	secretsToCreate, err := GenerateSecrets(platformData)
+	if err != nil {
+		return nil, err
+	}
 	createdSecrets := make(map[string]pt.Secret, len(secretsToCreate))
 
 	for key, secret := range secretsToCreate {
@@ -492,6 +522,11 @@ func GetKnownSecretKeys(pd *pt.PlatformData) []string {
 		"pipelines_config",
 		"minio",
 		"pgadmin4",
+		// Both of these were missing, so every superseded copy of them
+		// stayed in the swarm forever: RemoveOrphanSecrets only ever
+		// considers names starting with a known key.
+		"system_manager",
+		"system_manager_certs",
 	}
 	return keys
 }

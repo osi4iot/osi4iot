@@ -57,7 +57,14 @@ func WritePlatformDataToFile(data *pt.PlatformData) error {
 		return fmt.Errorf("error encrypting state file: %w", err)
 	}
 
-	return os.WriteFile(osi4iotStateFile, encoded, 0600)
+	if err := os.WriteFile(osi4iotStateFile, encoded, 0600); err != nil {
+		return err
+	}
+
+	// Every change to the state file is a change worth having an
+	// off-host copy of — see SetStateBackupHook.
+	runStateBackupHook(data, plaintext, encoded)
+	return nil
 }
 
 func ReadPlatformDataFromFile(data *pt.PlatformData) error {

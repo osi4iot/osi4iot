@@ -26,6 +26,7 @@ import (
 	"time"
 
 	"system_manager/internal/certrenewer"
+	"system_manager/internal/certstore"
 	"system_manager/internal/config"
 	"system_manager/internal/nats_backup"
 	"system_manager/internal/natssvc"
@@ -33,6 +34,7 @@ import (
 	"system_manager/internal/patroni_backup"
 	"system_manager/internal/prune"
 	"system_manager/internal/schedule"
+	"system_manager/internal/statefile"
 	"system_manager/internal/task"
 	"system_manager/internal/taskpool"
 )
@@ -56,6 +58,24 @@ func main() {
 			st := task.SerializeScheduled(t)
 			scheduled = append(scheduled, st)
 			tasks = append(tasks, st)
+		}
+
+		// "What backups exist" is a read-only question about wal-g's
+		// catalogue, so it goes to tasks and never to scheduled — same
+		// reasoning as patroni.LeaderQuery below. See
+		// internal/patroni_backup/list.go for why this asks wal-g
+		// instead of listing S3 like the other backup targets do.
+		for _, l := range patroni_backup.LoadBackupLists() {
+			tasks = append(tasks, task.Serialize(l))
+		}
+
+		// Forcing a WAL switch and waiting for the archive to receive
+		// it — what the CLI's patroni restore does before destroying
+		// anything, so the up-to-archive_timeout window of committed
+		// transactions still only in pg_wal is not lost. On-demand
+		// only: on a timer it would defeat archive_timeout.
+		for _, f := range patroni_backup.LoadFlushWALs() {
+			tasks = append(tasks, task.Serialize(f))
 		}
 
 		// "Who's the leader right now" is a read-only lookup, not
@@ -106,6 +126,12 @@ func main() {
 		// task.Serialize (not SerializeScheduled) still guards against
 		// two overlapping restore requests racing each other.
 		tasks = append(tasks, task.Serialize(nats_backup.NewRestore(nbCfg)))
+
+		// Listing is what makes Restore's "always the latest run"
+		// default safe to live with: without it the operator cannot see
+		// whether that run predates whatever they are recovering from.
+		// Read-only and on-demand, so tasks only.
+		tasks = append(tasks, task.Serialize(nats_backup.NewList(nbCfg)))
 	}
 
 	// Cert renewal only applies to the Let's Encrypt/Route53 path — see
@@ -114,11 +140,76 @@ func main() {
 	// config.MustEnv()-panics on missing Route53 vars it was never
 	// given.
 	if os.Getenv("CERT_RENEWAL_ENABLED") == "true" {
+		certCfg := certrenewer.LoadConfig()
+
+		// One certstore for both cert tasks, built here so a bad
+		// PLATFORM_ENCRYPTION_KEY is a startup failure rather than a
+		// surprise at 00:00 UTC — the certificate material on the
+		// volume is unreadable without it, and re-obtaining instead
+		// would quietly burn Let's Encrypt's duplicate-cert rate limit.
+		certStore, err := certrenewer.NewStore(certCfg)
+		if err != nil {
+			log.Fatalf("cert store: %v", err)
+		}
+
+		// One-time move of a pre-encryption domain_certs.json onto the
+		// encrypted domain_certs.enc. No-op on a fresh volume and on
+		// every subsequent start.
+		if migrated, err := certStore.MigrateLegacyPlaintext(); err != nil {
+			log.Fatalf("cert store: migrating legacy plaintext state: %v", err)
+		} else if migrated {
+			log.Println("[certs] migrated plaintext domain_certs.json to encrypted domain_certs.enc")
+		}
+
+		// Populate the volume from the certificates the CLI issued at
+		// platform creation, so the very first expiry check has
+		// something real to check instead of an empty volume. Only
+		// writes when the seed is newer than what's stored — see
+		// certstore.Store.Seed.
+		if msg, err := certStore.Seed(certstore.SeedFile); err != nil {
+			log.Fatalf("cert store: seeding from the CLI secret: %v", err)
+		} else {
+			log.Printf("[certs] %s", msg)
+		}
+
 		certHour := config.EnvIntDefault("SYSTEM_MANAGER_CERT_CHECK_HOUR", 0)
 		certEveryHours := config.EnvIntDefault("SYSTEM_MANAGER_CERT_CHECK_EVERY_HOURS", 24)
-		renewer := task.SerializeScheduled(certrenewer.New(certrenewer.LoadConfig(), certHour, certEveryHours))
+		certRenewer := certrenewer.New(certCfg, certStore, certHour, certEveryHours)
+
+		// The CLI deploys from its own state file, which goes stale as
+		// soon as this service renews on its own. Converge the running
+		// services onto whatever is actually stored, shortly after boot
+		// — otherwise a platform restarted after a long stop serves the
+		// CLI's old certificate until the next scheduled check, up to a
+		// day later. See certrenewer.ReconcileAtStartup.
+		go certrenewer.ReconcileAtStartup(ctx, certRenewer)
+
+		renewer := task.SerializeScheduled(certRenewer)
 		scheduled = append(scheduled, renewer)
 		tasks = append(tasks, renewer)
+
+		// Handing the stored certificates back to the CLI is a
+		// read-only lookup, on-demand only — same reasoning as
+		// patroni.LeaderQuery: appended to tasks, never to scheduled.
+		tasks = append(tasks, task.Serialize(certrenewer.NewExporter(certStore)))
+	}
+
+	// Encrypted off-host copies of the platform CLI's
+	// osi4iot_state.json — see internal/statefile. All three tasks are
+	// on-demand only: this service has no state file of its own, so
+	// there is nothing for a timer to act on. The CLI triggers a backup
+	// after every change it makes to the file.
+	//
+	// Gated on STATE_FILE_S3_PREFIX the same way nats_backup is gated on
+	// its own prefix: a deployment that hasn't provisioned one shouldn't
+	// get tasks that config.MustEnv()-panic at startup.
+	if os.Getenv("STATE_FILE_S3_PREFIX") != "" {
+		sfCfg := statefile.LoadConfig()
+		tasks = append(tasks,
+			task.Serialize(statefile.NewBackup(sfCfg)),
+			task.Serialize(statefile.NewRestore(sfCfg)),
+			task.Serialize(statefile.NewList(sfCfg)),
+		)
 	}
 
 	// Cluster-wide `docker system prune`, via a Swarm global-job — see

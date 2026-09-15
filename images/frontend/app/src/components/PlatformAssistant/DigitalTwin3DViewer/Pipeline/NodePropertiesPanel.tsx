@@ -94,7 +94,8 @@ SystemMonitoringTopicMap.set("system_2", "Host metrics");
 SystemMonitoringTopicMap.set("system_3", "Host state");
 SystemMonitoringTopicMap.set("system_4", "Container metrics");
 SystemMonitoringTopicMap.set("system_5", "Volume metrics");
-SystemMonitoringTopicMap.set("system_6", "System alert");
+SystemMonitoringTopicMap.set("system_6", "WAL archiver metrics");
+SystemMonitoringTopicMap.set("system_7", "System alert");
 
 export interface NodeData {
     label: string;

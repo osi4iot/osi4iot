@@ -24,6 +24,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"os"
 	"strconv"
 	"time"
 
@@ -117,6 +118,7 @@ func (t Target) TriggerBackup(ctx context.Context) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("building request: %w", err)
 	}
+	setSidecarAuth(req)
 
 	client := &http.Client{Timeout: triggerTimeout}
 	resp, err := client.Do(req)
@@ -163,4 +165,19 @@ func (t Target) Subject() string {
 // configured — satisfying task.Scheduled. See schedule.EveryNHoursAt.
 func (t Target) NextRun(now time.Time) time.Time {
 	return schedule.EveryNHoursAt(now, t.backupHour, t.everyHours)
+}
+
+// setSidecarAuth attaches patroni_sidecar's optional shared secret when
+// one is configured.
+//
+// The sidecar has always checked for it on /trigger_backup, but nothing
+// here ever sent it — so setting PATRONI_SIDECAR_API_TOKEN in the
+// deployment turned every backup into a 401, which made the feature
+// unusable in practice. Reading the same variable here fixes that, and
+// is a no-op when it is unset, which is how every deployment runs
+// today.
+func setSidecarAuth(req *http.Request) {
+	if token := os.Getenv("PATRONI_SIDECAR_API_TOKEN"); token != "" {
+		req.Header.Set("Authorization", "Bearer "+token)
+	}
 }

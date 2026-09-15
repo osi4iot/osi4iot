@@ -9,8 +9,7 @@ import (
 	"strconv"
 	"strings"
 	"text/tabwriter"
-
-	"github.com/osi4iot/osi4iot/utils/osi4iot/internals/certrenewer"
+	
 	"github.com/osi4iot/osi4iot/utils/osi4iot/internals/crypto"
 	"github.com/osi4iot/osi4iot/utils/osi4iot/internals/data"
 	"github.com/osi4iot/osi4iot/utils/osi4iot/internals/docker"
@@ -21,6 +20,17 @@ import (
 
 const version = "0.1.36"
 
+// SwarmActions lists the actions that need pt.DCMap populated before
+// they run (see main.go).
+//
+// "state" is deliberately NOT here. Its two subcommands are the ones
+// that have to work when the platform does not: `export` only reads the
+// local file, and `recover` builds its own connections (see
+// docker.OpenSSHRecoveryTarget) rather than using DCMap. Listing it
+// would make main.go require a reachable manager first — via
+// CheckDockerClientsMap, which exits when it finds none — and fail
+// exactly the case recovery exists for. The state file's S3 backups run
+// under "backup", which is here.
 var SwarmActions = []string{"create", "init", "run", "stop", "delete", "service", "certs", "streams", "backup"}
 
 // rootCmd represents the base command when called without any subcommands
@@ -74,13 +84,6 @@ var cmdCreate = &cobra.Command{
 				errMsg := fmt.Sprintf("Error: initializing the platform %v", err)
 				exitWithError(errMsg)
 			}
-
-			if err := certrenewer.InstallService(pd); err != nil {
-				fmt.Printf("⚠️  Warning: could not install cert-renewer service: %v\n", err)
-			}
-			if err := certrenewer.Start(pd); err != nil {
-				fmt.Printf("⚠️  Warning: could not start cert-renewer: %v\n", err)
-			}
 		}
 	},
 }
@@ -102,13 +105,6 @@ var cmdInit = &cobra.Command{
 		if err != nil {
 			errMsg := fmt.Sprintf("Error: initializing the platform %v", err)
 			exitWithError(errMsg)
-		}
-
-		if err := certrenewer.InstallService(pd); err != nil {
-			fmt.Printf("⚠️  Warning: could not install cert-renewer service: %v\n", err)
-		}
-		if err := certrenewer.Start(pd); err != nil {
-			fmt.Printf("⚠️  Warning: could not start cert-renewer: %v\n", err)
 		}
 	},
 }
@@ -139,13 +135,6 @@ var cmdRun = &cobra.Command{
 				errMsg := fmt.Sprintf("Error: initializing the platform %v", err)
 				exitWithError(errMsg)
 			}
-
-			if err := certrenewer.InstallService(pd); err != nil {
-				fmt.Printf("⚠️  Warning: could not install cert-renewer service: %v\n", err)
-			}
-			if err := certrenewer.Start(pd); err != nil {
-				fmt.Printf("⚠️  Warning: could not start cert-renewer: %v\n", err)
-			}
 		}
 	},
 }
@@ -156,7 +145,6 @@ var cmdStop = &cobra.Command{
 	Long:  "Stop platform",
 	Run: func(cmd *cobra.Command, args []string) {
 		checkState("stop")
-		certrenewer.Stop()
 		pd := data.GetData()
 		err := docker.StopPlatform(pd)
 		if err != nil {
@@ -175,7 +163,6 @@ var cmdDelete = &cobra.Command{
 	Long:  "Delete platform",
 	Run: func(cmd *cobra.Command, args []string) {
 		checkState("delete")
-		certrenewer.Stop()
 		pd := data.GetData()
 		err := docker.DeletePlatform(pd)
 		if err != nil {
@@ -419,51 +406,6 @@ var subCmdServiceUpdateImage = &cobra.Command{
 	},
 }
 
-var subCmdCertsRenewerInstall = &cobra.Command{
-	Use:   "install",
-	Short: "Register cert-renewer with the OS service manager",
-	Long:  "Install cert-renewer as a system service (systemd / Windows Service / launchd) so it starts automatically on boot",
-	Run: func(cmd *cobra.Command, args []string) {
-		pd := data.GetData()
-		if err := certrenewer.InstallService(pd); err != nil {
-			exitWithError(fmt.Sprintf("Error installing cert-renewer service: %v", err))
-		}
-	},
-}
-
-var subCmdCertsRenewerUninstall = &cobra.Command{
-	Use:   "uninstall",
-	Short: "Remove cert-renewer from the OS service manager",
-	Long:  "Uninstall the cert-renewer system service (stops it first if running)",
-	Run: func(cmd *cobra.Command, args []string) {
-		if err := certrenewer.UninstallService(); err != nil {
-			exitWithError(fmt.Sprintf("Error uninstalling cert-renewer service: %v", err))
-		}
-	},
-}
-
-var subCmdCertsRenewerStart = &cobra.Command{
-	Use:   "start",
-	Short: "Start cert-renewer background process",
-	Long:  "Start the certificate auto-renewal background process",
-	Run: func(cmd *cobra.Command, args []string) {
-		pd := data.GetData()
-		if err := certrenewer.Start(pd); err != nil {
-			exitWithError(fmt.Sprintf("Error starting cert-renewer: %v", err))
-		}
-	},
-}
-
-var subCmdCertsRenewerStop = &cobra.Command{
-	Use:   "stop",
-	Short: "Stop cert-renewer background process",
-	Long:  "Stop the certificate auto-renewal background process",
-	Run: func(cmd *cobra.Command, args []string) {
-		if err := certrenewer.Stop(); err != nil {
-			exitWithError(fmt.Sprintf("Error stopping cert-renewer: %v", err))
-		}
-	},
-}
 
 var subCmdCertsCheck = &cobra.Command{
 	Use:   "check",
@@ -471,6 +413,23 @@ var subCmdCertsCheck = &cobra.Command{
 	Long:  "Check certificates expiration",
 	Run: func(cmd *cobra.Command, args []string) {
 		pd := data.GetData()
+
+		// The state file's copy goes stale as soon as system_manager
+		// renews, so check against the real one before reporting.
+		// Best-effort: on a platform that has never deployed
+		// system_manager there is nothing to read, and a failure here
+		// shouldn't stop a read-only command from answering.
+		if dc, dcErr := docker.GetManagerDC(); dcErr == nil {
+			if updated, source, err := docker.SyncCertsFromSystemManager(pd, dc); err != nil {
+				fmt.Printf("Warning: could not check against system_manager (%v)\n", err)
+			} else if updated {
+				fmt.Printf("Picked up newer certificates from %s.\n", source)
+				if err := utils.WritePlatformDataToFile(pd); err != nil {
+					fmt.Printf("Warning: could not save the updated certificates: %v\n", err)
+				}
+			}
+		}
+
 		expirationInfo, err := utils.GetCertsExpirationInfo(pd)
 		if err != nil {
 			errMsg := fmt.Sprintf("Error checking certificates: %v", err)
@@ -483,7 +442,10 @@ var subCmdCertsCheck = &cobra.Command{
 }
 
 var subCmdCertsUpdate = &cobra.Command{
-	Use: "update",
+	Use:   "update",
+	Short: "Renew the domain certificates",
+	Long: "Renew the platform's Let's Encrypt certificates. Delegates to system_manager " +
+		"when the platform is running, and falls back to renewing locally when it is not.",
 	Run: func(cmd *cobra.Command, args []string) {
 		stdoutLogger := log.New(os.Stdout, "", 0)
 		if err := runCertsUpdate(stdoutLogger); err != nil {
@@ -492,39 +454,19 @@ var subCmdCertsUpdate = &cobra.Command{
 	},
 }
 
-var subCmdCertsRenewer = &cobra.Command{
-	Use:   "renewer",
-	Short: "Cert-renewer background process management",
-	Long:  "Manage the certificate auto-renewal background process",
-}
-
-var subCmdCertsRenewerDaemon = &cobra.Command{
-	Use:    "daemon",
-	Hidden: true,
+var subCmdCertsDownload = &cobra.Command{
+	Use:     "download",
+	Aliases: []string{"pull"},
+	Short:   "Download the certificates stored by system_manager",
+	Long: "Fetch the certificate material system_manager keeps in its volume and store it " +
+		"in the local state file. system_manager renews on its own schedule, so the local " +
+		"copy goes stale on its own; this brings it back in sync. Works with the platform " +
+		"stopped too — it then reads the volume directly instead of going through NATS.",
 	Run: func(cmd *cobra.Command, args []string) {
-		domainName := data.GetDomainName()
-		certrenewer.RunDaemon(func(logger *log.Logger) error {
-			return runCertsUpdate(logger)
-		}, domainName)
-	},
-}
-
-var subCmdCertsRenewerLogs = &cobra.Command{
-	Use:   "logs",
-	Short: "Show cert-renewer logs",
-	Run: func(cmd *cobra.Command, args []string) {
-		follow, _ := cmd.Flags().GetBool("follow")
-		lines, _ := cmd.Flags().GetInt("lines")
-		domainName := data.GetDomainName()
-		certrenewer.ShowLogs(follow, lines, domainName)
-	},
-}
-
-var subCmdCertsRenewerStatus = &cobra.Command{
-	Use:   "status",
-	Short: "Show cert-renewer background process status",
-	Run: func(cmd *cobra.Command, args []string) {
-		certrenewer.Status()
+		stdoutLogger := log.New(os.Stdout, "", 0)
+		if err := runCertsDownload(stdoutLogger); err != nil {
+			exitWithError(err.Error())
+		}
 	},
 }
 
@@ -606,6 +548,40 @@ var subCmdRemoveNode = &cobra.Command{
 	},
 }
 
+var (
+	stateRecoverFile     string
+	stateRecoverFromMin  bool
+	stateRecoverMinioImg string
+)
+
+var subCmdStateRecover = &cobra.Command{
+	Use:   "recover",
+	Short: "Rebuild the local state file without going through the platform",
+	Long: "Recover osi4iot_state.json when the platform cannot hand it back — because it is " +
+		"stopped, or because the state file itself is gone or unreadable. Decrypts a stored " +
+		"backup and writes it out under this machine's passphrase; the file being replaced, " +
+		"if any, is kept alongside it with a .bak-<timestamp> suffix.\n\n" +
+		"--file installs a backup you downloaded yourself, from the AWS or MinIO console or " +
+		"with any S3 client. It needs nothing but the passphrase: no platform, no network, " +
+		"no existing state file.\n\n" +
+		"--from-minio covers a MinIO deployment whose platform is stopped, where there is no " +
+		"console to download from. It starts a temporary MinIO against the minio_storage " +
+		"volume, reads the backup out and takes it down again, over SSH if the volume is on " +
+		"another node. It needs the platform admin user and password, which are MinIO's root " +
+		"credentials.\n\n" +
+		"To restore from S3 with the platform running, use 'osi4iot backup restore state'.",
+	Run: func(cmd *cobra.Command, args []string) {
+		stdoutLogger := log.New(os.Stdout, "", 0)
+
+		if stateRecoverFile != "" && stateRecoverFromMin {
+			exitWithError("--file and --from-minio are alternative sources: pick one")
+		}
+		if err := runStateRecover(stdoutLogger, stateRecoverFile, stateRecoverMinioImg, stateRecoverFromMin); err != nil {
+			exitWithError(err.Error())
+		}
+	},
+}
+
 var cmdCerts = &cobra.Command{
 	Use:   "certs",
 	Short: "Update domain certificates",
@@ -627,7 +603,10 @@ var cmdStatus = &cobra.Command{
 var cmdState = &cobra.Command{
 	Use:   "state",
 	Short: "Platform state management",
-	Long:  "Manage the platform state file",
+	Long: "Local operations on the platform state file: export it as plain JSON, and recover " +
+		"it from a backup when the platform cannot hand it back.\n\n" +
+		"The state file's S3 backups live under 'osi4iot backup', alongside the other backup " +
+		"targets — a copy is stored automatically every time the file changes.",
 }
 
 var subCmdStateExport = &cobra.Command{
@@ -769,21 +748,21 @@ func init() {
 	cmdService.AddCommand(subCmdServiceUpdateImage)
 	rootCmd.AddCommand(cmdService)
 
-	subCmdCertsRenewer.AddCommand(subCmdCertsRenewerInstall)
-	subCmdCertsRenewer.AddCommand(subCmdCertsRenewerUninstall)
-	subCmdCertsRenewer.AddCommand(subCmdCertsRenewerStart)
-	subCmdCertsRenewer.AddCommand(subCmdCertsRenewerStop)
-	subCmdCertsRenewer.AddCommand(subCmdCertsRenewerDaemon)
-	subCmdCertsRenewerLogs.Flags().BoolP("follow", "f", false, "Follow log output")
-	subCmdCertsRenewerLogs.Flags().IntP("lines", "n", 50, "Number of lines to show")
-	subCmdCertsRenewer.AddCommand(subCmdCertsRenewerLogs)
-	subCmdCertsRenewer.AddCommand(subCmdCertsRenewerStatus)
+
 	cmdCerts.AddCommand(subCmdCertsCheck)
 	cmdCerts.AddCommand(subCmdCertsUpdate)
-	cmdCerts.AddCommand(subCmdCertsRenewer)
+	cmdCerts.AddCommand(subCmdCertsDownload)
 	rootCmd.AddCommand(cmdCerts)
 
+	subCmdStateRecover.Flags().StringVar(&stateRecoverFile, "file", "",
+		"path to a backup you downloaded yourself; needs no running platform")
+	subCmdStateRecover.Flags().BoolVar(&stateRecoverFromMin, "from-minio", false,
+		"read the backup out of the minio_storage volume, for a stopped MinIO deployment")
+	subCmdStateRecover.Flags().StringVar(&stateRecoverMinioImg, "minio-image", "",
+		"MinIO image for --from-minio (default: the version this platform ran)")
+
 	cmdState.AddCommand(subCmdStateExport)
+	cmdState.AddCommand(subCmdStateRecover)
 	rootCmd.AddCommand(cmdState)
 
 	cmdPassphrase.AddCommand(subCmdPassphraseReset)

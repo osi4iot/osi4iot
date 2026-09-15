@@ -166,6 +166,16 @@ func waitForRollout(ctx context.Context, cli *client.Client, serviceID string, t
 	return fmt.Errorf("timed out waiting for rollout to converge")
 }
 
+// createSecret creates the named secret, or returns the existing one's
+// ID if a secret by that name is already there.
+//
+// Secret names here are content hashes (iot_platform_cert_<md5>), so an
+// existing name means an identical payload — creating it again is
+// genuinely a no-op rather than a conflict to resolve. That case is
+// normal now that ReconcileCerts exists: when the platform CLI redeploys
+// from a stale state file, the secret this service last created can
+// still be in the swarm, merely unreferenced, and reconciliation has to
+// be able to point the services back at it.
 func createSecret(ctx context.Context, cli *client.Client, name, data string) (string, error) {
 	result, err := cli.SecretCreate(ctx, client.SecretCreateOptions{
 		Spec: swarm.SecretSpec{
@@ -176,10 +186,31 @@ func createSecret(ctx context.Context, cli *client.Client, name, data string) (s
 			Data: []byte(data),
 		},
 	})
+	if err == nil {
+		return result.ID, nil
+	}
+
+	if id, lookupErr := secretIDByName(ctx, cli, name); lookupErr == nil && id != "" {
+		return id, nil
+	}
+	return "", err
+}
+
+// secretIDByName returns the ID of the secret with exactly this name, or
+// "" if there isn't one. Docker's name filter is a substring match, so
+// the exact comparison matters.
+func secretIDByName(ctx context.Context, cli *client.Client, name string) (string, error) {
+	f := make(client.Filters).Add("name", name)
+	result, err := cli.SecretList(ctx, client.SecretListOptions{Filters: f})
 	if err != nil {
 		return "", err
 	}
-	return result.ID, nil
+	for _, s := range result.Items {
+		if s.Spec.Name == name {
+			return s.ID, nil
+		}
+	}
+	return "", nil
 }
 
 func removeSecretByName(ctx context.Context, cli *client.Client, name string) error {

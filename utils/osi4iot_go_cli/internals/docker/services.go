@@ -58,6 +58,19 @@ type ServiceUpdateOptions struct {
 	Image         *string           // Update container image
 	Env           map[string]string // Update environment variables (add or modify)
 	RemoveEnv     []string          // Environment variables to remove
+
+	// SkipMonitor returns as soon as Docker accepts the update instead
+	// of waiting for the service to become healthy.
+	//
+	// Needed for quorum-based clusters. Starting the three patroni
+	// nodes one at a time while waiting for each to be healthy
+	// deadlocks: node 1 cannot finish starting until Raft has a
+	// majority, and nodes 2 and 3 are never started because the caller
+	// is still blocked on node 1. The caller starts them all and then
+	// waits for the cluster as a whole.
+	//
+	// Default false, so every existing caller keeps its progress bar.
+	SkipMonitor bool
 }
 
 type ServiceUpdateResult struct {
@@ -241,7 +254,9 @@ func ServiceUpdate(
 	}
 
 	// 8. Monitor until completion — returns error if it fails or rolls back
-	if isRollingUpdate {
+	if options.SkipMonitor {
+		// Caller waits for something else; see SkipMonitor.
+	} else if isRollingUpdate {
 		if err := utils.MonitorServiceRollingUpdate(dc, service.ID, targetReplicas); err != nil {
 			return result, fmt.Errorf("error monitoring rolling update for service '%s': %v", serviceName, err)
 		}

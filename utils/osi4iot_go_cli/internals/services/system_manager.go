@@ -41,6 +41,11 @@ func SystemManagerService(
 		fmt.Sprintf("NATS_SEED_SERVERS_URL=%s", strings.Join(natsSeedServers, ",")),
 		"NATS_BACKUP_ENABLED=true",
 		fmt.Sprintf("NATS_BACKUP_S3_PREFIX=%s", pi.NATSBackupS3Prefix),
+		// An empty value means system_manager registers no state_file
+		// tasks at all — see its main.go. Passed unconditionally rather
+		// than conditionally, so the variable is always present and the
+		// feature is enabled or not by its value alone.
+		fmt.Sprintf("STATE_FILE_S3_PREFIX=%s", pi.StateFileS3Prefix),
 	}
 
 	if pi.UsePatroniTool {
@@ -64,6 +69,27 @@ func SystemManagerService(
 			Source: sd.Volumes["system_manager-data"].Name,
 			Target: "/data/certrenewer",
 		})
+
+		// The certificates this CLI issued, encrypted with
+		// the domain-certs subkey of PLATFORM_ENCRYPTION_KEY. system_manager
+		// copies them into the
+		// volume at startup if — and only if — the volume holds nothing
+		// fresher, so the first expiry check after a deployment has real
+		// material to look at. Mounted at the path its certstore.SeedFile
+		// expects. Guarded on the secret existing at all: a platform
+		// deployed before this change won't have it.
+		if seed, ok := sd.Secrets["system_manager_certs"]; ok && seed.ID != "" {
+			secrets = append(secrets, &swarm.SecretReference{
+				File: &swarm.SecretReferenceFileTarget{
+					Name: "/run/secrets/system_manager_certs.enc",
+					UID:  "0",
+					GID:  "0",
+					Mode: 0444,
+				},
+				SecretID:   seed.ID,
+				SecretName: seed.Name,
+			})
+		}
 	}
 
 	image := utils.GetServiceImage(pd, "system_manager", "ghcr.io/osi4iot/system_manager:1.0.0")

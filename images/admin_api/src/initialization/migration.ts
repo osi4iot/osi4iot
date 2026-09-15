@@ -1110,6 +1110,16 @@ export const dataBaseInitialization = async () => {
 							{
 								topicRef: "system_5",
 								topicType: "system",
+								description: "WAL archiver",
+								mqttAccessControl: "Pub & Sub",
+								payloadJsonSchema: "{}",
+								requireS3Storage: false,
+								s3Folder: "",
+								parquetSchema: "{}",
+							},
+							{
+								topicRef: "system_6",
+								topicType: "system",
 								description: "System alert",
 								mqttAccessControl: "Pub & Sub",
 								payloadJsonSchema: "{}",
@@ -1147,13 +1157,20 @@ export const dataBaseInitialization = async () => {
 								description: "Volume metrics sensor",
 								payloadJsonSchema: "{}",
 							},
+							{
+								sensorRef: "sensor_5",
+								sensorType: "WAL archiver metrics",
+								topicRef: "system_5",
+								description: "WAL archiver metrics sensor",
+								payloadJsonSchema: "{}",
+							},
 						],
 					};
 					systemMonitoringAsset = await createSystemMonitoringAsset(group, systemMonitoringAssetData, true);
 					logger.log("info", `System monitoring asset for main group has been created sucessfully`);
 				} catch (err) {
 					const message = err instanceof Error ? err.message : String(err);
-					logger.log("error", `Default asset for main group can not be created: %s`, message);
+					logger.log("error", `System monitoring asset for main group can not be created: %s`, message);
 				}
 
 				try {

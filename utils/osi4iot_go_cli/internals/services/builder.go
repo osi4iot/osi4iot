@@ -19,6 +19,7 @@ import (
 type ServiceBuilder struct {
 	svc pt.Service
 	sd  pt.SwarmData
+	pd  *pt.PlatformData
 }
 
 // NewService initializes a builder with a mandatory name.
@@ -86,6 +87,7 @@ func NewService(name string, pd *pt.PlatformData, sd pt.SwarmData) *ServiceBuild
 			},
 		},
 		sd: sd,
+		pd: pd,
 	}
 }
 
@@ -127,8 +129,50 @@ func (b *ServiceBuilder) WithEnv(envVars []string) *ServiceBuilder {
 
 // WithMounts sets the service mounts.
 func (b *ServiceBuilder) WithMounts(m []mount.Mount) *ServiceBuilder {
-	b.svc.TaskTemplate.ContainerSpec.Mounts = m
+	b.svc.TaskTemplate.ContainerSpec.Mounts = labelVolumeMounts(m, b.svc.Name, b.pd)
 	return b
+}
+
+// labelVolumeMounts attaches the platform's labels to every volume
+// mount that doesn't already carry VolumeOptions.
+//
+// Docker creates a volume automatically when a service mounts one that
+// does not exist on that node — and an auto-created volume has NO
+// labels. Since volume labels are immutable, that volume is then
+// invisible to RemoveSwarmVolumes' app=osi4iot filter forever, and
+// `osi4iot delete` leaves it behind. It is easy to hit: any time a task
+// is placed on a node before CreateVolume has run there, or after
+// someone removes a volume by hand.
+//
+// Setting the labels in the mount spec means Docker applies them when
+// it auto-creates, so the volume is deletable no matter who created it.
+// Doing it here rather than at each call site is deliberate: every
+// service goes through WithMounts, so none can be forgotten.
+//
+// Only Labels are set, not DriverConfig. An auto-created volume gets
+// the local driver regardless, which for an EBS-backed deployment is
+// already wrong — but it is wrong today too, and making it deletable is
+// a separate improvement from making it correct.
+func labelVolumeMounts(mounts []mount.Mount, serviceName string, pd *pt.PlatformData) []mount.Mount {
+	if pd == nil {
+		return mounts
+	}
+
+	out := make([]mount.Mount, len(mounts))
+	copy(out, mounts)
+	for i := range out {
+		if out[i].Type != mount.TypeVolume || out[i].VolumeOptions != nil {
+			continue
+		}
+		out[i].VolumeOptions = &mount.VolumeOptions{
+			Labels: map[string]string{
+				"app":        "osi4iot",
+				"service":    serviceName,
+				"domainName": pd.PlatformInfo.DomainName,
+			},
+		}
+	}
+	return out
 }
 
 // WithResources sets the service resource limits.

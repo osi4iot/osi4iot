@@ -1,10 +1,22 @@
 // patroni_sidecar is a tiny sidecar HTTP server that runs inside
 // patroni_admin container, alongside Patroni itself. It
-// exposes four endpoints:
+// exposes seven endpoints:
 //
 //   - POST /trigger_backup runs `wal-g backup-push` against this node's
 //     own local PGDATA, then prunes old backups down to a caller-
 //     specified retention count.
+//   - POST /flush_wal closes the current WAL segment and waits until it
+//     is actually in the archive, so a restore cannot silently lose the
+//     up-to-30-minutes archive_timeout window. See flushWAL.
+//   - GET /archiver_status reports whether WAL recycling is blocked:
+//     the archiver's failure count, the backlog waiting to be archived,
+//     and any replication slot holding WAL back. See
+//     archiverStatusQuery.
+//   - GET /backup_list returns `wal-g backup-list --json --detail`
+//     verbatim, so system_manager can answer "which backups exist"
+//     from wal-g's own catalogue. See runBackupList below for why the
+//     catalogue has to come from wal-g rather than from listing the S3
+//     prefix.
 //   - GET /leader proxies Patroni's own local REST API
 //     (http://localhost:8008/cluster) verbatim, so callers reach it the
 //     same way they reach /trigger_backup — through haproxy_patroni —
@@ -46,7 +58,9 @@
 package main
 
 import (
+	"bytes"
 	"context"
+	"fmt"
 	"io"
 	"log"
 	"net/http"
@@ -54,6 +68,7 @@ import (
 	"os/exec"
 	"os/signal"
 	"strconv"
+	"strings"
 	"syscall"
 	"time"
 )
@@ -66,6 +81,14 @@ import (
 // otherwise leave Postgres stuck in backup mode (pg_backup_start
 // without a matching pg_backup_stop).
 const walgTimeout = 2 * time.Hour
+
+// walgBackupListTimeout bounds a `wal-g backup-list` call. Unlike
+// walgTimeout's two hours, this reads a manifest out of S3 and returns:
+// if it has not answered within a minute, something is wrong rather
+// than slow. Kept below system_manager's own client timeout for the
+// same call so the failure surfaces here, with wal-g's stderr attached,
+// instead of as a bare timeout on the caller's side.
+const walgBackupListTimeout = 60 * time.Second
 
 // patroniAPITimeout bounds local proxy calls to Patroni's own REST API
 // for /leader. Unlike walgTimeout, this has no reason to be generous —
@@ -136,6 +159,255 @@ func runDeleteRetain(retain int) ([]byte, error) {
 	cmd := exec.CommandContext(ctx, "wal-g", "delete", "retain", "FULL", strconv.Itoa(retain), "--confirm")
 	cmd.Env = os.Environ()
 	return cmd.CombinedOutput()
+}
+
+// apiToken is the optional shared secret handlers check for. Package
+// level rather than a local in main() because not every handler is an
+// inline closure any more: flushWAL is a named function, and a token
+// that only some handlers can see is worse than no token at all.
+//
+// Set from main() at startup — see the comment there for what this
+// does and does not protect.
+var apiToken string
+
+// requireAuth reports whether the request may proceed, writing the 401
+// itself when it may not.
+//
+// One helper rather than the same two-line check copied into each
+// handler: with the check duplicated, adding an endpoint and forgetting
+// it is a silent hole, and that is exactly how /reset_raft ended up
+// without one.
+func requireAuth(w http.ResponseWriter, r *http.Request) bool {
+	if apiToken == "" {
+		return true
+	}
+	if r.Header.Get("Authorization") != "Bearer "+apiToken {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return false
+	}
+	return true
+}
+
+// walFlushTimeout bounds waiting for a switched WAL segment to reach
+// the archive. Generous because the segment is 16 MB and the archive
+// may be a remote bucket, but bounded: a restore must not hang here
+// when archive_command is broken, it must be told so.
+const walFlushTimeout = 120 * time.Second
+
+// psqlFields runs a single-row query and returns its columns.
+//
+// Uses psql rather than a driver because this binary is deliberately
+// pure stdlib (see the Dockerfile's sidecar builder), and psql is in
+// the image anyway. The PG* environment variables entrypoint.sh exports
+// when launching this process are picked up automatically, so no
+// connection details appear here.
+func psqlFields(ctx context.Context, query string) ([]string, error) {
+	cmd := exec.CommandContext(ctx, "psql", "-qtAX", "-F", "|", "-v", "ON_ERROR_STOP=1", "-c", query)
+	cmd.Env = os.Environ()
+
+	var out, errb bytes.Buffer
+	cmd.Stdout = &out
+	cmd.Stderr = &errb
+	if err := cmd.Run(); err != nil {
+		msg := strings.TrimSpace(errb.String())
+		if msg == "" {
+			msg = err.Error()
+		}
+		return nil, fmt.Errorf("%s", msg)
+	}
+	return strings.Split(strings.TrimSpace(out.String()), "|"), nil
+}
+
+// flushWAL closes the current WAL segment and waits until the archiver
+// has actually pushed it.
+//
+// It exists because of archive_timeout: 1800s. PostgreSQL only archives
+// a segment once it is full or that timer fires, so at any given moment
+// up to thirty minutes of committed transactions exist only in the
+// local pg_wal — not in the archive a restore reads from. Wiping PGDATA
+// without this loses them, silently, and the loss is invisible
+// afterwards because the restore itself succeeds.
+//
+// Waiting for the push, rather than just switching, is the point. It
+// also turns a broken archive_command into a loud failure BEFORE the
+// caller destroys anything: if archiving has been failing for hours,
+// the newest usable recovery point is hours old, and that is something
+// to learn now rather than after the volumes are gone.
+func flushWAL(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "POST only", http.StatusMethodNotAllowed)
+		return
+	}
+	if !requireAuth(w, r) {
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), walFlushTimeout)
+	defer cancel()
+
+	// archive_mode off means nothing is ever pushed, so there is no
+	// point switching and no point restoring either. Check first: the
+	// alternative is polling for two minutes for something that will
+	// never arrive.
+	if mode, err := psqlFields(ctx, "SHOW archive_mode"); err != nil {
+		http.Error(w, "querying archive_mode: "+err.Error(), http.StatusInternalServerError)
+		return
+	} else if len(mode) == 0 || (mode[0] != "on" && mode[0] != "always") {
+		http.Error(w, "archive_mode is "+strings.Join(mode, "")+
+			", so WAL is never archived and no restore point exists", http.StatusPreconditionFailed)
+		return
+	}
+
+	before, err := readArchiver(ctx)
+	if err != nil {
+		http.Error(w, "reading pg_stat_archiver: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// pg_switch_wal() returns the END of the segment it just closed, and
+	// an LSN exactly on a boundary maps to the NEXT file — hence the -1,
+	// which is the documented idiom for "name the file I just closed".
+	//
+	// On a replica this fails with "recovery is in progress"; that error
+	// reaches the caller verbatim, which is the right outcome, since
+	// haproxy is supposed to have routed this to the primary.
+	segFields, err := psqlFields(ctx, "SELECT pg_walfile_name(pg_switch_wal() - 1)")
+	if err != nil {
+		http.Error(w, "switching WAL: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	segment := segFields[0]
+	log.Printf("[patroni_sidecar] flush_wal: closed segment %s, waiting for the archiver", segment)
+
+	deadline := time.Now().Add(walFlushTimeout - 10*time.Second)
+	for {
+		now, err := readArchiver(ctx)
+		if err != nil {
+			http.Error(w, "reading pg_stat_archiver: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		// A new failure since the baseline means archive_command is
+		// broken right now. Report it instead of waiting out the
+		// timeout on something that is not going to succeed.
+		if now.failedCount > before.failedCount {
+			log.Printf("[patroni_sidecar] flush_wal: archiver FAILING on %s", now.lastFailedWAL)
+			http.Error(w, "archive_command is failing (last failure: "+now.lastFailedWAL+
+				"). The archive is not receiving WAL, so recent transactions are not recoverable.",
+				http.StatusInternalServerError)
+			return
+		}
+
+		// WAL file names are fixed-width hex within a timeline, so a
+		// plain string comparison is chronological.
+		if now.lastArchivedWAL >= segment && now.lastArchivedWAL != "" {
+			log.Printf("[patroni_sidecar] flush_wal: OK, archive is at %s", now.lastArchivedWAL)
+			w.Header().Set("Content-Type", "text/plain")
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte("archived up to " + now.lastArchivedWAL + " (switched at " + segment + ")"))
+			return
+		}
+
+		if time.Now().After(deadline) {
+			http.Error(w, "timed out waiting for "+segment+" to be archived (archive is at "+
+				now.lastArchivedWAL+")", http.StatusGatewayTimeout)
+			return
+		}
+		time.Sleep(time.Second)
+	}
+}
+
+// archiverState is the subset of pg_stat_archiver flushWAL watches.
+type archiverState struct {
+	lastArchivedWAL string
+	failedCount     int64
+	lastFailedWAL   string
+}
+
+func readArchiver(ctx context.Context) (archiverState, error) {
+	fields, err := psqlFields(ctx,
+		"SELECT coalesce(last_archived_wal,''), failed_count, coalesce(last_failed_wal,'') FROM pg_stat_archiver")
+	if err != nil {
+		return archiverState{}, err
+	}
+	if len(fields) < 3 {
+		return archiverState{}, fmt.Errorf("unexpected pg_stat_archiver output: %v", fields)
+	}
+	failed, _ := strconv.ParseInt(fields[1], 10, 64)
+	return archiverState{
+		lastArchivedWAL: fields[0],
+		failedCount:     failed,
+		lastFailedWAL:   fields[2],
+	}, nil
+}
+
+// archiverStatusQuery reports everything needed to tell whether WAL
+// recycling is blocked, as a single JSON object.
+//
+// Built with row_to_json so this file does no interpreting: the column
+// names ARE the field names, and adding a measure later means touching
+// only this string. Same reasoning as /backup_list handing wal-g's own
+// output straight through.
+//
+// What each part answers:
+//
+//   - failed_count / last_failed_wal: is archive_command failing right
+//     now. This is the early warning — it moves the moment archiving
+//     breaks, hours or days before anything runs out of disk.
+//   - seconds_since_last_archive: catches an archiver that is not
+//     erroring but is not progressing either.
+//   - wal_bytes / wal_files: how much is piling up. PostgreSQL cannot
+//     recycle a segment until it has been archived, so this is what
+//     grows when the above goes wrong.
+//   - ready_files: segments finished and waiting to be archived. The
+//     backlog itself, and the clearest single number.
+//   - inactive_slots / slot_retained_bytes: the OTHER reason recycling
+//     stalls — a replication slot whose consumer is gone holds WAL just
+//     as effectively as a broken archiver, and needs a completely
+//     different fix.
+const archiverStatusQuery = `SELECT row_to_json(t) FROM (
+  SELECT
+    (SELECT setting FROM pg_settings WHERE name = 'archive_mode')          AS archive_mode,
+    a.failed_count                                                         AS failed_count,
+    coalesce(a.last_failed_wal, '')                                        AS last_failed_wal,
+    coalesce(a.last_archived_wal, '')                                      AS last_archived_wal,
+    coalesce(extract(epoch FROM now() - a.last_archived_time)::bigint, -1) AS seconds_since_last_archive,
+    (SELECT count(*)::bigint FROM pg_ls_waldir())                          AS wal_files,
+    (SELECT coalesce(sum(size), 0)::bigint FROM pg_ls_waldir())            AS wal_bytes,
+    (SELECT count(*)::bigint FROM pg_ls_dir('pg_wal/archive_status')
+       WHERE pg_ls_dir LIKE '%.ready')                                     AS ready_files,
+    (SELECT count(*)::bigint FROM pg_replication_slots WHERE NOT active)   AS inactive_slots,
+    (SELECT coalesce(max(pg_wal_lsn_diff(pg_current_wal_lsn(), restart_lsn)), 0)::bigint
+       FROM pg_replication_slots)                                          AS slot_retained_bytes
+  FROM pg_stat_archiver a
+) t`
+
+// runBackupList asks wal-g for its own backup catalogue as JSON.
+//
+// wal-g's catalogue is the only authority on which stored objects add
+// up to a restorable backup: a base backup is a directory of segments
+// plus a manifest, deltas reference a parent, and the WAL needed to
+// make any of it consistent lives elsewhere again. Listing the S3
+// prefix would report objects, not backups.
+//
+// Unlike runBackup and runDeleteRetain, this deliberately does NOT use
+// CombinedOutput. wal-g writes its progress and warnings to stderr, and
+// folding those into stdout would corrupt the JSON — the two other
+// functions can merge the streams because their output is only ever
+// read by a human. Here stderr is captured separately and used only to
+// explain a failure.
+func runBackupList() (stdout []byte, stderr []byte, err error) {
+	ctx, cancel := context.WithTimeout(context.Background(), walgBackupListTimeout)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, "wal-g", "backup-list", "--json", "--detail")
+	cmd.Env = os.Environ()
+
+	var outBuf, errBuf bytes.Buffer
+	cmd.Stdout = &outBuf
+	cmd.Stderr = &errBuf
+	err = cmd.Run()
+	return outBuf.Bytes(), errBuf.Bytes(), err
 }
 
 // proxyLeader relays Patroni's own local GET /cluster verbatim — same
@@ -302,7 +574,7 @@ func main() {
 	// already restricted to haproxy_patroni's routing mesh, so this is
 	// defense in depth, not the primary control — set
 	// PATRONI_SIDECAR_API_TOKEN in the secret if you want it.
-	apiToken := os.Getenv("PATRONI_SIDECAR_API_TOKEN")
+	apiToken = os.Getenv("PATRONI_SIDECAR_API_TOKEN")
 
 	mux := http.NewServeMux()
 
@@ -314,6 +586,84 @@ func main() {
 	mux.HandleFunc("/leader", proxyLeader)
 	mux.HandleFunc("/switchover", proxySwitchover)
 	mux.HandleFunc("/reset_raft", resetRaft)
+	mux.HandleFunc("/flush_wal", flushWAL)
+
+	// Read-only view of whether WAL recycling is blocked — see
+	// archiverStatusQuery. Polled by vector's system_metrics collector,
+	// which reaches it through haproxy and therefore always lands on
+	// the primary, the only node where pg_current_wal_lsn() works.
+	mux.HandleFunc("/archiver_status", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "GET only", http.StatusMethodNotAllowed)
+			return
+		}
+		if !requireAuth(w, r) {
+			return
+		}
+
+		ctx, cancel := context.WithTimeout(context.Background(), patroniAPITimeout)
+		defer cancel()
+
+		fields, err := psqlFields(ctx, archiverStatusQuery)
+		if err != nil {
+			http.Error(w, "querying archiver status: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+		// row_to_json yields a single column; psqlFields splits on "|",
+		// which JSON never contains outside strings we do not emit.
+		body := strings.TrimSpace(strings.Join(fields, "|"))
+		if body == "" {
+			http.Error(w, "no archiver status returned", http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Content-Length", strconv.Itoa(len(body)))
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(body))
+	})
+
+	// Read-only: hands wal-g's catalogue straight back to the caller,
+	// which normalizes it (see system_manager's
+	// internal/patroni_backup/list.go). Nothing is interpreted here, for
+	// the same reason proxyLeader interprets nothing: it keeps this
+	// binary from having to know which wal-g version is installed.
+	mux.HandleFunc("/backup_list", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "GET only", http.StatusMethodNotAllowed)
+			return
+		}
+		if !requireAuth(w, r) {
+			return
+		}
+
+		out, errOut, err := runBackupList()
+		if err != nil {
+			// wal-g's stderr is the only thing that explains why —
+			// missing credentials, a prefix that does not exist,
+			// permissions — so it goes back whole rather than as a
+			// generic message. text/plain, because it is not JSON and
+			// claiming otherwise would send the caller into a parse
+			// error instead of showing them the reason.
+			log.Printf("[patroni_sidecar] backup-list FAILED: %v", err)
+			w.Header().Set("Content-Type", "text/plain")
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write(errOut)
+			return
+		}
+
+		// An empty catalogue is a valid answer, and wal-g reports it as
+		// literal "null" rather than "[]".
+		body := bytes.TrimSpace(out)
+		if len(body) == 0 || string(body) == "null" {
+			body = []byte("[]")
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Content-Length", strconv.Itoa(len(body)))
+		w.WriteHeader(http.StatusOK)
+		w.Write(body)
+	})
 
 	// Synchronous by design: the caller (system_manager) needs to know
 	// whether the backup actually succeeded, not just that it started —
@@ -324,8 +674,7 @@ func main() {
 			http.Error(w, "POST only", http.StatusMethodNotAllowed)
 			return
 		}
-		if apiToken != "" && r.Header.Get("Authorization") != "Bearer "+apiToken {
-			http.Error(w, "unauthorized", http.StatusUnauthorized)
+		if !requireAuth(w, r) {
 			return
 		}
 

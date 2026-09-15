@@ -137,6 +137,15 @@ const readDockerFiles = (dockerFileName: string) => {
 	}
 };
 
+export const isWalArchiverEnabled = () => {
+	const writePostgresPort = parseInt(process_env.POSTGRES_PORT, 10);
+	const readPostgresPort = parseInt(process_env.POSTGRES_READ_PORT ?? process_env.POSTGRES_PORT, 10);
+
+	const writeTimescalePort = parseInt(process_env.TIMESCALE_PORT, 10);
+	const readTimescalePort = parseInt(process_env.TIMESCALE_READ_PORT ?? process_env.TIMESCALE_PORT, 10);
+	return writePostgresPort !== readPostgresPort || writeTimescalePort !== readTimescalePort;
+};
+
 readDockerFiles("/run/secrets/admin_api.txt");
 readDockerFiles("/run/configs/admin_api.conf");
 

@@ -8,6 +8,23 @@
 # =============================================================
 set -euo pipefail
 
+# ── Restoring from a backup? Then there is nothing to initialize ─────────────
+# Patroni calls post_init after a CUSTOM bootstrap too, not only after
+# initdb (see patroni/postgresql/bootstrap.py: call_post_bootstrap is
+# reached from post_bootstrap regardless of which method ran). After
+# `wal-g backup-fetch` the roles, the database and the grants below
+# already exist in the restored cluster, so every CREATE ROLE here fails
+# with "already exists" — and with `set -euo pipefail` that aborts the
+# script, which Patroni reads as a failed bootstrap and the node never
+# becomes leader.
+#
+# Skipping is correct rather than merely convenient: a restored cluster
+# is already initialized, by definition.
+if [ "${PATRONI_BOOTSTRAP_METHOD:-initdb}" != "initdb" ]; then
+    echo "post_init: bootstrapped with '${PATRONI_BOOTSTRAP_METHOD}', the cluster is already initialized — skipping"
+    exit 0
+fi
+
 echo "post_init: initializing admin cluster..."
 
 for var in GRAFANA_DB_PASSWORD SUPERADMIN_PASSWORD SUPERADMIN_USER \

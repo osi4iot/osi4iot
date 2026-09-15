@@ -89,7 +89,61 @@ func RunSwarm(dc *pt.DockerClient, pd *pt.PlatformData) error {
 	return nil
 }
 
+// saveCertsFromSystemManager copies system_manager's certificate
+// material into the state file, for the paths that are about to make it
+// unreachable — see StopPlatform and DeletePlatform.
+//
+// Best-effort by design: neither stopping nor deleting a platform should
+// fail because a certificate could not be read. But the warning is loud,
+// because in DeletePlatform's case the consequence is silent and only
+// shows up much later, at the next `init`.
+func saveCertsFromSystemManager(pd *pt.PlatformData, dc *pt.DockerClient) {
+	updated, source, err := SyncCertsFromSystemManager(pd, dc)
+	if err != nil {
+		fmt.Printf("Warning: could not read the certificates from system_manager (%v).\n"+
+			"  The state file keeps the certificates it already had.\n", err)
+		return
+	}
+	if !updated {
+		return
+	}
+	fmt.Printf("Saving newer certificates from %s to the state file\n", source)
+	if err := utils.WritePlatformDataToFile(pd); err != nil {
+		fmt.Printf("Warning: could not save the updated certificates: %v\n", err)
+	}
+}
+
 func createSwarmServices(platformData *pt.PlatformData, dc *pt.DockerClient) error {
+	// Before building any secret from the local state file, pick up
+	// whatever certificate system_manager holds — it renews on its own
+	// schedule, so the copy in osi4iot_state.json goes stale on its own.
+	//
+	// This matters for `run` after a `stop`: the services are gone (so
+	// there is no NATS to ask) but the volumes survive, so a platform
+	// restarted weeks later would otherwise be handed the certificate
+	// from whenever the CLI last looked, possibly already expired, while
+	// the valid one sits right there in system_manager's volume. Nothing
+	// downstream would catch it: the renewer reads the volume, sees
+	// weeks left, and correctly skips.
+	//
+	// For `create` and for `init` after a `delete` there is nothing to
+	// read — `delete` removes the volumes — and this is a no-op. Those
+	// two flows are covered from the other end instead: the state file
+	// is the only surviving copy, and it reaches the new volume through
+	// the system_manager_certs seed secret (see
+	// secrets.CreateSystemManagerCertsSecret). Which is why StopPlatform
+	// and DeletePlatform sync FIRST, while the volume still exists.
+	//
+	// See docker.SyncCertsFromSystemManager.
+	if updated, source, err := SyncCertsFromSystemManager(platformData, dc); err != nil {
+		return fmt.Errorf("error syncing domain certificates: %v", err)
+	} else if updated {
+		fmt.Printf("Domain certificates updated from %s (they were newer than the local ones)\n", source)
+		if err := utils.WritePlatformDataToFile(platformData); err != nil {
+			return fmt.Errorf("error saving platform data: %v", err)
+		}
+	}
+
 	createdSecrets, err := secrets.CreateSwarmSecrets(platformData, dc)
 	if err != nil {
 		return fmt.Errorf("error creating swarm secrets: %v", err)
@@ -271,6 +325,15 @@ func StopPlatform(platformData *pt.PlatformData) error {
 	if err != nil {
 		return fmt.Errorf("error getting docker client: %v", err)
 	}
+
+	// Save whatever system_manager has renewed while it was up, before
+	// taking it down. The volumes survive a stop, so this is not the
+	// last chance the way it is in DeletePlatform — but it is the last
+	// moment NATS is available, and doing it here means the state file
+	// is already correct if the operator goes on to `delete` instead of
+	// `run`.
+	saveCertsFromSystemManager(platformData, docker)
+
 	err = removeSwarmServices(docker)
 	if err != nil {
 		return fmt.Errorf("error removing services: %v", err)
@@ -284,6 +347,20 @@ func DeletePlatform(pd *pt.PlatformData) error {
 	if err != nil {
 		return fmt.Errorf("error getting docker client: %v", err)
 	}
+
+	// LAST CHANCE to keep the certificates. This function removes the
+	// volumes further down, and system_manager's volume is where the
+	// current certificate and the ACME account key live — once it is
+	// gone, the state file is the only copy that exists. If that copy is
+	// stale (system_manager renewed at some point after the CLI last
+	// looked, which is the normal case), a later `init` re-issues from
+	// Let's Encrypt for a domain that already had a perfectly good
+	// certificate, against a duplicate-certificate rate limit of five
+	// per week — easy to exhaust across a few delete/init cycles.
+	//
+	// Deliberately before removeSwarmServices, so system_manager is
+	// still running and the fast NATS path is available.
+	saveCertsFromSystemManager(pd, docker)
 
 	done := make(chan bool)
 	spinnerMsg := "Waiting for all components to be deleted"

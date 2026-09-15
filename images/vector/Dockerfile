@@ -14,6 +14,7 @@ COPY system_metrics/containers.go ./
 COPY system_metrics/hostMetrics.go ./
 COPY system_metrics/hostState.go ./
 COPY system_metrics/volumes.go   ./
+COPY system_metrics/wal_archiver.go ./
 
 ARG TARGETOS
 ARG TARGETARCH

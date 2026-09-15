@@ -14,6 +14,39 @@ raft:
   partner_addrs: ${PATRONI_PARTNER_ADDRS}
 
 bootstrap:
+  # ── Bootstrap method ─────────────────────────────────────────
+  # Empty or "initdb" (the default, and what every normal
+  # deployment uses) creates a fresh empty cluster. The platform
+  # CLI sets this to "wal_g" for one start when restoring, so
+  # Patroni itself fetches the backup instead of anyone placing a
+  # PGDATA by hand — see internals/docker/patroni_restore.go.
+  #
+  # Patroni resolves an unset value to "initdb" on its own
+  # (bootstrap.py: `config.get('method') or 'initdb'`), so an
+  # undefined PATRONI_BOOTSTRAP_METHOD is safe.
+  #
+  # A failing custom bootstrap does NOT fall back to initdb: the
+  # node stays down with state "custom bootstrap failed". That is
+  # deliberate — a restore that cannot fetch its backup must not
+  # quietly leave an empty database behind.
+  method: ${PATRONI_BOOTSTRAP_METHOD}
+
+  wal_g:
+    # no_params is required: without it Patroni appends --scope and
+    # --datadir, which wal-g does not accept.
+    command: wal-g backup-fetch /data/patroni ${PATRONI_RESTORE_BACKUP}
+    no_params: true
+    recovery_conf:
+      # Needed on every restore, not just PITR: after backup-fetch,
+      # PostgreSQL has to replay WAL from the archive to reach a
+      # consistent state.
+      restore_command: 'wal-g wal-fetch %f %p'
+      # These two lines are removed by entrypoint.sh when no target
+      # time is set, so a plain restore recovers to the end of the
+      # available WAL.
+      recovery_target_action: promote
+      recovery_target_time: '${PATRONI_RESTORE_TARGET_TIME}'
+
   dcs:
     ttl: 30
     loop_wait: 10

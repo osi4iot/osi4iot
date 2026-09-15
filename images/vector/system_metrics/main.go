@@ -17,7 +17,8 @@ func main() {
 			"    host              → host_metrics\n"+
 			"    host_state        → host_node_state  (managers only)\n"+
 			"    containers        → container_metrics\n"+
-			"    volumes           → volumes_metrics\n",
+			"    volumes           → volumes_metrics\n"+
+			"    wal_archiver      → wal_archiver_metrics  (swarm leader only)\n",
 	)
 	pretty := flag.Bool("pretty", false, "output indented JSON (for debugging)")
 	interval := flag.Duration("interval", 0, "if > 0, run collectors in a loop with this interval")
@@ -33,7 +34,7 @@ func main() {
 	if len(selected) == 0 {
 		fmt.Fprintf(os.Stderr,
 			"error: no valid collector in %q.\n"+
-				"Valid: host, containers, volumes\n",
+				"Valid: host, host_state, containers, volumes, wal_archiver\n",
 			*collect,
 		)
 		os.Exit(1)
@@ -51,6 +52,8 @@ func main() {
 				err = collectContainers(*pretty)
 			case "volumes":
 				err = collectVolumes(*pretty)
+			case "wal_archiver":
+				err = collectWalArchiver(*pretty)
 			}
 			if err != nil {
 				log.Printf("[%s] collection error: %v", c, err)
@@ -75,10 +78,11 @@ func main() {
 
 func parseCollectors(raw string) []string {
 	valid := map[string]bool{
-		"host":       true,
-		"host_state": true,
-		"containers": true,
-		"volumes":    true,
+		"host":         true,
+		"host_state":   true,
+		"containers":   true,
+		"volumes":      true,
+		"wal_archiver": true,
 	}
 	var out []string
 	for _, part := range strings.Split(raw, ",") {

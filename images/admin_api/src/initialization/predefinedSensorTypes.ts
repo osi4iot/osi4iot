@@ -519,4 +519,14 @@ export const systemMonitoringSensorTypes = [
 		dashboardRefreshString: "",
 		dashboardTimeWindow: "",
 	},
+	{
+		type: "WAL archiver metrics",
+		iconSvgFileName: "wal_archiver_metrics.svg",
+		iconSvgString: `<svg xmlns="http://www.w3.org/2000/svg" xmlns:svg="http://www.w3.org/2000/svg" id="Layer_1" enable-background="new 0 0 512 512" viewBox="0 0 512 512" version="1.1" xml:space="preserve"><path id="path1420" style="fill-opacity:1;stroke:none;stroke-width:0.999999;stroke-linecap:round;stroke-dasharray:none;stroke-opacity:1" d="M 35,44 h 78 a 7,7 0 0 1 7,7 v 18 a 7,7 0 0 1 -7,7 h -78 a 7,7 0 0 1 -7,-7 v -18 a 7,7 0 0 1 7,-7 z M 35,92 h 78 a 7,7 0 0 1 7,7 v 18 a 7,7 0 0 1 -7,7 h -78 a 7,7 0 0 1 -7,-7 v -18 a 7,7 0 0 1 7,-7 z M 57,142 h 34 v 40 h 26 l -43,46 l -43,-46 h 26 z M 18,250 a 56,16 0 0 1 112,0 v 106 a 56,16 0 0 1 -112,0 z M 18,286 a 56,16 0 0 0 112,0 v -9 a 56,16 0 0 1 -112,0 z M 18,322 a 56,16 0 0 0 112,0 v -9 a 56,16 0 0 1 -112,0 z M 140,246 C 194,230 240,200 276,170 C 314,138 356,114 404,106 l -3,-18 l 62,26 l -46,47 l -3,-18 C 374,150 338,172 304,200 C 266,232 214,266 148,284 z M 157.5,330 h 32.5 a 7.5,7.5 0 0 1 7.5,7.5 v 111.0 a 7.5,7.5 0 0 1 -7.5,7.5 h -32.5 a 7.5,7.5 0 0 1 -7.5,-7.5 v -111.0 a 7.5,7.5 0 0 1 7.5,-7.5 z M 157.5,337.5 v 111.0 h 32.5 v -111.0 z M 247.5,250 h 32.5 a 7.5,7.5 0 0 1 7.5,7.5 v 191.0 a 7.5,7.5 0 0 1 -7.5,7.5 h -32.5 a 7.5,7.5 0 0 1 -7.5,-7.5 v -191.0 a 7.5,7.5 0 0 1 7.5,-7.5 z M 247.5,257.5 v 191.0 h 32.5 v -191.0 z M 337.5,190 h 32.5 a 7.5,7.5 0 0 1 7.5,7.5 v 251.0 a 7.5,7.5 0 0 1 -7.5,7.5 h -32.5 a 7.5,7.5 0 0 1 -7.5,-7.5 v -251.0 a 7.5,7.5 0 0 1 7.5,-7.5 z M 337.5,197.5 v 251.0 h 32.5 v -251.0 z M 427.5,226 h 32.5 a 7.5,7.5 0 0 1 7.5,7.5 v 215.0 a 7.5,7.5 0 0 1 -7.5,7.5 h -32.5 a 7.5,7.5 0 0 1 -7.5,-7.5 v -215.0 a 7.5,7.5 0 0 1 7.5,-7.5 z M 427.5,233.5 v 215.0 h 32.5 v -215.0 z M 150,466 h 342 a 10,10 0 0 1 10,10 v 0 a 10,10 0 0 1 -10,10 h -342 a 10,10 0 0 1 -10,-10 v 0 a 10,10 0 0 1 10,-10 z" /></svg>`,
+		markerSvgFileName: "-",
+		markerSvgString: "",
+		defaultPayloadJsonSchema: {},
+		dashboardRefreshString: "",
+		dashboardTimeWindow: "",
+	},
 ];

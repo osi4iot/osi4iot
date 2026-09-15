@@ -42,6 +42,13 @@ func updateNodesData(dc *pt.DockerClient, nodesData *[]pt.NodeData) error {
 
 func GetManagerDC() (*pt.DockerClient, error) {
 	for _, dc := range pt.DCMap {
+		// SetDockerClientsMap stores a nil entry for every node it
+		// couldn't reach, so this dereference panicked whenever any node
+		// was down — including on the read-only commands that only need
+		// SOME manager.
+		if dc == nil {
+			continue
+		}
 		if dc.Node.NodeRole == "Manager" {
 			return dc, nil
 		}

@@ -40,7 +40,6 @@ func patroniMetricsNode(
 ) pt.Service {
 	name := fmt.Sprintf("patroni_metrics%d", replica)
 	volumeData := fmt.Sprintf("patroni_metrics%d-data", replica)
-	volumeWal := fmt.Sprintf("patroni_metrics%d-wal", replica)
 
 	pi := pd.PlatformInfo
 
@@ -82,11 +81,6 @@ func patroniMetricsNode(
 				Type:   mount.TypeVolume,
 				Source: sd.Volumes[volumeData].Name,
 				Target: "/data",
-			},
-			{
-				Type:   mount.TypeVolume,
-				Source: sd.Volumes[volumeWal].Name,
-				Target: "/wal",
 			},
 		}).
 		WithResources(

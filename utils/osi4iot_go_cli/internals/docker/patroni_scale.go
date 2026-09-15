@@ -103,17 +103,16 @@ var patroniMetricsFamily = patroniFamily{
 	SystemManagerName: "metrics",
 	BuildNode:         services.PatroniMetricsNodeService,
 	CreateVolumes: func(pi pt.PlatformInfo, dc *pt.DockerClient, replica int) (map[string]pt.Volume, error) {
-		dataVol, walVol, err := volumes.CreatePatroniMetricsVolumes(pi, dc, replica)
+		dataVol, err := volumes.CreatePatroniMetricsVolume(pi, dc, replica)
 		if err != nil {
 			return nil, err
 		}
 		return map[string]pt.Volume{
 			fmt.Sprintf("patroni_metrics%d-data", replica): *dataVol,
-			fmt.Sprintf("patroni_metrics%d-wal", replica):  *walVol,
 		}, nil
 	},
 	RemoveVolumes: func(dc *pt.DockerClient, replica int) error {
-		return volumes.RemovePatroniMetricsVolumes(dc, replica)
+		return volumes.RemovePatroniMetricsVolume(dc, replica)
 	},
 	SetNumNodes: func(pi *pt.PlatformInfo, n int) { pi.NumPatroniMetricsNodes = n },
 }
@@ -739,10 +738,15 @@ func natsServiceError(msg *nats.Msg) string {
 // right layer for this. A fresh NATS connection is used for every
 // attempt, not reused across retries, since a failed attempt's
 // connection could itself be the thing that's stale/broken.
-func requestSystemManager(pd *pt.PlatformData, dc *pt.DockerClient, subject string, timeout time.Duration) ([]byte, error) {
+//
+// payload is the request body, or nil for the tasks that take none —
+// which was every task until statefile.Backup, the first one that needs
+// the caller to send it something (see state_triggers.go). natssvc
+// decodes it into the map a task's Run receives as params.
+func requestSystemManager(pd *pt.PlatformData, dc *pt.DockerClient, subject string, timeout time.Duration, payload []byte) ([]byte, error) {
 	var lastErr error
 	for attempt := 1; attempt <= natsRequestRetries; attempt++ {
-		data, err := requestSystemManagerOnce(pd, dc, subject, timeout)
+		data, err := requestSystemManagerOnce(pd, dc, subject, timeout, payload)
 		if err == nil {
 			return data, nil
 		}
@@ -754,14 +758,14 @@ func requestSystemManager(pd *pt.PlatformData, dc *pt.DockerClient, subject stri
 	return nil, fmt.Errorf("after %d attempts: %w", natsRequestRetries, lastErr)
 }
 
-func requestSystemManagerOnce(pd *pt.PlatformData, dc *pt.DockerClient, subject string, timeout time.Duration) ([]byte, error) {
+func requestSystemManagerOnce(pd *pt.PlatformData, dc *pt.DockerClient, subject string, timeout time.Duration, payload []byte) ([]byte, error) {
 	nc, err := connectToSystemManagerNats(pd, dc)
 	if err != nil {
 		return nil, err
 	}
 	defer nc.Drain()
 
-	msg, err := nc.Request(subject, nil, timeout)
+	msg, err := nc.Request(subject, payload, timeout)
 	if err != nil {
 		return nil, fmt.Errorf("requesting %s: %w", subject, err)
 	}
@@ -779,7 +783,7 @@ func requestSystemManagerOnce(pd *pt.PlatformData, dc *pt.DockerClient, subject 
 // that this call failed.
 func queryPatroniLeader(pd *pt.PlatformData, dc *pt.DockerClient, family patroniFamily) (string, error) {
 	subject := "system_manager.patroni.leader." + family.SystemManagerName
-	data, err := requestSystemManager(pd, dc, subject, natsQueryTimeout)
+	data, err := requestSystemManager(pd, dc, subject, natsQueryTimeout, nil)
 	if err != nil {
 		return "", err
 	}
@@ -800,7 +804,7 @@ func queryPatroniLeader(pd *pt.PlatformData, dc *pt.DockerClient, family patroni
 func switchoverToNode1(pd *pt.PlatformData, dc *pt.DockerClient, family patroniFamily) error {
 	subject := "system_manager.patroni.switchover." + family.SystemManagerName
 	fmt.Printf("Requesting %s leadership switchover to node 1\n\n", family.ServiceKey)
-	_, err := requestSystemManager(pd, dc, subject, natsSwitchoverTimeout)
+	_, err := requestSystemManager(pd, dc, subject, natsSwitchoverTimeout, nil)
 	return err
 }
 
@@ -814,6 +818,6 @@ func switchoverToNode1(pd *pt.PlatformData, dc *pt.DockerClient, family patroniF
 // actually pick up the change.
 func resetNode1Raft(pd *pt.PlatformData, dc *pt.DockerClient, family patroniFamily) error {
 	subject := "system_manager.patroni.reset_raft." + family.SystemManagerName
-	_, err := requestSystemManager(pd, dc, subject, natsQueryTimeout)
+	_, err := requestSystemManager(pd, dc, subject, natsQueryTimeout, nil)
 	return err
 }

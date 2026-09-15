@@ -210,6 +210,17 @@ func SetData(key string, value string) {
 		if Data.PlatformInfo.EncryptionSecretKey == "" {
 			Data.PlatformInfo.EncryptionSecretKey = value
 		}
+	case "PLATFORM_ENCRYPTION_KEY":
+		// Write-once, like the keys above — and with worse consequences
+		// if it isn't: both system_manager's certificate volume and every
+		// state-file backup in S3 are encrypted under subkeys of this,
+		// so replacing it orphans all of them at once. See
+		// PlatformInfo.PlatformEncryptionKey.
+		if Data.PlatformInfo.PlatformEncryptionKey == "" {
+			Data.PlatformInfo.PlatformEncryptionKey = value
+		}
+	case "STATE_FILE_S3_PREFIX":
+		Data.PlatformInfo.StateFileS3Prefix = value
 	case "GRAFANA_ADMIN_PASSWORD":
 		Data.PlatformInfo.GrafanaAdminPassword = value
 

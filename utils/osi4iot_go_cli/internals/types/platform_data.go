@@ -91,6 +91,26 @@ type PlatformInfo struct {
 	EncryptionSecretKey      string `json:"ENCRYPTION_SECRET_KEY"`
 	GrafanaAdminPassword     string `json:"GRAFANA_ADMIN_PASSWORD"`
 
+	// PlatformEncryptionKey is the platform's master key: 32 random
+	// bytes, hex encoded. Nothing encrypts with it directly — every
+	// consumer derives its own subkey from it with a different label
+	// (see utils.DeriveSubkey), so the domain certificates and the
+	// state-file backups are protected by independent keys that happen
+	// to come from one secret the operator has to keep.
+	//
+	// Generated once at platform creation and NEVER regenerated:
+	// rotating it orphans the certificates already in system_manager's
+	// volume AND every state-file backup in S3. Hence the "only if
+	// empty" guard in data.SetData, same as ENCRYPTION_SECRET_KEY.
+	PlatformEncryptionKey string `json:"PLATFORM_ENCRYPTION_KEY"`
+
+	// StateFileS3Prefix is where the encrypted osi4iot_state.json
+	// backups live, in the same "s3://bucket/prefix" shape
+	// WalgS3PrefixAdmin and NATSBackupS3Prefix use — same bucket,
+	// different prefix. Empty disables the feature: system_manager
+	// registers no state_file tasks and the CLI never triggers one.
+	StateFileS3Prefix string `json:"STATE_FILE_S3_PREFIX"`
+
 	// ── Admin database (PostgreSQL 18 via Patroni) ────────────────────────────
 	// PostgresUser and PostgresPassword are the superuser credentials,
 	// consistent with the legacy single-node postgres service.

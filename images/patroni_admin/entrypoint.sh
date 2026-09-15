@@ -98,6 +98,22 @@ fi
 # ── WAL-G libsodium encoding format ─────────────────────────
 export WALG_LIBSODIUM_KEY_TRANSFORM=hex
 
+# ── Refuse to overwrite WAL already in the archive ───────────
+# Default is false, which means wal-push silently replaces an existing
+# segment. That is fine day to day and catastrophic in one specific
+# case: if this cluster's volumes are lost and Patroni comes back up on
+# an empty PGDATA, it bootstraps a BRAND NEW cluster on timeline 1 and
+# starts pushing segments named 000000010000000000000001, ...002, ...
+# — the very same names the old cluster's WAL is stored under. Within
+# archive_timeout the archive needed to recover the lost data is
+# overwritten by an empty database's, and nothing says so.
+#
+# With this on, wal-push errors instead. archive_command then fails
+# loudly, PostgreSQL keeps the segment locally, and the archive survives
+# long enough to restore from. Re-archiving an identical segment after a
+# crash stays a no-op, so normal operation is unaffected.
+export WALG_PREVENT_WAL_OVERWRITE=true
+
 # ── WAL-G control-connection vars for patroni_sidecar ─────────
 # patroni_sidecar (the sidecar HTTP server, launched below) shells out to
 # `wal-g backup-push` in LOCAL mode. wal-g still needs a normal SQL
@@ -184,6 +200,18 @@ if [ "$PATRONI_NUM_NODES" -gt 1 ]; then
 fi
 
 envsubst < /etc/patroni/patroni.yml > /tmp/patroni.yml
+
+# ── Restore: drop the PITR lines unless a target time was given ──
+# envsubst cannot do conditionals, so patroni.yml always carries the
+# recovery_target_* lines and they are deleted here when unused. With
+# no target, recovery runs to the end of the available WAL, which is
+# what a "restore the latest backup" wants; leaving an empty
+# recovery_target_time behind would be passed to PostgreSQL as a real
+# (and invalid) setting.
+if [ -z "${PATRONI_RESTORE_TARGET_TIME:-}" ]; then
+    sed -i "/recovery_target_time: ''/d" /tmp/patroni.yml
+    sed -i "/recovery_target_action: promote/d" /tmp/patroni.yml
+fi
 
 echo "Starting Patroni Admin node: $PATRONI_NAME"
 echo "DCS: embedded Raft — peer ${PATRONI_NAME}:${RAFT_PORT}"

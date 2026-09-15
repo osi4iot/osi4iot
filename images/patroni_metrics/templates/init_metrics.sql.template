@@ -465,6 +465,81 @@ SELECT add_retention_policy(
 GRANT SELECT ON TABLE observability.volume_metrics TO data_source_user_org_1;
 
 -- =============================================================================
+-- WAL ARCHIVER HEALTH — observability.wal_archiver_metrics
+--
+-- Answers "is WAL recycling blocked?". PostgreSQL cannot reuse a WAL
+-- segment until archive_command has taken it and no replication slot
+-- still needs it; while either is stuck, pg_wal grows until the volume
+-- is full and the database stops. No setting prevents that — discarding
+-- un-archived WAL would silently invalidate the backups — so the only
+-- defence is noticing early, and the gap between "archiving started
+-- failing" and "disk full" is hours or days.
+--
+-- ONE ROW PER CLUSTER. patroni_admin and patroni_metrics have separate
+-- archives and fail independently; metrics ingests continuously, makes
+-- far more WAL, and will usually break first. The cluster is part of
+-- the primary key precisely so the two can never be averaged together.
+--
+-- What to alert on, in order of usefulness:
+--   failed_count increasing  -> archive_command is failing right now
+--   ready_files climbing     -> the backlog; 0 or 1 when healthy
+--   inactive_slots > 0       -> a slot is holding WAL, different fix
+-- =============================================================================
+
+CREATE TABLE IF NOT EXISTS observability.wal_archiver_metrics (
+    time    TIMESTAMPTZ NOT NULL,
+    cluster TEXT        NOT NULL,   -- admin | metrics
+
+    archive_mode TEXT,              -- on | always | off
+
+    -- Archiver state. failed_count is cumulative since the last stats
+    -- reset, so what matters is the delta between rows.
+    failed_count                BIGINT,
+    last_failed_wal             TEXT,
+    last_archived_wal           TEXT,
+    seconds_since_last_archive  BIGINT,
+
+    -- Backlog and size of pg_wal.
+    ready_files BIGINT,
+    wal_files   BIGINT,
+    wal_bytes   BIGINT,
+
+    -- The other reason recycling stalls.
+    inactive_slots      BIGINT,
+    slot_retained_bytes BIGINT,
+
+    PRIMARY KEY (time, cluster)
+);
+
+SELECT create_hypertable(
+    'observability.wal_archiver_metrics', 'time',
+    if_not_exists => TRUE
+);
+
+CREATE INDEX IF NOT EXISTS idx_wal_archiver_cluster_time
+    ON observability.wal_archiver_metrics (cluster, time DESC);
+
+ALTER TABLE observability.wal_archiver_metrics SET (
+    timescaledb.compress,
+    timescaledb.compress_segmentby = 'cluster',
+    timescaledb.compress_orderby   = 'time DESC'
+);
+
+SELECT add_compression_policy(
+    'observability.wal_archiver_metrics',
+    compress_after => INTERVAL '1 day',
+    if_not_exists  => TRUE
+);
+
+SELECT add_retention_policy(
+    'observability.wal_archiver_metrics',
+    drop_after    => INTERVAL '30 days',
+    if_not_exists => TRUE
+);
+
+GRANT SELECT ON TABLE observability.wal_archiver_metrics TO data_source_user_org_1;
+
+-- =============================================================================
 -- CONTINUOUS AGGREGATES — observability
 -- Requires TimescaleDB 2.x
 --

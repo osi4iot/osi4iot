@@ -637,6 +637,14 @@ func createPlatform(m *Model) (platformCreatingMsg, error) {
 	encryptionSecretKey := utils.GeneratePassword(32)
 	data.SetData("ENCRYPTION_SECRET_KEY", encryptionSecretKey)
 
+	// 32 random bytes hex-encoded = 64 hex chars. The master key both
+	// this CLI and system_manager derive their per-purpose subkeys from,
+	// to protect the domain certificates in system_manager's volume and
+	// the state-file backups in S3. Generated once here and never again
+	// — see PlatformInfo.PlatformEncryptionKey.
+	platformEncryptionKey := utils.GenerateHexKey(32)
+	data.SetData("PLATFORM_ENCRYPTION_KEY", platformEncryptionKey)
+
 	platformAdminPassword := m.FindAnswerByKey("PLATFORM_ADMIN_PASSWORD")
 	data.SetData("GRAFANA_ADMIN_PASSWORD", platformAdminPassword)
 
@@ -674,6 +682,13 @@ func createPlatform(m *Model) (platformCreatingMsg, error) {
 
 	natsBackupS3Prefix := "s3://" + platformData.PlatformInfo.S3BucketName + "/backups/nats_streams"
 	data.SetData("NATS_BACKUP_S3_PREFIX", natsBackupS3Prefix)
+
+	// Same bucket, its own prefix — the pattern WALG_S3_PREFIX_* and
+	// NATS_BACKUP_S3_PREFIX already follow. Setting it here is what
+	// enables the feature at all: system_manager registers no
+	// state_file tasks without it, and the CLI never triggers one.
+	stateFileS3Prefix := "s3://" + platformData.PlatformInfo.S3BucketName + "/backups/state_file"
+	data.SetData("STATE_FILE_S3_PREFIX", stateFileS3Prefix)
 
 	err = utils.NatsCredentials(platformData)
 	if err != nil {

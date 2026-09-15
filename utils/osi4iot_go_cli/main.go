@@ -60,8 +60,21 @@ func main() {
 		pd := data.GetData()
 		err := utils.ReadPlatformDataFromFile(pd)
 		if err != nil {
-			errMsg := utils.StyleErrMsg.Render(fmt.Sprintf("Error loading json file: %v", err))
-			exitWithError(errMsg)
+			// A state file that won't load is exactly what
+			// `osi4iot state recover` exists to fix, so bailing out
+			// here would lock the operator out of the one command that
+			// could help. Every other action genuinely needs the file,
+			// and still stops.
+			if action != "state" {
+				errMsg := utils.StyleErrMsg.Render(fmt.Sprintf("Error loading json file: %v", err))
+				exitWithError(errMsg)
+			}
+			fmt.Println(utils.StyleErrMsg.Render(
+				fmt.Sprintf("Warning: the state file could not be loaded (%v).\n"+
+					"Continuing so it can be restored — other commands will not work until it is.", err)))
+			data.SetPlatformState(data.Empty)
+			cmd.Execute()
+			return
 		}
 
 		if slices.Contains(cmd.SwarmActions, action) {

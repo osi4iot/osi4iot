@@ -11,7 +11,7 @@ import { getNotificationChannelUid } from "./groupDAL";
 import IAlert from "./interfaces/Alert.interface";
 import IDashboardData from "./interfaces/DashboardData.interface";
 import IGroup from "./interfaces/Group.interface";
-import process_env from "../../config/api_config";
+import process_env, { isWalArchiverEnabled } from "../../config/api_config";
 import { defaultDashboard } from "./defaultDashboards/defaultDashboard";
 import { generateGrafanaDataSourceName } from "./datasourceDAL";
 import grafanaApi from "../../GrafanaApi";
@@ -24,6 +24,7 @@ import logEntriesDashboard from './defaultDashboards/logEntriesDashboard.json';
 import hostMetricsDashboard from './defaultDashboards/hostMetricsDashboard.json';
 import containerMetricsDashboard from './defaultDashboards/containerMetricsDashboard.json';
 import volumeMetricsDashboard from './defaultDashboards/volumeMetricsDashboard.json';
+import walArchiverMetricsDashboard from './defaultDashboards/walArchiverMetricsDashboard.json';
 import systemMonitoringDashboard from './defaultDashboards/systemMonitoringDashboard.json';
 
 
@@ -413,6 +414,10 @@ export const createSystemMonitoringSensorDashboard = async (
         "Container metrics sensor": containerMetricsDashboard,
         "Volume metrics sensor":    volumeMetricsDashboard,
     };
+
+	if (isWalArchiverEnabled()) {
+		dashboardMap["WAL archiver metrics sensor"] = walArchiverMetricsDashboard;
+	}
 
     const baseDashboard = dashboardMap[sensorData.description ?? ""];
     if (!baseDashboard) throw new Error("Unknown system monitoring sensor type");

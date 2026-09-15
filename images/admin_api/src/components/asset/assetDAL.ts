@@ -326,7 +326,6 @@ export const createSystemMonitoringAsset = async (
 		sensorsRef[i].sensorTypeId = sensorType.id;
 		dashboarsId[i] = await createSystemMonitoringSensorDashboard(group, sensorsRef[i], sensorsUid[i]);
 	}
-
 	const dashboardsInfo = await getDashboardsInfoFromIdArray(dashboarsId);
 	const dashboardsUrl = generateDashboardsUrl(dashboardsInfo);
 	for (let i = 0; i < sensorsRef.length; i++) {

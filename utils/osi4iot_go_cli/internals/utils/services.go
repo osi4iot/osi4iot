@@ -3,6 +3,7 @@ package utils
 import (
 	"context"
 	"fmt"
+	"math"
 	"sort"
 	"strconv"
 	"strings"
@@ -417,18 +418,34 @@ func MonitorServiceUpdateWithProgressBar(dc *osi_types.DockerClient, serviceID s
 
 			progress := analyzeTaskProgress(tasks, targetReplicas)
 
+			// Scaling to zero is a legitimate target (the patroni
+			// restore stops every node before clearing its volumes),
+			// and it made this divide by zero. With no tasks left that
+			// is 0/0 = NaN, which slips past the > 1.0 clamp because
+			// every comparison with NaN is false, and int(NaN) is
+			// undefined — in practice a large negative, which is what
+			// made strings.Repeat panic.
+			//
+			// Progress towards zero is measured the other way round:
+			// done when nothing is left running.
 			var progressPercent float64
-			if isUpdate {
-				progressPercent = float64(progress.Running) / float64(targetReplicas)
+			if targetReplicas == 0 {
+				if progress.Running == 0 {
+					progressPercent = 1.0
+				}
 			} else {
 				progressPercent = float64(progress.Running) / float64(targetReplicas)
 			}
 
-			if progressPercent > 1.0 {
+			if progressPercent > 1.0 || math.IsNaN(progressPercent) {
 				progressPercent = 1.0
+			}
+			if progressPercent < 0 {
+				progressPercent = 0
 			}
 
 			filled := int(progressPercent * float64(barWidth))
+			filled = min(max(filled, 0), barWidth)
 			bar := strings.Repeat("█", filled) + strings.Repeat("░", barWidth-filled)
 
 			var statusMsg, coloredBar string
