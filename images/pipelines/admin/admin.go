@@ -647,7 +647,7 @@ func (a *Admin) ProcessDocInfoFile(ctx context.Context, docInfoFilesPath string,
 func (a *Admin) DownloadMlModelFile(ctx context.Context, mlModelFolder string, groupId int, mlModelId int) string {
 	mlModelFileInfo := a.GetS3MlModelFolderInfo(ctx, groupId, mlModelId)
 	if len(mlModelFileInfo) > 0 {
-		fileName := strings.Split(mlModelFileInfo[0].FileName, "/")[4]
+		fileName := strings.Split(mlModelFileInfo[0].FileName, "/")[5]
 		mlModelFilePath := filepath.Join(mlModelFolder, fileName)
 		lastModified := mlModelFileInfo[0].LastModified
 		isNewer, _ := utils.IsDateNewerThanFile(lastModified, mlModelFilePath)

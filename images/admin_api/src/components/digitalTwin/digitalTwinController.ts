@@ -83,7 +83,7 @@ const uploadDigitalTwinFile = multer({
 		key: (req: IRequestWithDigitalTwinAndGroup, file, cb) => {
 			const group = req.group;
 			const { groupId, digitalTwinId, folder, fileName } = req.params;
-			const keyBase = `org_${group.orgId}/group_${groupId}/digitalTwin_${digitalTwinId}`;
+			const keyBase = `org_data/org_${group.orgId}/group_${groupId}/digitalTwin_${digitalTwinId}`;
 			const fileKey = `${keyBase}/${folder}/${fileName}`;
 			cb(null, fileKey);
 		},
@@ -531,7 +531,7 @@ class DigitalTwinController implements IController {
 	): Promise<void> => {
 		const group = req.group;
 		const { groupId, digitalTwinId, folder, fileName } = req.params;
-		const keyBase = `org_${group.orgId}/group_${groupId}/digitalTwin_${digitalTwinId}`;
+		const keyBase = `org_data/org_${group.orgId}/group_${groupId}/digitalTwin_${digitalTwinId}`;
 		const fileKey = `${keyBase}/${folder}/${fileName}`;
 
 		const bucketParams = {
@@ -555,7 +555,7 @@ class DigitalTwinController implements IController {
 	): Promise<void> => {
 		const group = req.group;
 		const { groupId, digitalTwinId, folder } = req.params;
-		const keyBase = `org_${group.orgId}/group_${groupId}/digitalTwin_${digitalTwinId}`;
+		const keyBase = `org_data/org_${group.orgId}/group_${groupId}/digitalTwin_${digitalTwinId}`;
 		const folderPath = `${keyBase}/${folder}`;
 
 		try {
@@ -573,7 +573,7 @@ class DigitalTwinController implements IController {
 	): Promise<void> => {
 		const group = req.group;
 		const { groupId, digitalTwinId, folder, fileName } = req.params;
-		const keyBase = `org_${group.orgId}/group_${groupId}/digitalTwin_${digitalTwinId}`;
+		const keyBase = `org_data/org_${group.orgId}/group_${groupId}/digitalTwin_${digitalTwinId}`;
 		const fileKey = `${keyBase}/${folder}/${fileName}`;
 		try {
 			await deleteBucketFile(fileKey);

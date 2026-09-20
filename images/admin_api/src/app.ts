@@ -194,15 +194,15 @@ class App {
 		});
 		this.initializeSwagger();
 
-		this.app.get("/health", (req, res) => {
-			// Deliberately answers for the Node process only, never for the
-			// database. Swarm has a single healthcheck and its response to a
-			// failure is to restart the container; tying this to Postgres
-			// would turn every ~15s failover into a simultaneous restart of
-			// every admin_api replica, converting a brief database outage
-			// into a full API outage.
-			res.send({ success: true, message: "It is working" });
-		});
+		// this.app.get("/health", (req, res) => {
+		// 	// Deliberately answers for the Node process only, never for the
+		// 	// database. Swarm has a single healthcheck and its response to a
+		// 	// failure is to restart the container; tying this to Postgres
+		// 	// would turn every ~15s failover into a simultaneous restart of
+		// 	// every admin_api replica, converting a brief database outage
+		// 	// into a full API outage.
+		// 	res.send({ success: true, message: "It is working" });
+		// });
 
 		if (DB_STATUS_ENABLED) {
 			this.app.get("/db_status", (req, res) => {

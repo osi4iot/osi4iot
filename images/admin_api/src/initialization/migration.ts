@@ -31,7 +31,6 @@ import { nanoid } from "nanoid";
 import { createDigitalTwin, uploadMobilePhoneGltfFile } from "../components/digitalTwin/digitalTwinDAL";
 import IAssetType from "../components/asset/assetType.interface";
 import { predefinedAssetTypes, systemMonitoringAssetType } from "./predefinedAssetTypes";
-import { emptyBucket } from "./emptyS3Bucket";
 import IFloor from "../components/building/floor.interface";
 import {
 	findBuildingBounds,
@@ -108,25 +107,28 @@ export const dataBaseInitialization = async () => {
 		}
 
 		if (process_env.REPLICA === "1") {
-			if (result0.rows[0].count !== 0) {
-				try {
-					const listBucketsResult = await s3Client.send(new ListBucketsCommand({}));
-					const bucketName = process_env.S3_BUCKET_NAME;
-					existPlatformS3Bucket =
-						listBucketsResult.Buckets.filter((bucket) => bucket.Name === bucketName).length !== 0;
-					if (!existPlatformS3Bucket) {
-						await s3Client.send(new CreateBucketCommand({ Bucket: bucketName }));
-						logger.log("info", `The S3 bucket for the platform has been created successfully`);
-					} else {
-						logger.log("info", `An S3 bucket with the name ${bucketName} already has been created`);
-						await emptyBucket();
-					}
-				} catch (err) {
-					const message = err instanceof Error ? err.message : String(err);
-					logger.log("error", "The S3 bucket for the platform can not be created: %s", message);
-					process.exit(1);
+			try {
+				const listBucketsResult = await s3Client.send(new ListBucketsCommand({}));
+				const bucketName = process_env.S3_BUCKET_NAME;
+				existPlatformS3Bucket =
+					listBucketsResult.Buckets.filter((bucket) => bucket.Name === bucketName).length !== 0;
+				if (!existPlatformS3Bucket) {
+					await s3Client.send(new CreateBucketCommand({ Bucket: bucketName }));
+					logger.log("info", `The S3 bucket for the platform has been created successfully`);
+				} else {
+					// Deliberately left alone. A bucket that already exists holds the
+					// platform's wal-g backups, its NATS backups and its org_data files,
+					// and emptying it here deleted all of them on every restart of this
+					// replica. There is no case where wiping it is what was wanted.
+					logger.log("info", `An S3 bucket with the name ${bucketName} already exists`);
 				}
+			} catch (err) {
+				const message = err instanceof Error ? err.message : String(err);
+				logger.log("error", "The S3 bucket for the platform can not be created: %s", message);
+				process.exit(1);
+			}
 
+			if (Number(result0.rows[0].count) !== 0) {
 				const queryStringAlterOrg = `ALTER TABLE grafanadb.org
 											ADD COLUMN acronym varchar(20) UNIQUE,
 											ADD COLUMN role VARCHAR(20) NOT NULL DEFAULT 'Generic',
@@ -1348,7 +1350,7 @@ export const dataBaseInitialization = async () => {
 						null,
 						true
 					);
-					const keyBase = `org_1/group_${group.id}/digitalTwin_${mobileSensorsDigitalTwin.id}`;
+					const keyBase = `org_data/org_1/group_${group.id}/digitalTwin_${mobileSensorsDigitalTwin.id}`;
 					const gltfFileName = `${keyBase}/gltfFile/mobile_phone.gltf`;
 					await uploadMobilePhoneGltfFile(gltfFileName);
 					logger.log("info", `Default mobile phone digital twin has been created sucessfully`);

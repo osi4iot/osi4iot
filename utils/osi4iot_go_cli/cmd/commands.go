@@ -9,10 +9,11 @@ import (
 	"strconv"
 	"strings"
 	"text/tabwriter"
-	
+
 	"github.com/osi4iot/osi4iot/utils/osi4iot/internals/crypto"
 	"github.com/osi4iot/osi4iot/utils/osi4iot/internals/data"
 	"github.com/osi4iot/osi4iot/utils/osi4iot/internals/docker"
+	pt "github.com/osi4iot/osi4iot/utils/osi4iot/internals/types"
 	"github.com/osi4iot/osi4iot/utils/osi4iot/internals/utils"
 	"github.com/osi4iot/osi4iot/utils/osi4iot/ui/form"
 	"github.com/spf13/cobra"
@@ -31,7 +32,7 @@ const version = "0.1.36"
 // CheckDockerClientsMap, which exits when it finds none — and fail
 // exactly the case recovery exists for. The state file's S3 backups run
 // under "backup", which is here.
-var SwarmActions = []string{"create", "init", "run", "stop", "delete", "service", "certs", "streams", "backup"}
+var SwarmActions = []string{"create", "init", "run", "stop", "delete", "service", "certs", "streams", "node", "backup"}
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
@@ -73,10 +74,19 @@ var cmdCreate = &cobra.Command{
 				docker.CleanResources()
 			}()
 
+			if err := docker.ResetBucketForNewPlatform(pd, log.New(os.Stdout, "", 0)); err != nil {
+				exitWithError(err.Error())
+			}
+
 			err = docker.InitPlatform(pd)
 			if err != nil {
 				errMsg := fmt.Sprintf("Error initializing platform: %v", err)
 				exitWithError(errMsg)
+			}
+
+			dc, err := docker.GetManagerDC()
+			if err == nil {
+				docker.TakeInitialBackups(pd, dc, log.New(os.Stdout, "", 0))
 			}
 			okMessage := "Platform has been created successfully and is ready to be used"
 			err = docker.SwarmInitiationInfo(pd, okMessage)
@@ -95,18 +105,71 @@ var cmdInit = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		checkState("init")
 		pd := data.GetData()
-		err := docker.InitPlatform(pd)
-		if err != nil {
-			errMsg := fmt.Sprintf("Error starting platform: %v", err)
-			exitWithError(errMsg)
+
+		snapshotPath, _ := cmd.Flags().GetString(snapshotFileFlag)
+		fromBucket, _ := cmd.Flags().GetString(fromBucketFlag)
+
+		// Three modes, differing in exactly two places: which services
+		// the first deployment leaves out, and what happens once it is
+		// up. Both restoring modes hold admin_api, grafana and
+		// pipelines back, because they read the database once at
+		// startup and the database is about to be replaced.
+		var deferred []string
+		if snapshotPath != "" || fromBucket != "" {
+			deferred = docker.DeferredUntilRestored
 		}
-		okMessage := "Platform has been initialized successfully and is ready to to be used"
-		err = docker.SwarmInitiationInfo(pd, okMessage)
-		if err != nil {
-			errMsg := fmt.Sprintf("Error: initializing the platform %v", err)
-			exitWithError(errMsg)
+
+		if err := docker.InitPlatform(pd, deferred...); err != nil {
+			exitWithError(fmt.Sprintf("Error starting platform: %v", err))
+		}
+
+		okMessage := "Platform has been initialized successfully and is ready to be used"
+
+		switch {
+		case snapshotPath != "":
+			persistNodeData(pd)
+			if err := finishInitFromSnapshot(pd, snapshotPath); err != nil {
+				exitWithError(fmt.Sprintf("Error restoring from the snapshot: %v", err))
+			}
+			okMessage = "Platform has been initialized from the snapshot and is ready to be used"
+
+		case fromBucket != "":
+			persistNodeData(pd)
+			if err := finishInitFromBucket(pd); err != nil {
+				exitWithError(fmt.Sprintf("Error restoring from the bucket: %v", err))
+			}
+			okMessage = "Platform has been restored from its bucket and is ready to be used"
+
+		default:
+			// Only here: a platform restored from a backup already has
+			// a catalogue, and a base backup of the empty clusters this
+			// init created would be noise in it.
+			dc, err := docker.GetManagerDC()
+			if err != nil {
+				fmt.Println(utils.StyleWarningMsg.Render(fmt.Sprintf(
+					"Could not take the first backups: %v", err)))
+			} else {
+				docker.TakeInitialBackups(pd, dc, log.New(os.Stdout, "", 0))
+			}
+		}
+
+		if err := docker.SwarmInitiationInfo(pd, okMessage); err != nil {
+			exitWithError(fmt.Sprintf("Error: initializing the platform %v", err))
 		}
 	},
+}
+
+// persistNodeData saves the state file before the long part of a
+// restore.
+//
+// InitPlatform has just discovered this swarm's node ids, architecture
+// and resources, and SwarmInitiationInfo — which normally persists them
+// — does not run until the restore has finished. A failure in between
+// would throw that away, and the retry would have to rediscover it.
+func persistNodeData(pd *pt.PlatformData) {
+	if err := utils.WritePlatformDataToFile(pd); err != nil {
+		exitWithError(fmt.Sprintf("Error saving platform data: %v", err))
+	}
 }
 
 var cmdRun = &cobra.Command{
@@ -164,7 +227,28 @@ var cmdDelete = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		checkState("delete")
 		pd := data.GetData()
-		err := docker.DeletePlatform(pd)
+		dc, err := docker.GetManagerDC()
+		if err != nil {
+			errMsg := fmt.Sprintf("Error getting docker client: %v", err)
+			exitWithError(errMsg)
+		}
+
+		removeBucket, _ := cmd.Flags().GetBool("remove-bucket")
+		if removeBucket {
+			logger := log.New(os.Stdout, "", 0)
+			if count, err := docker.CountBucketObjects(pd, dc); err == nil && count > 0 {
+				fmt.Println(utils.StyleWarningMsg.Render(fmt.Sprintf(
+					"s3://%s holds %d object(s): every backup this platform has. "+
+						"They cannot be recovered afterwards.",
+					pd.PlatformInfo.S3BucketName, count)))
+				// confirmación
+			}
+			if err := docker.RemovePlatformBucket(pd, dc, logger); err != nil {
+				exitWithError(err.Error())
+			}
+		}
+
+		err = docker.DeletePlatform(pd)
 		if err != nil {
 			errMsg := fmt.Sprintf("Error: deleting the platform %v", err)
 			exitWithError(errMsg)
@@ -218,7 +302,6 @@ var subCmdServiceInspect = &cobra.Command{
 		serviceName := args[0]
 
 		pd := data.GetData()
-
 		dc, err := docker.GetManagerDC()
 		if err != nil {
 			errMsg := fmt.Sprintf("Error getting docker client: %v", err)
@@ -406,7 +489,6 @@ var subCmdServiceUpdateImage = &cobra.Command{
 	},
 }
 
-
 var subCmdCertsCheck = &cobra.Command{
 	Use:   "check",
 	Short: "Check certificates expiration",
@@ -515,43 +597,13 @@ var subCmdRemoveCS = &cobra.Command{
 	},
 }
 
-var cmdNodes = &cobra.Command{
-	Use:   "nodes",
-	Short: "Nodes management",
-	Long:  "Add, update, list and remove nodes from the platform",
-}
-
-var subCmdNodesList = &cobra.Command{
-	Use:   "list",
-	Short: "List nodes",
-	Long:  "List nodes",
-	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("List nodes")
-	},
-}
-
-var subCmdAddNode = &cobra.Command{
-	Use:   "add",
-	Short: "Add node",
-	Long:  "Add node",
-	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("Add node")
-	},
-}
-
-var subCmdRemoveNode = &cobra.Command{
-	Use:   "remove",
-	Short: "Remove node",
-	Long:  "Remove node",
-	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("Remove node")
-	},
-}
-
 var (
 	stateRecoverFile     string
 	stateRecoverFromMin  bool
 	stateRecoverMinioImg string
+	stateRecoverBucket   string
+	stateRecoverRegion   string
+	stateRecoverKeyPfx   string
 )
 
 var subCmdStateRecover = &cobra.Command{
@@ -569,14 +621,30 @@ var subCmdStateRecover = &cobra.Command{
 		"volume, reads the backup out and takes it down again, over SSH if the volume is on " +
 		"another node. It needs the platform admin user and password, which are MinIO's root " +
 		"credentials.\n\n" +
-		"To restore from S3 with the platform running, use 'osi4iot backup restore state'.",
+		"--from-bucket NAME reads the backups straight out of an external S3 bucket, which is " +
+		"the case in between: 'osi4iot delete' never touches S3, so a bucket outlives its " +
+		"platform and the backups are reachable but nobody wants to hunt for the right object " +
+		"by hand. It asks for the bucket's credentials, because there is no state file to take " +
+		"them from yet — that is the point. AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY are " +
+		"used when both are set, so it stays scriptable; otherwise they are prompted for and " +
+		"the secret key is not echoed. Nothing is stored. The recent backups are listed with " +
+		"their dates so you can take an older one, which is what you want when recovering from " +
+		"a change rather than from a loss.\n\n" +
+		"To restore from S3 with the platform running, use 'osi4iot backup restore state'. To " +
+		"rebuild the whole platform from a bucket and not just the state file, use " +
+		"'osi4iot init --from-bucket'.",
 	Run: func(cmd *cobra.Command, args []string) {
-		stdoutLogger := log.New(os.Stdout, "", 0)
-
-		if stateRecoverFile != "" && stateRecoverFromMin {
-			exitWithError("--file and --from-minio are alternative sources: pick one")
-		}
-		if err := runStateRecover(stdoutLogger, stateRecoverFile, stateRecoverMinioImg, stateRecoverFromMin); err != nil {
+		err := runStateRecover(log.New(os.Stdout, "", 0), stateRecoverSource{
+			File:       stateRecoverFile,
+			FromMinio:  stateRecoverFromMin,
+			MinioImage: stateRecoverMinioImg,
+			Bucket: bucketCredentials{
+				Bucket:    stateRecoverBucket,
+				Region:    stateRecoverRegion,
+				KeyPrefix: stateRecoverKeyPfx,
+			},
+		})
+		if err != nil {
 			exitWithError(err.Error())
 		}
 	},
@@ -658,7 +726,7 @@ var cmdStreams = &cobra.Command{
 		"takes of its own accord mid-operation (see 'osi4iot backup' for the S3-backed periodic " +
 		"backup/restore of NATS, patroni_admin and patroni_metrics).",
 }
- 
+
 var subCmdStreamsList = &cobra.Command{
 	Use:     "ls",
 	Aliases: []string{"list"},
@@ -666,22 +734,22 @@ var subCmdStreamsList = &cobra.Command{
 	Long:    "Lists every JetStream stream with its replica count, leader, message count and sync status.",
 	Run: func(cmd *cobra.Command, args []string) {
 		pd := data.GetData()
- 
+
 		dc, err := docker.GetManagerDC()
 		if err != nil {
 			exitWithError(fmt.Sprintf("Error getting docker client: %v", err))
 		}
- 
+
 		streams, err := docker.ListNatsStreams(pd, dc)
 		if err != nil {
 			exitWithError(fmt.Sprintf("Error listing NATS streams: %v", err))
 		}
- 
+
 		if len(streams) == 0 {
 			fmt.Println(utils.StyleOKMsg.Render("No NATS streams found"))
 			return
 		}
- 
+
 		w := tabwriter.NewWriter(os.Stdout, 0, 2, 2, ' ', 0)
 		fmt.Fprintln(w, "NAME\tREPLICAS\tLEADER\tMESSAGES\tSTATUS")
 		for _, s := range streams {
@@ -689,7 +757,7 @@ var subCmdStreamsList = &cobra.Command{
 			if leader == "" {
 				leader = "-"
 			}
- 
+
 			status := "ok"
 			switch {
 			case s.Peers <= 1:
@@ -699,7 +767,7 @@ var subCmdStreamsList = &cobra.Command{
 			case s.Peers < s.Replicas:
 				status = "under-replicated"
 			}
- 
+
 			fmt.Fprintf(w, "%s\t%d\t%s\t%d\t%s\n", s.Name, s.Replicas, leader, s.Messages, status)
 		}
 		w.Flush()
@@ -729,6 +797,12 @@ func init() {
 	rootCmd.AddCommand(cmdCreate)
 	rootCmd.AddCommand(cmdInit)
 	cmdInit.PersistentFlags().StringSlice("exclude", []string{}, "List of services to exclude")
+	cmdInit.Flags().String(snapshotFileFlag, "", "Snapshot to bring this platform up from")
+	cmdInit.Flags().String(fromBucketFlag, "", "Bucket to bring this platform back from")
+	cmdInit.Flags().String(nodesFileFlag, "", "nodes.json describing the machines to use")
+	cmdInit.Flags().String(statePrefixFlag, "", "Key prefix of the state file backups")
+	cmdInit.Flags().String(bucketRegionFlg, "", "Bucket region")
+	cmdInit.Flags().BoolP(assumeYesFlag, "y", false, "Do not ask for confirmation")
 	rootCmd.AddCommand(cmdRun)
 	cmdRun.PersistentFlags().StringSlice("exclude", []string{}, "List of services to exclude")
 	rootCmd.AddCommand(cmdStop)
@@ -748,7 +822,6 @@ func init() {
 	cmdService.AddCommand(subCmdServiceUpdateImage)
 	rootCmd.AddCommand(cmdService)
 
-
 	cmdCerts.AddCommand(subCmdCertsCheck)
 	cmdCerts.AddCommand(subCmdCertsUpdate)
 	cmdCerts.AddCommand(subCmdCertsDownload)
@@ -761,21 +834,22 @@ func init() {
 	subCmdStateRecover.Flags().StringVar(&stateRecoverMinioImg, "minio-image", "",
 		"MinIO image for --from-minio (default: the version this platform ran)")
 
+	subCmdStateRecover.Flags().StringVar(&stateRecoverBucket, "from-bucket", "",
+		"External S3 bucket to read the backups from")
+	subCmdStateRecover.Flags().StringVar(&stateRecoverRegion, "bucket-region", "",
+		"Bucket region (default: the AWS environment, or us-east-1)")
+	subCmdStateRecover.Flags().StringVar(&stateRecoverKeyPfx, "state-prefix", "",
+		"Key prefix of the state file backups (default: backups/state_file)")
+
 	cmdState.AddCommand(subCmdStateExport)
 	cmdState.AddCommand(subCmdStateRecover)
 	rootCmd.AddCommand(cmdState)
 
 	cmdPassphrase.AddCommand(subCmdPassphraseReset)
 	rootCmd.AddCommand(cmdPassphrase)
- 
+
 	cmdStreams.AddCommand(subCmdStreamsList)
 	rootCmd.AddCommand(cmdStreams)
-
-	cmdNodes.AddCommand(subCmdNodesList)
-	cmdNodes.AddCommand(subCmdAddNode)
-	cmdNodes.AddCommand(subCmdRemoveNode)
-	rootCmd.AddCommand(cmdNodes)
-
 }
 
 func exitWithWarning(errMsg string) {

@@ -472,12 +472,27 @@ func wipePatroniNodeData(pd *pt.PlatformData, dc *pt.DockerClient, family patron
 		return err
 	}
 
-	// find -mindepth 1 -delete empties both directories without
-	// removing them, so their ownership and mode are preserved; the
-	// `|| true` on raft covers a deployment where it does not exist yet.
+	// Checked before mounting, because mount.TypeVolume with a Source
+	// that does not exist does not fail: Docker creates an empty volume
+	// there and then. The cleanup would run against that empty volume,
+	// the node's real PGDATA would survive, and Patroni would find a
+	// cluster where it was meant to find nothing — so the restore would
+	// report success and leave the old data in place.
+	if _, err := dc.Cli.VolumeInspect(dc.Ctx, volumeName); err != nil {
+		return fmt.Errorf("the volume '%s' does not exist on this node: %w\n"+
+			"Its data lives somewhere this restore cannot see, and wiping a volume "+
+			"Docker would create here instead would silently leave the old data in place",
+			volumeName, err)
+	}
+
+	// find -mindepth 1 -delete empties the directory without removing
+	// it, so its ownership and mode survive. A PGDATA that is not there
+	// at all already satisfies what this step is for — the entrypoint
+	// recreates it with mkdir -p on the next start — so it is not an
+	// error; neither is a raft directory a deployment has never made.
 	script := "set -e; " +
-		"find /data/patroni -mindepth 1 -delete; " +
-		"rm -rf /data/raft/*; " +
+		"if [ -d /data/patroni ]; then find /data/patroni -mindepth 1 -delete; fi; " +
+		"rm -rf /data/raft/* 2>/dev/null || true; " +
 		"echo cleared"
 
 	created, err := dc.Cli.ContainerCreate(dc.Ctx,

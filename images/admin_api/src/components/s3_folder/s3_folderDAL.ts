@@ -350,7 +350,7 @@ export const deleteFoldersInS3Bucket = async (s3Folders: IS3Folder[]): Promise<v
 		const groupId = s3Folder.groupId;
 		const assetId = s3Folder.assetId;
 		const folderName = s3Folder.folderName;
-		const folderPath = `org_${orgId}/group_${groupId}/asset_${assetId}/folder=${folderName}`;
+		const folderPath = `org_data/org_${orgId}/group_${groupId}/asset_${assetId}/folder=${folderName}`;
 		return removeFilesFromBucketFolder(folderPath);
 	});
 	await Promise.all(deletePromises);
@@ -414,7 +414,7 @@ export const getBucketFolderFileNames = async (
 			const MM = String(current.getMonth() + 1).padStart(2, "0");
 			const DD = String(current.getDate()).padStart(2, "0");
 
-			const prefix = `org_${orgId}/group_${groupId}/asset_${assetId}/folder=${folderName}/version=${version}/year=${YYYY}/month=${MM}/day=${DD}/`;
+			const prefix = `org_data/org_${orgId}/group_${groupId}/asset_${assetId}/folder=${folderName}/version=${version}/year=${YYYY}/month=${MM}/day=${DD}/`;
 
 			const bucketParams = {
 				Bucket: bucketName,

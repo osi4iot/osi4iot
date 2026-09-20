@@ -618,7 +618,7 @@ class OrganizationController implements IController {
 					pipelineFileData: "",
 				};
 				const digitalTwin = await createDigitalTwin(group, asset, digitalTwinData);
-				const keyBase = `org_${orgId}/group_${group.id}/digitalTwin_${digitalTwin.id}`;
+				const keyBase = `org_data/org_${orgId}/group_${group.id}/digitalTwin_${digitalTwin.id}`;
 				const gltfFileName = `${keyBase}/gltfFile/mobile_phone.gltf`;
 				await uploadMobilePhoneGltfFile(gltfFileName);
 			}

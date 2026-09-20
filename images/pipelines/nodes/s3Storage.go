@@ -111,7 +111,7 @@ func CreateS3StorageNode(node common.NodeData, fm common.Manager, p common.Pipel
 				fm.Log().Errorf("S3StorageNode %s: 'duckdbQuery' setting is required for Read action", node.NodeUid)
 				return nil, fmt.Errorf("duckdbQuery setting is required for Read action")
 			}
-			bucketPath = fmt.Sprintf("org_%d/group_%d/asset_%d", orgId, groupId, assetId)
+			bucketPath = fmt.Sprintf("org_data/org_%d/group_%d/asset_%d", orgId, groupId, assetId)
 		case "Insert":
 			parquetHistory, exists := availableFolders[folderName]
 			if !exists || len(parquetHistory) == 0 {
@@ -121,7 +121,7 @@ func CreateS3StorageNode(node common.NodeData, fm common.Manager, p common.Pipel
 			currentSchema := parquetHistory[len(parquetHistory)-1]
 			parquetSchema = currentSchema.Schema
 			version = currentSchema.Version
-			bucketPath = fmt.Sprintf("org_%d/group_%d/asset_%d/folder=%s/version=%d", orgId, groupId, assetId, folderName, version)
+			bucketPath = fmt.Sprintf("org_data/org_%d/group_%d/asset_%d/folder=%s/version=%d", orgId, groupId, assetId, folderName, version)
 		}
 	}
 
@@ -255,6 +255,7 @@ func (n *S3StorageNode) processInsertQuery(msg common.Message, params S3StorageP
 	} else {
 		if err := s3folder.SyncS3Stats(
 			n.Ctx,
+			log,
 			n.Fm.GetS3Client(), // *s3.Client
 			params.BucketName,
 			s3FolderRowID,
@@ -341,7 +342,7 @@ func (n *S3StorageNode) extractParamsFromPayload(msg common.Message) (S3StorageP
 		if !ok {
 			return S3StorageParams{}, fmt.Errorf("'s3Storage' does not contain valid 'duckdbQuery' field for Read action")
 		}
-		bucketPath := fmt.Sprintf("org_%d/group_%d/asset_%d", n.Params.OrgId, n.Params.GroupId, n.Params.AssetId)
+		bucketPath := fmt.Sprintf("org_data/org_%d/group_%d/asset_%d", n.Params.OrgId, n.Params.GroupId, n.Params.AssetId)
 		if n.Params.OrgId == 0 || n.Params.GroupId == 0 || n.Params.AssetId == 0 {
 			return S3StorageParams{}, fmt.Errorf("invalid IDs for bucket path: orgId=%d groupId=%d assetId=%d", n.Params.OrgId, n.Params.GroupId, n.Params.AssetId)
 		}
@@ -361,7 +362,7 @@ func (n *S3StorageNode) extractParamsFromPayload(msg common.Message) (S3StorageP
 		currentSchema := parquetHistory[len(parquetHistory)-1]
 		params.ParquetSchema = currentSchema.Schema
 		params.Version = currentSchema.Version
-		params.BucketPath = fmt.Sprintf("org_%d/group_%d/asset_%d/folder=%s/version=%d", n.Params.OrgId, n.Params.GroupId, n.Params.AssetId, folderName, currentSchema.Version)
+		params.BucketPath = fmt.Sprintf("org_data/org_%d/group_%d/asset_%d/folder=%s/version=%d", n.Params.OrgId, n.Params.GroupId, n.Params.AssetId, folderName, currentSchema.Version)
 	}
 
 	return params, nil

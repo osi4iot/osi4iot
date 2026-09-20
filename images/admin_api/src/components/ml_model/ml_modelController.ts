@@ -51,7 +51,7 @@ const uploadMLModelFile = multer({
 		key: (req: IRequestWithMLModelAndGroup, file, cb) => {
 			const group = req.group;
 			const { groupId, mlModelId, fileName } = req.params;
-			const keyBase = `org_${group.orgId}/group_${groupId}/ml_models/ml_model_${mlModelId}`;
+			const keyBase = `org_data/org_${group.orgId}/group_${groupId}/ml_models/ml_model_${mlModelId}`;
 			const fileKey = `${keyBase}/${fileName}`;
 			cb(null, fileKey);
 		},
@@ -186,7 +186,7 @@ class MLModelController implements IController {
 			const mlModel = await getMLModelByProp("id", mlModelId);
 			if (!mlModel) throw new ItemNotFoundException(req, res, "The ML model", "id", mlModelId);
 			await deleteMLModelByProp("id", mlModelId);
-			const bucketFolder = `org_${mlModel.orgId}/group_${mlModel.groupId}/ml_models/ml_model_${mlModel.id}`;
+			const bucketFolder = `org_data/org_${mlModel.orgId}/group_${mlModel.groupId}/ml_models/ml_model_${mlModel.id}`;
 			await removeFilesFromBucketFolder(bucketFolder);
 			const message = { message: "ML model deleted successfully" };
 			res.status(200).json(message);
@@ -209,7 +209,7 @@ class MLModelController implements IController {
 			};
 			await updateMLModelByProp(propName, propValue, mlModel);
 			if (mlModelData.areMlModelFilesModified || storedMlModel.mlLibrary !== mlModelData.mlLibrary) {
-				const bucketFolder = `org_${mlModel.orgId}/group_${mlModel.groupId}/ml_models/ml_model_${mlModel.id}`;
+				const bucketFolder = `org_data/org_${mlModel.orgId}/group_${mlModel.groupId}/ml_models/ml_model_${mlModel.id}`;
 				await removeFilesFromBucketFolder(bucketFolder);
 			}
 			const message = { message: "ML model updated successfully" };
@@ -262,7 +262,7 @@ class MLModelController implements IController {
 	): Promise<void> => {
 		const group = req.group;
 		const { groupId, mlModelId, fileName } = req.params;
-		const keyBase = `org_${group.orgId}/group_${groupId}/ml_models/ml_model_${mlModelId}`;
+		const keyBase = `org_data/org_${group.orgId}/group_${groupId}/ml_models/ml_model_${mlModelId}`;
 		const fileKey = `${keyBase}/${fileName}`;
 
 		const bucketParams = {
@@ -286,7 +286,7 @@ class MLModelController implements IController {
 	): Promise<void> => {
 		const group = req.group;
 		const { groupId, mlModelId } = req.params;
-		const folderPath = `org_${group.orgId}/group_${groupId}/ml_models/ml_model_${mlModelId}`;
+		const folderPath = `org_data/org_${group.orgId}/group_${groupId}/ml_models/ml_model_${mlModelId}`;
 
 		try {
 			const fileInfoList = await getBucketFolderInfoFileList(folderPath);
@@ -303,7 +303,7 @@ class MLModelController implements IController {
 	): Promise<void> => {
 		const group = req.group;
 		const { groupId, mlModelId, fileName } = req.params;
-		const keyBase = `org_${group.orgId}/group_${groupId}/ml_models/ml_model_${mlModelId}`;
+		const keyBase = `org_data/org_${group.orgId}/group_${groupId}/ml_models/ml_model_${mlModelId}`;
 		const fileKey = `${keyBase}/${fileName}`;
 		try {
 			await deleteBucketFile(fileKey);

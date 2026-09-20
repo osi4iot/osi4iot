@@ -59,7 +59,7 @@ func createDefaultOptions(pi pt.PlatformInfo) VolumeOptions {
 	if deploymentLocation == "On-premise cluster deployment" && len(nodesData) > 1 {
 		nfsServerIP := ""
 		for _, node := range nodesData {
-			if node.NodeRole == "NFS Server" {
+			if node.NodeRole == "NFS server" {
 				nfsServerIP = node.NodeIP
 				break
 			}

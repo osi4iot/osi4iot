@@ -279,7 +279,7 @@ export const createDefaultPipelineDataForSystemMonitoring = (): PipelineDto => {
 	const nodeListenerUid: string = generateUid();
 	const nodeListenerSettings = {
 		listenTo: "Topic reference",
-		topic: "system_5",
+		topic: "system_6",
 	};
 	const nodeFunctionUid: string = generateUid();
 	const nodeFunctionSettings = {

@@ -26,10 +26,10 @@ import (
 	"github.com/osi4iot/osi4iot/utils/osi4iot/internals/volumes"
 )
 
-func InitPlatform(pd *pt.PlatformData) error {
+func InitPlatform(pd *pt.PlatformData, excluded ...string) error {
 	fmt.Println("Initializing platform...")
 
-	pd.PlatformInfo.ExcludedServices = []string{}
+	pd.PlatformInfo.ExcludedServices = excluded
 
 	deployLocation := pd.PlatformInfo.DeploymentLocation
 	if deployLocation == "Local deployment" {
@@ -186,6 +186,8 @@ func createSwarmServices(platformData *pt.PlatformData, dc *pt.DockerClient) err
 	if err := waitUntilAllContainersAreHealthy(platformData, "all"); err != nil {
 		return fmt.Errorf("error waiting for all containers to be healthy: %v", err)
 	}
+
+	EnsurePlatformBucket(platformData, dc, nil)
 
 	allServiceNames := utils.GetAllServiceNames(platformData)
 

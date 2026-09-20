@@ -22,6 +22,46 @@ import (
 	"github.com/osi4iot/osi4iot/utils/osi4iot/internals/volumes"
 )
 
+// DeferredUntilRestored names the services that `init --snapshot-file`
+// keeps out of the first deployment.
+//
+// # Why they wait
+//
+// These three read the database ONCE, at startup, and act on what they
+// find. Brought up against the empty databases a fresh init creates,
+// they do a lot of work that the restore then throws away, and they
+// keep serving what they read:
+//
+//   - grafana finds an empty database and creates most of its schema,
+//     an organisation and a default set of rows.
+//   - admin_api finds "Main Org.", and on that basis creates the rest
+//     of the tables, fills them, and — until the guard on the row count
+//     was fixed — emptied the platform's S3 bucket.
+//   - pipelines read their topics and sensors on start; from an empty
+//     database they get nothing, and go on processing nothing.
+//
+// Every row of that is discarded a few minutes later: the wal-g restore
+// wipes PGDATA on every node and bootstraps from the backup, so the
+// cluster that comes back is the one in the snapshot, byte for byte.
+// Nothing merges, nothing survives, and the work was wasted.
+//
+// Keeping them out until the data is in place means they start once,
+// against what will actually be there.
+//
+// # What had to move for this to work
+//
+// admin_api created the platform's S3 bucket, so the seeding would have
+// had nowhere to write. That is now PlatformS3.EnsureBucket, called at
+// the start of SeedFromSnapshot, which is a better place for it anyway:
+// the step that needs the bucket is the step that makes it.
+//
+// # Ordinary init and create are untouched
+//
+// There is nothing to restore there, so the empty databases these
+// services populate are the real ones. They deploy with everything
+// else, as before.
+var DeferredUntilRestored = []string{"admin_api", "grafana", "pipelines"}
+
 // SecretUpdateConfig contains the configuration to update a secret
 type SecretUpdateConfig struct {
 	SecretKey     string

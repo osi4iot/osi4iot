@@ -1142,7 +1142,7 @@ export const getGltfFileData = async (digitalTwin: IDigitalTwin): Promise<IGltfF
 	const orgId = digitalTwin.orgId;
 	const groupId = digitalTwin.groupId;
 	const digitalTwinId = digitalTwin.id;
-	const keyBase = `org_${orgId}/group_${groupId}/digitalTwin_${digitalTwinId}`;
+	const keyBase = `org_data/org_${orgId}/group_${groupId}/digitalTwin_${digitalTwinId}`;
 	const gltfFileFolder = `${keyBase}/gltfFile`;
 	const gltfFileList = await getBucketFolderFileList(gltfFileFolder);
 	let gltfFileName = "";
@@ -1189,7 +1189,7 @@ export const getDigitalTwinGltfFile = async (digitalTwin: IDigitalTwin): Promise
 	const orgId = digitalTwin.orgId;
 	const groupId = digitalTwin.groupId;
 	const digitalTwinId = digitalTwin.id;
-	const keyBase = `org_${orgId}/group_${groupId}/digitalTwin_${digitalTwinId}`;
+	const keyBase = `org_data/org_${orgId}/group_${groupId}/digitalTwin_${digitalTwinId}`;
 	const gltfFileFolder = `${keyBase}/gltfFile`;
 	const gltfFileList = await getBucketFolderFileList(gltfFileFolder);
 
@@ -1210,7 +1210,7 @@ export const getDigitalTwinGlbFile = async (digitalTwin: IDigitalTwin): Promise<
 	const orgId = digitalTwin.orgId;
 	const groupId = digitalTwin.groupId;
 	const digitalTwinId = digitalTwin.id;
-	const keyBase = `org_${orgId}/group_${groupId}/digitalTwin_${digitalTwinId}`;
+	const keyBase = `org_data/org_${orgId}/group_${groupId}/digitalTwin_${digitalTwinId}`;
 	const gltfFileFolder = `${keyBase}/gltfFile`;
 	const gltfFileList = await getBucketFolderFileList(gltfFileFolder);
 
@@ -1393,7 +1393,7 @@ export const checkMaxNumberOfFemResFiles = async (digitalTwin: IDigitalTwin) => 
 	const groupId = digitalTwin.groupId;
 	const digitalTwinId = digitalTwin.id;
 	const maxNumResFemFiles = digitalTwin.maxNumResFemFiles;
-	const keyBase = `org_${orgId}/group_${groupId}/digitalTwin_${digitalTwinId}`;
+	const keyBase = `org_data/org_${orgId}/group_${groupId}/digitalTwin_${digitalTwinId}`;
 	const folderPath = `${keyBase}/femResFiles`;
 
 	const femResFileInfoList = await getBucketFolderInfoFileList(folderPath);
@@ -1408,7 +1408,7 @@ export const checkNumberOfGltfFiles = async (digitalTwin: IDigitalTwin) => {
 	const orgId = digitalTwin.orgId;
 	const groupId = digitalTwin.groupId;
 	const digitalTwinId = digitalTwin.id;
-	const keyBase = `org_${orgId}/group_${groupId}/digitalTwin_${digitalTwinId}`;
+	const keyBase = `org_data/org_${orgId}/group_${groupId}/digitalTwin_${digitalTwinId}`;
 	const folderPath = `${keyBase}/gltfFile`;
 
 	const gltfFileInfoList = await getBucketFolderInfoFileList(folderPath);
@@ -1425,7 +1425,7 @@ export const getGltfFileInfo = async (
 	const orgId = digitalTwin.orgId;
 	const groupId = digitalTwin.groupId;
 	const digitalTwinId = digitalTwin.id;
-	const keyBase = `org_${orgId}/group_${groupId}/digitalTwin_${digitalTwinId}`;
+	const keyBase = `org_data/org_${orgId}/group_${groupId}/digitalTwin_${digitalTwinId}`;
 	const folderPath = `${keyBase}/gltfFile`;
 
 	const gltfFileInfoList = await getBucketFolderInfoFileList(folderPath);

@@ -47,12 +47,32 @@ func main() {
 		action = args[0]
 	}
 
-	sudoActions := []string{"create", "init", "run", "stop", "delete", "certs", "nodes", "passphrase", "streams"}
+	sudoActions := []string{"create", "init", "run", "stop", "delete", "certs", "node", "passphrase", "streams"}
 	reexecAsRootIfNeeded(sudoActions, action)
 
 	if action == "passphrase" {
 		cmd.Execute()
 		return
+	}
+
+	// `osi4iot init --snapshot-file <bundle>` has to configure this
+	// machine BEFORE anything below runs. On a machine that has never
+	// held a platform there is no state file, so the else branch would
+	// set the state to Empty, the Docker client map would never be
+	// built, and cmd.checkState("init") would stop with "the platform
+	// configuration has not been defined yet".
+	//
+	// Installing the state file out of the bundle here turns the rest
+	// of this function into an ordinary run that happens to find a
+	// configuration already in place. A no-op for every other command,
+	// and for an `init` without the flag.
+	if action == "init" {
+		if err := cmd.PrepareInitFromSnapshot(args); err != nil {
+			exitWithError(utils.StyleErrMsg.Render(err.Error()))
+		}
+		if err := cmd.PrepareInitFromBucket(args); err != nil {
+			exitWithError(utils.StyleErrMsg.Render(err.Error()))
+		}
 	}
 
 	existStateFile := utils.ExistStateFile()

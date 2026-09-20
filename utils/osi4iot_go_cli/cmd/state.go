@@ -52,13 +52,26 @@ import (
 // symmetric with nats_streams and the patroni targets, and needs the
 // platform up.
 //
-// `osi4iot state recover` is what works when nothing is up.
+// `osi4iot state recover` is what works when nothing is up. It has
+// three sources, and which one to reach for is decided by what is left
+// standing.
+//
 // `--file` takes an object the operator downloaded however they liked —
 // the AWS console, the MinIO console, `aws s3 cp`, `mc` — and does
 // nothing but decrypt it, check it, and write it back out under this
-// machine's passphrase. `--from-minio` gets the object first, out of a
-// stopped MinIO's volume. Neither needs NATS, an S3 client, or an
-// existing state file.
+// machine's passphrase.
+//
+// `--from-minio` gets the object first, out of a stopped MinIO's
+// volume: the case where there is no console to download from because
+// the object store was part of the platform that is down.
+//
+// `--from-bucket` reads an external bucket directly. DeletePlatform
+// never touches S3, so a bucket outlives its platform, and this is the
+// case in between the other two — the backups are reachable, but
+// finding the right object by hand is work nobody should do during a
+// recovery.
+//
+// None of the three needs NATS, and none needs an existing state file.
 
 func init() {
 	// Every successful write of the state file triggers a backup. See
@@ -175,9 +188,28 @@ func runStateRestoreFromS3(logger *log.Logger, run string) error {
 	return installStateFile(logger, []byte(blob))
 }
 
+// stateRecoverSource is where a recovery reads its backup from.
+//
+// A struct rather than a widening list of parameters, because the
+// sources are ALTERNATIVES and this puts the rule that says so next to
+// the code that acts on it. With the check in the command and the
+// dispatch here, adding a third source meant remembering to edit both,
+// and the two could disagree without anything noticing.
+type stateRecoverSource struct {
+	// File is a backup already on this machine.
+	File string
+
+	// FromMinio reads one out of a stopped MinIO's volume.
+	FromMinio  bool
+	MinioImage string
+
+	// Bucket reads one out of an external S3 bucket. Its zero value
+	// means "not this source"; see cmd/state_recover_bucket.go.
+	Bucket bucketCredentials
+}
+
 // runStateRecover installs a state file backup WITHOUT going through
-// the platform, from either a file the operator downloaded themselves
-// or a stopped MinIO's volume.
+// the platform.
 //
 // It is a separate verb from `osi4iot backup restore state` on purpose.
 // That one is a backup operation: the platform hands back a copy, and
@@ -186,19 +218,37 @@ func runStateRestoreFromS3(logger *log.Logger, run string) error {
 // has to work when the state file is unreadable or absent — which is
 // why main.go's pre-run exempts action "state" specifically. Two verbs
 // beat one verb whose meaning depends on which flag you passed.
-func runStateRecover(logger *log.Logger, path, minioImage string, fromMinio bool) error {
+func runStateRecover(logger *log.Logger, src stateRecoverSource) error {
+	given := 0
+	for _, set := range []bool{src.File != "", src.FromMinio, src.Bucket.Bucket != ""} {
+		if set {
+			given++
+		}
+	}
+	if given > 1 {
+		return fmt.Errorf("--file, --from-minio and --from-bucket are alternative sources: " +
+			"pick one")
+	}
+
 	switch {
-	case path != "":
-		blob, err := os.ReadFile(path)
+	case src.File != "":
+		blob, err := os.ReadFile(src.File)
 		if err != nil {
-			return fmt.Errorf("error reading %s: %w", path, err)
+			return fmt.Errorf("error reading %s: %w", src.File, err)
 		}
 		return installStateFile(logger, blob)
-	case fromMinio:
-		return runStateRecoverFromMinio(logger, minioImage)
+
+	case src.FromMinio:
+		return runStateRecoverFromMinio(logger, src.MinioImage)
+
+	case src.Bucket.Bucket != "":
+		return runStateRecoverFromBucket(logger, src.Bucket)
+
 	default:
-		return fmt.Errorf("nothing to recover from: pass --file <path> for a backup you " +
-			"downloaded yourself, or --from-minio to read one out of a stopped MinIO's volume")
+		return fmt.Errorf("nothing to recover from. Pass one of:\n" +
+			"  --file <path>          a backup you downloaded yourself\n" +
+			"  --from-bucket <name>   read it out of an external S3 bucket\n" +
+			"  --from-minio           read it out of a stopped MinIO's volume")
 	}
 }
 
@@ -594,8 +644,9 @@ func loadStateAndClient() (*pt.PlatformData, *pt.DockerClient, error) {
 	}
 	if !docker.IsSystemManagerRunning(dc) {
 		return nil, nil, fmt.Errorf("system_manager is not running, so this command cannot reach " +
-			"the bucket. If you are recovering a lost state file, download the backup from your " +
-			"S3 or MinIO console and use: osi4iot state recover --file <downloaded file>")
+			"the bucket. If you are recovering a lost state file, use 'osi4iot state recover': " +
+			"--from-bucket <name> reads an external bucket directly, --from-minio reads a " +
+			"stopped MinIO's volume, and --file installs a backup you downloaded yourself")
 	}
 	return pd, dc, nil
 }
