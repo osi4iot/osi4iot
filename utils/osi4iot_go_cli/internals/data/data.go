@@ -154,6 +154,9 @@ func SetData(key string, value string) {
 		Data.PlatformInfo.DefaultNumPipelinesInstances = numberOfInstances
 	case "NUMBER_OF_SWARM_NODES":
 		numberOfNodes, _ := strconv.Atoi(value)
+		if numberOfNodes < 1 {
+			numberOfNodes = 1
+		}
 		Data.PlatformInfo.NumberOfSwarmNodes = numberOfNodes
 		if len(Data.PlatformInfo.NodesData) == 0 {
 			Data.PlatformInfo.NodesData = make([]pt.NodeData, numberOfNodes)
