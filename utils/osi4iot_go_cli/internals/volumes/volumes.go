@@ -49,22 +49,10 @@ type EBSVolumeInfo struct {
 }
 
 func createDefaultOptions(pi pt.PlatformInfo) VolumeOptions {
-	deploymentLocation := pi.DeploymentLocation
 	driverOptsO := ""
-	nodesData := pi.NodesData
 	ebsOpts := EBSVolumeOptions{}
 	if pi.UseAwsEbsVolumes {
 		ebsOpts = DefaultEBSVolumeVolumeOptions
-	}
-	if deploymentLocation == "On-premise cluster deployment" && len(nodesData) > 1 {
-		nfsServerIP := ""
-		for _, node := range nodesData {
-			if node.NodeRole == "NFS server" {
-				nfsServerIP = node.NodeIP
-				break
-			}
-		}
-		driverOptsO = fmt.Sprintf("nfsvers=4,addr=%s,rw", nfsServerIP)
 	}
 	volOptions := VolumeOptions{
 		driverOptsO: driverOptsO,
@@ -288,7 +276,7 @@ func removeReplicaVolume(pd *pt.PlatformData, volumeName string) error {
 		return nil
 	}
 
-	// Non-EBS drivers (local/nfs): docker volume rm is reliable and idempotent.
+	// Non-EBS drivers (local): docker volume rm is reliable and idempotent.
 	errors := []error{}
 	for _, dc := range pt.DCMap {
 		err := dc.Cli.VolumeRemove(dc.Ctx, volumeName, true)
@@ -536,9 +524,6 @@ func getVolumesMapByNodeRole(volumesMap map[string]pt.Volume, nodeRole string, p
 			volumeNames = append(volumeNames, "minio_storage")
 			volumeNames = append(volumeNames, "minio_data")
 		}
-
-	case "NfsWorker":
-		//no code
 	}
 
 	filteredVolumes := make(map[string]pt.Volume)
@@ -580,13 +565,6 @@ func SetVolumeConfig(
 				"throughput": volOpts.ebsOpts.throughput,
 				"encrypted":  volOpts.ebsOpts.encrypted,
 			}
-		}
-	case "On-premise cluster deployment":
-		vol.Driver = "nfs"
-		vol.DriverOpts = map[string]string{
-			"type":   "nfs",
-			"o":      volOpts.driverOptsO,
-			"device": fmt.Sprintf(":/var/nfs_osi4iot/%s", volumeName),
 		}
 	case "AWS cluster deployment":
 		vol.Driver = "rexray-ebs"

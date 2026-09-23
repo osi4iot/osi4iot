@@ -84,10 +84,6 @@ type NodeRow struct {
 
 // NodesList prints the swarm's nodes with the platform's view of them
 // beside it.
-//
-// The two roles are shown separately on purpose: a machine that is a
-// swarm worker can be the platform's NFS server, and the placement tags
-// are what actually decide where a Patroni or NATS replica can land.
 func NodesList(rows []NodeRow) {
 	titleStyle := lipgloss.NewStyle().
 		Bold(true).

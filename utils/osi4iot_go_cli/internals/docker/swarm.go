@@ -446,11 +446,6 @@ func DeletePlatform(pd *pt.PlatformData) error {
 
 	done <- true
 
-	err = removeNfsRootFolder(pd)
-	if err != nil {
-		return fmt.Errorf("error removing NFS root folder: %v", err)
-	}
-
 	err = uninstallRexRayPlugin(pd)
 	if err != nil {
 		return fmt.Errorf("error uninstalling RexRay plugin: %v", err)

@@ -16,7 +16,6 @@ import (
 const (
 	RoleManager        = "Manager"
 	RolePlatformWorker = "Platform worker"
-	RoleNFSServer      = "NFS server"
 )
 
 // Deployment locations, as ui/form/actions.go offers them.
@@ -26,7 +25,7 @@ const (
 	LocationAWS       = "AWS cluster deployment"
 )
 
-var validRoles = []string{RoleManager, RolePlatformWorker, RoleNFSServer}
+var validRoles = []string{RoleManager, RolePlatformWorker}
 
 var validLocations = []string{LocationLocal, LocationOnPremise, LocationAWS}
 
@@ -35,7 +34,7 @@ var validLocations = []string{LocationLocal, LocationOnPremise, LocationAWS}
 // never seen one before, so the instructions travel inside it.
 const nodesNote = "Edit this file to describe the machines the platform will run on, " +
 	"then pass the zip to 'osi4iot init --snapshot-file'. Roles are case sensitive: " +
-	"\"Manager\", \"Platform worker\", \"NFS server\". nodeLabel is optional. nodePassword is exported empty " +
+	"\"Manager\", \"Platform worker\". nodeLabel is optional. nodePassword is exported empty " +
 	"on purpose — fill it in only if the new nodes need an SSH password; leave it empty " +
 	"to use the SSH key from the state file."
 
@@ -117,9 +116,7 @@ func ExtractNodes(pd *pt.PlatformData) NodesOverlay {
 // before any of it reaches a deployment.
 //
 // The errors are the ones that would otherwise fail much later and much
-// more confusingly: a role that does not match any of the CLI's
-// comparisons deploys a platform whose NFS server is simply never
-// found, and an empty IP surfaces as a Docker connection error against
+// more confusingly: an empty IP surfaces as a Docker connection error against
 // a host called "".
 func (o *NodesOverlay) Validate() error {
 	if o.FormatVersion > FormatVersion {
@@ -202,28 +199,17 @@ func (o *NodesOverlay) Validate() error {
 func (o *NodesOverlay) Warnings() []string {
 	var warnings []string
 
-	managers, nfsServers := 0, 0
+	managers:= 0
 	for _, node := range o.Nodes {
 		switch node.NodeRole {
 		case RoleManager:
 			managers++
-		case RoleNFSServer:
-			nfsServers++
 		}
 	}
 
 	if managers%2 == 0 {
 		warnings = append(warnings, fmt.Sprintf(
 			"%d managers: a swarm keeps quorum with an ODD number (1, 3 or 5)", managers))
-	}
-	if nfsServers > 1 {
-		warnings = append(warnings, fmt.Sprintf(
-			"%d nodes have the role %q, and only the first one is ever used", nfsServers, RoleNFSServer))
-	}
-	if o.DeploymentLocation == LocationOnPremise && len(o.Nodes) > 1 && nfsServers == 0 {
-		warnings = append(warnings, fmt.Sprintf(
-			"a multi-node %q normally has a node with the role %q for shared volumes",
-			LocationOnPremise, RoleNFSServer))
 	}
 	if o.DeploymentLocation == LocationOnPremise && len(o.Nodes) > 1 {
 		if o.FloatingIPAddress == "" {

@@ -20,13 +20,10 @@ import (
 //
 // Docker knows a node as a hostname, a swarm role and an availability.
 // osi4iot knows it as an entry in NodesData with a role of its own —
-// "Manager", "Platform worker" or "NFS server" — and those two ideas of
-// "role" are not the same thing: an osi4iot "NFS server" is a swarm
-// worker, and a "Platform worker" is where Patroni and NATS replicas
-// are pinned.
+// "Manager" or "Platform worker" 
 //
 // The placement labels are the part nobody can see today.
-// nodesConfiguration writes nats_N, admin-id, metrics-id and nfs_server
+// nodesConfiguration writes nats_N, admin-id, metrics-id
 // onto the swarm nodes from the state file, and there is no command
 // that shows them. Knowing which machine carries admin-id=2 is the
 // difference between understanding where a Patroni replica will land
@@ -36,9 +33,8 @@ import (
 //
 // Joining a machine to the platform means an entry in the state file,
 // an SSH key installed on it, a swarm join, a relabelling that moves
-// replica placement, and possibly an NFS mount. Removing one means
-// asking about manager quorum, about Patroni leaders and about the NFS
-// server before anything happens. Those belong in their own commands,
+// replica placement. Removing one means
+// asking about manager quorum, about Patroni leaders. Those belong in their own commands,
 // with their own guards; this file deliberately stops at what Docker
 // can answer for.
 
@@ -46,7 +42,7 @@ import (
 // Anything with one of these names is rewritten from the state file on
 // the next init or run.
 var PlatformLabelPrefixes = []string{
-	"platform_worker", "nfs_server", "nats_", "admin-id", "metrics-id",
+	"platform_worker", "nats_", "admin-id", "metrics-id",
 }
 
 // NodeView is one machine, as both Docker and the state file see it.
@@ -308,7 +304,7 @@ func placementTags(labels map[string]string) []string {
 		if !IsPlatformManagedLabel(key) {
 			continue
 		}
-		// platform_worker=true and nfs_server=true say nothing extra by
+		// platform_worker=true say nothing extra by
 		// repeating the value; the placement ones carry a number that
 		// is the whole point.
 		if value == "true" {

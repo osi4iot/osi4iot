@@ -14,11 +14,6 @@ func nodesConfiguration(pd *types.PlatformData) error {
 		return fmt.Errorf("error installing UFW on nodes: %w", err)
 	}
 
-	err = installNFS(pd)
-	if err != nil {
-		return fmt.Errorf("error installing NFS on nodes: %w", err)
-	}
-
 	err = installRexRayPlugin(pd)
 	if err != nil {
 		return fmt.Errorf("error installing RexRay plugin on nodes: %w", err)
@@ -76,17 +71,6 @@ ufw allow 7946/udp
 ufw allow 4789/udp
 sudo ufw enable
 `
-		nfsScript := `#!/bin/bash
-REQUIRED_PKG="ufw"
-if [ $(dpkg-query -W -f='${Status}' $REQUIRED_PKG 2>/dev/null | grep -c "ok installed") -eq 0 ];
-then
-	sudo apt-get update -y
-	sudo apt-get install ufw -y
-fi
-ufw allow 22/tcp
-ufw allow 2049/tcp
-sudo ufw enable
-`
 
 		nodesData := pi.NodesData
 		nodeSripts := []utils.NodeScript{}
@@ -106,12 +90,6 @@ sudo ufw enable
 					Script: platformWorkerScript,
 					Args:   []string{},
 				}
-			case "NFS server":
-				nodeScript = utils.NodeScript{
-					Node:   node,
-					Script: nfsScript,
-					Args:   []string{},
-				}
 			}
 			nodeSripts = append(nodeSripts, nodeScript)
 		}
@@ -126,103 +104,6 @@ sudo ufw enable
 	return nil
 }
 
-func installNFS(pd *types.PlatformData) error {
-	pi := pd.PlatformInfo
-	deploymentLocation := pi.DeploymentLocation
-	numSwarmNodes := len(pi.NodesData)
-
-	if deploymentLocation == "On-premise cluster deployment" && numSwarmNodes > 1 {
-		spinnerDone := make(chan bool)
-		spinnerMsg := "Installing NFS"
-		endMsg := "NFS installed successfully"
-		utils.Spinner(spinnerMsg, endMsg, spinnerDone)
-		nodesData := pi.NodesData
-		nfsNode := types.NodeData{}
-		for _, node := range nodesData {
-			if node.NodeRole == "NFS server" {
-				nfsNode = node
-				break
-			}
-		}
-		if nfsNode.NodeIP != "" {
-			nfsScript := `#!/bin/bash
-ips_array=($(echo "$1" | tr ',' '\n'))
-
-REQUIRED_PKG="nfs-kernel-server"
-if [ $(dpkg-query -W -f='${Status}' $REQUIRED_PKG 2>/dev/null | grep -c "ok installed") -eq 0 ];
-then
-	sudo apt-get update -y
-	sudo apt-get install nfs-kernel-server -y
-fi
-
-if [ ! -d /var/nfs_osi4iot ]; then
-	sudo mkdir /var/nfs_osi4iot
-	sudo chown nobody:nogroup /var/nfs_osi4iot
-fi
-
-if [ ! -d /var/nfs_osi4iot/grafana_data ]; then
-	sudo mkdir /var/nfs_osi4iot/grafana_data
-	sudo chown nobody:nogroup /var/nfs_osi4iot/grafana_data
-fi
-
-if [ ! -d  /var/nfs_osi4iot/portainer_data ]; then
-	sudo mkdir /var/nfs_osi4iot/portainer_data
-	sudo chown nobody:nogroup /var/nfs_osi4iot/portainer_data
-fi
-
-if [ ! -d  /var/nfs_osi4iot/pgadmin4_data ]; then
-	sudo mkdir /var/nfs_osi4iot/pgadmin4_data
-	sudo chown nobody:nogroup /var/nfs_osi4iot/pgadmin4_data
-fi
-
-if [ ! -d  /var/nfs_osi4iot/pgdata ]; then
-	sudo mkdir /var/nfs_osi4iot/pgdata
-	sudo chown nobody:nogroup /var/nfs_osi4iot/pgdata
-fi
-
-if [ ! -d  /var/nfs_osi4iot/timescaledb_data ]; then
-	sudo mkdir /var/nfs_osi4iot/timescaledb_data
-	sudo chown nobody:nogroup /var/nfs_osi4iot/timescaledb_data
-fi
-
-if [ ! -d  /var/nfs_osi4iot/portainer_data ]; then
-	sudo mkdir /var/nfs_osi4iot/portainer_data
-	sudo chown nobody:nogroup /var/nfs_osi4iot/portainer_data
-fi
-
-for (( i=0; i<${#ips_array[@]}; i++ )); do
-	newline="/var/nfs_osi4iot ${ips_array[$i]}(rw,sync,no_root_squash,no_subtree_check)"
-	if ! grep -Fxq "$newline" "/etc/exports"; then
-		echo $newline >> /etc/exports
-	fi
-done
-
-sudo systemctl restart nfs-kernel-server
-`
-			var ips []string
-			for _, node := range nodesData {
-				if node.NodeRole != "NFS server" {
-					ips = append(ips, node.NodeIP)
-				}
-			}
-			ipsString := strings.Join(ips, ",")
-
-			nodeScript := utils.NodeScript{
-				Node:   nfsNode,
-				Script: nfsScript,
-				Args:   []string{ipsString},
-			}
-			_, err := utils.RunScriptInNodes(pd, []utils.NodeScript{nodeScript})
-			if err != nil {
-				spinnerDone <- false
-				return err
-			}
-			spinnerDone <- true
-		}
-	}
-
-	return nil
-}
 
 func addNodesLabels(pd *types.PlatformData) error {
 	pi := pd.PlatformInfo
@@ -308,8 +189,6 @@ func addNodesLabels(pd *types.PlatformData) error {
 					metricsReplica++
 				}
 			}
-		case "NFS server":
-			spec.Labels["nfs_server"] = "true"
 		}
 
 		err = docker.Cli.NodeUpdate(docker.Ctx, swarmNode.ID, swarmNode.Version, spec)
@@ -320,46 +199,5 @@ func addNodesLabels(pd *types.PlatformData) error {
 	}
 
 	spinnerDone <- true
-	return nil
-}
-
-func removeNfsRootFolder(pd *types.PlatformData) error {
-	pi := pd.PlatformInfo
-	deploymentLocation := pi.DeploymentLocation
-	numSwarmNodes := len(pi.NodesData)
-
-	if deploymentLocation == "On-premise cluster deployment" && numSwarmNodes > 1 {
-		spinnerDone := make(chan bool)
-		spinnerMsg := "Removing NFS root folder"
-		endMsg := "NFS root folder removed successfully"
-		utils.Spinner(spinnerMsg, endMsg, spinnerDone)
-		nodesData := pi.NodesData
-		nfsNode := types.NodeData{}
-		for _, node := range nodesData {
-			if node.NodeRole == "NFS server" {
-				nfsNode = node
-				break
-			}
-		}
-		if nfsNode.NodeIP != "" {
-			nfsScript := `#!/bin/bash
-if [ -d /var/nfs_osi4iot ]; then
-	sudo rm -rf /var/nfs_osi4iot
-fi
-`
-			nodeScript := utils.NodeScript{
-				Node:   nfsNode,
-				Script: nfsScript,
-				Args:   []string{},
-			}
-			_, err := utils.RunScriptInNodes(pd, []utils.NodeScript{nodeScript})
-			if err != nil {
-				spinnerDone <- false
-				return err
-			}
-			spinnerDone <- true
-		}
-	}
-
 	return nil
 }

@@ -144,7 +144,6 @@ func GetNodeRoleNumMap(platformData *pt.PlatformData) map[string]int {
 	roleNumMap := make(map[string]int)
 	roleNumMap["Manager"] = 0
 	roleNumMap["Platform worker"] = 0
-	roleNumMap["NFS server"] = 0
 	nodesData := platformData.PlatformInfo.NodesData
 
 	for _, node := range nodesData {
@@ -154,8 +153,6 @@ func GetNodeRoleNumMap(platformData *pt.PlatformData) map[string]int {
 			roleNumMap["Manager"] += 1
 		case "Platform worker":
 			roleNumMap["Platform worker"] += 1
-		case "NfsWorker":
-			roleNumMap["NFS server"] += 1
 		}
 	}
 
@@ -166,7 +163,6 @@ func GetNodeNanoCpusMap(platformData *pt.PlatformData) map[string]int64 {
 	roleNanoCpusMap := make(map[string]int64)
 	roleNanoCpusMap["Manager"] = 0
 	roleNanoCpusMap["Platform worker"] = 0
-	roleNanoCpusMap["NFS server"] = 0
 	nodesData := platformData.PlatformInfo.NodesData
 
 	for _, node := range nodesData {
@@ -185,13 +181,6 @@ func GetNodeNanoCpusMap(platformData *pt.PlatformData) map[string]int64 {
 			}
 			if node.NodeNanoCPUs < roleNanoCpusMap["Platform worker"] {
 				roleNanoCpusMap["Platform worker"] = node.NodeNanoCPUs
-			}
-		case "NfsWorker":
-			if roleNanoCpusMap["NFS server"] == 0 {
-				roleNanoCpusMap["NFS server"] = node.NodeNanoCPUs
-			}
-			if node.NodeNanoCPUs < roleNanoCpusMap["NFS server"] {
-				roleNanoCpusMap["NFS server"] = node.NodeNanoCPUs
 			}
 
 		}
