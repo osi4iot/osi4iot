@@ -27,7 +27,7 @@ func CreateSystemManagerSecrets(pd *pt.PlatformData) pt.Secret {
 	if pi.S3BucketType == "Cloud AWS S3" {
 		awsAccessKeyId = pi.AWSAccessKeyIDS3Bucket
 		awsSecretAccessKey = pi.AWSSecretAccessKeyS3Bucket
-		awsRegion = pi.AWSRegionS3Bucket
+		awsRegion = utils.AwsRegionsMap[pi.AWSRegionS3Bucket]
 		awsEndpoint = ""
 	}
 	lines = append(lines,

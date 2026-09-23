@@ -10,6 +10,7 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/pkg/stdcopy"
 	pt "github.com/osi4iot/osi4iot/utils/osi4iot/internals/types"
+	"github.com/osi4iot/osi4iot/utils/osi4iot/internals/utils"
 )
 
 // Helpers shared by patroni_extract.go and patroni_apply.go.
@@ -31,7 +32,7 @@ func walgEnvFor(pd *pt.PlatformData, family patroniFamily) []string {
 	if pi.S3BucketType == "Cloud AWS S3" {
 		awsAccessKeyID = pi.AWSAccessKeyIDS3Bucket
 		awsSecretAccessKey = pi.AWSSecretAccessKeyS3Bucket
-		awsRegion = pi.AWSRegionS3Bucket
+		awsRegion = utils.AwsRegionsMap[pi.AWSRegionS3Bucket]
 	}
 
 	prefix := pi.WalgS3PrefixAdmin
