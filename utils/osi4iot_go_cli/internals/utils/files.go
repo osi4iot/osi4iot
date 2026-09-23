@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 
 	"github.com/osi4iot/osi4iot/utils/osi4iot/internals/crypto"
 	pt "github.com/osi4iot/osi4iot/utils/osi4iot/internals/types"
@@ -60,6 +61,7 @@ func WritePlatformDataToFile(data *pt.PlatformData) error {
 	if err := os.WriteFile(osi4iotStateFile, encoded, 0600); err != nil {
 		return err
 	}
+	ChownToInvokingUserQuietly(osi4iotStateFile)
 
 	// Every change to the state file is a change worth having an
 	// off-host copy of — see SetStateBackupHook.
@@ -208,3 +210,56 @@ func ExportUnencrypted(passphrase []byte) error {
 
 	return nil
 }
+
+// ChownToInvokingUser gives a file back to the user who ran sudo.
+//
+// A no-op when not running as root, when sudo did not set SUDO_UID and
+// SUDO_GID, or when root ran the command directly — in that last case
+// root IS the invoking user and there is nobody else to hand it to.
+//
+// Directories are handled the same way, so a ~/.osi4iot created by a
+// root-run command does not lock the operator out of it afterwards.
+func ChownToInvokingUser(path string) error {
+	if os.Geteuid() != 0 {
+		return nil
+	}
+ 
+	uidText, gidText := os.Getenv("SUDO_UID"), os.Getenv("SUDO_GID")
+	if uidText == "" || gidText == "" {
+		return nil
+	}
+ 
+	uid, err := strconv.Atoi(uidText)
+	if err != nil {
+		return fmt.Errorf("SUDO_UID is %q, which is not a user id", uidText)
+	}
+	gid, err := strconv.Atoi(gidText)
+	if err != nil {
+		return fmt.Errorf("SUDO_GID is %q, which is not a group id", gidText)
+	}
+	if uid == 0 {
+		return nil
+	}
+ 
+	if err := os.Chown(path, uid, gid); err != nil {
+		return fmt.Errorf("error giving %s back to uid %d: %w", path, uid, err)
+	}
+	return nil
+}
+ 
+// ChownToInvokingUserQuietly is ChownToInvokingUser for the call sites
+// where failing would be worse than the problem.
+//
+// A state file that was written correctly but could not be chowned is
+// still a state file: the operator can fix it with one chown, and
+// aborting the command that just deployed a platform over it would be
+// out of proportion. The warning is printed so it does not pass
+// unnoticed.
+func ChownToInvokingUserQuietly(path string) {
+	if err := ChownToInvokingUser(path); err != nil {
+		fmt.Println(StyleWarningMsg.Render(fmt.Sprintf(
+			"Warning: %v\n  Commands that do not run under sudo will not be able to read it. "+
+				"Fix it with: sudo chown $USER %s", err, path)))
+	}
+}
+ 
