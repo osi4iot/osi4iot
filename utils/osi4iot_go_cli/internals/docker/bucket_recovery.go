@@ -2,6 +2,7 @@ package docker
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"path"
@@ -44,6 +45,15 @@ import (
 //
 // So the catalogue is read straight out of S3, from wal-g's own layout,
 // before anything starts. See CaptureBucketCatalogue.
+
+// ErrNoStateBackups means the bucket was readable but holds no state
+// file backups.
+//
+// Distinguished from a permission failure because the two want opposite
+// responses: a refusal means try other credentials, and an empty prefix
+// means stop and say so — trying more credentials would only refuse the
+// same answer more slowly.
+var ErrNoStateBackups = errors.New("no state file backups in the bucket")
 
 // DefaultStateFileKeyPrefix is where the state file backups live inside
 // the bucket. Composed in ui/form/actions.go as
@@ -149,10 +159,10 @@ func ListStateBackups(ctx context.Context, store *PlatformS3, opts ExternalBucke
 
 	if len(backups) == 0 {
 		return nil, fmt.Errorf(
-			"no state file backups under s3://%s/%s.\n"+
+			"%w: nothing under s3://%s/%s.\n"+
 				"Either this is not an osi4iot bucket, or the platform never had "+
 				"STATE_FILE_S3_PREFIX set. Pass --state-prefix if yours is somewhere else",
-			opts.Bucket, strings.Trim(prefix, "/"))
+			ErrNoStateBackups, opts.Bucket, strings.Trim(prefix, "/"))
 	}
 
 	sort.Slice(backups, func(i, j int) bool { return backups[i].Taken.After(backups[j].Taken) })

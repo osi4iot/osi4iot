@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -71,15 +72,25 @@ func PrepareInitFromBucket(args []string) error {
 	}
 	opts.Bucket = strings.Trim(opts.Bucket, "/")
 
-	logger.Printf("Reading s3://%s ...", opts.Bucket)
-	store, err := docker.OpenExternalBucket(ctx, opts)
+	// Read once, before the bucket: it decides both whether this is a
+	// retry and whether the platform already here has credentials worth
+	// trying.
+	var existing *pt.PlatformData
+	var err error
+	if utils.ExistStateFile() {
+		existing, err = existingPlatformData()
+		if err != nil {
+			return fmt.Errorf("there is already a state file on this machine (%s) and it "+
+				"could not be read: %w", utils.GetStateFilePath(), err)
+		}
+	}
+
+	store, resolved, err := openBucketWithAnyCredentials(ctx, opts, existing, logger)
 	if err != nil {
-		return fmt.Errorf("%w\n"+
-			"Credentials come from the usual AWS places — AWS_ACCESS_KEY_ID and "+
-			"AWS_SECRET_ACCESS_KEY, a shared profile, or an instance role — because the "+
-			"platform's own are inside the state file this is trying to read", err)
+		return err
 	}
 	defer store.Close()
+	opts = resolved
 
 	backup, err := docker.LatestStateBackup(ctx, store, opts)
 	if err != nil {
@@ -92,14 +103,9 @@ func PrepareInitFromBucket(args []string) error {
 	// Same resume rule as the snapshot path: a state file for the same
 	// platform means this is a retry, and a different one means a
 	// mistyped command.
-	if utils.ExistStateFile() {
-		existing, err := existingPlatformDomain()
-		if err != nil {
-			return fmt.Errorf("there is already a state file on this machine (%s) and it "+
-				"could not be read: %w", utils.GetStateFilePath(), err)
-		}
+	if existing != nil {
 		logger.Printf("This machine is already configured for '%s'; keeping its state file.",
-			existing)
+			existing.PlatformInfo.DomainName)
 		return captureCatalogue(ctx, store, data.GetData(), logger)
 	}
 
@@ -144,6 +150,135 @@ func PrepareInitFromBucket(args []string) error {
 		restored.PlatformInfo.PlatformName, restored.PlatformInfo.DomainName)
 
 	return captureCatalogue(ctx, store, &restored, logger)
+}
+
+// openBucketWithAnyCredentials opens the bucket with the first
+// credentials that can actually read it.
+//
+// # Why try several
+//
+// "No credentials" is not the failure mode that bites on AWS. The SDK's
+// chain almost always resolves SOMETHING — on EC2 it falls back to the
+// instance role — so the failure arrives later, as an AccessDenied on
+// the first listing, from an identity the operator never chose. And a
+// HeadBucket is no help in spotting it: AWS answers one with the
+// bucket's region header even when it refuses to list the bucket.
+//
+// So each candidate is tried against the real thing, a listing of the
+// state file prefix, and the first that comes back with backups wins.
+//
+// The order is cheapest first: whatever the environment already
+// provides, then the credentials of a platform already on this machine,
+// and only then asking a human.
+func openBucketWithAnyCredentials(
+	ctx context.Context,
+	opts docker.ExternalBucketOptions,
+	existing *pt.PlatformData,
+	logger *log.Logger,
+) (*docker.PlatformS3, docker.ExternalBucketOptions, error) {
+	type candidate struct {
+		what   string
+		access string
+		secret string
+		region string
+	}
+
+	candidates := []candidate{
+		{what: "the AWS environment or this instance's role"},
+	}
+
+	// The platform already configured here points at some bucket with
+	// credentials that work for it. When that is this bucket — a retry,
+	// or a second platform on the same account — they are exactly the
+	// ones needed, and nobody has to type them.
+	if existing != nil {
+		pi := existing.PlatformInfo
+		if pi.AWSAccessKeyIDS3Bucket != "" && pi.AWSSecretAccessKeyS3Bucket != "" {
+			candidates = append(candidates, candidate{
+				what:   fmt.Sprintf("the credentials of the platform already here (%s)", pi.DomainName),
+				access: pi.AWSAccessKeyIDS3Bucket,
+				secret: pi.AWSSecretAccessKeyS3Bucket,
+				region: pi.AWSRegionS3Bucket,
+			})
+		}
+	}
+
+	var lastErr error
+	for _, try := range candidates {
+		attempt := opts
+		attempt.AccessKeyID = try.access
+		attempt.SecretAccessKey = try.secret
+		if try.region != "" && attempt.Region == "" {
+			attempt.Region = try.region
+		}
+
+		logger.Printf("Reading s3://%s with %s ...", attempt.Bucket, try.what)
+		store, err := docker.OpenExternalBucket(ctx, attempt)
+		if err != nil {
+			lastErr = err
+			continue
+		}
+
+		if _, err := docker.ListStateBackups(ctx, store, attempt); err != nil {
+			store.Close()
+			// An empty bucket is an answer, not a refusal. More
+			// credentials would be refused the same thing, slower.
+			if errors.Is(err, docker.ErrNoStateBackups) {
+				return nil, opts, err
+			}
+			lastErr = err
+			logger.Printf("  not allowed with those; trying the next.")
+			continue
+		}
+
+		return store, attempt, nil
+	}
+
+	// Nothing available worked, so ask. Deliberately last: an operator
+	// who has a working environment should never be made to type a
+	// secret key.
+	logger.Printf("\nNone of the available credentials can read s3://%s.", opts.Bucket)
+	if lastErr != nil {
+		logger.Printf("Last refusal: %v", lastErr)
+	}
+
+	asked := opts
+	access, err := promptLine("\nAccess key ID: ")
+	if err != nil {
+		return nil, opts, err
+	}
+	asked.AccessKeyID = strings.TrimSpace(access)
+	if asked.AccessKeyID == "" {
+		return nil, opts, fmt.Errorf("an access key is required to read this bucket")
+	}
+
+	secret, err := promptSecret("Secret access key: ")
+	if err != nil {
+		return nil, opts, err
+	}
+	asked.SecretAccessKey = secret
+	if asked.SecretAccessKey == "" {
+		return nil, opts, fmt.Errorf("a secret access key is required to read this bucket")
+	}
+
+	store, err := docker.OpenExternalBucket(ctx, asked)
+	if err != nil {
+		return nil, opts, err
+	}
+	if _, err := docker.ListStateBackups(ctx, store, asked); err != nil {
+		store.Close()
+		return nil, opts, err
+	}
+	return store, asked, nil
+}
+
+// existingPlatformData reads the state file already on this machine.
+func existingPlatformData() (*pt.PlatformData, error) {
+	var existing pt.PlatformData
+	if err := utils.ReadPlatformDataFromFile(&existing); err != nil {
+		return nil, err
+	}
+	return &existing, nil
 }
 
 // captureCatalogue records what the bucket held before anything starts.

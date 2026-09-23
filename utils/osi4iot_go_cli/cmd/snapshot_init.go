@@ -344,8 +344,8 @@ func leadingInt(s string) int {
 // the bundle needs anyway, so nothing is asked twice in the case that
 // matters.
 func existingPlatformDomain() (string, error) {
-	var existing pt.PlatformData
-	if err := utils.ReadPlatformDataFromFile(&existing); err != nil {
+	existing, err := existingPlatformData()
+	if err != nil {
 		return "", err
 	}
 	return existing.PlatformInfo.DomainName, nil
