@@ -223,7 +223,16 @@ var cmdStop = &cobra.Command{
 var cmdDelete = &cobra.Command{
 	Use:   "delete",
 	Short: "Delete platform",
-	Long:  "Delete platform",
+	Long: "Removes the platform from the swarm: services, secrets, configs, networks, " +
+		"containers, volumes and the nodes' swarm membership.\n\n" +
+		"The S3 bucket is NOT touched. With an external bucket that is what makes a deleted " +
+		"platform recoverable: the state file backups, both wal-g catalogues, the NATS runs " +
+		"and org_data are all still there afterwards, and 'osi4iot init --from-bucket' can " +
+		"bring the whole thing back from them.\n\n" +
+		"--remove-bucket empties and deletes the bucket as well. That is irreversible and " +
+		"there is nothing left to recover from, so it is opt-in and confirmed.\n\n" +
+		"With a local MinIO there is nothing extra to remove: that bucket lives in the " +
+		"minio_storage volume and goes with it either way.",
 	Run: func(cmd *cobra.Command, args []string) {
 		checkState("delete")
 		pd := data.GetData()
@@ -238,10 +247,13 @@ var cmdDelete = &cobra.Command{
 			logger := log.New(os.Stdout, "", 0)
 			if count, err := docker.CountBucketObjects(pd, dc); err == nil && count > 0 {
 				fmt.Println(utils.StyleWarningMsg.Render(fmt.Sprintf(
-					"s3://%s holds %d object(s): every backup this platform has. "+
-						"They cannot be recovered afterwards.",
+					"s3://%s holds %d object(s): every backup this platform has, and after this "+
+						"there is nothing left to restore from.",
 					pd.PlatformInfo.S3BucketName, count)))
-				// confirmación
+				answer, err := promptLine("Type the bucket name to confirm: ")
+				if err != nil || strings.TrimSpace(answer) != pd.PlatformInfo.S3BucketName {
+					exitWithError("Cancelled.")
+				}
 			}
 			if err := docker.RemovePlatformBucket(pd, dc, logger); err != nil {
 				exitWithError(err.Error())
@@ -840,6 +852,9 @@ func init() {
 		"Bucket region (default: the AWS environment, or us-east-1)")
 	subCmdStateRecover.Flags().StringVar(&stateRecoverKeyPfx, "state-prefix", "",
 		"Key prefix of the state file backups (default: backups/state_file)")
+
+	cmdDelete.Flags().Bool("remove-bucket", false,
+		"Also empty and delete the platform's S3 bucket")
 
 	cmdState.AddCommand(subCmdStateExport)
 	cmdState.AddCommand(subCmdStateRecover)
