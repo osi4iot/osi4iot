@@ -205,7 +205,7 @@ func setRoute53EnvVars(platformData *types.PlatformData) error {
 		return fmt.Errorf("error setting AWS_SECRET_ACCESS_KEY: %w", err)
 	}
 
-	awsRegionRoute53 := utils.AwsRegionsMap[platformData.PlatformInfo.AWSRegionRoute53]
+	awsRegionRoute53 := utils.AwsRegionCode(platformData.PlatformInfo.AWSRegionRoute53)
 	if err := os.Setenv("AWS_REGION", awsRegionRoute53); err != nil {
 		return fmt.Errorf("error setting AWS_REGION: %w", err)
 	}

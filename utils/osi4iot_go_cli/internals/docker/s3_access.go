@@ -21,6 +21,7 @@ import (
 	"github.com/docker/docker/api/types/filters"
 
 	pt "github.com/osi4iot/osi4iot/utils/osi4iot/internals/types"
+	"github.com/osi4iot/osi4iot/utils/osi4iot/internals/utils"
 )
 
 // This file gives the CLI read access to the platform's object store,
@@ -210,7 +211,7 @@ func openAwsSource(ctx context.Context, pi pt.PlatformInfo, logger *log.Logger) 
 			"state file has no AWS credentials for it")
 	}
 
-	region := pi.AWSRegionS3Bucket
+	region := utils.AwsRegionCode(pi.AWSRegionS3Bucket)
 	cli, err := awsS3Client(ctx, pi.AWSAccessKeyIDS3Bucket, pi.AWSSecretAccessKeyS3Bucket,
 		region, "", nil)
 	if err != nil {
@@ -272,9 +273,8 @@ func bucketRegion(ctx context.Context, cli *s3.Client, bucket string) (region st
 		case http.StatusNotFound:
 			return "", false, nil
 		case http.StatusForbidden:
-			return "", false, fmt.Errorf("the AWS credentials in the state file cannot read "+
-				"the bucket '%s'. Reading a snapshot needs s3:ListBucket on the bucket and "+
-				"s3:GetObject on its contents", bucket)
+			return "", false, fmt.Errorf("these AWS credentials cannot read the bucket '%s'.\n%s",
+				bucket, s3PermissionsHint(bucket))
 		}
 	}
 
@@ -298,6 +298,24 @@ type awsSource struct {
 
 func (a *awsSource) Close() {}
 
+// s3PermissionsHint says what a read path needs, and where the
+// credentials being refused came from.
+//
+// Worth spelling out because the two callers get their credentials from
+// completely different places — the state file for a running platform,
+// the SDK's chain for `init --from-bucket` — and an operator staring at
+// an AccessDenied has no way to tell which identity was refused. On EC2
+// the chain quietly resolves to the instance role, which is rarely the
+// one anybody was thinking of.
+func s3PermissionsHint(bucket string) string {
+	return fmt.Sprintf(
+		"Reading needs s3:ListBucket on arn:aws:s3:::%s and s3:GetObject on "+
+			"arn:aws:s3:::%s/*\n"+
+			"If the identity being refused is not the one you meant — on EC2 the SDK falls back "+
+			"to the instance role — set AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY, which take "+
+			"priority over it", bucket, bucket)
+}
+
 func (a *awsSource) List(ctx context.Context, bucket, keyPrefix string) ([]s3Object, error) {
 	var objects []s3Object
 
@@ -308,6 +326,17 @@ func (a *awsSource) List(ctx context.Context, bucket, keyPrefix string) ([]s3Obj
 	for paginator.HasMorePages() {
 		page, err := paginator.NextPage(ctx)
 		if err != nil {
+			// The permissions hint is attached HERE rather than only at
+			// HeadBucket, because HeadBucket can succeed against a
+			// bucket the caller cannot list: AWS answers it with the
+			// x-amz-bucket-region header even on a 403, so the region
+			// check passes and the refusal only surfaces on the first
+			// real listing.
+			var respErr *awshttp.ResponseError
+			if errors.As(err, &respErr) && respErr.HTTPStatusCode() == http.StatusForbidden {
+				return nil, fmt.Errorf("not allowed to list s3://%s/%s\n%s",
+					bucket, keyPrefix, s3PermissionsHint(bucket))
+			}
 			return nil, fmt.Errorf("error listing s3://%s/%s: %w", bucket, keyPrefix, err)
 		}
 		for _, item := range page.Contents {
@@ -410,10 +439,32 @@ func (a *awsSource) Get(ctx context.Context, bucket, key string) (io.ReadCloser,
 	return out.Body, nil
 }
 
-// awsS3Client assembles the client. endpoint empty means real AWS;
-// anything else is MinIO and gets path-style addressing, because MinIO
-// on a bare address has no virtual-host addressing.
+// looksLikeRegionCode reports whether a string could be a region code:
+// lowercase letters, digits and hyphens, and no spaces or brackets.
+func looksLikeRegionCode(region string) bool {
+	if region == "" {
+		return false
+	}
+	for _, r := range region {
+		switch {
+		case r >= 'a' && r <= 'z', r >= '0' && r <= '9', r == '-':
+		default:
+			return false
+		}
+	}
+	return true
+}
+
 func awsS3Client(ctx context.Context, keyID, secret, region, endpoint string, httpClient *http.Client) (*s3.Client, error) {
+	region = utils.AwsRegionCode(region)
+
+	// A region the SDK would reject outright is worse than no region at
+	// all: with none, bucketRegion learns the real one from S3's own
+	// x-amz-bucket-region header and rebuilds the client. With a bad
+	// one, every call fails before it leaves the process.
+	if region != "" && !looksLikeRegionCode(region) {
+		region = ""
+	}
 	if region == "" {
 		region = "us-east-1"
 	}

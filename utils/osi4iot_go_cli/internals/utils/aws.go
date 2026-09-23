@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -78,6 +79,34 @@ var AwsRegionsMap = map[string]string{
 	"Middle East (Bahrain)":     "me-south-1",
 	"Middle East (UAE)":         "me-central-1",
 	"South America (São Paulo)": "sa-east-1",
+}
+
+// awsS3Client assembles the client. endpoint empty means real AWS;
+// anything else is MinIO and gets path-style addressing, because MinIO
+// on a bare address has no virtual-host addressing.
+// AwsRegionCode turns whatever the state file holds into a region code
+// the SDK accepts.
+//
+// The form asks for a region from a list of HUMAN-READABLE names and
+// stores the label — "Europe (Paris)" rather than "eu-west-3". Only
+// configs.go and lego.go translate it through utils.AwsRegionsMap on
+// the way out, so everything else that reads AWSRegionS3Bucket gets the
+// label. wal-g never noticed because it receives the translated value;
+// the AWS SDK v2 validates the string and refuses with "invalid input
+// region".
+//
+// Translating here rather than at every call site means a state file
+// written by any version of the form works, and so does one already
+// holding a proper code.
+func AwsRegionCode(region string) string {
+	region = strings.TrimSpace(region)
+	if region == "" {
+		return ""
+	}
+	if code, ok := AwsRegionsMap[region]; ok {
+		return code
+	}
+	return region
 }
 
 const imdsBaseURL = "http://169.254.169.254"

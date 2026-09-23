@@ -32,7 +32,7 @@ func walgEnvFor(pd *pt.PlatformData, family patroniFamily) []string {
 	if pi.S3BucketType == "Cloud AWS S3" {
 		awsAccessKeyID = pi.AWSAccessKeyIDS3Bucket
 		awsSecretAccessKey = pi.AWSSecretAccessKeyS3Bucket
-		awsRegion = utils.AwsRegionsMap[pi.AWSRegionS3Bucket]
+		awsRegion = utils.AwsRegionCode(pi.AWSRegionS3Bucket)
 	}
 
 	prefix := pi.WalgS3PrefixAdmin
