@@ -211,7 +211,7 @@ func openAwsSource(ctx context.Context, pi pt.PlatformInfo, logger *log.Logger) 
 			"state file has no AWS credentials for it")
 	}
 
-	region := utils.AwsRegionCode(pi.AWSRegionS3Bucket)
+	region := AwsRegionCode(pi.AWSRegionS3Bucket)
 	cli, err := awsS3Client(ctx, pi.AWSAccessKeyIDS3Bucket, pi.AWSSecretAccessKeyS3Bucket,
 		region, "", nil)
 	if err != nil {
@@ -362,11 +362,29 @@ func (a *awsSource) EnsureBucket(ctx context.Context, bucket string) (bool, erro
 		return false, nil
 	}
 
+	input := &s3.CreateBucketInput{Bucket: aws.String(bucket)}
+
+	// Every region except us-east-1 REQUIRES a location constraint, and
+	// us-east-1 must not have one. Without it S3 assumes us-east-1 and
+	// the regional endpoint the request was actually sent to refuses it
+	// with IllegalLocationConstraintException.
+	//
+	// The region is read back from the client rather than passed in,
+	// because by this point it may not be the one the caller asked for:
+	// openAwsSource rebuilds the client when the bucket turns out to
+	// live somewhere else, and this has to agree with the endpoint the
+	// request will leave through.
+	if region := a.cli.Options().Region; region != "" && region != "us-east-1" {
+		input.CreateBucketConfiguration = &s3types.CreateBucketConfiguration{
+			LocationConstraint: s3types.BucketLocationConstraint(region),
+		}
+	}
+
 	// Not checked for a 404 first: CreateBucket on a bucket that is
 	// already there returns BucketAlreadyOwnedByYou on every region but
 	// us-east-1, where it is a plain success, and both mean the same
 	// thing here. A real permission problem surfaces as something else.
-	_, err := a.cli.CreateBucket(ctx, &s3.CreateBucketInput{Bucket: aws.String(bucket)})
+	_, err := a.cli.CreateBucket(ctx, input)
 	if err != nil {
 		var owned *s3types.BucketAlreadyOwnedByYou
 		var exists *s3types.BucketAlreadyExists
@@ -439,6 +457,34 @@ func (a *awsSource) Get(ctx context.Context, bucket, key string) (io.ReadCloser,
 	return out.Body, nil
 }
 
+// awsS3Client assembles the client. endpoint empty means real AWS;
+// anything else is MinIO and gets path-style addressing, because MinIO
+// on a bare address has no virtual-host addressing.
+// AwsRegionCode turns whatever the state file holds into a region code
+// the SDK accepts.
+//
+// The form asks for a region from a list of HUMAN-READABLE names and
+// stores the label — "Europe (Paris)" rather than "eu-west-3". Only
+// configs.go and lego.go translate it through utils.AwsRegionsMap on
+// the way out, so everything else that reads AWSRegionS3Bucket gets the
+// label. wal-g never noticed because it receives the translated value;
+// the AWS SDK v2 validates the string and refuses with "invalid input
+// region".
+//
+// Translating here rather than at every call site means a state file
+// written by any version of the form works, and so does one already
+// holding a proper code.
+func AwsRegionCode(region string) string {
+	region = strings.TrimSpace(region)
+	if region == "" {
+		return ""
+	}
+	if code, ok := utils.AwsRegionsMap[region]; ok {
+		return code
+	}
+	return region
+}
+
 // looksLikeRegionCode reports whether a string could be a region code:
 // lowercase letters, digits and hyphens, and no spaces or brackets.
 func looksLikeRegionCode(region string) bool {
@@ -456,7 +502,7 @@ func looksLikeRegionCode(region string) bool {
 }
 
 func awsS3Client(ctx context.Context, keyID, secret, region, endpoint string, httpClient *http.Client) (*s3.Client, error) {
-	region = utils.AwsRegionCode(region)
+	region = AwsRegionCode(region)
 
 	// A region the SDK would reject outright is worse than no region at
 	// all: with none, bucketRegion learns the real one from S3's own
