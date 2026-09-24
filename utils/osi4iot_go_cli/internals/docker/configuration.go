@@ -20,11 +20,6 @@ func nodesConfiguration(pd *types.PlatformData) error {
 		return fmt.Errorf("error installing RexRay plugin on nodes: %w", err)
 	}
 
-	err = addNodesLabels(pd)
-	if err != nil {
-		return fmt.Errorf("error adding labels to nodes: %w", err)
-	}
-
 	return nil
 }
 
@@ -153,9 +148,10 @@ func addNodesLabels(pd *types.PlatformData) error {
 	for _, node := range nodesData {
 		swarmNode, ok := swarmNodesMap[node.NodeIP]
 		if !ok {
-			continue
+			spinnerDone <- false
+			return fmt.Errorf("node %s is in the state file but not in the swarm, "+
+				"so its placement labels cannot be set", node.NodeIP)
 		}
-
 		spec := swarmNode.Spec
 		if spec.Labels == nil {
 			spec.Labels = make(map[string]string)

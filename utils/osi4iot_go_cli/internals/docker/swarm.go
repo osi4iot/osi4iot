@@ -53,13 +53,20 @@ func InitPlatform(pd *pt.PlatformData, excluded ...string) error {
 	if err != nil {
 		return fmt.Errorf("error: getting docker client %s", err.Error())
 	}
+
 	err = nodesConfiguration(pd)
 	if err != nil {
 		return fmt.Errorf("error: configuring nodes %s", err.Error())
 	}
+	
 	err = joinAllNodesToSwarm(dc)
 	if err != nil {
 		return fmt.Errorf("error: joining nodes to swarm %s", err.Error())
+	}
+
+	err = addNodesLabels(pd)
+	if err != nil {
+		return fmt.Errorf("error: adding labels to nodes %s", err.Error())
 	}
 
 	err = updateNodesData(dc, &pd.PlatformInfo.NodesData)
