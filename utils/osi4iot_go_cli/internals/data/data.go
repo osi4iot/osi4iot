@@ -225,6 +225,8 @@ func SetData(key string, value string) {
 		if Data.PlatformInfo.PlatformEncryptionKey == "" {
 			Data.PlatformInfo.PlatformEncryptionKey = value
 		}
+	case "NATS_BACKUP_S3_PREFIX":
+		Data.PlatformInfo.NATSBackupS3Prefix = value
 	case "STATE_FILE_S3_PREFIX":
 		Data.PlatformInfo.StateFileS3Prefix = value
 	case "GRAFANA_ADMIN_PASSWORD":
