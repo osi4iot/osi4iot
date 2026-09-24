@@ -554,19 +554,7 @@ func SetVolumeConfig(
 		return vol
 	}
 
-	switch deploymentLocation {
-	case "Local deployment":
-		if pi.UseAwsEbsVolumes {
-			vol.Driver = "rexray-ebs"
-			vol.DriverOpts = map[string]string{
-				"size":       volOpts.ebsOpts.size,
-				"volumeType": volOpts.ebsOpts.volumeType,
-				"iops":       volOpts.ebsOpts.iops,
-				"throughput": volOpts.ebsOpts.throughput,
-				"encrypted":  volOpts.ebsOpts.encrypted,
-			}
-		}
-	case "AWS cluster deployment":
+	if pi.UseAwsEbsVolumes {
 		vol.Driver = "rexray-ebs"
 		vol.DriverOpts = map[string]string{
 			"size":       volOpts.ebsOpts.size,
@@ -576,7 +564,6 @@ func SetVolumeConfig(
 			"encrypted":  volOpts.ebsOpts.encrypted,
 		}
 	}
-
 	return vol
 }
 

@@ -97,11 +97,14 @@ func NatsService(
 		},
 	}
 
-	constraints := []string{
-		"node.role==worker",
-		fmt.Sprintf("node.labels.nats_%d==true", replica),
+	constraints := []string{"node.role==manager"}
+	if resources.UsesPlacementLabels(pd) {
+		constraints = []string{
+			"node.role==worker",
+			fmt.Sprintf("node.labels.nats_%d==true", replica),
+		}
 	}
-
+	
 	if nodeRoleNumMaps["Platform worker"] == 0 {
 		constraints = []string{
 			"node.role==manager",

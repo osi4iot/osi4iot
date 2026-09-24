@@ -178,7 +178,7 @@ func addAwsEbsVolumesQuestion(index int, m *Model) {
 		awsEbsVolumesQuestion := Question{
 			Key:           "USE_AWS_EBS_VOLUMES",
 			QuestionType:  "confirm",
-			Prompt:        "Use AWS EBS volumes for data persistence (only for AWS cluster deployment)?",
+			Prompt:        "Use AWS EBS volumes instead of local disks? (Only for AWS cluster deployment)",
 			Answer:        utils.BoolValueToStr(data.Data.PlatformInfo.UseAwsEbsVolumes),
 			DefaultAnswer: "no",
 			ErrorMessage:  "",
@@ -383,39 +383,52 @@ func addNetworkInterfaceQuestions(m *Model) {
 	}
 }
 
+// DeployLocationQuestions rebuilds the question list for the deployment
+// location just chosen.
+//
+// Every case removes what belongs only to the other two, because the
+// operator can change this answer after having gone further down, and a
+// question left behind from a previous choice is asked and then acted
+// on.
 func DeployLocationQuestions(m *Model) (submissionResultMsg, error) {
 	qIdx := m.FindQuestionIdByKey("DEPLOYMENT_LOCATION")
 	deployLocation := m.Questions[qIdx].Answer
-	isEC2, _ := utils.IsEC2Instance()
+
 	switch deployLocation {
 	case "Local deployment":
 		m.removeQuestionByKey("AWS_SSH_KEY_PATH")
 		m.removeQuestionByKey("NUMBER_OF_SWARM_NODES")
-		m.removeQuestionByKey("AWS_EFS_DNS")
 		m.removeQuestionByKey("FLOATING_IP_ADDRESS")
 		m.removeQuestionByKey("NETWORK_INTERFACE")
 		removingNodeQuestions(m)
 		addLocalResourceUtilizationQuestion(qIdx+1, m)
-		if isEC2 {
-			addAwsEbsVolumesQuestion(qIdx+2, m)
-		}
+		m.removeQuestionByKey("USE_AWS_EBS_VOLUMES")
+
 	case "On-premise cluster deployment":
 		m.removeQuestionByKey("AWS_SSH_KEY_PATH")
-		m.removeQuestionByKey("AWS_EFS_DNS")
 		m.removeQuestionByKey("LOCAL_RESOURCE_UTILIZATION_PERCENTAGE")
 		m.removeQuestionByKey("USE_AWS_EBS_VOLUMES")
 		addNumNodesQuestion(qIdx+1, m)
 		addNodesDataQuestions(m)
 		addNetworkInterfaceQuestions(m)
+
 	case "AWS cluster deployment":
-		m.removeQuestionByKey("USE_AWS_EBS_VOLUMES")
 		m.removeQuestionByKey("FLOATING_IP_ADDRESS")
 		m.removeQuestionByKey("NETWORK_INTERFACE")
 		m.removeQuestionByKey("LOCAL_RESOURCE_UTILIZATION_PERCENTAGE")
+
+		// Asked, not assumed. EBS used to be forced on for this
+		// deployment location, which meant every volume went through
+		// the RexRay plugin whether it suited the service or not.
+		// Services that replicate their own data — nats, patroni,
+		// garage — are better on local disks, so the default is "no"
+		// and this is now a choice.
 		addAwsSsHKeyQuestions(qIdx+1, m)
+		addAwsEbsVolumesQuestion(qIdx+2, m)
 		addNumNodesQuestion(qIdx+3, m)
 		addNodesDataQuestions(m)
 	}
+
 	return submissionResultMsg("Deploy location questions added succesfully"), nil
 }
 
@@ -580,7 +593,7 @@ func usePatroniToolQuestions(m *Model) (submissionResultMsg, error) {
 		addPatroniNodesQuestions(m.Focus+1, m)
 	} else {
 		m.removeQuestionByKey("NUM_PATRONI_ADMIN_NODES")
-		m.removeQuestionByKey("NUM_PATRONI_METRICS_NODES")
+		m.removeQuestionByKey("NUM_PAT	switch deploymentLocation {RONI_METRICS_NODES")
 	}
 	return submissionResultMsg("Patroni questions updated"), nil
 }
@@ -591,7 +604,7 @@ func addPatroniNodesQuestions(index int, m *Model) {
 		QuestionType:  "list",
 		Prompt:        "Number of nodes for the admin database cluster (PostgreSQL 18)",
 		Answer:        utils.IntValueToStr(data.Data.PlatformInfo.NumPatroniAdminNodes),
-		DefaultAnswer: "3",
+		DefaultAnswer: "1",
 		Choices:       []string{"1", "3", "5"},
 		ChoiceFocus:   1,
 		Rules:         []string{"required", "isInt", "minval:1", "maxval:5", "oddNumber"},
@@ -601,7 +614,7 @@ func addPatroniNodesQuestions(index int, m *Model) {
 		QuestionType:  "list",
 		Prompt:        "Number of nodes for the metrics database cluster (TimescaleDB)",
 		Answer:        utils.IntValueToStr(data.Data.PlatformInfo.NumPatroniMetricsNodes),
-		DefaultAnswer: "3",
+		DefaultAnswer: "1",
 		Choices:       []string{"1", "3", "5"},
 		ChoiceFocus:   1,
 		Rules:         []string{"required", "isInt", "minval:1", "maxval:5", "oddNumber"},

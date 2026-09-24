@@ -86,7 +86,7 @@ func patroniAdminNode(
 			svcResources.NanoCPUs,
 			svcResources.MemoryBytes,
 		).
-		WithPlacement(patroniAdminPlacement(replica, pd.PlatformInfo)).
+		WithPlacement(patroniAdminPlacement(replica, pd)).
 		WithHealthCheckOptions(
 			[]string{
 				"CMD-SHELL",
@@ -140,12 +140,9 @@ func PatroniAdminServices(
 	return svcs
 }
 
-func patroniAdminPlacement(replica int, pi pt.PlatformInfo) []string {
-	if pi.NumberOfSwarmNodes == 1 {
+func patroniAdminPlacement(replica int, pd *pt.PlatformData) []string {
+	if !resources.UsesPlacementLabels(pd) {
 		return []string{}
 	}
-
-	return []string{
-		fmt.Sprintf("node.labels.admin-id==%d", replica),
-	}
+	return []string{fmt.Sprintf("node.labels.admin-id==%d", replica)}
 }

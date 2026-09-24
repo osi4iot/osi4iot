@@ -125,10 +125,7 @@ func SetData(key string, value string) {
 		Data.PlatformInfo.NumPatroniMetricsNodes = numPatroniMetricsNodes
 	case "DEPLOYMENT_LOCATION":
 		Data.PlatformInfo.DeploymentLocation = value
-		switch value {
-		case "AWS cluster deployment":
-			Data.PlatformInfo.UseAwsEbsVolumes = true
-		case "Local deployment":
+		if value == "Local deployment" {
 			Data.PlatformInfo.NumberOfSwarmNodes = 1
 		}
 	case "USE_AWS_EBS_VOLUMES":

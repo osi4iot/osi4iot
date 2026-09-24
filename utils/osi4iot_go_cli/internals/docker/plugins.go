@@ -13,11 +13,7 @@ func installRexRayPlugin(pd *types.PlatformData) error {
 	deploymentLocation := pi.DeploymentLocation
 
 	useAwsEbsVolumes := pi.UseAwsEbsVolumes
-	if (deploymentLocation == "Local deployment" && useAwsEbsVolumes) {
-		useAwsEbsVolumes = true
-	}
-
-	if deploymentLocation == "AWS cluster deployment" {
+	if deploymentLocation == "AWS cluster deployment" && useAwsEbsVolumes {
 		useAwsEbsVolumes = true
 		pi.UseAwsEbsVolumes = true
 	}

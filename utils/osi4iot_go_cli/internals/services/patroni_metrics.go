@@ -87,7 +87,7 @@ func patroniMetricsNode(
 			svcResources.NanoCPUs,
 			svcResources.MemoryBytes,
 		).
-		WithPlacement(patroniMetricsPlacement(replica, pd.PlatformInfo)).
+		WithPlacement(patroniMetricsPlacement(replica, pd)).
 		WithHealthCheckOptions(
 			[]string{
 				"CMD-SHELL",
@@ -142,11 +142,9 @@ func PatroniMetricsServices(
 	return svcs
 }
 
-func patroniMetricsPlacement(replica int, pi pt.PlatformInfo) []string {
-	if pi.NumberOfSwarmNodes == 1 {
+func patroniMetricsPlacement(replica int, pd *pt.PlatformData) []string {
+	if !resources.UsesPlacementLabels(pd) {
 		return []string{}
 	}
-	return []string{
-		fmt.Sprintf("node.labels.metrics-id==%d", replica),
-	}
+	return []string{fmt.Sprintf("node.labels.metrics-id==%d", replica)}
 }
