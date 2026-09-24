@@ -22,8 +22,8 @@ import (
 //
 // Adding and removing nodes is deliberately NOT here. In osi4iot a node
 // is an entry in the state file, an SSH target with the platform's key
-// installed, and an input to where Patroni and NATS replicas are pinned. 
-// Joining or removing one touches all of that, and removing one 
+// installed, and an input to where Patroni and NATS replicas are pinned.
+// Joining or removing one touches all of that, and removing one
 // has to answer questions this file does not ask
 // — manager quorum, Patroni leaders, what happens to the node's
 // volumes. Those get their own commands and their own guards.
@@ -398,17 +398,30 @@ var subCmdNodeAdd = &cobra.Command{
 			return
 		}
 
-		// Asked for rather than taken as a flag: a password on the
-		// command line ends up in the shell history and in the process
-		// list. Empty is fine and normal — it means the platform's key
-		// is already on the machine.
-		password, err := promptLine("SSH password for " + node.NodeUserName + "@" + node.NodeIP +
-			" (empty if the platform's key is already installed): ")
-		if err != nil {
-			exitWithError(err.Error())
-			return
+		if pd.PlatformInfo.DeploymentLocation != "AWS cluster deployment" {
+			password, err := promptLine("SSH password for " + node.NodeUserName + "@" + node.NodeIP +
+				" (empty if the platform's key is already installed): ")
+			if err != nil {
+				exitWithError(err.Error())
+				return
+			}
+			node.NodePassword = strings.TrimSpace(password)
 		}
-		node.NodePassword = strings.TrimSpace(password)
+
+		if pd.PlatformInfo.DeploymentLocation == "AWS cluster deployment" {
+			keyPath := pd.PlatformInfo.AwsSshKeyPath
+			if keyPath == "" {
+				exitWithError("this platform has no AWS SSH key path in its state file, " +
+					"so there is no way to reach a new node")
+				return
+			}
+			if _, err := os.Stat(keyPath); err != nil {
+				exitWithError(fmt.Sprintf("the AWS SSH key %s cannot be read: %v\n"+
+					"It is how the platform reaches its nodes, and without it the new one "+
+					"cannot be configured", keyPath, err))
+				return
+			}
+		}
 
 		fmt.Printf("\nAdding %s as '%s'.\n", node.NodeIP, node.NodeRole)
 		if node.NodeRole == "Platform worker" {
