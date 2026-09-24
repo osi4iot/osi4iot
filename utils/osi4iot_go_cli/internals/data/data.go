@@ -128,7 +128,7 @@ func SetData(key string, value string) {
 		switch value {
 		case "AWS cluster deployment":
 			Data.PlatformInfo.UseAwsEbsVolumes = true
-		case "Local cluster deployment":
+		case "Local deployment":
 			Data.PlatformInfo.NumberOfSwarmNodes = 1
 		}
 	case "USE_AWS_EBS_VOLUMES":
