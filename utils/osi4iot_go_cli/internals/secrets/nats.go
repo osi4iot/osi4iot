@@ -3,6 +3,7 @@ package secrets
 import (
 	"bytes"
 	"fmt"
+	"strings"
 	"text/template"
 
 	pt "github.com/osi4iot/osi4iot/utils/osi4iot/internals/types"
@@ -170,4 +171,17 @@ func NatsSeedServers(pd *pt.PlatformData, numNatsReplicas int, hostName string) 
 	}
 
 	return serversUrl
+}
+
+// NatsSeedServersURL is the NATS_SEED_SERVERS_URL value vector and
+// system_manager are started with.
+//
+// Defined once so the service builders and ScaleSwarmService, which
+// rewrites it on the running services when NATS switches between
+// standalone and cluster mode, cannot drift apart. The replica count
+// is a parameter for the same reason as configs.FrontendConfig: a scale
+// needs the value for the TARGET size, before the state file records
+// it.
+func NatsSeedServersURL(pd *pt.PlatformData, numNatsReplicas int) string {
+	return strings.Join(NatsSeedServers(pd, numNatsReplicas, pd.PlatformInfo.DomainName), ",")
 }

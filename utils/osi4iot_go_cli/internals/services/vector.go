@@ -2,7 +2,6 @@ package services
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/api/types/swarm"
@@ -53,7 +52,7 @@ func VectorService(
 	}
 
 	numNatsReplicas := utils.GetServiceReplicas(pd, "nats")
-	natsSeedServers := secrets_pkg.NatsSeedServers(pd, numNatsReplicas, pi.DomainName)
+	natsSeedServersURL := secrets_pkg.NatsSeedServersURL(pd, numNatsReplicas)
 
 	image := utils.GetServiceImage(pd, "vector", "ghcr.io/osi4iot/vector:0.46.1-alpine")
 	return NewService("vector", pd, sd).
@@ -79,7 +78,7 @@ func VectorService(
 			"VECTOR_LOG=warn",
 			fmt.Sprintf("DB_HOST=%s", dbHost),
 			fmt.Sprintf("DB_PORT=%s", dbPort),
-			fmt.Sprintf("NATS_SEED_SERVERS_URL=%s", strings.Join(natsSeedServers, ",")),
+			fmt.Sprintf("NATS_SEED_SERVERS_URL=%s", natsSeedServersURL),
 			fmt.Sprintf("DB_NAME=%s", pi.TimescaleDB),
 			fmt.Sprintf("DB_USER=%s", pi.TimescaleUser),
 			"PROCFS_ROOT=/host/proc",

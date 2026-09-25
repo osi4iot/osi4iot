@@ -144,6 +144,21 @@ func ServiceUpdate(
 		targetReplicas = *options.Replicas
 	}
 
+	// A global service has no replica count: it runs one task per node
+	// it is placed on. Left at 0, the monitor below waited for zero
+	// running tasks, which never happens on a live global service, so
+	// every rolling update of one (vector) ran into the monitor's
+	// timeout and was reported as failed. Counted before the update from
+	// the tasks Swarm wants running; a rolling update replaces them node
+	// by node but keeps that number.
+	if service.Spec.Mode.Global != nil {
+		n, err := countGlobalServiceNodes(dc, service.ID)
+		if err != nil {
+			return result, fmt.Errorf("error counting the nodes of global service '%s': %v", serviceName, err)
+		}
+		targetReplicas = n
+	}
+
 	// 1. Replicas
 	if options.Replicas != nil {
 		if service.Spec.Mode.Replicated == nil {
@@ -687,6 +702,20 @@ func ScaleSwarmService(pd *pt.PlatformData, dc *pt.DockerClient, serviceName str
 					}
 					warningMessages += updateResult.Warnings
 					allOldConfigIDs = append(allOldConfigIDs, updateResult.OldConfigIDs...)
+
+					// vector and system_manager take the seed list as an
+					// environment variable, NATS_SEED_SERVERS_URL. Stale, they
+					// still work once connected — the NATS client learns the
+					// rest of the cluster from the server — but after 1 -> 3
+					// they can only make their FIRST connection through nats1,
+					// and after 3 -> 1 they try nats2/nats3, which are gone.
+					for _, envDependentService := range []string{"system_manager", "vector"} {
+						warnings, err := updateNatsSeedServersEnv(pd, dc, envDependentService, int(replicas))
+						if err != nil {
+							return "", err
+						}
+						warningMessages += warnings
+					}
 				}
 			}
 		} else {
@@ -948,6 +977,82 @@ func scaleReplicatedServiceWithVolumes(
 	return updateResult.Warnings, nil
 }
 
+// findServiceByExactName returns the platform service with exactly this
+// name, or nil if it is not deployed (excluded with --exclude, say).
+// Swarm's name filter matches by prefix, which is why the result is
+// checked again here.
+func findServiceByExactName(dc *pt.DockerClient, name string) (*swarm.Service, error) {
+	filterArgs := filters.NewArgs()
+	filterArgs.Add("label", "app=osi4iot")
+	filterArgs.Add("name", name)
+	found, err := dc.Cli.ServiceList(dc.Ctx, types.ServiceListOptions{Filters: filterArgs})
+	if err != nil {
+		return nil, fmt.Errorf("error listing services: %v", err)
+	}
+	for i := range found {
+		if found[i].Spec.Name == name {
+			return &found[i], nil
+		}
+	}
+	return nil, nil
+}
+
+// countGlobalServiceNodes returns how many nodes a global service is
+// placed on: the distinct nodes of the tasks Swarm wants running.
+func countGlobalServiceNodes(dc *pt.DockerClient, serviceID string) (uint64, error) {
+	taskFilters := filters.NewArgs()
+	taskFilters.Add("service", serviceID)
+	taskFilters.Add("desired-state", "running")
+	tasks, err := dc.Cli.TaskList(dc.Ctx, types.TaskListOptions{Filters: taskFilters})
+	if err != nil {
+		return 0, err
+	}
+	nodes := make(map[string]struct{}, len(tasks))
+	for _, task := range tasks {
+		if task.NodeID != "" {
+			nodes[task.NodeID] = struct{}{}
+		}
+	}
+	return uint64(len(nodes)), nil
+}
+
+// natsSeedServersEnv is the variable vector and system_manager read the
+// NATS seed list from.
+const natsSeedServersEnv = "NATS_SEED_SERVERS_URL"
+
+// updateNatsSeedServersEnv rewrites NATS_SEED_SERVERS_URL on a running
+// service for numNatsReplicas NATS servers.
+//
+// A no-op when the service is not deployed, and when the variable
+// already has the new value — which makes re-running a scale after a
+// partial failure safe, as with updateFrontendNatsConfig.
+func updateNatsSeedServersEnv(pd *pt.PlatformData, dc *pt.DockerClient, serviceName string, numNatsReplicas int) (string, error) {
+	svc, err := findServiceByExactName(dc, serviceName)
+	if err != nil {
+		return "", err
+	}
+	if svc == nil {
+		return "", nil
+	}
+
+	newValue := secrets.NatsSeedServersURL(pd, numNatsReplicas)
+	prefix := natsSeedServersEnv + "="
+	for _, envVar := range svc.Spec.TaskTemplate.ContainerSpec.Env {
+		if strings.HasPrefix(envVar, prefix) && strings.TrimPrefix(envVar, prefix) == newValue {
+			return "", nil
+		}
+	}
+
+	fmt.Printf("\nUpdating %s service to use new nats seed servers:", serviceName)
+	updateResult, err := ServiceUpdate(pd, dc, svc, serviceName, ServiceUpdateOptions{
+		Env: map[string]string{natsSeedServersEnv: newValue},
+	})
+	if err != nil {
+		return "", fmt.Errorf("error updating '%s' service: %v", serviceName, err)
+	}
+	return updateResult.Warnings, nil
+}
+
 // frontendConfigFile is where FrontendService mounts its config.
 const frontendConfigFile = "/run/configs/frontend.conf"
 
@@ -963,20 +1068,9 @@ const frontendConfigFile = "/run/configs/frontend.conf"
 // what the service already uses, which is what makes re-running a scale
 // after a partial failure safe.
 func updateFrontendNatsConfig(pd *pt.PlatformData, dc *pt.DockerClient, numNatsReplicas int) (ServiceUpdateResult, error) {
-	filterArgs := filters.NewArgs()
-	filterArgs.Add("label", "app=osi4iot")
-	filterArgs.Add("name", "frontend")
-	found, err := dc.Cli.ServiceList(dc.Ctx, types.ServiceListOptions{Filters: filterArgs})
+	svc, err := findServiceByExactName(dc, "frontend")
 	if err != nil {
-		return ServiceUpdateResult{}, fmt.Errorf("error listing services: %v", err)
-	}
-	// The name filter matches by prefix, so check for the exact name.
-	var svc *swarm.Service
-	for i := range found {
-		if found[i].Spec.Name == "frontend" {
-			svc = &found[i]
-			break
-		}
+		return ServiceUpdateResult{}, err
 	}
 	if svc == nil {
 		return ServiceUpdateResult{}, nil

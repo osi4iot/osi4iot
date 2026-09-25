@@ -2,7 +2,6 @@ package services
 
 import (
 	"fmt"
-	"strings"
 	"time"
 
 	secrets "github.com/osi4iot/osi4iot/utils/osi4iot/internals/secrets"
@@ -22,7 +21,7 @@ func SystemManagerService(
 ) pt.Service {
 	pi := pd.PlatformInfo
 	numNatsReplicas := utils.GetServiceReplicas(pd, "nats")
-	natsSeedServers := secrets.NatsSeedServers(pd, numNatsReplicas, "")
+	natsSeedServersURL := secrets.NatsSeedServersURL(pd, numNatsReplicas)
 
 	secrets := []*swarm.SecretReference{
 		{
@@ -38,7 +37,7 @@ func SystemManagerService(
 	}
 
 	env := []string{
-		fmt.Sprintf("NATS_SEED_SERVERS_URL=%s", strings.Join(natsSeedServers, ",")),
+		fmt.Sprintf("NATS_SEED_SERVERS_URL=%s", natsSeedServersURL),
 		"NATS_BACKUP_ENABLED=true",
 		fmt.Sprintf("NATS_BACKUP_S3_PREFIX=%s", pi.NATSBackupS3Prefix),
 		// An empty value means system_manager registers no state_file
