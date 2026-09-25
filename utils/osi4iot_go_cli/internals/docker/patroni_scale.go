@@ -484,6 +484,17 @@ func ScalePatroniFamily(pd *pt.PlatformData, dc *pt.DockerClient, family patroni
 	// below has succeeded (see the WritePlatformDataToFile call below).
 	family.SetNumNodes(&pd.PlatformInfo, int(replicas))
 
+	// ValidatePlacement first, so asking for more replicas than there
+	// are workers is refused before haproxy is reconfigured and
+	// services are created.
+	if err := resources.ValidatePlacement(pd); err != nil {
+		return "", err
+	}
+	if err := addNodesLabels(pd); err != nil {
+		return "", fmt.Errorf("error assigning the placement labels for %d node(s): %v",
+			replicas, err)
+	}
+
 	warningMessages := ""
 
 	if replicas > currentReplicas {
@@ -520,7 +531,7 @@ func ScalePatroniFamily(pd *pt.PlatformData, dc *pt.DockerClient, family patroni
 		warningMessages += warnings
 	} else {
 		// ── SCALE DOWN ──────────────────────────────────────────────
-		
+
 		// Check whether the CURRENT leader is among the nodes about to
 		// be removed, and — if so — move leadership to node 1 ONCE,
 		// before removing ANY of them, not interleaved with the
@@ -560,7 +571,7 @@ func ScalePatroniFamily(pd *pt.PlatformData, dc *pt.DockerClient, family patroni
 				return "", fmt.Errorf("moving %s leadership to node 1 before scaling down: %v", family.ServiceKey, err)
 			}
 		}
-		
+
 		// Only now — with node 1 guaranteed to actually be the leader,
 		// either because it already was or because the switchover
 		// above just confirmed it — is it safe to shrink
@@ -573,7 +584,7 @@ func ScalePatroniFamily(pd *pt.PlatformData, dc *pt.DockerClient, family patroni
 		if err := refreshHaproxyPatroniConfig(pd, dc, family, replicas); err != nil {
 			return "", fmt.Errorf("error refreshing haproxy_patroni config: %v", err)
 		}
-		
+
 		fmt.Printf("\nRemoving extra %s nodes\n", family.ServiceKey)
 		for replica := int(replicas) + 1; replica <= int(currentReplicas); replica++ {
 			if err := removePatroniNode(pd, dc, family, replica); err != nil {

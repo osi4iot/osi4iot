@@ -194,11 +194,11 @@ func addNodesLabels(pd *types.PlatformData) error {
 			spec.Labels[fmt.Sprintf("nats_%d", natsReplica)] = "true"
 			natsReplica++
 
-			if pi.UsePatroniTool && numPatroniAdminNodes >= 1 && adminReplica <= numPatroniAdminNodes {
+			if pi.UsePatroniTool && adminReplica <= numPatroniAdminNodes {
 				spec.Labels["admin-id"] = fmt.Sprintf("%d", adminReplica)
 				adminReplica++
 			}
-			if pi.UsePatroniTool && numPatroniMetricsNodes >= 1 && metricsReplica <= numPatroniMetricsNodes {
+			if pi.UsePatroniTool  && metricsReplica <= numPatroniMetricsNodes {
 				spec.Labels["metrics-id"] = fmt.Sprintf("%d", metricsReplica)
 				metricsReplica++
 			}
