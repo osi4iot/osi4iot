@@ -257,6 +257,10 @@ func main() {
 	// NATS now, this is deliberately just a liveness probe.
 	mux := http.NewServeMux()
 	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+		if len(tasks) > 0 && !natssvc.Connected() {
+			http.Error(w, "nats not connected", http.StatusServiceUnavailable)
+			return
+		}
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte("ok"))
 	})

@@ -32,13 +32,18 @@ import (
 	"fmt"
 	"log"
 	"strings"
+	"sync/atomic"
+	"time"
 
+	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/micro"
 
 	"system_manager/internal/natsconn"
 	"system_manager/internal/task"
 	"system_manager/internal/taskpool"
 )
+
+var connected atomic.Bool
 
 // Config is natsconn.Config directly — natssvc needs nothing beyond how
 // to connect to NATS, and reuses the exact same connection every other
@@ -64,7 +69,7 @@ func LoadConfig() Config {
 // arriving here given priority over scheduled runs waiting for the same
 // slots — see internal/taskpool.
 func Run(ctx context.Context, cfg Config, tasks []task.Task, pool *taskpool.Pool) error {
-	nc, err := natsconn.Connect(cfg)
+	nc, err := connectWithRetry(ctx, cfg)
 	if err != nil {
 		return err
 	}
@@ -173,4 +178,38 @@ func decodeParams(data []byte) map[string]any {
 		return nil
 	}
 	return params
+}
+
+// Connected reports whether the long-lived NATS connection is up.
+func Connected() bool { return connected.Load() }
+
+func connectWithRetry(ctx context.Context, cfg Config) (*nats.Conn, error) {
+	wait := 2 * time.Second
+	for {
+		nc, err := natsconn.Connect(cfg,
+			nats.MaxReconnects(-1),
+			nats.ReconnectWait(2*time.Second),
+			nats.DisconnectErrHandler(func(_ *nats.Conn, err error) {
+				connected.Store(false)
+				log.Printf("[nats] disconnected: %v", err)
+			}),
+			nats.ReconnectHandler(func(nc *nats.Conn) {
+				connected.Store(true)
+				log.Printf("[nats] reconnected to %s", nc.ConnectedUrl())
+			}),
+		)
+		if err == nil {
+			connected.Store(true)
+			return nc, nil
+		}
+		log.Printf("[nats] connect failed, retrying in %s: %v", wait, err)
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		case <-time.After(wait):
+		}
+		if wait < 30*time.Second {
+			wait *= 2
+		}
+	}
 }

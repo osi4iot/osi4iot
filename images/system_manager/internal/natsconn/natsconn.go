@@ -65,7 +65,7 @@ func LoadConfig() Config {
 // connects with nats.Secure(...) unconditionally, not just for external
 // clients. Callers are responsible for nc.Drain()ing the returned
 // connection.
-func Connect(cfg Config) (*nats.Conn, error) {
+func Connect(cfg Config, extra ...nats.Option) (*nats.Conn, error) {
 	kp, err := nkeys.FromSeed([]byte(cfg.NkeySeed))
 	if err != nil {
 		return nil, fmt.Errorf("parsing NATS_NKEY_SEED: %w", err)
@@ -85,10 +85,14 @@ func Connect(cfg Config) (*nats.Conn, error) {
 	}
 	tlsCfg.RootCAs = rootCAs
 
-	nc, err := nats.Connect(cfg.ServersURL,
+	opts := []nats.Option{
+		nats.Name("system_manager"),
 		nats.Nkey(pubKey, kp.Sign),
 		nats.Secure(tlsCfg),
-	)
+	}
+	opts = append(opts, extra...)
+
+	nc, err := nats.Connect(cfg.ServersURL, opts...)
 	if err != nil {
 		return nil, fmt.Errorf("connecting to NATS at %s: %w", cfg.ServersURL, err)
 	}

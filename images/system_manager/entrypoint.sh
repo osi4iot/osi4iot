@@ -52,4 +52,10 @@ echo "Starting system_manager"
 echo "  nats backup tasks: NATS request-reply (system_manager.nats_streams.backup, .restore, .list) -> ${NATS_BACKUP_S3_PREFIX:-}"
 [ -n "${STATE_FILE_S3_PREFIX:-}" ] && echo "  state file tasks: NATS request-reply (system_manager.state_file.backup, .restore, .list) -> ${STATE_FILE_S3_PREFIX}"
 
+echo "Waiting for auth_callout..."
+until curl -sf http://auth_callout:3300/health >/dev/null 2>&1; do
+    sleep 2
+done
+echo "auth_callout ready"
+
 exec /usr/local/bin/system_manager
