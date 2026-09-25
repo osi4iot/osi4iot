@@ -58,17 +58,16 @@ func GetLocalNodeData() (types.NodeData, error) {
 	return nodeData, nil
 }
 
-// Rendering for `osi4iot node`. Same shape as ServicesList and
-// InspectService so the output of the two command sets looks like it
-// came from one program.
 
-// NodeRow is what NodesList draws, flattened so this package does not
-// have to know about the docker package's types.
-//
-// The dependency would be the wrong way round: internals/docker already
-// imports this package, so a NodeView parameter here would be a cycle.
 type NodeRow struct {
-	ID            string
+	ID string
+ 
+	// Label is the node's name in the state file. The handle an
+	// operator uses — 'osi4iot node ps worker_2' — and the one thing
+	// this table was missing: the hostname is the machine's name, not
+	// the platform's name for it.
+	Label string
+ 
 	Hostname      string
 	Address       string
 	SwarmRole     string
@@ -81,30 +80,34 @@ type NodeRow struct {
 	OtherLabels   []string
 	InStateFile   bool
 }
-
+ 
 // NodesList prints the swarm's nodes with the platform's view of them
 // beside it.
+//
+// The two roles are shown separately on purpose: a machine that is a
+// swarm worker can be the platform's NFS server, and the placement tags
+// are what actually decide where a Patroni or NATS replica can land.
 func NodesList(rows []NodeRow) {
 	titleStyle := lipgloss.NewStyle().
 		Bold(true).
 		Foreground(lipgloss.Color("34")).
 		Padding(1, 0)
-
+ 
 	headerStyle := lipgloss.NewStyle().
 		Bold(true).
 		Foreground(lipgloss.Color("42")).
 		Padding(0, 1)
-
+ 
 	cellStyle := lipgloss.NewStyle().Padding(0, 1)
 	selectedStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(""))
-
+ 
 	footerStyle := lipgloss.NewStyle().
 		Foreground(lipgloss.Color("241")).
 		Italic(true).
 		Padding(1, 0)
-
+ 
 	fmt.Println(titleStyle.Render("🖥️  OSI4IOT platform nodes"))
-
+ 
 	// The labels column is sized to its content rather than fixed: most
 	// deployments have a handful of short ones and would waste half the
 	// width, and a deployment with long ones would lose them to a
@@ -118,25 +121,29 @@ func NodesList(rows []NodeRow) {
 	if labelsWidth > 46 {
 		labelsWidth = 46
 	}
-
+ 
 	columns := []table.Column{
-		{Title: "HOSTNAME", Width: 16},
-		{Title: "ADDRESS", Width: 16},
+		{Title: "NODE", Width: 14},
+		{Title: "HOSTNAME", Width: 17},
+		{Title: "ADDRESS", Width: 15},
 		{Title: "SWARM", Width: 10},
-		{Title: "PLATFORM ROLE", Width: 14},
+		// 16, not 14: "Platform worker" is fifteen characters and was
+		// coming out as "Platform wo...", which is the one value in
+		// this column that anybody needs to read.
+		{Title: "PLATFORM ROLE", Width: 16},
 		{Title: "AVAILABILITY", Width: 13},
 		{Title: "STATE", Width: 8},
 		{Title: "TASKS", Width: 6},
 		{Title: "LABELS", Width: labelsWidth},
 	}
-
+ 
 	tableRows := make([]table.Row, 0, len(rows))
 	for _, row := range rows {
 		swarmRole := row.SwarmRole
 		if row.IsLeader {
 			swarmRole += " *"
 		}
-
+ 
 		platformRole := row.PlatformRole
 		if !row.InStateFile {
 			// A swarm node the state file does not describe is not a
@@ -144,45 +151,53 @@ func NodesList(rows []NodeRow) {
 			// so nothing the platform pins will ever run there.
 			platformRole = "not in state file"
 		}
-
+ 
+		label := row.Label
+		if label == "" {
+			// Legitimately empty: utils.GetLocalNodeData sets no label,
+			// and the form only asks for one on cluster deployments.
+			label = "-"
+		}
+ 
 		tableRows = append(tableRows, table.Row{
-			truncate(row.Hostname, 16),
-			truncate(row.Address, 16),
+			truncate(label, 14),
+			truncate(row.Hostname, 17),
+			truncate(row.Address, 15),
 			swarmRole,
-			truncate(platformRole, 14),
+			truncate(platformRole, 16),
 			row.Availability,
 			row.State,
 			fmt.Sprintf("%d", row.RunningTasks),
 			truncate(strings.Join(allLabels(row), " "), labelsWidth),
 		})
 	}
-
+ 
 	t := table.New(
 		table.WithColumns(columns),
 		table.WithRows(tableRows),
 		table.WithHeight(len(tableRows)+1),
 		table.WithFocused(false),
 	)
-
+ 
 	s := table.DefaultStyles()
 	s.Header = headerStyle
 	s.Cell = cellStyle
 	s.Selected = selectedStyle
 	t.SetStyles(s)
-
+ 
 	fmt.Println(lipgloss.NewStyle().
 		BorderStyle(lipgloss.RoundedBorder()).
 		BorderForeground(lipgloss.Color("240")).
 		Padding(1, 2).
 		Render(t.View()))
-
+ 
 	fmt.Println(footerStyle.Render(
 		fmt.Sprintf("Total nodes: %d   (* = swarm leader)", len(rows))))
 	fmt.Println(footerStyle.Render(
 		"Labels: the platform's placement ones first, then your own. " +
 			"'osi4iot node inspect NODE' shows them in full."))
 }
-
+ 
 // allLabels is what the LABELS column holds: the platform's placement
 // labels first and the operator's after.
 //
@@ -194,29 +209,29 @@ func allLabels(row NodeRow) []string {
 	labels = append(labels, row.PlacementTags...)
 	return append(labels, row.OtherLabels...)
 }
-
+ 
 // NodeTasksList prints the tasks scheduled on one node.
 func NodeTasksList(hostname string, tasks []swarm.Task, serviceNames map[string]string) {
 	titleStyle := lipgloss.NewStyle().
 		Bold(true).
 		Foreground(lipgloss.Color("34")).
 		Padding(1, 0)
-
+ 
 	headerStyle := lipgloss.NewStyle().
 		Bold(true).
 		Foreground(lipgloss.Color("42")).
 		Padding(0, 1)
-
+ 
 	cellStyle := lipgloss.NewStyle().Padding(0, 1)
 	selectedStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(""))
-
+ 
 	footerStyle := lipgloss.NewStyle().
 		Foreground(lipgloss.Color("241")).
 		Italic(true).
 		Padding(1, 0)
-
+ 
 	fmt.Println(titleStyle.Render(fmt.Sprintf("🐳 Tasks on %s", hostname)))
-
+ 
 	columns := []table.Column{
 		{Title: "SERVICE", Width: 24},
 		{Title: "SLOT", Width: 6},
@@ -225,7 +240,7 @@ func NodeTasksList(hostname string, tasks []swarm.Task, serviceNames map[string]
 		{Title: "UPDATED", Width: 14},
 		{Title: "ERROR", Width: 34},
 	}
-
+ 
 	tableRows := make([]table.Row, 0, len(tasks))
 	running := 0
 	for _, task := range tasks {
@@ -236,7 +251,7 @@ func NodeTasksList(hostname string, tasks []swarm.Task, serviceNames map[string]
 		if task.Status.State == swarm.TaskStateRunning {
 			running++
 		}
-
+ 
 		tableRows = append(tableRows, table.Row{
 			truncate(name, 24),
 			fmt.Sprintf("%d", task.Slot),
@@ -246,35 +261,35 @@ func NodeTasksList(hostname string, tasks []swarm.Task, serviceNames map[string]
 			truncate(task.Status.Err, 34),
 		})
 	}
-
+ 
 	t := table.New(
 		table.WithColumns(columns),
 		table.WithRows(tableRows),
 		table.WithHeight(len(tableRows)+1),
 		table.WithFocused(false),
 	)
-
+ 
 	s := table.DefaultStyles()
 	s.Header = headerStyle
 	s.Cell = cellStyle
 	s.Selected = selectedStyle
 	t.SetStyles(s)
-
+ 
 	fmt.Println(lipgloss.NewStyle().
 		BorderStyle(lipgloss.RoundedBorder()).
 		BorderForeground(lipgloss.Color("240")).
 		Padding(1, 2).
 		Render(t.View()))
-
+ 
 	fmt.Println(footerStyle.Render(
 		fmt.Sprintf("%d task(s), %d running", len(tasks), running)))
 }
-
+ 
 // InspectNodeReport is the detail view's input, flattened for the same
 // reason as NodeRow.
 type InspectNodeReport struct {
 	NodeRow
-
+ 
 	Engine       string
 	OS           string
 	Architecture string
@@ -282,31 +297,32 @@ type InspectNodeReport struct {
 	MemoryBytes  int64
 	Labels       map[string]string
 	ManagedLabel func(string) bool
-
+ 
 	SSHUser      string
 	HasSSHAccess bool
 }
-
+ 
 // InspectNode prints everything known about one node.
 func InspectNode(report InspectNodeReport) {
 	titleStyle := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("34"))
 	labelStyle := lipgloss.NewStyle().Bold(true)
 	noteStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("241")).Italic(true)
-
+ 
 	fmt.Println()
 	fmt.Println(titleStyle.Render("🖥️  " + report.Hostname))
 	fmt.Println()
-
+ 
 	line := func(label, value string) {
 		if value == "" {
 			return
 		}
 		fmt.Printf("  %s %s\n", labelStyle.Render(fmt.Sprintf("%-16s", label+":")), value)
 	}
-
+ 
 	line("ID", report.ID)
+	line("Node label", report.Label)
 	line("Address", report.Address)
-
+ 
 	swarmRole := report.SwarmRole
 	if report.IsLeader {
 		swarmRole += " (leader)"
@@ -315,7 +331,7 @@ func InspectNode(report InspectNodeReport) {
 	line("Availability", report.Availability)
 	line("State", report.State)
 	line("Running tasks", fmt.Sprintf("%d", report.RunningTasks))
-
+ 
 	fmt.Println()
 	if report.InStateFile {
 		line("Platform role", report.PlatformRole)
@@ -326,7 +342,7 @@ func InspectNode(report InspectNodeReport) {
 		fmt.Println("  " + noteStyle.Render(
 			"It will not be labelled, so nothing the platform pins will run on it."))
 	}
-
+ 
 	fmt.Println()
 	line("Engine", report.Engine)
 	line("Platform", strings.TrimSpace(report.OS+" "+report.Architecture))
@@ -336,14 +352,14 @@ func InspectNode(report InspectNodeReport) {
 	if report.MemoryBytes > 0 {
 		line("Memory", fmt.Sprintf("%.1f GiB", float64(report.MemoryBytes)/(1<<30)))
 	}
-
+ 
 	if len(report.Labels) == 0 {
 		return
 	}
-
+ 
 	fmt.Println()
 	fmt.Println("  " + labelStyle.Render("Labels:"))
-
+ 
 	// Split rather than listed together, because the two kinds behave
 	// differently: the platform's are rewritten from the state file on
 	// every init and run, and anything else is the operator's and
@@ -357,7 +373,7 @@ func InspectNode(report InspectNodeReport) {
 		}
 		own = append(own, entry)
 	}
-
+ 
 	if len(managed) > 0 {
 		fmt.Println("  " + noteStyle.Render("managed by the platform (rewritten on every init/run):"))
 		for _, entry := range sortedStrings(managed) {
@@ -372,7 +388,7 @@ func InspectNode(report InspectNodeReport) {
 	}
 	fmt.Println()
 }
-
+ 
 // humanAge renders a timestamp as an age, which is what a task table
 // is read for.
 func humanAge(at time.Time) string {
@@ -391,14 +407,14 @@ func humanAge(at time.Time) string {
 		return fmt.Sprintf("%dd ago", int(elapsed.Hours()/24))
 	}
 }
-
+ 
 func truncate(value string, width int) string {
 	if width <= 3 || len(value) <= width {
 		return value
 	}
 	return value[:width-3] + "..."
 }
-
+ 
 func sortedStrings(values []string) []string {
 	out := append([]string(nil), values...)
 	for i := 1; i < len(out); i++ {
@@ -408,3 +424,4 @@ func sortedStrings(values []string) []string {
 	}
 	return out
 }
+ 

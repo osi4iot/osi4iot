@@ -22,9 +22,9 @@ import (
 //
 // Adding and removing nodes is deliberately NOT here. In osi4iot a node
 // is an entry in the state file, an SSH target with the platform's key
-// installed, and an input to where Patroni and NATS replicas are pinned.
-// Joining or removing one touches all of that, and removing one
-// has to answer questions this file does not ask
+// installed, sometimes the NFS server, and an input to where Patroni
+// and NATS replicas are pinned. Joining or removing one touches all of
+// that, and removing one has to answer questions this file does not ask
 // — manager quorum, Patroni leaders, what happens to the node's
 // volumes. Those get their own commands and their own guards.
 
@@ -44,8 +44,8 @@ var subCmdNodeList = &cobra.Command{
 	Short:   "List the platform's nodes",
 	Long: "Lists the swarm's nodes with the platform's view of each one beside it.\n\n" +
 		"The two roles are not the same thing. SWARM is Docker's — manager or worker, and " +
-		"which one holds the raft leadership. PLATFORM ROLE is the state file's: 'Manager' or " +
-		"'Platform worker'.\n\n" +
+		"which one holds the raft leadership. PLATFORM ROLE is the state file's: 'Manager', " +
+		"'Platform worker' or 'NFS server'.\n\n" +
 		"LABELS shows every label on the node, the platform's first and yours after. The " +
 		"platform's are the part nothing else shows: nodesConfiguration writes them from the " +
 		"state file and they decide where replicas can run. nats_2 means this machine takes " +
@@ -133,7 +133,7 @@ var subCmdNodeInspect = &cobra.Command{
 		"machine's own resources, and its labels.\n\n" +
 		"The labels are split into the ones the platform manages and the ones set by hand, " +
 		"because they behave differently: nodesConfiguration rewrites platform_worker, " +
-		"nats_*, admin-id and metrics-id from the state file on every init and " +
+		"nfs_server, nats_*, admin-id and metrics-id from the state file on every init and " +
 		"run, and anything else survives.",
 	Args: cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
@@ -173,7 +173,8 @@ var subCmdNodeDrain = &cobra.Command{
 		"machine down for maintenance.\n\n" +
 		"Undo it with 'osi4iot node activate'.\n\n" +
 		"Draining is not free, and the command says so before doing it. Draining the node " +
-		"holding a Patroni leader forces a failover. Draining the only node stops the platform.",
+		"holding a Patroni leader forces a failover. Draining the NFS server takes the shared " +
+		"volumes away from every other node. Draining the only node stops the platform.",
 	Args: cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		pd, dc := nodeContext()
@@ -262,7 +263,7 @@ var subCmdNodeUpdate = &cobra.Command{
 	Short: "Add or remove labels on a node",
 	Long: "Adds and removes swarm labels on one node.\n\n" +
 		"IMPORTANT: labels set here are not permanent. nodesConfiguration rebuilds " +
-		"platform_worker, nats_*, admin-id and metrics-id from the state file on " +
+		"platform_worker, nfs_server, nats_*, admin-id and metrics-id from the state file on " +
 		"every 'init' and every 'run', so a label with one of those names lasts until the " +
 		"next deployment and then goes back to whatever the state file implies. The command " +
 		"refuses to touch them unless you pass --force.\n\n" +
@@ -284,17 +285,7 @@ var subCmdNodeUpdate = &cobra.Command{
 		for _, pair := range nodeLabelAdd {
 			key, value, found := strings.Cut(pair, "=")
 			if !found || key == "" {
-				// The suggestion matters more than it looks. --label-add
-				// is a StringSlice, so pflag splits on commas before this
-				// sees the value, and a label whose VALUE contains one
-				// arrives here as a fragment with no "=" in it. The
-				// quoting that survives that split is pflag's CSV
-				// quoting, which nobody guesses.
-				exitWithError(fmt.Sprintf(
-					"--label-add takes KEY=VALUE, and %q is not.\n"+
-						"If the value contains a comma, quote it: "+
-						"--label-add 'desc=\"planta baja,sala 3\"'",
-					pair))
+				exitWithError(fmt.Sprintf("--label-add takes KEY=VALUE, and %q is not", pair))
 				return
 			}
 			add[key] = value
@@ -353,7 +344,7 @@ var subCmdNodeAdd = &cobra.Command{
 	Use:   "add",
 	Short: "Join a machine to the platform",
 	Long: "Adds a machine to the platform: records it in the state file, installs the " +
-		"firewall rules and the volume plugin on it, joins it to the swarm " +
+		"firewall rules, the NFS client and the volume plugin on it, joins it to the swarm " +
 		"and gives it its placement labels.\n\n" +
 		"The machine must be reachable over SSH as the user given, and the platform's public " +
 		"key has to be installable on it — you are asked for the SSH password when the key is " +
@@ -385,6 +376,11 @@ var subCmdNodeAdd = &cobra.Command{
 			NodeHostName: strings.TrimSpace(nodeAddHostname),
 		}
 
+		// Validated with the same rules the snapshot's nodes.json uses,
+		// so a node added here and a node restored from a bundle have
+		// to pass the same checks. Among other things this is what
+		// catches "NFS Server" with a capital S, which reads fine and
+		// matches nothing.
 		candidate := snapshot.ExtractNodes(pd)
 		candidate.Nodes = append(candidate.Nodes, snapshot.NodeOverlay{
 			NodeLabel:    node.NodeLabel,
@@ -398,30 +394,17 @@ var subCmdNodeAdd = &cobra.Command{
 			return
 		}
 
-		if pd.PlatformInfo.DeploymentLocation != "AWS cluster deployment" {
-			password, err := promptLine("SSH password for " + node.NodeUserName + "@" + node.NodeIP +
-				" (empty if the platform's key is already installed): ")
-			if err != nil {
-				exitWithError(err.Error())
-				return
-			}
-			node.NodePassword = strings.TrimSpace(password)
+		// Asked for rather than taken as a flag: a password on the
+		// command line ends up in the shell history and in the process
+		// list. Empty is fine and normal — it means the platform's key
+		// is already on the machine.
+		password, err := promptLine("SSH password for " + node.NodeUserName + "@" + node.NodeIP +
+			" (empty if the platform's key is already installed): ")
+		if err != nil {
+			exitWithError(err.Error())
+			return
 		}
-
-		if pd.PlatformInfo.DeploymentLocation == "AWS cluster deployment" {
-			keyPath := pd.PlatformInfo.AwsSshKeyPath
-			if keyPath == "" {
-				exitWithError("this platform has no AWS SSH key path in its state file, " +
-					"so there is no way to reach a new node")
-				return
-			}
-			if _, err := os.Stat(keyPath); err != nil {
-				exitWithError(fmt.Sprintf("the AWS SSH key %s cannot be read: %v\n"+
-					"It is how the platform reaches its nodes, and without it the new one "+
-					"cannot be configured", keyPath, err))
-				return
-			}
-		}
+		node.NodePassword = strings.TrimSpace(password)
 
 		fmt.Printf("\nAdding %s as '%s'.\n", node.NodeIP, node.NodeRole)
 		if node.NodeRole == "Platform worker" {
@@ -556,6 +539,7 @@ func nodeContext() (*pt.PlatformData, *pt.DockerClient) {
 func nodeRowFor(view docker.NodeView) utils.NodeRow {
 	return utils.NodeRow{
 		ID:            view.Node.ID,
+		Label:         view.Platform.NodeLabel,
 		Hostname:      view.Hostname(),
 		Address:       view.Address(),
 		SwarmRole:     view.SwarmRole(),
@@ -604,6 +588,12 @@ func reportQuorum(views []docker.NodeView) {
 // drainWarnings lists what draining this node costs.
 func drainWarnings(view docker.NodeView, all []docker.NodeView) []string {
 	var warnings []string
+
+	if view.PlatformRole() == "NFS server" {
+		warnings = append(warnings,
+			"This node is the platform's NFS server. Draining it does not stop the NFS export, "+
+				"but anything that restarts elsewhere while it is down will fail to mount.")
+	}
 
 	if view.SwarmRole() == string(swarm.NodeRoleManager) {
 		total, reachable := docker.CountManagers(all)
@@ -658,7 +648,8 @@ func init() {
 		"Allow changing labels the platform manages, knowing they will be rewritten")
 
 	subCmdNodeAdd.Flags().StringVar(&nodeAddIP, "ip", "", "The machine's address (required)")
-	subCmdNodeAdd.Flags().StringVar(&nodeAddRole, "role", "Platform worker", "Manager or Platform worker")
+	subCmdNodeAdd.Flags().StringVar(&nodeAddRole, "role", "Platform worker",
+		"Manager, Platform worker or NFS server")
 	subCmdNodeAdd.Flags().StringVar(&nodeAddUser, "user", "", "SSH user on the machine (required)")
 	subCmdNodeAdd.Flags().StringVar(&nodeAddLabel, "label", "", "Name for the node in the state file")
 	subCmdNodeAdd.Flags().StringVar(&nodeAddHostname, "hostname", "", "The machine's hostname")
