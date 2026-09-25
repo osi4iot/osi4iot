@@ -20,10 +20,13 @@ import (
 //
 // Docker knows a node as a hostname, a swarm role and an availability.
 // osi4iot knows it as an entry in NodesData with a role of its own —
-// "Manager" or "Platform worker" 
+// "Manager", "Platform worker" or "NFS server" — and those two ideas of
+// "role" are not the same thing: an osi4iot "NFS server" is a swarm
+// worker, and a "Platform worker" is where Patroni and NATS replicas
+// are pinned.
 //
 // The placement labels are the part nobody can see today.
-// nodesConfiguration writes nats_N, admin-id, metrics-id
+// nodesConfiguration writes nats_N, admin-id, metrics-id and nfs_server
 // onto the swarm nodes from the state file, and there is no command
 // that shows them. Knowing which machine carries admin-id=2 is the
 // difference between understanding where a Patroni replica will land
@@ -33,8 +36,9 @@ import (
 //
 // Joining a machine to the platform means an entry in the state file,
 // an SSH key installed on it, a swarm join, a relabelling that moves
-// replica placement. Removing one means
-// asking about manager quorum, about Patroni leaders. Those belong in their own commands,
+// replica placement, and possibly an NFS mount. Removing one means
+// asking about manager quorum, about Patroni leaders and about the NFS
+// server before anything happens. Those belong in their own commands,
 // with their own guards; this file deliberately stops at what Docker
 // can answer for.
 
@@ -42,7 +46,7 @@ import (
 // Anything with one of these names is rewritten from the state file on
 // the next init or run.
 var PlatformLabelPrefixes = []string{
-	"platform_worker", "nats_", "admin-id", "metrics-id",
+	"platform_worker", "nfs_server", "nats_", "admin-id", "metrics-id",
 }
 
 // NodeView is one machine, as both Docker and the state file see it.
@@ -131,10 +135,28 @@ func ListNodeViews(pd *pt.PlatformData, dc *pt.DockerClient) ([]NodeView, error)
 		views = append(views, view)
 	}
 
+	// Alphabetical by the state file's node label, which is the name an
+	// operator uses for a node everywhere else in this CLI. Sorting by
+	// swarm role first, as this did, put the answer to "where is
+	// worker_2" in a different place depending on how many managers
+	// there happened to be.
+	//
+	// A node with no label sorts last rather than first: an empty
+	// string would otherwise float to the top, and the nodes without
+	// one are the ones nobody is looking for — a local deployment's
+	// single node, or a machine in the swarm that the state file does
+	// not describe.
 	sort.Slice(views, func(i, j int) bool {
-		if views[i].SwarmRole() != views[j].SwarmRole() {
-			return views[i].SwarmRole() == string(swarm.NodeRoleManager)
+		left, right := views[i].Platform.NodeLabel, views[j].Platform.NodeLabel
+
+		if (left == "") != (right == "") {
+			return right == ""
 		}
+		if !strings.EqualFold(left, right) {
+			return strings.ToLower(left) < strings.ToLower(right)
+		}
+		// Hostname breaks the tie so the order is stable between runs
+		// when two nodes share a label, or neither has one.
 		return views[i].Hostname() < views[j].Hostname()
 	})
 
@@ -304,7 +326,7 @@ func placementTags(labels map[string]string) []string {
 		if !IsPlatformManagedLabel(key) {
 			continue
 		}
-		// platform_worker=true say nothing extra by
+		// platform_worker=true and nfs_server=true say nothing extra by
 		// repeating the value; the placement ones carry a number that
 		// is the whole point.
 		if value == "true" {
