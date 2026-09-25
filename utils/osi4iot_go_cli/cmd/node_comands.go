@@ -45,7 +45,7 @@ var subCmdNodeList = &cobra.Command{
 	Long: "Lists the swarm's nodes with the platform's view of each one beside it.\n\n" +
 		"The two roles are not the same thing. SWARM is Docker's — manager or worker, and " +
 		"which one holds the raft leadership. PLATFORM ROLE is the state file's: 'Manager', " +
-		"'Platform worker' or 'NFS server'.\n\n" +
+		" or 'Platform worker'.\n\n" +
 		"LABELS shows every label on the node, the platform's first and yours after. The " +
 		"platform's are the part nothing else shows: nodesConfiguration writes them from the " +
 		"state file and they decide where replicas can run. nats_2 means this machine takes " +
@@ -394,15 +394,18 @@ var subCmdNodeAdd = &cobra.Command{
 			return
 		}
 
-		// Asked for rather than taken as a flag: a password on the
-		// command line ends up in the shell history and in the process
-		// list. Empty is fine and normal — it means the platform's key
-		// is already on the machine.
-		password, err := promptLine("SSH password for " + node.NodeUserName + "@" + node.NodeIP +
-			" (empty if the platform's key is already installed): ")
-		if err != nil {
-			exitWithError(err.Error())
-			return
+		// Only on-premise nodes may need the platform's key installed.
+		// On AWS every instance already trusts aws_ssh_key.pem, so there is
+		// nothing to ask.
+		var password string
+		if pd.PlatformInfo.DeploymentLocation == snapshot.LocationOnPremise {
+			p, err := promptLine("SSH password for " + node.NodeUserName + "@" + node.NodeIP +
+				" (empty if the platform's key is already installed): ")
+			if err != nil {
+				exitWithError(err.Error())
+				return
+			}
+			password = strings.TrimSpace(p)
 		}
 		node.NodePassword = strings.TrimSpace(password)
 
@@ -424,13 +427,34 @@ var subCmdNodeAdd = &cobra.Command{
 			}
 		}
 
+		if password != "" {
+			node.NodePassword = password
+			fmt.Printf("Installing the platform's public key on %s...\n", node.NodeIP)
+			if err := utils.CopyKeyInNode(node, pd.PlatformInfo.SshPubKey); err != nil {
+				exitWithError(fmt.Sprintf("error installing the platform's key on %s: %v", node.NodeIP, err))
+				return
+			}
+			// Not persisted: once the key is installed the password is never
+			// needed again, and the snapshot's nodes.json already treats it
+			// the same way.
+			node.NodePassword = ""
+		}
+
 		if err := docker.AddNodeToPlatform(pd, node, logger); err != nil {
 			exitWithError(err.Error())
 			return
 		}
 
 		fmt.Println(utils.StyleOKMsg.Render(fmt.Sprintf("%s is part of the platform", node.NodeIP)))
-		fmt.Println("Run 'osi4iot run' to let the services use it.")
+
+		if data.GetPlatformState() == data.Running {
+			if node.NodeRole == "Platform worker" {
+				fmt.Println("To place NATS or Patroni replicas on it, scale them, e.g.:")
+				fmt.Println("  osi4iot service scale nats=3")
+			}
+		} else {
+			fmt.Println("Run 'osi4iot run' to start the platform with the new node.")
+		}
 	},
 }
 
@@ -452,6 +476,9 @@ var subCmdNodeRemove = &cobra.Command{
 		"admin-id would be on no machine at all and that service would sit unschedulable " +
 		"forever, with nothing reporting it. The command refuses in that case and tells you " +
 		"what to scale down first.\n\n" +
+		"The last 'Platform worker' cannot be removed either: a cluster deployment always " +
+		"needs at least one, since the platform services only run on workers. Add another " +
+		"worker first.\n\n" +
 		"NODE is a hostname, an address, a state file node label, or an id.",
 	Args: cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
@@ -477,6 +504,23 @@ var subCmdNodeRemove = &cobra.Command{
 		}
 
 		impact := docker.PlanNodeRemoval(pd, view.Platform)
+
+		// A cluster deployment always keeps at least one Platform worker:
+		// nats, auth_callout, Patroni and the rest of the platform services
+		// are constrained to node.role==worker plus their placement labels,
+		// so with no worker left they would have nowhere to run. Checked
+		// before HomelessServices on purpose — that check would also fire
+		// here (nats1 loses its label), but its advice, "scale them down
+		// first", cannot help: nothing scales to zero.
+		if view.Platform.NodeRole == snapshot.RolePlatformWorker && impact.WorkersAfter == 0 {
+			exitWithError(fmt.Sprintf(
+				"%s is the platform's last '%s': a cluster deployment needs at least one, "+
+					"because the platform services only run on workers.\n"+
+					"Add another worker first ('osi4iot node add --role \"%s\" ...'), "+
+					"then remove this one",
+				view.Hostname(), snapshot.RolePlatformWorker, snapshot.RolePlatformWorker))
+			return
+		}
 
 		if len(impact.HomelessServices) > 0 {
 			exitWithError(fmt.Sprintf(

@@ -62,27 +62,7 @@ func GenerateConfigs(pd *pt.PlatformData) map[string]pt.Config {
 		Data: mainOrgFloor,
 	}
 
-	numNatsReplicas := utils.GetServiceReplicas(pd, "nats")
-	natsSeedServers := natsSeedServersForFrontend(pd, numNatsReplicas, pi.DomainName)
-	frontendConfigArray := []string{
-		fmt.Sprintf("PLATFORM_NAME=%s", platformName),
-		fmt.Sprintf("DOMAIN_NAME=%s", pi.DomainName),
-		fmt.Sprintf("PROTOCOL=%s", protocol),
-		fmt.Sprintf("DEPLOYMENT_LOCATION=\"%s\"", pi.DeploymentLocation),
-		fmt.Sprintf("DEPLOYMENT_MODE=%s", pi.DeploymentMode),
-		fmt.Sprintf("MIN_LONGITUDE=%f", pi.MinLongitude),
-		fmt.Sprintf("MAX_LONGITUDE=%f", pi.MaxLongitude),
-		fmt.Sprintf("MIN_LATITUDE=%f", pi.MinLatitude),
-		fmt.Sprintf("MAX_LATITUDE=%f", pi.MaxLatitude),
-		fmt.Sprintf("NATS_SEED_SERVERS=%s", strings.Join(natsSeedServers, ",")),
-	}
-	frontendConfig := strings.Join(frontendConfigArray, "\n")
-	frontendConfigHash := utils.GetMD5Hash(frontendConfig)
-	frontendConfigName := fmt.Sprintf("frontend_%s", frontendConfigHash)
-	Configs["frontend"] = pt.Config{
-		Name: frontendConfigName,
-		Data: frontendConfig,
-	}
+	Configs["frontend"] = FrontendConfig(pd, utils.GetServiceReplicas(pd, "nats"))
 
 	grafanaConfigArray := []string{
 		fmt.Sprintf("DOMAIN_NAME=%s", pi.DomainName),
@@ -490,4 +470,41 @@ func natsSeedServersForFrontend(pd *pt.PlatformData, numNatsReplicas int, hostNa
 	}
 
 	return serversUrl
+}
+
+// FrontendConfig builds the frontend's config for a given number of NATS
+// replicas.
+//
+// The replica count is a parameter rather than read from the state
+// file because of ScaleSwarmService: it needs the config for the TARGET
+// size, while the state file only records the new size once the whole
+// scale has finished. GenerateConfigs passes the count from the state
+// file, so both paths produce the same name for the same content.
+func FrontendConfig(pd *pt.PlatformData, numNatsReplicas int) pt.Config {
+	pi := pd.PlatformInfo
+	platformName := strings.Replace(pi.PlatformName, " ", "_", -1)
+	protocol := "https"
+	if pi.DomainCertsType == "No certs" {
+		protocol = "http"
+	}
+
+	natsSeedServers := natsSeedServersForFrontend(pd, numNatsReplicas, pi.DomainName)
+	frontendConfigArray := []string{
+		fmt.Sprintf("PLATFORM_NAME=%s", platformName),
+		fmt.Sprintf("DOMAIN_NAME=%s", pi.DomainName),
+		fmt.Sprintf("PROTOCOL=%s", protocol),
+		fmt.Sprintf("DEPLOYMENT_LOCATION=\"%s\"", pi.DeploymentLocation),
+		fmt.Sprintf("DEPLOYMENT_MODE=%s", pi.DeploymentMode),
+		fmt.Sprintf("MIN_LONGITUDE=%f", pi.MinLongitude),
+		fmt.Sprintf("MAX_LONGITUDE=%f", pi.MaxLongitude),
+		fmt.Sprintf("MIN_LATITUDE=%f", pi.MinLatitude),
+		fmt.Sprintf("MAX_LATITUDE=%f", pi.MaxLatitude),
+		fmt.Sprintf("NATS_SEED_SERVERS=%s", strings.Join(natsSeedServers, ",")),
+	}
+	frontendConfig := strings.Join(frontendConfigArray, "\n")
+	frontendConfigHash := utils.GetMD5Hash(frontendConfig)
+	return pt.Config{
+		Name: fmt.Sprintf("frontend_%s", frontendConfigHash),
+		Data: frontendConfig,
+	}
 }

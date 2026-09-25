@@ -100,7 +100,6 @@ sudo ufw enable
 	return nil
 }
 
-
 func addNodesLabels(pd *types.PlatformData) error {
 	pi := pd.PlatformInfo
 	spinnerDone := make(chan bool)
@@ -141,9 +140,6 @@ func addNodesLabels(pd *types.PlatformData) error {
 	// deterministic holder. The list is extended rather than indexed
 	// blindly: a fourth manager used to panic here.
 	priorityIndex := 0
-
-	numPatroniAdminNodes := utils.Max(pi.NumPatroniAdminNodes, 1)
-	numPatroniMetricsNodes := utils.Max(pi.NumPatroniMetricsNodes, 1)
 
 	for _, node := range nodesData {
 		swarmNode, ok := swarmNodesMap[node.NodeIP]
@@ -194,11 +190,9 @@ func addNodesLabels(pd *types.PlatformData) error {
 			spec.Labels[fmt.Sprintf("nats_%d", natsReplica)] = "true"
 			natsReplica++
 
-			if pi.UsePatroniTool && adminReplica <= numPatroniAdminNodes {
+			if pi.UsePatroniTool {
 				spec.Labels["admin-id"] = fmt.Sprintf("%d", adminReplica)
 				adminReplica++
-			}
-			if pi.UsePatroniTool  && metricsReplica <= numPatroniMetricsNodes {
 				spec.Labels["metrics-id"] = fmt.Sprintf("%d", metricsReplica)
 				metricsReplica++
 			}

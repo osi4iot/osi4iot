@@ -142,6 +142,7 @@ func (o *NodesOverlay) Validate() error {
 	seenLabels := make(map[string]bool)
 	seenIPs := make(map[string]bool)
 	managers := 0
+	workers := 0
 
 	for i, node := range o.Nodes {
 		where := nodeDescription(i, node)
@@ -179,6 +180,10 @@ func (o *NodesOverlay) Validate() error {
 		if node.NodeRole == RoleManager {
 			managers++
 		}
+		if node.NodeRole == RolePlatformWorker {
+			workers++
+		}
+
 		if node.NodeLabel != "" {
 			seenLabels[node.NodeLabel] = true
 		}
@@ -187,6 +192,10 @@ func (o *NodesOverlay) Validate() error {
 
 	if managers == 0 {
 		return fmt.Errorf("no node has the role %q: a swarm needs at least one manager", RoleManager)
+	}
+
+	if o.DeploymentLocation != LocationLocal && workers == 0 {
+		return fmt.Errorf("a %q needs at least one %q node", o.DeploymentLocation, RolePlatformWorker)
 	}
 
 	return nil
@@ -199,7 +208,7 @@ func (o *NodesOverlay) Validate() error {
 func (o *NodesOverlay) Warnings() []string {
 	var warnings []string
 
-	managers:= 0
+	managers := 0
 	for _, node := range o.Nodes {
 		switch node.NodeRole {
 		case RoleManager:

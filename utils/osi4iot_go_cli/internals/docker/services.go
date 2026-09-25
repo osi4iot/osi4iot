@@ -534,7 +534,7 @@ func ScaleSwarmService(pd *pt.PlatformData, dc *pt.DockerClient, serviceName str
 	case "patroni_metrics":
 		if utils.IsEven(replicas) {
 			return "", fmt.Errorf("Patroni metrics service requires an odd number of replicas: (1, 3, 5, ...)")
-		}		
+		}
 	default:
 		service, err = utils.GetSwarmServiceByName(dc, serviceName)
 		if err != nil {
@@ -551,6 +551,7 @@ func ScaleSwarmService(pd *pt.PlatformData, dc *pt.DockerClient, serviceName str
 
 	warningMessages := ""
 	var allOldSecretIDs []string
+	var allOldConfigIDs []string
 
 	switch serviceName {
 	case "pipelines":
@@ -672,6 +673,20 @@ func ScaleSwarmService(pd *pt.PlatformData, dc *pt.DockerClient, serviceName str
 					}
 					warningMessages += updateResult.Warnings
 					allOldSecretIDs = append(allOldSecretIDs, updateResult.OldSecretIDs...)
+
+					// frontend is a dependent service too, but through a swarm
+					// CONFIG rather than a secret: NATS_SEED_SERVERS lists one
+					// wss:// URL per seed server (see natsSeedServersForFrontend),
+					// so it goes from one URL to three on 1 -> 3 and back on
+					// 3 -> 1. Left alone, browsers would keep being handed
+					// nats2/nats3 after a scale-down, or only nats1 after a
+					// scale-up.
+					updateResult, err = updateFrontendNatsConfig(pd, dc, int(replicas))
+					if err != nil {
+						return "", err
+					}
+					warningMessages += updateResult.Warnings
+					allOldConfigIDs = append(allOldConfigIDs, updateResult.OldConfigIDs...)
 				}
 			}
 		} else {
@@ -868,6 +883,13 @@ func ScaleSwarmService(pd *pt.PlatformData, dc *pt.DockerClient, serviceName str
 		}
 	}
 
+	// Remove old configs — all updates completed successfully
+	for _, oldConfigID := range allOldConfigIDs {
+		if err := dc.Cli.ConfigRemove(dc.Ctx, oldConfigID); err != nil {
+			warningMessages += fmt.Sprintf("  - Warning: could not remove old config '%s': %v\n", oldConfigID, err)
+		}
+	}
+
 	// Update platform data
 	svcIdx, svcData, err := utils.FindServiceDataByName(pd, serviceName)
 	if err != nil {
@@ -924,6 +946,72 @@ func scaleReplicatedServiceWithVolumes(
 	}
 
 	return updateResult.Warnings, nil
+}
+
+// frontendConfigFile is where FrontendService mounts its config.
+const frontendConfigFile = "/run/configs/frontend.conf"
+
+// updateFrontendNatsConfig points the frontend at the NATS seed servers
+// for numNatsReplicas.
+//
+// The old config is found by its mount path in the running service, not
+// by name: a previous attempt that failed halfway can leave a second
+// frontend_* config in the swarm, and a name search could pick that one.
+//
+// A no-op when frontend is not deployed (excluded with --exclude), and
+// when the new config's content — and so its content-derived name — is
+// what the service already uses, which is what makes re-running a scale
+// after a partial failure safe.
+func updateFrontendNatsConfig(pd *pt.PlatformData, dc *pt.DockerClient, numNatsReplicas int) (ServiceUpdateResult, error) {
+	filterArgs := filters.NewArgs()
+	filterArgs.Add("label", "app=osi4iot")
+	filterArgs.Add("name", "frontend")
+	found, err := dc.Cli.ServiceList(dc.Ctx, types.ServiceListOptions{Filters: filterArgs})
+	if err != nil {
+		return ServiceUpdateResult{}, fmt.Errorf("error listing services: %v", err)
+	}
+	// The name filter matches by prefix, so check for the exact name.
+	var svc *swarm.Service
+	for i := range found {
+		if found[i].Spec.Name == "frontend" {
+			svc = &found[i]
+			break
+		}
+	}
+	if svc == nil {
+		return ServiceUpdateResult{}, nil
+	}
+
+	oldConfigName := ""
+	for _, ref := range svc.Spec.TaskTemplate.ContainerSpec.Configs {
+		if ref.File != nil && ref.File.Name == frontendConfigFile {
+			oldConfigName = ref.ConfigName
+			break
+		}
+	}
+	if oldConfigName == "" {
+		return ServiceUpdateResult{}, fmt.Errorf("frontend service has no config mounted at %s", frontendConfigFile)
+	}
+
+	newConfig := configs.FrontendConfig(pd, numNatsReplicas)
+	if newConfig.Name == oldConfigName {
+		return ServiceUpdateResult{}, nil
+	}
+
+	fmt.Printf("\nUpdating frontend service to use new nats seed servers:")
+	updateResult, err := ServiceUpdate(pd, dc, svc, "frontend", ServiceUpdateOptions{
+		ConfigsUpdate: []ConfigUpdateConfig{{
+			ConfigKey:     "frontend",
+			NewConfigName: newConfig.Name,
+			OldConfigName: oldConfigName,
+			NewConfigData: newConfig.Data,
+			TargetFile:    frontendConfigFile,
+		}},
+	})
+	if err != nil {
+		return updateResult, fmt.Errorf("error updating 'frontend' service: %v", err)
+	}
+	return updateResult, nil
 }
 
 func AreNeededNatsDependentServiceUpdates(currentNumNatsReplicas, numNatsReplicas uint64) bool {
