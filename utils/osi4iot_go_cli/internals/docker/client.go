@@ -139,6 +139,47 @@ func SetDockerClientsMap(platformData *pt.PlatformData, action string) (map[stri
 	return pt.DCMap, swarmErr
 }
 
+// ResetDockerClientsMap discards the clients and lets
+// SetDockerClientsMap build them again.
+//
+// # Why this is needed at all
+//
+// SetDockerClientsMap is guarded by a sync.Once, so that the many
+// commands that need the map do not each pay for a round of SSH
+// connections to every node. That guard holds for the whole process,
+// which is right for every command that only READS NodesData.
+//
+// It is wrong for the ones that CHANGE it. `node add` appends a node
+// and then needs a client for it; `node remove` drops one and needs the
+// map to stop including it. Calling SetDockerClientsMap again does not
+// do that: the Once has already fired, so the call returns the previous
+// map unchanged and reports no error.
+//
+// That produced a failure with no symptom. joinAllNodesToSwarm iterates
+// DCMap rather than NodesData, so a node the map had never heard of was
+// simply never visited, and `node add` finished with "is part of the
+// platform" having joined nothing.
+//
+// Placing this beside the Once rather than inside the callers keeps the
+// two facts together: whoever changes NodesData mid-run has to reset,
+// and this says why.
+func ResetDockerClientsMap() error {
+	if err := CloseDockerClientsMap(); err != nil {
+		return err
+	}
+ 
+	// Emptied rather than reassigned: pt.DCMap is a package-level map
+	// that other packages already hold a reference to, and swapping it
+	// for a new one would leave them looking at the old entries.
+	for ip := range pt.DCMap {
+		delete(pt.DCMap, ip)
+	}
+ 
+	once = sync.Once{}
+	return nil
+}
+
+
 func CheckDockerClientsMap(DCMap map[string]*pt.DockerClient, action string) error {
 	if len(DCMap) == 0 {
 		return fmt.Errorf("error: failed to get any docker client")

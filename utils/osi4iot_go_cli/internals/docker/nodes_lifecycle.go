@@ -18,7 +18,7 @@ import (
 // # A node is more than a swarm member here
 //
 // It is an entry in NodesData, an SSH target with the platform's key
-// installed, and — this is the part that bites
+// installed, possibly the NFS server, and — this is the part that bites
 // — a slot in the placement scheme.
 //
 // addNodesLabels walks NodesData IN ORDER and hands out admin-id,
@@ -56,6 +56,9 @@ type NodePlacementImpact struct {
 	// their placement label afterwards. A non-empty list is a refusal.
 	HomelessServices []string
 
+	// LosesNFS is true when the node being removed is the NFS server.
+	LosesNFS bool
+
 	// ManagersBefore / ManagersAfter matter for quorum.
 	ManagersBefore int
 	ManagersAfter  int
@@ -65,7 +68,7 @@ type NodePlacementImpact struct {
 // doing any of it.
 func PlanNodeRemoval(pd *pt.PlatformData, target pt.NodeData) NodePlacementImpact {
 	pi := pd.PlatformInfo
-	impact := NodePlacementImpact{}
+	impact := NodePlacementImpact{LosesNFS: target.NodeRole == "NFS server"}
 
 	removed := false
 	workerIndex := 0
@@ -153,9 +156,12 @@ func AddNodeToPlatform(pd *pt.PlatformData, node pt.NodeData, logger *log.Logger
 		return fmt.Errorf("error saving the state file: %w", err)
 	}
 
-	// Rebuilt so the new node has a Docker client: joinAllNodesToSwarm
-	// and nodesConfiguration both drive off DCMap, not off NodesData.
-	if err := CloseDockerClientsMap(); err != nil {
+	// RESET, not just rebuild. SetDockerClientsMap is guarded by a
+	// sync.Once, so calling it again after main.go already did returns
+	// the old map and does nothing — which left the new node without a
+	// client, and joinAllNodesToSwarm, which iterates DCMap rather than
+	// NodesData, joining nothing and reporting success.
+	if err := ResetDockerClientsMap(); err != nil {
 		return fmt.Errorf("error closing the docker clients: %w", err)
 	}
 	if _, err := SetDockerClientsMap(pd, "update"); err != nil {
@@ -164,16 +170,27 @@ func AddNodeToPlatform(pd *pt.PlatformData, node pt.NodeData, logger *log.Logger
 			node.NodeIP, err)
 	}
 
+	// Checked explicitly, because the two things that consume the map
+	// are both silent about a node missing from it: SetDockerClientsMap
+	// records an unreachable node as a nil entry, and
+	// joinAllNodesToSwarm simply never visits a node it cannot see.
+	if dc := pt.DCMap[node.NodeIP]; dc == nil {
+		return fmt.Errorf("no docker client for %s, so it cannot be joined to the swarm.\n"+
+			"Check that the machine is reachable over SSH as %s with the platform's key.\n"+
+			"The node is in the state file now, so fix the machine and run this again",
+			node.NodeIP, node.NodeUserName)
+	}
+
 	manager, err := GetManagerDC()
 	if err != nil {
 		return fmt.Errorf("error getting the manager docker client: %w", err)
 	}
 
 	// Whole-platform rather than node-specific, and idempotent: it
-	// installs UFW and RexRay where they are missing and rewrites
-	// every node's labels from NodesData. Re-running it on the nodes
-	// that are already configured costs time and changes nothing.
-	logger.Printf("Configuring %s (firewall, volume plugin, labels)...", node.NodeIP)
+	// installs the firewall rules and the volume plugin where they are
+	// missing. Re-running it on the nodes that are already configured
+	// costs time and changes nothing.
+	logger.Printf("Configuring %s (firewall, volume plugin)...", node.NodeIP)
 	if err := nodesConfiguration(pd); err != nil {
 		return fmt.Errorf("error configuring the nodes: %w", err)
 	}
@@ -181,6 +198,14 @@ func AddNodeToPlatform(pd *pt.PlatformData, node pt.NodeData, logger *log.Logger
 	logger.Printf("Joining %s to the swarm...", node.NodeIP)
 	if err := joinAllNodesToSwarm(manager); err != nil {
 		return fmt.Errorf("error joining the node to the swarm: %w", err)
+	}
+
+	// AFTER the join, never before. addNodesLabels writes onto swarm
+	// nodes, and a machine that is not a member yet is not in
+	// getSwarmNodesMap, so labelling it first silently skips it.
+	logger.Printf("Assigning placement labels...")
+	if err := addNodesLabels(pd); err != nil {
+		return fmt.Errorf("error assigning the node labels: %w", err)
 	}
 
 	// Fills in the node id, architecture, CPUs and memory the swarm
@@ -255,7 +280,11 @@ func RemoveNodeFromPlatform(pd *pt.PlatformData, view NodeView, logger *log.Logg
 	// labels on the surviving nodes no longer match what NodesData
 	// implies, and leaving the two disagreeing means the shift happens
 	// later, unannounced, in the middle of an unrelated `run`.
-	if err := CloseDockerClientsMap(); err != nil {
+	//
+	// Reset for the same reason as in AddNodeToPlatform: the map still
+	// holds a client for the node that has just left, and the sync.Once
+	// means a plain SetDockerClientsMap would not notice.
+	if err := ResetDockerClientsMap(); err != nil {
 		return fmt.Errorf("error closing the docker clients: %w", err)
 	}
 	if _, err := SetDockerClientsMap(pd, "update"); err != nil {
@@ -339,6 +368,11 @@ func DescribeRemoval(impact NodePlacementImpact, target pt.NodeData) string {
 		} else if impact.ManagersAfter%2 == 0 {
 			b.WriteString("  An even number of managers buys no extra tolerance. Use 1, 3 or 5.\n")
 		}
+	}
+
+	if impact.LosesNFS {
+		b.WriteString("  This is the platform's NFS server. Every shared volume is exported " +
+			"from it,\n  and the other nodes lose them.\n")
 	}
 
 	if len(impact.ShiftedWorkers) > 0 {
