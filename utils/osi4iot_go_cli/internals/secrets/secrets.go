@@ -80,6 +80,7 @@ func GenerateSecrets(pd *pt.PlatformData) (map[string]pt.Secret, error) {
 		fmt.Sprintf("NATS_HOST=%s", "nats1"),
 		fmt.Sprintf("NATS_PORT=%s", "4222"),
 		fmt.Sprintf("NATS_PROTOCOL=%s", "nats"),
+		fmt.Sprintf("NATS_SEED_SERVERS_URL=%s", NatsSeedServersURL(pd, numNatsReplicas, "")),
 		fmt.Sprintf("NATS_ADMIN_USERNAME=%s", pd.Certs.NatsCerts.NatsAdminUsername),
 		fmt.Sprintf("NATS_ADMIN_PASSWORD=%s", pd.Certs.NatsCerts.NatsAdminPassword),
 		fmt.Sprintf("NATS_ISSUER_SEED=%s", pd.Certs.NatsCerts.NatsIssuerSeed),

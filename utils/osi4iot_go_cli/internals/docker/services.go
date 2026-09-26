@@ -846,10 +846,12 @@ func ScaleSwarmService(pd *pt.PlatformData, dc *pt.DockerClient, serviceName str
 			secretsKeys := map[string]string{
 				"admin_api": "admin_api",
 				"pipelines": "pipelines_config",
+				"auth_callout": "auth_callout",
 			}
 			targetFiles := map[string]string{
 				"admin_api": "admin_api.txt",
 				"pipelines": "/pipelines/config.yaml",
+				"auth_callout": "/auth_callout/config.env",
 			}
 
 			for _, dependentService := range natsDependentServices {

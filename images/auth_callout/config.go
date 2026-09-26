@@ -14,25 +14,26 @@ import (
 )
 
 type Config struct {
-	Env                 string `mapstructure:"ENV"`
-	AccessTokenSecret   string `mapstructure:"ACCESS_TOKEN_SECRET"`
-	DomainName          string `mapstructure:"DOMAIN_NAME"`
-	PGHost              string `mapstructure:"PG_HOST"`
-	PGPort              int    `mapstructure:"PG_PORT"`
-	PGUserName          string `mapstructure:"PG_USERNAME"`
-	PGPassword          string `mapstructure:"PG_PASSWORD"`
-	PGDBName            string `mapstructure:"PG_DBNAME"`
-	NatsHost            string `mapstructure:"NATS_HOST"`
-	NatsPort            int    `mapstructure:"NATS_PORT"`
-	NatsProtocol        string `mapstructure:"NATS_PROTOCOL"`
-	NatsAdminUserName   string `mapstructure:"NATS_ADMIN_USERNAME"`
-	NatsAdminPassword   string `mapstructure:"NATS_ADMIN_PASSWORD"`
-	NatsIssuerSeed      string `mapstructure:"NATS_ISSUER_SEED"`
-	NatsXkeySeed        string `mapstructure:"NATS_XKEY_SEED"`
-	VectorNKeyPublic    string `mapstructure:"VECTOR_NATS_NKEY_PUBLIC"`
-	AdminApiNKeyPublic  string `mapstructure:"ADMIN_API_NATS_NKEY_PUBLIC"`
-	PipelinesNKeyPublic string `mapstructure:"PIPELINES_NATS_NKEY_PUBLIC"`
-	DeployCliNKeyPublic string `mapstructure:"DEPLOY_CLI_NATS_NKEY_PUBLIC"`
+	Env                     string `mapstructure:"ENV"`
+	AccessTokenSecret       string `mapstructure:"ACCESS_TOKEN_SECRET"`
+	DomainName              string `mapstructure:"DOMAIN_NAME"`
+	PGHost                  string `mapstructure:"PG_HOST"`
+	PGPort                  int    `mapstructure:"PG_PORT"`
+	PGUserName              string `mapstructure:"PG_USERNAME"`
+	PGPassword              string `mapstructure:"PG_PASSWORD"`
+	PGDBName                string `mapstructure:"PG_DBNAME"`
+	NatsHost                string `mapstructure:"NATS_HOST"`
+	NatsPort                int    `mapstructure:"NATS_PORT"`
+	NatsProtocol            string `mapstructure:"NATS_PROTOCOL"`
+	NatsSeedServersURL      string `mapstructure:"NATS_SEED_SERVERS_URL"`
+	NatsAdminUserName       string `mapstructure:"NATS_ADMIN_USERNAME"`
+	NatsAdminPassword       string `mapstructure:"NATS_ADMIN_PASSWORD"`
+	NatsIssuerSeed          string `mapstructure:"NATS_ISSUER_SEED"`
+	NatsXkeySeed            string `mapstructure:"NATS_XKEY_SEED"`
+	VectorNKeyPublic        string `mapstructure:"VECTOR_NATS_NKEY_PUBLIC"`
+	AdminApiNKeyPublic      string `mapstructure:"ADMIN_API_NATS_NKEY_PUBLIC"`
+	PipelinesNKeyPublic     string `mapstructure:"PIPELINES_NATS_NKEY_PUBLIC"`
+	DeployCliNKeyPublic     string `mapstructure:"DEPLOY_CLI_NATS_NKEY_PUBLIC"`
 	SystemManagerNKeyPublic string `mapstructure:"SYSTEM_MANAGER_NATS_NKEY_PUBLIC"`
 }
 
@@ -85,28 +86,35 @@ func DBConnectionPool(config *Config) *pgxpool.Pool {
 }
 
 func NatsConnection(config *Config) (*nats.Conn, error) {
-	natsUrl := fmt.Sprintf("%s://%s:%d", config.NatsProtocol, config.NatsHost, config.NatsPort)
+	natsUrl := config.NatsSeedServersURL
+	if natsUrl == "" {
+		natsUrl = fmt.Sprintf("%s://%s:%d", config.NatsProtocol, config.NatsHost, config.NatsPort)
+	}
 	slog.Info("Connecting to NATS server", slog.String("url", natsUrl))
-	natsUser := config.NatsAdminUserName
-	natsPass := config.NatsAdminPassword
 
+	tlsCfg := &tls.Config{ServerName: config.DomainName, MinVersion: tls.VersionTLS12}
 	if config.Env == "development" {
-		tlsCfg := &tls.Config{
-			ServerName:         config.DomainName,
-			InsecureSkipVerify: true,
-		}
-		return nats.Connect(natsUrl, nats.UserInfo(natsUser, natsPass), nats.Secure(tlsCfg))
+		tlsCfg.InsecureSkipVerify = true
 	} else {
-		tlsCfg := &tls.Config{
-			ServerName: config.DomainName,
-			MinVersion: tls.VersionTLS12,
-		}
 		rootCAs, err := x509.SystemCertPool()
 		if err != nil || rootCAs == nil {
 			rootCAs = x509.NewCertPool()
 		}
 		tlsCfg.RootCAs = rootCAs
-
-		return nats.Connect(natsUrl, nats.UserInfo(natsUser, natsPass), nats.Secure(tlsCfg))
 	}
+
+	return nats.Connect(natsUrl,
+		nats.Name("auth_callout"),
+		nats.UserInfo(config.NatsAdminUserName, config.NatsAdminPassword),
+		nats.Secure(tlsCfg),
+		nats.MaxReconnects(-1),
+		nats.ReconnectWait(250*time.Millisecond),
+		nats.ReconnectJitter(250*time.Millisecond, 250*time.Millisecond),
+		nats.DisconnectErrHandler(func(_ *nats.Conn, err error) {
+			slog.Warn("Disconnected from NATS", slog.Any("error", err))
+		}),
+		nats.ReconnectHandler(func(nc *nats.Conn) {
+			slog.Info("Reconnected to NATS", slog.String("server", nc.ConnectedUrl()))
+		}),
+	)
 }
