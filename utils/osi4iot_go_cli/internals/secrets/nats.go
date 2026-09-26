@@ -96,6 +96,7 @@ authorization {
 cluster {
   name: "NATS_CLUSTER"
   listen: "0.0.0.0:6222"
+  no_advertise: true
 
   routes: [
     {{- range .ClusterRoutes }}
