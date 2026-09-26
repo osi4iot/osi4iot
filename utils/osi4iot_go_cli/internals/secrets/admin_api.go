@@ -59,7 +59,7 @@ func CreateAdminApiConfigSecret(
 		fmt.Sprintf("TIMESCALE_READ_PORT=%s", timescaleReadPort),
 		fmt.Sprintf("NATS_ADMIN_USERNAME=%s", pd.Certs.NatsCerts.NatsAdminUsername),
 		fmt.Sprintf("NATS_ADMIN_PASSWORD=%s", pd.Certs.NatsCerts.NatsAdminPassword),
-		fmt.Sprintf("NATS_SEED_SERVERS_URL=%s", NatsSeedServersURL(pd, numNatsReplicas, "")),
+		fmt.Sprintf("NATS_SEED_SERVERS_URL=%s", NatsSeedServersURL(pd, numNatsReplicas, pi.DomainName)),
 		fmt.Sprintf("NATS_SEED=%s", pd.Certs.NatsCerts.AdminApiNKeySeed),
 		fmt.Sprintf("NOTIFICATIONS_EMAIL_USER=%s", pi.NotificationsEmailUser),
 		fmt.Sprintf("NOTIFICATIONS_EMAIL_PASSWORD=%s", pi.NotificationsEmailPassword),

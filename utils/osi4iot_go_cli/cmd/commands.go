@@ -19,7 +19,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const version = "0.1.57"
+const version = "0.1.58"
 
 // SwarmActions lists the actions that need pt.DCMap populated before
 // they run (see main.go).
