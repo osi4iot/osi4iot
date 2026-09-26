@@ -22,7 +22,6 @@ func NatsService(
 	// Define the NATS service
 	serviceName := fmt.Sprintf("nats%d", replica)
 	volName := fmt.Sprintf("nats%d_data", replica)
-	numNodes := len(pd.PlatformInfo.NodesData)
 	domainName := pd.PlatformInfo.DomainName
 
 	secrets := []*swarm.SecretReference{
@@ -58,17 +57,12 @@ func NatsService(
 		},
 	}
 
-	var natsPort uint32 = 4222
-	var metricPort uint32 = 8222
-	var mqttPort uint32 = 1883
-	var websocketPort uint32 = 9001
+	offset := uint32(utils.NatsReplicaPortOffset(pd, replica, numReplicas))
+	var natsPort uint32 = 4222 + offset
+	var metricPort uint32 = 8222 + offset
+	var mqttPort uint32 = 1883 + offset
+	var websocketPort uint32 = 9001 + offset
 	updateOrder := swarm.UpdateOrderStopFirst
-	if numNodes == 1 && numReplicas > 1 {
-		natsPort = uint32(4222 + (replica - 1))
-		metricPort = uint32(8222 + (replica - 1))
-		websocketPort = uint32(9001 + (replica - 1))
-		mqttPort = uint32(1883 + (replica - 1))
-	}
 
 	ports := []swarm.PortConfig{
 		{

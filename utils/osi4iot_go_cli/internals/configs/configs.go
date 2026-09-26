@@ -448,27 +448,25 @@ func GetConfigByKey(dc *pt.DockerClient, configKey string) (*pt.Config, error) {
 }
 
 func natsSeedServersForFrontend(pd *pt.PlatformData, numNatsReplicas int, hostName string) []string {
-	numNatsNodes := pd.PlatformInfo.NumOfNatsNodes
-	singleNodeSwarm := pd.PlatformInfo.NumberOfSwarmNodes == 1
+	singleNodeSwarm := len(pd.PlatformInfo.NodesData) == 1
 
 	// Three is as many as a client needs: reaching any one member is
 	// enough to learn the rest of the cluster from it.
 	numNatsSeedServers := utils.Min(numNatsReplicas, 3)
 
-	serversUrl := []string{}
+	serversUrl := make([]string, 0, numNatsSeedServers)
 	for replica := 1; replica <= numNatsSeedServers; replica++ {
-		port := 9001
-		if numNatsNodes == 1 && numNatsReplicas > 1 {
-			port = 9001 + (replica - 1)
-		}
+		// Browsers come in through the ports published on the host.
+		port := 9001 + utils.NatsReplicaPortOffset(pd, replica, numNatsReplicas)
 
+		host := fmt.Sprintf("nats%d.%s", replica, hostName)
 		if singleNodeSwarm {
-			serversUrl = append(serversUrl, fmt.Sprintf("wss://%s:%d", hostName, port))
-			continue
+			// One host: every replica is reached through the domain
+			// itself, told apart by its port.
+			host = hostName
 		}
-		serversUrl = append(serversUrl, fmt.Sprintf("wss://nats%d.%s:%d", replica, hostName, port))
+		serversUrl = append(serversUrl, fmt.Sprintf("wss://%s:%d", host, port))
 	}
-
 	return serversUrl
 }
 

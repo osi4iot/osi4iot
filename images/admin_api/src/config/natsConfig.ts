@@ -56,21 +56,7 @@ class NATSClient {
 		this.isConnecting = false;
 		this.connectionPromise = null;
 
-		const numNatsNodes = parseInt(process_env.NATS_NUM_NODES, 10);
-		const numNatsReplicas = parseInt(process_env.NATS_NUM_REPLICAS, 10);
-		const numSeedServers = Math.min(numNatsReplicas, 3);
-		const serversUrl = [];
-		if (numNatsNodes === 1) {
-			for (let replica = 1; replica <= numSeedServers; replica++) {
-				const port = 4222 + (replica - 1);
-				serversUrl.push(`nats://nats${replica}.${process_env.DOMAIN_NAME}:${port}`);
-			}
-		} else if (numNatsNodes >= 3) {
-			for (let replica = 1; replica <= numSeedServers; replica++) {
-				serversUrl.push(`nats://nats${replica}.${process_env.DOMAIN_NAME}:4222`);
-			}
-		}
-
+		const serversUrl = process_env.NATS_SEED_SERVERS_URL ? process_env.NATS_SEED_SERVERS_URL.split(",") : [];
 		const authOptions: Partial<ConnectionOptions> = {};
 		if (process_env.NATS_SEED !== undefined && process_env.NATS_SEED.trim() !== "") {
 			const seed = new TextEncoder().encode(process_env.NATS_SEED);

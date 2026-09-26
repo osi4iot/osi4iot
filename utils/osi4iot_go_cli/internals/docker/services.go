@@ -690,24 +690,6 @@ func ScaleSwarmService(pd *pt.PlatformData, dc *pt.DockerClient, serviceName str
 					warningMessages += updateResult.Warnings
 					allOldSecretIDs = append(allOldSecretIDs, updateResult.OldSecretIDs...)
 
-					// frontend, system_manager and vector only carry the list of NATS
-					// seed servers, which changes on 1 <-> 3 (natsSeedServersForFrontend
-					// and NatsSeedServers both cap it at three). Two decisions here,
-					// both learned from a scale that failed on vector:
-					//
-					//   - Run on EVERY nats scale, not only inside the
-					//     AreNeededNatsDependentServiceUpdates block. Each update checks
-					//     the running service first and does nothing when it is already
-					//     current, so this costs nothing — and it is what lets simply
-					//     re-running 'scale nats=N' finish a scale that stopped here.
-					//
-					//   - Failures are WARNINGS, not errors. NATS itself is already in
-					//     its new shape by now and its data restored; a stale seed list
-					//     only affects the first connection those clients make, since
-					//     the server tells them about the rest of the cluster. Failing
-					//     the command here returned before the state file was updated,
-					//     leaving it at the OLD replica count with the new cluster
-					//     running — far worse than a stale list.
 					seedWarning := func(service string, err error) string {
 						return fmt.Sprintf("  - Warning: %s still has the previous NATS seed servers: %v\n"+
 							"    NATS works regardless; re-run 'osi4iot service scale nats=%d' to retry.\n",

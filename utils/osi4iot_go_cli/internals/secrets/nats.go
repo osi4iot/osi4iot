@@ -148,23 +148,20 @@ func CreateNatsConfigSecret(
 	return natsConfigSecret
 }
 
+// NatsSeedServers lists the NATS servers for clients INSIDE the swarm.
+// Whether by service name or by its domain alias on nats_network, they
+// reach the container itself, which always listens on 4222 — host port
+// offsets (NatsReplicaPortOffset) never apply here.
 func NatsSeedServers(pd *pt.PlatformData, numNatsReplicas int, hostName string) []string {
 	numNatsSeedServers := utils.Min(numNatsReplicas, 3)
-	singleNode := pd.PlatformInfo.NumOfNatsNodes == 1
 
 	serversUrl := make([]string, 0, numNatsSeedServers)
 	for replica := 1; replica <= numNatsSeedServers; replica++ {
 		host := fmt.Sprintf("nats%d", replica)
-		port := 4222
 		if hostName != "" {
 			host = fmt.Sprintf("nats%d.%s", replica, hostName)
-			// 4223, 4224... exist only as ports published on the host,
-			// so they apply to public names, never to the overlay.
-			if singleNode {
-				port = 4222 + (replica - 1)
-			}
 		}
-		serversUrl = append(serversUrl, fmt.Sprintf("nats://%s:%d", host, port))
+		serversUrl = append(serversUrl, fmt.Sprintf("nats://%s:4222", host))
 	}
 	return serversUrl
 }

@@ -865,3 +865,21 @@ func findServiceReplicasByName(pd *osi_types.PlatformData , serviceName string) 
 	}
 	return 1, fmt.Errorf("service data for '%s' not found", serviceName)
 }
+
+// NatsReplicaPortOffset is how far a replica's HOST-PUBLISHED ports are
+// shifted from the defaults (4222, 8222, 9001, 1883).
+//
+// NATS publishes in host mode, so two replicas on one host cannot both
+// take 4222. That happens only in a single-node swarm (local
+// deployments): in a cluster every replica is pinned to its own worker
+// by its nats_N label, and ValidatePlacement keeps the replica count
+// within the number of workers.
+//
+// It concerns clients reaching NATS through the host (browsers, external
+// devices) only. Inside the swarm every replica listens on the defaults.
+func NatsReplicaPortOffset(pd *osi_types.PlatformData, replica, numReplicas int) int {
+	if len(pd.PlatformInfo.NodesData) == 1 && numReplicas > 1 {
+		return replica - 1
+	}
+	return 0
+}
