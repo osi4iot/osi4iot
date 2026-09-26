@@ -148,40 +148,31 @@ func CreateNatsConfigSecret(
 }
 
 func NatsSeedServers(pd *pt.PlatformData, numNatsReplicas int, hostName string) []string {
-	serversUrl := []string{}
-	numNatsNodes := pd.PlatformInfo.NumOfNatsNodes
 	numNatsSeedServers := utils.Min(numNatsReplicas, 3)
-	if numNatsNodes == 1 {
-		for replica := 1; replica <= numNatsSeedServers; replica++ {
-			port := 4222 + (replica - 1)
-			natUrl := fmt.Sprintf("nats://nats%d:%d", replica, port)
-			if hostName != "" {
-				natUrl = fmt.Sprintf("nats://nats%d.%s:%d", replica, hostName, port)
-			}
-			serversUrl = append(serversUrl, natUrl)
-		}
-	} else if numNatsNodes >= 3 {
-		for replica := 1; replica <= numNatsSeedServers; replica++ {
-			natUrl := fmt.Sprintf("nats://nats%d:4222", replica)
-			if hostName != "" {
-				natUrl = fmt.Sprintf("nats://nats%d.%s:4222", replica, hostName)
-			}
-			serversUrl = append(serversUrl, natUrl)
-		}
-	}
+	singleNode := pd.PlatformInfo.NumOfNatsNodes == 1
 
+	serversUrl := make([]string, 0, numNatsSeedServers)
+	for replica := 1; replica <= numNatsSeedServers; replica++ {
+		host := fmt.Sprintf("nats%d", replica)
+		port := 4222
+		if hostName != "" {
+			host = fmt.Sprintf("nats%d.%s", replica, hostName)
+			// 4223, 4224... exist only as ports published on the host,
+			// so they apply to public names, never to the overlay.
+			if singleNode {
+				port = 4222 + (replica - 1)
+			}
+		}
+		serversUrl = append(serversUrl, fmt.Sprintf("nats://%s:%d", host, port))
+	}
 	return serversUrl
 }
 
-// NatsSeedServersURL is the NATS_SEED_SERVERS_URL value vector and
-// system_manager are started with.
-//
-// Defined once so the service builders and ScaleSwarmService, which
-// rewrites it on the running services when NATS switches between
-// standalone and cluster mode, cannot drift apart. The replica count
-// is a parameter for the same reason as configs.FrontendConfig: a scale
-// needs the value for the TARGET size, before the state file records
-// it.
-func NatsSeedServersURL(pd *pt.PlatformData, numNatsReplicas int) string {
-	return strings.Join(NatsSeedServers(pd, numNatsReplicas, pd.PlatformInfo.DomainName), ",")
+// NatsSeedServersURL is the NATS_SEED_SERVERS_URL value for a client.
+// hostName "" gives internal names (nats1:4222), for clients that set
+// the TLS ServerName to the domain themselves (system_manager,
+// auth_callout). vector passes the domain: its NATS sink verifies the
+// certificate against the URL host and ignores tls.server_name.
+func NatsSeedServersURL(pd *pt.PlatformData, numNatsReplicas int, hostName string) string {
+	return strings.Join(NatsSeedServers(pd, numNatsReplicas, hostName), ",")
 }

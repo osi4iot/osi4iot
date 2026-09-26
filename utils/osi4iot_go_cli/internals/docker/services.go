@@ -10,6 +10,7 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
+	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/osi4iot/osi4iot/utils/osi4iot/internals/configs"
@@ -689,30 +690,46 @@ func ScaleSwarmService(pd *pt.PlatformData, dc *pt.DockerClient, serviceName str
 					warningMessages += updateResult.Warnings
 					allOldSecretIDs = append(allOldSecretIDs, updateResult.OldSecretIDs...)
 
-					// frontend is a dependent service too, but through a swarm
-					// CONFIG rather than a secret: NATS_SEED_SERVERS lists one
-					// wss:// URL per seed server (see natsSeedServersForFrontend),
-					// so it goes from one URL to three on 1 -> 3 and back on
-					// 3 -> 1. Left alone, browsers would keep being handed
-					// nats2/nats3 after a scale-down, or only nats1 after a
-					// scale-up.
+					// frontend, system_manager and vector only carry the list of NATS
+					// seed servers, which changes on 1 <-> 3 (natsSeedServersForFrontend
+					// and NatsSeedServers both cap it at three). Two decisions here,
+					// both learned from a scale that failed on vector:
+					//
+					//   - Run on EVERY nats scale, not only inside the
+					//     AreNeededNatsDependentServiceUpdates block. Each update checks
+					//     the running service first and does nothing when it is already
+					//     current, so this costs nothing — and it is what lets simply
+					//     re-running 'scale nats=N' finish a scale that stopped here.
+					//
+					//   - Failures are WARNINGS, not errors. NATS itself is already in
+					//     its new shape by now and its data restored; a stale seed list
+					//     only affects the first connection those clients make, since
+					//     the server tells them about the rest of the cluster. Failing
+					//     the command here returned before the state file was updated,
+					//     leaving it at the OLD replica count with the new cluster
+					//     running — far worse than a stale list.
+					seedWarning := func(service string, err error) string {
+						return fmt.Sprintf("  - Warning: %s still has the previous NATS seed servers: %v\n"+
+							"    NATS works regardless; re-run 'osi4iot service scale nats=%d' to retry.\n",
+							service, err, replicas)
+					}
+
 					updateResult, err = updateFrontendNatsConfig(pd, dc, int(replicas))
 					if err != nil {
-						return "", err
+						warningMessages += seedWarning("frontend", err)
+					} else {
+						warningMessages += updateResult.Warnings
+						allOldConfigIDs = append(allOldConfigIDs, updateResult.OldConfigIDs...)
 					}
-					warningMessages += updateResult.Warnings
-					allOldConfigIDs = append(allOldConfigIDs, updateResult.OldConfigIDs...)
 
-					// vector and system_manager take the seed list as an
-					// environment variable, NATS_SEED_SERVERS_URL. Stale, they
-					// still work once connected — the NATS client learns the
-					// rest of the cluster from the server — but after 1 -> 3
-					// they can only make their FIRST connection through nats1,
-					// and after 3 -> 1 they try nats2/nats3, which are gone.
-					for _, envDependentService := range []string{"system_manager", "vector"} {
-						warnings, err := updateNatsSeedServersEnv(pd, dc, envDependentService, int(replicas))
+					for _, dep := range []struct{ service, hostName string }{
+						{"system_manager", ""},
+						{"vector", pd.PlatformInfo.DomainName},
+					} {
+						warnings, err := updateNatsSeedServersEnv(pd, dc, dep.service, int(replicas), dep.hostName)
 						if err != nil {
-							return "", err
+							warningMessages += seedWarning(dep.service, err)
+							continue
 						}
 						warningMessages += warnings
 					}
@@ -933,6 +950,16 @@ func ScaleSwarmService(pd *pt.PlatformData, dc *pt.DockerClient, serviceName str
 	return warningMessages, nil
 }
 
+// hasVolumeMount reports whether the service mounts a named volume.
+func hasVolumeMount(svc *swarm.Service) bool {
+	for _, m := range svc.Spec.TaskTemplate.ContainerSpec.Mounts {
+		if m.Type == mount.TypeVolume {
+			return true
+		}
+	}
+	return false
+}
+
 func scaleReplicatedServiceWithVolumes(
 	pd *pt.PlatformData,
 	dc *pt.DockerClient,
@@ -1026,7 +1053,13 @@ const natsSeedServersEnv = "NATS_SEED_SERVERS_URL"
 // A no-op when the service is not deployed, and when the variable
 // already has the new value — which makes re-running a scale after a
 // partial failure safe, as with updateFrontendNatsConfig.
-func updateNatsSeedServersEnv(pd *pt.PlatformData, dc *pt.DockerClient, serviceName string, numNatsReplicas int) (string, error) {
+func updateNatsSeedServersEnv(
+	pd *pt.PlatformData,
+	dc *pt.DockerClient,
+	serviceName string,
+	numNatsReplicas int,
+	hostName string,
+) (string, error) {
 	svc, err := findServiceByExactName(dc, serviceName)
 	if err != nil {
 		return "", err
@@ -1035,11 +1068,27 @@ func updateNatsSeedServersEnv(pd *pt.PlatformData, dc *pt.DockerClient, serviceN
 		return "", nil
 	}
 
-	newValue := secrets.NatsSeedServersURL(pd, numNatsReplicas)
+	newValue := secrets.NatsSeedServersURL(pd, numNatsReplicas, hostName)
 	prefix := natsSeedServersEnv + "="
 	for _, envVar := range svc.Spec.TaskTemplate.ContainerSpec.Env {
 		if strings.HasPrefix(envVar, prefix) && strings.TrimPrefix(envVar, prefix) == newValue {
 			return "", nil
+		}
+	}
+
+	// A service with a named volume cannot run its old and new task side
+	// by side on the same node: vector keeps disk buffers in
+	// vector_buffer, locks them, and a second vector on that node fails
+	// to start. Under the default start-first order that made every
+	// vector update fail and roll back. Forced here for services
+	// deployed before VectorService switched to stop-first itself; set
+	// on the spec being submitted, so it applies to this update.
+	if hasVolumeMount(svc) {
+		if svc.Spec.UpdateConfig != nil {
+			svc.Spec.UpdateConfig.Order = swarm.UpdateOrderStopFirst
+		}
+		if svc.Spec.RollbackConfig != nil {
+			svc.Spec.RollbackConfig.Order = swarm.UpdateOrderStopFirst
 		}
 	}
 

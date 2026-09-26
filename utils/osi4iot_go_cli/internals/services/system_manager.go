@@ -21,7 +21,7 @@ func SystemManagerService(
 ) pt.Service {
 	pi := pd.PlatformInfo
 	numNatsReplicas := utils.GetServiceReplicas(pd, "nats")
-	natsSeedServersURL := secrets.NatsSeedServersURL(pd, numNatsReplicas)
+	natsSeedServersURL := secrets.NatsSeedServersURL(pd, numNatsReplicas, "")
 
 	secrets := []*swarm.SecretReference{
 		{

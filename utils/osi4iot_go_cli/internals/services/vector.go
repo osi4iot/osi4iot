@@ -2,6 +2,7 @@ package services
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/api/types/swarm"
@@ -52,7 +53,7 @@ func VectorService(
 	}
 
 	numNatsReplicas := utils.GetServiceReplicas(pd, "nats")
-	natsSeedServersURL := secrets_pkg.NatsSeedServersURL(pd, numNatsReplicas)
+	natsSeedServersURL := secrets_pkg.NatsSeedServersURL(pd, numNatsReplicas, pi.DomainName)
 
 	image := utils.GetServiceImage(pd, "vector", "ghcr.io/osi4iot/vector:0.46.1-alpine")
 	return NewService("vector", pd, sd).
@@ -76,6 +77,7 @@ func VectorService(
 		}).
 		WithEnv([]string{
 			"VECTOR_LOG=warn",
+			fmt.Sprintf("DOMAIN_NAME=%s", pi.DomainName),
 			fmt.Sprintf("DB_HOST=%s", dbHost),
 			fmt.Sprintf("DB_PORT=%s", dbPort),
 			fmt.Sprintf("NATS_SEED_SERVERS_URL=%s", natsSeedServersURL),
@@ -147,6 +149,7 @@ func VectorService(
 			svcResources.MemoryBytes,
 		).
 		WithModeGlobal().
+		WithStatefulUpdateConfig(30 * time.Second).
 		WithNetworks([]swarm.NetworkAttachmentConfig{
 			{Target: sd.Networks["internal_net"].Name},
 			{Target: sd.Networks["nats_network"].Name},
