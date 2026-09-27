@@ -779,6 +779,11 @@ func ScaleSwarmService(pd *pt.PlatformData, dc *pt.DockerClient, serviceName str
 					natsSvc.Spec.UpdateConfig.Monitor = 60 * time.Second
 					natsSvc.Spec.RollbackConfig.Monitor = 60 * time.Second
 
+					if hc := natsSvc.Spec.TaskTemplate.ContainerSpec.Healthcheck; hc != nil {
+						hc.StartPeriod = 60 * time.Second
+						hc.StartInterval = time.Second
+					}
+
 					updateResult, err := ServiceUpdate(pd, dc, natsSvc, natsServiceName, natsUpdateOptions)
 					if err != nil {
 						return "", fmt.Errorf("error updating nats service '%s': %v", natsServiceName, err)
@@ -826,6 +831,11 @@ func ScaleSwarmService(pd *pt.PlatformData, dc *pt.DockerClient, serviceName str
 					// configurations.
 					natsSvc.Spec.UpdateConfig.Order = swarm.UpdateOrderStopFirst
 					natsSvc.Spec.RollbackConfig.Order = swarm.UpdateOrderStopFirst
+
+					if hc := natsSvc.Spec.TaskTemplate.ContainerSpec.Healthcheck; hc != nil {
+						hc.StartPeriod = 60 * time.Second
+						hc.StartInterval = time.Second
+					}
 
 					updateResult, err := ServiceUpdate(pd, dc, natsSvc, natsServiceName, natsUpdateOptions)
 					if err != nil {

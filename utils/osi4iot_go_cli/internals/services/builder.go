@@ -247,6 +247,20 @@ func (b *ServiceBuilder) WithHealthCheckOptions(
 	return b
 }
 
+// WithHealthCheckStartInterval makes Docker check every `interval` during
+// the first `startPeriod` of a task, instead of waiting a whole Interval
+// for the first check. The first success ends the start period. Swarm
+// adds a task to its service's VIP and DNS only once it is healthy, so
+// this is how long a restarted task stays unreachable by name. Call it
+// after WithHealthCheck / WithHealthCheckOptions.
+func (b *ServiceBuilder) WithHealthCheckStartInterval(startPeriod, interval time.Duration) *ServiceBuilder {
+	if hc := b.svc.TaskTemplate.ContainerSpec.Healthcheck; hc != nil {
+		hc.StartPeriod = startPeriod
+		hc.StartInterval = interval
+	}
+	return b
+}
+
 // WithRestartPolicy sets the service restart policy.
 func (b *ServiceBuilder) WithRestartPolicy(delay time.Duration, condition swarm.RestartPolicyCondition) *ServiceBuilder {
 	b.svc.TaskTemplate.RestartPolicy = &swarm.RestartPolicy{
@@ -436,7 +450,7 @@ func GenerateServices(pd *pt.PlatformData, sd pt.SwarmData) map[string]pt.Servic
 	}
 
 	services["system_manager"] = SystemManagerService(pd, sd, svcResourcesMap["system_manager"])
-	
+
 	filteredServices := map[string]pt.Service{}
 	for name, svc := range services {
 		excluded := slices.Contains(pd.PlatformInfo.ExcludedServices, name)
