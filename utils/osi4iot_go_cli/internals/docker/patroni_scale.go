@@ -524,6 +524,19 @@ func ScalePatroniFamily(pd *pt.PlatformData, dc *pt.DockerClient, family patroni
 			}
 		}
 
+		newNodes := make([]string, 0, int(replicas)-int(currentReplicas))
+		for replica := int(currentReplicas) + 1; replica <= int(replicas); replica++ {
+			newNodes = append(newNodes, fmt.Sprintf("%s%d", family.NamePrefix, replica))
+		}
+		// The existing nodes are restarted next, node 1 (the leader, on a
+		// 1 -> N scale) included. Only do that once every new node holds
+		// a full copy and can take over; the copy takes as long as the
+		// database is big, hence the generous timeout.
+		if err := waitUntilPatroniReplicasStreaming(pd, dc, family, newNodes, 30*time.Minute); err != nil {
+			return "", fmt.Errorf("the new %s nodes did not finish copying the data, so the existing "+
+				"nodes were NOT restarted and keep serving as before: %v", family.ServiceKey, err)
+		}
+
 		warnings, err := refreshPatroniNodesEnv(pd, dc, family, 1, int(currentReplicas), int(replicas), false)
 		if err != nil {
 			return "", err
@@ -682,11 +695,17 @@ const natsQueryTimeout = 15 * time.Second
 // legitimately working, well before it's actually failed.
 const natsSwitchoverTimeout = 90 * time.Second
 
-// patroniLeaderInfo mirrors the fields this CLI needs from
-// system_manager's leaderResponse (internal/patroni/patroni.go);
-// encoding/json ignores the other fields (Members) it doesn't ask for.
+// patroniMember is one entry of the member list system_manager's
+// patroni.leader.<family> query returns (Patroni's own /cluster shape).
+type patroniMember struct {
+	Name  string `json:"name"`
+	Role  string `json:"role"`
+	State string `json:"state"`
+}
+
 type patroniLeaderInfo struct {
-	Leader string `json:"leader"`
+	Leader  string          `json:"leader"`
+	Members []patroniMember `json:"members"`
 }
 
 // connectToSystemManagerNats connects to NATS as deploy_cli, the same
@@ -831,4 +850,65 @@ func resetNode1Raft(pd *pt.PlatformData, dc *pt.DockerClient, family patroniFami
 	subject := "system_manager.patroni.reset_raft." + family.SystemManagerName
 	_, err := requestSystemManager(pd, dc, subject, natsQueryTimeout, nil)
 	return err
+}
+
+// waitUntilPatroniReplicasStreaming waits until every named node is a
+// replica streaming WAL from the leader.
+//
+// A running (healthy) task is not enough: the Patroni health check is
+// /liveness, which passes as soon as Patroni's loop is up — while the new
+// node may still be copying the data with pg_basebackup. Restarting node 1
+// at that point kills those copies and leaves a cluster with no node able
+// to take over, which is what took patroni_metrics down for ~80 s.
+func waitUntilPatroniReplicasStreaming(pd *pt.PlatformData, dc *pt.DockerClient,
+	family patroniFamily, names []string, timeout time.Duration) error {
+
+	subject := "system_manager.patroni.leader." + family.SystemManagerName
+	list := strings.Join(names, ", ")
+	done := make(chan bool)
+	utils.Spinner(
+		fmt.Sprintf("Waiting for %s to copy the data and stream from the leader", list),
+		fmt.Sprintf("%s streaming from the leader", list),
+		done,
+	)
+
+	deadline := time.Now().Add(timeout)
+	last := "no answer yet"
+	for {
+		data, err := requestSystemManager(pd, dc, subject, natsQueryTimeout, nil)
+		if err != nil {
+			last = err.Error()
+		} else {
+			var info patroniLeaderInfo
+			if err := json.Unmarshal(data, &info); err != nil {
+				last = err.Error()
+			} else {
+				states := make(map[string]string, len(info.Members))
+				for _, m := range info.Members {
+					states[m.Name] = m.State
+				}
+				var pending []string
+				for _, name := range names {
+					if states[name] != "streaming" {
+						state := states[name]
+						if state == "" {
+							state = "not listed"
+						}
+						pending = append(pending, name+"="+state)
+					}
+				}
+				if len(pending) == 0 {
+					done <- true
+					return nil
+				}
+				last = strings.Join(pending, ", ")
+			}
+		}
+
+		if time.Now().After(deadline) {
+			done <- false
+			return fmt.Errorf("timeout waiting for %s to stream from the leader (last seen: %s)", list, last)
+		}
+		time.Sleep(5 * time.Second)
+	}
 }
