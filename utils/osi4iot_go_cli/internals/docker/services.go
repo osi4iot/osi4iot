@@ -524,6 +524,56 @@ func UpdateSwarmServiceImage(
 	return updateResult.Warnings, nil
 }
 
+// Replaces ScaleSwarmService in internals/docker/services.go and adds the
+// helper updateNatsSeedListClients (place it next to
+// updateNatsSeedServersEnv / updateFrontendNatsConfig). No new imports.
+
+// updateNatsSeedListClients points every client that carries its own list
+// of NATS seed servers at the list for `replicas` servers: frontend (a
+// swarm config) and auth_callout, system_manager and vector (an
+// environment variable).
+//
+// Run on every nats scale, in both directions. Each update first checks the
+// running service and does nothing when it is already current, so it costs
+// next to nothing when the list does not change (3 -> 5, say), and it is
+// what lets simply re-running 'scale nats=N' finish a scale that stopped
+// half-way.
+//
+// Failures are warnings, not errors: by the time this runs NATS itself is
+// in its new shape and its data restored. A stale list only affects a
+// client's FIRST connection — once connected, the server tells it about
+// the rest of the cluster.
+//
+// Returns the warnings and the IDs of the configs it replaced, for the
+// caller to remove once the whole scale has succeeded.
+func updateNatsSeedListClients(pd *pt.PlatformData, dc *pt.DockerClient, replicas uint64) (string, []string) {
+	warnings := ""
+	var oldConfigIDs []string
+
+	updateResult, err := updateFrontendNatsConfig(pd, dc, int(replicas))
+	if err != nil {
+		warnings += seedWarning("frontend", err, replicas)
+	} else {
+		warnings += updateResult.Warnings
+		oldConfigIDs = append(oldConfigIDs, updateResult.OldConfigIDs...)
+	}
+
+	for _, dep := range []struct{ service, hostName string }{
+		{"auth_callout", ""},
+		{"system_manager", ""},
+		{"vector", pd.PlatformInfo.DomainName},
+	} {
+		depWarnings, err := updateNatsSeedServersEnv(pd, dc, dep.service, int(replicas), dep.hostName)
+		if err != nil {
+			warnings += seedWarning(dep.service, err, replicas)
+			continue
+		}
+		warnings += depWarnings
+	}
+
+	return warnings, oldConfigIDs
+}
+
 func ScaleSwarmService(pd *pt.PlatformData, dc *pt.DockerClient, serviceName string, replicas uint64) (string, error) {
 	var currentReplicas uint64
 	var service *swarm.Service
@@ -634,19 +684,20 @@ func ScaleSwarmService(pd *pt.PlatformData, dc *pt.DockerClient, serviceName str
 		// crossing the standalone<->cluster boundary, where NATS has no
 		// in-place data migration and the cluster must be rebuilt empty and
 		// restored from this backup. Declared here so both the scale-up
-		// (backup/clear, below) and the restore (further down) can see them.
+		// (backup, below) and the restore (Step 5c) can see them.
 		var natsBackupDir string
 		var natsBackupStreams []string
 
 		if replicas > currentReplicas {
+			// ── SCALE UP (e.g. 1 → 3, 3 → 5) ───────────────────────────────
+
 			// Growing out of standalone mode (1 -> N): snapshot every stream
 			// now, while nats1 is still standalone and healthy. The streams
 			// are NOT cleared here — that happens just before the restore,
 			// once the cluster is confirmed formed (Step 5c). Deleting only
 			// at the last moment means that if anything between here and the
 			// restore fails (peer creation, the nats1 config update, cluster
-			// formation), nats1 still holds the original standalone data and
-			// the scale command can simply be re-run.
+			// formation), nats1 still holds the original standalone data.
 			if currentReplicas == 1 && replicas >= 3 {
 				var err error
 				natsBackupDir, natsBackupStreams, err = backupNatsStreams(pd, dc)
@@ -655,41 +706,64 @@ func ScaleSwarmService(pd *pt.PlatformData, dc *pt.DockerClient, serviceName str
 				}
 			}
 
+			// Step 2: Create the new replicas.
+			newReplicas := make([]string, 0, int(replicas-currentReplicas))
 			for replica := currentReplicas + 1; replica <= replicas; replica++ {
-				if err := CreateNatsService(pd, dc, int(replica), int(replicas), natsConfigSecret); err != nil {
-					return "", fmt.Errorf("error creating nats service for replica %d: %v", replica, err)
-				}
+				newReplicas = append(newReplicas, fmt.Sprintf("nats%d", replica))
 			}
 
-			if currentReplicas == 1 && int(replicas) > 1 {
-				newReplicas := make([]string, 0, int(replicas)-1)
-				for i := 2; i <= int(replicas); i++ {
-					newReplicas = append(newReplicas, fmt.Sprintf("nats%d", i))
-				}
-
-				// auth_callout may only move onto the new seed list once the new
-				// replicas can take it when nats1 restarts. If they never come
-				// up, skip the early move: the seed-list loop at the end of the
-				// scale still updates auth_callout, just without the handover.
-				if err := waitUntilServicesAreHealthy(dc, newReplicas, 5*time.Minute); err != nil {
-					warningMessages += seedWarning("auth_callout", err, replicas)
-				} else {
-					warnings, err := updateNatsSeedServersEnv(pd, dc, "auth_callout", int(replicas), "")
-					if err != nil {
-						warningMessages += seedWarning("auth_callout", err, replicas)
-					} else {
-						warningMessages += warnings
+			// removeNewReplicas undoes Step 2 when the scale cannot go on.
+			// Nothing has touched the existing replicas yet at that point, so
+			// removing the new ones leaves NATS exactly as it was — and
+			// GetNatsReplicas back at currentReplicas, which is what lets the
+			// scale simply be re-run. Without it, a re-run would count the
+			// half-created replicas as already there and try to wait for a
+			// cluster that nats1, still standalone, can never join.
+			removeNewReplicas := func(cause error) error {
+				msg := fmt.Sprintf("%v. The existing nats replicas were not touched and keep serving", cause)
+				for replica := currentReplicas + 1; replica <= replicas; replica++ {
+					if err := RemoveNatsService(dc, int(replica)); err != nil {
+						msg += fmt.Sprintf("; could not remove nats%d, remove it by hand before re-running: %v", replica, err)
 					}
 				}
+				if natsBackupDir != "" {
+					msg += fmt.Sprintf("; the stream backup taken before the scale is at %s", natsBackupDir)
+				}
+				return fmt.Errorf("%s", msg)
 			}
-			
+
 			for replica := currentReplicas + 1; replica <= replicas; replica++ {
-				natsServiceName := fmt.Sprintf("nats%d", replica)
-				if err := waitUntilServiceTaskIsRunning(dc, natsServiceName); err != nil {
-					return "", fmt.Errorf("error waiting for '%s' to be running: %v", natsServiceName, err)
+				if err := CreateNatsService(pd, dc, int(replica), int(replicas), natsConfigSecret); err != nil {
+					return "", removeNewReplicas(fmt.Errorf("error creating nats service for replica %d: %v", replica, err))
 				}
 			}
 
+			// Step 3: Every new replica must be healthy before anything
+			// touches the existing ones. For 1 -> N this is also what gives
+			// auth_callout (Step 3b) somewhere to fall over to when nats1
+			// restarts.
+			if err := waitUntilServicesAreHealthy(dc, newReplicas, 5*time.Minute); err != nil {
+				return "", removeNewReplicas(fmt.Errorf("the new nats replicas did not become healthy: %v", err))
+			}
+
+			// Step 3b: Growing out of standalone mode, move auth_callout onto
+			// the new seed list BEFORE nats1 restarts. It stays on nats1
+			// (DontRandomize) until nats1 goes down, then falls over to the
+			// new replicas, which already form the cluster nats1 is about to
+			// join — so logins keep being answered while nats1 restarts.
+			if currentReplicas == 1 {
+				warnings, err := updateNatsSeedServersEnv(pd, dc, "auth_callout", int(replicas), "")
+				if err != nil {
+					warningMessages += seedWarning("auth_callout", err, replicas)
+				} else {
+					warningMessages += warnings
+				}
+			}
+
+			// Step 4: Restart the existing replicas with the new nats_config.
+			// Only the NATS servers themselves here: every other client is
+			// updated after the streams are back (Step 7), so nothing slow
+			// sits between nats1 joining the cluster and the restore.
 			if AreNeededNatsDependentServiceUpdates(currentReplicas, replicas) {
 				fmt.Println("\nUpdating existing nats services to new configuration")
 				for replica := 1; replica <= int(currentReplicas); replica++ {
@@ -711,58 +785,32 @@ func ScaleSwarmService(pd *pt.PlatformData, dc *pt.DockerClient, serviceName str
 					}
 					warningMessages += updateResult.Warnings
 					allOldSecretIDs = append(allOldSecretIDs, updateResult.OldSecretIDs...)
-
-					updateResult, err = updateFrontendNatsConfig(pd, dc, int(replicas))
-					if err != nil {
-						warningMessages += seedWarning("frontend", err, replicas)
-					} else {
-						warningMessages += updateResult.Warnings
-						allOldConfigIDs = append(allOldConfigIDs, updateResult.OldConfigIDs...)
-					}
-
-					for _, dep := range []struct{ service, hostName string }{
-						{"auth_callout", ""},
-						{"system_manager", ""},
-						{"vector", pd.PlatformInfo.DomainName},
-					} {
-						warnings, err := updateNatsSeedServersEnv(pd, dc, dep.service, int(replicas), dep.hostName)
-						if err != nil {
-							warningMessages += seedWarning(dep.service, err, replicas)
-							continue
-						}
-						warningMessages += warnings
-					}
 				}
 			}
-		} else {
-			// ── SCALE DOWN (e.g. 3 → 1) ────────────────────────────────────────
-			if replicas < currentReplicas {
-				// Step: before removing the nats2..nats3 containers, reduce
-				// every stream's Replicas to the target count while the full
-				// cluster is still alive and reachable, making sure nats1 leads
-				// each stream first so its copy is the one that survives. This
-				// must succeed for every stream before continuing — once the
-				// containers below are gone, a stream that wasn't reduced here
-				// would lose its data. See reduceNatsStreamsReplicas for the
-				// full rationale (it replaces the previous "wipe nats1's
-				// JetStream store and start over" approach, which discarded
-				// all stream data unconditionally on every scale-down).
-				if err := reduceNatsStreamsReplicas(pd, dc, int(replicas)); err != nil {
-					return "", fmt.Errorf("error reducing NATS stream replicas before scale-down: %v", err)
-				}
+		} else if replicas < currentReplicas {
+			// ── SCALE DOWN (e.g. 3 → 1) ────────────────────────────────────
 
-				fmt.Println("Removing extra nats services")
-				for replica := replicas + 1; replica <= currentReplicas; replica++ {
-					if err := RemoveNatsService(dc, int(replica)); err != nil {
-						return "", err
-					}
+			// Before removing the extra containers, reduce every stream's
+			// Replicas to the target count while the full cluster is still
+			// alive and reachable, making sure nats1 leads each stream first
+			// so its copy is the one that survives. This must succeed for
+			// every stream before continuing — once the containers below are
+			// gone, a stream that wasn't reduced here would lose its data.
+			// See reduceNatsStreamsReplicas for the full rationale.
+			if err := reduceNatsStreamsReplicas(pd, dc, int(replicas)); err != nil {
+				return "", fmt.Errorf("error reducing NATS stream replicas before scale-down: %v", err)
+			}
+
+			fmt.Println("Removing extra nats services")
+			for replica := replicas + 1; replica <= currentReplicas; replica++ {
+				if err := RemoveNatsService(dc, int(replica)); err != nil {
+					return "", err
 				}
 			}
 
 			if AreNeededNatsDependentServiceUpdates(currentReplicas, replicas) {
 				fmt.Println("\nUpdating existing nats services to new configuration")
-				existingNatsServices := int(replicas)
-				for replica := 1; replica <= existingNatsServices; replica++ {
+				for replica := 1; replica <= int(replicas); replica++ {
 					natsServiceName := fmt.Sprintf("nats%d", replica)
 					fmt.Printf("\nUpdating nats service %s:", natsServiceName)
 
@@ -771,12 +819,11 @@ func ScaleSwarmService(pd *pt.PlatformData, dc *pt.DockerClient, serviceName str
 						return "", fmt.Errorf("error inspecting nats service '%s': %v", natsServiceName, err)
 					}
 
-					// Use stop-first when scaling down: the old nats1 instance has
+					// Stop-first when scaling down: the old nats1 instance has
 					// routes pointing to nats2/nats3, which have already been
-					// removed. With start-first, the new and old instances would
-					// run simultaneously with incompatible configurations. With
-					// stop-first, the old instance stops first and the new one
-					// starts cleanly with the single-replica configuration.
+					// removed. With start-first, the new and old instances
+					// would run simultaneously with incompatible
+					// configurations.
 					natsSvc.Spec.UpdateConfig.Order = swarm.UpdateOrderStopFirst
 					natsSvc.Spec.RollbackConfig.Order = swarm.UpdateOrderStopFirst
 
@@ -789,56 +836,45 @@ func ScaleSwarmService(pd *pt.PlatformData, dc *pt.DockerClient, serviceName str
 				}
 			}
 		}
+		// replicas == currentReplicas: nothing to create, remove or restart.
+		// The steps below still run, which is what finishes a scale that
+		// stopped after the NATS servers were already in their new shape
+		// (the waits pass at once, the restore is skipped, and every client
+		// update is a no-op when already current).
 
 		// Step 5: Wait until all NATS containers are healthy.
-		// At this point, when scaling up, nats1..N are running with the new
-		// configuration. When scaling down, only nats1 exists and uses the new
-		// configuration.
 		if err := waitUntilAllContainersAreHealthy(pd, "nats"); err != nil {
 			return "", fmt.Errorf("error waiting for nats containers to be healthy: %v", err)
 		}
 
-		// Step 5b: Once three or more replicas exist, wait until the NATS
-		// cluster has established all routes and elected a JetStream
-		// meta-leader before updating the dependent services.
-		//
-		// This used to be skipped when numNodes == 1 (all replicas on a
-		// single Docker host), on the assumption that overlay-network
-		// convergence is "instant" when there's no real network between
-		// nodes. That assumption doesn't hold for JetStream's own raft
-		// route formation between nats1..N processes, which is still an
-		// asynchronous startup step regardless of host topology — and
-		// skipping the wait here left the Replicas migration below
-		// unreachable on single-host deployments, which is exactly the
-		// topology where this was observed losing data fastest (route
-		// formation between containers on the same host is faster, which
-		// shortens the window before the orphan-stream cleanup fires).
+		// Step 5b: With three or more replicas, wait until every server has
+		// routes to the others and JetStream has elected a meta leader —
+		// the restore below needs JetStream, not just routes.
 		if replicas >= 3 {
 			if err := waitUntilNatsClusterIsFormed(dc, int(replicas)); err != nil {
 				return "", fmt.Errorf("error waiting for nats cluster to form: %v", err)
 			}
 
-			// Step 5c: The cluster is now formed and empty (its streams were
-			// backed up and cleared before the rebuild, in the scale-up block
-			// above). Restore every stream from that backup into the cluster
-			// and widen it to the cluster size. Restoring into a clean,
-			// already-formed cluster and then widening within it is reliable,
-			// unlike the previous approach of trying to make the meta-cluster
-			// adopt standalone streams in place (which intermittently lost KV
-			// data when the orphan-stream cleanup won the race).
+			// Step 5c: The cluster is formed and — for streams — empty: nats1
+			// dropped its standalone copies as orphans when it joined.
+			// Restore every stream from the backup and widen it to the
+			// cluster size.
+			//
+			// This runs right after the cluster forms, before any client is
+			// updated: from nats1's restart until here the cluster has no
+			// streams at all (no KV, nothing to publish into), so this
+			// window has to stay as short as possible.
 			//
 			// On failure the cluster is up but the data has NOT been loaded;
 			// the snapshot is still on disk at natsBackupDir and can be
 			// restored manually (or by re-running, once the cause is fixed),
 			// so no data is lost.
 			if AreNeededNatsDependentServiceUpdates(currentReplicas, replicas) {
-				// Clear any streams left over from the standalone era (now
-				// orphaned in the freshly formed cluster) immediately before
-				// restoring, so the restore recreates each one cleanly instead
-				// of hitting "stream already exists". Doing the delete here,
-				// at the last possible moment, is what keeps the operation
-				// safe to retry: every earlier step is non-destructive to the
-				// standalone data.
+				// Clear any streams left over from the standalone era
+				// immediately before restoring, so the restore recreates each
+				// one cleanly instead of hitting "stream already exists".
+				// Doing the delete here, at the last possible moment, is what
+				// keeps the operation safe to retry.
 				if err := deleteNatsStreams(pd, dc, natsBackupStreams); err != nil {
 					return "", fmt.Errorf("error clearing leftover NATS streams before restore "+
 						"(your data backup is at %s): %w", natsBackupDir, err)
@@ -853,11 +889,11 @@ func ScaleSwarmService(pd *pt.PlatformData, dc *pt.DockerClient, serviceName str
 			}
 		}
 
-		// Step 6: Update the services that depend on the NATS configuration
-		// (admin_api and pipelines) only when the number of replicas changes
-		// between standalone mode (1) and cluster mode (>=3), since this changes
-		// their connection configuration, including URLs, cluster credentials,
-		// and other related settings.
+		// Step 6: Update the services whose NATS configuration changes
+		// between standalone mode (1) and cluster mode (>=3) — URLs, cluster
+		// credentials and related settings — admin_api and pipelines. These
+		// are required for them to work in the new mode, so a failure here
+		// is an error.
 		if AreNeededNatsDependentServiceUpdates(currentReplicas, replicas) {
 			natsDependentServices := []string{"admin_api", "pipelines"}
 			secretsKeys := map[string]string{
@@ -904,6 +940,15 @@ func ScaleSwarmService(pd *pt.PlatformData, dc *pt.DockerClient, serviceName str
 				allOldSecretIDs = append(allOldSecretIDs, updateResult.OldSecretIDs...)
 			}
 		}
+
+		// Step 7: Point every client that carries its own seed list at the
+		// new set of servers — on every nats scale, up or down. Last on
+		// purpose: none of it is needed for NATS to work (a stale list only
+		// affects a client's first connection) and vector's rolling update
+		// across every node is the slowest step of the whole scale.
+		seedWarnings, oldConfigIDs := updateNatsSeedListClients(pd, dc, replicas)
+		warningMessages += seedWarnings
+		allOldConfigIDs = append(allOldConfigIDs, oldConfigIDs...)
 
 		if natsBackupDir != "" {
 			if err := deleteNatsBackup(natsBackupDir); err != nil {
