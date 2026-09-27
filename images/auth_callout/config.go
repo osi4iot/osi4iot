@@ -106,6 +106,7 @@ func NatsConnection(config *Config) (*nats.Conn, error) {
 
 	return nats.Connect(natsUrl,
 		nats.Name("auth_callout"),
+		nats.DontRandomize(),
 		nats.UserInfo(config.NatsAdminUserName, config.NatsAdminPassword),
 		nats.Secure(tlsCfg),
 		nats.MaxReconnects(-1),

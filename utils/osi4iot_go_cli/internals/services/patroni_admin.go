@@ -57,6 +57,7 @@ func patroniAdminNode(
 	env := []string{
 		fmt.Sprintf("PATRONI_NAME=%s", name),
 		fmt.Sprintf("PATRONI_NUM_NODES=%d", pd.PlatformInfo.NumPatroniAdminNodes),
+		fmt.Sprintf("PATRONICTL_CONFIG_FILE=%s", "/tmp/patroni.yml"),
 	}
 
 	awsEndpoint := "http://minio:9000/"

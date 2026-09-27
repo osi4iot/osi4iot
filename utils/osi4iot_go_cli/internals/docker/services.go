@@ -1244,7 +1244,7 @@ func CreateNatsService(pd *pt.PlatformData, dc *pt.DockerClient, replica int, nu
 		return fmt.Errorf("error creating nats service for new replica %d: %v", replica, err)
 	}
 
-	fmt.Printf("Service nats_%d has been created successfully\n", replica)
+	fmt.Printf("Service nats%d has been created successfully\n", replica)
 
 	return nil
 }

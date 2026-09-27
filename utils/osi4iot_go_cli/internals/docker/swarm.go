@@ -706,51 +706,140 @@ func getNats1NodeIP(dc *pt.DockerClient) (string, error) {
     return "", fmt.Errorf("no running task found for nats1")
 }
 
-// waitUntilNatsClusterIsFormed polls the NATS monitoring endpoint of nats1
-// until it reports numExpectedNodes members in the cluster (or timeout).
+// natsMonitorClient bounds each request to the NATS monitoring endpoint.
+// http.Get has no timeout, so a single stalled request could keep the wait
+// below blocked well past its deadline.
+var natsMonitorClient = &http.Client{Timeout: 5 * time.Second}
+
+// getMonitoringJSON fetches one NATS monitoring endpoint and decodes it.
+func getMonitoringJSON(url string, v any) error {
+	resp, err := natsMonitorClient.Get(url)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("%s: HTTP %d", url, resp.StatusCode)
+	}
+	return json.NewDecoder(resp.Body).Decode(v)
+}
+
+// natsClusterStatus is what one NATS server reports about its cluster.
+type natsClusterStatus struct {
+	peers       int    // distinct servers it has routes to
+	metaLeader  string // JetStream meta leader; empty while there is no quorum
+	clusterSize int    // size of the JetStream meta group
+}
+
+func (s natsClusterStatus) String() string {
+	leader := s.metaLeader
+	if leader == "" {
+		leader = "none"
+	}
+	return fmt.Sprintf("%d peer(s), JetStream meta leader: %s, meta group size: %d",
+		s.peers, leader, s.clusterSize)
+}
+
+// readNatsClusterStatus asks one server for its routes (/routez) and its
+// JetStream meta group (/jsz).
+//
+// Peers are counted by distinct remote_id, not by num_routes: since NATS
+// 2.10 every pair of servers keeps a pool of route connections (three by
+// default, plus one pinned to the system account), so num_routes reaches
+// "numExpectedNodes-1" with a single peer connected.
+func readNatsClusterStatus(baseURL string) (natsClusterStatus, error) {
+	var routez struct {
+		Routes []struct {
+			RemoteID string `json:"remote_id"`
+		} `json:"routes"`
+	}
+	if err := getMonitoringJSON(baseURL+"/routez", &routez); err != nil {
+		return natsClusterStatus{}, err
+	}
+	peers := make(map[string]struct{}, len(routez.Routes))
+	for _, route := range routez.Routes {
+		if route.RemoteID != "" {
+			peers[route.RemoteID] = struct{}{}
+		}
+	}
+
+	var jsz struct {
+		Meta *struct {
+			Leader      string `json:"leader"`
+			ClusterSize int    `json:"cluster_size"`
+		} `json:"meta_cluster"`
+	}
+	if err := getMonitoringJSON(baseURL+"/jsz", &jsz); err != nil {
+		return natsClusterStatus{}, err
+	}
+
+	status := natsClusterStatus{peers: len(peers)}
+	if jsz.Meta != nil {
+		status.metaLeader = jsz.Meta.Leader
+		status.clusterSize = jsz.Meta.ClusterSize
+	}
+	return status, nil
+}
+
+// waitUntilNatsClusterIsFormed polls the monitoring endpoint of nats1 until
+// the cluster is really up: nats1 has routes to every other member, and
+// JetStream's meta group has elected a leader — which takes a quorum — and
+// spans all numExpectedNodes servers.
+//
+// Route count alone was not enough: routes can be up while JetStream has
+// no leader yet, and anything the CLI does next (restoring streams, for
+// one) needs JetStream.
 func waitUntilNatsClusterIsFormed(dc *pt.DockerClient, numExpectedNodes int) error {
-    if numExpectedNodes <= 1 {
-        return nil
-    }
+	if numExpectedNodes <= 1 {
+		return nil
+	}
 
-    nodeIP, err := getNats1NodeIP(dc)
-    if err != nil {
-        return fmt.Errorf("error getting nats1 node IP: %v", err)
-    }
-    monitoringURL := fmt.Sprintf("http://%s:8222/routez", nodeIP)
+	nodeIP, err := getNats1NodeIP(dc)
+	if err != nil {
+		return fmt.Errorf("error getting nats1 node IP: %v", err)
+	}
+	baseURL := fmt.Sprintf("http://%s:8222", nodeIP)
 
-    deadline := time.Now().Add(3 * time.Minute)
-    done := make(chan bool)
-    utils.Spinner(
-        fmt.Sprintf("Waiting for NATS cluster to form (%d nodes)", numExpectedNodes),
-        fmt.Sprintf("NATS cluster formed with %d nodes", numExpectedNodes),
-        done,
-    )
+	deadline := time.Now().Add(3 * time.Minute)
+	done := make(chan bool)
+	utils.Spinner(
+		fmt.Sprintf("Waiting for NATS cluster to form (%d nodes)", numExpectedNodes),
+		fmt.Sprintf("NATS cluster formed with %d nodes", numExpectedNodes),
+		done,
+	)
 
-    for {
-        if time.Now().After(deadline) {
-            done <- false
-            return fmt.Errorf("timeout waiting for NATS cluster to form with %d nodes", numExpectedNodes)
-        }
+	var last natsClusterStatus
+	var lastErr error
+	for {
+		status, err := readNatsClusterStatus(baseURL)
+		if err != nil {
+			lastErr = err
+		} else {
+			last, lastErr = status, nil
+			// clusterSize is compared with >= rather than ==: on a
+			// scale-down the meta group can keep listing departed
+			// servers as offline peers for a while, and that must not
+			// hold the wait up forever. The leader is what proves quorum.
+			if status.peers >= numExpectedNodes-1 &&
+				status.metaLeader != "" &&
+				status.clusterSize >= numExpectedNodes {
+				done <- true
+				return nil
+			}
+		}
 
-        resp, err := http.Get(monitoringURL)
-        if err == nil {
-            var routez struct {
-                NumRoutes int `json:"num_routes"`
-            }
-            if json.NewDecoder(resp.Body).Decode(&routez) == nil {
-                resp.Body.Close()
-                if routez.NumRoutes >= numExpectedNodes-1 {
-                    done <- true
-                    return nil
-                }
-            } else {
-                resp.Body.Close()
-            }
-        }
+		if time.Now().After(deadline) {
+			done <- false
+			if lastErr != nil {
+				return fmt.Errorf("timeout waiting for NATS cluster to form with %d nodes: last error from nats1: %v",
+					numExpectedNodes, lastErr)
+			}
+			return fmt.Errorf("timeout waiting for NATS cluster to form with %d nodes: nats1 reports %s",
+				numExpectedNodes, last)
+		}
 
-        time.Sleep(3 * time.Second)
-    }
+		time.Sleep(2 * time.Second)
+	}
 }
 
 // waitUntilServiceTaskIsRunning waits until at least one task of the given
