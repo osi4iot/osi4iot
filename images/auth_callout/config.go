@@ -44,6 +44,7 @@ func LoadConfig() (*Config, error) {
 	configFile := "./config.env"
 	viper.SetConfigFile(configFile)
 	viper.AutomaticEnv() // Read environment variables
+	_ = viper.BindEnv("NATS_SEED_SERVERS_URL")
 
 	// Read the configuration file
 	if err := viper.ReadInConfig(); err != nil {

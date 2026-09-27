@@ -594,6 +594,54 @@ func waitUntilAllContainersAreHealthy(pd *pt.PlatformData, serviceType string) e
 	return nil
 }
 
+// waitUntilServicesAreHealthy waits until every named service has a task
+// in the running state.
+//
+// Swarm moves a task that has a health check to "running" only once its
+// container is healthy (it stays in "starting" until then), so the task
+// state alone answers "is it healthy?" — on any node. Container
+// inspection would not: the manager's Docker client only sees the
+// manager's own containers.
+func waitUntilServicesAreHealthy(dc *pt.DockerClient, serviceNames []string, timeout time.Duration) error {
+	names := strings.Join(serviceNames, ", ")
+	done := make(chan bool)
+	utils.Spinner(
+		fmt.Sprintf("Waiting for %s to be healthy", names),
+		fmt.Sprintf("%s healthy", names),
+		done,
+	)
+
+	deadline := time.Now().Add(timeout)
+	for {
+		ready := 0
+		for _, name := range serviceNames {
+			taskFilters := filters.NewArgs()
+			taskFilters.Add("service", name)
+			taskFilters.Add("desired-state", "running")
+			tasks, err := dc.Cli.TaskList(dc.Ctx, types.TaskListOptions{Filters: taskFilters})
+			if err != nil {
+				continue // transient API error: try again next round
+			}
+			for _, task := range tasks {
+				if task.Status.State == swarm.TaskStateRunning {
+					ready++
+					break
+				}
+			}
+		}
+
+		if ready == len(serviceNames) {
+			done <- true
+			return nil
+		}
+		if time.Now().After(deadline) {
+			done <- false
+			return fmt.Errorf("timeout waiting for %s to be healthy", names)
+		}
+		time.Sleep(2 * time.Second)
+	}
+}
+
 // waitUntilContainersOfRemovedSlotsAreGone waits until all containers of the removed slots of a service are destroyed.
 func waitUntilContainersOfRemovedSlotsAreGone(dc *pt.DockerClient, serviceName string, firstRemovedSlot int) error {
     deadline := time.Now().Add(2 * time.Minute)

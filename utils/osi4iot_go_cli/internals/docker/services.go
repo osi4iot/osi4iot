@@ -661,6 +661,28 @@ func ScaleSwarmService(pd *pt.PlatformData, dc *pt.DockerClient, serviceName str
 				}
 			}
 
+			if currentReplicas == 1 && int(replicas) > 1 {
+				newReplicas := make([]string, 0, int(replicas)-1)
+				for i := 2; i <= int(replicas); i++ {
+					newReplicas = append(newReplicas, fmt.Sprintf("nats%d", i))
+				}
+
+				// auth_callout may only move onto the new seed list once the new
+				// replicas can take it when nats1 restarts. If they never come
+				// up, skip the early move: the seed-list loop at the end of the
+				// scale still updates auth_callout, just without the handover.
+				if err := waitUntilServicesAreHealthy(dc, newReplicas, 5*time.Minute); err != nil {
+					warningMessages += seedWarning("auth_callout", err, replicas)
+				} else {
+					warnings, err := updateNatsSeedServersEnv(pd, dc, "auth_callout", int(replicas), "")
+					if err != nil {
+						warningMessages += seedWarning("auth_callout", err, replicas)
+					} else {
+						warningMessages += warnings
+					}
+				}
+			}
+			
 			for replica := currentReplicas + 1; replica <= replicas; replica++ {
 				natsServiceName := fmt.Sprintf("nats%d", replica)
 				if err := waitUntilServiceTaskIsRunning(dc, natsServiceName); err != nil {
@@ -690,27 +712,22 @@ func ScaleSwarmService(pd *pt.PlatformData, dc *pt.DockerClient, serviceName str
 					warningMessages += updateResult.Warnings
 					allOldSecretIDs = append(allOldSecretIDs, updateResult.OldSecretIDs...)
 
-					seedWarning := func(service string, err error) string {
-						return fmt.Sprintf("  - Warning: %s still has the previous NATS seed servers: %v\n"+
-							"    NATS works regardless; re-run 'osi4iot service scale nats=%d' to retry.\n",
-							service, err, replicas)
-					}
-
 					updateResult, err = updateFrontendNatsConfig(pd, dc, int(replicas))
 					if err != nil {
-						warningMessages += seedWarning("frontend", err)
+						warningMessages += seedWarning("frontend", err, replicas)
 					} else {
 						warningMessages += updateResult.Warnings
 						allOldConfigIDs = append(allOldConfigIDs, updateResult.OldConfigIDs...)
 					}
 
 					for _, dep := range []struct{ service, hostName string }{
+						{"auth_callout", ""},
 						{"system_manager", ""},
 						{"vector", pd.PlatformInfo.DomainName},
 					} {
 						warnings, err := updateNatsSeedServersEnv(pd, dc, dep.service, int(replicas), dep.hostName)
 						if err != nil {
-							warningMessages += seedWarning(dep.service, err)
+							warningMessages += seedWarning(dep.service, err, replicas)
 							continue
 						}
 						warningMessages += warnings
@@ -846,12 +863,10 @@ func ScaleSwarmService(pd *pt.PlatformData, dc *pt.DockerClient, serviceName str
 			secretsKeys := map[string]string{
 				"admin_api": "admin_api",
 				"pipelines": "pipelines_config",
-				"auth_callout": "auth_callout",
 			}
 			targetFiles := map[string]string{
 				"admin_api": "admin_api.txt",
 				"pipelines": "/pipelines/config.yaml",
-				"auth_callout": "/auth_callout/config.env",
 			}
 
 			for _, dependentService := range natsDependentServices {
@@ -1483,4 +1498,14 @@ func uniqueStrings(in []string) []string {
 		}
 	}
 	return out
+}
+
+// seedWarning is the warning for a client whose NATS seed list could not
+// be updated during a nats scale. Not an error: NATS itself is fine, a
+// stale list only affects that client's first connection, and re-running
+// the scale retries it (every seed-list update is a no-op when current).
+func seedWarning(service string, err error, replicas uint64) string {
+	return fmt.Sprintf("  - Warning: %s still has the previous NATS seed servers: %v\n"+
+		"    NATS works regardless; re-run 'osi4iot service scale nats=%d' to retry.\n",
+		service, err, replicas)
 }

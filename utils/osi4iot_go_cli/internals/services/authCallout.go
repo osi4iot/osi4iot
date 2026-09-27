@@ -1,21 +1,22 @@
 package services
- 
+
 import (
 	"fmt"
- 
+
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/osi4iot/osi4iot/utils/osi4iot/internals/resources"
 	pt "github.com/osi4iot/osi4iot/utils/osi4iot/internals/types"
 	"github.com/osi4iot/osi4iot/utils/osi4iot/internals/utils"
+	"github.com/osi4iot/osi4iot/utils/osi4iot/internals/secrets"
 )
- 
+
 func AuthCalloutService(
 	pd *pt.PlatformData,
 	sd pt.SwarmData,
 	svcResources resources.SvcResources,
 	nodeRoleNumMap map[string]int,
 ) pt.Service {
- 
+
 	// Database host/port depend on whether Patroni HA is active.
 	// legacy  → host=postgres,        port=5432
 	// patroni → host=haproxy_patroni, port=5000 (admin primary)
@@ -25,8 +26,8 @@ func AuthCalloutService(
 		dbHost = "haproxy_patroni"
 		dbPort = "5000"
 	}
- 
-	secrets := []*swarm.SecretReference{
+
+	natSecret := []*swarm.SecretReference{
 		{
 			File: &swarm.SecretReferenceFileTarget{
 				Name: "/auth_callout/config.env",
@@ -38,23 +39,29 @@ func AuthCalloutService(
 			SecretName: sd.Secrets["auth_callout"].Name,
 		},
 	}
- 
+
 	constraints := []string{
 		"node.role==worker",
 		"node.labels.platform_worker==true",
 	}
- 
+
 	if nodeRoleNumMap["Platform worker"] == 0 {
 		constraints = []string{
 			"node.role==manager",
 		}
 	}
- 
+
+	numNatsReplicas := utils.GetServiceReplicas(pd, "nats")
 	image := utils.GetServiceImage(pd, "auth_callout", "ghcr.io/osi4iot/auth_callout:1.3.0")
- 
+
 	return NewService("auth_callout", pd, sd).
 		WithImage(image).
 		WithCommand([]string{"sh", "-c"}).
+		WithEnv([]string{
+			fmt.Sprintf("NATS_SEED_SERVERS_URL=%s",
+				secrets.NatsSeedServersURL(pd, numNatsReplicas, ""),
+			),
+		}).
 		WithArgs([]string{
 			fmt.Sprintf(
 				"until nc -z %s %s > /dev/null 2>&1; do "+
@@ -65,7 +72,7 @@ func AuthCalloutService(
 				dbHost, dbPort, dbHost, dbHost,
 			),
 		}).
-		WithSecrets(secrets).
+		WithSecrets(natSecret).
 		WithResources(
 			svcResources.NanoCPUs,
 			svcResources.MemoryBytes,
