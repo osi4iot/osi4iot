@@ -722,7 +722,7 @@ func ScaleSwarmService(pd *pt.PlatformData, dc *pt.DockerClient, serviceName str
 			removeNewReplicas := func(cause error) error {
 				msg := fmt.Sprintf("%v. The existing nats replicas were not touched and keep serving", cause)
 				for replica := currentReplicas + 1; replica <= replicas; replica++ {
-					if err := RemoveNatsService(dc, int(replica)); err != nil {
+					if err := RemoveNatsService(pd, dc, int(replica)); err != nil {
 						msg += fmt.Sprintf("; could not remove nats%d, remove it by hand before re-running: %v", replica, err)
 					}
 				}
@@ -808,7 +808,7 @@ func ScaleSwarmService(pd *pt.PlatformData, dc *pt.DockerClient, serviceName str
 
 			fmt.Println("Removing extra nats services")
 			for replica := replicas + 1; replica <= currentReplicas; replica++ {
-				if err := RemoveNatsService(dc, int(replica)); err != nil {
+				if err := RemoveNatsService(pd, dc, int(replica)); err != nil {
 					return "", err
 				}
 			}
@@ -1304,7 +1304,7 @@ func CreateNatsService(pd *pt.PlatformData, dc *pt.DockerClient, replica int, nu
 	return nil
 }
 
-func RemoveNatsService(dc *pt.DockerClient, replica int) error {
+func RemoveNatsService(pd *pt.PlatformData, dc *pt.DockerClient, replica int) error {
 	serviceName := fmt.Sprintf("nats%d", replica)
 	service, err := utils.GetSwarmServiceByName(dc, serviceName)
 	if err != nil {
@@ -1316,51 +1316,70 @@ func RemoveNatsService(dc *pt.DockerClient, replica int) error {
 		return fmt.Errorf("error removing nats service %s: %v", serviceName, err)
 	}
 
-	waitUntilServiceContainersAreGone(dc, serviceName)
-
-	err = volumes.RemoveNatsVolume(dc, int(replica))
-	if err != nil {
-		return fmt.Errorf("error removing nats volume for removed replica %d: %v", replica, err)
+	if err := waitUntilServiceContainersAreGone(dc, serviceName); err != nil {
+		return err
 	}
 
+	if err := volumes.RemoveNatsVolume(pd, replica); err != nil {
+		return fmt.Errorf("error removing nats volume for removed replica %d: %v", replica, err)
+	}
 	return nil
 }
 
-// waitUntilServiceContainersAreGone waits until every container belonging to
-// the given (already removed) swarm service no longer exists on any node.
-func waitUntilServiceContainersAreGone(dc *pt.DockerClient, serviceName string) error {
-	deadline := time.Now().Add(2 * time.Minute)
+// waitUntilServiceContainersAreGone waits until no node still has a
+// container of the given (already removed) swarm service.
+//
+// Every node, not just the manager this CLI talks to: a replica's
+// container runs on its worker, so asking only the manager saw nothing
+// and returned at once — while the worker was still shutting it down
+// (Patroni has a 90s stop grace), and removing its volume then fails
+// with "volume is in use".
+func waitUntilServiceContainersAreGone(_ *pt.DockerClient, serviceName string) error {
+	deadline := time.Now().Add(3 * time.Minute)
 
 	done := make(chan bool)
-	spinnerMsg := fmt.Sprintf("Waiting for service %s to be removed", serviceName)
-	endMsg := fmt.Sprintf("Service %s has been removed", serviceName)
-	utils.Spinner(spinnerMsg, endMsg, done)
+	utils.Spinner(
+		fmt.Sprintf("Waiting for service %s to be removed", serviceName),
+		fmt.Sprintf("Service %s has been removed", serviceName),
+		done,
+	)
+
+	filterArgs := filters.NewArgs()
+	filterArgs.Add("label", fmt.Sprintf("com.docker.swarm.service.name=%s", serviceName))
 
 	for {
-		if time.Now().After(deadline) {
-			done <- false
-			return fmt.Errorf("timeout waiting for containers of service '%s' to be destroyed", serviceName)
+		remaining := 0
+		var lastErr error
+		for ip, nodeDC := range pt.DCMap {
+			if nodeDC == nil {
+				continue // unreachable: nothing to wait for that we could see
+			}
+			containers, err := nodeDC.Cli.ContainerList(nodeDC.Ctx, container.ListOptions{
+				All:     true,
+				Filters: filterArgs,
+			})
+			if err != nil {
+				lastErr = fmt.Errorf("listing containers on %s: %v", ip, err)
+				continue
+			}
+			remaining += len(containers)
 		}
 
-		filterArgs := filters.NewArgs()
-		filterArgs.Add("label", fmt.Sprintf("com.docker.swarm.service.name=%s", serviceName))
-		containers, err := dc.Cli.ContainerList(dc.Ctx, container.ListOptions{
-			All:     true,
-			Filters: filterArgs,
-		})
-		if err != nil {
-			done <- false
-			return fmt.Errorf("error listing containers: %v", err)
-		}
-
-		if len(containers) == 0 {
+		if remaining == 0 && lastErr == nil {
 			done <- true
 			return nil
 		}
-
+		if time.Now().After(deadline) {
+			done <- false
+			if lastErr != nil {
+				return fmt.Errorf("timeout waiting for containers of service '%s' to be destroyed: %v", serviceName, lastErr)
+			}
+			return fmt.Errorf("timeout waiting for containers of service '%s' to be destroyed (%d still present)", serviceName, remaining)
+		}
 		time.Sleep(2 * time.Second)
 	}
 }
+
 func creatSecretUpdateConfig(secretKey string, certSecret pt.Secret, oldCertSecretName string, targetFile string) SecretUpdateConfig {
 	return SecretUpdateConfig{
 		SecretKey:     secretKey,

@@ -68,7 +68,7 @@ type patroniFamily struct {
 	// CreateVolumes provisions the volume(s) for one new node, keyed
 	// exactly as BuildNode's ServiceBuilder expects them in sd.Volumes.
 	CreateVolumes func(pi pt.PlatformInfo, dc *pt.DockerClient, replica int) (map[string]pt.Volume, error)
-	RemoveVolumes func(dc *pt.DockerClient, replica int) error
+	RemoveVolumes func(pd *pt.PlatformData, replica int) error
 
 	// SetNumNodes persists the target node count on the PlatformInfo field
 	// used at full-redeploy time (NumPatroniAdminNodes / NumPatroniMetricsNodes).
@@ -90,8 +90,8 @@ var patroniAdminFamily = patroniFamily{
 			fmt.Sprintf("patroni_admin%d-data", replica): *vol,
 		}, nil
 	},
-	RemoveVolumes: func(dc *pt.DockerClient, replica int) error {
-		return volumes.RemovePatroniAdminVolume(dc, replica)
+	RemoveVolumes: func(pd *pt.PlatformData, replica int) error {
+		return volumes.RemovePatroniAdminVolume(pd, replica)
 	},
 	SetNumNodes: func(pi *pt.PlatformInfo, n int) { pi.NumPatroniAdminNodes = n },
 }
@@ -111,8 +111,8 @@ var patroniMetricsFamily = patroniFamily{
 			fmt.Sprintf("patroni_metrics%d-data", replica): *dataVol,
 		}, nil
 	},
-	RemoveVolumes: func(dc *pt.DockerClient, replica int) error {
-		return volumes.RemovePatroniMetricsVolume(dc, replica)
+	RemoveVolumes: func(pd *pt.PlatformData, replica int) error {
+		return volumes.RemovePatroniMetricsVolume(pd, replica)
 	},
 	SetNumNodes: func(pi *pt.PlatformInfo, n int) { pi.NumPatroniMetricsNodes = n },
 }
@@ -385,7 +385,7 @@ func removePatroniNode(pd *pt.PlatformData, dc *pt.DockerClient, family patroniF
 		return err
 	}
 
-	if err := family.RemoveVolumes(dc, replica); err != nil {
+	if err := family.RemoveVolumes(pd, replica); err != nil {
 		return fmt.Errorf("error removing %s volume(s) for removed replica %d: %v", family.ServiceKey, replica, err)
 	}
 

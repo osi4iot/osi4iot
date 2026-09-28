@@ -278,7 +278,11 @@ func removeReplicaVolume(pd *pt.PlatformData, volumeName string) error {
 
 	// Non-EBS drivers (local): docker volume rm is reliable and idempotent.
 	errors := []error{}
-	for _, dc := range pt.DCMap {
+	for ip, dc := range pt.DCMap {
+		if dc == nil {
+			errors = append(errors, fmt.Errorf("node %s is unreachable: remove volume %s there by hand", ip, volumeName))
+			continue
+		}
 		err := dc.Cli.VolumeRemove(dc.Ctx, volumeName, true)
 		if err != nil {
 			if isVolumeAlreadyRemovedError(err) {
@@ -591,16 +595,8 @@ func CreateNatsVolume(pi pt.PlatformInfo, dc *pt.DockerClient, replica int) (*pt
 	return &volume, nil
 }
 
-func RemoveNatsVolume(dc *pt.DockerClient, replica int) error {
-	volumeName := fmt.Sprintf("nats%d_data", replica)
-	err := dc.Cli.VolumeRemove(dc.Ctx, volumeName, true)
-	if err != nil {
-		if isVolumeAlreadyRemovedError(err) {
-			return nil
-		}
-		return fmt.Errorf("error removing volume: %v", err)
-	}
-	return nil
+func RemoveNatsVolume(pd *pt.PlatformData, replica int) error {
+	return removeReplicaVolume(pd, fmt.Sprintf("nats%d_data", replica))
 }
 
 // CreatePatroniAdminVolume provisions the single "patroni_adminN-data"
@@ -624,18 +620,9 @@ func CreatePatroniAdminVolume(pi pt.PlatformInfo, dc *pt.DockerClient, replica i
 }
 
 // RemovePatroniAdminVolume removes the "patroni_adminN-data" volume for a
-// removed admin-cluster node. Mirrors RemoveNatsVolume: single dc, not a
-// pt.DCMap sweep, for the same node-pinning reason as CreatePatroniAdminVolume.
-func RemovePatroniAdminVolume(dc *pt.DockerClient, replica int) error {
-	volumeName := fmt.Sprintf("patroni_admin%d-data", replica)
-	err := dc.Cli.VolumeRemove(dc.Ctx, volumeName, true)
-	if err != nil {
-		if isVolumeAlreadyRemovedError(err) {
-			return nil
-		}
-		return fmt.Errorf("error removing volume: %v", err)
-	}
-	return nil
+// removed admin-cluster node.
+func RemovePatroniAdminVolume(pd *pt.PlatformData, replica int) error {
+	return removeReplicaVolume(pd, fmt.Sprintf("patroni_admin%d-data", replica))
 }
 
 // CreatePatroniMetricsVolume provisions the data volume a new
@@ -667,13 +654,8 @@ func CreatePatroniMetricsVolume(pi pt.PlatformInfo, dc *pt.DockerClient, replica
 
 // RemovePatroniMetricsVolume removes the volume of a removed
 // metrics-cluster node.
-func RemovePatroniMetricsVolume(dc *pt.DockerClient, replica int) error {
-	dataVolumeName := fmt.Sprintf("patroni_metrics%d-data", replica)
-
-	if err := dc.Cli.VolumeRemove(dc.Ctx, dataVolumeName, true); err != nil && !isVolumeAlreadyRemovedError(err) {
-		return fmt.Errorf("error removing volume %s: %v", dataVolumeName, err)
-	}
-	return nil
+func RemovePatroniMetricsVolume(pd *pt.PlatformData, replica int) error {
+	return removeReplicaVolume(pd, fmt.Sprintf("patroni_metrics%d-data", replica))
 }
 
 func CreatePipelinesVolume(pi pt.PlatformInfo, dc *pt.DockerClient, replica int) error {

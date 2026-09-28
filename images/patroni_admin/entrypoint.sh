@@ -199,6 +199,44 @@ if [ "$PATRONI_NUM_NODES" -gt 1 ]; then
     done
 fi
 
+# ── One-shot Raft reset (scale-down to a single node) ─────────
+# Scaling a Patroni family down to ONE node leaves node 1 with a Raft
+# journal that still lists the old members. Raft needs a majority of
+# that old membership to accept anything — votes that can never come
+# once the other containers are gone — so Patroni loops forever on
+# "waiting on raft". The way out is an empty journal, from which node 1
+# bootstraps a fresh 1-member group (Patroni then re-registers the
+# cluster in the DCS from the existing PGDATA).
+#
+# The wipe happens HERE, before Patroni starts, and not in
+# patroni_sidecar's /reset_raft handler while Patroni is running: a
+# live pysyncobj keeps the old membership in memory and writes it back
+# to /data/raft (journal entries every loop_wait, a full dump on
+# compaction and shutdown), so a directory wiped under a running
+# Patroni is repopulated before the restart that was meant to use it.
+# /reset_raft now only drops this marker; the platform CLI restarts the
+# node right after with PATRONI_NUM_NODES=1, and that start does the
+# wipe with nothing left that could undo it.
+#
+# Acted on only when PATRONI_NUM_NODES is 1. A multi-node start must
+# never forget its peers, so the marker is left in place and waits for
+# the single-node start it was meant for.
+RAFT_DATA_DIR="/data/raft"
+RAFT_RESET_MARKER="/data/.reset_raft_on_start"
+if [ -f "$RAFT_RESET_MARKER" ]; then
+    if [ "$PATRONI_NUM_NODES" -eq 1 ]; then
+        echo "entrypoint: resetting Raft state in $RAFT_DATA_DIR (scale-down to a single node)"
+        rm -rf "$RAFT_DATA_DIR"
+        mkdir -p "$RAFT_DATA_DIR"
+        chmod 0700 "$RAFT_DATA_DIR"
+        rm -f "$RAFT_RESET_MARKER"
+    else
+        echo "WARNING: $RAFT_RESET_MARKER present but PATRONI_NUM_NODES=$PATRONI_NUM_NODES;" >&2
+        echo "         a Raft reset only applies to a single node, keeping the marker for then." >&2
+    fi
+fi
+
+
 envsubst < /etc/patroni/patroni.yml > /tmp/patroni.yml
 
 # ── Restore: drop the PITR lines unless a target time was given ──

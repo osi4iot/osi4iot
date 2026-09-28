@@ -506,64 +506,55 @@ func proxySwitchover(w http.ResponseWriter, r *http.Request) {
 // on-disk journal — must match raft.data_dir in patroni.yml.
 const patroniRaftDataDir = "/data/raft"
 
-// resetRaft wipes this node's local Raft/DCS state on disk, so the next
-// time its Patroni process starts, it bootstraps a fresh Raft group
-// instead of trying to resume one whose membership no longer matches
-// reality.
+// raftResetMarker asks entrypoint.sh to wipe patroniRaftDataDir on the
+// container's next start, before Patroni runs. Must match
+// RAFT_RESET_MARKER in entrypoint.sh. On the /data volume, outside the
+// Raft directory itself, so it survives the container being replaced.
+const raftResetMarker = "/data/.reset_raft_on_start"
+
+// resetRaft schedules a wipe of this node's local Raft/DCS state for its
+// next start, so that start bootstraps a fresh Raft group instead of
+// trying to resume one whose membership no longer matches reality.
 //
 // This exists for the case a scale-down leaves exactly one surviving
 // node: Raft's own reconfiguration protocol needs a majority of the OLD
 // membership to accept "we're down to 1 member" — which becomes
 // mathematically impossible once the other members' containers are
-// gone, since their votes can never be obtained again. Patroni's Raft
-// thread then fails permanently trying to reach a quorum that can no
-// longer exist. Wiping the journal and letting Patroni bootstrap fresh
-// as a 1-member Raft group is the only way out once that's happened —
-// this replaces exactly the manual recovery already confirmed to work:
-// `rm -rf /data/raft && mkdir -p /data/raft`.
+// gone. Patroni then loops forever on "waiting on raft".
+//
+// It only drops a marker file; entrypoint.sh does the actual wipe,
+// before launching Patroni. It used to remove patroniRaftDataDir right
+// here, but Patroni is running at that point: its pysyncobj keeps the
+// old membership in memory and writes it back to disk (journal entries
+// every loop_wait, a full dump on compaction and shutdown), so the
+// directory was repopulated before the restart meant to pick up the
+// wipe — which is how a scale-down to 1 left node 1 stuck on "waiting
+// on raft" despite the reset. Wiping at start, with no Patroni process
+// yet, leaves nothing that could undo it.
+//
+// Still takes effect only on the next start: the caller (system_manager's
+// ResetNode1Raft, for the platform CLI's scale-down) restarts node 1
+// right after, with PATRONI_NUM_NODES=1 — the only start entrypoint.sh
+// acts on the marker for.
 //
 // Deliberately as dumb/mechanical as proxyLeader and proxySwitchover:
-// it does NOT check whether resetting is actually safe right now (e.g.
-// whether this node genuinely is meant to be the sole survivor) — that
-// decision belongs entirely to the caller (system_manager's
-// ResetNode1Raft, on behalf of the platform CLI's scale-down logic),
-// which is the only place that knows the target cluster size. Calling
-// this on a node that's still meant to have peers makes it forget them
-// — don't.
-//
-// No chown: this whole container runs as the postgres user from the
-// Dockerfile's USER directive onward (see entrypoint.sh), so
-// os.MkdirAll here creates the fresh directory already owned by
-// postgres. The manual recovery this replaces needed a chown
-// specifically because it used `docker exec -u root`, which creates
-// files as root instead — that extra step doesn't apply here.
-//
-// Only wipes the journal on disk — does NOT restart Patroni itself.
-// Patroni reads this only at its own process startup, not while
-// running, so the caller still needs the container to actually restart
-// afterward for this to take effect. ScalePatroniFamily's scale-down
-// branch handles that by calling this BEFORE refreshPatroniNodesEnv,
-// which restarts every surviving node (node 1, in the N-to-1 case) to
-// push the new PATRONI_NUM_NODES anyway — no separate forced-restart
-// step needed.
+// whether resetting is appropriate is the caller's decision, the one
+// place that knows the target cluster size.
 func resetRaft(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "POST only", http.StatusMethodNotAllowed)
 		return
 	}
 
-	if err := os.RemoveAll(patroniRaftDataDir); err != nil {
-		http.Error(w, "removing "+patroniRaftDataDir+": "+err.Error(), http.StatusInternalServerError)
-		return
-	}
-	if err := os.MkdirAll(patroniRaftDataDir, 0o700); err != nil {
-		http.Error(w, "recreating "+patroniRaftDataDir+": "+err.Error(), http.StatusInternalServerError)
+	stamp := time.Now().UTC().Format(time.RFC3339) + "\n"
+	if err := os.WriteFile(raftResetMarker, []byte(stamp), 0o600); err != nil {
+		http.Error(w, "writing "+raftResetMarker+": "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	w.Header().Set("Content-Type", "text/plain")
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte("raft state reset: " + patroniRaftDataDir))
+	w.Write([]byte("raft state reset scheduled for next start: " + patroniRaftDataDir))
 }
 
 func main() {
