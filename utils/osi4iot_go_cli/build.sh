@@ -67,3 +67,9 @@ done
 echo
 echo "Sizes:"
 du -h "${built[@]}"
+
+# Checksums of the binaries only — the installer scripts next to them
+# are versioned in git, not build output.
+(cd ./dist && sha256sum "${built[@]#./dist/}" > SHA256SUMS)
+echo
+echo "Checksums written to ./dist/SHA256SUMS"
