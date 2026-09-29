@@ -622,6 +622,100 @@ func addPatroniNodesQuestions(index int, m *Model) {
 	m.addQuestions(index, adminQ, metricsQ)
 }
 
+// Replaces createPlatform and CreateDatabaseData in ui/form/actions.go,
+// and adds generatePlatformSecrets next to them. No new imports.
+
+// generatedPasswordLength is the length of every password the platform
+// generates for itself. With utils.GeneratePassword drawing from
+// crypto/rand over 62 characters, 20 characters are ~119 bits.
+const generatedPasswordLength = 20
+
+// generatedKeyBytes is the size of every key the platform generates for
+// itself: 32 random bytes (256 bits), stored as 64 hex characters.
+const generatedKeyBytes = 32
+
+// generatePlatformSecrets creates every secret the platform generates for
+// itself — none of them is ever asked of the administrator — and stores
+// them in the platform data. The one place to look for what a new
+// platform gets, and how.
+//
+// Two kinds, chosen by how the value is consumed:
+//
+//   - Keys (utils.GenerateHexKey): bytes that go into a cryptographic
+//     algorithm or are compared as opaque tokens — encryption keys, JWT
+//     signing secrets, the sidecar token. Always 32 random bytes, hex
+//     encoded, so consumers can decode them to exactly 256 bits and
+//     reject anything else.
+//   - Passwords (utils.GeneratePassword): values another system stores
+//     and compares as text — database roles, Grafana's datasource.
+//
+// Both come from crypto/rand. Values chosen by the administrator in the
+// form (platform admin password, e-mail…) are not generated and stay in
+// createPlatform.
+func generatePlatformSecrets(pd *types.PlatformData) error {
+	key := func() string { return utils.GenerateHexKey(generatedKeyBytes) }
+	password := func() string { return utils.GeneratePassword(generatedPasswordLength) }
+
+	secrets := []struct{ name, value string }{
+		// ── admin_api ───────────────────────────────────────────────
+		// HMAC secrets signing the JWTs admin_api hands out. Anyone
+		// holding a token can test guesses offline, so they must be
+		// full-strength keys, not passwords.
+		{"ACCESS_TOKEN_SECRET", key()},
+		{"REFRESH_TOKEN_SECRET", key()},
+		// AES-256-GCM key for the secrets admin_api stores in the
+		// database. admin_api decodes the hex and refuses to start
+		// with anything that is not exactly 32 bytes.
+		{"ENCRYPTION_SECRET_KEY", key()},
+
+		// ── Platform master key ─────────────────────────────────────
+		// The key this CLI and system_manager derive their per-purpose
+		// subkeys from (domain certificates in system_manager's volume,
+		// state-file backups in S3). Never regenerated — see
+		// PlatformInfo.PlatformEncryptionKey.
+		{"PLATFORM_ENCRYPTION_KEY", key()},
+
+		// ── Databases ───────────────────────────────────────────────
+		{"POSTGRES_PASSWORD", password()},
+		{"TIMESCALE_PASSWORD", password()},
+		{"GRAFANA_DB_PASSWORD", password()},
+		{"GRAFANA_DATASOURCE_PASSWORD", password()},
+	}
+
+	if pd.PlatformInfo.UsePatroniTool {
+		secrets = append(secrets, []struct{ name, value string }{
+			// ── Patroni — replication and pg_rewind roles ───────────
+			{"POSTGRES_REPLICATOR_PASSWORD", password()},
+			{"POSTGRES_REWIND_PASSWORD", password()},
+			{"TIMESCALE_REPLICATOR_PASSWORD", password()},
+			{"TIMESCALE_REWIND_PASSWORD", password()},
+
+			// ── WAL-G ───────────────────────────────────────────────
+			// libsodium key encrypting every base backup and WAL
+			// segment in S3. Losing it makes those backups useless.
+			{"WALG_LIBSODIUM_KEY", key()},
+
+			// ── patroni_sidecar ↔ system_manager ────────────────────
+			// Shared secret the sidecar checks on every endpoint but
+			// /health — see PlatformInfo.PatroniSidecarAPIToken.
+			{"PATRONI_SIDECAR_API_TOKEN", key()},
+		}...)
+	}
+
+	for _, s := range secrets {
+		data.SetData(s.name, s.value)
+	}
+
+	// NATS: the admin user's password and bcrypt hash, and the nkeys of
+	// every infrastructure client. Kept in platformData.Certs rather than
+	// set through data.SetData, hence its own helper. InitPlatform
+	// regenerates them on every init as well.
+	if err := utils.NatsCredentials(pd); err != nil {
+		return fmt.Errorf("generating NATS credentials: %w", err)
+	}
+	return nil
+}
+
 func createPlatform(m *Model) (platformCreatingMsg, error) {
 	platformData := data.GetData()
 	areAllQuestionsOK := true
@@ -641,23 +735,6 @@ func createPlatform(m *Model) (platformCreatingMsg, error) {
 	notificationsEmailAddress := m.FindAnswerByKey("NOTIFICATIONS_EMAIL_ADDRESS")
 	data.SetData("NOTIFICATIONS_EMAIL_USER", notificationsEmailAddress)
 
-	refreshTokenSecret := utils.GeneratePassword(20)
-	data.SetData("REFRESH_TOKEN_SECRET", refreshTokenSecret)
-
-	accessTokenSecret := utils.GeneratePassword(20)
-	data.SetData("ACCESS_TOKEN_SECRET", accessTokenSecret)
-
-	encryptionSecretKey := utils.GeneratePassword(32)
-	data.SetData("ENCRYPTION_SECRET_KEY", encryptionSecretKey)
-
-	// 32 random bytes hex-encoded = 64 hex chars. The master key both
-	// this CLI and system_manager derive their per-purpose subkeys from,
-	// to protect the domain certificates in system_manager's volume and
-	// the state-file backups in S3. Generated once here and never again
-	// — see PlatformInfo.PlatformEncryptionKey.
-	platformEncryptionKey := utils.GenerateHexKey(32)
-	data.SetData("PLATFORM_ENCRYPTION_KEY", platformEncryptionKey)
-
 	platformAdminPassword := m.FindAnswerByKey("PLATFORM_ADMIN_PASSWORD")
 	data.SetData("GRAFANA_ADMIN_PASSWORD", platformAdminPassword)
 
@@ -665,14 +742,16 @@ func createPlatform(m *Model) (platformCreatingMsg, error) {
 
 	CreateDatabaseData(platformData)
 
+	// Every secret the platform generates for itself, in one place.
+	if err := generatePlatformSecrets(platformData); err != nil {
+		return platformCreatingMsg("Error: generating platform secrets"), err
+	}
+
 	// MinIO endpoint — only relevant when S3BucketType == "Local Minio".
 	// For Local Minio the service name is "minio" inside the internal_net overlay.
 	if platformData.PlatformInfo.S3BucketType == "Local Minio" {
 		data.SetData("MINIO_ENDPOINT", "http://minio:9000")
 	}
-
-	grafanaDatasourcePassword := utils.GeneratePassword(20)
-	data.SetData("GRAFANA_DATASOURCE_PASSWORD", grafanaDatasourcePassword)
 
 	nodeRedAdmin := platformAdminUserName
 	data.SetData("NODE_RED_ADMIN", nodeRedAdmin)
@@ -703,11 +782,6 @@ func createPlatform(m *Model) (platformCreatingMsg, error) {
 	stateFileS3Prefix := "s3://" + platformData.PlatformInfo.S3BucketName + "/backups/state_file"
 	data.SetData("STATE_FILE_S3_PREFIX", stateFileS3Prefix)
 
-	err = utils.NatsCredentials(platformData)
-	if err != nil {
-		return platformCreatingMsg("Error: creating nats certs"), err
-	}
-
 	deployLocation := platformData.PlatformInfo.DeploymentLocation
 	nodesData := []types.NodeData{}
 	numNodes := platformData.PlatformInfo.NumberOfSwarmNodes
@@ -735,41 +809,28 @@ func createPlatform(m *Model) (platformCreatingMsg, error) {
 	return platformCreatingMsg("osi4iot_state.json file created successfully"), nil
 }
 
+// CreateDatabaseData sets the database configuration that is not secret:
+// role and database names, WAL-G's S3 layout and compression, and the
+// initial Patroni node counts. The passwords and keys that go with it are
+// generated in generatePlatformSecrets.
 func CreateDatabaseData(pd *types.PlatformData) {
 	if pd.PlatformInfo.UsePatroniTool {
-		// ── Patroni — Admin cluster ───────────────────────────────────────────────────
-		postgresUser := "patroni_admin"
-		data.SetData("POSTGRES_USER", postgresUser)
+		// ── Patroni — Admin cluster ─────────────────────────────────────
+		data.SetData("POSTGRES_USER", "patroni_admin")
 
-		postgresReplicatorPassword := utils.GeneratePassword(20)
-		data.SetData("POSTGRES_REPLICATOR_PASSWORD", postgresReplicatorPassword)
+		// ── Patroni — Metrics cluster ───────────────────────────────────
+		data.SetData("TIMESCALE_USER", "patroni_metrics")
 
-		postgresRewindPassword := utils.GeneratePassword(20)
-		data.SetData("POSTGRES_REWIND_PASSWORD", postgresRewindPassword)
-
-		// ── Patroni — Metrics cluster ─────────────────────────────────────────────────
-		timescaleUser := "patroni_metrics"
-		data.SetData("TIMESCALE_USER", timescaleUser)
-
-		timescaleReplicatorPassword := utils.GeneratePassword(20)
-		data.SetData("TIMESCALE_REPLICATOR_PASSWORD", timescaleReplicatorPassword)
-
-		timescaleRewindPassword := utils.GeneratePassword(20)
-		data.SetData("TIMESCALE_REWIND_PASSWORD", timescaleRewindPassword)
-
-		// ── WAL-G ─────────────────────────────────────────────────────────────────────
-		// 32 random bytes hex-encoded = 64 hex chars. WAL-G reads this as the
-		// AES-256 libsodium key. Generated once and never shown to the admin.
-		walgLibsodiumKey := utils.GenerateHexKey(32)
-		data.SetData("WALG_LIBSODIUM_KEY", walgLibsodiumKey)
-
-		// S3 prefix derived from the platform name so it's unique per deployment.
-		// The admin can override these after creation via the state file if needed.
+		// ── WAL-G ───────────────────────────────────────────────────────
+		// S3 prefix derived from the bucket name so it's unique per
+		// deployment. The admin can override these after creation via the
+		// state file if needed.
 		data.SetData("WALG_S3_PREFIX_ADMIN", "s3://"+pd.PlatformInfo.S3BucketName+"/backups/patroni_admin")
 		data.SetData("WALG_S3_PREFIX_METRICS", "s3://"+pd.PlatformInfo.S3BucketName+"/backups/patroni_metrics")
 
-		// lz4 is the default: fast compression, low CPU, ideal for continuous WAL
-		// archiving. The admin can change this before the first backup is taken.
+		// lz4 is the default: fast compression, low CPU, ideal for
+		// continuous WAL archiving. The admin can change this before the
+		// first backup is taken.
 		data.SetData("WALG_COMPRESSION_METHOD", "lz4")
 
 		if pd.PlatformInfo.DeploymentLocation == "Local deployment" {
@@ -784,25 +845,10 @@ func CreateDatabaseData(pd *types.PlatformData) {
 			}
 		}
 	} else {
-		postgresUser := "postgres"
-		data.SetData("POSTGRES_USER", postgresUser)
-
-		timescaleUser := "timescale"
-		data.SetData("TIMESCALE_USER", timescaleUser)
+		data.SetData("POSTGRES_USER", "postgres")
+		data.SetData("TIMESCALE_USER", "timescale")
 	}
 
-	postgresPassword := utils.GeneratePassword(20)
-	data.SetData("POSTGRES_PASSWORD", postgresPassword)
-
-	timescalePassword := utils.GeneratePassword(20)
-	data.SetData("TIMESCALE_PASSWORD", timescalePassword)
-
-	postgresDB := "iot_platform_db"
-	data.SetData("POSTGRES_DB", postgresDB)
-
-	timescaleDB := "iot_data_db"
-	data.SetData("TIMESCALE_DB", timescaleDB)
-
-	grafanaDBPassword := utils.GeneratePassword(20)
-	data.SetData("GRAFANA_DB_PASSWORD", grafanaDBPassword)
+	data.SetData("POSTGRES_DB", "iot_platform_db")
+	data.SetData("TIMESCALE_DB", "iot_data_db")
 }

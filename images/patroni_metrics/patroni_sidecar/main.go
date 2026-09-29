@@ -60,6 +60,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"crypto/subtle"
 	"fmt"
 	"io"
 	"log"
@@ -170,6 +171,13 @@ func runDeleteRetain(retain int) ([]byte, error) {
 // does and does not protect.
 var apiToken string
 
+// patroniAPIUser and patroniAPIPassword authenticate this process to
+// Patroni's own REST API, whose unsafe endpoints — /switchover among
+// them — require restapi.authentication (see patroni.yml). Set by
+// entrypoint.sh from the cluster's secret. Only /switchover needs them:
+// the other calls to :8008 are GETs, which Patroni leaves open.
+var patroniAPIUser, patroniAPIPassword string
+
 // requireAuth reports whether the request may proceed, writing the 401
 // itself when it may not.
 //
@@ -181,7 +189,11 @@ func requireAuth(w http.ResponseWriter, r *http.Request) bool {
 	if apiToken == "" {
 		return true
 	}
-	if r.Header.Get("Authorization") != "Bearer "+apiToken {
+	// Constant-time: a plain != returns as soon as a byte differs, and
+	// how long that takes tells a caller how much of its guess was right.
+	got := []byte(r.Header.Get("Authorization"))
+	want := []byte("Bearer " + apiToken)
+	if subtle.ConstantTimeCompare(got, want) != 1 {
 		http.Error(w, "unauthorized", http.StatusUnauthorized)
 		return false
 	}
@@ -422,6 +434,10 @@ func proxyLeader(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if !requireAuth(w, r) {
+		return
+	}
+
 	ctx, cancel := context.WithTimeout(r.Context(), patroniAPITimeout)
 	defer cancel()
 
@@ -464,6 +480,10 @@ func proxySwitchover(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if !requireAuth(w, r) {
+		return
+	}
+
 	ctx, cancel := context.WithTimeout(r.Context(), patroniSwitchoverTimeout)
 	defer cancel()
 
@@ -480,6 +500,12 @@ func proxySwitchover(w http.ResponseWriter, r *http.Request) {
 	// unset/zero ContentLength here would silently deliver an empty
 	// body to Patroni regardless of what the actual caller sent.
 	req.ContentLength = r.ContentLength
+	// The caller's credentials were for this sidecar (requireAuth);
+	// Patroni's are a different pair, and only this process has them.
+	if patroniAPIPassword != "" {
+		req.SetBasicAuth(patroniAPIUser, patroniAPIPassword)
+	}
+
 	if ct := r.Header.Get("Content-Type"); ct != "" {
 		req.Header.Set("Content-Type", ct)
 	} else {
@@ -546,6 +572,10 @@ func resetRaft(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if !requireAuth(w, r) {
+		return
+	}
+
 	stamp := time.Now().UTC().Format(time.RFC3339) + "\n"
 	if err := os.WriteFile(raftResetMarker, []byte(stamp), 0o600); err != nil {
 		http.Error(w, "writing "+raftResetMarker+": "+err.Error(), http.StatusInternalServerError)
@@ -561,11 +591,22 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT)
 	defer stop()
 
-	// Optional shared-secret check. Network access to this port is
-	// already restricted to haproxy_patroni's routing mesh, so this is
-	// defense in depth, not the primary control — set
-	// PATRONI_SIDECAR_API_TOKEN in the secret if you want it.
+	// Optional shared-secret check, on every endpoint except /health.
+	//
+	// Network access to this port is NOT limited to haproxy_patroni:
+	// the Patroni nodes also sit on internal_net, which admin_api,
+	// pipelines, grafana, vector and the rest share, so any of those
+	// containers can reach :8091 — including /switchover and
+	// /reset_raft. The platform CLI generates the token and puts it in
+	// this node's secret and in system_manager's, the one legitimate
+	// caller. Empty (older deployments) lets every request through.
+	//
+	// Patroni's own REST API on :8008 is reachable the same way and has
+	// its own /switchover; restapi.authentication in patroni.yml guards
+	// that one.
 	apiToken = os.Getenv("PATRONI_SIDECAR_API_TOKEN")
+	patroniAPIUser = os.Getenv("PATRONI_SIDECAR_RESTAPI_USERNAME")
+	patroniAPIPassword = os.Getenv("PATRONI_SIDECAR_RESTAPI_PASSWORD")
 
 	mux := http.NewServeMux()
 

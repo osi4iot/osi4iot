@@ -56,6 +56,8 @@ func CreateSystemManagerSecrets(pd *pt.PlatformData) pt.Secret {
 		)
 	}
 
+	lines = appendSidecarToken(lines, pi)
+
 	data := strings.Join(lines, "\n")
 	hash := utils.GetMD5Hash(data)
 	secret := pt.Secret{

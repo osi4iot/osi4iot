@@ -272,6 +272,10 @@ func SetData(key string, value string) {
 		if Data.PlatformInfo.WalgLibsodiumKey == "" {
 			Data.PlatformInfo.WalgLibsodiumKey = value
 		}
+	case "PATRONI_SIDECAR_API_TOKEN":
+		if Data.PlatformInfo.PatroniSidecarAPIToken == "" {
+			Data.PlatformInfo.PatroniSidecarAPIToken = value
+		}
 	case "WALG_COMPRESSION_METHOD":
 		Data.PlatformInfo.WalgCompressionMethod = value
 	case "MINIO_ENDPOINT":

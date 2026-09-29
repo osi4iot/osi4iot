@@ -32,6 +32,7 @@ import (
 	"strings"
 	"time"
 
+	"system_manager/internal/sidecarauth"
 	"system_manager/internal/task"
 )
 
@@ -129,7 +130,7 @@ func currentLeader(cluster clusterResponse) string {
 // role-matching logic; a plain string comparison against Leader is
 // enough.
 type leaderResponse struct {
-	Cluster string   `json:"cluster"`         // "admin" or "metrics", matches LeaderQuery.Name
+	Cluster string   `json:"cluster"`          // "admin" or "metrics", matches LeaderQuery.Name
 	Leader  string   `json:"leader,omitempty"` // empty if no leader right now (mid-failover)
 	Members []member `json:"members"`
 }
@@ -167,12 +168,17 @@ func fetchCluster(ctx context.Context, base string) (clusterResponse, error) {
 	if err != nil {
 		return clusterResponse{}, fmt.Errorf("building request: %w", err)
 	}
+	sidecarauth.Set(req)
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return clusterResponse{}, fmt.Errorf("querying %s: %w", url, err)
 	}
 	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusUnauthorized {
+		return clusterResponse{}, sidecarauth.UnauthorizedError(url)
+	}
 
 	if resp.StatusCode != http.StatusOK {
 		return clusterResponse{}, fmt.Errorf("%s returned %s", url, resp.Status)
@@ -342,12 +348,17 @@ func postSwitchover(ctx context.Context, base, leader, candidate string) error {
 		return fmt.Errorf("building request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
+	sidecarauth.Set(req)
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return fmt.Errorf("calling %s: %w", url, err)
 	}
 	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusUnauthorized {
+		return sidecarauth.UnauthorizedError(url)
+	}
 
 	if resp.StatusCode != http.StatusOK {
 		var body bytes.Buffer
@@ -484,12 +495,17 @@ func (r ResetNode1Raft) Run(ctx context.Context, params map[string]any) (string,
 	if err != nil {
 		return "", fmt.Errorf("building request: %w", err)
 	}
+	sidecarauth.Set(req)
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return "", fmt.Errorf("calling %s: %w", url, err)
 	}
 	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusUnauthorized {
+		return "", sidecarauth.UnauthorizedError(url)
+	}
 
 	if resp.StatusCode != http.StatusOK {
 		var body bytes.Buffer

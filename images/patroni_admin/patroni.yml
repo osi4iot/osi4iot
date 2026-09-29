@@ -5,6 +5,18 @@ name: ${PATRONI_NAME}
 restapi:
   listen: 0.0.0.0:8008
   connect_address: ${PATRONI_NAME}:8008
+  # Basic auth on the endpoints that change something (POST/PUT/PATCH/
+  # DELETE: switchover, failover, restart, reinitialize, config…).
+  # Read-only GETs — /primary and /read-only that haproxy_patroni checks,
+  # /health, /cluster — stay open.
+  #
+  # Every node of the cluster must share these credentials: Patroni
+  # also uses them for its own calls to its peers (POST /failsafe, with
+  # failsafe_mode on). patroni_sidecar gets the same pair for its
+  # /switchover proxy, and patronictl reads it from this file.
+  authentication:
+    username: patroni_restapi
+    password: ${PATRONI_ADMIN_RESTAPI_PASSWORD}
 
 # ── DCS: embedded Raft ───────────────────────────────────────
 # partner_addrs is built dynamically in entrypoint.sh based on

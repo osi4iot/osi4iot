@@ -67,6 +67,11 @@ func main() {
 	// configuration already in place. A no-op for every other command,
 	// and for an `init` without the flag.
 	if action == "init" {
+		// Before either Prepare: they install a state file on this
+		// machine, which --reset-passwords must never be combined with.
+		if err := cmd.CheckInitResetPasswords(args); err != nil {
+			exitWithError(utils.StyleErrMsg.Render(err.Error()))
+		}
 		if err := cmd.PrepareInitFromSnapshot(args); err != nil {
 			exitWithError(utils.StyleErrMsg.Render(err.Error()))
 		}

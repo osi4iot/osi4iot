@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"system_manager/internal/config"
+	"system_manager/internal/sidecarauth"
 	"system_manager/internal/task"
 )
 
@@ -173,7 +174,7 @@ func (l BackupList) fetch(ctx context.Context) ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("building request: %w", err)
 	}
-	setSidecarAuth(req)
+	sidecarauth.Set(req)
 
 	client := &http.Client{Timeout: listTimeout}
 	resp, err := client.Do(req)

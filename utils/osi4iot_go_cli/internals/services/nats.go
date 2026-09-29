@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/osi4iot/osi4iot/utils/osi4iot/internals/resources"
@@ -123,11 +124,6 @@ func NatsService(
 		Order:           updateOrder,
 	}
 
-	healthCheckCmd := "wget -qO- http://localhost:8222/healthz | grep -q '\"status\":\"ok\"' || exit 1"
-	if numReplicas > 1 {
-		healthCheckCmd = "wget -qO- 'http://localhost:8222/healthz?js-enabled-only=1' | grep -q '\"status\":\"ok\"' || exit 1"
-	}
-
 	image := utils.GetServiceImage(pd, "nats", "ghcr.io/osi4iot/nats:2.11.1-alpine")
 	return NewService(serviceName, pd, sd).
 		WithImage(image).
@@ -153,10 +149,7 @@ func NatsService(
 		WithStopGracePeriod(3 * time.Minute).
 		WithModeReplicated(svcResources.ReplicasPtr).
 		WithPorts(ports).
-		WithHealthCheck([]string{
-			"CMD-SHELL",
-			healthCheckCmd,
-		}).
+		WithHealthConfig(NatsHealthCheck(numReplicas)).
 		WithHealthCheckStartInterval(60*time.Second, time.Second).
 		WithNetworks([]swarm.NetworkAttachmentConfig{
 			{Target: sd.Networks["internal_net"].Name},
@@ -172,3 +165,42 @@ func NatsService(
 		WithRollbackConfig(rollbackConfig).
 		Build()
 }
+
+// NatsHealthCheck is the NATS container health check for a deployment of
+// numReplicas servers.
+//
+// Shared by NatsService, for the replicas it creates, and by the nats
+// scale, which re-applies it to the replicas it keeps and restarts:
+// their spec would otherwise keep the check — and the timings — they
+// were created with.
+//
+// Checked every second while starting (StartPeriod/StartInterval),
+// every 10s afterwards. Swarm adds a task to its service's VIP and DNS
+// only once it is healthy, so the first check decides how long a
+// restarted nats1 stays unreachable by name — for auth_callout, which
+// connects by name, and for the other servers' routes. With a plain
+// 10s Interval that was ~10s after every restart: clients reaching
+// nats1 through its host port found no auth_callout to answer them,
+// and vector fell back to public DNS. Failures inside StartPeriod do
+// not count against Retries; the first success ends it. StartInterval
+// needs Docker Engine 25+ (API 1.44); older engines ignore it and check
+// at Interval, as before.
+func NatsHealthCheck(numReplicas int) *container.HealthConfig {
+	// A standalone server is healthy only when fully ready (/healthz).
+	// In a cluster, a member only needs JetStream enabled to take
+	// traffic: being current with the meta leader can take a while for
+	// a member that has just restarted.
+	cmd := "wget -qO- http://localhost:8222/healthz | grep -q '\"status\":\"ok\"' || exit 1"
+	if numReplicas > 1 {
+		cmd = "wget -qO- 'http://localhost:8222/healthz?js-enabled-only=1' | grep -q '\"status\":\"ok\"' || exit 1"
+	}
+	return &container.HealthConfig{
+		Test:          []string{"CMD-SHELL", cmd},
+		Interval:      10 * time.Second,
+		Timeout:       1 * time.Second,
+		Retries:       3,
+		StartPeriod:   60 * time.Second,
+		StartInterval: 1 * time.Second,
+	}
+}
+

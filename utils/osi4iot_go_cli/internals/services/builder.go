@@ -232,6 +232,14 @@ func (b *ServiceBuilder) WithHealthCheck(commands []string) *ServiceBuilder {
 	return b
 }
 
+// WithHealthConfig sets a complete, ready-made health check — for services
+// whose check is also re-applied outside this builder (see
+// NatsHealthCheck), so both places use the very same definition.
+func (b *ServiceBuilder) WithHealthConfig(hc *container.HealthConfig) *ServiceBuilder {
+	b.svc.TaskTemplate.ContainerSpec.Healthcheck = hc
+	return b
+}
+
 func (b *ServiceBuilder) WithHealthCheckOptions(
 	commands []string,
 	interval, timeout, startPeriod time.Duration,

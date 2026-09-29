@@ -25,6 +25,7 @@ func createPatroniSecrets(pd *pt.PlatformData) map[string]pt.Secret {
 		fmt.Sprintf("PATRONI_ADMIN_PASSWORD=%s", pi.PostgresPassword),
 		fmt.Sprintf("PATRONI_ADMIN_REPLICATOR_PASSWORD=%s", pi.PostgresReplicatorPassword),
 		fmt.Sprintf("PATRONI_ADMIN_REWIND_PASSWORD=%s", pi.PostgresRewindPassword),
+		fmt.Sprintf("PATRONI_ADMIN_RESTAPI_PASSWORD=%s", pi.PatroniAdminRestAPIPassword),
 		fmt.Sprintf("SUPERADMIN_USER=%s", pi.PlatformAdminUserName),
 		fmt.Sprintf("SUPERADMIN_PASSWORD=%s", pi.PlatformAdminPassword),
 		fmt.Sprintf("GRAFANA_DB_PASSWORD=%s", pi.GrafanaDBPassword),
@@ -36,6 +37,7 @@ func createPatroniSecrets(pd *pt.PlatformData) map[string]pt.Secret {
 		fmt.Sprintf("AWS_SECRET_ACCESS_KEY=%s", awsSecretAccessKey),
 		fmt.Sprintf("AWS_REGION=%s", awsRegion),
 	}
+	adminLines = appendSidecarToken(adminLines, pi)
 	adminData := strings.Join(adminLines, "\n")
 	adminHash := utils.GetMD5Hash(adminData)
 	secrets["patroni_admin"] = pt.Secret{
@@ -47,6 +49,7 @@ func createPatroniSecrets(pd *pt.PlatformData) map[string]pt.Secret {
 		fmt.Sprintf("PATRONI_METRICS_PASSWORD=%s", pi.TimescalePassword),
 		fmt.Sprintf("PATRONI_METRICS_REPLICATOR_PASSWORD=%s", pi.TimescaleReplicatorPassword),
 		fmt.Sprintf("PATRONI_METRICS_REWIND_PASSWORD=%s", pi.TimescaleRewindPassword),
+		fmt.Sprintf("PATRONI_METRICS_RESTAPI_PASSWORD=%s", pi.PatroniMetricsRestAPIPassword),
 		fmt.Sprintf("SUPERADMIN_USER=%s", pi.PlatformAdminUserName),
 		fmt.Sprintf("SUPERADMIN_PASSWORD=%s", pi.PlatformAdminPassword),
 		fmt.Sprintf("GRAFANA_DATASOURCE_PASSWORD=%s", pi.GrafanaDatasourcePassword),
@@ -58,6 +61,7 @@ func createPatroniSecrets(pd *pt.PlatformData) map[string]pt.Secret {
 		fmt.Sprintf("AWS_SECRET_ACCESS_KEY=%s", awsSecretAccessKey),
 		fmt.Sprintf("AWS_REGION=%s", awsRegion),
 	}
+	metricsLines = appendSidecarToken(metricsLines, pi)
 	metricsData := strings.Join(metricsLines, "\n")
 	metricsHash := utils.GetMD5Hash(metricsData)
 	secrets["patroni_metrics"] = pt.Secret{
@@ -65,4 +69,20 @@ func createPatroniSecrets(pd *pt.PlatformData) map[string]pt.Secret {
 		Data: metricsData,
 	}
 	return secrets
+}
+
+// appendSidecarToken adds patroni_sidecar's API token to a secret's lines
+// when the platform has one. entrypoint.sh sources the secret with
+// `set -a`, so the line reaches patroni_sidecar's environment as
+// PATRONI_SIDECAR_API_TOKEN, the variable it reads at startup.
+//
+// Left out, not written empty, when the state has no token: an empty
+// value and no value mean the same to the sidecar, and leaving the line
+// out keeps the secret — and its content-derived name — exactly what it
+// was before this setting existed.
+func appendSidecarToken(lines []string, pi pt.PlatformInfo) []string {
+	if pi.PatroniSidecarAPIToken == "" {
+		return lines
+	}
+	return append(lines, fmt.Sprintf("PATRONI_SIDECAR_API_TOKEN=%s", pi.PatroniSidecarAPIToken))
 }

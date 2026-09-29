@@ -24,6 +24,7 @@ REQUIRED_VARS=(
     "PATRONI_METRICS_PASSWORD"
     "PATRONI_METRICS_REPLICATOR_PASSWORD"
     "PATRONI_METRICS_REWIND_PASSWORD"
+    "PATRONI_METRICS_RESTAPI_PASSWORD"
     "SUPERADMIN_USER"
     "SUPERADMIN_PASSWORD"
     "GRAFANA_DATASOURCE_PASSWORD"
@@ -134,6 +135,11 @@ PATRONI_SIDECAR_PGHOST=localhost
 PATRONI_SIDECAR_PGPORT=5432
 PATRONI_SIDECAR_PGUSER=patroni_metrics
 PATRONI_SIDECAR_PGPASSWORD="$PATRONI_METRICS_PASSWORD"
+# Credentials for Patroni's own REST API — the pair restapi.authentication
+# in patroni.yml requires on /switchover, which patroni_sidecar proxies.
+# The username must match patroni.yml.
+PATRONI_SIDECAR_RESTAPI_USERNAME=patroni_restapi
+PATRONI_SIDECAR_RESTAPI_PASSWORD="$PATRONI_METRICS_RESTAPI_PASSWORD"
 PATRONI_SIDECAR_PGDATABASE=iot_data_db
 
 # ── Ensure correct data directory permissions ────────────────
@@ -185,8 +191,20 @@ if [ "$PATRONI_NUM_NODES" -gt 1 ]; then
                 unresolved+=("$PEER_NAME")
             fi
         done
-        if [ ${#unresolved[@]} -eq 0 ]; then
-            echo "All ${PATRONI_NUM_NODES} peers resolvable in DNS after ${elapsed}s"
+        # One reachable peer is enough to start: when scaling up, that is
+        # the running leader, which a new node needs for both Raft and its
+        # base backup. Waiting for ALL peers made new nodes wait for each
+        # other: a node is only added to Swarm's DNS once healthy, and it
+        # cannot be healthy while this loop keeps Patroni from starting —
+        # so two new nodes each spent the whole budget waiting for the
+        # other. pysyncobj resolves the rest on its own once they appear.
+        resolved=$(( PATRONI_NUM_NODES - 1 - ${#unresolved[@]} ))
+        if [ "$resolved" -gt 0 ]; then
+            if [ ${#unresolved[@]} -eq 0 ]; then
+                echo "All ${PATRONI_NUM_NODES} peers resolvable in DNS after ${elapsed}s"
+            else
+                echo "${resolved} peer(s) resolvable after ${elapsed}s; not yet: ${unresolved[*]} (pysyncobj will retry)"
+            fi
             break
         fi
         if [ "$elapsed" -ge "$DNS_WAIT_TIMEOUT" ]; then
@@ -329,6 +347,8 @@ PGPORT="$PATRONI_SIDECAR_PGPORT" \
 PGUSER="$PATRONI_SIDECAR_PGUSER" \
 PGPASSWORD="$PATRONI_SIDECAR_PGPASSWORD" \
 PGDATABASE="$PATRONI_SIDECAR_PGDATABASE" \
+PATRONI_SIDECAR_RESTAPI_USERNAME="$PATRONI_SIDECAR_RESTAPI_USERNAME" \
+PATRONI_SIDECAR_RESTAPI_PASSWORD="$PATRONI_SIDECAR_RESTAPI_PASSWORD" \
     patroni_sidecar &
 SIDECAR_PID=$!
 

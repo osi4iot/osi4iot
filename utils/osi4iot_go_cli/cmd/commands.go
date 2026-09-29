@@ -19,7 +19,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const version = "0.1.65"
+const version = "0.1.66"
 
 // SwarmActions lists the actions that need pt.DCMap populated before
 // they run (see main.go).
@@ -108,6 +108,21 @@ var cmdInit = &cobra.Command{
 
 		snapshotPath, _ := cmd.Flags().GetString(snapshotFileFlag)
 		fromBucket, _ := cmd.Flags().GetString(fromBucketFlag)
+
+		// A new, empty platform from an old state file, with every
+		// generated secret replaced — see init_reset.go. main.go has
+		// already rejected it next to a restore; checked again here so
+		// this command is correct on its own.
+		if resetPasswords, _ := cmd.Flags().GetBool(resetPasswordsFlag); resetPasswords {
+			if snapshotPath != "" || fromBucket != "" {
+				exitWithError(fmt.Sprintf("--%s cannot be combined with --%s or --%s",
+					resetPasswordsFlag, snapshotFileFlag, fromBucketFlag))
+			}
+			assumeYes, _ := cmd.Flags().GetBool(assumeYesFlag)
+			if err := resetPlatformSecrets(pd, assumeYes); err != nil {
+				exitWithError(fmt.Sprintf("Error resetting the platform secrets: %v", err))
+			}
+		}
 
 		// Three modes, differing in exactly two places: which services
 		// the first deployment leaves out, and what happens once it is
@@ -815,6 +830,9 @@ func init() {
 	cmdInit.Flags().String(statePrefixFlag, "", "Key prefix of the state file backups")
 	cmdInit.Flags().String(bucketRegionFlg, "", "Bucket region")
 	cmdInit.Flags().BoolP(assumeYesFlag, "y", false, "Do not ask for confirmation")
+	cmdInit.Flags().Bool(resetPasswordsFlag, false,
+		"Replace every generated secret (new empty platform from an old state file; "+
+			"not with --snapshot-file or --from-bucket)")
 	rootCmd.AddCommand(cmdRun)
 	cmdRun.PersistentFlags().StringSlice("exclude", []string{}, "List of services to exclude")
 	rootCmd.AddCommand(cmdStop)

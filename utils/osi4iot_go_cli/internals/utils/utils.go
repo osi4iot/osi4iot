@@ -10,7 +10,8 @@ import (
 	"strings"
 	"time"
 
-	"math/rand"
+	"math/big"
+	cryptorand "crypto/rand"
 
 	"github.com/charmbracelet/lipgloss"
 	"golang.org/x/crypto/bcrypt"
@@ -271,56 +272,33 @@ func GiveCountryCode(countryName string) string {
 	return ""
 }
 
+// passwordAlphabet is the character set GeneratePassword draws from.
+const passwordAlphabet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+
+// GeneratePassword returns a random password of the given length drawn
+// uniformly from passwordAlphabet (~5.95 bits per character, so 20
+// characters ≈ 119 bits).
+//
+// Uses crypto/rand. It used to seed math/rand with the current time in
+// microseconds, which made every password exactly as unpredictable as
+// the moment it was created — tens of bits, not a hundred, with that
+// moment often public (certificate transparency logs) — and made the
+// passwords generated in one run, seeded microseconds apart, derivable
+// from each other.
 func GeneratePassword(passwordLength int) string {
-	time.Sleep(1 * time.Microsecond)
-	source := rand.NewSource(time.Now().UnixMicro())
-	rng := rand.New(source)
-	lowerCase := "abcdefghijklmnopqrstuvwxyz" // lowercase
-	upperCase := "ABCDEFGHIJKLMNOPQRSTUVWXYZ" // uppercase
-	numbers := "0123456789"
-	var password strings.Builder
-	for n := 0; n < passwordLength; n++ {
-		randNum := rng.Intn(3)
-		switch randNum {
-		case 0:
-			randCharNum := rng.Intn(len(lowerCase))
-			password.WriteByte(lowerCase[randCharNum])
-		case 1:
-			randCharNum := rng.Intn(len(upperCase))
-			password.WriteByte(upperCase[randCharNum])
-		case 2:
-			randCharNum := rng.Intn(len(numbers))
-			password.WriteByte(numbers[randCharNum])
+	max := big.NewInt(int64(len(passwordAlphabet)))
+	b := make([]byte, passwordLength)
+	for i := range b {
+		n, err := cryptorand.Int(cryptorand.Reader, max)
+		if err != nil {
+			// Same stance as GenerateHexKey: no safe fallback exists.
+			panic(fmt.Sprintf("utils.GeneratePassword: crypto/rand failed: %v", err))
 		}
+		b[i] = passwordAlphabet[n.Int64()]
 	}
-	return password.String()
+	return string(b)
 }
 
-func GenerateRandomSalt() string {
-	passwordLength := 16
-	time.Sleep(1 * time.Microsecond)
-	source := rand.NewSource(time.Now().UnixMicro())
-	rng := rand.New(source)
-	lowerCase := "abcdefghijklmnopqrstuvwxyz" // lowercase
-	upperCase := "ABCDEFGHIJKLMNOPQRSTUVWXYZ" // uppercase
-	numbers := "0123456789"
-	var password strings.Builder
-	for n := 0; n < passwordLength; n++ {
-		randNum := rng.Intn(3)
-		switch randNum {
-		case 0:
-			randCharNum := rng.Intn(len(lowerCase))
-			password.WriteByte(lowerCase[randCharNum])
-		case 1:
-			randCharNum := rng.Intn(len(upperCase))
-			password.WriteByte(upperCase[randCharNum])
-		case 2:
-			randCharNum := rng.Intn(len(numbers))
-			password.WriteByte(numbers[randCharNum])
-		}
-	}
-	return password.String()
-}
 
 func HashPassword(password string) (string, error) {
 	cost := 8

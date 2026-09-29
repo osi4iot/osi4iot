@@ -132,6 +132,14 @@ type PlatformInfo struct {
 	// Additional Patroni-specific credentials for the metrics cluster
 	TimescaleReplicatorPassword string `json:"TIMESCALE_REPLICATOR_PASSWORD"`
 	TimescaleRewindPassword     string `json:"TIMESCALE_REWIND_PASSWORD"`
+	// Passwords for Patroni's own REST API (restapi.authentication in
+	// patroni.yml), one per cluster. Required on the endpoints that
+	// change something — /switchover, /failover, /restart… — which were
+	// otherwise open to every container on internal_net. Each cluster's
+	// nodes share theirs; patroni_sidecar gets it for its /switchover
+	// proxy.
+	PatroniAdminRestAPIPassword   string `json:"PATRONI_ADMIN_RESTAPI_PASSWORD"`
+	PatroniMetricsRestAPIPassword string `json:"PATRONI_METRICS_RESTAPI_PASSWORD"`
 	// Grafana datasource role and retention policy created by post_init.sh
 	TimescaleDataRetentionInterval string `json:"TIMESCALE_DATA_RET_INT_DAYS"`
 	GrafanaDatasourcePassword      string `json:"GRAFANA_DATASOURCE_PASSWORD"`
@@ -181,6 +189,19 @@ type PlatformInfo struct {
 	WalgCompressionMethod string `json:"WALG_COMPRESSION_METHOD"`
 	// MinIO endpoint — only used when S3BucketType == "Local Minio"
 	MinioEndpoint string `json:"MINIO_ENDPOINT"`
+
+	// PatroniSidecarAPIToken is the shared secret patroni_sidecar checks
+	// ("Authorization: Bearer <token>") on every endpoint but /health,
+	// and that system_manager — its only legitimate caller — sends. 32
+	// random bytes, hex encoded.
+	//
+	// It goes into the patroni_admin, patroni_metrics and system_manager
+	// secrets, so every deploy hands the same value to both sides. Empty
+	// only in state files from before it existed: EnsurePatroniSidecarToken
+	// fills it in at the next deploy. Rotating it is safe as long as
+	// both sides are redeployed together; hence "only if empty" in
+	// data.SetData, like the other generated secrets.
+	PatroniSidecarAPIToken string `json:"PATRONI_SIDECAR_API_TOKEN"`
 }
 
 type Certs struct {

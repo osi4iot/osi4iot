@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"system_manager/internal/config"
+	"system_manager/internal/sidecarauth"
 	"system_manager/internal/task"
 )
 
@@ -79,7 +80,7 @@ func (f FlushWAL) Run(ctx context.Context, params map[string]any) (string, error
 	if err != nil {
 		return "", fmt.Errorf("building request: %w", err)
 	}
-	setSidecarAuth(req)
+	sidecarauth.Set(req)
 
 	client := &http.Client{Timeout: flushTimeout}
 	resp, err := client.Do(req)
@@ -87,6 +88,10 @@ func (f FlushWAL) Run(ctx context.Context, params map[string]any) (string, error
 		return "", fmt.Errorf("calling patroni_sidecar to flush %s WAL: %w", f.Name, err)
 	}
 	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusUnauthorized {
+		return "", sidecarauth.UnauthorizedError(f.flushURL)
+	}
 
 	body, _ := io.ReadAll(resp.Body)
 	message := strings.TrimSpace(string(body))
@@ -107,4 +112,3 @@ func (f FlushWAL) Run(ctx context.Context, params map[string]any) (string, error
 		return "", fmt.Errorf("flushing %s WAL failed (%s): %s", f.Name, resp.Status, message)
 	}
 }
-
