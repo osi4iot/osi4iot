@@ -590,11 +590,11 @@ func CreateNatsVolume(pi pt.PlatformInfo, dc *pt.DockerClient, replica int) (*pt
 	volOptions := createDefaultOptions(pi)
 	volumeName := fmt.Sprintf("nats%d_data", replica)
 	serviceName := fmt.Sprintf("nats%d", replica)
-	domainName := pi.DomainName
 	volume := SetVolumeConfig(pi, volumeName, serviceName, pi.DeploymentLocation, volOptions)
-	err := CreateVolume(dc, domainName, &volume)
-	if err != nil {
-		return nil, fmt.Errorf("error creating volume %s in node %s: %v", volume.Name, dc.Node.NodeIP, err)
+
+	// On the worker that will run this replica, not on dc's node.
+	if err := createPinnedVolume(pi, dc, &volume); err != nil {
+		return nil, err
 	}
 
 	return &volume, nil
@@ -614,11 +614,11 @@ func CreatePatroniAdminVolume(pi pt.PlatformInfo, dc *pt.DockerClient, replica i
 	volOptions := createDefaultOptions(pi)
 	volumeName := fmt.Sprintf("patroni_admin%d-data", replica)
 	serviceName := fmt.Sprintf("patroni_admin%d", replica)
-	domainName := pi.DomainName
 	volume := SetVolumeConfig(pi, volumeName, serviceName, pi.DeploymentLocation, volOptions)
-	err := CreateVolume(dc, domainName, &volume)
-	if err != nil {
-		return nil, fmt.Errorf("error creating volume %s in node %s: %v", volume.Name, dc.Node.NodeIP, err)
+
+	// On the worker that will run this replica, not on dc's node.
+	if err := createPinnedVolume(pi, dc, &volume); err != nil {
+		return nil, err
 	}
 
 	return &volume, nil
@@ -646,12 +646,12 @@ func RemovePatroniAdminVolume(pd *pt.PlatformData, replica int) error {
 func CreatePatroniMetricsVolume(pi pt.PlatformInfo, dc *pt.DockerClient, replica int) (*pt.Volume, error) {
 	volOptions := createDefaultOptions(pi)
 	serviceName := fmt.Sprintf("patroni_metrics%d", replica)
-	domainName := pi.DomainName
-
 	dataVolumeName := fmt.Sprintf("patroni_metrics%d-data", replica)
 	dataVolume := SetVolumeConfig(pi, dataVolumeName, serviceName, pi.DeploymentLocation, volOptions)
-	if err := CreateVolume(dc, domainName, &dataVolume); err != nil {
-		return nil, fmt.Errorf("error creating volume %s in node %s: %v", dataVolume.Name, dc.Node.NodeIP, err)
+	
+	// On the worker that will run this replica, not on dc's node.
+	if err := createPinnedVolume(pi, dc, &dataVolume); err != nil {
+		return nil, err
 	}
 
 	return &dataVolume, nil
