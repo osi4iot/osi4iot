@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"regexp"
+	"runtime/debug"
 	"slices"
 	"strconv"
 	"strings"
@@ -19,7 +20,15 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const version = "0.1.68"
+var version = "dev"
+
+// SetVersion records the CLI's version. Called by main before any command
+// runs, with the contents of the embedded VERSION file.
+func SetVersion(v string) {
+	if v != "" {
+		version = v
+	}
+}
 
 // SwarmActions lists the actions that need pt.DCMap populated before
 // they run (see main.go).
@@ -51,8 +60,37 @@ var cmdVersion = &cobra.Command{
 	Short: "Show osi4iot version",
 	Long:  "Show osi4iot version",
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Printf("osi4iot CLI version: %s\n", version)
+		fmt.Printf("osi4iot CLI version: %s\n", versionString())
 	},
+}
+
+// versionString is the stamped version plus, when the binary carries
+// it, the git commit it was built from — "-dirty" when that commit had
+// uncommitted changes. Go records both on its own when building inside
+// a git checkout.
+func versionString() string {
+	info, ok := debug.ReadBuildInfo()
+	if !ok {
+		return version
+	}
+	var revision, dirty string
+	for _, s := range info.Settings {
+		switch s.Key {
+		case "vcs.revision":
+			revision = s.Value
+		case "vcs.modified":
+			if s.Value == "true" {
+				dirty = "-dirty"
+			}
+		}
+	}
+	if revision == "" {
+		return version
+	}
+	if len(revision) > 7 {
+		revision = revision[:7]
+	}
+	return fmt.Sprintf("%s (%s%s)", version, revision, dirty)
 }
 
 var cmdCreate = &cobra.Command{

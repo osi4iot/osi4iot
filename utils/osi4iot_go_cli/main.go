@@ -1,10 +1,12 @@
 package main
 
 import (
+	_ "embed"
 	"fmt"
 	"os"
 	"os/signal"
 	"slices"
+	"strings"
 	"syscall"
 
 	"github.com/osi4iot/osi4iot/utils/osi4iot/cmd"
@@ -13,7 +15,15 @@ import (
 	"github.com/osi4iot/osi4iot/utils/osi4iot/internals/utils"
 )
 
+// versionFile is ./VERSION, embedded at compile time — by build.sh,
+// `go build` and `go install .` alike — so no build needs flags to know
+// its version.
+//
+//go:embed VERSION
+var versionFile string
+
 func main() {
+	cmd.SetVersion(strings.TrimSpace(versionFile))
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, os.Interrupt, syscall.SIGTERM)
 	go func() {

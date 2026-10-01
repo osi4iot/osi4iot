@@ -104,9 +104,18 @@ func PrepareInitFromBucket(args []string) error {
 	// platform means this is a retry, and a different one means a
 	// mistyped command.
 	if existing != nil {
+		if existing.PlatformInfo.S3BucketName != opts.Bucket {
+			return fmt.Errorf("the state file on this machine is for '%s', whose bucket is '%s', not '%s'",
+				existing.PlatformInfo.DomainName, existing.PlatformInfo.S3BucketName, opts.Bucket)
+		}
 		logger.Printf("This machine is already configured for '%s'; keeping its state file.",
 			existing.PlatformInfo.DomainName)
-		return captureCatalogue(ctx, store, data.GetData(), logger)
+		// existing, not data.GetData(): this runs from main.go before the
+		// state file is loaded into data, so data.GetData() is still empty
+		// here — and with it the catalogue found no Patroni backups (no
+		// UsePatroniTool) and no NATS runs (no prefix), and the platform
+		// came back empty without a word.
+		return captureCatalogue(ctx, store, existing, logger)
 	}
 
 	blob, err := docker.FetchStateBackup(ctx, store, opts.Bucket, backup.Key)
