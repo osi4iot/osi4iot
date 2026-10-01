@@ -17,6 +17,7 @@ import (
 	"github.com/docker/docker/pkg/stdcopy"
 	pt "github.com/osi4iot/osi4iot/utils/osi4iot/internals/types"
 	"github.com/osi4iot/osi4iot/utils/osi4iot/internals/utils"
+	"github.com/osi4iot/osi4iot/utils/osi4iot/internals/volumes"
 )
 
 // This file restores a whole Patroni cluster from its wal-g backups.
@@ -472,6 +473,15 @@ func wipePatroniNodeData(pd *pt.PlatformData, dc *pt.DockerClient, family patron
 		return err
 	}
 
+	// The node holding this replica's volume — the one with its
+	// placement label — not the manager behind dc: a local volume exists
+	// only where its replica runs. Everything below talks to that node.
+	nodeDC, err := volumes.NodeForPinnedVolume(pd.PlatformInfo, dc, volumeName)
+	if err != nil {
+		return fmt.Errorf("finding the node that holds volume '%s': %w", volumeName, err)
+	}
+	dc = nodeDC
+
 	// Checked before mounting, because mount.TypeVolume with a Source
 	// that does not exist does not fail: Docker creates an empty volume
 	// there and then. The cleanup would run against that empty volume,
@@ -479,10 +489,10 @@ func wipePatroniNodeData(pd *pt.PlatformData, dc *pt.DockerClient, family patron
 	// cluster where it was meant to find nothing — so the restore would
 	// report success and leave the old data in place.
 	if _, err := dc.Cli.VolumeInspect(dc.Ctx, volumeName); err != nil {
-		return fmt.Errorf("the volume '%s' does not exist on this node: %w\n"+
-			"Its data lives somewhere this restore cannot see, and wiping a volume "+
-			"Docker would create here instead would silently leave the old data in place",
-			volumeName, err)
+		return fmt.Errorf("the volume '%s' does not exist on node %s: %w\n"+
+ 			"Its data lives somewhere this restore cannot see, and wiping a volume "+
+ 			"Docker would create here instead would silently leave the old data in place",
+			volumeName, dc.Node.NodeIP, err)
 	}
 
 	// find -mindepth 1 -delete empties the directory without removing

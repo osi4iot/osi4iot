@@ -120,37 +120,29 @@ func swarmNodeLabels() (map[string]map[string]string, error) {
 	return labels, nil
 }
 
-
-// createPinnedVolume creates a pinned replica's volume (see
-// pinnedVolumes) on the node that will run the replica — the one
-// carrying its placement label — rather than on the node behind dc.
+// NodeForPinnedVolume returns the client of the node that holds a pinned
+// replica's volume (see pinnedVolumes): the node carrying the replica's
+// placement label, read from the swarm.
 //
-// For the scale paths, which hold the manager's client: creating
-// through it put an empty copy of every new replica's volume on the
-// manager, while Swarm created the real one on the worker the replica
-// was placed on.
+// For anything that has to reach a replica's volume directly — creating
+// it ahead of a scale-up, wiping it for a restore — while holding the
+// manager's client: a pinned replica's local volume exists only on its
+// own node, and the manager would answer "not found" (or, worse, create
+// an empty one of its own).
 //
-// dc is still used when the volume has no single node to go to:
-//   - a single-node platform, where dc is that node;
-//   - a cluster-wide driver (EBS), where any node can create it;
-//   - an unpinned volume name.
-//
-// When no node carries the label (a platform with no workers, where the
-// replicas run on the managers unconstrained), nothing is created and
-// Swarm creates the volume — labelled, see ServiceBuilder.WithMounts —
-// wherever it places the task.
-func createPinnedVolume(pi pt.PlatformInfo, dc *pt.DockerClient, vol *pt.Volume) error {
-	key, value, pinned := pinnedVolumeLabel(vol.Name)
-	if len(pi.NodesData) == 1 || (vol.Driver != "" && vol.Driver != "local") || !pinned {
-		if err := CreateVolume(dc, pi.DomainName, vol); err != nil {
-			return fmt.Errorf("error creating volume %s in node %s: %v", vol.Name, dc.Node.NodeIP, err)
-		}
-		return nil
+// fallback is returned when the volume has no single node of its own:
+// a single-node platform (fallback is that node) or a name that is not
+// a pinned volume. An error when the label is on no node, or on a node
+// this CLI cannot reach.
+func NodeForPinnedVolume(pi pt.PlatformInfo, fallback *pt.DockerClient, volumeName string) (*pt.DockerClient, error) {
+	key, value, pinned := pinnedVolumeLabel(volumeName)
+	if len(pi.NodesData) == 1 || !pinned {
+		return fallback, nil
 	}
 
 	labelsByNode, err := swarmNodeLabels()
 	if err != nil {
-		return fmt.Errorf("error reading the swarm node labels for volume %s: %w", vol.Name, err)
+		return nil, fmt.Errorf("error reading the swarm node labels for volume %s: %w", volumeName, err)
 	}
 	for nodeAddr, labels := range labelsByNode {
 		if labels[key] != value {
@@ -158,13 +150,49 @@ func createPinnedVolume(pi pt.PlatformInfo, dc *pt.DockerClient, vol *pt.Volume)
 		}
 		target := pt.DCMap[nodeAddr]
 		if target == nil || target.Cli == nil {
-			return fmt.Errorf("node %s carries %s=%s for volume %s but is unreachable",
-				nodeAddr, key, value, vol.Name)
+			return nil, fmt.Errorf("node %s holds volume %s (label %s=%s) but is unreachable",
+				nodeAddr, volumeName, key, value)
 		}
-		if err := CreateVolume(target, pi.DomainName, vol); err != nil {
-			return fmt.Errorf("error creating volume %s in node %s: %v", vol.Name, nodeAddr, err)
+		return target, nil
+	}
+	return nil, errNoNodeForVolume{volumeName, key, value}
+}
+
+// errNoNodeForVolume: no node carries the label a pinned volume belongs to.
+type errNoNodeForVolume struct{ volume, key, value string }
+
+func (e errNoNodeForVolume) Error() string {
+	return fmt.Sprintf("no node carries %s=%s, the label volume %s belongs to", e.key, e.value, e.volume)
+}
+
+// createPinnedVolume creates a pinned replica's volume on the node that
+// will run the replica — the one carrying its placement label — rather
+// than on the node behind dc (see NodeForPinnedVolume).
+//
+// For the scale paths, which hold the manager's client: creating
+// through it put an empty copy of every new replica's volume on the
+// manager, while Swarm created the real one on the worker the replica
+// was placed on.
+//
+// A cluster-wide driver (EBS) is created through dc, as before: any node
+// can create it. When no node carries the label (a platform with no
+// workers, where the replicas run on the managers unconstrained),
+// nothing is created and Swarm creates the volume — labelled, see
+// ServiceBuilder.WithMounts — wherever it places the task.
+func createPinnedVolume(pi pt.PlatformInfo, dc *pt.DockerClient, vol *pt.Volume) error {
+	target := dc
+	if vol.Driver == "" || vol.Driver == "local" {
+		var err error
+		target, err = NodeForPinnedVolume(pi, dc, vol.Name)
+		if _, none := err.(errNoNodeForVolume); none {
+			return nil
 		}
-		return nil
+		if err != nil {
+			return err
+		}
+	}
+	if err := CreateVolume(target, pi.DomainName, vol); err != nil {
+		return fmt.Errorf("error creating volume %s in node %s: %v", vol.Name, target.Node.NodeIP, err)
 	}
 	return nil
 }
