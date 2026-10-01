@@ -111,9 +111,6 @@ func SetData(key string, value string) {
 		if Data.PlatformInfo.AccessTokenSecret == "" {
 			Data.PlatformInfo.AccessTokenSecret = value
 		}
-	case "NUMBER_OF_NATS_NODES":
-		numNatsNodes, _ := strconv.Atoi(value)
-		Data.PlatformInfo.NumOfNatsNodes = numNatsNodes
 	case "DEFAULT_NUMBER_OF_NATS_REPLICAS":
 		defaultNumNatsReplicas, _ := strconv.Atoi(value)
 		Data.PlatformInfo.DefaultNumOfNatsReplicas = defaultNumNatsReplicas

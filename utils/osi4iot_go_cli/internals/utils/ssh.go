@@ -306,3 +306,13 @@ func CreateSshPrivKeyTempFile(platformData *types.PlatformData) (*os.File, error
 
 	return tempFile, nil
 }
+
+// GetSshPubKey returns the platform's own SSH public key — the one an
+// on-premise node needs in its authorized_keys — from the state file, or
+// from its key file when the state file does not carry it.
+func GetSshPubKey(platformData *types.PlatformData) (string, error) {
+	if key := platformData.PlatformInfo.SshPubKey; key != "" {
+		return key, nil
+	}
+	return readSshPublicKeyFromFile(platformData)
+}

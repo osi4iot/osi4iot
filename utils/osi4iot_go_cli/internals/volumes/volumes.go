@@ -232,23 +232,38 @@ func tagEBSVolume(ctx context.Context, volumeName, serviceName, domainName strin
 }
 
 func CreateSwarmVolumes(pd *pt.PlatformData, volumesMap map[string]pt.Volume) (map[string]pt.Volume, error) {
-	numNodes := len(pd.PlatformInfo.NodesData)
 	domainName := pd.PlatformInfo.DomainName
-	errors := []error{}
-	for _, dc := range pt.DCMap {
-		var filteredVolumes map[string]pt.Volume
-		if numNodes == 1 {
-			filteredVolumes = volumesMap
-		} else {
-			filteredVolumes = getVolumesMapByNodeRole(volumesMap, dc.Node.NodeRole, pd)
-		}
 
-		for key, volume := range filteredVolumes {
-			err := CreateVolume(dc, domainName, &volume)
-			if err != nil {
-				errors = append(errors, fmt.Errorf("error creating volume %s in node %s: %v", volume.Name, dc.Node.NodeIP, err))
+	var filter volumeNodeFilter
+	if len(pd.PlatformInfo.NodesData) == 1 {
+		filter = func(pt.Volume, *pt.DockerClient) bool { return true }
+	} else {
+		labelsByNode, err := swarmNodeLabels()
+		if err != nil {
+			return nil, fmt.Errorf("error reading the swarm node labels: %w", err)
+		}
+		filter = placementFilter(pd, labelsByNode)
+	}
+
+	errors := []error{}
+	for node, dc := range pt.DCMap {
+		if dc == nil || dc.Cli == nil {
+			errors = append(errors, fmt.Errorf("node %s is unreachable, so its volumes cannot be created", node))
+			continue
+		}
+		// Ranging over volumesMap, never over a list of names: a name with
+		// no entry in the map would come back as a zero Volume, and
+		// VolumeCreate with an empty name makes an anonymous volume — which
+		// is what used to leave three of them (pgdata, timescaledb_data,
+		// timescaledb_wal, absent with Patroni) on every worker.
+		for key, vol := range volumesMap {
+			if !filter(vol, dc) {
+				continue
 			}
-			volumesMap[key] = volume
+			if err := CreateVolume(dc, domainName, &vol); err != nil {
+				errors = append(errors, fmt.Errorf("error creating volume %s in node %s: %v", vol.Name, dc.Node.NodeIP, err))
+			}
+			volumesMap[key] = vol
 		}
 	}
 
@@ -497,45 +512,35 @@ func getVolumeFilterByNames(pd *pt.PlatformData) filters.Args {
 	return volumeFilters
 }
 
-func getVolumesMapByNodeRole(volumesMap map[string]pt.Volume, nodeRole string, pd *pt.PlatformData) map[string]pt.Volume {
-	volumeNames := []string{"vector_buffer"}
+// roleVolumeNames lists the volumes a node of the given role used to get
+// regardless of labels. Now only consulted for volumes with a
+// cluster-wide driver (EBS), whose placement is not tied to a node —
+// see placementFilter.
+func roleVolumeNames(nodeRole string, pd *pt.PlatformData) map[string]bool {
+	names := map[string]bool{"vector_buffer": true}
 	switch nodeRole {
 	case "Manager":
-		numGrafanaReplicas := utils.GetServiceReplicas(pd, "grafana")
-		for replica := 1; replica <= numGrafanaReplicas; replica++ {
-			volName := fmt.Sprintf("grafana_data_%d", replica)
-			volumeNames = append(volumeNames, volName)
+		for replica := 1; replica <= utils.GetServiceReplicas(pd, "grafana"); replica++ {
+			names[fmt.Sprintf("grafana_data_%d", replica)] = true
 		}
 	case "Platform worker":
-		volumeNames = append(volumeNames,
-			"pgdata",
-			"timescaledb_data",
-			"timescaledb_wal",
-			"pgadmin4_data",
-		)
-		numNatsReplicas := utils.GetServiceReplicas(pd, "nats")
-		for replica := 1; replica <= numNatsReplicas; replica++ {
-			volName := fmt.Sprintf("nats%d_data", replica)
-			volumeNames = append(volumeNames, volName)
+		for _, name := range []string{"pgdata", "timescaledb_data", "timescaledb_wal", "pgadmin4_data"} {
+			names[name] = true
 		}
-		numPipelinesReplicas := utils.GetServiceReplicas(pd, "pipelines")
-		for i := 1; i <= numPipelinesReplicas; i++ {
-			volName := fmt.Sprintf("pipelines_data_%d", i)
-			volumeNames = append(volumeNames, volName)
+		for replica := 1; replica <= utils.GetServiceReplicas(pd, "nats"); replica++ {
+			names[fmt.Sprintf("nats%d_data", replica)] = true
+		}
+		for i := 1; i <= utils.GetServiceReplicas(pd, "pipelines"); i++ {
+			names[fmt.Sprintf("pipelines_data_%d", i)] = true
 		}
 
 		if pd.PlatformInfo.S3BucketType == "Local Minio" {
-			volumeNames = append(volumeNames, "minio_storage")
-			volumeNames = append(volumeNames, "minio_data")
+			names["minio_storage"] = true
+			names["minio_data"] = true
 		}
 	}
 
-	filteredVolumes := make(map[string]pt.Volume)
-	for _, name := range volumeNames {
-		filteredVolumes[name] = volumesMap[name]
-	}
-
-	return filteredVolumes
+	return names
 }
 
 func SetVolumeConfig(

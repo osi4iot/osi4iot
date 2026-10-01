@@ -346,9 +346,10 @@ var subCmdNodeAdd = &cobra.Command{
 	Long: "Adds a machine to the platform: records it in the state file, installs the " +
 		"firewall rules, the NFS client and the volume plugin on it, joins it to the swarm " +
 		"and gives it its placement labels.\n\n" +
-		"The machine must be reachable over SSH as the user given, and the platform's public " +
-		"key has to be installable on it — you are asked for the SSH password when the key is " +
-		"not there yet.\n\n" +
+		"The machine must be reachable over SSH as the user given. On AWS it must have been " +
+		"launched with the platform's EC2 key pair, and no password is asked for. On-premise, " +
+		"you are asked for the SSH password to install the platform's key on it — leave it " +
+		"empty if the key is already there. The password is used once and never stored.\n\n" +
 		"The node is APPENDED to the list, never inserted. Placement labels are handed out in " +
 		"list order, so appending is the only position that leaves the existing nodes with " +
 		"the labels they already have.\n\n" +
@@ -361,7 +362,8 @@ var subCmdNodeAdd = &cobra.Command{
 		pd, _ := nodeContext()
 		logger := log.New(os.Stdout, "", 0)
 
-		if pd.PlatformInfo.DeploymentLocation == snapshot.LocationLocal {
+		location := pd.PlatformInfo.DeploymentLocation
+		if location == snapshot.LocationLocal {
 			exitWithError("this is a local deployment: it has exactly one node, this machine. " +
 				"Adding nodes means changing the deployment location, which is not something " +
 				"this command can do")
@@ -394,11 +396,20 @@ var subCmdNodeAdd = &cobra.Command{
 			return
 		}
 
-		// Only on-premise nodes may need the platform's key installed.
-		// On AWS every instance already trusts aws_ssh_key.pem, so there is
-		// nothing to ask.
+		// The CLI reaches every node with a key, never a password:
+		//   - AWS: the EC2 key pair (aws_ssh_key.pem), which AWS installs
+		//     when the instance is launched. Nothing to install, and
+		//     Ubuntu on EC2 refuses password logins anyway.
+		//   - On-premise: the platform's own key, which has to be put in
+		//     the machine's authorized_keys once. The password is only for
+		//     that — asked for rather than taken as a flag, since a flag
+		//     ends up in the shell history and the process list.
 		var password string
-		if pd.PlatformInfo.DeploymentLocation == snapshot.LocationOnPremise {
+		switch location {
+		case snapshot.LocationAWS:
+			fmt.Println("AWS deployment: the instance must have been launched with the " +
+				"platform's EC2 key pair; it is reached with that key.")
+		case snapshot.LocationOnPremise:
 			p, err := promptLine("SSH password for " + node.NodeUserName + "@" + node.NodeIP +
 				" (empty if the platform's key is already installed): ")
 			if err != nil {
@@ -407,7 +418,6 @@ var subCmdNodeAdd = &cobra.Command{
 			}
 			password = strings.TrimSpace(p)
 		}
-		node.NodePassword = strings.TrimSpace(password)
 
 		fmt.Printf("\nAdding %s as '%s'.\n", node.NodeIP, node.NodeRole)
 		if node.NodeRole == "Platform worker" {
@@ -427,17 +437,32 @@ var subCmdNodeAdd = &cobra.Command{
 			}
 		}
 
+		// After the confirmation, so nothing touches the machine until the
+		// operator has agreed; before AddNodeToPlatform, so a wrong password
+		// or an unreachable host fails here, with the state file untouched.
 		if password != "" {
-			node.NodePassword = password
-			fmt.Printf("Installing the platform's public key on %s...\n", node.NodeIP)
-			if err := utils.CopyKeyInNode(node, pd.PlatformInfo.SshPubKey); err != nil {
-				exitWithError(fmt.Sprintf("error installing the platform's key on %s: %v", node.NodeIP, err))
+			publicKey, err := utils.GetSshPubKey(pd)
+			if err != nil {
+				exitWithError(fmt.Sprintf("error reading the platform's SSH public key: %v", err))
 				return
 			}
-			// Not persisted: once the key is installed the password is never
-			// needed again, and the snapshot's nodes.json already treats it
-			// the same way.
+			if strings.TrimSpace(publicKey) == "" {
+				exitWithError("the platform's SSH public key is empty, so there is nothing to install")
+				return
+			}
+
+			fmt.Printf("Installing the platform's public key on %s...\n", node.NodeIP)
+			node.NodePassword = password
+			err = utils.CopyKeyInNode(node, publicKey)
+			// Never kept: from here on the node is reached with the key, and
+			// AddNodeToPlatform writes node into the state file. The
+			// snapshot's nodes.json leaves it out for the same reason.
 			node.NodePassword = ""
+			if err != nil {
+				exitWithError(fmt.Sprintf("error installing the platform's key on %s: %v",
+					node.NodeIP, err))
+				return
+			}
 		}
 
 		if err := docker.AddNodeToPlatform(pd, node, logger); err != nil {
@@ -448,9 +473,11 @@ var subCmdNodeAdd = &cobra.Command{
 		fmt.Println(utils.StyleOKMsg.Render(fmt.Sprintf("%s is part of the platform", node.NodeIP)))
 
 		if data.GetPlatformState() == data.Running {
+			fmt.Println("Global services (such as vector) start on it on their own.")
 			if node.NodeRole == "Platform worker" {
 				fmt.Println("To place NATS or Patroni replicas on it, scale them, e.g.:")
 				fmt.Println("  osi4iot service scale nats=3")
+				fmt.Println("  osi4iot service scale patroni_admin=3")
 			}
 		} else {
 			fmt.Println("Run 'osi4iot run' to start the platform with the new node.")
@@ -693,7 +720,7 @@ func init() {
 
 	subCmdNodeAdd.Flags().StringVar(&nodeAddIP, "ip", "", "The machine's address (required)")
 	subCmdNodeAdd.Flags().StringVar(&nodeAddRole, "role", "Platform worker",
-		"Manager, Platform worker or NFS server")
+		"Manager, Platform worker")
 	subCmdNodeAdd.Flags().StringVar(&nodeAddUser, "user", "", "SSH user on the machine (required)")
 	subCmdNodeAdd.Flags().StringVar(&nodeAddLabel, "label", "", "Name for the node in the state file")
 	subCmdNodeAdd.Flags().StringVar(&nodeAddHostname, "hostname", "", "The machine's hostname")
