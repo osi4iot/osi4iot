@@ -22,8 +22,8 @@ import (
 //
 // Adding and removing nodes is deliberately NOT here. In osi4iot a node
 // is an entry in the state file, an SSH target with the platform's key
-// installed, sometimes the NFS server, and an input to where Patroni
-// and NATS replicas are pinned. Joining or removing one touches all of
+// installed, and an input to where Patroni and NATS replicas are
+// pinned. Joining or removing one touches all of
 // that, and removing one has to answer questions this file does not ask
 // — manager quorum, Patroni leaders, what happens to the node's
 // volumes. Those get their own commands and their own guards.
@@ -133,8 +133,8 @@ var subCmdNodeInspect = &cobra.Command{
 		"machine's own resources, and its labels.\n\n" +
 		"The labels are split into the ones the platform manages and the ones set by hand, " +
 		"because they behave differently: nodesConfiguration rewrites platform_worker, " +
-		"nfs_server, nats_*, admin-id and metrics-id from the state file on every init and " +
-		"run, and anything else survives.",
+		"nats_*, admin-id and metrics-id from the state file on every init and run, and " +
+		"anything else survives.",
 	Args: cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		pd, dc := nodeContext()
@@ -173,8 +173,7 @@ var subCmdNodeDrain = &cobra.Command{
 		"machine down for maintenance.\n\n" +
 		"Undo it with 'osi4iot node activate'.\n\n" +
 		"Draining is not free, and the command says so before doing it. Draining the node " +
-		"holding a Patroni leader forces a failover. Draining the NFS server takes the shared " +
-		"volumes away from every other node. Draining the only node stops the platform.",
+		"holding a Patroni leader forces a failover. Draining the only node stops the platform.",
 	Args: cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		pd, dc := nodeContext()
@@ -263,7 +262,7 @@ var subCmdNodeUpdate = &cobra.Command{
 	Short: "Add or remove labels on a node",
 	Long: "Adds and removes swarm labels on one node.\n\n" +
 		"IMPORTANT: labels set here are not permanent. nodesConfiguration rebuilds " +
-		"platform_worker, nfs_server, nats_*, admin-id and metrics-id from the state file on " +
+		"platform_worker, nats_*, admin-id and metrics-id from the state file on " +
 		"every 'init' and every 'run', so a label with one of those names lasts until the " +
 		"next deployment and then goes back to whatever the state file implies. The command " +
 		"refuses to touch them unless you pass --force.\n\n" +
@@ -344,7 +343,7 @@ var subCmdNodeAdd = &cobra.Command{
 	Use:   "add",
 	Short: "Join a machine to the platform",
 	Long: "Adds a machine to the platform: records it in the state file, installs the " +
-		"firewall rules, the NFS client and the volume plugin on it, joins it to the swarm " +
+		"firewall rules and the volume plugin on it, joins it to the swarm " +
 		"and gives it its placement labels.\n\n" +
 		"The machine must be reachable over SSH as the user given. On AWS it must have been " +
 		"launched with the platform's EC2 key pair, and no password is asked for. On-premise, " +
@@ -381,8 +380,8 @@ var subCmdNodeAdd = &cobra.Command{
 		// Validated with the same rules the snapshot's nodes.json uses,
 		// so a node added here and a node restored from a bundle have
 		// to pass the same checks. Among other things this is what
-		// catches "NFS Server" with a capital S, which reads fine and
-		// matches nothing.
+		// catches "Platform Worker" with a capital W, which reads fine
+		// and matches nothing.
 		candidate := snapshot.ExtractNodes(pd)
 		candidate.Nodes = append(candidate.Nodes, snapshot.NodeOverlay{
 			NodeLabel:    node.NodeLabel,
@@ -659,12 +658,6 @@ func reportQuorum(views []docker.NodeView) {
 // drainWarnings lists what draining this node costs.
 func drainWarnings(view docker.NodeView, all []docker.NodeView) []string {
 	var warnings []string
-
-	if view.PlatformRole() == "NFS server" {
-		warnings = append(warnings,
-			"This node is the platform's NFS server. Draining it does not stop the NFS export, "+
-				"but anything that restarts elsewhere while it is down will fail to mount.")
-	}
 
 	if view.SwarmRole() == string(swarm.NodeRoleManager) {
 		total, reachable := docker.CountManagers(all)

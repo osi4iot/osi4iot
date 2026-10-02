@@ -18,8 +18,8 @@ import (
 // # A node is more than a swarm member here
 //
 // It is an entry in NodesData, an SSH target with the platform's key
-// installed, possibly the NFS server, and — this is the part that bites
-// — a slot in the placement scheme.
+// installed, and — this is the part that bites — a slot in the
+// placement scheme.
 //
 // addNodesLabels walks NodesData IN ORDER and hands out admin-id,
 // metrics-id and nats_N to the "Platform worker" nodes as it goes. The
@@ -56,9 +56,6 @@ type NodePlacementImpact struct {
 	// their placement label afterwards. A non-empty list is a refusal.
 	HomelessServices []string
 
-	// LosesNFS is true when the node being removed is the NFS server.
-	LosesNFS bool
-
 	// ManagersBefore / ManagersAfter matter for quorum.
 	ManagersBefore int
 	ManagersAfter  int
@@ -68,7 +65,7 @@ type NodePlacementImpact struct {
 // doing any of it.
 func PlanNodeRemoval(pd *pt.PlatformData, target pt.NodeData) NodePlacementImpact {
 	pi := pd.PlatformInfo
-	impact := NodePlacementImpact{LosesNFS: target.NodeRole == "NFS server"}
+	impact := NodePlacementImpact{}
 
 	removed := false
 	workerIndex := 0
@@ -368,11 +365,6 @@ func DescribeRemoval(impact NodePlacementImpact, target pt.NodeData) string {
 		} else if impact.ManagersAfter%2 == 0 {
 			b.WriteString("  An even number of managers buys no extra tolerance. Use 1, 3 or 5.\n")
 		}
-	}
-
-	if impact.LosesNFS {
-		b.WriteString("  This is the platform's NFS server. Every shared volume is exported " +
-			"from it,\n  and the other nodes lose them.\n")
 	}
 
 	if len(impact.ShiftedWorkers) > 0 {

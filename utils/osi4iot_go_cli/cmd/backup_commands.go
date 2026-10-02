@@ -211,12 +211,13 @@ var subCmdBackupRestore = &cobra.Command{
 		}
 
 		if isPatroni {
-			// The retention window counts backups, not timelines, so
-			// the base backup this recovery depended on can age out
-			// before anyone notices something is wrong. Taking a fresh
-			// one now is the cheapest insurance there is, and a PITR
-			// promotes a new timeline that nothing has backed up yet.
-			fmt.Printf("\nTake a backup of the restored cluster now: osi4iot backup trigger %s\n", target)
+			// Optional: system_manager's next scheduled backup covers the
+			// restored cluster's new timeline anyway, and retention only
+			// runs right after a backup, so nothing it depends on can age
+			// out before then. Taking one now just makes a restore within
+			// that window start from here instead of replaying WAL.
+			fmt.Printf("\nOptionally, back up the restored cluster now rather than at the next "+
+				"scheduled backup: osi4iot backup trigger %s\n", target)
 		}
 	},
 }
