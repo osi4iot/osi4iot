@@ -284,6 +284,13 @@ var cmdDelete = &cobra.Command{
 		"bring the whole thing back from them.\n\n" +
 		"--remove-bucket empties and deletes the bucket as well. That is irreversible and " +
 		"there is nothing left to recover from, so it is opt-in and confirmed.\n\n" +
+		"With an external bucket that is kept, the platform is backed up one last time " +
+		"before anything is removed — both Patroni clusters, the NATS streams and the state " +
+		"file — so the bucket holds it as it is at the moment of the delete rather than as " +
+		"of the last scheduled backups (up to archive_timeout behind for Postgres, up to a " +
+		"day for NATS). If one of them fails, the delete asks before going on. " +
+		"--no-final-backups skips them. A stopped platform cannot be backed up: its bucket " +
+		"holds what was backed up while it ran.\n\n" +
 		"With a local Garage there is nothing extra to remove: that bucket lives in the " +
 		"garage volumes and goes with them either way.",
 	Run: func(cmd *cobra.Command, args []string) {
@@ -311,6 +318,13 @@ var cmdDelete = &cobra.Command{
 			if err := docker.RemovePlatformBucket(pd, dc, logger); err != nil {
 				exitWithError(err.Error())
 			}
+		}
+
+		// An external bucket that is kept is what the platform will be
+		// rebuilt from (init --from-bucket): bring it up to date first.
+		noFinalBackups, _ := cmd.Flags().GetBool("no-final-backups")
+		if utils.IsAwsS3(pd.PlatformInfo) && !removeBucket && !noFinalBackups {
+			takeFinalBackupsBeforeDelete(pd, dc)
 		}
 
 		err = docker.DeletePlatform(pd)
@@ -948,6 +962,8 @@ func init() {
 	subCmdStateRecover.Flags().StringVar(&stateRecoverKeyPfx, "state-prefix", "",
 		"Key prefix of the state file backups (default: backups/state_file)")
 
+	cmdDelete.Flags().Bool("no-final-backups", false,
+		"with an external bucket that is kept, do not back the platform up before deleting it")
 	cmdDelete.Flags().Bool("remove-bucket", false,
 		"Also empty and delete the platform's S3 bucket")
 
@@ -974,4 +990,34 @@ func exitWithError(errMsg string) {
 	fmt.Println(utils.StyleErrMsg.Render(errMsg))
 	fmt.Println()
 	os.Exit(1)
+}
+
+// takeFinalBackupsBeforeDelete backs the platform up one last time before
+// a delete that keeps its external bucket. A backup that fails is not
+// silently accepted: the bucket would hold that part as of its last
+// backup, so the operator decides whether to go on. Nothing has been
+// removed at that point, so answering no leaves the platform untouched.
+func takeFinalBackupsBeforeDelete(pd *pt.PlatformData, dc *pt.DockerClient) {
+	logger := log.New(os.Stdout, "", 0)
+	if data.GetPlatformState() != data.Running {
+		fmt.Println(utils.StyleWarningMsg.Render("The platform is not running, so no final " +
+			"backups can be taken: the bucket holds what was backed up while it ran."))
+		return
+	}
+
+	failed := docker.TakeFinalBackups(pd, dc, logger)
+	if len(failed) == 0 {
+		fmt.Println(utils.StyleOKMsg.Render(fmt.Sprintf(
+			"s3://%s is up to date: init --from-bucket can rebuild the platform as it is now",
+			pd.PlatformInfo.S3BucketName)))
+		return
+	}
+
+	fmt.Println(utils.StyleWarningMsg.Render(fmt.Sprintf(
+		"The final backup of %s could not be taken: the bucket keeps them as of their last "+
+			"backup, and anything newer is lost with the platform.", strings.Join(failed, ", "))))
+	answer, err := promptLine("Delete the platform anyway? [y/N]: ")
+	if err != nil || !strings.EqualFold(strings.TrimSpace(answer), "y") {
+		exitWithError("Cancelled. Nothing has been removed.")
+	}
 }

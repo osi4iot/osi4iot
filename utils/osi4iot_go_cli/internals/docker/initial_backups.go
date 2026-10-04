@@ -40,21 +40,52 @@ import (
 // by hand rather than unwinding a working install.
 func TakeInitialBackups(pd *pt.PlatformData, dc *pt.DockerClient, logger *log.Logger) {
 	logger.Printf("Taking the first backups of the platform...")
+	takeBackupRound(pd, dc, logger, &backupRound{name: "first"})
+}
 
+// TakeFinalBackups takes a last backup of everything, for a platform
+// about to be deleted whose bucket survives it (an external AWS S3
+// bucket, kept): what the bucket holds is what `osi4iot init
+// --from-bucket` will rebuild the platform from.
+//
+// Between scheduled runs the bucket lags behind: Postgres archives WAL
+// a segment at a time (archive_timeout bounds the wait), and NATS
+// streams are backed up once a day. A fresh base backup leaves each
+// database consistent as of now; a fresh NATS run captures the streams
+// as they are.
+//
+// Returns the targets whose backup could not be taken, so the caller can
+// decide whether to delete anyway.
+func TakeFinalBackups(pd *pt.PlatformData, dc *pt.DockerClient, logger *log.Logger) []string {
+	logger.Printf("Taking final backups, so the bucket holds the platform as it is now...")
+	round := &backupRound{name: "final", final: true}
+	takeBackupRound(pd, dc, logger, round)
+	return round.failed
+}
+
+// backupRound is one pass over everything the platform backs up: the
+// first one, after a deployment, or the final one, before a delete.
+type backupRound struct {
+	name   string // "first" or "final", for the messages
+	final  bool
+	failed []string
+}
+
+func takeBackupRound(pd *pt.PlatformData, dc *pt.DockerClient, logger *log.Logger, round *backupRound) {
 	if pd.PlatformInfo.UsePatroniTool {
-		takeInitialPatroniBackup(pd, dc, logger, "patroni_admin", initialTriggerPatroniAdmin)
-		takeInitialPatroniBackup(pd, dc, logger, "patroni_metrics", initialTriggerPatroniMetrics)
+		takePatroniBackup(pd, dc, logger, round, "patroni_admin", initialTriggerPatroniAdmin)
+		takePatroniBackup(pd, dc, logger, round, "patroni_metrics", initialTriggerPatroniMetrics)
 	}
-	takeInitialNatsBackup(pd, dc, logger)
-	// Last, so the copy is of the state file as the deployment left it.
-	takeInitialStateFileBackup(pd, dc, logger)
+	takeNatsBackup(pd, dc, logger, round)
+	// Last, so the copy is of the state file as the platform is now.
+	takeStateFileBackup(pd, dc, logger, round)
 }
 
 // backupTrigger asks system_manager for one backup and returns its report.
 type backupTrigger func(pd *pt.PlatformData, dc *pt.DockerClient) (string, error)
 
-// What TakeInitialBackups reaches out to, as variables so its tests can
-// run it without a platform.
+// What the backup rounds reach out to, as variables so their tests can
+// run them without a platform.
 var (
 	initialTriggerPatroniAdmin   backupTrigger = TriggerPatroniAdminBackup
 	initialTriggerPatroniMetrics backupTrigger = TriggerPatroniMetricsBackup
@@ -64,14 +95,27 @@ var (
 	initialSleep                               = time.Sleep
 )
 
-func takeInitialPatroniBackup(pd *pt.PlatformData, dc *pt.DockerClient, logger *log.Logger,
-	target string, trigger backupTrigger) {
+// backupFailed records and reports a backup that could not be taken.
+func backupFailed(logger *log.Logger, round *backupRound, target, command string, err error, firstNote string) {
+	round.failed = append(round.failed, target)
+	logger.Printf("Warning: could not take the %s %s backup: %v", round.name, target, err)
+	if round.final {
+		logger.Printf("  The bucket keeps %s as of its last backup.", target)
+		return
+	}
+	if firstNote != "" {
+		logger.Printf("  %s", firstNote)
+	}
+	logger.Printf("  Take one when convenient: osi4iot backup trigger %s", command)
+}
+
+func takePatroniBackup(pd *pt.PlatformData, dc *pt.DockerClient, logger *log.Logger,
+	round *backupRound, target string, trigger backupTrigger) {
 	output, err := triggerInitialBackup(pd, dc, trigger)
 	if err != nil {
-		logger.Printf("Warning: could not take the first %s backup: %v", target, err)
-		logger.Printf("  The cluster is archiving WAL with no base backup to replay it onto, " +
-			"so it has no recovery point yet.")
-		logger.Printf("  Take one when convenient: osi4iot backup trigger %s", target)
+		backupFailed(logger, round, target, target, err,
+			"The cluster is archiving WAL with no base backup to replay it onto, "+
+				"so it has no recovery point yet.")
 		return
 	}
 	reportInitialBackup(logger, target, output)
@@ -79,17 +123,19 @@ func takeInitialPatroniBackup(pd *pt.PlatformData, dc *pt.DockerClient, logger *
 
 // initialNatsStreamsWait bounds how long to wait for the platform's
 // services to have created their JetStream streams (pipelines' streams,
-// the KV buckets — which are streams too) before asking for the backup.
+// the KV buckets — which are streams too) before asking for the first
+// backup.
 const initialNatsStreamsWait = 60 * time.Second
 
-// takeInitialNatsBackup asks for the first NATS streams backup.
+// takeNatsBackup asks for a NATS streams backup.
 //
-// It first waits for there to be streams. "All services healthy" does
-// not mean they have all created theirs yet, and system_manager answers
-// a backup of zero streams with success and nothing uploaded — the
-// operator would see "nats_streams backed up" and find nothing in the
-// bucket.
-func takeInitialNatsBackup(pd *pt.PlatformData, dc *pt.DockerClient, logger *log.Logger) {
+// On a platform just deployed it first waits for there to be streams:
+// "all services healthy" does not mean they have all created theirs yet,
+// and system_manager answers a backup of zero streams with success and
+// nothing uploaded — the operator would see "nats_streams backed up" and
+// find nothing in the bucket. Before a delete there is nothing to wait
+// for: whatever streams exist are the ones to keep.
+func takeNatsBackup(pd *pt.PlatformData, dc *pt.DockerClient, logger *log.Logger, round *backupRound) {
 	const target = "nats_streams"
 	if pd.PlatformInfo.NATSBackupS3Prefix == "" {
 		logger.Printf("Warning: NATS stream backups are not configured "+
@@ -97,10 +143,18 @@ func takeInitialNatsBackup(pd *pt.PlatformData, dc *pt.DockerClient, logger *log
 		return
 	}
 
-	count, listErr := waitForNatsStreams(pd, dc, initialNatsStreamsWait)
+	wait := initialNatsStreamsWait
+	if round.final {
+		wait = 0
+	}
+	count, listErr := waitForNatsStreams(pd, dc, wait)
 	if listErr == nil && count == 0 {
-		logger.Printf("  %s: no JetStream streams exist yet, so there is nothing to back up; "+
-			"system_manager's scheduled backup will take the first one.", target)
+		if round.final {
+			logger.Printf("  %s: there are no JetStream streams; nothing to back up.", target)
+		} else {
+			logger.Printf("  %s: no JetStream streams exist yet, so there is nothing to back up; "+
+				"system_manager's scheduled backup will take the first one.", target)
+		}
 		return
 	}
 	// listErr != nil: the CLI could not reach NATS itself (that needs
@@ -110,9 +164,8 @@ func takeInitialNatsBackup(pd *pt.PlatformData, dc *pt.DockerClient, logger *log
 
 	output, err := triggerInitialBackup(pd, dc, initialTriggerNats)
 	if err != nil {
-		logger.Printf("Warning: could not take the first %s backup: %v", target, err)
-		logger.Printf("  The streams have no backup until system_manager's scheduled one.")
-		logger.Printf("  Take one when convenient: osi4iot backup trigger %s", target)
+		backupFailed(logger, round, target, target, err,
+			"The streams have no backup until system_manager's scheduled one.")
 		return
 	}
 	reportInitialBackup(logger, target, output)
@@ -140,12 +193,11 @@ func waitForNatsStreams(pd *pt.PlatformData, dc *pt.DockerClient, wait time.Dura
 	}
 }
 
-func takeInitialStateFileBackup(pd *pt.PlatformData, dc *pt.DockerClient, logger *log.Logger) {
+func takeStateFileBackup(pd *pt.PlatformData, dc *pt.DockerClient, logger *log.Logger, round *backupRound) {
 	const target = "state_file"
 	output, err := triggerInitialBackup(pd, dc, initialTriggerStateFile)
 	if err != nil {
-		logger.Printf("Warning: could not take the first %s backup: %v", target, err)
-		logger.Printf("  Take one when convenient: osi4iot backup trigger state")
+		backupFailed(logger, round, target, "state", err, "")
 		return
 	}
 	reportInitialBackup(logger, target, output)
