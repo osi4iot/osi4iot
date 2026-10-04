@@ -774,6 +774,19 @@ func ScaleSwarmService(pd *pt.PlatformData, dc *pt.DockerClient, serviceName str
 				}
 			}
 
+			// Step 3c: nats1 is about to go from standalone into a cluster.
+			// If it was ever in one before (a platform scaled 3 -> 1 -> 3),
+			// its store still holds that cluster's JetStream state, and it
+			// would recover it on rejoining instead of joining this one
+			// fresh — see clearNatsClusterState. Done while nats1 is still
+			// standalone, which never reads that state, and before the
+			// restart below makes it matter.
+			if currentReplicas == 1 {
+				if err := clearNatsClusterState("nats1"); err != nil {
+					return "", removeNewReplicas(fmt.Errorf("clearing nats1's old cluster state: %w", err))
+				}
+			}
+
 			// Step 4: Restart the existing replicas with the new nats_config.
 			// Only the NATS servers themselves here: every other client is
 			// updated after the streams are back (Step 7), so nothing slow
@@ -1336,6 +1349,43 @@ func RemoveNatsService(pd *pt.PlatformData, dc *pt.DockerClient, replica int) er
 
 	if err := volumes.RemoveNatsVolume(pd, replica); err != nil {
 		return fmt.Errorf("error removing nats volume for removed replica %d: %v", replica, err)
+	}
+	return nil
+}
+
+// clearNatsClusterState removes the clustered JetStream state a NATS
+// server keeps under <store>/<system account>/_js_ — the meta group's
+// Raft log and the stream and consumer Raft groups.
+//
+// For a server about to go from standalone back into a cluster. A
+// standalone server never reads that directory, but it does not delete
+// it either, so a nats1 that was ever part of a cluster still holds the
+// old one's state, and recovers it on rejoining instead of joining
+// fresh: its old Raft term unseats the new meta leader, it reclaims the
+// streams under their old assignments until it converges, and it keeps
+// retrying consumers the old cluster had. Cleared, it bootstraps into
+// the new cluster like a server that was never in one.
+//
+// Matched with a glob rather than a fixed path because the system
+// account's directory is named after the account in nats.conf (SYS
+// here, $SYS in NATS's defaults). The streams' own data, in the other
+// account directories, stays.
+func clearNatsClusterState(serviceName string) error {
+	nodeDC, containerID, err := findServiceContainer(serviceName)
+	if err != nil {
+		return fmt.Errorf("finding %s's container: %w", serviceName, err)
+	}
+
+	script := `for d in /data/nats/jetstream/*/_js_; do ` +
+		`[ -d "$d" ] || continue; rm -rf "$d"; echo "removed $d"; ` +
+		`done`
+
+	out, code, err := execInContainer(nodeDC, containerID, "", []string{"/bin/sh", "-c", script}, nil)
+	if err != nil {
+		return err
+	}
+	if code != 0 {
+		return fmt.Errorf("removing the old cluster state exited %d: %s", code, strings.TrimSpace(out))
 	}
 	return nil
 }
