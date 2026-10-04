@@ -6,6 +6,8 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/swarm"
 
 	pt "github.com/osi4iot/osi4iot/utils/osi4iot/internals/types"
@@ -176,4 +178,36 @@ func GarageActivateNote(pi pt.PlatformInfo, nodeIP string) string {
 	}
 	return fmt.Sprintf("%s restart on this node with their data and catch up on what was "+
 		"written meanwhile; no rebalancing is needed.", instanceNames(ids))
+}
+
+// IsGarageRunning reports whether any Garage instance has a running task,
+// asked of Swarm — no container inspection, so it answers the same for
+// instances on workers.
+func IsGarageRunning(dc *pt.DockerClient) bool {
+	if dc == nil || dc.Cli == nil {
+		return false
+	}
+	f := filters.NewArgs()
+	f.Add("name", utils.GarageServiceName+"_")
+	services, err := dc.Cli.ServiceList(dc.Ctx, types.ServiceListOptions{Filters: f})
+	if err != nil {
+		return false
+	}
+	for _, s := range services {
+		if _, ok := utils.GarageInstanceIDFromService(s.Spec.Name); !ok {
+			continue
+		}
+		tf := filters.NewArgs()
+		tf.Add("service", s.ID)
+		tasks, err := dc.Cli.TaskList(dc.Ctx, types.TaskListOptions{Filters: tf})
+		if err != nil {
+			continue
+		}
+		for _, t := range tasks {
+			if t.Status.State == swarm.TaskStateRunning {
+				return true
+			}
+		}
+	}
+	return false
 }

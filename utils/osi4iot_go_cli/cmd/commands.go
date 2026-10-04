@@ -288,9 +288,8 @@ var cmdDelete = &cobra.Command{
 		"before anything is removed — both Patroni clusters, the NATS streams and the state " +
 		"file — so the bucket holds it as it is at the moment of the delete rather than as " +
 		"of the last scheduled backups (up to archive_timeout behind for Postgres, up to a " +
-		"day for NATS). If one of them fails, the delete asks before going on. " +
-		"--no-final-backups skips them. A stopped platform cannot be backed up: its bucket " +
-		"holds what was backed up while it ran.\n\n" +
+		"day for NATS). If one of them fails, or system_manager is not running to take " +
+		"them, the delete asks before going on. --no-final-backups skips them.\n\n" +
 		"With a local Garage there is nothing extra to remove: that bucket lives in the " +
 		"garage volumes and goes with them either way.",
 	Run: func(cmd *cobra.Command, args []string) {
@@ -999,9 +998,18 @@ func exitWithError(errMsg string) {
 // removed at that point, so answering no leaves the platform untouched.
 func takeFinalBackupsBeforeDelete(pd *pt.PlatformData, dc *pt.DockerClient) {
 	logger := log.New(os.Stdout, "", 0)
-	if data.GetPlatformState() != data.Running {
-		fmt.Println(utils.StyleWarningMsg.Render("The platform is not running, so no final " +
+	// Asked of Swarm directly: the backups go through system_manager, so
+	// what matters is that it runs. The platform's overall state is not
+	// the question — it reads "initiating" whenever any one task of any
+	// service is not healthy, or runs on a node whose containers the
+	// manager cannot inspect.
+	if !docker.IsSystemManagerRunning(dc) {
+		fmt.Println(utils.StyleWarningMsg.Render("system_manager is not running, so no final " +
 			"backups can be taken: the bucket holds what was backed up while it ran."))
+		answer, err := promptLine("Delete the platform anyway? [y/N]: ")
+		if err != nil || !strings.EqualFold(strings.TrimSpace(answer), "y") {
+			exitWithError("Cancelled. Nothing has been removed.")
+		}
 		return
 	}
 

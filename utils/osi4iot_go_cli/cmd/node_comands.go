@@ -483,15 +483,20 @@ var subCmdNodeAdd = &cobra.Command{
 			return
 		}
 
-		if data.GetPlatformState() == data.Running {
-			manager, err := docker.GetManagerDC()
-			if err == nil {
+		// Whether Garage itself runs, asked of Swarm: the platform's
+		// overall state reads "initiating" whenever any task anywhere is
+		// unhealthy, which says nothing about Garage.
+		if manager, err := docker.GetManagerDC(); err == nil {
+			if docker.IsGarageRunning(manager) {
 				err = docker.RebalanceGarageAfterNodeAdd(pd, manager, node, nodeAddNoRebalance, logger)
-			}
-			if err != nil {
-				exitWithError(fmt.Sprintf("%s joined the platform, but Garage could not be "+
-					"rebalanced onto it: %v\nResume with: osi4iot service rebalance garage", node.NodeIP, err))
-				return
+				if err != nil {
+					exitWithError(fmt.Sprintf("%s joined the platform, but Garage could not be "+
+						"rebalanced onto it: %v\nResume with: osi4iot service rebalance garage", node.NodeIP, err))
+					return
+				}
+			} else if utils.IsGarage(pd.PlatformInfo) && utils.GarageReplicationFactor(pd.PlatformInfo) > 1 {
+				fmt.Println("Garage is not running, so it has not been spread onto the new node. " +
+					"After 'osi4iot run': osi4iot service rebalance garage")
 			}
 		}
 
