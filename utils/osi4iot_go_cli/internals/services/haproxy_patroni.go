@@ -45,7 +45,7 @@ func HaproxyPatroniService(
 	image := utils.GetServiceImage(pd, "haproxy_patroni", "ghcr.io/osi4iot/haproxy:2.8-alpine")
  
 	replicas := uint64(2)
-	if pd.PlatformInfo.DeploymentMode == "Local deployment" {
+	if pd.PlatformInfo.DeploymentLocation == "Local deployment" {
 		replicas = uint64(1)
 	}
  

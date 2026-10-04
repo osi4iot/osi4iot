@@ -19,6 +19,8 @@ type volumeNodeFilter func(vol pt.Volume, dc *pt.DockerClient) bool
 //	nats<N>_data             nats<N>          node.labels.nats_<N>==true
 //	patroni_admin<N>-data    patroni_admin<N>   node.labels.admin-id==<N>
 //	patroni_metrics<N>-data  patroni_metrics<N> node.labels.metrics-id==<N>
+//	garage_meta_<N>          garage_<N>         node.labels.garage_<N>==true
+//	garage_data_<N>          garage_<N>         node.labels.garage_<N>==true
 var pinnedVolumes = []struct {
 	pattern *regexp.Regexp
 	label   func(replica int) (key, value string)
@@ -34,6 +36,10 @@ var pinnedVolumes = []struct {
 	{
 		regexp.MustCompile(`^patroni_metrics(\d+)-data$`),
 		func(n int) (string, string) { return "metrics-id", strconv.Itoa(n) },
+	},
+	{
+		regexp.MustCompile(`^garage_(?:meta|data)_(\d+)$`),
+		func(n int) (string, string) { return fmt.Sprintf("garage_%d", n), "true" },
 	},
 }
 

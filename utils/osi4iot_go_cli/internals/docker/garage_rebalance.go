@@ -24,9 +24,10 @@ import (
 //     the old and the new set of nodes and reading from the old one
 //     until the new one is in sync, so the platform keeps working.
 //  4. Wait for the migration: no layout version left in "Draining", and
-//     the block resync queues of the nodes involved empty, several polls
-//     in a row (Garage itself warns that a version already "Historical"
-//     may still have blocks in transit).
+//     — when an instance is retired — its block resync queue empty,
+//     several polls in a row (Garage itself warns that a version already
+//     "Historical" may still have blocks in transit). Only the retiring
+//     instance's queue: see waitGarageMigrated.
 //  5. Only then is the old instance stopped and its volumes deleted.
 //
 // Never more than one change in flight: with a replication factor of 3
@@ -237,14 +238,7 @@ func runGarageStep(pd *pt.PlatformData, c garageCluster, step pt.GarageMove) err
 	}
 
 	// 4. The migration.
-	var watch []pt.GarageInstance
-	if old != nil {
-		watch = append(watch, *old)
-	}
-	if newInst != nil {
-		watch = append(watch, *newInst)
-	}
-	if err := waitGarageMigrated(c, watch); err != nil {
+	if err := waitGarageMigrated(c, old); err != nil {
 		return err
 	}
 
@@ -413,15 +407,46 @@ func applyGarageLayoutChange(pd *pt.PlatformData, c garageCluster, newInst, old 
 		return fmt.Errorf("error applying the layout change: %w", err)
 	}
 	c.Logf("  Layout v%d applied; Garage is migrating data.", layout.Version+1)
+
+	// Make the new node claim every block it now holds right away. Left
+	// alone, Garage queues them as it notices them; a full block repair
+	// on the node puts each one in its resync queue with no delay.
+	// Best effort: the migration completes either way, just later.
+	if newInst != nil {
+		if _, err := c.Admin("LaunchRepairOperation", map[string]any{
+			"node": utils.GarageNodeID(*newInst),
+			"body": map[string]any{"repairType": "blocks"},
+		}, 0); err != nil {
+			c.Logf("  (could not start a block repair on garage_%d to speed things up: %v)", newInst.ID, err)
+		}
+	}
 	return nil
 }
 
-// waitGarageMigrated waits until no layout version is draining and the
-// block resync queues of the watched instances have stayed empty for
-// garageQuietPolls polls in a row. No time limit: copying a replica
-// takes as long as the data is big, and the operator can interrupt and
-// resume at any time.
-func waitGarageMigrated(c garageCluster, watch []pt.GarageInstance) error {
+// waitGarageMigrated waits until no layout version is draining and, if
+// an instance is being retired, its block resync queue has stayed empty
+// with no errors for garageQuietPolls polls in a row. No time limit:
+// copying a replica takes as long as the data is big, and the operator
+// can interrupt and resume at any time.
+//
+// Only the retiring instance's queue counts. While a node leaves the
+// layout, Garage goes over every block it holds and, for any block its
+// new holders lack, sends it to them before calling it done: an empty
+// queue there means everything it held is safely elsewhere — exactly
+// what must be true before its volumes are deleted. The other nodes'
+// queues never stay empty on a live platform (every block written or
+// released passes through them), and nothing of theirs is about to be
+// deleted.
+func waitGarageMigrated(c garageCluster, old *pt.GarageInstance) error {
+	var watch []pt.GarageInstance
+	if old != nil {
+		watch = append(watch, *old)
+		c.Logf("  Waiting for garage_%d to hand over its blocks before it is removed.", old.ID)
+		c.Logf("  Garage keeps a node's blocks for about 10 minutes after they move away " +
+			"(a deliberate safety delay), so this takes at least that long whatever the size " +
+			"of the data. The platform keeps working meanwhile, and interrupting (Ctrl-C) is " +
+			"safe: 'osi4iot service rebalance garage' resumes it.")
+	}
 	quiet := 0
 	for poll := 0; ; poll++ {
 		draining, err := layoutDraining(c)
@@ -461,7 +486,8 @@ func waitGarageMigrated(c garageCluster, watch []pt.GarageInstance) error {
 			if len(notes) > 0 {
 				state += "; " + strings.Join(notes, "; ")
 			}
-			c.Logf("  Migrating: %s", state)
+			elapsed := time.Duration(poll) * garagePollInterval
+			c.Logf("  Migrating (%s): %s", elapsed.Round(time.Second), state)
 		}
 		c.Sleep(garagePollInterval)
 	}

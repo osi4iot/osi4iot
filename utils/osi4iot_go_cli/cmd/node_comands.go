@@ -502,7 +502,14 @@ var subCmdNodeAdd = &cobra.Command{
 
 		fmt.Println(utils.StyleOKMsg.Render(fmt.Sprintf("%s is part of the platform", node.NodeIP)))
 
-		if data.GetPlatformState() == data.Running {
+		// Whether the platform runs, asked of Swarm: the overall platform
+		// state reads "initiating" whenever any task is not healthy, or
+		// runs where the manager cannot inspect it.
+		running := false
+		if manager, err := docker.GetManagerDC(); err == nil {
+			running = docker.IsSystemManagerRunning(manager)
+		}
+		if running {
 			fmt.Println("Global services (such as vector) start on it on their own.")
 			if node.NodeRole == "Platform worker" {
 				fmt.Println("To place NATS or Patroni replicas on it, scale them, e.g.:")
