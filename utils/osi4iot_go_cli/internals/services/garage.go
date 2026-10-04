@@ -90,6 +90,28 @@ func GarageService(
 		}
 	}
 
+	// The healthcheck answers "is THIS node alive", not "can the cluster
+	// serve", whenever there are several instances. Swarm puts a task in
+	// its service's DNS only once the task is healthy, and the instances
+	// find each other by service name: gated on cluster health, none
+	// would ever be resolvable, so none would ever join, so the cluster
+	// would never be healthy. The same deadlock would hit a cluster that
+	// lost its quorum: the survivors would drop out of DNS and the
+	// returning instances could not find them.
+	//
+	// GetClusterStatus is answered by the local node over its own RPC,
+	// with or without quorum. Cluster availability is checked where it
+	// matters: the provisioning waits for `garage health` before
+	// creating keys and the bucket, the CLI waits for the bucket, and
+	// rebalancing requires a healthy cluster.
+	//
+	// A single instance has nobody to resolve: `garage health` is right
+	// there, and keeps "healthy" meaning "can serve S3".
+	healthCmd := []string{"CMD", "garage", "health", "-q"}
+	if len(pd.PlatformInfo.GarageInstances) > 1 {
+		healthCmd = []string{"CMD", "garage", "json-api", "GetClusterStatus"}
+	}
+
 	image := utils.GetServiceImage(pd, utils.GarageServiceName, utils.DefaultGarageImage)
 	one := uint64(1)
 	return NewService(name, pd, sd).
@@ -99,6 +121,10 @@ func GarageService(
 			"GARAGE_CONFIG_FILE=/run/secrets/garage.toml",
 			"GARAGE_PROVISION_FILE=/run/secrets/garage_provision",
 			"GARAGE_NODE_KEY_FILE=/run/secrets/garage_node_key",
+			// How long the primary's provisioning waits for the cluster
+			// to form before giving up (and the task restarting): the
+			// other instances may still be pulling the image.
+			"GARAGE_PROVISION_WAIT_SECONDS=600",
 		}).
 		WithSecrets(secretRefs).
 		WithMounts([]mount.Mount{
@@ -113,11 +139,8 @@ func GarageService(
 				Target: "/var/lib/garage/data",
 			},
 		}).
-		// `garage health` exits non-zero while the cluster cannot serve
-		// requests — including before the first layout exists — so
-		// "healthy" means "the cluster can serve S3".
 		WithHealthCheckOptions(
-			[]string{"CMD", "garage", "health", "-q"},
+			healthCmd,
 			15*time.Second, 10*time.Second, 30*time.Second, 5,
 		).
 		WithHealthCheckStartInterval(60*time.Second, 2*time.Second).
