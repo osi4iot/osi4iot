@@ -284,8 +284,8 @@ var cmdDelete = &cobra.Command{
 		"bring the whole thing back from them.\n\n" +
 		"--remove-bucket empties and deletes the bucket as well. That is irreversible and " +
 		"there is nothing left to recover from, so it is opt-in and confirmed.\n\n" +
-		"With a local MinIO there is nothing extra to remove: that bucket lives in the " +
-		"minio_storage volume and goes with it either way.",
+		"With a local Garage there is nothing extra to remove: that bucket lives in the " +
+		"garage volumes and goes with them either way.",
 	Run: func(cmd *cobra.Command, args []string) {
 		checkState("delete")
 		pd := data.GetData()
@@ -442,6 +442,44 @@ var subCmdServiceScale = &cobra.Command{
 			okMsg := utils.StyleOKMsg.Render(fmt.Sprintf("Service '%s' has been scaled to %d replicas successfully", serviceName, replicas))
 			fmt.Println(okMsg)
 		}
+	},
+}
+
+var subCmdServiceRebalance = &cobra.Command{
+	Use:   "rebalance SERVICE",
+	Short: "Spread a service's instances evenly over the nodes (garage)",
+	Long: "Moves Garage instances so they are spread evenly over the platform workers: " +
+		"1 worker holds 3; 2 workers, 2 and 1; 3 or more, one each.\n\n" +
+		"Each move creates a new instance on the target node, changes Garage's layout, waits " +
+		"until the data has been copied to it, and only then removes the old instance — one " +
+		"move at a time, so the object store keeps working throughout.\n\n" +
+		"It also resumes a change that was interrupted (Ctrl-C, a lost connection), from " +
+		"where it stopped. 'osi4iot node add' runs it on its own for a new worker; run it " +
+		"by hand after 'node add --no-rebalance'.\n\n" +
+		"Not needed after 'node drain' + 'node activate': instances are pinned to their " +
+		"nodes and come back with their data.",
+	Args: cobra.ExactArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		if args[0] != utils.GarageServiceName {
+			exitWithError(fmt.Sprintf("only '%s' can be rebalanced", utils.GarageServiceName))
+		}
+		pd := data.GetData()
+		if !utils.IsGarage(pd.PlatformInfo) {
+			exitWithError("this platform does not run Garage")
+		}
+		dc, err := docker.GetManagerDC()
+		if err != nil {
+			exitWithError(fmt.Sprintf("Error getting docker client: %v", err))
+		}
+		if err := docker.RebalanceGarage(pd, dc, log.New(os.Stdout, "", 0)); err != nil {
+			exitWithError(fmt.Sprintf("Error rebalancing Garage: %v\n"+
+				"Run the same command again to resume.", err))
+		}
+		utils.SyncGarageServiceData(pd)
+		if err := utils.WritePlatformDataToFile(pd); err != nil {
+			exitWithError(fmt.Sprintf("Error saving the state file: %v", err))
+		}
+		fmt.Println(utils.StyleOKMsg.Render("Garage is evenly spread over the nodes"))
 	},
 }
 
@@ -663,12 +701,12 @@ var subCmdRemoveCS = &cobra.Command{
 }
 
 var (
-	stateRecoverFile     string
-	stateRecoverFromMin  bool
-	stateRecoverMinioImg string
-	stateRecoverBucket   string
-	stateRecoverRegion   string
-	stateRecoverKeyPfx   string
+	stateRecoverFile      string
+	stateRecoverFromGar   bool
+	stateRecoverGarageImg string
+	stateRecoverBucket    string
+	stateRecoverRegion    string
+	stateRecoverKeyPfx    string
 )
 
 var subCmdStateRecover = &cobra.Command{
@@ -678,14 +716,14 @@ var subCmdStateRecover = &cobra.Command{
 		"stopped, or because the state file itself is gone or unreadable. Decrypts a stored " +
 		"backup and writes it out under this machine's passphrase; the file being replaced, " +
 		"if any, is kept alongside it with a .bak-<timestamp> suffix.\n\n" +
-		"--file installs a backup you downloaded yourself, from the AWS or MinIO console or " +
-		"with any S3 client. It needs nothing but the passphrase: no platform, no network, " +
+		"--file installs a backup you downloaded yourself, from the AWS console or " +
+		"with any S3 client (aws, rclone…). It needs nothing but the passphrase: no platform, no network, " +
 		"no existing state file.\n\n" +
-		"--from-minio covers a MinIO deployment whose platform is stopped, where there is no " +
-		"console to download from. It starts a temporary MinIO against the minio_storage " +
-		"volume, reads the backup out and takes it down again, over SSH if the volume is on " +
-		"another node. It needs the platform admin user and password, which are MinIO's root " +
-		"credentials.\n\n" +
+		"--from-garage covers a Garage deployment whose platform is stopped, where there is " +
+		"nothing to download from. It starts a temporary Garage, with no network, against the " +
+		"garage_meta and garage_data volumes, reads the backup out through docker exec and " +
+		"takes it down again, over SSH if the volumes are on another node. It needs no " +
+		"credentials besides the state file's passphrase.\n\n" +
 		"--from-bucket NAME reads the backups straight out of an external S3 bucket, which is " +
 		"the case in between: 'osi4iot delete' never touches S3, so a bucket outlives its " +
 		"platform and the backups are reachable but nobody wants to hunt for the right object " +
@@ -700,9 +738,9 @@ var subCmdStateRecover = &cobra.Command{
 		"'osi4iot init --from-bucket'.",
 	Run: func(cmd *cobra.Command, args []string) {
 		err := runStateRecover(log.New(os.Stdout, "", 0), stateRecoverSource{
-			File:       stateRecoverFile,
-			FromMinio:  stateRecoverFromMin,
-			MinioImage: stateRecoverMinioImg,
+			File:        stateRecoverFile,
+			FromGarage:  stateRecoverFromGar,
+			GarageImage: stateRecoverGarageImg,
 			Bucket: bucketCredentials{
 				Bucket:    stateRecoverBucket,
 				Region:    stateRecoverRegion,
@@ -886,6 +924,7 @@ func init() {
 	cmdService.AddCommand(subCmdServiceList)
 	cmdService.AddCommand(subCmdServiceInspect)
 	cmdService.AddCommand(subCmdServiceScale)
+	cmdService.AddCommand(subCmdServiceRebalance)
 	cmdService.AddCommand(subCmdServiceUpdateResources)
 	cmdService.AddCommand(subCmdServiceUpdateImage)
 	rootCmd.AddCommand(cmdService)
@@ -897,10 +936,10 @@ func init() {
 
 	subCmdStateRecover.Flags().StringVar(&stateRecoverFile, "file", "",
 		"path to a backup you downloaded yourself; needs no running platform")
-	subCmdStateRecover.Flags().BoolVar(&stateRecoverFromMin, "from-minio", false,
-		"read the backup out of the minio_storage volume, for a stopped MinIO deployment")
-	subCmdStateRecover.Flags().StringVar(&stateRecoverMinioImg, "minio-image", "",
-		"MinIO image for --from-minio (default: the version this platform ran)")
+	subCmdStateRecover.Flags().BoolVar(&stateRecoverFromGar, "from-garage", false,
+		"read the backup out of the garage volumes, for a stopped Garage deployment")
+	subCmdStateRecover.Flags().StringVar(&stateRecoverGarageImg, "garage-image", "",
+		"Garage image for --from-garage (default: the version this platform ran)")
 
 	subCmdStateRecover.Flags().StringVar(&stateRecoverBucket, "from-bucket", "",
 		"External S3 bucket to read the backups from")

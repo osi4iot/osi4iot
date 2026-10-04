@@ -22,11 +22,11 @@ import (
 // A RecoveryTarget is a host the CLI can both drive Docker on and open
 // TCP connections to — either this machine or a node reached over SSH.
 //
-// It exists for `osi4iot state restore --from-minio`, which needs two
-// things from the same host at once: the Docker API, to start a
-// temporary MinIO against the minio_storage volume, and a way to reach
-// the port that MinIO listens on. The rest of the CLI only ever needs
-// the first, which is why this doesn't reuse getNodeDockerClient.
+// It exists for `osi4iot state recover --from-garage`, which starts a
+// temporary Garage against the garage volumes of a node it may have to
+// find first, possibly with no state file to read node data from. The
+// recovery itself only needs the Docker API (everything runs through
+// exec); Dial remains for callers that need a port on the far side.
 //
 // # Why not the existing SSH path
 //
@@ -54,7 +54,7 @@ type RecoveryTarget struct {
 	Cli *client.Client
 	// Dial opens a TCP connection from the target's point of view, so
 	// "127.0.0.1:9000" means the target's loopback, not the CLI's. That
-	// is what lets the temporary MinIO stay bound to loopback and still
+	// is what lets a temporary service stay bound to loopback and still
 	// be reachable from here.
 	Dial func(ctx context.Context, network, addr string) (net.Conn, error)
 
@@ -176,7 +176,7 @@ func OpenSSHRecoveryTarget(target SSHTarget) (*RecoveryTarget, error) {
 
 	// Fail here rather than at the first real call: "cannot reach
 	// Docker on that node" is a much clearer thing to be told while
-	// still choosing a node than midway through starting MinIO.
+	// still choosing a node than midway through starting Garage.
 	pingCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 	if _, err := cli.Ping(pingCtx); err != nil {
@@ -296,8 +296,9 @@ func SSHTargetsFromPlatformData(pd *pt.PlatformData) []SSHTarget {
 			KeyPEM:   keyPEM,
 			Password: node.NodePassword,
 		}
-		// The volume is on whichever node last ran MinIO, which is
-		// placement-constrained to managers.
+		// The volumes are on whichever node last ran Garage. Managers
+		// are tried first: on a platform without platform workers that
+		// is where the service is placed.
 		if node.NodeRole == "Manager" {
 			managers = append(managers, t)
 		} else {

@@ -19,9 +19,9 @@ import (
 // # Where it sits among the other sources
 //
 // --file installs a backup the operator downloaded themselves, and
-// needs nothing: no platform, no network. --from-minio covers a local
-// MinIO whose platform is stopped, where there is no console to
-// download from. This one covers the case in between: an external
+// needs nothing: no platform, no network. --from-garage covers a local
+// Garage whose platform is stopped, where there is nothing to download
+// from. This one covers the case in between: an external
 // bucket that outlived its platform, where the backups are reachable
 // but nobody wants to go and find the right object by hand.
 //

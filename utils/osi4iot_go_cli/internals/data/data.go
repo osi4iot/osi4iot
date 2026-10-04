@@ -275,8 +275,6 @@ func SetData(key string, value string) {
 		}
 	case "WALG_COMPRESSION_METHOD":
 		Data.PlatformInfo.WalgCompressionMethod = value
-	case "MINIO_ENDPOINT":
-		Data.PlatformInfo.MinioEndpoint = value
 
 	case "NODE_RED_ADMIN":
 		Data.PlatformInfo.NodeRedAdmin = value

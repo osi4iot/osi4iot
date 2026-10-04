@@ -62,10 +62,11 @@ func patroniMetricsNode(
 		fmt.Sprintf("PATRONICTL_CONFIG_FILE=%s", "/tmp/patroni.yml"),
 	}
 
-	awsEndpoint := "http://minio:9000/"
-	if pi.S3BucketType == "Local Minio" {
+	// The object store's endpoint, for wal-g. Empty with AWS S3, where
+	// wal-g builds the regional endpoint from AWS_REGION (in the secret).
+	if endpoint := utils.S3Endpoint(pi); endpoint != "" {
 		env = append(env,
-			fmt.Sprintf("AWS_ENDPOINT=%s", awsEndpoint),
+			fmt.Sprintf("AWS_ENDPOINT=%s", endpoint),
 			"AWS_S3_FORCE_PATH_STYLE=true",
 		)
 	}

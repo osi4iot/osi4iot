@@ -26,8 +26,8 @@ import (
 // pipeline as `init --snapshot-file` with the expensive step removed —
 // there is nothing to seed, because nothing ever left.
 //
-// It does not apply to "Local Minio": that bucket lives in the
-// minio_storage volume, and delete takes the volume.
+// It does not apply to "Local Garage": that bucket lives in the
+// garage volumes, and delete takes the volumes.
 
 const (
 	fromBucketFlag  = "from-bucket"

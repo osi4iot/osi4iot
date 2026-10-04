@@ -62,9 +62,6 @@ const PlatformTools: FC<{}> = () => {
                     <ToolImage src="../images/platformTools/pgadmin4.png" alt="Pgadmin4" />
                 </ImageContainer>
             }
-            <ImageContainer onClick={() => handleLinkClick("/portainer/")} >
-                <ToolImage src="../images/platformTools/portainer.png" alt="Portainer" />
-            </ImageContainer>
             {
                 (window._env_ && window._env_.PROTOCOL === "https") &&
                 <ImageContainer onClick={() => handleLinkClick("/admin_api/swagger/")}>
@@ -73,8 +70,8 @@ const PlatformTools: FC<{}> = () => {
             }
             {
                 (window._env_ && window._env_.DEPLOYMENT_LOCATION !== "AWS_cluster_deployment") &&
-                <ImageContainer onClick={() => handleLinkClick("/minio/")}>
-                    <ToolImage src="../images/platformTools/minio.png" alt="Swagger" />
+                <ImageContainer onClick={() => handleLinkClick("/garage_webui/")}>
+                    <ToolImage src="../images/platformTools/garage.png" alt="garage_webui" />
                 </ImageContainer>
             }
             <ImageContainer onClick={() => handleExternalLinkClick("https://geojson.io/")}>

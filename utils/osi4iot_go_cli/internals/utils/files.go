@@ -120,7 +120,8 @@ func fixingPlatformData(pd *pt.PlatformData) error {
 		"traefik",
 		"pgadmin4",
 		"grafana_renderer",
-		"minio",
+		"garage",
+		"garage_webui",
 		"keepalived",
 	}
 

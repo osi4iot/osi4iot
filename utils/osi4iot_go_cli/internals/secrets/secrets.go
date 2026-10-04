@@ -175,20 +175,14 @@ func GenerateSecrets(pd *pt.PlatformData) (map[string]pt.Secret, error) {
 		}
 	}
 
-	s3BucketType := pi.S3BucketType
-	if s3BucketType == "Local Minio" && !slices.Contains(pi.ExcludedServices, "minio") {
-		minioSecrets := []string{
-			fmt.Sprintf("MINIO_ROOT_USER=%s", pi.PlatformAdminUserName),
-			fmt.Sprintf("MINIO_ROOT_PASSWORD=%s", pi.PlatformAdminPassword),
+	if utils.IsGarage(pi) && !slices.Contains(pi.ExcludedServices, utils.GarageServiceName) {
+		garageSecrets, err := createGarageSecrets(pi)
+		if err != nil {
+			return nil, err
 		}
-		minioSecretsData := strings.Join(minioSecrets, "\n")
-		minioSecretsHash := utils.GetMD5Hash(minioSecretsData)
-		minioSecretsName := fmt.Sprintf("minio_%s", minioSecretsHash)
-		minioSecret := pt.Secret{
-			Name: minioSecretsName,
-			Data: minioSecretsData,
+		for key, secret := range garageSecrets {
+			Secrets[key] = secret
 		}
-		Secrets["minio"] = minioSecret
 	}
 
 	if !slices.Contains(pi.ExcludedServices, "pgadmin4") {
@@ -520,7 +514,8 @@ func GetKnownSecretKeys(pd *pt.PlatformData) []string {
 		"timescale_grafana",
 		"timescale_data_ret_int",
 		"pipelines_config",
-		"minio",
+		// "garage" also matches "garage_provision_*".
+		"garage",
 		"pgadmin4",
 		// Both of these were missing, so every superseded copy of them
 		// stayed in the swarm forever: RemoveOrphanSecrets only ever

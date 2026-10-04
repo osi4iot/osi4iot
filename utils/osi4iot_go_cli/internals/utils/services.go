@@ -53,6 +53,11 @@ func GetScalableServices(pd *osi_types.PlatformData) []string {
 	if pd.PlatformInfo.UsePatroniTool {
 		scalableServices = append(scalableServices, "patroni_admin", "patroni_metrics")
 	}
+	// Only a cluster: a local deployment's Garage has replication
+	// factor 1 and a single instance.
+	if IsGarage(pd.PlatformInfo) && GarageReplicationFactor(pd.PlatformInfo) > 1 {
+		scalableServices = append(scalableServices, GarageServiceName)
+	}
 
 	return scalableServices
 }
@@ -640,9 +645,9 @@ func GetAllServiceNames(pd *osi_types.PlatformData) []string {
 	}
 
 	pi := pd.PlatformInfo
-	s3BucketType := pi.S3BucketType
-	if s3BucketType != "Local Minio" {
-		excluded["minio"] = struct{}{}
+	if !IsGarage(pi) {
+		excluded[GarageServiceName] = struct{}{}
+		excluded[GarageWebUIServiceName] = struct{}{}
 	}
 
 	existArmArchNodes := false
@@ -677,6 +682,15 @@ func GetAllServiceNames(pd *osi_types.PlatformData) []string {
 		if svcData.ServiceName == "nats" {
 			for i := 1; i <= svcData.Replicas; i++ {
 				serviceNames = append(serviceNames, fmt.Sprintf("nats%d", i))
+			}
+			continue
+		}
+
+		// One service per Garage instance; the ServicesData entry holds
+		// the family's image and resources.
+		if svcData.ServiceName == GarageServiceName {
+			for _, inst := range GarageInstancesSorted(pi) {
+				serviceNames = append(serviceNames, GarageInstanceServiceName(inst.ID))
 			}
 			continue
 		}
@@ -781,12 +795,21 @@ func GetDefaultServicesDataMap(pd *osi_types.PlatformData) map[string]osi_types.
 			Cpu:         uiSvcCpus_050,
 			Memory:      uiSvcMem_050,
 		},
-		"minio": {
-			ServiceName: "minio",
-			Image:       "ghcr.io/osi4iot/minio:RELEASE.2023-10-16T04-13-43Z",
+		GarageServiceName: {
+			ServiceName: GarageServiceName,
+			Image:       DefaultGarageImage,
 			Replicas:    1,
 			Cpu:         adminDataStorageSvcCpus,
 			Memory:      iotDataStorageSvcMem,
+		},
+		GarageWebUIServiceName: {
+			ServiceName: GarageWebUIServiceName,
+			Image:       DefaultGarageWebUIImage,
+			// One: it keeps logins in an in-memory session store, so a
+			// second replica would log users out at random.
+			Replicas: 1,
+			Cpu:      "0.10CPU",
+			Memory:   "64Mb",
 		},
 		"keepalived": {
 			ServiceName: "keepalived",

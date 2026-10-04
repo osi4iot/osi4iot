@@ -120,6 +120,28 @@ func addNodesLabels(pd *types.PlatformData) error {
 		return fmt.Errorf("error creating swarm nodes map: %w", err)
 	}
 
+	// Garage instances first: their labels are written below, and the
+	// first time this runs on a platform they do not exist yet. Saved at
+	// once — an instance's identity handed to Swarm but not written down
+	// would be regenerated, and its volumes would no longer match it.
+	garageChanged, err := utils.EnsureGarageInstances(&pd.PlatformInfo)
+	if err != nil {
+		spinnerDone <- false
+		return fmt.Errorf("error planning the Garage instances: %w", err)
+	}
+	if garageChanged {
+		utils.SyncGarageServiceData(pd)
+		if err := utils.WritePlatformDataToFile(pd); err != nil {
+			spinnerDone <- false
+			return fmt.Errorf("error saving the Garage instances: %w", err)
+		}
+	}
+	pi = pd.PlatformInfo
+	garageLabels := map[string][]string{}
+	for _, inst := range pi.GarageInstances {
+		garageLabels[inst.NodeIP] = append(garageLabels[inst.NodeIP], utils.GarageInstanceLabel(inst.ID))
+	}
+
 	nodesData := pi.NodesData
 	usesPlacementLabels := resources.UsesPlacementLabels(pd)
 
@@ -163,8 +185,18 @@ func addNodesLabels(pd *types.PlatformData) error {
 				strings.HasPrefix(key, "metrics-id") {
 				delete(spec.Labels, key)
 			}
+			if _, isGarage := utils.GarageInstanceIDFromService(key); isGarage {
+				delete(spec.Labels, key)
+			}
 		}
 		delete(spec.Labels, "platform_worker")
+
+		// Garage instances, on whatever role their node has (managers on
+		// a platform without workers) and in every deployment: an
+		// instance is pinned to its volumes, always.
+		for _, label := range garageLabels[node.NodeIP] {
+			spec.Labels[label] = "true"
+		}
 
 		switch node.NodeRole {
 		case "Manager":

@@ -212,7 +212,7 @@ func isValidBucketName(s3BucketName string) (bool, string) {
 func checkIfAwsS3BucketNameIsValid(s3BucketName, s3BucketType string) (bool, string) {
 	isValid, errMsg := isValidBucketName(s3BucketName)
 	if isValid {
-		if s3BucketType == "Cloud AWS S3" {
+		if s3BucketType == utils.S3BucketTypeAWS {
 			urlAwsS3Bucket := fmt.Sprintf("https://%s.s3.amazonaws.com", s3BucketName)
 			existBucket, err := existsUrl(urlAwsS3Bucket)
 			if err != nil {

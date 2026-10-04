@@ -12,15 +12,14 @@ func createPatroniSecrets(pd *pt.PlatformData) map[string]pt.Secret {
 	secrets := make(map[string]pt.Secret)
 	pi := pd.PlatformInfo
 
-	awsAccessKeyId := pi.PlatformAdminUserName
-	awsSecretAccessKey := pi.PlatformAdminPassword
-	awsRegion := "us-east-1"
-	if pi.S3BucketType == "Cloud AWS S3" {
-		awsAccessKeyId = pi.AWSAccessKeyIDS3Bucket
-		awsSecretAccessKey = pi.AWSSecretAccessKeyS3Bucket
-		awsRegion =utils.AwsRegionCode(pi.AWSRegionS3Bucket)
-	}
- 
+	// Each cluster's WAL-G signs with its own key (with Garage; with AWS
+	// both use the bucket's credentials) and for the platform's one S3
+	// region. The endpoint is not here: it is not secret, and
+	// PatroniAdminService / PatroniMetricsService set it as plain env.
+	awsRegion := utils.S3Region(pi)
+	adminKey := utils.S3CredentialsFor(pi, utils.S3ConsumerWalgAdmin)
+	metricsKey := utils.S3CredentialsFor(pi, utils.S3ConsumerWalgMetrics)
+
 	adminLines := []string{
 		fmt.Sprintf("PATRONI_ADMIN_PASSWORD=%s", pi.PostgresPassword),
 		fmt.Sprintf("PATRONI_ADMIN_REPLICATOR_PASSWORD=%s", pi.PostgresReplicatorPassword),
@@ -33,8 +32,8 @@ func createPatroniSecrets(pd *pt.PlatformData) map[string]pt.Secret {
 		fmt.Sprintf("WALG_LIBSODIUM_KEY=%s", pi.WalgLibsodiumKey),
 		fmt.Sprintf("WALG_S3_PREFIX=%s", pi.WalgS3PrefixAdmin),
 		fmt.Sprintf("WALG_COMPRESSION_METHOD=%s", pi.WalgCompressionMethod),
-		fmt.Sprintf("AWS_ACCESS_KEY_ID=%s", awsAccessKeyId),
-		fmt.Sprintf("AWS_SECRET_ACCESS_KEY=%s", awsSecretAccessKey),
+		fmt.Sprintf("AWS_ACCESS_KEY_ID=%s", adminKey.AccessKeyID),
+		fmt.Sprintf("AWS_SECRET_ACCESS_KEY=%s", adminKey.SecretAccessKey),
 		fmt.Sprintf("AWS_REGION=%s", awsRegion),
 	}
 	adminLines = appendSidecarToken(adminLines, pi)
@@ -44,7 +43,7 @@ func createPatroniSecrets(pd *pt.PlatformData) map[string]pt.Secret {
 		Name: fmt.Sprintf("patroni_admin_%s", adminHash),
 		Data: adminData,
 	}
- 
+
 	metricsLines := []string{
 		fmt.Sprintf("PATRONI_METRICS_PASSWORD=%s", pi.TimescalePassword),
 		fmt.Sprintf("PATRONI_METRICS_REPLICATOR_PASSWORD=%s", pi.TimescaleReplicatorPassword),
@@ -57,8 +56,8 @@ func createPatroniSecrets(pd *pt.PlatformData) map[string]pt.Secret {
 		fmt.Sprintf("WALG_LIBSODIUM_KEY=%s", pi.WalgLibsodiumKey),
 		fmt.Sprintf("WALG_S3_PREFIX=%s", pi.WalgS3PrefixMetrics),
 		fmt.Sprintf("WALG_COMPRESSION_METHOD=%s", pi.WalgCompressionMethod),
-		fmt.Sprintf("AWS_ACCESS_KEY_ID=%s", awsAccessKeyId),
-		fmt.Sprintf("AWS_SECRET_ACCESS_KEY=%s", awsSecretAccessKey),
+		fmt.Sprintf("AWS_ACCESS_KEY_ID=%s", metricsKey.AccessKeyID),
+		fmt.Sprintf("AWS_SECRET_ACCESS_KEY=%s", metricsKey.SecretAccessKey),
 		fmt.Sprintf("AWS_REGION=%s", awsRegion),
 	}
 	metricsLines = appendSidecarToken(metricsLines, pi)

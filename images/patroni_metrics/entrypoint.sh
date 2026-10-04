@@ -33,6 +33,10 @@ REQUIRED_VARS=(
     "WALG_LIBSODIUM_KEY"
     "AWS_ACCESS_KEY_ID"
     "AWS_SECRET_ACCESS_KEY"
+    # Required: the platform's Garage verifies the region in every
+    # signature (s3_region = "us-east-1"), and with AWS it is the bucket's.
+    # Left unset, wal-g would have to guess it.
+    "AWS_REGION"
 )
 missing=()
 for var in "${REQUIRED_VARS[@]}"; do

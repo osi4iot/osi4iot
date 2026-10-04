@@ -57,13 +57,12 @@ import (
 // standing.
 //
 // `--file` takes an object the operator downloaded however they liked —
-// the AWS console, the MinIO console, `aws s3 cp`, `mc` — and does
-// nothing but decrypt it, check it, and write it back out under this
-// machine's passphrase.
+// the AWS console, `aws s3 cp`, `rclone` — and does nothing but decrypt
+// it, check it, and write it back out under this machine's passphrase.
 //
-// `--from-minio` gets the object first, out of a stopped MinIO's
-// volume: the case where there is no console to download from because
-// the object store was part of the platform that is down.
+// `--from-garage` gets the object first, out of a stopped Garage's
+// volumes: the case where there is nothing to download from because the
+// object store was part of the platform that is down.
 //
 // `--from-bucket` reads an external bucket directly. DeletePlatform
 // never touches S3, so a bucket outlives its platform, and this is the
@@ -122,22 +121,7 @@ func backupStateFileQuietly(pd *pt.PlatformData, encoded []byte) {
 // pd and dc come from the caller because backup_commands.go has already
 // obtained them for every target.
 func triggerStateFileBackup(pd *pt.PlatformData, dc *pt.DockerClient) (string, error) {
-	if pd.PlatformInfo.StateFileS3Prefix == "" {
-		return "", fmt.Errorf("state file backups are not configured: " +
-			"STATE_FILE_S3_PREFIX is empty in the platform state")
-	}
-	if crypto.IsNoEncrypt() {
-		return "", fmt.Errorf("encryption is disabled (--no-encrypt): refusing to upload " +
-			"an unencrypted state file to object storage")
-	}
-
-	// Read what is actually on disk rather than re-serializing pd: the
-	// backup should be the file, not something that ought to equal it.
-	encoded, err := os.ReadFile(utils.GetStateFilePath())
-	if err != nil {
-		return "", fmt.Errorf("error reading the state file: %w", err)
-	}
-	return docker.BackupStateFile(pd, dc, string(encoded))
+	return docker.BackupStateFileOnDisk(pd, dc)
 }
 
 // runStateList shows which backups exist, newest first.
@@ -199,9 +183,9 @@ type stateRecoverSource struct {
 	// File is a backup already on this machine.
 	File string
 
-	// FromMinio reads one out of a stopped MinIO's volume.
-	FromMinio  bool
-	MinioImage string
+	// FromGarage reads one out of a stopped Garage's volumes.
+	FromGarage  bool
+	GarageImage string
 
 	// Bucket reads one out of an external S3 bucket. Its zero value
 	// means "not this source"; see cmd/state_recover_bucket.go.
@@ -220,13 +204,13 @@ type stateRecoverSource struct {
 // beat one verb whose meaning depends on which flag you passed.
 func runStateRecover(logger *log.Logger, src stateRecoverSource) error {
 	given := 0
-	for _, set := range []bool{src.File != "", src.FromMinio, src.Bucket.Bucket != ""} {
+	for _, set := range []bool{src.File != "", src.FromGarage, src.Bucket.Bucket != ""} {
 		if set {
 			given++
 		}
 	}
 	if given > 1 {
-		return fmt.Errorf("--file, --from-minio and --from-bucket are alternative sources: " +
+		return fmt.Errorf("--file, --from-garage and --from-bucket are alternative sources: " +
 			"pick one")
 	}
 
@@ -238,8 +222,8 @@ func runStateRecover(logger *log.Logger, src stateRecoverSource) error {
 		}
 		return installStateFile(logger, blob)
 
-	case src.FromMinio:
-		return runStateRecoverFromMinio(logger, src.MinioImage)
+	case src.FromGarage:
+		return runStateRecoverFromGarage(logger, src.GarageImage)
 
 	case src.Bucket.Bucket != "":
 		return runStateRecoverFromBucket(logger, src.Bucket)
@@ -248,54 +232,76 @@ func runStateRecover(logger *log.Logger, src stateRecoverSource) error {
 		return fmt.Errorf("nothing to recover from. Pass one of:\n" +
 			"  --file <path>          a backup you downloaded yourself\n" +
 			"  --from-bucket <name>   read it out of an external S3 bucket\n" +
-			"  --from-minio           read it out of a stopped MinIO's volume")
+			"  --from-garage          read it out of a stopped Garage's volumes")
 	}
 }
 
-// runStateRecoverFromMinio recovers a backup from a MinIO deployment
+// runStateRecoverFromGarage recovers a backup from a Garage deployment
 // whose platform is stopped — the one case neither of the paths above
-// reaches. With MinIO down there is no endpoint to talk to at all, so
-// this puts a temporary MinIO in front of the volume, reads the object
-// out, and takes it down again. See docker.StartTempMinio.
+// reaches. With Garage down there is no endpoint to talk to at all, so
+// this brings the Garage cluster back up as temporary containers on the
+// nodes holding its volumes, reads the object out, and takes them down
+// again. See docker.StartTempGarage.
 //
-// The node is found rather than asked for: this host first, then every
-// node the state file knows about if it is still readable, and only
-// then a question. Everything after that — bucket, prefix, run list —
-// is discovered too. The operator supplies the platform admin
-// credentials, which are MinIO's root credentials, and the passphrase.
-func runStateRecoverFromMinio(logger *log.Logger, image string) error {
+// The nodes are found rather than asked for: this host, the nodes in the
+// state file if it is still readable, and — through a swarm manager —
+// every other node of the swarm, which survives `osi4iot stop`. Garage
+// needs no credentials from the operator to open its own volumes; only
+// SSH access to the nodes, and the passphrase to decrypt the backup.
+func runStateRecoverFromGarage(logger *log.Logger, image string) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	target, err := findMinioTarget(logger)
+	nodes, err := findGarageNodes(ctx, logger)
 	if err != nil {
 		return err
 	}
-	defer target.Close()
-	logger.Printf("Found the minio_storage volume on %s.", target.Name)
+	defer nodes.Close()
 
-	rootUser, rootPassword, image, err := minioRecoveryInputs(image)
+	hosts, err := docker.FindGarageVolumeHosts(ctx, nodes.targets)
 	if err != nil {
 		return err
 	}
+	if len(hosts) == 0 {
+		return fmt.Errorf("no Garage volumes (garage_meta_<N> / garage_data_<N>) on any node " +
+			"reached.\nIf 'osi4iot delete' was run, the volumes are gone and so are the backups")
+	}
+	for _, h := range hosts {
+		logger.Printf("Found the volumes of Garage instance(s) %v on %s.", h.Instances, h.Target.Name)
+	}
 
-	logger.Printf("Starting a temporary MinIO against the volume...")
-	tm, err := docker.StartTempMinio(ctx, target, rootUser, rootPassword, image)
+	if image == "" {
+		// Recovery should run the same Garage version that wrote the
+		// volumes: a newer one may want to migrate the metadata format,
+		// which is not a thing to meet halfway through a recovery.
+		image = utils.GetServiceImage(data.GetData(), utils.GarageServiceName, utils.DefaultGarageImage)
+	}
+
+	logger.Printf("Starting a temporary Garage against the volumes...")
+	tg, err := docker.StartTempGarage(ctx, hosts, nodes.manager, image)
 	if err != nil {
 		return err
 	}
-	// Two ways out, because leaving this container running is the one
-	// outcome that must not happen: it serves every credential the
-	// platform has on the node's loopback for as long as it lives.
-	defer tm.Stop()
-	stopOnSignal(tm)
+	// Two ways out, because leaving these containers behind is not an
+	// option: they hold the platform's object store open.
+	defer tg.Stop()
+	stopOnSignal(tg)
 
-	objects, err := docker.ListStateFileBackupsInMinio(ctx, tm, rootUser, rootPassword)
+	if tg.LayoutInstances > 1 {
+		logger.Printf("Rejoined %d of the cluster's %d Garage instances.", tg.Found, tg.LayoutInstances)
+	}
+	if tg.Degraded && tg.LayoutInstances > 1 {
+		logger.Printf("%s", utils.StyleWarningMsg.Render(fmt.Sprintf("%d instance(s) missing: reading "+
+			"with a single copy per object (still at least one of each with 3 copies).",
+			tg.LayoutInstances-tg.Found)))
+	}
+
+	objects, err := docker.ListStateFileBackupsInGarage(ctx, tg)
 	if err != nil {
 		return err
 	}
 	if len(objects) == 0 {
-		return fmt.Errorf("no state file backups found in this MinIO volume")
+		return fmt.Errorf("no state file backups found in these Garage volumes")
 	}
 
 	chosen, err := chooseBackup(logger, objects)
@@ -304,35 +310,96 @@ func runStateRecoverFromMinio(logger *log.Logger, image string) error {
 	}
 
 	logger.Printf("Downloading %s...", chosen.Name())
-	blob, err := docker.DownloadFromMinio(ctx, tm, rootUser, rootPassword, chosen)
+	blob, err := docker.DownloadFromGarage(ctx, tg, chosen)
 	if err != nil {
 		return err
 	}
 
-	// Nothing below needs MinIO, so close the window now rather than at
+	// Nothing below needs Garage, so close the window now rather than at
 	// the end of the function.
-	tm.Stop()
+	tg.Stop()
 
 	return installStateFile(logger, blob)
 }
 
-// findMinioTarget locates a host holding the minio_storage volume,
-// trying the cheapest options first.
-//
-// Order matters for how much the operator is asked. Running the
-// recovery on the node itself needs nothing at all, so that is tried
-// first. A readable state file supplies node addresses, SSH users and
-// the key, so that comes next and is still silent. Only with neither is
-// there a question, and then it is a small one: address and user.
-func findMinioTarget(logger *log.Logger) (*docker.RecoveryTarget, error) {
-	ctx := context.Background()
+// garageNodes are the nodes a recovery can reach, one connection each.
+type garageNodes struct {
+	targets []*docker.RecoveryTarget
+	// manager is a swarm manager among them, if any: it lists the other
+	// nodes and creates the network the temporary instances join.
+	manager *docker.RecoveryTarget
+	seen    map[string]bool // swarm node IDs
+}
 
-	if target, err := docker.OpenLocalRecoveryTarget(); err == nil {
-		if found, err := docker.HasMinioStorageVolume(ctx, target); err == nil && found {
-			return target, nil
-		}
-		target.Close()
+func (g *garageNodes) Close() {
+	for _, t := range g.targets {
+		t.Close()
 	}
+}
+
+// add keeps a new connection unless it reaches a node already reached,
+// and returns what the node says about its place in the swarm.
+func (g *garageNodes) add(ctx context.Context, t *docker.RecoveryTarget) docker.SwarmInfo {
+	info, err := docker.SwarmInfoOf(ctx, t)
+	if err == nil && info.NodeID != "" {
+		if g.seen[info.NodeID] {
+			t.Close()
+			return info
+		}
+		g.seen[info.NodeID] = true
+	}
+	if info.IsManager && g.manager == nil {
+		g.manager = t
+	}
+	g.targets = append(g.targets, t)
+	return info
+}
+
+// sshCredentials hands out SSH credentials per address: the state file's
+// for the nodes it lists, otherwise ones asked for once and reused.
+type sshCredentials struct {
+	logger *log.Logger
+	byHost map[string]docker.SSHTarget
+	shared *docker.SSHTarget
+}
+
+func (c *sshCredentials) open(host string) (*docker.RecoveryTarget, error) {
+	if t, ok := c.byHost[host]; ok {
+		return docker.OpenSSHRecoveryTarget(t)
+	}
+	if c.shared != nil {
+		t := *c.shared
+		t.Host = host
+		return docker.OpenSSHRecoveryTarget(t)
+	}
+	target, used, err := openSSHAsking(c.logger, docker.SSHTarget{Host: host}, true)
+	if err != nil {
+		return nil, err
+	}
+	c.shared = &used
+	return target, nil
+}
+
+// findGarageNodes connects to every node that may hold Garage volumes,
+// asking as little as possible. The swarm itself survives `osi4iot
+// stop`, and its managers know every node: finding one is the point.
+//
+//  1. This host first. A manager is used as is. A worker knows where
+//     its managers are (docker info: Swarm.RemoteManagers), so their
+//     addresses need not be asked. A machine outside the swarm (the
+//     operator's laptop) goes on to the next steps.
+//  2. No manager yet: the ones this host knows, then the managers in the
+//     state file if it can still be read, then one the operator names.
+//  3. Through the manager, every node of the swarm — the authoritative
+//     list, not the state file's, which may be out of date. The state
+//     file only supplies SSH credentials, per address; for nodes it
+//     does not know, the credentials are asked once and reused.
+//  4. With no manager at all, the nodes in the state file.
+//
+// A node that cannot be reached is reported and skipped: StartTempGarage
+// decides whether the instances found are enough.
+func findGarageNodes(ctx context.Context, logger *log.Logger) (*garageNodes, error) {
+	g := &garageNodes{seen: map[string]bool{}}
 
 	pd := data.GetData()
 	if pd.PlatformInfo.DomainName == "" {
@@ -340,53 +407,125 @@ func findMinioTarget(logger *log.Logger) (*docker.RecoveryTarget, error) {
 		// be no state file to read.
 		_ = utils.ReadPlatformDataFromFile(pd)
 	}
-
-	for _, sshTarget := range docker.SSHTargetsFromPlatformData(pd) {
-		logger.Printf("Looking for the volume on %s...", sshTarget.Host)
-		target, err := docker.OpenSSHRecoveryTarget(sshTarget)
-		if err != nil {
-			logger.Printf("  %v", err)
-			continue
+	stateTargets := docker.SSHTargetsFromPlatformData(pd)
+	creds := &sshCredentials{logger: logger, byHost: map[string]docker.SSHTarget{}}
+	var stateManagers []string
+	for _, t := range stateTargets {
+		creds.byHost[t.Host] = t
+	}
+	for _, node := range pd.PlatformInfo.NodesData {
+		if node.NodeRole == "Manager" {
+			stateManagers = append(stateManagers, node.NodeIP)
 		}
-		if found, err := docker.HasMinioStorageVolume(ctx, target); err == nil && found {
-			return target, nil
-		}
-		target.Close()
 	}
 
-	return promptForMinioTarget(logger)
+	// 1. This host.
+	var knownManagers []string
+	if local, err := docker.OpenLocalRecoveryTarget(); err == nil {
+		info := g.add(ctx, local)
+		switch {
+		case info.IsManager:
+			logger.Printf("This host is a swarm manager: the other nodes are listed through it.")
+		case info.InSwarm:
+			knownManagers = info.ManagerHosts
+			logger.Printf("This host is a swarm worker; its managers: %s.", strings.Join(knownManagers, ", "))
+		}
+	}
+
+	// 2. A manager.
+	if g.manager == nil {
+		tried := map[string]bool{}
+		for _, host := range append(knownManagers, stateManagers...) {
+			if tried[host] || g.manager != nil {
+				continue
+			}
+			tried[host] = true
+			target, err := creds.open(host)
+			if err != nil {
+				logger.Printf("Could not reach the manager %s: %v", host, err)
+				continue
+			}
+			g.add(ctx, target)
+		}
+	}
+	if g.manager == nil {
+		logger.Printf("No swarm manager reached yet; the other nodes are found through one.")
+		host, err := promptLine("Address of a manager node (empty to search only what is reachable): ")
+		if err != nil {
+			return nil, err
+		}
+		if host != "" {
+			target, err := creds.open(host)
+			if err != nil {
+				return nil, err
+			}
+			g.add(ctx, target)
+		}
+	}
+
+	// 3. Every node of the swarm, through the manager.
+	if g.manager != nil {
+		swarmNodes, err := docker.ListSwarmNodes(ctx, g.manager)
+		if err != nil {
+			return nil, err
+		}
+		for _, node := range swarmNodes {
+			if g.seen[node.ID] || node.Address == "" || node.Address == "0.0.0.0" {
+				continue
+			}
+			target, err := creds.open(node.Address)
+			if err != nil {
+				logger.Printf("Could not reach %s (%s): %v — its Garage instances, if any, "+
+					"will be missing", node.Hostname, node.Address, err)
+				continue
+			}
+			g.add(ctx, target)
+		}
+	} else {
+		// 4. No manager: what the state file names.
+		for _, t := range stateTargets {
+			target, err := docker.OpenSSHRecoveryTarget(t)
+			if err != nil {
+				logger.Printf("Could not reach %s: %v", t.Host, err)
+				continue
+			}
+			g.add(ctx, target)
+		}
+	}
+
+	if len(g.targets) == 0 {
+		return nil, fmt.Errorf("no node could be reached")
+	}
+	return g, nil
 }
 
-// promptForMinioTarget asks where to look, once everything automatic
-// has come up empty.
-func promptForMinioTarget(logger *log.Logger) (*docker.RecoveryTarget, error) {
-	logger.Printf("Could not find the minio_storage volume automatically.")
-	logger.Printf("It is on whichever node last ran MinIO — 'docker volume ls' there will confirm it.")
-
-	host, err := promptLine("Node address: ")
-	if err != nil {
-		return nil, err
-	}
-	user, err := promptLine("SSH user: ")
-	if err != nil {
-		return nil, err
-	}
-	if host == "" || user == "" {
-		return nil, fmt.Errorf("a node address and an SSH user are both required")
+// openSSHAsking opens an SSH target, asking for what is missing: the
+// user, and — only when the SSH agent and the usual key files are
+// refused — a key file or a password. Returns the credentials that
+// worked, to reuse on the other nodes.
+func openSSHAsking(logger *log.Logger, sshTarget docker.SSHTarget, askUser bool) (*docker.RecoveryTarget, docker.SSHTarget, error) {
+	if askUser && sshTarget.User == "" {
+		user, err := promptLine(fmt.Sprintf("SSH user on the platform's nodes (%s): ", sshTarget.Host))
+		if err != nil {
+			return nil, sshTarget, err
+		}
+		if user == "" {
+			return nil, sshTarget, fmt.Errorf("an SSH user is required")
+		}
+		sshTarget.User = user
 	}
 
-	sshTarget := docker.SSHTarget{Host: host, User: user}
 	target, err := docker.OpenSSHRecoveryTarget(sshTarget)
 
 	// The SSH agent and the usual key locations are tried first, so
 	// only ask for credentials once those have failed — and only when
 	// the failure was authentication, not an unreachable host.
 	if errors.Is(err, docker.ErrSSHAuth) {
-		logger.Printf("No usable SSH agent or key found for %s@%s.", user, host)
+		logger.Printf("No usable SSH agent or key found for %s@%s.", sshTarget.User, sshTarget.Host)
 
 		keyPath, promptErr := promptLine("Path to an SSH private key (empty to use a password): ")
 		if promptErr != nil {
-			return nil, promptErr
+			return nil, sshTarget, promptErr
 		}
 		if keyPath != "" {
 			sshTarget.KeyPath = keyPath
@@ -394,92 +533,34 @@ func promptForMinioTarget(logger *log.Logger) (*docker.RecoveryTarget, error) {
 			fmt.Print("🔑 SSH password: ")
 			// PromptPassphrase reads without echoing, which is what is
 			// wanted here even though this is a password rather than
-			// the state file's passphrase. It returns []byte;
-			// ssh.Password takes a string.
+			// the state file's passphrase.
 			password, promptErr := crypto.PromptPassphrase()
 			fmt.Println()
 			if promptErr != nil {
-				return nil, fmt.Errorf("error reading the password: %w", promptErr)
+				return nil, sshTarget, fmt.Errorf("error reading the password: %w", promptErr)
 			}
 			sshTarget.Password = string(password)
 		}
 		target, err = docker.OpenSSHRecoveryTarget(sshTarget)
 	}
 	if err != nil {
-		return nil, err
+		return nil, sshTarget, err
 	}
-
-	found, err := docker.HasMinioStorageVolume(context.Background(), target)
-	if err != nil {
-		target.Close()
-		return nil, err
-	}
-	if !found {
-		target.Close()
-		return nil, fmt.Errorf("no minio_storage volume on %s. "+
-			"If 'osi4iot delete' was run, the volume is gone and so are the backups", host)
-	}
-	return target, nil
+	return target, sshTarget, nil
 }
 
-// stopOnSignal tears the temporary MinIO down if the operator
-// interrupts. A deferred Stop does not run on SIGINT, and this
-// container is not one to leave behind.
-func stopOnSignal(tm *docker.TempMinio) {
+// stopOnSignal tears the temporary Garage down if the operator
+// interrupts. A deferred Stop does not run on SIGINT, and this container
+// is not one to leave behind.
+func stopOnSignal(tg *docker.TempGarage) {
 	signals := make(chan os.Signal, 1)
 	signal.Notify(signals, os.Interrupt, syscall.SIGTERM)
 	go func() {
 		<-signals
-		fmt.Println("\nInterrupted — removing the temporary MinIO container.")
-		tm.Stop()
+		fmt.Println("\nInterrupted — removing the temporary Garage container.")
+		tg.Stop()
 		os.Exit(1)
 	}()
-}
-
-// minioRecoveryInputs collects the only things this procedure cannot
-// discover on its own.
-//
-// The credentials have to be the platform's real ones — MinIO encrypts
-// its own config under them and will not start against this volume
-// otherwise. They are the platform admin user and password, which the
-// operator chose at creation, so this is a question with an answer
-// rather than a lookup in the file they just lost.
-func minioRecoveryInputs(image string) (string, string, string, error) {
-	pd := data.GetData()
-
-	rootUser := pd.PlatformInfo.PlatformAdminUserName
-	if rootUser == "" {
-		var err error
-		if rootUser, err = promptLine("MinIO root user (the platform admin user): "); err != nil {
-			return "", "", "", err
-		}
-	} else {
-		fmt.Printf("Using the platform admin user '%s' as the MinIO root user.\n", rootUser)
-	}
-
-	rootPassword := pd.PlatformInfo.PlatformAdminPassword
-	if rootPassword == "" {
-		fmt.Print("🔑 MinIO root password (the platform admin password): ")
-		// Read without echoing. []byte in, string out — it ends up in
-		// the container's MINIO_ROOT_PASSWORD env var.
-		pw, err := crypto.PromptPassphrase()
-		fmt.Println()
-		if err != nil {
-			return "", "", "", fmt.Errorf("error reading the password: %w", err)
-		}
-		rootPassword = string(pw)
-	}
-	if rootUser == "" || rootPassword == "" {
-		return "", "", "", fmt.Errorf("both the MinIO root user and password are required")
-	}
-
-	if image == "" {
-		// Recovery should run the same MinIO version that wrote the
-		// volume: a newer one may want to migrate the on-disk format,
-		// which is not a thing to meet halfway through a recovery.
-		image = utils.GetServiceImage(pd, "minio", docker.DefaultMinioImage)
-	}
-	return rootUser, rootPassword, image, nil
 }
 
 // chooseBackup shows what was found and asks which one to install,
@@ -645,8 +726,8 @@ func loadStateAndClient() (*pt.PlatformData, *pt.DockerClient, error) {
 	if !docker.IsSystemManagerRunning(dc) {
 		return nil, nil, fmt.Errorf("system_manager is not running, so this command cannot reach " +
 			"the bucket. If you are recovering a lost state file, use 'osi4iot state recover': " +
-			"--from-bucket <name> reads an external bucket directly, --from-minio reads a " +
-			"stopped MinIO's volume, and --file installs a backup you downloaded yourself")
+			"--from-bucket <name> reads an external bucket directly, --from-garage reads a " +
+			"stopped Garage's volumes, and --file installs a backup you downloaded yourself")
 	}
 	return pd, dc, nil
 }

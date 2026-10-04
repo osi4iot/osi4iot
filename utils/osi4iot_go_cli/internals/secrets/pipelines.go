@@ -138,14 +138,7 @@ func PipelinesConfig(pd *types.PlatformData, numNatsReplicas int) (string, error
 		tsReadPort = 5101
 	}
 
-	awsAccessKeyId := pi.PlatformAdminUserName
-	awsSecretAccessKey := pi.PlatformAdminPassword
-	awsEndpoint := "http://minio:9000/"
-	if pi.S3BucketType == "Cloud AWS S3" {
-		awsAccessKeyId = pi.AWSAccessKeyIDS3Bucket
-		awsSecretAccessKey = pi.AWSSecretAccessKeyS3Bucket
-		awsEndpoint = ""
-	}
+	s3Key := utils.S3CredentialsFor(pi, utils.S3ConsumerPipelines)
 
 	params := PipelinesParams{
 		Mode:                     "prod",
@@ -186,11 +179,14 @@ func PipelinesConfig(pd *types.PlatformData, numNatsReplicas int) (string, error
 			SSLMode:  "disable",
 		},
 		AwsS3: AwsS3Config{
-			AccessKeyId:     awsAccessKeyId,
-			SecretAccessKey: awsSecretAccessKey,
-			Region:          pi.AWSRegionS3Bucket,
-			Bucket:          pi.S3BucketName,
-			Endpoint:        awsEndpoint,
+			AccessKeyId:     s3Key.AccessKeyID,
+			SecretAccessKey: s3Key.SecretAccessKey,
+			// A region CODE, and the same one every other client signs
+			// for. This used to be the form's label ("Europe (Paris)"),
+			// which the AWS SDK rejects and Garage would refuse.
+			Region:   utils.S3Region(pi),
+			Bucket:   pi.S3BucketName,
+			Endpoint: utils.S3Endpoint(pi),
 		},
 	}
 

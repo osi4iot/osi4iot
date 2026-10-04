@@ -36,7 +36,12 @@ func GenerateConfigs(pd *pt.PlatformData) map[string]pt.Config {
 		fmt.Sprintf("MAIN_ORGANIZATION_COUNTRY=\"%s\"", pi.MainOrganizationCountry),
 		fmt.Sprintf("S3_BUCKET_TYPE=\"%s\"", pi.S3BucketType),
 		fmt.Sprintf("S3_BUCKET_NAME=%s", pi.S3BucketName),
-		fmt.Sprintf("AWS_REGION=%s", utils.AwsRegionCode(pi.AWSRegionS3Bucket)),
+		// Region and endpoint of the platform's object store, from the
+		// same helpers every other S3 client is configured with. With
+		// Garage: us-east-1 and http://garage:3900; with AWS: the
+		// bucket's region and no endpoint.
+		fmt.Sprintf("AWS_REGION=%s", utils.S3Region(pi)),
+		fmt.Sprintf("AWS_ENDPOINT=%s", utils.S3Endpoint(pi)),
 	}
 	adminAPIConfig := strings.Join(adminAPIConfigArray, "\n")
 	adminAPIConfigHash := utils.GetMD5Hash(adminAPIConfig)

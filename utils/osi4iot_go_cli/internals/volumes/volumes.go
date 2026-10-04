@@ -67,7 +67,6 @@ func GenerateVolumes(platformData *pt.PlatformData) map[string]pt.Volume {
 
 	deploymentLocation := pi.DeploymentLocation
 	deploymentMode := pi.DeploymentMode
-	s3BucketType := pi.S3BucketType
 
 	volOptions := createDefaultOptions(pi)
 
@@ -111,9 +110,18 @@ func GenerateVolumes(platformData *pt.PlatformData) map[string]pt.Volume {
 		Volumes["pgadmin4_data"] = SetVolumeConfig(pi, "pgadmin4_data", "pgadmin4", deploymentLocation, volOptions)
 	}
 
-	if s3BucketType == "Local Minio" {
-		Volumes["minio_storage"] = SetVolumeConfig(pi, "minio_storage", "minio", deploymentLocation, volOptions)
-		Volumes["minio_data"] = SetVolumeConfig(pi, "minio_data", "minio", deploymentLocation, volOptions)
+	if utils.IsGarage(pi) {
+		// Per instance: Garage's metadata (LMDB) and its data blocks.
+		// Separate volumes because they want different disks on a real
+		// deployment: metadata is small and latency-bound, data is large.
+		// Pinned with their instance (see pinnedVolumes).
+		for _, inst := range pi.GarageInstances {
+			service := utils.GarageInstanceServiceName(inst.ID)
+			meta := utils.GarageMetaVolumeName(inst.ID)
+			data := utils.GarageDataVolumeName(inst.ID)
+			Volumes[meta] = SetVolumeConfig(pi, meta, service, deploymentLocation, volOptions)
+			Volumes[data] = SetVolumeConfig(pi, data, service, deploymentLocation, volOptions)
+		}
 	}
 
 	Volumes["vector_buffer"] = SetVolumeConfig(pi, "vector_buffer", "vector", deploymentLocation, volOptions, true)
@@ -484,7 +492,7 @@ func DeleteEBSVolumeByName(ctx context.Context, domainName, volumeName string) e
 // hand. The hand-maintained one had drifted badly: it still carried the
 // pre-Patroni names and was missing patroni_admin%d-data,
 // patroni_metrics%d-data, pipelines_data_%d,
-// minio_data, timescaledb_wal and system_manager-data. That only shows
+// timescaledb_wal and system_manager-data. That only shows
 // up when a volume has lost its app=osi4iot label, because then the
 // name list is the only thing left that can find it — and a volume
 // nobody can find is a volume `osi4iot delete` leaves behind.
@@ -534,9 +542,11 @@ func roleVolumeNames(nodeRole string, pd *pt.PlatformData) map[string]bool {
 			names[fmt.Sprintf("pipelines_data_%d", i)] = true
 		}
 
-		if pd.PlatformInfo.S3BucketType == "Local Minio" {
-			names["minio_storage"] = true
-			names["minio_data"] = true
+		if utils.IsGarage(pd.PlatformInfo) {
+			for _, inst := range pd.PlatformInfo.GarageInstances {
+				names[utils.GarageMetaVolumeName(inst.ID)] = true
+				names[utils.GarageDataVolumeName(inst.ID)] = true
+			}
 		}
 	}
 
@@ -971,6 +981,33 @@ func waitForVolumeAvailable(ctx context.Context, ec2Client *ec2.Client, volumeID
 
 		if i == 30 {
 			return fmt.Errorf("timeout waiting for volume %s to be available", volumeID)
+		}
+	}
+	return nil
+}
+
+// CreateGarageInstanceVolumes creates a Garage instance's two volumes on
+// the node carrying its garage_<ID> label (see pinnedVolumes) — so the
+// label must already be there.
+func CreateGarageInstanceVolumes(pi pt.PlatformInfo, dc *pt.DockerClient, id int) ([]pt.Volume, error) {
+	volOptions := createDefaultOptions(pi)
+	service := utils.GarageInstanceServiceName(id)
+	var out []pt.Volume
+	for _, name := range []string{utils.GarageMetaVolumeName(id), utils.GarageDataVolumeName(id)} {
+		vol := SetVolumeConfig(pi, name, service, pi.DeploymentLocation, volOptions)
+		if err := createPinnedVolume(pi, dc, &vol); err != nil {
+			return nil, err
+		}
+		out = append(out, vol)
+	}
+	return out, nil
+}
+
+// RemoveGarageInstanceVolumes removes a retired Garage instance's volumes.
+func RemoveGarageInstanceVolumes(pd *pt.PlatformData, id int) error {
+	for _, name := range []string{utils.GarageMetaVolumeName(id), utils.GarageDataVolumeName(id)} {
+		if err := removeReplicaVolume(pd, name); err != nil {
+			return err
 		}
 	}
 	return nil

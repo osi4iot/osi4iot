@@ -4,7 +4,7 @@
 // wal-g backups of both Patroni clusters.
 //
 // It is deliberately transport-agnostic. Nothing here talks to NATS,
-// S3, MinIO or Docker — callers hand it bytes and readers, and it hands
+// S3, Garage or Docker — callers hand it bytes and readers, and it hands
 // bytes and readers back. That keeps the format testable on its own and
 // keeps `osi4iot backup snapshot` (which fills a bundle from the object
 // store) and `osi4iot init --snapshot-file` (which drains one back into

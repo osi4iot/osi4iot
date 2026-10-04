@@ -168,8 +168,10 @@ RUN ARCH=$(dpkg --print-architecture) \
 # ── patroni_sidecar ───────────────────────────────────────────────────
 COPY --from=patroni-sidecar-builder /usr/local/bin/patroni_sidecar /usr/local/bin/patroni_sidecar
 
-# ── WAL-G environment (S3/MinIO) ─────────────────────────────────────────────
-# Sensitive values (WALG_LIBSODIUM_KEY, AWS credentials) are injected at
+# ── WAL-G environment (S3: Garage or AWS) ────────────────────────────────────
+# AWS_ENDPOINT stays empty for AWS S3; with Garage the CLI sets it to
+# http://garage:3900 on the service. Sensitive values (WALG_LIBSODIUM_KEY,
+# each cluster's own S3 key, AWS_REGION) are injected at
 # runtime via /run/secrets/patroni_admin.txt sourced in entrypoint.sh.
 # WALG_LIBSODIUM_KEY_TRANSFORM is set in entrypoint.sh to avoid the Docker
 # Buildkit false-positive secret scanner (triggers on variable names with KEY).

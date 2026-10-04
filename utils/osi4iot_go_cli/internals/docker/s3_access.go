@@ -24,45 +24,44 @@ import (
 	"github.com/osi4iot/osi4iot/utils/osi4iot/internals/utils"
 )
 
-// This file gives the CLI read access to the platform's object store,
-// which `osi4iot backup snapshot` needs and nothing else in the CLI
-// had.
+// This file gives the CLI access to the platform's object store, which
+// `osi4iot backup snapshot`, seeding a platform from one, and the bucket
+// check after a deploy need.
 //
 // # Why not NATS
 //
 // Every other CLI-to-platform call in this package goes through
 // system_manager over NATS. That works for catalogues and triggers and
-// does not work for this: NATS's max_payload is 1 MB (system_manager's
-// internal/statefile says as much, and the state file already brushes
-// against it), while a wal-g base backup is gigabytes. NATS stays the
-// control plane; the bytes come from the bucket.
+// does not work for this: NATS's max_payload is 1 MB, while a wal-g base
+// backup is gigabytes. NATS stays the control plane; the bytes come from
+// the bucket.
 //
-// # Three ways in, tried in order
+// # Ways in, tried in order
 //
-// With "Cloud AWS S3" the bucket is on the internet and the CLI talks
-// to it directly. Nothing else applies.
+// With "Cloud AWS S3" the bucket is on the internet and the CLI talks to
+// it directly with the AWS SDK. Nothing else applies.
 //
-// With "Local Minio" there is normally no way in at all from the
-// operator's machine: the service publishes no host port, and its only
-// external route is Traefik's /minio_api prefix, which cannot carry S3
-// traffic — SigV4 signs the request path, so stripping a prefix in the
-// proxy invalidates every signature, and not stripping it makes MinIO
-// read "minio_api" as a bucket name. So:
+// With "Local Garage" there is normally no way in from the operator's
+// machine: the service publishes no host port and has no Traefik route.
+// So:
 //
-//   - In development mode the service DOES publish port 9000 on the
-//     node, and then the CLI just connects to it. Free, when available.
-//   - Otherwise a throwaway container runs the platform's own MinIO
-//     image on internal_net and the objects come out through `mc` over
-//     the Docker API. See minio_mc_source.go.
+//   - In development mode the service DOES publish its S3 and admin
+//     ports on the node, and the CLI connects to them with the AWS SDK.
+//   - Otherwise a throwaway container runs the platform's own Garage
+//     image — which carries rclone — on internal_net, and the objects
+//     come out through rclone over the Docker exec API. See
+//     garage_rclone_source.go.
 //
-// An earlier version of this forwarded TCP out of a socat container
-// published on the node's loopback. `mc` does the same job with an
-// image the nodes already have, and without opening a port at all.
+// Either way the CLI signs with its own Garage key (utils.S3ConsumerCLI)
+// for the platform's single region, utils.GarageS3Region. And either way
+// the result is wrapped in garageStore, because with Garage the bucket
+// is the provisioning's to create — see garageStore.EnsureBucket.
 
 // objectSource is the read side of an object store, in the two terms
 // the snapshot needs: what is there, and give me that one.
 type objectSource interface {
 	List(ctx context.Context, bucket, keyPrefix string) ([]s3Object, error)
+	BucketExists(ctx context.Context, bucket string) (bool, error)
 	Get(ctx context.Context, bucket, key string) (io.ReadCloser, error)
 	Put(ctx context.Context, bucket, key string, size int64, body io.Reader) error
 	EnsureBucket(ctx context.Context, bucket string) (created bool, err error)
@@ -78,8 +77,8 @@ type s3Object struct {
 	ModTime time.Time
 }
 
-// PlatformS3 is a read path to the platform's bucket. Always Close: for
-// the `mc` case that is what removes the helper container.
+// PlatformS3 is a path to the platform's bucket. Always Close: for the
+// rclone case that is what removes the helper container.
 type PlatformS3 struct {
 	source objectSource
 	bucket string
@@ -142,15 +141,15 @@ func (p *PlatformS3) Close() {
 	p.source = nil
 }
 
-// OpenPlatformS3 builds a read path to the platform's object store.
+// OpenPlatformS3 builds a path to the platform's object store.
 //
-// minioImage may be empty, in which case the MinIO version this
-// platform runs is used. It is ignored for AWS.
+// garageImage may be empty, in which case the Garage image this platform
+// runs is used for the rclone helper. It is ignored for AWS.
 func OpenPlatformS3(
 	ctx context.Context,
 	pd *pt.PlatformData,
 	dc *pt.DockerClient,
-	minioImage string,
+	garageImage string,
 	logger *log.Logger,
 ) (*PlatformS3, error) {
 	pi := pd.PlatformInfo
@@ -158,40 +157,90 @@ func OpenPlatformS3(
 	if pi.S3BucketName == "" {
 		return nil, fmt.Errorf("this platform has no S3 bucket configured")
 	}
+	if err := utils.CheckS3BucketType(pi); err != nil {
+		return nil, err
+	}
 
-	if pi.S3BucketType == "Cloud AWS S3" {
+	if utils.IsAwsS3(pi) {
 		return openAwsSource(ctx, pi, logger)
 	}
 
-	// MinIO. The credentials are the platform admin's, which is what
-	// secrets.createPatroniSecrets hands wal-g and what MinIO takes as
-	// its root user.
-	user, password := pi.PlatformAdminUserName, pi.PlatformAdminPassword
-	if user == "" || password == "" {
-		return nil, fmt.Errorf("the platform admin credentials are missing from the state file, " +
-			"and they are what MinIO authenticates with")
+	// Garage, with the CLI's own key.
+	creds := utils.S3CredentialsFor(pi, utils.S3ConsumerCLI)
+	if creds.AccessKeyID == "" || creds.SecretAccessKey == "" {
+		return nil, fmt.Errorf("the state file has no Garage S3 key for the CLI; " +
+			"redeploy the platform (osi4iot run) so it is generated and provisioned")
 	}
 
-	// A platform in development mode publishes MinIO's port on the
-	// node, and then there is nothing to stand up: the CLI can talk to
-	// it the same way it already talks to NATS on a node address.
-	// Worth trying first — it needs no container and no image.
-	if endpoint := publishedMinioEndpoint(ctx, pd, dc, logger); endpoint != "" {
+	// A platform in development mode publishes Garage's ports on the
+	// node, and then there is nothing to stand up. Worth trying first —
+	// it needs no container and no image.
+	if endpoint := publishedGarageEndpoint(ctx, pd, dc, logger); endpoint != "" {
 		if logger != nil {
-			logger.Printf("MinIO is published at %s; connecting to it directly.", endpoint)
+			logger.Printf("Garage is published at %s; connecting to it directly.", endpoint)
 		}
-		cli, err := awsS3Client(ctx, user, password, "us-east-1", endpoint, nil)
+		cli, err := awsS3Client(ctx, creds.AccessKeyID, creds.SecretAccessKey,
+			utils.GarageS3Region, endpoint, nil)
 		if err != nil {
 			return nil, err
 		}
-		return &PlatformS3{source: &awsSource{cli: cli}, bucket: pi.S3BucketName}, nil
+		return &PlatformS3{source: &garageStore{objectSource: &awsSource{cli: cli}},
+			bucket: pi.S3BucketName}, nil
 	}
 
-	source, err := startMcSource(ctx, pd, dc, minioImage, user, password, logger)
+	source, err := startRcloneSource(ctx, pd, dc, garageImage, creds, logger)
 	if err != nil {
 		return nil, err
 	}
-	return &PlatformS3{source: source, bucket: pi.S3BucketName}, nil
+	return &PlatformS3{source: &garageStore{objectSource: source}, bucket: pi.S3BucketName}, nil
+}
+
+// garageStore is an objectSource on the platform's Garage.
+//
+// It differs from the plain source in what it does NOT do. The bucket,
+// the keys and their permissions belong to the garage service's
+// provisioning (garage-provision, run on every start of the service):
+// a bucket created here through S3 would carry the CLI key's permissions
+// only, and every other service would be refused. None of the platform's
+// keys may create or delete buckets in the first place.
+type garageStore struct {
+	objectSource
+}
+
+// garageBucketWait bounds how long EnsureBucket waits for the
+// provisioning. The service turns healthy once its layout is applied,
+// which is a step BEFORE the bucket is created, so a deploy that has
+// just seen it healthy can arrive a few seconds early.
+const garageBucketWait = 2 * time.Minute
+
+// EnsureBucket waits for the provisioning to have created the bucket.
+// It never creates one itself, so it never reports created=true.
+func (g *garageStore) EnsureBucket(ctx context.Context, bucket string) (bool, error) {
+	deadline := time.Now().Add(garageBucketWait)
+	for {
+		exists, err := g.BucketExists(ctx, bucket)
+		if err == nil && exists {
+			return false, nil
+		}
+		if time.Now().After(deadline) {
+			if err != nil {
+				return false, fmt.Errorf("error checking the bucket '%s' in Garage: %w", bucket, err)
+			}
+			return false, fmt.Errorf("the bucket '%s' does not exist in Garage, or the CLI's key "+
+				"has no access to it. Garage creates it at start-up: see "+
+				"'docker service logs %s' for the provisioning's output", bucket, utils.GarageServiceName)
+		}
+		select {
+		case <-ctx.Done():
+			return false, ctx.Err()
+		case <-time.After(3 * time.Second):
+		}
+	}
+}
+
+// RemoveBucket is refused: see errGarageBucketManaged.
+func (g *garageStore) RemoveBucket(ctx context.Context, bucket string) error {
+	return errGarageBucketManaged(bucket)
 }
 
 // ── The AWS SDK source ───────────────────────────────────────────────
@@ -211,7 +260,7 @@ func openAwsSource(ctx context.Context, pi pt.PlatformInfo, logger *log.Logger) 
 			"state file has no AWS credentials for it")
 	}
 
-	region := AwsRegionCode(pi.AWSRegionS3Bucket)
+	region := utils.S3Region(pi)
 	cli, err := awsS3Client(ctx, pi.AWSAccessKeyIDS3Bucket, pi.AWSSecretAccessKeyS3Bucket,
 		region, "", nil)
 	if err != nil {
@@ -291,7 +340,7 @@ func displayRegion(region string) string {
 }
 
 // awsSource reads through the S3 API, whether that is real S3 or a
-// MinIO the CLI can reach on a published port.
+// Garage the CLI can reach on a published port.
 type awsSource struct {
 	cli *s3.Client
 }
@@ -357,6 +406,20 @@ func (a *awsSource) List(ctx context.Context, bucket, keyPrefix string) ([]s3Obj
 	return objects, nil
 }
 
+// BucketExists reports whether HeadBucket finds the bucket. A 404 is
+// "no"; any other failure is an error.
+func (a *awsSource) BucketExists(ctx context.Context, bucket string) (bool, error) {
+	_, err := a.cli.HeadBucket(ctx, &s3.HeadBucketInput{Bucket: aws.String(bucket)})
+	if err == nil {
+		return true, nil
+	}
+	var respErr *awshttp.ResponseError
+	if errors.As(err, &respErr) && respErr.HTTPStatusCode() == http.StatusNotFound {
+		return false, nil
+	}
+	return false, err
+}
+
 func (a *awsSource) EnsureBucket(ctx context.Context, bucket string) (bool, error) {
 	if _, err := a.cli.HeadBucket(ctx, &s3.HeadBucketInput{Bucket: aws.String(bucket)}); err == nil {
 		return false, nil
@@ -406,11 +469,10 @@ func (a *awsSource) Empty(ctx context.Context, bucket string) (int, error) {
 	}
 
 	// One object at a time rather than DeleteObjects. The batch call is
-	// far faster, and it is also the call MinIO wants a Content-MD5
-	// header on — admin_api carries a middleware for exactly that — so
-	// the version that works everywhere is the boring one. This runs on
-	// a bucket someone has asked to destroy, where correctness matters
-	// more than speed.
+	// far faster, and also the one whose checksum requirements differ
+	// between S3 implementations and SDK versions, so the version that
+	// works everywhere is the boring one. This runs on a bucket someone
+	// has asked to destroy, where correctness matters more than speed.
 	deleted := 0
 	for _, object := range objects {
 		_, err := a.cli.DeleteObject(ctx, &s3.DeleteObjectInput{
@@ -457,34 +519,6 @@ func (a *awsSource) Get(ctx context.Context, bucket, key string) (io.ReadCloser,
 	return out.Body, nil
 }
 
-// awsS3Client assembles the client. endpoint empty means real AWS;
-// anything else is MinIO and gets path-style addressing, because MinIO
-// on a bare address has no virtual-host addressing.
-// AwsRegionCode turns whatever the state file holds into a region code
-// the SDK accepts.
-//
-// The form asks for a region from a list of HUMAN-READABLE names and
-// stores the label — "Europe (Paris)" rather than "eu-west-3". Only
-// configs.go and lego.go translate it through utils.AwsRegionsMap on
-// the way out, so everything else that reads AWSRegionS3Bucket gets the
-// label. wal-g never noticed because it receives the translated value;
-// the AWS SDK v2 validates the string and refuses with "invalid input
-// region".
-//
-// Translating here rather than at every call site means a state file
-// written by any version of the form works, and so does one already
-// holding a proper code.
-func AwsRegionCode(region string) string {
-	region = strings.TrimSpace(region)
-	if region == "" {
-		return ""
-	}
-	if code, ok := utils.AwsRegionsMap[region]; ok {
-		return code
-	}
-	return region
-}
-
 // looksLikeRegionCode reports whether a string could be a region code:
 // lowercase letters, digits and hyphens, and no spaces or brackets.
 func looksLikeRegionCode(region string) bool {
@@ -501,8 +535,11 @@ func looksLikeRegionCode(region string) bool {
 	return true
 }
 
+// awsS3Client assembles the client. endpoint empty means real AWS;
+// anything else is Garage and gets path-style addressing, because Garage
+// on a bare address has no virtual-host addressing.
 func awsS3Client(ctx context.Context, keyID, secret, region, endpoint string, httpClient *http.Client) (*s3.Client, error) {
-	region = AwsRegionCode(region)
+	region = utils.AwsRegionCode(region)
 
 	// A region the SDK would reject outright is worse than no region at
 	// all: with none, bucketRegion learns the real one from S3's own
@@ -564,63 +601,61 @@ func awsS3Client(ctx context.Context, keyID, secret, region, endpoint string, ht
 	}), nil
 }
 
-// publishedMinioEndpoint returns a URL for MinIO's S3 API if the
+// publishedGarageEndpoint returns a URL for Garage's S3 API if the
 // platform publishes it on a node, or "" if it does not.
 //
-// internals/services/minio.go publishes port 9000 in host mode only
-// when DeploymentMode is "development", so on a production platform
-// this finds nothing and the helper container takes over. The port is
-// read from the service rather than assumed, because the published port
-// and the target port are not required to match.
-func publishedMinioEndpoint(ctx context.Context, pd *pt.PlatformData, dc *pt.DockerClient, logger *log.Logger) string {
+// services.GarageService publishes the S3 and admin ports in host mode
+// only in development mode and only for a single-instance Garage, so on
+// any other platform this finds nothing and the rclone helper takes over. The ports are read from the
+// service rather than assumed, because published and target ports need
+// not match. A node counts once Garage's /health answers 200 on it.
+func publishedGarageEndpoint(ctx context.Context, pd *pt.PlatformData, dc *pt.DockerClient, logger *log.Logger) string {
 	if dc == nil || dc.Cli == nil {
 		return ""
 	}
 
 	f := filters.NewArgs()
-	f.Add("name", "minio")
+	f.Add("name", utils.GarageServiceName+"_")
 	services, err := dc.Cli.ServiceList(ctx, types.ServiceListOptions{Filters: f})
 	if err != nil {
 		return ""
 	}
 
-	published := uint32(0)
+	s3Port, adminPort := uint32(0), uint32(0)
 	for _, service := range services {
-		if service.Spec.Name != "minio" {
+		if _, isInstance := utils.GarageInstanceIDFromService(service.Spec.Name); !isInstance {
 			continue
 		}
 		for _, port := range service.Endpoint.Ports {
-			if port.TargetPort == 9000 && port.PublishedPort != 0 {
-				published = port.PublishedPort
-				break
+			switch {
+			case port.TargetPort == utils.GarageS3Port && port.PublishedPort != 0:
+				s3Port = port.PublishedPort
+			case port.TargetPort == utils.GarageAdminPort && port.PublishedPort != 0:
+				adminPort = port.PublishedPort
 			}
 		}
 	}
-	if published == 0 {
+	if s3Port == 0 || adminPort == 0 {
 		return ""
 	}
 
-	// Which node runs the task is not worth resolving: with a handful
-	// of nodes, asking each one is faster than inspecting tasks, and
-	// the answer is proven rather than inferred.
 	httpClient := &http.Client{Timeout: 3 * time.Second}
 	for _, node := range pd.PlatformInfo.NodesData {
 		if node.NodeIP == "" {
 			continue
 		}
-		endpoint := fmt.Sprintf("http://%s:%d", node.NodeIP, published)
-		resp, err := httpClient.Get(endpoint + "/minio/health/live")
+		resp, err := httpClient.Get(fmt.Sprintf("http://%s:%d/health", node.NodeIP, adminPort))
 		if err != nil {
 			continue
 		}
 		resp.Body.Close()
 		if resp.StatusCode == http.StatusOK {
-			return endpoint
+			return fmt.Sprintf("http://%s:%d", node.NodeIP, s3Port)
 		}
 	}
 
 	if logger != nil {
-		logger.Printf("MinIO publishes port %d, but no node answered on it.", published)
+		logger.Printf("Garage publishes port %d, but no node answered on it.", s3Port)
 	}
 	return ""
 }
@@ -641,7 +676,7 @@ func publishedMinioEndpoint(ctx context.Context, pd *pt.PlatformData, dc *pt.Doc
 //
 //	CloseS3Helpers()
 var (
-	openHelpers   []*mcSource
+	openHelpers   []*rcloneSource
 	openHelpersMu sync.Mutex
 )
 
@@ -658,13 +693,13 @@ func CloseS3Helpers() {
 	}
 }
 
-func rememberHelper(m *mcSource) {
+func rememberHelper(m *rcloneSource) {
 	openHelpersMu.Lock()
 	openHelpers = append(openHelpers, m)
 	openHelpersMu.Unlock()
 }
 
-func forgetHelper(m *mcSource) {
+func forgetHelper(m *rcloneSource) {
 	openHelpersMu.Lock()
 	for i, candidate := range openHelpers {
 		if candidate == m {

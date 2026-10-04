@@ -32,11 +32,11 @@ import (
 // step of that, not a verb of its own.
 
 var (
-	snapshotInclude    []string
-	snapshotOutput     string
-	snapshotFresh      bool
-	snapshotAllBackups bool
-	snapshotMinioImage string
+	snapshotInclude     []string
+	snapshotOutput      string
+	snapshotFresh       bool
+	snapshotAllBackups  bool
+	snapshotGarageImage string
 )
 
 var subCmdBackupSnapshot = &cobra.Command{
@@ -118,15 +118,15 @@ var subCmdBackupSnapshot = &cobra.Command{
 		stdoutLogger.Printf("Including: %s\n", snapshot.JoinTargets(targets, ", "))
 
 		opts := docker.SnapshotOptions{
-			Output:     snapshotOutput,
-			Targets:    targets,
-			Fresh:      snapshotFresh,
-			AllBackups: snapshotAllBackups,
-			MinioImage: snapshotMinioImage,
-			CLIVersion: version,
+			Output:      snapshotOutput,
+			Targets:     targets,
+			Fresh:       snapshotFresh,
+			AllBackups:  snapshotAllBackups,
+			GarageImage: snapshotGarageImage,
+			CLIVersion:  version,
 		}
 
-		// The MinIO client helper is removed by CleanResources, which
+		// The rclone helper container is removed by CleanResources, which
 		// main.go runs on both the normal and the interrupted path.
 		defer docker.CloseS3Helpers()
 
@@ -190,7 +190,7 @@ func init() {
 		"take a new backup of each target first, instead of carrying the newest stored one")
 	subCmdBackupSnapshot.Flags().BoolVar(&snapshotAllBackups, "all-backups", false,
 		"carry every stored wal-g backup, not just the newest restorable chain")
-	subCmdBackupSnapshot.Flags().StringVar(&snapshotMinioImage, "minio-image", "",
-		"MinIO image used to read the bucket (default: the version this platform runs)")
+	subCmdBackupSnapshot.Flags().StringVar(&snapshotGarageImage, "garage-image", "",
+		"Garage image whose rclone reads the bucket (default: the version this platform runs)")
 	cmdBackup.AddCommand(subCmdBackupSnapshot)
 }

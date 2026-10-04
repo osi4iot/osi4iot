@@ -72,9 +72,9 @@ type SnapshotOptions struct {
 	// AllBackups carries every object under each wal-g prefix instead
 	// of the newest restorable chain.
 	AllBackups bool
-	// MinioImage overrides the image the MinIO client helper runs, for
-	// the MinIO case. Empty means the version this platform runs.
-	MinioImage string
+	// GarageImage overrides the image the rclone helper runs, for the
+	// Garage case. Empty means the version this platform runs.
+	GarageImage string
 	// CLIVersion is recorded in the manifest.
 	CLIVersion string
 }
@@ -104,7 +104,7 @@ func BuildSnapshot(pd *pt.PlatformData, dc *pt.DockerClient, opts SnapshotOption
 	// bucket does not leave a half-written zip behind.
 	var store *PlatformS3
 	if wantsObjects {
-		if pd.PlatformInfo.S3BucketType == "Cloud AWS S3" {
+		if utils.IsAwsS3(pd.PlatformInfo) {
 			// Worth saying before an hour of downloading starts. On AWS
 			// the backups are already off the machine, and a platform
 			// rebuilt against the SAME bucket needs nothing but the
@@ -117,7 +117,7 @@ func BuildSnapshot(pd *pt.PlatformData, dc *pt.DockerClient, opts SnapshotOption
 		}
 
 		var err error
-		store, err = OpenPlatformS3(ctx, pd, dc, opts.MinioImage, logger)
+		store, err = OpenPlatformS3(ctx, pd, dc, opts.GarageImage, logger)
 		if err != nil {
 			return err
 		}
@@ -655,7 +655,7 @@ func copyObjects(
 
 		_, addErr := writer.AddObject(target, relKey, object.Size, object.ModTime, body)
 		// Closing reports whatever the source only learns at the end:
-		// for the mc path, the exit status of the process that produced
+		// for the rclone path, the exit status of the process that produced
 		// these bytes.
 		closeErr := body.Close()
 		if addErr != nil {

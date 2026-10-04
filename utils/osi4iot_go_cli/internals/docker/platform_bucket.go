@@ -27,10 +27,15 @@ import (
 // state file is written — the state-file backup hook fires on that
 // write and is the first thing to need a bucket.
 //
-// Idempotent, and cheap on the path that matters: with MinIO published
+// Idempotent, and cheap on the path that matters: with Garage published
 // (development) or a real S3 bucket it is one HTTP call. Only a
-// production MinIO pays for the helper container, and only for as long
-// as the check takes.
+// production Garage pays for the rclone helper container, and only for
+// as long as the check takes.
+//
+// With Garage this never creates anything: the bucket, the keys and
+// their permissions are the garage service's provisioning's. Here it
+// proves the result — the bucket exists and the CLI's own key can reach
+// it — which also proves the keys made it into Garage.
 //
 // Not fatal. A platform whose bucket cannot be created is a platform
 // without backups, which is worth a loud warning and is not worth

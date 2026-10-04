@@ -97,8 +97,8 @@ func LoadConfig() Config {
 	}
 
 	// The same AWS_ENDPOINT/AWS_S3_FORCE_PATH_STYLE pair wal-g and
-	// nats_backup already use for MinIO — a platform with MinIO working
-	// for Postgres backups gets it here for free.
+	// nats_backup use for the platform's Garage — a platform with Garage
+	// working for Postgres backups gets it here for free.
 	endpoint := config.EnvStringDefault("AWS_ENDPOINT", "")
 	forcePathStyle := config.EnvStringDefault("AWS_S3_FORCE_PATH_STYLE", "true") == "true"
 

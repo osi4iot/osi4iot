@@ -3,9 +3,12 @@ package docker
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 	"time"
 
+	"github.com/osi4iot/osi4iot/utils/osi4iot/internals/crypto"
 	pt "github.com/osi4iot/osi4iot/utils/osi4iot/internals/types"
+	"github.com/osi4iot/osi4iot/utils/osi4iot/internals/utils"
 )
 
 // This file backs `osi4iot state`. Like backup_triggers.go and
@@ -56,6 +59,28 @@ func BackupStateFile(pd *pt.PlatformData, dc *pt.DockerClient, blob string) (str
 		return "", err
 	}
 	return string(data), nil
+}
+
+// BackupStateFileOnDisk backs up the state file exactly as it sits on
+// disk — the file, not a re-serialization of pd that ought to equal it.
+//
+// Refuses with --no-encrypt: the bytes on disk are then plaintext JSON,
+// and shipping them to a bucket would put every password the platform
+// has in object storage in the clear.
+func BackupStateFileOnDisk(pd *pt.PlatformData, dc *pt.DockerClient) (string, error) {
+	if pd.PlatformInfo.StateFileS3Prefix == "" {
+		return "", fmt.Errorf("state file backups are not configured: " +
+			"STATE_FILE_S3_PREFIX is empty in the platform state")
+	}
+	if crypto.IsNoEncrypt() {
+		return "", fmt.Errorf("encryption is disabled (--no-encrypt): refusing to upload " +
+			"an unencrypted state file to object storage")
+	}
+	encoded, err := os.ReadFile(utils.GetStateFilePath())
+	if err != nil {
+		return "", fmt.Errorf("error reading the state file: %w", err)
+	}
+	return BackupStateFile(pd, dc, string(encoded))
 }
 
 // RestoreStateFile fetches a stored state file — the newest one, or the

@@ -45,6 +45,7 @@ interface IProcessEnv extends Record<string, string | string[] | string[][]> {
 	AWS_ACCESS_KEY_ID: string;
 	AWS_SECRET_ACCESS_KEY: string;
 	AWS_REGION: string;
+	AWS_ENDPOINT: string;
 	MESSAGING_SYSTEM: string;
 	NATS_ADMIN_USERNAME: string;
 	NATS_ADMIN_PASSWORD: string;
@@ -102,6 +103,9 @@ const process_env: IProcessEnv = {
 	AWS_ACCESS_KEY_ID: process.env.AWS_ACCESS_KEY_ID,
 	AWS_SECRET_ACCESS_KEY: process.env.AWS_SECRET_ACCESS_KEY,
 	AWS_REGION: process.env.AWS_REGION,
+	// Empty with AWS S3; http://garage:3900 with the platform's Garage.
+	// Set by the CLI in /run/configs/admin_api.conf, read below.
+	AWS_ENDPOINT: process.env.AWS_ENDPOINT || "",
 	MESSAGING_SYSTEM: process.env.MESSAGING_SYSTEM,
 	NATS_ADMIN_USERNAME: process.env.NATS_ADMIN_USERNAME,
 	NATS_ADMIN_PASSWORD: process.env.NATS_ADMIN_PASSWORD,

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
@@ -14,9 +15,22 @@ import (
 	"pipelines/logger"
 )
 
+// defaultS3Region applies when the configuration has no region: it is
+// the platform Garage's s3_region and AWS's default. The SDK would
+// otherwise fail with "invalid region", and Garage rejects requests
+// signed for any other region.
+const defaultS3Region = "us-east-1"
+
+// CreateS3Client builds the client for the platform's object store. A
+// non-empty Endpoint means Garage (http://garage:3900): path-style
+// addressing, since it is reached by service name.
 func CreateS3Client(ctx context.Context, s3Config localConfig.AwsS3Config, log *logger.Logger) (*s3.Client, error) {
+    region := strings.TrimSpace(s3Config.Region)
+    if region == "" {
+        region = defaultS3Region
+    }
     cfg, err := config.LoadDefaultConfig(ctx,
-        config.WithRegion(s3Config.Region),
+        config.WithRegion(region),
         config.WithCredentialsProvider(
             credentials.NewStaticCredentialsProvider(
                 s3Config.AccessKeyId,

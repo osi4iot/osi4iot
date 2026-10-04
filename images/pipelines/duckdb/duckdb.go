@@ -45,7 +45,7 @@ func inDockerEnv() bool {
 
 // NewDB creates and configures an in-memory DuckDB connection with:
 //   - httpfs, parquet, and postgres extensions loaded
-//   - S3/MinIO credentials configured
+//   - S3 (Garage or AWS) credentials configured
 //   - TimescaleDB/Postgres attached as "tsdb"
 func NewDB(ctx context.Context, cfg *config.Config, log *logger.Logger) (*sql.DB, error) {
 	if cfg == nil {
@@ -151,7 +151,7 @@ func NewDB(ctx context.Context, cfg *config.Config, log *logger.Logger) (*sql.DB
 			}
 		}
 
-		// S3 / MinIO credentials.
+		// S3 (Garage or AWS) credentials.
 		for _, stmt := range buildS3Stmts(cfg) {
 			if _, err := execer.ExecContext(initCtx, stmt, nil); err != nil {
 				return sc.Redact(fmt.Errorf("duckdb s3 config: %w", err))
@@ -205,7 +205,14 @@ func buildPgConnStr(cfg *config.Config) string {
 	)
 }
 
-// buildS3Stmts builds the SET statements required to configure S3 or MinIO.
+// defaultS3Region is used when the configuration carries no region. It
+// is the platform's Garage region (s3_region in garage.toml) and AWS's
+// own default. Always set explicitly rather than left to DuckDB: Garage
+// rejects any request signed for a region other than its own.
+const defaultS3Region = "us-east-1"
+
+// buildS3Stmts builds the SET statements required to configure the
+// platform's object store: Garage (endpoint set, path-style) or AWS S3.
 func buildS3Stmts(cfg *config.Config) []string {
 	set := func(key, val string) string {
 		return fmt.Sprintf("SET %s='%s'", key, escapeSQLString(val))
@@ -213,9 +220,11 @@ func buildS3Stmts(cfg *config.Config) []string {
 
 	var stmts []string
 
-	if cfg.AwsS3.Region != "" {
-		stmts = append(stmts, set("s3_region", cfg.AwsS3.Region))
+	region := strings.TrimSpace(cfg.AwsS3.Region)
+	if region == "" {
+		region = defaultS3Region
 	}
+	stmts = append(stmts, set("s3_region", region))
 	if cfg.AwsS3.AccessKeyId != "" {
 		stmts = append(stmts, set("s3_access_key_id", cfg.AwsS3.AccessKeyId))
 	}

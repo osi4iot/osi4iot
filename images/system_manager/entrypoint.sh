@@ -14,7 +14,7 @@ set +a
 
 # DOMAIN_NAME, NATS_NKEY_SEED and the AWS/S3 credentials are always in
 # the secret now (see secrets/system_manager.go) — system_manager needs
-# S3/MinIO access unconditionally, and DOMAIN_NAME doubles as the TLS
+# S3 (Garage or AWS) access unconditionally, and DOMAIN_NAME doubles as the TLS
 # ServerName for the NATS connection. Only Route53/ACME stays gated by
 # CERT_RENEWAL_ENABLED. See system_manager.go (services) for
 # USE_PATRONI_TOOL / CERT_RENEWAL_ENABLED.

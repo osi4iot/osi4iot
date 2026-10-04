@@ -125,7 +125,7 @@ RUN ARCH=$(dpkg --print-architecture) \
 # ── patroni_sidecar sidecar ───────────────────────────────────────────────────
 COPY --from=patroni-sidecar-builder /usr/local/bin/patroni_sidecar /usr/local/bin/patroni_sidecar
 
-# ── WAL-G environment (S3/MinIO) ─────────────────────────────────────────────
+# ── WAL-G environment (S3: Garage or AWS) ────────────────────────────────────
 ENV WALG_COMPRESSION_METHOD=lz4 \
     WALG_S3_CA_CERT_FILE="" \
     AWS_ENDPOINT="" \

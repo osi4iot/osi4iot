@@ -47,7 +47,7 @@ func newRedactedError(err error, sensitive ...string) error {
 //
 // Fields map directly to the three sources of sensitive data:
 //   - Postgres/TimescaleDB credentials (DSN, user, password)
-//   - AWS S3 / MinIO credentials and bucket coordinates
+//   - S3 (Garage / AWS) credentials and bucket coordinates
 //   - User-supplied query variable values
 type SensitiveConfig struct {
 	// Postgres
@@ -55,7 +55,7 @@ type SensitiveConfig struct {
 	PgUser    string
 	PgPass    string
 
-	// S3 / MinIO
+	// S3 (Garage / AWS)
 	S3AccessKeyId     string
 	S3SecretAccessKey string
 	S3BucketName      string

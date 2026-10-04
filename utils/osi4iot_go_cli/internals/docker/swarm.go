@@ -121,6 +121,43 @@ func saveCertsFromSystemManager(pd *pt.PlatformData, dc *pt.DockerClient) {
 }
 
 func createSwarmServices(platformData *pt.PlatformData, dc *pt.DockerClient) error {
+	// Only "Local Garage" and "Cloud AWS S3" can be deployed.
+	if err := utils.CheckS3BucketType(platformData.PlatformInfo); err != nil {
+		return err
+	}
+
+	// Garage's secrets — RPC secret, admin tokens, one S3 key per
+	// service — are generated at platform creation, but a state file
+	// written before a consumer existed lacks its key. Fill in only what
+	// is missing and save it BEFORE any secret is built from it: a key
+	// handed to Garage and to a service but not written down would be
+	// replaced by another one at the next deploy.
+	garageChanged := utils.EnsureGarageSecrets(&platformData.PlatformInfo, false)
+	if garageChanged {
+		fmt.Println("Generated the missing Garage credentials")
+	}
+	// The Garage Web UI login follows the administrator's password: its
+	// hash is regenerated only when the password changed.
+	// Garage instances are normally planned, and their nodes labelled,
+	// by addNodesLabels before this runs. A platform reaching this with
+	// none (a `run` of a state file written before they existed) gets
+	// them now, with its labels.
+	if utils.IsGarage(platformData.PlatformInfo) && len(platformData.PlatformInfo.GarageInstances) == 0 {
+		if err := addNodesLabels(platformData); err != nil {
+			return fmt.Errorf("error placing the Garage instances: %v", err)
+		}
+	}
+
+	webuiChanged, err := utils.EnsureGarageWebUIAuth(&platformData.PlatformInfo)
+	if err != nil {
+		return err
+	}
+	if garageChanged || webuiChanged {
+		if err := utils.WritePlatformDataToFile(platformData); err != nil {
+			return fmt.Errorf("error saving platform data: %v", err)
+		}
+	}
+
 	// Before building any secret from the local state file, pick up
 	// whatever certificate system_manager holds — it renews on its own
 	// schedule, so the copy in osi4iot_state.json goes stale on its own.
@@ -507,6 +544,8 @@ func waitUntilAllContainersAreHealthy(pd *pt.PlatformData, serviceType string) e
 				} else if strings.Contains(val, "patroni_admin") && serviceType == "patroni_admin" {
 					filteredServices = append(filteredServices, service)
 				} else if strings.Contains(val, "patroni_metrics") && serviceType == "patroni_metrics" {
+					filteredServices = append(filteredServices, service)
+				} else if _, isInstance := utils.GarageInstanceIDFromService(val); isInstance && serviceType == utils.GarageServiceName {
 					filteredServices = append(filteredServices, service)
 				} else if val == serviceType {
 					filteredServices = append(filteredServices, service)

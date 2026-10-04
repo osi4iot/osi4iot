@@ -279,6 +279,16 @@ func (b *ServiceBuilder) WithRestartPolicy(delay time.Duration, condition swarm.
 	return b
 }
 
+// WithDNSRoundRobin resolves the service name (and its aliases) to the
+// IPs of its healthy tasks instead of a virtual IP. Several services
+// sharing an alias then answer together, and a stopped task drops out of
+// DNS — where a VIP would keep answering for a service with no tasks.
+// Published ports must be host-mode with it.
+func (b *ServiceBuilder) WithDNSRoundRobin() *ServiceBuilder {
+	b.svc.EndpointSpec.Mode = swarm.ResolutionModeDNSRR
+	return b
+}
+
 // WithPorts sets the service ports.
 func (b *ServiceBuilder) WithPorts(ports []swarm.PortConfig) *ServiceBuilder {
 	b.svc.EndpointSpec.Ports = append(b.svc.EndpointSpec.Ports, ports...)
@@ -441,9 +451,14 @@ func GenerateServices(pd *pt.PlatformData, sd pt.SwarmData) map[string]pt.Servic
 		services["grafana_renderer"] = GrafanaRendererService(pd, sd, svcResourcesMap["grafana_renderer"], nodeRoleNumMap)
 	}
 
-	s3BucketType := pi.S3BucketType
-	if s3BucketType == "Local Minio" {
-		services["minio"] = MinioService(pd, sd, svcResourcesMap["minio"], nodeRoleNumMap)
+	if utils.IsGarage(pi) {
+		primary, _ := utils.GaragePrimaryInstance(pi)
+		for _, inst := range pi.GarageInstances {
+			services[utils.GarageInstanceServiceName(inst.ID)] = GarageService(pd, sd,
+				svcResourcesMap[utils.GarageServiceName], inst, inst.ID == primary.ID)
+		}
+		services[utils.GarageWebUIServiceName] = GarageWebUIService(pd, sd,
+			svcResourcesMap[utils.GarageWebUIServiceName])
 	}
 
 	numSwarmNodes := len(pi.NodesData)

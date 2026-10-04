@@ -81,9 +81,6 @@ var AwsRegionsMap = map[string]string{
 	"South America (São Paulo)": "sa-east-1",
 }
 
-// awsS3Client assembles the client. endpoint empty means real AWS;
-// anything else is MinIO and gets path-style addressing, because MinIO
-// on a bare address has no virtual-host addressing.
 // AwsRegionCode turns whatever the state file holds into a region code
 // the SDK accepts.
 //

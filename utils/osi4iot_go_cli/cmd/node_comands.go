@@ -173,7 +173,10 @@ var subCmdNodeDrain = &cobra.Command{
 		"machine down for maintenance.\n\n" +
 		"Undo it with 'osi4iot node activate'.\n\n" +
 		"Draining is not free, and the command says so before doing it. Draining the node " +
-		"holding a Patroni leader forces a failover. Draining the only node stops the platform.",
+		"holding a Patroni leader forces a failover. Draining the only node stops the platform.\n\n" +
+		"Refused when the object store (Garage) would lose its quorum: its instances are " +
+		"pinned to their nodes and wait there while drained, so the command checks that " +
+		"enough of them stay up, counting nodes already drained or down.",
 	Args: cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		pd, dc := nodeContext()
@@ -191,6 +194,13 @@ var subCmdNodeDrain = &cobra.Command{
 		views, err := docker.ListNodeViews(pd, dc)
 		if err != nil {
 			exitWithError(err.Error())
+			return
+		}
+
+		// Not a warning: a drain that takes Garage below its quorum
+		// stops every S3 read and write on the platform.
+		if blocker := docker.GarageDrainBlocker(pd, view, views); blocker != "" {
+			exitWithError(blocker)
 			return
 		}
 
@@ -249,6 +259,9 @@ var subCmdNodeActivate = &cobra.Command{
 			return
 		}
 		fmt.Println(utils.StyleOKMsg.Render(fmt.Sprintf("%s is active", view.Hostname())))
+		if note := docker.GarageActivateNote(pd.PlatformInfo, view.Address()); note != "" {
+			fmt.Println(note)
+		}
 	},
 }
 
@@ -331,12 +344,13 @@ var subCmdNodeUpdate = &cobra.Command{
 }
 
 var (
-	nodeAddIP       string
-	nodeAddRole     string
-	nodeAddUser     string
-	nodeAddLabel    string
-	nodeAddHostname string
-	nodeAddYes      bool
+	nodeAddIP          string
+	nodeAddRole        string
+	nodeAddUser        string
+	nodeAddLabel       string
+	nodeAddHostname    string
+	nodeAddYes         bool
+	nodeAddNoRebalance bool
 )
 
 var subCmdNodeAdd = &cobra.Command{
@@ -467,6 +481,18 @@ var subCmdNodeAdd = &cobra.Command{
 		if err := docker.AddNodeToPlatform(pd, node, logger); err != nil {
 			exitWithError(err.Error())
 			return
+		}
+
+		if data.GetPlatformState() == data.Running {
+			manager, err := docker.GetManagerDC()
+			if err == nil {
+				err = docker.RebalanceGarageAfterNodeAdd(pd, manager, node, nodeAddNoRebalance, logger)
+			}
+			if err != nil {
+				exitWithError(fmt.Sprintf("%s joined the platform, but Garage could not be "+
+					"rebalanced onto it: %v\nResume with: osi4iot service rebalance garage", node.NodeIP, err))
+				return
+			}
 		}
 
 		fmt.Println(utils.StyleOKMsg.Render(fmt.Sprintf("%s is part of the platform", node.NodeIP)))
@@ -718,6 +744,8 @@ func init() {
 	subCmdNodeAdd.Flags().StringVar(&nodeAddLabel, "label", "", "Name for the node in the state file")
 	subCmdNodeAdd.Flags().StringVar(&nodeAddHostname, "hostname", "", "The machine's hostname")
 	subCmdNodeAdd.Flags().BoolVarP(&nodeAddYes, "yes", "y", false, "Do not ask for confirmation")
+	subCmdNodeAdd.Flags().BoolVar(&nodeAddNoRebalance, "no-rebalance", false,
+		"Do not spread Garage onto the new worker now (run 'osi4iot service rebalance garage' later)")
 	_ = subCmdNodeAdd.MarkFlagRequired("ip")
 	_ = subCmdNodeAdd.MarkFlagRequired("user")
 

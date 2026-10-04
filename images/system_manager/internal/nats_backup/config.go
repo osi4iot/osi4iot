@@ -63,7 +63,7 @@ type Config struct {
 	s3Bucket string
 	s3Prefix string // may be "", meaning runs live at the bucket root
 
-	// s3Endpoint/s3ForcePathStyle are for MinIO deployments — the same
+	// s3Endpoint/s3ForcePathStyle are for Garage deployments — the same
 	// AWS_ENDPOINT/AWS_S3_FORCE_PATH_STYLE pair patroni_admin/
 	// patroni_metrics' Dockerfile already sets for wal-g. Unset
 	// (s3Endpoint == "") means talk to real AWS S3.
@@ -104,13 +104,13 @@ func LoadConfig() Config {
 
 	// AWS_ENDPOINT / AWS_S3_FORCE_PATH_STYLE, not something
 	// nats_backup-specific: this is the SAME pair patroni_admin/
-	// patroni_metrics' own Dockerfile already sets for wal-g's MinIO
+	// patroni_metrics' own Dockerfile already sets for wal-g's Garage
 	// support (default AWS_ENDPOINT="", AWS_S3_FORCE_PATH_STYLE="true").
-	// Reusing those exact names means a platform that already has MinIO
+	// Reusing those exact names means a platform that already has Garage
 	// working for Postgres backups gets it for NATS backups for free,
 	// with nothing new to provision — an nats_backup-only variable name
 	// here would silently never be set on an existing deployment and
-	// fail over to real AWS S3 with MinIO-only credentials, which is
+	// fail over to real AWS S3 with Garage-only credentials, which is
 	// exactly what happened before this comment was written.
 	endpoint := config.EnvStringDefault("AWS_ENDPOINT", "")
 	forcePathStyle := config.EnvStringDefault("AWS_S3_FORCE_PATH_STYLE", "true") == "true"

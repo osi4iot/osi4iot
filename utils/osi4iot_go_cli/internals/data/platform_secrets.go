@@ -106,6 +106,21 @@ func GeneratePlatformSecrets(pd *pt.PlatformData, force bool) error {
 		}
 	}
 
+	// ── Garage (only with S3BucketType "Local Garage") ──────────────
+	// The RPC secret and admin/metrics tokens of the platform's Garage,
+	// and one S3 key per consumer — WAL-G admin, WAL-G metrics,
+	// pipelines, admin_api, system_manager and this CLI:
+	//
+	//   - access_key_id:     "GK" + 12 random bytes in hex, Garage's
+	//                        own format;
+	//   - secret_access_key: 32 random bytes in hex.
+	//
+	// The garage service imports them at start-up (garage-provision in
+	// its image) with read+write on the platform's bucket and nothing
+	// else. With AWS S3 there is nothing to generate: the bucket's
+	// credentials come from the form. See utils.EnsureGarageSecrets.
+	utils.EnsureGarageSecrets(pi, force)
+
 	// NATS: the admin user's password and bcrypt hash, and the nkeys of
 	// every infrastructure client. Kept in pd.Certs, hence its own
 	// helper; always regenerated (InitPlatform does it on every init

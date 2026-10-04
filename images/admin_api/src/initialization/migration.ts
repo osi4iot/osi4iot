@@ -74,11 +74,16 @@ export const dataBaseInitialization = async () => {
 
 	let existPlatformS3Bucket = false;
 	if (process_env.S3_BUCKET_TYPE !== "Cloud AWS S3") {
-		const minioUrl = `minio:9000/minio/health/live`;
-		await needle("get", minioUrl)
-			.then(() => "ok")
+		// Garage's admin API answers /health with 200 only when the
+		// cluster can serve requests.
+		const garageHealthUrl = `garage:3903/health`;
+		await needle("get", garageHealthUrl)
+			.then((res) => {
+				if (res.statusCode !== 200) throw new Error(`HTTP ${res.statusCode}`);
+				return "ok";
+			})
 			.catch((err) => {
-				logger.log("error", "Minio service is not healthy: %s", err.message);
+				logger.log("error", "Garage service is not healthy: %s", err.message);
 				process.exit(1);
 			});
 	}
@@ -108,10 +113,14 @@ export const dataBaseInitialization = async () => {
 
 		if (process_env.REPLICA === "1") {
 			try {
+				// With Garage the bucket is created by the garage service's
+				// provisioning, and admin_api's key may not create buckets:
+				// it lists here because its key was granted access to it.
+				// With AWS this is still the fallback that creates it.
 				const listBucketsResult = await s3Client.send(new ListBucketsCommand({}));
 				const bucketName = process_env.S3_BUCKET_NAME;
 				existPlatformS3Bucket =
-					listBucketsResult.Buckets.filter((bucket) => bucket.Name === bucketName).length !== 0;
+					(listBucketsResult.Buckets || []).filter((bucket) => bucket.Name === bucketName).length !== 0;
 				if (!existPlatformS3Bucket) {
 					await s3Client.send(new CreateBucketCommand({ Bucket: bucketName }));
 					logger.log("info", `The S3 bucket for the platform has been created successfully`);

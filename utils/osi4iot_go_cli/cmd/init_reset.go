@@ -95,8 +95,9 @@ func resetPlatformSecrets(pd *pt.PlatformData, assumeYes bool) error {
 	fmt.Println(utils.StyleWarningMsg.Render(
 		"--reset-passwords replaces every secret the platform generates for itself: the JWT and " +
 			"encryption keys, the platform master key, the WAL-G key, the sidecar token, every " +
-			"database password and the NATS credentials."))
-	if pi.S3BucketType == "Cloud AWS S3" && pi.S3BucketName != "" {
+			"database password, the NATS credentials and, with Garage, its RPC secret and "+
+			"every service's S3 key (Garage re-imports them when it restarts)."))
+	if utils.IsAwsS3(pi) && pi.S3BucketName != "" {
 		fmt.Println(utils.StyleWarningMsg.Render(fmt.Sprintf(
 			"Anything already in s3://%s (database and NATS backups, state file backups) is "+
 				"encrypted with the old keys and will be DELETED.", pi.S3BucketName)))
@@ -118,7 +119,7 @@ func resetPlatformSecrets(pd *pt.PlatformData, assumeYes bool) error {
 	// Before the state file is saved: saving it also backs it up to this
 	// bucket (see utils.SetStateBackupHook), and that first backup of the
 	// new platform must not be among what gets deleted. A no-op for a
-	// local MinIO, whose bucket went with its volume.
+	// local Garage, whose bucket goes with its volumes.
 	if err := docker.ResetBucketForNewPlatform(pd, log.New(os.Stdout, "", 0)); err != nil {
 		return fmt.Errorf("emptying the bucket for the new platform: %w", err)
 	}

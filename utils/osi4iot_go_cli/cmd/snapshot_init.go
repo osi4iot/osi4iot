@@ -198,17 +198,17 @@ func snapshotGuards(manifest *snapshot.Manifest, restored *pt.PlatformData) (blo
 
 	// ── The object store is the same one ──────────────────────────
 	//
-	// Only possible with a real S3 bucket. With "Local Minio" the
-	// bucket name is the same on both sides by construction and means
-	// nothing: it is a different MinIO, on a different machine, with
-	// its own storage.
+	// Only possible with a real S3 bucket. With "Local Garage" the
+	// bucket name may be the same on both sides and means nothing: it
+	// is a different Garage, on a different machine, with its own
+	// storage.
 	//
 	// This matters more than a prefix collision would suggest, because
 	// admin_api's dataBaseInitialization EMPTIES a bucket that already
 	// exists. Standing this platform up against the old one's bucket
 	// deletes the old one's backups before anything is seeded — and
 	// what is seeded back is only what this snapshot happens to carry.
-	bothAws := manifest.Source.BucketType == "Cloud AWS S3" && pi.S3BucketType == "Cloud AWS S3"
+	bothAws := manifest.Source.BucketType == utils.S3BucketTypeAWS && utils.IsAwsS3(pi)
 	if bothAws && manifest.Source.Bucket != "" && manifest.Source.Bucket == pi.S3BucketName {
 		var shared []string
 		for _, target := range manifest.IncludedTargets() {

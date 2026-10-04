@@ -20,21 +20,13 @@ func CreateSystemManagerSecrets(pd *pt.PlatformData) pt.Secret {
 		fmt.Sprintf("DOMAIN_NAME=%s", pi.DomainName),
 	)
 
-	awsAccessKeyId := pi.PlatformAdminUserName
-	awsSecretAccessKey := pi.PlatformAdminPassword
-	awsRegion := "us-east-1"
-	awsEndpoint := "http://minio:9000/"
-	if pi.S3BucketType == "Cloud AWS S3" {
-		awsAccessKeyId = pi.AWSAccessKeyIDS3Bucket
-		awsSecretAccessKey = pi.AWSSecretAccessKeyS3Bucket
-		awsRegion = utils.AwsRegionCode(pi.AWSRegionS3Bucket)
-		awsEndpoint = ""
-	}
+	s3Key := utils.S3CredentialsFor(pi, utils.S3ConsumerSystemManager)
 	lines = append(lines,
-		fmt.Sprintf("AWS_ACCESS_KEY_ID=%s", awsAccessKeyId),
-		fmt.Sprintf("AWS_SECRET_ACCESS_KEY=%s", awsSecretAccessKey),
-		fmt.Sprintf("AWS_REGION=%s", awsRegion),
-		fmt.Sprintf("AWS_ENDPOINT=%s", awsEndpoint),
+		fmt.Sprintf("AWS_ACCESS_KEY_ID=%s", s3Key.AccessKeyID),
+		fmt.Sprintf("AWS_SECRET_ACCESS_KEY=%s", s3Key.SecretAccessKey),
+		fmt.Sprintf("AWS_REGION=%s", utils.S3Region(pi)),
+		fmt.Sprintf("AWS_ENDPOINT=%s", utils.S3Endpoint(pi)),
+		"AWS_S3_FORCE_PATH_STYLE=true",
 	)
 
 	if needsCertRenewal {

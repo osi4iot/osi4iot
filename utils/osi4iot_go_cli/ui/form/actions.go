@@ -254,7 +254,7 @@ func addAWSRoute53Questions(m *Model) {
 
 func addAwsS3BucketQuestions(m *Model) {
 	idx := m.FindQuestionIdByKey("S3_BUCKET_TYPE")
-	if m.Questions[idx].Answer == "Cloud AWS S3" {
+	if m.Questions[idx].Answer == utils.S3BucketTypeAWS {
 		indKey := m.FindQuestionIdByKey("AWS_ACCESS_KEY_ID_S3_BUCKET")
 		if indKey == -1 {
 			awsS3BucketQuestions := []Question{
@@ -312,11 +312,11 @@ func awsS3BucketQuestions(m *Model) (submissionResultMsg, error) {
 
 	s3BucketType := m.FindAnswerByKey("S3_BUCKET_TYPE")
 	switch s3BucketType {
-	case "Local Minio":
+	case utils.S3BucketTypeGarage:
 		m.removeQuestionByKey("AWS_ACCESS_KEY_ID_S3_BUCKET")
 		m.removeQuestionByKey("AWS_SECRET_ACCESS_KEY_S3_BUCKET")
 		m.removeQuestionByKey("AWS_REGION_S3_BUCKET")
-	case "Cloud AWS S3":
+	case utils.S3BucketTypeAWS:
 		addAwsS3BucketQuestions(m)
 	}
 	return submissionResultMsg("AWS S3 Bucket questions added succesfully"), nil
@@ -622,98 +622,13 @@ func addPatroniNodesQuestions(index int, m *Model) {
 	m.addQuestions(index, adminQ, metricsQ)
 }
 
-// Replaces createPlatform and CreateDatabaseData in ui/form/actions.go,
-// and adds generatePlatformSecrets next to them. No new imports.
-
-// generatedPasswordLength is the length of every password the platform
-// generates for itself. With utils.GeneratePassword drawing from
-// crypto/rand over 62 characters, 20 characters are ~119 bits.
-const generatedPasswordLength = 20
-
-// generatedKeyBytes is the size of every key the platform generates for
-// itself: 32 random bytes (256 bits), stored as 64 hex characters.
-const generatedKeyBytes = 32
-
 // generatePlatformSecrets creates every secret the platform generates for
-// itself — none of them is ever asked of the administrator — and stores
-// them in the platform data. The one place to look for what a new
-// platform gets, and how.
-//
-// Two kinds, chosen by how the value is consumed:
-//
-//   - Keys (utils.GenerateHexKey): bytes that go into a cryptographic
-//     algorithm or are compared as opaque tokens — encryption keys, JWT
-//     signing secrets, the sidecar token. Always 32 random bytes, hex
-//     encoded, so consumers can decode them to exactly 256 bits and
-//     reject anything else.
-//   - Passwords (utils.GeneratePassword): values another system stores
-//     and compares as text — database roles, Grafana's datasource.
-//
-// Both come from crypto/rand. Values chosen by the administrator in the
-// form (platform admin password, e-mail…) are not generated and stay in
-// createPlatform.
+// itself — passwords, keys, NATS credentials and, with Garage, the S3
+// keys of every service. It is data.GeneratePlatformSecrets, the one
+// place that says what a platform gets; there used to be a copy here,
+// and the two had already started to differ.
 func generatePlatformSecrets(pd *types.PlatformData) error {
-	key := func() string { return utils.GenerateHexKey(generatedKeyBytes) }
-	password := func() string { return utils.GeneratePassword(generatedPasswordLength) }
-
-	secrets := []struct{ name, value string }{
-		// ── admin_api ───────────────────────────────────────────────
-		// HMAC secrets signing the JWTs admin_api hands out. Anyone
-		// holding a token can test guesses offline, so they must be
-		// full-strength keys, not passwords.
-		{"ACCESS_TOKEN_SECRET", key()},
-		{"REFRESH_TOKEN_SECRET", key()},
-		// AES-256-GCM key for the secrets admin_api stores in the
-		// database. admin_api decodes the hex and refuses to start
-		// with anything that is not exactly 32 bytes.
-		{"ENCRYPTION_SECRET_KEY", key()},
-
-		// ── Platform master key ─────────────────────────────────────
-		// The key this CLI and system_manager derive their per-purpose
-		// subkeys from (domain certificates in system_manager's volume,
-		// state-file backups in S3). Never regenerated — see
-		// PlatformInfo.PlatformEncryptionKey.
-		{"PLATFORM_ENCRYPTION_KEY", key()},
-
-		// ── Databases ───────────────────────────────────────────────
-		{"POSTGRES_PASSWORD", password()},
-		{"TIMESCALE_PASSWORD", password()},
-		{"GRAFANA_DB_PASSWORD", password()},
-		{"GRAFANA_DATASOURCE_PASSWORD", password()},
-	}
-
-	if pd.PlatformInfo.UsePatroniTool {
-		secrets = append(secrets, []struct{ name, value string }{
-			// ── Patroni — replication and pg_rewind roles ───────────
-			{"POSTGRES_REPLICATOR_PASSWORD", password()},
-			{"POSTGRES_REWIND_PASSWORD", password()},
-			{"TIMESCALE_REPLICATOR_PASSWORD", password()},
-			{"TIMESCALE_REWIND_PASSWORD", password()},
-
-			// ── WAL-G ───────────────────────────────────────────────
-			// libsodium key encrypting every base backup and WAL
-			// segment in S3. Losing it makes those backups useless.
-			{"WALG_LIBSODIUM_KEY", key()},
-
-			// ── patroni_sidecar ↔ system_manager ────────────────────
-			// Shared secret the sidecar checks on every endpoint but
-			// /health — see PlatformInfo.PatroniSidecarAPIToken.
-			{"PATRONI_SIDECAR_API_TOKEN", key()},
-		}...)
-	}
-
-	for _, s := range secrets {
-		data.SetData(s.name, s.value)
-	}
-
-	// NATS: the admin user's password and bcrypt hash, and the nkeys of
-	// every infrastructure client. Kept in platformData.Certs rather than
-	// set through data.SetData, hence its own helper. InitPlatform
-	// regenerates them on every init as well.
-	if err := utils.NatsCredentials(pd); err != nil {
-		return fmt.Errorf("generating NATS credentials: %w", err)
-	}
-	return nil
+	return data.GeneratePlatformSecrets(pd, false)
 }
 
 func createPlatform(m *Model) (platformCreatingMsg, error) {
@@ -745,12 +660,6 @@ func createPlatform(m *Model) (platformCreatingMsg, error) {
 	// Every secret the platform generates for itself, in one place.
 	if err := generatePlatformSecrets(platformData); err != nil {
 		return platformCreatingMsg("Error: generating platform secrets"), err
-	}
-
-	// MinIO endpoint — only relevant when S3BucketType == "Local Minio".
-	// For Local Minio the service name is "minio" inside the internal_net overlay.
-	if platformData.PlatformInfo.S3BucketType == "Local Minio" {
-		data.SetData("MINIO_ENDPOINT", "http://minio:9000")
 	}
 
 	nodeRedAdmin := platformAdminUserName

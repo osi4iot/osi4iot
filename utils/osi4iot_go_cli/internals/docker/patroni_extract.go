@@ -415,9 +415,9 @@ tail -f /dev/null
 // extractNetworkConfig attaches the throwaway container to the
 // platform's internal overlay network.
 //
-// Without it the container lands on the default bridge, where "minio"
-// does not resolve — and with a Local Minio deployment
-// AWS_ENDPOINT is http://minio:9000. wal-g then sits there retrying the
+// Without it the container lands on the default bridge, where "garage"
+// does not resolve — and with a Local Garage deployment
+// AWS_ENDPOINT is http://garage:3900. wal-g then sits there retrying the
 // connection with no error and no progress, which looks exactly like a
 // slow restore:
 //

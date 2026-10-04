@@ -29,7 +29,7 @@ func CreateAdminApiConfigSecret(
 		timescalePort = "5100"
 		timescaleReadPort = "5101"
 	}
-	
+
 	adminApiSecretsDataArray := []string{
 		fmt.Sprintf("REGISTRATION_TOKEN_LIFETIME=%s", strconv.Itoa(pi.RegistrationTokenLifetime)),
 		fmt.Sprintf("REFRESH_TOKEN_LIFETIME=%s", strconv.Itoa(pi.RefreshTokenLifetime)),
@@ -66,9 +66,15 @@ func CreateAdminApiConfigSecret(
 		fmt.Sprintf("MAIN_ORGANIZATION_TELEGRAM_CHAT_ID=%s", pi.MainOrganizationTelegramChatID),
 		fmt.Sprintf("MAIN_ORGANIZATION_TELEGRAM_INVITATION_LINK=%s", pi.MainOrganizationTelegramInviteLink),
 		fmt.Sprintf("TELEGRAM_BOTTOKEN=%s", pi.TelegramBotToken),
-		fmt.Sprintf("AWS_ACCESS_KEY_ID=%s", pi.AWSAccessKeyIDS3Bucket),
-		fmt.Sprintf("AWS_SECRET_ACCESS_KEY=%s", pi.AWSSecretAccessKeyS3Bucket),
 	}
+	// admin_api's own S3 key (with Garage; the bucket's credentials with
+	// AWS). It used to sign with the platform admin's user and password,
+	// which were also the object store's root credentials.
+	s3Key := utils.S3CredentialsFor(pi, utils.S3ConsumerAdminAPI)
+	adminApiSecretsDataArray = append(adminApiSecretsDataArray,
+		fmt.Sprintf("AWS_ACCESS_KEY_ID=%s", s3Key.AccessKeyID),
+		fmt.Sprintf("AWS_SECRET_ACCESS_KEY=%s", s3Key.SecretAccessKey),
+	)
 
 	adminApiSecretsData := strings.Join(adminApiSecretsDataArray, "\n")
 	adminApiSecretsHash := utils.GetMD5Hash(adminApiSecretsData)

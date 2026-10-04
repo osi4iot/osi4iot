@@ -41,7 +41,7 @@ import (
 //
 // What deliberately did NOT come here is `osi4iot state recover`, the
 // offline path for when the state file is gone: it goes straight to a
-// downloaded file or to MinIO's volume, needs no running platform and
+// downloaded file or to Garage's volumes, needs no running platform and
 // no state file, and main.go's pre-run only exempts action "state" from
 // requiring one. A `backup` subcommand cannot work without the very
 // file it would be restoring.

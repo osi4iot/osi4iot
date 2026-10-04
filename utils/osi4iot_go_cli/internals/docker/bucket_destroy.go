@@ -6,6 +6,7 @@ import (
 	"log"
 
 	pt "github.com/osi4iot/osi4iot/utils/osi4iot/internals/types"
+	"github.com/osi4iot/osi4iot/utils/osi4iot/internals/utils"
 )
 
 // The two places the CLI destroys object-store contents on purpose.
@@ -25,13 +26,13 @@ import (
 // and nothing distinguishes them at a glance. So create starts from an
 // empty bucket.
 //
-// # Local Minio is a different story
+// # Local Garage is a different story
 //
-// There the bucket lives inside the minio_storage volume, and
-// RemoveSwarmVolumes takes it with everything else, so --remove-bucket
-// has nothing to add. And a create always meets a fresh volume, so
-// there is nothing to reset. Both functions say so and stop rather than
-// standing up a MinIO client to do nothing.
+// There the bucket lives inside the garage_meta / garage_data volumes,
+// and RemoveSwarmVolumes takes it with everything else, so
+// --remove-bucket has nothing to add. And a create always meets fresh
+// volumes, so there is nothing to reset. Both functions say so and stop
+// rather than standing up an S3 client to do nothing.
 
 // RemovePlatformBucket empties and deletes the platform's bucket.
 //
@@ -46,8 +47,8 @@ func RemovePlatformBucket(pd *pt.PlatformData, dc *pt.DockerClient, logger *log.
 		return nil
 	}
 
-	if pd.PlatformInfo.S3BucketType != "Cloud AWS S3" {
-		logger.Printf("The bucket lives in the minio_storage volume and goes with it; " +
+	if !utils.IsAwsS3(pd.PlatformInfo) {
+		logger.Printf("The bucket lives in the garage volumes and goes with them; " +
 			"nothing extra to remove.")
 		return nil
 	}
@@ -108,10 +109,10 @@ func CountBucketObjects(pd *pt.PlatformData, dc *pt.DockerClient) (int, error) {
 // Emptying later would delete the first state file backup the platform
 // had just made.
 //
-// Nothing to do for a local MinIO: its volume is new.
+// Nothing to do for a local Garage: its volumes are new.
 func ResetBucketForNewPlatform(pd *pt.PlatformData, logger *log.Logger) error {
 	bucket := pd.PlatformInfo.S3BucketName
-	if bucket == "" || pd.PlatformInfo.S3BucketType != "Cloud AWS S3" {
+	if bucket == "" || !utils.IsAwsS3(pd.PlatformInfo) {
 		return nil
 	}
 

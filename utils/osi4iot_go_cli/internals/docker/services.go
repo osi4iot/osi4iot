@@ -2,6 +2,8 @@ package docker
 
 import (
 	"fmt"
+	"log"
+	"os"
 	"slices"
 	"strconv"
 	"strings"
@@ -580,6 +582,18 @@ func ScaleSwarmService(pd *pt.PlatformData, dc *pt.DockerClient, serviceName str
 	var err error
 
 	switch serviceName {
+	case utils.GarageServiceName:
+		// Like nats and Patroni, a family (garage_<ID>), not one service.
+		// Each instance added or retired is one layout change, finished
+		// — data migrated — before the next starts; see garage_rebalance.go.
+		if err := ScaleGarage(pd, dc, int(replicas), log.New(os.Stdout, "", 0)); err != nil {
+			return "", err
+		}
+		utils.SyncGarageServiceData(pd)
+		if err := utils.WritePlatformDataToFile(pd); err != nil {
+			return "", fmt.Errorf("error saving the state file: %v", err)
+		}
+		return "", nil
 	case "nats":
 		if utils.IsEven(replicas) {
 			return "", fmt.Errorf("NATS service requires an odd number of replicas: (1, 3, 5, ...)")

@@ -56,6 +56,10 @@ type NodePlacementImpact struct {
 	// their placement label afterwards. A non-empty list is a refusal.
 	HomelessServices []string
 
+	// GarageInstances are the Garage instances on the node, moved off
+	// it before it is drained.
+	GarageInstances []int
+
 	// ManagersBefore / ManagersAfter matter for quorum.
 	ManagersBefore int
 	ManagersAfter  int
@@ -116,6 +120,8 @@ func PlanNodeRemoval(pd *pt.PlatformData, target pt.NodeData) NodePlacementImpac
 			}
 		}
 	}
+	impact.GarageInstances = GarageInstancesOn(pi, target.NodeIP)
+
 	for i := impact.WorkersAfter + 1; i <= pi.DefaultNumOfNatsReplicas; i++ {
 		impact.HomelessServices = append(impact.HomelessServices, fmt.Sprintf("nats%d", i))
 	}
@@ -227,6 +233,18 @@ func RemoveNodeFromPlatform(pd *pt.PlatformData, view NodeView, logger *log.Logg
 	manager, err := GetManagerDC()
 	if err != nil {
 		return fmt.Errorf("error getting the manager docker client: %w", err)
+	}
+
+	// Garage first, while the node is still active: moving an instance
+	// copies its data from the running instance, which a drain would
+	// stop. Its instances go to the remaining hosts, one change at a
+	// time, each finished before the next.
+	if ids := GarageInstancesOn(pd.PlatformInfo, view.Address()); len(ids) > 0 {
+		logger.Printf("Moving %s off %s...", instanceNames(ids), view.Hostname())
+		if err := EvacuateGarageNode(pd, manager, view.Address(), logger); err != nil {
+			return fmt.Errorf("error moving Garage off %s (the node has not been touched; "+
+				"run the same command again to resume): %w", view.Hostname(), err)
+		}
 	}
 
 	if view.Availability() != string(swarm.NodeAvailabilityDrain) {
@@ -352,6 +370,18 @@ func nodeName(node pt.NodeData) string {
 
 // DescribeRemoval renders a removal plan for the operator to agree to.
 func DescribeRemoval(impact NodePlacementImpact, target pt.NodeData) string {
+	return describeRemoval(impact, target) + impact.garageNote()
+}
+
+func (impact NodePlacementImpact) garageNote() string {
+	if len(impact.GarageInstances) == 0 {
+		return ""
+	}
+	return fmt.Sprintf("  Garage: %s will be moved to the other nodes first, one at a time "+
+		"(each copies a full replica of the data).\n", instanceNames(impact.GarageInstances))
+}
+
+func describeRemoval(impact NodePlacementImpact, target pt.NodeData) string {
 	var b strings.Builder
 
 	fmt.Fprintf(&b, "Removing %s (%s)\n", nodeName(target), target.NodeRole)

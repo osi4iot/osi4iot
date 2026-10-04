@@ -3,12 +3,12 @@
 // of what's stored in it. nats_backup is its only caller today (see
 // that package's runs.go for the "timestamped backup run" semantics
 // built on top of this), but nothing here is NATS- or backup-specific;
-// any future task that needs to read/write S3 (or a MinIO bucket) can
+// any future task that needs to read/write S3 (AWS or the platform's Garage) can
 // use this directly instead of growing its own client.
 //
 // Built on AWS SDK for Go v2 (github.com/aws/aws-sdk-go-v2), not v1
 // (github.com/aws/aws-sdk-go): v1 has been in maintenance mode since
-// 2023 and AWS recommends v2 for new code. MinIO/custom-endpoint support
+// 2023 and AWS recommends v2 for new code. Garage/custom-endpoint support
 // uses s3.Options.BaseEndpoint + UsePathStyle (the current, supported
 // per-request way to do this in v2) rather than the older
 // EndpointResolver/EndpointResolverWithOptions mechanism, which the SDK
@@ -87,7 +87,7 @@ type Config struct {
 	AccessKeyID     string
 	SecretAccessKey string
 
-	// Endpoint/ForcePathStyle are for MinIO (or any S3-compatible
+	// Endpoint/ForcePathStyle are for Garage (or any S3-compatible
 	// store) deployments — optional, mirroring wal-g's own
 	// custom-endpoint support for the same use case. Endpoint == ""
 	// means talk to real AWS S3.
@@ -109,8 +109,14 @@ type Client struct {
 // awsconfig.WithRegion since nothing else in this process mutates that
 // env var after startup.
 func New(ctx context.Context, cfg Config) (*Client, error) {
+	// us-east-1 when unset: the platform Garage's s3_region and AWS's
+	// own default. Garage rejects requests signed for any other region.
+	region := strings.TrimSpace(cfg.Region)
+	if region == "" {
+		region = "us-east-1"
+	}
 	awsCfg, err := awsconfig.LoadDefaultConfig(ctx,
-		awsconfig.WithRegion(cfg.Region),
+		awsconfig.WithRegion(region),
 		awsconfig.WithCredentialsProvider(
 			credentials.NewStaticCredentialsProvider(cfg.AccessKeyID, cfg.SecretAccessKey, ""),
 		),
@@ -266,10 +272,10 @@ func (c *Client) ListObjects(ctx context.Context, subPrefix string) ([]string, e
 // Uses withContentMD5 (below) on every call: since an SDK update, S3
 // clients send a CRC32 trailing checksum by default instead of the
 // classic Content-MD5 header for operations that require one —
-// DeleteObjects among them. Real AWS S3 accepts either, but MinIO (and
-// other S3-compatible stores whose DeleteObjects predates that change)
-// only recognizes Content-MD5 and rejects the request with
-// "MissingContentMD5" otherwise.
+// DeleteObjects among them. AWS S3 and Garage v2 accept either, but
+// older S3-compatible stores only recognize Content-MD5 and reject the
+// request with "MissingContentMD5" otherwise — Content-MD5 is the one
+// every implementation takes.
 func (c *Client) DeleteObjects(ctx context.Context, keys []string) error {
 	if len(keys) == 0 {
 		return nil

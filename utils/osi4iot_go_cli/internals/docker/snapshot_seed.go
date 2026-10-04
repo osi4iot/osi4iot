@@ -49,8 +49,8 @@ type SeedOptions struct {
 	// bundle carries, apart from the state file, which is installed on
 	// disk rather than uploaded.
 	Targets []snapshot.Target
-	// MinioImage overrides the image the MinIO client helper runs.
-	MinioImage string
+	// GarageImage overrides the image the rclone helper runs.
+	GarageImage string
 }
 
 // SeedFromSnapshot uploads the bundle's objects into the platform's
@@ -75,7 +75,7 @@ func SeedFromSnapshot(
 		return nil
 	}
 
-	store, err := OpenPlatformS3(ctx, pd, dc, opts.MinioImage, logger)
+	store, err := OpenPlatformS3(ctx, pd, dc, opts.GarageImage, logger)
 	if err != nil {
 		return err
 	}
@@ -83,7 +83,8 @@ func SeedFromSnapshot(
 
 	// Normally already done by EnsurePlatformBucket during the init, so
 	// this is just insurance for the paths that reach a seed without
-	// one — and it costs a single call.
+	// one — and it costs a single call. With Garage it only waits for
+	// the service's provisioning to have created the bucket.
 	created, err := store.EnsureBucket(ctx, pd.PlatformInfo.S3BucketName)
 	if err != nil {
 		return err

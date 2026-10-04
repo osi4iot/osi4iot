@@ -26,14 +26,11 @@ import (
 func walgEnvFor(pd *pt.PlatformData, family patroniFamily) []string {
 	pi := pd.PlatformInfo
 
-	awsAccessKeyID := pi.PlatformAdminUserName
-	awsSecretAccessKey := pi.PlatformAdminPassword
-	awsRegion := "us-east-1"
-	if pi.S3BucketType == "Cloud AWS S3" {
-		awsAccessKeyID = pi.AWSAccessKeyIDS3Bucket
-		awsSecretAccessKey = pi.AWSSecretAccessKeyS3Bucket
-		awsRegion = utils.AwsRegionCode(pi.AWSRegionS3Bucket)
+	consumer := utils.S3ConsumerWalgAdmin
+	if family.NamePrefix == "patroni_metrics" {
+		consumer = utils.S3ConsumerWalgMetrics
 	}
+	creds := utils.S3CredentialsFor(pi, consumer)
 
 	prefix := pi.WalgS3PrefixAdmin
 	if family.NamePrefix == "patroni_metrics" {
@@ -45,14 +42,14 @@ func walgEnvFor(pd *pt.PlatformData, family patroniFamily) []string {
 		"WALG_LIBSODIUM_KEY=" + pi.WalgLibsodiumKey,
 		"WALG_LIBSODIUM_KEY_TRANSFORM=hex",
 		"WALG_COMPRESSION_METHOD=" + pi.WalgCompressionMethod,
-		"AWS_ACCESS_KEY_ID=" + awsAccessKeyID,
-		"AWS_SECRET_ACCESS_KEY=" + awsSecretAccessKey,
-		"AWS_REGION=" + awsRegion,
+		"AWS_ACCESS_KEY_ID=" + creds.AccessKeyID,
+		"AWS_SECRET_ACCESS_KEY=" + creds.SecretAccessKey,
+		"AWS_REGION=" + utils.S3Region(pi),
 		"PGDATA=" + extractDataDir,
 	}
-	if pi.MinioEndpoint != "" && pi.S3BucketType != "Cloud AWS S3" {
+	if endpoint := utils.S3Endpoint(pi); endpoint != "" {
 		env = append(env,
-			"AWS_ENDPOINT="+pi.MinioEndpoint,
+			"AWS_ENDPOINT="+endpoint,
 			"AWS_S3_FORCE_PATH_STYLE=true",
 		)
 	}

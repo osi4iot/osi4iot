@@ -25,8 +25,8 @@ import (
 // snapshot, and the only thing missing from it is the way in: the
 // credentials and the passphrase.
 //
-// (With "Local Minio" none of this applies: that bucket lives in the
-// minio_storage volume and RemoveSwarmVolumes takes it with the rest.)
+// (With "Local Garage" none of this applies: that bucket lives in the
+// garage volumes and RemoveSwarmVolumes takes it with the rest.)
 //
 // # The two chicken-and-egg problems
 //

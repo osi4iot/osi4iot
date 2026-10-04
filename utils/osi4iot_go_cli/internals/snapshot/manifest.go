@@ -58,14 +58,13 @@ type PlatformSummary struct {
 // Source describes the object store the bundle was drained from.
 //
 // Worth recording because the two cases behave very differently on the
-// far side: with "Local Minio" the objects have to be seeded into a
+// far side: with "Local Garage" the objects have to be seeded into a
 // brand new, empty bucket, while with AWS S3 the new platform may be
 // pointed at the very same bucket — in which case nothing needs seeding
 // and the real risk is two platforms writing to one wal-g prefix.
 type Source struct {
-	BucketType    string `json:"bucket_type"`
-	Bucket        string `json:"bucket"`
-	MinioEndpoint string `json:"minio_endpoint,omitempty"`
+	BucketType string `json:"bucket_type"`
+	Bucket     string `json:"bucket"`
 }
 
 // TargetManifest is one target's slice of the bundle.
@@ -169,9 +168,8 @@ func SummarizeSource(pd *pt.PlatformData) Source {
 		return Source{}
 	}
 	return Source{
-		BucketType:    pd.PlatformInfo.S3BucketType,
-		Bucket:        pd.PlatformInfo.S3BucketName,
-		MinioEndpoint: pd.PlatformInfo.MinioEndpoint,
+		BucketType: pd.PlatformInfo.S3BucketType,
+		Bucket:     pd.PlatformInfo.S3BucketName,
 	}
 }
 
