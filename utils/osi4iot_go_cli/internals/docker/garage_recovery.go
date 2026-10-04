@@ -289,6 +289,11 @@ func recoveryReadMode(layoutInstances, found, rf int) (dangerous bool, err error
 	}
 }
 
+// newTempGarage plans one member per instance volume pair found. Member
+// names carry the host's index too: instance numbers are reused, so a
+// node that was unreachable when an instance was retired may still hold
+// volumes with the same number as a live instance elsewhere, and two
+// containers with one name on the recovery network would be ambiguous.
 func newTempGarage(ctx context.Context, hosts []GarageVolumeHost) *TempGarage {
 	tg := &TempGarage{
 		ctx: ctx,
@@ -297,12 +302,12 @@ func newTempGarage(ctx context.Context, hosts []GarageVolumeHost) *TempGarage {
 			SecretAccessKey: utils.GenerateGarageSecretAccessKey(),
 		},
 	}
-	for _, h := range hosts {
+	for hostIndex, h := range hosts {
 		for _, id := range h.Instances {
 			tg.members = append(tg.members, &tempGarageMember{
 				target:     h.Target,
 				instanceID: id,
-				name:       fmt.Sprintf("%s-%d", recoveryContainerName, id),
+				name:       fmt.Sprintf("%s-%d-%d", recoveryContainerName, hostIndex+1, id),
 			})
 		}
 	}
@@ -352,6 +357,9 @@ func (t *TempGarage) start(ctx context.Context, image string, rf int, dangerous 
 
 	for _, m := range t.members {
 		removeStaleContainer(ctx, m.target.Cli, m.name)
+		if err := ensureImage(ctx, m.target.Cli, image); err != nil {
+			return fmt.Errorf("on %s: %w", m.target.Name, err)
+		}
 
 		hostConfig := &container.HostConfig{
 			NetworkMode: "none",

@@ -204,11 +204,10 @@ type PlatformInfo struct {
 	// cluster that holds data. See utils/garage_cluster.go.
 	GarageReplicationFactor int `json:"GARAGE_REPLICATION_FACTOR"`
 	// The Garage nodes, each a garage_<ID> service pinned to one swarm
-	// node. IDs are never reused: moving an instance to another node
-	// replaces it with a new one.
+	// node. Moving an instance to another node replaces it with a new
+	// one, which takes the lowest ID not in use (see
+	// utils.NewGarageInstance).
 	GarageInstances []GarageInstance `json:"GARAGE_INSTANCES"`
-	// The ID the next instance created gets.
-	GarageNextInstanceID int `json:"GARAGE_NEXT_INSTANCE_ID"`
 	// A move of an instance to another node that has started and not
 	// finished: `osi4iot service rebalance garage` resumes it.
 	GaragePendingMove *GarageMove `json:"GARAGE_PENDING_MOVE,omitempty"`

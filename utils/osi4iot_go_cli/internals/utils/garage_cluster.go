@@ -177,22 +177,32 @@ func sanitizeZone(s string) string {
 }
 
 // NewGarageInstance appends an instance pinned to nodeIP, with a fresh
-// identity and the next unused ID, and returns it.
+// identity and the lowest ID not in use, and returns it.
+//
+// IDs are reused once their instance is gone, so names stay within
+// garage_1..N+1 however many moves there have been. During a move the
+// old instance still exists, so its replacement takes another number
+// (garage_3 → garage_4); the next move can take 3 again.
+//
+// Reuse is safe: an ID names a service, two volumes and a node label,
+// all removed with the instance, and the identity is new. Should old
+// volumes with the same number survive on some other node (one that was
+// unreachable when the instance was retired), the image's entrypoint
+// refuses to start over them: they hold a different node identity.
 func NewGarageInstance(pi *osi_types.PlatformInfo, nodeIP string) osi_types.GarageInstance {
-	if pi.GarageNextInstanceID < 1 {
-		pi.GarageNextInstanceID = 1
-	}
+	used := map[int]bool{}
 	for _, existing := range pi.GarageInstances {
-		if existing.ID >= pi.GarageNextInstanceID {
-			pi.GarageNextInstanceID = existing.ID + 1
-		}
+		used[existing.ID] = true
+	}
+	id := 1
+	for used[id] {
+		id++
 	}
 	inst := osi_types.GarageInstance{
-		ID:      pi.GarageNextInstanceID,
+		ID:      id,
 		NodeIP:  nodeIP,
 		NodeKey: GenerateGarageNodeKey(),
 	}
-	pi.GarageNextInstanceID++
 	pi.GarageInstances = append(pi.GarageInstances, inst)
 	return inst
 }

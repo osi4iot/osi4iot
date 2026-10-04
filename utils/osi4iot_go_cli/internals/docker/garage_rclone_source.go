@@ -14,6 +14,7 @@ import (
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
+	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/pkg/stdcopy"
@@ -136,6 +137,11 @@ func startRcloneSource(
 
 	if logger != nil {
 		logger.Printf("Starting an S3 client (rclone) on the platform network...")
+	}
+	// The helper runs on the manager, which usually runs no Garage
+	// instance and so has never pulled the image.
+	if err := ensureImage(ctx, dc.Cli, image); err != nil {
+		return nil, err
 	}
 
 	created, err := dc.Cli.ContainerCreate(ctx,
@@ -587,4 +593,26 @@ func removeStaleContainer(ctx context.Context, cli *client.Client, name string) 
 	for _, c := range existing {
 		_ = cli.ContainerRemove(ctx, c.ID, container.RemoveOptions{Force: true})
 	}
+}
+
+// ensureImage pulls an image the node does not have. Creating a
+// container through the API does not pull, unlike `docker run`: a
+// helper on a node that never ran the image fails with "No such image".
+func ensureImage(ctx context.Context, cli *client.Client, ref string) error {
+	if _, _, err := cli.ImageInspectWithRaw(ctx, ref); err == nil {
+		return nil
+	}
+	rc, err := cli.ImagePull(ctx, ref, image.PullOptions{})
+	if err != nil {
+		return fmt.Errorf("error pulling %s: %w", ref, err)
+	}
+	defer rc.Close()
+	// The pull runs while its progress stream is read.
+	if _, err := io.Copy(io.Discard, rc); err != nil {
+		return fmt.Errorf("error pulling %s: %w", ref, err)
+	}
+	if _, _, err := cli.ImageInspectWithRaw(ctx, ref); err != nil {
+		return fmt.Errorf("%s could not be pulled on this node: %w", ref, err)
+	}
+	return nil
 }
