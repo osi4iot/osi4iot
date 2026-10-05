@@ -30,6 +30,12 @@ import (
 //     instance's queue: see waitGarageMigrated.
 //  5. Only then is the old instance stopped and its volumes deleted.
 //
+// Around that, the "garage" alias S3 clients use: an instance outside the
+// layout has no keys (they are replicated on the layout's nodes only) and
+// would answer 403 "No such key". So a new instance is created without
+// the alias and gets it once its tables are synced (after 4), and a
+// retiring one loses it before the layout change (after 2).
+//
 // Never more than one change in flight: with a replication factor of 3
 // that keeps at least two healthy copies of everything at every moment.
 //
@@ -54,6 +60,9 @@ type garageCluster interface {
 	// RemoveInstance removes the instance's service and, once its
 	// containers are gone, its volumes. Idempotent.
 	RemoveInstance(inst pt.GarageInstance) error
+	// SetClientAlias gives an instance the "garage" alias S3 clients use,
+	// or takes it away, and waits for its task to be replaced. Idempotent.
+	SetClientAlias(inst pt.GarageInstance, serve bool) error
 	Sleep(d time.Duration)
 	Logf(format string, args ...any)
 }
@@ -232,6 +241,19 @@ func runGarageStep(pd *pt.PlatformData, c garageCluster, step pt.GarageMove) err
 		}
 	}
 
+	// 2b. The retiring instance stops serving clients BEFORE it leaves
+	// the layout: once out, it hands its keys over and answers every
+	// request with 403 "No such key". Its restart also drops the
+	// connections clients keep open to it. It must be back before the
+	// layout changes — the migration reads from it.
+	if old != nil {
+		if err := c.SetClientAlias(*old, false); err != nil {
+			return err
+		}
+		if err := waitGarageNodeUp(c, *old); err != nil {
+			return err
+		}
+	}
 	// 3. The layout change.
 	if err := applyGarageLayoutChange(pd, c, newInst, old); err != nil {
 		return err
@@ -240,6 +262,17 @@ func runGarageStep(pd *pt.PlatformData, c garageCluster, step pt.GarageMove) err
 	// 4. The migration.
 	if err := waitGarageMigrated(c, old); err != nil {
 		return err
+	}
+
+	// 4b. The new instance is in the layout and its tables are synced
+	// (no version draining): it can serve clients now.
+	if newInst != nil {
+		if err := c.SetClientAlias(*newInst, true); err != nil {
+			return err
+		}
+		if err := waitGarageNodeUp(c, *newInst); err != nil {
+			return err
+		}
 	}
 
 	// 5. Retire the old instance. Volumes go while its label is still on
