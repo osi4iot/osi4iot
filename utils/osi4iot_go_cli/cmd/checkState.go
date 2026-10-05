@@ -1,50 +1,81 @@
 package cmd
 
 import (
+	"fmt"
+	"strings"
+
 	"github.com/osi4iot/osi4iot/utils/osi4iot/internals/data"
 )
 
-// checkState checks the current state of the platform and performs actions based on the provided action string.
-// It ensures that the platform is in a valid state for the requested action.
-// If the platform is in an invalid state, it exits with a warning message.
+// checkState stops the command when the platform's state does not allow
+// it, saying why and what to do instead. See data.PlatformStatus for what
+// each state means.
+//
+// Every rule names the states it accepts or refuses one by one: nothing
+// relies on the order of the constants.
 func checkState(action string) {
-	platformState := data.GetPlatformState()
-	if platformState == data.Empty && action != "create" {
-		errMsg := "The platform configuration has not been defined yet. Please create a new platform to define it."
-		exitWithWarning(errMsg)
+	if msg := stateBlocker(action, data.GetPlatformState(), data.PlatformStateReason, data.PlatformStateDetail); msg != "" {
+		exitWithWarning(msg)
 	}
+}
+
+// stateBlocker returns why action cannot run in state, or "" if it can.
+// Separate from checkState so the rules can be tested.
+func stateBlocker(action string, state data.PlatformStatus, reason string, degraded []string) string {
+	if state == data.Empty && action != "create" {
+		return "The platform configuration has not been defined yet. Please create a new platform to define it."
+	}
+	if state == data.Unknown {
+		return fmt.Sprintf("The platform's state could not be determined (%s), so '%s' is not run. "+
+			"Check that the manager nodes are reachable and that Docker is running on them.", reason, action)
+	}
+
+	degradedNote := ""
+	if len(degraded) > 0 {
+		degradedNote = " Services without all their tasks running: " + strings.Join(degraded, ", ") + "."
+	}
+
 	switch action {
 	case "create":
-		if platformState > data.Empty && platformState < data.Deleted {
-			errMsg := "There is a current platform configuration. Please delete it before creating a new one."
-			exitWithWarning(errMsg)
+		switch state {
+		case data.Empty, data.Deleted:
+			return ""
+		default:
+			return fmt.Sprintf("There is a platform on this machine (it is %s). "+
+				"Please delete it before creating a new one.", state)
 		}
+
 	case "init":
-		if platformState == data.Running {
-			errMsg := "The platform is already running. Please stop it before initializing a new one"
-			exitWithWarning(errMsg)
+		switch state {
+		case data.Running, data.Degraded:
+			return fmt.Sprintf("The platform is deployed (it is %s). Please stop it before "+
+				"initializing it again.%s", state, degradedNote)
 		}
+
 	case "run":
-		switch platformState {
+		switch state {
 		case data.Deleted:
-			errMsg := "The platform is deleted. Please initialize it before running it"
-			exitWithWarning(errMsg)
-		case data.Initiating:
-			errMsg := "The platform is initializing. Please wait until it is initialized"
-			exitWithWarning(errMsg)
+			return "The platform is deleted. Please initialize it before running it."
 		case data.Running:
-			errMsg := "The platform is already running"
-			exitWithWarning(errMsg)
+			return "The platform is already running."
 		}
+		// Degraded: allowed — run creates the services that are missing
+		// and leaves the others alone, which is how a partly deployed
+		// platform is completed.
+
 	case "stop":
-		if platformState == data.Empty || platformState == data.Deleted {
-			errMsg := "The platform can not be stopped because it has not been initialized yet."
-			exitWithWarning(errMsg)
+		switch state {
+		case data.Deleted:
+			return "The platform can not be stopped because it has not been initialized yet."
+		case data.Stopped:
+			return "The platform is already stopped."
 		}
+
 	case "delete":
-		if platformState == data.Empty || platformState == data.Deleted {
-			errMsg := "The platform can not be deleted because it has not been initialized yet."
-			exitWithWarning(errMsg)
+		switch state {
+		case data.Deleted:
+			return "The platform can not be deleted because it has not been initialized yet."
 		}
 	}
+	return ""
 }

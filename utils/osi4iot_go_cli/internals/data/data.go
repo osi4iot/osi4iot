@@ -12,6 +12,23 @@ var Data *pt.PlatformData = &pt.PlatformData{}
 
 type PlatformStatus int
 
+// The platform's state, as the commands see it. Determined once per run,
+// from Swarm itself (see SetInitialPlatformState):
+//
+//   - Empty:       no state file — no platform defined on this machine.
+//   - Unknown:     there is a state file, but no manager could be asked.
+//     PlatformStateReason says why.
+//   - Deleted:     no swarm, or a swarm without any of the platform's
+//     services or volumes.
+//   - Stopped:     swarm, no services, but the platform's volumes.
+//   - Degraded:    services deployed, but some do not have all their
+//     tasks running (PlatformStateDetail names them): still
+//     starting, failing, or on a node that is down.
+//   - Running:     every service has all its tasks running.
+//   - Initiating and CreatingOrg are not detected: the create form sets
+//     them while it runs.
+//
+// Every value is its own case; nothing compares them by order.
 const (
 	Unknown PlatformStatus = iota
 	Empty
@@ -20,9 +37,39 @@ const (
 	Stopped
 	Deleted
 	CreatingOrg
+	Degraded
 )
 
 var PlatformState PlatformStatus = Empty
+
+// PlatformStateReason explains an Unknown state; PlatformStateDetail
+// names the services behind a Degraded one.
+var (
+	PlatformStateReason string
+	PlatformStateDetail []string
+)
+
+// String names a state for messages.
+func (s PlatformStatus) String() string {
+	switch s {
+	case Empty:
+		return "not defined"
+	case Initiating:
+		return "being created"
+	case Running:
+		return "running"
+	case Stopped:
+		return "stopped"
+	case Deleted:
+		return "deleted"
+	case CreatingOrg:
+		return "creating an organization"
+	case Degraded:
+		return "running with problems"
+	default:
+		return "unknown"
+	}
+}
 
 func SetData(key string, value string) {
 	switch key {

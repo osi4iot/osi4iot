@@ -76,8 +76,9 @@ var S3Consumers = []S3Consumer{
 	S3ConsumerCLI,
 }
 
-// GarageBucketPermissions is what each key may do on the platform's
-// bucket, in garage-provision's notation (r read, w write, o owner).
+// GarageBucketPermissions is what every key may do on the platform's
+// bucket, in garage-provision's notation (r read, w write, o owner). The
+// same for every consumer, hence a constant.
 //
 // Everyone gets read+write on the ONE bucket and nothing else: the
 // platform keeps a single bucket — with prefixes for WAL-G, NATS, the
@@ -87,9 +88,7 @@ var S3Consumers = []S3Consumer{
 // "owner" (delete the bucket, change its website/CORS/lifecycle
 // configuration) and creating buckets. Bucket creation belongs to the
 // provisioning alone.
-func GarageBucketPermissions(c S3Consumer) string {
-	return "rw"
-}
+const GarageBucketPermissions = "rw"
 
 // IsGarage reports whether the platform runs its own Garage.
 func IsGarage(pi osi_types.PlatformInfo) bool {
@@ -295,7 +294,7 @@ func GarageProvisionSpec(pi osi_types.PlatformInfo) string {
 	for _, c := range S3Consumers {
 		creds := S3KeyOf(&pi, c)
 		lines = append(lines, fmt.Sprintf("key %s %s %s %s",
-			c, creds.AccessKeyID, creds.SecretAccessKey, GarageBucketPermissions(c)))
+			c, creds.AccessKeyID, creds.SecretAccessKey, GarageBucketPermissions))
 	}
 	return strings.Join(lines, "\n") + "\n"
 }
