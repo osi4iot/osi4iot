@@ -455,7 +455,7 @@ func GenerateServices(pd *pt.PlatformData, sd pt.SwarmData) map[string]pt.Servic
 		primary, _ := utils.GaragePrimaryInstance(pi)
 		for _, inst := range pi.GarageInstances {
 			services[utils.GarageInstanceServiceName(inst.ID)] = GarageService(pd, sd,
-				svcResourcesMap[utils.GarageServiceName], inst, inst.ID == primary.ID)
+				svcResourcesMap[utils.GarageServiceName], inst, inst.ID == primary.ID, true)
 		}
 		services[utils.GarageWebUIServiceName] = GarageWebUIService(pd, sd,
 			svcResourcesMap[utils.GarageWebUIServiceName])

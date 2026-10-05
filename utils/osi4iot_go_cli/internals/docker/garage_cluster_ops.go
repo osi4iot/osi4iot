@@ -8,8 +8,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
+	"github.com/docker/docker/api/types/swarm"
 
 	"github.com/osi4iot/osi4iot/utils/osi4iot/internals/networks"
 	"github.com/osi4iot/osi4iot/utils/osi4iot/internals/resources"
@@ -136,7 +138,9 @@ func (r *realGarageCluster) CreateInstance(inst pt.GarageInstance) error {
 		ReplicasPtr: &one,
 	}
 	// Never the primary: the cluster already has its keys and bucket.
-	svc := services.GarageService(pd, sd, res, inst, false)
+	// Not serving clients yet: it has no keys until it is in the layout
+	// and has synced (see services.GarageClientAliases).
+	svc := services.GarageService(pd, sd, res, inst, false, false)
 	if err := CreateSwarmService(dc, svc); err != nil {
 		return fmt.Errorf("error creating %s: %w", svc.Name, err)
 	}
@@ -160,4 +164,67 @@ func (r *realGarageCluster) RemoveInstance(inst pt.GarageInstance) error {
 	}
 	r.Logf("  Removed %s and its volumes.", name)
 	return nil
+}
+
+// SetClientAlias gives an instance the "garage" alias or takes it away
+// (see services.GarageClientAliases), and waits for Swarm to have
+// replaced its task.
+//
+// Changing a service's networks redeploys its task, and that is part of
+// the point: the restart also closes the HTTP connections clients keep
+// open to it — admin_api reuses one for every request — so they
+// reconnect, and DNS sends them to an instance that serves them.
+// Idempotent: nothing happens if the alias is already as asked.
+func (r *realGarageCluster) SetClientAlias(inst pt.GarageInstance, serve bool) error {
+	name := utils.GarageInstanceServiceName(inst.ID)
+	svc, err := utils.GetSwarmServiceByName(r.dc, name)
+	if err != nil || svc == nil {
+		return fmt.Errorf("error reading %s: %v", name, err)
+	}
+	want := services.GarageClientAliases(serve)
+
+	spec := svc.Spec
+	changed := false
+	for i := range spec.TaskTemplate.Networks {
+		if !sameAliases(spec.TaskTemplate.Networks[i].Aliases, want) {
+			spec.TaskTemplate.Networks[i].Aliases = want
+			changed = true
+		}
+	}
+	if !changed {
+		return nil
+	}
+	if _, err := r.dc.Cli.ServiceUpdate(r.dc.Ctx, svc.ID, svc.Version, spec, types.ServiceUpdateOptions{}); err != nil {
+		return fmt.Errorf("error updating %s: %w", name, err)
+	}
+
+	// Wait for the rolling update to finish: the new task runs.
+	deadline := time.Now().Add(5 * time.Minute)
+	for {
+		time.Sleep(3 * time.Second)
+		current, _, err := r.dc.Cli.ServiceInspectWithRaw(r.dc.Ctx, svc.ID, types.ServiceInspectOptions{})
+		if err == nil && current.UpdateStatus != nil {
+			switch current.UpdateStatus.State {
+			case swarm.UpdateStateCompleted:
+				return nil
+			case swarm.UpdateStatePaused, swarm.UpdateStateRollbackCompleted:
+				return fmt.Errorf("the update of %s stopped: %s", name, current.UpdateStatus.Message)
+			}
+		}
+		if time.Now().After(deadline) {
+			return fmt.Errorf("%s was not redeployed within 5 minutes (docker service ps %s)", name, name)
+		}
+	}
+}
+
+func sameAliases(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
 }

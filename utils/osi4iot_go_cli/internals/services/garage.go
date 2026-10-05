@@ -42,6 +42,7 @@ func GarageService(
 	svcResources resources.SvcResources,
 	inst pt.GarageInstance,
 	primary bool,
+	serveClients bool,
 ) pt.Service {
 	name := utils.GarageInstanceServiceName(inst.ID)
 	nodeKeySecret := sd.Secrets[secrets.GarageNodeKeySecretKey(inst.ID)]
@@ -160,8 +161,24 @@ func GarageService(
 		WithNetworks([]swarm.NetworkAttachmentConfig{
 			{
 				Target:  sd.Networks["internal_net"].Name,
-				Aliases: []string{utils.GarageServiceName},
+				Aliases: GarageClientAliases(serveClients),
 			},
 		}).
 		Build()
+}
+
+// GarageClientAliases is the network alias set of an instance: "garage",
+// the name every S3 client uses, when it serves clients; none otherwise.
+//
+// An instance must not serve clients while it is outside the layout, as
+// a new one is until it joins and a retiring one is once it has left:
+// the key, bucket and alias tables are replicated on every node OF THE
+// LAYOUT, so such an instance has no keys and answers every request with
+// 403 "No such key". It is still reached by its own name, garage_<ID>,
+// which is how the other instances talk to it.
+func GarageClientAliases(serveClients bool) []string {
+	if serveClients {
+		return []string{utils.GarageServiceName}
+	}
+	return nil
 }
