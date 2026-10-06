@@ -76,11 +76,39 @@ func BackupStateFileOnDisk(pd *pt.PlatformData, dc *pt.DockerClient) (string, er
 		return "", fmt.Errorf("encryption is disabled (--no-encrypt): refusing to upload " +
 			"an unencrypted state file to object storage")
 	}
-	encoded, err := os.ReadFile(utils.GetStateFilePath())
+	payload, err := stateFileBackupPayload()
+	if err != nil {
+		return "", err
+	}
+	return BackupStateFile(pd, dc, payload)
+}
+
+// stateFileBackupPayload is what a backup of the state file on disk
+// uploads: the file's bytes when it is encrypted, as it normally is.
+//
+// A file in plain JSON is accepted on read, for backward compatibility,
+// and encrypted by the next write; until then it sits on disk in the
+// clear. It must never reach the bucket that way — and system_manager
+// only takes the encrypted form anyway, rejecting it as "not valid
+// base64" — so it is encrypted here first, with the same passphrase the
+// next write would use. The file on disk is left as it is.
+func stateFileBackupPayload() (string, error) {
+	raw, err := os.ReadFile(utils.GetStateFilePath())
 	if err != nil {
 		return "", fmt.Errorf("error reading the state file: %w", err)
 	}
-	return BackupStateFile(pd, dc, string(encoded))
+	if !json.Valid(raw) {
+		return string(raw), nil
+	}
+	passphrase, err := crypto.GetPassphrase(nil)
+	if err != nil {
+		return "", fmt.Errorf("error getting the passphrase to encrypt the state file backup: %w", err)
+	}
+	encoded, err := crypto.Encrypt(raw, passphrase.Value)
+	if err != nil {
+		return "", fmt.Errorf("error encrypting the state file backup: %w", err)
+	}
+	return string(encoded), nil
 }
 
 // RestoreStateFile fetches a stored state file — the newest one, or the
