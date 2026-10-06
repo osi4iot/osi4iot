@@ -72,3 +72,17 @@ func TestStatusPendingGarageChange(t *testing.T) {
 func TestStatusEmpty(t *testing.T) {
 	mustContain(t, renderStatus(statusInput{State: data.Empty}), "osi4iot create")
 }
+
+func TestStatusDeletedShowsNoDeploymentDetails(t *testing.T) {
+	// The reported case: a deleted local platform. No swarm, so nothing
+	// may be listed from it, and the state file's Garage instances do
+	// not exist either.
+	out := renderStatus(statusInput{Info: garageInfo(), State: data.Deleted})
+	mustContain(t, out, "OSI-DEMO (dicapuaiot.com)", "deleted", "osi4iot init")
+	for _, unwanted := range []string{"Nodes", "Object store", "garage_1", "could not be listed"} {
+		if strings.Contains(out, unwanted) {
+			t.Errorf("%q shown for a deleted platform:\n%s", unwanted, out)
+		}
+	}
+}
+

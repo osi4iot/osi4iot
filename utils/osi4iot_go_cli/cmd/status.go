@@ -41,7 +41,10 @@ func runStatus() {
 		Degraded: data.PlatformStateDetail,
 		Services: data.PlatformServices,
 	}
-	if in.State != data.Empty {
+	// The swarm is asked about its nodes only when it exists: without
+	// one there is nothing to list, and the attempt only fails with
+	// "This node is not a swarm manager".
+	if data.PlatformSwarmActive {
 		if dc, err := docker.GetManagerDC(); err == nil {
 			views, err := docker.ListNodeViews(pd, dc)
 			in.NodesErr = err
@@ -52,11 +55,12 @@ func runStatus() {
 				})
 			}
 		}
-		if len(in.Nodes) == 0 {
-			// No swarm view: at least the machines the state file knows.
-			for _, n := range pd.PlatformInfo.NodesData {
-				in.Nodes = append(in.Nodes, statusNode{Hostname: n.NodeHostName, Address: n.NodeIP, Role: n.NodeRole})
-			}
+	}
+	if in.State == data.Unknown && len(in.Nodes) == 0 {
+		// The swarm could not be asked: at least the machines the state
+		// file knows, to help find the one that is down.
+		for _, n := range pd.PlatformInfo.NodesData {
+			in.Nodes = append(in.Nodes, statusNode{Hostname: n.NodeHostName, Address: n.NodeIP, Role: n.NodeRole})
 		}
 	}
 	fmt.Print(renderStatus(in))
@@ -88,6 +92,14 @@ func renderStatus(in statusInput) string {
 	line("State", stateText)
 	if in.State == data.Unknown && in.Reason != "" {
 		line("", in.Reason)
+	}
+
+	// Deleted: no swarm, no services, no volumes. The state file still
+	// describes the platform, but nothing of it exists to report on.
+	if in.State == data.Deleted {
+		line("", "Nothing of it is deployed. Initialize it with 'osi4iot init'.")
+		b.WriteString("\n")
+		return b.String()
 	}
 
 	if len(in.Services) > 0 {

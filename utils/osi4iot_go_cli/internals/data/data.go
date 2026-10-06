@@ -49,6 +49,9 @@ var (
 	PlatformStateReason string
 	PlatformStateDetail []string
 	PlatformServices    []ServiceStatus
+	// PlatformSwarmActive tells whether a manager answered from an active
+	// swarm: only then can the swarm be asked anything else.
+	PlatformSwarmActive bool
 )
 
 // ServiceStatus is one of the platform's services: how many tasks it
@@ -401,3 +404,4 @@ func GetDomainName() string {
 	}
 	return Data.PlatformInfo.DomainName
 }
+

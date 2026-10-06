@@ -34,12 +34,14 @@ func SetInitialPlatformState() error {
 	PlatformStateReason = ""
 	PlatformStateDetail = nil
 	PlatformServices = nil
+	PlatformSwarmActive = false
 	if !utils.ExistStateFile() {
 		PlatformState = Empty
 		return nil
 	}
 	obs := observePlatform()
 	PlatformState, PlatformStateReason, PlatformStateDetail = classifyPlatform(obs)
+	PlatformSwarmActive = obs.SwarmActive
 	for _, svc := range obs.Services {
 		PlatformServices = append(PlatformServices, ServiceStatus(svc))
 	}
