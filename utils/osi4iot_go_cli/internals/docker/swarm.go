@@ -366,6 +366,86 @@ func removeSwarmServices(dc *pt.DockerClient) error {
 	return nil
 }
 
+// platformServicesToRemove lists the platform's services and the longest
+// stop grace period among them (Docker's default, 10 s, when unset).
+func platformServicesToRemove(dc *pt.DockerClient) (map[string]bool, time.Duration, error) {
+	filterArgs := filters.NewArgs()
+	filterArgs.Add("label", "app=osi4iot")
+	services, err := dc.Cli.ServiceList(dc.Ctx, types.ServiceListOptions{Filters: filterArgs})
+	if err != nil {
+		return nil, 0, fmt.Errorf("error listing services: %v", err)
+	}
+	names := make(map[string]bool, len(services))
+	maxGrace := 10 * time.Second
+	for _, svc := range services {
+		names[svc.Spec.Name] = true
+		if spec := svc.Spec.TaskTemplate.ContainerSpec; spec != nil && spec.StopGracePeriod != nil &&
+			*spec.StopGracePeriod > maxGrace {
+			maxGrace = *spec.StopGracePeriod
+		}
+	}
+	return names, maxGrace, nil
+}
+
+// waitUntilPlatformContainersAreGone waits until no node holds a
+// container of the removed services — running, stopping, or stopped and
+// not yet removed by Swarm, all of which keep their volumes in use.
+//
+// Every reachable node is asked, not just the manager. When the time is
+// up, containers that are no longer running are removed here (their
+// services are gone; nothing will ever start them again); one still
+// running is an error, named.
+func waitUntilPlatformContainersAreGone(services map[string]bool, timeout time.Duration) error {
+	deadline := time.Now().Add(timeout)
+	for {
+		type leftover struct {
+			dc      *pt.DockerClient
+			id      string
+			name    string
+			running bool
+		}
+		var remaining []leftover
+		for ip, nodeDC := range pt.DCMap {
+			if nodeDC == nil || nodeDC.Cli == nil {
+				continue // unreachable: nothing it holds can be waited for
+			}
+			list, err := nodeDC.Cli.ContainerList(nodeDC.Ctx, container.ListOptions{All: true})
+			if err != nil {
+				return fmt.Errorf("error listing containers on %s: %v", ip, err)
+			}
+			for _, c := range list {
+				if !services[c.Labels["com.docker.swarm.service.name"]] {
+					continue
+				}
+				name := c.ID[:12]
+				if len(c.Names) > 0 {
+					name = strings.TrimPrefix(c.Names[0], "/")
+				}
+				remaining = append(remaining, leftover{nodeDC, c.ID, name + " on " + ip, c.State == "running"})
+			}
+		}
+		if len(remaining) == 0 {
+			return nil
+		}
+		if time.Now().After(deadline) {
+			var stillRunning []string
+			for _, c := range remaining {
+				if c.running {
+					stillRunning = append(stillRunning, c.name)
+					continue
+				}
+				_ = c.dc.Cli.ContainerRemove(c.dc.Ctx, c.id, container.RemoveOptions{Force: true})
+			}
+			if len(stillRunning) > 0 {
+				return fmt.Errorf("timeout waiting for the platform's containers to stop; still running: %s",
+					strings.Join(stillRunning, ", "))
+			}
+			return nil
+		}
+		time.Sleep(2 * time.Second)
+	}
+}
+
 func StopPlatform(platformData *pt.PlatformData) error {
 	docker, err := GetManagerDC()
 	if err != nil {
@@ -408,6 +488,13 @@ func DeletePlatform(pd *pt.PlatformData) error {
 	// still running and the fast NATS path is available.
 	saveCertsFromSystemManager(pd, docker)
 
+	// What is about to be removed, and how long its slowest member may
+	// take to stop: what the wait for the containers below is based on.
+	removedServices, maxStopGrace, err := platformServicesToRemove(docker)
+	if err != nil {
+		return err
+	}
+
 	done := make(chan bool)
 	spinnerMsg := "Waiting for all components to be deleted"
 	endMsg := "All components have been deleted successfully"
@@ -437,30 +524,13 @@ func DeletePlatform(pd *pt.PlatformData) error {
 		return fmt.Errorf("error removing networks: %v", err)
 	}
 
-	filterArgs := filters.NewArgs()
-	filterArgs.Add("label", "app=osi4iot")
-	containers, err := docker.Cli.ContainerList(docker.Ctx, container.ListOptions{
-		Filters: filterArgs,
-	})
-	if err != nil {
+	// The volumes can only go once no container uses them, on any node:
+	// a removed service's containers take up to their stop grace period
+	// to shut down (three minutes for NATS, ninety seconds for Patroni),
+	// and those on workers are invisible to the manager.
+	if err := waitUntilPlatformContainersAreGone(removedServices, maxStopGrace+2*time.Minute); err != nil {
 		done <- false
-		return fmt.Errorf("error listing containers: %v", err)
-	}
-
-	for {
-		if len(containers) == 0 {
-			break
-		}
-		containers, err = docker.Cli.ContainerList(docker.Ctx, container.ListOptions{
-			Filters: filterArgs,
-		})
-		if err != nil {
-			if errdefs.IsNotFound(err) {
-				continue
-			}
-			done <- false
-			return fmt.Errorf("error listing containers: %v", err)
-		}
+		return err
 	}
 
 	timeOut := false

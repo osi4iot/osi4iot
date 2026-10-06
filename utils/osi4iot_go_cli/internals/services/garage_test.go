@@ -86,4 +86,3 @@ func TestGarageInstanceWithoutClientAlias(t *testing.T) {
 		t.Fatalf("aliases %v, want none", aliases)
 	}
 }
-

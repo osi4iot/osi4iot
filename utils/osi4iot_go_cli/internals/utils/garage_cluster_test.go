@@ -326,3 +326,4 @@ func TestCheckGarageScale(t *testing.T) {
 	}
 }
 
+

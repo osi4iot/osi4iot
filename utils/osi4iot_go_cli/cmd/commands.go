@@ -41,7 +41,7 @@ func SetVersion(v string) {
 // CheckDockerClientsMap, which exits when it finds none — and fail
 // exactly the case recovery exists for. The state file's S3 backups run
 // under "backup", which is here.
-var SwarmActions = []string{"create", "init", "run", "stop", "delete", "service", "certs", "streams", "node", "backup"}
+var SwarmActions = []string{"create", "init", "run", "stop", "delete", "service", "certs", "streams", "node", "backup", "status"}
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
@@ -777,10 +777,16 @@ var cmdCerts = &cobra.Command{
 
 var cmdStatus = &cobra.Command{
 	Use:   "status",
-	Short: "Platform status",
-	Long:  "Platform status",
+	Short: "Show the platform's state, services and nodes",
+	Long: "Shows the platform's state as the other commands see it — not defined, deleted, " +
+		"stopped, running, running with problems, or unknown — and why: the services that do " +
+		"not have all their tasks running, or what could not be reached. Then the services, " +
+		"the object store (Garage instances per node, and any change left half-way), and the " +
+		"nodes as Swarm sees them.\n\n" +
+		"Read-only, and it works when the platform does not: an unreachable manager is " +
+		"reported, not an error.",
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("Platform status")
+		runStatus()
 	},
 }
 

@@ -33,12 +33,16 @@ import (
 func SetInitialPlatformState() error {
 	PlatformStateReason = ""
 	PlatformStateDetail = nil
+	PlatformServices = nil
 	if !utils.ExistStateFile() {
 		PlatformState = Empty
 		return nil
 	}
 	obs := observePlatform()
 	PlatformState, PlatformStateReason, PlatformStateDetail = classifyPlatform(obs)
+	for _, svc := range obs.Services {
+		PlatformServices = append(PlatformServices, ServiceStatus(svc))
+	}
 	return nil
 }
 
@@ -266,3 +270,4 @@ func GetServiceDataByName(serviceName string) *pt.ServiceData {
 	}
 	return nil
 }
+

@@ -43,11 +43,21 @@ const (
 var PlatformState PlatformStatus = Empty
 
 // PlatformStateReason explains an Unknown state; PlatformStateDetail
-// names the services behind a Degraded one.
+// names the services behind a Degraded one; PlatformServices is every
+// service as Swarm reported it (for `osi4iot status`).
 var (
 	PlatformStateReason string
 	PlatformStateDetail []string
+	PlatformServices    []ServiceStatus
 )
+
+// ServiceStatus is one of the platform's services: how many tasks it
+// should have running, and how many it has.
+type ServiceStatus struct {
+	Name     string
+	Required int
+	Running  int
+}
 
 // String names a state for messages.
 func (s PlatformStatus) String() string {
