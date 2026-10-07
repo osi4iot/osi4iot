@@ -139,13 +139,11 @@ func ListPatroniMetricsBackups(pd *pt.PlatformData, dc *pt.DockerClient) ([]Patr
 
 // TriggerNatsBackup asks system_manager to snapshot every JetStream
 // stream and upload the run to S3, right now, through
-// system_manager.nats.backup — replacing this CLI's old
-// backupNatsStreams-to-local-directory path for the manual/periodic
-// disaster-recovery backup (see nats_backup_restore.go's package doc
-// comment; the scale up/down flow's own internal use of
-// backupNatsStreams in services.go is unrelated and unchanged — that
-// one stays local by design, see its doc comment). Blocks until
-// system_manager reports the outcome.
+// system_manager.nats_streams.backup. Every NATS backup goes this way —
+// the manual one, the snapshot's, and the one the scale across the
+// standalone/cluster boundary takes (see nats_scale_backup.go); none is
+// kept on the machine running this CLI. Blocks until system_manager
+// reports the outcome.
 func TriggerNatsBackup(pd *pt.PlatformData, dc *pt.DockerClient) (string, error) {
 	data, err := requestSystemManager(pd, dc, "system_manager.nats_streams.backup", backupTriggerTimeout, nil)
 	if err != nil {

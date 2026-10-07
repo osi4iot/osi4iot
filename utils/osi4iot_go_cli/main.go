@@ -3,6 +3,7 @@ package main
 import (
 	_ "embed"
 	"fmt"
+	"github.com/spf13/cobra"
 	"os"
 	"os/signal"
 	"slices"
@@ -40,6 +41,17 @@ func main() {
 	if len(args) >= 3 && args[0] == "certs" && args[1] == "renewer" && args[2] == "daemon" {
 		cmd.Execute()
 		return
+	}
+
+	// Shell completion runs `osi4iot __complete …` on every TAB: it must
+	// never read (decrypt) the state file, ask for a passphrase or
+	// re-execute under sudo — completion would hang or crawl.
+	if len(args) > 0 {
+		switch args[0] {
+		case "completion", cobra.ShellCompRequestCmd, cobra.ShellCompNoDescRequestCmd:
+			cmd.Execute()
+			return
+		}
 	}
 
 	noStateCommands := []string{"--help", "-h", "help", "version"}
@@ -114,7 +126,9 @@ func main() {
 
 		if slices.Contains(cmd.SwarmActions, action) {
 			DCMap, dcMapErr := docker.SetDockerClientsMap(pd, action)
-			if dcMapErr != nil {
+			// `status` reports whatever it can reach — an unreachable
+			// manager is exactly what it must be able to say.
+			if dcMapErr != nil && action != "status" {
 				err := docker.CheckDockerClientsMap(DCMap, action)
 				if err != nil {
 					combinedErr := fmt.Errorf("error setting Docker clients map: %w", dcMapErr)

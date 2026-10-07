@@ -526,7 +526,7 @@ func wipePatroniNodeData(pd *pt.PlatformData, dc *pt.DockerClient, family patron
 		return fmt.Errorf("error creating the cleanup container: %w", err)
 	}
 	defer func() {
-		_ = dc.Cli.ContainerRemove(dc.Ctx, created.ID, container.RemoveOptions{Force: true})
+		_ = dc.Cli.ContainerRemove(dc.Ctx, created.ID, container.RemoveOptions{Force: true, RemoveVolumes: true})
 	}()
 
 	if err := dc.Cli.ContainerStart(dc.Ctx, created.ID, container.StartOptions{}); err != nil {

@@ -58,12 +58,14 @@ var subCmdBackupSnapshot = &cobra.Command{
 		"when a platform moves. Everything else stays encrypted under the passphrase this " +
 		"platform's state file already uses.\n\n" +
 		"WHAT IT DOES TO THE PLATFORM\n\n" +
-		"Nothing is stopped and no data is modified. The WAL of each Patroni cluster is flushed " +
-		"first, which is cheap and is what makes the snapshot recover up to the moment it was " +
-		"taken rather than up to the last archived segment.\n\n" +
-		"--fresh takes a real backup of each target first instead of carrying the newest stored " +
-		"one. It is off by default because a full backup-push on a large cluster can run for a " +
-		"long time.\n\n" +
+		"Nothing is stopped and no data is modified. First the WAL of each Patroni cluster is " +
+		"flushed, and the NATS streams are backed up: NATS keeps no log to flush, so a new " +
+		"backup is its equivalent. Both are cheap, and they are what makes the snapshot recover " +
+		"up to the moment it was taken rather than up to the last archived segment or the last " +
+		"daily NATS backup.\n\n" +
+		"--fresh also takes a new base backup of each Patroni cluster instead of carrying the " +
+		"newest stored one. It is off by default because a full backup-push on a large cluster " +
+		"can run for a long time.\n\n" +
 		"SIZE\n\n" +
 		"The zip is as large as the backups it carries, which for a busy metrics cluster is " +
 		"gigabytes. Only the newest restorable backup chain is included; --all-backups carries " +
@@ -187,7 +189,7 @@ func init() {
 	subCmdBackupSnapshot.Flags().StringVarP(&snapshotOutput, "output", "o",
 		"osi4iot_snapshot.zip", "where to write the snapshot")
 	subCmdBackupSnapshot.Flags().BoolVar(&snapshotFresh, "fresh", false,
-		"take a new backup of each target first, instead of carrying the newest stored one")
+		"also take a new base backup of each Patroni cluster (NATS is always backed up afresh)")
 	subCmdBackupSnapshot.Flags().BoolVar(&snapshotAllBackups, "all-backups", false,
 		"carry every stored wal-g backup, not just the newest restorable chain")
 	subCmdBackupSnapshot.Flags().StringVar(&snapshotGarageImage, "garage-image", "",

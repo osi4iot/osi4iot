@@ -639,7 +639,7 @@ func (i *extractInstance) stop(dc *pt.DockerClient, logger *log.Logger) {
 	}
 	logger.Printf("Removing the throwaway instance...")
 
-	if err := dc.Cli.ContainerRemove(dc.Ctx, i.containerID, container.RemoveOptions{Force: true}); err != nil {
+	if err := dc.Cli.ContainerRemove(dc.Ctx, i.containerID, container.RemoveOptions{Force: true, RemoveVolumes: true}); err != nil {
 		logger.Printf("  warning: could not remove the container: %v", err)
 	}
 	i.containerID = ""
@@ -653,6 +653,6 @@ func (i *extractInstance) stop(dc *pt.DockerClient, logger *log.Logger) {
 // behind, so a retry does not fail on a name clash — and so an old
 // copy of the database does not sit around indefinitely.
 func removeStaleExtractResources(dc *pt.DockerClient) {
-	_ = dc.Cli.ContainerRemove(dc.Ctx, extractContainerName, container.RemoveOptions{Force: true})
+	_ = dc.Cli.ContainerRemove(dc.Ctx, extractContainerName, container.RemoveOptions{Force: true, RemoveVolumes: true})
 	_ = dc.Cli.VolumeRemove(dc.Ctx, extractVolumeName, true)
 }

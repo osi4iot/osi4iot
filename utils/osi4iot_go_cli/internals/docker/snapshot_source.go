@@ -196,6 +196,16 @@ func BuildSnapshot(pd *pt.PlatformData, dc *pt.DockerClient, opts SnapshotOption
 	return nil
 }
 
+// What prepareForSnapshot asks system_manager for, as variables so its
+// tests can run without a platform.
+var (
+	snapshotTriggerPatroniAdmin   = TriggerPatroniAdminBackup
+	snapshotTriggerPatroniMetrics = TriggerPatroniMetricsBackup
+	snapshotTriggerNats           = TriggerNatsBackup
+	snapshotFlushPatroniAdmin     = FlushPatroniAdminWAL
+	snapshotFlushPatroniMetrics   = FlushPatroniMetricsWAL
+)
+
 // prepareForSnapshot does the writes that make the snapshot worth
 // taking, before any of it is read.
 func prepareForSnapshot(pd *pt.PlatformData, dc *pt.DockerClient, opts SnapshotOptions, logger *log.Logger) error {
@@ -228,13 +238,13 @@ func prepareForSnapshot(pd *pt.PlatformData, dc *pt.DockerClient, opts SnapshotO
 			switch target {
 			case snapshot.TargetPatroniAdmin:
 				logger.Printf("Taking a fresh patroni_admin backup (this can take a while)...")
-				output, err = TriggerPatroniAdminBackup(pd, dc)
+				output, err = snapshotTriggerPatroniAdmin(pd, dc)
 			case snapshot.TargetPatroniMetrics:
 				logger.Printf("Taking a fresh patroni_metrics backup (this can take a while)...")
-				output, err = TriggerPatroniMetricsBackup(pd, dc)
+				output, err = snapshotTriggerPatroniMetrics(pd, dc)
 			case snapshot.TargetNatsStreams:
 				logger.Printf("Taking a fresh NATS streams backup...")
-				output, err = TriggerNatsBackup(pd, dc)
+				output, err = snapshotTriggerNats(pd, dc)
 			default:
 				continue
 			}
@@ -250,6 +260,12 @@ func prepareForSnapshot(pd *pt.PlatformData, dc *pt.DockerClient, opts SnapshotO
 	// Always, fresh or not: without this the snapshot's recovery point
 	// is wherever the last archived segment happened to land, which on
 	// a quiet cluster can be hours behind.
+	//
+	// NATS keeps no log to flush: a stream's backup IS its recovery
+	// point, and system_manager takes one a day. Carrying that one would
+	// leave out every stream created or changed since — so a new backup
+	// is NATS's equivalent of the WAL flush, and it is just as cheap.
+	// (Already done above with --fresh.)
 	for _, target := range opts.Targets {
 		var (
 			output string
@@ -257,9 +273,25 @@ func prepareForSnapshot(pd *pt.PlatformData, dc *pt.DockerClient, opts SnapshotO
 		)
 		switch target {
 		case snapshot.TargetPatroniAdmin:
-			output, err = FlushPatroniAdminWAL(pd, dc)
+			output, err = snapshotFlushPatroniAdmin(pd, dc)
 		case snapshot.TargetPatroniMetrics:
-			output, err = FlushPatroniMetricsWAL(pd, dc)
+			output, err = snapshotFlushPatroniMetrics(pd, dc)
+		case snapshot.TargetNatsStreams:
+			if opts.Fresh {
+				continue
+			}
+			logger.Printf("Backing up the NATS streams, so the snapshot has them as they are now...")
+			output, err = snapshotTriggerNats(pd, dc)
+			if err != nil {
+				logger.Printf("Warning: could not back up the NATS streams (%v).", err)
+				logger.Printf("  The snapshot carries the newest stored backup; streams created " +
+					"or changed since it was taken are not in it.")
+				continue
+			}
+			if strings.TrimSpace(output) != "" {
+				logger.Printf("  %s", strings.TrimSpace(output))
+			}
+			continue
 		default:
 			continue
 		}
@@ -351,7 +383,8 @@ func addNatsStreamsToSnapshot(
 		if run.Streams > newest.Streams {
 			logger.Printf("Warning: run %s has %d stream(s) but the older run %s has %d.",
 				newest.Name, newest.Streams, run.Name, run.Streams)
-			logger.Printf("  The newest run looks incomplete. Consider --fresh.")
+			logger.Printf("  Either streams were deleted since, or the newest run is incomplete; " +
+				"if no streams were deleted, take the snapshot again.")
 			break
 		}
 	}

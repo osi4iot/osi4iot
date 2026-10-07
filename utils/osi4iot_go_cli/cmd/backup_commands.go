@@ -26,12 +26,11 @@ import (
 // system_manager, uploading to S3 instead (see
 // system_manager/internal/natsbackup).
 //
-// `osi4iot streams backups` / `streams restore` / `streams backups rm`
-// are UNCHANGED and still work exactly as before — they manage the
-// LOCAL, temporary snapshots the scale up/down flow takes of its own
-// accord mid-operation (see services.go and nats_backup_restore.go's
-// package doc comment), which is a different thing from the S3 backups
-// this file triggers and restores, and stays local by design.
+// No backup is kept on the machine running this CLI: the scale of NATS
+// across the standalone/cluster boundary also backs its streams up to
+// S3 through system_manager, and restores them from there (see
+// internals/docker/nats_scale_backup.go). `osi4iot streams ls` only
+// reads the live streams.
 //
 // `state` was added later, for the platform state file
 // (osi4iot_state.json) — see cmd/state.go and

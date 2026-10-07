@@ -434,7 +434,7 @@ func waitUntilPlatformContainersAreGone(services map[string]bool, timeout time.D
 					stillRunning = append(stillRunning, c.name)
 					continue
 				}
-				_ = c.dc.Cli.ContainerRemove(c.dc.Ctx, c.id, container.RemoveOptions{Force: true})
+				_ = c.dc.Cli.ContainerRemove(c.dc.Ctx, c.id, container.RemoveOptions{Force: true, RemoveVolumes: true})
 			}
 			if len(stillRunning) > 0 {
 				return fmt.Errorf("timeout waiting for the platform's containers to stop; still running: %s",

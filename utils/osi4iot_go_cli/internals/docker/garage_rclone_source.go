@@ -157,7 +157,7 @@ func startRcloneSource(
 				"service_type": "rclone_client",
 			},
 		},
-		&container.HostConfig{AutoRemove: false},
+		rcloneHelperHostConfig(),
 		&network.NetworkingConfig{
 			EndpointsConfig: map[string]*network.EndpointSettings{
 				rcloneNetwork: {},
@@ -218,7 +218,7 @@ func (r *rcloneSource) Close() {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	_ = r.cli.ContainerRemove(ctx, r.containerID, container.RemoveOptions{Force: true})
+	_ = r.cli.ContainerRemove(ctx, r.containerID, container.RemoveOptions{Force: true, RemoveVolumes: true})
 	r.containerID = ""
 }
 
@@ -582,6 +582,23 @@ func (s *execStream) check() error {
 	return nil
 }
 
+// garageImageVolumes are the paths the Garage image declares as VOLUME.
+// Every container started from it without something mounted there gets
+// an anonymous volume for each, left behind when the container goes.
+var garageImageVolumes = []string{"/var/lib/garage/meta", "/var/lib/garage/data"}
+
+// rcloneHelperHostConfig is the helper's host configuration: tmpfs over
+// the Garage image's VOLUME paths, so no anonymous volume is created at
+// all — not even when the CLI is interrupted before cleaning up. rclone
+// only streams to and from S3; it never writes there.
+func rcloneHelperHostConfig() *container.HostConfig {
+	tmpfs := make(map[string]string, len(garageImageVolumes))
+	for _, path := range garageImageVolumes {
+		tmpfs[path] = ""
+	}
+	return &container.HostConfig{AutoRemove: false, Tmpfs: tmpfs}
+}
+
 // removeStaleContainer clears a helper left behind by an interrupted run.
 func removeStaleContainer(ctx context.Context, cli *client.Client, name string) {
 	f := filters.NewArgs()
@@ -591,7 +608,7 @@ func removeStaleContainer(ctx context.Context, cli *client.Client, name string) 
 		return
 	}
 	for _, c := range existing {
-		_ = cli.ContainerRemove(ctx, c.ID, container.RemoveOptions{Force: true})
+		_ = cli.ContainerRemove(ctx, c.ID, container.RemoveOptions{Force: true, RemoveVolumes: true})
 	}
 }
 

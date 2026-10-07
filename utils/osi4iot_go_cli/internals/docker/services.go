@@ -693,28 +693,28 @@ func ScaleSwarmService(pd *pt.PlatformData, dc *pt.DockerClient, serviceName str
 			SecretsUpdate: []SecretUpdateConfig{natsSecretUpdateConfig},
 		}
 
-		// Backup of every JetStream stream, taken while NATS is still in its
-		// source topology, and the names backed up. Only populated when
-		// crossing the standalone<->cluster boundary, where NATS has no
-		// in-place data migration and the cluster must be rebuilt empty and
-		// restored from this backup. Declared here so both the scale-up
-		// (backup, below) and the restore (Step 5c) can see them.
-		var natsBackupDir string
-		var natsBackupStreams []string
+		// The S3 backup run holding every JetStream stream, taken while NATS
+		// is still in its source topology. Only set when crossing the
+		// standalone<->cluster boundary, where NATS has no in-place data
+		// migration and the cluster must be rebuilt empty and restored from
+		// this backup; "" when there were no streams. Declared here so both
+		// the scale-up (backup, below) and the restore (Step 5c) can see it.
+		// See nats_scale_backup.go.
+		var natsBackupRun string
 
 		if replicas > currentReplicas {
 			// ── SCALE UP (e.g. 1 → 3, 3 → 5) ───────────────────────────────
 
-			// Growing out of standalone mode (1 -> N): snapshot every stream
-			// now, while nats1 is still standalone and healthy. The streams
-			// are NOT cleared here — that happens just before the restore,
-			// once the cluster is confirmed formed (Step 5c). Deleting only
-			// at the last moment means that if anything between here and the
+			// Growing out of standalone mode (1 -> N): back every stream up
+			// to S3 now, while nats1 is still standalone and healthy. The
+			// streams are NOT cleared here — the restore replaces them, once
+			// the cluster is confirmed formed (Step 5c). Replacing only at
+			// the last moment means that if anything between here and the
 			// restore fails (peer creation, the nats1 config update, cluster
 			// formation), nats1 still holds the original standalone data.
 			if currentReplicas == 1 && replicas >= 3 {
 				var err error
-				natsBackupDir, natsBackupStreams, err = backupNatsStreams(pd, dc)
+				natsBackupRun, err = backupNatsStreamsForScale(pd, dc)
 				if err != nil {
 					return "", fmt.Errorf("error backing up NATS streams before scale-up: %v", err)
 				}
@@ -740,8 +740,8 @@ func ScaleSwarmService(pd *pt.PlatformData, dc *pt.DockerClient, serviceName str
 						msg += fmt.Sprintf("; could not remove nats%d, remove it by hand before re-running: %v", replica, err)
 					}
 				}
-				if natsBackupDir != "" {
-					msg += fmt.Sprintf("; the stream backup taken before the scale is at %s", natsBackupDir)
+				if natsBackupRun != "" {
+					msg += fmt.Sprintf("; the streams were backed up to S3 before the scale (run %s)", natsBackupRun)
 				}
 				return fmt.Errorf("%s", msg)
 			}
@@ -903,26 +903,18 @@ func ScaleSwarmService(pd *pt.PlatformData, dc *pt.DockerClient, serviceName str
 			// window has to stay as short as possible.
 			//
 			// On failure the cluster is up but the data has NOT been loaded;
-			// the snapshot is still on disk at natsBackupDir and can be
-			// restored manually (or by re-running, once the cause is fixed),
-			// so no data is lost.
-			if AreNeededNatsDependentServiceUpdates(currentReplicas, replicas) {
-				// Clear any streams left over from the standalone era
-				// immediately before restoring, so the restore recreates each
-				// one cleanly instead of hitting "stream already exists".
-				// Doing the delete here, at the last possible moment, is what
-				// keeps the operation safe to retry.
-				if err := deleteNatsStreams(pd, dc, natsBackupStreams); err != nil {
-					return "", fmt.Errorf("error clearing leftover NATS streams before restore "+
-						"(your data backup is at %s): %w", natsBackupDir, err)
-				}
-				restoreWarnings, err := restoreNatsStreams(pd, dc, natsBackupDir, natsBackupStreams, int(replicas))
+			// it is in S3 (natsBackupRun), and 'osi4iot backup restore
+			// nats_streams' loads it once the cause is fixed, so no data is
+			// lost. system_manager's restore deletes the same-named streams
+			// first and widens each one to the cluster's size.
+			if AreNeededNatsDependentServiceUpdates(currentReplicas, replicas) && natsBackupRun != "" {
+				output, err := restoreNatsStreamsForScale(pd, dc, natsBackupRun)
 				if err != nil {
-					return "", fmt.Errorf("error restoring NATS streams after cluster rebuild "+
-						"(the cluster is up; your data backup is at %s and can be restored manually "+
-						"or by re-running the scale command): %w", natsBackupDir, err)
+					return "", fmt.Errorf("error restoring the NATS streams after the cluster rebuild "+
+						"(the cluster is up; the streams are in S3, run %s, and 'osi4iot backup "+
+						"restore nats_streams' restores them once the cause is fixed): %w", natsBackupRun, err)
 				}
-				warningMessages += restoreWarnings
+				fmt.Println(output)
 			}
 		}
 
@@ -986,12 +978,6 @@ func ScaleSwarmService(pd *pt.PlatformData, dc *pt.DockerClient, serviceName str
 		seedWarnings, oldConfigIDs := updateNatsSeedListClients(pd, dc, replicas)
 		warningMessages += seedWarnings
 		allOldConfigIDs = append(allOldConfigIDs, oldConfigIDs...)
-
-		if natsBackupDir != "" {
-			if err := deleteNatsBackup(natsBackupDir); err != nil {
-				fmt.Printf("Warning: could not delete NATS backup directory '%s': %v\n", natsBackupDir, err)
-			}
-		}
 
 	default:
 		updateResult, err := ServiceUpdate(pd, dc, service, serviceName, ServiceUpdateOptions{

@@ -618,7 +618,7 @@ func (t *TempGarage) removeContainers() {
 	defer cancel()
 	for _, m := range t.members {
 		if m.containerID != "" {
-			_ = m.target.Cli.ContainerRemove(ctx, m.containerID, container.RemoveOptions{Force: true})
+			_ = m.target.Cli.ContainerRemove(ctx, m.containerID, container.RemoveOptions{Force: true, RemoveVolumes: true})
 			m.containerID = ""
 		}
 	}

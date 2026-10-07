@@ -844,9 +844,9 @@ var subCmdPassphraseReset = &cobra.Command{
 var cmdStreams = &cobra.Command{
 	Use:   "streams",
 	Short: "NATS JetStream streams management",
-	Long: "List NATS JetStream streams, and manage the local snapshots the scale up/down flow " +
-		"takes of its own accord mid-operation (see 'osi4iot backup' for the S3-backed periodic " +
-		"backup/restore of NATS, patroni_admin and patroni_metrics).",
+	Long: "Shows the JetStream streams of the running NATS, read live: replicas, leader, " +
+		"messages and whether they are in sync. Backups of the streams are in 'osi4iot backup' " +
+		"(trigger, list, restore nats_streams), stored in the platform's bucket.",
 }
 
 var subCmdStreamsList = &cobra.Command{
@@ -981,6 +981,9 @@ func init() {
 
 	cmdStreams.AddCommand(subCmdStreamsList)
 	rootCmd.AddCommand(cmdStreams)
+
+	// Last: cobra only generates `completion` once there are commands.
+	addCompletionInstall()
 }
 
 func exitWithWarning(errMsg string) {
