@@ -41,7 +41,7 @@ func SetVersion(v string) {
 // CheckDockerClientsMap, which exits when it finds none — and fail
 // exactly the case recovery exists for. The state file's S3 backups run
 // under "backup", which is here.
-var SwarmActions = []string{"create", "init", "run", "stop", "delete", "service", "certs", "streams", "node", "backup", "status"}
+var SwarmActions = []string{"create", "init", "run", "stop", "delete", "service", "certs", "streams", "node", "backup", "status", "custom_service"}
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
@@ -51,6 +51,9 @@ var rootCmd = &cobra.Command{
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
 		noEncrypt, _ := cmd.Flags().GetBool("no-encrypt")
 		crypto.SetNoEncrypt(noEncrypt)
+		// Commands that need the platform deployed say so plainly when it
+		// is not, instead of failing on whatever Docker answers.
+		requirePlatformFor(cmd)
 	},
 	// Run: func(cmd *cobra.Command, args []string) {},
 }
