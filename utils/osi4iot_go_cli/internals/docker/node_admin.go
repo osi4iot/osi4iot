@@ -45,6 +45,10 @@ import (
 // the next init or run.
 var PlatformLabelPrefixes = []string{
 	"platform_worker", "nats_", "admin-id", "metrics-id",
+	// garage_<ID>=true pins each Garage instance to its node, with its
+	// volumes (see utils/garage_cluster.go). Removing one by hand would
+	// leave the instance with nowhere to run.
+	"garage_",
 }
 
 // NodeView is one machine, as both Docker and the state file see it.
@@ -233,10 +237,10 @@ func ListNodeTasks(dc *pt.DockerClient, nodeID string, all bool) ([]swarm.Task, 
 
 // SetNodeAvailability drains, pauses or activates a node.
 func SetNodeAvailability(dc *pt.DockerClient, view NodeView, availability swarm.NodeAvailability) error {
-	spec := view.Node.Spec
-	spec.Availability = availability
-
-	if err := dc.Cli.NodeUpdate(dc.Ctx, view.Node.ID, view.Node.Version, spec); err != nil {
+	err := updateNodeSpec(dc, view.Node.ID, func(spec *swarm.NodeSpec) {
+		spec.Availability = availability
+	})
+	if err != nil {
 		return fmt.Errorf("error setting %s to %s: %w", view.Hostname(), availability, err)
 	}
 	return nil
@@ -249,22 +253,49 @@ func SetNodeAvailability(dc *pt.DockerClient, view NodeView, availability swarm.
 // so a label with one of those names lasts only until the next
 // deployment. The caller is expected to say so.
 func UpdateNodeLabels(dc *pt.DockerClient, view NodeView, add map[string]string, remove []string) error {
-	spec := view.Node.Spec
-	if spec.Labels == nil {
-		spec.Labels = map[string]string{}
-	}
-
-	for key, value := range add {
-		spec.Labels[key] = value
-	}
-	for _, key := range remove {
-		delete(spec.Labels, key)
-	}
-
-	if err := dc.Cli.NodeUpdate(dc.Ctx, view.Node.ID, view.Node.Version, spec); err != nil {
+	err := updateNodeSpec(dc, view.Node.ID, func(spec *swarm.NodeSpec) {
+		if spec.Labels == nil {
+			spec.Labels = map[string]string{}
+		}
+		for key, value := range add {
+			spec.Labels[key] = value
+		}
+		for _, key := range remove {
+			delete(spec.Labels, key)
+		}
+	})
+	if err != nil {
 		return fmt.Errorf("error updating the labels of %s: %w", view.Hostname(), err)
 	}
 	return nil
+}
+
+// updateNodeSpec applies change to a node's CURRENT spec.
+//
+// A NodeView is a snapshot: by the time a command acts on it, the node
+// may have changed — `node remove` relabels every node while it moves
+// Garage off the one it removes. Updating with the snapshot's version
+// fails ("update out of sequence"), and updating with its spec would be
+// worse: it would put back the labels the snapshot had. So the node is
+// read right before each update, and read again if someone else updated
+// it in between.
+func updateNodeSpec(dc *pt.DockerClient, nodeID string, change func(*swarm.NodeSpec)) error {
+	const attempts = 5
+	var err error
+	for attempt := 0; attempt < attempts; attempt++ {
+		var node swarm.Node
+		node, _, err = dc.Cli.NodeInspectWithRaw(dc.Ctx, nodeID)
+		if err != nil {
+			return err
+		}
+		spec := node.Spec
+		change(&spec)
+		err = dc.Cli.NodeUpdate(dc.Ctx, nodeID, node.Version, spec)
+		if err == nil || !strings.Contains(err.Error(), "update out of sequence") {
+			return err
+		}
+	}
+	return err
 }
 
 // IsPlatformManagedLabel reports whether a label name is one

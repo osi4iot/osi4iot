@@ -46,12 +46,13 @@ var subCmdNodeList = &cobra.Command{
 		"The two roles are not the same thing. SWARM is Docker's — manager or worker, and " +
 		"which one holds the raft leadership. PLATFORM ROLE is the state file's: 'Manager', " +
 		" or 'Platform worker'.\n\n" +
-		"LABELS shows every label on the node, the platform's first and yours after. The " +
-		"platform's are the part nothing else shows: nodesConfiguration writes them from the " +
-		"state file and they decide where replicas can run. nats_2 means this machine takes " +
-		"the second NATS replica; admin-id=1 and metrics-id=1 pin the first Patroni replica of " +
-		"each cluster. Long lists are cut in the table — 'osi4iot node inspect NODE' shows " +
-		"them in full, split by which are managed and which are yours.",
+		"Below the table, LABELS lists every label of each node in full, the platform's first " +
+		"and yours after. The platform's are the part nothing else shows: nodesConfiguration " +
+		"writes them from the state file and they decide where replicas can run. nats_2 means " +
+		"this machine takes the second NATS replica; admin-id=1 and metrics-id=1 pin the " +
+		"first Patroni replica of each cluster; garage_3 pins the Garage instance garage_3, " +
+		"with its volumes. 'osi4iot node inspect NODE' shows them split by which are managed " +
+		"and which are yours.",
 	Args: cobra.NoArgs,
 	Run: func(cmd *cobra.Command, args []string) {
 		pd, dc := nodeContext()

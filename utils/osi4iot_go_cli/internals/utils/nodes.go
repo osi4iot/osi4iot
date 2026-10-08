@@ -108,20 +108,6 @@ func NodesList(rows []NodeRow) {
  
 	fmt.Println(titleStyle.Render("🖥️  OSI4IOT platform nodes"))
  
-	// The labels column is sized to its content rather than fixed: most
-	// deployments have a handful of short ones and would waste half the
-	// width, and a deployment with long ones would lose them to a
-	// truncation that a wider column avoids entirely.
-	labelsWidth := 20
-	for _, row := range rows {
-		if width := len(strings.Join(allLabels(row), " ")); width > labelsWidth {
-			labelsWidth = width
-		}
-	}
-	if labelsWidth > 46 {
-		labelsWidth = 46
-	}
- 
 	columns := []table.Column{
 		{Title: "NODE", Width: 14},
 		{Title: "HOSTNAME", Width: 17},
@@ -134,7 +120,6 @@ func NodesList(rows []NodeRow) {
 		{Title: "AVAILABILITY", Width: 13},
 		{Title: "STATE", Width: 8},
 		{Title: "TASKS", Width: 6},
-		{Title: "LABELS", Width: labelsWidth},
 	}
  
 	tableRows := make([]table.Row, 0, len(rows))
@@ -168,7 +153,6 @@ func NodesList(rows []NodeRow) {
 			row.Availability,
 			row.State,
 			fmt.Sprintf("%d", row.RunningTasks),
-			truncate(strings.Join(allLabels(row), " "), labelsWidth),
 		})
 	}
  
@@ -193,17 +177,66 @@ func NodesList(rows []NodeRow) {
  
 	fmt.Println(footerStyle.Render(
 		fmt.Sprintf("Total nodes: %d   (* = swarm leader)", len(rows))))
-	fmt.Println(footerStyle.Render(
-		"Labels: the platform's placement ones first, then your own. " +
-			"'osi4iot node inspect NODE' shows them in full."))
+
+	// The labels below the table, in full: a node can carry a dozen of
+	// them (platform_worker, admin-id, metrics-id, nats_N, garage_N, and
+	// the operator's own), more than any table column can hold without
+	// cutting the ones that matter.
+	fmt.Println(headerStyle.Render("LABELS") + footerStyle.UnsetPadding().Render(
+		"  the platform's placement ones first, then your own"))
+	for _, line := range nodeLabelLines(rows, 100) {
+		fmt.Println("  " + line)
+	}
+	fmt.Println()
+}
+
+// nodeLabelLines lists every node's labels, one node per line, none cut:
+// a line that would pass width carries on below, aligned under the
+// first label. Pure, for tests.
+func nodeLabelLines(rows []NodeRow, width int) []string {
+	nameWidth := 4
+	for _, row := range rows {
+		if len(nodeName(row)) > nameWidth {
+			nameWidth = len(nodeName(row))
+		}
+	}
+	var lines []string
+	for _, row := range rows {
+		labels := allLabels(row)
+		if len(labels) == 0 {
+			labels = []string{"-"}
+		}
+		line := fmt.Sprintf("%-*s  ", nameWidth, nodeName(row))
+		indent := strings.Repeat(" ", len(line))
+		current := line
+		for k, label := range labels {
+			if k > 0 && len(current)+1+len(label) > width {
+				lines = append(lines, current)
+				current = indent + label
+				continue
+			}
+			if k > 0 {
+				current += " "
+			}
+			current += label
+		}
+		lines = append(lines, current)
+	}
+	return lines
+}
+
+// nodeName is how a node is named in the labels list: its label in the
+// state file, or its hostname.
+func nodeName(row NodeRow) string {
+	if row.Label != "" {
+		return row.Label
+	}
+	return row.Hostname
 }
  
-// allLabels is what the LABELS column holds: the platform's placement
-// labels first and the operator's after.
-//
-// The order is what makes the truncation tolerable. Placement decides
-// where a Patroni or NATS replica can run and is the reason to read
-// this column at all, so it goes where a cut cannot reach it.
+// allLabels is a node's labels as the LABELS list shows them: the
+// platform's placement labels first — they decide where replicas run,
+// and are the reason to read the list — and the operator's after.
 func allLabels(row NodeRow) []string {
 	labels := make([]string, 0, len(row.PlacementTags)+len(row.OtherLabels))
 	labels = append(labels, row.PlacementTags...)
