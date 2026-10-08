@@ -326,4 +326,17 @@ func TestCheckGarageScale(t *testing.T) {
 	}
 }
 
-
+// A vanished node must not stall requests for Garage's default 300 s.
+func TestGarageConfigBoundsRPCTimeout(t *testing.T) {
+	pi := clusterPI("On-premise cluster deployment", "Manager", "Platform worker")
+	EnsureGarageSecrets(&pi, false)
+	EnsureGarageInstances(&pi)
+	toml := GarageConfigToml(pi)
+	if !strings.Contains(toml, "rpc_timeout_msec = 30000\n") {
+		t.Fatalf("no 30 s rpc_timeout_msec:\n%s", toml)
+	}
+	// Top level: before the first [section], or Garage ignores it.
+	if strings.Index(toml, "rpc_timeout_msec") > strings.Index(toml, "[s3_api]") {
+		t.Fatal("rpc_timeout_msec is inside a section")
+	}
+}
