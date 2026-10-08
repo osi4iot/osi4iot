@@ -48,8 +48,14 @@ func (f *fakeSwarmNode) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func fakeNodeClient(t *testing.T, f *fakeSwarmNode) *pt.DockerClient {
+	return fakeDaemonClient(t, f)
+}
+
+// fakeDaemonClient is a DockerClient talking to handler instead of a
+// real Docker daemon.
+func fakeDaemonClient(t *testing.T, handler http.Handler) *pt.DockerClient {
 	t.Helper()
-	srv := httptest.NewServer(f)
+	srv := httptest.NewServer(handler)
 	t.Cleanup(srv.Close)
 	cli, err := client.NewClientWithOpts(client.WithHost("tcp://"+strings.TrimPrefix(srv.URL, "http://")),
 		client.WithVersion("1.45"), client.WithHTTPClient(srv.Client()))

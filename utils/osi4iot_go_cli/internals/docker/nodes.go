@@ -2,6 +2,7 @@ package docker
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/swarm"
@@ -106,13 +107,50 @@ func joinAllNodesToSwarm(managerClient *pt.DockerClient) error {
 	return nil
 }
 
-func nodeLeaveSwarm(dc *pt.DockerClient) error {
-	err := dc.Cli.SwarmLeave(dc.Ctx, true)
-	if err != nil {
-		return fmt.Errorf("error leaving swarm: %v", err)
-	}
+// How nodeLeaveSwarm retries, as variables so its tests run fast.
+var (
+	swarmLeaveAttempts  = 4
+	swarmLeaveRetryWait = 5 * time.Second
+)
 
-	return nil
+// nodeLeaveSwarm makes the node behind dc leave its swarm.
+//
+// Leaving can fail on the daemon's side with "context deadline
+// exceeded": the daemon gives its swarm component a fixed time to stop,
+// and when that runs over — networks still being detached from tasks
+// just moved away, say — it gives up before clearing the node's swarm
+// state. Asking again a few seconds later normally works. So: nothing
+// to do if the node is no longer in a swarm (the failed attempt may
+// have finished after all), otherwise ask again, checking the node's
+// real state after each attempt.
+func nodeLeaveSwarm(dc *pt.DockerClient) error {
+	var lastErr error
+	for attempt := 1; attempt <= swarmLeaveAttempts; attempt++ {
+		if left, err := nodeOutOfSwarm(dc); err == nil && left {
+			return nil
+		}
+		lastErr = dc.Cli.SwarmLeave(dc.Ctx, true)
+		if lastErr == nil {
+			return nil
+		}
+		if attempt < swarmLeaveAttempts {
+			time.Sleep(swarmLeaveRetryWait)
+		}
+	}
+	if left, err := nodeOutOfSwarm(dc); err == nil && left {
+		return nil
+	}
+	return fmt.Errorf("error leaving swarm after %d attempts: %v. Run the same command again "+
+		"(it carries on from here), or run 'docker swarm leave --force' on the node", swarmLeaveAttempts, lastErr)
+}
+
+// nodeOutOfSwarm reports whether the node's daemon says it is in no swarm.
+func nodeOutOfSwarm(dc *pt.DockerClient) (bool, error) {
+	info, err := dc.Cli.Info(dc.Ctx)
+	if err != nil {
+		return false, err
+	}
+	return info.Swarm.LocalNodeState == swarm.LocalNodeStateInactive, nil
 }
 
 func nodesLeaveSwarm() error {
