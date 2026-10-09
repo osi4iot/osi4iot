@@ -109,91 +109,90 @@ func AwsRegionCode(region string) string {
 const imdsBaseURL = "http://169.254.169.254"
 
 func IsEC2Instance() (bool, error) {
-    ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-    defer cancel()
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
 
 	// Try to get a token for IMDSv2.
-    token, err := getIMDSv2Token(ctx)
-    if err == nil {
-        return verifyWithToken(ctx, token)
-    }
+	token, err := getIMDSv2Token(ctx)
+	if err == nil {
+		return verifyWithToken(ctx, token)
+	}
 
-    // Fallback to IMDSv1 if IMDSv2 token retrieval fails
-    return verifyIMDSv1(ctx)
+	// Fallback to IMDSv1 if IMDSv2 token retrieval fails
+	return verifyIMDSv1(ctx)
 }
 
 func getIMDSv2Token(ctx context.Context) (string, error) {
-    req, err := http.NewRequestWithContext(ctx, http.MethodPut,
-        imdsBaseURL+"/latest/api/token", nil)
-    if err != nil {
-        return "", err
-    }
-    req.Header.Set("X-aws-ec2-metadata-token-ttl-seconds", "21600")
+	req, err := http.NewRequestWithContext(ctx, http.MethodPut,
+		imdsBaseURL+"/latest/api/token", nil)
+	if err != nil {
+		return "", err
+	}
+	req.Header.Set("X-aws-ec2-metadata-token-ttl-seconds", "21600")
 
-    resp, err := http.DefaultClient.Do(req)
-    if err != nil {
-        return "", err
-    }
-    defer resp.Body.Close()
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
 
-    if resp.StatusCode != http.StatusOK {
-        return "", fmt.Errorf("unexpected status: %d", resp.StatusCode)
-    }
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("unexpected status: %d", resp.StatusCode)
+	}
 
-    tokenBytes, err := io.ReadAll(resp.Body)
-    if err != nil {
-        return "", err
-    }
-    return string(tokenBytes), nil
+	tokenBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+	return string(tokenBytes), nil
 }
 
 func verifyWithToken(ctx context.Context, token string) (bool, error) {
-    req, err := http.NewRequestWithContext(ctx, http.MethodGet,
-        imdsBaseURL+"/latest/meta-data/instance-id", nil)
-    if err != nil {
-        return false, err
-    }
-    req.Header.Set("X-aws-ec2-metadata-token", token)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet,
+		imdsBaseURL+"/latest/meta-data/instance-id", nil)
+	if err != nil {
+		return false, err
+	}
+	req.Header.Set("X-aws-ec2-metadata-token", token)
 
-    resp, err := http.DefaultClient.Do(req)
-    if err != nil {
-        return false, nil // timeout or no network → not EC2
-    }
-    defer resp.Body.Close()
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return false, nil // timeout or no network → not EC2
+	}
+	defer resp.Body.Close()
 
-    return resp.StatusCode == http.StatusOK, nil
+	return resp.StatusCode == http.StatusOK, nil
 }
 
 func verifyIMDSv1(ctx context.Context) (bool, error) {
-    req, err := http.NewRequestWithContext(ctx, http.MethodGet,
-        imdsBaseURL+"/latest/meta-data/instance-id", nil)
-    if err != nil {
-        return false, err
-    }
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet,
+		imdsBaseURL+"/latest/meta-data/instance-id", nil)
+	if err != nil {
+		return false, err
+	}
 
-    resp, err := http.DefaultClient.Do(req)
-    if err != nil {
-        return false, nil // timeout or no network → not EC2
-    }
-    defer resp.Body.Close()
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return false, nil // timeout or no network → not EC2
+	}
+	defer resp.Body.Close()
 
-    return resp.StatusCode == http.StatusOK, nil
+	return resp.StatusCode == http.StatusOK, nil
 }
 
 func GetEC2RoleConfig(ctx context.Context) (aws.Config, error) {
 	// Obtain the region from the EC2 IMDS
-    cfg, err := config.LoadDefaultConfig(ctx,
-        config.WithCredentialsProvider(
-            aws.NewCredentialsCache(
-                ec2rolecreds.New(),
-            ),
-        ),
+	cfg, err := config.LoadDefaultConfig(ctx,
+		config.WithCredentialsProvider(
+			aws.NewCredentialsCache(
+				ec2rolecreds.New(),
+			),
+		),
 		// Load the region from IMDS automatically
-        config.WithEC2IMDSRegion(),
-    )
-    if err != nil {
-        return aws.Config{}, fmt.Errorf("error loading AWS config: %w", err)
-    }
-    return cfg, nil
+		config.WithEC2IMDSRegion(),
+	)
+	if err != nil {
+		return aws.Config{}, fmt.Errorf("error loading AWS config: %w", err)
+	}
+	return cfg, nil
 }
-

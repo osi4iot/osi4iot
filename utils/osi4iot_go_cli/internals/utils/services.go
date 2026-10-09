@@ -145,7 +145,7 @@ func ServicesList(services []swarm.Service) {
 	t := table.New(
 		table.WithColumns(columns),
 		table.WithRows(rows),
-		table.WithHeight(len(rows) + 1),
+		table.WithHeight(len(rows)+1),
 		table.WithFocused(false),
 	)
 
@@ -637,7 +637,6 @@ func HasKnownPrefix(name string, knownKeys []string) bool {
 	return false
 }
 
-
 func GetAllServiceNames(pd *osi_types.PlatformData) []string {
 	excluded := make(map[string]struct{}, len(pd.PlatformInfo.ExcludedServices))
 	for _, name := range pd.PlatformInfo.ExcludedServices {
@@ -712,7 +711,7 @@ func GetDefaultServicesDataMap(pd *osi_types.PlatformData) map[string]osi_types.
 	uiSvcCpusFloat, _ := strconv.ParseFloat(uiSvcCpus[0:len(uiSvcCpus)-3], 64)
 	uiSvcCpus_050 := fmt.Sprintf("%.2fCPU", 0.50*uiSvcCpusFloat)
 	pipelinesSvcCpus := strings.Split(pi.PipelinesSvcResources, "-")[0]
- 
+
 	messagingSvcMem := strings.Split(pi.MessagingSvcResources, "-")[1]
 	messagingSvcMemFloat, _ := strconv.ParseFloat(messagingSvcMem[0:len(messagingSvcMem)-2], 64)
 	messagingSvcMem_025 := fmt.Sprintf("%.2fMb", 0.25*messagingSvcMemFloat)
@@ -723,7 +722,7 @@ func GetDefaultServicesDataMap(pd *osi_types.PlatformData) map[string]osi_types.
 	uiSvcMem_050 := fmt.Sprintf("%.2fMb", 0.50*uiSvcMemFloat)
 	pipelinesSvcMem := strings.Split(pi.PipelinesSvcResources, "-")[1]
 	defaultNumNatsReplicas := Max(pi.DefaultNumOfNatsReplicas, 1)
- 
+
 	defaultServicesDataMap := map[string]osi_types.ServiceData{
 		"admin_api": {
 			ServiceName: "admin_api",
@@ -819,7 +818,7 @@ func GetDefaultServicesDataMap(pd *osi_types.PlatformData) map[string]osi_types.
 			Memory:      "250Mb",
 		},
 	}
- 
+
 	if pi.UsePatroniTool {
 		// ── Patroni HA clusters replace the legacy single-node services ───────
 		// HAProxy sits in front of both clusters and routes writes/reads.
@@ -830,7 +829,7 @@ func GetDefaultServicesDataMap(pd *osi_types.PlatformData) map[string]osi_types.
 			Cpu:         messagingSvcCpus_025,
 			Memory:      messagingSvcMem_025,
 		}
- 
+
 		// Admin cluster nodes — one entry per node
 		numAdminNodes := Max(pi.NumPatroniAdminNodes, 1)
 		for i := 1; i <= numAdminNodes; i++ {
@@ -844,7 +843,7 @@ func GetDefaultServicesDataMap(pd *osi_types.PlatformData) map[string]osi_types.
 				Memory:      adminDataStorageSvcMem,
 			}
 		}
- 
+
 		// Metrics cluster nodes — one entry per node
 		numMetricsNodes := Max(pi.NumPatroniMetricsNodes, 1)
 		for i := 1; i <= numMetricsNodes; i++ {
@@ -875,11 +874,11 @@ func GetDefaultServicesDataMap(pd *osi_types.PlatformData) map[string]osi_types.
 			Memory:      iotDataStorageSvcMem,
 		}
 	}
- 
+
 	return defaultServicesDataMap
 }
 
-func findServiceReplicasByName(pd *osi_types.PlatformData , serviceName string) (int, error) {
+func findServiceReplicasByName(pd *osi_types.PlatformData, serviceName string) (int, error) {
 	servicesData := pd.PlatformInfo.ServicesData
 	for _, svcData := range servicesData {
 		if svcData.ServiceName == serviceName {

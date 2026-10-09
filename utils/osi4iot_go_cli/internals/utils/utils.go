@@ -10,8 +10,8 @@ import (
 	"strings"
 	"time"
 
-	"math/big"
 	cryptorand "crypto/rand"
+	"math/big"
 
 	"github.com/charmbracelet/lipgloss"
 	"golang.org/x/crypto/bcrypt"
@@ -298,7 +298,6 @@ func GeneratePassword(passwordLength int) string {
 	}
 	return string(b)
 }
-
 
 func HashPassword(password string) (string, error) {
 	cost := 8

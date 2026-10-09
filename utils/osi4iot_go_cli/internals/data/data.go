@@ -404,4 +404,3 @@ func GetDomainName() string {
 	}
 	return Data.PlatformInfo.DomainName
 }
-

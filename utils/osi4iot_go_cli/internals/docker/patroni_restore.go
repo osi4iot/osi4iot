@@ -490,8 +490,8 @@ func wipePatroniNodeData(pd *pt.PlatformData, dc *pt.DockerClient, family patron
 	// report success and leave the old data in place.
 	if _, err := dc.Cli.VolumeInspect(dc.Ctx, volumeName); err != nil {
 		return fmt.Errorf("the volume '%s' does not exist on node %s: %w\n"+
- 			"Its data lives somewhere this restore cannot see, and wiping a volume "+
- 			"Docker would create here instead would silently leave the old data in place",
+			"Its data lives somewhere this restore cannot see, and wiping a volume "+
+			"Docker would create here instead would silently leave the old data in place",
 			volumeName, dc.Node.NodeIP, err)
 	}
 

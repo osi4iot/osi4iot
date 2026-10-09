@@ -3,9 +3,9 @@
 package crypto
 
 import (
+	"fmt"
 	"os/exec"
 	"strings"
-	"fmt"
 )
 
 // getMachineKey obtiene el MachineGuid del registro de Windows

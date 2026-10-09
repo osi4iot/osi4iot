@@ -947,6 +947,7 @@ func init() {
 	cmdService.AddCommand(subCmdServiceInspect)
 	cmdService.AddCommand(subCmdServiceScale)
 	cmdService.AddCommand(subCmdServiceRebalance)
+	cmdService.AddCommand(subCmdServiceState)
 	cmdService.AddCommand(subCmdServiceUpdateResources)
 	cmdService.AddCommand(subCmdServiceUpdateImage)
 	rootCmd.AddCommand(cmdService)

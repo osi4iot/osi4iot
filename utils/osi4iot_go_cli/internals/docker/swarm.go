@@ -58,7 +58,7 @@ func InitPlatform(pd *pt.PlatformData, excluded ...string) error {
 	if err != nil {
 		return fmt.Errorf("error: configuring nodes %s", err.Error())
 	}
-	
+
 	err = joinAllNodesToSwarm(dc)
 	if err != nil {
 		return fmt.Errorf("error: joining nodes to swarm %s", err.Error())
@@ -753,66 +753,66 @@ func waitUntilServicesAreHealthy(dc *pt.DockerClient, serviceNames []string, tim
 
 // waitUntilContainersOfRemovedSlotsAreGone waits until all containers of the removed slots of a service are destroyed.
 func waitUntilContainersOfRemovedSlotsAreGone(dc *pt.DockerClient, serviceName string, firstRemovedSlot int) error {
-    deadline := time.Now().Add(2 * time.Minute)
+	deadline := time.Now().Add(2 * time.Minute)
 
-    for {
-        if time.Now().After(deadline) {
-            return fmt.Errorf("timeout waiting for containers of removed slots of '%s' to be destroyed", serviceName)
-        }
+	for {
+		if time.Now().After(deadline) {
+			return fmt.Errorf("timeout waiting for containers of removed slots of '%s' to be destroyed", serviceName)
+		}
 
-        filterArgs := filters.NewArgs()
-        filterArgs.Add("label", fmt.Sprintf("com.docker.swarm.service.name=%s", serviceName))
-        containers, err := dc.Cli.ContainerList(dc.Ctx, container.ListOptions{
-            All:     true,
-            Filters: filterArgs,
-        })
-        if err != nil {
-            return fmt.Errorf("error listing containers: %v", err)
-        }
+		filterArgs := filters.NewArgs()
+		filterArgs.Add("label", fmt.Sprintf("com.docker.swarm.service.name=%s", serviceName))
+		containers, err := dc.Cli.ContainerList(dc.Ctx, container.ListOptions{
+			All:     true,
+			Filters: filterArgs,
+		})
+		if err != nil {
+			return fmt.Errorf("error listing containers: %v", err)
+		}
 
-        allGone := true
-        for _, c := range containers {
-            taskName := c.Labels["com.docker.swarm.task.name"]
-            parts := strings.Split(taskName, ".")
-            if len(parts) < 2 {
-                continue
-            }
-            slot, err := strconv.Atoi(parts[1])
-            if err != nil {
-                continue
-            }
-            if slot >= firstRemovedSlot {
-                allGone = false
-                break
-            }
-        }
+		allGone := true
+		for _, c := range containers {
+			taskName := c.Labels["com.docker.swarm.task.name"]
+			parts := strings.Split(taskName, ".")
+			if len(parts) < 2 {
+				continue
+			}
+			slot, err := strconv.Atoi(parts[1])
+			if err != nil {
+				continue
+			}
+			if slot >= firstRemovedSlot {
+				allGone = false
+				break
+			}
+		}
 
-        if allGone {
-            return nil
-        }
+		if allGone {
+			return nil
+		}
 
-        time.Sleep(2 * time.Second)
-    }
+		time.Sleep(2 * time.Second)
+	}
 }
 
 func getNats1NodeIP(dc *pt.DockerClient) (string, error) {
-    filterArgs := filters.NewArgs()
-    filterArgs.Add("name", "nats1")
-    tasks, err := dc.Cli.TaskList(dc.Ctx, types.TaskListOptions{Filters: filterArgs})
-    if err != nil {
-        return "", fmt.Errorf("error listing nats1 tasks: %v", err)
-    }
-    for _, task := range tasks {
-        if task.Status.State != swarm.TaskStateRunning {
-            continue
-        }
-        node, _, err := dc.Cli.NodeInspectWithRaw(dc.Ctx, task.NodeID)
-        if err != nil {
-            return "", fmt.Errorf("error inspecting node for nats1: %v", err)
-        }
-        return node.Status.Addr, nil
-    }
-    return "", fmt.Errorf("no running task found for nats1")
+	filterArgs := filters.NewArgs()
+	filterArgs.Add("name", "nats1")
+	tasks, err := dc.Cli.TaskList(dc.Ctx, types.TaskListOptions{Filters: filterArgs})
+	if err != nil {
+		return "", fmt.Errorf("error listing nats1 tasks: %v", err)
+	}
+	for _, task := range tasks {
+		if task.Status.State != swarm.TaskStateRunning {
+			continue
+		}
+		node, _, err := dc.Cli.NodeInspectWithRaw(dc.Ctx, task.NodeID)
+		if err != nil {
+			return "", fmt.Errorf("error inspecting node for nats1: %v", err)
+		}
+		return node.Status.Addr, nil
+	}
+	return "", fmt.Errorf("no running task found for nats1")
 }
 
 // natsMonitorClient bounds each request to the NATS monitoring endpoint.
@@ -957,30 +957,30 @@ func waitUntilNatsClusterIsFormed(dc *pt.DockerClient, numExpectedNodes int) err
 // registered in the overlay DNS, which is what we need before other services
 // attempt to resolve them.
 func waitUntilServiceTaskIsRunning(dc *pt.DockerClient, serviceName string) error {
-    deadline := time.Now().Add(2 * time.Minute)
+	deadline := time.Now().Add(2 * time.Minute)
 
-    for {
-        if time.Now().After(deadline) {
-            return fmt.Errorf("timeout waiting for service '%s' to have a running task", serviceName)
-        }
+	for {
+		if time.Now().After(deadline) {
+			return fmt.Errorf("timeout waiting for service '%s' to have a running task", serviceName)
+		}
 
-        filterArgs := filters.NewArgs()
-        filterArgs.Add("name", serviceName)
-        filterArgs.Add("desired-state", "running")
-        tasks, err := dc.Cli.TaskList(dc.Ctx, types.TaskListOptions{Filters: filterArgs})
-        if err != nil {
-            time.Sleep(2 * time.Second)
-            continue
-        }
+		filterArgs := filters.NewArgs()
+		filterArgs.Add("name", serviceName)
+		filterArgs.Add("desired-state", "running")
+		tasks, err := dc.Cli.TaskList(dc.Ctx, types.TaskListOptions{Filters: filterArgs})
+		if err != nil {
+			time.Sleep(2 * time.Second)
+			continue
+		}
 
-        for _, task := range tasks {
-            if task.Status.State == swarm.TaskStateRunning {
-                return nil
-            }
-        }
+		for _, task := range tasks {
+			if task.Status.State == swarm.TaskStateRunning {
+				return nil
+			}
+		}
 
-        time.Sleep(2 * time.Second)
-    }
+		time.Sleep(2 * time.Second)
+	}
 }
 
 func SwarmInitiationInfo(platformData *pt.PlatformData, okMessage string) error {

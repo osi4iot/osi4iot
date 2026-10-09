@@ -12,11 +12,12 @@ import (
 // HaproxyPatroniService creates the unified HAProxy service for both Patroni clusters.
 //
 // Port mapping:
-//   5000 → Admin cluster writes  (primary only via /primary check)
-//   5001 → Admin cluster reads   (round-robin all healthy nodes)
-//   5100 → Metrics cluster writes (primary only)
-//   5101 → Metrics cluster reads  (round-robin)
-//   7000 → HAProxy stats dashboard
+//
+//	5000 → Admin cluster writes  (primary only via /primary check)
+//	5001 → Admin cluster reads   (round-robin all healthy nodes)
+//	5100 → Metrics cluster writes (primary only)
+//	5101 → Metrics cluster reads  (round-robin)
+//	7000 → HAProxy stats dashboard
 //
 // The haproxy.cfg is injected via a Docker Swarm Config so it can be
 // updated without rebuilding the image (docker config create haproxy_config).
@@ -41,14 +42,14 @@ func HaproxyPatroniService(
 			ConfigName: sd.Configs["haproxy_patroni"].Name,
 		},
 	}
- 
+
 	image := utils.GetServiceImage(pd, "haproxy_patroni", "ghcr.io/osi4iot/haproxy:2.8-alpine")
- 
+
 	replicas := uint64(2)
 	if pd.PlatformInfo.DeploymentLocation == "Local deployment" {
 		replicas = uint64(1)
 	}
- 
+
 	return NewService("haproxy_patroni", pd, sd).
 		WithImage(image).
 		WithConfigs(configs).
@@ -85,7 +86,7 @@ func HaproxyPatroniService(
 				Protocol:      swarm.PortConfigProtocolTCP,
 				TargetPort:    5002,
 				PublishedPort: 5002,
-			},			
+			},
 			{
 				Protocol:      swarm.PortConfigProtocolTCP,
 				TargetPort:    5100,
@@ -100,7 +101,7 @@ func HaproxyPatroniService(
 				Protocol:      swarm.PortConfigProtocolTCP,
 				TargetPort:    5102,
 				PublishedPort: 5102,
-			},			
+			},
 			{
 				Protocol:      swarm.PortConfigProtocolTCP,
 				TargetPort:    7000,
@@ -115,4 +116,3 @@ func HaproxyPatroniService(
 		}).
 		Build()
 }
- 

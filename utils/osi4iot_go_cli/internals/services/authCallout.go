@@ -5,9 +5,9 @@ import (
 
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/osi4iot/osi4iot/utils/osi4iot/internals/resources"
+	"github.com/osi4iot/osi4iot/utils/osi4iot/internals/secrets"
 	pt "github.com/osi4iot/osi4iot/utils/osi4iot/internals/types"
 	"github.com/osi4iot/osi4iot/utils/osi4iot/internals/utils"
-	"github.com/osi4iot/osi4iot/utils/osi4iot/internals/secrets"
 )
 
 func AuthCalloutService(

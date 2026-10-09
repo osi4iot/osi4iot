@@ -23,22 +23,22 @@ func getSwarmNodesMap(dc *pt.DockerClient) (map[string]swarm.Node, error) {
 }
 
 func updateNodesData(dc *pt.DockerClient, nodesData *[]pt.NodeData) error {
-    swarmNodesMap, err := getSwarmNodesMap(dc)
-    if err != nil {
-        return fmt.Errorf("error creating swarm nodes map: %w", err)
-    }
-    for i, node := range *nodesData {
-        swarmNode, ok := swarmNodesMap[node.NodeIP]
-        if !ok {
-            continue
-        }
-        (*nodesData)[i].NodeId = swarmNode.ID
-        (*nodesData)[i].NodeHostName = swarmNode.Description.Hostname
-        (*nodesData)[i].NodeArch = swarmNode.Description.Platform.Architecture
-        (*nodesData)[i].NodeNanoCPUs = swarmNode.Description.Resources.NanoCPUs
-        (*nodesData)[i].NodeMemoryBytes = swarmNode.Description.Resources.MemoryBytes
-    }
-    return nil
+	swarmNodesMap, err := getSwarmNodesMap(dc)
+	if err != nil {
+		return fmt.Errorf("error creating swarm nodes map: %w", err)
+	}
+	for i, node := range *nodesData {
+		swarmNode, ok := swarmNodesMap[node.NodeIP]
+		if !ok {
+			continue
+		}
+		(*nodesData)[i].NodeId = swarmNode.ID
+		(*nodesData)[i].NodeHostName = swarmNode.Description.Hostname
+		(*nodesData)[i].NodeArch = swarmNode.Description.Platform.Architecture
+		(*nodesData)[i].NodeNanoCPUs = swarmNode.Description.Resources.NanoCPUs
+		(*nodesData)[i].NodeMemoryBytes = swarmNode.Description.Resources.MemoryBytes
+	}
+	return nil
 }
 
 func GetManagerDC() (*pt.DockerClient, error) {

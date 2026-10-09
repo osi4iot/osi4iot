@@ -181,14 +181,14 @@ func passphraseFilePath() string {
 // passphrase file. Returns the path and true if found, or the default path
 // and false if not found.
 func findPassphraseFile() (string, bool) {
-    candidates := append(paths.Osi4iotDirCandidates(), "/root/.osi4iot")
-    for _, dir := range candidates {
-        p := filepath.Join(dir, passphraseFile)
-        if _, err := os.Stat(p); err == nil {
-            return p, true
-        }
-    }
-    return passphraseFilePath(), false
+	candidates := append(paths.Osi4iotDirCandidates(), "/root/.osi4iot")
+	for _, dir := range candidates {
+		p := filepath.Join(dir, passphraseFile)
+		if _, err := os.Stat(p); err == nil {
+			return p, true
+		}
+	}
+	return passphraseFilePath(), false
 }
 
 // savePassphraseFile encrypts the passphrase with the machine key and writes
@@ -235,41 +235,41 @@ func readPassphraseFile() ([]byte, string, error) {
 }
 
 func EnsureRootPassphraseFile() error {
-    // Si ya existe, no hacer nada
-    if _, err := os.Stat(rootPassphraseFile); err == nil {
-        return nil
-    }
+	// Si ya existe, no hacer nada
+	if _, err := os.Stat(rootPassphraseFile); err == nil {
+		return nil
+	}
 
-    var passphrase []byte
+	var passphrase []byte
 
-    // 1. Variable de entorno (ya resuelta y preservada por reexecAsRootIfNeeded)
-    if val := os.Getenv("OSI4IOT_PASSPHRASE"); val != "" {
-        passphrase = []byte(val)
-    } else {
-        // 2. Archivo cifrado del usuario actual
-        var err error
-        passphrase, _, err = readPassphraseFile()
-        if err != nil {
-            // 3. Keyring como último recurso
-            val, kerr := keyring.Get(keyringService, keyringUser)
-            if kerr != nil {
-                return fmt.Errorf("could not obtain passphrase: %w", kerr)
-            }
-            passphrase = []byte(val)
-        }
-    }
+	// 1. Variable de entorno (ya resuelta y preservada por reexecAsRootIfNeeded)
+	if val := os.Getenv("OSI4IOT_PASSPHRASE"); val != "" {
+		passphrase = []byte(val)
+	} else {
+		// 2. Archivo cifrado del usuario actual
+		var err error
+		passphrase, _, err = readPassphraseFile()
+		if err != nil {
+			// 3. Keyring como último recurso
+			val, kerr := keyring.Get(keyringService, keyringUser)
+			if kerr != nil {
+				return fmt.Errorf("could not obtain passphrase: %w", kerr)
+			}
+			passphrase = []byte(val)
+		}
+	}
 
-    // Cifrarlo con la machine key y guardarlo en /root/.osi4iot/
-    machineKey, err := getMachineKey()
-    if err != nil {
-        return err
-    }
-    encrypted, err := Encrypt(passphrase, machineKey)
-    if err != nil {
-        return err
-    }
-    if err := os.MkdirAll(filepath.Dir(rootPassphraseFile), 0700); err != nil {
-        return err
-    }
-    return os.WriteFile(rootPassphraseFile, encrypted, 0600)
+	// Cifrarlo con la machine key y guardarlo en /root/.osi4iot/
+	machineKey, err := getMachineKey()
+	if err != nil {
+		return err
+	}
+	encrypted, err := Encrypt(passphrase, machineKey)
+	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(filepath.Dir(rootPassphraseFile), 0700); err != nil {
+		return err
+	}
+	return os.WriteFile(rootPassphraseFile, encrypted, 0600)
 }

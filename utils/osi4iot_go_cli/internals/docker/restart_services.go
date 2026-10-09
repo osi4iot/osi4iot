@@ -88,7 +88,7 @@ func RestartDatabaseReadingServices(pd *pt.PlatformData, dc *pt.DockerClient, lo
 		service := toRestart[i]
 		if err := restartService(pd, dc, &service, logger); err != nil {
 			logger.Printf("Warning: could not restart %s: %v", service.Spec.Name, err)
-			logger.Printf("  It is still serving what it read from the empty database. "+
+			logger.Printf("  It is still serving what it read from the empty database. " +
 				"Restart it with 'osi4iot run' before using the platform.")
 		}
 	}

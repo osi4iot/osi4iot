@@ -658,7 +658,7 @@ func CreatePatroniMetricsVolume(pi pt.PlatformInfo, dc *pt.DockerClient, replica
 	serviceName := fmt.Sprintf("patroni_metrics%d", replica)
 	dataVolumeName := fmt.Sprintf("patroni_metrics%d-data", replica)
 	dataVolume := SetVolumeConfig(pi, dataVolumeName, serviceName, pi.DeploymentLocation, volOptions)
-	
+
 	// On the worker that will run this replica, not on dc's node.
 	if err := createPinnedVolume(pi, dc, &dataVolume); err != nil {
 		return nil, err

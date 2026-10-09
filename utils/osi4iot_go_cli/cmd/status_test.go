@@ -85,4 +85,3 @@ func TestStatusDeletedShowsNoDeploymentDetails(t *testing.T) {
 		}
 	}
 }
-

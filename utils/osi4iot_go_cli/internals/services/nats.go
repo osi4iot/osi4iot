@@ -99,7 +99,7 @@ func NatsService(
 			fmt.Sprintf("node.labels.nats_%d==true", replica),
 		}
 	}
-	
+
 	if nodeRoleNumMaps["Platform worker"] == 0 {
 		constraints = []string{
 			"node.role==manager",
@@ -146,7 +146,7 @@ func NatsService(
 		).
 		WithPlacement(constraints).
 		WithStopSignal("SIGUSR2").
-		WithStopGracePeriod(3 * time.Minute).
+		WithStopGracePeriod(3*time.Minute).
 		WithModeReplicated(svcResources.ReplicasPtr).
 		WithPorts(ports).
 		WithHealthConfig(NatsHealthCheck(numReplicas)).
@@ -203,4 +203,3 @@ func NatsHealthCheck(numReplicas int) *container.HealthConfig {
 		StartInterval: 1 * time.Second,
 	}
 }
-

@@ -95,7 +95,7 @@ func resetPlatformSecrets(pd *pt.PlatformData, assumeYes bool) error {
 	fmt.Println(utils.StyleWarningMsg.Render(
 		"--reset-passwords replaces every secret the platform generates for itself: the JWT and " +
 			"encryption keys, the platform master key, the WAL-G key, the sidecar token, every " +
-			"database password, the NATS credentials and, with Garage, its RPC secret and "+
+			"database password, the NATS credentials and, with Garage, its RPC secret and " +
 			"every service's S3 key (Garage re-imports them when it restarts)."))
 	if utils.IsAwsS3(pi) && pi.S3BucketName != "" {
 		fmt.Println(utils.StyleWarningMsg.Render(fmt.Sprintf(

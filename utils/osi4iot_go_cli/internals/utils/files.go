@@ -14,10 +14,9 @@ import (
 
 var osi4iotStateFile = "osi4iot_state.json"
 
-
 func ExistFile(filePath string) bool {
-    _, err := os.Stat(filePath)
-    return err == nil
+	_, err := os.Stat(filePath)
+	return err == nil
 }
 
 func CreateDirectoryIfNotExists(dirPath string) error {
@@ -31,15 +30,15 @@ func CreateDirectoryIfNotExists(dirPath string) error {
 }
 
 func GetStateFilePath() string {
-    abs, err := filepath.Abs(osi4iotStateFile)
-    if err != nil {
-        return osi4iotStateFile
-    }
-    return abs
+	abs, err := filepath.Abs(osi4iotStateFile)
+	if err != nil {
+		return osi4iotStateFile
+	}
+	return abs
 }
 
 func ExistStateFile() bool {
-    return ExistFile(GetStateFilePath())
+	return ExistFile(GetStateFilePath())
 }
 
 func WritePlatformDataToFile(data *pt.PlatformData) error {
@@ -127,7 +126,7 @@ func fixingPlatformData(pd *pt.PlatformData) error {
 
 	if pd.PlatformInfo.UsePatroniTool {
 		servicesList = append(servicesList, "haproxy_patroni")
-				
+
 		numPatroniAdminNodes := Max(pd.PlatformInfo.NumPatroniAdminNodes, 1)
 		for i := 1; i <= numPatroniAdminNodes; i++ {
 			name := fmt.Sprintf("patroni_admin%d", i)
@@ -224,12 +223,12 @@ func ChownToInvokingUser(path string) error {
 	if os.Geteuid() != 0 {
 		return nil
 	}
- 
+
 	uidText, gidText := os.Getenv("SUDO_UID"), os.Getenv("SUDO_GID")
 	if uidText == "" || gidText == "" {
 		return nil
 	}
- 
+
 	uid, err := strconv.Atoi(uidText)
 	if err != nil {
 		return fmt.Errorf("SUDO_UID is %q, which is not a user id", uidText)
@@ -241,13 +240,13 @@ func ChownToInvokingUser(path string) error {
 	if uid == 0 {
 		return nil
 	}
- 
+
 	if err := os.Chown(path, uid, gid); err != nil {
 		return fmt.Errorf("error giving %s back to uid %d: %w", path, uid, err)
 	}
 	return nil
 }
- 
+
 // ChownToInvokingUserQuietly is ChownToInvokingUser for the call sites
 // where failing would be worse than the problem.
 //
@@ -263,4 +262,3 @@ func ChownToInvokingUserQuietly(path string) {
 				"Fix it with: sudo chown $USER %s", err, path)))
 	}
 }
- 

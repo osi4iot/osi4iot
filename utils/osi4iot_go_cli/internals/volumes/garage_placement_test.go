@@ -13,5 +13,3 @@ func TestGarageVolumesArePinned(t *testing.T) {
 		t.Error("an unnumbered name is not an instance volume")
 	}
 }
-
-

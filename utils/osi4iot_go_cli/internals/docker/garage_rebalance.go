@@ -549,7 +549,7 @@ func garageMigrationPoll(c garageCluster, watch []pt.GarageInstance) (draining b
 			notes = append(notes, fmt.Sprintf("garage_%d: %d block(s) with resync errors", inst.ID, errs))
 		}
 		if queue > 0 {
-			notes = append(notes, fmt.Sprintf("garage_%d: %d block(s) to resync", inst.ID, queue))
+			notes = append(notes, fmt.Sprintf("garage_%d: %d block(s) still on disk, waiting for Garage's 10-min safety delay", inst.ID, queue))
 		}
 	}
 	return draining, pending, notes, nil

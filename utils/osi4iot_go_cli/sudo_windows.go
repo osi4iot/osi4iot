@@ -3,27 +3,27 @@
 package main
 
 import (
-    "fmt"
-    "os"
-    "slices"
-    "golang.org/x/sys/windows"
+	"fmt"
+	"golang.org/x/sys/windows"
+	"os"
+	"slices"
 
-    "github.com/osi4iot/osi4iot/utils/osi4iot/internals/utils"
+	"github.com/osi4iot/osi4iot/utils/osi4iot/internals/utils"
 )
 
 func reexecAsRootIfNeeded(sudoActions []string, action string) {
-    if !slices.Contains(sudoActions, action) {
-        return
-    }
+	if !slices.Contains(sudoActions, action) {
+		return
+	}
 
-    // Check if already running as administrator
-    if windows.GetCurrentProcessToken().IsElevated() {
-        return
-    }
+	// Check if already running as administrator
+	if windows.GetCurrentProcessToken().IsElevated() {
+		return
+	}
 
-    errMsg := utils.StyleErrMsg.Render(
-        fmt.Sprintf("'%s' requires administrator privileges. Please run as Administrator.", action),
-    )
-    fmt.Println(errMsg)
-    os.Exit(1)
+	errMsg := utils.StyleErrMsg.Render(
+		fmt.Sprintf("'%s' requires administrator privileges. Please run as Administrator.", action),
+	)
+	fmt.Println(errMsg)
+	os.Exit(1)
 }

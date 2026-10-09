@@ -24,8 +24,7 @@ func getNodeDockerClient(node pt.NodeData, deploymentLocation string, sshPrivKey
 		return nil, fmt.Errorf("error getting host IP: %v", err)
 	}
 
-
-	// If the deployment location is "Local deployment" or the node IP is the same as host IP, create a local docker client. 
+	// If the deployment location is "Local deployment" or the node IP is the same as host IP, create a local docker client.
 	// Otherwise, create a remote docker client using SSH connection.
 	if deploymentLocation == "Local deployment" || runningInLocalHost {
 		cli, err = client.NewClientWithOpts(
@@ -167,18 +166,17 @@ func ResetDockerClientsMap() error {
 	if err := CloseDockerClientsMap(); err != nil {
 		return err
 	}
- 
+
 	// Emptied rather than reassigned: pt.DCMap is a package-level map
 	// that other packages already hold a reference to, and swapping it
 	// for a new one would leave them looking at the old entries.
 	for ip := range pt.DCMap {
 		delete(pt.DCMap, ip)
 	}
- 
+
 	once = sync.Once{}
 	return nil
 }
-
 
 func CheckDockerClientsMap(DCMap map[string]*pt.DockerClient, action string) error {
 	if len(DCMap) == 0 {

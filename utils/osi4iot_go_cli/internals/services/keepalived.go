@@ -21,7 +21,7 @@ func KeepalivedService(
 		"node.platform.arch==x86_64",
 	}
 
-	image := utils.GetServiceImage(pd, "keepalived","ghcr.io/osi4iot/keepalived:latest")
+	image := utils.GetServiceImage(pd, "keepalived", "ghcr.io/osi4iot/keepalived:latest")
 	return NewService("keepalived", pd, sd).
 		WithImage(image).
 		WithEnv([]string{

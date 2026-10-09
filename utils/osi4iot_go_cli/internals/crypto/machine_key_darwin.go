@@ -3,9 +3,9 @@
 package crypto
 
 import (
+	"fmt"
 	"os/exec"
 	"strings"
-	"fmt"
 )
 
 // getMachineKey obtiene el hardware UUID de macOS
