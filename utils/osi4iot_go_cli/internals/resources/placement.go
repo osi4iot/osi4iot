@@ -125,10 +125,16 @@ func ValidatePlacement(pd *pt.PlatformData) error {
 		workers, strings.Join(tooMany, ", and "))
 }
 
-// natsReplicaCount reads how many NATS servers are configured.
+// natsReplicaCount reads how many NATS servers are configured: the
+// "nats" entry's Replicas in ServicesData, which 'service scale nats'
+// keeps up to date. Not getServiceReplicasPtr, which answers 1 for nats
+// on purpose (each natsN Swarm service runs one task) — that made every
+// placement check think there was a single NATS server.
 func natsReplicaCount(pd *pt.PlatformData) int {
-	if replicas := getServiceReplicasPtr(pd, "nats"); replicas != nil && *replicas > 0 {
-		return int(*replicas)
+	for _, svc := range pd.PlatformInfo.ServicesData {
+		if svc.ServiceName == "nats" && svc.Replicas > 0 {
+			return svc.Replicas
+		}
 	}
 	return 1
 }

@@ -10,9 +10,20 @@ func worker(name string, available bool, id string) drainNode {
 		tags: []string{"admin-id=" + id, "garage_" + id, "metrics-id=" + id, "nats_" + id, "platform_worker"}}
 }
 
+var three = map[string]int{"nats": 3, "patroni_admin": 3, "patroni_metrics": 3}
+
+func TestPinnedDrainSpareWorkerRunsNothing(t *testing.T) {
+	// w4 carries number 4 of everything, but every service has 3 replicas.
+	warnings, blocker := pinnedDrainImpact(worker("w4", true, "4"),
+		[]drainNode{worker("w1", true, "1"), worker("w2", false, "2"), worker("w3", true, "3")}, three)
+	if len(warnings) != 0 || blocker != "" {
+		t.Fatalf("warnings %v blocker %q", warnings, blocker)
+	}
+}
+
 func TestPinnedDrainWarnsForNatsAndPatroni(t *testing.T) {
 	warnings, blocker := pinnedDrainImpact(worker("w3", true, "3"),
-		[]drainNode{worker("w1", true, "1"), worker("w2", true, "2")})
+		[]drainNode{worker("w1", true, "1"), worker("w2", true, "2")}, three)
 	if blocker != "" {
 		t.Fatalf("blocked: %s", blocker)
 	}
@@ -30,7 +41,7 @@ func TestPinnedDrainWarnsForNatsAndPatroni(t *testing.T) {
 
 func TestPinnedDrainRefusedWhenQuorumLost(t *testing.T) {
 	_, blocker := pinnedDrainImpact(worker("w3", true, "3"),
-		[]drainNode{worker("w1", true, "1"), worker("w2", false, "2")})
+		[]drainNode{worker("w1", true, "1"), worker("w2", false, "2")}, three)
 	for _, want := range []string{"Cannot drain w3", "nats3", "patroni_admin3", "patroni_metrics3",
 		"keep 1 of 3", "node activate w2"} {
 		if !strings.Contains(blocker, want) {
@@ -41,18 +52,18 @@ func TestPinnedDrainRefusedWhenQuorumLost(t *testing.T) {
 
 func TestPinnedDrainTwoPatroniNodesCannotLoseOne(t *testing.T) {
 	_, blocker := pinnedDrainImpact(drainNode{name: "w2", available: true, tags: []string{"admin-id=2"}},
-		[]drainNode{{name: "w1", available: true, tags: []string{"admin-id=1"}}})
+		[]drainNode{{name: "w1", available: true, tags: []string{"admin-id=1"}}}, map[string]int{"patroni_admin": 2})
 	if !strings.Contains(blocker, "scale it up first") {
 		t.Fatalf("blocker %q", blocker)
 	}
 }
 
 func TestPinnedDrainOnlyInstance(t *testing.T) {
-	warnings, blocker := pinnedDrainImpact(drainNode{name: "w1", available: true, tags: []string{"nats_1"}}, nil)
+	warnings, blocker := pinnedDrainImpact(drainNode{name: "w1", available: true, tags: []string{"nats_1"}}, nil, three)
 	if blocker != "" || len(warnings) != 1 || !strings.Contains(warnings[0], "the only NATS instance") {
 		t.Fatalf("warnings %v blocker %q", warnings, blocker)
 	}
-	if w, b := pinnedDrainImpact(drainNode{name: "m1", tags: []string{"KEEPALIVED_PRIORITY=0"}}, nil); len(w)+len(b) != 0 {
+	if w, b := pinnedDrainImpact(drainNode{name: "m1", tags: []string{"KEEPALIVED_PRIORITY=0"}}, nil, three); len(w)+len(b) != 0 {
 		t.Fatalf("node without pinned services: %v %q", w, b)
 	}
 }

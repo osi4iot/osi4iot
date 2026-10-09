@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/docker/docker/api/types/swarm"
@@ -20,6 +21,7 @@ import (
 
 // pinnedFamily is one clustered service pinned to nodes by label.
 type pinnedFamily struct {
+	key     string         // docker.PinnedReplicas key
 	service string         // as the operator knows it
 	tag     *regexp.Regexp // the node's placement tag; group 1 is the instance number
 	prefix  string         // instance name = prefix + number
@@ -30,6 +32,7 @@ type pinnedFamily struct {
 
 var pinnedFamilies = []pinnedFamily{
 	{
+		key:      "nats",
 		service:  "NATS",
 		tag:      regexp.MustCompile(`^nats_(\d+)$`),
 		prefix:   "nats",
@@ -40,6 +43,7 @@ var pinnedFamilies = []pinnedFamily{
 			"JetStream leadership it holds moves to one of them",
 	},
 	{
+		key:       "patroni_admin",
 		service:   "patroni_admin",
 		tag:       regexp.MustCompile(`^admin-id=(\d+)$`),
 		prefix:    "patroni_admin",
@@ -48,6 +52,7 @@ var pinnedFamilies = []pinnedFamily{
 		oneStops:  "if it is the leader, another node takes over (a failover: writes pause for a few seconds)",
 	},
 	{
+		key:       "patroni_metrics",
 		service:   "patroni_metrics",
 		tag:       regexp.MustCompile(`^metrics-id=(\d+)$`),
 		prefix:    "patroni_metrics",
@@ -73,11 +78,16 @@ func drainNodeOf(v docker.NodeView) drainNode {
 	}
 }
 
-func (f pinnedFamily) instancesOn(n drainNode) []string {
+// instancesOn lists the instances of f on n: the numbers it carries up
+// to the service's replica count — every worker carries a number, the
+// ones above it run nothing.
+func (f pinnedFamily) instancesOn(n drainNode, replicas map[string]int) []string {
 	var out []string
 	for _, t := range n.tags {
 		if m := f.tag.FindStringSubmatch(t); m != nil {
-			out = append(out, f.prefix+m[1])
+			if id, _ := strconv.Atoi(m[1]); id <= replicas[f.key] {
+				out = append(out, f.prefix+m[1])
+			}
 		}
 	}
 	return out
@@ -86,17 +96,18 @@ func (f pinnedFamily) instancesOn(n drainNode) []string {
 // pinnedDrainImpact returns, for draining target, one warning per pinned
 // service with an instance on it, and the reason to refuse the drain
 // ("" if none).
-func pinnedDrainImpact(target drainNode, others []drainNode) (warnings []string, blocker string) {
+// replicas is each service's replica count (docker.PinnedReplicas).
+func pinnedDrainImpact(target drainNode, others []drainNode, replicas map[string]int) (warnings []string, blocker string) {
 	var blockers []string
 	for _, f := range pinnedFamilies {
-		onTarget := f.instancesOn(target)
+		onTarget := f.instancesOn(target, replicas)
 		if len(onTarget) == 0 {
 			continue
 		}
 		total, down := len(onTarget), 0
 		var downNodes []string
 		for _, o := range others {
-			ids := f.instancesOn(o)
+			ids := f.instancesOn(o, replicas)
 			total += len(ids)
 			if !o.available && len(ids) > 0 {
 				down += len(ids)
@@ -134,4 +145,65 @@ func pinnedDrainImpact(target drainNode, others []drainNode) (warnings []string,
 		}
 	}
 	return warnings, strings.Join(blockers, "\n\n")
+}
+
+// backupTargetOf is the `osi4iot backup` target holding an instance's
+// data.
+func backupTargetOf(instance string) string {
+	switch {
+	case strings.HasPrefix(instance, "patroni_admin"):
+		return "patroni_admin"
+	case strings.HasPrefix(instance, "patroni_metrics"):
+		return "patroni_metrics"
+	default:
+		return "nats_streams"
+	}
+}
+
+// singleCopyRefusal explains why a node holding a service's only copy is
+// not removed, and the two ways forward.
+func singleCopyRefusal(node string, instances []string) string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "Cannot remove %s: it holds the only copy of %s. Removed, %s would start "+
+		"EMPTY on another worker — for Patroni, an empty database.\n\n", node,
+		strings.Join(instances, ", "), pluralThey(len(instances)))
+	b.WriteString("Either:\n")
+	b.WriteString("  - scale the service up first, so its data is replicated to other workers " +
+		"(e.g. 'osi4iot service scale patroni_admin=3' — it needs as many workers), then remove " +
+		"the node; or\n")
+	b.WriteString("  - back it up, remove the node with --rebuild-from-backup, and restore it:\n")
+	seen := map[string]bool{}
+	for _, inst := range instances {
+		t := backupTargetOf(inst)
+		if !seen[t] {
+			seen[t] = true
+			fmt.Fprintf(&b, "      osi4iot backup trigger %s\n", t)
+		}
+	}
+	fmt.Fprintf(&b, "      osi4iot node remove %s --rebuild-from-backup\n", node)
+	for _, c := range restoreCommandsFor(instances) {
+		fmt.Fprintf(&b, "      %s\n", c)
+	}
+	return strings.TrimRight(b.String(), "\n")
+}
+
+// restoreCommandsFor lists the restores bringing instances' data back.
+func restoreCommandsFor(instances []string) []string {
+	var out []string
+	seen := map[string]bool{}
+	for _, inst := range instances {
+		t := backupTargetOf(inst)
+		if !seen[t] {
+			seen[t] = true
+			out = append(out, "osi4iot backup restore "+t)
+		}
+	}
+	return out
+}
+
+func pluralThey(n int) string {
+	if n == 1 {
+		return "it"
+	}
+	return "they"
 }

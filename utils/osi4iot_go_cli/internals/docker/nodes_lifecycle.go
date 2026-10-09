@@ -21,26 +21,20 @@ import (
 // installed, and — this is the part that bites — a slot in the
 // placement scheme.
 //
-// addNodesLabels walks NodesData IN ORDER and hands out admin-id,
-// metrics-id and nats_N to the "Platform worker" nodes as it goes. The
-// labels are positional, so the list's order is load-bearing:
+// Each "Platform worker" carries a number per pinned service (nats_N,
+// admin-id, metrics-id), and instance N of the service runs where
+// number N is, with its data in a local volume there. The numbers are
+// stable (pinned_labels.go): removing a worker moves only the instances
+// that were on it, each to a spare worker, where it rebuilds its data
+// from the other instances.
 //
-//   - APPENDING a node changes nothing for the nodes already there. The
-//     counters reach them first and give them the same numbers.
-//   - REMOVING one from the middle shifts every worker after it. The
-//     machine that had admin-id=2 becomes admin-id=1, so the
-//     patroni_admin1 service reschedules onto it, finds no
-//     patroni_admin1-data volume there, and Patroni rebuilds that
-//     replica from the leader.
+// So removal checks, before touching anything:
 //
-// That shift is survivable but expensive, and there is a case where it
-// is worse than expensive: if the platform is left with fewer workers
-// than NumPatroniAdminNodes, the highest admin-id is on no machine at
-// all and that Patroni service becomes unschedulable. Nothing reports
-// it — the service simply sits with a pending task forever.
-//
-// So removal checks the arithmetic first and refuses when it does not
-// work out, rather than leaving the operator to discover it.
+//   - that enough workers are left for every instance (else one would be
+//     pinned to a number nobody carries and sit pending forever);
+//   - that no service's ONLY copy is on the node (it would come back
+//     empty elsewhere — for Patroni, an empty database);
+//   - that every service keeps its quorum while the instance moves.
 
 // NodePlacementImpact describes what adding or removing a node does to
 // the placement scheme.
@@ -48,9 +42,13 @@ type NodePlacementImpact struct {
 	WorkersBefore int
 	WorkersAfter  int
 
-	// ShiftedWorkers are the nodes whose placement labels change
-	// because a node earlier in the list went away.
-	ShiftedWorkers []string
+	// Moves are the NATS/Patroni instances that go to another worker,
+	// where they rebuild their data from the other instances.
+	Moves []pinnedMove
+
+	// SingleCopies are instances on the node that are their service's
+	// only one: moved, they would come back empty.
+	SingleCopies []string
 
 	// HomelessServices are services that would have no node carrying
 	// their placement label afterwards. A non-empty list is a refusal.
@@ -66,37 +64,48 @@ type NodePlacementImpact struct {
 }
 
 // PlanNodeRemoval works out what removing this node would do, without
-// doing any of it.
-func PlanNodeRemoval(pd *pt.PlatformData, target pt.NodeData) NodePlacementImpact {
+// doing any of it. labels are every node's labels now, by IP.
+func PlanNodeRemoval(pd *pt.PlatformData, target pt.NodeData, labels map[string]map[string]string) NodePlacementImpact {
 	pi := pd.PlatformInfo
 	impact := NodePlacementImpact{}
 
-	removed := false
-	workerIndex := 0
+	var before, after []string
 	for _, node := range pi.NodesData {
 		if node.NodeRole == "Manager" {
 			impact.ManagersBefore++
 		}
 		if node.NodeRole != "Platform worker" {
-			if sameNode(node, target) {
-				removed = true
-			}
 			continue
 		}
-
 		impact.WorkersBefore++
+		before = append(before, node.NodeIP)
 		if sameNode(node, target) {
-			removed = true
 			continue
 		}
-
-		workerIndex++
 		impact.WorkersAfter++
+		after = append(after, node.NodeIP)
+	}
 
-		// A worker that sits after the removed one gets a different
-		// number than it has now, which is what makes its services move.
-		if removed {
-			impact.ShiftedWorkers = append(impact.ShiftedWorkers, nodeName(node))
+	targets := pinnedTargets(pd)
+	if target.NodeRole == "Platform worker" && impact.WorkersAfter > 0 {
+		impact.Moves = planPinnedMoves(targets, before, after, labels)
+		names := map[string]string{}
+		for _, node := range pi.NodesData {
+			names[node.NodeIP] = nodeName(node)
+		}
+		for i := range impact.Moves {
+			impact.Moves[i].From = names[impact.Moves[i].From]
+			impact.Moves[i].To = names[impact.Moves[i].To]
+		}
+		for _, t := range targets {
+			if t.replicas != 1 {
+				continue
+			}
+			for _, id := range t.family.read(labels[target.NodeIP]) {
+				if id == 1 {
+					impact.SingleCopies = append(impact.SingleCopies, t.family.prefix+"1")
+				}
+			}
 		}
 	}
 
@@ -105,25 +114,15 @@ func PlanNodeRemoval(pd *pt.PlatformData, target pt.NodeData) NodePlacementImpac
 		impact.ManagersAfter--
 	}
 
-	// Which services would be left pointing at a label nobody carries.
-	if pi.UsePatroniTool {
-		if pi.NumPatroniAdminNodes > 1 {
-			for i := impact.WorkersAfter + 1; i <= pi.NumPatroniAdminNodes; i++ {
-				impact.HomelessServices = append(impact.HomelessServices,
-					fmt.Sprintf("patroni_admin%d", i))
-			}
-		}
-		if pi.NumPatroniMetricsNodes > 1 {
-			for i := impact.WorkersAfter + 1; i <= pi.NumPatroniMetricsNodes; i++ {
-				impact.HomelessServices = append(impact.HomelessServices,
-					fmt.Sprintf("patroni_metrics%d", i))
-			}
-		}
-	}
+	// Which instances would be left pointing at a number nobody carries.
 	impact.GarageInstances = GarageInstancesOn(pi, target.NodeIP)
-
-	for i := impact.WorkersAfter + 1; i <= pi.DefaultNumOfNatsReplicas; i++ {
-		impact.HomelessServices = append(impact.HomelessServices, fmt.Sprintf("nats%d", i))
+	if impact.WorkersAfter > 0 {
+		for _, t := range targets {
+			for i := impact.WorkersAfter + 1; i <= t.replicas; i++ {
+				impact.HomelessServices = append(impact.HomelessServices,
+					fmt.Sprintf("%s%d", t.family.prefix, i))
+			}
+		}
 	}
 
 	return impact
@@ -397,11 +396,18 @@ func describeRemoval(impact NodePlacementImpact, target pt.NodeData) string {
 		}
 	}
 
-	if len(impact.ShiftedWorkers) > 0 {
-		fmt.Fprintf(&b, "  Placement labels shift on %d node(s): %s.\n",
-			len(impact.ShiftedWorkers), strings.Join(impact.ShiftedWorkers, ", "))
-		b.WriteString("  The Patroni and NATS replicas pinned to those labels move with them, " +
-			"onto\n  machines with no data for that replica, and rebuild from their leader.\n")
+	single := map[string]bool{}
+	for _, inst := range impact.SingleCopies {
+		single[inst] = true
+	}
+	for _, m := range impact.Moves {
+		if single[m.Instance] {
+			fmt.Fprintf(&b, "  %s moves to %s and starts there EMPTY (it was the only copy): "+
+				"restore it from its backup afterwards.\n", m.Instance, m.To)
+			continue
+		}
+		fmt.Fprintf(&b, "  %s moves to %s and rebuilds its data there from the other instances.\n",
+			m.Instance, m.To)
 	}
 
 	return b.String()

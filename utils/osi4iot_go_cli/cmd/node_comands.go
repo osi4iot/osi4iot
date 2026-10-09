@@ -207,12 +207,12 @@ var subCmdNodeDrain = &cobra.Command{
 
 		// Same for NATS and Patroni: their instance here is pinned and
 		// stops; refused when that costs the service its quorum.
-		if _, blocker := pinnedDrainImpact(drainNodeOf(view), otherDrainNodes(view, views)); blocker != "" {
+		if _, blocker := pinnedDrainImpact(drainNodeOf(view), otherDrainNodes(view, views), docker.PinnedReplicas(pd)); blocker != "" {
 			exitWithError(blocker)
 			return
 		}
 
-		for _, warning := range drainWarnings(view, views) {
+		for _, warning := range drainWarnings(view, views, docker.PinnedReplicas(pd)) {
 			fmt.Println(utils.StyleWarningMsg.Render(warning))
 		}
 
@@ -530,7 +530,10 @@ var subCmdNodeAdd = &cobra.Command{
 	},
 }
 
-var nodeRemoveYes bool
+var (
+	nodeRemoveYes               bool
+	nodeRemoveRebuildFromBackup bool
+)
 
 var subCmdNodeRemove = &cobra.Command{
 	Use:     "remove NODE",
@@ -539,15 +542,20 @@ var subCmdNodeRemove = &cobra.Command{
 	Long: "Drains the node, takes it out of the swarm, removes it from the state file and " +
 		"reassigns the placement labels across the machines that are left.\n\n" +
 		"Draining comes first so the swarm moves the containers rather than killing them.\n\n" +
-		"The reassignment is the part to understand. Placement labels are handed out in list " +
-		"order, so removing a 'Platform worker' renumbers every worker after it: the machine " +
-		"that had admin-id=2 becomes admin-id=1, the patroni_admin1 service follows its label " +
-		"onto a machine with no data for that replica, and Patroni rebuilds it from the " +
-		"leader. Survivable, and slow.\n\n" +
-		"What is not survivable is leaving fewer workers than there are replicas: the highest " +
-		"admin-id would be on no machine at all and that service would sit unschedulable " +
-		"forever, with nothing reporting it. The command refuses in that case and tells you " +
-		"what to scale down first.\n\n" +
+		"Garage instances on the node are moved to the other nodes first, data included.\n\n" +
+		"The NATS and Patroni instances on a 'Platform worker' are pinned to it by number " +
+		"(nats_N, admin-id, metrics-id) and keep their data in a volume there. The other " +
+		"workers keep their numbers; only the removed node's go to a spare worker, so only " +
+		"its instances move, and each rebuilds its data there from the other instances of " +
+		"its service.\n\n" +
+		"The command refuses, before touching anything, when:\n" +
+		"  - fewer workers would be left than a service has replicas (one would have no node " +
+		"to run on): scale it down first;\n" +
+		"  - a service would lose its quorum while its instance moves (another node already " +
+		"drained or down): bring that one back first;\n" +
+		"  - the node holds a service's ONLY copy (a single NATS server or Patroni node): it " +
+		"would come back empty on another worker. Scale the service up first so the data is " +
+		"replicated, or back it up, remove with --rebuild-from-backup and restore it.\n\n" +
 		"The last 'Platform worker' cannot be removed either: a cluster deployment always " +
 		"needs at least one, since the platform services only run on workers. Add another " +
 		"worker first.\n\n" +
@@ -575,7 +583,16 @@ var subCmdNodeRemove = &cobra.Command{
 			return
 		}
 
-		impact := docker.PlanNodeRemoval(pd, view.Platform)
+		views, err := docker.ListNodeViews(pd, dc)
+		if err != nil {
+			exitWithError(err.Error())
+			return
+		}
+		labels := map[string]map[string]string{}
+		for _, v := range views {
+			labels[v.Address()] = v.Node.Spec.Labels
+		}
+		impact := docker.PlanNodeRemoval(pd, view.Platform, labels)
 
 		// A cluster deployment always keeps at least one Platform worker:
 		// nats, auth_callout, Patroni and the rest of the platform services
@@ -601,6 +618,16 @@ var subCmdNodeRemove = &cobra.Command{
 					"Scale them down first, then remove the node",
 				view.Hostname(), impact.WorkersAfter,
 				strings.Join(impact.HomelessServices, ", ")))
+			return
+		}
+		// The instances here stop while they move: the others must keep
+		// their quorum meanwhile, as for a drain.
+		if _, blocker := pinnedDrainImpact(drainNodeOf(view), otherDrainNodes(view, views), docker.PinnedReplicas(pd)); blocker != "" {
+			exitWithError(strings.Replace(blocker, "Cannot drain", "Cannot remove", 1))
+			return
+		}
+		if len(impact.SingleCopies) > 0 && !nodeRemoveRebuildFromBackup {
+			exitWithError(singleCopyRefusal(view.Hostname(), impact.SingleCopies))
 			return
 		}
 		if impact.ManagersAfter == 0 && impact.ManagersBefore > 0 {
@@ -634,9 +661,16 @@ var subCmdNodeRemove = &cobra.Command{
 
 		fmt.Println(utils.StyleOKMsg.Render(
 			fmt.Sprintf("%s is out of the platform", view.Hostname())))
-		if len(impact.ShiftedWorkers) > 0 {
-			fmt.Println("Placement labels have been reassigned. The replicas that moved are")
-			fmt.Println("rebuilding from their leaders; 'osi4iot node ls' shows where they are now.")
+		if len(impact.Moves) > 0 {
+			fmt.Println("The NATS/Patroni instances that moved are rebuilding their data from the")
+			fmt.Println("others; 'osi4iot service state' shows when they have caught up.")
+		}
+		if len(impact.SingleCopies) > 0 {
+			fmt.Println(utils.StyleWarningMsg.Render(fmt.Sprintf(
+				"%s started empty on another worker. Restore them now:", strings.Join(impact.SingleCopies, ", "))))
+			for _, cmd := range restoreCommandsFor(impact.SingleCopies) {
+				fmt.Println("  " + cmd)
+			}
 		}
 	},
 }
@@ -702,7 +736,7 @@ func reportQuorum(views []docker.NodeView) {
 }
 
 // drainWarnings lists what draining this node costs.
-func drainWarnings(view docker.NodeView, all []docker.NodeView) []string {
+func drainWarnings(view docker.NodeView, all []docker.NodeView, replicas map[string]int) []string {
 	var warnings []string
 
 	if view.SwarmRole() == string(swarm.NodeRoleManager) {
@@ -725,7 +759,7 @@ func drainWarnings(view docker.NodeView, all []docker.NodeView) []string {
 			"This is the only node accepting work. Draining it stops the whole platform.")
 	}
 
-	pinned, _ := pinnedDrainImpact(drainNodeOf(view), otherDrainNodes(view, all))
+	pinned, _ := pinnedDrainImpact(drainNodeOf(view), otherDrainNodes(view, all), replicas)
 	warnings = append(warnings, pinned...)
 
 	return warnings
@@ -775,6 +809,9 @@ func init() {
 	_ = subCmdNodeAdd.MarkFlagRequired("ip")
 	_ = subCmdNodeAdd.MarkFlagRequired("user")
 
+	subCmdNodeRemove.Flags().BoolVar(&nodeRemoveRebuildFromBackup, "rebuild-from-backup", false,
+		"remove even if the node holds a service's only copy, which then starts empty elsewhere "+
+			"(back it up before, restore it after)")
 	subCmdNodeRemove.Flags().BoolVarP(&nodeRemoveYes, "yes", "y", false,
 		"Do not ask for confirmation")
 

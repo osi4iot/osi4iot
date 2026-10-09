@@ -154,9 +154,27 @@ func addNodesLabels(pd *types.PlatformData) error {
 		return err
 	}
 
-	natsReplica := 1
-	adminReplica := 1
-	metricsReplica := 1
+	// The workers' NATS/Patroni numbers, decided before any label is
+	// touched: kept where they are, only free numbers handed out (see
+	// pinned_labels.go for why they must not be positional).
+	assigned := map[string]map[string]int{} // service -> node IP -> number
+	if usesPlacementLabels {
+		var workers []string
+		labelsNow := map[string]map[string]string{}
+		for _, node := range nodesData {
+			if node.NodeRole != "Platform worker" {
+				continue
+			}
+			if swarmNode, ok := swarmNodesMap[node.NodeIP]; ok {
+				workers = append(workers, node.NodeIP)
+				labelsNow[node.NodeIP] = swarmNode.Spec.Labels
+			}
+		}
+		for _, t := range pinnedTargets(pd) {
+			assigned[t.family.service] = assignPinnedIDs(workers,
+				currentPinnedIDs(t.family, workers, labelsNow))
+		}
+	}
 
 	// Highest priority to the first manager, so the floating IP has a
 	// deterministic holder. The list is extended rather than indexed
@@ -219,14 +237,10 @@ func addNodesLabels(pd *types.PlatformData) error {
 				break
 			}
 
-			spec.Labels[fmt.Sprintf("nats_%d", natsReplica)] = "true"
-			natsReplica++
-
-			if pi.UsePatroniTool {
-				spec.Labels["admin-id"] = fmt.Sprintf("%d", adminReplica)
-				adminReplica++
-				spec.Labels["metrics-id"] = fmt.Sprintf("%d", metricsReplica)
-				metricsReplica++
+			for _, t := range pinnedTargets(pd) {
+				if id, ok := assigned[t.family.service][node.NodeIP]; ok {
+					t.family.write(spec.Labels, id)
+				}
 			}
 		}
 
