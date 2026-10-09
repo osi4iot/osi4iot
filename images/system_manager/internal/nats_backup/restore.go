@@ -2,6 +2,7 @@ package nats_backup
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -11,6 +12,8 @@ import (
 	"time"
 
 	"github.com/nats-io/jsm.go"
+	"github.com/nats-io/jsm.go/api"
+	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
 
 	"system_manager/internal/task"
@@ -28,11 +31,12 @@ const widenTimeout = 120 * time.Second
 
 // Restore restores every stream from the MOST RECENT run in S3 into the
 // running NATS cluster, deleting any existing same-named streams first,
-// and raises each restored stream to the cluster's current replica
-// count. On-demand only (does not implement task.Scheduled) — see the
-// package doc comment for why this is deliberately not parameterized
-// (always latest run, always delete-existing, always current cluster
-// size).
+// and gives each restored stream the platform's replica count for the
+// cluster's current size (streamReplicasFor): 1 on a single server, 3 on
+// a cluster of 3 or more — whatever it had when it was backed up.
+// On-demand only (does not implement task.Scheduled). Always the latest
+// run, always delete-existing; the only parameter is the replica count
+// (see streamReplicasFor).
 type Restore struct {
 	cfg Config
 }
@@ -49,11 +53,10 @@ func NewRestore(cfg Config) Restore { return Restore{cfg: cfg} }
 func (r Restore) Subject() string { return "nats_streams.restore" }
 
 // Run downloads the most recent S3 run, restores every stream it
-// contains (deleting any existing same-named stream first), widens each
-// restored stream to the cluster's current replica count, and reports
-// the outcome. Satisfies task.Task. params is unused — see this type's
-// doc comment for why which run/replica-count/delete-first are
-// deliberately not caller-supplied parameters.
+// contains (deleting any existing same-named stream first) at one
+// replica, widens each to the platform's replica count, and reports the
+// outcome. Satisfies task.Task. params["replicas"], optional, is that
+// count (see streamReplicasFor).
 func (r Restore) Run(ctx context.Context, params map[string]any) (string, error) {
 	s3c, err := newS3Client(ctx, r.cfg)
 	if err != nil {
@@ -98,7 +101,7 @@ func (r Restore) Run(ctx context.Context, params map[string]any) (string, error)
 		return "", fmt.Errorf("getting JetStream context: %w", err)
 	}
 
-	targetReplicas := currentNatsReplicas(nc)
+	targetReplicas := streamReplicasFor(params, nc)
 
 	var restored []string
 	for _, key := range keys {
@@ -132,8 +135,17 @@ func (r Restore) Run(ctx context.Context, params map[string]any) (string, error)
 			return "", fmt.Errorf("%s: deleting existing stream before restore: %w", name, delErr)
 		}
 
+		// Restored at 1 replica, whatever the backup had, and widened to
+		// targetReplicas below. A stream backed up on a cluster (R3)
+		// cannot be restored as it was onto a single server — NATS
+		// refuses "replicas > 1 not supported in non-clustered mode" —
+		// and on a cluster this is the path every R1 backup already took.
+		cfg, err := restoreConfigAtOneReplica(streamDir)
+		if err != nil {
+			return "", fmt.Errorf("%s: %w", name, err)
+		}
 		restoreCtx, cancel := context.WithTimeout(ctx, restoreSnapshotTimeout)
-		_, _, err = mgr.RestoreSnapshotFromDirectory(restoreCtx, name, streamDir)
+		_, _, err = mgr.RestoreSnapshotFromDirectory(restoreCtx, name, streamDir, jsm.RestoreConfiguration(cfg))
 		cancel()
 		if err != nil {
 			return "", fmt.Errorf("%s: restoring: %w", name, err)
@@ -157,6 +169,38 @@ func (r Restore) Run(ctx context.Context, params map[string]any) (string, error)
 		msg += "\n" + warning
 	}
 	return msg, nil
+}
+
+// restoreConfigAtOneReplica reads the stream configuration a snapshot
+// was taken with (backup.json, written by SnapshotToDirectory) and sets
+// it to one replica.
+func restoreConfigAtOneReplica(streamDir string) (api.StreamConfig, error) {
+	raw, err := os.ReadFile(filepath.Join(streamDir, "backup.json"))
+	if err != nil {
+		return api.StreamConfig{}, fmt.Errorf("reading the snapshot's configuration: %w", err)
+	}
+	var meta api.JSApiStreamRestoreRequest
+	if err := json.Unmarshal(raw, &meta); err != nil {
+		return api.StreamConfig{}, fmt.Errorf("reading the snapshot's configuration: %w", err)
+	}
+	meta.Config.Replicas = 1
+	return meta.Config, nil
+}
+
+// streamReplicasFor is the replica count restored streams get: what the
+// CLI asks for in params["replicas"] (it knows how many NATS servers the
+// platform runs), else the platform's rule applied to what this
+// connection sees — 1 on a single server, else the cluster size, at most
+// 3. Every stream the platform creates follows the same rule
+// (numStreamReplicas in the pipelines' configuration).
+func streamReplicasFor(params map[string]any, nc *nats.Conn) int {
+	if v, ok := params["replicas"].(float64); ok && v >= 1 {
+		return int(v)
+	}
+	if nc.ConnectedClusterName() == "" {
+		return 1
+	}
+	return min(currentNatsReplicas(nc), 3)
 }
 
 // widenRestoredStreams raises every restored stream to targetReplicas

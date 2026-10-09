@@ -6,6 +6,7 @@ import (
 	"time"
 
 	pt "github.com/osi4iot/osi4iot/utils/osi4iot/internals/types"
+	"github.com/osi4iot/osi4iot/utils/osi4iot/internals/utils"
 )
 
 // This file backs the `osi4iot backup trigger <target>`,
@@ -154,15 +155,26 @@ func TriggerNatsBackup(pd *pt.PlatformData, dc *pt.DockerClient) (string, error)
 
 // RestoreNatsBackupFromS3 asks system_manager to restore every stream
 // from the most recent S3 backup run, through system_manager.nats_streams.restore.
-// Deliberately parameter-free on the CLI side too, mirroring
-// system_manager's own natsbackup.Restore (see that package's doc
-// comment): it always restores the latest run, deletes any existing
-// same-named streams first, and widens to the cluster's current replica
-// count. The caller (subCmdBackupRestore) is responsible for confirming
-// with the operator before calling this — restoring deletes existing
-// streams first, and that step is irreversible.
+// It always restores the latest run and deletes any existing same-named
+// streams first. Every stream comes back with the platform's replica
+// count for the current NATS size — 1 on a single server, 3 on a cluster
+// of 3 or more (utils.NatsStreamReplicas) — whatever it had when it was
+// backed up: a backup taken on a cluster restores onto a single server,
+// and one taken on a single server comes back replicated.
+//
+// The caller (subCmdBackupRestore) is responsible for confirming with
+// the operator before calling this — restoring deletes existing streams
+// first, and that step is irreversible.
 func RestoreNatsBackupFromS3(pd *pt.PlatformData, dc *pt.DockerClient) (string, error) {
-	data, err := requestSystemManager(pd, dc, "system_manager.nats_streams.restore", restoreTimeout, nil)
+	servers, err := GetNatsReplicas(dc)
+	if err != nil {
+		return "", fmt.Errorf("error counting the NATS servers: %w", err)
+	}
+	payload, err := json.Marshal(map[string]any{"replicas": utils.NatsStreamReplicas(int(servers))})
+	if err != nil {
+		return "", err
+	}
+	data, err := requestSystemManager(pd, dc, "system_manager.nats_streams.restore", restoreTimeout, payload)
 	if err != nil {
 		return "", err
 	}

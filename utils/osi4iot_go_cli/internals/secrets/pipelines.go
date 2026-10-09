@@ -127,7 +127,7 @@ func PipelinesConfig(pd *types.PlatformData, numNatsReplicas int) (string, error
 
 	pi := pd.PlatformInfo
 	numReplicas := utils.GetServiceReplicas(pd, "pipelines")
-	numStreamReplicas := utils.Min(numNatsReplicas, 3)
+	numStreamReplicas := utils.NatsStreamReplicas(numNatsReplicas)
 
 	tsHost := "timescaledb"
 	tsPort := 5432

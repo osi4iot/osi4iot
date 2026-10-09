@@ -205,10 +205,7 @@ func probeNats(h *ServiceHealth, pd *pt.PlatformData, views []natsInstanceView) 
 		h.probeFailed(HealthDown, "JetStream: %v", err)
 		return
 	}
-	replicas := len(views)
-	if replicas > 3 {
-		replicas = 3
-	}
+	replicas := utils.NatsStreamReplicas(len(views))
 	cfg := &nats.StreamConfig{
 		Name:        ProbeNatsStream,
 		Description: "osi4iot service state --probe",
