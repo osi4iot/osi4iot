@@ -175,9 +175,9 @@ var subCmdNodeDrain = &cobra.Command{
 		"Undo it with 'osi4iot node activate'.\n\n" +
 		"Draining is not free, and the command says so before doing it. Draining the node " +
 		"holding a Patroni leader forces a failover. Draining the only node stops the platform.\n\n" +
-		"Refused when the object store (Garage) would lose its quorum: its instances are " +
-		"pinned to their nodes and wait there while drained, so the command checks that " +
-		"enough of them stay up, counting nodes already drained or down.",
+		"Refused when the object store (Garage), NATS or a Patroni cluster would lose its " +
+		"quorum: their instances are pinned to their nodes and wait there while drained, so " +
+		"the command checks that enough of them stay up, counting nodes already drained or down.",
 	Args: cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		pd, dc := nodeContext()
@@ -201,6 +201,13 @@ var subCmdNodeDrain = &cobra.Command{
 		// Not a warning: a drain that takes Garage below its quorum
 		// stops every S3 read and write on the platform.
 		if blocker := docker.GarageDrainBlocker(pd, view, views); blocker != "" {
+			exitWithError(blocker)
+			return
+		}
+
+		// Same for NATS and Patroni: their instance here is pinned and
+		// stops; refused when that costs the service its quorum.
+		if _, blocker := pinnedDrainImpact(drainNodeOf(view), otherDrainNodes(view, views)); blocker != "" {
 			exitWithError(blocker)
 			return
 		}
@@ -718,15 +725,21 @@ func drainWarnings(view docker.NodeView, all []docker.NodeView) []string {
 			"This is the only node accepting work. Draining it stops the whole platform.")
 	}
 
-	for _, tag := range view.PlacementTags {
-		if strings.HasPrefix(tag, "admin-id") || strings.HasPrefix(tag, "metrics-id") {
-			warnings = append(warnings, fmt.Sprintf(
-				"This node carries %s, so a Patroni replica is pinned here. It cannot move to "+
-					"another node, and if it is the leader the cluster will fail over.", tag))
-		}
-	}
+	pinned, _ := pinnedDrainImpact(drainNodeOf(view), otherDrainNodes(view, all))
+	warnings = append(warnings, pinned...)
 
 	return warnings
+}
+
+// otherDrainNodes is every node but view, for pinnedDrainImpact.
+func otherDrainNodes(view docker.NodeView, all []docker.NodeView) []drainNode {
+	var out []drainNode
+	for _, v := range all {
+		if v.Address() != view.Address() {
+			out = append(out, drainNodeOf(v))
+		}
+	}
+	return out
 }
 
 func plural(n int, one, many string) string {
