@@ -29,7 +29,10 @@ type fakeGarage struct {
 	crashOn  string       // event name that panics once, to simulate an interruption
 	polls    int          // statistics requests: a wait on a queue that never empties shows here
 	aliasOff map[int]bool // instances without the "garage" client alias
-	saves    int
+	// unreachable: instance ID -> AdminOn calls that fail before its
+	// container answers again (a task being replaced).
+	unreachable map[int]int
+	saves       int
 }
 
 type crash struct{}
@@ -120,22 +123,13 @@ func (f *fakeGarage) Admin(endpoint string, payload any, avoidID int) ([]byte, e
 		f.event(fmt.Sprintf("apply v%d", f.version))
 		out = map[string]any{}
 	case "GetNodeStatistics":
+		// Like Garage: another node resolves an ID only among the nodes
+		// it still knows of, and a retiring node drops out of those.
 		id := payload.(map[string]any)["node"].(string)
-		f.polls++
-		if f.polls > 1000 {
-			f.t.Fatal("still polling after 1000 statistics requests: waiting on the queue " +
-				"of a node in the layout, which never empties on a live platform")
+		if !f.roles[id] {
+			return nil, fmt.Errorf("garage json-api GetNodeStatistics: Error: InvalidRequest (400): Bad request: No nodes matching %s", id)
 		}
-		q := f.queue[id]
-		if f.roles[id] {
-			// A node in the layout on a live platform: blocks written
-			// and released keep passing through its queue.
-			q = 5
-		} else if q > 0 {
-			f.queue[id]--
-		}
-		out = map[string]any{"success": map[string]any{id: map[string]any{
-			"blockManagerStats": map[string]any{"resyncQueueLen": q, "resyncErrors": 0}}}}
+		return f.nodeStatistics(id)
 	case "LaunchRepairOperation":
 		b, _ := json.Marshal(payload)
 		if !strings.Contains(string(b), `"repairType":"blocks"`) {
@@ -147,6 +141,41 @@ func (f *fakeGarage) Admin(endpoint string, payload any, avoidID int) ([]byte, e
 		f.t.Fatalf("unexpected endpoint %s", endpoint)
 	}
 	return json.Marshal(out)
+}
+
+func (f *fakeGarage) nodeStatistics(id string) ([]byte, error) {
+	f.polls++
+	if f.polls > 1000 {
+		f.t.Fatal("still polling after 1000 statistics requests: waiting on the queue " +
+			"of a node in the layout, which never empties on a live platform")
+	}
+	q := f.queue[id]
+	if f.roles[id] {
+		// A node in the layout on a live platform: blocks written
+		// and released keep passing through its queue.
+		q = 5
+	} else if q > 0 {
+		f.queue[id]--
+	}
+	return json.Marshal(map[string]any{"success": map[string]any{id: map[string]any{
+		"blockManagerStats": map[string]any{"resyncQueueLen": q, "resyncErrors": 0}}}})
+}
+
+func (f *fakeGarage) AdminOn(inst pt.GarageInstance, endpoint string, payload any) ([]byte, error) {
+	if !f.running[inst.ID] {
+		return nil, fmt.Errorf("garage_%d: no running container", inst.ID)
+	}
+	if f.unreachable[inst.ID] > 0 {
+		f.unreachable[inst.ID]--
+		return nil, fmt.Errorf("garage_%d: no running container", inst.ID)
+	}
+	if endpoint != "GetNodeStatistics" {
+		f.t.Fatalf("unexpected endpoint %s on garage_%d", endpoint, inst.ID)
+	}
+	if node := payload.(map[string]any)["node"]; node != "self" {
+		f.t.Fatalf("GetNodeStatistics on garage_%d for node %v, not self", inst.ID, node)
+	}
+	return f.nodeStatistics(utils.GarageNodeID(inst))
 }
 
 func (f *fakeGarage) instanceOf(nodeID string) string {
@@ -355,5 +384,45 @@ func TestGarageEvacuateNode(t *testing.T) {
 	}
 	if placement(pd) != "1@A 2@B 4@A" {
 		t.Fatalf("placement %s, want C empty and A:2 B:1", placement(pd))
+	}
+}
+
+// The retiring instance is asked about itself, in its own container: once
+// it has left the layout the other nodes no longer resolve its ID ("No
+// nodes matching"), and the fake answers that way.
+func TestGarageRetiringInstanceRestartingDuringMigration(t *testing.T) {
+	pd := garagePlatform("A", "A", "A")
+	f := newFakeGarage(t, pd)
+	f.unreachable = map[int]int{3: 4} // its task is replaced after losing the alias
+	if err := rebalanceGarage(pd, f, []string{"A", "B"}); err != nil {
+		t.Fatal(err)
+	}
+	if placement(pd) != "1@A 2@A 4@B" || pd.PlatformInfo.GaragePendingMove != nil {
+		t.Fatalf("placement %s pending %v", placement(pd), pd.PlatformInfo.GaragePendingMove)
+	}
+}
+
+func TestGarageRetiringInstanceUnreachableIsNotRemoved(t *testing.T) {
+	pd := garagePlatform("A", "A", "A")
+	f := newFakeGarage(t, pd)
+	f.unreachable = map[int]int{3: 1 << 30}
+	err := rebalanceGarage(pd, f, []string{"A", "B"})
+	if err == nil || !strings.Contains(err.Error(), "nothing was removed") {
+		t.Fatalf("err = %v", err)
+	}
+	if strings.Contains(strings.Join(f.events, ","), "remove") {
+		t.Fatalf("removed an instance whose migration could not be followed: %v", f.events)
+	}
+	if pd.PlatformInfo.GaragePendingMove == nil {
+		t.Fatal("the step is no longer recorded, so it cannot be resumed")
+	}
+
+	// It comes back: the next run resumes and finishes the same step.
+	f.unreachable = nil
+	if err := rebalanceGarage(pd, f, []string{"A", "B"}); err != nil {
+		t.Fatal(err)
+	}
+	if placement(pd) != "1@A 2@A 4@B" || strings.Count(strings.Join(f.events, ","), "create") != 1 {
+		t.Fatalf("placement %s events %v", placement(pd), f.events)
 	}
 }

@@ -50,6 +50,9 @@ type garageCluster interface {
 	// Admin runs a Garage admin API call (`garage json-api`) on a running
 	// instance, other than avoidID, and returns the JSON answer.
 	Admin(endpoint string, payload any, avoidID int) ([]byte, error)
+	// AdminOn runs an admin API call on inst itself, in its own
+	// container: a node field of "self" there means inst.
+	AdminOn(inst pt.GarageInstance, endpoint string, payload any) ([]byte, error)
 	// Save writes the state file.
 	Save() error
 	// Relabel puts every node's garage_<ID> labels in line with the state.
@@ -75,6 +78,10 @@ const (
 	// Consecutive "nothing left to move" polls before an old instance is
 	// retired.
 	garageQuietPolls = 3
+	// Consecutive polls the migration watch may fail to read Garage
+	// (an instance restarting, a slow RPC) before it gives up. Giving up
+	// never removes anything: the step is resumed by the next run.
+	garageWatchErrorPolls = 12
 )
 
 // RebalanceGarage resumes an interrupted step, then moves instances until
@@ -480,26 +487,25 @@ func waitGarageMigrated(c garageCluster, old *pt.GarageInstance) error {
 			"of the data. The platform keeps working meanwhile, and interrupting (Ctrl-C) is " +
 			"safe: 'osi4iot service rebalance garage' resumes it.")
 	}
-	quiet := 0
+	quiet, failures := 0, 0
 	for poll := 0; ; poll++ {
-		draining, err := layoutDraining(c)
+		draining, pending, notes, err := garageMigrationPoll(c, watch)
 		if err != nil {
-			return err
+			failures++
+			quiet = 0
+			if failures >= garageWatchErrorPolls {
+				return fmt.Errorf("cannot follow the data migration (%w); nothing was removed — "+
+					"run the same command again to resume", err)
+			}
+			if failures == 1 {
+				c.Logf("  (could not read the migration progress, retrying: %v)", err)
+			}
+			c.Sleep(garagePollInterval)
+			continue
 		}
-		pending := uint64(0)
-		var notes []string
-		for _, inst := range watch {
-			queue, errs, err := garageResyncQueue(c, inst)
-			if err != nil {
-				return err
-			}
-			pending += queue
-			if errs > 0 {
-				notes = append(notes, fmt.Sprintf("garage_%d: %d block(s) with resync errors", inst.ID, errs))
-			}
-			if queue > 0 {
-				notes = append(notes, fmt.Sprintf("garage_%d: %d block(s) to resync", inst.ID, queue))
-			}
+		if failures > 0 {
+			c.Logf("  (migration progress readable again)")
+			failures = 0
 		}
 		done := !draining && pending == 0 && len(notes) == 0
 		if done {
@@ -526,17 +532,54 @@ func waitGarageMigrated(c garageCluster, old *pt.GarageInstance) error {
 	}
 }
 
+// garageMigrationPoll reads, once, whether a layout version is still
+// draining and what the watched instances still have to hand over.
+func garageMigrationPoll(c garageCluster, watch []pt.GarageInstance) (draining bool, pending uint64, notes []string, err error) {
+	draining, err = layoutDraining(c)
+	if err != nil {
+		return false, 0, nil, err
+	}
+	for _, inst := range watch {
+		queue, errs, err := garageResyncQueue(c, inst)
+		if err != nil {
+			return false, 0, nil, err
+		}
+		pending += queue
+		if errs > 0 {
+			notes = append(notes, fmt.Sprintf("garage_%d: %d block(s) with resync errors", inst.ID, errs))
+		}
+		if queue > 0 {
+			notes = append(notes, fmt.Sprintf("garage_%d: %d block(s) to resync", inst.ID, queue))
+		}
+	}
+	return draining, pending, notes, nil
+}
+
 // garageResyncQueue reads one instance's block resync queue.
+//
+// It asks the instance itself ("self", in its own container) rather than
+// naming it by ID through another instance: a node resolves an ID only
+// among the nodes of the layout versions it still keeps plus the nodes it
+// currently sees up, and a retiring instance can fall out of both on the
+// node asked — its layout version cleaned up as soon as a quorum has
+// synced, or its task just restarted — while it is still handing over
+// blocks. Garage then answers "No nodes matching <id>".
 func garageResyncQueue(c garageCluster, inst pt.GarageInstance) (uint64, uint64, error) {
-	nodeID := utils.GarageNodeID(inst)
-	var stats garageNodeStatistics
-	if err := adminJSON(c, "GetNodeStatistics", map[string]any{"node": nodeID, "body": nil}, 0, &stats); err != nil {
+	raw, err := c.AdminOn(inst, "GetNodeStatistics", map[string]any{"node": "self", "body": nil})
+	if err != nil {
 		return 0, 0, err
 	}
+	var stats garageNodeStatistics
+	if err := json.Unmarshal(raw, &stats); err != nil {
+		return 0, 0, fmt.Errorf("unexpected answer to GetNodeStatistics: %w", err)
+	}
+	nodeID := utils.GarageNodeID(inst)
 	answer, ok := stats.Success[nodeID]
 	if !ok {
-		return 0, 0, fmt.Errorf("garage_%d did not answer for its statistics: %s — it must stay up "+
-			"until its data has been migrated", inst.ID, stats.Error[nodeID])
+		for id, e := range stats.Error {
+			return 0, 0, fmt.Errorf("garage_%d did not answer for its statistics (%s: %s)", inst.ID, id, e)
+		}
+		return 0, 0, fmt.Errorf("garage_%d answered for another node — its container does not run node %s", inst.ID, nodeID)
 	}
 	if answer.BlockManagerStats == nil {
 		return 0, 0, fmt.Errorf("garage_%d reports no block statistics (Garage older than v2?)", inst.ID)

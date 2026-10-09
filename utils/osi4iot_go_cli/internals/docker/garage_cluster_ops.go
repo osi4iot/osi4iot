@@ -56,32 +56,52 @@ func (r *realGarageCluster) Admin(endpoint string, payload any, avoidID int) ([]
 		if inst.ID == avoidID {
 			continue
 		}
-		dc := pt.DCMap[inst.NodeIP]
-		if dc == nil || dc.Cli == nil {
-			reachErrs = append(reachErrs, fmt.Sprintf("garage_%d: node %s unreachable", inst.ID, inst.NodeIP))
+		out, reached, err := r.execJSONAPI(inst, endpoint, body)
+		if !reached {
+			reachErrs = append(reachErrs, err.Error())
 			continue
 		}
-		containerID, err := runningServiceContainer(dc, utils.GarageInstanceServiceName(inst.ID))
-		if err != nil {
-			reachErrs = append(reachErrs, fmt.Sprintf("garage_%d: %v", inst.ID, err))
-			continue
-		}
-		ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
-		stdout, stderr, code, err := execCapture(ctx, dc.Cli, containerID,
-			[]string{"garage", "json-api", endpoint, string(body)}, nil)
-		cancel()
-		if err != nil {
-			reachErrs = append(reachErrs, fmt.Sprintf("garage_%d: %v", inst.ID, err))
-			continue
-		}
-		if code != 0 {
-			// Garage answered: the call itself failed. Another instance
-			// would answer the same.
-			return nil, fmt.Errorf("garage json-api %s: %s", endpoint, strings.TrimSpace(stderr))
-		}
-		return []byte(stdout), nil
+		return out, err
 	}
 	return nil, fmt.Errorf("no Garage instance could run %s: %s", endpoint, strings.Join(reachErrs, "; "))
+}
+
+// AdminOn runs `garage json-api` inside inst's own container, so the call
+// is answered by that node itself — "self" in a node field means inst.
+func (r *realGarageCluster) AdminOn(inst pt.GarageInstance, endpoint string, payload any) ([]byte, error) {
+	body, err := json.Marshal(payload)
+	if err != nil {
+		return nil, err
+	}
+	out, _, err := r.execJSONAPI(inst, endpoint, body)
+	return out, err
+}
+
+// execJSONAPI runs one `garage json-api` call in inst's container.
+// reached is false when the container could not be reached at all (as
+// opposed to Garage answering with an error).
+func (r *realGarageCluster) execJSONAPI(inst pt.GarageInstance, endpoint string, body []byte) (out []byte, reached bool, err error) {
+	dc := pt.DCMap[inst.NodeIP]
+	if dc == nil || dc.Cli == nil {
+		return nil, false, fmt.Errorf("garage_%d: node %s unreachable", inst.ID, inst.NodeIP)
+	}
+	containerID, err := runningServiceContainer(dc, utils.GarageInstanceServiceName(inst.ID))
+	if err != nil {
+		return nil, false, fmt.Errorf("garage_%d: %v", inst.ID, err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+	stdout, stderr, code, err := execCapture(ctx, dc.Cli, containerID,
+		[]string{"garage", "json-api", endpoint, string(body)}, nil)
+	if err != nil {
+		return nil, false, fmt.Errorf("garage_%d: %v", inst.ID, err)
+	}
+	if code != 0 {
+		// Garage answered: the call itself failed. Another instance
+		// would answer the same.
+		return nil, true, fmt.Errorf("garage json-api %s: %s", endpoint, strings.TrimSpace(stderr))
+	}
+	return []byte(stdout), true, nil
 }
 
 // runningServiceContainer finds the running container of a Swarm
@@ -228,5 +248,3 @@ func sameAliases(a, b []string) bool {
 	}
 	return true
 }
-
-
