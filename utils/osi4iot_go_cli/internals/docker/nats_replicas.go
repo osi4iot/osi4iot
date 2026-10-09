@@ -30,6 +30,12 @@ import (
 // waitUntilNatsClusterIsFormed talks to nats1 via its node IP instead
 // of its service name.
 func connectDeployCliToNats(pd *pt.PlatformData, nodeIP string) (*nats.Conn, error) {
+	return connectDeployCliToNatsAt(pd, nodeIP, 4222)
+}
+
+// connectDeployCliToNatsAt connects as deploy_cli to the NATS server at
+// host:port; opts are added to the connection's own.
+func connectDeployCliToNatsAt(pd *pt.PlatformData, nodeIP string, port int, opts ...nats.Option) (*nats.Conn, error) {
 	seed := pd.Certs.NatsCerts.DeployCliNKeySeed
 	if seed == "" {
 		return nil, fmt.Errorf("deploy_cli NATS NKey seed is not set on this platform; " +
@@ -45,7 +51,7 @@ func connectDeployCliToNats(pd *pt.PlatformData, nodeIP string) (*nats.Conn, err
 		return nil, fmt.Errorf("error getting deploy_cli public key: %w", err)
 	}
 
-	url := fmt.Sprintf("nats://%s:4222", nodeIP)
+	url := fmt.Sprintf("nats://%s:%d", nodeIP, port)
 
 	domainName := pd.PlatformInfo.DomainName
 	tlsCfg := &tls.Config{
@@ -58,16 +64,16 @@ func connectDeployCliToNats(pd *pt.PlatformData, nodeIP string) (*nats.Conn, err
 	}
 	tlsCfg.RootCAs = rootCAs
 
-	nc, err := nats.Connect(url,
+	nc, err := nats.Connect(url, append([]nats.Option{
 		nats.Nkey(pubKey, func(nonce []byte) ([]byte, error) {
 			return kp.Sign(nonce)
 		}),
 		nats.Secure(tlsCfg),
-		nats.Timeout(10*time.Second),
+		nats.Timeout(10 * time.Second),
 		nats.MaxReconnects(0), // this is a short-lived admin connection; don't linger retrying
-	)
+	}, opts...)...)
 	if err != nil {
-		return nil, fmt.Errorf("error connecting to nats1 (%s) as deploy_cli: %w", nodeIP, err)
+		return nil, fmt.Errorf("error connecting to NATS at %s:%d as deploy_cli: %w", nodeIP, port, err)
 	}
 
 	return nc, nil

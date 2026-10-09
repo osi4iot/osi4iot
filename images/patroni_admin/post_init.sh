@@ -98,4 +98,19 @@ CREATE SCHEMA IF NOT EXISTS grafanadb AUTHORIZATION grafanadb;
 GRANT ALL ON SCHEMA grafanadb TO grafanadb;
 SQL
 
+# ── Probe schema ─────────────────────────────────────────────────────────────
+# Reserved for 'osi4iot service state --probe', which writes one row here
+# through haproxy_patroni and checks it reaches every replica, then
+# deletes it. It holds nothing of the platform. The CLI also creates it
+# (IF NOT EXISTS) on platforms bootstrapped before this was added.
+echo "post_init: creating the probe schema in ${POSTGRES_DB}..."
+psql "${PLATFORM_DB_CONN}" << 'SQL'
+CREATE SCHEMA IF NOT EXISTS osi4iot_probe;
+COMMENT ON SCHEMA osi4iot_probe IS 'Written by osi4iot service state --probe; holds nothing of the platform';
+CREATE TABLE IF NOT EXISTS osi4iot_probe.probe (
+    id         text PRIMARY KEY,
+    written_at timestamptz NOT NULL DEFAULT now()
+);
+SQL
+
 echo "post_init: admin cluster initialized successfully"

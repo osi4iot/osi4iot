@@ -12,10 +12,11 @@ func TestRenderServiceHealth(t *testing.T) {
 		Header:   []string{"INSTANCE", "NODE", "ROLE"},
 		Rows:     [][]string{{"patroni_admin1", "worker_1", "leader"}, {"patroni_admin2", "worker_2", "replica"}},
 		Problems: []string{"patroni_admin2 is \"starting\", not streaming from the leader"},
-		Notes:    []string{"Leader: patroni_admin1"}}
+		Notes:    []string{"Leader: patroni_admin1"},
+		Probe:    []string{"✓ row written", "✗ the row did not reach the replica patroni_admin2 within 15s"}}
 	out := renderServiceHealth(h)
 	t.Log("\n" + out)
-	for _, want := range []string{"PATRONI_ADMIN", "degraded", "patroni_admin2   worker_2", "✗ patroni_admin2", "· Leader"} {
+	for _, want := range []string{"PATRONI_ADMIN", "degraded", "patroni_admin2   worker_2", "✗ patroni_admin2", "· Leader", "  Probe:\n    ✓ row written", "    ✗ the row did not reach"} {
 		if !strings.Contains(out, want) {
 			t.Fatalf("missing %q in:\n%s", want, out)
 		}

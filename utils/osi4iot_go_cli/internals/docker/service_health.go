@@ -72,6 +72,9 @@ type ServiceHealth struct {
 	Notes   []string   // facts worth knowing, not problems
 	// Problems explains a degraded or down verdict, one line each.
 	Problems []string
+	// Probe is the outcome of each step of --probe, "✓ …" or "✗ …"; a
+	// failed step raises Level by itself.
+	Probe []string
 }
 
 func (h *ServiceHealth) degraded(format string, args ...any) {
@@ -90,19 +93,33 @@ func (h *ServiceHealth) note(format string, args ...any) {
 	h.Notes = append(h.Notes, fmt.Sprintf(format, args...))
 }
 
+func (h *ServiceHealth) probeOK(format string, args ...any) {
+	h.Probe = append(h.Probe, "✓ "+fmt.Sprintf(format, args...))
+}
+
+// probeFailed records a failed probe step and raises the verdict to at
+// least level.
+func (h *ServiceHealth) probeFailed(level HealthLevel, format string, args ...any) {
+	if h.Level < level {
+		h.Level = level
+	}
+	h.Probe = append(h.Probe, "✗ "+fmt.Sprintf(format, args...))
+}
+
 // HealthCheckedServices are the services `service state` knows how to
 // check, in the order it shows them.
 var HealthCheckedServices = []string{"nats", "patroni_admin", "patroni_metrics", utils.GarageServiceName}
 
-// CheckServiceHealth checks one of HealthCheckedServices.
-func CheckServiceHealth(pd *pt.PlatformData, dc *pt.DockerClient, service string) ServiceHealth {
+// CheckServiceHealth checks one of HealthCheckedServices. With probe it
+// also really uses the service — see service_probe.go.
+func CheckServiceHealth(pd *pt.PlatformData, dc *pt.DockerClient, service string, probe bool) ServiceHealth {
 	switch service {
 	case "nats":
-		return checkNatsHealth(pd, dc)
+		return checkNatsHealth(pd, dc, probe)
 	case "patroni_admin", "patroni_metrics":
-		return checkPatroniHealth(pd, dc, service)
+		return checkPatroniHealth(pd, dc, service, probe)
 	case utils.GarageServiceName:
-		return checkGarageHealth(pd, dc)
+		return checkGarageHealth(pd, dc, probe)
 	}
 	return ServiceHealth{Service: service, Level: HealthDown,
 		Problems: []string{fmt.Sprintf("'%s' cannot be checked; it is one of: %s",
@@ -447,7 +464,7 @@ func readNatsInstance(si swarmInstance) natsInstanceView {
 	return v
 }
 
-func checkNatsHealth(pd *pt.PlatformData, dc *pt.DockerClient) ServiceHealth {
+func checkNatsHealth(pd *pt.PlatformData, dc *pt.DockerClient, probe bool) ServiceHealth {
 	h := ServiceHealth{Service: "nats"}
 	names, err := familyServices(dc, natsServiceRe)
 	if err != nil {
@@ -468,6 +485,9 @@ func checkNatsHealth(pd *pt.PlatformData, dc *pt.DockerClient) ServiceHealth {
 		streams, streamsErr = ListNatsStreams(pd, dc)
 	}
 	evaluateNats(&h, pd, views, streams, streamsErr)
+	if probe {
+		probeNats(&h, pd, views)
+	}
 	return h
 }
 
@@ -639,7 +659,7 @@ func (m patroniClusterMember) lagBytes() (uint64, bool) {
 	return n, true
 }
 
-func checkPatroniHealth(pd *pt.PlatformData, dc *pt.DockerClient, family string) ServiceHealth {
+func checkPatroniHealth(pd *pt.PlatformData, dc *pt.DockerClient, family string, probe bool) ServiceHealth {
 	h := ServiceHealth{Service: family}
 	names, err := familyServices(dc, regexp.MustCompile(`^`+family+`(\d+)$`))
 	if err != nil {
@@ -680,6 +700,9 @@ func checkPatroniHealth(pd *pt.PlatformData, dc *pt.DockerClient, family string)
 	hp := haproxyView{}
 	hp.running, hp.desired, hp.err = replicatedTasks(dc, "haproxy_patroni")
 	evaluatePatroni(&h, pd, instances, cluster, askErrs, hp)
+	if probe {
+		probePatroni(&h, family, instances, cluster)
+	}
 	return h
 }
 
@@ -840,7 +863,7 @@ type garageInstanceView struct {
 	statsErr string
 }
 
-func checkGarageHealth(pd *pt.PlatformData, dc *pt.DockerClient) ServiceHealth {
+func checkGarageHealth(pd *pt.PlatformData, dc *pt.DockerClient, probe bool) ServiceHealth {
 	h := ServiceHealth{Service: utils.GarageServiceName}
 	if !utils.IsGarage(pd.PlatformInfo) {
 		h.NotUsed = true
@@ -885,6 +908,9 @@ func checkGarageHealth(pd *pt.PlatformData, dc *pt.DockerClient) ServiceHealth {
 		views = append(views, v)
 	}
 	evaluateGarage(&h, pd, views, health, healthErr, draining, status.LayoutVersion)
+	if probe {
+		probeGarage(&h, pd, views)
+	}
 	return h
 }
 

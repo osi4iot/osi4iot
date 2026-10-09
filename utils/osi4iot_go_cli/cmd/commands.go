@@ -948,6 +948,8 @@ func init() {
 	cmdService.AddCommand(subCmdServiceScale)
 	cmdService.AddCommand(subCmdServiceRebalance)
 	cmdService.AddCommand(subCmdServiceState)
+	subCmdServiceState.Flags().BoolVar(&serviceStateProbe, "probe", false,
+		"also write and read test data in each service (see the help)")
 	cmdService.AddCommand(subCmdServiceUpdateResources)
 	cmdService.AddCommand(subCmdServiceUpdateImage)
 	rootCmd.AddCommand(cmdService)

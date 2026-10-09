@@ -14,6 +14,8 @@ import (
 	"github.com/osi4iot/osi4iot/utils/osi4iot/internals/utils"
 )
 
+var serviceStateProbe bool
+
 var subCmdServiceState = &cobra.Command{
 	Use:       "state [nats|patroni_admin|patroni_metrics|garage]...",
 	Aliases:   []string{"health"},
@@ -31,6 +33,14 @@ var subCmdServiceState = &cobra.Command{
 		"  healthy   everything as it should be\n" +
 		"  degraded  it works, with less redundancy than it should have: one more failure may take it down\n" +
 		"  down      it does not do its job (no leader, no quorum, nothing answering)\n\n" +
+		"With --probe it also really uses each service, the way the platform's own services do, " +
+		"in places reserved for it — nothing of the platform's data is touched, and what the probe " +
+		"writes it deletes:\n" +
+		"  nats             a message from one server to a subscriber on another (subjects osi4iot.probe.>),\n" +
+		"                   and one stored in and read back from the JetStream stream OSI4IOT_PROBE\n" +
+		"  patroni_*        a row written through haproxy_patroni into the schema osi4iot_probe, which must\n" +
+		"                   land on the primary and then appear on every replica\n" +
+		"  garage           an object written, read back and deleted under osi4iot_probe/ in the bucket\n\n" +
 		"Exit status: 0 all healthy, 2 something degraded, 1 something down.",
 	Args: cobra.OnlyValidArgs,
 	Run: func(cmd *cobra.Command, args []string) {
@@ -51,7 +61,7 @@ var subCmdServiceState = &cobra.Command{
 				continue
 			}
 			seen = append(seen, s)
-			h := docker.CheckServiceHealth(pd, dc, s)
+			h := docker.CheckServiceHealth(pd, dc, s, serviceStateProbe)
 			fmt.Print(renderServiceHealth(h))
 			if !h.NotUsed && h.Level > worst {
 				worst = h.Level
@@ -98,6 +108,12 @@ func renderServiceHealth(h docker.ServiceHealth) string {
 		b.WriteString("\n")
 		for _, p := range h.Problems {
 			fmt.Fprintf(&b, "  ✗ %s\n", p)
+		}
+	}
+	if len(h.Probe) > 0 {
+		b.WriteString("\n  Probe:\n")
+		for _, p := range h.Probe {
+			fmt.Fprintf(&b, "    %s\n", p)
 		}
 	}
 	if len(h.Notes) > 0 {
