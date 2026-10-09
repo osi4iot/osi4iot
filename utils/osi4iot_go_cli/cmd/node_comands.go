@@ -371,9 +371,8 @@ var subCmdNodeAdd = &cobra.Command{
 		"launched with the platform's EC2 key pair, and no password is asked for. On-premise, " +
 		"you are asked for the SSH password to install the platform's key on it — leave it " +
 		"empty if the key is already there. The password is used once and never stored.\n\n" +
-		"The node is APPENDED to the list, never inserted. Placement labels are handed out in " +
-		"list order, so appending is the only position that leaves the existing nodes with " +
-		"the labels they already have.\n\n" +
+		"The existing workers keep their placement numbers (nats_N, admin-id, metrics-id); a " +
+		"new 'Platform worker' gets the next free one.\n\n" +
 		"Adding a node does not grow anything by itself. A new 'Platform worker' becomes " +
 		"eligible to host a Patroni or NATS replica, but the number of replicas is its own " +
 		"setting and does not change here.\n\n" +

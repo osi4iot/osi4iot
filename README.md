@@ -1,33 +1,37 @@
-# OSI4IOT - Open Source Integration for Internet Of Things 
+# OSI4IOT - Open Source Integration for Internet Of Things
 
-[![Link:Docker](https://img.shields.io/badge/Docker-gray?style=flat&logo=docker&link=https://www.docker.com/)](https://www.docker.com/)
-[![Link:Telegram](https://img.shields.io/badge/Telegram-gray?style=flat&logo=telegram&link=https://web.telegram.org/k/)](https://web.telegram.org/k/)
-[![Link:Mosquitto](https://img.shields.io/badge/Mosquitto-gray?style=flat-square&logo=Mosquitto&logoColor=blue&link=https://github.com/eclipse/mosquitto)](https://github.com/eclipse/mosquitto)
-[![Link:Node-RED](https://img.shields.io/badge/Node--RED-gray?style=flat-square&logo=node-red&logoColor=blue&link=https://github.com/node-red/node-red)](https://github.com/node-red/node-red)
+[![Link:Docker](https://img.shields.io/badge/Docker_Swarm-gray?style=flat&logo=docker&link=https://www.docker.com/)](https://www.docker.com/)
+[![Link:NATS](https://img.shields.io/badge/NATS-gray?style=flat-square&logo=natsdotio&logoColor=blue&link=https://nats.io/)](https://nats.io/)
 [![Link:PostgreSQL](https://img.shields.io/badge/PostgreSQL-gray?style=flat-square&logo=PostgreSQL&logoColor=blue&link=https://www.postgresql.org/)](https://www.postgresql.org/)
-[![Link:Timescaledb](https://img.shields.io/badge/Timescaledb-gray?style=flat-square&logo=Timescaledb&logoColor=blue&link=https://www.timescale.com/)](https://www.timescale.com/)
-[![Link:Pgadmin](https://img.shields.io/badge/Pgadmin-gray?style=flat-square&logo=Pgadmin&logoColor=blue&link=https://www.pgadmin.org/)](https://www.pgadmin.org/)
+[![Link:Patroni](https://img.shields.io/badge/Patroni-gray?style=flat-square&logo=PostgreSQL&logoColor=blue&link=https://github.com/patroni/patroni)](https://github.com/patroni/patroni)
+[![Link:Timescaledb](https://img.shields.io/badge/Timescaledb-gray?style=flat-square&logo=Timescale&logoColor=blue&link=https://www.timescale.com/)](https://www.timescale.com/)
+[![Link:Garage](https://img.shields.io/badge/Garage_S3-gray?style=flat-square&logo=amazons3&logoColor=blue&link=https://garagehq.deuxfleurs.fr/)](https://garagehq.deuxfleurs.fr/)
 [![Link:Grafana](https://img.shields.io/badge/Grafana-gray?style=flat-square&logo=Grafana&logoColor=blue&link=https://grafana.com/)](https://grafana.com/)
-[![Link:Traefik](https://img.shields.io/badge/Traefik-gray?style=flat-square&logo=Traefik&logoColor=blue&link=https://doc.traefik.io/traefik/)](https://doc.traefik.io/traefik/)
-[![Link:Minio](https://img.shields.io/badge/Minio-gray?style=flat-square&logo=Minio&logoColor=blue&link=https://min.io/)](https://min.io/)
-[![Link:Portainer](https://img.shields.io/badge/Portainer-gray?style=flat-square&logo=Portainer&logoColor=blue&link=https://www.portainer.io/)](https://www.portainer.io/)
+[![Link:Traefik](https://img.shields.io/badge/Traefik-gray?style=flat-square&logo=TraefikProxy&logoColor=blue&link=https://doc.traefik.io/traefik/)](https://doc.traefik.io/traefik/)
+[![Link:Pgadmin](https://img.shields.io/badge/Pgadmin-gray?style=flat-square&logo=PostgreSQL&logoColor=blue&link=https://www.pgadmin.org/)](https://www.pgadmin.org/)
+[![Link:Telegram](https://img.shields.io/badge/Telegram-gray?style=flat&logo=telegram&link=https://web.telegram.org/k/)](https://web.telegram.org/k/)
 [![Link:Keepalived](https://img.shields.io/badge/Keepalived-gray?style=flat&logo=Keepalived&link=https://github.com/acassen/keepalived)](https://github.com/acassen/keepalived)
 
 
 
-![img:intro_0](./docs/img/intro_0.jpg)
+![img:intro_0](./docs/img/intro_0.gif)
 
-OSI4IOT is an IOT platform based on the integration and extension with custom code of several open source packages. This repository contains the implementation of the OSI4OT platform.
+OSI4IOT is an IOT platform based on the integration and extension with custom code of several open source packages. This repository contains the implementation of the OSI4IOT platform.
 
 ## Description
 
-The OSI4IOT platform is a web-based IOT platform for monitoring in real time industrial assets and structures. Besides, the platform allows the implementation of Digital Twins Models (DTM) of those assests. A 3D representation of these DTM can be visualized in the web viewer of the platform. The different objects of the DTM are animated in function of the values received from the sensors. Results provided by Finite Elements Method (FEM) models can also be integrated in the DTM. <br/><br/>
+The OSI4IOT platform is a web-based IOT platform for monitoring in real time industrial assets and structures. Besides, the platform allows the implementation of Digital Twins Models (DTM) of those assets. A 3D representation of these DTM can be visualized in the web viewer of the platform. The different objects of the DTM are animated in function of the values received from the sensors. Results provided by Finite Elements Method (FEM) models can also be integrated in the DTM. <br/><br/>
 
 ![img:description_tank](./docs/img/description_tank.png)
 
 ## Table of contents
-- [Getting Started](#getting_started)
+- [Getting Started](#getting-started)
 - [Installation](#installation)
+- [Creating a platform](#creating-a-platform)
+- [Architecture](#architecture)
+- [Operating the platform](#operating-the-platform)
+- [Backups and recovery](#backups-and-recovery)
+- [CLI reference](#cli-reference)
 - [Glossary](#glossary)
 - [Usage](#usage)
 - [Acknowledgements](#acknowledgements)
@@ -42,166 +46,275 @@ The OSI4IOT platform is a web-based IOT platform for monitoring in real time ind
 ### Requirements
 
 In order to have the OSI4IOT platform running correctly, the following requirements must be met:
--	Installation of Docker in the Operative System (OS). Please read: [![Link:Docker](https://img.shields.io/badge/Docker-Manual-blue?style=flat&logo=GitBook&logoColor=blue&link=LINK)](./docs/docker.md).
--	Creation of a Telegram Bot for notification. Please read: [![Link:Telegram](https://img.shields.io/badge/Telegram-Manual-blue?style=flat&logo=GitBook&logoColor=blue&link=LINK)](./docs/telegram.md).
-    -	Obtain the Telegram bot token.
-    -	Obtain the group ID of the Telegram group for the main organization's default group.
-    -	Obtain the Telegram invitation link for the main organization's default group.
--	Have a domain name to access the platform through a webpage.
--	Have an email address to send notifications from the platform. The password for this email is also required.
+-	Docker installed on every machine of the platform. Please read: [![Link:Docker](https://img.shields.io/badge/Docker-Manual-blue?style=flat&logo=GitBook&logoColor=blue&link=LINK)](./docs/docker.md).
+    -	The `osi4iot` CLI joins the machines into a Docker Swarm itself; there is nothing to set up by hand.
+-	For a cluster deployment, SSH access to every machine from the one running the CLI:
+    -	On-premise: a user with `sudo` on each machine. The CLI asks for its SSH password once to install the platform's key; it is never stored.
+    -	AWS: EC2 instances launched with the platform's key pair.
+-	A Telegram bot for notifications. Please read: [![Link:Telegram](https://img.shields.io/badge/Telegram-Manual-blue?style=flat&logo=GitBook&logoColor=blue&link=LINK)](./docs/telegram.md).
+    -	The Telegram bot token.
+    -	The chat ID of the Telegram group for the main organization's default group.
+    -	The Telegram invitation link for that group.
+-	A domain name to access the platform through a web page.
+-	An email address to send notifications from the platform, and its password.
+-	Optional: an AWS S3 bucket, if the platform's data should be stored outside it (see [Object storage](#object-storage)).
 
 ## Installation
 
-The OSI4IOT platform must to be installed by mean a Command Line Interface (CLI) tool called `osi4iot`. To install the `osi4iot` in your machine it is neccesary to download from Github the proper installer for your operating system:
+The OSI4IOT platform is installed and operated with a command line tool called `osi4iot`. Download the installer for your operating system from GitHub:
 
-    // Installer Linux amd64:
-    curl -o osi4iot_installer_linux_x64.sh https://raw.githubusercontent.com/osi4iot/osi4iot/master/utils/osi4iot_cli/dist/linux_x64/osi4iot_installer_linux_x64.sh
+    # Linux amd64
+    curl -o osi4iot_installer_linux-amd64.sh https://raw.githubusercontent.com/osi4iot/osi4iot/master/utils/osi4iot_go_cli/dist/linux-amd64/osi4iot_installer_linux-amd64.sh
 
-    // Installer Linux arm64:
-    curl -o osi4iot_installer_linux_arm64.sh https://raw.githubusercontent.com/osi4iot/osi4iot/master/utils/osi4iot_cli/dist/linux_arm64/osi4iot_installer_linux_arm64.sh
+    # Linux arm64
+    curl -o osi4iot_installer_linux_arm64.sh https://raw.githubusercontent.com/osi4iot/osi4iot/master/utils/osi4iot_go_cli/dist/linux-arm64/osi4iot_installer_linux_arm64.sh
 
-    // Installer Windows:
-    curl -o osi4iot_installer_win_x64.ps1 https://raw.githubusercontent.com/osi4iot/osi4iot/master/utils/osi4iot_cli/dist/win_x64/osi4iot_installer_winx_x64.ps1
+    # Windows amd64 (PowerShell)
+    curl -o osi4iot_installer_win-amd64.ps1 https://raw.githubusercontent.com/osi4iot/osi4iot/master/utils/osi4iot_go_cli/dist/windows-amd64/osi4iot_installer_win-amd64.ps1
 
-Once the appropriate installer for your operating system has been downloaded, it must be executed. For example, if you are using a Linux ARM 64-bit system use 
+and run it. For example, on Linux amd64:
 
-    bash osi4iot_installer_linux_arm64.sh
+    bash osi4iot_installer_linux-amd64.sh
 
-Once the `osi4iot` CLI tool has been successfully installed, then initialize the OS4IOT platform by typing
+The installer downloads the `osi4iot` binary to `/usr/local/bin`. Check it with
 
-    mkdir <my project>  // Example: mkdir iot_fiber4yard
-    cd <myproject>      // Example: cd iot_fiber4yard
-    osi4iot
+    osi4iot version
 
-A message prompt similar to this should appear:
+Shell autocompletion (TAB) for every command and service name can be installed with
 
-    ************************************************
-    **   WELCOME TO OSI4IOT PLATFORM CLI v1.1.0  **
-    ************************************************
+    osi4iot completion install        # bash, zsh, fish or PowerShell, detected from your shell
 
-    ? Select the place of deployment of the platform: (Use arrow keys)
-    > Local deployment
-    On-premise cluster deployment
-    AWS cluster deployment
+## Creating a platform
 
-The OSI4IOT platform allows three types of deployments
+Every platform lives in its own directory, which holds its state file (`osi4iot_state.json`). Run every `osi4iot` command for that platform from there:
 
-<details>
-<summary> Local deployment </summary> 
-<p>
+    mkdir <my project>      # Example: mkdir iot_fiber4yard
+    cd <my project>
+    osi4iot create
 
-The local deployment option if for install the OSI4IOT plataform in a single machine.
-Select the local deployment option. The following options will be available
+`osi4iot create` opens a form with everything the platform needs, and creates and starts the platform when it is confirmed. If enter is pressed on an empty field, the value shown as default is used.
 
-    ************************************************
-    **   WELCOME TO OSI4IOT PLATFORM CLI v1.1.0  **
-    ************************************************
-
-    ? Select the place of deployment of the platform: Local deployment
-
-    Init platform
-    Run platform
-    Clear screen
-    List organizations
-    Create organization
-    Update organization
-    Remove organization
-    Recover nodered instances
-    List nodes
-    Add nodes
-    Remove node
-    Update domain certs
-    Platform status
-    Stop platform
-    Delete platform
-    Exit
-
-To initialize the platform for first time, use
-
-    Init platform
-
-Several fields will be then prompt to be input. If enter pressed, the option between parenthesis will be inserted instead.
-
-    ************************************************
-    **   WELCOME TO OSI4IOT PLATFORM CLI v1.1.0  **
-    ************************************************
-
-    ? Select the place of deployment of the platform: Local deployment
-
-    ? Choose one of the following options:  Init platform
-    ? Platform name: OSI-DEMO
-    ? Domain name: iot_fiber4yards_demo.org
-    ? Platform motivational phrase: Open source integration for internet of things
-    ? Platform admin first name: admin_f4y
-    ? Platform admin last name: demo
-    ? Platform admin user name: admin_f4y_demo
-    ? Platform admin email: admin_f4y_demo@gmail.com
-    ? Platform admin password: **************
-    ? Retype platform admin password: **************
-    ? Min longitude of the geographical zone of the platform: -10.56884765625
-    ? Max longitude of the geographical zone of the platform: 1.42822265625
-    ? Min latitude of the geographical zone of the platform: 35.55010533588552
-    ? Max latitude of the geographical zone of the platform: 44.134913443750726
-    ? Default time zone: Europe/Madrid
-    ? Main organization name: My main org
-    ? Main organization acronym: MYORG
-    ? Main organization address: fake street, fake number
-    ? Main organization city: fake city
-    ? Main organization zip code: 00000
-    ? Main organization state/province: fake province
-    ? Main organization country: Spain
-    ? Telegram boottoken for main organization default group: 5342540378:AAHrJ4ABFiX54m6uf9RvxHxLRKeo0dGiHA0
-    ? Telegram chat id for main organization default group: -694425020
-    ? Telegram invitation link for main organization default group: https://t.me/+MgGprvw5SAozODq0
-    ? Number of node-red instances in main org: 3
-    ? Email account for platform notifications: admin_f4y_demo@gmail.com
-    ? Email account password: **************
-    ? S3 storage bucket name: osi-demo
-
-A guideline for the local deployment can be found in [![Link:local_deployment](https://img.shields.io/badge/Local_Deployment-Manual-blue?style=flat&logo=GitBook&logoColor=blue&link=LINK)](./docs/local_deployment.md).
-
-Next, select the type of certificate for your domain SSL certification.
-
-    ? Choose the type of domain ssl certs to be used: (Use arrow keys)
-    > No certs
-    Certs provided by an CA
-    Let's encrypt certs and AWS Route 53
-    AWS Certificate Manager
+    Platform name: OSI-DEMO
+    Domain name: iot_fiber4yards_demo.org
+    Platform motivational phrase: Open source integration for internet of things
+    Platform admin first name / last name / user name / email / password
+    Min/max longitude and latitude of the geographical zone of the platform
+    Default time zone: Europe/Madrid
+    Main organization name, acronym, address, city, zip code, state/province, country
+    Main organization building path / floor path       (GeoJSON files, see docs/geojson.md)
+    Telegram bot token, chat id and invitation link for the main organization default group
+    Email account for platform notifications / password
+    Registration, access and refresh token lifetimes
+    Number of nats servers: 1 | 3 | 5
+    Use Patroni for high-availability databases? yes | no
+    Data retention interval in days for timescaledb
+    Select the place of deployment of the platform:
+        Local deployment | On-premise cluster deployment | AWS cluster deployment
+    Choose the type of S3 bucket to be used: Local Garage | Cloud AWS S3
+    S3 storage bucket name
+    Choose the type of domain ssl certs to be used:
+        No certs | Certs provided by an CA | Let's encrypt certs with DNS-01 challenge and AWS Route 53 provider
+    Select deployment mode: development | production
+    Resources (CPU and memory) for the messaging, data storage, user interface and pipelines services
+    Default number of pipelines instances: 1 | 3 | 5
 
 A guideline for the SSL certificates is found in [![Link:ssl_certs](https://img.shields.io/badge/SSL_Certs-Manual-blue?style=flat&logo=GitBook&logoColor=blue&link=LINK)](./docs/ssl_certs.md).
 
-If the certificates are correctly introduced, the platform should be initialized correctly. A similar image to this one should be obtained.
+The state file is encrypted. The first command asks for a passphrase, which is remembered on that machine (`osi4iot passphrase reset` forgets it). Keep the passphrase: backups of the state file are encrypted with it as well.
 
-![local:CA:0](./docs/img/cli_installed.jpg)
-
-</p>
-</details>
-
-<details>
-<summary> On-premise cluster deployment </summary> 
-<p>
-The on-premise cluster deployment option if for install the OSI4IOT plataform in a cluster of machines on-premise.
-</p>
-</details>
-
-<details>
-<summary> AWS cluster deployment </summary> 
-<p>
-The AWS cluster deployment option if for install the OSI4IOT plataform in a cluster of machines on AWS.
-</p>
-</details>
-
-Now the platform should be accessible through the browser.
+When the platform is up it is accessible through the browser.
 <br/><br/>
 
 ![local:CA:0](./docs/img/web_home.png)
 
-<!-- ## Other Instructions, Specifications, Attributes, or Project Info -->
-<!-- ### Docker  -->
+### Deployment types
+
+<details>
+<summary> Local deployment </summary>
+<p>
+
+The whole platform runs on a single machine: one NATS server, one node per database and one Garage instance (replication factor 1). The form asks which percentage of the machine's resources the platform may use.
+
+A guideline for the local deployment can be found in [![Link:local_deployment](https://img.shields.io/badge/Local_Deployment-Manual-blue?style=flat&logo=GitBook&logoColor=blue&link=LINK)](./docs/local_deployment.md).
+
+</p>
+</details>
+
+<details>
+<summary> On-premise cluster deployment </summary>
+<p>
+
+The platform runs on several machines of your own. The form asks for the number of nodes and, for each one, its label, IP, SSH user and role:
+
+-	`Manager`: a Docker Swarm manager. The entry point of the platform (Traefik) runs on the managers, and Keepalived keeps a floating IP on one of them. Use 1, 3 or 5 managers.
+-	`Platform worker`: runs the platform services. A cluster always needs at least one.
+
+</p>
+</details>
+
+<details>
+<summary> AWS cluster deployment </summary>
+<p>
+
+The same as the on-premise cluster, on EC2 instances. The volumes can optionally be AWS EBS volumes instead of local disks.
+
+</p>
+</details>
+
+## Architecture
+
+The platform runs as Docker Swarm services:
+
+| Service | Role |
+|---|---|
+| `traefik` | Reverse proxy and TLS termination for every web service |
+| `frontend` | Web application (platform assistant, 3D viewer, digital twin simulator) |
+| `admin_api` | Platform API |
+| `nats1..N` | Messaging: NATS with JetStream, MQTT (port 1883) and WebSockets |
+| `auth_callout` | Authentication of NATS and MQTT clients |
+| `pipelines` | Processing of device data and digital twins |
+| `patroni_admin1..N` | PostgreSQL cluster with the platform's data (Patroni, embedded Raft) |
+| `patroni_metrics1..N` | TimescaleDB cluster with the sensors' time series |
+| `haproxy_patroni` | Entry point to the primary of each database cluster |
+| `garage_<ID>` | Garage S3 object store (only with "Local Garage") |
+| `garage_webui` | Garage web interface, at `https://<domain>/garage_webui` |
+| `grafana`, `grafana_renderer` | Dashboards |
+| `pgadmin4` | Database administration |
+| `system_manager` | Scheduled and on-demand backups, certificate renewal |
+| `keepalived` | Floating IP across the managers (on-premise clusters) |
+| `vector` | Logs and host, container and volume metrics of every node |
+
+Without Patroni (`Use Patroni ... = no`) the databases run as single `postgres` and `timescaledb` services instead.
+
+### High availability
+
+NATS, the two Patroni clusters and Garage keep their data on local volumes, so each of their instances is pinned to one worker:
+
+-	NATS and Patroni: every worker carries a placement number per service (`nats_N`, `admin-id=N`, `metrics-id=N`), and instance N runs where number N is. With 3 instances each, the platform keeps working when one worker fails. Numbers are stable: removing or adding a worker only moves what was on it.
+-	JetStream streams are kept with 1 copy on a single NATS server and 3 copies on a cluster of 3 or more.
+-	`osi4iot node ls` shows every node's labels below the table.
+
+### Object storage
+
+Backups (WAL-G for both databases, NATS streams, the state file) and the platform's files go to one S3 bucket:
+
+-	**Local Garage**: a Garage cluster inside the platform. Replication factor 1 in a local deployment, 3 in a cluster. Its instances are spread over the workers: 1 worker holds 3, 2 workers 2 and 1, 3 or more one each. It needs no external service, but the bucket goes away with the platform's volumes.
+-	**Cloud AWS S3**: an external bucket. It outlives the platform, so a deleted platform can be brought back from it (`osi4iot init --from-bucket`).
+
+## Operating the platform
+
+### Lifecycle
+
+    osi4iot status       # state (running, running with problems, stopped, deleted...), services, Garage and nodes
+    osi4iot stop         # stop the services; data is kept
+    osi4iot run          # start them again
+    osi4iot init         # deploy the platform defined in the state file
+    osi4iot delete       # remove the platform from the swarm (the S3 bucket is not touched)
+
+Commands that need the platform running say so when it is not, instead of failing.
+
+`osi4iot delete` with an external bucket backs everything up one last time first (`--no-final-backups` skips it). `--remove-bucket` also empties and deletes the bucket, which cannot be undone.
+
+### Checking the stateful services
+
+    osi4iot service state                     # nats, patroni_admin, patroni_metrics and garage
+    osi4iot service state garage --probe
+
+For each instance it shows the Swarm task and the service's own view: NATS routes, JetStream leader and streams in sync; Patroni leader, replicas streaming and their lag; Garage write quorum, nodes connected, free disk and resync errors. Each service is reported as **healthy**, **degraded** (it works with less redundancy than it should) or **down**. `--probe` also writes and reads test data in places reserved for it (the NATS subjects `osi4iot.probe.>` and stream `OSI4IOT_PROBE`, the schema `osi4iot_probe` in each database, the prefix `osi4iot_probe/` in the bucket). The exit status is 0 when everything is healthy, 2 when something is degraded and 1 when something is down, so it can be used from scripts.
+
+`osi4iot streams ls` lists the JetStream streams with their replicas, leader and sync status.
+
+### Services
+
+    osi4iot service ls
+    osi4iot service inspect admin_api
+    osi4iot service scale nats=3                  # 1, 3, 5... (odd); each instance needs its own worker
+    osi4iot service scale patroni_admin=3         # likewise for patroni_metrics
+    osi4iot service scale garage=4                # 3 or more, at most one per worker (cluster only)
+    osi4iot service rebalance garage
+    osi4iot service resources admin_api=0.50CPU-1000Mb
+    osi4iot service image admin_api=ghcr.io/osi4iot/admin_api_nats:1.3.0
+
+Scaling NATS between 1 and 3 or more servers carries the streams over through a backup in the bucket. Every Garage change (adding, moving or retiring an instance) is one layout change at a time, and an old instance is only removed once its data is safe elsewhere; this takes at least about 10 minutes, Garage's own safety delay. An interrupted change is resumed by `osi4iot service rebalance garage`.
+
+### Nodes
+
+    osi4iot node ls
+    osi4iot node inspect worker_1
+    osi4iot node ps worker_1
+    osi4iot node add --ip 192.168.1.14 --role "Platform worker" --user osi4iot
+    osi4iot node drain worker_1
+    osi4iot node activate worker_1
+    osi4iot node remove worker_1
+    osi4iot node update worker_1 --label-add rack=B12
+
+-	`node add` joins the machine to the swarm and gives it its placement labels. Garage is rebalanced onto a new worker straight away (`--no-rebalance` to do it later). Adding a node does not change any replica count.
+-	`node drain` stops the node taking work, for maintenance. The NATS, Patroni and Garage instances on it are pinned there and wait. It is refused when one of those services would lose its quorum, counting nodes already drained or down. `node activate` brings the instances back with their data.
+-	`node remove` first moves Garage's instances off the node, then drains it, takes it out of the swarm and removes its volumes. Its NATS and Patroni instances go to a spare worker and rebuild their data there from the other instances. It is refused, before anything is touched, when fewer workers would be left than a service has replicas, when a service would lose its quorum, or when the node holds a service's only copy. In that last case, scale the service up first, or back it up, remove the node with `--rebuild-from-backup` and restore it.
+
+## Backups and recovery
+
+`system_manager` backs up both database clusters (WAL-G, continuous archiving), the NATS streams and the state file to the bucket. A copy of the state file is stored every time it changes.
+
+    osi4iot backup trigger  patroni_admin | patroni_metrics | nats_streams | state
+    osi4iot backup list     patroni_admin | patroni_metrics | nats_streams | state
+    osi4iot backup restore  patroni_admin | patroni_metrics | nats_streams | state
+
+-	`backup restore patroni_admin --target-time '2026-09-08 14:30:00+00'` recovers a database cluster to a point in time. A restore replaces the whole cluster.
+-	`backup restore nats_streams` restores the newest run; streams come back with 1 copy on a single server and 3 on a cluster, whatever they had when backed up.
+-	For rows or tables deleted by accident, `backup extract` recovers just them from a point in time into a file, without touching the live cluster, and `backup apply` loads that file in one transaction. See `osi4iot backup extract --help` for examples.
+
+### Moving or rebuilding a platform
+
+    osi4iot backup snapshot                           # the whole platform into osi4iot_snapshot.zip
+    osi4iot init --snapshot-file osi4iot_snapshot.zip # bring it up on other machines
+
+The snapshot holds the encrypted state file, the newest backup of each database, the NATS streams and the platform's files. Its `state/nodes.json` is in plain text: edit it to describe the new machines. It is also a good off-site backup on its own.
+
+With an external bucket, a deleted platform can be rebuilt from the bucket alone:
+
+    osi4iot init --from-bucket <bucket> --bucket-region <region>
+
+### Recovering the state file
+
+When the platform cannot hand back its state file (stopped, or the file is lost):
+
+    osi4iot state recover --from-bucket <bucket>      # from an external bucket
+    osi4iot state recover --from-garage               # from the Garage volumes of a stopped platform
+    osi4iot state recover --file <downloaded backup>  # from a backup you downloaded yourself
+
+`osi4iot state export` writes the state file decrypted, as plain JSON.
+
+### Certificates
+
+    osi4iot certs check       # expiration dates
+    osi4iot certs update      # renew the Let's Encrypt certificates
+    osi4iot certs download    # bring system_manager's renewed certificates into the state file
+
+## CLI reference
+
+Every command has its own help: `osi4iot <command> --help`.
+
+| Command | Subcommands |
+|---|---|
+| `create` | Create a new platform and start it |
+| `init` | Deploy the platform in the state file (`--snapshot-file`, `--from-bucket`, `--nodes`, `--reset-passwords`) |
+| `run` / `stop` / `delete` | Start, stop, remove the platform |
+| `status` | Platform state, services, Garage and nodes |
+| `service` | `ls`, `inspect`, `scale`, `rebalance`, `resources`, `image`, `state` |
+| `node` | `ls`, `inspect`, `ps`, `add`, `drain`, `activate`, `remove`, `update` |
+| `backup` | `trigger`, `list`, `restore`, `extract`, `apply`, `snapshot` |
+| `state` | `export`, `recover` |
+| `streams` | `ls` |
+| `certs` | `check`, `update`, `download` |
+| `custom_service` | `list`, `add`, `update`, `remove` |
+| `passphrase` | `reset` |
+| `completion` | `install`, `bash`, `zsh`, `fish`, `powershell` |
+| `version` | |
 
 ## Glossary
 <details>
-<summary> OSI4IOT ecosystem </summary>  
+<summary> OSI4IOT ecosystem </summary>
 <p>
 The `OSI4IOT` platform is not limited to monitor different sensors and to provide an equivalent 3D digital twin of an asset. When considering the IOT technologies, large and distinct information can be gathered, post-processed and generated by different stakeholders. To control that the information is only accessible to the right person, the platform considers different levels of abstraction:
 
@@ -218,10 +331,10 @@ The `OSI4IOT` platform is not limited to monitor different sensors and to provid
 </details>
 
 <details>
-<summary> Organizations </summary>  
+<summary> Organizations </summary>
 <p>
 
-`Organizations` are the most external level of hierarchy found in the platform. An `Organization` represents an `stakeholder` in the `OSI4IOT ecosystem`. A `stakeholder` can be either a `cluster of organizations` or a `unique organization`. The contents of a `stakeholder` is not limitted to the `partial` or `complete` content of the `same` organization, but `partial` or `complete` contents of `different` organizations. 
+`Organizations` are the most external level of hierarchy found in the platform. An `Organization` represents an `stakeholder` in the `OSI4IOT ecosystem`. A `stakeholder` can be either a `cluster of organizations` or a `unique organization`. The contents of a `stakeholder` is not limitted to the `partial` or `complete` content of the `same` organization, but `partial` or `complete` contents of `different` organizations.
 <br/><br/>
 ![img:glossary:stakeholders](./docs/img/stakeholders.svg)
 
@@ -255,7 +368,7 @@ If one of the `leaflets` are selected, the view will focus on the building of th
 </details>
 
 <details>
-<summary> Groups </summary>  
+<summary> Groups </summary>
 <p>
 
 The next level of hierarchy is the `group`. This level offers the possibility to divide the data stored in the platform in different compartments. This way only members that are at the `organizations` level can access to all the groups, but a unique member of a specific group cannot access the information of another group.
@@ -273,7 +386,7 @@ Inside the platform, the `groups` are geolocated and displayed in the map inside
 </details>
 
 <details>
-<summary> Assets </summary>  
+<summary> Assets </summary>
 <p>
 
 A `device` can have one or more industrial machines connected to it in order to control the production process. This machines or parts of a machine are represented by an abstraction called `asset`.
@@ -288,7 +401,7 @@ Inside an `asset` can have the following components:
 
 -	Digital twins
 
-    An `asset` can have one or several digital twins. A digital twin is a virtual model designed for accurately reflect the physical state of the asset. The function of the digital twin models are the following. 
+    An `asset` can have one or several digital twins. A digital twin is a virtual model designed for accurately reflect the physical state of the asset. The function of the digital twin models are the following.
 
     -	Asset state monitoring
     -	Predictive maintenance
@@ -302,18 +415,14 @@ Inside an `asset` can have the following components:
 
 -	Asset topics
 
-    The communication protocols typically used in IOT technologies (MQTT, Apache Kafka and Apache Pulsar) use the term topic to refer to the text string used to filter the messages that a publisher sends to the receivers.
+    The communication protocols typically used in IOT technologies (MQTT, NATS, Apache Kafka) use the term topic (or subject) to refer to the text string used to filter the messages that a publisher sends to the receivers.
     It is necessary to store in database a list of the different topics used to send data related with the assets.
-
-<!-- -	Product list
--	Product tracking
--	Supplies management -->
 
 </p>
 </details>
 
 <details>
-<summary> Role System  </summary> 
+<summary> Role System  </summary>
 <p>
 Once you understand the key points of the platform components, the hierarchy levels and what is the purpose of each level. The other missing part is how to manage the platform components. This is the purpose of the role managing system, which associates a role to certain levels.
 
@@ -326,11 +435,11 @@ If logged into the platform, the first thing that you will see is the role menu 
 
 ![img:glossary:roles:general](./docs/img/role_general.png)
 
-The hierarchy of roles is established as: 
+The hierarchy of roles is established as:
 
 `Super Admin` > `Organizations Admin` > `Groups Admin` > `User`
 
-The `home` button is just the viewer and it is available to all the roles. The descendent order implicates that the role below is of higher rank, for example a `Super Admin` can manage the same information as the `Organizations Admin`, but not otherwise. 
+The `home` button is just the viewer and it is available to all the roles. The descendent order implicates that the role below is of higher rank, for example a `Super Admin` can manage the same information as the `Organizations Admin`, but not otherwise.
 
 The following picture illustrates the information that can be accessed by the different roles.
  <br/><br/>
@@ -343,7 +452,7 @@ The following picture illustrates the information that can be accessed by the di
 This section aims to explain what can be done and how the different services provided by the `OSI4IOT` platform can be accessed.
 
 <details>
-<summary> Home screen  </summary>  
+<summary> Home screen  </summary>
 <p>
 The home screen hosted in the the domain provided in the CLI offers 4 possibilities:
 
@@ -367,7 +476,7 @@ The home screen hosted in the the domain provided in the CLI offers 4 possibilit
 </details>
 
 <details>
-<summary> Login  </summary>  
+<summary> Login  </summary>
 <p>
 The first thing that is needed is the access through the login screen. If you are the `Super Admin`, then you will login with the credentials introduced in the `CLI`, however if you are not the one who initialized the platform or have a lower rank assigned, then you will need to be invited by the `Super Admin`. This is easily done by means of adding a new user (you need an e-mail) in the `Global users` tab of the actions available to the `Super Admin`.
 
@@ -385,12 +494,12 @@ Then you will be redirected to the Platform assistant app, where you will be abl
 </details>
 
 <details>
-<summary> Dashboards  </summary>  
+<summary> Dashboards  </summary>
 <p>
 
-One of the type of information that can be visualized are dashboards, useful to desplay simple sensor data and with the option to send alerts through the notification system when a certain threshold is trespassed. 
+One of the type of information that can be visualized are dashboards, useful to desplay simple sensor data and with the option to send alerts through the notification system when a certain threshold is trespassed.
 
-It can be accessed from the viewer by clicking the `dashboard` icon. 
+It can be accessed from the viewer by clicking the `dashboard` icon.
 
 ![img:dashboards_0](./docs/img/web_dashboards_0.png)
 
@@ -407,7 +516,7 @@ The same result can be achieved from the `Dashboards` option in the home screen.
 </details>
 
 <details>
-<summary> Digital Twin Model  </summary>  
+<summary> Digital Twin Model  </summary>
 <p>
 
 The other type of information that can be displayed are the `Digital Twin Models` (`DTM`). They can be accessed when selecting a device, and by clicking the `DTM` icon (three boxes), the viewer will load a 3D digital twin.
@@ -428,7 +537,7 @@ It can also be the case that you may want to monitor an asset with the 3D view w
 
 
 <details>
-<summary> Node-RED  </summary>  
+<summary> Node-RED  </summary>
 <p>
 
 Any 'DTM' requires a logic to analyze in real time the information coming from the sensors and decide whether to trigger an alert when something goes wrong. This task can be done with the help of Node-RED, an open source package that allows graphically to interconnect the data and manipulate it. You can either create custom boxes or use existing template boxes to design the flow diagram of the logic of your `devices`.
@@ -442,13 +551,10 @@ The Node-RED instances can be accessed by clicking into the Node-RED icon in the
 </p>
 </details>
 
-<!-- ## Contributing
-We welcome contributions to OSI4IOT. Please read [CONTRIBUTING.md](https://github.com/%3Cyour_username%3E/OSI4IOT/blob/master/CONTRIBUTING.md) for more information. -->
-
 <details><summary> How to send messages through the MQTT protocol </summary>
 <p>
 
-The platform uses `Mosquitto` as the message broker. This message protocol uses a `publish`/`subscribe` model associated to a `topic`. `Topics` are the channels of information where a `device` can connect to `publish` data or `subscribe` to fetch information.
+Devices send their data to the platform with MQTT, through the MQTT interface of the platform's NATS servers. This message protocol uses a `publish`/`subscribe` model associated to a `topic`. `Topics` are the channels of information where a `device` can connect to `publish` data or `subscribe` to fetch information.
 
 The platform implements a specific format to communicate through the MQTT protocol. Note that `devices` are associated to `groups`, and they send information through a `topic`. However, the format also takes into account the type of information that is sent in the `topic`. Therefore the format required to establish communication from a `device` to the platform is:
 
@@ -461,8 +567,8 @@ Topic types:
 - dev2pdb_ma : Device to platform database messages array.
 - dev_sim_2dtm: Simulated device to DTM.
 - dtm_as2pdb : DTM assets state to platform database.
-- dtm_sim_as2dts: DTM simulated assets state to DTS.          
-- dtm_fmv2pdb: DTM fem modal value to platform database.  
+- dtm_sim_as2dts: DTM simulated assets state to DTS.
+- dtm_fmv2pdb: DTM fem modal value to platform database.
 - dtm_sim_fmv2dts: DTM simulated fem modal value to DTS.
 
 Besides complying with the format, the security of the platform ensures that only the roles that can manage devices are allowed to send or receive information through a topic. Therefore you need to connect through credentials to the platform prior to use a `topic`.
@@ -479,7 +585,7 @@ There is a more complete manual on how to communicate and use the MQTT protocol 
 ## Acknowledgements
 
 This OSI4IOT platform has been funded thanks to H2020 project FIBRE4YARDS sponsored by the EUROPEAN COMMISSION under the grant agreement 101006860 ‘‘FIBRE composite manufacturing technologies FOR the automation and modular construction in shipYARDS’’. https://www.fibre4yards.eu/.
- <br/>
+
 ## License
 
 The open-source packages utilized within the OSI4IOT platform are being used in compliance with their respective licenses.
@@ -491,7 +597,7 @@ The custom code developed in OSI4IOT platform is licensed under the Apache 2.0 L
 Note: videos may take a few seconds to be loaded.
 
 <details>
-<summary> Composite slab </summary>  
+<summary> Composite slab </summary>
 <p>
 
 ![vid:pool](./docs/img/pool_r.gif)
@@ -500,7 +606,7 @@ Note: videos may take a few seconds to be loaded.
 </details>
 
 <details>
-<summary> Gas tank </summary>  
+<summary> Gas tank </summary>
 <p>
 
 ![vid:tank](./docs/img/tank_r.gif)
@@ -509,7 +615,7 @@ Note: videos may take a few seconds to be loaded.
 </details>
 
 <details>
-<summary> Aluminium beam </summary>  
+<summary> Aluminium beam </summary>
 <p>
 
 ![vid:beam](./docs/img/beam_r.gif)
@@ -519,12 +625,13 @@ Note: videos may take a few seconds to be loaded.
 
 ## Status
 
-- [x] MQTT protocol (Mosquitto).
-- [x] Time series database (Timescale).
+- [x] Messaging with NATS (JetStream, MQTT and WebSockets).
+- [x] Time series database (TimescaleDB).
+- [x] High-availability databases (Patroni) with continuous backups (WAL-G).
+- [x] S3 object storage (Garage, or AWS S3).
 - [x] Dashboards Customization (Grafana).
-- [x] Digital Twin Model Core (Node-Red).
 - [x] Digital Twin Model 3D Viewer (React).
-- [x] S3 bucket storage (Minio - AWS S3).
 - [x] Machine Learning.
 - [x] Improve database data retention policies.
-- [ ] Org2Org & Group2Group message system.   
+- [x] Health checks of the stateful services (`osi4iot service state`).
+- [ ] Org2Org & Group2Group message system.
