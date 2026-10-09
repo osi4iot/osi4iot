@@ -3,6 +3,7 @@ package volumes
 import (
 	"context"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
@@ -1011,4 +1012,53 @@ func RemoveGarageInstanceVolumes(pd *pt.PlatformData, id int) error {
 		}
 	}
 	return nil
+}
+
+// RemoveNodeVolumes removes this platform's local volumes from one node
+// — a node leaving the platform — and returns their names. The same
+// volumes `osi4iot delete` removes (app=osi4iot, or one of the
+// platform's volume names), restricted to the local driver: a
+// cluster-wide one (EBS) belongs to the cluster, not to the node.
+//
+// Nothing may still use them: the caller has drained the node and
+// removed the stopped containers of its tasks.
+func RemoveNodeVolumes(pd *pt.PlatformData, dc *pt.DockerClient) ([]string, error) {
+	knownNames := platformVolumeNames(pd)
+	candidates := map[string]*volume.Volume{}
+
+	byName, err := dc.Cli.VolumeList(dc.Ctx, volume.ListOptions{Filters: getVolumeFilterByNames(pd)})
+	if err != nil {
+		return nil, fmt.Errorf("error listing volumes: %w", err)
+	}
+	for _, v := range byName.Volumes {
+		if knownNames[v.Name] { // the name filter matches substrings
+			candidates[v.Name] = v
+		}
+	}
+	labelFilter := filters.NewArgs()
+	labelFilter.Add("label", "app=osi4iot")
+	byLabel, err := dc.Cli.VolumeList(dc.Ctx, volume.ListOptions{Filters: labelFilter})
+	if err != nil {
+		return nil, fmt.Errorf("error listing volumes: %w", err)
+	}
+	for _, v := range byLabel.Volumes {
+		candidates[v.Name] = v
+	}
+
+	var removed, failed []string
+	for name, v := range candidates {
+		if v.Driver != "" && v.Driver != "local" {
+			continue
+		}
+		if err := dc.Cli.VolumeRemove(dc.Ctx, name, true); err != nil && !isVolumeAlreadyRemovedError(err) {
+			failed = append(failed, fmt.Sprintf("%s (%v)", name, err))
+			continue
+		}
+		removed = append(removed, name)
+	}
+	sort.Strings(removed)
+	if len(failed) > 0 {
+		return removed, fmt.Errorf("could not remove %s", strings.Join(failed, "; "))
+	}
+	return removed, nil
 }

@@ -7,10 +7,13 @@ import (
 	"time"
 
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/swarm"
 
 	pt "github.com/osi4iot/osi4iot/utils/osi4iot/internals/types"
 	"github.com/osi4iot/osi4iot/utils/osi4iot/internals/utils"
+	"github.com/osi4iot/osi4iot/utils/osi4iot/internals/volumes"
 )
 
 // Joining a machine to the platform and taking one out.
@@ -256,6 +259,16 @@ func RemoveNodeFromPlatform(pd *pt.PlatformData, view NodeView, logger *log.Logg
 		}
 	}
 
+	// Its volumes go before it leaves, while its Docker can still be
+	// reached: once out of the platform, nothing would ever remove them
+	// ('osi4iot delete' only visits the platform's nodes). The data in
+	// them is no longer anyone's: Garage moved its own, the NATS and
+	// Patroni instances rebuild theirs elsewhere, and the rest (pgadmin4,
+	// pipelines...) started on other nodes during the drain.
+	if nodeClient, ok := pt.DCMap[view.Address()]; ok && nodeClient != nil {
+		removeNodeLeftovers(pd, nodeClient, view.Hostname(), logger)
+	}
+
 	// The node leaves from its own side first. A NodeRemove against a
 	// node that is still a swarm member is refused unless it is already
 	// down, and forcing it leaves the machine believing it is still in
@@ -310,6 +323,33 @@ func RemoveNodeFromPlatform(pd *pt.PlatformData, view NodeView, logger *log.Logg
 	}
 
 	return nil
+}
+
+// removeNodeLeftovers removes, from a drained node, the stopped
+// containers of its Swarm tasks (Docker keeps a few per service as task
+// history, and they hold their volumes) and then the platform's volumes.
+// Best effort: a failure is reported with what to remove by hand, and
+// does not stop the removal.
+func removeNodeLeftovers(pd *pt.PlatformData, dc *pt.DockerClient, hostname string, logger *log.Logger) {
+	f := filters.NewArgs()
+	f.Add("label", "com.docker.swarm.task.id")
+	containers, err := dc.Cli.ContainerList(dc.Ctx, container.ListOptions{All: true, Filters: f})
+	if err == nil {
+		for _, c := range containers {
+			if c.State == "running" {
+				continue
+			}
+			_ = dc.Cli.ContainerRemove(dc.Ctx, c.ID, container.RemoveOptions{Force: true, RemoveVolumes: true})
+		}
+	}
+
+	removed, err := volumes.RemoveNodeVolumes(pd, dc)
+	if len(removed) > 0 {
+		logger.Printf("Removed the platform's volumes on %s: %s", hostname, strings.Join(removed, ", "))
+	}
+	if err != nil {
+		logger.Printf("Warning: %v on %s; remove them by hand there with 'docker volume rm'.", err, hostname)
+	}
 }
 
 // waitForNodeDrained waits until nothing is running on the node.
