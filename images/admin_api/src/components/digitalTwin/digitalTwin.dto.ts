@@ -1,6 +1,5 @@
 import { IsBoolean, IsNumber, IsString } from "class-validator";
 
-
 class CreateDigitalTwinDto {
 	@IsString()
 	public digitalTwinUid: string;

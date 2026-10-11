@@ -213,16 +213,16 @@ export const Create_ASSETS_COLUMNS = (
             accessor: "edit",
             disableFilters: true,
             disableSortBy: true,
-            Cell: props => {
+            Cell: (props: any) => {
                 const rowIndex = parseInt(props.row.id, 10);
-                const row = props.rows.filter(row => row.index === rowIndex)[0];
+                const row = props.rows.filter((row: any) => row.index === rowIndex)[0];
                 const assetId = row?.cells[0]?.value;
                 const orgId = row?.cells[1]?.value;
                 const assetType = row?.cells[4]?.value;
-                const orgAcronym = orgsOfGroupManaged.filter(org => org.id === orgId)[0].acronym;
+                const orgAcronym = orgsOfGroupManaged.filter((org: any) => org.id === orgId)[0].acronym;
                 const groupId = row?.cells[2]?.value;
-                const groupAcronym = groupsManaged.filter(group => group.id === groupId)[0].acronym;
-                const iconSvgString = assetTypes.filter(item => item.orgId === orgId && item.type === assetType)[0].iconSvgString;
+                const groupAcronym = groupsManaged.filter((group: any) => group.id === groupId)[0].acronym;
+                const iconSvgString = assetTypes.filter((item: any) => item.orgId === orgId && item.type === assetType)[0].iconSvgString;
                 const assetInputData = {
                     orgAcronym,
                     orgId,
@@ -245,7 +245,7 @@ export const Create_ASSETS_COLUMNS = (
             accessor: "delete",
             disableFilters: true,
             disableSortBy: true,
-            Cell: props => {
+            Cell: (props: { row: { id: string; }; rows: any[]; }) => {
                 const rowIndex = parseInt(props.row.id, 10);
                 const row = props.rows.filter(row => row.index === rowIndex)[0];
                 const assetId = row?.cells[0]?.value;

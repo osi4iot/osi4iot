@@ -1,4 +1,4 @@
-import pool from "../../config/dbconfig";
+import pool, { readQuery } from "../../config/dbconfig";
 import IAlert from "./interfaces/Alert.interface";
 import IGroup from "./interfaces/Group.interface";
 
@@ -34,7 +34,7 @@ export const upatedAlertSettings = async (id: number, settings: any): Promise<vo
 };
 
 export const getAlertsByFolderId = async (folderId: number): Promise<IAlert[]> => {
-	const result = await pool.query(
+	const result = await readQuery(
 		`SELECT grafanadb.alert.id, grafanadb.alert.version, grafanadb.alert.dashboard_id AS "dashboardId",
 		grafanadb.alert.panel_id AS "panelId", grafanadb.alert.org_id AS "orgId", grafanadb.alert.name,
 		grafanadb.alert.message, grafanadb.alert.state, grafanadb.alert.settings, grafanadb.alert.frequency,

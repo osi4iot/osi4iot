@@ -8,6 +8,7 @@ import { ISelectFloorWithState, SELECT_FLOORS_WITH_STATE_COLUMNS } from '../Tabl
 import { IDigitalTwinState, ISensorState } from './GeolocationContainer';
 import { IGroupManaged } from '../TableColumns/groupsManagedColumns';
 import { findOutStatus } from './statusTools';
+import { Column } from 'react-table';
 
 const FormContainer = styled.div`
 	font-size: 12px;
@@ -173,7 +174,7 @@ const SelectFloorWithState: FC<SelectFloorWithStateProps> = (
                 <TableContainer>
                     <TableWithPaginationAndRowSelection
                         dataTable={selectFloors}
-                        columnsTable={SELECT_FLOORS_WITH_STATE_COLUMNS}
+                        columnsTable={SELECT_FLOORS_WITH_STATE_COLUMNS as Column<any>[]}
                         selectedItem={floorSelected}
                         setSelectedItem={(selectedFloor: ISelectFloorWithState) => setSelectedFloor(selectedFloor)}
                         multipleSelection={false}

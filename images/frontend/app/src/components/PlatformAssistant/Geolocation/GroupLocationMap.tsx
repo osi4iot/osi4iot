@@ -59,33 +59,33 @@ const ZoomControlContainer = styled.div`
     background-color: #202226;
 `;
 
-const RiZoomInLineStyled = styled(RiZoomInLine)`
+const RiZoomInLineStyled = styled(RiZoomInLine as any)`
     font-size: 30px;
     color: white;
 `;
 
-const RiZoomOutLineStyled = styled(RiZoomOutLine)`
+const RiZoomOutLineStyled = styled(RiZoomOutLine as any)`
     font-size: 30px;
     color: white;
 `;
 
 
-const MdZoomOutMapStyled = styled(MdZoomOutMap)`
+const MdZoomOutMapStyled = styled(MdZoomOutMap as any)`
     font-size: 30px;
     color: white;
 `;
 
-const FaRedoStyled = styled(FaRedo)`
+const FaRedoStyled = styled(FaRedo as any)`
     font-size: 22px;
     color: white;
 `;
 
-const FaRegTimesCircleStyled = styled(FaRegTimesCircle)`
+const FaRegTimesCircleStyled = styled(FaRegTimesCircle as any)`
     font-size: 28px;
     color: white;
 `;
 
-const FaRegCheckCircleStyled = styled(FaRegCheckCircle)`
+const FaRegCheckCircleStyled = styled(FaRegCheckCircle as any)`
     font-size: 28px;
     color: white;
 `;

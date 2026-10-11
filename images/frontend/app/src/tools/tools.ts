@@ -1,5 +1,5 @@
 import { AxiosProgressEvent } from "axios";
-import { IThreeMesh } from "../components/PlatformAssistant/DigitalTwin3DViewer/threeInterfaces";
+import { IThreeMesh } from "../components/PlatformAssistant/DigitalTwin3DViewer/Types/threeInterfaces";
 import { PLATFORM_ASSISTANT_ROUTES } from "../components/PlatformAssistant/Utils/platformAssistantOptions";
 import { IWindowObjectReferences, PlatformAssistantDispatch } from "../contexts/platformAssistantContext/interfaces";
 
@@ -25,7 +25,7 @@ export const getDomainName = (): string => {
     //if (domainName === "localhost:3000") domainName = "iot.eebe.upc.edu";
     if (domainName === "localhost:3000") domainName = "dicapuaiot.com";
     //if (domainName === "localhost:3000") domainName = "iot-fibre4yards.com";
-    // if (domainName === "localhost:3000") domainName = "osi4iot.com";
+    //if (domainName === "localhost:3000") domainName = "osi4iot.com";
     // if (domainName === "localhost:3000") domainName = "dev.iot-rafa.tk";
     return domainName;
 }
@@ -36,6 +36,14 @@ export const getProtocol = (): string => {
         protocol = "http";
     }
     return protocol;
+}
+
+export const getNatsSeedServers = (): string => {
+    let natsSeedServers = `wss://${getDomainName()}:9001`;
+    if (window._env_ && window._env_.NATS_SEED_SERVERS) {
+        natsSeedServers = window._env_.NATS_SEED_SERVERS;
+    }
+    return natsSeedServers;
 }
 
 export const isValidText = (text: string): boolean => {
@@ -439,15 +447,11 @@ export const changeMaterialPropRecursively = (
     if ((obj.material as THREE.Material) && (obj.material as any)[prop] !== undefined) {
         (obj.material as any)[prop] = propValue;
     }
-    let newPropValue = propValue;
-    if (prop === 'transparent') {
-        newPropValue = true;
-    }
     for (let node of obj.children) {
         changeMaterialPropRecursively(
             node as IThreeMesh,
             prop,
-            newPropValue
+            propValue
         );
     }
 }

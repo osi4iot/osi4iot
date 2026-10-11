@@ -1,67 +1,55 @@
 import { logger } from "../config/winston";
 import { Pool } from "pg";
 import fs from "fs";
-import grafanaApi from "../GrafanaApi"
+import grafanaApi from "../GrafanaApi";
 import { encrypt } from "../utils/encryptAndDecrypt/encryptAndDecrypt";
 import {
 	addMembersToGroup,
 	createGroup,
 	createView,
 	defaultOrgGroupName,
-	getAllGroups
+	getAllGroups,
 } from "../components/group/groupDAL";
 import { FolderPermissionOption } from "../components/group/interfaces/FolerPermissionsOptions";
 import { createHomeDashboard } from "../components/group/dashboardDAL";
 import IGroup from "../components/group/interfaces/Group.interface";
 import { RoleInGroupOption } from "../components/group/interfaces/RoleInGroupOptions";
 import needle from "needle";
-import { createFictitiousUserForService } from "../components/user/userDAL";
-import INodeRedInstance from "../components/nodeRedInstance/nodeRedInstance.interface";
-import {
-	assignNodeRedInstanceToGroup,
-	createNodeRedInstancesInOrg,
-	updateGroupNodeRedInstanceLocation
-} from "../components/nodeRedInstance/nodeRedInstanceDAL";
 import s3Client from "../config/s3Config";
 import { CreateBucketCommand, ListBucketsCommand } from "@aws-sdk/client-s3";
-import {
-	getOrganizations
-} from "../components/organization/organizationDAL";
+import { getOrganizations } from "../components/organization/organizationDAL";
 import { createTimescaledbOrgDataSource } from "../components/group/datasourceDAL";
 import IAsset from "../components/asset/asset.interface";
 import {
 	createNewAsset,
 	createNewAssetType,
-	updateGroupAssetsLocation
+	createSystemMonitoringAsset,
+	updateGroupAssetsLocation,
 } from "../components/asset/assetDAL";
-import { createNewSensorType } from "../components/sensor/sensorDAL";;
+import { createNewSensorType } from "../components/sensor/sensorDAL";
 import { nanoid } from "nanoid";
-import {
-	createDigitalTwin,
-	uploadMobilePhoneGltfFile
-} from "../components/digitalTwin/digitalTwinDAL";
+import { createDigitalTwin, uploadMobilePhoneGltfFile } from "../components/digitalTwin/digitalTwinDAL";
 import IAssetType from "../components/asset/assetType.interface";
-import { predefinedAssetTypes } from "./predefinedAssetTypes";
-import { emptyBucket } from "./emptyS3Bucket";
+import { predefinedAssetTypes, systemMonitoringAssetType } from "./predefinedAssetTypes";
 import IFloor from "../components/building/floor.interface";
 import {
 	findBuildingBounds,
 	findFloorBounds,
 	findGeographicCoordinates,
-	findGroupGeojsonData
+	findGroupGeojsonData,
 } from "../utils/geolocation.ts/geolocation";
 import ISensorType from "../components/sensor/sensorType.interface";
-import { predefinedSensorTypes } from "./predefinedSensorTypes";
+import { predefinedSensorTypes, systemMonitoringSensorTypes } from "./predefinedSensorTypes";
 import process_env from "../config/api_config";
 
 export const dataBaseInitialization = async () => {
 	const timescaledb_pool = new Pool({
 		max: 20,
 		user: process_env.TIMESCALE_USER,
-		host: "timescaledb",
+		host: process_env.TIMESCALE_HOST,
 		password: process_env.TIMESCALE_PASSWORD,
 		database: process_env.TIMESCALE_DB,
-		port: 5432,
+		port: parseInt(process_env.TIMESCALE_PORT, 10),
 		idleTimeoutMillis: 30000,
 	});
 
@@ -69,41 +57,47 @@ export const dataBaseInitialization = async () => {
 
 	const pool = new Pool({
 		user: process_env.POSTGRES_USER,
-		host: "postgres",
+		host: process_env.POSTGRES_HOST,
 		password: process_env.POSTGRES_PASSWORD,
 		database: process_env.POSTGRES_DB,
-		port: 5432,
+		port: parseInt(process_env.POSTGRES_PORT, 10),
 	});
 	const postgresClient = await pool.connect();
 
 	const grafanaUrl = `grafana:5000/api/health`;
-	const grafanaState = await needle('get', grafanaUrl)
-		.then(res => (res.body.database as string))
-		.catch(err => {
-			logger.log("error", "Grafana service is not healthy: %s", err.message)
+	const grafanaState = await needle("get", grafanaUrl)
+		.then((res) => res.body.database as string)
+		.catch((err) => {
+			logger.log("error", "Grafana service is not healthy: %s", err.message);
 			process.exit(1);
 		});
 
 	let existPlatformS3Bucket = false;
 	if (process_env.S3_BUCKET_TYPE !== "Cloud AWS S3") {
-		const minioUrl = `minio:9000/minio/health/live`;
-		await needle('get', minioUrl)
-			.then(() => "ok")
-			.catch(err => {
-				logger.log("error", "Minio service is not healthy: %s", err.message)
+		// Garage's admin API answers /health with 200 only when the
+		// cluster can serve requests.
+		const garageHealthUrl = `garage:3903/health`;
+		await needle("get", garageHealthUrl)
+			.then((res) => {
+				if (res.statusCode !== 200) throw new Error(`HTTP ${res.statusCode}`);
+				return "ok";
+			})
+			.catch((err) => {
+				logger.log("error", "Garage service is not healthy: %s", err.message);
 				process.exit(1);
 			});
 	}
 
 	if (timescaledbClient && postgresClient && grafanaState === "ok") {
 		const tableOrg = "grafanadb.org";
-		const queryString1a = 'SELECT COUNT(*) FROM grafanadb.org WHERE name = $1';
+		const queryString1a = "SELECT COUNT(*) FROM grafanadb.org WHERE name = $1";
 		const parameterArray1a = ["Main Org."];
 		let result0 = null;
 		try {
 			result0 = await postgresClient.query(queryString1a, parameterArray1a);
 		} catch (err) {
-			logger.log("error", `Table ${tableOrg} can not found: %s`, err.message);
+			const message = err instanceof Error ? err.message : String(err);
+			logger.log("error", `Table ${tableOrg} can not found: %s`, message);
 			process.exit(1);
 		}
 
@@ -112,39 +106,60 @@ export const dataBaseInitialization = async () => {
 		try {
 			await timescaledbClient.query(queryString2);
 		} catch (err) {
-			logger.log("error", `Table ${tableThingData} can not found in timescaledb: %s`, err.message);
+			const message = err instanceof Error ? err.message : String(err);
+			logger.log("error", `Table ${tableThingData} can not found in timescaledb: %s`, message);
 			process.exit(1);
 		}
 
 		if (process_env.REPLICA === "1") {
-			if (result0.rows[0].count !== 0) {
-				try {
-					const listBucketsResult = await s3Client.send(new ListBucketsCommand({}));
-					const bucketName = process_env.S3_BUCKET_NAME;
-					existPlatformS3Bucket = listBucketsResult.Buckets.filter(bucket => bucket.Name === bucketName).length !== 0;
-					if (!existPlatformS3Bucket) {
-						await s3Client.send(new CreateBucketCommand({ Bucket: bucketName }));
-						logger.log("info", `The S3 bucket for the platform has been created successfully`)
-					} else {
-						logger.log("info", `An S3 bucket with the name ${bucketName} already has been created`);
-						await emptyBucket();
-					}
-				} catch (err) {
-					logger.log("error", "The S3 bucket for the platform can not be created: %s", err)
-					process.exit(1);
+			try {
+				// With Garage the bucket is created by the garage service's
+				// provisioning, and admin_api's key may not create buckets:
+				// it lists here because its key was granted access to it.
+				// With AWS this is still the fallback that creates it.
+				const listBucketsResult = await s3Client.send(new ListBucketsCommand({}));
+				const bucketName = process_env.S3_BUCKET_NAME;
+				existPlatformS3Bucket =
+					(listBucketsResult.Buckets || []).filter((bucket) => bucket.Name === bucketName).length !== 0;
+				if (!existPlatformS3Bucket) {
+					await s3Client.send(new CreateBucketCommand({ Bucket: bucketName }));
+					logger.log("info", `The S3 bucket for the platform has been created successfully`);
+				} else {
+					// Deliberately left alone. A bucket that already exists holds the
+					// platform's wal-g backups, its NATS backups and its org_data files,
+					// and emptying it here deleted all of them on every restart of this
+					// replica. There is no case where wiping it is what was wanted.
+					logger.log("info", `An S3 bucket with the name ${bucketName} already exists`);
 				}
+			} catch (err) {
+				const message = err instanceof Error ? err.message : String(err);
+				logger.log("error", "The S3 bucket for the platform can not be created: %s", message);
+				process.exit(1);
+			}
 
+			if (Number(result0.rows[0].count) !== 0) {
 				const queryStringAlterOrg = `ALTER TABLE grafanadb.org
 											ADD COLUMN acronym varchar(20) UNIQUE,
 											ADD COLUMN role VARCHAR(20) NOT NULL DEFAULT 'Generic',
 											ADD COLUMN building_id bigint,
 											ADD COLUMN org_hash varchar(20) UNIQUE,
-											ADD COLUMN mqtt_access_control VARCHAR(10)`;
+											ADD COLUMN mqtt_access_control VARCHAR(10),
+											ADD COLUMN llm_enabled BOOLEAN NOT NULL DEFAULT false,
+											ADD COLUMN llm_provider_url VARCHAR(255),
+											ADD COLUMN hashed_llm_provider_api_key TEXT,
+											ADD COLUMN telegram_enabled BOOLEAN NOT NULL DEFAULT false,
+											ADD COLUMN hashed_telegram_bot_token TEXT DEFAULT '',
+											ADD COLUMN hashed_telegram_webhook_secret_token TEXT DEFAULT '';`;
 				try {
 					await postgresClient.query(queryStringAlterOrg);
 					logger.log("info", `Column acronym has been added sucessfully to Table ${tableOrg}`);
 				} catch (err) {
-					logger.log("error", `Column acronym can not be added sucessfully to Table ${tableOrg}: %s`, err.message);
+					const message = err instanceof Error ? err.message : String(err);
+					logger.log(
+						"error",
+						`Column acronym can not be added sucessfully to Table ${tableOrg}: %s`,
+						message
+					);
 				}
 
 				const queryStringUpdateOrg = `UPDATE grafanadb.org SET name = $1,  acronym = $2, role = $3, 
@@ -155,16 +170,17 @@ export const dataBaseInitialization = async () => {
 					process_env.MAIN_ORGANIZATION_ACRONYM.replace(/ /g, "_").toUpperCase(),
 					"Main",
 					1,
-					process_env.MAIN_ORG_HASH,
+					nanoid(20).replace(/-/g, "x").replace(/_/g, "X"),
 					"Pub & Sub",
-					"Main Org."
+					"Main Org.",
 				];
 
 				try {
 					await postgresClient.query(queryStringUpdateOrg, parameterArrayUpdateOrg);
 					logger.log("info", `Table ${tableOrg} has been updated sucessfully`);
 				} catch (err) {
-					logger.log("error", `Table ${tableOrg} can not be updated: %s`, err.message);
+					const message = err instanceof Error ? err.message : String(err);
+					logger.log("error", `Table ${tableOrg} can not be updated: %s`, message);
 				}
 
 				const tableBuilding = "grafanadb.building";
@@ -193,23 +209,28 @@ export const dataBaseInitialization = async () => {
 					await postgresClient.query(queryStringBuilding);
 					logger.log("info", `Table ${tableBuilding} has been created sucessfully`);
 				} catch (err) {
-					logger.log("error", `Table ${tableBuilding} can not be created: %s`, err.message);
+					const message = err instanceof Error ? err.message : String(err);
+					logger.log("error", `Table ${tableBuilding} can not be created: %s`, message);
 				}
 
 				const mainOrgBuildingGeoJson = "/run/configs/main_org_building.geojson";
 				let geodataBuilding = "{}";
 				if (fs.existsSync(mainOrgBuildingGeoJson)) {
 					try {
-						geodataBuilding = fs.readFileSync(mainOrgBuildingGeoJson, { encoding: 'utf8', flag: 'r' });
+						geodataBuilding = fs.readFileSync(mainOrgBuildingGeoJson, { encoding: "utf8", flag: "r" });
 					} catch (err) {
-						logger.log("error", `An error occurred while trying to read the file: ${mainOrgBuildingGeoJson}:  %s`, err.message);
+						const message = err instanceof Error ? err.message : String(err);
+						logger.log(
+							"error",
+							`An error occurred while trying to read the file: ${mainOrgBuildingGeoJson}:  %s`,
+							message
+						);
 					}
 				}
 				const buildingOuterBounds = findBuildingBounds(geodataBuilding);
 				const [buildingLongitude, buildingLatitude] = findGeographicCoordinates(geodataBuilding);
 
-				const queryStringInsertBuilding =
-					`INSERT INTO ${tableBuilding} 
+				const queryStringInsertBuilding = `INSERT INTO ${tableBuilding} 
 					(name, address, city, state, zip_code, country,
 					geoData, outer_bounds, geolocation,
 					building_file_name, building_file_last_modif_date,
@@ -226,13 +247,14 @@ export const dataBaseInitialization = async () => {
 					buildingOuterBounds,
 					`(${buildingLongitude},${buildingLatitude})`,
 					"building_1.geojson",
-					(new Date()).toISOString(),
+					new Date().toISOString(),
 				];
 				try {
 					await postgresClient.query(queryStringInsertBuilding, queryParametersInsertBuilding);
 					logger.log("info", `Data in table ${tableBuilding} has been inserted sucessfully`);
 				} catch (err) {
-					logger.log("error", `Data in table ${tableBuilding} con not been inserted: %s`, err.message);
+					const message = err instanceof Error ? err.message : String(err);
+					logger.log("error", `Data in table ${tableBuilding} con not been inserted: %s`, message);
 				}
 
 				const tableFloor = "grafanadb.floor";
@@ -260,7 +282,8 @@ export const dataBaseInitialization = async () => {
 					await postgresClient.query(queryStringFloor);
 					logger.log("info", `Table ${tableFloor} has been created sucessfully`);
 				} catch (err) {
-					logger.log("error", `Table ${tableFloor} can not be created: %s`, err.message);
+					const message = err instanceof Error ? err.message : String(err);
+					logger.log("error", `Table ${tableFloor} can not be created: %s`, message);
 				}
 
 				const mainOrgFloorGeoJson = "/run/configs/main_org_floor.geojson";
@@ -268,15 +291,22 @@ export const dataBaseInitialization = async () => {
 				let floorOuterBounds: number[][];
 				if (fs.existsSync(mainOrgFloorGeoJson)) {
 					try {
-						geodataFloor = fs.readFileSync(mainOrgFloorGeoJson, { encoding: 'utf8', flag: 'r' });
+						geodataFloor = fs.readFileSync(mainOrgFloorGeoJson, {
+							encoding: "utf8",
+							flag: "r",
+						});
 						floorOuterBounds = findFloorBounds(geodataFloor);
 					} catch (err) {
-						logger.log("error", `An error occurred while trying to read the file: ${mainOrgFloorGeoJson}:  %s`, err.message);
+						const message = err instanceof Error ? err.message : String(err);
+						logger.log(
+							"error",
+							`An error occurred while trying to read the file: ${mainOrgFloorGeoJson}:  %s`,
+							message
+						);
 					}
 				}
 
-				const queryStringInsertFloor =
-					`INSERT INTO ${tableFloor} 
+				const queryStringInsertFloor = `INSERT INTO ${tableFloor} 
 					(building_id, floor_number, geodata, outer_bounds, floor_file_name, 
 					floor_file_last_modif_date, created, updated)
 					VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
@@ -295,7 +325,7 @@ export const dataBaseInitialization = async () => {
 					geodataFloor,
 					floorOuterBounds,
 					"Floor_0_of_building_1.geojson",
-					(new Date()).toISOString(),
+					new Date().toISOString(),
 				];
 				let floor: IFloor;
 				try {
@@ -303,18 +333,28 @@ export const dataBaseInitialization = async () => {
 					floor = response.rows[0];
 					logger.log("info", `Data in table ${tableFloor} has been inserted sucessfully`);
 				} catch (err) {
-					logger.log("error", `Data in table ${tableFloor} con not been inserted: %s`, err.message);
+					const message = err instanceof Error ? err.message : String(err);
+					logger.log("error", `Data in table ${tableFloor} con not been inserted: %s`, message);
 				}
 
 				const tableUser = "grafanadb.user";
 				const queryStringAlterUser = `ALTER TABLE grafanadb.user
-									ADD COLUMN first_name varchar(127),
-									ADD COLUMN surname varchar(127)`;
+									ADD COLUMN first_name varchar(127) NOT NULL DEFAULT 'unknown',
+									ADD COLUMN surname varchar(127) NOT NULL DEFAULT 'unknown',
+									ADD COLUMN nats_nkey varchar(60) NOT NULL DEFAULT 'undefined';`;
 				try {
 					await postgresClient.query(queryStringAlterUser);
-					logger.log("info", `Columns first_name and surnanme have been added sucessfully to Table ${tableUser}`);
+					logger.log(
+						"info",
+						`Columns first_name, surname, and nats_nkey have been added sucessfully to Table ${tableUser}`
+					);
 				} catch (err) {
-					logger.log("error", `Columns first_name and surnanme can not be added sucessfully to Table ${tableUser}: %s`, err.message);
+					const message = err instanceof Error ? err.message : String(err);
+					logger.log(
+						"error",
+						`Columns first_name and surnanme can not be added sucessfully to Table ${tableUser}: %s`,
+						message
+					);
 				}
 
 				const plaformAdminUser = {
@@ -325,52 +365,40 @@ export const dataBaseInitialization = async () => {
 					email: process_env.PLATFORM_ADMIN_EMAIL,
 					login: process_env.PLATFORM_ADMIN_USER_NAME,
 					password: process_env.PLATFORM_ADMIN_PASSWORD,
-					OrgId: 1
-				}
+					natsNkey: process_env.PLATFORM_ADMIN_NATS_PUBLIC,
+					OrgId: 1,
+				};
 				await grafanaApi.createUser(plaformAdminUser);
 				await grafanaApi.createOrgApiAdminUser(1);
 
-				const dev2pdbUser = {
-					id: 3,
-					name: "dev2pdb",
-					firstName: "",
-					surname: "",
-					email: "",
-					login: "dev2pdb",
-					password: process_env.DEV2PDB_PASSWORD,
-					OrgId: 1
-				}
+				const queryStringUpdateUser =
+					"UPDATE grafanadb.user SET first_name = $1, surname = $2, name = $3 WHERE id = $4";
 				try {
-					await createFictitiousUserForService(dev2pdbUser);
+					await postgresClient.query(queryStringUpdateUser, [
+						process_env.PLATFORM_ADMIN_FIRST_NAME,
+						process_env.PLATFORM_ADMIN_SURNAME,
+						`${process_env.PLATFORM_ADMIN_FIRST_NAME} ${process_env.PLATFORM_ADMIN_SURNAME}`,
+						2,
+					]);
 				} catch (err) {
-					logger.log("error", `Fictitiou user for service dev2pdb could not be created: %s`, err.message);
-				}
-
-				const queryStringUpdateUser = 'UPDATE grafanadb.user SET first_name = $1, surname = $2, name = $3 WHERE id = $4';
-				try {
-					await postgresClient.query(queryStringUpdateUser,
-						[
-							process_env.PLATFORM_ADMIN_FIRST_NAME,
-							process_env.PLATFORM_ADMIN_SURNAME,
-							`${process_env.PLATFORM_ADMIN_FIRST_NAME} ${process_env.PLATFORM_ADMIN_SURNAME}`,
-							2
-						]);
-				} catch (err) {
-					logger.log("error", `Platform admin user can not be updated: %s`, err.message);
+					const message = err instanceof Error ? err.message : String(err);
+					logger.log("error", `Platform admin user can not be updated: %s`, message);
 				}
 				await grafanaApi.giveGrafanaAdminPermissions(2);
 				await grafanaApi.changeUserRoleInOrganization(1, 2, "Admin");
 
-
 				let apiKeyMainOrg: string;
 				try {
-					const apyKeyName = `ApiKey_${process_env.MAIN_ORGANIZATION_ACRONYM.replace(/ /g, "_").replace(/"/g, "").toUpperCase()}`
+					const apyKeyName = `ApiKey_${process_env.MAIN_ORGANIZATION_ACRONYM.replace(/ /g, "_")
+						.replace(/"/g, "")
+						.toUpperCase()}`;
 					const apiKeyData = { name: apyKeyName, role: "Admin" };
 					const apiKeyObj = await grafanaApi.createApiKeyToken(apiKeyData);
 					apiKeyMainOrg = apiKeyObj.key;
 					logger.log("info", `Api key token created sucessfully`);
 				} catch (err) {
-					logger.log("error", `Api key token created could not be created: %s`, err.message);
+					const message = err instanceof Error ? err.message : String(err);
+					logger.log("error", `Api key token created could not be created: %s`, message);
 				}
 
 				const tableOrgToken = "grafanadb.org_token";
@@ -397,22 +425,29 @@ export const dataBaseInitialization = async () => {
 					await postgresClient.query(queryStringOrgToken);
 					logger.log("info", `Table ${tableOrgToken} has been created sucessfully`);
 				} catch (err) {
-					logger.log("error", `Table ${tableOrgToken} can not be created: %s`, err.message);
+					const message = err instanceof Error ? err.message : String(err);
+					logger.log("error", `Table ${tableOrgToken} can not be created: %s`, message);
 				}
 
-				const queryStringInsertOrgToken = `INSERT INTO ${tableOrgToken} (org_id, api_key_id, organization_key) VALUES ($1, $2, $3)`
+				const queryStringInsertOrgToken = `INSERT INTO ${tableOrgToken} (org_id, api_key_id, organization_key) VALUES ($1, $2, $3)`;
 				const hashedApiKey = encrypt(apiKeyMainOrg);
 				const queryParametersInsertOrgToken = [1, 1, hashedApiKey];
 				try {
 					await postgresClient.query(queryStringInsertOrgToken, queryParametersInsertOrgToken);
 					logger.log("info", `Data in table ${tableOrgToken} has been inserted sucessfully`);
 				} catch (err) {
-					logger.log("error", `Data in table ${tableOrgToken} con not been inserted: %s`, err.message);
+					const message = err instanceof Error ? err.message : String(err);
+					logger.log("error", `Data in table ${tableOrgToken} con not been inserted: %s`, message);
 				}
 
 				let group: IGroup;
-				const mainOrgGroupName = defaultOrgGroupName(process_env.MAIN_ORGANIZATION_NAME, process_env.MAIN_ORGANIZATION_ACRONYM);
-				const mainOrgGroupAcronym = `${process_env.MAIN_ORGANIZATION_ACRONYM.replace(/ /g, "_").replace(/"/g, "").toUpperCase()}_GRAL`;
+				const mainOrgGroupName = defaultOrgGroupName(
+					process_env.MAIN_ORGANIZATION_NAME,
+					process_env.MAIN_ORGANIZATION_ACRONYM
+				);
+				const mainOrgGroupAcronym = `${process_env.MAIN_ORGANIZATION_ACRONYM.replace(/ /g, "_")
+					.replace(/"/g, "")
+					.toUpperCase()}_GRAL`;
 				const orgAcronym = process_env.MAIN_ORGANIZATION_ACRONYM.replace(/ /g, "_");
 				const orgName = process_env.MAIN_ORGANIZATION_NAME;
 				const tableGroup = "grafanadb.group";
@@ -431,12 +466,14 @@ export const dataBaseInitialization = async () => {
 					email_notification_channel_id bigint,
 					telegram_notification_channel_id bigint,
 					is_org_default_group BOOLEAN DEFAULT true,
+					is_admin_group BOOLEAN NOT NULL DEFAULT false,
 					floor_number integer NOT NULL DEFAULT 0,
 					feature_index integer NOT NULL DEFAULT 0,
 					outer_bounds float8[2][2],
 					mqtt_access_control VARCHAR(10),
 					mqtt_password VARCHAR(255),
 					mqtt_salt VARCHAR(40),
+					llm_enabled BOOLEAN DEFAULT false,
 					created TIMESTAMPTZ,
 					updated TIMESTAMPTZ,
 					CONSTRAINT fk_org_id
@@ -468,34 +505,38 @@ export const dataBaseInitialization = async () => {
 						userId: 2,
 						firstName: process_env.PLATFORM_ADMIN_FIRST_NAME,
 						surname: process_env.PLATFORM_ADMIN_SURNAME,
-						email: process_env.PLATFORM_ADMIN_EMAIL
-					}
+						email: process_env.PLATFORM_ADMIN_EMAIL,
+					};
 					const defaultMainOrgGroup = {
 						name: mainOrgGroupName,
 						acronym: mainOrgGroupAcronym,
-						email: `${process_env.MAIN_ORGANIZATION_ACRONYM.replace(/ /g, "_").replace(/"/g, "").toLocaleLowerCase()}_general@test.com`,
+						email: `${process_env.MAIN_ORGANIZATION_ACRONYM.replace(/ /g, "_")
+							.replace(/"/g, "")
+							.toLocaleLowerCase()}_general@test.com`,
 						telegramChatId: process_env.MAIN_ORGANIZATION_TELEGRAM_CHAT_ID,
 						telegramInvitationLink: process_env.MAIN_ORGANIZATION_TELEGRAM_INVITATION_LINK,
-						folderPermission: ("Viewer" as FolderPermissionOption),
+						folderPermission: "Viewer" as FolderPermissionOption,
 						groupAdminDataArray: [mainOrgGroupAdmin],
 						floorNumber: 0,
 						featureIndex: 1,
 						outerBounds: [] as number[][],
-						mqttAccessControl: "Pub & Sub"
-					}
-					group = await createGroup(1, defaultMainOrgGroup, process_env.MAIN_ORGANIZATION_NAME, true);
+						mqttAccessControl: "Pub & Sub",
+						llmEnabled: false,
+					};
+					group = await createGroup(1, defaultMainOrgGroup, process_env.MAIN_ORGANIZATION_NAME, true, true);
 					await createHomeDashboard(1, orgAcronym, orgName, group.folderId);
 					const groupMember = {
 						userId: 2,
 						firstName: process_env.PLATFORM_ADMIN_FIRST_NAME,
 						surname: process_env.PLATFORM_ADMIN_SURNAME,
 						email: process_env.PLATFORM_ADMIN_EMAIL,
-						roleInGroup: "Admin" as RoleInGroupOption
-					}
-					await addMembersToGroup(group, [groupMember]);
+						roleInGroup: "Admin" as RoleInGroupOption,
+					};
+					await addMembersToGroup(group, [groupMember], true);
 					logger.log("info", `Table ${tableGroup} has been created sucessfully`);
 				} catch (err) {
-					logger.log("error", `Table ${tableGroup} can not be created: %s`, err.message);
+					const message = err instanceof Error ? err.message : String(err);
+					logger.log("error", `Table ${tableGroup} can not be created: %s`, message);
 				}
 
 				const tableSensorType = "grafanadb.sensor_type";
@@ -529,12 +570,14 @@ export const dataBaseInitialization = async () => {
 					await postgresClient.query(queryStringSensorType);
 					logger.log("info", `Table ${tableSensorType} has been created sucessfully`);
 				} catch (err) {
-					logger.log("error", `Table ${tableSensorType} can not be created: %s`, err.message);
+					const message = err instanceof Error ? err.message : String(err);
+					logger.log("error", `Table ${tableSensorType} can not be created: %s`, message);
 				}
 
 				const sensorTypes: ISensorType[] = [];
 				try {
-					for (const sensorType of predefinedSensorTypes) {
+					const defaultSensorTypes = [...predefinedSensorTypes, ...systemMonitoringSensorTypes];
+					for (const sensorType of defaultSensorTypes) {
 						const defaultSensorTypeData = {
 							orgId: 1,
 							type: sensorType.type,
@@ -545,14 +588,15 @@ export const dataBaseInitialization = async () => {
 							defaultPayloadJsonSchema: JSON.stringify(sensorType.defaultPayloadJsonSchema),
 							isPredefined: true,
 							dashboardRefreshString: sensorType.dashboardRefreshString,
-							dashboardTimeWindow: sensorType.dashboardTimeWindow
-						}
+							dashboardTimeWindow: sensorType.dashboardTimeWindow,
+						};
 						const newSensorType = await createNewSensorType(defaultSensorTypeData);
 						sensorTypes.push(newSensorType);
 					}
 					logger.log("info", `Default sensor types for main org has been created sucessfully`);
 				} catch (err) {
-					logger.log("error", `Default sensor types for main org can not be created: %s`, err.message);
+					const message = err instanceof Error ? err.message : String(err);
+					logger.log("error", `Default sensor types for main org can not be created: %s`, message);
 				}
 
 				const tableAssetType = "grafanadb.asset_type";
@@ -585,7 +629,8 @@ export const dataBaseInitialization = async () => {
 					await postgresClient.query(queryStringAssetType);
 					logger.log("info", `Table ${tableAssetType} has been created sucessfully`);
 				} catch (err) {
-					logger.log("error", `Table ${tableAssetType} can not be created: %s`, err.message);
+					const message = err instanceof Error ? err.message : String(err);
+					logger.log("error", `Table ${tableAssetType} can not be created: %s`, message);
 				}
 
 				const assetTypes: IAssetType[] = [];
@@ -601,13 +646,27 @@ export const dataBaseInitialization = async () => {
 							markerSvgString: assetType.markerSvgString,
 							assetStateFormat: "{}",
 							isPredefined: true,
-						}
+						};
 						const newAssetType = await createNewAssetType(defaultAssetTypeData);
 						assetTypes.push(newAssetType);
 					}
+					const systemMonitoringAssetTypeData = {
+						orgId: 1,
+						type: "System monitoring",
+						iconSvgFileName: systemMonitoringAssetType.iconSvgFileName,
+						iconSvgString: systemMonitoringAssetType.iconSvgString,
+						geolocationMode: systemMonitoringAssetType.geolocationMode,
+						markerSvgFileName: systemMonitoringAssetType.markerSvgFileName,
+						markerSvgString: systemMonitoringAssetType.markerSvgString,
+						assetStateFormat: "{}",
+						isPredefined: true,
+					};
+					const newSystemMonitoringAssetType = await createNewAssetType(systemMonitoringAssetTypeData);
+					assetTypes.push(newSystemMonitoringAssetType);
 					logger.log("info", `Default asset types for main org has been created sucessfully`);
 				} catch (err) {
-					logger.log("error", `Default asset types for main org can not be created: %s`, err.message);
+					const message = err instanceof Error ? err.message : String(err);
+					logger.log("error", `Default asset types for main org can not be created: %s`, message);
 				}
 
 				const tableAsset = "grafanadb.asset";
@@ -640,7 +699,147 @@ export const dataBaseInitialization = async () => {
 					await postgresClient.query(queryStringAsset);
 					logger.log("info", `Table ${tableAsset} has been created sucessfully`);
 				} catch (err) {
-					logger.log("error", `Table ${tableAsset} can not be created: %s`, err.message);
+					const message = err instanceof Error ? err.message : String(err);
+					logger.log("error", `Table ${tableAsset} can not be created: %s`, message);
+				}
+
+				const tableS3Folder = "grafanadb.s3_folder";
+				const queryStringS3Folder = `
+					CREATE TABLE IF NOT EXISTS ${tableS3Folder}(
+						id                  serial       PRIMARY KEY,
+						group_id            bigint,
+						asset_id            bigint,
+						folderName          VARCHAR(100)    NOT NULL DEFAULT 'telemetry',
+						parquet_schema      jsonb           NOT NULL DEFAULT '{}'::jsonb,
+						last_s3_storage     TIMESTAMPTZ,
+						parquet_file_count  integer         NOT NULL DEFAULT 0,
+						parquet_total_bytes bigint          NOT NULL DEFAULT 0,
+						version             integer         NOT NULL DEFAULT 1,
+						valid_from          TIMESTAMPTZ     NOT NULL DEFAULT now(),
+						valid_to            TIMESTAMPTZ,            -- NULL = active row
+						is_current          boolean         NOT NULL DEFAULT true,
+						created             TIMESTAMPTZ     NOT NULL DEFAULT now(),
+						updated             TIMESTAMPTZ,
+						CONSTRAINT fk_group_id
+							FOREIGN KEY (group_id)
+							REFERENCES grafanadb.group(id)
+							ON DELETE CASCADE,
+						CONSTRAINT fk_asset_id
+							FOREIGN KEY (asset_id)
+							REFERENCES grafanadb.asset(id)
+							ON DELETE CASCADE
+					);
+
+					-- Uniqueness only among ACTIVE rows (partial index)
+					CREATE UNIQUE INDEX IF NOT EXISTS uq_s3_folder_active
+						ON grafanadb.s3_folder(asset_id, folderName)
+						WHERE is_current = true;
+
+					-- Standard lookup index
+					CREATE INDEX IF NOT EXISTS idx_s3_folderName
+						ON grafanadb.s3_folder(asset_id, folderName);
+
+					-- Index for historical range queries
+					CREATE INDEX IF NOT EXISTS idx_s3_folder_valid
+						ON grafanadb.s3_folder(asset_id, folderName, valid_from, valid_to);
+
+					CREATE OR REPLACE FUNCTION grafanadb.scd2_s3_folder()
+					RETURNS TRIGGER LANGUAGE plpgsql AS $$
+					DECLARE
+						v_new_id integer;
+					BEGIN
+						-- ── No schema change → plain UPDATE, no versioning ──────────
+						IF OLD.parquet_schema IS NOT DISTINCT FROM NEW.parquet_schema THEN
+							NEW.updated = now();
+							RETURN NEW;
+						END IF;
+
+						-- 1. Close the current row
+						UPDATE grafanadb.s3_folder
+						SET
+							valid_to   = now(),
+							is_current = false,
+							updated    = now()
+						WHERE id = OLD.id;
+
+						-- 2. Insert new version with counters reset to zero
+						INSERT INTO grafanadb.s3_folder (
+							group_id, asset_id, folderName, parquet_schema,
+							last_s3_storage, parquet_file_count, parquet_total_bytes,
+							version, valid_from, valid_to, is_current, created, updated
+						) VALUES (
+							NEW.group_id, NEW.asset_id, NEW.folderName, NEW.parquet_schema,
+							NULL, 0, 0,  -- ← reset: aún no hay archivos en el nuevo esquema
+							OLD.version + 1, now(), NULL,
+							true, OLD.created, now()
+						)
+						RETURNING id INTO v_new_id;
+
+						-- 3. Publish the new id
+						PERFORM set_config('app.last_scd2_id', v_new_id::text, true);
+
+						-- 4. Cancel the original UPDATE
+						RETURN NULL;
+					END;
+					$$;
+
+					CREATE OR REPLACE TRIGGER trg_scd2_s3_folder
+						BEFORE UPDATE ON grafanadb.s3_folder
+						FOR EACH ROW
+						WHEN (OLD.is_current = true)
+						EXECUTE FUNCTION grafanadb.scd2_s3_folder();
+
+					CREATE OR REPLACE FUNCTION grafanadb.update_s3_folder(
+						p_id                integer,
+						p_parquet_schema    jsonb,
+						p_last_s3_storage   TIMESTAMPTZ DEFAULT NULL,
+						p_file_count        integer     DEFAULT NULL,
+						p_total_bytes       bigint      DEFAULT NULL
+					)
+					RETURNS grafanadb.s3_folder LANGUAGE plpgsql AS $$
+					DECLARE
+						v_result    grafanadb.s3_folder;
+						v_active_id integer;
+					BEGIN
+						-- Reset session variable before the operation
+						PERFORM set_config('app.last_scd2_id', '', true);
+
+						-- Fire the UPDATE; the trigger handles SCD2 logic internally
+						UPDATE grafanadb.s3_folder
+						SET
+							parquet_schema      = COALESCE(p_parquet_schema, parquet_schema),
+							last_s3_storage     = COALESCE(p_last_s3_storage, last_s3_storage),
+							parquet_file_count  = COALESCE(p_file_count,      parquet_file_count),
+							parquet_total_bytes = COALESCE(p_total_bytes,     parquet_total_bytes),
+							updated             = now()
+						WHERE id = p_id
+						AND is_current = true;
+
+						-- Resolve the active id:
+						--   • SCD2 fired  → session variable holds the new row's id
+						--   • No SCD2     → session variable is empty; use the original id
+						v_active_id := NULLIF(current_setting('app.last_scd2_id', true), '')::integer;
+						v_active_id := COALESCE(v_active_id, p_id);
+
+						-- Fetch and return the active row
+						SELECT * INTO v_result
+						FROM grafanadb.s3_folder
+						WHERE id = v_active_id;
+
+						-- Clean up session variable
+						PERFORM set_config('app.last_scd2_id', '', true);
+
+						RETURN v_result;
+					END;
+					$$;
+				`;
+
+				try {
+					await postgresClient.query(queryStringS3Folder);
+					logger.log("info", `Table ${tableS3Folder} has been created sucessfully`);
+				} catch (err) {
+					const message = err instanceof Error ? err.message : String(err);
+					logger.log("error", `Table ${tableS3Folder} can not be created: %s`, message);
 				}
 
 				const tableTopic = "grafanadb.topic";
@@ -672,7 +871,8 @@ export const dataBaseInitialization = async () => {
 					await postgresClient.query(queryStringTopic);
 					logger.log("info", `Table ${tableTopic} has been created sucessfully`);
 				} catch (err) {
-					logger.log("error", `Table ${tableTopic} can not be created: %s`, err.message);
+					const message = err instanceof Error ? err.message : String(err);
+					logger.log("error", `Table ${tableTopic} can not be created: %s`, message);
 				}
 
 				const tableAssetTopic = "grafanadb.asset_topic";
@@ -696,7 +896,8 @@ export const dataBaseInitialization = async () => {
 					await postgresClient.query(queryStringAssetTopic);
 					logger.log("info", `Table ${tableAssetTopic} has been created sucessfully`);
 				} catch (err) {
-					logger.log("error", `Table ${tableAssetType} can not be created: %s`, err.message);
+					const message = err instanceof Error ? err.message : String(err);
+					logger.log("error", `Table ${tableAssetTopic} can not be created: %s`, message);
 				}
 
 				const tableSensor = "grafanadb.sensor";
@@ -740,7 +941,8 @@ export const dataBaseInitialization = async () => {
 					await postgresClient.query(queryStringSensor);
 					logger.log("info", `Table ${tableSensor} has been created sucessfully`);
 				} catch (err) {
-					logger.log("error", `Table ${tableSensor} can not be created: %s`, err.message);
+					const message = err instanceof Error ? err.message : String(err);
+					logger.log("error", `Table ${tableSensor} can not be created: %s`, message);
 				}
 
 				const tableDigitalTwin = "grafanadb.digital_twin";
@@ -758,6 +960,9 @@ export const dataBaseInitialization = async () => {
 					chat_assistant_enabled BOOLEAN NOT NULL DEFAULT FALSE,
 					chat_assistant_language VARCHAR(20) NOT NULL DEFAULT 'none',
 					digital_twin_simulation_format jsonb NOT NULL DEFAULT '{}'::jsonb,
+					pipeline_file_name VARCHAR(100) NOT NULL DEFAULT '-',
+					pipeline_file_last_modif_date VARCHAR(100) NOT NULL DEFAULT '-',
+					pipeline_file_data TEXT NOT NULL DEFAULT '',
 					created TIMESTAMPTZ,
 					updated TIMESTAMPTZ,
 					UNIQUE (group_id, asset_id, scope),
@@ -782,7 +987,8 @@ export const dataBaseInitialization = async () => {
 					await postgresClient.query(queryStringDigitalTwin);
 					logger.log("info", `Table ${tableDigitalTwin} has been created sucessfully`);
 				} catch (err) {
-					logger.log("error", `Table ${tableDigitalTwin} can not be created: %s`, err.message);
+					const message = err instanceof Error ? err.message : String(err);
+					logger.log("error", `Table ${tableDigitalTwin} can not be created: %s`, message);
 				}
 
 				const tableDigitalTwinTopic = "grafanadb.digital_twin_topic";
@@ -805,7 +1011,8 @@ export const dataBaseInitialization = async () => {
 					await postgresClient.query(queryStringDigitalTwinTopic);
 					logger.log("info", `Table ${tableDigitalTwinTopic} has been created sucessfully`);
 				} catch (err) {
-					logger.log("error", `Table ${tableDigitalTwinTopic} can not be created: %s`, err.message);
+					const message = err instanceof Error ? err.message : String(err);
+					logger.log("error", `Table ${tableDigitalTwinTopic} can not be created: %s`, message);
 				}
 
 				const tableDigitalTwinSensor = "grafanadb.digital_twin_sensor";
@@ -827,7 +1034,8 @@ export const dataBaseInitialization = async () => {
 					await postgresClient.query(queryStringDigitalTwinSensor);
 					logger.log("info", `Table ${tableDigitalTwinSensor} has been created sucessfully`);
 				} catch (err) {
-					logger.log("error", `Table ${tableDigitalTwinSensor} can not be created: %s`, err.message);
+					const message = err instanceof Error ? err.message : String(err);
+					logger.log("error", `Table ${tableDigitalTwinSensor} can not be created: %s`, message);
 				}
 
 				const tableMLModel = "grafanadb.ml_model";
@@ -853,50 +1061,131 @@ export const dataBaseInitialization = async () => {
 					await postgresClient.query(queryStringMLModel);
 					logger.log("info", `Table ${tableMLModel} has been created sucessfully`);
 				} catch (err) {
-					logger.log("error", `Table ${tableMLModel} can not be created: %s`, err.message);
+					const message = err instanceof Error ? err.message : String(err);
+					logger.log("error", `Table ${tableMLModel} can not be created: %s`, message);
 				}
 
-				const tableNodeRedInstance = "grafanadb.nodered_instance";
-				const queryStringodeRedInstance = `
-				CREATE TABLE IF NOT EXISTS ${tableNodeRedInstance}(
-					id serial PRIMARY KEY,
-					nri_hash VARCHAR(40) UNIQUE,
-					org_id bigint,
-					group_id bigint,
-					geolocation POINT,
-					icon_radio real NOT NULL DEFAULT 1.0,
-					deleted boolean NOT NULL DEFAULT FALSE,
-					created TIMESTAMPTZ,
-					updated TIMESTAMPTZ,
-					CONSTRAINT fk_org_id
-						FOREIGN KEY(org_id)
-						REFERENCES grafanadb.org(id)
-						ON DELETE CASCADE
-				);
-
-				CREATE INDEX IF NOT EXISTS idx_nri_hash
-				ON grafanadb.nodered_instance(nri_hash);`;
-
-				let mainNodeRedInstance: INodeRedInstance;
+				let mobileSensorsAsset: IAsset;
+				let systemMonitoringAsset: IAsset;
 				try {
-					await postgresClient.query(queryStringodeRedInstance);
-					const nodeRedInstances = await createNodeRedInstancesInOrg(process_env.MAIN_ORG_NODERED_INSTANCE_HASHES, 1);
-					mainNodeRedInstance = nodeRedInstances[0];
-					logger.log("info", `Table ${tableNodeRedInstance} has been created sucessfully`);
+					const systemMonitoringAssetData = {
+						assetTypeId: assetTypes[predefinedAssetTypes.length].id,
+						description: "System monitoring",
+						type: "system_monitoring",
+						iconRadio: 1.0,
+						iconSizeFactor: 1.0,
+						longitude: 0.0,
+						latitude: 0.0,
+						geolocationMode: "dynamic",
+						topicsRef: [
+							{
+								topicRef: "system_1",
+								topicType: "system",
+								description: "Log entries",
+								mqttAccessControl: "Pub & Sub",
+								payloadJsonSchema: "{}",
+								requireS3Storage: false,
+								s3Folder: "",
+								parquetSchema: "{}",
+							},
+							{
+								topicRef: "system_2",
+								topicType: "system",
+								description: "Host metrics",
+								mqttAccessControl: "Pub & Sub",
+								payloadJsonSchema: "{}",
+								requireS3Storage: false,
+								s3Folder: "",
+								parquetSchema: "{}",
+							},
+							{
+								topicRef: "system_3",
+								topicType: "system",
+								description: "Container metrics",
+								mqttAccessControl: "Pub & Sub",
+								payloadJsonSchema: "{}",
+								requireS3Storage: false,
+								s3Folder: "",
+								parquetSchema: "{}",
+							},
+							{
+								topicRef: "system_4",
+								topicType: "system",
+								description: "Volume metrics",
+								mqttAccessControl: "Pub & Sub",
+								payloadJsonSchema: "{}",
+								requireS3Storage: false,
+								s3Folder: "",
+								parquetSchema: "{}",
+							},
+							{
+								topicRef: "system_5",
+								topicType: "system",
+								description: "WAL archiver",
+								mqttAccessControl: "Pub & Sub",
+								payloadJsonSchema: "{}",
+								requireS3Storage: false,
+								s3Folder: "",
+								parquetSchema: "{}",
+							},
+							{
+								topicRef: "system_6",
+								topicType: "system",
+								description: "System alert",
+								mqttAccessControl: "Pub & Sub",
+								payloadJsonSchema: "{}",
+								requireS3Storage: false,
+								s3Folder: "",
+								parquetSchema: "{}",
+							},
+						],
+						sensorsRef: [
+							{
+								sensorRef: "sensor_1",
+								sensorType: "Service logs",
+								topicRef: "system_1",
+								description: "Log entries sensor",
+								payloadJsonSchema: "{}",
+							},
+							{
+								sensorRef: "sensor_2",
+								sensorType: "Host metrics",
+								topicRef: "system_2",
+								description: "Host metrics sensor",
+								payloadJsonSchema: "{}",
+							},
+							{
+								sensorRef: "sensor_3",
+								sensorType: "Container metrics",
+								topicRef: "system_3",
+								description: "Container metrics sensor",
+								payloadJsonSchema: "{}",
+							},
+							{
+								sensorRef: "sensor_4",
+								sensorType: "Volume metrics",
+								topicRef: "system_4",
+								description: "Volume metrics sensor",
+								payloadJsonSchema: "{}",
+							},
+							{
+								sensorRef: "sensor_5",
+								sensorType: "WAL archiver metrics",
+								topicRef: "system_5",
+								description: "WAL archiver metrics sensor",
+								payloadJsonSchema: "{}",
+							},
+						],
+					};
+					systemMonitoringAsset = await createSystemMonitoringAsset(group, systemMonitoringAssetData, true);
+					logger.log("info", `System monitoring asset for main group has been created sucessfully`);
 				} catch (err) {
-					logger.log("error", `Table ${tableNodeRedInstance} can not be created: %s`, err.message);
+					const message = err instanceof Error ? err.message : String(err);
+					logger.log("error", `System monitoring asset for main group can not be created: %s`, message);
 				}
 
 				try {
-					await assignNodeRedInstanceToGroup(mainNodeRedInstance, group.id);
-					logger.log("info", `NodeRed instance assigned to group with id: ${group.id}`);
-				} catch (err) {
-					logger.log("error", `NodeRed instance can not be assigned to group with id: ${group.id}: %s`, err.message);
-				}
-
-				let asset: IAsset;
-				try {
-					const defaultAssetData = {
+					const mobileSensorsAssetData = {
 						assetTypeId: assetTypes[5].id,
 						description: `Mobile for group ${group.acronym}`,
 						type: "Mobile",
@@ -955,7 +1244,17 @@ export const dataBaseInitialization = async () => {
 								requireS3Storage: false,
 								s3Folder: "",
 								parquetSchema: "{}",
-							}
+							},
+							{
+								topicRef: "dev2pdb_6",
+								topicType: "dev2dtm",
+								description: `Mobile video topic`,
+								mqttAccessControl: "Pub & Sub",
+								payloadJsonSchema: JSON.stringify(predefinedSensorTypes[5].defaultPayloadJsonSchema),
+								requireS3Storage: false,
+								s3Folder: "",
+								parquetSchema: "{}",
+							},
 						],
 						sensorsRef: [
 							{
@@ -991,26 +1290,57 @@ export const dataBaseInitialization = async () => {
 								sensorType: "Mobile photo",
 								topicRef: "dev2pdb_5",
 								description: `Mobile photo`,
-								payloadJsonSchema: JSON.stringify(predefinedSensorTypes[4].defaultPayloadJsonSchema),
-							}
-						]
-					}
-					asset = await createNewAsset(group, defaultAssetData);
+								payloadJsonSchema: "{}",
+							},
+							{
+								sensorRef: "sensor_6",
+								sensorType: "Mobile video",
+								topicRef: "dev2pdb_6",
+								description: `Mobile video`,
+								payloadJsonSchema: "{}",
+							},
+						],
+					};
+					mobileSensorsAsset = await createNewAsset(group, mobileSensorsAssetData, true);
 					logger.log("info", `Default asset for main group has been created sucessfully`);
 				} catch (err) {
-					logger.log("error", `Default asset for main group can not be created: %s`, err.message);
+					const message = err instanceof Error ? err.message : String(err);
+					logger.log("error", `Default asset for main group can not be created: %s`, message);
 				}
 
 				try {
 					const geoJsonDataString = findGroupGeojsonData(floor, 1);
 					await updateGroupAssetsLocation(geoJsonDataString, group);
-					await updateGroupNodeRedInstanceLocation(geoJsonDataString, group);
 					logger.log("info", `Updapting geolocation for asset in group with id: ${group.id}`);
 				} catch (err) {
-					logger.log("error", `Update of group assets with id: ${group.id} could not be performed: %s`, err.message);
+					const message = err instanceof Error ? err.message : String(err);
+					logger.log(
+						"error",
+						`Update of group assets with id: ${group.id} could not be performed: %s`,
+						message
+					);
 				}
 
-				const digitalTwinData = {
+				const systemMonitoringDigitalTwinData = {
+					description: "System monitoring",
+					type: "Grafana dashboard",
+					digitalTwinUid: nanoid(20).replace(/-/g, "x").replace(/_/g, "X"),
+					maxNumResFemFiles: 0,
+					digitalTwinSimulationFormat: "{}",
+					chatAssistantEnabled: false,
+					chatAssistantLanguage: "none",
+					sensorsRef: [] as string[],
+				};
+
+				try {
+					await createDigitalTwin(group, systemMonitoringAsset, systemMonitoringDigitalTwinData, null, true);
+					logger.log("info", `System monitoring digital twin has been created sucessfully`);
+				} catch (err) {
+					const message = err instanceof Error ? err.message : String(err);
+					logger.log("error", `System monitoring digital twin can not be created: %s`, message);
+				}
+
+				const mobileSensorsDigitalTwinData = {
 					description: "Mobile phone default DT",
 					type: "Gltf 3D model",
 					digitalTwinUid: nanoid(20).replace(/-/g, "x").replace(/_/g, "X"),
@@ -1018,17 +1348,24 @@ export const dataBaseInitialization = async () => {
 					digitalTwinSimulationFormat: "{}",
 					chatAssistantEnabled: false,
 					chatAssistantLanguage: "none",
-					sensorsRef: ["sensor_3"]
-				}
+					sensorsRef: ["sensor_3"],
+				};
 
 				try {
-					const digitalTwin = await createDigitalTwin(group, asset, digitalTwinData);
-					const keyBase = `org_1/group_${group.id}/digitalTwin_${digitalTwin.id}`;
-					const gltfFileName = `${keyBase}/gltfFile/mobile_phone.gltf`
+					const mobileSensorsDigitalTwin = await createDigitalTwin(
+						group,
+						mobileSensorsAsset,
+						mobileSensorsDigitalTwinData,
+						null,
+						true
+					);
+					const keyBase = `org_data/org_1/group_${group.id}/digitalTwin_${mobileSensorsDigitalTwin.id}`;
+					const gltfFileName = `${keyBase}/gltfFile/mobile_phone.gltf`;
 					await uploadMobilePhoneGltfFile(gltfFileName);
 					logger.log("info", `Default mobile phone digital twin has been created sucessfully`);
 				} catch (err) {
-					logger.log("error", `Default mobile phone digital twin can not be created: %s`, err.message);
+					const message = err instanceof Error ? err.message : String(err);
+					logger.log("error", `Default mobile phone digital twin can not be created: %s`, message);
 				}
 
 				const tableRefreshToken = "grafanadb.refresh_token";
@@ -1052,7 +1389,8 @@ export const dataBaseInitialization = async () => {
 					await postgresClient.query(queryStringtableRefreshToken);
 					logger.log("info", `Table ${tableRefreshToken} has been created sucessfully`);
 				} catch (err) {
-					logger.log("error", `Table ${tableRefreshToken} can not be created: %s`, err.message);
+					const message = err instanceof Error ? err.message : String(err);
+					logger.log("error", `Table ${tableRefreshToken} can not be created: %s`, message);
 				}
 
 				const tableAlertNotification = "grafanadb.alert_notification";
@@ -1067,16 +1405,48 @@ export const dataBaseInitialization = async () => {
 					await postgresClient.query(queryStringAlterAlertNotification);
 					logger.log("info", `Foreing key in table ${tableAlertNotification} has been added sucessfully`);
 				} catch (err) {
-					logger.log("error", `Foreing key in table ${tableAlertNotification} couldd not be added: %s`, err.message);
+					const message = err instanceof Error ? err.message : String(err);
+					logger.log(
+						"error",
+						`Foreing key in table ${tableAlertNotification} couldd not be added: %s`,
+						message
+					);
+				}
+
+				const tableANatsService = "grafanadb.nats_service";
+				const queryStringNatsService = `
+				CREATE TABLE IF NOT EXISTS ${tableANatsService}(
+					id serial PRIMARY KEY,
+					svc_hash varchar(30) UNIQUE,
+					group_id bigint,
+					name VARCHAR(50),
+					description VARCHAR(190),
+					created TIMESTAMPTZ,
+					updated TIMESTAMPTZ,
+					CONSTRAINT fk_group_id
+						FOREIGN KEY(group_id)
+							REFERENCES grafanadb.group(id)
+							ON DELETE CASCADE
+				);
+
+				CREATE INDEX IF NOT EXISTS idx_svc_hash
+				ON grafanadb.nats_service(svc_hash);`;
+
+				try {
+					await postgresClient.query(queryStringNatsService);
+					logger.log("info", `Table ${tableANatsService} has been created sucessfully`);
+				} catch (err) {
+					const message = err instanceof Error ? err.message : String(err);
+					logger.log("error", `Table ${tableANatsService} could not be created: %s`, message);
 				}
 
 				pool.end(() => {
 					logger.log("info", `Postgres migration pool has ended`);
-				})
+				});
 
 				timescaledb_pool.end(() => {
 					logger.log("info", `Timescaldb migration pool has ended`);
-				})
+				});
 			} else {
 				try {
 					const queryViews = `SELECT table_name from INFORMATION_SCHEMA.views WHERE table_schema = 'iot_datasource';`;
@@ -1099,9 +1469,9 @@ export const dataBaseInitialization = async () => {
 						}
 						await Promise.all(createViewsQueries);
 					}
-
 				} catch (err) {
-					logger.log("error", `Views in timescaledb could not be checked: %s`, err.message);
+					const message = err instanceof Error ? err.message : String(err);
+					logger.log("error", `Views in timescaledb could not be checked: %s`, message);
 					process.exit(1);
 				}
 			}
@@ -1109,5 +1479,4 @@ export const dataBaseInitialization = async () => {
 	} else {
 		process.exit(1);
 	}
-
-}
+};

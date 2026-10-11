@@ -6,6 +6,7 @@ import EditFloor from './EditFloor';
 import { setFloorsOptionToShow, useFloorsDispatch, useFloorsOptionToShow } from '../../../contexts/floorsOptions';
 import { IFloor, Create_FLOORS_COLUMNS } from '../TableColumns/floorsColumns';
 import { useBuildingsTable } from '../../../contexts/platformAssistantContext';
+import { Column } from 'react-table';
 
 interface FloorsContainerProps {
     floors: IFloor[];
@@ -41,7 +42,7 @@ const FloorsContainer: FC<FloorsContainerProps> = ({ floors, refreshFloors }) =>
             {floorsOptionToShow === FLOORS_OPTIONS.TABLE &&
                 <TableWithPagination
                     dataTable={floors}
-                    columnsTable={Create_FLOORS_COLUMNS(refreshFloors)}
+                    columnsTable={Create_FLOORS_COLUMNS(refreshFloors) as Column<any>[]}
                     componentName="floor"
                     reloadTable={refreshFloors}
                     createComponent={() => setFloorsOptionToShow(floorsDispatch, { floorsOptionToShow: FLOORS_OPTIONS.CREATE_FLOOR })}

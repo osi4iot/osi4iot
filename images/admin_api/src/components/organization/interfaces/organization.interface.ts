@@ -10,6 +10,12 @@ export default interface IOrganization {
 	buildingId: number;
 	orgHash: string;
 	mqttAccessControl: string;
+	llmEnabled: boolean;
+	llmProviderUrl: string;
+	hashedLlmProviderApiKey: string;
+	telegramEnabled: boolean;
+	hashedTelegramBotToken: string;
+	hashedTelegramWebhookSecretToken: string;
 }
 
 export interface IOrganizationWichTheLoggedUserIsUser {

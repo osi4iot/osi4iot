@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"context"
+	"crypto/tls"
 	"fmt"
 	"io"
 	"log"
@@ -18,15 +19,16 @@ import (
 )
 
 type config struct {
-	mqttClientId       string
-	mqttPort           int
-	mqttBrokerUrl      string
-	dev2pdbUsername    string
-	dev2pdbPassword    string
+	dominName             string
+	mqttClientId          string
+	mqttPort              int
+	mqttBrokerUrl         string
+	dev2pdbUsername       string
+	dev2pdbPassword       string
 	timescaledbUser       string
 	timescaledbPassword   string
 	timescaledbServiceUrl string
-	databaseName       string
+	databaseName          string
 }
 
 func AdminApiQuery() bool {
@@ -106,7 +108,7 @@ func connectToMqttBroker(configData config) mqtt.Client {
 }
 
 var connectLostHandler mqtt.ConnectionLostHandler = func(client mqtt.Client, err error) {
-    fmt.Printf("Connection lost: %v", err)
+	fmt.Printf("Connection lost: %v", err)
 	os.Exit(1)
 }
 
@@ -117,6 +119,13 @@ func createClientOptions(configData config) *mqtt.ClientOptions {
 	opts.SetUsername(configData.dev2pdbUsername)
 	opts.SetPassword(configData.dev2pdbPassword)
 	opts.OnConnectionLost = connectLostHandler
+	if configData.mqttBrokerUrl != "mosquitto" {
+		tlsCfg := &tls.Config{
+			ServerName:         configData.dominName,
+			InsecureSkipVerify: true,
+		}
+		opts.SetTLSConfig(tlsCfg)
+	}
 	return opts
 }
 
@@ -141,7 +150,7 @@ func sendRowToChannelHandler200ms(msg mqtt.Message, rowChannel200ms chan []inter
 	topic := topicsSlice[2]
 	deleted := 0
 
-	timestampString, err := jsonparser.GetString(msg.Payload(), "timestamp");
+	timestampString, err := jsonparser.GetString(msg.Payload(), "timestamp")
 	if err != nil {
 		fmt.Println("Timestamp field not defined")
 		return
@@ -166,7 +175,7 @@ func sendRowToChannelHandlerMessagedArray(msg mqtt.Message, rowChannel1000ms cha
 	deleted := 0
 
 	jsonparser.ArrayEach(messagesArray, func(message []byte, dataType jsonparser.ValueType, offset int, innerErr error) {
-		timestampString, err := jsonparser.GetString(message, "timestamp");
+		timestampString, err := jsonparser.GetString(message, "timestamp")
 		if err != nil {
 			fmt.Println("Timestamp field not defined")
 			return
@@ -252,6 +261,7 @@ func listenWithTimestamp(subcribedTopic string, client mqtt.Client, rowChannel20
 func getConfigData() config {
 	mqttClientId := "dev2pdb"
 	mqttPort := 1883
+	domainName := getEnv("DOMAIN_NAME", "osi4iot.com")
 	mqttBrokerServiceUrl := getEnv("MQTT_BROKER_SERVICE_URL", "mosquitto")
 	dev2pdbUsername := getEnv("DEV2PDB_USERNAME", "dev2pdb")
 	dev2pdbPassword := getParameterFromFileOrEnvVar("DEV2PDB_PASSWORD", "/run/secrets/dev2pdb_password.txt")
@@ -260,17 +270,17 @@ func getConfigData() config {
 	timescaledbServiceUrl := getEnv("TIMESCALE_SERVICE_URL", "timescaledb")
 	databaseName := getEnv("DATABASE_NAME", "iot_data_db")
 	return config{
-		mqttClientId, 
-		mqttPort, 
+		domainName,
+		mqttClientId,
+		mqttPort,
 		mqttBrokerServiceUrl,
 		dev2pdbUsername,
 		dev2pdbPassword,
 		timescaledbUser,
-		timescaledbPassword, 
-		timescaledbServiceUrl, 
-		databaseName }
+		timescaledbPassword,
+		timescaledbServiceUrl,
+		databaseName}
 }
-
 
 func getDatabaseUrl(configData config) string {
 	user := configData.timescaledbUser
@@ -281,7 +291,11 @@ func getDatabaseUrl(configData config) string {
 }
 
 func getMqttBrokerUrl(configData config) string {
-	return fmt.Sprintf("tcp://%s:%d", configData.mqttBrokerUrl, configData.mqttPort)
+	if configData.mqttBrokerUrl == "mosquitto" {
+		return fmt.Sprintf("tcp://%s:%d", configData.mqttBrokerUrl, configData.mqttPort)
+	} else {
+		return fmt.Sprintf("ssl://%s:%d", configData.mqttBrokerUrl, configData.mqttPort)
+	}
 }
 
 func getEnv(key, fallback string) string {
@@ -352,5 +366,5 @@ func main() {
 		fmt.Fprintf(os.Stderr, "Error listenging on port 3300: %v", err)
 		os.Exit(1)
 	}
-	  
+
 }

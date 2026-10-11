@@ -27,25 +27,35 @@ interface IProcessEnv extends Record<string, string | string[] | string[][]> {
 	PLATFORM_ADMIN_USER_NAME: string;
 	PLATFORM_ADMIN_EMAIL: string;
 	PLATFORM_ADMIN_PASSWORD: string;
+	PLATFORM_ADMIN_NATS_PUBLIC: string;
 	GRAFANA_ADMIN_PASSWORD: string;
 	POSTGRES_USER: string;
 	POSTGRES_PASSWORD: string;
 	POSTGRES_DB: string;
+	POSTGRES_HOST: string;
+	POSTGRES_PORT: string;
+	POSTGRES_READ_PORT: string;
 	TIMESCALE_USER: string;
 	TIMESCALE_PASSWORD: string;
 	TIMESCALE_DB: string;
+	TIMESCALE_HOST: string;
+	TIMESCALE_PORT: string;
+	TIMESCALE_READ_PORT: string;
 	S3_BUCKET_NAME: string;
 	AWS_ACCESS_KEY_ID: string;
 	AWS_SECRET_ACCESS_KEY: string;
 	AWS_REGION: string;
-	DEV2PDB_PASSWORD: string;
+	AWS_ENDPOINT: string;
+	MESSAGING_SYSTEM: string;
+	NATS_ADMIN_USERNAME: string;
+	NATS_ADMIN_PASSWORD: string;
+	NATS_SEED_SERVERS_URL: string;
+	NATS_SEED: string;
 	NOTIFICATIONS_EMAIL_USER: string;
 	NOTIFICATIONS_EMAIL_PASSWORD: string;
 	MAIN_ORGANIZATION_TELEGRAM_CHAT_ID: string;
 	MAIN_ORGANIZATION_TELEGRAM_INVITATION_LINK: string;
 	TELEGRAM_BOTTOKEN: string;
-	MAIN_ORG_HASH: string;
-	MAIN_ORG_NODERED_INSTANCE_HASHES: string[];
 	REPLICA: string;
 }
 
@@ -75,56 +85,70 @@ const process_env: IProcessEnv = {
 	PLATFORM_ADMIN_USER_NAME: process.env.PLATFORM_ADMIN_USER_NAME,
 	PLATFORM_ADMIN_EMAIL: process.env.PLATFORM_ADMIN_EMAIL,
 	PLATFORM_ADMIN_PASSWORD: process.env.PLATFORM_ADMIN_PASSWORD,
+	PLATFORM_ADMIN_NATS_PUBLIC: process.env.PLATFORM_ADMIN_NATS_PUBLIC,
 	GRAFANA_ADMIN_PASSWORD: process.env.GRAFANA_ADMIN_PASSWORD,
 	POSTGRES_USER: process.env.POSTGRES_USER,
 	POSTGRES_PASSWORD: process.env.POSTGRES_PASSWORD,
 	POSTGRES_DB: process.env.POSTGRES_DB,
+	POSTGRES_HOST: process.env.POSTGRES_HOST || "postgres",
+	POSTGRES_PORT: process.env.POSTGRES_PORT || "5432",
+	POSTGRES_READ_PORT: process.env.POSTGRES_READ_PORT || process.env.POSTGRES_PORT || "5432",
 	TIMESCALE_USER: process.env.TIMESCALE_USER,
 	TIMESCALE_PASSWORD: process.env.TIMESCALE_PASSWORD,
 	TIMESCALE_DB: process.env.TIMESCALE_DB,
+	TIMESCALE_HOST: process.env.TIMESCALE_HOST || "timescaledb",
+	TIMESCALE_PORT: process.env.TIMESCALE_PORT || "5432",
+	TIMESCALE_READ_PORT: process.env.TIMESCALE_READ_PORT || process.env.TIMESCALE_PORT || "5432",
 	S3_BUCKET_NAME: process.env.S3_BUCKET_NAME,
 	AWS_ACCESS_KEY_ID: process.env.AWS_ACCESS_KEY_ID,
 	AWS_SECRET_ACCESS_KEY: process.env.AWS_SECRET_ACCESS_KEY,
 	AWS_REGION: process.env.AWS_REGION,
-	DEV2PDB_PASSWORD: process.env.DEV2PDB_PASSWORD,
+	// Empty with AWS S3; http://garage:3900 with the platform's Garage.
+	// Set by the CLI in /run/configs/admin_api.conf, read below.
+	AWS_ENDPOINT: process.env.AWS_ENDPOINT || "",
+	MESSAGING_SYSTEM: process.env.MESSAGING_SYSTEM,
+	NATS_ADMIN_USERNAME: process.env.NATS_ADMIN_USERNAME,
+	NATS_ADMIN_PASSWORD: process.env.NATS_ADMIN_PASSWORD,
+	NATS_SEED_SERVERS_URL: process.env.NATS_SEED_SERVERS_URL,
+	NATS_SEED: process.env.NATS_SEED,
 	NOTIFICATIONS_EMAIL_USER: process.env.NOTIFICATIONS_EMAIL_USER,
 	NOTIFICATIONS_EMAIL_PASSWORD: process.env.NOTIFICATIONS_EMAIL_PASSWORD,
 	MAIN_ORGANIZATION_TELEGRAM_CHAT_ID: process.env.MAIN_ORGANIZATION_TELEGRAM_CHAT_ID,
 	MAIN_ORGANIZATION_TELEGRAM_INVITATION_LINK: process.env.MAIN_ORGANIZATION_TELEGRAM_INVITATION_LINK,
 	TELEGRAM_BOTTOKEN: process.env.TELEGRAM_BOTTOKEN,
-	MAIN_ORG_HASH: process.env.MAIN_ORG_HASH,
-	MAIN_ORG_NODERED_INSTANCE_HASHES: [],
 	REPLICA: process.env.REPLICA,
 };
 
 const readDockerFiles = (dockerFileName: string) => {
 	if (fs.existsSync(dockerFileName)) {
 		try {
-			const data = fs.readFileSync(dockerFileName, {encoding:'utf8', flag:'r'});
+			const data = fs.readFileSync(dockerFileName, { encoding: "utf8", flag: "r" });
 			const lines = data.split(/\r?\n/);
 			lines.forEach((line) => {
 				const splittedLine = line.split("=");
 				if (splittedLine.length === 2) {
 					const envName = splittedLine[0];
-					if (envName === "MAIN_ORG_NODERED_INSTANCE_HASHES") {
-						const envValues = splittedLine[1].replace(/"/g, "").split(",");
-						process_env.MAIN_ORG_NODERED_INSTANCE_HASHES.push(...envValues);
-					} else {
-						const envValue = splittedLine[1].replace(/"/g, "");
-						process_env[envName] = envValue;
-					}
+					const envValue = splittedLine[1].replace(/"/g, "");
+					process_env[envName] = envValue;
 				}
 			});
-
 		} catch (err) {
-			logger.log("error", `An error occurred while trying to read the file: ${dockerFileName}:  %s`, err.message);
+			const message = err instanceof Error ? err.message : String(err);
+			logger.log("error", `An error occurred while trying to read the file: ${dockerFileName}:  %s`, message);
 		}
 	}
+};
+
+export const isWalArchiverEnabled = () => {
+	const writePostgresPort = parseInt(process_env.POSTGRES_PORT, 10);
+	const readPostgresPort = parseInt(process_env.POSTGRES_READ_PORT ?? process_env.POSTGRES_PORT, 10);
+
+	const writeTimescalePort = parseInt(process_env.TIMESCALE_PORT, 10);
+	const readTimescalePort = parseInt(process_env.TIMESCALE_READ_PORT ?? process_env.TIMESCALE_PORT, 10);
+	return writePostgresPort !== readPostgresPort || writeTimescalePort !== readTimescalePort;
 };
 
 readDockerFiles("/run/secrets/admin_api.txt");
 readDockerFiles("/run/configs/admin_api.conf");
 
-
 export default process_env;
-

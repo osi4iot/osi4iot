@@ -2,6 +2,10 @@ package docker
 
 import (
 	"fmt"
+	"log"
+	"os"
+	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -9,2020 +13,1623 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/mount"
+	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/api/types/swarm"
-	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/common"
+	"github.com/osi4iot/osi4iot/utils/osi4iot/internals/configs"
+	"github.com/osi4iot/osi4iot/utils/osi4iot/internals/networks"
+	"github.com/osi4iot/osi4iot/utils/osi4iot/internals/resources"
+	"github.com/osi4iot/osi4iot/utils/osi4iot/internals/secrets"
+	"github.com/osi4iot/osi4iot/utils/osi4iot/internals/services"
+	pt "github.com/osi4iot/osi4iot/utils/osi4iot/internals/types"
+	"github.com/osi4iot/osi4iot/utils/osi4iot/internals/utils"
+	"github.com/osi4iot/osi4iot/utils/osi4iot/internals/volumes"
 )
 
-type Service struct {
-	Name           string
-	Annotations    swarm.Annotations
-	TaskTemplate   swarm.TaskSpec
-	EndpointSpec   *swarm.EndpointSpec
-	Mode           swarm.ServiceMode
-	UpdateConfig   *swarm.UpdateConfig
-	RollbackConfig *swarm.UpdateConfig
-	Networks       []swarm.NetworkAttachmentConfig
+// DeferredUntilRestored names the services that `init --snapshot-file`
+// keeps out of the first deployment.
+//
+// # Why they wait
+//
+// These three read the database ONCE, at startup, and act on what they
+// find. Brought up against the empty databases a fresh init creates,
+// they do a lot of work that the restore then throws away, and they
+// keep serving what they read:
+//
+//   - grafana finds an empty database and creates most of its schema,
+//     an organisation and a default set of rows.
+//   - admin_api finds "Main Org.", and on that basis creates the rest
+//     of the tables, fills them, and — until the guard on the row count
+//     was fixed — emptied the platform's S3 bucket.
+//   - pipelines read their topics and sensors on start; from an empty
+//     database they get nothing, and go on processing nothing.
+//
+// Every row of that is discarded a few minutes later: the wal-g restore
+// wipes PGDATA on every node and bootstraps from the backup, so the
+// cluster that comes back is the one in the snapshot, byte for byte.
+// Nothing merges, nothing survives, and the work was wasted.
+//
+// Keeping them out until the data is in place means they start once,
+// against what will actually be there.
+//
+// # What had to move for this to work
+//
+// admin_api created the platform's S3 bucket, so the seeding would have
+// had nowhere to write. That is now PlatformS3.EnsureBucket, called at
+// the start of SeedFromSnapshot, which is a better place for it anyway:
+// the step that needs the bucket is the step that makes it.
+//
+// # Ordinary init and create are untouched
+//
+// There is nothing to restore there, so the empty databases these
+// services populate are the real ones. They deploy with everything
+// else, as before.
+var DeferredUntilRestored = []string{"admin_api", "grafana", "pipelines"}
+
+// SecretUpdateConfig contains the configuration to update a secret
+type SecretUpdateConfig struct {
+	SecretKey     string
+	SecretID      string
+	NewSecretName string
+	OldSecretName string
+	NewSecretData string
+	TargetFile    string // Path of the file inside the container (e.g., "/run/secrets/db-password")
 }
 
-func GenerateServices(platformData *common.PlatformData, swarmData SwarmData) map[string]Service {
-	Services := make(map[string]Service)
-	deploymentMode := platformData.PlatformInfo.DeploymentMode
-	s3BucketType := platformData.PlatformInfo.S3BucketType
-	domainCertsType := platformData.PlatformInfo.DomainCertsType
-	numSwarmNodes := len(platformData.PlatformInfo.NodesData)
-	deploymentLocation := platformData.PlatformInfo.DeploymentLocation
-	nodeRoleNumMap := getNodeRoleNumMap(platformData)
-	roleMemoryBytesMap := getNodeMemoryBytesMap(platformData)
-	roleNanoCPUsMap := getNodeNanoCpusMap(platformData)
-
-	workerConstraintsArray := []string{
-		"node.role==worker",
-		"node.labels.platform_worker==true",
-	}
-
-	if numSwarmNodes == 1 {
-		workerConstraintsArray = []string{
-			"node.role==manager",
-		}
-	}
-
-	existArmArchNodes := false
-	for _, node := range platformData.PlatformInfo.NodesData {
-		if node.NodeArch == "aarch64" {
-			existArmArchNodes = true
-			break
-		}
-	}
-
-	systemPruneAnottations := swarm.Annotations{
-		Name: "system-prune",
-		Labels: map[string]string{
-			"app": "osi4iot",
-		},
-	}
-	systemPruneTaskTemplate := swarm.TaskSpec{
-		ContainerSpec: &swarm.ContainerSpec{
-			Image: "ghcr.io/osi4iot/system_prune:latest",
-			Labels: map[string]string{
-				"app":          "osi4iot",
-				"service_type": "system-prune",
-			},
-			Env: []string{
-				fmt.Sprintf("TZ=%s", platformData.PlatformInfo.DefaultTimeZone),
-			},
-			Command: []string{
-				"docker",
-				"system",
-				"prune",
-				"--all",
-				"--force",
-			},
-			Mounts: []mount.Mount{
-				{
-					Type:   mount.TypeBind,
-					Source: "/var/run/docker.sock",
-					Target: "/var/run/docker.sock",
-				},
-			},
-		},
-		Resources: &swarm.ResourceRequirements{
-			Limits: &swarm.Limit{
-				NanoCPUs:    giveCPUs("system_prune", nodeRoleNumMap, roleNanoCPUsMap),
-				MemoryBytes: giveMemory("system_prune", roleMemoryBytesMap),
-			},
-			Reservations: &swarm.Resources{
-				NanoCPUs:    giveCPUs("system_prune", nodeRoleNumMap, roleNanoCPUsMap),
-				MemoryBytes: giveMemory("system_prune", roleMemoryBytesMap),
-			},
-		},
-		RestartPolicy: &swarm.RestartPolicy{
-			Delay:       durationPtr(24 * time.Hour),
-			Condition:   swarm.RestartPolicyConditionAny,
-			MaxAttempts: nil,
-		},
-	}
-	systemPruneEndpointSpec := &swarm.EndpointSpec{
-		Mode: swarm.ResolutionModeVIP,
-	}
-	systemPruneMode := swarm.ServiceMode{
-		Global: &swarm.GlobalService{},
-	}
-	systemPruneNetwork := []swarm.NetworkAttachmentConfig{}
-
-	Services["system-prune"] = Service{
-		Name:         "system-prune",
-		Annotations:  systemPruneAnottations,
-		TaskTemplate: systemPruneTaskTemplate,
-		EndpointSpec: systemPruneEndpointSpec,
-		Mode:         systemPruneMode,
-		Networks:     systemPruneNetwork,
-	}
-
-	traefikAnottations := swarm.Annotations{
-		Name: "traefik",
-		Labels: map[string]string{
-			"app":          "osi4iot",
-			"service_type": "traefik",
-		},
-	}
-	traefikSecrets := []*swarm.SecretReference{}
-	traefikConfigs := []*swarm.ConfigReference{}
-	acmeEmail := platformData.PlatformInfo.NotificationsEmailAddress
-	if domainCertsType == "Certs provided by an CA" || domainCertsType[0:19] == "Let's encrypt certs" {
-		if domainCertsType == "Certs provided by an CA" {
-			traefikSecrets = []*swarm.SecretReference{
-				{
-					File: &swarm.SecretReferenceFileTarget{
-						Name: "iot_platform_cert.cer",
-						UID:  "0",
-						GID:  "0",
-						Mode: 0444,
-					},
-					SecretID:   swarmData.Secrets["iot_platform_cert"].ID,
-					SecretName: swarmData.Secrets["iot_platform_cert"].Name,
-				},
-				{
-					File: &swarm.SecretReferenceFileTarget{
-						Name: "iot_platform.key",
-						UID:  "0",
-						GID:  "0",
-						Mode: 0444,
-					},
-					SecretID:   swarmData.Secrets["iot_platform_key"].ID,
-					SecretName: swarmData.Secrets["iot_platform_key"].Name,
-				},
-			}
-		}
-
-		traefikConfigs = []*swarm.ConfigReference{
-			{
-				File: &swarm.ConfigReferenceFileTarget{
-					Name: "/etc/traefik/dynamic/traefik.yml",
-					UID:  "0",
-					GID:  "0",
-					Mode: 0444,
-				},
-				ConfigID:   swarmData.Configs["traefik"].ID,
-				ConfigName: swarmData.Configs["traefik"].Name,
-			},
-		}
-	}
-
-	traefikEnvVars := []string{
-		fmt.Sprintf("TZ=%s", platformData.PlatformInfo.DefaultTimeZone),
-	}
-	if domainCertsType == "Let's encrypt certs with DNS-01 challenge and AWS Route 53 provider" {
-		traefikEnvVars = append(traefikEnvVars, fmt.Sprintf("AWS_ACCESS_KEY_ID=%s", platformData.PlatformInfo.AWSAccessKeyIDRoute53))
-		traefikEnvVars = append(traefikEnvVars, fmt.Sprintf("AWS_SECRET_ACCESS_KEY=%s", platformData.PlatformInfo.AWSSecretAccessKeyRoute53))
-		traefikEnvVars = append(traefikEnvVars, fmt.Sprintf("AWS_REGION=%s", platformData.PlatformInfo.AWSRegionRoute53))
-		traefikEnvVars = append(traefikEnvVars, fmt.Sprintf("AWS_HOSTED_ZONE_ID=%s", platformData.PlatformInfo.AWSHostedZoneIdRoute53))
-	}
-	traefikTaskTemplate := swarm.TaskSpec{
-		ContainerSpec: &swarm.ContainerSpec{
-			Image: "ghcr.io/osi4iot/traefik_go_cli:v2.10",
-			Labels: map[string]string{
-				"app": "osi4iot",
-			},
-			Env: traefikEnvVars,
-			Healthcheck: &container.HealthConfig{
-				Test: []string{
-					"CMD-SHELL",
-					"wget --quiet --tries=1 --spider --no-check-certificate http://127.0.0.1:8080/ping || exit 1",
-				},
-				Interval:      time.Duration(10 * time.Second),
-				Timeout:       time.Duration(1 * time.Second),
-				Retries:       3,
-				StartInterval: time.Duration(10 * time.Second),
-			},
-			Command: []string{
-				"traefik",
-				"--api.insecure=false",
-				"--providers.docker=true",
-				"--providers.docker.swarmMode=true",
-				"--providers.docker.exposedByDefault=false",
-				"--entrypoints.web.address=:80",
-				"--ping=true",
-				"--entrypoints.web.http.redirections.entrypoint.to=websecure",
-				"--entrypoints.web.http.redirections.entrypoint.scheme=https",
-				"--entrypoints.web.http.redirections.entrypoint.permanent=true",
-				"--entrypoints.websecure.address=:443",
-				"--entrypoints.mqtt.address=:1883",
-				"--entrypoints.mqtt-tls.address=:8884",
-				"--entrypoints.wss.address=:9001",
-				"--providers.docker.network=traefik_public",
-				"--api",
-				"--accesslog",
-				"--log",
-			},
-			Secrets: traefikSecrets,
-			Configs: traefikConfigs,
-			Mounts: []mount.Mount{
-				{
-					Target:   "/var/run/docker.sock",
-					Source:   "/var/run/docker.sock",
-					Type:     mount.TypeBind,
-					ReadOnly: true,
-				},
-			},
-		},
-		Resources: &swarm.ResourceRequirements{
-			Limits: &swarm.Limit{
-				NanoCPUs:    giveCPUs("traefik", nodeRoleNumMap, roleNanoCPUsMap),
-				MemoryBytes: giveMemory("traefik", roleMemoryBytesMap),
-			},
-			Reservations: &swarm.Resources{
-				NanoCPUs:    giveCPUs("traefik", nodeRoleNumMap, roleNanoCPUsMap),
-				MemoryBytes: giveMemory("traefik", roleMemoryBytesMap),
-			},
-		},
-		Placement: &swarm.Placement{
-			Constraints: []string{"node.role == manager"},
-		},
-	}
-	resolver := ""
-	if domainCertsType == "Certs provided by an CA" {
-		commandsArray := traefikTaskTemplate.ContainerSpec.Command
-		commandsArray = append(commandsArray, "--providers.file.filename=/etc/traefik/dynamic/traefik.yml")
-		commandsArray = append(commandsArray, "--providers.file.watch=true")
-		traefikTaskTemplate.ContainerSpec.Command = commandsArray
-	} else if domainCertsType[0:19] == "Let's encrypt certs" {
-		commandsArray := traefikTaskTemplate.ContainerSpec.Command
-		if domainCertsType == "Let's encrypt certs with HTTP-01 challenge" {
-			commandsArray = append(commandsArray, "--certificatesresolvers.httpresolver.acme.httpchallenge=true")
-			commandsArray = append(commandsArray, "--certificatesresolvers.httpresolver.acme.httpchallenge.entrypoint=web")
-			commandsArray = append(commandsArray, fmt.Sprintf("--certificatesresolvers.httpresolver.acme.email=%s", acmeEmail))
-			commandsArray = append(commandsArray, "--certificatesresolvers.httpresolver.acme.storage=/letsencrypt/acme.json")
-			commandsArray = append(commandsArray, "--certificatesresolvers.httpresolver.acme.dnschallenge=true")
-			resolver = "httpresolver"
-		} else if domainCertsType == "Let's encrypt certs with DNS-01 challenge and AWS Route 53 provider" {
-			commandsArray = append(commandsArray, "--certificatesresolvers.route53resolver.acme.dnschallenge=true")
-			commandsArray = append(commandsArray, "--certificatesresolvers.route53resolver.acme.dnschallenge.provider=route53")
-			commandsArray = append(commandsArray, fmt.Sprintf("--certificatesresolvers.route53resolver.acme.email=%s", acmeEmail))
-			commandsArray = append(commandsArray, "--certificatesresolvers.route53resolver.acme.storage=/letsencrypt/acme.json")
-			resolver = "route53resolver"
-		}
-		traefikTaskTemplate.ContainerSpec.Command = commandsArray
-		mountsArray := traefikTaskTemplate.ContainerSpec.Mounts
-		mountsArray = append(mountsArray, mount.Mount{
-			Type:   mount.TypeVolume,
-			Source: swarmData.Volumes["letsencrypt"].Name,
-			Target: "/letsencrypt",
-		})
-		traefikTaskTemplate.ContainerSpec.Mounts = mountsArray
-	}
-
-	traefikEndpointSpec := &swarm.EndpointSpec{
-		Mode: swarm.ResolutionModeVIP,
-		Ports: []swarm.PortConfig{
-			{
-				Protocol:      swarm.PortConfigProtocolTCP,
-				TargetPort:    80,
-				PublishedPort: 80,
-			},
-			{
-				Protocol:      swarm.PortConfigProtocolTCP,
-				TargetPort:    443,
-				PublishedPort: 443,
-			},
-			{
-				Protocol:      swarm.PortConfigProtocolTCP,
-				TargetPort:    1883,
-				PublishedPort: 1883,
-			},
-			{
-				Protocol:      swarm.PortConfigProtocolTCP,
-				TargetPort:    8884,
-				PublishedPort: 8884,
-			},
-			{
-				Protocol:      swarm.PortConfigProtocolTCP,
-				TargetPort:    9001,
-				PublishedPort: 9001,
-			},
-		},
-	}
-	traefikMode := swarm.ServiceMode{
-		Replicated: &swarm.ReplicatedService{
-			Replicas: giveReplicsPtr(nodeRoleNumMap, "traefik"),
-		},
-	}
-	traefikUpdateConfig := &swarm.UpdateConfig{
-		Parallelism:     2,
-		Delay:           time.Duration(5 * time.Second),
-		FailureAction:   swarm.UpdateFailureActionRollback,
-		Monitor:         time.Duration(20 * time.Second),
-		MaxFailureRatio: 0.2,
-		Order:           "start-first",
-	}
-	traefikRollbackConfig := &swarm.UpdateConfig{
-		Parallelism:     2,
-		Delay:           time.Duration(5 * time.Second),
-		FailureAction:   swarm.UpdateFailureActionRollback,
-		Monitor:         time.Duration(20 * time.Second),
-		MaxFailureRatio: 0.2,
-		Order:           "start-first",
-	}
-	traefikNetwork := []swarm.NetworkAttachmentConfig{
-		{Target: swarmData.Networks["traefik_public"].Name},
-	}
-	Services["traefik"] = Service{
-		Name:           "traefik",
-		Annotations:    traefikAnottations,
-		TaskTemplate:   traefikTaskTemplate,
-		EndpointSpec:   traefikEndpointSpec,
-		Mode:           traefikMode,
-		UpdateConfig:   traefikUpdateConfig,
-		RollbackConfig: traefikRollbackConfig,
-		Networks:       traefikNetwork,
-	}
-
-	mosquittoRule := fmt.Sprintf("Host(`%s`)", platformData.PlatformInfo.DomainName)
-	mosquittoRule8884 := fmt.Sprintf("HostSNI(`%s`)", platformData.PlatformInfo.DomainName)
-	mosquitoAnottations := swarm.Annotations{
-		Name: "mosquitto",
-		Labels: map[string]string{
-			"app":            "osi4iot",
-			"service_type":   "mosquitto",
-			"traefik.enable": "true",
-			// MQTT without TLS (1883, TCP classic)
-			"traefik.tcp.routers.mosquitto1883.rule":                      "HostSNI(`*`)",
-			"traefik.tcp.routers.mosquitto1883.entrypoints":               "mqtt",
-			"traefik.tcp.routers.mosquitto1883.service":                   "mosquitto1883",
-			"traefik.tcp.services.mosquitto1883.loadbalancer.server.port": "1883",
-			// MQTT with TLS (1883, TCP)
-			"traefik.tcp.routers.mosquitto8884.rule":                      mosquittoRule8884,
-			"traefik.tcp.routers.mosquitto8884.entrypoints":               "mqtt-tls",
-			"traefik.tcp.routers.mosquitto8884.service":                   "mosquitto8884",
-			"traefik.tcp.routers.mosquitto8884.tls":                       "true",
-			"traefik.tcp.routers.mosquitto8884.tls.certresolver":          resolver,
-			"traefik.tcp.services.mosquitto8884.loadbalancer.server.port": "8884",
-			// MQTT over WebSockets (WSS) Port 9001
-			"traefik.http.routers.mosquitto-wss.rule":                      mosquittoRule,
-			"traefik.http.routers.mosquitto-wss.entrypoints":               "wss",
-			"traefik.http.routers.mosquitto-wss.service":                   "mosquitto-wss",
-			"traefik.http.routers.mosquitto-wss.tls":                       "true",
-			"traefik.http.routers.mosquitto-wss.tls.certresolver":          resolver,
-			"traefik.http.services.mosquitto-wss.loadbalancer.server.port": "9001",
-		},
-	}
-	mosquitoTaskTemplate := swarm.TaskSpec{
-		ContainerSpec: &swarm.ContainerSpec{
-			Image: "ghcr.io/osi4iot/mosquitto_go_auth:2.1.0-mosquitto_2.0.15",
-			Labels: map[string]string{
-				"app": "osi4iot",
-			},
-			Env: []string{
-				fmt.Sprintf("TZ=%s", platformData.PlatformInfo.DefaultTimeZone),
-			},
-			Secrets: []*swarm.SecretReference{
-				{
-					File: &swarm.SecretReferenceFileTarget{
-						Name: "/mosquitto/mqtt_certs/ca.crt",
-						UID:  "0",
-						GID:  "0",
-						Mode: 0444,
-					},
-					SecretID:   swarmData.Secrets["mqtt_certs_ca_cert"].ID,
-					SecretName: swarmData.Secrets["mqtt_certs_ca_cert"].Name,
-				},
-				{
-					File: &swarm.SecretReferenceFileTarget{
-						Name: "/mosquitto/mqtt_certs/server.crt",
-						UID:  "0",
-						GID:  "0",
-						Mode: 0444,
-					},
-					SecretID:   swarmData.Secrets["mqtt_broker_cert"].ID,
-					SecretName: swarmData.Secrets["mqtt_broker_cert"].Name,
-				},
-				{
-					File: &swarm.SecretReferenceFileTarget{
-						Name: "/mosquitto/mqtt_certs/server.key",
-						UID:  "0",
-						GID:  "0",
-						Mode: 0444,
-					},
-					SecretID:   swarmData.Secrets["mqtt_broker_key"].ID,
-					SecretName: swarmData.Secrets["mqtt_broker_key"].Name,
-				},
-			},
-			Configs: []*swarm.ConfigReference{
-				{
-					File: &swarm.ConfigReferenceFileTarget{
-						Name: "/etc/mosquitto/mosquitto.conf",
-						UID:  "0",
-						GID:  "0",
-						Mode: 0444,
-					},
-					ConfigID:   swarmData.Configs["mosquitto_conf"].ID,
-					ConfigName: swarmData.Configs["mosquitto_conf"].Name,
-				},
-				{
-					File: &swarm.ConfigReferenceFileTarget{
-						Name: "/etc/mosquitto/conf.d/go-auth.conf",
-						UID:  "0",
-						GID:  "0",
-						Mode: 0444,
-					},
-					ConfigID:   swarmData.Configs["mosquitto_go_auth"].ID,
-					ConfigName: swarmData.Configs["mosquitto_go_auth"].Name,
-				},
-			},
-			Mounts: []mount.Mount{
-				{
-					Type:   mount.TypeVolume,
-					Source: swarmData.Volumes["mosquitto_data"].Name,
-					Target: "/mosquitto/data",
-				},
-				{
-					Type:   mount.TypeVolume,
-					Source: swarmData.Volumes["mosquitto_log"].Name,
-					Target: "/mosquitto/log",
-				},
-			},
-		},
-		Resources: &swarm.ResourceRequirements{
-			Limits: &swarm.Limit{
-				NanoCPUs:    giveCPUs("mosquitto", nodeRoleNumMap, roleNanoCPUsMap),
-				MemoryBytes: giveMemory("mosquitto", roleMemoryBytesMap),
-			},
-			Reservations: &swarm.Resources{
-				NanoCPUs:    giveCPUs("mosquitto", nodeRoleNumMap, roleNanoCPUsMap),
-				MemoryBytes: giveMemory("mosquitto", roleMemoryBytesMap),
-			},
-		},
-		Placement: &swarm.Placement{
-			Constraints: workerConstraintsArray,
-		},
-	}
-	mosquitoEndpointSpec := &swarm.EndpointSpec{
-		Mode: swarm.ResolutionModeVIP,
-		Ports: []swarm.PortConfig{
-			{
-				Protocol:      swarm.PortConfigProtocolTCP,
-				TargetPort:    8883,
-				PublishedPort: 8883,
-			},
-		},
-	}
-
-	mosquitoMode := swarm.ServiceMode{
-		Replicated: &swarm.ReplicatedService{
-			Replicas: giveReplicsPtr(nodeRoleNumMap, "mosquitto"),
-		},
-	}
-	mosquitoUpdateConfig := &swarm.UpdateConfig{
-		Parallelism:     2,
-		Delay:           time.Duration(5 * time.Second),
-		FailureAction:   swarm.UpdateFailureActionRollback,
-		Monitor:         time.Duration(20 * time.Second),
-		MaxFailureRatio: 0.2,
-		Order:           "start-first",
-	}
-	mosquitoRollbackConfig := &swarm.UpdateConfig{
-		Parallelism:     2,
-		Delay:           time.Duration(5 * time.Second),
-		FailureAction:   swarm.UpdateFailureActionRollback,
-		Monitor:         time.Duration(20 * time.Second),
-		MaxFailureRatio: 0.2,
-		Order:           "start-first",
-	}
-	mosquitoNetwork := []swarm.NetworkAttachmentConfig{
-		{Target: swarmData.Networks["internal_net"].Name},
-		{Target: swarmData.Networks["traefik_public"].Name},
-	}
-	Services["mosquitto"] = Service{
-		Name:           "mosquitto",
-		Annotations:    mosquitoAnottations,
-		TaskTemplate:   mosquitoTaskTemplate,
-		EndpointSpec:   mosquitoEndpointSpec,
-		Mode:           mosquitoMode,
-		UpdateConfig:   mosquitoUpdateConfig,
-		RollbackConfig: mosquitoRollbackConfig,
-		Networks:       mosquitoNetwork,
-	}
-
-	postgresAnottations := swarm.Annotations{
-		Name: "postgres",
-		Labels: map[string]string{
-			"app":          "osi4iot",
-			"service_type": "postgres",
-		},
-	}
-	postgresTaskTemplate := swarm.TaskSpec{
-		ContainerSpec: &swarm.ContainerSpec{
-			Image: "ghcr.io/osi4iot/postgres:14.6-alpine",
-			Labels: map[string]string{
-				"app": "osi4iot",
-			},
-			Env: []string{
-				fmt.Sprintf("POSTGRES_DB=%s", platformData.PlatformInfo.PostgresDB),
-				"POSTGRES_PASSWORD_FILE=/run/secrets/postgres_password.txt",
-				"POSTGRES_USER_FILE=/run/secrets/postgres_user.txt",
-				fmt.Sprintf("TZ=%s", platformData.PlatformInfo.DefaultTimeZone),
-			},
-			Secrets: []*swarm.SecretReference{
-				{
-					File: &swarm.SecretReferenceFileTarget{
-						Name: "postgres_user.txt",
-						UID:  "0",
-						GID:  "0",
-						Mode: 0444,
-					},
-					SecretID:   swarmData.Secrets["postgres_user"].ID,
-					SecretName: swarmData.Secrets["postgres_user"].Name,
-				},
-				{
-					File: &swarm.SecretReferenceFileTarget{
-						Name: "postgres_password.txt",
-						UID:  "0",
-						GID:  "0",
-						Mode: 0444,
-					},
-					SecretID:   swarmData.Secrets["postgres_password"].ID,
-					SecretName: swarmData.Secrets["postgres_password"].Name,
-				},
-				{
-					File: &swarm.SecretReferenceFileTarget{
-						Name: "postgres_grafana.txt",
-						UID:  "0",
-						GID:  "0",
-						Mode: 0444,
-					},
-					SecretID:   swarmData.Secrets["postgres_grafana"].ID,
-					SecretName: swarmData.Secrets["postgres_grafana"].Name,
-				},
-			},
-			Mounts: []mount.Mount{
-				{
-					Type:   mount.TypeVolume,
-					Source: swarmData.Volumes["pgdata"].Name,
-					Target: "/var/lib/postgresql/data",
-				},
-			},
-		},
-		Resources: &swarm.ResourceRequirements{
-			Limits: &swarm.Limit{
-				NanoCPUs:    giveCPUs("postgres", nodeRoleNumMap, roleNanoCPUsMap),
-				MemoryBytes: giveMemory("postgres", roleMemoryBytesMap),
-			},
-			Reservations: &swarm.Resources{
-				NanoCPUs:    giveCPUs("postgres", nodeRoleNumMap, roleNanoCPUsMap),
-				MemoryBytes: giveMemory("postgres", roleMemoryBytesMap),
-			},
-		},
-		Placement: &swarm.Placement{
-			Constraints: workerConstraintsArray,
-		},
-	}
-	postgresEndpointSpec := &swarm.EndpointSpec{
-		Mode: swarm.ResolutionModeVIP,
-	}
-
-	postgresMode := swarm.ServiceMode{
-		Replicated: &swarm.ReplicatedService{
-			Replicas: giveReplicsPtr(nodeRoleNumMap, "postgres"),
-		},
-	}
-	postgresUpdateConfig := &swarm.UpdateConfig{
-		Parallelism:     2,
-		Delay:           time.Duration(5 * time.Second),
-		FailureAction:   swarm.UpdateFailureActionRollback,
-		Monitor:         time.Duration(20 * time.Second),
-		MaxFailureRatio: 0.2,
-		Order:           "start-first",
-	}
-	postgresRollbackConfig := &swarm.UpdateConfig{
-		Parallelism:     2,
-		Delay:           time.Duration(5 * time.Second),
-		FailureAction:   swarm.UpdateFailureActionRollback,
-		Monitor:         time.Duration(20 * time.Second),
-		MaxFailureRatio: 0.2,
-		Order:           "start-first",
-	}
-	postgresNetwork := []swarm.NetworkAttachmentConfig{
-		{Target: swarmData.Networks["internal_net"].Name},
-	}
-	Services["postgres"] = Service{
-		Name:           "postgres",
-		Annotations:    postgresAnottations,
-		TaskTemplate:   postgresTaskTemplate,
-		EndpointSpec:   postgresEndpointSpec,
-		Mode:           postgresMode,
-		UpdateConfig:   postgresUpdateConfig,
-		RollbackConfig: postgresRollbackConfig,
-		Networks:       postgresNetwork,
-	}
-
-	timescaledbAnottations := swarm.Annotations{
-		Name: "timescaledb",
-		Labels: map[string]string{
-			"app":          "osi4iot",
-			"service_type": "timescaledb",
-		},
-	}
-	timescaledbTaskTemplate := swarm.TaskSpec{
-		ContainerSpec: &swarm.ContainerSpec{
-			Image: "ghcr.io/osi4iot/timescaledb:2.4.2-pg13",
-			Labels: map[string]string{
-				"app": "osi4iot",
-			},
-			Env: []string{
-				fmt.Sprintf("POSTGRES_DB=%s", platformData.PlatformInfo.TimescaleDB),
-				"POSTGRES_PASSWORD_FILE=/run/secrets/timescaledb_password.txt",
-				"POSTGRES_USER_FILE=/run/secrets/timescaledb_user.txt",
-				fmt.Sprintf("TZ=%s", platformData.PlatformInfo.DefaultTimeZone),
-			},
-			Secrets: []*swarm.SecretReference{
-				{
-					File: &swarm.SecretReferenceFileTarget{
-						Name: "timescaledb_user.txt",
-						UID:  "0",
-						GID:  "0",
-						Mode: 0444,
-					},
-					SecretID:   swarmData.Secrets["timescale_user"].ID,
-					SecretName: swarmData.Secrets["timescale_user"].Name,
-				},
-				{
-					File: &swarm.SecretReferenceFileTarget{
-						Name: "timescaledb_password.txt",
-						UID:  "0",
-						GID:  "0",
-						Mode: 0444,
-					},
-					SecretID:   swarmData.Secrets["timescale_password"].ID,
-					SecretName: swarmData.Secrets["timescale_password"].Name,
-				},
-				{
-					File: &swarm.SecretReferenceFileTarget{
-						Name: "timescaledb_grafana.txt",
-						UID:  "0",
-						GID:  "0",
-						Mode: 0444,
-					},
-					SecretID:   swarmData.Secrets["timescale_grafana"].ID,
-					SecretName: swarmData.Secrets["timescale_grafana"].Name,
-				},
-				{
-					File: &swarm.SecretReferenceFileTarget{
-						Name: "timescaledb_data_ret_int.txt",
-						UID:  "0",
-						GID:  "0",
-						Mode: 0444,
-					},
-					SecretID:   swarmData.Secrets["timescale_data_ret_int"].ID,
-					SecretName: swarmData.Secrets["timescale_data_ret_int"].Name,
-				},
-			},
-			Mounts: []mount.Mount{
-				{
-					Type:   mount.TypeVolume,
-					Source: swarmData.Volumes["timescaledb_data"].Name,
-					Target: "/var/lib/postgresql/data",
-				},
-			},
-		},
-		Resources: &swarm.ResourceRequirements{
-			Limits: &swarm.Limit{
-				NanoCPUs:    giveCPUs("timescaledb", nodeRoleNumMap, roleNanoCPUsMap),
-				MemoryBytes: giveMemory("timescaledb", roleMemoryBytesMap),
-			},
-			Reservations: &swarm.Resources{
-				NanoCPUs:    giveCPUs("timescaledb", nodeRoleNumMap, roleNanoCPUsMap),
-				MemoryBytes: giveMemory("timescaledb", roleMemoryBytesMap),
-			},
-		},
-		Placement: &swarm.Placement{
-			Constraints: workerConstraintsArray,
-		},
-	}
-	timescaledbEndpointSpec := &swarm.EndpointSpec{
-		Mode: swarm.ResolutionModeVIP,
-	}
-	timescaledbMode := swarm.ServiceMode{
-		Replicated: &swarm.ReplicatedService{
-			Replicas: giveReplicsPtr(nodeRoleNumMap, "timescaledb"),
-		},
-	}
-	timescaledbUpdateConfig := &swarm.UpdateConfig{
-		Parallelism:     2,
-		Delay:           time.Duration(5 * time.Second),
-		FailureAction:   swarm.UpdateFailureActionRollback,
-		Monitor:         time.Duration(20 * time.Second),
-		MaxFailureRatio: 0.2,
-		Order:           "start-first",
-	}
-	timescaledbRollbackConfig := &swarm.UpdateConfig{
-		Parallelism:     2,
-		Delay:           time.Duration(5 * time.Second),
-		FailureAction:   swarm.UpdateFailureActionRollback,
-		Monitor:         time.Duration(20 * time.Second),
-		MaxFailureRatio: 0.2,
-		Order:           "start-first",
-	}
-	timescaledbNetwork := []swarm.NetworkAttachmentConfig{
-		{Target: swarmData.Networks["internal_net"].Name},
-	}
-	Services["timescaledb"] = Service{
-		Name:           "timescaledb",
-		Annotations:    timescaledbAnottations,
-		TaskTemplate:   timescaledbTaskTemplate,
-		EndpointSpec:   timescaledbEndpointSpec,
-		Mode:           timescaledbMode,
-		UpdateConfig:   timescaledbUpdateConfig,
-		RollbackConfig: timescaledbRollbackConfig,
-		Networks:       timescaledbNetwork,
-	}
-
-	s3StorageAnottations := swarm.Annotations{
-		Name: "s3_storage",
-		Labels: map[string]string{
-			"app":          "osi4iot",
-			"service_type": "s3_storage",
-		},
-	}
-	s3StorageTaskTemplate := swarm.TaskSpec{
-		ContainerSpec: &swarm.ContainerSpec{
-			Image: "ghcr.io/osi4iot/s3_storage:1.3.0",
-			Labels: map[string]string{
-				"app": "osi4iot",
-			},
-			Env: []string{
-				fmt.Sprintf("TZ=%s", platformData.PlatformInfo.DefaultTimeZone),
-			},
-			Secrets: []*swarm.SecretReference{
-				{
-					File: &swarm.SecretReferenceFileTarget{
-						Name: "s3_storage.txt",
-						UID:  "0",
-						GID:  "0",
-						Mode: 0444,
-					},
-					SecretID:   swarmData.Secrets["s3_storage"].ID,
-					SecretName: swarmData.Secrets["s3_storage"].Name,
-				},
-			},
-			Configs: []*swarm.ConfigReference{
-				{
-					File: &swarm.ConfigReferenceFileTarget{
-						Name: "/run/configs/s3_storage.conf",
-						UID:  "0",
-						GID:  "0",
-						Mode: 0444,
-					},
-					ConfigID:   swarmData.Configs["s3_storage"].ID,
-					ConfigName: swarmData.Configs["s3_storage"].Name,
-				},
-			},
-			Mounts: []mount.Mount{
-				{
-					Type:   mount.TypeVolume,
-					Source: swarmData.Volumes["s3_storage_data"].Name,
-					Target: "/data",
-				},
-			},
-		},
-		Resources: &swarm.ResourceRequirements{
-			Limits: &swarm.Limit{
-				NanoCPUs:    giveCPUs("s3_storage", nodeRoleNumMap, roleNanoCPUsMap),
-				MemoryBytes: giveMemory("s3_storage", roleMemoryBytesMap),
-			},
-			Reservations: &swarm.Resources{
-				NanoCPUs:    giveCPUs("s3_storage", nodeRoleNumMap, roleNanoCPUsMap),
-				MemoryBytes: giveMemory("s3_storage", roleMemoryBytesMap),
-			},
-		},
-		Placement: &swarm.Placement{
-			Constraints: workerConstraintsArray,
-		},
-	}
-	s3StorageEndpointSpec := &swarm.EndpointSpec{
-		Mode: swarm.ResolutionModeVIP,
-		Ports: []swarm.PortConfig{
-			{
-				Protocol:      swarm.PortConfigProtocolTCP,
-				TargetPort:    3500,
-				PublishedPort: 3500,
-			},
-		},
-	}
-	s3StorageMode := swarm.ServiceMode{
-		Replicated: &swarm.ReplicatedService{
-			Replicas: giveReplicsPtr(nodeRoleNumMap, "s3_storage"),
-		},
-	}
-	s3StorageUpdateConfig := &swarm.UpdateConfig{
-		Parallelism:     2,
-		Delay:           time.Duration(5 * time.Second),
-		FailureAction:   swarm.UpdateFailureActionRollback,
-		Monitor:         time.Duration(20 * time.Second),
-		MaxFailureRatio: 0.2,
-		Order:           "start-first",
-	}
-	s3StorageRollbackConfig := &swarm.UpdateConfig{
-		Parallelism:     2,
-		Delay:           time.Duration(5 * time.Second),
-		FailureAction:   swarm.UpdateFailureActionRollback,
-		Monitor:         time.Duration(20 * time.Second),
-		MaxFailureRatio: 0.2,
-		Order:           "start-first",
-	}
-	s3StorageNetwork := []swarm.NetworkAttachmentConfig{
-		{Target: swarmData.Networks["internal_net"].Name},
-	}
-	Services["s3_storage"] = Service{
-		Name:           "s3_storage",
-		Annotations:    s3StorageAnottations,
-		TaskTemplate:   s3StorageTaskTemplate,
-		EndpointSpec:   s3StorageEndpointSpec,
-		Mode:           s3StorageMode,
-		UpdateConfig:   s3StorageUpdateConfig,
-		RollbackConfig: s3StorageRollbackConfig,
-		Networks:       s3StorageNetwork,
-	}
-
-	dev2pdbAnottations := swarm.Annotations{
-		Name: "dev2pdb",
-		Labels: map[string]string{
-			"app": "osi4iot",
-		},
-	}
-	dev2pdbTaskTemplate := swarm.TaskSpec{
-		ContainerSpec: &swarm.ContainerSpec{
-			Image: "ghcr.io/osi4iot/dev2pdb:1.3.0",
-			Labels: map[string]string{
-				"app":          "osi4iot",
-				"service_type": "dev2pdb",
-			},
-			Env: []string{
-				"DATABASE_NAME=iot_data_db",
-				fmt.Sprintf("TZ=%s", platformData.PlatformInfo.DefaultTimeZone),
-			},
-			Secrets: []*swarm.SecretReference{
-				{
-					File: &swarm.SecretReferenceFileTarget{
-						Name: "dev2pdb_password.txt",
-						UID:  "0",
-						GID:  "0",
-						Mode: 0444,
-					},
-					SecretID:   swarmData.Secrets["dev2pdb_password"].ID,
-					SecretName: swarmData.Secrets["dev2pdb_password"].Name,
-				},
-				{
-					File: &swarm.SecretReferenceFileTarget{
-						Name: "timescaledb_user.txt",
-						UID:  "0",
-						GID:  "0",
-						Mode: 0444,
-					},
-					SecretID:   swarmData.Secrets["timescale_user"].ID,
-					SecretName: swarmData.Secrets["timescale_user"].Name,
-				},
-				{
-					File: &swarm.SecretReferenceFileTarget{
-						Name: "timescaledb_password.txt",
-						UID:  "0",
-						GID:  "0",
-						Mode: 0444,
-					},
-					SecretID:   swarmData.Secrets["timescale_password"].ID,
-					SecretName: swarmData.Secrets["timescale_password"].Name,
-				},
-			},
-			Mounts: []mount.Mount{},
-		},
-		Resources: &swarm.ResourceRequirements{
-			Limits: &swarm.Limit{
-				NanoCPUs:    giveCPUs("dev2pdb", nodeRoleNumMap, roleNanoCPUsMap),
-				MemoryBytes: giveMemory("dev2pdb", roleMemoryBytesMap),
-			},
-			Reservations: &swarm.Resources{
-				NanoCPUs:    giveCPUs("dev2pdb", nodeRoleNumMap, roleNanoCPUsMap),
-				MemoryBytes: giveMemory("dev2pdb", roleMemoryBytesMap),
-			},
-		},
-		Placement: &swarm.Placement{
-			Constraints: workerConstraintsArray,
-		},
-	}
-	dev2pdbEndpointSpec := &swarm.EndpointSpec{
-		Mode: swarm.ResolutionModeVIP,
-	}
-	dev2pdbMode := swarm.ServiceMode{
-		Replicated: &swarm.ReplicatedService{
-			Replicas: giveReplicsPtr(nodeRoleNumMap, "dev2pdb"),
-		},
-	}
-	dev2pdbUpdateConfig := &swarm.UpdateConfig{
-		Parallelism:     2,
-		Delay:           time.Duration(5 * time.Second),
-		FailureAction:   swarm.UpdateFailureActionRollback,
-		Monitor:         time.Duration(20 * time.Second),
-		MaxFailureRatio: 0.2,
-		Order:           "start-first",
-	}
-	dev2pdbRollbackConfig := &swarm.UpdateConfig{
-		Parallelism:     2,
-		Delay:           time.Duration(5 * time.Second),
-		FailureAction:   swarm.UpdateFailureActionRollback,
-		Monitor:         time.Duration(20 * time.Second),
-		MaxFailureRatio: 0.2,
-		Order:           "start-first",
-	}
-	dev2pdbNetwork := []swarm.NetworkAttachmentConfig{
-		{Target: swarmData.Networks["internal_net"].Name},
-	}
-	Services["dev2pdb"] = Service{
-		Name:           "dev2pdb",
-		Annotations:    dev2pdbAnottations,
-		TaskTemplate:   dev2pdbTaskTemplate,
-		EndpointSpec:   dev2pdbEndpointSpec,
-		Mode:           dev2pdbMode,
-		UpdateConfig:   dev2pdbUpdateConfig,
-		RollbackConfig: dev2pdbRollbackConfig,
-		Networks:       dev2pdbNetwork,
-	}
-
-	grafanaRule := fmt.Sprintf("Host(`%s`) && PathPrefix(`/grafana/`)", platformData.PlatformInfo.DomainName)
-	grafanaRedirectRegex := fmt.Sprintf("%s/(grafana*)", platformData.PlatformInfo.DomainName)
-	grafanaRedirectReplacement := fmt.Sprintf("%s/$${1}", platformData.PlatformInfo.DomainName)
-	grafanaAnottations := swarm.Annotations{
-		Name: "grafana",
-		Labels: map[string]string{
-			"app":                               "osi4iot",
-			"traefik.enable":                    "true",
-			"service_type":                      "grafana",
-			"traefik.http.routers.grafana.rule": grafanaRule,
-			"traefik.http.middlewares.grafana-prefix.stripprefix.prefixes":                       "/grafana",
-			"traefik.http.routers.grafana.middlewares":                                           "grafana-prefix,grafana-header,grafana-redirectregex",
-			"traefik.http.middlewares.grafana-prefix.stripprefix.forceslash":                     "false",
-			"traefik.http.middlewares.grafana-header.headers.customrequestheaders.X-Script-Name": "/grafana/",
-			"traefik.http.middlewares.grafana-redirectregex.redirectregex.regex":                 grafanaRedirectRegex,
-			"traefik.http.middlewares.grafana-redirectregex.redirectregex.replacement":           grafanaRedirectReplacement,
-			"traefik.http.routers.grafana.entrypoints":                                           "websecure",
-			"traefik.http.routers.grafana.tls":                                                   "true",
-			"traefik.http.routers.grafana.tls.certresolver":                                      resolver,
-			"traefik.http.routers.grafana.service":                                               "grafana",
-			"traefik.http.services.grafana.loadbalancer.server.port":                             "5000",
-			"traefik.http.services.grafana.loadbalancer.healthCheck.path":                        "/api/health",
-			"traefik.http.services.grafana.loadbalancer.healthCheck.interval":                    "5s",
-			"traefik.http.services.grafana.loadbalancer.healthCheck.timeout":                     "3s",
-		},
-	}
-	grafanaTaskTemplate := swarm.TaskSpec{
-		ContainerSpec: &swarm.ContainerSpec{
-			Image: "ghcr.io/osi4iot/grafana:8.4.1-ubuntu",
-			Labels: map[string]string{
-				"app": "osi4iot",
-			},
-			Env: []string{
-				fmt.Sprintf("TZ=%s", platformData.PlatformInfo.DefaultTimeZone),
-			},
-			Secrets: []*swarm.SecretReference{
-				{
-					File: &swarm.SecretReferenceFileTarget{
-						Name: "grafana.txt",
-						UID:  "0",
-						GID:  "0",
-						Mode: 0444,
-					},
-					SecretID:   swarmData.Secrets["grafana"].ID,
-					SecretName: swarmData.Secrets["grafana"].Name,
-				},
-			},
-			Configs: []*swarm.ConfigReference{
-				{
-					File: &swarm.ConfigReferenceFileTarget{
-						Name: "/run/configs/grafana.conf",
-						UID:  "0",
-						GID:  "0",
-						Mode: 0444,
-					},
-					ConfigID:   swarmData.Configs["grafana"].ID,
-					ConfigName: swarmData.Configs["grafana"].Name,
-				},
-			},
-			Mounts: []mount.Mount{
-				{
-					Type:   mount.TypeVolume,
-					Source: swarmData.Volumes["grafana_data"].Name,
-					Target: "/var/lib/grafana",
-				},
-			},
-		},
-		Resources: &swarm.ResourceRequirements{
-			Limits: &swarm.Limit{
-				NanoCPUs:    giveCPUs("grafana", nodeRoleNumMap, roleNanoCPUsMap),
-				MemoryBytes: giveMemory("grafana", roleMemoryBytesMap),
-			},
-			Reservations: &swarm.Resources{
-				NanoCPUs:    giveCPUs("grafana", nodeRoleNumMap, roleNanoCPUsMap),
-				MemoryBytes: giveMemory("grafana", roleMemoryBytesMap),
-			},
-		},
-		Placement: &swarm.Placement{
-			Constraints: []string{"node.role == manager"},
-		},
-	}
-	grafanaEndpointSpec := &swarm.EndpointSpec{
-		Mode: swarm.ResolutionModeVIP,
-	}
-	grafanaMode := swarm.ServiceMode{
-		Replicated: &swarm.ReplicatedService{
-			Replicas: giveReplicsPtr(nodeRoleNumMap, "grafana"),
-		},
-	}
-	grafanaUpdateConfig := &swarm.UpdateConfig{
-		Parallelism:     2,
-		Delay:           time.Duration(5 * time.Second),
-		FailureAction:   swarm.UpdateFailureActionRollback,
-		Monitor:         time.Duration(20 * time.Second),
-		MaxFailureRatio: 0.2,
-		Order:           "start-first",
-	}
-	grafanaRollbackConfig := &swarm.UpdateConfig{
-		Parallelism:     2,
-		Delay:           time.Duration(5 * time.Second),
-		FailureAction:   swarm.UpdateFailureActionRollback,
-		Monitor:         time.Duration(20 * time.Second),
-		MaxFailureRatio: 0.2,
-		Order:           "start-first",
-	}
-	grafanaNetwork := []swarm.NetworkAttachmentConfig{
-		{Target: swarmData.Networks["internal_net"].Name},
-		{Target: swarmData.Networks["traefik_public"].Name},
-	}
-	Services["grafana"] = Service{
-		Name:           "grafana",
-		Annotations:    grafanaAnottations,
-		TaskTemplate:   grafanaTaskTemplate,
-		EndpointSpec:   grafanaEndpointSpec,
-		Mode:           grafanaMode,
-		UpdateConfig:   grafanaUpdateConfig,
-		RollbackConfig: grafanaRollbackConfig,
-		Networks:       grafanaNetwork,
-	}
-
-	adminApiRule := fmt.Sprintf("Host(`%s`) && PathPrefix(`/admin_api/`)", platformData.PlatformInfo.DomainName)
-	adminApiAnottations := swarm.Annotations{
-		Name: "admin_api",
-		Labels: map[string]string{
-			"app":            "osi4iot",
-			"service_type":   "admin_api",
-			"traefik.enable": "true",
-			"traefik.http.middlewares.admin_api-header.headers.customrequestheaders.X-Script-Name": "/admin_api/",
-			"traefik.http.middlewares.admin_api-prefix.stripprefix.prefixes":                       "/admin_api",
-			"traefik.http.middlewares.admin_api-prefix.stripprefix.forceslash":                     "false",
-			"traefik.http.middlewares.admin_api-redirectregex.redirectregex.regex":                 "^/admin_api(.*)",
-			"traefik.http.middlewares.admin_api-redirectregex.redirectregex.replacement":           "/$1",
-			"traefik.http.routers.admin_api.entrypoints":                                           "websecure",
-			"traefik.http.routers.admin_api.rule":                                                  adminApiRule,
-			"traefik.http.routers.admin_api.tls":                                                   "true",
-			"traefik.http.routers.admin_api.tls.certresolver":                                      resolver,
-			"traefik.http.routers.admin_api.middlewares":                                           "admin_api-redirectregex,admin_api-prefix,admin_api-header",
-			"traefik.http.routers.admin_api.service":                                               "admin_api",
-			"traefik.http.services.admin_api.loadbalancer.server.port":                             "3200",
-			"traefik.http.services.admin_api.loadbalancer.healthcheck.path":                        "/health",
-			"traefik.http.services.admin_api.loadbalancer.healthcheck.interval":                    "5s",
-			"traefik.http.services.admin_api.loadbalancer.healthcheck.timeout":                     "3s",
-		},
-	}
-	adminApiTaskTemplate := swarm.TaskSpec{
-		ContainerSpec: &swarm.ContainerSpec{
-			Image: "ghcr.io/osi4iot/admin_api:1.3.0",
-			Labels: map[string]string{
-				"app": "osi4iot",
-			},
-			Env: []string{
-				"REPLICA={{.Task.Slot}}",
-				fmt.Sprintf("TZ=%s", platformData.PlatformInfo.DefaultTimeZone),
-			},
-			Secrets: []*swarm.SecretReference{
-				{
-					File: &swarm.SecretReferenceFileTarget{
-						Name: "ca.crt",
-						UID:  "0",
-						GID:  "0",
-						Mode: 0444,
-					},
-					SecretID:   swarmData.Secrets["mqtt_certs_ca_cert"].ID,
-					SecretName: swarmData.Secrets["mqtt_certs_ca_cert"].Name,
-				},
-				{
-					File: &swarm.SecretReferenceFileTarget{
-						Name: "ca.key",
-						UID:  "0",
-						GID:  "0",
-						Mode: 0444,
-					},
-					SecretID:   swarmData.Secrets["mqtt_certs_ca_key"].ID,
-					SecretName: swarmData.Secrets["mqtt_certs_ca_key"].Name,
-				},
-				{
-					File: &swarm.SecretReferenceFileTarget{
-						Name: "admin_api.txt",
-						UID:  "0",
-						GID:  "0",
-						Mode: 0444,
-					},
-					SecretID:   swarmData.Secrets["admin_api"].ID,
-					SecretName: swarmData.Secrets["admin_api"].Name,
-				},
-			},
-			Configs: []*swarm.ConfigReference{
-				{
-					File: &swarm.ConfigReferenceFileTarget{
-						Name: "/run/configs/admin_api.conf",
-						UID:  "0",
-						GID:  "0",
-						Mode: 0444,
-					},
-					ConfigID:   swarmData.Configs["admin_api"].ID,
-					ConfigName: swarmData.Configs["admin_api"].Name,
-				},
-				{
-					File: &swarm.ConfigReferenceFileTarget{
-						Name: "/run/configs/main_org_building.geojson",
-						UID:  "0",
-						GID:  "0",
-						Mode: 0444,
-					},
-					ConfigID:   swarmData.Configs["main_org_building"].ID,
-					ConfigName: swarmData.Configs["main_org_building"].Name,
-				},
-				{
-					File: &swarm.ConfigReferenceFileTarget{
-						Name: "/run/configs/main_org_floor.geojson",
-						UID:  "0",
-						GID:  "0",
-						Mode: 0444,
-					},
-					ConfigID:   swarmData.Configs["main_org_floor"].ID,
-					ConfigName: swarmData.Configs["main_org_floor"].Name,
-				},
-			},
-			Mounts: []mount.Mount{
-				{
-					Type:   mount.TypeVolume,
-					Source: swarmData.Volumes["admin_api_log"].Name,
-					Target: "/app/logs",
-				},
-			},
-		},
-		Resources: &swarm.ResourceRequirements{
-			Limits: &swarm.Limit{
-				NanoCPUs:    giveCPUs("admin_api", nodeRoleNumMap, roleNanoCPUsMap),
-				MemoryBytes: giveMemory("admin_api", roleMemoryBytesMap),
-			},
-			Reservations: &swarm.Resources{
-				NanoCPUs:    giveCPUs("admin_api", nodeRoleNumMap, roleNanoCPUsMap),
-				MemoryBytes: giveMemory("admin_api", roleMemoryBytesMap),
-			},
-		},
-		Placement: &swarm.Placement{
-			Constraints: workerConstraintsArray,
-		},
-	}
-	adminApiEndpointSpec := &swarm.EndpointSpec{
-		Mode: swarm.ResolutionModeVIP,
-		Ports: []swarm.PortConfig{
-			{
-				Protocol:      swarm.PortConfigProtocolTCP,
-				TargetPort:    3200,
-				PublishedPort: 3200,
-			},
-		},
-	}
-	adminApiMode := swarm.ServiceMode{
-		Replicated: &swarm.ReplicatedService{
-			Replicas: giveReplicsPtr(nodeRoleNumMap, "admin_api"),
-		},
-	}
-	adminApiUpdateConfig := &swarm.UpdateConfig{
-		Parallelism:     2,
-		Delay:           time.Duration(5 * time.Second),
-		FailureAction:   swarm.UpdateFailureActionRollback,
-		Monitor:         time.Duration(20 * time.Second),
-		MaxFailureRatio: 0.2,
-		Order:           "start-first",
-	}
-	adminApiRollbackConfig := &swarm.UpdateConfig{
-		Parallelism:     2,
-		Delay:           time.Duration(5 * time.Second),
-		FailureAction:   swarm.UpdateFailureActionRollback,
-		Monitor:         time.Duration(20 * time.Second),
-		MaxFailureRatio: 0.2,
-		Order:           "start-first",
-	}
-	adminApiNetwork := []swarm.NetworkAttachmentConfig{
-		{Target: swarmData.Networks["internal_net"].Name},
-		{Target: swarmData.Networks["traefik_public"].Name},
-	}
-	Services["admin_api"] = Service{
-		Name:           "admin_api",
-		Annotations:    adminApiAnottations,
-		TaskTemplate:   adminApiTaskTemplate,
-		EndpointSpec:   adminApiEndpointSpec,
-		Mode:           adminApiMode,
-		UpdateConfig:   adminApiUpdateConfig,
-		RollbackConfig: adminApiRollbackConfig,
-		Networks:       adminApiNetwork,
-	}
-
-	frontendRule := fmt.Sprintf("Host(`%s`)", platformData.PlatformInfo.DomainName)
-	frontendAnottations := swarm.Annotations{
-		Name: "frontend",
-		Labels: map[string]string{
-			"app":                                "osi4iot",
-			"service_type":                       "frontend",
-			"traefik.enable":                     "true",
-			"traefik.http.routers.frontend.rule": frontendRule,
-			"traefik.http.routers.frontend.entrypoints":                        "websecure",
-			"traefik.http.routers.frontend.tls":                                "true",
-			"traefik.http.routers.frontend.tls.certresolver":                   resolver,
-			"traefik.http.routers.frontend.service":                            "frontend",
-			"traefik.http.services.frontend.loadbalancer.server.port":          "80",
-			"traefik.http.services.frontend.loadbalancer.healthCheck.path":     "/health",
-			"traefik.http.services.frontend.loadbalancer.healthCheck.interval": "5s",
-			"traefik.http.services.frontend.loadbalancer.healthCheck.timeout":  "3s",
-		},
-	}
-	frontendTaskTemplate := swarm.TaskSpec{
-		ContainerSpec: &swarm.ContainerSpec{
-			Image: "ghcr.io/osi4iot/frontend:1.3.0",
-			Labels: map[string]string{
-				"app": "osi4iot",
-			},
-			Env: []string{
-				fmt.Sprintf("TZ=%s", platformData.PlatformInfo.DefaultTimeZone),
-			},
-			Configs: []*swarm.ConfigReference{
-				{
-					File: &swarm.ConfigReferenceFileTarget{
-						Name: "/run/configs/frontend.conf",
-						UID:  "0",
-						GID:  "0",
-						Mode: 0444,
-					},
-					ConfigID:   swarmData.Configs["frontend"].ID,
-					ConfigName: swarmData.Configs["frontend"].Name,
-				},
-			},
-			Mounts: []mount.Mount{},
-		},
-		Resources: &swarm.ResourceRequirements{
-			Limits: &swarm.Limit{
-				NanoCPUs:    giveCPUs("frontend", nodeRoleNumMap, roleNanoCPUsMap),
-				MemoryBytes: giveMemory("frontend", roleMemoryBytesMap),
-			},
-			Reservations: &swarm.Resources{
-				NanoCPUs:    giveCPUs("frontend", nodeRoleNumMap, roleNanoCPUsMap),
-				MemoryBytes: giveMemory("frontend", roleMemoryBytesMap),
-			},
-		},
-		Placement: &swarm.Placement{
-			Constraints: workerConstraintsArray,
-		},
-	}
-	frontendEndpointSpec := &swarm.EndpointSpec{
-		Mode: swarm.ResolutionModeVIP,
-	}
-	frontendMode := swarm.ServiceMode{
-		Replicated: &swarm.ReplicatedService{
-			Replicas: giveReplicsPtr(nodeRoleNumMap, "frontend"),
-		},
-	}
-	frontendUpdateConfig := &swarm.UpdateConfig{
-		Parallelism:     2,
-		Delay:           time.Duration(5 * time.Second),
-		FailureAction:   swarm.UpdateFailureActionRollback,
-		Monitor:         time.Duration(20 * time.Second),
-		MaxFailureRatio: 0.2,
-		Order:           "start-first",
-	}
-	frontendRollbackConfig := &swarm.UpdateConfig{
-		Parallelism:     2,
-		Delay:           time.Duration(5 * time.Second),
-		FailureAction:   swarm.UpdateFailureActionRollback,
-		Monitor:         time.Duration(20 * time.Second),
-		MaxFailureRatio: 0.2,
-		Order:           "start-first",
-	}
-	frontendNetwork := []swarm.NetworkAttachmentConfig{
-		{Target: swarmData.Networks["traefik_public"].Name},
-	}
-	Services["frontend"] = Service{
-		Name:           "frontend",
-		Annotations:    frontendAnottations,
-		TaskTemplate:   frontendTaskTemplate,
-		EndpointSpec:   frontendEndpointSpec,
-		Mode:           frontendMode,
-		UpdateConfig:   frontendUpdateConfig,
-		RollbackConfig: frontendRollbackConfig,
-		Networks:       frontendNetwork,
-	}
-
-	if !existArmArchNodes {
-		grafanaRendererAnottations := swarm.Annotations{
-			Name: "grafana_renderer",
-			Labels: map[string]string{
-				"app": "osi4iot",
-			},
-		}
-		grafanaRendererTaskTemplate := swarm.TaskSpec{
-			ContainerSpec: &swarm.ContainerSpec{
-				Image: "ghcr.io/osi4iot/grafana_renderer:3.12.0",
-				Labels: map[string]string{
-					"app":          "osi4iot",
-					"service_type": "grafana_renderer",
-				},
-				Env: []string{
-					"ENABLE_METRICS=true",
-					fmt.Sprintf("TZ=%s", platformData.PlatformInfo.DefaultTimeZone),
-				},
-				Mounts: []mount.Mount{},
-			},
-			Resources: &swarm.ResourceRequirements{
-				Limits: &swarm.Limit{
-					NanoCPUs:    giveCPUs("grafana_renderer", nodeRoleNumMap, roleNanoCPUsMap),
-					MemoryBytes: giveMemory("grafana_renderer", roleMemoryBytesMap),
-				},
-				Reservations: &swarm.Resources{
-					NanoCPUs:    giveCPUs("grafana_renderer", nodeRoleNumMap, roleNanoCPUsMap),
-					MemoryBytes: giveMemory("grafana_renderer", roleMemoryBytesMap),
-				},
-			},
-			Placement: &swarm.Placement{
-				Constraints: workerConstraintsArray,
-			},
-		}
-		grafanaRendererEndpointSpec := &swarm.EndpointSpec{
-			Mode: swarm.ResolutionModeVIP,
-			Ports: []swarm.PortConfig{
-				{
-					Protocol:      swarm.PortConfigProtocolTCP,
-					TargetPort:    8081,
-					PublishedPort: 8081,
-				},
-			},
-		}
-		grafanaRendererMode := swarm.ServiceMode{
-			Replicated: &swarm.ReplicatedService{
-				Replicas: giveReplicsPtr(nodeRoleNumMap, "grafana_renderer"),
-			},
-		}
-		grafanaRendererUpdateConfig := &swarm.UpdateConfig{
-			Parallelism:     2,
-			Delay:           time.Duration(5 * time.Second),
-			FailureAction:   swarm.UpdateFailureActionRollback,
-			Monitor:         time.Duration(20 * time.Second),
-			MaxFailureRatio: 0.2,
-			Order:           "start-first",
-		}
-		grafanaRendererRollbackConfig := &swarm.UpdateConfig{
-			Parallelism:     2,
-			Delay:           time.Duration(5 * time.Second),
-			FailureAction:   swarm.UpdateFailureActionRollback,
-			Monitor:         time.Duration(20 * time.Second),
-			MaxFailureRatio: 0.2,
-			Order:           "start-first",
-		}
-		grafanaRendererNetwork := []swarm.NetworkAttachmentConfig{
-			{Target: swarmData.Networks["internal_net"].Name},
-		}
-		Services["grafana_renderer"] = Service{
-			Name:           "grafana_renderer",
-			Annotations:    grafanaRendererAnottations,
-			TaskTemplate:   grafanaRendererTaskTemplate,
-			EndpointSpec:   grafanaRendererEndpointSpec,
-			Mode:           grafanaRendererMode,
-			UpdateConfig:   grafanaRendererUpdateConfig,
-			RollbackConfig: grafanaRendererRollbackConfig,
-			Networks:       grafanaRendererNetwork,
-		}
-	}
-
-	if s3BucketType == "Local Minio" {
-		minioRule := fmt.Sprintf("Host(`%s`) && PathPrefix(`/minio_api`)", platformData.PlatformInfo.DomainName)
-		minioConsoleRule := fmt.Sprintf("Host(`%s`) && PathPrefix(`/minio`)", platformData.PlatformInfo.DomainName)
-		minioRedirectRegex := fmt.Sprintf("%s/(minio*)", platformData.PlatformInfo.DomainName)
-		minioRedirectReplacement := fmt.Sprintf("%s/$${1}", platformData.PlatformInfo.DomainName)
-		minioAnottations := swarm.Annotations{
-			Name: "minio",
-			Labels: map[string]string{
-				"app":                                 "osi4iot",
-				"service_type":                        "minio",
-				"traefik.enable":                      "true",
-				"traefik.http.routers.minio_api.rule": minioRule,
-				"traefik.http.routers.minio_api.entrypoints":                                               "websecure",
-				"traefik.http.routers.minio_api.tls":                                                       "true",
-				"traefik.http.routers.minio_api.tls.certresolver":                                          resolver,
-				"traefik.http.routers.minio_api.service":                                                   "minio",
-				"traefik.http.services.minio.loadbalancer.server.port":                                     "9000",
-				"traefik.http.services.minio.loadbalancer.healthCheck.path":                                "/minio/health/live",
-				"traefik.http.services.minio.loadbalancer.healthCheck.interval":                            "5s",
-				"traefik.http.services.minio.loadbalancer.healthCheck.timeout":                             "3s",
-				"traefik.http.routers.minio_console.rule":                                                  minioConsoleRule,
-				"traefik.http.middlewares.minio_console-prefix.stripprefix.prefixes":                       "/minio",
-				"traefik.http.routers.minio_console.middlewares":                                           "minio_console-prefix,minio_console-header,minio_console-redirectregex",
-				"traefik.http.middlewares.minio_console-prefix.stripprefix.forceslash":                     "false",
-				"traefik.http.middlewares.minio_console-header.headers.customrequestheaders.X-Script-Name": "/minio/",
-				"traefik.http.middlewares.minio_console-redirectregex.redirectregex.regex":                 minioRedirectRegex,
-				"traefik.http.middlewares.minio_console-redirectregex.redirectregex.replacement":           minioRedirectReplacement,
-				"traefik.http.routers.minio_console.entrypoints":                                           "websecure",
-				"traefik.http.routers.minio_console.tls":                                                   "true",
-				"traefik.http.routers.minio_console.tls.certresolver":                                      resolver,
-				"traefik.http.routers.minio_console.service":                                               "minio_console",
-				"traefik.http.services.minio_console.loadbalancer.server.port":                             "9090",
-			},
-		}
-		minioTaskTemplate := swarm.TaskSpec{
-			ContainerSpec: &swarm.ContainerSpec{
-				Image: "ghcr.io/osi4iot/minio:RELEASE.2023-10-16T04-13-43Z",
-				Labels: map[string]string{
-					"app": "osi4iot",
-				},
-				Hostname: "minio",
-				Env: []string{
-					"MINIO_VOLUMES=/mnt/data",
-					fmt.Sprintf("MINIO_BROWSER_REDIRECT_URL=https://%s/minio", platformData.PlatformInfo.DomainName),
-					fmt.Sprintf("TZ=%s", platformData.PlatformInfo.DefaultTimeZone),
-				},
-				Args: []string{
-					"server",
-					"--console-address",
-					":9090",
-					"/mnt/data",
-				},
-				Secrets: []*swarm.SecretReference{
-					{
-						File: &swarm.SecretReferenceFileTarget{
-							Name: "/run/secrets/minio.txt",
-							UID:  "0",
-							GID:  "0",
-							Mode: 0444,
-						},
-						SecretID:   swarmData.Secrets["minio"].ID,
-						SecretName: swarmData.Secrets["minio"].Name,
-					},
-				},
-				Mounts: []mount.Mount{
-					{
-						Type:   mount.TypeVolume,
-						Source: swarmData.Volumes["minio_storage"].Name,
-						Target: "/mnt/data",
-					},
-				},
-			},
-			Resources: &swarm.ResourceRequirements{
-				Limits: &swarm.Limit{
-					NanoCPUs:    giveCPUs("minio", nodeRoleNumMap, roleNanoCPUsMap),
-					MemoryBytes: giveMemory("minio", roleMemoryBytesMap),
-				},
-				Reservations: &swarm.Resources{
-					NanoCPUs:    giveCPUs("minio", nodeRoleNumMap, roleNanoCPUsMap),
-					MemoryBytes: giveMemory("minio", roleMemoryBytesMap),
-				},
-			},
-			Placement: &swarm.Placement{
-				Constraints: workerConstraintsArray,
-			},
-		}
-		minioEndpointSpec := &swarm.EndpointSpec{
-			Mode: swarm.ResolutionModeVIP,
-		}
-		minioMode := swarm.ServiceMode{
-			Replicated: &swarm.ReplicatedService{
-				Replicas: giveReplicsPtr(nodeRoleNumMap, "minio"),
-			},
-		}
-		minioUpdateConfig := &swarm.UpdateConfig{
-			Parallelism:     2,
-			Delay:           time.Duration(5 * time.Second),
-			FailureAction:   swarm.UpdateFailureActionRollback,
-			Monitor:         time.Duration(20 * time.Second),
-			MaxFailureRatio: 0.2,
-			Order:           "start-first",
-		}
-		minioRollbackConfig := &swarm.UpdateConfig{
-			Parallelism:     2,
-			Delay:           time.Duration(5 * time.Second),
-			FailureAction:   swarm.UpdateFailureActionRollback,
-			Monitor:         time.Duration(20 * time.Second),
-			MaxFailureRatio: 0.2,
-			Order:           "start-first",
-		}
-		minioNetwork := []swarm.NetworkAttachmentConfig{
-			{Target: swarmData.Networks["internal_net"].Name},
-			{Target: swarmData.Networks["traefik_public"].Name},
-		}
-		Services["minio"] = Service{
-			Name:           "minio",
-			Annotations:    minioAnottations,
-			TaskTemplate:   minioTaskTemplate,
-			EndpointSpec:   minioEndpointSpec,
-			Mode:           minioMode,
-			UpdateConfig:   minioUpdateConfig,
-			RollbackConfig: minioRollbackConfig,
-			Networks:       minioNetwork,
-		}
-	}
-
-	if numSwarmNodes > 1 && !existArmArchNodes && deploymentLocation == "On-premise cluster deployment" {
-		keepalivedAnottations := swarm.Annotations{
-			Name: "keepalived",
-			Labels: map[string]string{
-				"app":          "osi4iot",
-				"service_type": "keepalived",
-			},
-		}
-		keepalivedTaskTemplate := swarm.TaskSpec{
-			ContainerSpec: &swarm.ContainerSpec{
-				Image: "ghcr.io/osi4iot/keepalived:latest",
-				Labels: map[string]string{
-					"app": "osi4iot",
-				},
-				Env: []string{
-					fmt.Sprintf("TZ=%s", platformData.PlatformInfo.DefaultTimeZone),
-					fmt.Sprintf("KEEPALIVED_VIRTUAL_IP=%s", platformData.PlatformInfo.FloatingIPAddress),
-					fmt.Sprintf("KEEPALIVED_INTERFACE=%s", platformData.PlatformInfo.NetworkInterface),
-				},
-				Mounts: []mount.Mount{
-					{
-						Target:   "/var/run/docker.sock",
-						Source:   "/var/run/docker.sock",
-						Type:     mount.TypeBind,
-						ReadOnly: true,
-					},
-					{
-						Target:   "/usr/bin/docker",
-						Source:   "/usr/bin/docker:ro",
-						Type:     mount.TypeBind,
-						ReadOnly: true,
-					},
-				},
-			},
-			Resources: &swarm.ResourceRequirements{
-				Limits: &swarm.Limit{
-					NanoCPUs:    giveCPUs("keepalived", nodeRoleNumMap, roleNanoCPUsMap),
-					MemoryBytes: giveMemory("keepalived", roleMemoryBytesMap),
-				},
-				Reservations: &swarm.Resources{
-					NanoCPUs:    giveCPUs("keepalived", nodeRoleNumMap, roleNanoCPUsMap),
-					MemoryBytes: giveMemory("keepalived", roleMemoryBytesMap),
-				},
-			},
-			Placement: &swarm.Placement{
-				Constraints: []string{
-					"node.role == manager",
-					"node.platform.arch==x86_64",
-				},
-			},
-		}
-		keepalivedEndpointSpec := &swarm.EndpointSpec{
-			Mode: swarm.ResolutionModeVIP,
-		}
-		keepalivedMode := swarm.ServiceMode{
-			Global: &swarm.GlobalService{},
-		}
-		keepalivedUpdateConfig := &swarm.UpdateConfig{
-			Parallelism:     2,
-			Delay:           time.Duration(5 * time.Second),
-			FailureAction:   swarm.UpdateFailureActionRollback,
-			Monitor:         time.Duration(20 * time.Second),
-			MaxFailureRatio: 0.2,
-			Order:           "start-first",
-		}
-		keepalivedRollbackConfig := &swarm.UpdateConfig{
-			Parallelism:     2,
-			Delay:           time.Duration(5 * time.Second),
-			FailureAction:   swarm.UpdateFailureActionRollback,
-			Monitor:         time.Duration(20 * time.Second),
-			MaxFailureRatio: 0.2,
-			Order:           "start-first",
-		}
-		keepalivedNetwork := []swarm.NetworkAttachmentConfig{
-			{Target: swarmData.Networks["internal_net"].Name},
-		}
-		Services["keepalived"] = Service{
-			Name:           "keepalived",
-			Annotations:    keepalivedAnottations,
-			TaskTemplate:   keepalivedTaskTemplate,
-			EndpointSpec:   keepalivedEndpointSpec,
-			Mode:           keepalivedMode,
-			UpdateConfig:   keepalivedUpdateConfig,
-			RollbackConfig: keepalivedRollbackConfig,
-			Networks:       keepalivedNetwork,
-		}
-	}
-
-	if deploymentMode == "development" {
-		pgadmin4Rule := fmt.Sprintf("Host(`%s`) && PathPrefix(`/pgadmin4/`)", platformData.PlatformInfo.DomainName)
-		pgadmin4RedirectRegex := fmt.Sprintf("%s/(pgadmin4*)", platformData.PlatformInfo.DomainName)
-		pgadmin4RedirectRepalcement := fmt.Sprintf("%s/$${1}", platformData.PlatformInfo.DomainName)
-		pgadmin4Anottations := swarm.Annotations{
-			Name: "pgadmin4",
-			Labels: map[string]string{
-				"app":                                "osi4iot",
-				"service_type":                       "pgadmin4",
-				"traefik.enable":                     "true",
-				"traefik.http.routers.pgadmin4.rule": pgadmin4Rule,
-				"traefik.http.middlewares.pgadmin4-prefix.stripprefix.prefixes":                       "/pgadmin4",
-				"traefik.http.routers.pgadmin4.middlewares":                                           "pgadmin4-prefix,pgadmin4-header,pgadmin4-redirectregex",
-				"traefik.http.middlewares.pgadmin4-prefix.stripprefix.forceslash":                     "false",
-				"traefik.http.middlewares.pgadmin4-header.headers.customrequestheaders.X-Script-Name": "/pgadmin4/",
-				"traefik.http.middlewares.pgadmin4-redirectregex.redirectregex.regex":                 pgadmin4RedirectRegex,
-				"traefik.http.middlewares.pgadmin4-redirectregex.redirectregex.replacement":           pgadmin4RedirectRepalcement,
-				"traefik.http.routers.pgadmin4.entrypoints":                                           "websecure",
-				"traefik.http.routers.pgadmin4.tls":                                                   "true",
-				"traefik.http.routers.pgadmin4.tls.certresolver":                                      resolver,
-				"traefik.http.routers.pgadmin4.service":                                               "pgadmin4",
-				"traefik.http.services.pgadmin4.loadbalancer.server.port":                             "80",
-			},
-		}
-		pgadmin4TaskTemplate := swarm.TaskSpec{
-			ContainerSpec: &swarm.ContainerSpec{
-				Image: "ghcr.io/osi4iot/pgadmin4:2023-10-18-2",
-				Labels: map[string]string{
-					"app": "osi4iot",
-				},
-				User: "0:0",
-				Env: []string{
-					fmt.Sprintf("TZ=%s", platformData.PlatformInfo.DefaultTimeZone),
-				},
-				Secrets: []*swarm.SecretReference{
-					{
-						File: &swarm.SecretReferenceFileTarget{
-							Name: "pgadmin4.txt",
-							UID:  "0",
-							GID:  "0",
-							Mode: 0444,
-						},
-						SecretID:   swarmData.Secrets["pgadmin4"].ID,
-						SecretName: swarmData.Secrets["pgadmin4"].Name,
-					},
-				},
-				Mounts: []mount.Mount{
-					{
-						Type:   mount.TypeVolume,
-						Source: swarmData.Volumes["pgadmin4_data"].Name,
-						Target: "/var/lib/pgadmin",
-					},
-				},
-			},
-			Resources: &swarm.ResourceRequirements{
-				Limits: &swarm.Limit{
-					NanoCPUs:    giveCPUs("pgadmin4", nodeRoleNumMap, roleNanoCPUsMap),
-					MemoryBytes: giveMemory("pgadmin4", roleMemoryBytesMap),
-				},
-				Reservations: &swarm.Resources{
-					NanoCPUs:    giveCPUs("pgadmin4", nodeRoleNumMap, roleNanoCPUsMap),
-					MemoryBytes: giveMemory("pgadmin4", roleMemoryBytesMap),
-				},
-			},
-			Placement: &swarm.Placement{
-				Constraints: workerConstraintsArray,
-			},
-		}
-		pgadmin4EndpointSpec := &swarm.EndpointSpec{
-			Mode: swarm.ResolutionModeVIP,
-		}
-		pgadmin4Mode := swarm.ServiceMode{
-			Replicated: &swarm.ReplicatedService{
-				Replicas: giveReplicsPtr(nodeRoleNumMap, "pgadmin4"),
-			},
-		}
-		pgadmin4UpdateConfig := &swarm.UpdateConfig{
-			Parallelism:     2,
-			Delay:           time.Duration(5 * time.Second),
-			FailureAction:   swarm.UpdateFailureActionRollback,
-			Monitor:         time.Duration(20 * time.Second),
-			MaxFailureRatio: 0.2,
-			Order:           "start-first",
-		}
-		pgadmin4RollbackConfig := &swarm.UpdateConfig{
-			Parallelism:     2,
-			Delay:           time.Duration(5 * time.Second),
-			FailureAction:   swarm.UpdateFailureActionRollback,
-			Monitor:         time.Duration(20 * time.Second),
-			MaxFailureRatio: 0.2,
-			Order:           "start-first",
-		}
-		pgadmin4Network := []swarm.NetworkAttachmentConfig{
-			{Target: swarmData.Networks["internal_net"].Name},
-			{Target: swarmData.Networks["traefik_public"].Name},
-		}
-		Services["pgadmin4"] = Service{
-			Name:           "pgadmin4",
-			Annotations:    pgadmin4Anottations,
-			TaskTemplate:   pgadmin4TaskTemplate,
-			EndpointSpec:   pgadmin4EndpointSpec,
-			Mode:           pgadmin4Mode,
-			UpdateConfig:   pgadmin4UpdateConfig,
-			RollbackConfig: pgadmin4RollbackConfig,
-			Networks:       pgadmin4Network,
-		}
-	}
-
-	var nriConstraintsArray []string
-	nriResources := &swarm.ResourceRequirements{
-		Limits: &swarm.Limit{
-			NanoCPUs:    giveCPUs("nodered_instance", nodeRoleNumMap, roleNanoCPUsMap),
-			MemoryBytes: giveMemory("nodered_instance", roleMemoryBytesMap),
-		},
-		Reservations: &swarm.Resources{
-			NanoCPUs:    giveCPUs("nodered_instance", nodeRoleNumMap, roleNanoCPUsMap),
-			MemoryBytes: giveMemory("nodered_instance", roleMemoryBytesMap),
-		},
-	}
-	if numSwarmNodes == 1 && existArmArchNodes {
-		nriResources = &swarm.ResourceRequirements{}
-	}
-
-	for _, org := range platformData.Certs.MqttCerts.Organizations {
-		orgAcronym := org.OrgAcronym
-		orgAcronymLower := strings.ToLower(orgAcronym)
-
-		if numSwarmNodes == 1 {
-			nriConstraintsArray = []string{
-				"node.role==manager",
-			}
-		} else {
-			if len(org.ExclusiveWorkerNodes) != 0 {
-				nriConstraintsArray = []string{
-					"node.role==worker",
-					fmt.Sprintf("node.labels.org_hash==%s", org.OrgHash),
-				}
-			} else {
-				nriConstraintsArray = []string{
-					"node.role==worker",
-					"node.labels.generic_org_worker==true",
-				}
-			}
-		}
-
-		for _, nri := range org.NodeRedInstances {
-			nriHash := nri.NriHash
-			serviceName := fmt.Sprintf("org_%s_nri_%s", orgAcronymLower, nriHash)
-			nriData := NriData{
-				org: org,
-				nri: nri,
-				resources: nriResources,
-				constraintsArray: nriConstraintsArray,
-				resolver: resolver,
-			}
-			nriService := nriService(platformData, nriData, swarmData)
-			Services[serviceName] = nriService
-		}
-	}
-
-	return Services
+// ConfigUpdateConfig contains the configuration to update a config
+type ConfigUpdateConfig struct {
+	ConfigKey     string
+	NewConfigName string
+	OldConfigName string
+	NewConfigData string
+	TargetFile    string // Path of the file inside the container
 }
 
-func durationPtr(d time.Duration) *time.Duration {
-	return &d
+// ResourcesConfig contains the resource configuration for the service
+type ResourcesUpdateConfig struct {
+	CPULimit          int64 // CPU limit in nanocpus (1 CPU = 1000000000)
+	CPUReservation    int64 // CPU reservation in nanocpus
+	MemoryLimit       int64 // Memory limit in bytes
+	MemoryReservation int64 // Memory reservation in bytes
 }
 
-func giveCPUs(serviceName string,
-	nodeRoleNumMap map[string]int,
-	roleNanoCPUsMap map[string]int64) int64 {
-	cpus := 0.25
-	switch serviceName {
-	case "system_prune":
-		cpus = 0.25
-	case "traefik":
-		if nodeRoleNumMap["Manager"] == 1 {
-			if roleNanoCPUsMap["Manager"] <= 2*1e9 {
-				cpus = 0.15
-			} else {
-				cpus = 0.25
-			}
-		} else {
-			cpus = 0.50
-		}
-	case "mosquitto":
-		if roleNanoCPUsMap["Platform worker"] <= 2*1e9 {
-			cpus = 0.30
-		} else {
-			cpus = 0.50
-		}
-	case "postgres":
-		if roleNanoCPUsMap["Platform worker"] <= 2*1e9 {
-			cpus = 0.25
-		} else {
-			cpus = 0.50
-		}
-	case "timescaledb":
-		if roleNanoCPUsMap["Platform worker"] <= 2*1e9 {
-			cpus = 0.25
-		} else {
-			cpus = 0.50
-		}
-	case "s3_storage":
-		if roleNanoCPUsMap["Platform worker"] <= 2*1e9 {
-			cpus = 0.15
-		} else {
-			cpus = 0.50
-		}
-	case "dev2pdb":
-		if roleNanoCPUsMap["Platform worker"] <= 2*1e9 {
-			cpus = 0.15
-		} else {
-			cpus = 0.50
-		}
-	case "grafana":
-		if nodeRoleNumMap["Manager"] == 1 {
-			if roleNanoCPUsMap["Manager"] <= 2*1e9 {
-				cpus = 0.2
-			} else {
-				cpus = 0.50
-			}
-		} else {
-			cpus = 0.50
-		}
-	case "admin_api":
-		if roleNanoCPUsMap["Platform worker"] <= 2*1e9 {
-			cpus = 0.30
-		} else {
-			cpus = 0.50
-		}
-	case "frontend":
-		if roleNanoCPUsMap["Platform worker"] <= 2*1e9 {
-			cpus = 0.25
-		} else {
-			cpus = 0.50
-		}
-	case "agent":
-		cpus = 0.10
-	case "portainer":
-		cpus = 0.10
-	case "pgadmin4":
-		if roleNanoCPUsMap["Platform worker"] <= 2*1e9 {
-			cpus = 0.15
-		} else {
-			cpus = 0.25
-		}
-	case "minio":
-		if roleNanoCPUsMap["Platform worker"] <= 2*1e9 {
-			cpus = 0.30
-		} else {
-			cpus = 0.50
-		}
-	case "grafana_renderer":
-		if roleNanoCPUsMap["Platform worker"] <= 2*1e9 {
-			cpus = 0.25
-		} else {
-			cpus = 0.50
-		}
-	case "keepalived":
-		cpus = 0.25
-	case "nodered_instance":
-		cpus = 0.50
-	default:
-		cpus = 0.25
+// ServiceUpdateOptions contains all options to update a service
+type ServiceUpdateOptions struct {
+	Replicas      *uint64
+	SecretsUpdate []SecretUpdateConfig
+	ConfigsUpdate []ConfigUpdateConfig
+	Resources     *ResourcesUpdateConfig
+	Image         *string           // Update container image
+	Env           map[string]string // Update environment variables (add or modify)
+	RemoveEnv     []string          // Environment variables to remove
+
+	// SkipMonitor returns as soon as Docker accepts the update instead
+	// of waiting for the service to become healthy.
+	//
+	// Needed for quorum-based clusters. Starting the three patroni
+	// nodes one at a time while waiting for each to be healthy
+	// deadlocks: node 1 cannot finish starting until Raft has a
+	// majority, and nodes 2 and 3 are never started because the caller
+	// is still blocked on node 1. The caller starts them all and then
+	// waits for the cluster as a whole.
+	//
+	// Default false, so every existing caller keeps its progress bar.
+	SkipMonitor bool
+}
+
+type ServiceUpdateResult struct {
+	Warnings     string
+	OldSecretIDs []string
+	OldConfigIDs []string
+}
+
+func ServiceUpdate(
+	pd *pt.PlatformData,
+	dc *pt.DockerClient,
+	service *swarm.Service,
+	serviceName string,
+	options ServiceUpdateOptions,
+) (ServiceUpdateResult, error) {
+	result := ServiceUpdateResult{}
+	serviceUpdateOptions := types.ServiceUpdateOptions{}
+
+	isRollingUpdate := len(options.SecretsUpdate) > 0 ||
+		len(options.ConfigsUpdate) > 0 ||
+		options.Resources != nil ||
+		options.Image != nil ||
+		len(options.Env) > 0 ||
+		len(options.RemoveEnv) > 0
+
+	targetReplicas := uint64(0)
+	if service.Spec.Mode.Replicated != nil && service.Spec.Mode.Replicated.Replicas != nil {
+		targetReplicas = *service.Spec.Mode.Replicated.Replicas
 	}
-	return int64(cpus * 1e9)
-}
-
-func giveMemory(serviceName string, roleMemoryBytesMap map[string]int64) int64 {
-	memory := 100
-	switch serviceName {
-	case "system_prune":
-		memory = 50
-	case "traefik":
-		memory = 250
-	case "mosquitto":
-		memory = 500
-	case "postgres":
-		memory = 500
-	case "timescaledb":
-		memory = 500
-	case "s3_storage":
-		memory = 250
-	case "dev2pdb":
-		memory = 500
-	case "grafana":
-		memory = 500
-	case "admin_api":
-		memory = 1000
-	case "frontend":
-		memory = 500
-	case "agent":
-		memory = 100
-	case "portainer":
-		memory = 100
-	case "pgadmin4":
-		memory = 500
-	case "minio":
-		memory = 500
-	case "grafana_renderer":
-		memory = 500
-	case "keepalived":
-		memory = 50
-	case "nodered_instance":
-		var gbytes int64 = 1024 * 1024 * 1024
-		if roleMemoryBytesMap["Generic org worker"] <= 2*gbytes || roleMemoryBytesMap["Exclusive org worker"] <= 2*gbytes {
-			memory = 2048
-		} else {
-			memory = 4096
-		}
-	default:
-		memory = 100
+	if options.Replicas != nil {
+		targetReplicas = *options.Replicas
 	}
 
-	return int64(memory * 1024 * 1024)
-}
-
-func giveReplicsPtr(nodeRoleNumMap map[string]int, serviceName string) *uint64 {
-	replics := uint64(1)
-	switch serviceName {
-	case "system_prune":
-		replics = uint64(1)
-	case "traefik":
-		replics = uint64(nodeRoleNumMap["Manager"])
-	case "mosquitto_go_auth":
-		replics = uint64(1)
-	case "postgres":
-		replics = uint64(1)
-	case "timescaledb":
-		replics = uint64(1)
-	case "s3_storage":
-		replics = uint64(1)
-	case "dev2pdb":
-		replics = uint64(1)
-	case "grafana":
-		replics = uint64(1)
-		if nodeRoleNumMap["Manager"] >= 1 {
-			replics = uint64(nodeRoleNumMap["Manager"])
-			if nodeRoleNumMap["Manager"] > 3 {
-				replics = uint64(3)
-			}
-		}
-	case "admin_api":
-		replics = uint64(1)
-		if nodeRoleNumMap["Platform worker"] >= 1 {
-			replics = uint64(nodeRoleNumMap["Platform worker"])
-			if nodeRoleNumMap["Platform worker"] > 3 {
-				replics = uint64(3)
-			}
-		}
-	case "frontend":
-		replics = uint64(1)
-		if nodeRoleNumMap["Platform worker"] >= 1 {
-			replics = uint64(nodeRoleNumMap["Platform worker"])
-			if nodeRoleNumMap["Platform worker"] > 3 {
-				replics = uint64(3)
-			}
-		}
-	case "agent":
-		replics = uint64(1)
-	case "portainer":
-		replics = uint64(1)
-	case "pgadmin4":
-		replics = uint64(1)
-	case "minio":
-		replics = uint64(1)
-	case "grafana_renderer":
-		replics = uint64(1)
-	case "keepalived":
-		replics = uint64(1)
-	case "nodered_instance":
-		replics = uint64(1)
-	default:
-		replics = uint64(1)
-	}
-	return &replics
-}
-
-func createSwarmServices(platformData *common.PlatformData, dc *DockerClient, swarmData SwarmData) error {
-	services := GenerateServices(platformData, swarmData)
-	for _, service := range services {
-		err := createService(dc, service)
+	// A global service has no replica count: it runs one task per node
+	// it is placed on. Left at 0, the monitor below waited for zero
+	// running tasks, which never happens on a live global service, so
+	// every rolling update of one (vector) ran into the monitor's
+	// timeout and was reported as failed. Counted before the update from
+	// the tasks Swarm wants running; a rolling update replaces them node
+	// by node but keeps that number.
+	if service.Spec.Mode.Global != nil {
+		n, err := countGlobalServiceNodes(dc, service.ID)
 		if err != nil {
-			return fmt.Errorf("error creating service %s: %v", service.Name, err)
+			return result, fmt.Errorf("error counting the nodes of global service '%s': %v", serviceName, err)
+		}
+		targetReplicas = n
+	}
+
+	// 1. Replicas
+	if options.Replicas != nil {
+		if service.Spec.Mode.Replicated == nil {
+			service.Spec.Mode.Replicated = &swarm.ReplicatedService{}
+		}
+		service.Spec.Mode.Replicated.Replicas = options.Replicas
+	}
+
+	// 2. Secrets
+	if len(options.SecretsUpdate) > 0 {
+		for _, secretUpdate := range options.SecretsUpdate {
+			secretFound := false
+			for i, secretRef := range service.Spec.TaskTemplate.ContainerSpec.Secrets {
+				if secretRef.SecretName == secretUpdate.OldSecretName {
+					result.OldSecretIDs = append(result.OldSecretIDs, secretRef.SecretID)
+
+					targetFile := secretUpdate.TargetFile
+					if targetFile == "" && secretRef.File != nil {
+						targetFile = secretRef.File.Name
+					}
+
+					service.Spec.TaskTemplate.ContainerSpec.Secrets[i] = &swarm.SecretReference{
+						SecretID:   secretUpdate.SecretID,
+						SecretName: secretUpdate.NewSecretName,
+						File: &swarm.SecretReferenceFileTarget{
+							Name: targetFile,
+							UID:  "0",
+							GID:  "0",
+							Mode: 0444,
+						},
+					}
+					secretFound = true
+					break
+				}
+			}
+			if !secretFound {
+				return result, fmt.Errorf("secret '%s' not found in service '%s'", secretUpdate.OldSecretName, serviceName)
+			}
 		}
 	}
-	return nil
+
+	// 3. Configs
+	if len(options.ConfigsUpdate) > 0 {
+		for _, configUpdate := range options.ConfigsUpdate {
+			configHash := utils.GetMD5Hash(configUpdate.NewConfigData)
+			newConfigName := fmt.Sprintf("%s_%s", configUpdate.ConfigKey, configHash)
+			newConfig := pt.Config{
+				Name: newConfigName,
+				Data: configUpdate.NewConfigData,
+			}
+			newConfigID, err := configs.CreateConfig(dc, &newConfig)
+			if err != nil {
+				return result, fmt.Errorf("error creating new config '%s': %v", newConfigName, err)
+			}
+
+			configFound := false
+			for i, configRef := range service.Spec.TaskTemplate.ContainerSpec.Configs {
+				if configRef.ConfigName == configUpdate.OldConfigName {
+					result.OldConfigIDs = append(result.OldConfigIDs, configRef.ConfigID)
+
+					targetFile := configUpdate.TargetFile
+					if targetFile == "" && configRef.File != nil {
+						targetFile = configRef.File.Name
+					}
+
+					service.Spec.TaskTemplate.ContainerSpec.Configs[i] = &swarm.ConfigReference{
+						ConfigID:   newConfigID,
+						ConfigName: newConfigName,
+						File: &swarm.ConfigReferenceFileTarget{
+							Name: targetFile,
+							UID:  "0",
+							GID:  "0",
+							Mode: 0444,
+						},
+					}
+					configFound = true
+					break
+				}
+			}
+			if !configFound {
+				return result, fmt.Errorf("config '%s' not found in service '%s'", configUpdate.ConfigKey, serviceName)
+			}
+		}
+	}
+
+	// 4. Resources
+	if options.Resources != nil {
+		if service.Spec.TaskTemplate.Resources == nil {
+			service.Spec.TaskTemplate.Resources = &swarm.ResourceRequirements{}
+		}
+		if options.Resources.CPULimit > 0 || options.Resources.MemoryLimit > 0 {
+			if service.Spec.TaskTemplate.Resources.Limits == nil {
+				service.Spec.TaskTemplate.Resources.Limits = &swarm.Limit{}
+			}
+			if options.Resources.CPULimit > 0 {
+				service.Spec.TaskTemplate.Resources.Limits.NanoCPUs = options.Resources.CPULimit
+			}
+			if options.Resources.MemoryLimit > 0 {
+				service.Spec.TaskTemplate.Resources.Limits.MemoryBytes = options.Resources.MemoryLimit
+			}
+		}
+		if options.Resources.CPUReservation > 0 || options.Resources.MemoryReservation > 0 {
+			if service.Spec.TaskTemplate.Resources.Reservations == nil {
+				service.Spec.TaskTemplate.Resources.Reservations = &swarm.Resources{}
+			}
+			if options.Resources.CPUReservation > 0 {
+				service.Spec.TaskTemplate.Resources.Reservations.NanoCPUs = options.Resources.CPUReservation
+			}
+			if options.Resources.MemoryReservation > 0 {
+				service.Spec.TaskTemplate.Resources.Reservations.MemoryBytes = options.Resources.MemoryReservation
+			}
+		}
+	}
+
+	// 5. Image
+	if options.Image != nil {
+		service.Spec.TaskTemplate.ContainerSpec.Image = *options.Image
+	}
+
+	// 6. Env vars
+	if len(options.Env) > 0 || len(options.RemoveEnv) > 0 {
+		envMap := make(map[string]string)
+		for _, envVar := range service.Spec.TaskTemplate.ContainerSpec.Env {
+			for i := 0; i < len(envVar); i++ {
+				if envVar[i] == '=' {
+					envMap[envVar[:i]] = envVar[i+1:]
+					break
+				}
+			}
+		}
+		for _, key := range options.RemoveEnv {
+			delete(envMap, key)
+		}
+		for key, value := range options.Env {
+			envMap[key] = value
+		}
+		newEnv := make([]string, 0, len(envMap))
+		for key, value := range envMap {
+			newEnv = append(newEnv, fmt.Sprintf("%s=%s", key, value))
+		}
+		service.Spec.TaskTemplate.ContainerSpec.Env = newEnv
+	}
+
+	// 7. Apply the update in Docker
+	response, err := dc.Cli.ServiceUpdate(dc.Ctx, service.ID, service.Version, service.Spec, serviceUpdateOptions)
+	if err != nil {
+		return result, fmt.Errorf("error updating service '%s': %v", serviceName, err)
+	}
+
+	// 8. Monitor until completion — returns error if it fails or rolls back
+	if options.SkipMonitor {
+		// Caller waits for something else; see SkipMonitor.
+	} else if isRollingUpdate {
+		if err := utils.MonitorServiceRollingUpdate(dc, service.ID, targetReplicas); err != nil {
+			return result, fmt.Errorf("error monitoring rolling update for service '%s': %v", serviceName, err)
+		}
+	} else if options.Replicas != nil {
+		if err := utils.MonitorServiceScaleWithProgressBar(dc, service.ID, targetReplicas); err != nil {
+			return result, fmt.Errorf("error monitoring scale for service '%s': %v", serviceName, err)
+		}
+	}
+
+	// 9. API warnings
+	for _, warning := range response.Warnings {
+		result.Warnings += fmt.Sprintf("  - %s\n", warning)
+	}
+
+	// 10. Update platform data if replicas changed
+	if options.Replicas != nil {
+		svcIdx, svcData, err := utils.FindServiceDataByName(pd, serviceName)
+		if err != nil {
+			return result, fmt.Errorf("error finding service data: %v", err)
+		}
+		svcData.Replicas = int(*options.Replicas)
+		pd.PlatformInfo.ServicesData[svcIdx] = *svcData
+		if err := utils.WritePlatformDataToFile(pd); err != nil {
+			return result, fmt.Errorf("error writing platform data to file: %v", err)
+		}
+	}
+
+	// OldSecretIDs and OldConfigIDs are returned to the caller so they can be removed
+	// once ALL services have completed their rolling update.
+	return result, nil
 }
 
-func removeSwarmServices(dc *DockerClient) error {
+func RemoveSwarmServicesByName(dc *pt.DockerClient, svcNamesToRemove []string) error {
 	filterArgs := filters.NewArgs()
 	filterArgs.Add("label", "app=osi4iot")
-	existingServices, err := dc.Cli.ServiceList(dc.Ctx, types.ServiceListOptions{
+	services, err := dc.Cli.ServiceList(dc.Ctx, types.ServiceListOptions{
 		Filters: filterArgs,
 	})
 	if err != nil {
 		return fmt.Errorf("error listing services: %v", err)
 	}
 
-	for _, s := range existingServices {
-		err = dc.Cli.ServiceRemove(dc.Ctx, s.ID)
-		if err != nil {
-			return fmt.Errorf("error removing service: %v", err)
+	errors := []string{}
+	for _, service := range services {
+		serviceName := service.Spec.Name
+		if slices.Contains(svcNamesToRemove, serviceName) {
+			err := dc.Cli.ServiceRemove(dc.Ctx, service.ID)
+			if err != nil {
+				errors = append(errors, fmt.Sprintf("error removing service %s: %v", serviceName, err))
+			}
 		}
+	}
+	if len(errors) > 0 {
+		return fmt.Errorf("%s", strings.Join(errors, "\n"))
 	}
 
 	return nil
+}
+
+func ListSwarmServices(dc *pt.DockerClient) ([]swarm.Service, error) {
+	filterArgs := filters.NewArgs()
+	filterArgs.Add("label", "app=osi4iot")
+	services, err := dc.Cli.ServiceList(dc.Ctx, types.ServiceListOptions{
+		Filters: filterArgs,
+	})
+
+	if err != nil {
+		return nil, fmt.Errorf("error listing services: %v", err)
+	}
+
+	return services, nil
+}
+
+func GetSwarmNetworks(dc *pt.DockerClient) ([]network.Summary, error) {
+	filterArgs := filters.NewArgs()
+	filterArgs.Add("label", "app=osi4iot")
+	networks, err := dc.Cli.NetworkList(dc.Ctx, network.ListOptions{
+		Filters: filterArgs,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("error listing networks: %v", err)
+	}
+
+	return networks, nil
+}
+
+func GetServiceNetworks(dc *pt.DockerClient, service *swarm.Service) ([]network.Summary, error) {
+	var networkIDs []string
+	for _, net := range service.Spec.TaskTemplate.Networks {
+		networkIDs = append(networkIDs, net.Target)
+	}
+
+	filterArgs := filters.NewArgs()
+	filterArgs.Add("label", "app=osi4iot")
+	networks, err := dc.Cli.NetworkList(dc.Ctx, network.ListOptions{
+		Filters: filterArgs,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("error listing networks: %v", err)
+	}
+
+	var serviceNetworks []network.Summary
+	for _, net := range networks {
+		if slices.Contains(networkIDs, net.ID) {
+			serviceNetworks = append(serviceNetworks, net)
+		}
+	}
+
+	return serviceNetworks, nil
+}
+
+func GetNatsReplicas(dc *pt.DockerClient) (uint64, error) {
+	filterArgs := filters.NewArgs()
+	filterArgs.Add("label", "app=osi4iot")
+	services, err := dc.Cli.ServiceList(dc.Ctx, types.ServiceListOptions{
+		Filters: filterArgs,
+	})
+	if err != nil {
+		return 0, fmt.Errorf("error listing services: %v", err)
+	}
+
+	if len(services) == 0 {
+		return 0, fmt.Errorf("no services found")
+	}
+
+	natsReplicas := 0
+	for _, service := range services {
+		if val, ok := service.Spec.Labels["service_type"]; ok && strings.Contains(val, "nats") {
+			natsReplicas++
+		}
+	}
+
+	return uint64(natsReplicas), nil
+}
+
+func UpdateSwarmServiceResources(
+	pd *pt.PlatformData,
+	dc *pt.DockerClient,
+	serviceName string,
+	mem int64,
+	cpu float64,
+) (string, error) {
+	service, err := utils.GetSwarmServiceByName(dc, serviceName)
+	if err != nil {
+		return "", fmt.Errorf("error inspecting service: %v", err)
+	}
+
+	cpuNano := int64(cpu * 1e9)
+	memoryBytes := mem * 1024 * 1024
+	updateOptions := ServiceUpdateOptions{
+		Resources: &ResourcesUpdateConfig{
+			CPULimit:          cpuNano,
+			CPUReservation:    cpuNano,
+			MemoryLimit:       memoryBytes,
+			MemoryReservation: memoryBytes,
+		},
+	}
+	updateResult, err := ServiceUpdate(pd, dc, service, serviceName, updateOptions)
+	if err != nil {
+		return "", fmt.Errorf("error updating service resources: %v", err)
+	}
+
+	svcIdx, svcData, err := utils.FindServiceDataByName(pd, serviceName)
+	if err != nil {
+		return "", fmt.Errorf("error finding service data: %v", err)
+	}
+
+	svcData.Cpu = fmt.Sprintf("%sCPU", strconv.FormatFloat(cpu, 'f', 2, 64))
+	svcData.Memory = fmt.Sprintf("%sMb", strconv.FormatInt(mem, 10))
+	pd.PlatformInfo.ServicesData[svcIdx] = *svcData
+	if err := utils.WritePlatformDataToFile(pd); err != nil {
+		return "", fmt.Errorf("error writing platform data to file: %v", err)
+	}
+
+	return updateResult.Warnings, nil
+}
+
+func UpdateSwarmServiceImage(
+	pd *pt.PlatformData,
+	dc *pt.DockerClient,
+	serviceName string,
+	image string,
+) (string, error) {
+	service, err := utils.GetSwarmServiceByName(dc, serviceName)
+	if err != nil {
+		return "", fmt.Errorf("error inspecting service: %v", err)
+	}
+
+	updateOptions := ServiceUpdateOptions{
+		Image: &image,
+	}
+	updateResult, err := ServiceUpdate(pd, dc, service, serviceName, updateOptions)
+	if err != nil {
+		return "", fmt.Errorf("error updating service image: %v", err)
+	}
+
+	svcIdx, svcData, err := utils.FindServiceDataByName(pd, serviceName)
+	if err != nil {
+		return "", fmt.Errorf("error finding service data: %v", err)
+	}
+
+	svcData.Image = image
+	pd.PlatformInfo.ServicesData[svcIdx] = *svcData
+	err = utils.WritePlatformDataToFile(pd)
+	if err != nil {
+		return "", fmt.Errorf("error writing platform data to file: %v", err)
+	}
+
+	return updateResult.Warnings, nil
+}
+
+// Replaces ScaleSwarmService in internals/docker/services.go and adds the
+// helper updateNatsSeedListClients (place it next to
+// updateNatsSeedServersEnv / updateFrontendNatsConfig). No new imports.
+
+// updateNatsSeedListClients points every client that carries its own list
+// of NATS seed servers at the list for `replicas` servers: frontend (a
+// swarm config) and auth_callout, system_manager and vector (an
+// environment variable).
+//
+// Run on every nats scale, in both directions. Each update first checks the
+// running service and does nothing when it is already current, so it costs
+// next to nothing when the list does not change (3 -> 5, say), and it is
+// what lets simply re-running 'scale nats=N' finish a scale that stopped
+// half-way.
+//
+// Failures are warnings, not errors: by the time this runs NATS itself is
+// in its new shape and its data restored. A stale list only affects a
+// client's FIRST connection — once connected, the server tells it about
+// the rest of the cluster.
+//
+// Returns the warnings and the IDs of the configs it replaced, for the
+// caller to remove once the whole scale has succeeded.
+func updateNatsSeedListClients(pd *pt.PlatformData, dc *pt.DockerClient, replicas uint64) (string, []string) {
+	warnings := ""
+	var oldConfigIDs []string
+
+	updateResult, err := updateFrontendNatsConfig(pd, dc, int(replicas))
+	if err != nil {
+		warnings += seedWarning("frontend", err, replicas)
+	} else {
+		warnings += updateResult.Warnings
+		oldConfigIDs = append(oldConfigIDs, updateResult.OldConfigIDs...)
+	}
+
+	for _, dep := range []struct{ service, hostName string }{
+		{"auth_callout", ""},
+		{"system_manager", ""},
+		{"vector", pd.PlatformInfo.DomainName},
+	} {
+		depWarnings, err := updateNatsSeedServersEnv(pd, dc, dep.service, int(replicas), dep.hostName)
+		if err != nil {
+			warnings += seedWarning(dep.service, err, replicas)
+			continue
+		}
+		warnings += depWarnings
+	}
+
+	return warnings, oldConfigIDs
+}
+
+func ScaleSwarmService(pd *pt.PlatformData, dc *pt.DockerClient, serviceName string, replicas uint64) (string, error) {
+	var currentReplicas uint64
+	var service *swarm.Service
+	var err error
+
+	switch serviceName {
+	case utils.GarageServiceName:
+		// Like nats and Patroni, a family (garage_<ID>), not one service.
+		// Each instance added or retired is one layout change, finished
+		// — data migrated — before the next starts; see garage_rebalance.go.
+		if err := ScaleGarage(pd, dc, int(replicas), log.New(os.Stdout, "", 0)); err != nil {
+			return "", err
+		}
+		utils.SyncGarageServiceData(pd)
+		if err := utils.WritePlatformDataToFile(pd); err != nil {
+			return "", fmt.Errorf("error saving the state file: %v", err)
+		}
+		return "", nil
+	case "nats":
+		if utils.IsEven(replicas) {
+			return "", fmt.Errorf("NATS service requires an odd number of replicas: (1, 3, 5, ...)")
+		}
+		currentReplicas, err = GetNatsReplicas(dc)
+		if err != nil {
+			return "", fmt.Errorf("error getting current nats replicas: %v", err)
+		}
+	case "patroni_admin":
+		// Like "nats", there is no single swarm service literally named
+		// "patroni_admin"/"patroni_metrics" to inspect — the family is
+		// spread across patroni_admin1..N / patroni_metrics1..N. All the
+		// validation (odd node count, already-at-target early return) and
+		// the current-node-count lookup happen inside ScalePatroniFamily.
+		if utils.IsEven(replicas) {
+			return "", fmt.Errorf("Patroni admin service requires an odd number of replicas: (1, 3, 5, ...)")
+		}
+	case "patroni_metrics":
+		if utils.IsEven(replicas) {
+			return "", fmt.Errorf("Patroni metrics service requires an odd number of replicas: (1, 3, 5, ...)")
+		}
+	default:
+		service, err = utils.GetSwarmServiceByName(dc, serviceName)
+		if err != nil {
+			return "", fmt.Errorf("error inspecting service: %v", err)
+		}
+		if service.Spec.Mode.Replicated == nil {
+			return "", fmt.Errorf("service '%s' is in global mode and cannot be scaled", serviceName)
+		}
+		currentReplicas = *service.Spec.Mode.Replicated.Replicas
+		if currentReplicas == replicas {
+			return fmt.Sprintf("Service '%s' is already scaled to %d replicas", serviceName, replicas), nil
+		}
+	}
+
+	warningMessages := ""
+	var allOldSecretIDs []string
+	var allOldConfigIDs []string
+
+	switch serviceName {
+	case "pipelines":
+		warnings, err := scaleReplicatedServiceWithVolumes(
+			pd, dc, service, serviceName, currentReplicas, replicas,
+			volumes.CreatePipelinesVolume, volumes.RemovePipelinesVolume,
+		)
+		if err != nil {
+			return "", err
+		}
+		warningMessages += warnings
+
+	case "grafana":
+		warnings, err := scaleReplicatedServiceWithVolumes(
+			pd, dc, service, serviceName, currentReplicas, replicas,
+			volumes.CreateGrafanaVolume, volumes.RemoveGrafanaVolume,
+		)
+		if err != nil {
+			return "", err
+		}
+		warningMessages += warnings
+
+	case "patroni_admin":
+		// Returns directly instead of falling through to the shared tail
+		// below: patroni_admin has no single ServicesData entry named
+		// "patroni_admin" for that tail's FindServiceDataByName(pd,
+		// serviceName) to find (see patroni_scale.go) — ServicesData is
+		// tracked per node ("patroni_admin1", "patroni_admin2", ...), and
+		// ScalePatroniFamily already persists everything itself.
+		return ScalePatroniFamily(pd, dc, patroniAdminFamily, replicas)
+
+	case "patroni_metrics":
+		// Same reasoning as "patroni_admin" above.
+		return ScalePatroniFamily(pd, dc, patroniMetricsFamily, replicas)
+
+	case "nats":
+		// Step 1: Create the new nats_config secret for the target number of replicas.
+		oldNatsConfigSecret, err := secrets.GetSecretByKey(dc, "nats_config")
+		if err != nil {
+			return "", fmt.Errorf("error getting old nats config secret: %v", err)
+		}
+
+		natsConfigSecret := secrets.CreateNatsConfigSecret(pd, int(replicas))
+		id, err := secrets.CreateSecret(dc, &natsConfigSecret)
+		if err != nil {
+			return "", fmt.Errorf("error creating nats_config secret: %v", err)
+		}
+		natsConfigSecret.ID = id
+
+		natsSecretUpdateConfig := SecretUpdateConfig{
+			SecretKey:     "nats_config",
+			SecretID:      natsConfigSecret.ID,
+			NewSecretName: natsConfigSecret.Name,
+			OldSecretName: oldNatsConfigSecret.Name,
+			NewSecretData: natsConfigSecret.Data,
+			TargetFile:    "/etc/nats/nats.conf",
+		}
+		natsUpdateOptions := ServiceUpdateOptions{
+			SecretsUpdate: []SecretUpdateConfig{natsSecretUpdateConfig},
+		}
+
+		// The S3 backup run holding every JetStream stream, taken while NATS
+		// is still in its source topology. Only set when crossing the
+		// standalone<->cluster boundary, where NATS has no in-place data
+		// migration and the cluster must be rebuilt empty and restored from
+		// this backup; "" when there were no streams. Declared here so both
+		// the scale-up (backup, below) and the restore (Step 5c) can see it.
+		// See nats_scale_backup.go.
+		var natsBackupRun string
+
+		if replicas > currentReplicas {
+			// ── SCALE UP (e.g. 1 → 3, 3 → 5) ───────────────────────────────
+
+			// Growing out of standalone mode (1 -> N): back every stream up
+			// to S3 now, while nats1 is still standalone and healthy. The
+			// streams are NOT cleared here — the restore replaces them, once
+			// the cluster is confirmed formed (Step 5c). Replacing only at
+			// the last moment means that if anything between here and the
+			// restore fails (peer creation, the nats1 config update, cluster
+			// formation), nats1 still holds the original standalone data.
+			if currentReplicas == 1 && replicas >= 3 {
+				var err error
+				natsBackupRun, err = backupNatsStreamsForScale(pd, dc)
+				if err != nil {
+					return "", fmt.Errorf("error backing up NATS streams before scale-up: %v", err)
+				}
+			}
+
+			// Step 2: Create the new replicas.
+			newReplicas := make([]string, 0, int(replicas-currentReplicas))
+			for replica := currentReplicas + 1; replica <= replicas; replica++ {
+				newReplicas = append(newReplicas, fmt.Sprintf("nats%d", replica))
+			}
+
+			// removeNewReplicas undoes Step 2 when the scale cannot go on.
+			// Nothing has touched the existing replicas yet at that point, so
+			// removing the new ones leaves NATS exactly as it was — and
+			// GetNatsReplicas back at currentReplicas, which is what lets the
+			// scale simply be re-run. Without it, a re-run would count the
+			// half-created replicas as already there and try to wait for a
+			// cluster that nats1, still standalone, can never join.
+			removeNewReplicas := func(cause error) error {
+				msg := fmt.Sprintf("%v. The existing nats replicas were not touched and keep serving", cause)
+				for replica := currentReplicas + 1; replica <= replicas; replica++ {
+					if err := RemoveNatsService(pd, dc, int(replica)); err != nil {
+						msg += fmt.Sprintf("; could not remove nats%d, remove it by hand before re-running: %v", replica, err)
+					}
+				}
+				if natsBackupRun != "" {
+					msg += fmt.Sprintf("; the streams were backed up to S3 before the scale (run %s)", natsBackupRun)
+				}
+				return fmt.Errorf("%s", msg)
+			}
+
+			for replica := currentReplicas + 1; replica <= replicas; replica++ {
+				if err := CreateNatsService(pd, dc, int(replica), int(replicas), natsConfigSecret); err != nil {
+					return "", removeNewReplicas(fmt.Errorf("error creating nats service for replica %d: %v", replica, err))
+				}
+			}
+
+			// Step 3: Every new replica must be healthy before anything
+			// touches the existing ones. For 1 -> N this is also what gives
+			// auth_callout (Step 3b) somewhere to fall over to when nats1
+			// restarts.
+			if err := waitUntilServicesAreHealthy(dc, newReplicas, 5*time.Minute); err != nil {
+				return "", removeNewReplicas(fmt.Errorf("the new nats replicas did not become healthy: %v", err))
+			}
+
+			// Step 3b: Growing out of standalone mode, move auth_callout onto
+			// the new seed list BEFORE nats1 restarts. It stays on nats1
+			// (DontRandomize) until nats1 goes down, then falls over to the
+			// new replicas, which already form the cluster nats1 is about to
+			// join — so logins keep being answered while nats1 restarts.
+			if currentReplicas == 1 {
+				warnings, err := updateNatsSeedServersEnv(pd, dc, "auth_callout", int(replicas), "")
+				if err != nil {
+					warningMessages += seedWarning("auth_callout", err, replicas)
+				} else {
+					warningMessages += warnings
+				}
+			}
+
+			// Step 3c: nats1 is about to go from standalone into a cluster.
+			// If it was ever in one before (a platform scaled 3 -> 1 -> 3),
+			// its store still holds that cluster's JetStream state, and it
+			// would recover it on rejoining instead of joining this one
+			// fresh — see clearNatsClusterState. Done while nats1 is still
+			// standalone, which never reads that state, and before the
+			// restart below makes it matter.
+			if currentReplicas == 1 {
+				if err := clearNatsClusterState("nats1"); err != nil {
+					return "", removeNewReplicas(fmt.Errorf("clearing nats1's old cluster state: %w", err))
+				}
+			}
+
+			// Step 4: Restart the existing replicas with the new nats_config.
+			// Only the NATS servers themselves here: every other client is
+			// updated after the streams are back (Step 7), so nothing slow
+			// sits between nats1 joining the cluster and the restore.
+			if AreNeededNatsDependentServiceUpdates(currentReplicas, replicas) {
+				fmt.Println("\nUpdating existing nats services to new configuration")
+				for replica := 1; replica <= int(currentReplicas); replica++ {
+					natsServiceName := fmt.Sprintf("nats%d", replica)
+					fmt.Printf("\nUpdating nats service %s:", natsServiceName)
+
+					natsSvc, err := utils.GetSwarmServiceByName(dc, natsServiceName)
+					if err != nil {
+						return "", fmt.Errorf("error inspecting nats service '%s': %v", natsServiceName, err)
+					}
+					natsSvc.Spec.UpdateConfig.Order = swarm.UpdateOrderStopFirst
+					natsSvc.Spec.RollbackConfig.Order = swarm.UpdateOrderStopFirst
+					natsSvc.Spec.UpdateConfig.Monitor = 60 * time.Second
+					natsSvc.Spec.RollbackConfig.Monitor = 60 * time.Second
+
+					if hc := natsSvc.Spec.TaskTemplate.ContainerSpec.Healthcheck; hc != nil {
+						hc.StartPeriod = 60 * time.Second
+						hc.StartInterval = time.Second
+					}
+
+					updateResult, err := ServiceUpdate(pd, dc, natsSvc, natsServiceName, natsUpdateOptions)
+					if err != nil {
+						return "", fmt.Errorf("error updating nats service '%s': %v", natsServiceName, err)
+					}
+					warningMessages += updateResult.Warnings
+					allOldSecretIDs = append(allOldSecretIDs, updateResult.OldSecretIDs...)
+				}
+			}
+		} else if replicas < currentReplicas {
+			// ── SCALE DOWN (e.g. 3 → 1) ────────────────────────────────────
+
+			// Before removing the extra containers, reduce every stream's
+			// Replicas to the target count while the full cluster is still
+			// alive and reachable, making sure nats1 leads each stream first
+			// so its copy is the one that survives. This must succeed for
+			// every stream before continuing — once the containers below are
+			// gone, a stream that wasn't reduced here would lose its data.
+			// See reduceNatsStreamsReplicas for the full rationale.
+			if err := reduceNatsStreamsReplicas(pd, dc, int(replicas)); err != nil {
+				return "", fmt.Errorf("error reducing NATS stream replicas before scale-down: %v", err)
+			}
+
+			fmt.Println("Removing extra nats services")
+			for replica := replicas + 1; replica <= currentReplicas; replica++ {
+				if err := RemoveNatsService(pd, dc, int(replica)); err != nil {
+					return "", err
+				}
+			}
+
+			if AreNeededNatsDependentServiceUpdates(currentReplicas, replicas) {
+				fmt.Println("\nUpdating existing nats services to new configuration")
+				for replica := 1; replica <= int(replicas); replica++ {
+					natsServiceName := fmt.Sprintf("nats%d", replica)
+					fmt.Printf("\nUpdating nats service %s:", natsServiceName)
+
+					natsSvc, err := utils.GetSwarmServiceByName(dc, natsServiceName)
+					if err != nil {
+						return "", fmt.Errorf("error inspecting nats service '%s': %v", natsServiceName, err)
+					}
+
+					// Stop-first when scaling down: the old nats1 instance has
+					// routes pointing to nats2/nats3, which have already been
+					// removed. With start-first, the new and old instances
+					// would run simultaneously with incompatible
+					// configurations.
+					natsSvc.Spec.UpdateConfig.Order = swarm.UpdateOrderStopFirst
+					natsSvc.Spec.RollbackConfig.Order = swarm.UpdateOrderStopFirst
+
+					if hc := natsSvc.Spec.TaskTemplate.ContainerSpec.Healthcheck; hc != nil {
+						hc.StartPeriod = 60 * time.Second
+						hc.StartInterval = time.Second
+					}
+
+					updateResult, err := ServiceUpdate(pd, dc, natsSvc, natsServiceName, natsUpdateOptions)
+					if err != nil {
+						return "", fmt.Errorf("error updating nats service '%s': %v", natsServiceName, err)
+					}
+					warningMessages += updateResult.Warnings
+					allOldSecretIDs = append(allOldSecretIDs, updateResult.OldSecretIDs...)
+				}
+			}
+		}
+		// replicas == currentReplicas: nothing to create, remove or restart.
+		// The steps below still run, which is what finishes a scale that
+		// stopped after the NATS servers were already in their new shape
+		// (the waits pass at once, the restore is skipped, and every client
+		// update is a no-op when already current).
+
+		// Step 5: Wait until all NATS containers are healthy.
+		if err := waitUntilAllContainersAreHealthy(pd, "nats"); err != nil {
+			return "", fmt.Errorf("error waiting for nats containers to be healthy: %v", err)
+		}
+
+		// Step 5b: With three or more replicas, wait until every server has
+		// routes to the others and JetStream has elected a meta leader —
+		// the restore below needs JetStream, not just routes.
+		if replicas >= 3 {
+			if err := waitUntilNatsClusterIsFormed(dc, int(replicas)); err != nil {
+				return "", fmt.Errorf("error waiting for nats cluster to form: %v", err)
+			}
+
+			// Step 5c: The cluster is formed and — for streams — empty: nats1
+			// dropped its standalone copies as orphans when it joined.
+			// Restore every stream from the backup and widen it to the
+			// cluster size.
+			//
+			// This runs right after the cluster forms, before any client is
+			// updated: from nats1's restart until here the cluster has no
+			// streams at all (no KV, nothing to publish into), so this
+			// window has to stay as short as possible.
+			//
+			// On failure the cluster is up but the data has NOT been loaded;
+			// it is in S3 (natsBackupRun), and 'osi4iot backup restore
+			// nats_streams' loads it once the cause is fixed, so no data is
+			// lost. system_manager's restore deletes the same-named streams
+			// first and widens each one to the cluster's size.
+			if AreNeededNatsDependentServiceUpdates(currentReplicas, replicas) && natsBackupRun != "" {
+				output, err := restoreNatsStreamsForScale(pd, dc, natsBackupRun)
+				if err != nil {
+					return "", fmt.Errorf("error restoring the NATS streams after the cluster rebuild "+
+						"(the cluster is up; the streams are in S3, run %s, and 'osi4iot backup "+
+						"restore nats_streams' restores them once the cause is fixed): %w", natsBackupRun, err)
+				}
+				fmt.Println(output)
+			}
+		}
+
+		// Step 6: Update the services whose NATS configuration changes
+		// between standalone mode (1) and cluster mode (>=3) — URLs, cluster
+		// credentials and related settings — admin_api and pipelines. These
+		// are required for them to work in the new mode, so a failure here
+		// is an error.
+		if AreNeededNatsDependentServiceUpdates(currentReplicas, replicas) {
+			natsDependentServices := []string{"admin_api", "pipelines"}
+			secretsKeys := map[string]string{
+				"admin_api": "admin_api",
+				"pipelines": "pipelines_config",
+			}
+			targetFiles := map[string]string{
+				"admin_api": "admin_api.txt",
+				"pipelines": "/pipelines/config.yaml",
+			}
+
+			for _, dependentService := range natsDependentServices {
+				fmt.Printf("\nUpdating %s service to use new nats config:", dependentService)
+
+				depSvc, err := utils.GetSwarmServiceByName(dc, dependentService)
+				if err != nil {
+					return "", fmt.Errorf("error inspecting '%s' service: %v", dependentService, err)
+				}
+
+				oldSecret, err := secrets.GetSecretByKey(dc, secretsKeys[dependentService])
+				if err != nil {
+					return "", fmt.Errorf("error getting old secret for '%s': %v", dependentService, err)
+				}
+
+				newSecret, err := CreateNatsDependentServiceSecrets(pd, dc, dependentService, int(replicas))
+				if err != nil {
+					return "", fmt.Errorf("error creating new secret for '%s': %v", dependentService, err)
+				}
+
+				updateResult, err := ServiceUpdate(pd, dc, depSvc, dependentService, ServiceUpdateOptions{
+					SecretsUpdate: []SecretUpdateConfig{{
+						SecretKey:     secretsKeys[dependentService],
+						SecretID:      newSecret.ID,
+						NewSecretName: newSecret.Name,
+						OldSecretName: oldSecret.Name,
+						NewSecretData: newSecret.Data,
+						TargetFile:    targetFiles[dependentService],
+					}},
+				})
+				if err != nil {
+					return "", fmt.Errorf("error updating '%s' service: %v", dependentService, err)
+				}
+				warningMessages += updateResult.Warnings
+				allOldSecretIDs = append(allOldSecretIDs, updateResult.OldSecretIDs...)
+			}
+		}
+
+		// Step 7: Point every client that carries its own seed list at the
+		// new set of servers — on every nats scale, up or down. Last on
+		// purpose: none of it is needed for NATS to work (a stale list only
+		// affects a client's first connection) and vector's rolling update
+		// across every node is the slowest step of the whole scale.
+		seedWarnings, oldConfigIDs := updateNatsSeedListClients(pd, dc, replicas)
+		warningMessages += seedWarnings
+		allOldConfigIDs = append(allOldConfigIDs, oldConfigIDs...)
+
+	default:
+		updateResult, err := ServiceUpdate(pd, dc, service, serviceName, ServiceUpdateOptions{
+			Replicas: &replicas,
+		})
+		if err != nil {
+			return "", fmt.Errorf("error scaling service '%s': %v", serviceName, err)
+		}
+		warningMessages += updateResult.Warnings
+	}
+
+	// Remove old secrets — all updates completed successfully
+	for _, oldSecretID := range allOldSecretIDs {
+		if err := dc.Cli.SecretRemove(dc.Ctx, oldSecretID); err != nil {
+			warningMessages += fmt.Sprintf("  - Warning: could not remove old secret '%s': %v\n", oldSecretID, err)
+		}
+	}
+
+	// Remove old configs — all updates completed successfully
+	for _, oldConfigID := range allOldConfigIDs {
+		if err := dc.Cli.ConfigRemove(dc.Ctx, oldConfigID); err != nil {
+			warningMessages += fmt.Sprintf("  - Warning: could not remove old config '%s': %v\n", oldConfigID, err)
+		}
+	}
+
+	// Update platform data
+	svcIdx, svcData, err := utils.FindServiceDataByName(pd, serviceName)
+	if err != nil {
+		return "", fmt.Errorf("error finding service data: %v", err)
+	}
+	svcData.Replicas = int(replicas)
+	pd.PlatformInfo.ServicesData[svcIdx] = *svcData
+	if err := utils.WritePlatformDataToFile(pd); err != nil {
+		return "", fmt.Errorf("error writing platform data to file: %v", err)
+	}
+
+	return warningMessages, nil
+}
+
+// hasVolumeMount reports whether the service mounts a named volume.
+func hasVolumeMount(svc *swarm.Service) bool {
+	for _, m := range svc.Spec.TaskTemplate.ContainerSpec.Mounts {
+		if m.Type == mount.TypeVolume {
+			return true
+		}
+	}
+	return false
+}
+
+func scaleReplicatedServiceWithVolumes(
+	pd *pt.PlatformData,
+	dc *pt.DockerClient,
+	service *swarm.Service,
+	serviceName string,
+	currentReplicas, replicas uint64,
+	createVolume func(pt.PlatformInfo, *pt.DockerClient, int) error,
+	removeVolume func(*pt.PlatformData, int) error,
+) (string, error) {
+	pi := pd.PlatformInfo
+
+	for replica := currentReplicas + 1; replica <= replicas; replica++ {
+		if err := createVolume(pi, dc, int(replica)); err != nil {
+			return "", fmt.Errorf("error creating %s volume for replica %d: %v", serviceName, replica, err)
+		}
+	}
+
+	updateResult, err := ServiceUpdate(pd, dc, service, serviceName, ServiceUpdateOptions{
+		Replicas: &replicas,
+	})
+	if err != nil {
+		return "", fmt.Errorf("error updating %s service: %v", serviceName, err)
+	}
+
+	if err := waitUntilAllContainersAreHealthy(pd, serviceName); err != nil {
+		return "", fmt.Errorf("error waiting for %s containers to be healthy: %v", serviceName, err)
+	}
+
+	if replicas < currentReplicas {
+		if err := waitUntilContainersOfRemovedSlotsAreGone(dc, serviceName, int(replicas)+1); err != nil {
+			return "", fmt.Errorf("error waiting for removed %s containers to be destroyed: %v", serviceName, err)
+		}
+	}
+
+	for replica := replicas + 1; replica <= currentReplicas; replica++ {
+		fmt.Printf("Removing %s volume for removed replica %d\n", serviceName, replica)
+		if err := removeVolume(pd, int(replica)); err != nil {
+			return "", fmt.Errorf("error removing %s volume for replica %d: %v", serviceName, replica, err)
+		}
+	}
+
+	return updateResult.Warnings, nil
+}
+
+// findServiceByExactName returns the platform service with exactly this
+// name, or nil if it is not deployed (excluded with --exclude, say).
+// Swarm's name filter matches by prefix, which is why the result is
+// checked again here.
+func findServiceByExactName(dc *pt.DockerClient, name string) (*swarm.Service, error) {
+	filterArgs := filters.NewArgs()
+	filterArgs.Add("label", "app=osi4iot")
+	filterArgs.Add("name", name)
+	found, err := dc.Cli.ServiceList(dc.Ctx, types.ServiceListOptions{Filters: filterArgs})
+	if err != nil {
+		return nil, fmt.Errorf("error listing services: %v", err)
+	}
+	for i := range found {
+		if found[i].Spec.Name == name {
+			return &found[i], nil
+		}
+	}
+	return nil, nil
+}
+
+// countGlobalServiceNodes returns how many nodes a global service is
+// placed on: the distinct nodes of the tasks Swarm wants running.
+func countGlobalServiceNodes(dc *pt.DockerClient, serviceID string) (uint64, error) {
+	taskFilters := filters.NewArgs()
+	taskFilters.Add("service", serviceID)
+	taskFilters.Add("desired-state", "running")
+	tasks, err := dc.Cli.TaskList(dc.Ctx, types.TaskListOptions{Filters: taskFilters})
+	if err != nil {
+		return 0, err
+	}
+	nodes := make(map[string]struct{}, len(tasks))
+	for _, task := range tasks {
+		if task.NodeID != "" {
+			nodes[task.NodeID] = struct{}{}
+		}
+	}
+	return uint64(len(nodes)), nil
+}
+
+// natsSeedServersEnv is the variable vector and system_manager read the
+// NATS seed list from.
+const natsSeedServersEnv = "NATS_SEED_SERVERS_URL"
+
+// updateNatsSeedServersEnv rewrites NATS_SEED_SERVERS_URL on a running
+// service for numNatsReplicas NATS servers.
+//
+// A no-op when the service is not deployed, and when the variable
+// already has the new value — which makes re-running a scale after a
+// partial failure safe, as with updateFrontendNatsConfig.
+func updateNatsSeedServersEnv(
+	pd *pt.PlatformData,
+	dc *pt.DockerClient,
+	serviceName string,
+	numNatsReplicas int,
+	hostName string,
+) (string, error) {
+	svc, err := findServiceByExactName(dc, serviceName)
+	if err != nil {
+		return "", err
+	}
+	if svc == nil {
+		return "", nil
+	}
+
+	newValue := secrets.NatsSeedServersURL(pd, numNatsReplicas, hostName)
+	prefix := natsSeedServersEnv + "="
+	for _, envVar := range svc.Spec.TaskTemplate.ContainerSpec.Env {
+		if strings.HasPrefix(envVar, prefix) && strings.TrimPrefix(envVar, prefix) == newValue {
+			return "", nil
+		}
+	}
+
+	// A service with a named volume cannot run its old and new task side
+	// by side on the same node: vector keeps disk buffers in
+	// vector_buffer, locks them, and a second vector on that node fails
+	// to start. Under the default start-first order that made every
+	// vector update fail and roll back. Forced here for services
+	// deployed before VectorService switched to stop-first itself; set
+	// on the spec being submitted, so it applies to this update.
+	if hasVolumeMount(svc) {
+		if svc.Spec.UpdateConfig != nil {
+			svc.Spec.UpdateConfig.Order = swarm.UpdateOrderStopFirst
+		}
+		if svc.Spec.RollbackConfig != nil {
+			svc.Spec.RollbackConfig.Order = swarm.UpdateOrderStopFirst
+		}
+	}
+
+	fmt.Printf("\nUpdating %s service to use new nats seed servers:", serviceName)
+	updateResult, err := ServiceUpdate(pd, dc, svc, serviceName, ServiceUpdateOptions{
+		Env: map[string]string{natsSeedServersEnv: newValue},
+	})
+	if err != nil {
+		return "", fmt.Errorf("error updating '%s' service: %v", serviceName, err)
+	}
+	return updateResult.Warnings, nil
+}
+
+// frontendConfigFile is where FrontendService mounts its config.
+const frontendConfigFile = "/run/configs/frontend.conf"
+
+// updateFrontendNatsConfig points the frontend at the NATS seed servers
+// for numNatsReplicas.
+//
+// The old config is found by its mount path in the running service, not
+// by name: a previous attempt that failed halfway can leave a second
+// frontend_* config in the swarm, and a name search could pick that one.
+//
+// A no-op when frontend is not deployed (excluded with --exclude), and
+// when the new config's content — and so its content-derived name — is
+// what the service already uses, which is what makes re-running a scale
+// after a partial failure safe.
+func updateFrontendNatsConfig(pd *pt.PlatformData, dc *pt.DockerClient, numNatsReplicas int) (ServiceUpdateResult, error) {
+	svc, err := findServiceByExactName(dc, "frontend")
+	if err != nil {
+		return ServiceUpdateResult{}, err
+	}
+	if svc == nil {
+		return ServiceUpdateResult{}, nil
+	}
+
+	oldConfigName := ""
+	for _, ref := range svc.Spec.TaskTemplate.ContainerSpec.Configs {
+		if ref.File != nil && ref.File.Name == frontendConfigFile {
+			oldConfigName = ref.ConfigName
+			break
+		}
+	}
+	if oldConfigName == "" {
+		return ServiceUpdateResult{}, fmt.Errorf("frontend service has no config mounted at %s", frontendConfigFile)
+	}
+
+	newConfig := configs.FrontendConfig(pd, numNatsReplicas)
+	if newConfig.Name == oldConfigName {
+		return ServiceUpdateResult{}, nil
+	}
+
+	fmt.Printf("\nUpdating frontend service to use new nats seed servers:")
+	updateResult, err := ServiceUpdate(pd, dc, svc, "frontend", ServiceUpdateOptions{
+		ConfigsUpdate: []ConfigUpdateConfig{{
+			ConfigKey:     "frontend",
+			NewConfigName: newConfig.Name,
+			OldConfigName: oldConfigName,
+			NewConfigData: newConfig.Data,
+			TargetFile:    frontendConfigFile,
+		}},
+	})
+	if err != nil {
+		return updateResult, fmt.Errorf("error updating 'frontend' service: %v", err)
+	}
+	return updateResult, nil
+}
+
+func AreNeededNatsDependentServiceUpdates(currentNumNatsReplicas, numNatsReplicas uint64) bool {
+	needUpdate := false
+	if currentNumNatsReplicas == 1 && numNatsReplicas >= 3 {
+		needUpdate = true
+	}
+	if currentNumNatsReplicas >= 3 && numNatsReplicas == 1 {
+		needUpdate = true
+	}
+	return needUpdate
+}
+
+func CreateNatsDependentServiceSecrets(pd *pt.PlatformData, dc *pt.DockerClient, serviceName string, numNatsReplicas int) (pt.Secret, error) {
+	switch serviceName {
+	case "admin_api":
+		adminApiSecret := secrets.CreateAdminApiConfigSecret(pd, numNatsReplicas)
+		secrets.CreateSecretByName(dc, &adminApiSecret)
+		return adminApiSecret, nil
+	case "pipelines":
+		pipelinesSecret := secrets.CreatePipelinesConfigSecret(pd, numNatsReplicas)
+		secrets.CreateSecretByName(dc, &pipelinesSecret)
+		return pipelinesSecret, nil
+	default:
+		return pt.Secret{}, fmt.Errorf("service %s is not a nats dependent service", serviceName)
+	}
+}
+
+func CreateNatsService(pd *pt.PlatformData, dc *pt.DockerClient, replica int, numNatsReplicas int, natsConfigSecret pt.Secret) error {
+	pi := pd.PlatformInfo
+	natsVolume, err := volumes.CreateNatsVolume(pi, dc, int(replica))
+	if err != nil {
+		return fmt.Errorf("error creating nats volume for new replica %d: %v", replica, err)
+	}
+
+	var sd pt.SwarmData
+	sd.Networks = make(map[string]pt.Network)
+	internalNetwork, err := networks.GetNetworkByName(dc, "internal_net")
+	if err != nil {
+		return fmt.Errorf("error getting internal network: %v", err)
+	}
+	sd.Networks["internal_net"] = *internalNetwork
+
+	natsNetwork, err := networks.GetNetworkByName(dc, "nats_network")
+	if err != nil {
+		return fmt.Errorf("error getting nats network: %v", err)
+	}
+	sd.Networks["nats_network"] = *natsNetwork
+
+	sd.Secrets = make(map[string]pt.Secret)
+	platformCerts, err := secrets.GetSecretByKey(dc, "iot_platform_cert")
+	if err != nil {
+		return fmt.Errorf("error getting nats secrets: %v", err)
+	}
+	sd.Secrets["iot_platform_cert"] = *platformCerts
+
+	platformKey, err := secrets.GetSecretByKey(dc, "iot_platform_key")
+	if err != nil {
+		return fmt.Errorf("error getting nats secrets: %v", err)
+	}
+	sd.Secrets["iot_platform_key"] = *platformKey
+
+	sd.Secrets["nats_config"] = natsConfigSecret
+
+	sd.Volumes = make(map[string]pt.Volume)
+	volumeName := fmt.Sprintf("nats%d_data", replica)
+	sd.Volumes[volumeName] = *natsVolume
+
+	replicasValue := uint64(1)
+	natsSvcResources := resources.SvcResources{
+		MemoryBytes: resources.GetMemoryBytes(pd, "nats"),
+		NanoCPUs:    resources.GetNanoCPU(pd, "nats"),
+		ReplicasPtr: &replicasValue,
+	}
+	nodeRoleNumMap := resources.GetNodeRoleNumMap(pd)
+
+	natsService := services.NatsService(
+		replica,
+		numNatsReplicas,
+		pd,
+		sd,
+		natsSvcResources,
+		nodeRoleNumMap,
+	)
+
+	err = CreateSwarmService(dc, natsService)
+	if err != nil {
+		return fmt.Errorf("error creating nats service for new replica %d: %v", replica, err)
+	}
+
+	fmt.Printf("Service nats%d has been created successfully\n", replica)
+
+	return nil
+}
+
+func RemoveNatsService(pd *pt.PlatformData, dc *pt.DockerClient, replica int) error {
+	serviceName := fmt.Sprintf("nats%d", replica)
+	service, err := utils.GetSwarmServiceByName(dc, serviceName)
+	if err != nil {
+		return fmt.Errorf("error inspecting nats service %s: %v", serviceName, err)
+	}
+
+	err = dc.Cli.ServiceRemove(dc.Ctx, service.ID)
+	if err != nil {
+		return fmt.Errorf("error removing nats service %s: %v", serviceName, err)
+	}
+
+	if err := waitUntilServiceContainersAreGone(dc, serviceName); err != nil {
+		return err
+	}
+
+	if err := volumes.RemoveNatsVolume(pd, replica); err != nil {
+		return fmt.Errorf("error removing nats volume for removed replica %d: %v", replica, err)
+	}
+	return nil
+}
+
+// clearNatsClusterState removes the clustered JetStream state a NATS
+// server keeps under <store>/<system account>/_js_ — the meta group's
+// Raft log and the stream and consumer Raft groups.
+//
+// For a server about to go from standalone back into a cluster. A
+// standalone server never reads that directory, but it does not delete
+// it either, so a nats1 that was ever part of a cluster still holds the
+// old one's state, and recovers it on rejoining instead of joining
+// fresh: its old Raft term unseats the new meta leader, it reclaims the
+// streams under their old assignments until it converges, and it keeps
+// retrying consumers the old cluster had. Cleared, it bootstraps into
+// the new cluster like a server that was never in one.
+//
+// Matched with a glob rather than a fixed path because the system
+// account's directory is named after the account in nats.conf (SYS
+// here, $SYS in NATS's defaults). The streams' own data, in the other
+// account directories, stays.
+func clearNatsClusterState(serviceName string) error {
+	nodeDC, containerID, err := findServiceContainer(serviceName)
+	if err != nil {
+		return fmt.Errorf("finding %s's container: %w", serviceName, err)
+	}
+
+	script := `for d in /data/nats/jetstream/*/_js_; do ` +
+		`[ -d "$d" ] || continue; rm -rf "$d"; echo "removed $d"; ` +
+		`done`
+
+	out, code, err := execInContainer(nodeDC, containerID, "", []string{"/bin/sh", "-c", script}, nil)
+	if err != nil {
+		return err
+	}
+	if code != 0 {
+		return fmt.Errorf("removing the old cluster state exited %d: %s", code, strings.TrimSpace(out))
+	}
+	return nil
+}
+
+// waitUntilServiceContainersAreGone waits until no node still has a
+// container of the given (already removed) swarm service.
+//
+// Every node, not just the manager this CLI talks to: a replica's
+// container runs on its worker, so asking only the manager saw nothing
+// and returned at once — while the worker was still shutting it down
+// (Patroni has a 90s stop grace), and removing its volume then fails
+// with "volume is in use".
+func waitUntilServiceContainersAreGone(_ *pt.DockerClient, serviceName string) error {
+	deadline := time.Now().Add(3 * time.Minute)
+
+	done := make(chan bool)
+	utils.Spinner(
+		fmt.Sprintf("Waiting for service %s to be removed", serviceName),
+		fmt.Sprintf("Service %s has been removed", serviceName),
+		done,
+	)
+
+	filterArgs := filters.NewArgs()
+	filterArgs.Add("label", fmt.Sprintf("com.docker.swarm.service.name=%s", serviceName))
+
+	for {
+		remaining := 0
+		var lastErr error
+		for ip, nodeDC := range pt.DCMap {
+			if nodeDC == nil {
+				continue // unreachable: nothing to wait for that we could see
+			}
+			containers, err := nodeDC.Cli.ContainerList(nodeDC.Ctx, container.ListOptions{
+				All:     true,
+				Filters: filterArgs,
+			})
+			if err != nil {
+				lastErr = fmt.Errorf("listing containers on %s: %v", ip, err)
+				continue
+			}
+			remaining += len(containers)
+		}
+
+		if remaining == 0 && lastErr == nil {
+			done <- true
+			return nil
+		}
+		if time.Now().After(deadline) {
+			done <- false
+			if lastErr != nil {
+				return fmt.Errorf("timeout waiting for containers of service '%s' to be destroyed: %v", serviceName, lastErr)
+			}
+			return fmt.Errorf("timeout waiting for containers of service '%s' to be destroyed (%d still present)", serviceName, remaining)
+		}
+		time.Sleep(2 * time.Second)
+	}
+}
+
+func creatSecretUpdateConfig(secretKey string, certSecret pt.Secret, oldCertSecretName string, targetFile string) SecretUpdateConfig {
+	return SecretUpdateConfig{
+		SecretKey:     secretKey,
+		SecretID:      certSecret.ID,
+		NewSecretName: certSecret.Name,
+		OldSecretName: oldCertSecretName,
+		NewSecretData: certSecret.Data,
+		TargetFile:    targetFile,
+	}
+}
+
+func UpdateCertsInServices(
+	pd *pt.PlatformData,
+	dc *pt.DockerClient,
+) (string, error) {
+	// 1. Build the list of services to update
+	numNatsReplicas, err := GetNatsReplicas(dc)
+	if err != nil {
+		return "", fmt.Errorf("error getting nats replicas: %v", err)
+	}
+
+	servicesToUpdate := []string{"traefik"}
+	for i := 1; i <= int(numNatsReplicas); i++ {
+		servicesToUpdate = append(servicesToUpdate, fmt.Sprintf("nats%d", i))
+	}
+
+	// 2. File mount paths by service family and secret key
+	targetFiles := map[string]map[string]string{
+		"nats": {
+			"iot_platform_cert": "/etc/nats/cert.pem",
+			"iot_platform_key":  "/etc/nats/key.pem",
+		},
+		"traefik": {
+			"iot_platform_cert": "iot_platform_cert.cer",
+			"iot_platform_key":  "iot_platform.key",
+		},
+	}
+
+	// 3. Clean up orphan secrets from previous failed runs
+	// An orphan secret is one whose name contains any of the known keys but is not referenced by any active service.
+	knownSecretKeys := make([]string, 0, len(targetFiles))
+	for _, paths := range targetFiles {
+		for key := range paths {
+			knownSecretKeys = append(knownSecretKeys, key)
+		}
+	}
+	knownSecretKeys = uniqueStrings(knownSecretKeys)
+
+	if err := secrets.RemoveOrphanSecrets(dc, servicesToUpdate, knownSecretKeys); err != nil {
+		// Not a fatal error: we warn but continue
+		fmt.Printf("Warning: could not clean up orphan secrets: %v\n", err)
+	}
+
+	// ── 4. Get the current (old) secrets before creating the new ones ─────────
+	//
+	// Indexed by secretKey for O(1) access later.
+	oldSecrets := make(map[string]pt.Secret, len(knownSecretKeys))
+	for _, secretKey := range knownSecretKeys {
+		oldSecret, err := secrets.GetSecretByKey(dc, secretKey)
+		if err != nil {
+			return "", fmt.Errorf("error getting current secret '%s': %v", secretKey, err)
+		}
+		oldSecrets[secretKey] = *oldSecret
+	}
+
+	// ── 5. Validate that each service references the expected secrets ─────────
+	//
+	// We perform this check BEFORE creating anything in Docker to avoid
+	// orphan secrets if a service does not reference the expected secret.
+	for _, serviceName := range servicesToUpdate {
+		service, err := utils.GetSwarmServiceByName(dc, serviceName)
+		if err != nil {
+			return "", fmt.Errorf("error inspecting service '%s': %v", serviceName, err)
+		}
+
+		serviceFamily := resolveServiceFamily(serviceName)
+		pathsForService, ok := targetFiles[serviceFamily]
+		if !ok {
+			return "", fmt.Errorf("no target file mapping for service family '%s'", serviceFamily)
+		}
+
+		for secretKey := range pathsForService {
+			oldSecret := oldSecrets[secretKey]
+			if !serviceHasSecret(service, oldSecret.Name) {
+				return "", fmt.Errorf(
+					"service '%s' does not reference secret '%s' — aborting before creating any new secret",
+					serviceName, oldSecret.Name,
+				)
+			}
+		}
+	}
+
+	// ── 6. Create the new secrets in Docker ────────────────────────────────
+	//
+	// We only reach this point if all validations passed.
+	newSecrets, err := secrets.CreateCertsSecrets(pd, dc)
+	if err != nil {
+		return "", fmt.Errorf("error creating new cert secrets: %v", err)
+	}
+
+	// Register the IDs of the old secrets to remove them at the end.
+	oldSecretIDs := make([]string, 0, len(oldSecrets))
+	for _, old := range oldSecrets {
+		oldSecretIDs = append(oldSecretIDs, old.ID)
+	}
+
+	// ── 7. Update each service with the new secrets ─────────────────────────
+	warningMessages := ""
+
+	for _, serviceName := range servicesToUpdate {
+		service, err := utils.GetSwarmServiceByName(dc, serviceName)
+		if err != nil {
+			return "", fmt.Errorf("error inspecting service '%s': %v", serviceName, err)
+		}
+
+		serviceFamily := resolveServiceFamily(serviceName)
+		pathsForService := targetFiles[serviceFamily]
+
+		secretUpdateConfigs := make([]SecretUpdateConfig, 0, len(newSecrets))
+		for secretKey, newSecret := range newSecrets {
+			targetFile, defined := pathsForService[secretKey]
+			if !defined {
+				continue
+			}
+			oldSecret := oldSecrets[secretKey]
+			secretUpdateConfigs = append(secretUpdateConfigs, creatSecretUpdateConfig(
+				secretKey,
+				newSecret,
+				oldSecret.Name,
+				targetFile,
+			))
+		}
+
+		if len(secretUpdateConfigs) == 0 {
+			fmt.Printf("No cert secrets to update for service '%s', skipping\n", serviceName)
+			continue
+		}
+
+		fmt.Printf("\nUpdating service '%s' with new certificates:\n", serviceName)
+		updateResult, err := ServiceUpdate(pd, dc, service, serviceName, ServiceUpdateOptions{
+			SecretsUpdate: secretUpdateConfigs,
+		})
+		if err != nil {
+			return "", fmt.Errorf("error updating service '%s': %v", serviceName, err)
+		}
+		if updateResult.Warnings != "" {
+			warningMessages += fmt.Sprintf("Warnings for service '%s':\n%s\n", serviceName, updateResult.Warnings)
+		}
+	}
+
+	// ── 8. Delete old secrets — all rolling updates completed ────────────────
+	for _, oldSecretID := range oldSecretIDs {
+		if err := dc.Cli.SecretRemove(dc.Ctx, oldSecretID); err != nil {
+			warningMessages += fmt.Sprintf("  - Warning: could not remove old secret '%s': %v\n", oldSecretID, err)
+		}
+	}
+
+	return warningMessages, nil
+}
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
+// resolveServiceFamily returns the family key ("nats", "traefik", …)
+// used to look up in the targetFiles map.
+func resolveServiceFamily(serviceName string) string {
+	if strings.HasPrefix(serviceName, "nats") {
+		return "nats"
+	}
+	return serviceName
+}
+
+// serviceHasSecret checks if a service already references a secret by name.
+func serviceHasSecret(service *swarm.Service, secretName string) bool {
+	for _, ref := range service.Spec.TaskTemplate.ContainerSpec.Secrets {
+		if ref.SecretName == secretName {
+			return true
+		}
+	}
+	return false
+}
+
+// uniqueStrings removes duplicates while preserving order.
+func uniqueStrings(in []string) []string {
+	seen := make(map[string]struct{}, len(in))
+	out := make([]string, 0, len(in))
+	for _, s := range in {
+		if _, ok := seen[s]; !ok {
+			seen[s] = struct{}{}
+			out = append(out, s)
+		}
+	}
+	return out
+}
+
+// seedWarning is the warning for a client whose NATS seed list could not
+// be updated during a nats scale. Not an error: NATS itself is fine, a
+// stale list only affects that client's first connection, and re-running
+// the scale retries it (every seed-list update is a no-op when current).
+func seedWarning(service string, err error, replicas uint64) string {
+	return fmt.Sprintf("  - Warning: %s still has the previous NATS seed servers: %v\n"+
+		"    NATS works regardless; re-run 'osi4iot service scale nats=%d' to retry.\n",
+		service, err, replicas)
 }

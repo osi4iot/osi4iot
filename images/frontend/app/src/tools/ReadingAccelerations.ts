@@ -1,8 +1,9 @@
-import Paho from "paho-mqtt";
+import { NatsConnection, headers } from "nats.ws";
+import { sc } from "./Natsconnection";
 
 const ReadAccelerations = (
-	mqttClient: Paho.Client,
-	mqttTopic: string,
+	nc: NatsConnection,
+	natsSubject: string,
 	totalReadingTime: number,
 	samplingFrequency: number,
 	setIsSensorReadings: React.Dispatch<React.SetStateAction<boolean>>,
@@ -13,6 +14,10 @@ const ReadAccelerations = (
 	const totalReadings = totalReadingTime / deltaT;
 	let gravity: number[] = [];
 	let readingsGravityCont = 0;
+
+	const h = headers();
+	h.set("Content-Type", "application/json");
+	h.set("Json-Structure", "object");
 
 	const gravitySensor = new GravitySensor({ frequency: samplingFrequency, referenceFrame: "device" });
 	gravitySensor.start();
@@ -38,11 +43,9 @@ const ReadAccelerations = (
 					sensor.x - gravity[0],
 					sensor.y - gravity[1],
 					sensor.z - gravity[2]
-				]
+				];
 				const payload = { timestamp, mobile_accelerations };
-				const message = new Paho.Message(JSON.stringify(payload));
-				message.destinationName = mqttTopic;
-				mqttClient.send(message);
+				nc.publish(natsSubject, sc.encode(JSON.stringify(payload)), { headers: h });
 			}
 			const readingProgress = (readingsCont / totalReadings) * 100;
 			setReadingProgress(readingProgress);

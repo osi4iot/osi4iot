@@ -12,7 +12,6 @@ export const initialState = {
     groupManagedRowIndex: 0,
     groupManagedIdToEdit: 0,
     groupManagedBuildingId: 0,
-    groupManagedNriId: 0,
     groupManagedInputFormData: {
         groupId: 0,
         name: "",
@@ -22,10 +21,6 @@ export const initialState = {
         mqttAccessControl: "Pub & Sub",
         telegramInvitationLink: "",
         telegramChatId: "",
-        nriInGroupId: 0,
-        nriInGroupIconLongitude: 0,
-        nriInGroupIconLatitude: 0,
-        nriInGroupIconRadio: 1.0
     }
 };
 
@@ -72,12 +67,6 @@ export const GroupsManagedReducer = (initialState: GroupsManagedContextProps, ac
             return {
                 ...initialState,
                 groupManagedInputFormData: action.payload.groupManagedInputFormData
-            };
-
-        case "GROUP_MANAGED_NRI_ID":
-            return {
-                ...initialState,
-                groupManagedNriId: action.payload.groupManagedNriId
             };
 
         default:

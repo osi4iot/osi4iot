@@ -25,7 +25,7 @@ export const PrivateRouteWithUserRole: FC<PrivateRouteWithUserRoleProps> = ({ co
                     (
                         userRolesArray.indexOf(userRole) >= userRolesArray.indexOf(roleRequired)
                             ?
-                            <Component />
+                            <Component children={undefined} />
                             :
                             <Redirect to={{ pathname: getPlatformAssistantPathForUserRole(userRole) }} />
                     )

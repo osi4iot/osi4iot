@@ -9,8 +9,7 @@ import { IDigitalTwinState, ISensorState } from "./GeolocationContainer";
 import { findOutStatus } from "./statusTools";
 import { IFloor } from "../TableColumns/floorsColumns";
 import { findGroupGeojsonData } from "../../../tools/findGroupGeojsonData";
-import { IDigitalTwinGltfData } from "../DigitalTwin3DViewer/ViewerUtils";
-import GeoNodeRedInstance from "./GeoNodeRedInstance";
+import { IDigitalTwinGltfData } from "../DigitalTwin3DViewer/ViewerTools/ViewerUtils";
 import { IAsset } from "../TableColumns/assetsColumns";
 import { ISensor } from "../TableColumns/sensorsColumns";
 import GeoAssets from "./GeoAssets";
@@ -74,6 +73,8 @@ interface GeoGroupProps {
     openDigitalTwin3DViewer: (digitalTwinGltfData: IDigitalTwinGltfData) => void;
     setGlftDataLoading: (gtGlftDataLoading: boolean) => void;
     setGltfFileDownloadProgress: (gltfFileDownloadProgress: number) => void;
+    setAssetWithCameraSelected: (selected: boolean) => void;
+    setSensorWithCameraSelected: (selected: boolean) => void;
 }
 
 const GeoGroup: FC<GeoGroupProps> = (
@@ -99,7 +100,9 @@ const GeoGroup: FC<GeoGroupProps> = (
         sensorsState,
         openDigitalTwin3DViewer,
         setGlftDataLoading,
-        setGltfFileDownloadProgress,       
+        setGltfFileDownloadProgress,
+        setAssetWithCameraSelected,
+        setSensorWithCameraSelected,
     }) => {
     const map = useMap();
     const geoJsonLayerGroupRef = useRef(null);
@@ -150,12 +153,6 @@ const GeoGroup: FC<GeoGroupProps> = (
                         >
                             <Tooltip sticky>Group: {groupData.acronym}</Tooltip>
                         </GeoJSON>
-                        <GeoNodeRedInstance
-                            longitude={groupData.nriInGroupIconLongitude}
-                            latitude={groupData.nriInGroupIconLatitude}
-                            iconRadio={groupData.nriInGroupIconRadio}
-                            nriHash={groupData.nriInGroupHash}
-                        />
                         <GeoAssets
                             assetTypeDataArray={assetTypeDataArray}
                             assetDataArray={assetDataArrayFiltered}
@@ -173,6 +170,8 @@ const GeoGroup: FC<GeoGroupProps> = (
                             openDigitalTwin3DViewer={openDigitalTwin3DViewer}
                             setGlftDataLoading={setGlftDataLoading}
                             setGltfFileDownloadProgress={setGltfFileDownloadProgress}
+                            setAssetWithCameraSelected={setAssetWithCameraSelected}
+                            setSensorWithCameraSelected={setSensorWithCameraSelected}
                         />
                     </LayerGroup >
                     :

@@ -7,12 +7,12 @@ import { logout, useAuthDispatch, useIsUserAuth } from "../../contexts/authConte
 import { useLoggedUserLogin } from "../../contexts/authContext/authContext";
 import { setResetTables, usePlatformAssitantDispatch } from "../../contexts/platformAssistantContext";
 
-const SignOutIcon = styled(RiLogoutCircleLine)`
+const SignOutIcon = styled(RiLogoutCircleLine as any)`
 	font-size: 30px;
 	color: #3274d9;
 `;
 
-const SignInIcon = styled(RiLoginCircleLine)`
+const SignInIcon = styled(RiLoginCircleLine as any)`
 	font-size: 30px;
 	color: #3274d9;
 `;

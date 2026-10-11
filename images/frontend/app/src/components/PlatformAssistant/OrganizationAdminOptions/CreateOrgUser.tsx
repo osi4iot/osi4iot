@@ -206,6 +206,7 @@ const CreateOrgUser: FC<CreateOrgUserProps> = ({ refreshOrgUsers, backToTable, o
                             <Formik initialValues={initialOrgUsersData} validationSchema={validationSchema} onSubmit={onSubmit} >
                                 {
                                     formik => (
+                                        // @ts-ignore
                                         <Form>
                                             <ControlsContainer>
                                                 <FormikControl

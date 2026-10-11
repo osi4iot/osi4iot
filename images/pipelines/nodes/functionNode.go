@@ -1,0 +1,740 @@
+package nodes
+
+import (
+	"context"
+	"fmt"
+	"image"
+	"pipelines/common"
+	"pipelines/logger"
+	"pipelines/message"
+	"pipelines/utils"
+	"strings"
+	"sync"
+	"time"
+
+	"github.com/dop251/goja"
+	"github.com/nats-io/nats.go"
+
+	fl "pipelines/function_library"
+)
+
+type CompiledScript struct {
+	program     *goja.Program
+	processFunc goja.Callable
+}
+
+type FuncNode struct {
+	BaseNode
+	nc                     *nats.Conn
+	onInitializationScript string
+	onStartScript          string
+	onMessageScript        string
+	compiledScript         *CompiledScript
+	vmArray                []*goja.Runtime
+	vmPool                 chan *goja.Runtime
+	vmPoolClosed           bool
+	queryResponseSub       *nats.Subscription
+	enableQueryResponse    bool
+	vmPoolMutex            sync.RWMutex
+}
+
+func CreateFuncNode(node common.NodeData, fm common.Manager, p common.Pipeline) (*FuncNode, error) {
+	onMessageScript, ok1 := node.Settings["onMessageScript"].(string)
+	onInitializationScript, ok2 := node.Settings["onInitializationScript"].(string)
+	onStartScript, ok3 := node.Settings["onStartScript"].(string)
+	if !ok1 && !ok2 && !ok3 {
+		return nil, fmt.Errorf("missing required scripts in node settings")
+	}
+
+	enableQueryResponse, ok4 := node.Settings["enableQueryResponse"].(bool)
+	if !ok4 {
+		enableQueryResponse = false
+	}
+
+	logTopic := fm.GetTopicByTopicRef(p.GetAssetId(), p.GetDigitalTwinId(), "dtmlog")
+	logSubject := utils.TopicToNatsSubject(logTopic.TopicType, logTopic.GroupUid, logTopic.TopicUid)
+
+	funNode := &FuncNode{
+		BaseNode: BaseNode{
+			NodeUid:    node.NodeUid,
+			Name:       node.Name,
+			Xpos:       node.Xpos,
+			Ypos:       node.Ypos,
+			NumOutputs: node.NumOutputs,
+			Settings:   node.Settings,
+			Debug:      node.Debug,
+			Type:       "Function",
+			LogSubject: logSubject,
+			Fm:         fm,
+			Pipeline:   p,
+			Cancel:     nil,
+			Ctx:        nil,
+			status:     common.NodeStatusCreated,
+		},
+		nc:                     nil,
+		vmPool:                 make(chan *goja.Runtime, 10),
+		onInitializationScript: onInitializationScript,
+		onStartScript:          onStartScript,
+		onMessageScript:        onMessageScript,
+		enableQueryResponse:    enableQueryResponse,
+	}
+
+	fm.Log().Infof("Created FuncNode with UID: %s", funNode.NodeUid)
+
+	if funNode.onMessageScript != "" {
+		if err := funNode.precompileScript(fm.Log()); err != nil {
+			nodeError := fmt.Errorf("failed to precompile script for node %s: %v", funNode.NodeUid, err)
+			funNode.HandleError(nodeError)
+			funNode.SetStatus(common.NodeStatusError)
+			return nil, nodeError
+		}
+
+		vms, err := funNode.createVMs(10, fm.Log())
+		if err != nil {
+			nodeError := fmt.Errorf("failed to create VMs for node %s: %v", funNode.NodeUid, err)
+			funNode.HandleError(nodeError)
+			funNode.SetStatus(common.NodeStatusError)
+			return nil, nodeError
+		}
+		funNode.vmArray = vms
+		funNode.initVMPool()
+	}
+
+	fm.Log().Infof("FuncNode %s initialized successfully", funNode.NodeUid)
+	return funNode, nil
+}
+
+func (n *FuncNode) Start(ctx context.Context, log *logger.Logger, needReinitialization bool) {
+	if n.GetStatus() == common.NodeStatusRunning {
+		log.Infof("FuncNode %s is already running", n.NodeUid)
+		return
+	}
+
+	nodectx, nodeCancel := context.WithCancel(ctx)
+	n.Ctx = nodectx
+	n.Cancel = nodeCancel
+
+	n.SetStatus(common.NodeStatusRunning)
+	log.Infof("Starting FuncNode with UID: %s", n.NodeUid)
+
+	if n.onInitializationScript != "" && needReinitialization {
+		if err := n.executeInitializationScript(log); err != nil {
+			log.Errorf("Failed to execute initialization script for node %s: %v", n.NodeUid, err)
+			n.HandleError(err)
+			n.SetStatus(common.NodeStatusError)
+			return
+		}
+		log.Infof("Initialization script executed successfully for node %s", n.NodeUid)
+	}
+
+	if n.onStartScript != "" {
+		if err := n.executeStartScript(log); err != nil {
+			log.Errorf("Failed to execute start script for node %s: %v", n.NodeUid, err)
+			n.HandleError(err)
+			n.SetStatus(common.NodeStatusError)
+			return
+		}
+		log.Infof("Start script executed successfully for node %s", n.NodeUid)
+	}
+
+	if n.onMessageScript != "" {
+		n.handleInputWires(log, n.processMessage)
+
+		if n.enableQueryResponse {
+			n.QueryResponse(log)
+		}
+	}
+}
+
+func (n *FuncNode) Stop(log *logger.Logger) {
+	if n.GetStatus() == common.NodeStatusStopped {
+		log.Infof("FuncNode %s is already stopped", n.NodeUid)
+		return
+	}
+
+	log.Infof("Stopping FuncNode %s", n.NodeUid)
+	n.SetStatus(common.NodeStatusStopped)
+
+	if n.Cancel != nil {
+		n.Cancel()
+	}
+
+	if n.queryResponseSub != nil {
+		if err := n.queryResponseSub.Unsubscribe(); err != nil {
+			log.Errorf("Failed to unsubscribe QueryResponse for node %s: %v", n.NodeUid, err)
+		}
+		n.queryResponseSub = nil
+	}
+
+	n.resetVMPool(log)
+
+	n.wg.Wait()
+	n.SetStatus(common.NodeStatusStopped)
+	log.Infof("Node %s stopped successfully", n.NodeUid)
+}
+
+func (n *FuncNode) resetVMPool(log *logger.Logger) {
+	n.vmPoolMutex.Lock()
+	defer n.vmPoolMutex.Unlock()
+
+	if n.vmPool == nil {
+		return
+	}
+
+	n.vmPoolClosed = true
+
+	count := 0
+	for {
+		select {
+		case vm := <-n.vmPool:
+			if vm != nil {
+				vm.ClearInterrupt()
+				count++
+			}
+		default:
+			log.Infof("Drained %d VMs from pool for node %s", count, n.NodeUid)
+			n.initVMPool()
+			n.vmPoolClosed = false
+			return
+		}
+	}
+}
+
+func (n *FuncNode) QueryResponse(log *logger.Logger) {
+	queueName := fmt.Sprintf("org_%s.dt_%s.query_response.node_%s", n.GetOrgHash(), n.GetDigitalTwinUid(), n.NodeUid)
+	sub, err := n.Fm.NatsQueueSubscribe(queueName, n.NodeUid, func(natsMsg *nats.Msg) {
+		n.Fm.Log().Infof("Received NATS message in node %s: %s", n.NodeUid, string(natsMsg.Data))
+		queryMsg := message.NewMessageFromPayload(map[string]any{
+			"data": string(natsMsg.Data),
+		})
+		processedData, err := n.processGojaFunc(queryMsg, log)
+		if err != nil || processedData == nil {
+			return
+		}
+
+		if replyMsg, ok := processedData.(message.Message); ok {
+			reply, ok2 := replyMsg.GetStringFromPayload("currentTime")
+			if ok2 {
+				n.Fm.Log().Infof("Replying to NATS message in node %s: %s", n.NodeUid, reply)
+				natsMsg.Respond([]byte(reply))
+			}
+		}
+	})
+
+	if err != nil {
+		log.Errorf("Failed to subscribe to NATS subject for query response in node %s: %v", n.NodeUid, err)
+		n.HandleError(err)
+		n.SetStatus(common.NodeStatusError)
+		return
+	}
+
+	n.queryResponseSub = sub
+	log.Infof("Subscribed to NATS subject for query response in node %s", n.NodeUid)
+}
+
+func (n *FuncNode) precompileScript(log *logger.Logger) error {
+	vm := goja.New()
+	n.setupJSGlobals(vm, log)
+
+	program, err := goja.Compile(n.NodeUid+".js", n.onMessageScript, false)
+	if err != nil {
+		return fmt.Errorf("failed to compile script: %w", err)
+	}
+
+	_, err = vm.RunProgram(program)
+	if err != nil {
+		return fmt.Errorf("failed to execute script: %w", err)
+	}
+
+	processFunc, ok := goja.AssertFunction(vm.Get("process"))
+	if !ok {
+		return fmt.Errorf("process function not found in script")
+	}
+
+	n.compiledScript = &CompiledScript{
+		program:     program,
+		processFunc: processFunc,
+	}
+
+	log.Infof("Script precompiled successfully for node: %s", n.NodeUid)
+	return nil
+}
+
+func (n *FuncNode) executeInitializationScript(log *logger.Logger) error {
+	if n.onInitializationScript == "" {
+		log.Infof("No initialization script to execute for node %s", n.NodeUid)
+		return nil
+	}
+
+	vm := goja.New()
+	n.setupJSGlobals(vm, log)
+
+	program, err := goja.Compile(n.NodeUid+"_init.js", n.onInitializationScript, false)
+	if err != nil {
+		return fmt.Errorf("failed to compile initialization script: %w", err)
+	}
+
+	_, err = vm.RunProgram(program)
+	if err != nil {
+		return fmt.Errorf("failed to execute initialization script: %w", err)
+	}
+
+	initFunc, ok := goja.AssertFunction(vm.Get("init"))
+	if !ok {
+		return fmt.Errorf("init function not found in script")
+	}
+
+	_, err = initFunc(goja.Undefined())
+	if err != nil {
+		log.Errorf("Script execution error in node %s: %v", n.NodeUid, err)
+		return fmt.Errorf("script execution error: %w", err)
+	}
+	return nil
+}
+
+func (n *FuncNode) executeStartScript(log *logger.Logger) error {
+	if n.onStartScript == "" {
+		log.Infof("No start script to execute for node %s", n.NodeUid)
+		return nil
+	}
+
+	vm := goja.New()
+	n.setupJSGlobals(vm, log)
+
+	program, err := goja.Compile(n.NodeUid+"_start.js", n.onStartScript, false)
+	if err != nil {
+		return fmt.Errorf("failed to compile start script: %w", err)
+	}
+
+	_, err = vm.RunProgram(program)
+	if err != nil {
+		return fmt.Errorf("failed to execute start script: %w", err)
+	}
+
+	startFunc, ok := goja.AssertFunction(vm.Get("start"))
+	if !ok {
+		return fmt.Errorf("start function not found in script")
+	}
+
+	_, err = startFunc(goja.Undefined())
+	if err != nil {
+		log.Errorf("Script execution error in node %s: %v", n.NodeUid, err)
+		return fmt.Errorf("script execution error: %w", err)
+	}
+
+	return nil
+}
+
+func (n *FuncNode) createVMs(poolSize int, log *logger.Logger) ([]*goja.Runtime, error) {
+	var vms = make([]*goja.Runtime, 0, poolSize)
+	for i := range poolSize {
+		vm := goja.New()
+		n.setupJSGlobals(vm, log)
+
+		_, err := vm.RunProgram(n.compiledScript.program)
+		if err != nil {
+			return nil, fmt.Errorf("failed to initialize VM %d: %w", i, err)
+		}
+		vms = append(vms, vm)
+	}
+	return vms, nil
+}
+
+func (n *FuncNode) initVMPool() {
+	for _, vm := range n.vmArray {
+		n.vmPool <- vm
+	}
+}
+
+func (n *FuncNode) setupJSGlobals(vm *goja.Runtime, log *logger.Logger) {
+	jsFunctions := fl.GetJSFunctions(n, n.Fm, log)
+	for _, jsFunc := range jsFunctions {
+		vm.Set(jsFunc.Name, jsFunc.Func)
+	}
+}
+
+func (n *FuncNode) getVM() (*goja.Runtime, error) {
+	n.vmPoolMutex.RLock()
+	if n.vmPoolClosed {
+		n.vmPoolMutex.RUnlock()
+		return nil, fmt.Errorf("VM pool is closed")
+	}
+	n.vmPoolMutex.RUnlock()
+
+	select {
+	case vm := <-n.vmPool:
+		return vm, nil
+	case <-time.After(5 * time.Second):
+		return nil, fmt.Errorf("timeout waiting for VM from pool")
+	}
+}
+
+func (n *FuncNode) returnVM(vm *goja.Runtime) {
+	if vm == nil {
+		return
+	}
+
+	n.vmPoolMutex.Lock()
+	defer n.vmPoolMutex.Unlock()
+
+	if n.vmPoolClosed {
+		return
+	}
+
+	select {
+	case n.vmPool <- vm:
+		// VM returned successfully
+	default:
+		// Pool full, discard the VM (should not happen under normal usage)
+	}
+}
+
+func (n *FuncNode) processGojaFunc(message common.Message, log *logger.Logger) (interface{}, error) {
+	vm, err := n.getVM()
+	if err != nil {
+		return nil, err
+	}
+	timer := time.AfterFunc(time.Duration(n.Fm.GetFunctionsTimeout())*time.Millisecond, func() {
+		vm.Interrupt("halt processing due to timeout")
+	})
+	defer n.returnVM(vm)
+	defer timer.Stop()
+
+	processFunc, ok := goja.AssertFunction(vm.Get("process"))
+	if !ok {
+		log.Errorf("Process function not found in VM for node %s", n.NodeUid)
+		return nil, fmt.Errorf("process function not found in VM")
+	}
+
+	jsData := n.convertMessageToJS(vm, message)
+
+	result, err := processFunc(goja.Undefined(), jsData)
+	if err != nil {
+		log.Errorf("Script execution error in node %s: %v", n.NodeUid, err)
+		return nil, fmt.Errorf("script execution error: %w", err)
+	}
+
+	if result == nil || goja.IsUndefined(result) || goja.IsNull(result) {
+		return nil, nil
+	}
+
+	processedData, err := n.convertFromJSToMessage(result)
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert JS result: %w", err)
+	}
+
+	return processedData, nil
+}
+
+func (n *FuncNode) processMessage(message common.Message, log *logger.Logger) error {
+	processedData, err := n.processGojaFunc(message, log)
+	if err != nil {
+		return err
+	}
+
+	nodeOutputWires := n.GetNodeOutputWires()
+	if err := n.handleProcessedData(processedData, message, nodeOutputWires, log); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (n *FuncNode) convertMessageToJS(vm *goja.Runtime, msg common.Message) goja.Value {
+	jsObj := vm.NewObject()
+	jsObj.Set("__goMsg", msg)
+
+	jsObj.Set("topic", msg.GetTopic())
+
+	messagePayload := msg.GetPayload()
+	if messagePayload != nil {
+		jsObj.Set("payload", vm.ToValue(messagePayload))
+	} else {
+		jsObj.Set("payload", vm.NewObject())
+	}
+
+	messageState := msg.GetState()
+	if messageState != nil {
+		jsObj.Set("state", vm.ToValue(messageState))
+	} else {
+		jsObj.Set("state", vm.NewObject())
+	}
+
+	if msg.GetFile() != nil {
+		jsObj.Set("file", vm.ToValue(msg.GetFile()))
+	}
+
+	jsObj.Set("ClearFile", func() { msg.ClearFile() })
+	jsObj.Set("Clone", func() common.Message { return msg.Clone() })
+
+	jsObj.Set("GetTopic", func() string { return msg.GetTopic() })
+	jsObj.Set("GetPayload", func() map[string]any { return msg.GetPayload() })
+	jsObj.Set("GetContentType", func() string { return msg.GetContentType() })
+	jsObj.Set("GetJsonStructure", func() string { return msg.GetJsonStructure() })
+	jsObj.Set("GetState", func() map[string]any { return msg.GetState() })
+	jsObj.Set("HasFile", func() bool { return msg.HasFile() })
+	jsObj.Set("IsImage", func() bool { return msg.IsImage() })
+	jsObj.Set("SetImage", func(img image.Image, name string, contentType string) { msg.SetImage(img, name, contentType) })
+	jsObj.Set("AttachAudio", func(data []byte, name string, contentType string) { msg.AttachAudio(data, name, contentType) })
+	jsObj.Set("GetImage", func() image.Image {
+		img, err := msg.GetImage()
+		if err != nil {
+			return nil
+		}
+		return img
+	})
+
+	jsObj.Set("GetFieldFromPayload", func(field string) goja.Value {
+		value, exists := msg.GetFieldFromPayload(field)
+		if !exists {
+			return goja.Undefined()
+		}
+		return vm.ToValue(value)
+	})
+
+	jsObj.Set("GetStringFromPayload", func(field string) goja.Value {
+		value, ok := msg.GetStringFromPayload(field)
+		if !ok {
+			return goja.Undefined()
+		}
+		return vm.ToValue(value)
+	})
+
+	jsObj.Set("GetMapFromPayload", func(field string) goja.Value {
+		value, ok := msg.GetMapFromPayload(field)
+		if !ok {
+			return goja.Undefined()
+		}
+		return vm.ToValue(value)
+	})
+
+	return jsObj
+}
+
+func (n *FuncNode) convertFromJSToMessage(jsValue goja.Value) (interface{}, error) {
+	exported := jsValue.Export()
+
+	switch v := exported.(type) {
+	case map[string]interface{}:
+		if goMsg, ok := v["__goMsg"].(common.Message); ok {
+			return n.mapToMessageFromOriginal(v, goMsg), nil
+		}
+		if n.isMessageLike(v) {
+			return n.mapToMessageDirect(v), nil
+		}
+		return v, nil
+	case []interface{}:
+		return n.convertArrayToMessagesDirect(v), nil
+	default:
+		return exported, nil
+	}
+}
+
+func (n *FuncNode) mapToMessageFromOriginal(data map[string]interface{}, original common.Message) common.Message {
+	msg := original.(*message.Message)
+
+	if t, ok := data["topic"].(string); ok {
+		msg.Topic = t
+	}
+
+	if p, ok := data["payload"].(map[string]any); ok {
+		msg.Payload = p
+	}
+
+	if s, ok := data["state"].(map[string]any); ok {
+		msg.State = s
+	}
+
+	if ct, ok := data["contentType"].(string); ok && ct != "" {
+		msg.ContentType = ct
+	}
+
+	if js, ok := data["jsonStructure"].(string); ok && js != "" {
+		msg.JsonStructure = js
+	}
+
+	msg.File = original.GetFile()
+
+	return msg
+}
+
+func stringOrDefault(m map[string]interface{}, key, defaultVal string) string {
+	if val, ok := m[key].(string); ok && val != "" {
+		return val
+	}
+	return defaultVal
+}
+
+func (n *FuncNode) isMessageLike(data map[string]interface{}) bool {
+	_, hasPayload := data["payload"]
+	return hasPayload
+}
+
+func (n *FuncNode) mapToMessageDirect(data map[string]interface{}) common.Message {
+	var topic, contentType string
+	var payload, state map[string]any
+
+	// Topic
+	if t, ok := data["topic"].(string); ok {
+		topic = t
+	}
+
+	// Payload
+	if p, ok := data["payload"].(map[string]any); ok {
+		payload = p
+	} else {
+		payload = make(map[string]any)
+	}
+
+	// State
+	if s, ok := data["state"].(map[string]any); ok {
+		state = s
+	} else {
+		state = make(map[string]any)
+	}
+
+	msg := message.NewMessage(topic, payload, state, contentType, nil)
+
+	// Image
+	if img, ok := data["image"].(image.Image); ok {
+		name, _ := data["imageName"].(string)
+		if name == "" {
+			name = "image"
+		}
+		contentType, _ := data["contentType"].(string)
+		if contentType == "" {
+			contentType = "image/png"
+		}
+		msg.SetImage(img, name, contentType)
+	}
+
+	return msg
+}
+
+func (n *FuncNode) convertArrayToMessagesDirect(array []interface{}) interface{} {
+	if len(array) == 0 {
+		return array
+	}
+
+	messages := make([]common.Message, 0, len(array))
+	mixedArray := make([]interface{}, 0, len(array))
+	allMessages := true
+
+	for _, item := range array {
+		if item == nil {
+			mixedArray = append(mixedArray, nil)
+			allMessages = false
+			continue
+		}
+
+		if mapData, ok := item.(map[string]interface{}); ok && n.isMessageLike(mapData) {
+			msg := n.mapToMessageDirect(mapData)
+			messages = append(messages, msg)
+			mixedArray = append(mixedArray, msg)
+		} else {
+			mixedArray = append(mixedArray, item)
+			allMessages = false
+		}
+	}
+
+	if allMessages {
+		return messages
+	}
+	return mixedArray
+}
+
+func (n *FuncNode) handleProcessedData(
+	processedData interface{},
+	originalMessage common.Message,
+	nodeOutputWires [][]*common.Wire,
+	log *logger.Logger,
+) error {
+	if processedData == nil {
+		log.Infof("FuncNode %s: process function returned null, skipping downstream nodes", n.NodeUid)
+		return nil
+	}
+
+	if len(nodeOutputWires) == 0 {
+		if msg, ok := processedData.(common.Message); ok {
+			if n.Debug == "on" {
+				n.HandleDebug(msg, 0)
+			}
+		} else {
+			errorMsg := fmt.Errorf("processed data is not of type Message in node %s", n.NodeUid)
+			log.Error(errorMsg)
+			n.HandleError(errorMsg)
+		}
+	} else if len(nodeOutputWires) == 1 {
+		if msg, ok := processedData.(common.Message); ok {
+			n.addEventTriggerTopicType(originalMessage.GetTopic(), msg)
+			for _, wire := range nodeOutputWires[0] {
+				if n.Debug == "on" {
+					n.HandleDebug(msg, 0)
+				}
+				wire.Channel <- msg
+			}
+		} else {
+			errorMsg := fmt.Errorf("processed data is not of type Message in node %s", n.NodeUid)
+			log.Error(errorMsg)
+			n.HandleError(errorMsg)
+		}
+	} else {
+		if msgs, ok := processedData.([]common.Message); ok {
+			for _, msg := range msgs {
+				if msg == nil {
+					continue
+				}
+				n.addEventTriggerTopicType(originalMessage.GetTopic(), msg)
+			}
+			for idx, wireArray := range nodeOutputWires {
+				if idx < len(msgs) {
+					if msgs[idx] == nil {
+						continue
+					}
+					if n.Debug == "on" {
+						n.HandleDebug(msgs[idx], idx)
+					}
+					for _, wire := range wireArray {
+						wire.Channel <- msgs[idx]
+					}
+				}
+			}
+		} else if msgs, ok := processedData.([]interface{}); ok {
+			for _, msg := range msgs {
+				if msg == nil {
+					continue
+				}
+				if msg1, ok1 := msg.(common.Message); ok1 {
+					n.addEventTriggerTopicType(originalMessage.GetTopic(), msg1)
+				}
+			}
+			for idx, wireArray := range nodeOutputWires {
+				if idx < len(msgs) {
+					if msgs[idx] == nil {
+						continue
+					}
+					if msg1, ok1 := msgs[idx].(common.Message); ok1 {
+						if n.Debug == "on" {
+							n.HandleDebug(msg1, idx)
+						}
+						for _, wire := range wireArray {
+							wire.Channel <- msg1
+						}
+					}
+				}
+			}
+		} else {
+			log.Errorf("Processed data is not of type []Message in node %s", n.NodeUid)
+		}
+	}
+	return nil
+}
+
+func (n *FuncNode) addEventTriggerTopicType(subject string, msg common.Message) {
+	if _, exists := msg.GetFieldFromPayload("eventTriggerTopicType"); !exists {
+		eventTriggerTopicType := "dev2pdb"
+		if strings.Contains(subject, "sim2dtm") {
+			eventTriggerTopicType = "sim2dtm"
+		}
+		msg.GetPayload()["eventTriggerTopicType"] = eventTriggerTopicType
+	}
+}

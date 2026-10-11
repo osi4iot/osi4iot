@@ -156,9 +156,9 @@ export const Create_GROUP_MEMBERS_COLUMNS = (refreshGroupMembers: () => void): C
             accessor: "edit",
             disableFilters: true,
             disableSortBy: true,
-            Cell: props => {
+            Cell: (props: { row: { id: string; }; rows: any[]; }) => {
                 const rowIndex = parseInt(props.row.id, 10);
-                const row = props.rows.filter(row => row.index === rowIndex)[0];
+                const row = props.rows.filter((row: { index: number; }) => row.index === rowIndex)[0];
                 const groupId = row?.cells[0]?.value;
                 const userId = row?.cells[1]?.value;
                 return <EditGroupMember groupId={groupId} userId={userId} rowIndex={rowIndex} />
@@ -169,9 +169,9 @@ export const Create_GROUP_MEMBERS_COLUMNS = (refreshGroupMembers: () => void): C
             accessor: "delete",
             disableFilters: true,
             disableSortBy: true,
-            Cell: props => {
+            Cell: (props: { row: { id: string; }; rows: any[]; }) => {
                 const rowIndex = parseInt(props.row.id, 10);
-                const row = props.rows.filter(row => row.index === rowIndex)[0];
+                const row = props.rows.filter((row: { index: number; }) => row.index === rowIndex)[0];
                 const groupId = row?.cells[0]?.value;
                 const userId = row?.cells[1]?.value;
                 return <DeleteGroupMemberModal groupId={groupId} userId={userId} rowIndex={rowIndex} refreshGroupMembers={refreshGroupMembers} />

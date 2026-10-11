@@ -2,3 +2,13 @@ h3 {
   color: white;
   font-weight: 400;
 }
+
+button,
+label,
+nav,
+header,
+h1,
+h2,
+h3 {
+    user-select: none;
+}

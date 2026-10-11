@@ -1,4 +1,4 @@
-import timescaledb_pool from "../../config/timescaledb_config";
+import timescaledb_pool, { timescaledbReadQuery } from "../../config/timescaledb_config";
 import IGroup from "../group/interfaces/Group.interface";
 import ISensor from "../sensor/sensor.interface";
 import ITopic from "../topic/topic.interface";import IGeolocationMeasurement from "./geolocation_measurement.interface";
@@ -50,7 +50,7 @@ export const deleteMeasurementsBeforeDate = async (
 };
 
 export const getMeasurement = async (groupUid: string, topic: string, timestamp: string): Promise<IMeasurement> => {
-	const response = await timescaledb_pool.query(`SELECT ${timestampAsString}, topic, payload
+	const response = await timescaledbReadQuery(`SELECT ${timestampAsString}, topic, payload
 									FROM iot_data.thingData
 									WHERE timestamp = $1 AND
 									group_uid = $2 AND
@@ -59,7 +59,7 @@ export const getMeasurement = async (groupUid: string, topic: string, timestamp:
 }
 
 export const getLastMeasurements = async (groupUid: string, topic: string, count: number): Promise<IMeasurement[]> => {
-	const response = await timescaledb_pool.query(`SELECT ${timestampAsString}, topic, payload
+	const response = await timescaledbReadQuery(`SELECT ${timestampAsString}, topic, payload
 									FROM iot_data.thingData
 									WHERE group_uid = $1 AND
 									topic = $2
@@ -80,7 +80,7 @@ export const getLastMeasurementsFromTopicsArray = async (groupUid: string, topic
 };
 
 export const getLastMeasurementInChunk = async (groupUid: string, topic: string): Promise<IMeasurement> => {
-	const response = await timescaledb_pool.query(`SELECT ${timestampAsString}, topic, payload
+	const response = await timescaledbReadQuery(`SELECT ${timestampAsString}, topic, payload
 									FROM iot_data.thingData
 									WHERE timestamp > now() - interval '1day' AND
 									group_uid = $1 AND
@@ -112,7 +112,7 @@ export const getLastGeolocationMeasurementInChunk = async (
 	assetUid: string,
 	topic: string
 ): Promise<IGeolocationMeasurement> => {
-	const response = await timescaledb_pool.query(`SELECT ${timestampAsString}, $1 AS "assetUid", 
+	const response = await timescaledbReadQuery(`SELECT ${timestampAsString}, $1 AS "assetUid", 
 									CAST(payload->>'longitude' AS DOUBLE PRECISION) AS "longitude",
 									CAST(payload->>'latitude' AS DOUBLE PRECISION) AS "latitude"
 									FROM iot_data.thingData
@@ -126,7 +126,7 @@ export const getLastGeolocationMeasurementInChunk = async (
 
 
 export const getLastMeasurement = async (groupUid: string, topic: string): Promise<IMeasurement> => {
-	const response = await timescaledb_pool.query(`SELECT ${timestampAsString}, topic, payload
+	const response = await timescaledbReadQuery(`SELECT ${timestampAsString}, topic, payload
 									FROM iot_data.thingData
 									WHERE group_uid = $1 AND
 									topic = $2
@@ -144,7 +144,7 @@ export const getDuringMeasurementsWithPagination = async (
 	itemsPerPage: number
 ): Promise<IMeasurement[]> => {
 	const offset = pageIndex * itemsPerPage;
-	const response = await timescaledb_pool.query(`SELECT ${timestampAsString},
+	const response = await timescaledbReadQuery(`SELECT ${timestampAsString},
 	topic, payload FROM iot_data.thingData
 	WHERE group_uid = $1 AND
 	topic = $2 AND
@@ -179,7 +179,7 @@ export const getDuringSensorMeasurementsWithPagination = async (
 		ORDER BY timestamp DESC
 		LIMIT $5
 		OFFSET  $6;`
-	const response = await timescaledb_pool.query(queryString
+	const response = await timescaledbReadQuery(queryString
 		, [groupUid, topic, start, end, itemsPerPage, offset]);
 
 	return response.rows as IMeasurement[];
@@ -196,7 +196,7 @@ export const getSensorMeasurementsBeforeDate = async (
 		WHERE timestamp <= $1 AND
 		group_uid = $2 AND
 		topic = $3;`
-	const response = await timescaledb_pool.query(queryString,
+	const response = await timescaledbReadQuery(queryString,
 		[date, groupUid, topic]);
 
 	return response.rows as IMeasurement[];
@@ -214,7 +214,7 @@ export const getTotalRowsDuringMeasurements = async (
 		topic = $2 AND
 		timestamp >= $3 AND
 		timestamp <= $4`;
-	const response = await timescaledb_pool.query(queryString,
+	const response = await timescaledbReadQuery(queryString,
 		[groupUid, topic, start, end]);
 	return response.rows[0].count as number;
 };
@@ -233,7 +233,7 @@ export const getTotalRowsDuringSensorMeasurements = async (
 		timestamp >= $3 AND
 		timestamp <= $4 AND
 		payload->>'${payloadKey}' IS NOT NULL`;
-	const response = await timescaledb_pool.query(queryString,
+	const response = await timescaledbReadQuery(queryString,
 		[groupUid, topic, start, end]);
 	return response.rows[0].count as number;
 };

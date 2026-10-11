@@ -1,0 +1,376 @@
+package types
+
+import (
+	"crypto"
+	"crypto/x509"
+	"encoding/pem"
+	"fmt"
+	"os"
+
+	"github.com/go-acme/lego/registration"
+)
+
+type PlatformData struct {
+	PlatformInfo       PlatformInfo  `json:"platformInfo"`
+	Certs              Certs         `json:"certs"`
+	AdminAPISecretName string        `json:"admin_api_secret_name"`
+	CustomServices     []interface{} `json:"custom_services"`
+}
+
+type PlatformInfo struct {
+	DockerImagesVersion        string     `json:"DOCKER_IMAGES_VERSION"`
+	DeploymentMode             string     `json:"DEPLOYMENT_MODE"`
+	ExcludedServices           []string   `json:"EXCLUDED_SERVICES"`
+	DeploymentLocation         string     `json:"DEPLOYMENT_LOCATION"`
+	LocalResourceUtilization   int        `json:"LOCAL_RESOURCE_UTILIZATION_PERCENTAGE"`
+	S3BucketType               string     `json:"S3_BUCKET_TYPE"`
+	AWSAccessKeyIDRoute53      string     `json:"AWS_ACCESS_KEY_ID_ROUTE_53"`
+	AWSSecretAccessKeyRoute53  string     `json:"AWS_SECRET_ACCESS_KEY_ROUTE_53"`
+	AWSRegionRoute53           string     `json:"AWS_REGION_ROUTE_53"`
+	AWSHostedZoneIdRoute53     string     `json:"AWS_HOSTED_ZONE_ID_ROUTE_53"`
+	AWSAccessKeyIDS3Bucket     string     `json:"AWS_ACCESS_KEY_ID_S3_BUCKET"`
+	AWSSecretAccessKeyS3Bucket string     `json:"AWS_SECRET_ACCESS_KEY_S3_BUCKET"`
+	AWSRegionS3Bucket          string     `json:"AWS_REGION_S3_BUCKET"`
+	S3BucketName               string     `json:"S3_BUCKET_NAME"`
+	PlatformName               string     `json:"PLATFORM_NAME"`
+	DomainName                 string     `json:"DOMAIN_NAME"`
+	DomainCertsType            string     `json:"DOMAIN_CERTS_TYPE"`
+	PlatformPhrase             string     `json:"PLATFORM_PHRASE"`
+	PlatformAdminFirstName     string     `json:"PLATFORM_ADMIN_FIRST_NAME"`
+	PlatformAdminSurname       string     `json:"PLATFORM_ADMIN_SURNAME"`
+	PlatformAdminUserName      string     `json:"PLATFORM_ADMIN_USER_NAME"`
+	PlatformAdminEmail         string     `json:"PLATFORM_ADMIN_EMAIL"`
+	PlatformAdminPassword      string     `json:"PLATFORM_ADMIN_PASSWORD"`
+	PlatformAdminNatsPublicKey string     `json:"PLATFORM_ADMIN_NATS_PUBLIC"`
+	PlatformAdminNatsSeed      string     `json:"PLATFORM_ADMIN_NATS_SEED"`
+	NumberOfSwarmNodes         int        `json:"NUMBER_OF_SWARM_NODES"`
+	NodesData                  []NodeData `json:"NODES_DATA"`
+
+	MinLongitude    float64 `json:"MIN_LONGITUDE"`
+	MaxLongitude    float64 `json:"MAX_LONGITUDE"`
+	MinLatitude     float64 `json:"MIN_LATITUDE"`
+	MaxLatitude     float64 `json:"MAX_LATITUDE"`
+	DefaultTimeZone string  `json:"DEFAULT_TIME_ZONE"`
+
+	MainOrganizationName               string `json:"MAIN_ORGANIZATION_NAME"`
+	MainOrganizationAcronym            string `json:"MAIN_ORGANIZATION_ACRONYM"`
+	MainOrganizationAddress1           string `json:"MAIN_ORGANIZATION_ADDRESS1"`
+	MainOrganizationCity               string `json:"MAIN_ORGANIZATION_CITY"`
+	MainOrganizationZipCode            string `json:"MAIN_ORGANIZATION_ZIP_CODE"`
+	MainOrganizationState              string `json:"MAIN_ORGANIZATION_STATE"`
+	MainOrganizationCountry            string `json:"MAIN_ORGANIZATION_COUNTRY"`
+	MainOrganizationBuildingPath       string `json:"MAIN_ORGANIZATION_BUILDING_PATH"`
+	MainOrganizationBuilding           string `json:"MAIN_ORGANIZATION_BUILDING"`
+	MainOrganizationFirstFloorPath     string `json:"MAIN_ORGANIZATION_FLOOR_PATH"`
+	MainOrganizationFirstFloor         string `json:"MAIN_ORGANIZATION_FLOOR"`
+	TelegramBotToken                   string `json:"TELEGRAM_BOTTOKEN"`
+	MainOrganizationTelegramChatID     string `json:"MAIN_ORGANIZATION_TELEGRAM_CHAT_ID"`
+	MainOrganizationTelegramInviteLink string `json:"MAIN_ORGANIZATION_TELEGRAM_INVITATION_LINK"`
+
+	NotificationsEmailUser     string `json:"NOTIFICATIONS_EMAIL_USER"`
+	NotificationsEmailAddress  string `json:"NOTIFICATIONS_EMAIL_ADDRESS"`
+	NotificationsEmailPassword string `json:"NOTIFICATIONS_EMAIL_PASSWORD"`
+
+	RegistrationTokenLifetime int    `json:"REGISTRATION_TOKEN_LIFETIME"`
+	RefreshTokenLifetime      int    `json:"REFRESH_TOKEN_LIFETIME"`
+	RefreshTokenSecret        string `json:"REFRESH_TOKEN_SECRET"`
+	AccessTokenSecret         string `json:"ACCESS_TOKEN_SECRET"`
+	AccessTokenLifetime       int    `json:"ACCESS_TOKEN_LIFETIME"`
+
+	DefaultNumOfNatsReplicas int    `json:"DEFAULT_NUMBER_OF_NATS_REPLICAS"`
+	NATSBackupS3Prefix       string `json:"NATS_BACKUP_S3_PREFIX"`
+
+	// Patroni cluster sizes — must be odd (1, 3 or 5) for Raft quorum.
+	// Set to 1 automatically for local deployments; default 3 for clusters.
+	NumPatroniAdminNodes     int    `json:"NUM_PATRONI_ADMIN_NODES"`
+	NumPatroniMetricsNodes   int    `json:"NUM_PATRONI_METRICS_NODES"`
+	MQTTSslCertsValidityDays int    `json:"MQTT_SSL_CERTS_VALIDITY_DAYS"`
+	FloatingIPAddress        string `json:"FLOATING_IP_ADDRES"`
+	NetworkInterface         string `json:"NETWORK_INTERFACE"`
+	EncryptionSecretKey      string `json:"ENCRYPTION_SECRET_KEY"`
+	GrafanaAdminPassword     string `json:"GRAFANA_ADMIN_PASSWORD"`
+
+	// PlatformEncryptionKey is the platform's master key: 32 random
+	// bytes, hex encoded. Nothing encrypts with it directly — every
+	// consumer derives its own subkey from it with a different label
+	// (see utils.DeriveSubkey), so the domain certificates and the
+	// state-file backups are protected by independent keys that happen
+	// to come from one secret the operator has to keep.
+	//
+	// Generated once at platform creation and NEVER regenerated:
+	// rotating it orphans the certificates already in system_manager's
+	// volume AND every state-file backup in S3. Hence the "only if
+	// empty" guard in data.SetData, same as ENCRYPTION_SECRET_KEY.
+	PlatformEncryptionKey string `json:"PLATFORM_ENCRYPTION_KEY"`
+
+	// StateFileS3Prefix is where the encrypted osi4iot_state.json
+	// backups live, in the same "s3://bucket/prefix" shape
+	// WalgS3PrefixAdmin and NATSBackupS3Prefix use — same bucket,
+	// different prefix. Empty disables the feature: system_manager
+	// registers no state_file tasks and the CLI never triggers one.
+	StateFileS3Prefix string `json:"STATE_FILE_S3_PREFIX"`
+
+	// ── Admin database (PostgreSQL 18 via Patroni) ────────────────────────────
+	// PostgresUser and PostgresPassword are the superuser credentials,
+	// consistent with the legacy single-node postgres service.
+	PostgresUser     string `json:"POSTGRES_USER"`
+	PostgresPassword string `json:"POSTGRES_PASSWORD"`
+	PostgresDB       string `json:"POSTGRES_DB"`
+	// Additional Patroni-specific credentials for the admin cluster
+	PostgresReplicatorPassword string `json:"POSTGRES_REPLICATOR_PASSWORD"`
+	PostgresRewindPassword     string `json:"POSTGRES_REWIND_PASSWORD"`
+	// Grafana role created by post_init.sh on first bootstrap
+	GrafanaDBPassword string `json:"GRAFANA_DB_PASSWORD"`
+
+	// ── Metrics database (TimescaleDB 2.27 / PG18 via Patroni) ───────────────
+	// TimescaleUser and TimescalePassword are the superuser credentials,
+	// consistent with the legacy single-node timescaledb service.
+	TimescaleUser     string `json:"TIMESCALE_USER"`
+	TimescalePassword string `json:"TIMESCALE_PASSWORD"`
+	TimescaleDB       string `json:"TIMESCALE_DB"`
+	// Additional Patroni-specific credentials for the metrics cluster
+	TimescaleReplicatorPassword string `json:"TIMESCALE_REPLICATOR_PASSWORD"`
+	TimescaleRewindPassword     string `json:"TIMESCALE_REWIND_PASSWORD"`
+	// Passwords for Patroni's own REST API (restapi.authentication in
+	// patroni.yml), one per cluster. Required on the endpoints that
+	// change something — /switchover, /failover, /restart… — which were
+	// otherwise open to every container on internal_net. Each cluster's
+	// nodes share theirs; patroni_sidecar gets it for its /switchover
+	// proxy.
+	PatroniAdminRestAPIPassword   string `json:"PATRONI_ADMIN_RESTAPI_PASSWORD"`
+	PatroniMetricsRestAPIPassword string `json:"PATRONI_METRICS_RESTAPI_PASSWORD"`
+	// Grafana datasource role and retention policy created by post_init.sh
+	TimescaleDataRetentionInterval string `json:"TIMESCALE_DATA_RET_INT_DAYS"`
+	GrafanaDatasourcePassword      string `json:"GRAFANA_DATASOURCE_PASSWORD"`
+
+	NodeRedAdmin           string `json:"NODE_RED_ADMIN"`
+	NodeRedAdminHash       string `json:"NODE_RED_ADMIN_HASH"`
+	PGAdminDefaultEmail    string `json:"PGADMIN_DEFAULT_EMAIL"`
+	PGAdminDefaultPassword string `json:"PGADMIN_DEFAULT_PASSWORD"`
+
+	MessagingSvcResources        string `json:"MESSAGING_SVC_RESOURCES"`
+	IotDataStorageSvcResources   string `json:"IOT_DATA_STORAGE_SVC_RESOURCES"`
+	AdminDataStorageSvcResources string `json:"ADMIN_DATA_STORAGE_SVC_RESOURCES"`
+	UiSvcResources               string `json:"UI_SVC_RESOURCES"`
+	PipelinesSvcResources        string `json:"PIPELINES_SVC_RESOURCES"`
+	DefaultNumPipelinesInstances int    `json:"DEFAULT_NUMBER_OF_PIPELINES_INSTANCES"`
+
+	ServicesData []ServiceData `json:"SERVICES_DATA"`
+
+	// Keys used for AWS Cluster deployment
+	AwsSshKeyPath string `json:"AWS_SSH_KEY_PATH"`
+	AwsSshKey     string `json:"AWS_SSH_KEY"`
+
+	// Keys used for On-premise Cluster deployment
+	SshPrivKeyPath string `json:"SSH_PRIVATE_KEY_PATH"`
+	SshPrivKey     string `json:"SSH_PRIVATE_KEY"`
+	SshPubKeyPath  string `json:"SSH_PUB_KEY_PATH"`
+	SshPubKey      string `json:"SSH_PUB_KEY"`
+
+	UseAwsEbsVolumes bool `json:"USE_AWS_EBS_VOLUMES"`
+	UsePatroniTool   bool `json:"USE_PATRONI_TOOL"`
+
+	DOMAIN_SSL_PRIVATE_KEY_PATH string `json:"DOMAIN_SSL_PRIVATE_KEY_PATH"`
+	DOMAIN_SSL_CA_PEM_PATH      string `json:"DOMAIN_SSL_CA_PEM_PATH"`
+	DOMAIN_SSL_CERT_CRT_PATH    string `json:"DOMAIN_SSL_CERT_CRT_PATH"`
+
+	// ── WAL-G — shared between both Patroni clusters ─────────────────────────
+	// S3 prefix per cluster — must be different to avoid mixing backups.
+	// Credentials: with AWS S3 the bucket's own (AWSAccessKeyIDS3Bucket…);
+	// with Garage each cluster has its own key, S3KeyWalgAdmin and
+	// S3KeyWalgMetrics. Region: utils.S3Region.
+	WalgS3PrefixAdmin   string `json:"WALG_S3_PREFIX_ADMIN"`
+	WalgS3PrefixMetrics string `json:"WALG_S3_PREFIX_METRICS"`
+	// AES-256 encryption key (hex-encoded). Generate with: openssl rand -hex 32
+	// Stored as Swarm secret walg_libsodium_key. Only written once.
+	WalgLibsodiumKey string `json:"WALG_LIBSODIUM_KEY"`
+	// "lz4" (fast, low CPU) or "brotli" (better ratio). Never change once
+	// backups exist — WAL-G cannot restore with a different algorithm.
+	WalgCompressionMethod string `json:"WALG_COMPRESSION_METHOD"`
+
+	// ── Garage (S3BucketType == "Local Garage") ──────────────────────────────
+	// Everything here is generated by the platform (data.GeneratePlatformSecrets
+	// and utils.EnsureGarageSecrets), never asked of the administrator.
+	//
+	// GarageRPCSecret authenticates Garage nodes to each other and the
+	// `garage` CLI to its node: 32 random bytes, hex. The admin and
+	// metrics tokens guard Garage's admin API on :3903 (/health is open).
+	GarageRPCSecret    string `json:"GARAGE_RPC_SECRET"`
+	GarageAdminToken   string `json:"GARAGE_ADMIN_TOKEN"`
+	GarageMetricsToken string `json:"GARAGE_METRICS_TOKEN"`
+	// Garage cluster. The replication factor is fixed when the platform
+	// is created — 1 for "Local deployment", 3 for the cluster ones — and
+	// never changed afterwards: Garage does not support changing it on a
+	// cluster that holds data. See utils/garage_cluster.go.
+	GarageReplicationFactor int `json:"GARAGE_REPLICATION_FACTOR"`
+	// The Garage nodes, each a garage_<ID> service pinned to one swarm
+	// node. Moving an instance to another node replaces it with a new
+	// one, which takes the lowest ID not in use (see
+	// utils.NewGarageInstance).
+	GarageInstances []GarageInstance `json:"GARAGE_INSTANCES"`
+	// A move of an instance to another node that has started and not
+	// finished: `osi4iot service rebalance garage` resumes it.
+	GaragePendingMove *GarageMove `json:"GARAGE_PENDING_MOVE,omitempty"`
+
+	// bcrypt hash of PlatformAdminPassword, for the Garage Web UI login.
+	// Regenerated only when the password changes (utils.EnsureGarageWebUIAuth).
+	GarageWebUIAuthHash string `json:"GARAGE_WEBUI_AUTH_HASH"`
+
+	// One S3 access key per consumer, imported into Garage by the
+	// garage service's provisioning with read+write on the platform's
+	// bucket and nothing else. See utils.S3Consumers.
+	S3KeyWalgAdmin     S3Credentials `json:"S3_KEY_WALG_ADMIN"`
+	S3KeyWalgMetrics   S3Credentials `json:"S3_KEY_WALG_METRICS"`
+	S3KeyPipelines     S3Credentials `json:"S3_KEY_PIPELINES"`
+	S3KeyAdminAPI      S3Credentials `json:"S3_KEY_ADMIN_API"`
+	S3KeySystemManager S3Credentials `json:"S3_KEY_SYSTEM_MANAGER"`
+	S3KeyCLI           S3Credentials `json:"S3_KEY_CLI"`
+
+	// PatroniSidecarAPIToken is the shared secret patroni_sidecar checks
+	// ("Authorization: Bearer <token>") on every endpoint but /health,
+	// and that system_manager — its only legitimate caller — sends. 32
+	// random bytes, hex encoded.
+	//
+	// It goes into the patroni_admin, patroni_metrics and system_manager
+	// secrets, so every deploy hands the same value to both sides. Empty
+	// only in state files from before it existed: EnsurePatroniSidecarToken
+	// fills it in at the next deploy. Rotating it is safe as long as
+	// both sides are redeployed together; hence "only if empty" in
+	// data.SetData, like the other generated secrets.
+	PatroniSidecarAPIToken string `json:"PATRONI_SIDECAR_API_TOKEN"`
+}
+
+// GarageInstance is one Garage node of the platform.
+type GarageInstance struct {
+	// ID names the service (garage_<ID>), its volumes and its node label.
+	ID int `json:"id"`
+	// NodeIP is the swarm node the instance is pinned to (NodeData.NodeIP).
+	NodeIP string `json:"node_ip"`
+	// NodeKey is the instance's Garage identity: an ed25519 private key,
+	// 64 bytes in libsodium's layout (seed + public key), hex encoded.
+	// Generated by the CLI, so every node ID is known before any
+	// instance starts. Its public half is the Garage node ID.
+	NodeKey string `json:"node_key"`
+}
+
+// GarageMove is one change to the Garage cluster, applied as a single
+// layout change:
+//
+//   - move:   OldID != 0, ToIP != ""  — instance OldID is replaced by a
+//     new instance on ToIP;
+//   - add:    OldID == 0, ToIP != ""  — a new instance on ToIP;
+//   - remove: OldID != 0, ToIP == ""  — instance OldID is retired.
+//
+// NewID is 0 until the new instance has been created.
+type GarageMove struct {
+	OldID int    `json:"old_id"`
+	NewID int    `json:"new_id"`
+	ToIP  string `json:"to_ip"`
+}
+
+// S3Credentials is an S3 access key: the ID is public (it appears in
+// every signed request), the secret is not.
+type S3Credentials struct {
+	AccessKeyID     string `json:"access_key_id"`
+	SecretAccessKey string `json:"secret_access_key"`
+}
+
+type Certs struct {
+	DomainCerts DomainCerts `json:"domain_certs"`
+	NatsCerts   NatsCerts   `json:"nats_certs"`
+}
+
+type DomainCerts struct {
+	AcmeUser                   AcmeUser `json:"acme_user"`
+	PrivateKey                 string   `json:"private_key"`
+	IotPlatformKeyName         string   `json:"iot_platform_key_name"`
+	SslCaPem                   string   `json:"ssl_ca_pem"`
+	IotPlatformCaName          string   `json:"iot_platform_ca_name"`
+	SslCertCrt                 string   `json:"ssl_cert_crt"`
+	IotPlatformCertName        string   `json:"iot_platform_cert_name"`
+	CaPemExpirationTimestamp   int64    `json:"ca_pem_expiration_timestamp"`
+	CertCrtExpirationTimestamp int64    `json:"cert_crt_expiration_timestamp"`
+}
+
+type NatsCerts struct {
+	NatsAdminUsername       string `json:"nats_admin_username"`
+	NatsAdminPassword       string `json:"nats_admin_password"`
+	NatsAdminHashedPassword string `json:"nats_admin_hashed_password"`
+	NatsAdminNkeyPublic     string `json:"nats_admin_nkey_pub"`
+	NatsAdminNkeySeed       string `json:"nats_admin_nkey_seed"`
+	NatsIssuerSeed          string `json:"nats_issuer_seed"`
+	NatsIssuerPublicKey     string `json:"nats_issuer_pub_key"`
+	NatsXKeySeed            string `json:"nats_xkey_seed"`
+	NatsXKeyPublicKey       string `json:"nats_xkey_pub_key"`
+	VectorNKeyPublic        string `json:"vector_nkey_pub"`
+	VectorNKeySeed          string `json:"vector_nkey_seed"`
+	AdminApiNKeyPublic      string `json:"admin_api_nkey_pub"`
+	AdminApiNKeySeed        string `json:"admin_api_nkey_seed"`
+	PipelinesNKeyPublic     string `json:"pipelines_nkey_pub"`
+	PipelinesNKeySeed       string `json:"pipelines_nkey_seed"`
+	DeployCliNKeyPublic     string `json:"deploy_cli_nkey_pub"`
+	DeployCliNKeySeed       string `json:"deploy_cli_nkey_seed"`
+	SystemManagerNKeyPublic string `json:"system_manager_nkey_pub"`
+	SystemManagerNKeySeed   string `json:"system_manager_nkey_seed"`
+}
+
+type CaCerts struct {
+	CaCrt               string `json:"ca_crt"`
+	MqttCertsCaCertName string `json:"mqtt_certs_ca_cert_name"`
+	CaKey               string `json:"ca_key"`
+	MqttCertsCaKeyName  string `json:"mqtt_certs_ca_key_name"`
+	ExpirationTimestamp int64  `json:"expiration_timestamp"`
+}
+
+type Broker struct {
+	ServerCrt           string `json:"server_crt"`
+	MqttBrokerCertName  string `json:"mqtt_broker_cert_name"`
+	ServerKey           string `json:"server_key"`
+	MqttBrokerKeyName   string `json:"mqtt_broker_key_name"`
+	ExpirationTimestamp int64  `json:"expiration_timestamp"`
+}
+
+type NodeData struct {
+	NodeLabel       string `json:"nodeLabel"`
+	NodeIP          string `json:"nodeIP"`
+	NodeRole        string `json:"nodeRole"`
+	NodeUserName    string `json:"nodeUserName"`
+	NodePassword    string `json:"nodePassword"`
+	NodeId          string `json:"nodeId"`
+	NodeHostName    string `json:"nodeHostName"`
+	NodeArch        string `json:"nodeArch"`
+	NodeNanoCPUs    int64  `json:"nodeNanoCPUs"`
+	NodeMemoryBytes int64  `json:"nodeMemory"`
+}
+
+type ServiceData struct {
+	ServiceName string
+	Image       string
+	Replicas    int
+	Cpu         string
+	Memory      string
+}
+
+type AcmeUser struct {
+	Email        string                 `json:"email"`
+	Registration *registration.Resource `json:"registration"`
+	Key          []byte                 `json:"key_pem"`
+}
+
+func (u *AcmeUser) GetEmail() string {
+	return u.Email
+}
+
+func (u *AcmeUser) GetRegistration() *registration.Resource {
+	return u.Registration
+}
+
+func (u *AcmeUser) GetPrivateKey() crypto.PrivateKey {
+	block, _ := pem.Decode(u.Key)
+	key, err := x509.ParseECPrivateKey(block.Bytes)
+	if err != nil {
+		fmt.Printf("Error parsing private key: %v", err)
+		os.Exit(1)
+	}
+	return key
+}

@@ -25,8 +25,6 @@ export const initialState = {
     selectOrgUsers: [],
     reloadSelectOrgUsersTable: false,
     organizations: [],
-    nodeRedInstances: [],
-    reloadNodeRedInstancesTable: false,
     buildings: [],
     reloadBuildingsTable: false,
     floors: [],
@@ -113,18 +111,6 @@ export const PlatformAssitantReducer = (initialState: PlatformAssistantContextPr
             return {
                 ...initialState,
                 organizations: action.payload.organizations
-            };
-
-        case "NODERED_INSTANCES_TABLE":
-            return {
-                ...initialState,
-                nodeRedInstances: action.payload.nodeRedInstances
-            };
-
-        case "RELOAD_NODERED_INSTANCES_TABLE":
-            return {
-                ...initialState,
-                reloadNodeRedInstancesTable: action.payload.reloadNodeRedInstancesTable
             };
 
         case "BUILDINGS_TABLE":
@@ -423,8 +409,6 @@ export const PlatformAssitantReducer = (initialState: PlatformAssistantContextPr
                 selectOrgUsers: [],
                 reloadSelectOrgUsersTable: false,
                 organizations: [],
-                nodeRedInstances: [],
-                reloadNodeRedInstancesTable: false,
                 buildings: [],
                 reloadBuildingsTable: false,
                 floors: [],

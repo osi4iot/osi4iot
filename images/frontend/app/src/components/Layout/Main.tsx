@@ -54,7 +54,6 @@ const MainContainer = styled.main<MainContainerProps>`
 	}
 
 	::-webkit-scrollbar-corner {
-        /* background-color: #0c0d0f; */
         background: #202226;
     }
 

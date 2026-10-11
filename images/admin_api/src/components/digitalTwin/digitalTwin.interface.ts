@@ -14,6 +14,9 @@ export default interface IDigitalTwin {
 	digitalTwinSimulationFormat: string;
 	dashboardUrl: string;
 	sensorsRef: string[];
+	pipelineFileName: string;
+	pipelineFileLastModifDate: string;
+	pipelineFileData: string;
 	created?: string;
 	updated?: string;
 }

@@ -2,17 +2,13 @@ package form
 
 import (
 	"fmt"
-	"os"
-	"os/exec"
-	"os/user"
 	"strconv"
 	"strings"
 
-	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/common"
-	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/data"
-	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/docker"
-	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/orgs"
-	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/utils"
+	"github.com/osi4iot/osi4iot/utils/osi4iot/internals/certrenewer"
+	"github.com/osi4iot/osi4iot/utils/osi4iot/internals/data"
+	"github.com/osi4iot/osi4iot/utils/osi4iot/internals/types"
+	"github.com/osi4iot/osi4iot/utils/osi4iot/internals/utils"
 )
 
 func creatingNodeQuestions(m *Model) (submissionResultMsg, error) {
@@ -37,7 +33,7 @@ func creatingNodeQuestions(m *Model) (submissionResultMsg, error) {
 		if currentNumNodes != 0 {
 			iniNode = currentNumNodes + 1
 		}
-		defaultNodeData := common.NodeData{}
+		defaultNodeData := types.NodeData{}
 		for inode := iniNode; inode <= numNodes; inode++ {
 			if len(platformData.PlatformInfo.NodesData) >= inode {
 				defaultNodeData = platformData.PlatformInfo.NodesData[inode-1]
@@ -96,7 +92,7 @@ func creatingNodeQuestions(m *Model) (submissionResultMsg, error) {
 					QuestionType: "list",
 					Prompt:       "Role",
 					Answer:       defaultNodeData.NodeRole,
-					Choices:      []string{"Manager", "Platform worker", "Generic org worker", "Exclusive org worker", "NFS server"},
+					Choices:      []string{"Manager", "Platform worker"},
 					ChoiceFocus:  0,
 					ErrorMessage: "",
 					Rules:        []string{"required", "string"},
@@ -157,6 +153,7 @@ func removingNodeQuestions(m *Model) {
 
 func addNumNodesQuestion(index int, m *Model) {
 	idx := m.FindQuestionIdByKey("NUMBER_OF_SWARM_NODES")
+	numNatsNodes := m.FindAnswerByKey("NUMBER_OF_NATS_NODES")
 	if idx == -1 {
 		numNodesQuestion := Question{
 			Key:           "NUMBER_OF_SWARM_NODES",
@@ -167,11 +164,31 @@ func addNumNodesQuestion(index int, m *Model) {
 			ErrorMessage:  "",
 			Choices:       []string{},
 			ChoiceFocus:   0,
-			Rules:         []string{"required", "isInt", "minval:1", "maxval:100"},
+			Rules:         []string{"required", "isInt", "minval:1", "maxval:100", "numNatsClusterNodes:" + numNatsNodes},
 			ActionKey:     "creatingNodeQuestions",
 			Margin:        0,
 		}
 		m.addQuestions(index, numNodesQuestion)
+	}
+}
+
+func addAwsEbsVolumesQuestion(index int, m *Model) {
+	idx := m.FindQuestionIdByKey("USE_AWS_EBS_VOLUMES")
+	if idx == -1 {
+		awsEbsVolumesQuestion := Question{
+			Key:           "USE_AWS_EBS_VOLUMES",
+			QuestionType:  "confirm",
+			Prompt:        "Use AWS EBS volumes instead of local disks? (Only for AWS cluster deployment)",
+			Answer:        utils.BoolValueToStr(data.Data.PlatformInfo.UseAwsEbsVolumes),
+			DefaultAnswer: "no",
+			ErrorMessage:  "",
+			Choices:       []string{"yes", "no"},
+			ChoiceFocus:   utils.GiveChoiceFocus(utils.BoolValueToStr(data.Data.PlatformInfo.UseAwsEbsVolumes), []string{"yes", "no"}, 1),
+			Rules:         []string{"required", "string"},
+			ActionKey:     "",
+			Margin:        0,
+		}
+		m.addQuestions(index, awsEbsVolumesQuestion)
 	}
 }
 
@@ -237,7 +254,7 @@ func addAWSRoute53Questions(m *Model) {
 
 func addAwsS3BucketQuestions(m *Model) {
 	idx := m.FindQuestionIdByKey("S3_BUCKET_TYPE")
-	if m.Questions[idx].Answer == "Cloud AWS S3" {
+	if m.Questions[idx].Answer == utils.S3BucketTypeAWS {
 		indKey := m.FindQuestionIdByKey("AWS_ACCESS_KEY_ID_S3_BUCKET")
 		if indKey == -1 {
 			awsS3BucketQuestions := []Question{
@@ -294,11 +311,12 @@ func awsS3BucketQuestions(m *Model) (submissionResultMsg, error) {
 	}
 
 	s3BucketType := m.FindAnswerByKey("S3_BUCKET_TYPE")
-	if s3BucketType == "Local Minio" {
+	switch s3BucketType {
+	case utils.S3BucketTypeGarage:
 		m.removeQuestionByKey("AWS_ACCESS_KEY_ID_S3_BUCKET")
 		m.removeQuestionByKey("AWS_SECRET_ACCESS_KEY_S3_BUCKET")
 		m.removeQuestionByKey("AWS_REGION_S3_BUCKET")
-	} else if s3BucketType == "Cloud AWS S3" {
+	case utils.S3BucketTypeAWS:
 		addAwsS3BucketQuestions(m)
 	}
 	return submissionResultMsg("AWS S3 Bucket questions added succesfully"), nil
@@ -321,31 +339,6 @@ func addAwsSsHKeyQuestions(index int, m *Model) {
 			Margin:        0,
 		}
 		m.addQuestions(index, awsSSHKeyQuestion)
-	}
-}
-
-func addAwsEFSQuestion(index int, m *Model) {
-	numNodes := m.Data["numNodes"].(int)
-	if numNodes > 1 {
-		idx := m.FindQuestionIdByKey("AWS_EFS_DNS")
-		if idx == -1 {
-			efsQuestion := Question{
-				Key:           "AWS_EFS_DNS",
-				QuestionType:  "generic",
-				Prompt:        "AWS Elastic File System DNS",
-				Answer:        data.Data.PlatformInfo.AwsEfsDNS,
-				DefaultAnswer: "",
-				Choices:       []string{},
-				ChoiceFocus:   0,
-				ErrorMessage:  "",
-				Rules:         []string{"required", "string"},
-				ActionKey:     "",
-				Margin:        0,
-			}
-			m.addQuestions(index, efsQuestion)
-		}
-	} else {
-		m.removeQuestionByKey("AWS_EFS_DNS")
 	}
 }
 
@@ -390,31 +383,73 @@ func addNetworkInterfaceQuestions(m *Model) {
 	}
 }
 
+// DeployLocationQuestions rebuilds the question list for the deployment
+// location just chosen.
+//
+// Every case removes what belongs only to the other two, because the
+// operator can change this answer after having gone further down, and a
+// question left behind from a previous choice is asked and then acted
+// on.
 func DeployLocationQuestions(m *Model) (submissionResultMsg, error) {
 	qIdx := m.FindQuestionIdByKey("DEPLOYMENT_LOCATION")
 	deployLocation := m.Questions[qIdx].Answer
-	if deployLocation == "Local deployment" {
+
+	switch deployLocation {
+	case "Local deployment":
 		m.removeQuestionByKey("AWS_SSH_KEY_PATH")
 		m.removeQuestionByKey("NUMBER_OF_SWARM_NODES")
-		m.removeQuestionByKey("AWS_EFS_DNS")
 		m.removeQuestionByKey("FLOATING_IP_ADDRESS")
 		m.removeQuestionByKey("NETWORK_INTERFACE")
 		removingNodeQuestions(m)
-	} else if deployLocation == "On-premise cluster deployment" {
+		addLocalResourceUtilizationQuestion(qIdx+1, m)
+		m.removeQuestionByKey("USE_AWS_EBS_VOLUMES")
+
+	case "On-premise cluster deployment":
 		m.removeQuestionByKey("AWS_SSH_KEY_PATH")
-		m.removeQuestionByKey("AWS_EFS_DNS")
+		m.removeQuestionByKey("LOCAL_RESOURCE_UTILIZATION_PERCENTAGE")
+		m.removeQuestionByKey("USE_AWS_EBS_VOLUMES")
 		addNumNodesQuestion(qIdx+1, m)
 		addNodesDataQuestions(m)
 		addNetworkInterfaceQuestions(m)
-	} else if deployLocation == "AWS cluster deployment" {
+
+	case "AWS cluster deployment":
 		m.removeQuestionByKey("FLOATING_IP_ADDRESS")
 		m.removeQuestionByKey("NETWORK_INTERFACE")
+		m.removeQuestionByKey("LOCAL_RESOURCE_UTILIZATION_PERCENTAGE")
+
+		// Asked, not assumed. EBS used to be forced on for this
+		// deployment location, which meant every volume went through
+		// the RexRay plugin whether it suited the service or not.
+		// Services that replicate their own data — nats, patroni,
+		// garage — are better on local disks, so the default is "no"
+		// and this is now a choice.
 		addAwsSsHKeyQuestions(qIdx+1, m)
-		addAwsEFSQuestion(qIdx+2, m)
+		addAwsEbsVolumesQuestion(qIdx+2, m)
 		addNumNodesQuestion(qIdx+3, m)
 		addNodesDataQuestions(m)
 	}
+
 	return submissionResultMsg("Deploy location questions added succesfully"), nil
+}
+
+func addLocalResourceUtilizationQuestion(index int, m *Model) {
+	idx := m.FindQuestionIdByKey("LOCAL_RESOURCE_UTILIZATION_PERCENTAGE")
+	if idx == -1 {
+		localResourceUtilizationQuestion := Question{
+			Key:           "LOCAL_RESOURCE_UTILIZATION_PERCENTAGE",
+			QuestionType:  "generic",
+			Prompt:        "Local computer resource utilization percentage",
+			Answer:        utils.IntValueToStr(data.Data.PlatformInfo.LocalResourceUtilization),
+			DefaultAnswer: "100",
+			ErrorMessage:  "",
+			Choices:       []string{},
+			ChoiceFocus:   0,
+			Rules:         []string{"required", "int", "minval:50", "maxval:100"},
+			ActionKey:     "",
+			Margin:        0,
+		}
+		m.addQuestions(index, localResourceUtilizationQuestion)
+	}
 }
 
 func addNodesDataQuestions(m *Model) (submissionResultMsg, error) {
@@ -476,7 +511,8 @@ func addDomainCertsProvidedByCAQuestions(index int, m *Model) {
 func DomainCertsQuestions(m *Model) (submissionResultMsg, error) {
 	idx := m.FindQuestionIdByKey("DOMAIN_CERTS_TYPE")
 	certType := m.Questions[idx].Answer
-	if certType == "No certs" {
+	switch certType {
+	case "No certs":
 		m.removeQuestionByKey("DOMAIN_SSL_PRIVATE_KEY_PATH")
 		m.removeQuestionByKey("DOMAIN_SSL_CA_PEM_PATH")
 		m.removeQuestionByKey("DOMAIN_SSL_CERT_CRT_PATH")
@@ -484,11 +520,11 @@ func DomainCertsQuestions(m *Model) (submissionResultMsg, error) {
 		m.removeQuestionByKey("AWS_SECRET_ACCESS_KEY_ROUTE_53")
 		m.removeQuestionByKey("AWS_REGION_ROUTE_53")
 		m.removeQuestionByKey("AWS_HOSTED_ZONE_ID_ROUTE_53")
-	} else if certType == "Certs provided by an CA" {
+	case "Certs provided by an CA":
 		addDomainCertsProvidedByCAQuestions(idx+1, m)
 		m.removeQuestionByKey("AWS_ACCESS_KEY_ID_ROUTE_53")
 		m.removeQuestionByKey("AWS_SECRET_ACCESS_KEY_ROUTE_53")
-	} else if certType == "Let's encrypt certs with HTTP-01 challenge" {
+	case "Let's encrypt certs with HTTP-01 challenge":
 		m.removeQuestionByKey("DOMAIN_SSL_PRIVATE_KEY_PATH")
 		m.removeQuestionByKey("DOMAIN_SSL_CA_PEM_PATH")
 		m.removeQuestionByKey("DOMAIN_SSL_CERT_CRT_PATH")
@@ -496,7 +532,7 @@ func DomainCertsQuestions(m *Model) (submissionResultMsg, error) {
 		m.removeQuestionByKey("AWS_SECRET_ACCESS_KEY_ROUTE_53")
 		m.removeQuestionByKey("AWS_REGION_ROUTE_53")
 		m.removeQuestionByKey("AWS_HOSTED_ZONE_ID_ROUTE_53")
-	} else if certType == "Let's encrypt certs with DNS-01 challenge and AWS Route 53 provider" {
+	case "Let's encrypt certs with DNS-01 challenge and AWS Route 53 provider":
 		addAWSRoute53Questions(m)
 		m.removeQuestionByKey("DOMAIN_SSL_PRIVATE_KEY_PATH")
 		m.removeQuestionByKey("DOMAIN_SSL_CA_PEM_PATH")
@@ -533,7 +569,7 @@ func copyKeyInNode(m *Model) (submissionResultMsg, error) {
 			return submissionResultMsg(msg), nil
 		}
 
-		nodeData := common.NodeData{
+		nodeData := types.NodeData{
 			NodeHostName: hostName,
 			NodeIP:       ip,
 			NodeUserName: userName,
@@ -549,6 +585,50 @@ func copyKeyInNode(m *Model) (submissionResultMsg, error) {
 		msg = fmt.Sprintf("Public key copied to node %s successfully", hostName)
 	}
 	return submissionResultMsg(msg), nil
+}
+
+func usePatroniToolQuestions(m *Model) (submissionResultMsg, error) {
+	usePatroni := m.FindAnswerByKey("USE_PATRONI_TOOL") == "yes"
+	if usePatroni {
+		addPatroniNodesQuestions(m.Focus+1, m)
+	} else {
+		m.removeQuestionByKey("NUM_PATRONI_ADMIN_NODES")
+		m.removeQuestionByKey("NUM_PAT	switch deploymentLocation {RONI_METRICS_NODES")
+	}
+	return submissionResultMsg("Patroni questions updated"), nil
+}
+
+func addPatroniNodesQuestions(index int, m *Model) {
+	adminQ := Question{
+		Key:           "NUM_PATRONI_ADMIN_NODES",
+		QuestionType:  "list",
+		Prompt:        "Number of nodes for the admin database cluster (PostgreSQL 18)",
+		Answer:        utils.IntValueToStr(data.Data.PlatformInfo.NumPatroniAdminNodes),
+		DefaultAnswer: "1",
+		Choices:       []string{"1", "3", "5"},
+		ChoiceFocus:   1,
+		Rules:         []string{"required", "isInt", "minval:1", "maxval:5", "oddNumber"},
+	}
+	metricsQ := Question{
+		Key:           "NUM_PATRONI_METRICS_NODES",
+		QuestionType:  "list",
+		Prompt:        "Number of nodes for the metrics database cluster (TimescaleDB)",
+		Answer:        utils.IntValueToStr(data.Data.PlatformInfo.NumPatroniMetricsNodes),
+		DefaultAnswer: "1",
+		Choices:       []string{"1", "3", "5"},
+		ChoiceFocus:   1,
+		Rules:         []string{"required", "isInt", "minval:1", "maxval:5", "oddNumber"},
+	}
+	m.addQuestions(index, adminQ, metricsQ)
+}
+
+// generatePlatformSecrets creates every secret the platform generates for
+// itself — passwords, keys, NATS credentials and, with Garage, the S3
+// keys of every service. It is data.GeneratePlatformSecrets, the one
+// place that says what a platform gets; there used to be a copy here,
+// and the two had already started to differ.
+func generatePlatformSecrets(pd *types.PlatformData) error {
+	return data.GeneratePlatformSecrets(pd, false)
 }
 
 func createPlatform(m *Model) (platformCreatingMsg, error) {
@@ -567,58 +647,20 @@ func createPlatform(m *Model) (platformCreatingMsg, error) {
 		return platformCreatingMsg("Error: Some questions are not answered correctly"), nil
 	}
 
-	if len(data.Data.Certs.MqttCerts.Organizations) == 0 {
-		orgHash := utils.GeneratePassword(16)
-		orgAcronym := platformData.PlatformInfo.MainOrganizationAcronym
-		numNriInMainOrg := platformData.PlatformInfo.NumberOfNodeRedInstancesInMainOrg
-		exclusiveWorkerNodes := make([]string, 0)
-		nodered_instances := make([]common.NodeRedInstance, numNriInMainOrg)
-		organization := common.Organization{
-			OrgHash:              orgHash,
-			OrgAcronym:           orgAcronym,
-			ExclusiveWorkerNodes: exclusiveWorkerNodes,
-			NodeRedInstances:     nodered_instances,
-		}
-		platformData.Certs.MqttCerts.Organizations = append(platformData.Certs.MqttCerts.Organizations, organization)
-	}
-
 	notificationsEmailAddress := m.FindAnswerByKey("NOTIFICATIONS_EMAIL_ADDRESS")
 	data.SetData("NOTIFICATIONS_EMAIL_USER", notificationsEmailAddress)
-
-	refreshTokenSecret := utils.GeneratePassword(20)
-	data.SetData("REFRESH_TOKEN_SECRET", refreshTokenSecret)
-
-	accessTokenSecret := utils.GeneratePassword(20)
-	data.SetData("ACCESS_TOKEN_SECRET", accessTokenSecret)
-
-	encryptionSecretKey := utils.GeneratePassword(32)
-	data.SetData("ENCRYPTION_SECRET_KEY", encryptionSecretKey)
 
 	platformAdminPassword := m.FindAnswerByKey("PLATFORM_ADMIN_PASSWORD")
 	data.SetData("GRAFANA_ADMIN_PASSWORD", platformAdminPassword)
 
 	platformAdminUserName := m.FindAnswerByKey("PLATFORM_ADMIN_USER_NAME")
-	data.SetData("POSTGRES_USER", platformAdminUserName)
 
-	data.SetData("POSTGRES_PASSWORD", platformAdminPassword)
+	CreateDatabaseData(platformData)
 
-	postgresDB := "iot_platform_db"
-	data.SetData("POSTGRES_DB", postgresDB)
-
-	data.SetData("TIMESCALE_USER", platformAdminUserName)
-	data.SetData("TIMESCALE_PASSWORD", platformAdminPassword)
-
-	timescaleDB := "iot_data_db"
-	data.SetData("TIMESCALE_DB", timescaleDB)
-
-	grafanaDBPassword := utils.GeneratePassword(20)
-	data.SetData("GRAFANA_DB_PASSWORD", grafanaDBPassword)
-
-	grafanaDatasourcePassword := utils.GeneratePassword(20)
-	data.SetData("GRAFANA_DATASOURCE_PASSWORD", grafanaDatasourcePassword)
-
-	dev2PDBPassword := platformAdminPassword
-	data.SetData("DEV2PDB_PASSWORD", dev2PDBPassword)
+	// Every secret the platform generates for itself, in one place.
+	if err := generatePlatformSecrets(platformData); err != nil {
+		return platformCreatingMsg("Error: generating platform secrets"), err
+	}
 
 	nodeRedAdmin := platformAdminUserName
 	data.SetData("NODE_RED_ADMIN", nodeRedAdmin)
@@ -635,17 +677,25 @@ func createPlatform(m *Model) (platformCreatingMsg, error) {
 	pgAdminDefaultPassword := platformAdminPassword
 	data.SetData("PGADMIN_DEFAULT_PASSWORD", pgAdminDefaultPassword)
 
-	data.SetCertsData()
-	err = utils.MqttTLSCredentials(platformData)
-	if err != nil {
-		return platformCreatingMsg("Error: creating mqtt certs"), err
+	if platformData.PlatformInfo.DomainCertsType == "Certs provided by an CA" {
+		certrenewer.SetCertsNamesAndExpirationTime(platformData)
 	}
 
+	natsBackupS3Prefix := "s3://" + platformData.PlatformInfo.S3BucketName + "/backups/nats_streams"
+	data.SetData("NATS_BACKUP_S3_PREFIX", natsBackupS3Prefix)
+
+	// Same bucket, its own prefix — the pattern WALG_S3_PREFIX_* and
+	// NATS_BACKUP_S3_PREFIX already follow. Setting it here is what
+	// enables the feature at all: system_manager registers no
+	// state_file tasks without it, and the CLI never triggers one.
+	stateFileS3Prefix := "s3://" + platformData.PlatformInfo.S3BucketName + "/backups/state_file"
+	data.SetData("STATE_FILE_S3_PREFIX", stateFileS3Prefix)
+
 	deployLocation := platformData.PlatformInfo.DeploymentLocation
-	nodesData := []common.NodeData{}
+	nodesData := []types.NodeData{}
 	numNodes := platformData.PlatformInfo.NumberOfSwarmNodes
 	if deployLocation == "Local deployment" {
-		localNodeData, err := GetLocalNodeData()
+		localNodeData, err := utils.GetLocalNodeData()
 		if err != nil {
 			return platformCreatingMsg("Error: getting local node data"), err
 		}
@@ -658,136 +708,56 @@ func createPlatform(m *Model) (platformCreatingMsg, error) {
 	}
 	platformData.PlatformInfo.NodesData = nodesData
 
+	data.SetInitialServicesData(platformData)
+
 	err = utils.WritePlatformDataToFile(platformData)
 	if err != nil {
 		return platformCreatingMsg("Error: writing platform data to file"), err
 	}
 
-	return platformCreatingMsg("osi4iot_state.json file created and platform initiated successfully"), nil
+	return platformCreatingMsg("osi4iot_state.json file created successfully"), nil
 }
 
-func GetLocalNodeData() (common.NodeData, error) {
-	hostname, err := os.Hostname()
-	if err != nil {
-		return common.NodeData{}, err
-	}
+// CreateDatabaseData sets the database configuration that is not secret:
+// role and database names, WAL-G's S3 layout and compression, and the
+// initial Patroni node counts. The passwords and keys that go with it are
+// generated in generatePlatformSecrets.
+func CreateDatabaseData(pd *types.PlatformData) {
+	if pd.PlatformInfo.UsePatroniTool {
+		// ── Patroni — Admin cluster ─────────────────────────────────────
+		data.SetData("POSTGRES_USER", "patroni_admin")
 
-	usr, err := user.Current()
-	if err != nil {
-		return common.NodeData{}, err
-	}
+		// ── Patroni — Metrics cluster ───────────────────────────────────
+		data.SetData("TIMESCALE_USER", "patroni_metrics")
 
-	cmd := exec.Command("uname", "-m")
-	output, err := cmd.Output()
-	if err != nil {
-		return common.NodeData{}, err
-	}
-	nodeArch := strings.TrimSpace(string(output))
+		// ── WAL-G ───────────────────────────────────────────────────────
+		// S3 prefix derived from the bucket name so it's unique per
+		// deployment. The admin can override these after creation via the
+		// state file if needed.
+		data.SetData("WALG_S3_PREFIX_ADMIN", "s3://"+pd.PlatformInfo.S3BucketName+"/backups/patroni_admin")
+		data.SetData("WALG_S3_PREFIX_METRICS", "s3://"+pd.PlatformInfo.S3BucketName+"/backups/patroni_metrics")
 
-	localIP, err := utils.GetLocalNodeIP()
-	if err != nil {
-		return common.NodeData{}, fmt.Errorf("error getting local node IP: %v", err)
-	}
+		// lz4 is the default: fast compression, low CPU, ideal for
+		// continuous WAL archiving. The admin can change this before the
+		// first backup is taken.
+		data.SetData("WALG_COMPRESSION_METHOD", "lz4")
 
-	nodeData := common.NodeData{
-		NodeHostName: hostname,
-		NodeIP:       localIP,
-		NodeUserName: usr.Username,
-		NodeRole:     "Manager",
-		NodeArch:     nodeArch,
-	}
-	return nodeData, nil
-}
-
-func createOrg(m *Model) (creatingOrgMsg, error) {
-	platformData := data.GetData()
-	orgHash := utils.GeneratePassword(16)
-	orgName := m.FindAnswerByKey("ORGANIZATION_NAME")
-	orgAcronym := m.FindAnswerByKey("ORGANIZATION_ACRONYM")
-	orgRole := m.FindAnswerByKey("ORGANIZATION_ROLE")
-	buildingId, _ := strconv.Atoi(m.FindAnswerByKey("BUILDING_ID"))
-	orgTelegramChatId := m.FindAnswerByKey("ORGANIZATION_TELEGRAM_CHAT_ID")
-	orgTelegramInvitationLink := m.FindAnswerByKey("ORGANIZATION_TELEGRAM_INVITATION_LINK")
-	mqttAccessControl := m.FindAnswerByKey("MQTT_ACCESS_CONTROL")
-	numNriInMainOrg, _ := strconv.Atoi(m.FindAnswerByKey("NUMBER_OF_NODERED_INSTANCES_IN_ORG"))
-	nriHashes := make([]string, numNriInMainOrg)
-
-	newOrg := common.Organization{
-		OrgHash:              orgHash,
-		OrgAcronym:           orgAcronym,
-		ExclusiveWorkerNodes: []string{},
-		NodeRedInstances:     []common.NodeRedInstance{},
-	}
-	for idx := 0; idx < numNriInMainOrg; idx++ {
-		nriHash := utils.GeneratePassword(10)
-		nriHashes[idx] = nriHash
-		nri := common.NodeRedInstance{
-			ClientCrt:           "",
-			ClientKey:           "",
-			ExpirationTimestamp: 0,
-			NriHash:             nriHash,
-			IsVolumeCreated:     "false",
-			ClientCrtName:       "",
-			ClientKeyName:       "",
+		if pd.PlatformInfo.DeploymentLocation == "Local deployment" {
+			data.SetData("NUM_PATRONI_ADMIN_NODES", "1")
+			data.SetData("NUM_PATRONI_METRICS_NODES", "1")
+		} else {
+			if pd.PlatformInfo.NumPatroniAdminNodes == 0 {
+				data.SetData("NUM_PATRONI_ADMIN_NODES", "1")
+			}
+			if pd.PlatformInfo.NumPatroniMetricsNodes == 0 {
+				data.SetData("NUM_PATRONI_METRICS_NODES", "1")
+			}
 		}
-		newOrg.NodeRedInstances = append(newOrg.NodeRedInstances, nri)
-	}
-	platformData.Certs.MqttCerts.Organizations = append(platformData.Certs.MqttCerts.Organizations, newOrg)
-
-	orgAdminFirstName := m.FindAnswerByKey("ORG_ADMIN_FIRST_NAME")
-	orgAdminSurname := m.FindAnswerByKey("ORG_ADMIN_SURNAME")
-	orgAdminEmail := m.FindAnswerByKey("ORG_ADMIN_EMAIL")
-	orgAdminArray := []orgs.Admin{
-		{
-			FirstName: orgAdminFirstName,
-			Surname:   orgAdminSurname,
-			Email:     orgAdminEmail,
-		},
+	} else {
+		data.SetData("POSTGRES_USER", "postgres")
+		data.SetData("TIMESCALE_USER", "timescale")
 	}
 
-	createOrgData := orgs.CreateOrgData{
-		Name:                   orgName,
-		Acronym:                orgAcronym,
-		Role:                   orgRole,
-		BuildingId:             buildingId,
-		OrgHash:                orgHash,
-		NriHashes:              nriHashes,
-		TelegramInvitationLink: orgTelegramInvitationLink,
-		TelegramChatId:         orgTelegramChatId,
-		MqttAccessControl:      mqttAccessControl,
-		OrgAdminArray:          orgAdminArray,
-	}
-
-	err := orgs.RequestCreateOrg(platformData, createOrgData)
-	if err != nil {
-		errMsg := fmt.Sprintf("Error: creating organization: %v", err)
-		return creatingOrgMsg(errMsg), err
-	}
-
-	err = utils.MqttTLSCredentials(platformData)
-	if err != nil {
-		return creatingOrgMsg("Error: creating mqtt certs"), err
-	}
-
-	err = utils.WritePlatformDataToFile(platformData)
-	if err != nil {
-		return creatingOrgMsg("Error: writing platform data to file"), err
-	}
-
-	err = docker.AddNFSFolders(platformData)
-	if err != nil {
-		return creatingOrgMsg("Error: adding NFS folders on nodes"), err
-	}
-
-	err = docker.AddEfsFolders(platformData)
-	if err != nil {
-		return creatingOrgMsg("Error: adding EFS folders on nodes"), err
-	}
-
-	err = docker.CreateNriServices(newOrg, platformData)
-	if err != nil {
-		return creatingOrgMsg("Error: creating NodeRed instances services"), err
-	}
-
-	return creatingOrgMsg("Organization created successfully"), nil
+	data.SetData("POSTGRES_DB", "iot_platform_db")
+	data.SetData("TIMESCALE_DB", "iot_data_db")
 }

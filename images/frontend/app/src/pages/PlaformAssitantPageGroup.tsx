@@ -23,6 +23,7 @@ const Title = styled.h2`
 	text-align: center;
 	color: white;
 	width: 100%;
+	
 `;
 
 const PlatformAssistantPageGroup: FC<{}> = () => {

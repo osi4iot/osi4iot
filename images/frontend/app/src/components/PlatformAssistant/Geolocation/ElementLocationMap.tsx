@@ -11,14 +11,12 @@ import { FaRedo, FaRegTimesCircle, FaRegCheckCircle } from "react-icons/fa";
 import { LatLngTuple } from 'leaflet';
 import icon from 'leaflet/dist/images/marker-icon.png';
 import iconShadow from 'leaflet/dist/images/marker-shadow.png';
-import GeoNodeRedInstance from './GeoNodeRedInstance';
 import { IBuilding } from '../TableColumns/buildingsColumns';
 import { IFloor } from '../TableColumns/floorsColumns';
 import GeoBuilding from './GeoBuilding';
 import { IFeatureCollection, spacesDivider } from '../../../tools/spacesDivider';
 import { IGroupManaged } from '../TableColumns/groupsManagedColumns';
-import { ASSETS_PREVIOUS_OPTIONS } from '../Utils/platformAssistantOptions'; import DraggableNriCircle from './DraggableNriCircle';
-import { useGroupManagedInputFormData } from '../../../contexts/groupsManagedOptions';
+import { ASSETS_PREVIOUS_OPTIONS } from '../Utils/platformAssistantOptions';
 import { IAsset } from '../TableColumns/assetsColumns';
 import { useAssetIdToEdit, useAssetInputData, useAssetsPreviousOption } from '../../../contexts/assetsOptions';
 import DraggableAssetCircle from './DraggableAssetCircle';
@@ -66,33 +64,33 @@ const ZoomControlContainer = styled.div`
     background-color: #202226;
 `;
 
-const RiZoomInLineStyled = styled(RiZoomInLine)`
+const RiZoomInLineStyled = styled(RiZoomInLine as any)`
     font-size: 30px;
     color: white;
 `;
 
-const RiZoomOutLineStyled = styled(RiZoomOutLine)`
+const RiZoomOutLineStyled = styled(RiZoomOutLine as any)`
     font-size: 30px;
     color: white;
 `;
 
 
-const MdZoomOutMapStyled = styled(MdZoomOutMap)`
+const MdZoomOutMapStyled = styled(MdZoomOutMap as any)`
     font-size: 30px;
     color: white;
 `;
 
-const FaRedoStyled = styled(FaRedo)`
+const FaRedoStyled = styled(FaRedo as any)`
     font-size: 22px;
     color: white;
 `;
 
-const FaRegTimesCircleStyled = styled(FaRegTimesCircle)`
+const FaRegTimesCircleStyled = styled(FaRegTimesCircle as any)`
     font-size: 28px;
     color: white;
 `;
 
-const FaRegCheckCircleStyled = styled(FaRegCheckCircle)`
+const FaRegCheckCircleStyled = styled(FaRegCheckCircle as any)`
     font-size: 28px;
     color: white;
 `;
@@ -154,7 +152,6 @@ interface ControlProps {
     refreshAll: () => void;
     backToOption: () => void;
     assetPosition: LatLngExpression;
-    nriPosition: LatLngExpression;
     setElementLocationData: (elementLong: number, elementLat: number) => void;
 }
 
@@ -165,7 +162,6 @@ const Controls: FC<ControlProps> = ({
     refreshAll,
     backToOption,
     assetPosition,
-    nriPosition,
     setElementLocationData
 }) => {
     const map = useMap();
@@ -193,8 +189,6 @@ const Controls: FC<ControlProps> = ({
     const clickAccepHandler = () => {
         if (elementToDrag === "asset") {
             setElementLocationData((assetPosition as number[])[1], (assetPosition as number[])[0]);
-        } else if (elementToDrag === "nri") {
-            setElementLocationData((nriPosition as number[])[1], (nriPosition as number[])[0]);
         }
         backToOption();
     }
@@ -298,8 +292,6 @@ interface GeoGroupSpaceMapProps {
     assetsInGroup: IAsset[];
     assetPosition: LatLngExpression;
     setAssetPosition: (assetPosition: LatLngExpression) => void;
-    nriPosition: LatLngExpression;
-    setNriPosition: (nriPosition: LatLngExpression) => void;
 }
 
 
@@ -312,16 +304,12 @@ const GeoGroupSpaceMap: FC<GeoGroupSpaceMapProps> = ({
     assetsInGroup,
     assetPosition,
     setAssetPosition,
-    nriPosition,
-    setNriPosition
 }) => {
     const map = useMap();
     const assetsPreviousOption = useAssetsPreviousOption();
     const assetIdToEdit = useAssetIdToEdit();
     const assetInputData = useAssetInputData();
-    const groupManagedData = useGroupManagedInputFormData();
     const [assetDragging, setAssetDragging] = useState(false);
-    const [nriDragging, setNriDragging] = useState(false);
 
     useEffect(() => {
         let groupOuterBounds = groupManaged.outerBounds;
@@ -353,24 +341,6 @@ const GeoGroupSpaceMap: FC<GeoGroupSpaceMapProps> = ({
                 style={(geoJsonFeature: any) => groupStyle()}
                 eventHandlers={evenstHandlerGeoJson}
             />
-            {
-                elementToDrag === "nri" ?
-                    <DraggableNriCircle
-                        nriRadio={groupManagedData.nriInGroupIconRadio}
-                        nriPosition={nriPosition}
-                        setNriPosition={(nriPosition: LatLngExpression) => setNriPosition(nriPosition)}
-                        nriDragging={nriDragging}
-                        setNriDragging={(nriDragging: boolean) => setNriDragging(nriDragging)}
-                    />
-                    :
-                    <GeoNodeRedInstance
-                        longitude={groupManaged.nriInGroupIconLongitude}
-                        latitude={groupManaged.nriInGroupIconLatitude}
-                        iconRadio={groupManaged.nriInGroupIconRadio}
-                        nriHash={groupManaged.nriInGroupHash}
-                        linkAvailable={false}
-                    />
-            }
             {
                 assetsInGroup.map(asset => {
                     if (
@@ -497,13 +467,6 @@ const ElementLocationMap: FC<ElementLocationMapProps> = (
         ) as LatLngExpression
     );
 
-    const groupManagedData = useGroupManagedInputFormData();
-    const [nriPosition, setNriPosition] = useState<LatLngExpression>([
-        groupManagedData.nriInGroupIconLatitude,
-        groupManagedData.nriInGroupIconLongitude
-    ]);
-
-
     const styleGeoFloorJson = (geoJsonFeature: any) => {
         return floorStyle();
     }
@@ -545,8 +508,6 @@ const ElementLocationMap: FC<ElementLocationMapProps> = (
                             assetsInGroup={assetsInGroup}
                             assetPosition={assetPosition}
                             setAssetPosition={(assetPosition: LatLngExpression) => setAssetPosition(assetPosition)}
-                            nriPosition={nriPosition}
-                            setNriPosition={(nriPosition: LatLngExpression) => setNriPosition(nriPosition)}
                         />
                         :
                         <GeoFloorSpaceMap
@@ -562,7 +523,6 @@ const ElementLocationMap: FC<ElementLocationMapProps> = (
                     refreshAll={refreshAll}
                     backToOption={backToOption}
                     assetPosition={assetPosition}
-                    nriPosition={nriPosition}
                     setElementLocationData={setElementLocationData}
                 />
             </ControlsContainer>

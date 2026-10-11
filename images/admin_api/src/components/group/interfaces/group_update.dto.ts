@@ -1,4 +1,4 @@
-import { IsEnum, IsNumber, IsString } from "class-validator";
+import { IsBoolean, IsEnum, IsNumber, IsString } from "class-validator";
 import { FolderPermissionOptions, FolderPermissionOption } from "./FolerPermissionsOptions";
 
 class UpdateGroupDto {
@@ -25,6 +25,9 @@ class UpdateGroupDto {
 
 	@IsString()
 	public mqttAccessControl: string;
+
+	@IsBoolean()
+	public llmEnabled: boolean;
 }
 
 export default UpdateGroupDto;

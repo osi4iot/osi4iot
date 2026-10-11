@@ -1,0 +1,149 @@
+########################################
+# 0) Python builder: crea venv con uv
+########################################
+FROM python:3.12-slim AS python-builder
+
+# Instalar uv
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /mcp_servers_python
+
+COPY mcp_servers/mcp_calculate_server/ ./mcp_calculate_server/
+
+# Crear venv e instalar el paquete (no editable -> queda embebido en el venv)
+RUN uv venv /opt/venv \
+    && . /opt/venv/bin/activate \
+    && uv pip install ./mcp_calculate_server
+
+########################################
+# 1) Go builder: compila binarios (enlace estático)
+########################################
+FROM golang:1.25.1-bookworm AS builder
+
+WORKDIR /src
+
+COPY go.mod go.sum ./
+COPY main.go ./
+COPY admin/ ./admin/
+COPY common/ ./common/
+COPY config/ ./config/
+COPY duckdb/ ./duckdb/
+COPY flows_manager/ ./flows_manager/
+COPY function_library/ ./function_library/
+COPY leader_election/ ./leader_election/
+COPY iotdb/ ./iotdb/
+COPY logger/ ./logger/
+COPY message/ ./message/
+COPY nats/ ./nats/
+COPY nodes/ ./nodes/
+COPY s3folder/ ./s3folder/
+COPY telegram/ ./telegram/
+COPY timeparser/ ./timeparser/
+COPY utils/ ./utils/
+RUN go mod download && go mod verify
+
+# pipelines
+RUN CGO_ENABLED=1 CC=gcc go build -ldflags="-s -w" -o /usr/local/bin/pipelines .
+
+# current_date
+COPY mcp_servers/current_date/go.mod ./mcp_servers/current_date/
+COPY mcp_servers/current_date/go.sum ./mcp_servers/current_date/
+COPY mcp_servers/current_date/main.go ./mcp_servers/current_date/
+RUN cd mcp_servers/current_date && go mod download && go mod verify
+RUN cd mcp_servers/current_date && \
+    CGO_ENABLED=0 go build -ldflags="-s -w" -o /usr/local/bin/current_date .
+
+# fem_results (CGO pero enlace estático → no copia de .so)
+COPY mcp_servers/fem_results/go.mod ./mcp_servers/fem_results/
+COPY mcp_servers/fem_results/go.sum ./mcp_servers/fem_results/
+COPY mcp_servers/fem_results/main.go ./mcp_servers/fem_results/
+RUN cd mcp_servers/fem_results && go mod download && go mod verify
+RUN cd mcp_servers/fem_results && \
+    CGO_ENABLED=1 CC=gcc \
+    go build -ldflags="-s -w" -o /usr/local/bin/fem_results .
+
+########################################
+# 2) Runtime
+########################################
+FROM python:3.12-slim AS runtime
+ARG TARGETPLATFORM
+ARG TARGETARCH
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    tzdata curl ca-certificates \
+    && update-ca-certificates \
+    && rm -rf /var/lib/apt/lists/* \
+    && addgroup --system pipelines_group \
+    && adduser --system --ingroup pipelines_group --home /home/pipelines pipelines \
+    && mkdir -p /home/pipelines \
+    && chown pipelines:pipelines_group /home/pipelines
+
+# Go binaries
+COPY --from=builder /usr/local/bin/pipelines     /usr/local/bin/pipelines
+COPY --from=builder /usr/local/bin/current_date  /usr/local/bin/current_date
+COPY --from=builder /usr/local/bin/fem_results   /usr/local/bin/fem_results
+
+# Venv Python
+COPY --from=python-builder --chown=pipelines:pipelines_group /opt/venv /opt/venv
+ENV PATH="/opt/venv/bin:${PATH}"
+
+# ── DuckDB extensions ──────────────────────────────────────────────────────────
+ENV DUCKDB_VERSION=v1.5.2
+ENV DUCKDB_EXT_DIR=/tmp/duckdb/extensions
+
+RUN mkdir -p ${DUCKDB_EXT_DIR} \
+    && case "${TARGETARCH}" in \
+         amd64) DUCKDB_ARCH="linux_amd64" ;; \
+         arm64) DUCKDB_ARCH="linux_arm64" ;; \
+         *) echo "Architecture not supported: ${TARGETARCH}" && exit 1 ;; \
+       esac \
+    && curl -fsSL "https://extensions.duckdb.org/${DUCKDB_VERSION}/${DUCKDB_ARCH}/httpfs.duckdb_extension.gz" \
+         -o /tmp/httpfs.duckdb_extension.gz \
+    && gunzip /tmp/httpfs.duckdb_extension.gz \
+    && mv /tmp/httpfs.duckdb_extension ${DUCKDB_EXT_DIR}/httpfs.duckdb_extension \
+    \
+    && curl -fsSL "https://extensions.duckdb.org/${DUCKDB_VERSION}/${DUCKDB_ARCH}/postgres_scanner.duckdb_extension.gz" \
+         -o /tmp/postgres_scanner.duckdb_extension.gz \
+    && gunzip /tmp/postgres_scanner.duckdb_extension.gz \
+    && mv /tmp/postgres_scanner.duckdb_extension ${DUCKDB_EXT_DIR}/postgres_scanner.duckdb_extension \
+    \
+    && chown -R pipelines:pipelines_group ${DUCKDB_EXT_DIR}
+# ──────────────────────────────────────────────────────────────────────────────
+
+# This grants write permissions to the /tmp directory for the pipelines user
+RUN mkdir -p /tmp/duckdb && chown pipelines:pipelines_group /tmp/duckdb
+ENV HOME=/tmp/duckdb
+
+WORKDIR /pipelines
+
+RUN mkdir -p ./assets
+COPY assets/ /tmp/assets/
+RUN if [ "$TARGETARCH" = "amd64" ]; then \
+    mkdir -p ./assets/onnx_runtime_linux_amd64 && \
+    cp /tmp/assets/onnx_runtime_linux_amd64/onnxruntime.so ./assets/onnx_runtime_linux_amd64/ && \
+    chmod 755 ./assets/onnx_runtime_linux_amd64/onnxruntime.so; \
+    elif [ "$TARGETARCH" = "arm64" ]; then \
+    mkdir -p ./assets/onnx_runtime_linux_arm64 && \
+    cp /tmp/assets/onnx_runtime_linux_arm64/onnxruntime_arm64.so ./assets/onnx_runtime_linux_arm64/ && \
+    chmod 755 ./assets/onnx_runtime_linux_arm64/onnxruntime_arm64.so; \
+    else \
+    echo "Architecture not supported: $TARGETARCH" && exit 1; \
+    fi && \
+    rm -rf /tmp/assets
+
+RUN mkdir data && chown -R pipelines:pipelines_group /pipelines
+
+COPY --chown=pipelines:pipelines_group entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod 755 /usr/local/bin/entrypoint.sh
+
+USER pipelines
+
+EXPOSE 3300
+HEALTHCHECK --interval=10s --timeout=3s --start-period=30s --retries=3 \
+    CMD curl -f http://localhost:3300/health || exit 1
+
+ENTRYPOINT ["entrypoint.sh"]

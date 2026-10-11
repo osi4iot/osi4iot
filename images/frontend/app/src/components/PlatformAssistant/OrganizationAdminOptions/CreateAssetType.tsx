@@ -15,9 +15,9 @@ import SvgComponent from '../../Tools/SvgComponent';
 import { useFilePicker } from 'use-file-picker';
 import { setAssetTypesOptionToShow, useAssetTypesDispatch } from '../../../contexts/assetTypesOptions';
 import { IOrgManaged } from '../TableColumns/organizationsManagedColumns';
-import { ControlsContainer, FormContainer } from '../GroupAdminOptions/CreateAsset';
 import { generateAssetTypeMarker, cleanSvgString } from '../../../tools/generateAssetTypeMarker';
 import { AxiosResponse, AxiosError } from 'axios';
+import { ControlsContainer, StaticFormContainer } from '../../Tools/FormTools';
 
 const SvgIconPreviewContainerDiv = styled.div`
     margin: 5px 0;
@@ -374,10 +374,11 @@ const CreateAssetType: FC<CreateAssetTypeProps> = ({
     return (
         <>
             <FormTitle isSubmitting={isSubmitting}>Create asset type</FormTitle>
-            <FormContainer>
+            <StaticFormContainer>
                 <Formik initialValues={initialAssetTypeData} validationSchema={validationSchema} onSubmit={onSubmit} >
                     {
                         formik => (
+                            // @ts-ignore
                             <Form>
                                 <ControlsContainer>
                                     <FormikControl
@@ -501,7 +502,7 @@ const CreateAssetType: FC<CreateAssetTypeProps> = ({
                         )
                     }
                 </Formik>
-            </FormContainer>
+            </StaticFormContainer>
         </>
     )
 }

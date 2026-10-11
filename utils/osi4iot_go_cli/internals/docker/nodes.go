@@ -2,13 +2,14 @@ package docker
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/swarm"
-	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/common"
+	pt "github.com/osi4iot/osi4iot/utils/osi4iot/internals/types"
 )
 
-func getSwarmNodesMap(dc *DockerClient) (map[string]swarm.Node, error) {
+func getSwarmNodesMap(dc *pt.DockerClient) (map[string]swarm.Node, error) {
 	swarmNodes, err := dc.Cli.NodeList(dc.Ctx, types.NodeListOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("error listing swarm nodes: %w", err)
@@ -21,28 +22,34 @@ func getSwarmNodesMap(dc *DockerClient) (map[string]swarm.Node, error) {
 	return swarmNodesMap, nil
 }
 
-func updateNodesData(dc *DockerClient, nodesData []common.NodeData) error {
+func updateNodesData(dc *pt.DockerClient, nodesData *[]pt.NodeData) error {
 	swarmNodesMap, err := getSwarmNodesMap(dc)
 	if err != nil {
 		return fmt.Errorf("error creating swarm nodes map: %w", err)
 	}
-
-	for i, node := range nodesData {
+	for i, node := range *nodesData {
 		swarmNode, ok := swarmNodesMap[node.NodeIP]
 		if !ok {
 			continue
 		}
-		nodesData[i].NodeId = swarmNode.ID
-		nodesData[i].NodeHostName = swarmNode.Description.Hostname
-		nodesData[i].NodeArch = swarmNode.Description.Platform.Architecture
-		nodesData[i].NodeNanoCPUs = swarmNode.Description.Resources.NanoCPUs
-		nodesData[i].NodeMemoryBytes = swarmNode.Description.Resources.MemoryBytes
+		(*nodesData)[i].NodeId = swarmNode.ID
+		(*nodesData)[i].NodeHostName = swarmNode.Description.Hostname
+		(*nodesData)[i].NodeArch = swarmNode.Description.Platform.Architecture
+		(*nodesData)[i].NodeNanoCPUs = swarmNode.Description.Resources.NanoCPUs
+		(*nodesData)[i].NodeMemoryBytes = swarmNode.Description.Resources.MemoryBytes
 	}
 	return nil
 }
 
-func GetManagerDC() (*DockerClient, error) {
-	for _, dc := range DCMap {
+func GetManagerDC() (*pt.DockerClient, error) {
+	for _, dc := range pt.DCMap {
+		// SetDockerClientsMap stores a nil entry for every node it
+		// couldn't reach, so this dereference panicked whenever any node
+		// was down — including on the read-only commands that only need
+		// SOME manager.
+		if dc == nil {
+			continue
+		}
 		if dc.Node.NodeRole == "Manager" {
 			return dc, nil
 		}
@@ -51,23 +58,23 @@ func GetManagerDC() (*DockerClient, error) {
 	return nil, fmt.Errorf("error getting manager docker client")
 }
 
-func joinNodeToSwarm(dc *DockerClient, managerNode common.NodeData, joinToken string) error {
+func joinNodeToSwarm(dc *pt.DockerClient, managerNode pt.NodeData, joinToken string) error {
 	remoteAddr := fmt.Sprintf("%s:2377", managerNode.NodeIP)
 	joinRequest := swarm.JoinRequest{
-		ListenAddr: "0.0.0.0:2377",
-		RemoteAddrs: []string{remoteAddr},
-		JoinToken:  joinToken,
-		AdvertiseAddr: dc.Node.NodeIP, 
+		ListenAddr:    "0.0.0.0:2377",
+		RemoteAddrs:   []string{remoteAddr},
+		JoinToken:     joinToken,
+		AdvertiseAddr: dc.Node.NodeIP,
 	}
 
 	if err := dc.Cli.SwarmJoin(dc.Ctx, joinRequest); err != nil {
 		return fmt.Errorf("error joining node with IP %s to swarm: %v", dc.Node.NodeIP, err)
 	}
-	
+
 	return nil
 }
 
-func joinAllNodesToSwarm(managerClient *DockerClient) error {
+func joinAllNodesToSwarm(managerClient *pt.DockerClient) error {
 	swarmInfo, err := managerClient.Cli.SwarmInspect(managerClient.Ctx)
 	if err != nil {
 		return fmt.Errorf("error inspecting the Swarm: %v", err)
@@ -80,7 +87,7 @@ func joinAllNodesToSwarm(managerClient *DockerClient) error {
 		return fmt.Errorf("error creating swarm nodes map: %w", err)
 	}
 
-	for ip, dc := range DCMap {
+	for ip, dc := range pt.DCMap {
 		node := dc.Node
 		_, ok := swarmNodesMap[ip]
 		if ok {
@@ -100,13 +107,50 @@ func joinAllNodesToSwarm(managerClient *DockerClient) error {
 	return nil
 }
 
-func nodeLeaveSwarm(dc *DockerClient) error {
-	err := dc.Cli.SwarmLeave(dc.Ctx, true)
-	if err != nil {
-		return fmt.Errorf("error leaving swarm: %v", err)
-	}
+// How nodeLeaveSwarm retries, as variables so its tests run fast.
+var (
+	swarmLeaveAttempts  = 4
+	swarmLeaveRetryWait = 5 * time.Second
+)
 
-	return nil
+// nodeLeaveSwarm makes the node behind dc leave its swarm.
+//
+// Leaving can fail on the daemon's side with "context deadline
+// exceeded": the daemon gives its swarm component a fixed time to stop,
+// and when that runs over — networks still being detached from tasks
+// just moved away, say — it gives up before clearing the node's swarm
+// state. Asking again a few seconds later normally works. So: nothing
+// to do if the node is no longer in a swarm (the failed attempt may
+// have finished after all), otherwise ask again, checking the node's
+// real state after each attempt.
+func nodeLeaveSwarm(dc *pt.DockerClient) error {
+	var lastErr error
+	for attempt := 1; attempt <= swarmLeaveAttempts; attempt++ {
+		if left, err := nodeOutOfSwarm(dc); err == nil && left {
+			return nil
+		}
+		lastErr = dc.Cli.SwarmLeave(dc.Ctx, true)
+		if lastErr == nil {
+			return nil
+		}
+		if attempt < swarmLeaveAttempts {
+			time.Sleep(swarmLeaveRetryWait)
+		}
+	}
+	if left, err := nodeOutOfSwarm(dc); err == nil && left {
+		return nil
+	}
+	return fmt.Errorf("error leaving swarm after %d attempts: %v. Run the same command again "+
+		"(it carries on from here), or run 'docker swarm leave --force' on the node", swarmLeaveAttempts, lastErr)
+}
+
+// nodeOutOfSwarm reports whether the node's daemon says it is in no swarm.
+func nodeOutOfSwarm(dc *pt.DockerClient) (bool, error) {
+	info, err := dc.Cli.Info(dc.Ctx)
+	if err != nil {
+		return false, err
+	}
+	return info.Swarm.LocalNodeState == swarm.LocalNodeStateInactive, nil
 }
 
 func nodesLeaveSwarm() error {
@@ -120,7 +164,7 @@ func nodesLeaveSwarm() error {
 		return fmt.Errorf("error creating swarm nodes map: %w", err)
 	}
 
-	for ip, dc := range DCMap {
+	for ip, dc := range pt.DCMap {
 		node := dc.Node
 		_, ok := swarmNodesMap[ip]
 		if ok {
@@ -134,13 +178,10 @@ func nodesLeaveSwarm() error {
 	return nil
 }
 
-func getNodeRoleNumMap(platformData *common.PlatformData) map[string]int {
+func GetNodeRoleNumMap(platformData *pt.PlatformData) map[string]int {
 	roleNumMap := make(map[string]int)
 	roleNumMap["Manager"] = 0
 	roleNumMap["Platform worker"] = 0
-	roleNumMap["Generic org worker"] = 0
-	roleNumMap["Exclusive org worker"] = 0
-	roleNumMap["NFS server"] = 0
 	nodesData := platformData.PlatformInfo.NodesData
 
 	for _, node := range nodesData {
@@ -150,25 +191,16 @@ func getNodeRoleNumMap(platformData *common.PlatformData) map[string]int {
 			roleNumMap["Manager"] += 1
 		case "Platform worker":
 			roleNumMap["Platform worker"] += 1
-		case "Generic org worker":
-			roleNumMap["Generic org worker"] += 1
-		case "ExclusiveOrgWorker":
-			roleNumMap["Exclusive org worker"] += 1
-		case "NfsWorker":
-			roleNumMap["NFS server"] += 1
 		}
 	}
 
 	return roleNumMap
 }
 
-func getNodeNanoCpusMap(platformData *common.PlatformData) map[string]int64 {
+func GetNodeNanoCpusMap(platformData *pt.PlatformData) map[string]int64 {
 	roleNanoCpusMap := make(map[string]int64)
 	roleNanoCpusMap["Manager"] = 0
 	roleNanoCpusMap["Platform worker"] = 0
-	roleNanoCpusMap["Generic org worker"] = 0
-	roleNanoCpusMap["Exclusive org worker"] = 0
-	roleNanoCpusMap["NFS server"] = 0
 	nodesData := platformData.PlatformInfo.NodesData
 
 	for _, node := range nodesData {
@@ -188,86 +220,9 @@ func getNodeNanoCpusMap(platformData *common.PlatformData) map[string]int64 {
 			if node.NodeNanoCPUs < roleNanoCpusMap["Platform worker"] {
 				roleNanoCpusMap["Platform worker"] = node.NodeNanoCPUs
 			}
-		case "Generic org worker":
-			if roleNanoCpusMap["Generic org worker"] == 0 {
-				roleNanoCpusMap["Generic org worker"] = node.NodeNanoCPUs
-			}
-			if node.NodeNanoCPUs < roleNanoCpusMap["Generic org worker"] {
-				roleNanoCpusMap["Generic org worker"] = node.NodeNanoCPUs
-			}
-		case "ExclusiveOrgWorker":
-			if roleNanoCpusMap["Exclusive org worker"] == 0 {
-				roleNanoCpusMap["Exclusive org worker"] = node.NodeNanoCPUs
-			}
-			if node.NodeNanoCPUs < roleNanoCpusMap["Exclusive org worker"] {
-				roleNanoCpusMap["Exclusive org worker"] = node.NodeNanoCPUs
-			}
-		case "NfsWorker":
-			if roleNanoCpusMap["NFS server"] == 0 {
-				roleNanoCpusMap["NFS server"] = node.NodeNanoCPUs
-			}
-			if node.NodeNanoCPUs < roleNanoCpusMap["NFS server"] {
-				roleNanoCpusMap["NFS server"] = node.NodeNanoCPUs
-			}
 
 		}
 	}
 
 	return roleNanoCpusMap
 }
-
-func getNodeMemoryBytesMap(platformData *common.PlatformData) map[string]int64 {
-	roleMemoryBytesMap := make(map[string]int64)
-	roleMemoryBytesMap["Manager"] = 0
-	roleMemoryBytesMap["Platform worker"] = 0
-	roleMemoryBytesMap["Generic org worker"] = 0
-	roleMemoryBytesMap["Exclusive org worker"] = 0
-	roleMemoryBytesMap["NFS server"] = 0
-	nodesData := platformData.PlatformInfo.NodesData
-
-	for _, node := range nodesData {
-		nodeRole := node.NodeRole
-		switch nodeRole {
-		case "Manager":
-			if roleMemoryBytesMap["Manager"] == 0 {
-				roleMemoryBytesMap["Manager"] = node.NodeMemoryBytes
-			}
-			if node.NodeMemoryBytes < roleMemoryBytesMap["Manager"] {
-				roleMemoryBytesMap["Manager"] = node.NodeMemoryBytes
-			}
-		case "Platform worker":
-			if roleMemoryBytesMap["Platform worker"] == 0 {
-				roleMemoryBytesMap["Platform worker"] = node.NodeMemoryBytes
-			}
-			if node.NodeMemoryBytes < roleMemoryBytesMap["Platform worker"] {
-				roleMemoryBytesMap["Platform worker"] = node.NodeMemoryBytes
-			}
-		case "Generic org worker":
-			if roleMemoryBytesMap["Generic org worker"] == 0 {
-				roleMemoryBytesMap["Generic org worker"] = node.NodeMemoryBytes
-			}
-			if node.NodeMemoryBytes < roleMemoryBytesMap["Generic org worker"] {
-				roleMemoryBytesMap["Generic org worker"] = node.NodeMemoryBytes
-			}
-		case "ExclusiveOrgWorker":
-			if roleMemoryBytesMap["Exclusive org worker"] == 0 {
-				roleMemoryBytesMap["Exclusive org worker"] = node.NodeMemoryBytes
-			}
-			if node.NodeMemoryBytes < roleMemoryBytesMap["Exclusive org worker"] {
-				roleMemoryBytesMap["Exclusive org worker"] = node.NodeMemoryBytes
-			}
-		case "NfsWorker":
-			if roleMemoryBytesMap["NFS server"] == 0 {
-				roleMemoryBytesMap["NFS server"] = node.NodeMemoryBytes
-			}
-			if node.NodeMemoryBytes < roleMemoryBytesMap["NFS server"] {
-				roleMemoryBytesMap["NFS server"] = node.NodeMemoryBytes
-			}
-		}
-	}
-
-	return roleMemoryBytesMap
-}
-
-
-

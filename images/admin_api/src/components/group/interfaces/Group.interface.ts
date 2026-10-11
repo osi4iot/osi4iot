@@ -13,15 +13,12 @@ export default interface IGroup {
 	emailNotificationChannelId: number;
 	telegramNotificationChannelId: number;
 	isOrgDefaultGroup: boolean;
+	isAdminGroup: boolean;
 	outerBounds: number[][];
 	floorNumber: number;
 	featureIndex: number;
 	mqttPassword?: string;
 	mqttSalt?: string;
 	mqttAccessControl: string;
-	nriInGroupId?: number;
-	nriInGroupHash?: string;
-	nriInGroupIconLongitude?: number;
-	nriInGroupIconLatitude?: number;
-	nriInGroupIconRadio?: number;
+	llmEnabled: boolean;
 }

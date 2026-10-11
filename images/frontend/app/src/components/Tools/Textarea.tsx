@@ -1,4 +1,4 @@
-import { FC } from "react";
+import { ComponentType, FC } from "react";
 import { Field, ErrorMessage } from 'formik';
 import styled from "styled-components";
 import TextError from "./TextError";
@@ -108,7 +108,7 @@ const Textarea: FC<TextareaProps> = ({ label, name, textAreaSize= "Large", readO
         <InputStyled textAreaSize={textAreaSize}>
             <label htmlFor={name}>{label}</label>
             <Field as='textarea' id={name} name={name} {...rest} readOnly={readOnly}/>
-            <ErrorMessage name={name} component={TextError}/>
+            <ErrorMessage name={name} component={TextError as ComponentType<{}>} />
         </InputStyled>
     )
 

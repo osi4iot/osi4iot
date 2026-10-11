@@ -2,6 +2,7 @@ import { FC, useState, SyntheticEvent, useEffect } from "react";
 import styled from "styled-components";
 import { Formik, Form, FormikProps } from "formik";
 import * as Yup from "yup";
+import YAML from "yaml";
 import { nanoid } from "nanoid";
 import { GLTFLoader } from "three-stdlib";
 import { useAuthState, useAuthDispatch } from "../../../contexts/authContext";
@@ -36,8 +37,18 @@ import axiosErrorHandler from "../../../tools/axiosErrorHandler";
 import { IGroupManaged } from "../TableColumns/groupsManagedColumns";
 import { IOrgOfGroupsManaged } from "../TableColumns/orgsOfGroupsManagedColumns";
 import { IAsset } from "../TableColumns/assetsColumns";
-import { ControlsContainer, FormContainer } from "./CreateAsset";
 import { AxiosError, AxiosResponse } from "axios";
+
+// CodeMirror imports
+import CodeMirror, { keymap } from "@uiw/react-codemirror";
+import { indentUnit, indentOnInput } from "@codemirror/language";
+import { completionKeymap } from "@codemirror/autocomplete";
+import { indentWithTab } from "@codemirror/commands";
+import { json } from "@codemirror/lang-json";
+import { oneDark } from "@codemirror/theme-one-dark";
+import { CodeMirrorWrapper } from "../../Tools/CodeMirrorWrapper";
+import { ControlsContainer, DraggableFormContainer, FieldErrorScroller } from "../../Tools/FormTools";
+import { ReIndentCommand } from "../DigitalTwin3DViewer/Pipeline/types";
 
 const DataFileTitle = styled.div`
     margin-bottom: 5px;
@@ -233,7 +244,7 @@ export const getSensorsRefFromDigitalTwinGltfData = (digitalTwinGltfData: any) =
                         }
                     }
                 }
-            }
+            },
         );
     }
     return sensorsRef;
@@ -241,7 +252,7 @@ export const getSensorsRefFromDigitalTwinGltfData = (digitalTwinGltfData: any) =
 
 const findGroupArray = (
     orgsOfGroupManaged: IOrgOfGroupsManaged[],
-    groupsManaged: IGroupManaged[]
+    groupsManaged: IGroupManaged[],
 ): Record<string, string[]> => {
     const groupArray: Record<string, string[]> = {};
     for (const group of groupsManaged) {
@@ -367,16 +378,26 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
     const [gltfFileContent, setGltfFileContent] = useState<string>();
     const [gltfFileName, setGltfFileName] = useState("-");
     const [gltfFileLastModif, setGltfFileLastModif] = useState("-");
-    //const [digitalTwinGltfData, setDigitalTwinGltfData] = useState({});
     const [localFemResFileLoaded, setLocalFemResFileLoaded] = useState(false);
     const [digitalTwinFemResData, setDigitalTwiFemResData] = useState({});
+    const [localPipelineFileLoaded, setLocalPipelineFileLoaded] = useState(false);
+    const [digitalTwinPipelineData, setDigitalTwinPipelineData] = useState({});
     const [femResFile, setFemResFile] = useState<File>();
     const [femResFileName, setFemResFileName] = useState("-");
     const [femResFileLastModifDateString, setFemResFileLastModifDateString] = useState("-");
-    const [digitalTwinType, setDigitalTwinType] = useState("Grafana dashboard");
+    const [pipelineFileName, setPipelineFileName] = useState("-");
+    const [pipelineFileLastModifDateString, setPipelineFileLastModifDateString] = useState("-");
+    const [docInfoFileName, setDocInfoFileName] = useState("-");
+    const [docInfoFileLastModifDateString, setDocInfoFileLastModifDateString] = useState("-");
+    const [docInfoFile, setDocInfoFile] = useState<File>();
+    const [localDocInfoFileLoaded, setLocalDocInfoFileLoaded] = useState(false);
+    const [docInfoFileData, setDocInfoFileData] = useState("");
+    const [digitalTwinType, setDigitalTwinType] = useState("None");
     const [isGlftDataReady, setIsGlftDataReady] = useState(false);
     const [sensorsRef, setSensorsRef] = useState<string[]>([]);
     const [isChatAssistantEnabled, setIsChatAssistantEnabled] = useState(false);
+    const [orgLlmEnabled, setOrgLlmEnabled] = useState(false);
+    const [groupLlmEnabled, setGroupLlmEnabled] = useState(false);
 
     useEffect(() => {
         const orgArray = orgsOfGroupManaged.map((org) => org.acronym);
@@ -394,6 +415,10 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
         const assetName = `Asset_${initAsset.assetUid}`;
         const assetDescription = findAssetDescription(assets, assetName);
         setAssetDescription(assetDescription);
+        const org = orgsOfGroupManaged.filter((o) => o.acronym === orgAcronym)[0];
+        setOrgLlmEnabled(org.llmEnabled);
+        const group = groupsManaged.filter((g) => g.acronym === groupAcronym)[0];
+        setGroupLlmEnabled(group.llmEnabled);
     }, [assets, groupsManaged, initAsset.assetUid, initGroup.acronym, initOrg.acronym, orgsOfGroupManaged]);
 
     const handleChangeOrg = (e: { value: string }, formik: FormikType) => {
@@ -409,6 +434,8 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
         formik.setFieldValue("assetName", assetName);
         const assetDescription = findAssetDescription(assets, assetName);
         setAssetDescription(assetDescription);
+        const org = orgsOfGroupManaged.filter((o) => o.acronym === orgAcronym)[0];
+        setOrgLlmEnabled(org.llmEnabled);
     };
 
     const handleChangeGroup = (e: { value: string }, formik: FormikType) => {
@@ -420,6 +447,8 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
         formik.setFieldValue("assetName", assetName);
         const assetDescription = findAssetDescription(assets, assetName);
         setAssetDescription(assetDescription);
+        const group = groupsManaged.filter((g) => g.acronym === groupAcronym)[0];
+        setGroupLlmEnabled(group.llmEnabled);
     };
 
     const handleChangeAsset = (e: { value: string }, formik: FormikType) => {
@@ -439,6 +468,18 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
         readAs: "Text",
         multiple: false,
         accept: ".json",
+    });
+
+    const [openPipelineFileSelector, pipelineFileParams] = useFilePicker({
+        readAs: "Text",
+        multiple: false,
+        accept: ".yml, .yaml",
+    });
+
+    const [openDocInfoFileSelector, docInfoFileParams] = useFilePicker({
+        readAs: "Text",
+        multiple: false,
+        accept: ".txt",
     });
 
     useEffect(
@@ -478,7 +519,7 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
             }
         },
         // eslint-disable-next-line react-hooks/exhaustive-deps
-        [gltfFileContent]
+        [gltfFileContent],
     );
 
     useEffect(() => {
@@ -539,6 +580,85 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
         }
     }, [femResFileParams.loading, femResFileParams.filesContent, femResFileParams.plainFiles, femResFileParams]);
 
+    useEffect(() => {
+        if (
+            !pipelineFileParams.loading &&
+            pipelineFileParams.filesContent.length !== 0 &&
+            pipelineFileParams.plainFiles.length !== 0
+        ) {
+            setLocalPipelineFileLoaded(true);
+            try {
+                const pipelineData = YAML.parse(pipelineFileParams.filesContent[0].content);
+                setDigitalTwinPipelineData(pipelineData);
+                const pipelineFileName = pipelineFileParams.plainFiles[0].name;
+                setPipelineFileName(pipelineFileName);
+                const dateString = (pipelineFileParams.plainFiles[0] as any).lastModified;
+                setPipelineFileLastModifDateString(formatDateString(dateString));
+                setLocalPipelineFileLoaded(false);
+                pipelineFileParams.clear();
+            } catch (e) {
+                console.log(e);
+                toast.error("Invalid pipeline file");
+                setLocalPipelineFileLoaded(false);
+                pipelineFileParams.clear();
+            }
+        }
+    }, [
+        pipelineFileParams.loading,
+        pipelineFileParams.filesContent,
+        pipelineFileParams.plainFiles,
+        pipelineFileParams,
+    ]);
+
+    useEffect(() => {
+        if (
+            !docInfoFileParams.loading &&
+            docInfoFileParams.filesContent.length !== 0 &&
+            docInfoFileParams.plainFiles.length !== 0
+        ) {
+            setLocalDocInfoFileLoaded(true);
+            try {
+                const fileContent = docInfoFileParams.filesContent[0].content;
+                setDocInfoFileData(fileContent);
+                setDocInfoFile(docInfoFileParams.plainFiles[0]);
+                const docInfoFileName = docInfoFileParams.plainFiles[0].name;
+                setDocInfoFileName(docInfoFileName);
+                const dateString = (docInfoFileParams.plainFiles[0] as any).lastModified;
+                setDocInfoFileLastModifDateString(formatDateString(dateString));
+                setLocalDocInfoFileLoaded(false);
+                docInfoFileParams.clear();
+            } catch (e) {
+                console.log(e);
+                toast.error("Invalid document information file");
+                setLocalDocInfoFileLoaded(false);
+                docInfoFileParams.clear();
+            }
+        }
+    }, [docInfoFileParams.loading, docInfoFileParams.filesContent, docInfoFileParams.plainFiles, docInfoFileParams]);
+
+    const submitPipeline = (config: any, groupId: number, digitalTwinId: number) => {
+        const urlUploadPipelineBase = `${protocol}://${domainName}/admin_api/digital_twin_pipeline`;
+        const urlUploadPipeline = `${urlUploadPipelineBase}/${groupId}/${digitalTwinId}`;
+        const pipelineNodes = (digitalTwinPipelineData as any).nodes;
+        for (let inode = 0; inode < pipelineNodes.length; inode++) {
+            pipelineNodes[inode].settings = JSON.stringify(pipelineNodes[inode].settings);
+        }
+        const pipelineData = {
+            pipelineFileName: pipelineFileName,
+            pipelineFileLastModifDate: pipelineFileLastModifDateString,
+            nodes: pipelineNodes,
+        };
+        getAxiosInstance(refreshToken, authDispatch)
+            .post(urlUploadPipeline, pipelineData, config)
+            .then((response: AxiosResponse<any, any>) => {
+                toast.success(response.data.message);
+                refreshDigitalTwins();
+            })
+            .catch((error: AxiosError) => {
+                axiosErrorHandler(error, authDispatch);
+            });
+    };
+
     const onSubmit = (values: any, actions: any) => {
         const groupId = groupsManaged.filter((group) => group.acronym === values.groupAcronym)[0].id;
         const assetName = values.assetName;
@@ -588,7 +708,7 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
                         })
                         .catch((error: AxiosError) => {
                             axiosErrorHandler(error, authDispatch);
-                            backToTable();
+                            // backToTable();
                         });
                 }
 
@@ -603,7 +723,25 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
                         })
                         .catch((error: AxiosError) => {
                             axiosErrorHandler(error, authDispatch);
-                            backToTable();
+                            // backToTable();
+                        });
+                }
+
+                if (Object.keys(digitalTwinPipelineData).length !== 0) {
+                    submitPipeline(configMultipart, groupId, data.digitalTwinId);
+                }
+
+                if (docInfoFileData !== "") {
+                    const docInfoData = new FormData();
+                    docInfoData.append("file", docInfoFile as File, "docInfoFile");
+                    const urlUploadDocInfoFile = `${urlUploadGltfBase}/docInfoFiles/${docInfoFileName}`;
+                    getAxiosInstance(refreshToken, authDispatch)
+                        .post(urlUploadDocInfoFile, docInfoData, configMultipart)
+                        .then((response: AxiosResponse<any, any>) => {
+                            toast.success(response.data.message);
+                        })
+                        .catch((error: AxiosError) => {
+                            axiosErrorHandler(error, authDispatch);
                         });
                 }
             })
@@ -644,7 +782,7 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
                 is: "Gltf 3D model",
                 then: Yup.string()
                     .test("test-name", "Wrong format for the json object", (value: any) =>
-                        digitalTwinFormatValidation(value)
+                        digitalTwinFormatValidation(value),
                     )
                     .required("Must enter Digital twin simulation format"),
             })
@@ -652,7 +790,7 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
                 is: "Glb 3D model",
                 then: Yup.string()
                     .test("test-name", "Wrong format for the json object", (value: any) =>
-                        digitalTwinFormatValidation(value)
+                        digitalTwinFormatValidation(value),
                     )
                     .required("Must enter Digital twin simulation format"),
             }),
@@ -677,11 +815,9 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
         formik.setFieldValue("chatAssistantLanguage", e.value);
     };
 
-
     const clearGltfDataFile = () => {
         setGltfFileName("-");
         setGltfFileLastModif("-");
-        //setDigitalTwinGltfData({});
         setLocalGltfFileLoaded(false);
         gltfFileParams.clear();
         setIsGlftDataReady(false);
@@ -707,6 +843,32 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
         }
     };
 
+    const clearPipelineFile = () => {
+        setPipelineFileName("-");
+        setPipelineFileLastModifDateString("-");
+        setLocalPipelineFileLoaded(false);
+        pipelineFileParams.clear();
+    };
+
+    const clearDocInfoFile = () => {
+        setDocInfoFileName("-");
+        setDocInfoFileLastModifDateString("-");
+        setLocalDocInfoFileLoaded(false);
+        docInfoFileParams.clear();
+    };
+
+    const localPipelineFileButtonHandler = () => {
+        if (!localPipelineFileLoaded) {
+            selectFile(openPipelineFileSelector, pipelineFileParams.clear);
+        }
+    };
+
+    const docInfoFileButtonHandler = () => {
+        if (!localDocInfoFileLoaded) {
+            selectFile(openDocInfoFileSelector, docInfoFileParams.clear);
+        }
+    };
+
     const initialDigitalTwinData = {
         orgAcronym: initOrg.acronym,
         groupAcronym: initGroup.acronym,
@@ -723,10 +885,11 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
     return (
         <>
             <FormTitle isSubmitting={isSubmitting}>Create digital twin</FormTitle>
-            <FormContainer>
+            <DraggableFormContainer>
                 <Formik initialValues={initialDigitalTwinData} validationSchema={validationSchema} onSubmit={onSubmit}>
                     {(formik) => {
                         return (
+                            // @ts-ignore
                             <Form>
                                 <ControlsContainer>
                                     <FormikControl
@@ -764,6 +927,25 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
                                         type="text"
                                     />
                                     <FormikControl control="input" label="Description" name="description" type="text" />
+                                    <DataFileTitle>Pipeline</DataFileTitle>
+                                    <DataFileContainer>
+                                        <FieldContainer>
+                                            <label>File name</label>
+                                            <div>{pipelineFileName}</div>
+                                        </FieldContainer>
+                                        <FieldContainer>
+                                            <label>Last modification date</label>
+                                            <div>{pipelineFileLastModifDateString}</div>
+                                        </FieldContainer>
+                                        <SelectDataFilenButtonContainer>
+                                            <FileButton type="button" onClick={clearPipelineFile}>
+                                                Clear
+                                            </FileButton>
+                                            <FileButton type="button" onClick={() => localPipelineFileButtonHandler()}>
+                                                Select local file
+                                            </FileButton>
+                                        </SelectDataFilenButtonContainer>
+                                    </DataFileContainer>
                                     <FormikControl
                                         control="select"
                                         label="Type"
@@ -824,33 +1006,92 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
                                                     </FileButton>
                                                 </SelectDataFilenButtonContainer>
                                             </DataFileContainer>
-                                            <ChatAssistantTitle>Chat assistant</ChatAssistantTitle>
-                                            <ChatAssistantContainer>
-                                                <FormikControl
-                                                    control="select"
-                                                    label="Use chat assistant"
-                                                    name="chatAssistantEnabled"
-                                                    options={chatAssistantEnabledOptions}
-                                                    type="text"
-                                                    onChange={(e) => onchatAssistantEnabledOptions(e, formik)}
-                                                />
-                                                {isChatAssistantEnabled && (
-                                                    <FormikControl
-                                                        control="select"
-                                                        label="Select chat assistant language"
-                                                        name="chatAssistantLanguage"
-                                                        options={chatAssistantLanguageOptions}
-                                                        type="text"
-                                                        onChange={(e) => onchatAssistantLanguageOptions(e, formik)}
+                                            {orgLlmEnabled && groupLlmEnabled && (
+                                                <>
+                                                    <DataFileTitle>Documental info</DataFileTitle>
+                                                    <DataFileContainer>
+                                                        <FieldContainer>
+                                                            <label>File name</label>
+                                                            <div>{docInfoFileName}</div>
+                                                        </FieldContainer>
+                                                        <FieldContainer>
+                                                            <label>Last modification date</label>
+                                                            <div>{docInfoFileLastModifDateString}</div>
+                                                        </FieldContainer>
+                                                        <SelectDataFilenButtonContainer>
+                                                            <FileButton type="button" onClick={clearDocInfoFile}>
+                                                                Clear
+                                                            </FileButton>
+                                                            <FileButton
+                                                                type="button"
+                                                                onClick={() => docInfoFileButtonHandler()}
+                                                            >
+                                                                Select local file
+                                                            </FileButton>
+                                                        </SelectDataFilenButtonContainer>
+                                                    </DataFileContainer>
+                                                    <ChatAssistantTitle>Chat assistant</ChatAssistantTitle>
+                                                    <ChatAssistantContainer>
+                                                        <FormikControl
+                                                            control="select"
+                                                            label="Use chat assistant"
+                                                            name="chatAssistantEnabled"
+                                                            options={chatAssistantEnabledOptions}
+                                                            type="text"
+                                                            onChange={(e) => onchatAssistantEnabledOptions(e, formik)}
+                                                        />
+                                                        {isChatAssistantEnabled && (
+                                                            <FormikControl
+                                                                control="select"
+                                                                label="Select chat assistant language"
+                                                                name="chatAssistantLanguage"
+                                                                options={chatAssistantLanguageOptions}
+                                                                type="text"
+                                                                onChange={(e) =>
+                                                                    onchatAssistantLanguageOptions(e, formik)
+                                                                }
+                                                            />
+                                                        )}
+                                                    </ChatAssistantContainer>
+                                                </>
+                                            )}
+                                            <CodeMirrorWrapper fontSize="14px">
+                                                <label>Digital twin simulation format</label>
+                                                <div className="cm-wrapper">
+                                                    <CodeMirror
+                                                        value={formik.values.digitalTwinSimulationFormat}
+                                                        height="300px"
+                                                        theme={oneDark}
+                                                        extensions={[
+                                                            json(),
+                                                            indentUnit.of("    "),
+                                                            indentOnInput(),
+                                                            keymap.of([
+                                                                ...completionKeymap,
+                                                                indentWithTab,
+                                                                ReIndentCommand,
+                                                            ]),
+                                                        ]}
+                                                        onChange={(value) => {
+                                                            formik.setFieldValue("digitalTwinSimulationFormat", value);
+                                                        }}
+                                                        onBlur={() => {
+                                                            formik.setFieldTouched("digitalTwinSimulationFormat", true);
+                                                        }}
+                                                        basicSetup={{
+                                                            lineNumbers: true,
+                                                            foldGutter: true,
+                                                            bracketMatching: true,
+                                                            closeBrackets: true,
+                                                            syntaxHighlighting: true,
+                                                            autocompletion: true,
+                                                            tabSize: 4,
+                                                            searchKeymap: true,
+                                                        }}
                                                     />
-                                                )}
-                                            </ChatAssistantContainer>
-                                            <FormikControl
-                                                control="textarea"
-                                                label="Digital twin simulation format"
-                                                name="digitalTwinSimulationFormat"
-                                                textAreaSize="Small"
-                                            />
+                                                </div>
+                                                <FieldErrorScroller name="digitalTwinSimulationFormat" />
+                                            </CodeMirrorWrapper>
                                         </>
                                     )}
                                 </ControlsContainer>
@@ -866,7 +1107,7 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
                         );
                     }}
                 </Formik>
-            </FormContainer>
+            </DraggableFormContainer>
         </>
     );
 };

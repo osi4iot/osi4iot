@@ -1,5 +1,5 @@
 import { Router, NextFunction, Request, Response } from "express";
-import { point, polygon } from '@turf/helpers';
+import { point, polygon } from "@turf/helpers";
 import IController from "../../interfaces/controller.interface";
 import validationMiddleware from "../../middleware/validation.middleware";
 import organizationExists from "../../middleware/organizationExists.middleware";
@@ -24,7 +24,8 @@ import {
 	updateOrgUserRoleInDefaultOrgGroup,
 	organizationsWhichTheLoggedUserIsUser,
 	getOrganizationsWithIdsArray,
-	updateNodeRedInstancesInOrg,
+	getOrganizationsFullInfo,
+	getOrganizationFullInfoByProp,
 } from "./organizationDAL";
 import { encrypt } from "../../utils/encryptAndDecrypt/encryptAndDecrypt";
 import CreateUserDto from "../user/interfaces/User.dto";
@@ -37,7 +38,7 @@ import {
 	isUsersDataCorrect,
 	getOrganizationUsersWithGrafanaAdmin,
 	getOrganizationUsersForOrgIdsArray,
-	getOrganizationUserWithGrafanaAdminByProp
+	getOrganizationUserWithGrafanaAdminByProp,
 } from "../user/userDAL";
 import ItemNotFoundException from "../../exceptions/ItemNotFoundException";
 import IRequestWithOrganizationAndUser from "./interfaces/requestWithOrganizationAndUser.interface";
@@ -55,7 +56,7 @@ import {
 	getGroupsOfOrgIdWhereUserIdIsMember,
 	getOrgsIdArrayForGroupsManagedByUserId,
 	removeMembersInGroup,
-	removeMembersInGroupsArray
+	removeMembersInGroupsArray,
 } from "../group/groupDAL";
 import IMessage from "../../GrafanaApi/interfaces/Message";
 import InvalidPropNameExeception from "../../exceptions/InvalidPropNameExeception";
@@ -71,15 +72,10 @@ import IUser from "../user/interfaces/User.interface";
 import {
 	createDigitalTwin,
 	removeFilesFromBucketFolder,
-	uploadMobilePhoneGltfFile
+	uploadMobilePhoneGltfFile,
 } from "../digitalTwin/digitalTwinDAL";
 import { existsBuildingWithId, getFloorByOrgIdAndFloorNumber } from "../building/buildingDAL";
 import process_env from "../../config/api_config";
-import {
-	assignNodeRedInstanceToGroup,
-	createNodeRedInstancesInOrg,
-	getNodeRedInstancesByOrgsIdArray
-} from "../nodeRedInstance/nodeRedInstanceDAL";
 import { createTimescaledbOrgDataSource } from "../group/datasourceDAL";
 import { createNewAsset, createNewAssetType, getAssetTypeByTypeAndOrgId } from "../asset/assetDAL";
 import { createNewSensorType } from "../sensor/sensorDAL";
@@ -92,6 +88,8 @@ import rhumbDestination from "@turf/rhumb-destination";
 import { findGroupGeojsonData } from "../../utils/geolocation.ts/geolocation";
 import { predefinedAssetTypes } from "../../initialization/predefinedAssetTypes";
 import IAssetType from "../asset/assetType.interface";
+import natsClient from "../../config/natsConfig";
+import asHandler from "../../utils/routeHelpers/asyncRequestHandler";
 
 class OrganizationController implements IController {
 	public path = "/organization";
@@ -106,21 +104,9 @@ class OrganizationController implements IController {
 
 	private initializeRoutes(): void {
 		this.router
-			.get(
-				`${this.path}s/user_managed/`,
-				userAuth,
-				this.getOrganizationsManagedByUser
-			)
-			.get(
-				`${this.path}s/user_groups_managed/`,
-				userAuth,
-				this.getOrganizationsOfGroupsManagedByUser
-			)
-			.get(
-				`/organization_users/user_orgs_managed/`,
-				userAuth,
-				this.getOrganizationsUsersForOrgsManagedByUser
-			)
+			.get(`${this.path}s/user_managed/`, userAuth, this.getOrganizationsManagedByUser)
+			.get(`${this.path}s/user_groups_managed/`, userAuth, this.getOrganizationsOfGroupsManagedByUser)
+			.get(`/organization_users/user_orgs_managed/`, userAuth, this.getOrganizationsUsersForOrgsManagedByUser)
 			.get(
 				`/organization_users/user_groups_managed/`,
 				userAuth,
@@ -138,14 +124,14 @@ class OrganizationController implements IController {
 				organizationExists,
 				organizationAdminAuth,
 				validationMiddleware<CreateUserDto>(CreateUserDto),
-				this.addUserToOrganization
+				asHandler(this.addUserToOrganization)
 			)
 			.post(
 				`${this.path}/:orgId/users/`,
 				organizationExists,
 				organizationAdminAuth,
 				validationMiddleware<CreateUsersArrayDto>(CreateUsersArrayDto),
-				this.addUsersToOrganization
+				asHandler(this.addUsersToOrganization)
 			)
 			.get(
 				`${this.path}/:orgId/user/:propName/:propValue`,
@@ -158,7 +144,7 @@ class OrganizationController implements IController {
 				organizationAdminAuth,
 				organizationExists,
 				validationMiddleware<UserInOrgToUpdateDto>(UserInOrgToUpdateDto, true),
-				this.updateUserInOrganizationByProp
+				asHandler(this.updateUserInOrganizationByProp)
 			)
 			.delete(
 				`${this.path}/:orgId/user/:propName/:propValue`,
@@ -170,25 +156,22 @@ class OrganizationController implements IController {
 				`${this.path}/:orgId/users/:whoToRemove`,
 				organizationExists,
 				organizationAdminAuth,
-				this.removeOrganizationUsers
+				asHandler(this.removeOrganizationUsers)
 			);
 
-		this.router
-			.get(
-				`${this.path}/:orgId/users/`,
-				organizationExists,
-				organizationAdminAuth,
-				this.getOrganizationUsers
-			);
+		this.router.get(
+			`${this.path}/:orgId/users/`,
+			organizationExists,
+			organizationAdminAuth,
+			this.getOrganizationUsers
+		);
 
 		this.router.get(`${this.path}s`, superAdminAuth, this.getAllOrganization);
 
 		this.router
-			.get(
-				`${this.path}/:propName/:propValue`,
-				superAdminAuth,
-				this.getOrganizationByProp
-			)
+			.get(`${this.path}s/full_info/`, superAdminAuth, this.getOrganizationsFullInfo)
+			.get(`${this.path}_full_info/:propName/:propValue`, superAdminAuth, this.getOrganizationFullInfoByProp)
+			.get(`${this.path}/:propName/:propValue`, superAdminAuth, this.getOrganizationFullInfoByProp)
 			.patch(
 				`${this.path}/:propName/:propValue`,
 				superAdminAuth,
@@ -202,7 +185,6 @@ class OrganizationController implements IController {
 				validationMiddleware<CreateOrganizationDto>(CreateOrganizationDto),
 				this.createOrganization
 			);
-
 	}
 
 	private organizationsManagedByUser = async (user: IUser): Promise<IOrganization[]> => {
@@ -213,9 +195,13 @@ class OrganizationController implements IController {
 			organizations = await getOrganizationsManagedByUserId(user.id);
 		}
 		return organizations;
-	}
+	};
 
-	private getOrganizationsManagedByUser = async (req: IRequestWithUser, res: Response, next: NextFunction): Promise<void> => {
+	private getOrganizationsManagedByUser = async (
+		req: IRequestWithUser,
+		res: Response,
+		next: NextFunction
+	): Promise<void> => {
 		try {
 			const organizations = await this.organizationsManagedByUser(req.user);
 			res.status(200).send(organizations);
@@ -224,6 +210,26 @@ class OrganizationController implements IController {
 		}
 	};
 
+	private getOrganizationsFullInfo = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+		try {
+			const organizations = await getOrganizationsFullInfo();
+			res.status(200).send(organizations);
+		} catch (error) {
+			next(error);
+		}
+	};
+
+	private getOrganizationFullInfoByProp = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+		try {
+			const { propName, propValue } = req.params;
+			if (!this.isValidOrganizationPropName(propName)) throw new InvalidPropNameExeception(req, res, propName);
+			const organization = await getOrganizationFullInfoByProp(propName, propValue);
+			if (!organization) throw new ItemNotFoundException(req, res, "The organization", propName, propValue);
+			res.status(200).send(organization);
+		} catch (error) {
+			next(error);
+		}
+	};
 
 	private organizationsOfGroupsManagedByUser = async (user: IUser): Promise<IOrganization[]> => {
 		let organizations: IOrganization[];
@@ -233,23 +239,27 @@ class OrganizationController implements IController {
 			let orgsManagedIdArray: number[] = [];
 			organizations = await getOrganizationsManagedByUserId(user.id);
 			if (organizations.length !== 0) {
-				orgsManagedIdArray = organizations.map(org => org.id);
+				orgsManagedIdArray = organizations.map((org) => org.id);
 			}
 			const groups = await getGroupsManagedByUserId(user.id);
 			if (groups.length !== 0) {
-				const orgIdsArray = groups.map(group => group.orgId);
-				const orgsOfGroupsManaged = await getOrganizationsWithIdsArray(orgIdsArray)
-				orgsOfGroupsManaged.forEach(org => {
+				const orgIdsArray = groups.map((group) => group.orgId);
+				const orgsOfGroupsManaged = await getOrganizationsWithIdsArray(orgIdsArray);
+				orgsOfGroupsManaged.forEach((org) => {
 					if (orgsManagedIdArray.indexOf(org.id) === -1) {
 						organizations.push(org);
 					}
-				})
+				});
 			}
 		}
 		return organizations;
-	}
+	};
 
-	private getOrganizationsOfGroupsManagedByUser = async (req: IRequestWithUser, res: Response, next: NextFunction): Promise<void> => {
+	private getOrganizationsOfGroupsManagedByUser = async (
+		req: IRequestWithUser,
+		res: Response,
+		next: NextFunction
+	): Promise<void> => {
 		try {
 			const organizations = await this.organizationsOfGroupsManagedByUser(req.user);
 			res.status(200).send(organizations);
@@ -258,12 +268,16 @@ class OrganizationController implements IController {
 		}
 	};
 
-	private getOrganizationsUsersForOrgsManagedByUser = async (req: IRequestWithUser, res: Response, next: NextFunction): Promise<void> => {
+	private getOrganizationsUsersForOrgsManagedByUser = async (
+		req: IRequestWithUser,
+		res: Response,
+		next: NextFunction
+	): Promise<void> => {
 		try {
 			const organizations = await this.organizationsManagedByUser(req.user);
-			const orgIdsArray = organizations.map(org => org.id);
+			const orgIdsArray = organizations.map((org) => org.id);
 			const orgUsers = await getOrganizationUsersForOrgIdsArray(orgIdsArray);
-			orgUsers.forEach(user => {
+			orgUsers.forEach((user) => {
 				user.lastSeenAtAge = generateLastSeenAtAgeString(user.lastSeenAtAge);
 			});
 			res.status(200).send(orgUsers);
@@ -272,15 +286,19 @@ class OrganizationController implements IController {
 		}
 	};
 
-	private getOrganizationsUsersForOrgsWithGroupsManagedByUser = async (req: IRequestWithUser, res: Response, next: NextFunction): Promise<void> => {
+	private getOrganizationsUsersForOrgsWithGroupsManagedByUser = async (
+		req: IRequestWithUser,
+		res: Response,
+		next: NextFunction
+	): Promise<void> => {
 		try {
 			const organizations = await this.organizationsManagedByUser(req.user);
-			const orgIdsArrayForOrgsAdmin = organizations.map(org => org.id);
+			const orgIdsArrayForOrgsAdmin = organizations.map((org) => org.id);
 			const orgsArrayForGroupsManagedByUser = await getOrgsIdArrayForGroupsManagedByUserId(req.user.id);
-			const orgsIdArrayForGroupsManagedByUser = orgsArrayForGroupsManagedByUser.map(item => item.orgId);
+			const orgsIdArrayForGroupsManagedByUser = orgsArrayForGroupsManagedByUser.map((item) => item.orgId);
 			const orgIdsArray = [...new Set([...orgIdsArrayForOrgsAdmin, ...orgsIdArrayForGroupsManagedByUser])];
 			const orgUsers = await getOrganizationUsersForOrgIdsArray(orgIdsArray);
-			orgUsers.forEach(user => {
+			orgUsers.forEach((user) => {
 				user.lastSeenAtAge = generateLastSeenAtAgeString(user.lastSeenAtAge);
 			});
 			res.status(200).send(orgUsers);
@@ -289,7 +307,11 @@ class OrganizationController implements IController {
 		}
 	};
 
-	private getOrganizationsWhichTheLoggedUserIsUser = async (req: IRequestWithUser, res: Response, next: NextFunction): Promise<void> => {
+	private getOrganizationsWhichTheLoggedUserIsUser = async (
+		req: IRequestWithUser,
+		res: Response,
+		next: NextFunction
+	): Promise<void> => {
 		try {
 			const organizations = await organizationsWhichTheLoggedUserIsUser(req.user.id);
 			res.status(200).send(organizations);
@@ -302,16 +324,29 @@ class OrganizationController implements IController {
 		try {
 			const organizationData: CreateOrganizationDto = req.body;
 			organizationData.acronym = organizationData.acronym.replace(/ /g, "_").toUpperCase();
+			organizationData.orgHash = nanoid(20).replace(/-/g, "x").replace(/_/g, "X");
 			const orgGrafanaDTO: IOrganizationGrafanaDTO = { name: organizationData.name };
 			const exits_OrganizationWithName = await exitsOrganizationWithName(organizationData.name);
 			const exits_OrganizationWithAcronym = await exitsOrganizationWithAcronym(organizationData.acronym);
 			if (exits_OrganizationWithName || exits_OrganizationWithAcronym) {
-				if (exits_OrganizationWithName) throw new AlreadyExistingItemException(
-					req, res, "An", "Organization", ["name"], [organizationData.name]
-				);
-				if (exits_OrganizationWithAcronym) throw new AlreadyExistingItemException(
-					req, res, "An", "Organization", ["acronym"], [organizationData.acronym]
-				);
+				if (exits_OrganizationWithName)
+					throw new AlreadyExistingItemException(
+						req,
+						res,
+						"An",
+						"Organization",
+						["name"],
+						[organizationData.name]
+					);
+				if (exits_OrganizationWithAcronym)
+					throw new AlreadyExistingItemException(
+						req,
+						res,
+						"An",
+						"Organization",
+						["acronym"],
+						[organizationData.acronym]
+					);
 			} else {
 				if (!(await isUsersDataCorrect(organizationData.orgAdminArray)))
 					throw new HttpException(
@@ -319,20 +354,27 @@ class OrganizationController implements IController {
 						res,
 						400,
 						"The same values of name, login and email of some user already exists."
-					)
+					);
 				if (!(await existsBuildingWithId(organizationData.buildingId))) {
-					throw new HttpException(
-						req,
-						res,
-						400,
-						"There is no building with the indicated buildingId"
-					)
+					throw new HttpException(req, res, 400, "There is no building with the indicated buildingId");
 				}
 				const newOrg = await this.grafanaRepository.createOrganization(orgGrafanaDTO);
 				const orgId = newOrg.orgId;
+
+				// await natsClient.jsPublish("org", "create", orgId);
 				await grafanaApi.createOrgApiAdminUser(orgId);
-				await updateOrganizationByProp("id", orgId, organizationData);
-				const apyKeyName = `ApiKey_${organizationData.acronym.replace(/"/g, "")}`
+				if (organizationData.llmEnabled && organizationData.llmProviderApiKey !== "") {
+					const hashedLlmProviderApiKey = encrypt(organizationData.llmProviderApiKey);
+					organizationData.hashedLlmProviderApiKey = hashedLlmProviderApiKey;
+				}
+				if (organizationData.telegramEnabled && organizationData.telegramBotToken !== "") {
+					const hashedTelegramBotToken = encrypt(organizationData.telegramBotToken);
+					organizationData.hashedTelegramBotToken = hashedTelegramBotToken;
+					const telegramWebhookSecretToken = nanoid(20).replace(/-/g, "x").replace(/_/g, "X");
+					organizationData.hashedTelegramWebhookSecretToken = encrypt(telegramWebhookSecretToken);
+				}
+				await updateOrganizationByProp("id", orgId, organizationData, "create");
+				const apyKeyName = `ApiKey_${organizationData.acronym.replace(/"/g, "")}`;
 				const apiKeyData = { name: apyKeyName, role: "Admin" };
 				await grafanaApi.switchOrgContextForAdmin(orgId);
 				const apiKeyObj = await grafanaApi.createApiKeyToken(apiKeyData);
@@ -343,7 +385,9 @@ class OrganizationController implements IController {
 				await createTimescaledbOrgDataSource(orgId, apiKeyObj.key);
 				const groupAdminDataArray: CreateGroupAdminDto[] = [];
 				const platformAdminEmail = process_env.PLATFORM_ADMIN_EMAIL;
-				const orgAdminArrayFiltered = organizationData.orgAdminArray.filter(orgAdmin => orgAdmin.email === platformAdminEmail);
+				const orgAdminArrayFiltered = organizationData.orgAdminArray.filter(
+					(orgAdmin) => orgAdmin.email === platformAdminEmail
+				);
 				if (orgAdminArrayFiltered.length === 0) {
 					organizationData.orgAdminArray.push({
 						name: `${process_env.PLATFORM_ADMIN_FIRST_NAME} ${process_env.PLATFORM_ADMIN_SURNAME}`,
@@ -354,39 +398,40 @@ class OrganizationController implements IController {
 						password: process_env.PLATFORM_ADMIN_PASSWORD,
 					});
 				}
-				organizationData.orgAdminArray.forEach(user => {
-					groupAdminDataArray.push(
-						{
-							firstName: user.firstName,
-							surname: user.surname,
-							email: user.email,
-							roleInGroup: ("Admin" as RoleInGroupOption)
-						})
+				organizationData.orgAdminArray.forEach((user) => {
+					groupAdminDataArray.push({
+						firstName: user.firstName,
+						surname: user.surname,
+						email: user.email,
+						roleInGroup: "Admin" as RoleInGroupOption,
+					});
 				});
 				const groupName = defaultOrgGroupName(organizationData.name, organizationData.acronym);
-				const defaultOrgGroupAcronym = `${organizationData.acronym.replace(/ /g, "_").replace(/"/g, "").toUpperCase()}_GRAL`;
+				const defaultOrgGroupAcronym = `${organizationData.acronym
+					.replace(/ /g, "_")
+					.replace(/"/g, "")
+					.toUpperCase()}_GRAL`;
 				const defaultOrgGroup = {
 					name: groupName,
 					acronym: defaultOrgGroupAcronym,
-					email: `${organizationData.acronym.replace(/ /g, "_").replace(/"/g, "").toLocaleLowerCase()}_general@test.com`,
-					telegramChatId: organizationData.telegramChatId,
-					telegramInvitationLink: organizationData.telegramInvitationLink,
-					folderPermission: ("Viewer" as FolderPermissionOption),
+					email: `${organizationData.acronym
+						.replace(/ /g, "_")
+						.replace(/"/g, "")
+						.toLocaleLowerCase()}_general@test.com`,
+					telegramChatId: "-111",
+					telegramInvitationLink: "http://a.com",
+					folderPermission: "Viewer" as FolderPermissionOption,
 					groupAdminDataArray,
 					floorNumber: 0,
 					featureIndex: 1,
-					mqttAccessControl: "Pub & Sub"
-				}
+					mqttAccessControl: "Pub & Sub",
+					llmEnabled: false,
+				};
 				const adminIdArray = await addAdminToOrganization(orgId, organizationData.orgAdminArray);
-				defaultOrgGroup.groupAdminDataArray.forEach((admin, index) => admin.userId = adminIdArray[index]);
+				defaultOrgGroup.groupAdminDataArray.forEach((admin, index) => (admin.userId = adminIdArray[index]));
 				const group = await createGroup(orgId, defaultOrgGroup, organizationData.name, true);
 				await addOrgUsersToDefaultOrgGroup(orgId, organizationData.orgAdminArray);
-				await createHomeDashboard(
-					orgId,
-					organizationData.acronym,
-					organizationData.name,
-					group.folderId
-				);
+				await createHomeDashboard(orgId, organizationData.acronym, organizationData.name, group.folderId);
 
 				const floorData = await getFloorByOrgIdAndFloorNumber(orgId, group.floorNumber);
 				const geoJsonDataString = findGroupGeojsonData(floorData, group.featureIndex);
@@ -395,8 +440,6 @@ class OrganizationController implements IController {
 				let centerGroupAreaLatitude = 0.0;
 				let assetLongitude = 0.0;
 				let assetLatitude = 0.0;
-				let nriLongitude = 0.0;
-				let nriLatitude = 0.0;
 				if (geojsonObj.features) {
 					const geoPolygon = polygon(geojsonObj.features[0].geometry.coordinates);
 					const center = pointOnFeature(geoPolygon);
@@ -406,18 +449,7 @@ class OrganizationController implements IController {
 					const ptAsset = rhumbDestination(ptCenterGroupArea, 0.001, 180);
 					assetLongitude = ptAsset.geometry.coordinates[0];
 					assetLatitude = ptAsset.geometry.coordinates[1];
-					const ptNri = rhumbDestination(ptCenterGroupArea, 0.002, 0.0);
-					nriLongitude = ptNri.geometry.coordinates[0];
-					nriLatitude = ptNri.geometry.coordinates[1];
 				}
-
-				const noredInstances = await createNodeRedInstancesInOrg(
-					organizationData.nriHashes,
-					orgId,
-					nriLongitude,
-					nriLatitude
-				);
-				await assignNodeRedInstanceToGroup(noredInstances[0], group.id);
 
 				const sensorTypes: ISensorType[] = [];
 				for (const sensorType of predefinedSensorTypes) {
@@ -431,8 +463,8 @@ class OrganizationController implements IController {
 						defaultPayloadJsonSchema: JSON.stringify(sensorType.defaultPayloadJsonSchema),
 						isPredefined: true,
 						dashboardRefreshString: sensorType.dashboardRefreshString,
-						dashboardTimeWindow: sensorType.dashboardTimeWindow
-					}
+						dashboardTimeWindow: sensorType.dashboardTimeWindow,
+					};
 					const newSensorType = await createNewSensorType(defaultSensorTypeData);
 					sensorTypes.push(newSensorType);
 				}
@@ -448,7 +480,7 @@ class OrganizationController implements IController {
 						markerSvgString: assetType.markerSvgString,
 						assetStateFormat: "{}",
 						isPredefined: true,
-					}
+					};
 					await createNewAssetType(defaultAssetTypeData);
 				}
 
@@ -512,7 +544,17 @@ class OrganizationController implements IController {
 							requireS3Storage: false,
 							s3Folder: "",
 							parquetSchema: "{}",
-						}
+						},
+						{
+							topicRef: "dev2pdb_6",
+							topicType: "dev2dtm",
+							description: `Mobile video topic`,
+							mqttAccessControl: "Pub & Sub",
+							payloadJsonSchema: JSON.stringify(predefinedSensorTypes[5].defaultPayloadJsonSchema),
+							requireS3Storage: false,
+							s3Folder: "",
+							parquetSchema: "{}",
+						},
 					],
 					sensorsRef: [
 						{
@@ -549,9 +591,16 @@ class OrganizationController implements IController {
 							topicRef: "dev2pdb_5",
 							description: `Mobile photo`,
 							payloadJsonSchema: JSON.stringify(predefinedSensorTypes[4].defaultPayloadJsonSchema),
-						}
-					]
-				}
+						},
+						{
+							sensorRef: "sensor_6",
+							sensorType: "Mobile video",
+							topicRef: "dev2pdb_6",
+							description: `Mobile video`,
+							payloadJsonSchema: JSON.stringify(predefinedSensorTypes[5].defaultPayloadJsonSchema),
+						},
+					],
+				};
 				const asset = await createNewAsset(group, defaultAssetData);
 
 				const digitalTwinData = {
@@ -563,14 +612,17 @@ class OrganizationController implements IController {
 					chatAssistantEnabled: false,
 					chatAssistantLanguage: "none",
 					digitalTwinSimulationFormat: "{}",
-					sensorsRef: ["sensor_3"]
-				}
+					sensorsRef: ["sensor_3"],
+					pipelineFileName: "-",
+					pipelineFileLastModifDate: "-",
+					pipelineFileData: "",
+				};
 				const digitalTwin = await createDigitalTwin(group, asset, digitalTwinData);
-				const keyBase = `org_${orgId}/group_${group.id}/digitalTwin_${digitalTwin.id}`;
-				const gltfFileName = `${keyBase}/gltfFile/mobile_phone.gltf`
+				const keyBase = `org_data/org_${orgId}/group_${group.id}/digitalTwin_${digitalTwin.id}`;
+				const gltfFileName = `${keyBase}/gltfFile/mobile_phone.gltf`;
 				await uploadMobilePhoneGltfFile(gltfFileName);
 			}
-			const message = { message: "Organization created successfully" }
+			const message = { message: "Organization created successfully" };
 			infoLogger(req, res, 200, message.message);
 			res.status(201).send(message);
 		} catch (error) {
@@ -594,7 +646,7 @@ class OrganizationController implements IController {
 					res,
 					400,
 					"The same values of name, login and email of some of the users is already taken."
-				)
+				);
 			let user_msg: IMessage;
 			if (!orgUserData.roleInOrg) orgUserData.roleInOrg = "Viewer";
 			else {
@@ -635,7 +687,7 @@ class OrganizationController implements IController {
 			const { organization } = req;
 			const orgUsersData: CreateUserDto[] = req.body.users;
 			orgUsersData.forEach((user: CreateUserDto) => {
-				user.OrgId = organization.id
+				user.OrgId = organization.id;
 				if (!user.roleInOrg) user.roleInOrg = "Viewer";
 				else {
 					if (!req.user.isGrafanaAdmin && user.roleInOrg === "Admin") {
@@ -649,17 +701,17 @@ class OrganizationController implements IController {
 				}
 			});
 
-			const usersIdArray = await getUsersIdByEmailsArray(orgUsersData.map(user => user.email));
-			const emailsArray = usersIdArray.map(user => user.email);
+			const usersIdArray = await getUsersIdByEmailsArray(orgUsersData.map((user) => user.email));
+			const emailsArray = usersIdArray.map((user) => user.email);
 			const existingUserArray: CreateUserDto[] = [];
-			orgUsersData.forEach(orgUser => {
+			orgUsersData.forEach((orgUser) => {
 				const orgIndex = emailsArray.indexOf(orgUser.email);
 				if (orgIndex !== -1) {
 					orgUser.id = usersIdArray[orgIndex].id;
 					existingUserArray.push(orgUser);
 				}
-			})
-			const nonExistingUserArray = orgUsersData.filter(user => emailsArray.indexOf(user.email) === -1);
+			});
+			const nonExistingUserArray = orgUsersData.filter((user) => emailsArray.indexOf(user.email) === -1);
 
 			let numUsersCreated = 0;
 			let numUsersAddedToOrg = 0;
@@ -671,17 +723,17 @@ class OrganizationController implements IController {
 						res,
 						400,
 						"The same values of name, login and email of some of the users is already taken."
-					)
+					);
 				const msg_users = await createOrganizationUsers(orgId, nonExistingUserArray);
-				msg_users.forEach((msg, index) => nonExistingUserArray[index].id = msg.id);
+				msg_users.forEach((msg, index) => (nonExistingUserArray[index].id = msg.id));
 				await addOrgUsersToDefaultOrgGroup(organization.id, nonExistingUserArray);
-				numUsersCreated = msg_users.filter(msg => msg.message === "User created").length;
+				numUsersCreated = msg_users.filter((msg) => msg.message === "User created").length;
 				numUsersAddedToOrg = numUsersCreated;
 			}
 
 			if (existingUserArray.length !== 0) {
 				const msg_users = await addUsersToOrganizationAndMembersToDefaultOrgGroup(orgId, existingUserArray);
-				numUsersAddedToOrg += msg_users.filter(msg => msg.message === "User added to organization").length;
+				numUsersAddedToOrg += msg_users.filter((msg) => msg.message === "User added to organization").length;
 			}
 			const message = `${numUsersAddedToOrg} users added to org and ${numUsersCreated} new users created`;
 			res.status(200).send({ message });
@@ -702,20 +754,10 @@ class OrganizationController implements IController {
 			const user = await getOrganizationUserByProp(organization.id, propName, propValue);
 			if (!user) throw new ItemNotFoundException(req, res, "The user", propName, propValue);
 			if (user.isGrafanaAdmin) {
-				throw new HttpException(
-					req,
-					res,
-					403,
-					"A platform administrator user cannot be removed from an org."
-				)
+				throw new HttpException(req, res, 403, "A platform administrator user cannot be removed from an org.");
 			}
 			if (user.login.slice(-9) === "api_admin") {
-				throw new HttpException(
-					req,
-					res,
-					403,
-					"An api admin user can not be removed from the org."
-				)
+				throw new HttpException(req, res, 403, "An api admin user can not be removed from the org.");
 			}
 			const groupsArray = await getGroupsOfOrgIdWhereUserIdIsMember(organization.id, user.userId);
 			if (groupsArray.length !== 0) {
@@ -723,7 +765,7 @@ class OrganizationController implements IController {
 				await removeMembersInGroupsArray(groupsArray, [groupMember]);
 			}
 			await grafanaApi.removeUserFromOrganization(organization.id, user.userId);
-			const message = { message: `User removed from the organization` }
+			const message = { message: `User removed from the organization` };
 			res.status(200).json(message);
 		} catch (error) {
 			next(error);
@@ -754,9 +796,9 @@ class OrganizationController implements IController {
 					const groupMembers = await getGroupMembers(group);
 					let groupMembersToRemove: IGroupMember[] = [];
 					if (whoToRemove === "allUsers" || whoToRemove === "allNotOrgAdminUsers") {
-						groupMembersToRemove = [...groupMembers]
+						groupMembersToRemove = [...groupMembers];
 					} else {
-						groupMembers.filter(member => member.roleInGroup !== "Admin");
+						groupMembers.filter((member) => member.roleInGroup !== "Admin");
 					}
 					await removeMembersInGroup(group, groupMembersToRemove);
 				}
@@ -764,12 +806,12 @@ class OrganizationController implements IController {
 
 			let usersIdArray: number[];
 			if (whoToRemove === "allUsers") {
-				usersIdArray = usersArray.filter(user => !user.isGrafanaAdmin).map(user => user.userId);
+				usersIdArray = usersArray.filter((user) => !user.isGrafanaAdmin).map((user) => user.userId);
 			} else {
-				usersIdArray = usersArray.filter(user => user.roleInOrg !== "Admin").map(user => user.userId);
+				usersIdArray = usersArray.filter((user) => user.roleInOrg !== "Admin").map((user) => user.userId);
 			}
 			await grafanaApi.removeUsersFromOrganization(organization.id, usersIdArray);
-			const message = { message: `Users removed from the organization` }
+			const message = { message: `Users removed from the organization` };
 			res.status(200).json(message);
 		} catch (error) {
 			next(error);
@@ -785,7 +827,11 @@ class OrganizationController implements IController {
 			const { organization } = req;
 			const { propName, propValue } = req.params;
 			if (!this.isValidUserPropName(propName)) throw new InvalidPropNameExeception(req, res, propName);
-			const existUserInOrg = await getOrganizationUserWithGrafanaAdminByProp(organization.id, propName, propValue);
+			const existUserInOrg = await getOrganizationUserWithGrafanaAdminByProp(
+				organization.id,
+				propName,
+				propValue
+			);
 			if (!existUserInOrg) throw new ItemNotFoundException(req, res, "The user", propName, propValue);
 			const userInOrgData: UserInOrgToUpdateDto = req.body;
 			if (userInOrgData.roleInOrg) {
@@ -806,11 +852,15 @@ class OrganizationController implements IController {
 					);
 				}
 				if (userInOrgData.roleInOrg !== existUserInOrg.roleInOrg) {
-					await grafanaApi.changeUserRoleInOrganization(organization.id, existUserInOrg.userId, userInOrgData.roleInOrg);
+					await grafanaApi.changeUserRoleInOrganization(
+						organization.id,
+						existUserInOrg.userId,
+						userInOrgData.roleInOrg
+					);
 					await updateOrgUserRoleInDefaultOrgGroup(organization.id, existUserInOrg, userInOrgData.roleInOrg);
 				}
 			}
-			const message = { message: `User role in org updated succesfully.` }
+			const message = { message: `User role in org updated succesfully.` };
 			infoLogger(req, res, 200, message.message);
 			res.status(200).send(message);
 		} catch (error) {
@@ -844,7 +894,7 @@ class OrganizationController implements IController {
 		try {
 			const { organization } = req;
 			const users = await getOrganizationUsers(organization.id);
-			users.forEach(user => {
+			users.forEach((user) => {
 				user.lastSeenAtAge = generateLastSeenAtAgeString(user.lastSeenAtAge);
 			});
 			res.status(200).json(users);
@@ -862,28 +912,39 @@ class OrganizationController implements IController {
 		}
 	};
 
-	private getOrganizationByProp = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-		try {
-			const { propName, propValue } = req.params;
-			if (!this.isValidOrganizationPropName(propName)) throw new InvalidPropNameExeception(req, res, propName);
-			const organization = await getOrganizationByProp(propName, propValue);
-			if (!organization) throw new ItemNotFoundException(req, res, "The organization", propName, propValue);
-			res.status(200).send(organization);
-		} catch (error) {
-			next(error);
-		}
-	};
-
 	private modifyOrganizationByProp = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
 		try {
 			const { propName, propValue } = req.params;
 			if (!this.isValidOrganizationPropName(propName)) throw new InvalidPropNameExeception(req, res, propName);
 			const orgDataToUpdate: UpdateOrganizationDto = req.body;
-			const oldOrganizationData = await getOrganizationByProp(propName, propValue);
-			if (!oldOrganizationData) throw new ItemNotFoundException(req, res, "The organization", propName, propValue);
+			const oldOrganizationData = await getOrganizationFullInfoByProp(propName, propValue);
+			if (!oldOrganizationData)
+				throw new ItemNotFoundException(req, res, "The organization", propName, propValue);
+			if (oldOrganizationData.role === "Main" && orgDataToUpdate.role && orgDataToUpdate.role !== "Main") {
+				throw new HttpException(req, res, 400, "The role of the main organization cannot be modified.");
+			}
 			const newOrganizationData = { ...oldOrganizationData, ...orgDataToUpdate };
-			const currentNodeRedInstanceInOrg = await getNodeRedInstancesByOrgsIdArray([oldOrganizationData.id]);
-			await updateNodeRedInstancesInOrg(currentNodeRedInstanceInOrg, newOrganizationData);
+			if (orgDataToUpdate.llmEnabled) {
+				if (orgDataToUpdate.changeLlmProviderApiKey) {
+					const hashedLlmProviderApiKey = encrypt(orgDataToUpdate.llmProviderApiKey);
+					newOrganizationData.hashedLlmProviderApiKey = hashedLlmProviderApiKey;
+				} else {
+					newOrganizationData.hashedLlmProviderApiKey = oldOrganizationData.hashedLlmProviderApiKey;
+				}
+			}
+
+			if (orgDataToUpdate.telegramEnabled) {
+				if (orgDataToUpdate.changeTelegramSettings) {
+					const hashedTelegramBotToken = encrypt(orgDataToUpdate.telegramBotToken);
+					newOrganizationData.hashedTelegramBotToken = hashedTelegramBotToken;
+					const telegramWebhookSecretToken = nanoid(20).replace(/-/g, "x").replace(/_/g, "X");
+					newOrganizationData.hashedTelegramWebhookSecretToken = encrypt(telegramWebhookSecretToken);
+				} else {
+					newOrganizationData.hashedTelegramBotToken = oldOrganizationData.hashedTelegramBotToken;
+					newOrganizationData.hashedTelegramWebhookSecretToken =
+						oldOrganizationData.hashedTelegramWebhookSecretToken;
+				}
+			}
 			await updateOrganizationByProp(propName, propValue, newOrganizationData);
 			res.status(200).json({ message: `Organization updated successfully` });
 		} catch (error) {
@@ -897,26 +958,17 @@ class OrganizationController implements IController {
 			if (!this.isValidOrganizationPropName(propName)) throw new InvalidPropNameExeception(req, res, propName);
 			const organization = await getOrganizationByProp(propName, propValue);
 			if (!organization) throw new ItemNotFoundException(req, res, "The Organization", propName, propValue);
-			if (organization.id === 1) throw new HttpException(
-				req,
-				res,
-				400,
-				"Main organization can not be deleted"
-			);
+			if (organization.id === 1) throw new HttpException(req, res, 400, "Main organization can not be deleted");
 			await grafanaApi.switchOrgContextForAdmin(1);
 			await grafanaApi.deleteOrgApiAdminUser(organization.id);
 			const deleteOrgMessage = await grafanaApi.deleteOrganizationById(organization.id);
+			await natsClient.jsPublish("org", "delete", organization.id);
 			const bucketFolder = `org_${organization.id}`;
 			await removeFilesFromBucketFolder(bucketFolder);
 			if (deleteOrgMessage.message === "Organization deleted") {
 				res.status(200).json({ message: `Organization deleted successfully` });
 			} else {
-				throw new HttpException(
-					req,
-					res,
-					400,
-					`Organization with id=${organization.id} could not be deleted`
-				);
+				throw new HttpException(req, res, 400, `Organization with id=${organization.id} could not be deleted`);
 			}
 		} catch (error) {
 			next(error);
@@ -926,17 +978,17 @@ class OrganizationController implements IController {
 	private isValidOrganizationPropName = (propName: string) => {
 		const validPropName = ["id", "name", "acronym"];
 		return validPropName.indexOf(propName) !== -1;
-	}
+	};
 
 	private isValidUserPropName = (propName: string) => {
 		const validPropName = ["id", "login", "email"];
 		return validPropName.indexOf(propName) !== -1;
-	}
+	};
 
 	private isValidWhoToRemove = (whoToRemove: string) => {
 		const validWhoToRemove = ["allUsers", "allNotOrgAdminUsers", "allNotGroupsAdminUsers"];
 		return validWhoToRemove.indexOf(whoToRemove) !== -1;
-	}
+	};
 }
 
 export default OrganizationController;

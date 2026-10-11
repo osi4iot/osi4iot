@@ -1,0 +1,4 @@
+.dockerignore
+Dockerfile
+build_image.sh
+config.env

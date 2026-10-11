@@ -1,11 +1,7 @@
 import { Router, NextFunction, Request, Response } from "express";
 import IController from "../../interfaces/controller.interface";
 import validationMiddleware from "../../middleware/validation.middleware";
-import {
-	groupAdminAuth,
-	organizationAdminAuth,
-	userAuth
-} from "../../middleware/auth.middleware";
+import { groupAdminAuth, organizationAdminAuth, userAuth } from "../../middleware/auth.middleware";
 import ItemNotFoundException from "../../exceptions/ItemNotFoundException";
 import InvalidPropNameExeception from "../../exceptions/InvalidPropNameExeception";
 import groupExists from "../../middleware/groupExists.middleware";
@@ -20,21 +16,17 @@ import {
 	deleteAssetByPropName,
 	deleteAssetTopics,
 	deleteAssetTypeByPropName,
-	generateZipFileStream,
-	getAllAssetS3Folder,
 	getAllAssetTopics,
 	getAllAssetTypes,
 	getAllAssets,
 	getAssetByPropName,
-	getAssetS3FolderByGroupsIdArray,
-	getAssetS3StorageYears,
 	getAssetTopicsByGroupsIdArray,
+	getAssetTopicsUsingAssetId,
 	getAssetTypeByPropName,
 	getAssetTypesByOrgId,
 	getAssetTypesByOrgsIdArray,
 	getAssetsByGroupsIdArray,
 	getAssetsByOrgId,
-	getBucketFolderFileNames,
 	updateAssetByPropName,
 	updateAssetTypeByPropName,
 } from "./assetDAL";
@@ -49,13 +41,8 @@ import { deleteDashboard, deleteDashboardsByIdArray } from "../group/dashboardDA
 import CreateAssetTypeDto from "./assetType.dto";
 import IAssetType from "./assetType.interface";
 import HttpException from "../../exceptions/HttpException";
-import process_env from "../../config/api_config";
-import IAssetS3Folder from "./assetS3Folder.interface";
-import IRequestWithUserAndGroup from "../group/interfaces/requestWithUserAndGroup.interface";
-import { generateS3StorageToken, isS3StorageTokenValid } from "../../utils/s3StorageToken";
 import IAssetTopic from "./assetTopic.interface";
 import { deleteTopicsOfDT, getDigitalTwinByProp } from "../digitalTwin/digitalTwinDAL";
-
 
 class AssetController implements IController {
 	public path = "/asset";
@@ -68,11 +55,7 @@ class AssetController implements IController {
 
 	private initializeRoutes(): void {
 		this.router
-			.get(
-				`${this.path}_types/user_managed/`,
-				userAuth,
-				this.getAssetTypesManagedByUser
-			)
+			.get(`${this.path}_types/user_managed/`, userAuth, this.getAssetTypesManagedByUser)
 			.get(
 				`${this.path}_types_in_org/:orgId/`,
 				organizationAdminAuth,
@@ -104,38 +87,14 @@ class AssetController implements IController {
 				organizationExists,
 				validationMiddleware<CreateAssetTypeDto>(CreateAssetTypeDto),
 				this.createAssetType
-			)
+			);
 
 		this.router
-			.get(
-				`${this.path}s/user_managed/`,
-				userAuth,
-				this.getAssetsManagedByUser
-			)
-			.get(
-				`${this.path}s_in_org/:orgId/`,
-				organizationAdminAuth,
-				organizationExists,
-				this.getAssetsInOrg
-			)
-			.get(
-				`${this.path}s_in_group/:groupId`,
-				groupExists,
-				groupAdminAuth,
-				this.getAssetsInGroup
-			)
-			.get(
-				`${this.path}/:groupId/:propName/:propValue`,
-				groupExists,
-				groupAdminAuth,
-				this.getAssetByProp
-			)
-			.delete(
-				`${this.path}/:groupId/:propName/:propValue`,
-				groupExists,
-				groupAdminAuth,
-				this.deleteAssetByProp
-			)
+			.get(`${this.path}s/user_managed/`, userAuth, this.getAssetsManagedByUser)
+			.get(`${this.path}s_in_org/:orgId/`, organizationAdminAuth, organizationExists, this.getAssetsInOrg)
+			.get(`${this.path}s_in_group/:groupId`, groupExists, groupAdminAuth, this.getAssetsInGroup)
+			.get(`${this.path}/:groupId/:propName/:propValue`, groupExists, groupAdminAuth, this.getAssetByProp)
+			.delete(`${this.path}/:groupId/:propName/:propValue`, groupExists, groupAdminAuth, this.deleteAssetByProp)
 			.patch(
 				`${this.path}/:groupId/:propName/:propValue`,
 				groupExists,
@@ -149,32 +108,16 @@ class AssetController implements IController {
 				groupAdminAuth,
 				validationMiddleware<CreateAssetDto>(CreateAssetDto),
 				this.createAsset
-			)
+			);
 
 		this.router
+			.get(`${this.path}_topics/user_managed/`, userAuth, this.getAssetTopicsManagedByUser)
 			.get(
-				`${this.path}_topics/user_managed/`,
-				userAuth,
-				this.getAssetTopicsManagedByUser
-			)
-
-		this.router
-			.get(
-				`${this.path}_s3_folders/user_managed/`,
-				userAuth,
-				this.getAssetS3FoldersManagedByUser
-			)
-			.get(
-				`${this.path}_s3_storage_token/:groupId/:assetId/:s3Folder/:year`,
+				`${this.path}_topics/:groupId/:assetId`,
 				groupExists,
 				groupAdminAuth,
-				this.getAssetS3StorageToken
-			)
-			.get(
-				`${this.path}_s3_storage_download/:groupId/:assetId/:s3Folder/:year/:token`,
-				groupExists,
-				this.getAssetDataFromS3
-			)
+				this.getAssetTopicsByAssetId
+			);
 	}
 
 	private getAssetTypesManagedByUser = async (
@@ -190,7 +133,7 @@ class AssetController implements IController {
 				const orgIdsArray: number[] = [];
 				const organizations = await getOrganizationsManagedByUserId(req.user.id);
 				if (organizations.length !== 0) {
-					orgIdsArray.push(...organizations.map(org => org.id));
+					orgIdsArray.push(...organizations.map((org) => org.id));
 				}
 				const groups = await getGroupsThatCanBeEditatedAndAdministratedByUserId(req.user.id);
 				for (const group of groups) {
@@ -247,9 +190,10 @@ class AssetController implements IController {
 			const orgId = req.organization.id;
 			const assetType = await getAssetTypeByPropName(orgId, propName, propValue);
 			if (!assetType) throw new ItemNotFoundException(req, res, "The asset type", propName, propValue);
-			if (assetType.isPredefined) throw new HttpException(req, res, 500, "Predefined asset type can not be deleted.");
+			if (assetType.isPredefined)
+				throw new HttpException(req, res, 500, "Predefined asset type can not be deleted.");
 			await deleteAssetTypeByPropName(propName, propValue);
-			const message = { message: "Asset type deleted successfully" }
+			const message = { message: "Asset type deleted successfully" };
 			res.status(200).json(message);
 		} catch (error) {
 			next(error);
@@ -270,7 +214,7 @@ class AssetController implements IController {
 			if (!assetType) throw new ItemNotFoundException(req, res, "The asset type", propName, propValue);
 			assetType = { ...assetType, ...assetTypeData };
 			await updateAssetTypeByPropName(propName, propValue, assetType);
-			const message = { message: "Asset type updated successfully" }
+			const message = { message: "Asset type updated successfully" };
 			res.status(200).json(message);
 		} catch (error) {
 			next(error);
@@ -308,15 +252,15 @@ class AssetController implements IController {
 				const groups = await getGroupsThatCanBeEditatedAndAdministratedByUserId(req.user.id);
 				const organizations = await getOrganizationsManagedByUserId(req.user.id);
 				if (organizations.length !== 0) {
-					const orgIdsArray = organizations.map(org => org.id);
-					const groupsInOrgs = await getAllGroupsInOrgArray(orgIdsArray)
-					const groupsIdArray = groups.map(group => group.id);
-					groupsInOrgs.forEach(groupInOrg => {
+					const orgIdsArray = organizations.map((org) => org.id);
+					const groupsInOrgs = await getAllGroupsInOrgArray(orgIdsArray);
+					const groupsIdArray = groups.map((group) => group.id);
+					groupsInOrgs.forEach((groupInOrg) => {
 						if (groupsIdArray.indexOf(groupInOrg.id) === -1) groups.push(groupInOrg);
-					})
+					});
 				}
 				if (groups.length !== 0) {
-					const groupsIdArray = groups.map(group => group.id);
+					const groupsIdArray = groups.map((group) => group.id);
 					assets = await getAssetsByGroupsIdArray(groupsIdArray);
 				}
 			}
@@ -339,11 +283,7 @@ class AssetController implements IController {
 		}
 	};
 
-	private getAssetsInGroup = async (
-		req: IRequestWithGroup,
-		res: Response,
-		next: NextFunction
-	): Promise<void> => {
+	private getAssetsInGroup = async (req: IRequestWithGroup, res: Response, next: NextFunction): Promise<void> => {
 		try {
 			const assets = await getAssetsByOrgId(req.group.id);
 			res.status(200).send(assets);
@@ -352,11 +292,7 @@ class AssetController implements IController {
 		}
 	};
 
-	private getAssetByProp = async (
-		req: IRequestWithGroup,
-		res: Response,
-		next: NextFunction
-	): Promise<void> => {
+	private getAssetByProp = async (req: IRequestWithGroup, res: Response, next: NextFunction): Promise<void> => {
 		try {
 			const { propName, propValue } = req.params;
 			if (!this.isValidAssetPropName(propName)) throw new InvalidPropNameExeception(req, res, propName);
@@ -368,18 +304,14 @@ class AssetController implements IController {
 		}
 	};
 
-	private deleteAssetByProp = async (
-		req: Request,
-		res: Response,
-		next: NextFunction
-	): Promise<void> => {
+	private deleteAssetByProp = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
 		try {
 			const { propName, propValue } = req.params;
 			if (!this.isValidAssetPropName(propName)) throw new InvalidPropNameExeception(req, res, propName);
 			const asset = await getAssetByPropName(propName, propValue);
 			if (!asset) throw new ItemNotFoundException(req, res, "The asset", propName, propValue);
 			const sensors = await getSensorsByAssetId(asset.id);
-			const dashboardIds = sensors.map(sensor => sensor.dashboardId);
+			const dashboardIds = sensors.map((sensor) => sensor.dashboardId);
 			const digitalTwin = await getDigitalTwinByProp("asset_id", asset.id);
 			if (digitalTwin) {
 				await deleteTopicsOfDT(digitalTwin.id);
@@ -388,18 +320,14 @@ class AssetController implements IController {
 			await deleteAssetTopics(asset.id);
 			await deleteAssetByPropName(propName, propValue);
 			await deleteDashboardsByIdArray(dashboardIds);
-			const message = { message: "Asset deleted successfully" }
+			const message = { message: "Asset deleted successfully" };
 			res.status(200).json(message);
 		} catch (error) {
 			next(error);
 		}
 	};
 
-	private updateAssetByProp = async (
-		req: IRequestWithGroup,
-		res: Response,
-		next: NextFunction
-	): Promise<void> => {
+	private updateAssetByProp = async (req: IRequestWithGroup, res: Response, next: NextFunction): Promise<void> => {
 		try {
 			const { propName, propValue } = req.params;
 			const assetData = req.body;
@@ -408,25 +336,21 @@ class AssetController implements IController {
 			if (!asset) throw new ItemNotFoundException(req, res, "The asset", propName, propValue);
 			asset = { ...asset, ...assetData };
 			await updateAssetByPropName(propName, propValue, asset);
-			const message = { message: "Asset updated successfully" }
+			const message = { message: "Asset updated successfully" };
 			res.status(200).json(message);
 		} catch (error) {
 			next(error);
 		}
 	};
 
-	private createAsset = async (
-		req: IRequestWithGroup,
-		res: Response,
-		next: NextFunction
-	): Promise<void> => {
+	private createAsset = async (req: IRequestWithGroup, res: Response, next: NextFunction): Promise<void> => {
 		try {
 			const assetData: CreateAssetDto = req.body;
 			await checkInitialAssetGeolocation(req.group, assetData);
 			const areSensorTypesOk = await checkSensorReferences(req.group, assetData);
 			if (!areSensorTypesOk) {
 				const errorMessage = "At least one sensor type is not correct";
-				throw new HttpException(req, res, 401, errorMessage)
+				throw new HttpException(req, res, 401, errorMessage);
 			}
 			await createNewAsset(req.group, assetData);
 			const message = { message: `A new asset has been created` };
@@ -450,15 +374,15 @@ class AssetController implements IController {
 				const groups = await getGroupsThatCanBeEditatedAndAdministratedByUserId(req.user.id);
 				const organizations = await getOrganizationsManagedByUserId(req.user.id);
 				if (organizations.length !== 0) {
-					const orgIdsArray = organizations.map(org => org.id);
-					const groupsInOrgs = await getAllGroupsInOrgArray(orgIdsArray)
-					const groupsIdArray = groups.map(group => group.id);
-					groupsInOrgs.forEach(groupInOrg => {
+					const orgIdsArray = organizations.map((org) => org.id);
+					const groupsInOrgs = await getAllGroupsInOrgArray(orgIdsArray);
+					const groupsIdArray = groups.map((group) => group.id);
+					groupsInOrgs.forEach((groupInOrg) => {
 						if (groupsIdArray.indexOf(groupInOrg.id) === -1) groups.push(groupInOrg);
-					})
+					});
 				}
 				if (groups.length !== 0) {
-					const groupsIdArray = groups.map(group => group.id);
+					const groupsIdArray = groups.map((group) => group.id);
 					assetTopics = await getAssetTopicsByGroupsIdArray(groupsIdArray);
 				}
 			}
@@ -468,107 +392,12 @@ class AssetController implements IController {
 		}
 	};
 
-	private getAssetS3FoldersManagedByUser = async (
-		req: IRequestWithUser,
-		res: Response,
-		next: NextFunction
-	): Promise<void> => {
+	private getAssetTopicsByAssetId = async (req: IRequestWithGroup, res: Response, next: NextFunction): Promise<void> => {
 		try {
-			let assetS3Folders: IAssetS3Folder[] = [];
-			if (req.user.isGrafanaAdmin) {
-				assetS3Folders = await getAllAssetS3Folder();
-			} else {
-				const groups = await getGroupsThatCanBeEditatedAndAdministratedByUserId(req.user.id);
-				const organizations = await getOrganizationsManagedByUserId(req.user.id);
-				if (organizations.length !== 0) {
-					const orgIdsArray = organizations.map(org => org.id);
-					const groupsInOrgs = await getAllGroupsInOrgArray(orgIdsArray)
-					const groupsIdArray = groups.map(group => group.id);
-					groupsInOrgs.forEach(groupInOrg => {
-						if (groupsIdArray.indexOf(groupInOrg.id) === -1) groups.push(groupInOrg);
-					})
-				}
-				if (groups.length !== 0) {
-					const groupsIdArray = groups.map(group => group.id);
-					assetS3Folders = await getAssetS3FolderByGroupsIdArray(groupsIdArray);
-				}
-			}
-			const assetS3FoldersFiltered: IAssetS3Folder[] = [];
-			if (assetS3Folders.length !== 0) {
-				for (const assetFolder of assetS3Folders) {
-					const orgId = assetFolder.orgId;
-					const groupId = assetFolder.groupId;
-					const assetId = assetFolder.assetId;
-					const folderName = assetFolder.s3Folder.replace(/ /g, "_");
-					const assetFolderPath = `org_${orgId}/group_${groupId}/asset_${assetId}/${folderName}/`;
-					assetFolder.years = await getAssetS3StorageYears(assetFolderPath);
-				}
-				assetS3FoldersFiltered.push(...assetS3Folders.filter(folder => folder.years.length !== 0));
-			}
-			res.status(200).send(assetS3FoldersFiltered);
-		} catch (error) {
-			next(error);
-		}
-	};
-
-	private getAssetS3StorageToken = (
-		req: IRequestWithUserAndGroup,
-		res: Response,
-		next: NextFunction
-	): void => {
-		try {
-			const { assetId, s3Folder, year } = req.params;
-			const groupId = req.group.id;
-			const userId = req.user.id;
-			const token = generateS3StorageToken(
-				userId,
-				groupId,
-				parseInt(assetId, 10),
-				s3Folder,
-				year
-			)
-			res.status(200).json(token);
-		} catch (error) {
-			next(error);
-		}
-	};
-
-
-	private getAssetDataFromS3 = async (
-		req: IRequestWithGroup,
-		res: Response,
-		next: NextFunction
-	): Promise<void> => {
-		try {
-			const { assetId, s3Folder, year, token } = req.params;
-			const isValidToken = isS3StorageTokenValid(
-				req.group,
-				assetId,
-				s3Folder,
-				year,
-				token
-			);
-			if (!isValidToken) {
-				const message = "You are not allowed to get s3 storage token.";
-				throw new HttpException(req, res, 401, message)
-			}
-			const asset = await getAssetByPropName("id", assetId);
-			if (!asset) throw new ItemNotFoundException(req, res, "The asset", "id", assetId);
-			const group = req.group;
-			const orgId = group.orgId;
-			const folderName = s3Folder.replace(/ /g, "_");
-			const folderPath = `org_${orgId}/group_${group.id}/asset_${assetId}/${folderName}/${year}`;
-			const fileNames = await getBucketFolderFileNames(folderPath);
-			if (fileNames.length === 0) {
-				const bucketName = process_env.S3_BUCKET_NAME;
-				const errorMessage = `Files info list for bucket ${bucketName} could not be obtained`;
-				throw new HttpException(req, res, 500, errorMessage);
-			}
-			const zipFile = `${folderName.toLowerCase()}_${year}`;
-			const archive = generateZipFileStream(folderPath, fileNames)
-			res.setHeader('Content-Type', 'application/zip');
-			res.setHeader('Content-disposition', `attachment; filename="${zipFile}.zip"`);
-			archive.pipe(res);
+			const { assetId } = req.params;
+			const assetTopics = await getAssetTopicsUsingAssetId(parseInt(assetId, 10));
+			if (!assetTopics) throw new ItemNotFoundException(req, res, "The asset topics", "assetId", assetId);
+			res.status(200).json(assetTopics);
 		} catch (error) {
 			next(error);
 		}
@@ -583,7 +412,6 @@ class AssetController implements IController {
 		const validPropName = ["id", "assetTypeUid"];
 		return validPropName.indexOf(propName) !== -1;
 	};
-
 }
 
 export default AssetController;

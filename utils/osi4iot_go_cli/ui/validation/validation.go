@@ -14,7 +14,7 @@ import (
 	"time"
 	"unicode"
 
-	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/utils"
+	"github.com/osi4iot/osi4iot/utils/osi4iot/internals/utils"
 )
 
 func isString(value interface{}, prompt string) (bool, string) {
@@ -212,7 +212,7 @@ func isValidBucketName(s3BucketName string) (bool, string) {
 func checkIfAwsS3BucketNameIsValid(s3BucketName, s3BucketType string) (bool, string) {
 	isValid, errMsg := isValidBucketName(s3BucketName)
 	if isValid {
-		if s3BucketType == "Cloud AWS S3" {
+		if s3BucketType == utils.S3BucketTypeAWS {
 			urlAwsS3Bucket := fmt.Sprintf("https://%s.s3.amazonaws.com", s3BucketName)
 			existBucket, err := existsUrl(urlAwsS3Bucket)
 			if err != nil {
@@ -364,6 +364,27 @@ func Run(value string, prompt string, rules []string, data map[string]string) (b
 			}
 		}
 
+		if len(rule) >= 19 && rule[:19] == "numNatsClusterNodes" {
+			isValid = false
+			numNatsClusterNodes := rule[20:]
+			numNatsClusterNodesInt, err := strconv.Atoi(numNatsClusterNodes)
+			if err != nil {
+				errMsg = fmt.Sprintf("Error: '%s' is not a valid rule", rule)
+				break
+			}
+			valueInt, err := strconv.Atoi(value)
+			if err != nil {
+				errMsg = fmt.Sprintf("Error: '%s' is not a valid number", prompt)
+				break
+			}
+			if valueInt >= numNatsClusterNodesInt {
+				isValid = true
+			} else {
+				errMsg = fmt.Sprintf("Error: '%s' must be at least equal to the number of Nats servers (%d)", prompt, numNatsClusterNodesInt)
+				break
+			}
+		}
+
 		if rule == "email" {
 			isValid, errMsg = isEmail(value, prompt)
 			if !isValid {
@@ -444,13 +465,6 @@ func Run(value string, prompt string, rules []string, data map[string]string) (b
 					isValid = true
 				} else {
 					errMsg = "No certs case is only allowed for local deployments"
-					break
-				}
-			} else if value == "AWS Certificate Manager" {
-				if deploymentLocation == "AWS cluster deployment" {
-					isValid = true
-				} else {
-					errMsg = "AWS Certificate Manager option is only available for AWS cluster deployment"
 					break
 				}
 			} else {

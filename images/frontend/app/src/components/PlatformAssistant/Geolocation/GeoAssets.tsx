@@ -1,7 +1,7 @@
 import { FC } from "react";
 import { IDigitalTwin } from "../TableColumns/digitalTwinsColumns";
 import { IDigitalTwinState, ISensorState } from "./GeolocationContainer";
-import { IDigitalTwinGltfData } from "../DigitalTwin3DViewer/ViewerUtils";
+import { IDigitalTwinGltfData } from "../DigitalTwin3DViewer/ViewerTools/ViewerUtils";
 import GeoAsset from "./GeoAsset";
 import { IAsset } from "../TableColumns/assetsColumns";
 import { ISensor } from "../TableColumns/sensorsColumns";
@@ -25,6 +25,8 @@ interface GeoAssetsProps {
     openDigitalTwin3DViewer: (digitalTwinGltfData: IDigitalTwinGltfData) => void;
     setGlftDataLoading: (gtGlftDataLoading: boolean) => void;
     setGltfFileDownloadProgress: (gltfFileDownloadProgress: number) => void;
+    setAssetWithCameraSelected: (selected: boolean) => void;
+    setSensorWithCameraSelected: (selected: boolean) => void;
 }
 
 
@@ -45,7 +47,9 @@ const GeoAssets: FC<GeoAssetsProps> = (
         sensorsState,
         openDigitalTwin3DViewer,
         setGlftDataLoading,
-        setGltfFileDownloadProgress,       
+        setGltfFileDownloadProgress,
+        setAssetWithCameraSelected,
+        setSensorWithCameraSelected,
     }) => {
 
     return (
@@ -70,6 +74,8 @@ const GeoAssets: FC<GeoAssetsProps> = (
                         openDigitalTwin3DViewer={openDigitalTwin3DViewer}
                         setGlftDataLoading={setGlftDataLoading}
                         setGltfFileDownloadProgress={setGltfFileDownloadProgress}
+                        setAssetWithCameraSelected={setAssetWithCameraSelected}
+                        setSensorWithCameraSelected={setSensorWithCameraSelected}
                     />
                 })
             }

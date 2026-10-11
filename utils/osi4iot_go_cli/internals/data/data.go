@@ -1,18 +1,34 @@
 package data
 
 import (
-	"fmt"
 	"strconv"
 	"strings"
 
-	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/common"
-	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/utils"
+	pt "github.com/osi4iot/osi4iot/utils/osi4iot/internals/types"
+	"github.com/osi4iot/osi4iot/utils/osi4iot/internals/utils"
 )
 
-var Data *common.PlatformData = &common.PlatformData{}
+var Data *pt.PlatformData = &pt.PlatformData{}
 
 type PlatformStatus int
 
+// The platform's state, as the commands see it. Determined once per run,
+// from Swarm itself (see SetInitialPlatformState):
+//
+//   - Empty:       no state file — no platform defined on this machine.
+//   - Unknown:     there is a state file, but no manager could be asked.
+//     PlatformStateReason says why.
+//   - Deleted:     no swarm, or a swarm without any of the platform's
+//     services or volumes.
+//   - Stopped:     swarm, no services, but the platform's volumes.
+//   - Degraded:    services deployed, but some do not have all their
+//     tasks running (PlatformStateDetail names them): still
+//     starting, failing, or on a node that is down.
+//   - Running:     every service has all its tasks running.
+//   - Initiating and CreatingOrg are not detected: the create form sets
+//     them while it runs.
+//
+// Every value is its own case; nothing compares them by order.
 const (
 	Unknown PlatformStatus = iota
 	Empty
@@ -21,9 +37,52 @@ const (
 	Stopped
 	Deleted
 	CreatingOrg
+	Degraded
 )
 
 var PlatformState PlatformStatus = Empty
+
+// PlatformStateReason explains an Unknown state; PlatformStateDetail
+// names the services behind a Degraded one; PlatformServices is every
+// service as Swarm reported it (for `osi4iot status`).
+var (
+	PlatformStateReason string
+	PlatformStateDetail []string
+	PlatformServices    []ServiceStatus
+	// PlatformSwarmActive tells whether a manager answered from an active
+	// swarm: only then can the swarm be asked anything else.
+	PlatformSwarmActive bool
+)
+
+// ServiceStatus is one of the platform's services: how many tasks it
+// should have running, and how many it has.
+type ServiceStatus struct {
+	Name     string
+	Required int
+	Running  int
+}
+
+// String names a state for messages.
+func (s PlatformStatus) String() string {
+	switch s {
+	case Empty:
+		return "not defined"
+	case Initiating:
+		return "being created"
+	case Running:
+		return "running"
+	case Stopped:
+		return "stopped"
+	case Deleted:
+		return "deleted"
+	case CreatingOrg:
+		return "creating an organization"
+	case Degraded:
+		return "running with problems"
+	default:
+		return "unknown"
+	}
+}
 
 func SetData(key string, value string) {
 	switch key {
@@ -89,9 +148,6 @@ func SetData(key string, value string) {
 		Data.PlatformInfo.MainOrganizationTelegramChatID = value
 	case "MAIN_ORGANIZATION_TELEGRAM_INVITATION_LINK":
 		Data.PlatformInfo.MainOrganizationTelegramInviteLink = value
-	case "NUMBER_OF_NODERED_INSTANCES_IN_MAIN_ORG":
-		nrInstances, _ := strconv.Atoi(value)
-		Data.PlatformInfo.NumberOfNodeRedInstancesInMainOrg = nrInstances
 	case "NOTIFICATIONS_EMAIL_USER":
 		Data.PlatformInfo.NotificationsEmailUser = value
 	case "NOTIFICATIONS_EMAIL_ADDRESS":
@@ -115,18 +171,52 @@ func SetData(key string, value string) {
 		if Data.PlatformInfo.AccessTokenSecret == "" {
 			Data.PlatformInfo.AccessTokenSecret = value
 		}
-	case "MQTT_SSL_CERTS_VALIDITY_DAYS":
-		mqttCertsValidityDays, _ := strconv.Atoi(value)
-		Data.PlatformInfo.MQTTSslCertsValidityDays = mqttCertsValidityDays
+	case "DEFAULT_NUMBER_OF_NATS_REPLICAS":
+		defaultNumNatsReplicas, _ := strconv.Atoi(value)
+		Data.PlatformInfo.DefaultNumOfNatsReplicas = defaultNumNatsReplicas
+	case "NUM_PATRONI_ADMIN_NODES":
+		numPatroniAdminNodes, _ := strconv.Atoi(value)
+		Data.PlatformInfo.NumPatroniAdminNodes = numPatroniAdminNodes
+	case "NUM_PATRONI_METRICS_NODES":
+		numPatroniMetricsNodes, _ := strconv.Atoi(value)
+		Data.PlatformInfo.NumPatroniMetricsNodes = numPatroniMetricsNodes
 	case "DEPLOYMENT_LOCATION":
 		Data.PlatformInfo.DeploymentLocation = value
+		if value == "Local deployment" {
+			Data.PlatformInfo.NumberOfSwarmNodes = 1
+		}
+	case "USE_AWS_EBS_VOLUMES":
+		useAwsEbsVolumes := strings.ToLower(value) == "yes"
+		Data.PlatformInfo.UseAwsEbsVolumes = useAwsEbsVolumes
+	case "USE_PATRONI_TOOL":
+		usePatroniTool := strings.ToLower(value) == "yes"
+		Data.PlatformInfo.UsePatroniTool = usePatroniTool
+	case "LOCAL_RESOURCE_UTILIZATION_PERCENTAGE":
+		localResourceUtilization, _ := strconv.Atoi(value)
+		Data.PlatformInfo.LocalResourceUtilization = localResourceUtilization
 	case "DEPLOYMENT_MODE":
 		Data.PlatformInfo.DeploymentMode = value
+	case "MESSAGING_SVC_RESOURCES":
+		Data.PlatformInfo.MessagingSvcResources = value
+	case "IOT_DATA_STORAGE_SVC_RESOURCES":
+		Data.PlatformInfo.IotDataStorageSvcResources = value
+	case "ADMIN_DATA_STORAGE_SVC_RESOURCES":
+		Data.PlatformInfo.AdminDataStorageSvcResources = value
+	case "UI_SVC_RESOURCES":
+		Data.PlatformInfo.UiSvcResources = value
+	case "PIPELINES_SVC_RESOURCES":
+		Data.PlatformInfo.PipelinesSvcResources = value
+	case "DEFAULT_NUMBER_OF_PIPELINES_INSTANCES":
+		numberOfInstances, _ := strconv.Atoi(value)
+		Data.PlatformInfo.DefaultNumPipelinesInstances = numberOfInstances
 	case "NUMBER_OF_SWARM_NODES":
 		numberOfNodes, _ := strconv.Atoi(value)
+		if numberOfNodes < 1 {
+			numberOfNodes = 1
+		}
 		Data.PlatformInfo.NumberOfSwarmNodes = numberOfNodes
 		if len(Data.PlatformInfo.NodesData) == 0 {
-			Data.PlatformInfo.NodesData = make([]common.NodeData, numberOfNodes)
+			Data.PlatformInfo.NodesData = make([]pt.NodeData, numberOfNodes)
 		}
 	case "S3_BUCKET_TYPE":
 		Data.PlatformInfo.S3BucketType = value
@@ -154,8 +244,6 @@ func SetData(key string, value string) {
 			awsSshKey := utils.GetFileData(value)
 			Data.PlatformInfo.AwsSshKey = awsSshKey
 		}
-	case "AWS_EFS_DNS":
-		Data.PlatformInfo.AwsEfsDNS = value
 	case "FLOATING_IP_ADDRES":
 		Data.PlatformInfo.FloatingIPAddress = value
 	case "NETWORK_INTERFACE":
@@ -182,33 +270,72 @@ func SetData(key string, value string) {
 		if Data.PlatformInfo.EncryptionSecretKey == "" {
 			Data.PlatformInfo.EncryptionSecretKey = value
 		}
+	case "PLATFORM_ENCRYPTION_KEY":
+		// Write-once, like the keys above — and with worse consequences
+		// if it isn't: both system_manager's certificate volume and every
+		// state-file backup in S3 are encrypted under subkeys of this,
+		// so replacing it orphans all of them at once. See
+		// PlatformInfo.PlatformEncryptionKey.
+		if Data.PlatformInfo.PlatformEncryptionKey == "" {
+			Data.PlatformInfo.PlatformEncryptionKey = value
+		}
+	case "NATS_BACKUP_S3_PREFIX":
+		Data.PlatformInfo.NATSBackupS3Prefix = value
+	case "STATE_FILE_S3_PREFIX":
+		Data.PlatformInfo.StateFileS3Prefix = value
 	case "GRAFANA_ADMIN_PASSWORD":
 		Data.PlatformInfo.GrafanaAdminPassword = value
+
+	// ── Admin database ────────────────────────────────────────────────────────
 	case "POSTGRES_USER":
 		Data.PlatformInfo.PostgresUser = value
 	case "POSTGRES_PASSWORD":
 		Data.PlatformInfo.PostgresPassword = value
 	case "POSTGRES_DB":
 		Data.PlatformInfo.PostgresDB = value
+	case "POSTGRES_REPLICATOR_PASSWORD":
+		Data.PlatformInfo.PostgresReplicatorPassword = value
+	case "POSTGRES_REWIND_PASSWORD":
+		Data.PlatformInfo.PostgresRewindPassword = value
+	case "GRAFANA_DB_PASSWORD":
+		if Data.PlatformInfo.GrafanaDBPassword == "" {
+			Data.PlatformInfo.GrafanaDBPassword = value
+		}
+
+	// ── Metrics database ──────────────────────────────────────────────────────
 	case "TIMESCALE_USER":
 		Data.PlatformInfo.TimescaleUser = value
 	case "TIMESCALE_PASSWORD":
 		Data.PlatformInfo.TimescalePassword = value
 	case "TIMESCALE_DB":
 		Data.PlatformInfo.TimescaleDB = value
+	case "TIMESCALE_REPLICATOR_PASSWORD":
+		Data.PlatformInfo.TimescaleReplicatorPassword = value
+	case "TIMESCALE_REWIND_PASSWORD":
+		Data.PlatformInfo.TimescaleRewindPassword = value
 	case "TIMESCALE_DATA_RET_INT_DAYS":
-		timescaleDataRetentionInterval := value + " days"
-		Data.PlatformInfo.TimescaleDataRetentionInterval = timescaleDataRetentionInterval
-	case "GRAFANA_DB_PASSWORD":
-		if Data.PlatformInfo.GrafanaDBPassword == "" {
-			Data.PlatformInfo.GrafanaDBPassword = value
-		}
+		Data.PlatformInfo.TimescaleDataRetentionInterval = value + " days"
 	case "GRAFANA_DATASOURCE_PASSWORD":
 		if Data.PlatformInfo.GrafanaDatasourcePassword == "" {
 			Data.PlatformInfo.GrafanaDatasourcePassword = value
 		}
-	case "DEV2PDB_PASSWORD":
-		Data.PlatformInfo.Dev2PDBPassword = value
+
+	// ── WAL-G ─────────────────────────────────────────────────────────────────
+	case "WALG_S3_PREFIX_ADMIN":
+		Data.PlatformInfo.WalgS3PrefixAdmin = value
+	case "WALG_S3_PREFIX_METRICS":
+		Data.PlatformInfo.WalgS3PrefixMetrics = value
+	case "WALG_LIBSODIUM_KEY":
+		if Data.PlatformInfo.WalgLibsodiumKey == "" {
+			Data.PlatformInfo.WalgLibsodiumKey = value
+		}
+	case "PATRONI_SIDECAR_API_TOKEN":
+		if Data.PlatformInfo.PatroniSidecarAPIToken == "" {
+			Data.PlatformInfo.PatroniSidecarAPIToken = value
+		}
+	case "WALG_COMPRESSION_METHOD":
+		Data.PlatformInfo.WalgCompressionMethod = value
+
 	case "NODE_RED_ADMIN":
 		Data.PlatformInfo.NodeRedAdmin = value
 	case "NODE_RED_ADMIN_HASH":
@@ -231,13 +358,13 @@ func SetData(key string, value string) {
 	firstWord := keyWords[0]
 	if firstWord == "Node" && len(keyWords) > 2 {
 		nodeIndex, _ := strconv.Atoi(keyWords[1])
-		nodeData := common.NodeData{}
+		nodeData := pt.NodeData{}
 		if len(Data.PlatformInfo.NodesData) == nodeIndex {
 			Data.PlatformInfo.NodesData = append(Data.PlatformInfo.NodesData, nodeData)
 		}
 		switch keyWords[2] {
 		case "Label":
-			Data.PlatformInfo.NodesData[nodeIndex-1].NodeLabel = value			
+			Data.PlatformInfo.NodesData[nodeIndex-1].NodeLabel = value
 		case "HostName":
 			Data.PlatformInfo.NodesData[nodeIndex-1].NodeHostName = value
 		case "IP":
@@ -252,25 +379,8 @@ func SetData(key string, value string) {
 	}
 }
 
-func SetNodesData(nodesData []common.NodeData) {
+func SetNodesData(nodesData []pt.NodeData) {
 	Data.PlatformInfo.NodesData = nodesData
-}
-
-func SetCertsData() {
-	if Data.PlatformInfo.DomainCertsType == "Certs provided by an CA" {
-		keyHash := utils.GetMD5Hash(Data.Certs.DomainCerts.PrivateKey)
-		Data.Certs.DomainCerts.IotPlatformKeyName = fmt.Sprintf("iot_platform_key_%s", keyHash)
-
-		caHash := utils.GetMD5Hash(Data.Certs.DomainCerts.SslCaPem)
-		Data.Certs.DomainCerts.IotPlatformCaName = fmt.Sprintf("iot_platform_ca_%s", caHash)
-		caExpirationTimestamp :=  utils.GetCertExpirationTimestamp(Data.Certs.DomainCerts.SslCaPem)
-		Data.Certs.DomainCerts.CaPemExpirationTimestamp = caExpirationTimestamp
-
-		certHash :=  utils.GetMD5Hash(Data.Certs.DomainCerts.SslCertCrt)
-		Data.Certs.DomainCerts.IotPlatformCertName = fmt.Sprintf("iot_platform_cert_%s", certHash)
-		certExpirationTimestamp :=  utils.GetCertExpirationTimestamp(Data.Certs.DomainCerts.SslCertCrt)
-		Data.Certs.DomainCerts.CertCrtExpirationTimestamp = certExpirationTimestamp
-	}
 }
 
 func SetPlatformState(state PlatformStatus) {
@@ -281,7 +391,16 @@ func GetPlatformState() PlatformStatus {
 	return PlatformState
 }
 
-
-func GetData() *common.PlatformData {
+func GetData() *pt.PlatformData {
 	return Data
+}
+
+func GetDomainName() string {
+	if Data.PlatformInfo.DomainName == "" {
+		_ = utils.ReadPlatformDataFromFile(Data)
+	}
+	if Data.PlatformInfo.DomainName == "" {
+		return "default"
+	}
+	return Data.PlatformInfo.DomainName
 }

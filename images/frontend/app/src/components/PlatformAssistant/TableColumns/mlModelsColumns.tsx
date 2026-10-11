@@ -152,9 +152,9 @@ export const Create_ML_MODELS_COLUMNS = (refreshMlModels: () => void): Column<IM
             accessor: "edit",
             disableFilters: true,
             disableSortBy: true,
-            Cell: props => {
+            Cell: (props: { row: { id: string; }; rows: any[]; }) => {
                 const rowIndex = parseInt(props.row.id, 10);
-                const row = props.rows.filter(row => row.index === rowIndex)[0];
+                const row = props.rows.filter((row: { index: number; }) => row.index === rowIndex)[0];
                 const mlModelId = row?.cells[0]?.value;
                 return <EditMlModel mlModelId={mlModelId} rowIndex={rowIndex} />
             }
@@ -164,9 +164,9 @@ export const Create_ML_MODELS_COLUMNS = (refreshMlModels: () => void): Column<IM
             accessor: "delete",
             disableFilters: true,
             disableSortBy: true,
-            Cell: props => {
+            Cell: (props: { row: { id: string; }; rows: any[]; }) => {
                 const rowIndex = parseInt(props.row.id, 10);
-                const row = props.rows.filter(row => row.index === rowIndex)[0];
+                const row = props.rows.filter((row: { index: number; }) => row.index === rowIndex)[0];
                 const mlModelId = row?.cells[0]?.value;
                 const groupId = row?.cells[1]?.value;
                 return <DeleteMlModelModal

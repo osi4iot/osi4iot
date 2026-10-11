@@ -32,10 +32,6 @@ import {
     useReloadOrgUsersTable,
     setReloadOrgUsersTable,
     setReloadGlobalUsersTable,
-    useNodeRedInstancesTable,
-    setNodeRedInstancesTable,
-    useReloadNodeRedInstancesTable,
-    setReloadNodeRedInstancesTable,
     useAssetTypesTable,
     useReloadAssetTypesTable,
     setAssetTypesTable,
@@ -49,8 +45,6 @@ import { IBuilding } from '../TableColumns/buildingsColumns';
 import { IFloor } from '../TableColumns/floorsColumns';
 import { filterFloors } from '../../../tools/filterFloors';
 import { IGlobalUser } from '../TableColumns/globalUsersColumns';
-import { NodeRedInstancesProvider } from '../../../contexts/nodeRedInstancesOptions';
-import NodeRedInstancesInOrgsContainer from './NodeRedInstancesInOrgsContainer';
 import { getAxiosInstance } from '../../../tools/axiosIntance';
 import axiosErrorHandler from '../../../tools/axiosErrorHandler';
 import { AssetTypesProvider } from '../../../contexts/assetTypesOptions';
@@ -142,7 +136,6 @@ const OrganizationAdminOptions: FC<{}> = () => {
     const buildingsTable = useBuildingsTable();
     const floorsTable = useFloorsTable();
     const orgsManagedTable = useOrgsManagedTable();
-    const nodeRedInstancesTable = useNodeRedInstancesTable();
     const orgUsersTable = useOrgUsersTable();
     const groupsTable = useGroupsTable();
     const assetTypesTable = useAssetTypesTable();
@@ -151,7 +144,6 @@ const OrganizationAdminOptions: FC<{}> = () => {
     const [buildingsLoading, setBuildingsLoading] = useState(true);
     const [floorsLoading, setFloorsLoading] = useState(true);
     const [orgsManagedLoading, setOrgsManagedLoading] = useState(true);
-    const [nodeRedInstancesLoading, setNodeRedInstancesLoading] = useState(true);
     const [groupsLoading, setGroupsLoading] = useState(true);
     const [sensorTypesLoading, setSensorTypesLoading] = useState(true);
     const [assetTypesLoading, setAssetTypesLoading] = useState(true);
@@ -164,7 +156,6 @@ const OrganizationAdminOptions: FC<{}> = () => {
     const [reloadBuildings, setReloadBuildings] = useState(false);
     const [reloadFloors, setReloadloors] = useState(false);
     const reloadOrgsManagedTable = useReloadOrgsManagedTable();
-    const reloadNodeRedInstancesTable = useReloadNodeRedInstancesTable();
     const reloadOrgUsersTable = useReloadOrgUsersTable();
     const reloadGroupsTable = useReloadGroupsTable();
     const reloadAssetTypesTable = useReloadAssetTypesTable();
@@ -174,12 +165,6 @@ const OrganizationAdminOptions: FC<{}> = () => {
         setOrgsManagedLoading(true);
         const reloadOrgsManagedTable = true;
         setReloadOrgsManagedTable(plaformAssistantDispatch, { reloadOrgsManagedTable });
-    }, [plaformAssistantDispatch]);
-
-    const refreshNodeRedInstances = useCallback(() => {
-        setNodeRedInstancesLoading(true);
-        const reloadNodeRedInstancesTable = true;
-        setReloadNodeRedInstancesTable(plaformAssistantDispatch, { reloadNodeRedInstancesTable });
     }, [plaformAssistantDispatch]);
 
     const refreshOrgUsers = useCallback(() => {
@@ -325,40 +310,6 @@ const OrganizationAdminOptions: FC<{}> = () => {
         plaformAssistantDispatch,
         reloadOrgsManagedTable,
         orgsManagedTable.length
-    ]);
-
-    useEffect(() => {
-        if (nodeRedInstancesTable.length === 0 || reloadNodeRedInstancesTable) {
-            const urlNodeRedInstances = `${protocol}://${domainName}/admin_api/nodered_instances/user_managed`;
-            const config = axiosAuth(accessToken);
-            getAxiosInstance(refreshToken, authDispatch)
-                .get(urlNodeRedInstances, config)
-                .then((response: AxiosResponse<any, any>) => {
-                    const nodeRedInstances = response.data;
-                    nodeRedInstances.forEach((nodeRedInstance: { groupId: number | string; deleted: boolean | string }) => {
-                        if (nodeRedInstance.groupId === 0) nodeRedInstance.groupId = "-";
-                        if (nodeRedInstance.deleted === true) nodeRedInstance.deleted = "Yes";
-                        if (nodeRedInstance.deleted === false) nodeRedInstance.deleted = "No";
-                    });
-                    setNodeRedInstancesTable(plaformAssistantDispatch, { nodeRedInstances });
-                    setNodeRedInstancesLoading(false);
-                    const reloadNodeRedInstancesTable = false;
-                    setReloadNodeRedInstancesTable(plaformAssistantDispatch, { reloadNodeRedInstancesTable });
-                })
-                .catch((error: AxiosError) => {
-                    axiosErrorHandler(error, authDispatch);
-                });
-
-        } else {
-            setNodeRedInstancesLoading(false);
-        }
-    }, [
-        accessToken,
-        refreshToken,
-        authDispatch,
-        reloadNodeRedInstancesTable,
-        plaformAssistantDispatch,
-        nodeRedInstancesTable.length
     ]);
 
     useEffect(() => {
@@ -564,12 +515,6 @@ const OrganizationAdminOptions: FC<{}> = () => {
                 >
                     Asset types
                 </OptionContainer>
-                <OptionContainer
-                    isOptionActive={optionToShow === ORG_ADMIN_OPTIONS.NODERED_INSTANCES_IN_ORGS}
-                    onClick={() => clickHandler(ORG_ADMIN_OPTIONS.NODERED_INSTANCES_IN_ORGS)}
-                >
-                    Nodered instances in orgs
-                </OptionContainer>
             </OrganizationAdminOptionsContainer>
             <ContentContainer >
                 {
@@ -580,7 +525,6 @@ const OrganizationAdminOptions: FC<{}> = () => {
                         groupsLoading ||
                         orgUsersLoading ||
                         globalUsersLoading ||
-                        nodeRedInstancesLoading ||
                         assetTypesLoading ||
                         sensorTypesLoading
                     ) ?
@@ -624,14 +568,6 @@ const OrganizationAdminOptions: FC<{}> = () => {
                                         refreshAssetTypes={refreshAssetTypes}
                                     />
                                 </AssetTypesProvider>
-                            }
-                            {optionToShow === ORG_ADMIN_OPTIONS.NODERED_INSTANCES_IN_ORGS &&
-                                <NodeRedInstancesProvider>
-                                    <NodeRedInstancesInOrgsContainer
-                                        nodeRedInstances={nodeRedInstancesTable}
-                                        refreshNodeRedInstances={refreshNodeRedInstances}
-                                    />
-                                </NodeRedInstancesProvider>
                             }
                         </>
                 }

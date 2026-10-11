@@ -1,15 +1,18 @@
-import { useContext, useEffect } from "react";
+import { useEffect } from "react";
 import { SubscribeOptions } from "paho-mqtt";
 import * as THREE from "three";
-import MqttContext from "./MqttContext";
-import { IMqttContext as Context, IMessage } from "./interfaces";
+import Paho from "paho-mqtt";
 import matches from "./matches";
-import { IAssetObject, IFemSimulationObject, IGenericObject, IMqttTopicData, ISensorObject } from "../Model";
-import { AssetState, FemSimulationObjectState, GenericObjectState, SensorState } from "../ViewerUtils";
-import { IThreeMesh } from "../threeInterfaces";
-import { LlmMessage } from "../ChatAssistant";
+import { IAssetObject, IFemSimulationObject, IGenericObject, IMqttTopicData, ISensorObject } from "../Main/Model";
+import { AssetState, FemSimulationObjectState, GenericObjectState, SensorState } from "../ViewerTools/ViewerUtils";
+import { IThreeMesh } from "../Types/threeInterfaces";
+import formatDateString from "../../../../tools/formatDate";
+import { ChatMessage, LlmMessage } from "../ChatAssitant/ChatAssistant";
+import { PipelineLog } from "../Pipeline/PipelineLogs";
+import { IMessage } from "./interfaces";
 
 const useSubscription = (
+    mqttClient: Paho.Client | null,
     mqttTopics: string | string[],
     mqttTopicsData: IMqttTopicData[],
     topicIdBySensorRef: Record<string, number>,
@@ -30,11 +33,14 @@ const useSubscription = (
     setFemResFilesLastUpdate: (femResFilesLastUpdate: Date) => void,
     isGroupDTDemo: boolean,
     setDigitalTwinState: React.Dispatch<React.SetStateAction<string>>,
+    handleImageUrlChange: (base64Image: string) => void,
     handleUpdateChatAssistantMessages: (newMessage: LlmMessage) => void,
+    handleUpdateLogMessages: (newLogMessage: PipelineLog) => void,
+    handlePipelineStatusChange: (pipelineStatus: string) => void,
+    handlePipelineLeaderReplicaIndexChange: (index: number) => void,
+    handleSetChatMessages: (messages: ChatMessage[]) => void,
     options: SubscribeOptions = {} as SubscribeOptions
 ) => {
-    const { client } = useContext<Context>(MqttContext);
-
     let femResultNames: string[] = [];
     if (femSimulationObjects.length && femResultData && Object.keys(femResultData).length !== 0) {
         femResultNames = femResultData.metadata.resultFields.map(
@@ -43,22 +49,35 @@ const useSubscription = (
     }
 
     useEffect(() => {
-        if (client?.isConnected) {
+        if (mqttClient?.isConnected) {
             // subscribe();
             if (typeof mqttTopics === "string") {
-                client?.subscribe(mqttTopics, options);
+                mqttClient.subscribe(mqttTopics, options);
             } else {
                 for (const topic_i of mqttTopics as string[]) {
-                    client?.subscribe(topic_i, options);
+                    mqttClient.subscribe(topic_i, options);
                 }
             }
         }
+
+        return () => {
+            if (mqttClient?.isConnected) {
+                if (typeof mqttTopics === "string") {
+                    mqttClient.unsubscribe(mqttTopics);
+                } else {
+                    for (const topic_i of mqttTopics as string[]) {
+                        mqttClient.unsubscribe(topic_i);
+                    }
+                }
+            }
+        }
+
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [client]);
+    }, [mqttClient]);
 
     useEffect(() => {
-        if (client?.isConnected) {
-            client.onMessageArrived = (message: any) => {
+        if (mqttClient?.isConnected) {
+            mqttClient.onMessageArrived = (message: any) => {
                 if ([mqttTopics].flat().some((rTopic) => matches(rTopic, message.destinationName))) {
                     const recievedMessage = {
                         topic: message.destinationName,
@@ -85,14 +104,19 @@ const useSubscription = (
                         setFemResFilesLastUpdate,
                         isGroupDTDemo,
                         setDigitalTwinState,
-                        handleUpdateChatAssistantMessages
+                        handleImageUrlChange,
+                        handleUpdateChatAssistantMessages,
+                        handleUpdateLogMessages,
+                        handlePipelineStatusChange,
+                        handlePipelineLeaderReplicaIndexChange,
+                        handleSetChatMessages
                     );
                 }
             };
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [
-        client,
+        mqttClient,
         sensorsState,
         assetsState,
         genericObjectsState,
@@ -122,7 +146,12 @@ const updateObjectsState = (
     setFemResFilesLastUpdate: (femResFilesLastUpdate: Date) => void,
     isGroupDTDemo: boolean,
     setDigitalTwinState: React.Dispatch<React.SetStateAction<string>>,
-    handleUpdateChatAssistantMessages: (newMessage: LlmMessage) => void
+    handleImageUrlChange: (base64Image: string) => void,
+    handleUpdateChatAssistantMessages: (newMessage: LlmMessage) => void,
+    handleUpdateLogMessages: (newLogMessage: PipelineLog) => void,
+    handlePipelineStatusChange: (pipelineStatus: string) => void,
+    handlePipelineLeaderReplicaIndexChange: (index: number) => void,
+    handleSetChatMessages: (messages: ChatMessage[]) => void
 ) => {
     const mqttTopics = mqttTopicsData.map((topicData) => topicData.mqttTopic).filter((topic) => topic !== "");
     const sim2dtmTopicId = mqttTopicsData.filter((topic) => topic.topicRef === "sim2dtm")[0].topicId;
@@ -142,10 +171,9 @@ const updateObjectsState = (
             const genericObjectNewState = { ...genericObjectsState };
             let isGenericObjectsStateChanged = false;
             let isfemSimulationObjectsStateChanged = false;
-            //const femSimulationObjectsNewState = [...femSimulationObjectsState];
+
             const femSimulationObjectsNewState = femSimulationObjectsState.map((obj) => ({
                 ...obj,
-                // Si solo cambia resultFieldModalValues, crea una nueva referencia para ella:
                 resultFieldModalValues: Object.fromEntries(
                     Object.entries(obj.resultFieldModalValues).map(([key, value]) => [key, [...value]])
                 ),
@@ -166,9 +194,40 @@ const updateObjectsState = (
                 const newMessage: LlmMessage = {
                     message: mqttMessage.message,
                     uiOpts: mqttMessage.uiOpts,
+                    mcpToolCalls: mqttMessage.mcpToolCalls,
                     sender: "assistant",
                 };
                 handleUpdateChatAssistantMessages(newMessage);
+            }
+
+            if (messageTopicRef === "dtmlog") {
+                const newLogMessage: PipelineLog = {
+                    level: mqttMessage.level,
+                    component: mqttMessage.component,
+                    name: mqttMessage.name,
+                    uid: mqttMessage.uid,
+                    message: mqttMessage.message,
+                    description: mqttMessage.description,
+                    outputIndex: mqttMessage.outputIndex || 0,
+                    payload: mqttMessage.payload || {},
+                    state: mqttMessage.state || {},
+                    date: formatDateString(new Date().toISOString()),
+                };
+                handleUpdateLogMessages(newLogMessage);
+            }
+
+            if (messageTopicRef === "state2sim") {
+                if (mqttMessage.pipelineStatus !== undefined) {
+                    handlePipelineStatusChange(mqttMessage.pipelineStatus);
+                }
+
+                if (mqttMessage.replicaIndexLeader !== undefined) {
+                    handlePipelineLeaderReplicaIndexChange(mqttMessage.replicaIndexLeader);
+                }
+
+                if (mqttMessage.chatMessages !== undefined) {
+                    handleSetChatMessages(mqttMessage.chatMessages);
+                }
             }
 
             if (
@@ -308,6 +367,12 @@ const updateObjectsState = (
                 });
             }
 
+            if (messageTopicRef === "dtm2sim") {
+                if (messagePayloadKeys.includes("image")) {
+                    handleImageUrlChange(mqttMessage["image"]);
+                }
+            }
+
             if (messageTopicRef === "dtm2sim" || messageTopicRef === "llm2sim") {
                 let eventTriggerTopicType = "dev2pdb";
                 if (messagePayloadKeys.includes("eventTriggerTopicType")) {
@@ -326,8 +391,8 @@ const updateObjectsState = (
                         const fieldName = obj.node.userData.fieldName;
                         let llmResponseValue: null | number = null;
                         if (eventTriggerTopicType === "llm2sim" && messagePayloadKeys.includes("uiOpts")) {
-                            const dtSimState = mqttMessage.uiOpts.digitalTwinSimulatorState;
-                            if (dtSimState !== undefined && dtSimState[fieldName] !== undefined) {
+                            const dtSimState = mqttMessage.uiOpts?.digitalTwinSimulatorState;
+                            if (dtSimState != null && dtSimState[fieldName] != null) {
                                 llmResponseValue = mqttMessage.uiOpts.digitalTwinSimulatorState[fieldName];
                             }
                         }

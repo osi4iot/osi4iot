@@ -13,15 +13,16 @@ import DigitalTwinController from "./components/digitalTwin/digitalTwinControlle
 import BuildingController from "./components/building/building.controller";
 import MeasurementController from "./components/mesurement/measurement.controller";
 import DashboardController from "./components/dashboard/dashboardController";
-import NodeRedInstanceController from "./components/nodeRedInstance/nodeRedInstance.controller";
 import MLModelController from "./components/ml_model/ml_modelController";
 import AssetController from "./components/asset/asset.controller";
 import SensorController from "./components/sensor/sensor.controller";
+import natsClient from "./config/natsConfig";
+import S3FolderController from "./components/s3_folder/s3_folder.controller";
 
-
-const main= async (): Promise<void> => {
+const main = async (): Promise<void> => {
 	try {
 		await dataBaseInitialization();
+		await natsClient.connect();
 
 		// prettier-ignore
 		const app = new App([
@@ -32,8 +33,8 @@ const main= async (): Promise<void> => {
 			new BuildingController(),
 			new GroupController(),
 			new AssetController(),
+			new S3FolderController(),
 			new SensorController(),
-			new NodeRedInstanceController(),
 			new TopicController(),
 			new MeasurementController(),
 			new DigitalTwinController(),
@@ -41,11 +42,11 @@ const main= async (): Promise<void> => {
 			new DashboardController(),
 		]);
 		app.listen();
-	} catch (error) {
+	} catch (error: any) {
 		logger.log("error", "Server initiation failed: %s ", error.message);
 		logger.log("error", "Process finished");
 		process.exit(1);
 	}
-}
+};
 
 void main();

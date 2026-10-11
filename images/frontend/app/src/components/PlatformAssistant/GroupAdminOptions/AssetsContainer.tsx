@@ -24,6 +24,7 @@ import { setAssetInputData } from '../../../contexts/assetsOptions/assetsAction'
 import { useAssetInputData } from '../../../contexts/assetsOptions/assetsContext';
 import { IGroupManaged } from '../TableColumns/groupsManagedColumns';
 import { IAssetType } from '../TableColumns/assetTypesColumns';
+import { Column } from 'react-table';
 
 interface AssetsContainerProps {
     orgsOfGroupManaged: IOrgOfGroupsManaged[];
@@ -114,7 +115,7 @@ const AssetsContainer: FC<AssetsContainerProps> = ({
             {assetsOptionToShow === ASSETS_OPTIONS.TABLE &&
                 <TableWithPagination
                     dataTable={assets}
-                    columnsTable={Create_ASSETS_COLUMNS(orgsOfGroupManaged, groupsManaged, assetTypes, refreshAssets)}
+                    columnsTable={Create_ASSETS_COLUMNS(orgsOfGroupManaged, groupsManaged, assetTypes, refreshAssets) as Column<any>[]}
                     componentName="asset"
                     reloadTable={refreshAssets}
                     createComponent={() => setAssetsOptionToShow(assetsDispatch, { assetsOptionToShow: ASSETS_OPTIONS.CREATE_ASSET })}

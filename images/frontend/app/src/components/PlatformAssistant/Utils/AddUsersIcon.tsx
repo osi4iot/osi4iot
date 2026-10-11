@@ -2,7 +2,7 @@ import { FC } from "react";
 import { FaUsers } from "react-icons/fa";
 import styled from "styled-components";
 
-const FaUsersStyled = styled(FaUsers)`
+const FaUsersStyled = styled(FaUsers as any)`
     font-size: 20px;
     color: white;
 `;

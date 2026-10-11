@@ -156,7 +156,7 @@ export const Create_ASSET_TYPES_COLUMNS = (refreshAssetTypes: () => void): Colum
             accessor: "edit",
             disableFilters: true,
             disableSortBy: true,
-            Cell: props => {
+            Cell: (props: { row: { id: string; }; rows: any[]; }) => {
                 const rowIndex = parseInt(props.row.id, 10);
                 const row = props.rows.filter(row => row.index === rowIndex)[0];
                 const assetTypeId = row?.cells[0]?.value;
@@ -168,7 +168,7 @@ export const Create_ASSET_TYPES_COLUMNS = (refreshAssetTypes: () => void): Colum
             accessor: "delete",
             disableFilters: true,
             disableSortBy: true,
-            Cell: props => {
+            Cell: (props: { row: { id: string; }; rows: any[]; }) => {
                 const rowIndex = parseInt(props.row.id, 10);
                 const row = props.rows.filter(row => row.index === rowIndex)[0];
                 const assetTypeId = row?.cells[0]?.value;

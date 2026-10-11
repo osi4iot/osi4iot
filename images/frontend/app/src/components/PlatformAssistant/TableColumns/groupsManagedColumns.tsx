@@ -22,9 +22,6 @@ import ChangeModal from '../../Tools/ChangeModal';
 import { IGroupManagedData } from '../../../contexts/groupsManagedOptions/interfaces';
 import { getAxiosInstance } from '../../../tools/axiosIntance';
 import axiosErrorHandler from '../../../tools/axiosErrorHandler';
-import DownloadFileIcon from '../Utils/DownloadFileIcon';
-import JSZip from 'jszip';
-import { saveAs } from 'file-saver';
 import { AxiosResponse, AxiosError } from 'axios';
 
 
@@ -192,50 +189,6 @@ const EditGroupManaged: FC<EditGroupManagedProps> = ({ rowIndex, groupId, groupM
     )
 }
 
-interface DownLoadSslCertsProps {
-    rowIndex: number;
-    groupId: number;
-}
-
-const DownLoadSslCerts: FC<DownLoadSslCertsProps> = ({ rowIndex, groupId }) => {
-    const { accessToken, refreshToken } = useAuthState();
-    const authDispatch = useAuthDispatch();
-
-    const handleClick = () => {
-        const url = `${protocol}://${domainName}/admin_api/group_ssl_certs/${groupId}`;
-        const config = axiosAuth(accessToken);
-        getAxiosInstance(refreshToken, authDispatch)
-            .get(url, config)
-            .then((response: AxiosResponse<any, any>) => {
-                const data = response.data;
-                const validityDays = data.validityDays;
-                const message = `Ssl certs created successfully. These are valid for ${validityDays} days`;
-                var zip = new JSZip();
-                const fileName = `group_${groupId}_certs`;
-                const secrets = `username=${data.username}\npassword=${data.password}\n`
-                var group_certs = zip.folder(`${fileName}`);
-                group_certs?.file("ca.crt", data.caCert);
-                group_certs?.file(`group_${groupId}.crt`, data.clientCert);
-                group_certs?.file(`group_${groupId}.key`, data.clientKey);
-                group_certs?.file(`group_${groupId}.secrets`, secrets);
-                zip.generateAsync({ type: "blob" })
-                    .then(function (content) {
-                        saveAs(content, `${fileName}.zip`);
-                    });
-                toast.success(message);
-            })
-            .catch((error: AxiosError) => {
-                axiosErrorHandler(error, authDispatch);
-            })
-    };
-
-    return (
-        <span onClick={handleClick}>
-            <DownloadFileIcon rowIndex={rowIndex} />
-        </span>
-    )
-}
-
 const StyledHeader = styled.div`
     background-color: #202226;
     display: flex;
@@ -260,12 +213,8 @@ export interface IGroupManaged {
     floorNumber: number;
     featureIndex: number;
     outerBounds: number[][];
-    nriInGroupId: number;
-    nriInGroupHash: string;
-    nriInGroupIconLongitude: number;
-    nriInGroupIconLatitude: number;
-    nriInGroupIconRadio: number;
     sslCerts: string;
+    llmEnabled: boolean;
 }
 
 interface IGroupManagedColumn extends IGroupManaged {
@@ -315,9 +264,9 @@ export const CREATE_GROUPS_MANAGED_COLUMNS = (refreshGroupMembers: () => void, r
             Header: () => <div style={{ backgroundColor: '#202226' }}>Mqtt<br />acc</div>,
             accessor: "mqttAccessControl",
             disableFilters: true,
-            Cell: props => {
+            Cell: (props: { row: { id: string; }; rows: any[]; }) => {
                 const rowIndex = parseInt(props.row.id, 10);
-                const row = props.rows.filter(row => row.index === rowIndex)[0];
+                const row = props.rows.filter((row: { index: number; }) => row.index === rowIndex)[0];
                 const mqttAccessControl = row?.cells[7]?.value;
                 const style: React.CSSProperties = {
                     color: mqttAccessControl === "None" ? 'red' : 'white'
@@ -352,38 +301,13 @@ export const CREATE_GROUPS_MANAGED_COLUMNS = (refreshGroupMembers: () => void, r
             disableFilters: true
         },
         {
-            Header: "nriInGroupId",
-            accessor: "nriInGroupId",
-            disableFilters: true
-        },
-        {
-            Header: "nriInGroupHash",
-            accessor: "nriInGroupHash",
-            disableFilters: true
-        },
-        {
-            Header: "nriInGroupIconLongitude",
-            accessor: "nriInGroupIconLongitude",
-            disableFilters: true
-        },
-        {
-            Header: "nriInGroupIconLatitude",
-            accessor: "nriInGroupIconLatitude",
-            disableFilters: true
-        },
-        {
-            Header: "nriInGroupIconRadio",
-            accessor: "nriInGroupIconRadio",
-            disableFilters: true
-        },
-        {
             Header: () => <div style={{ backgroundColor: '#202226' }}>Add<br />members</div>,
             accessor: "addGroupMembers",
             disableFilters: true,
             disableSortBy: true,
-            Cell: props => {
+            Cell: (props: { row: { id: string; }; rows: any[]; }) => {
                 const rowIndex = parseInt(props.row.id, 10);
-                const row = props.rows.filter(row => row.index === rowIndex)[0];
+                const row = props.rows.filter((row: { index: number; }) => row.index === rowIndex)[0];
                 const groupId = row?.cells[0]?.value;
                 return <AddGroupMembers rowIndex={rowIndex} groupManagedId={parseInt(groupId, 10)} />
             }
@@ -393,9 +317,9 @@ export const CREATE_GROUPS_MANAGED_COLUMNS = (refreshGroupMembers: () => void, r
             accessor: "removeAllGroupMembers",
             disableFilters: true,
             disableSortBy: true,
-            Cell: props => {
+            Cell: (props: { row: { id: string; }; rows: any[]; }) => {
                 const rowIndex = parseInt(props.row.id, 10);
-                const row = props.rows.filter(row => row.index === rowIndex)[0];
+                const row = props.rows.filter((row: { index: number; }) => row.index === rowIndex)[0];
                 const groupId = row?.cells[0]?.value;
                 return <RemoveAllGroupMembersModal groupId={groupId} rowIndex={rowIndex} refreshGroupMembers={refreshGroupMembers} />
             }
@@ -405,33 +329,21 @@ export const CREATE_GROUPS_MANAGED_COLUMNS = (refreshGroupMembers: () => void, r
             accessor: "changeGroupHash",
             disableFilters: true,
             disableSortBy: true,
-            Cell: props => {
+            Cell: (props: { row: { id: string; }; rows: any[]; }) => {
                 const rowIndex = parseInt(props.row.id, 10);
-                const row = props.rows.filter(row => row.index === rowIndex)[0];
+                const row = props.rows.filter((row: { index: number; }) => row.index === rowIndex)[0];
                 const groupId = row?.cells[0]?.value;
                 return <ChangeGroupHashModal groupId={groupId} rowIndex={rowIndex} refreshGroupsManaged={refreshGroupsManaged} />
             }
-        },
-        {
-            Header: () => <div style={{ backgroundColor: '#202226' }}>SSL<br />certs</div>,
-            accessor: "sslCerts",
-            disableFilters: true,
-            disableSortBy: true,
-            Cell: props => {
-                const rowIndex = parseInt(props.row.id, 10);
-                const row = props.rows.filter(row => row.index === rowIndex)[0];
-                const groupId = row?.cells[0]?.value;
-                return <DownLoadSslCerts groupId={groupId} rowIndex={rowIndex} />
-            }
-        },         
+        },        
         {
             Header: "",
             accessor: "edit",
             disableFilters: true,
             disableSortBy: true,
-            Cell: props => {
+            Cell: (props: { row: { id: string; }; rows: any[]; }) => {
                 const rowIndex = parseInt(props.row.id, 10);
-                const row = props.rows.filter(row => row.index === rowIndex)[0];
+                const row = props.rows.filter((row: { index: number; }) => row.index === rowIndex)[0];
                 const groupId = row?.original?.id;
                 const name = row?.original?.name;
                 const acronym = row?.original?.acronym;
@@ -440,11 +352,6 @@ export const CREATE_GROUPS_MANAGED_COLUMNS = (refreshGroupMembers: () => void, r
                 const mqttAccessControl = row?.original?.mqttAccessControl;
                 const telegramInvitationLink = row?.original?.telegramInvitationLink;
                 const telegramChatId = row?.original?.telegramChatId;
-                const nriInGroupId = row?.original?.nriInGroupId;
-                const nriInGroupHash = row?.original?.nriInGroupHash;
-                const nriInGroupIconLongitude = row?.original?.nriInGroupIconLongitude;
-                const nriInGroupIconLatitude = row?.original?.nriInGroupIconLatitude;
-                const nriInGroupIconRadio = row?.original?.nriInGroupIconRadio;
                 const groupManagedData = {
                     groupId,
                     name,
@@ -454,11 +361,6 @@ export const CREATE_GROUPS_MANAGED_COLUMNS = (refreshGroupMembers: () => void, r
                     mqttAccessControl,
                     telegramInvitationLink,
                     telegramChatId,
-                    nriInGroupId,
-                    nriInGroupHash,
-                    nriInGroupIconLongitude,
-                    nriInGroupIconLatitude,
-                    nriInGroupIconRadio
                 }
                 return <EditGroupManaged rowIndex={rowIndex} groupId={groupId} groupManagedData={groupManagedData} />
             }

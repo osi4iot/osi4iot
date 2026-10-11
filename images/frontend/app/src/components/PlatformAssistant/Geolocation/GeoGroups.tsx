@@ -8,7 +8,7 @@ import { IDigitalTwin } from "../TableColumns/digitalTwinsColumns";
 import GeoGroup from "./GeoGroup";
 import { IOrgOfGroupsManaged } from "../TableColumns/orgsOfGroupsManagedColumns";
 import { isGeoJSONObject } from "../../../tools/geojsonValidation";
-import { IDigitalTwinGltfData } from "../DigitalTwin3DViewer/ViewerUtils";
+import { IDigitalTwinGltfData } from "../DigitalTwin3DViewer/ViewerTools/ViewerUtils";
 import { IAsset } from "../TableColumns/assetsColumns";
 import { ISensor } from "../TableColumns/sensorsColumns";
 import { IAssetType } from "../TableColumns/assetTypesColumns";
@@ -55,6 +55,8 @@ interface GeoGroupsProps {
     openDigitalTwin3DViewer: (digitalTwinGltfData: IDigitalTwinGltfData) => void;
     setGlftDataLoading: (gtGlftDataLoading: boolean) => void;
     setGltfFileDownloadProgress: (gltfFileDownloadProgress: number) => void;
+    setAssetWithCameraSelected: (selected: boolean) => void;
+    setSensorWithCameraSelected: (selected: boolean) => void;
 }
 
 
@@ -83,7 +85,9 @@ const GeoGroups: FC<GeoGroupsProps> = (
         sensorsState,
         openDigitalTwin3DViewer,
         setGlftDataLoading,
-        setGltfFileDownloadProgress,   
+        setGltfFileDownloadProgress,
+        setAssetWithCameraSelected,
+        setSensorWithCameraSelected,
     }
 ) => {
     const map = useMap();
@@ -135,6 +139,8 @@ const GeoGroups: FC<GeoGroupsProps> = (
                         openDigitalTwin3DViewer={openDigitalTwin3DViewer}
                         setGlftDataLoading={setGlftDataLoading}
                         setGltfFileDownloadProgress={setGltfFileDownloadProgress}
+                        setAssetWithCameraSelected={setAssetWithCameraSelected}
+                        setSensorWithCameraSelected={setSensorWithCameraSelected}
                     />
                 )
 

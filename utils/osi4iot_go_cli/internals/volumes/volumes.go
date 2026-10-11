@@ -1,0 +1,1064 @@
+package volumes
+
+import (
+	"context"
+	"fmt"
+	"sort"
+	"strings"
+	"time"
+
+	"github.com/docker/docker/api/types/filters"
+	"github.com/docker/docker/api/types/volume"
+	"github.com/docker/docker/errdefs"
+	pt "github.com/osi4iot/osi4iot/utils/osi4iot/internals/types"
+	"github.com/osi4iot/osi4iot/utils/osi4iot/internals/utils"
+
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
+)
+
+type EBSVolumeOptions struct {
+	size       string
+	volumeType string
+	iops       string
+	throughput string
+	encrypted  string
+}
+
+var DefaultEBSVolumeVolumeOptions = EBSVolumeOptions{
+	size:       "20",
+	volumeType: "gp3",
+	iops:       "3000",
+	throughput: "125",
+	encrypted:  "true",
+}
+
+type VolumeOptions struct {
+	driverOptsO string
+	ebsOpts     EBSVolumeOptions
+}
+
+type EBSVolumeInfo struct {
+	VolumeID   string
+	State      string
+	Size       int32
+	VolumeType string
+	AZ         string
+	Encrypted  bool
+	Tags       map[string]string
+}
+
+func createDefaultOptions(pi pt.PlatformInfo) VolumeOptions {
+	driverOptsO := ""
+	ebsOpts := EBSVolumeOptions{}
+	if pi.UseAwsEbsVolumes {
+		ebsOpts = DefaultEBSVolumeVolumeOptions
+	}
+	volOptions := VolumeOptions{
+		driverOptsO: driverOptsO,
+		ebsOpts:     ebsOpts,
+	}
+	return volOptions
+}
+
+func GenerateVolumes(platformData *pt.PlatformData) map[string]pt.Volume {
+	Volumes := make(map[string]pt.Volume)
+	pi := platformData.PlatformInfo
+
+	deploymentLocation := pi.DeploymentLocation
+	deploymentMode := pi.DeploymentMode
+
+	volOptions := createDefaultOptions(pi)
+
+	numNatsReplicas := utils.GetServiceReplicas(platformData, "nats")
+	for replica := 1; replica <= numNatsReplicas; replica++ {
+		volumeName := fmt.Sprintf("nats%d_data", replica)
+		serviceName := fmt.Sprintf("nats%d", replica)
+		Volumes[volumeName] = SetVolumeConfig(pi, volumeName, serviceName, deploymentLocation, volOptions)
+	}
+
+	numGrafanaReplicas := utils.GetServiceReplicas(platformData, "grafana")
+	for replica := 1; replica <= numGrafanaReplicas; replica++ {
+		volumeName := fmt.Sprintf("grafana_data_%d", replica)
+		Volumes[volumeName] = SetVolumeConfig(pi, volumeName, "grafana", deploymentLocation, volOptions)
+	}
+
+	numPipelinesReplicas := utils.GetServiceReplicas(platformData, "pipelines")
+	for i := 1; i <= numPipelinesReplicas; i++ {
+		volName := fmt.Sprintf("pipelines_data_%d", i)
+		Volumes[volName] = SetVolumeConfig(pi, volName, "pipelines", deploymentLocation, volOptions, true)
+	}
+
+	if pi.UsePatroniTool {
+		for i := 1; i <= pi.NumPatroniAdminNodes; i++ {
+			serviceName := fmt.Sprintf("patroni_admin%d", i)
+			volumeName := fmt.Sprintf("patroni_admin%d-data", i)
+			Volumes[volumeName] = SetVolumeConfig(pi, volumeName, serviceName, deploymentLocation, volOptions)
+		}
+		for i := 1; i <= pi.NumPatroniMetricsNodes; i++ {
+			serviceName := fmt.Sprintf("patroni_metrics%d", i)
+			volumeData := fmt.Sprintf("patroni_metrics%d-data", i)
+			Volumes[volumeData] = SetVolumeConfig(pi, volumeData, serviceName, deploymentLocation, volOptions)
+		}
+	} else {
+		Volumes["pgdata"] = SetVolumeConfig(pi, "pgdata", "postgres", deploymentLocation, volOptions)
+		Volumes["timescaledb_data"] = SetVolumeConfig(pi, "timescaledb_data", "timescaledb", deploymentLocation, volOptions)
+		Volumes["timescaledb_wal"] = SetVolumeConfig(pi, "timescaledb_wal", "timescaledb", deploymentLocation, volOptions)
+	}
+
+	if deploymentMode == "development" {
+		Volumes["pgadmin4_data"] = SetVolumeConfig(pi, "pgadmin4_data", "pgadmin4", deploymentLocation, volOptions)
+	}
+
+	if utils.IsGarage(pi) {
+		// Per instance: Garage's metadata (LMDB) and its data blocks.
+		// Separate volumes because they want different disks on a real
+		// deployment: metadata is small and latency-bound, data is large.
+		// Pinned with their instance (see pinnedVolumes).
+		for _, inst := range pi.GarageInstances {
+			service := utils.GarageInstanceServiceName(inst.ID)
+			meta := utils.GarageMetaVolumeName(inst.ID)
+			data := utils.GarageDataVolumeName(inst.ID)
+			Volumes[meta] = SetVolumeConfig(pi, meta, service, deploymentLocation, volOptions)
+			Volumes[data] = SetVolumeConfig(pi, data, service, deploymentLocation, volOptions)
+		}
+	}
+
+	Volumes["vector_buffer"] = SetVolumeConfig(pi, "vector_buffer", "vector", deploymentLocation, volOptions, true)
+
+	Volumes["system_manager-data"] = SetVolumeConfig(pi, "system_manager-data", "system_manager", deploymentLocation, volOptions)
+
+	return Volumes
+}
+
+func CreateVolume(dc *pt.DockerClient, domainName string, swarmVol *pt.Volume) error {
+	existingVolumes, err := dc.Cli.VolumeList(dc.Ctx, volume.ListOptions{})
+	if err != nil {
+		return fmt.Errorf("error listing volumes: %v", err)
+	}
+
+	volumeExists := false
+	for _, v := range existingVolumes.Volumes {
+		if v.Name == swarmVol.Name {
+			swarmVol.ID = v.Name
+			volumeExists = true
+
+			// Docker creates a volume automatically when a service
+			// mounts one that does not exist yet, and those come with
+			// no labels at all. Skipping silently here is how such a
+			// volume becomes permanent: RemoveSwarmVolumes looks for
+			// app=osi4iot, finds nothing, and `osi4iot delete` leaves
+			// it behind for good.
+			//
+			// It cannot be repaired from here — a volume's labels are
+			// immutable in Docker, there is no update API — so the most
+			// this can do is say so. See ServiceBuilder.WithMounts for
+			// the change that stops them being created unlabelled in
+			// the first place.
+			if v.Labels["app"] != "osi4iot" {
+				fmt.Printf("Warning: volume '%s' already exists without the app=osi4iot label, "+
+					"so 'osi4iot delete' will not remove it.\n"+
+					"  It was most likely auto-created by Docker. Remove it by hand with "+
+					"'docker volume rm %s' if you want a clean slate.\n",
+					v.Name, v.Name)
+			}
+			break
+		}
+	}
+
+	if !volumeExists {
+		vol, err := dc.Cli.VolumeCreate(dc.Ctx, volume.CreateOptions{
+			Name:       swarmVol.Name,
+			Driver:     swarmVol.Driver,
+			DriverOpts: swarmVol.DriverOpts,
+			Labels: map[string]string{
+				"app":        "osi4iot",
+				"service":    swarmVol.ServiceName,
+				"domainName": domainName,
+			},
+		})
+		if err != nil {
+			return fmt.Errorf("error creating volume: %v", err)
+		}
+		swarmVol.ID = vol.Name
+
+		if swarmVol.Driver == "rexray-ebs" || swarmVol.Driver == "rexray-ebs:latest" {
+			if err := tagEBSVolume(dc.Ctx, swarmVol.Name, swarmVol.ServiceName, domainName); err != nil {
+				fmt.Printf("Warning: error tagging EBS volume %s: %v\n", swarmVol.Name, err)
+			}
+		}
+	}
+
+	return nil
+}
+
+func tagEBSVolume(ctx context.Context, volumeName, serviceName, domainName string) error {
+	cfg, err := utils.GetEC2RoleConfig(ctx)
+	if err != nil {
+		return fmt.Errorf("error loading AWS config: %w", err)
+	}
+
+	ec2Client := ec2.NewFromConfig(cfg)
+
+	result, err := ec2Client.DescribeVolumes(ctx, &ec2.DescribeVolumesInput{
+		Filters: []ec2types.Filter{
+			{
+				Name:   aws.String("tag:Name"),
+				Values: []string{volumeName},
+			},
+			{
+				// Solo volúmenes recién creados o en uso
+				Name:   aws.String("status"),
+				Values: []string{"available", "in-use"},
+			},
+		},
+	})
+	if err != nil {
+		return fmt.Errorf("error describing EBS volume %s: %w", volumeName, err)
+	}
+
+	if len(result.Volumes) == 0 {
+		return fmt.Errorf("EBS volume with Name=%s not found in AWS", volumeName)
+	}
+
+	volumeID := aws.ToString(result.Volumes[0].VolumeId)
+
+	_, err = ec2Client.CreateTags(ctx, &ec2.CreateTagsInput{
+		Resources: []string{volumeID},
+		Tags: []ec2types.Tag{
+			{Key: aws.String("app"), Value: aws.String("osi4iot")},
+			{Key: aws.String("service"), Value: aws.String(serviceName)},
+			{Key: aws.String("domainName"), Value: aws.String(domainName)},
+		},
+	})
+	if err != nil {
+		return fmt.Errorf("error tagging EBS volume %s (%s): %w", volumeName, volumeID, err)
+	}
+
+	fmt.Printf("EBS volume %s (%s) tagged correctly\n", volumeName, volumeID)
+	return nil
+}
+
+func CreateSwarmVolumes(pd *pt.PlatformData, volumesMap map[string]pt.Volume) (map[string]pt.Volume, error) {
+	domainName := pd.PlatformInfo.DomainName
+
+	var filter volumeNodeFilter
+	if len(pd.PlatformInfo.NodesData) == 1 {
+		filter = func(pt.Volume, *pt.DockerClient) bool { return true }
+	} else {
+		labelsByNode, err := swarmNodeLabels()
+		if err != nil {
+			return nil, fmt.Errorf("error reading the swarm node labels: %w", err)
+		}
+		filter = placementFilter(pd, labelsByNode)
+	}
+
+	errors := []error{}
+	for node, dc := range pt.DCMap {
+		if dc == nil || dc.Cli == nil {
+			errors = append(errors, fmt.Errorf("node %s is unreachable, so its volumes cannot be created", node))
+			continue
+		}
+		// Ranging over volumesMap, never over a list of names: a name with
+		// no entry in the map would come back as a zero Volume, and
+		// VolumeCreate with an empty name makes an anonymous volume — which
+		// is what used to leave three of them (pgdata, timescaledb_data,
+		// timescaledb_wal, absent with Patroni) on every worker.
+		for key, vol := range volumesMap {
+			if !filter(vol, dc) {
+				continue
+			}
+			if err := CreateVolume(dc, domainName, &vol); err != nil {
+				errors = append(errors, fmt.Errorf("error creating volume %s in node %s: %v", vol.Name, dc.Node.NodeIP, err))
+			}
+			volumesMap[key] = vol
+		}
+	}
+
+	if len(errors) > 0 {
+		return nil, fmt.Errorf("errors creating volumes: %v", errors)
+	}
+
+	return volumesMap, nil
+}
+
+// removeReplicaVolume removes a volume with the given name from all nodes in the swarm.
+func removeReplicaVolume(pd *pt.PlatformData, volumeName string) error {
+	if pd.PlatformInfo.UseAwsEbsVolumes {
+		domainName := pd.PlatformInfo.DomainName
+		if err := DeleteEBSVolumeByName(context.Background(), domainName, volumeName); err != nil {
+			return fmt.Errorf("error deleting EBS volume %s: %w", volumeName, err)
+		}
+		// Cleaning up the local Docker volume reference is best-effort, as the EBS volume has already been deleted.
+		for _, dc := range pt.DCMap {
+			err := dc.Cli.VolumeRemove(dc.Ctx, volumeName, true)
+			if err != nil && !isVolumeAlreadyRemovedError(err) && !errdefs.IsNotFound(err) {
+				fmt.Printf("Warning: could not remove local volume reference %s on node %s: %v\n", volumeName, dc.Node.NodeIP, err)
+			}
+		}
+		return nil
+	}
+
+	// Non-EBS drivers (local): docker volume rm is reliable and idempotent.
+	errors := []error{}
+	for ip, dc := range pt.DCMap {
+		if dc == nil {
+			errors = append(errors, fmt.Errorf("node %s is unreachable: remove volume %s there by hand", ip, volumeName))
+			continue
+		}
+		err := dc.Cli.VolumeRemove(dc.Ctx, volumeName, true)
+		if err != nil {
+			if isVolumeAlreadyRemovedError(err) {
+				continue
+			}
+			errors = append(errors, fmt.Errorf("error removing volume %s in node %s: %v", volumeName, dc.Node.NodeIP, err))
+		}
+	}
+
+	if len(errors) > 0 {
+		return fmt.Errorf("errors removing volume %s: %v", volumeName, errors)
+	}
+
+	return nil
+}
+
+func RemoveSwarmVolumes(pd *pt.PlatformData) error {
+	errors := []error{}
+	filterByNames := getVolumeFilterByNames(pd)
+	knownNames := platformVolumeNames(pd)
+
+	for _, dc := range pt.DCMap {
+		if dc == nil || dc.Cli == nil {
+			continue
+		}
+
+		existingVolumes := make(map[string]*volume.Volume)
+		volumesByNameResp, err := dc.Cli.VolumeList(dc.Ctx, volume.ListOptions{
+			Filters: filterByNames,
+		})
+		if err != nil {
+			return fmt.Errorf("error listing volumes by name: %v", err)
+		}
+		for _, v := range volumesByNameResp.Volumes {
+			// The name filter is a substring match and this loop ends
+			// in VolumeRemove, so only exact matches get through.
+			if knownNames[v.Name] {
+				existingVolumes[v.Name] = v
+			}
+		}
+
+		filterByLabel := filters.NewArgs()
+		filterByLabel.Add("label", "app=osi4iot")
+		volumesByLabelResp, err := dc.Cli.VolumeList(dc.Ctx, volume.ListOptions{
+			Filters: filterByLabel,
+		})
+		if err != nil {
+			return fmt.Errorf("error listing volumes by label: %v", err)
+		}
+		for _, v := range volumesByLabelResp.Volumes {
+			if _, ok := existingVolumes[v.Name]; !ok {
+				existingVolumes[v.Name] = v
+			}
+		}
+
+		for _, v := range existingVolumes {
+			err = dc.Cli.VolumeRemove(dc.Ctx, v.Name, true)
+			if err != nil {
+				if isVolumeAlreadyRemovedError(err) {
+					continue
+				}
+				errors = append(errors, fmt.Errorf("error removing volume: %v", err))
+			}
+		}
+	}
+
+	if len(errors) > 0 {
+		return fmt.Errorf("errors removing volumes: %v", errors)
+	}
+
+	return nil
+}
+
+// DeleteEBSVolumeByName deletes a single EBS volume identified by its Docker
+// volume name (tag:Name), scoped to the current platform (tag:app=osi4iot
+// and tag:domainName=<domainName>), detaching it first if necessary.
+// This bypasses the rexray-ebs plugin's VolumeRemove, which can fail with
+// "already been removed" if the plugin's configured region doesn't match
+// the volume's actual region.
+func DeleteEBSVolumeByName(ctx context.Context, domainName, volumeName string) error {
+	cfg, err := utils.GetEC2RoleConfig(ctx)
+	if err != nil {
+		return fmt.Errorf("error loading AWS config: %w", err)
+	}
+	ec2Client := ec2.NewFromConfig(cfg)
+
+	result, err := ec2Client.DescribeVolumes(ctx, &ec2.DescribeVolumesInput{
+		Filters: []ec2types.Filter{
+			{
+				Name:   aws.String("tag:app"),
+				Values: []string{"osi4iot"},
+			},
+			{
+				Name:   aws.String("tag:domainName"),
+				Values: []string{domainName},
+			},
+			{
+				Name:   aws.String("tag:Name"),
+				Values: []string{volumeName},
+			},
+			{
+				Name:   aws.String("status"),
+				Values: []string{"available", "in-use", "creating"},
+			},
+		},
+	})
+	if err != nil {
+		return fmt.Errorf("error describing EBS volume %s: %w", volumeName, err)
+	}
+
+	if len(result.Volumes) == 0 {
+		// Nothing to delete — already gone, or never tagged.
+		return nil
+	}
+
+	for _, v := range result.Volumes {
+		volumeID := aws.ToString(v.VolumeId)
+
+		if v.State == ec2types.VolumeStateInUse {
+			_, err := ec2Client.DetachVolume(ctx, &ec2.DetachVolumeInput{
+				VolumeId: aws.String(volumeID),
+				Force:    aws.Bool(true),
+			})
+			if err != nil {
+				return fmt.Errorf("error detaching volume %s (%s): %w", volumeName, volumeID, err)
+			}
+
+			if err := waitForVolumeAvailable(ctx, ec2Client, volumeID); err != nil {
+				return err
+			}
+		}
+
+		if _, err := ec2Client.DeleteVolume(ctx, &ec2.DeleteVolumeInput{
+			VolumeId: aws.String(volumeID),
+		}); err != nil {
+			return fmt.Errorf("error deleting volume %s (%s): %w", volumeName, volumeID, err)
+		}
+	}
+
+	// Wait until the volume is fully gone.
+	for i := 0; i <= 30; i++ {
+		time.Sleep(2 * time.Second)
+
+		remaining, err := ec2Client.DescribeVolumes(ctx, &ec2.DescribeVolumesInput{
+			Filters: []ec2types.Filter{
+				{
+					Name:   aws.String("tag:app"),
+					Values: []string{"osi4iot"},
+				},
+				{
+					Name:   aws.String("tag:domainName"),
+					Values: []string{domainName},
+				},
+				{
+					Name:   aws.String("tag:Name"),
+					Values: []string{volumeName},
+				},
+				{
+					Name:   aws.String("status"),
+					Values: []string{"creating", "available", "in-use", "deleting"},
+				},
+			},
+		})
+		if err != nil {
+			return fmt.Errorf("error describing EBS volume %s: %w", volumeName, err)
+		}
+
+		if len(remaining.Volumes) == 0 {
+			return nil
+		}
+
+		if i == 30 {
+			return fmt.Errorf("timeout: EBS volume %s was not deleted", volumeName)
+		}
+	}
+
+	return nil
+}
+
+// platformVolumeNames returns every volume name this platform's
+// configuration defines.
+//
+// Derived from GenerateVolumes rather than from a list maintained by
+// hand. The hand-maintained one had drifted badly: it still carried the
+// pre-Patroni names and was missing patroni_admin%d-data,
+// patroni_metrics%d-data, pipelines_data_%d,
+// timescaledb_wal and system_manager-data. That only shows
+// up when a volume has lost its app=osi4iot label, because then the
+// name list is the only thing left that can find it — and a volume
+// nobody can find is a volume `osi4iot delete` leaves behind.
+func platformVolumeNames(pd *pt.PlatformData) map[string]bool {
+	names := make(map[string]bool)
+	for name := range GenerateVolumes(pd) {
+		names[name] = true
+	}
+	return names
+}
+
+// getVolumeFilterByNames narrows a VolumeList to this platform's
+// volumes.
+//
+// Docker's "name" filter matches SUBSTRINGS, so the result still has to
+// be checked against the exact names — see platformVolumeNames and its
+// use in RemoveSwarmVolumes. Without that, a user volume called
+// something like "my-pgdata-backup" matches the "pgdata" filter and
+// gets deleted along with the platform.
+func getVolumeFilterByNames(pd *pt.PlatformData) filters.Args {
+	volumeFilters := filters.NewArgs()
+	for name := range platformVolumeNames(pd) {
+		volumeFilters.Add("name", name)
+	}
+	return volumeFilters
+}
+
+// roleVolumeNames lists the volumes a node of the given role used to get
+// regardless of labels. Now only consulted for volumes with a
+// cluster-wide driver (EBS), whose placement is not tied to a node —
+// see placementFilter.
+func roleVolumeNames(nodeRole string, pd *pt.PlatformData) map[string]bool {
+	names := map[string]bool{"vector_buffer": true}
+	switch nodeRole {
+	case "Manager":
+		for replica := 1; replica <= utils.GetServiceReplicas(pd, "grafana"); replica++ {
+			names[fmt.Sprintf("grafana_data_%d", replica)] = true
+		}
+	case "Platform worker":
+		for _, name := range []string{"pgdata", "timescaledb_data", "timescaledb_wal", "pgadmin4_data"} {
+			names[name] = true
+		}
+		for replica := 1; replica <= utils.GetServiceReplicas(pd, "nats"); replica++ {
+			names[fmt.Sprintf("nats%d_data", replica)] = true
+		}
+		for i := 1; i <= utils.GetServiceReplicas(pd, "pipelines"); i++ {
+			names[fmt.Sprintf("pipelines_data_%d", i)] = true
+		}
+
+		if utils.IsGarage(pd.PlatformInfo) {
+			for _, inst := range pd.PlatformInfo.GarageInstances {
+				names[utils.GarageMetaVolumeName(inst.ID)] = true
+				names[utils.GarageDataVolumeName(inst.ID)] = true
+			}
+		}
+	}
+
+	return names
+}
+
+func SetVolumeConfig(
+	pi pt.PlatformInfo,
+	volumeName string,
+	serviceName string,
+	deploymentLocation string,
+	volOpts VolumeOptions,
+	forceLocal ...bool,
+) pt.Volume {
+	vol := pt.Volume{
+		Name:        volumeName,
+		ServiceName: serviceName,
+		Driver:      "local",
+		DriverOpts:  map[string]string{},
+	}
+
+	isForceLocal := len(forceLocal) > 0 && forceLocal[0]
+	if isForceLocal {
+		return vol
+	}
+
+	if pi.UseAwsEbsVolumes {
+		vol.Driver = "rexray-ebs"
+		vol.DriverOpts = map[string]string{
+			"size":       volOpts.ebsOpts.size,
+			"volumeType": volOpts.ebsOpts.volumeType,
+			"iops":       volOpts.ebsOpts.iops,
+			"throughput": volOpts.ebsOpts.throughput,
+			"encrypted":  volOpts.ebsOpts.encrypted,
+		}
+	}
+	return vol
+}
+
+func isVolumeAlreadyRemovedError(err error) bool {
+	if err == nil {
+		return false
+	}
+	if errdefs.IsNotFound(err) {
+		return true
+	}
+	return strings.Contains(err.Error(), "volume has already been removed")
+}
+
+func CreateNatsVolume(pi pt.PlatformInfo, dc *pt.DockerClient, replica int) (*pt.Volume, error) {
+	volOptions := createDefaultOptions(pi)
+	volumeName := fmt.Sprintf("nats%d_data", replica)
+	serviceName := fmt.Sprintf("nats%d", replica)
+	volume := SetVolumeConfig(pi, volumeName, serviceName, pi.DeploymentLocation, volOptions)
+
+	// On the worker that will run this replica, not on dc's node.
+	if err := createPinnedVolume(pi, dc, &volume); err != nil {
+		return nil, err
+	}
+
+	return &volume, nil
+}
+
+func RemoveNatsVolume(pd *pt.PlatformData, replica int) error {
+	return removeReplicaVolume(pd, fmt.Sprintf("nats%d_data", replica))
+}
+
+// CreatePatroniAdminVolume provisions the single "patroni_adminN-data"
+// volume for one new admin-cluster node. Like nats (and unlike
+// pipelines/grafana), patroni_adminN nodes are pinned to a specific node
+// via a node.labels.admin-id placement constraint, so — mirroring
+// CreateNatsVolume — this only needs to create the volume on the single dc
+// the caller passes in, not sweep every node in pt.DCMap.
+func CreatePatroniAdminVolume(pi pt.PlatformInfo, dc *pt.DockerClient, replica int) (*pt.Volume, error) {
+	volOptions := createDefaultOptions(pi)
+	volumeName := fmt.Sprintf("patroni_admin%d-data", replica)
+	serviceName := fmt.Sprintf("patroni_admin%d", replica)
+	volume := SetVolumeConfig(pi, volumeName, serviceName, pi.DeploymentLocation, volOptions)
+
+	// On the worker that will run this replica, not on dc's node.
+	if err := createPinnedVolume(pi, dc, &volume); err != nil {
+		return nil, err
+	}
+
+	return &volume, nil
+}
+
+// RemovePatroniAdminVolume removes the "patroni_adminN-data" volume for a
+// removed admin-cluster node.
+func RemovePatroniAdminVolume(pd *pt.PlatformData, replica int) error {
+	return removeReplicaVolume(pd, fmt.Sprintf("patroni_admin%d-data", replica))
+}
+
+// CreatePatroniMetricsVolume provisions the data volume a new
+// metrics-cluster node needs. Same single-dc reasoning as
+// CreatePatroniAdminVolume.
+//
+// There used to be a second, "...-wal" volume mounted at /wal. Nothing
+// ever used it: no initdb --waldir, no symlink, no postgresql.conf
+// setting. Wiring it up properly would have made PGDATA and pg_wal one
+// state split across two volumes — to be wiped together on a restore,
+// and silently corrupt if they ever diverged — and the symlink would
+// not have survived a wal-g backup-fetch anyway, so a restored cluster
+// would have quietly gone back to writing WAL inside the data volume.
+// The I/O separation it was presumably meant to buy was never measured;
+// the failure modes were not hypothetical.
+func CreatePatroniMetricsVolume(pi pt.PlatformInfo, dc *pt.DockerClient, replica int) (*pt.Volume, error) {
+	volOptions := createDefaultOptions(pi)
+	serviceName := fmt.Sprintf("patroni_metrics%d", replica)
+	dataVolumeName := fmt.Sprintf("patroni_metrics%d-data", replica)
+	dataVolume := SetVolumeConfig(pi, dataVolumeName, serviceName, pi.DeploymentLocation, volOptions)
+
+	// On the worker that will run this replica, not on dc's node.
+	if err := createPinnedVolume(pi, dc, &dataVolume); err != nil {
+		return nil, err
+	}
+
+	return &dataVolume, nil
+}
+
+// RemovePatroniMetricsVolume removes the volume of a removed
+// metrics-cluster node.
+func RemovePatroniMetricsVolume(pd *pt.PlatformData, replica int) error {
+	return removeReplicaVolume(pd, fmt.Sprintf("patroni_metrics%d-data", replica))
+}
+
+func CreatePipelinesVolume(pi pt.PlatformInfo, dc *pt.DockerClient, replica int) error {
+	volOptions := createDefaultOptions(pi)
+	volumeName := fmt.Sprintf("pipelines_data_%d", replica)
+	domainName := pi.DomainName
+	// pipelines_data holds regenerable cache/temp data — see GenerateVolumes
+	// for the full rationale on using a local volume here.
+	volume := SetVolumeConfig(pi, volumeName, "pipelines", pi.DeploymentLocation, volOptions, true)
+	err := CreateVolume(dc, domainName, &volume)
+	if err != nil {
+		return fmt.Errorf("error creating volume %s in node %s: %v", volume.Name, dc.Node.NodeIP, err)
+	}
+
+	return nil
+}
+
+func RemovePipelinesVolume(pd *pt.PlatformData, replica int) error {
+	return removeReplicaVolume(pd, fmt.Sprintf("pipelines_data_%d", replica))
+}
+
+func CreateGrafanaVolume(pi pt.PlatformInfo, dc *pt.DockerClient, replica int) error {
+	volOptions := createDefaultOptions(pi)
+	volumeName := fmt.Sprintf("grafana_data_%d", replica)
+	domainName := pi.DomainName
+	volume := SetVolumeConfig(pi, volumeName, "grafana", pi.DeploymentLocation, volOptions)
+	err := CreateVolume(dc, domainName, &volume)
+	if err != nil {
+		return fmt.Errorf("error creating volume %s in node %s: %v", volume.Name, dc.Node.NodeIP, err)
+	}
+	return nil
+}
+
+func RemoveGrafanaVolume(pd *pt.PlatformData, replica int) error {
+	return removeReplicaVolume(pd, fmt.Sprintf("grafana_data_%d", replica))
+}
+
+func ListEBSVolumes(ctx context.Context, filters ...ec2types.Filter) ([]EBSVolumeInfo, error) {
+	cfg, err := utils.GetEC2RoleConfig(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("error loading AWS config: %w", err)
+	}
+	ec2Client := ec2.NewFromConfig(cfg)
+
+	input := &ec2.DescribeVolumesInput{}
+	if len(filters) > 0 {
+		input.Filters = filters
+	}
+
+	var volumes []EBSVolumeInfo
+
+	paginator := ec2.NewDescribeVolumesPaginator(ec2Client, input)
+	for paginator.HasMorePages() {
+		page, err := paginator.NextPage(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("error describing EBS volumes: %w", err)
+		}
+
+		for _, v := range page.Volumes {
+			tags := make(map[string]string)
+			for _, tag := range v.Tags {
+				tags[aws.ToString(tag.Key)] = aws.ToString(tag.Value)
+			}
+
+			volumes = append(volumes, EBSVolumeInfo{
+				VolumeID:   aws.ToString(v.VolumeId),
+				State:      string(v.State),
+				Size:       aws.ToInt32(v.Size),
+				VolumeType: string(v.VolumeType),
+				AZ:         aws.ToString(v.AvailabilityZone),
+				Encrypted:  aws.ToBool(v.Encrypted),
+				Tags:       tags,
+			})
+		}
+	}
+
+	return volumes, nil
+}
+
+func ListOsi4iotEBSVolumes(ctx context.Context, domainName string) ([]EBSVolumeInfo, error) {
+	return ListEBSVolumes(ctx,
+		ec2types.Filter{
+			Name:   aws.String("tag:app"),
+			Values: []string{"osi4iot"},
+		},
+		ec2types.Filter{
+			Name:   aws.String("tag:domainName"),
+			Values: []string{domainName},
+		},
+	)
+}
+
+func ListEBSVolumesByState(ctx context.Context, states ...string) ([]EBSVolumeInfo, error) {
+	return ListEBSVolumes(ctx,
+		ec2types.Filter{
+			Name:   aws.String("status"),
+			Values: states,
+		},
+	)
+}
+
+func WaitForEBSVolumesToBeDeleted(ctx context.Context, domainName string) error {
+	cfg, err := utils.GetEC2RoleConfig(ctx)
+	if err != nil {
+		return fmt.Errorf("error loading AWS config: %w", err)
+	}
+	ec2Client := ec2.NewFromConfig(cfg)
+
+	for i := 0; i <= 30; i++ {
+		time.Sleep(2 * time.Second)
+
+		result, err := ec2Client.DescribeVolumes(ctx, &ec2.DescribeVolumesInput{
+			Filters: []ec2types.Filter{
+				{
+					Name:   aws.String("tag:app"),
+					Values: []string{"osi4iot"},
+				},
+				{
+					Name:   aws.String("tag:domainName"),
+					Values: []string{domainName},
+				},
+				{
+					Name:   aws.String("status"),
+					Values: []string{"creating", "available", "in-use", "deleting"},
+				},
+			},
+		})
+		if err != nil {
+			return fmt.Errorf("error describing EBS volumes: %w", err)
+		}
+
+		if len(result.Volumes) == 0 {
+			fmt.Println("All EBS volumes have been deleted")
+			return nil
+		}
+
+		fmt.Printf("Waiting for deletion of %d EBS volumes...\n", len(result.Volumes))
+
+		if i == 30 {
+			for _, v := range result.Volumes {
+				fmt.Printf("Pending EBS volume: %s (state: %s)\n",
+					aws.ToString(v.VolumeId), v.State)
+			}
+			return fmt.Errorf("timeout: %d EBS volumes were not deleted", len(result.Volumes))
+		}
+	}
+
+	return nil
+}
+
+func GetNumVolumes(pd *pt.PlatformData) (int, error) {
+	pi := pd.PlatformInfo
+	domainName := pi.DomainName
+	useAwsEbsVolumes := pi.UseAwsEbsVolumes
+	numVolumes := 0
+	filterArgs := filters.NewArgs()
+	filterArgs.Add("label", "app=osi4iot")
+	filterArgs.Add("label", fmt.Sprintf("domainName=%s", domainName))
+
+	if useAwsEbsVolumes {
+		volumes, err := ListOsi4iotEBSVolumes(context.Background(), domainName)
+		if err != nil {
+			return 0, fmt.Errorf("error listing EBS volumes: %w", err)
+		}
+		numVolumes = len(volumes)
+	} else {
+		for _, dc := range pt.DCMap {
+			existingVolumes, err := dc.Cli.VolumeList(dc.Ctx, volume.ListOptions{
+				Filters: filterArgs,
+			})
+			if err != nil {
+				return 0, fmt.Errorf("error listing volumes: %v", err)
+			}
+			numVolumes += len(existingVolumes.Volumes)
+		}
+	}
+
+	return numVolumes, nil
+}
+
+func DeleteAndWaitForEBSVolumesToBeDeleted(ctx context.Context, domainName string) error {
+	cfg, err := utils.GetEC2RoleConfig(ctx)
+	if err != nil {
+		return fmt.Errorf("error loading AWS config: %w", err)
+	}
+	ec2Client := ec2.NewFromConfig(cfg)
+
+	// 1. Get all EBS volumes for the platform
+	result, err := ec2Client.DescribeVolumes(ctx, &ec2.DescribeVolumesInput{
+		Filters: []ec2types.Filter{
+			{
+				Name:   aws.String("tag:app"),
+				Values: []string{"osi4iot"},
+			},
+			{
+				Name:   aws.String("tag:domainName"),
+				Values: []string{domainName},
+			},
+			{
+				Name:   aws.String("status"),
+				Values: []string{"available", "in-use", "creating"},
+			},
+		},
+	})
+	if err != nil {
+		return fmt.Errorf("error describing EBS volumes: %w", err)
+	}
+
+	if len(result.Volumes) == 0 {
+		return nil
+	}
+
+	// 2. Delete each volume directly using the AWS SDK
+	deleteErrors := []error{}
+	for _, v := range result.Volumes {
+		volumeID := aws.ToString(v.VolumeId)
+
+		// If the volume is still attached (in-use), detach it first
+		if v.State == ec2types.VolumeStateInUse {
+			_, err := ec2Client.DetachVolume(ctx, &ec2.DetachVolumeInput{
+				VolumeId: aws.String(volumeID),
+				Force:    aws.Bool(true),
+			})
+			if err != nil {
+				deleteErrors = append(deleteErrors,
+					fmt.Errorf("error detaching volume %s: %w", volumeID, err))
+				continue
+			}
+
+			// Wait for the volume to be available before deleting
+			if err := waitForVolumeAvailable(ctx, ec2Client, volumeID); err != nil {
+				deleteErrors = append(deleteErrors, err)
+				continue
+			}
+		}
+
+		// Delete the volume
+		_, err := ec2Client.DeleteVolume(ctx, &ec2.DeleteVolumeInput{
+			VolumeId: aws.String(volumeID),
+		})
+		if err != nil {
+			deleteErrors = append(deleteErrors,
+				fmt.Errorf("error deleting volume %s: %w", volumeID, err))
+		}
+	}
+
+	if len(deleteErrors) > 0 {
+		return fmt.Errorf("errors deleting EBS volumes: %v", deleteErrors)
+	}
+
+	// 3. Verify all volumes have been deleted
+	for i := 0; i <= 30; i++ {
+		time.Sleep(2 * time.Second)
+
+		remaining, err := ec2Client.DescribeVolumes(ctx, &ec2.DescribeVolumesInput{
+			Filters: []ec2types.Filter{
+				{
+					Name:   aws.String("tag:app"),
+					Values: []string{"osi4iot"},
+				},
+				{
+					Name:   aws.String("tag:domainName"),
+					Values: []string{domainName},
+				},
+				{
+					// Only volumes that have not been deleted yet
+					Name:   aws.String("status"),
+					Values: []string{"creating", "available", "in-use", "deleting"},
+				},
+			},
+		})
+		if err != nil {
+			return fmt.Errorf("error describing EBS volumes: %w", err)
+		}
+
+		if len(remaining.Volumes) == 0 {
+			return nil
+		}
+
+		if i == 30 {
+			return fmt.Errorf("timeout: %d EBS volumes were not deleted",
+				len(remaining.Volumes))
+		}
+	}
+
+	return nil
+}
+
+func waitForVolumeAvailable(ctx context.Context, ec2Client *ec2.Client, volumeID string) error {
+	for i := 0; i <= 30; i++ {
+		time.Sleep(2 * time.Second)
+
+		result, err := ec2Client.DescribeVolumes(ctx, &ec2.DescribeVolumesInput{
+			VolumeIds: []string{volumeID},
+		})
+		if err != nil {
+			return fmt.Errorf("error describing volume %s: %w", volumeID, err)
+		}
+
+		// Volume no longer exists, nothing to wait for
+		if len(result.Volumes) == 0 {
+			return nil
+		}
+
+		if result.Volumes[0].State == ec2types.VolumeStateAvailable {
+			return nil
+		}
+
+		if i == 30 {
+			return fmt.Errorf("timeout waiting for volume %s to be available", volumeID)
+		}
+	}
+	return nil
+}
+
+// CreateGarageInstanceVolumes creates a Garage instance's two volumes on
+// the node carrying its garage_<ID> label (see pinnedVolumes) — so the
+// label must already be there.
+func CreateGarageInstanceVolumes(pi pt.PlatformInfo, dc *pt.DockerClient, id int) ([]pt.Volume, error) {
+	volOptions := createDefaultOptions(pi)
+	service := utils.GarageInstanceServiceName(id)
+	var out []pt.Volume
+	for _, name := range []string{utils.GarageMetaVolumeName(id), utils.GarageDataVolumeName(id)} {
+		vol := SetVolumeConfig(pi, name, service, pi.DeploymentLocation, volOptions)
+		if err := createPinnedVolume(pi, dc, &vol); err != nil {
+			return nil, err
+		}
+		out = append(out, vol)
+	}
+	return out, nil
+}
+
+// RemoveGarageInstanceVolumes removes a retired Garage instance's volumes.
+func RemoveGarageInstanceVolumes(pd *pt.PlatformData, id int) error {
+	for _, name := range []string{utils.GarageMetaVolumeName(id), utils.GarageDataVolumeName(id)} {
+		if err := removeReplicaVolume(pd, name); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// RemoveNodeVolumes removes this platform's local volumes from one node
+// — a node leaving the platform — and returns their names. The same
+// volumes `osi4iot delete` removes (app=osi4iot, or one of the
+// platform's volume names), restricted to the local driver: a
+// cluster-wide one (EBS) belongs to the cluster, not to the node.
+//
+// Nothing may still use them: the caller has drained the node and
+// removed the stopped containers of its tasks.
+func RemoveNodeVolumes(pd *pt.PlatformData, dc *pt.DockerClient) ([]string, error) {
+	knownNames := platformVolumeNames(pd)
+	candidates := map[string]*volume.Volume{}
+
+	byName, err := dc.Cli.VolumeList(dc.Ctx, volume.ListOptions{Filters: getVolumeFilterByNames(pd)})
+	if err != nil {
+		return nil, fmt.Errorf("error listing volumes: %w", err)
+	}
+	for _, v := range byName.Volumes {
+		if knownNames[v.Name] { // the name filter matches substrings
+			candidates[v.Name] = v
+		}
+	}
+	labelFilter := filters.NewArgs()
+	labelFilter.Add("label", "app=osi4iot")
+	byLabel, err := dc.Cli.VolumeList(dc.Ctx, volume.ListOptions{Filters: labelFilter})
+	if err != nil {
+		return nil, fmt.Errorf("error listing volumes: %w", err)
+	}
+	for _, v := range byLabel.Volumes {
+		candidates[v.Name] = v
+	}
+
+	var removed, failed []string
+	for name, v := range candidates {
+		if v.Driver != "" && v.Driver != "local" {
+			continue
+		}
+		if err := dc.Cli.VolumeRemove(dc.Ctx, name, true); err != nil && !isVolumeAlreadyRemovedError(err) {
+			failed = append(failed, fmt.Sprintf("%s (%v)", name, err))
+			continue
+		}
+		removed = append(removed, name)
+	}
+	sort.Strings(removed)
+	if len(failed) > 0 {
+		return removed, fmt.Errorf("could not remove %s", strings.Join(failed, "; "))
+	}
+	return removed, nil
+}

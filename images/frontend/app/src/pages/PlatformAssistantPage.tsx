@@ -25,12 +25,13 @@ const Container = styled.div`
 
 const Title = styled.h2`
 	font-size: 20px;
-	margin-top: 20px;
-	margin-bottom: 20px;
+	margin-top: 15px;
+	margin-bottom: 15px;
 	font-weight: 400;
 	text-align: center;
 	color: white;
 	width: 100%;
+	user-select: none;
 `;
 
 const domainName = getDomainName();

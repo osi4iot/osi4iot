@@ -1,4 +1,4 @@
-import { IsEnum, IsNumber, IsString } from "class-validator";
+import { IsBoolean, IsEnum, IsNumber, IsString, ValidateIf } from "class-validator";
 import { OrgRoleOption, OrgRoleOptions } from "./orgRoleOptions";
 
 class UpdateOrganizationDto {
@@ -17,13 +17,32 @@ class UpdateOrganizationDto {
 	public buildingId: number;
 
 	@IsString()
-	public orgHash: string;
+	public mqttAccessControl: string;
 
-	@IsString({each: true})
-	public nriHashes: string[];
+	@IsBoolean()
+	public llmEnabled: boolean;
 
 	@IsString()
-	public mqttAccessControl: string;
+	@ValidateIf((obj) => obj.llmEnabled === true)
+	public llmProviderUrl: string;
+
+	@IsBoolean()
+	public changeLlmProviderApiKey: boolean;
+
+	@ValidateIf((obj) => obj.llmEnabled === true && obj.changeLlmProviderApiKey === true)
+	@IsString()
+	public llmProviderApiKey: string;
+
+	@IsBoolean()
+	public telegramEnabled: boolean;
+
+	@IsBoolean()
+	@ValidateIf((obj) => obj.telegramEnabled === true)
+	public changeTelegramSettings?: boolean;
+
+	@IsString()
+	@ValidateIf((obj) => obj.telegramEnabled === true && obj.changeTelegramSettings === true)
+	public telegramBotToken?: string;
 }
 
 export default UpdateOrganizationDto;

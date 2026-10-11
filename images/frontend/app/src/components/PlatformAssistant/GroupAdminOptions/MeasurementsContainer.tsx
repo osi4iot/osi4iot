@@ -18,6 +18,7 @@ import { ISensor } from '../TableColumns/sensorsColumns';
 import SelectSensor from './SelectSensor';
 import { ISelectSensor } from '../TableColumns/selectSensorColumns';
 import { AxiosError, AxiosResponse } from 'axios';
+import { Column } from 'react-table';
 
 const giveMeasurementSensor = (selectedSensor: ISensor) => {
     const topicUid = selectedSensor.topicUid;
@@ -171,7 +172,7 @@ const MeasurementsContainer: FC<MeasurementsContainerProps> = ({ sensors, topics
             {measurementsOptionToShow === MEASUREMENTS_OPTIONS.TABLE &&
                 <TableWithPaginationAsync
                     data={dataTable}
-                    columns={columnsTable}
+                    columns={columnsTable as Column<any>[]}
                     fetchData={fetchMeasurements}
                     refreshMeasurements={refreshMeasurements}
                     measurementTopic={measurementTopic}

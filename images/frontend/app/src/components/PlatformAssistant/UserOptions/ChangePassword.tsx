@@ -76,6 +76,7 @@ const ChangePassword: FC<ChangePasswordProps> = ({ backToUserProfile }) => {
                 <Formik initialValues={{ oldPassword: "", newPassword: "", confirmPassword: "" }} validationSchema={validationSchema} onSubmit={onSubmit} >
                     {
                         formik => (
+                            // @ts-ignore
                             <Form>
                                 <FormikControl
                                     control='input'

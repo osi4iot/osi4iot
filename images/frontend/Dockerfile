@@ -1,12 +1,12 @@
 # => Build container
 FROM node:lts-alpine AS builder
-# FROM node:16-alpine3.16 as builder
 WORKDIR /app
 COPY ./app/package.json .
 COPY ./app/yarn.lock .
+COPY ./app/scripts ./scripts
 RUN yarn --network-timeout 600000
 COPY ./app/. .
-RUN export NODE_OPTIONS=--openssl-legacy-provider && yarn build
+RUN yarn build
 
 # => Run container
 FROM nginx:1.25.3
@@ -15,7 +15,7 @@ FROM nginx:1.25.3
 COPY ./nginx.conf /etc/nginx/nginx.conf
 
 # Static build
-COPY --from=builder /app/build /static/
+COPY --from=builder /app/dist /static/
 
 # Default port exposure
 EXPOSE 80

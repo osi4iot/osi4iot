@@ -1,9 +1,9 @@
 import { FC, useEffect, useMemo, useState } from "react";
-import { Circle } from 'react-leaflet';
-import rhumbDestination from '@turf/rhumb-destination';
-import { point } from '@turf/helpers';
-import { StyledTooltip as Tooltip } from './Tooltip';
-import { LatLngTuple } from 'leaflet';
+import { Circle } from "react-leaflet";
+import rhumbDestination from "@turf/rhumb-destination";
+import { point } from "@turf/helpers";
+import { StyledTooltip as Tooltip } from "./Tooltip";
+import { LatLngTuple } from "leaflet";
 import calcGeoBounds from "../../../tools/calcGeoBounds";
 import { toast } from "react-toastify";
 import { ISensor } from "../TableColumns/sensorsColumns";
@@ -12,13 +12,12 @@ import { SensorSvgImage } from "./SensorSvgImage";
 import { STATUS_ALERTING, STATUS_OK, STATUS_PENDING, findOutSensorStatus } from "./statusTools";
 import { IDigitalTwin } from "../TableColumns/digitalTwinsColumns";
 import { ISensorState } from "./GeolocationContainer";
-import { setWindowObjectReferences, usePlatformAssitantDispatch, useWindowObjectReferences } from "../../../contexts/platformAssistantContext";
-import { openWindowTab } from "../../../tools/tools";
 import { ISensorType } from "../TableColumns/sensorTypesColumns";
-
+import { useOpenWindowTab } from "../DigitalTwin3DViewer/Utils/customHooks";
+import { IDigitalTwinGltfData } from "../DigitalTwin3DViewer/ViewerTools/ViewerUtils";
 
 interface GeoSensorProps {
-    sensorLabel: string,
+    sensorLabel: string;
     assetData: IAsset;
     sensorType: ISensorType;
     sensorData: ISensor;
@@ -27,9 +26,16 @@ interface GeoSensorProps {
     selectSensor: (sensorSelected: ISensor | null) => void;
     selectDigitalTwin: (digitalTwinSelected: IDigitalTwin | null) => void;
     sensorsState: ISensorState[];
+    setSensorWithCameraSelected: (selected: boolean) => void;
+    clickToOpenDigitalTwin3DViewer: () => void;
 }
 
-const calcGeoPointPosition = (pointLongitude: number, pointLatitude: number, distance: number, angle: number): number[] => {
+const calcGeoPointPosition = (
+    pointLongitude: number,
+    pointLatitude: number,
+    distance: number,
+    angle: number,
+): number[] => {
     const pt = point([pointLongitude, pointLatitude]);
     let bearing: number = angle;
     if (angle > 180) {
@@ -37,7 +43,7 @@ const calcGeoPointPosition = (pointLongitude: number, pointLatitude: number, dis
     }
     const position = rhumbDestination(pt, distance, bearing);
     return [position.geometry.coordinates[0], position.geometry.coordinates[1]];
-}
+};
 
 const GeoSensor: FC<GeoSensorProps> = ({
     sensorLabel,
@@ -48,59 +54,66 @@ const GeoSensor: FC<GeoSensorProps> = ({
     sensorSelected,
     selectSensor,
     selectDigitalTwin,
-    sensorsState
+    sensorsState,
+    setSensorWithCameraSelected,
+    clickToOpenDigitalTwin3DViewer,
 }) => {
-    const plaformAssistantDispatch = usePlatformAssitantDispatch();
-    const windowObjectReferences = useWindowObjectReferences();
-    const arrayLength = parseInt(sensorLabel.split("/")[1], 10)
+    const arrayLength = parseInt(sensorLabel.split("/")[1], 10);
     const initialAngle = arrayLength > 10 ? 32.0 : 5.0;
-    const angle = 350 * (sensorIndex + 1) / 13 + initialAngle;
+    const angle = (350 * (sensorIndex + 1)) / 13 + initialAngle;
     const positionRadius = 0.00076 * assetData.iconRadio;
-    const [centerLongitude, centerLatitude] = calcGeoPointPosition(assetData.longitude, assetData.latitude, positionRadius, angle);
+    const [centerLongitude, centerLatitude] = calcGeoPointPosition(
+        assetData.longitude,
+        assetData.latitude,
+        positionRadius,
+        angle,
+    );
     const [status, setStatus] = useState("unknown");
     const [fillColor, setFillColor] = useState(STATUS_OK);
-    const sensorState = sensorsState.filter(sensor => sensor.sensorId === sensorData.id)[0];
+    const sensorState = sensorsState.filter((sensor) => sensor.sensorId === sensorData.id)[0];
+    const openDashboardTab = useOpenWindowTab();
 
     useEffect(() => {
         const status = findOutSensorStatus(sensorState);
         setStatus(status);
-        if (status === "ok") setFillColor(STATUS_OK)
-        else if (status === "pending") setFillColor(STATUS_PENDING)
+        if (status === "ok") setFillColor(STATUS_OK);
+        else if (status === "pending") setFillColor(STATUS_PENDING);
         else if (status === "alerting") setFillColor(STATUS_ALERTING);
     }, [sensorState]);
 
     const sensorRadio = 0.000085 * assetData.iconRadio;
-    const boundsSensor = useMemo(() =>
-        calcGeoBounds(
-            centerLongitude,
-            centerLatitude - 2.0e-7 * assetData.iconRadio,
-            sensorRadio
-        ), [centerLongitude, centerLatitude, sensorRadio, assetData.iconRadio]);
+    const boundsSensor = useMemo(
+        () => calcGeoBounds(centerLongitude, centerLatitude - 2.0e-7 * assetData.iconRadio, sensorRadio),
+        [centerLongitude, centerLatitude, sensorRadio, assetData.iconRadio],
+    );
 
     const sensorOuterRadio = 0.00016 * assetData.iconRadio;
-    const outerBoundsSensor = useMemo(() =>
-        calcGeoBounds(
-            centerLongitude,
-            centerLatitude,
-            sensorOuterRadio
-        ), [centerLongitude, centerLatitude, sensorOuterRadio]);
-
+    const outerBoundsSensor = useMemo(
+        () => calcGeoBounds(centerLongitude, centerLatitude, sensorOuterRadio),
+        [centerLongitude, centerLatitude, sensorOuterRadio],
+    );
 
     const clickHandler = () => {
         selectSensor(sensorData);
         selectDigitalTwin(null);
-        const url = (sensorData.dashboardUrl as string);
-        if (url.slice(0, 7) === "Warning") {
-            toast.warning(url);
+        if (
+            sensorData.sensorType === "Mobile photo" ||
+            sensorData.sensorType === "Mobile video" ||
+            sensorData.sensorType === "Photo camera" ||
+            sensorData.sensorType === "Video camera"
+        ) {
+            setSensorWithCameraSelected(true);
+            clickToOpenDigitalTwin3DViewer();
         } else {
-            openWindowTab(
-                url,
-                plaformAssistantDispatch,
-                windowObjectReferences,
-                setWindowObjectReferences
-            );
+            const url = sensorData.dashboardUrl as string;
+            if (url.slice(0, 7) === "Warning") {
+                toast.warning(url);
+            } else {
+                setSensorWithCameraSelected(false);
+                openDashboardTab(url);
+            }
         }
-    }
+    };
 
     return (
         <Circle
@@ -120,14 +133,18 @@ const GeoSensor: FC<GeoSensorProps> = ({
                 outerBounds={outerBoundsSensor as LatLngTuple[]}
             />
             <Tooltip sticky>
-                <span style={{ fontWeight: 'bold' }}>{`Sensor_${sensorData.sensorUid}`}</span><br />
-                Type: {sensorData.sensorType}<br />
-                Description: {sensorData.description}<br />
-                Recieve data from topicId: {sensorData.topicId}<br />
-                Status: <span style={{ fontWeight: 'bold' }}>{status.charAt(0).toUpperCase() + status.slice(1)}</span>
+                <span style={{ fontWeight: "bold" }}>{`Sensor_${sensorData.sensorUid}`}</span>
+                <br />
+                Type: {sensorData.sensorType}
+                <br />
+                Description: {sensorData.description}
+                <br />
+                Recieve data from topicId: {sensorData.topicId}
+                <br />
+                Status: <span style={{ fontWeight: "bold" }}>{status.charAt(0).toUpperCase() + status.slice(1)}</span>
             </Tooltip>
-        </Circle >
-    )
-}
+        </Circle>
+    );
+};
 
 export default GeoSensor;

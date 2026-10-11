@@ -21,9 +21,9 @@ import {
 } from '../../../contexts/sensorTypesOptions';
 import { ISensorType } from '../TableColumns/sensorTypesColumns';
 import { IOrgManaged } from '../TableColumns/organizationsManagedColumns';
-import { ControlsContainer, FormContainer } from '../GroupAdminOptions/CreateAsset';
 import { cleanSvgString } from '../../../tools/generateAssetTypeMarker';
 import { AxiosResponse, AxiosError } from 'axios';
+import { ControlsContainer, StaticFormContainer } from '../../Tools/FormTools';
 
 const SvgIconPreviewContainerDiv = styled.div`
     margin: 5px 0;
@@ -375,10 +375,11 @@ const EditSensorType: FC<EditSensorTypeProps> = ({
     return (
         <>
             <FormTitle isSubmitting={isSubmitting}>Edit sensor type</FormTitle>
-            <FormContainer>
+            <StaticFormContainer>
                 <Formik initialValues={initialSensorTypeData} validationSchema={validationSchema} onSubmit={onSubmit} >
                     {
                         formik => (
+                            // @ts-ignore
                             <Form>
                                 <ControlsContainer>
                                     <FieldContainer>
@@ -494,7 +495,7 @@ const EditSensorType: FC<EditSensorTypeProps> = ({
                         )
                     }
                 </Formik>
-            </FormContainer>
+            </StaticFormContainer>
         </>
     )
 }

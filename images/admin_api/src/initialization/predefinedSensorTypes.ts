@@ -6,22 +6,22 @@ export const predefinedSensorTypes = [
 		markerSvgFileName: "-",
 		markerSvgString: "",
 		defaultPayloadJsonSchema: {
-			"type": "object",
-			"properties": {
-				"longitude": {
-					"type": "number",
-					"description": "Longitude",
-					"units": "-"
+			type: "object",
+			properties: {
+				longitude: {
+					type: "number",
+					description: "Longitude",
+					units: "-",
 				},
-				"latitude": {
-					"type": "number",
-					"description": "Latitude",
-					"units": "-"
-				}
-			}
+				latitude: {
+					type: "number",
+					description: "Latitude",
+					units: "-",
+				},
+			},
 		},
 		dashboardRefreshString: "1s",
-		dashboardTimeWindow: "5m"
+		dashboardTimeWindow: "5m",
 	},
 	{
 		type: "Mobile accelerations",
@@ -30,20 +30,20 @@ export const predefinedSensorTypes = [
 		markerSvgFileName: "-",
 		markerSvgString: "",
 		defaultPayloadJsonSchema: {
-			"type": "object",
-			"properties": {
-				"mobile_accelerations": {
-					"type": "array",
-					"description": "Ax,Ay,Az",
-					"units": "m/s^2",
-					"items": {
-						"type": "number"
-					}
-				}
-			}
+			type: "object",
+			properties: {
+				mobile_accelerations: {
+					type: "array",
+					description: "Ax,Ay,Az",
+					units: "m/s^2",
+					items: {
+						type: "number",
+					},
+				},
+			},
 		},
 		dashboardRefreshString: "200ms",
-		dashboardTimeWindow: "25s"
+		dashboardTimeWindow: "25s",
 	},
 	{
 		type: "Mobile orientation",
@@ -52,20 +52,20 @@ export const predefinedSensorTypes = [
 		markerSvgFileName: "-",
 		markerSvgString: "",
 		defaultPayloadJsonSchema: {
-			"type": "object",
-			"properties": {
-				"mobile_quaternion": {
-					"type": "array",
-					"description": "q0,q1,q2,q3",
-					"units": "-",
-					"items": {
-						"type": "number"
-					}
-				}
-			}
+			type: "object",
+			properties: {
+				mobile_quaternion: {
+					type: "array",
+					description: "q0,q1,q2,q3",
+					units: "-",
+					items: {
+						type: "number",
+					},
+				},
+			},
 		},
 		dashboardRefreshString: "200ms",
-		dashboardTimeWindow: "25s"
+		dashboardTimeWindow: "25s",
 	},
 	{
 		type: "Mobile motion",
@@ -74,20 +74,20 @@ export const predefinedSensorTypes = [
 		markerSvgFileName: "-",
 		markerSvgString: "",
 		defaultPayloadJsonSchema: {
-			"type": "object",
-			"properties": {
-				"mobile_motion": {
-					"type": "array",
-					"description": "ax(m/s^2),ay(m/s^2),az(m/s^2),q0,q1,q2,q3",
-					"units": "-",
-					"items": {
-						"type": "number"
-					}
-				}
-			}
+			type: "object",
+			properties: {
+				mobile_motion: {
+					type: "array",
+					description: "ax(m/s^2),ay(m/s^2),az(m/s^2),q0,q1,q2,q3",
+					units: "-",
+					items: {
+						type: "number",
+					},
+				},
+			},
 		},
 		dashboardRefreshString: "200ms",
-		dashboardTimeWindow: "25s"
+		dashboardTimeWindow: "25s",
 	},
 	{
 		type: "Mobile photo",
@@ -95,18 +95,19 @@ export const predefinedSensorTypes = [
 		iconSvgString: `<svg id="Layer_1" enable-background="new 0 0 512 512" viewBox="0 0 512 512" version="1.1"><path id="rect126" style="fill-opacity:1;stroke-width:0.933265" d="m 155.28624,0 c -27.3967,0 -49.4512,22.056683 -49.4512,49.453125 v 96.007815 c 36.2166,-42.32737 90.0585,-69.220706 150.1641,-69.220706 60.1051,0 113.9488,26.893146 150.166,69.220706 V 90.730469 c 0,-1.845398 -1.4849,-3.330975 -3.3301,-3.332031 V 49.453125 C 402.83504,22.056683 380.77774,0 353.38194,0 Z m 99.0488,9.9960938 a 6.3100381,6.3100381 0 0 1 6.3086,6.3105472 6.3100381,6.3100381 0 0 1 -6.3086,6.308593 6.3100381,6.3100381 0 0 1 -6.3106,-6.308593 6.3100381,6.3100381 0 0 1 6.3106,-6.3105472 z m -15.2598,12.6191402 a 2.5,2.5 0 0 1 0.6465,0.08594 2.5,2.5 0 0 1 1.5176,1.164062 c 2.7029,4.681603 7.6879,7.560547 13.0937,7.560547 5.4059,0 10.3928,-2.878944 13.0957,-7.560547 a 2.5,2.5 0 0 1 3.4141,-0.914062 2.5,2.5 0 0 1 0.916,3.414062 c -3.5921,6.221649 -10.2396,10.060547 -17.4238,10.060547 -7.1842,0 -13.8337,-3.838898 -17.4258,-10.060547 a 2.5,2.5 0 0 1 0.916,-3.414062 2.5,2.5 0 0 1 1.25,-0.335938 z m 16.9239,68.625 c -100.818,0 -182.363334,81.301326 -182.363334,181.759766 0,100.45844 81.545334,181.75977 182.363334,181.75977 100.8179,0 182.3652,-81.30133 182.3652,-181.75977 0,-100.45844 -81.5473,-181.759766 -182.3652,-181.759766 z m 98.3711,63.707036 a 5,5 0 0 1 2.5527,0.42187 5,5 0 0 1 2.4902,6.61719 l -12.7383,28.10742 a 5,5 0 0 1 -6.6191,2.49023 5,5 0 0 1 -2.4883,-6.61914 l 12.7383,-28.10546 a 5,5 0 0 1 2.793,-2.61524 5,5 0 0 1 1.2715,-0.29687 z m -33.4766,0.88671 a 5,5 0 0 1 5.5254,4.41407 l 2.8262,25.23828 a 5,5 0 0 1 -4.4122,5.52539 5,5 0 0 1 -5.5254,-4.41211 l -2.8261,-25.24023 a 5,5 0 0 1 4.4121,-5.5254 z m -101.1484,20.68164 h 66.1835 c 16.8421,10e-6 30.6446,13.77929 30.6446,30.61524 v 1.48242 h 18.8008 c 19.533,0 35.5019,15.94283 35.5019,35.4668 v 83.11719 c 0,19.52389 -15.9688,35.46679 -35.5019,35.46679 h -165.0743 c -19.5331,0 -35.5019,-15.94335 -35.5019,-35.46679 v -83.11719 c 0,-19.52352 15.9688,-35.4668 35.5019,-35.4668 h 18.8028 v -1.48242 c 0,-16.83533 13.8004,-30.61523 30.6426,-30.61524 z m 156.4531,2.71876 a 5,5 0 0 1 0.9785,0.0703 5,5 0 0 1 3.2363,2.04297 5,5 0 0 1 -1.1972,6.96875 l -20.6094,14.57226 a 5,5 0 0 1 -6.9688,-1.19726 5,5 0 0 1 1.1953,-6.96875 l 20.6114,-14.57227 a 5,5 0 0 1 2.7539,-0.91601 z m -156.4531,12.28124 c -8.8019,10e-6 -15.6426,6.83976 -15.6426,15.61524 v 8.98242 a 7.50075,7.50075 0 0 1 -7.5,7.5 h -26.3028 c -11.4933,0 -20.5019,9.00334 -20.5019,20.4668 v 83.11719 c 0,11.46328 9.0086,20.46679 20.5019,20.46679 h 165.0743 c 11.4926,0 20.5019,-9.00396 20.5019,-20.46679 v -83.11719 c 0,-11.46301 -9.0092,-20.4668 -20.5019,-20.4668 h -26.3008 a 7.50075,7.50075 0 0 1 -7.5,-7.5 v -8.98242 c 0,-8.77486 -6.8429,-15.61523 -15.6446,-15.61524 z m 33.0917,36.9961 c 28.4106,0 51.5469,23.15385 51.5469,51.57812 0,28.42431 -23.1363,51.57813 -51.5469,51.57813 -28.4101,0 -51.5449,-23.15382 -51.5449,-51.57813 0,-28.42427 23.1348,-51.57812 51.5449,-51.57812 z m 0,10 c -23.002,0 -41.5449,18.55457 -41.5449,41.57812 0,23.0236 18.5429,41.57813 41.5449,41.57813 23.0025,0 41.5469,-18.55453 41.5469,-41.57813 0,-23.02355 -18.5444,-41.57812 -41.5469,-41.57812 z m -147.0019,162.02734 v 62.00782 c 0,27.39641 22.0545,49.45312 49.4512,49.45312 h 198.0957 c 27.3958,0 49.4531,-22.05671 49.4531,-49.45312 v -58.17579 c -36.1473,40.12042 -88.5566,65.38868 -146.8359,65.38868 -60.1056,0 -113.9475,-26.89334 -150.1641,-69.22071 z" /></svg>`,
 		markerSvgFileName: "-",
 		markerSvgString: "",
-		defaultPayloadJsonSchema: {
-			"type": "object",
-			"properties": {
-				"mobile_photo": {
-					"type": "string",
-					"description": "Buffer string",
-					"units": "-",
-				}
-			}
-		},
-		dashboardRefreshString: "1s",
-		dashboardTimeWindow: "5m"
+		defaultPayloadJsonSchema: {},
+		dashboardRefreshString: "",
+		dashboardTimeWindow: "",
+	},
+	{
+		type: "Mobile video",
+		iconSvgFileName: "mobile_video_sensor.svg",
+		iconSvgString: `<svg id="Layer_1" enable-background="new 0 0 512 512" viewBox="0 0 512 512" version="1.1"><path id="rect998" style="fill-opacity:1;stroke-width:0.933265" d="m 155.28547,8.59375e-4 c -27.397,0 -49.453,22.055999625 -49.453,49.452999625 v 96.010001 c 36.216,-42.329 90.062,-69.223001 150.168,-69.223001 60.105,0 113.947,26.893001 150.164,69.221001 V 90.730859 c 0,-1.846 -1.486,-3.332 -3.332,-3.332 v -37.945 c 0,-27.397 -22.055,-49.452999625 -49.451,-49.452999625 z m 99.047,9.996000025 a 6.3100381,6.3100381 0 0 1 6.31,6.3099996 6.3100381,6.3100381 0 0 1 -6.31,6.309 6.3100381,6.3100381 0 0 1 -6.309,-6.309 6.3100381,6.3100381 0 0 1 6.309,-6.3099996 z m -14.998,12.6349996 a 2.5,2.5 0 0 1 1.904,1.234 c 2.703,4.682 7.688,7.56 13.094,7.56 5.406,0 10.393,-2.878 13.096,-7.56 a 2.5,2.5 0 0 1 3.414,-0.914 2.5,2.5 0 0 1 0.916,3.414 c -3.592,6.222 -10.242,10.06 -17.426,10.06 -7.184,0 -13.832,-3.838 -17.424,-10.06 a 2.5,2.5 0 0 1 0.916,-3.414 2.5,2.5 0 0 1 1.51,-0.32 z m 16.666,68.609 c -100.818,0 -182.365001,81.301001 -182.365001,181.760001 0,100.458 81.547001,181.759 182.365001,181.759 100.818,0 182.363,-81.301 182.363,-181.759 0,-100.459 -81.545,-181.760001 -182.363,-181.760001 z m -23.486,88.684001 h 115.203 c 22.499,0 40.853,18.333 40.853,40.824 v 66.883 a 7.4999499,7.4999499 0 0 1 0.455,-0.05 7.4999499,7.4999499 0 0 1 7.5,7.5 v 27.521 a 7.4999499,7.4999499 0 0 1 -7.5,7.5 7.4999499,7.4999499 0 0 1 -0.761,-0.07 c -2.387,20.246 -19.669,36.043 -40.547,36.043 h -115.203 c -21.176,0 -38.476,-16.299 -40.463,-36.959 l -32.653,13.863 c -10.591,4.497 -20.959,5.371 -29.547,1.725 -8.587,-3.646 -14.378,-12.61 -14.378,-22.85 v -97.713 c 0,-10.24 5.791,-19.201 14.378,-22.847 8.588,-3.646 18.956,-2.772 29.547,1.724 l 32.653,13.862 c 1.987,-20.66 19.288,-36.957 40.463,-36.957 z m 0,15 c -14.457,0 -25.856,11.391 -25.856,25.824 v 7.299 a 7.5006999,7.5006999 0 0 1 -10.43,6.902 l -42.691,-18.123 c -7.907,-3.357 -14.287,-3.226 -17.822,-1.725 -3.535,1.501 -5.242,3.575 -5.242,9.041 v 97.713 c 0,5.467 1.707,7.54 5.242,9.041 3.535,1.501 9.915,1.632 17.822,-1.724 l 42.691,-18.123 a 7.5006999,7.5006999 0 0 1 10.43,6.902 v 7.299 c 0,14.433 11.4,25.826 25.856,25.826 h 115.203 c 14.456,0 25.853,-11.393 25.853,-25.826 v -104.502 c 0,-14.433 -11.397,-25.824 -25.853,-25.824 z m 113.757,10.074 a 17.948624,18.132271 0 0 1 17.948,18.131 17.948624,18.132271 0 0 1 -17.948,18.132 17.948624,18.132271 0 0 1 -17.949,-18.132 17.948624,18.132271 0 0 1 17.949,-18.131 z m -46.754,8.732 15.19,1.035 a 5,5 0 0 1 4.648,5.328 5,5 0 0 1 -5.328,4.649 l -15.189,-1.035 a 5,5 0 0 1 -4.649,-5.328 5,5 0 0 1 5.328,-4.649 z m 20.082,20.379 a 5,5 0 0 1 0.971,0.135 5,5 0 0 1 3.094,2.252 5,5 0 0 1 -1.654,6.873 l -16.213,9.924 a 5,5 0 0 1 -6.875,-1.655 5,5 0 0 1 1.654,-6.875 l 16.213,-9.922 a 5,5 0 0 1 2.81,-0.732 z m 15.674,12.584 a 5,5 0 0 1 1.909,0.41 5,5 0 0 1 2.605,6.574 l -6.818,15.764 a 5,5 0 0 1 -6.573,2.606 5,5 0 0 1 -2.605,-6.575 l 6.816,-15.763 a 5,5 0 0 1 2.748,-2.664 5,5 0 0 1 1.918,-0.352 z m -229.441,153.844 v 62.01 c 0,27.396 22.056,49.453 49.453,49.453 h 198.096 c 27.396,0 49.451,-22.057 49.451,-49.453 v -58.172 c -36.147,40.117 -88.554,65.384 -146.832,65.384 -60.106,0 -113.952,-26.894 -150.168,-69.222 z" /></svg>`,
+		markerSvgFileName: "-",
+		markerSvgString: "",
+		defaultPayloadJsonSchema: {},
+		dashboardRefreshString: "",
+		dashboardTimeWindow: "",
 	},
 	{
 		type: "Generic sensor",
@@ -115,17 +116,17 @@ export const predefinedSensorTypes = [
 		markerSvgFileName: "-",
 		markerSvgString: "",
 		defaultPayloadJsonSchema: {
-			"type": "object",
-			"properties": {
-				"parameter": {
-					"type": "number",
-					"description": "parameter",
-					"units": "-"
-				}
-			}
+			type: "object",
+			properties: {
+				parameter: {
+					type: "number",
+					description: "parameter",
+					units: "-",
+				},
+			},
 		},
 		dashboardRefreshString: "1s",
-		dashboardTimeWindow: "5m"
+		dashboardTimeWindow: "5m",
 	},
 	{
 		type: "Temperature",
@@ -134,17 +135,17 @@ export const predefinedSensorTypes = [
 		markerSvgFileName: "-",
 		markerSvgString: "",
 		defaultPayloadJsonSchema: {
-			"type": "object",
-			"properties": {
-				"temperature": {
-					"type": "number",
-					"description": "Temperature",
-					"units": "°C"
-				}
-			}
+			type: "object",
+			properties: {
+				temperature: {
+					type: "number",
+					description: "Temperature",
+					units: "°C",
+				},
+			},
 		},
 		dashboardRefreshString: "1s",
-		dashboardTimeWindow: "5m"
+		dashboardTimeWindow: "5m",
 	},
 	{
 		type: "Pressure",
@@ -153,17 +154,17 @@ export const predefinedSensorTypes = [
 		markerSvgFileName: "-",
 		markerSvgString: "",
 		defaultPayloadJsonSchema: {
-			"type": "object",
-			"properties": {
-				"pressure": {
-					"type": "number",
-					"description": "Presure",
-					"units": "Pa"
-				}
-			}
+			type: "object",
+			properties: {
+				pressure: {
+					type: "number",
+					description: "Presure",
+					units: "Pa",
+				},
+			},
 		},
 		dashboardRefreshString: "1s",
-		dashboardTimeWindow: "5m"
+		dashboardTimeWindow: "5m",
 	},
 	{
 		type: "Humidity",
@@ -172,17 +173,17 @@ export const predefinedSensorTypes = [
 		markerSvgFileName: "-",
 		markerSvgString: "",
 		defaultPayloadJsonSchema: {
-			"type": "object",
-			"properties": {
-				"humidity": {
-					"type": "number",
-					"description": "Humidity",
-					"units": "%"
-				}
-			}
+			type: "object",
+			properties: {
+				humidity: {
+					type: "number",
+					description: "Humidity",
+					units: "%",
+				},
+			},
 		},
 		dashboardRefreshString: "1s",
-		dashboardTimeWindow: "5m"
+		dashboardTimeWindow: "5m",
 	},
 	{
 		type: "Power",
@@ -191,17 +192,17 @@ export const predefinedSensorTypes = [
 		markerSvgFileName: "-",
 		markerSvgString: "",
 		defaultPayloadJsonSchema: {
-			"type": "object",
-			"properties": {
-				"power": {
-					"type": "number",
-					"description": "Power",
-					"units": "kW"
-				}
-			}
+			type: "object",
+			properties: {
+				power: {
+					type: "number",
+					description: "Power",
+					units: "kW",
+				},
+			},
 		},
 		dashboardRefreshString: "1s",
-		dashboardTimeWindow: "5m"
+		dashboardTimeWindow: "5m",
 	},
 	{
 		type: "Energy consumption",
@@ -210,17 +211,17 @@ export const predefinedSensorTypes = [
 		markerSvgFileName: "-",
 		markerSvgString: "",
 		defaultPayloadJsonSchema: {
-			"type": "object",
-			"properties": {
-				"energy_consumption": {
-					"type": "number",
-					"description": "Energy_consumption",
-					"units": "kW"
-				}
-			}
+			type: "object",
+			properties: {
+				energy_consumption: {
+					type: "number",
+					description: "Energy_consumption",
+					units: "kW",
+				},
+			},
 		},
 		dashboardRefreshString: "1s",
-		dashboardTimeWindow: "5m"
+		dashboardTimeWindow: "5m",
 	},
 	{
 		type: "Flow",
@@ -229,17 +230,17 @@ export const predefinedSensorTypes = [
 		markerSvgFileName: "-",
 		markerSvgString: "",
 		defaultPayloadJsonSchema: {
-			"type": "object",
-			"properties": {
-				"flow": {
-					"type": "number",
-					"description": "Flow",
-					"units": "m^3/h"
-				}
-			}
+			type: "object",
+			properties: {
+				flow: {
+					type: "number",
+					description: "Flow",
+					units: "m^3/h",
+				},
+			},
 		},
 		dashboardRefreshString: "1s",
-		dashboardTimeWindow: "5m"
+		dashboardTimeWindow: "5m",
 	},
 	{
 		type: "Proximity",
@@ -248,17 +249,17 @@ export const predefinedSensorTypes = [
 		markerSvgFileName: "-",
 		markerSvgString: "",
 		defaultPayloadJsonSchema: {
-			"type": "object",
-			"properties": {
-				"proximity": {
-					"type": "number",
-					"description": "Proximity",
-					"units": "-"
-				}
-			}
+			type: "object",
+			properties: {
+				proximity: {
+					type: "number",
+					description: "Proximity",
+					units: "-",
+				},
+			},
 		},
 		dashboardRefreshString: "1s",
-		dashboardTimeWindow: "5m"
+		dashboardTimeWindow: "5m",
 	},
 	{
 		type: "Distance",
@@ -267,17 +268,17 @@ export const predefinedSensorTypes = [
 		markerSvgFileName: "-",
 		markerSvgString: "",
 		defaultPayloadJsonSchema: {
-			"type": "object",
-			"properties": {
-				"distance": {
-					"type": "number",
-					"description": "Distance",
-					"units": "m"
-				}
-			}
+			type: "object",
+			properties: {
+				distance: {
+					type: "number",
+					description: "Distance",
+					units: "m",
+				},
+			},
 		},
 		dashboardRefreshString: "1s",
-		dashboardTimeWindow: "5m"
+		dashboardTimeWindow: "5m",
 	},
 	{
 		type: "Counter",
@@ -286,17 +287,17 @@ export const predefinedSensorTypes = [
 		markerSvgFileName: "-",
 		markerSvgString: "",
 		defaultPayloadJsonSchema: {
-			"type": "object",
-			"properties": {
-				"counter": {
-					"type": "number",
-					"description": "Counter",
-					"units": "-"
-				}
-			}
+			type: "object",
+			properties: {
+				counter: {
+					type: "number",
+					description: "Counter",
+					units: "-",
+				},
+			},
 		},
 		dashboardRefreshString: "1s",
-		dashboardTimeWindow: "5m"
+		dashboardTimeWindow: "5m",
 	},
 	{
 		type: "Strain gauge",
@@ -305,17 +306,17 @@ export const predefinedSensorTypes = [
 		markerSvgFileName: "-",
 		markerSvgString: "",
 		defaultPayloadJsonSchema: {
-			"type": "object",
-			"properties": {
-				"strain": {
-					"type": "number",
-					"description": "Strain",
-					"units": "µε"
-				}
-			}
+			type: "object",
+			properties: {
+				strain: {
+					type: "number",
+					description: "Strain",
+					units: "µε",
+				},
+			},
 		},
 		dashboardRefreshString: "200ms",
-		dashboardTimeWindow: "25s"
+		dashboardTimeWindow: "25s",
 	},
 	{
 		type: "Inclinometer",
@@ -324,20 +325,20 @@ export const predefinedSensorTypes = [
 		markerSvgFileName: "-",
 		markerSvgString: "",
 		defaultPayloadJsonSchema: {
-			"type": "object",
-			"properties": {
-				"rotations": {
-					"type": "array",
-					"description": "Rot_x,Rot_y",
-					"units": "rad",
-					"items": {
-						"type": "number"
-					}
-				}
-			}
+			type: "object",
+			properties: {
+				rotations: {
+					type: "array",
+					description: "Rot_x,Rot_y",
+					units: "rad",
+					items: {
+						type: "number",
+					},
+				},
+			},
 		},
 		dashboardRefreshString: "200ms",
-		dashboardTimeWindow: "25s"
+		dashboardTimeWindow: "25s",
 	},
 	{
 		type: "Accelerometer",
@@ -346,20 +347,20 @@ export const predefinedSensorTypes = [
 		markerSvgFileName: "-",
 		markerSvgString: "",
 		defaultPayloadJsonSchema: {
-			"type": "object",
-			"properties": {
-				"accelerations": {
-					"type": "array",
-					"description": "Ax,Ay,Az",
-					"units": "m/s^2",
-					"items": {
-						"type": "number"
-					}
-				}
-			}
+			type: "object",
+			properties: {
+				accelerations: {
+					type: "array",
+					description: "Ax,Ay,Az",
+					units: "m/s^2",
+					items: {
+						type: "number",
+					},
+				},
+			},
 		},
 		dashboardRefreshString: "200ms",
-		dashboardTimeWindow: "25s"
+		dashboardTimeWindow: "25s",
 	},
 	{
 		type: "Angular velocity",
@@ -368,20 +369,20 @@ export const predefinedSensorTypes = [
 		markerSvgFileName: "-",
 		markerSvgString: "",
 		defaultPayloadJsonSchema: {
-			"type": "object",
-			"properties": {
-				"angular_velocity": {
-					"type": "array",
-					"description": "Vel_theta_x,Vel_theta_y,Vel_theta_z",
-					"units": "rad/s",
-					"items": {
-						"type": "number"
-					}
-				}
-			}
+			type: "object",
+			properties: {
+				angular_velocity: {
+					type: "array",
+					description: "Vel_theta_x,Vel_theta_y,Vel_theta_z",
+					units: "rad/s",
+					items: {
+						type: "number",
+					},
+				},
+			},
 		},
 		dashboardRefreshString: "200ms",
-		dashboardTimeWindow: "25s"
+		dashboardTimeWindow: "25s",
 	},
 	{
 		type: "Statistics",
@@ -390,27 +391,27 @@ export const predefinedSensorTypes = [
 		markerSvgFileName: "-",
 		markerSvgString: "",
 		defaultPayloadJsonSchema: {
-			"type": "object",
-			"properties": {
-				"Min_value": {
-					"type": "number",
-					"description": "Min_value",
-					"units": "-"
+			type: "object",
+			properties: {
+				Min_value: {
+					type: "number",
+					description: "Min_value",
+					units: "-",
 				},
-				"Mean_value": {
-					"type": "number",
-					"description": "Mean_value",
-					"units": "-"
+				Mean_value: {
+					type: "number",
+					description: "Mean_value",
+					units: "-",
 				},
-				"Max_value": {
-					"type": "number",
-					"description": "Max_value",
-					"units": "-"
-				}
-			}
+				Max_value: {
+					type: "number",
+					description: "Max_value",
+					units: "-",
+				},
+			},
 		},
 		dashboardRefreshString: "1s",
-		dashboardTimeWindow: "5m"
+		dashboardTimeWindow: "5m",
 	},
 	{
 		type: "Supply product",
@@ -419,17 +420,17 @@ export const predefinedSensorTypes = [
 		markerSvgFileName: "-",
 		markerSvgString: "",
 		defaultPayloadJsonSchema: {
-			"type": "object",
-			"properties": {
-				"product_state": {
-					"type": "number",
-					"description": "Product state",
-					"units": "-"
-				}
-			}
+			type: "object",
+			properties: {
+				product_state: {
+					type: "number",
+					description: "Product state",
+					units: "-",
+				},
+			},
 		},
 		dashboardRefreshString: "1h",
-		dashboardTimeWindow: "12h"
+		dashboardTimeWindow: "12h",
 	},
 	{
 		type: "Geolocation",
@@ -438,22 +439,94 @@ export const predefinedSensorTypes = [
 		markerSvgFileName: "-",
 		markerSvgString: "",
 		defaultPayloadJsonSchema: {
-			"type": "object",
-			"properties": {
-				"Longitude": {
-					"type": "number",
-					"description": "longitude",
-					"units": "°"
+			type: "object",
+			properties: {
+				Longitude: {
+					type: "number",
+					description: "longitude",
+					units: "°",
 				},
-				"Latitude": {
-					"type": "number",
-					"description": "latitude",
-					"units": "°"
-				}
-			}
+				Latitude: {
+					type: "number",
+					description: "latitude",
+					units: "°",
+				},
+			},
 		},
 		dashboardRefreshString: "5m",
-		dashboardTimeWindow: "25s"
-	}
-]
+		dashboardTimeWindow: "25s",
+	},
+	{
+		type: "Photo camera",
+		iconSvgFileName: "photo_camera.svg",
+		iconSvgString: `<svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg"><path d="M10.5 8.5a2.5 2.5 0 1 1-5 0 2.5 2.5 0 0 1 5 0"/><path d="M2 4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-1.172a2 2 0 0 1-1.414-.586l-.828-.828A2 2 0 0 0 9.172 2H6.828a2 2 0 0 0-1.414.586l-.828.828A2 2 0 0 1 3.172 4zm.5 2a.5.5 0 1 1 0-1 .5.5 0 0 1 0 1m9 2.5a3.5 3.5 0 1 1-7 0 3.5 3.5 0 0 1 7 0"/></svg>`,
+		markerSvgFileName: "-",
+		markerSvgString: "",
+		defaultPayloadJsonSchema: {},
+		dashboardRefreshString: "",
+		dashboardTimeWindow: "",
+	},
+	{
+		type: "Video camera",
+		iconSvgFileName: "video_camera.svg",
+		iconSvgString: `<svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" d="M0 5a2 2 0 0 1 2-2h7.5a2 2 0 0 1 1.983 1.738l3.11-1.382A1 1 0 0 1 16 4.269v7.462a1 1 0 0 1-1.406.913l-3.111-1.382A2 2 0 0 1 9.5 13H2a2 2 0 0 1-2-2z"/></svg>`,
+		markerSvgFileName: "-",
+		markerSvgString: "",
+		defaultPayloadJsonSchema: {},
+		dashboardRefreshString: "",
+		dashboardTimeWindow: "",
+	},
+];
 
+export const systemMonitoringSensorTypes = [
+	{
+		type: "Service logs",
+		iconSvgFileName: "service_logs.svg",
+		iconSvgString: `<svg xmlns="http://www.w3.org/2000/svg" xmlns:svg="http://www.w3.org/2000/svg" id="Layer_1" enable-background="new 0 0 512 512" viewBox="0 0 512 512" version="1.1" xml:space="preserve"><path id="rect1149" style="fill-opacity:1;stroke:none;stroke-width:0.999999;stroke-linecap:round;stroke-dasharray:none;stroke-opacity:1" d="m 255.99904,0.00241562 c -14.025,0 -25.566,11.54100038 -25.566,25.56600038 0,2.63 0.406,5.173 1.158,7.569 H 98.257028 c -17.542,0 -31.979,14.433 -31.979,31.976 V 482.02242 c 0,17.544 14.437,31.979 31.979,31.979 H 413.73904 c 17.543,0 31.979,-14.436 31.979,-31.979 V 65.113416 c 0,-17.542 -14.436,-31.976 -31.979,-31.976 h -133.33 c 0.752,-2.396 1.156,-4.939 1.157,-7.569 0,-14.025 -11.541,-25.56600038 -25.567,-25.56600038 z m 0,16.00000038 c 5.378,0 9.566,4.188 9.567,9.566 0,3.121 -1.415,5.835 -3.649,7.569 h -11.836 c -2.234,-1.734 -3.648,-4.448 -3.648,-7.569 0,-5.378 4.188,-9.566 9.566,-9.566 z m -157.742012,37.135 h 95.486012 v 25.367 a 8.0008,8.0008 0 0 0 8,8 h 108.51 a 8.0008,8.0008 0 0 0 8,-8 v -25.367 h 95.486 c 6.809,0 11.979,5.167 11.979,11.976 V 482.02242 c 0,6.809 -5.17,11.979 -11.979,11.979 H 98.257028 c -6.808,0 -11.979,-5.17 -11.979,-11.979 V 65.113416 c 0,-6.808 5.171,-11.976 11.979,-11.976 z m 111.486012,0 h 92.51 v 17.367 h -92.51 z m 182.028,62.224004 a 7.5,7.5 0 0 0 -5.303,2.201 l -22.996,23.036 -12.405,-12.426 a 7.5,7.5 0 0 0 -10.607,-0.01 7.5,7.5 0 0 0 0,10.607 l 17.711,17.742 a 7.50075,7.50075 0 0 0 10.615,0 l 28.305,-28.351 a 7.5,7.5 0 0 0 0,-10.606 7.5,7.5 0 0 0 -5.305,-2.193 z m -277.72901,14.176 a 7.5,7.5 0 0 0 -7.5,7.5 7.5,7.5 0 0 0 7.5,7.5 h 29.94501 a 7.5,7.5 0 0 0 7.5,-7.5 7.5,7.5 0 0 0 -7.5,-7.5 z m 58.83001,0 a 7.5,7.5 0 0 0 -7.5,7.5 7.5,7.5 0 0 0 7.5,7.5 h 13.678 a 7.5,7.5 0 0 0 7.5,-7.5 7.5,7.5 0 0 0 -7.5,-7.5 z m 42.563,0 a 7.5,7.5 0 0 0 -7.5,7.5 7.5,7.5 0 0 0 7.5,7.5 h 49.941 a 7.5,7.5 0 0 0 7.5,-7.5 7.5,7.5 0 0 0 -7.5,-7.5 z m 176.336,53.211 a 7.5,7.5 0 0 0 -5.303,2.201 l -22.996,23.034 -12.405,-12.425 a 7.5,7.5 0 0 0 -10.607,-0.01 7.5,7.5 0 0 0 -0.01,10.607 l 17.713,17.742 a 7.50075,7.50075 0 0 0 10.615,0 l 28.305,-28.351 a 7.5,7.5 0 0 0 0,-10.607 7.5,7.5 0 0 0 -5.305,-2.191 z m -277.72901,14.176 a 7.5,7.5 0 0 0 -7.5,7.5 7.5,7.5 0 0 0 7.5,7.499 h 49.94301 a 7.5,7.5 0 0 0 7.5,-7.499 7.5,7.5 0 0 0 -7.5,-7.5 z m 79.16401,0 a 7.5,7.5 0 0 0 -7.5,7.5 7.5,7.5 0 0 0 7.5,7.499 h 13.676 a 7.5,7.5 0 0 0 7.5,-7.499 7.5,7.5 0 0 0 -7.5,-7.5 z m 42.897,0 a 7.5,7.5 0 0 0 -7.5,7.5 7.5,7.5 0 0 0 7.5,7.499 h 13.675 a 7.5,7.5 0 0 0 7.5,-7.499 7.5,7.5 0 0 0 -7.5,-7.5 z m 42.894,0 a 7.5,7.5 0 0 0 -7.5,7.5 7.5,7.5 0 0 0 7.5,7.499 h 29.947 a 7.5,7.5 0 0 0 7.5,-7.499 7.5,7.5 0 0 0 -7.5,-7.5 z m 82.578,47.21 a 7.4945333,7.5069106 0 0 0 -7.461,8.183 l 2.633,29.117 a 7.4945333,7.5069106 0 0 0 14.928,0 l 2.637,-29.117 a 7.4945333,7.5069106 0 0 0 -7.465,-8.183 z m -247.53301,24.302 a 7.5,7.5 0 0 0 -7.5,7.5 7.5,7.5 0 0 0 7.5,7.5 h 29.94501 a 7.5,7.5 0 0 0 7.5,-7.5 7.5,7.5 0 0 0 -7.5,-7.5 z m 59.40201,0 a 7.5,7.5 0 0 0 -7.5,7.5 7.5,7.5 0 0 0 7.5,7.5 h 29.946 a 7.5,7.5 0 0 0 7.5,-7.5 7.5,7.5 0 0 0 -7.5,-7.5 z m 59.403,0 a 7.5,7.5 0 0 0 -7.5,7.5 7.5,7.5 0 0 0 7.5,7.5 h 13.676 a 7.5,7.5 0 0 0 7.5,-7.5 7.5,7.5 0 0 0 -7.5,-7.5 z m 131.367,23.459 a 7.9093545,7.9224169 0 0 0 -7.91,7.922 7.9093545,7.9224169 0 0 0 7.91,7.922 7.9093545,7.9224169 0 0 0 7.908,-7.922 7.9093545,7.9224169 0 0 0 -7.908,-7.922 z m 27.557,31.93 a 7.5,7.5 0 0 0 -5.303,2.201 l -22.996,23.035 -12.405,-12.425 a 7.5,7.5 0 0 0 -10.607,-0.01 7.5,7.5 0 0 0 -0.01,10.607 l 17.713,17.742 a 7.50075,7.50075 0 0 0 10.615,0 l 28.305,-28.351 a 7.5,7.5 0 0 0 0,-10.608 7.5,7.5 0 0 0 -5.305,-2.191 z m -277.72901,14.176 a 7.5,7.5 0 0 0 -7.5,7.5 7.5,7.5 0 0 0 7.5,7.5 h 49.94301 a 7.5,7.5 0 0 0 7.5,-7.5 7.5,7.5 0 0 0 -7.5,-7.5 z m 78.19701,0 a 7.5,7.5 0 0 0 -7.5,7.5 7.5,7.5 0 0 0 7.5,7.5 h 49.944 a 7.5,7.5 0 0 0 7.5,-7.5 7.5,7.5 0 0 0 -7.5,-7.5 z m 78.2,0 a 7.5,7.5 0 0 0 -7.5,7.5 7.5,7.5 0 0 0 7.5,7.5 h 13.675 a 7.5,7.5 0 0 0 7.5,-7.5 7.5,7.5 0 0 0 -7.5,-7.5 z m -156.39701,69.564 a 7.5,7.5 0 0 0 -7.5,7.5 7.5,7.5 0 0 0 7.5,7.5 h 29.94501 a 7.5,7.5 0 0 0 7.5,-7.5 7.5,7.5 0 0 0 -7.5,-7.5 z m 55.72501,0 a 7.5,7.5 0 0 0 -7.5,7.5 7.5,7.5 0 0 0 7.5,7.5 h 29.947 a 7.5,7.5 0 0 0 7.5,-7.5 7.5,7.5 0 0 0 -7.5,-7.5 z m 55.724,0 a 7.5,7.5 0 0 0 -7.5,7.5 7.5,7.5 0 0 0 7.5,7.5 h 13.676 a 7.5,7.5 0 0 0 7.5,-7.5 7.5,7.5 0 0 0 -7.5,-7.5 z" /></svg>`,
+		markerSvgFileName: "-",
+		markerSvgString: "",
+		defaultPayloadJsonSchema: {},
+		dashboardRefreshString: "",
+		dashboardTimeWindow: "",
+	},
+	{
+		type: "Host metrics",
+		iconSvgFileName: "host_metrics.svg",
+		iconSvgString: `<svg xmlns="http://www.w3.org/2000/svg" xmlns:svg="http://www.w3.org/2000/svg" id="Layer_1" enable-background="new 0 0 512 512" viewBox="0 0 512 512" version="1.1" xml:space="preserve"><path id="rect1153" style="fill-opacity:1;stroke:none;stroke-width:0.999999;stroke-linecap:round;stroke-dasharray:none;stroke-opacity:1" d="m 21.641321,14.848416 c -8.55,0 -15.4349997,6.882 -15.4349997,15.433 V 485.11642 c 0,8.551 6.8849997,15.434 15.4349997,15.434 H 127.50332 a 22.199759,22.204975 0 0 1 -3.198,-10.754 22.199759,22.204975 0 0 1 12.325,-19.869 c -0.08,-0.669 -0.137,-1.346 -0.137,-2.037 v -135.188 c 0,-9.203 7.41,-16.613 16.613,-16.613 h 4.805 a 22.5,22.5 0 0 1 -4.918,-19.428 c 0,0 5.548,-25.265 15.867,-54.299 3.441,-9.68 7.239,-19.837 11.65796,-29.847 V 30.281416 c 0,-8.551 -6.88396,-15.433 -15.43496,-15.433 z m 27.643,38.693 h 88.155999 a 7.5,7.5 0 0 1 7.5,7.5 7.5,7.5 0 0 1 -7.5,7.5 H 49.284321 a 7.5,7.5 0 0 1 -7.5,-7.5 7.5,7.5 0 0 1 7.5,-7.5 z m 0,33.027 h 88.155999 a 7.5,7.5 0 0 1 7.5,7.5 7.5,7.5 0 0 1 -7.5,7.500004 H 49.284321 a 7.5,7.5 0 0 1 -7.5,-7.500004 7.5,7.5 0 0 1 7.5,-7.5 z M 393.25328,114.07842 c -16.737,0.282 -30.779,8.353 -43.268,16.5 -13.321,8.69 -25.504,17.712 -37.283,21.494 -11.22,3.602 -25.705,3.401 -40.951,4.076 -15.247,0.676 -31.891,2.391 -45.791,13.235 -21.59,16.843 -35.293,48.954 -45.321,77.167 -10.02696,28.212 -15.43896,52.802 -15.43896,52.802 a 10,10 0 0 0 7.613,11.918 10,10 0 0 0 11.91796,-7.613 c 0,0 5.192,-23.512 14.752,-50.41 9.561,-26.898 24.431,-56.903 38.778,-68.095 8.467,-6.606 20.141,-8.393 34.375,-9.023 14.233,-0.631 30.389,0.06 46.179,-5.014 16.379,-5.259 29.636,-15.657 42.098,-23.787 12.462,-8.13 23.5,-13.745 34.801,-13.223 7.776,0.36 23.735,8.535 36.152,17.379 4.725,3.366 8.772,6.557 12.287,9.414 l -5.68,6.166 a 7.7872282,7.7872282 0 0 0 3.569,12.758 l 43.465,12.537 a 6.2999998,6.2999998 0 0 0 7.636,-8.289 l -16.05,-42.293 a 7.7872282,7.7872282 0 0 0 -13.008,-2.513 l -6.356,6.898 c -3.972,-3.257 -8.712,-7.017 -14.259,-10.969 -13.564,-9.661 -29.789,-20.278 -46.833,-21.066 -1.14,-0.05 -2.268,-0.07 -3.384,-0.05 z m -58.746,74.732 a 7.50075,7.50075 0 0 0 -7.5,7.5 v 267.445 a 7.50075,7.50075 0 0 0 7.5,7.5 h 47.484 a 7.50075,7.50075 0 0 0 7.5,-7.5 v -267.445 a 7.50075,7.50075 0 0 0 -7.5,-7.5 z m 7.5,15 h 32.484 v 252.445 h -32.484 z m 81.392,20.455 a 7.50075,7.50075 0 0 0 -7.5,7.5 v 231.99 a 7.50075,7.50075 0 0 0 7.5,7.5 h 47.49 a 7.50075,7.50075 0 0 0 7.5,-7.5 v -231.99 a 7.50075,7.50075 0 0 0 -7.5,-7.5 z m 7.5,15 h 32.49 v 216.99 h -32.49 z m -185.281,9.212 a 7.50075,7.50075 0 0 0 -7.5,7.5 v 207.778 a 7.50075,7.50075 0 0 0 7.5,7.5 h 47.484 a 7.50075,7.50075 0 0 0 7.5,-7.5 v -207.778 a 7.50075,7.50075 0 0 0 -7.5,-7.5 z m 7.5,15 h 32.484 v 192.778 h -32.484 z m -96.39496,65.86 a 7.50075,7.50075 0 0 0 -7.5,7.5 v 126.918 a 7.50075,7.50075 0 0 0 7.5,7.5 h 47.49096 a 7.50075,7.50075 0 0 0 7.5,-7.5 v -126.918 a 7.50075,7.50075 0 0 0 -7.5,-7.5 z m 7.5,15 h 32.49096 v 111.918 h -32.49096 z m -70.858999,80.806 a 13.440079,13.443236 0 0 1 13.439999,13.444 13.440079,13.443236 0 0 1 -13.439999,13.443 13.440079,13.443236 0 0 1 -13.439,-13.443 13.440079,13.443236 0 0 1 13.439,-13.444 z m 53.140999,54.653 a 10,10 0 0 0 -10,10 10,10 0 0 0 10,10 h 349.28496 a 10,10 0 0 0 10,-10 10,10 0 0 0 -10,-10 z" /></svg>`,
+		markerSvgFileName: "-",
+		markerSvgString: "",
+		defaultPayloadJsonSchema: {},
+		dashboardRefreshString: "",
+		dashboardTimeWindow: "",
+	},
+	{
+		type: "Container metrics",
+		iconSvgFileName: "container_metrics.svg",
+		iconSvgString: `<svg xmlns="http://www.w3.org/2000/svg" xmlns:svg="http://www.w3.org/2000/svg" id="Layer_1" enable-background="new 0 0 512 512" viewBox="0 0 512 512" version="1.1" xml:space="preserve"><path id="path1349" style="fill-opacity:1;stroke:none;stroke-width:0.999999;stroke-linecap:round;stroke-dasharray:none;stroke-opacity:1" d="m 322.20974,16.742416 c -16.737,0.282 -30.783,8.353 -43.271,16.5 -13.321,8.69 -25.502,17.712 -37.281,21.494 -11.22,3.603 -25.705,3.401 -40.952,4.076 -15.246,0.676 -31.893,2.391 -45.79302,13.235 -21.59,16.843 -35.292,48.955004 -45.32,77.168004 -10.027002,28.212 -15.437002,52.802 -15.437002,52.802 a 10,10 0 0 0 7.613002,11.917 10,10 0 0 0 11.918,-7.613 c 0,0 5.192,-23.511 14.752,-50.409 9.56,-26.898 24.43,-56.904004 38.77702,-68.096004 8.468,-6.606 20.142,-8.393 34.375,-9.023 14.234,-0.631 30.39,0.06 46.18,-5.014 16.379,-5.258 29.633,-15.657 42.096,-23.787 12.462,-8.13 23.501,-13.745 34.802,-13.223 7.777,0.36 23.736,8.535 36.153,17.379 4.724,3.365 8.772,6.556 12.287,9.412 l -5.682,6.168 a 7.7872282,7.7872282 0 0 0 3.57,12.758 l 43.463,12.537 a 6.2999998,6.2999998 0 0 0 7.637,-8.289 l -16.049,-42.293 a 7.7872282,7.7872282 0 0 0 -13.008,-2.513 l -6.355,6.898 c -3.972,-3.257 -8.712,-7.017 -14.26,-10.969 -13.563,-9.661 -29.789,-20.278 -46.832,-21.066 -1.14,-0.05 -2.267,-0.07 -3.383,-0.05 z m -58.75,74.732 a 7.50075,7.50075 0 0 0 -7.5,7.5 V 322.95842 a 7.50075,7.50075 0 0 0 7.5,7.5 h 47.485 a 7.50075,7.50075 0 0 0 7.5,-7.5 V 98.974416 a 7.50075,7.50075 0 0 0 -7.5,-7.5 z m 7.5,15.000004 h 32.485 v 208.984 h -32.485 z m 81.393,20.456 a 7.50075,7.50075 0 0 0 -7.5,7.5 v 188.528 a 7.50075,7.50075 0 0 0 7.5,7.5 h 47.49 a 7.50075,7.50075 0 0 0 7.5,-7.5 v -188.528 a 7.50075,7.50075 0 0 0 -7.5,-7.5 z m 7.5,15 h 32.49 v 173.528 h -32.49 z m -185.281,9.212 a 7.50075,7.50075 0 0 0 -7.5,7.5 v 164.316 a 7.50075,7.50075 0 0 0 7.5,7.5 h 47.484 a 7.50075,7.50075 0 0 0 7.5,-7.5 v -164.316 a 7.50075,7.50075 0 0 0 -7.5,-7.5 z m 7.5,15 h 32.484 v 149.316 h -32.484 z m -96.395022,65.859 a 7.50075,7.50075 0 0 0 -7.5,7.5 v 83.457 a 7.50075,7.50075 0 0 0 7.5,7.5 h 48.604002 a 7.50075,7.50075 0 0 0 7.5,-7.5 v -83.457 a 7.50075,7.50075 0 0 0 -7.5,-7.5 z m 7.5,15 h 33.604002 v 68.457 H 93.176718 Z m -30.297,91.369 c -8.551,0 -15.435,6.883 -15.435,15.434 v 130.558 c 0,8.551 6.884,15.434 15.435,15.434 H 449.11974 c 8.551,0 15.436,-6.883 15.436,-15.434 v -130.558 c 0,-8.551 -6.885,-15.434 -15.436,-15.434 z m 29.944,17.572 a 5.1957002,4.8116366 0 0 1 5.195,4.811 v 116.658 a 5.1957002,4.8116366 0 0 1 -5.195,4.812 5.1957002,4.8116366 0 0 1 -5.198,-4.812 v -116.658 a 5.1957002,4.8116366 0 0 1 5.198,-4.811 z m 36.259002,0 a 5.1957002,4.8116366 0 0 1 5.2,4.811 v 116.658 a 5.1957002,4.8116366 0 0 1 -5.2,4.812 5.1957002,4.8116366 0 0 1 -5.195,-4.812 v -116.658 a 5.1957002,4.8116366 0 0 1 5.195,-4.811 z m 36.26202,0 a 5.1957002,4.8116366 0 0 1 5.195,4.811 v 116.658 a 5.1957002,4.8116366 0 0 1 -5.195,4.812 5.1957002,4.8116366 0 0 1 -5.193,-4.812 v -116.658 a 5.1957002,4.8116366 0 0 1 5.193,-4.811 z m 36.264,0 a 5.1957002,4.8116366 0 0 1 5.193,4.811 v 116.658 a 5.1957002,4.8116366 0 0 1 -5.193,4.812 5.1957002,4.8116366 0 0 1 -5.198,-4.812 v -116.658 a 5.1957002,4.8116366 0 0 1 5.198,-4.811 z m 36.26,0 a 5.1957002,4.8116366 0 0 1 5.197,4.811 v 116.658 a 5.1957002,4.8116366 0 0 1 -5.197,4.812 5.1957002,4.8116366 0 0 1 -5.196,-4.812 v -116.658 a 5.1957002,4.8116366 0 0 1 5.196,-4.811 z m 36.261,0 a 5.1957002,4.8116366 0 0 1 5.196,4.811 v 116.658 a 5.1957002,4.8116366 0 0 1 -5.196,4.812 5.1957002,4.8116366 0 0 1 -5.193,-4.812 v -116.658 a 5.1957002,4.8116366 0 0 1 5.193,-4.811 z m 36.264,0 a 5.1957002,4.8116366 0 0 1 5.193,4.811 v 116.658 a 5.1957002,4.8116366 0 0 1 -5.193,4.812 5.1957002,4.8116366 0 0 1 -5.195,-4.812 v -116.658 a 5.1957002,4.8116366 0 0 1 5.195,-4.811 z m 36.262,0 a 5.1957002,4.8116366 0 0 1 5.195,4.811 v 116.658 a 5.1957002,4.8116366 0 0 1 -5.195,4.812 5.1957002,4.8116366 0 0 1 -5.198,-4.812 v -116.658 a 5.1957002,4.8116366 0 0 1 5.198,-4.811 z m 36.259,0 a 5.1957002,4.8116366 0 0 1 5.198,4.811 v 116.658 a 5.1957002,4.8116366 0 0 1 -5.198,4.812 5.1957002,4.8116366 0 0 1 -5.195,-4.812 v -116.658 a 5.1957002,4.8116366 0 0 1 5.195,-4.811 z m 36.262,0 a 5.1957002,4.8116366 0 0 1 5.195,4.811 v 116.658 a 5.1957002,4.8116366 0 0 1 -5.195,4.812 5.1957002,4.8116366 0 0 1 -5.193,-4.812 v -116.658 a 5.1957002,4.8116366 0 0 1 5.193,-4.811 z" /></svg>`,
+		markerSvgFileName: "-",
+		markerSvgString: "",
+		defaultPayloadJsonSchema: {},
+		dashboardRefreshString: "",
+		dashboardTimeWindow: "",
+	},
+	{
+		type: "Volume metrics",
+		iconSvgFileName: "volume_metrics.svg",
+		iconSvgString: `<svg xmlns="http://www.w3.org/2000/svg" xmlns:svg="http://www.w3.org/2000/svg" id="Layer_1" enable-background="new 0 0 512 512" viewBox="0 0 512 512" version="1.1" xml:space="preserve"><path id="rect1211" style="fill-opacity:1;stroke:none;stroke-width:0.999999;stroke-linecap:round;stroke-dasharray:none;stroke-opacity:1" d="m 23.104365,27.017416 c -8.551,0 -15.435,6.885 -15.435,15.436 v 39.455 c 0,8.551 6.884,15.436 15.435,15.436 H 266.98733 c 8.55099,0 15.43599,-6.885 15.43599,-15.436 v -39.455 c 0,-8.551 -6.885,-15.436 -15.43599,-15.436 z m 20.78,21.721 a 13.440079,13.443236 0 0 1 13.439,13.442 13.440079,13.443236 0 0 1 -13.439,13.443 13.440079,13.443236 0 0 1 -13.44,-13.443 13.440079,13.443236 0 0 1 13.44,-13.442 z m -20.78,58.770004 c -8.551,0 -15.435,6.884 -15.435,15.435 v 39.457 c 0,8.551 6.884,15.434 15.435,15.434 H 198.89133 c 5.21,-6.779 11.10899,-12.994 17.92,-18.307 17.295,-13.493 37.049,-15.163 52.92799,-15.867 4.649,-0.206 8.51901,-0.403 12.684,-0.586 v -20.131 c 0,-8.551 -6.885,-15.435 -15.43599,-15.435 z m 368.689965,6.57 c -16.73701,0.282 -30.779,8.353 -43.268,16.5 -13.321,8.69 -25.504,17.712 -37.283,21.494 -11.22,3.602 -25.705,3.401 -40.951,4.076 -15.247,0.676 -31.891,2.391 -45.791,13.235 -21.59,16.843 -35.293,48.954 -45.321,77.167 -10.02696,28.212 -15.43896,52.802 -15.43896,52.802 a 10,10 0 0 0 7.613,11.918 10,10 0 0 0 11.91796,-7.613 c 0,0 5.194,-23.512 14.754,-50.41 9.56,-26.898 24.429,-56.903 38.775,-68.095 8.468,-6.606 20.142,-8.393 34.375,-9.023 14.234,-0.631 30.39,0.06 46.18,-5.014 16.379,-5.259 29.636,-15.657 42.098,-23.787 12.462,-8.13 23.5,-13.745 34.801,-13.223 7.776,0.36 23.735,8.535 36.152,17.379 4.725,3.366 8.774,6.557 12.289,9.414 l -5.682,6.166 a 7.7872282,7.7872282 0 0 0 3.569,12.758 l 43.465,12.537 a 6.2999998,6.2999998 0 0 0 7.636,-8.289 l -16.05,-42.293 a 7.7872282,7.7872282 0 0 0 -13.008,-2.513 l -6.356,6.898 c -3.972,-3.257 -8.711,-7.017 -14.26,-10.969 -13.563,-9.661 -29.788,-20.278 -46.832,-21.066 -1.14001,-0.05 -2.269,-0.07 -3.384,-0.05 z m -347.909965,15.15 a 13.440079,13.443236 0 0 1 13.439,13.444 13.440079,13.443236 0 0 1 -13.439,13.443 13.440079,13.443236 0 0 1 -13.44,-13.443 13.440079,13.443236 0 0 1 13.44,-13.444 z m -20.78,58.772 c -8.551,0 -15.435,6.883 -15.435,15.433 v 39.457 c 0,8.55 6.884,15.433 15.435,15.433 H 162.14137 c 1.627,-5.155 3.274,-10.373 5.26,-15.961 6.333,-17.817 13.69896,-37.268 24.45496,-54.362 z m 248.112965,0.656 c -13.273,0.628 -21.723,2.449 -26.72601,6.352 -9.81999,7.66 -25.419,36.35 -34.688,62.426 -0.11,0.311 -0.183,0.579 -0.293,0.889 h 14.446 v -7.176 c 0,-9.203 7.41,-16.613 16.613,-16.613 h 41.854 v -31.101 c 0,-7.072 -4.738,-12.937 -11.20599,-14.777 z m 61.83099,0.154 a 7.50075,7.50075 0 0 0 -7.5,7.5 v 267.445 a 7.50075,7.50075 0 0 0 7.5,7.5 h 47.484 a 7.50075,7.50075 0 0 0 7.5,-7.5 v -267.445 a 7.50075,7.50075 0 0 0 -7.5,-7.5 z m 7.5,15 h 32.484 v 252.445 h -32.484 z m -296.663955,5.908 a 13.440079,13.443236 0 0 1 13.439,13.443 13.440079,13.443236 0 0 1 -13.439,13.443 13.440079,13.443236 0 0 1 -13.44,-13.443 13.440079,13.443236 0 0 1 13.44,-13.443 z m 378.055965,14.547 a 7.50075,7.50075 0 0 0 -7.5,7.5 v 231.988 a 7.50075,7.50075 0 0 0 7.5,7.5 h 47.49 a 7.50075,7.50075 0 0 0 7.5,-7.5 v -231.988 a 7.50075,7.50075 0 0 0 -7.5,-7.5 z m 7.5,15 h 32.49 v 216.988 h -32.49 z m -185.281,9.212 a 7.50075,7.50075 0 0 0 -7.5,7.5 v 207.778 a 7.50075,7.50075 0 0 0 7.5,7.5 h 47.48399 a 7.50075,7.50075 0 0 0 7.5,-7.5 v -207.778 a 7.50075,7.50075 0 0 0 -7.5,-7.5 z m 7.5,15 h 32.48399 v 192.778 h -32.48399 z m -228.554965,5.012 c -8.551,0 -15.435,6.883 -15.435,15.434 v 39.457 c 0,8.551 6.884,15.435 15.435,15.435 H 135.03437 v -6.113 c 0,-9.203 7.41,-16.613 16.613,-16.613 h 4.805 a 22.5,22.5 0 0 1 -4.918,-19.428 c 0,0 2.71,-11.874 7.486,-28.172 z m 183.052965,0 c -6.815,21.026 -10.678,37.859 -10.678,37.859 a 22.5,22.5 0 0 1 -5.193,9.741 h 33.67 v -47.6 z m -162.272965,21.719 a 13.440079,13.443236 0 0 1 13.439,13.443 13.440079,13.443236 0 0 1 -13.439,13.444 13.440079,13.443236 0 0 1 -13.44,-13.444 13.440079,13.443236 0 0 1 13.44,-13.443 z m 111.380005,39.129 a 7.50075,7.50075 0 0 0 -7.5,7.5 v 126.918 a 7.50075,7.50075 0 0 0 7.5,7.5 h 47.49096 a 7.50075,7.50075 0 0 0 7.5,-7.5 v -126.918 a 7.50075,7.50075 0 0 0 -7.5,-7.5 z m 7.5,15 h 32.49096 v 111.918 h -32.49096 z m -139.660005,4.642 c -8.551,0 -15.435,6.885 -15.435,15.436 v 39.455 c 0,8.551 6.884,15.436 15.435,15.436 H 135.03437 v -70.327 z m 20.78,21.721 a 13.440079,13.443236 0 0 1 13.439,13.443 13.440079,13.443236 0 0 1 -13.439,13.442 13.440079,13.443236 0 0 1 -13.44,-13.442 13.440079,13.443236 0 0 1 13.44,-13.443 z m -20.78,58.77 c -8.551,0 -15.435,6.884 -15.435,15.435 v 39.457 c 0,8.551 6.884,15.434 15.435,15.434 H 125.54037 a 22.199759,22.204975 0 0 1 -2.694,-10 22.199759,22.204975 0 0 1 12.329,-19.844 c -0.08,-0.677 -0.141,-1.362 -0.141,-2.062 v -38.42 z m 20.78,21.72 a 13.440079,13.443236 0 0 1 13.439,13.444 13.440079,13.443236 0 0 1 -13.439,13.443 13.440079,13.443236 0 0 1 -13.44,-13.443 13.440079,13.443236 0 0 1 13.44,-13.444 z m 101.162005,28.606 a 10,10 0 0 0 -10,10 10,10 0 0 0 10,10 h 349.28496 a 10,10 0 0 0 10,-10 10,10 0 0 0 -10,-10 z" /></svg>`,
+		markerSvgFileName: "-",
+		markerSvgString: "",
+		defaultPayloadJsonSchema: {},
+		dashboardRefreshString: "",
+		dashboardTimeWindow: "",
+	},
+	{
+		type: "WAL archiver metrics",
+		iconSvgFileName: "wal_archiver_metrics.svg",
+		iconSvgString: `<svg xmlns="http://www.w3.org/2000/svg" xmlns:svg="http://www.w3.org/2000/svg" id="Layer_1" enable-background="new 0 0 512 512" viewBox="0 0 512 512" version="1.1" xml:space="preserve"><path id="path1420" style="fill-opacity:1;stroke:none;stroke-width:0.999999;stroke-linecap:round;stroke-dasharray:none;stroke-opacity:1" d="M 35,44 h 78 a 7,7 0 0 1 7,7 v 18 a 7,7 0 0 1 -7,7 h -78 a 7,7 0 0 1 -7,-7 v -18 a 7,7 0 0 1 7,-7 z M 35,92 h 78 a 7,7 0 0 1 7,7 v 18 a 7,7 0 0 1 -7,7 h -78 a 7,7 0 0 1 -7,-7 v -18 a 7,7 0 0 1 7,-7 z M 57,142 h 34 v 40 h 26 l -43,46 l -43,-46 h 26 z M 18,250 a 56,16 0 0 1 112,0 v 106 a 56,16 0 0 1 -112,0 z M 18,286 a 56,16 0 0 0 112,0 v -9 a 56,16 0 0 1 -112,0 z M 18,322 a 56,16 0 0 0 112,0 v -9 a 56,16 0 0 1 -112,0 z M 140,246 C 194,230 240,200 276,170 C 314,138 356,114 404,106 l -3,-18 l 62,26 l -46,47 l -3,-18 C 374,150 338,172 304,200 C 266,232 214,266 148,284 z M 157.5,330 h 32.5 a 7.5,7.5 0 0 1 7.5,7.5 v 111.0 a 7.5,7.5 0 0 1 -7.5,7.5 h -32.5 a 7.5,7.5 0 0 1 -7.5,-7.5 v -111.0 a 7.5,7.5 0 0 1 7.5,-7.5 z M 157.5,337.5 v 111.0 h 32.5 v -111.0 z M 247.5,250 h 32.5 a 7.5,7.5 0 0 1 7.5,7.5 v 191.0 a 7.5,7.5 0 0 1 -7.5,7.5 h -32.5 a 7.5,7.5 0 0 1 -7.5,-7.5 v -191.0 a 7.5,7.5 0 0 1 7.5,-7.5 z M 247.5,257.5 v 191.0 h 32.5 v -191.0 z M 337.5,190 h 32.5 a 7.5,7.5 0 0 1 7.5,7.5 v 251.0 a 7.5,7.5 0 0 1 -7.5,7.5 h -32.5 a 7.5,7.5 0 0 1 -7.5,-7.5 v -251.0 a 7.5,7.5 0 0 1 7.5,-7.5 z M 337.5,197.5 v 251.0 h 32.5 v -251.0 z M 427.5,226 h 32.5 a 7.5,7.5 0 0 1 7.5,7.5 v 215.0 a 7.5,7.5 0 0 1 -7.5,7.5 h -32.5 a 7.5,7.5 0 0 1 -7.5,-7.5 v -215.0 a 7.5,7.5 0 0 1 7.5,-7.5 z M 427.5,233.5 v 215.0 h 32.5 v -215.0 z M 150,466 h 342 a 10,10 0 0 1 10,10 v 0 a 10,10 0 0 1 -10,10 h -342 a 10,10 0 0 1 -10,-10 v 0 a 10,10 0 0 1 10,-10 z" /></svg>`,
+		markerSvgFileName: "-",
+		markerSvgString: "",
+		defaultPayloadJsonSchema: {},
+		dashboardRefreshString: "",
+		dashboardTimeWindow: "",
+	},
+];

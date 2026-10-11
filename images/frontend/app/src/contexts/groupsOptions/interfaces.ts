@@ -19,6 +19,7 @@ export interface IGroupInputData {
     floorNumber: number;
 	featureIndex: number;
 	mqttAccessControl: string;
+	llmEnabled: boolean;
     groupAdminDataArray?: IGroupAdminData[];
 }
 

@@ -15,9 +15,9 @@ import SvgComponent from '../../Tools/SvgComponent';
 import { useFilePicker } from 'use-file-picker';
 import { setSensorTypesOptionToShow, useSensorTypesDispatch } from '../../../contexts/sensorTypesOptions';
 import { IOrgManaged } from '../TableColumns/organizationsManagedColumns';
-import { ControlsContainer, FormContainer } from '../GroupAdminOptions/CreateAsset';
 import { cleanSvgString } from '../../../tools/generateAssetTypeMarker';
 import { AxiosResponse, AxiosError } from 'axios';
+import { ControlsContainer, StaticFormContainer } from '../../Tools/FormTools';
 
 
 const SvgIconPreviewContainerDiv = styled.div`
@@ -397,10 +397,11 @@ const CreateSensorType: FC<CreateSensorTypeProps> = ({
     return (
         <>
             <FormTitle isSubmitting={isSubmitting}>Create sensor type</FormTitle>
-            <FormContainer>
+            <StaticFormContainer>
                 <Formik initialValues={initialSensorTypeData} validationSchema={validationSchema} onSubmit={onSubmit} >
                     {
                         formik => (
+                            // @ts-ignore
                             <Form>
                                 <ControlsContainer>
                                     <FormikControl
@@ -520,7 +521,7 @@ const CreateSensorType: FC<CreateSensorTypeProps> = ({
                         )
                     }
                 </Formik>
-            </FormContainer>
+            </StaticFormContainer>
         </>
     )
 }

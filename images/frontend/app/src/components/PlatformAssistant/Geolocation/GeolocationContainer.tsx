@@ -11,7 +11,7 @@ import useInterval from '../../../tools/useInterval';
 import { IBuilding } from '../TableColumns/buildingsColumns';
 import { IFloor } from '../TableColumns/floorsColumns';
 import SelectFloorWithState from './SelectFloorWithState';
-import { IDigitalTwinGltfData } from '../DigitalTwin3DViewer/ViewerUtils';
+import { IDigitalTwinGltfData } from '../DigitalTwin3DViewer/ViewerTools/ViewerUtils';
 import { getAxiosInstance } from '../../../tools/axiosIntance';
 import axiosErrorHandler from '../../../tools/axiosErrorHandler';
 import { IAsset } from '../TableColumns/assetsColumns';
@@ -97,6 +97,7 @@ interface GeolocationContainerProps {
     refreshGroupsManaged: () => void;
     refreshAssetTypes: () => void;
     refreshAssets: () => void;
+    refreshAssetS3Folders: () => void;
     refreshAssetsWithMarker: () => void;
     refreshSensors: () => void;
     refreshDigitalTwins: () => void;
@@ -111,6 +112,8 @@ interface GeolocationContainerProps {
     sensorsState: ISensorState[];
     setSensorsState: (sensorsState: ISensorState[]) => void;
     setGltfFileDownloadProgress: (gltfFileDownloadProgress: number) => void;
+    setAssetWithCameraSelected: (selected: boolean) => void;
+    setSensorWithCameraSelected: (selected: boolean) => void;
 }
 
 const GeolocationContainer: FC<GeolocationContainerProps> = (
@@ -147,6 +150,7 @@ const GeolocationContainer: FC<GeolocationContainerProps> = (
         refreshGroupsManaged,
         refreshAssetTypes,
         refreshAssets,
+        refreshAssetS3Folders,
         refreshAssetsWithMarker,
         refreshSensors,
         refreshDigitalTwins,
@@ -161,6 +165,8 @@ const GeolocationContainer: FC<GeolocationContainerProps> = (
         sensorsState,
         setSensorsState,
         setGltfFileDownloadProgress,
+        setAssetWithCameraSelected,
+        setSensorWithCameraSelected
     }) => {
     const { accessToken, refreshToken } = useAuthState();
     const authDispatch = useAuthDispatch();
@@ -321,6 +327,7 @@ const GeolocationContainer: FC<GeolocationContainerProps> = (
                     refreshGroupsManaged={refreshGroupsManaged}
                     refreshAssetTypes={refreshAssetTypes}
                     refreshAssets={refreshAssets}
+                    refreshAssetS3Folders={refreshAssetS3Folders}
                     refreshAssetsWithMarker={refreshAssetsWithMarker}
                     refreshSensors={refreshSensors}
                     refreshDigitalTwins={refreshDigitalTwins}
@@ -337,6 +344,8 @@ const GeolocationContainer: FC<GeolocationContainerProps> = (
                     openDigitalTwin3DViewer={openDigitalTwin3DViewer}
                     setGlftDataLoading={setGlftDataLoading}
                     setGltfFileDownloadProgress={setGltfFileDownloadProgress}
+                    setAssetWithCameraSelected={setAssetWithCameraSelected}
+                    setSensorWithCameraSelected={setSensorWithCameraSelected}
                 />
             }
             {geolocationOptionToShow === GEOLOCATION_OPTIONS.SELECT_ORG &&

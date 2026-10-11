@@ -75,10 +75,7 @@ module.exports = {
         "@typescript-eslint/dot-notation": "error",
         "@typescript-eslint/explicit-function-return-type": "off",
         "@typescript-eslint/explicit-module-boundary-types": "off",
-        "@typescript-eslint/indent": [
-            "error",
-            "tab"
-        ],
+        "@typescript-eslint/indent": "off",
         "@typescript-eslint/naming-convention": [
             "off",
             {
@@ -180,6 +177,5 @@ module.exports = {
         "use-isnan": "error",
         "valid-typeof": "off",
         "jsdoc/newline-after-description": "off",
-        "indent": ["error", "tab"],
     }
 };

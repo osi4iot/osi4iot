@@ -23,29 +23,30 @@ const errorMessageItem = (errorArray: ValErr[]): string => {
 			return mesgSubItem;
 		})
 		.join(", ");
-}
+};
 
-const  reducerCallback = (result: string[], errorArray: ValErr[]): string[] => {
+const reducerCallback = (result: string[], errorArray: ValErr[]): string[] => {
 	if (errorArray.length) {
 		const mesgItem: string = errorMessageItem(errorArray);
 		result.push(mesgItem);
 	}
 	return result;
-}
+};
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars
-const validationMiddleware = <T>(type: any, skipMissingProperties = false): express.RequestHandler =>  {
-	return async (req: IRequestWithOrganization, res, next): Promise<void> => {
+const validationMiddleware = <T>(type: any, skipMissingProperties = false): express.RequestHandler => {
+	return async (req, res, next): Promise<void> => {
+		const request = req as IRequestWithOrganization;
 		try {
-			await transformAndValidate(type, req.body, {
-				validator: { skipMissingProperties, whitelist: true, forbidNonWhitelisted: true }
+			await transformAndValidate(type, request.body, {
+				validator: { skipMissingProperties, whitelist: true, forbidNonWhitelisted: true },
 			});
 			next();
-		} catch (err) {
+		} catch (err: any) {
 			const message = Array.isArray(err[0]) ? err.reduce(reducerCallback, []) : errorMessageItem(err);
-			next(new HttpException(req, res, 400, message));
+			next(new HttpException(request, res, 400, message));
 		}
 	};
-}
+};
 
 export default validationMiddleware;

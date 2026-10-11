@@ -8,5 +8,5 @@ interface PublicRouteProps extends RouteProps {
 }
 
 export const PublicRoute: FC<PublicRouteProps> = ({ component: Component, ...rest }) => {
-	return <Route {...rest}>{!useIsUserAuth() ? <Component /> : <Redirect to="/" />}</Route>;
+	return <Route {...rest}>{!useIsUserAuth() ? <Component children={undefined} /> : <Redirect to="/" />}</Route>;
 };

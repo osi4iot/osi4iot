@@ -410,6 +410,7 @@ const DigitalTwinSimulatorSelectForm: FC<DigitalTwinSimulatorSelectFormProps> = 
                 >
                     {
                         formik => (
+                            // @ts-ignore
                             <Form>
                                 <ControlsContainer>
                                     <FormikControl

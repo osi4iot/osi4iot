@@ -2,7 +2,7 @@ import { FC, SyntheticEvent } from "react";
 import { FaUserSlash } from "react-icons/fa";
 import styled from "styled-components";
 
-const FaUserSlashStyled = styled(FaUserSlash)`
+const FaUserSlashStyled = styled(FaUserSlash as any)`
     font-size: 20px;
     color: white;
 `;

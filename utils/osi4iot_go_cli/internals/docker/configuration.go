@@ -4,53 +4,36 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/common"
-	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/utils"
+	"github.com/osi4iot/osi4iot/utils/osi4iot/internals/resources"
+	"github.com/osi4iot/osi4iot/utils/osi4iot/internals/types"
+	"github.com/osi4iot/osi4iot/utils/osi4iot/internals/utils"
 )
 
-func nodesConfiguration(platformData *common.PlatformData) error {
-	err := installUFWOnNodes(platformData)
+func nodesConfiguration(pd *types.PlatformData) error {
+	err := installUFWOnNodes(pd)
 	if err != nil {
 		return fmt.Errorf("error installing UFW on nodes: %w", err)
 	}
 
-	err = installNFS(platformData)
+	err = installRexRayPlugin(pd)
 	if err != nil {
-		return fmt.Errorf("error installing NFS on nodes: %w", err)
-	}
-
-	err = AddNFSFolders(platformData)
-	if err != nil {
-		return fmt.Errorf("error adding NFS folders on nodes: %w", err)
-	}
-
-	err = installEFS(platformData)
-	if err != nil {
-		return fmt.Errorf("error installing EFS on nodes: %w", err)
-	}
-
-	err = AddEfsFolders(platformData)
-	if err != nil {
-		return fmt.Errorf("error adding EFS folders on nodes: %w", err)
-	}
-
-	err = addNodesLabels(platformData)
-	if err != nil {
-		return fmt.Errorf("error adding labels to nodes: %w", err)
+		return fmt.Errorf("error installing RexRay plugin on nodes: %w", err)
 	}
 
 	return nil
 }
 
-func installUFWOnNodes(platformData *common.PlatformData) error {
-	deploymentLocation := platformData.PlatformInfo.DeploymentLocation
-	numSwarmNodes := len(platformData.PlatformInfo.NodesData)
+func installUFWOnNodes(pd *types.PlatformData) error {
+	pi := pd.PlatformInfo
+	deploymentLocation := pi.DeploymentLocation
+	numSwarmNodes := len(pi.NodesData)
 
 	if deploymentLocation == "On-premise cluster deployment" && numSwarmNodes > 1 {
 		spinnerDone := make(chan bool)
 		spinnerMsg := "Intalling UFW on nodes..."
 		endMsg := "UFW installed on all nodes"
 		utils.Spinner(spinnerMsg, endMsg, spinnerDone)
+
 		managerScript := `#!/bin/bash
 REQUIRED_PKG="ufw"
 if [ $(dpkg-query -W -f='${Status}' $REQUIRED_PKG 2>/dev/null | grep -c "ok installed") -eq 0 ];
@@ -84,65 +67,29 @@ ufw allow 7946/udp
 ufw allow 4789/udp
 sudo ufw enable
 `
-		genericWorkerScript := `#!/bin/bash
-REQUIRED_PKG="ufw"
-if [ $(dpkg-query -W -f='${Status}' $REQUIRED_PKG 2>/dev/null | grep -c "ok installed") -eq 0 ];
-then
-	sudo apt-get update -y
-	sudo apt-get install ufw -y
-fi
-ufw allow 22/tcp
-ufw allow 2377/tcp
-ufw allow 7946/tcp 
-ufw allow 7946/udp 
-ufw allow 4789/udp
-sudo ufw enable
-`
-		nfsScript := `#!/bin/bash
-REQUIRED_PKG="ufw"
-if [ $(dpkg-query -W -f='${Status}' $REQUIRED_PKG 2>/dev/null | grep -c "ok installed") -eq 0 ];
-then
-	sudo apt-get update -y
-	sudo apt-get install ufw -y
-fi
-ufw allow 22/tcp
-ufw allow 2049/tcp
-sudo ufw enable
-`
 
-		nodesData := platformData.PlatformInfo.NodesData
+		nodesData := pi.NodesData
 		nodeSripts := []utils.NodeScript{}
 		for _, node := range nodesData {
 			var nodeScript utils.NodeScript
 			nodeRole := node.NodeRole
-			if nodeRole == "Manager" {
+			switch nodeRole {
+			case "Manager":
 				nodeScript = utils.NodeScript{
 					Node:   node,
 					Script: managerScript,
 					Args:   []string{},
 				}
-			} else if nodeRole == "Platform worker" {
+			case "Platform worker":
 				nodeScript = utils.NodeScript{
 					Node:   node,
 					Script: platformWorkerScript,
 					Args:   []string{},
 				}
-			} else if nodeRole == "Generic org worker" || nodeRole == "Exclusive org worker" {
-				nodeScript = utils.NodeScript{
-					Node:   node,
-					Script: genericWorkerScript,
-					Args:   []string{},
-				}
-			} else if nodeRole == "NFS server" {
-				nodeScript = utils.NodeScript{
-					Node:   node,
-					Script: nfsScript,
-					Args:   []string{},
-				}
 			}
 			nodeSripts = append(nodeSripts, nodeScript)
 		}
-		_, err := utils.RunScriptInNodes(platformData, nodeSripts)
+		_, err := utils.RunScriptInNodes(pd, nodeSripts)
 		if err != nil {
 			spinnerDone <- false
 			return err
@@ -153,464 +100,14 @@ sudo ufw enable
 	return nil
 }
 
-func installNFS(platformData *common.PlatformData) error {
-	deploymentLocation := platformData.PlatformInfo.DeploymentLocation
-	numSwarmNodes := len(platformData.PlatformInfo.NodesData)
-
-	if deploymentLocation == "On-premise cluster deployment" && numSwarmNodes > 1 {
-		spinnerDone := make(chan bool)
-		spinnerMsg := "Intalling NFS"
-		endMsg := "NFS installed successfully"
-		utils.Spinner(spinnerMsg, endMsg, spinnerDone)
-		nodesData := platformData.PlatformInfo.NodesData
-		nfsNode := common.NodeData{}
-		for _, node := range nodesData {
-			if node.NodeRole == "NFS server" {
-				nfsNode = node
-				break
-			}
-		}
-		if nfsNode.NodeIP != "" {
-			nfsScript := `#!/bin/bash
-ips_array=($(echo "$1" | tr ',' '\n'))
-
-REQUIRED_PKG="nfs-kernel-server"
-if [ $(dpkg-query -W -f='${Status}' $REQUIRED_PKG 2>/dev/null | grep -c "ok installed") -eq 0 ];
-then
-	sudo apt-get update -y
-	sudo apt-get install nfs-kernel-server -y
-fi
-
-if [ ! -d /var/nfs_osi4iot ]; then
-	sudo mkdir /var/nfs_osi4iot
-	sudo chown nobody:nogroup /var/nfs_osi4iot
-fi
-
-if [ ! -d /var/nfs_osi4iot/admin_api_log ]; then
-	sudo mkdir /var/nfs_osi4iot/admin_api_log
-	sudo chown nobody:nogroup /var/nfs_osi4iot/admin_api_log
-fi
-
-if [ ! -d /var/nfs_osi4iot/grafana_data ]; then
-	sudo mkdir /var/nfs_osi4iot/grafana_data
-	sudo chown nobody:nogroup /var/nfs_osi4iot/grafana_data
-fi
-
-if [ ! -d /var/nfs_osi4iot/mosquitto_data ]; then
-	sudo mkdir /var/nfs_osi4iot/mosquitto_data
-	sudo chown nobody:nogroup /var/nfs_osi4iot/mosquitto_data
-fi
-
-if [ ! -d /var/nfs_osi4iot/mosquitto_log ]; then
-	sudo mkdir /var/nfs_osi4iot/mosquitto_log
-	sudo chown nobody:nogroup /var/nfs_osi4iot/mosquitto_log
-fi
-
-
-if [ ! -d  /var/nfs_osi4iot/portainer_data ]; then
-	sudo mkdir /var/nfs_osi4iot/portainer_data
-	sudo chown nobody:nogroup /var/nfs_osi4iot/portainer_data
-fi
-
-if [ ! -d  /var/nfs_osi4iot/pgadmin4_data ]; then
-	sudo mkdir /var/nfs_osi4iot/pgadmin4_data
-	sudo chown nobody:nogroup /var/nfs_osi4iot/pgadmin4_data
-fi
-
-if [ ! -d  /var/nfs_osi4iot/pgdata ]; then
-	sudo mkdir /var/nfs_osi4iot/pgdata
-	sudo chown nobody:nogroup /var/nfs_osi4iot/pgdata
-fi
-
-if [ ! -d  /var/nfs_osi4iot/timescaledb_data ]; then
-	sudo mkdir /var/nfs_osi4iot/timescaledb_data
-	sudo chown nobody:nogroup /var/nfs_osi4iot/timescaledb_data
-fi
-
-if [ ! -d  /var/nfs_osi4iot/portainer_data ]; then
-	sudo mkdir /var/nfs_osi4iot/portainer_data
-	sudo chown nobody:nogroup /var/nfs_osi4iot/portainer_data
-fi
-
-if [ ! -d  /home/ubuntu/efs_osi4iot/letsencrypt ]; then
-    sudo mkdir /home/ubuntu/efs_osi4iot/letsencrypt
-    sudo chown ubuntu:ubuntu /home/ubuntu/efs_osi4iot/letsencrypt
-fi
-
-for (( i=0; i<${#ips_array[@]}; i++ )); do
-	newline="/var/nfs_osi4iot ${ips_array[$i]}(rw,sync,no_root_squash,no_subtree_check)"
-	if ! grep -Fxq "$newline" "/etc/exports"; then
-		echo $newline >> /etc/exports
-	fi
-done
-
-sudo systemctl restart nfs-kernel-server
-`
-			var ips []string
-			for _, node := range nodesData {
-				if node.NodeRole != "NFS server" {
-					ips = append(ips, node.NodeIP)
-				}
-			}
-			ipsString := strings.Join(ips, ",")
-
-			nodeScript := utils.NodeScript{
-				Node:   nfsNode,
-				Script: nfsScript,
-				Args:   []string{ipsString},
-			}
-			_, err := utils.RunScriptInNodes(platformData, []utils.NodeScript{nodeScript})
-			if err != nil {
-				spinnerDone <- false
-				return err
-			}
-			spinnerDone <- true
-		}
-	}
-
-	return nil
-}
-
-func AddNFSFolders(platformData *common.PlatformData) error {
-	deploymentLocation := platformData.PlatformInfo.DeploymentLocation
-	numSwarmNodes := len(platformData.PlatformInfo.NodesData)
-
-	if deploymentLocation == "On-premise cluster deployment" && numSwarmNodes > 1 {
-		spinnerDone := make(chan bool)
-		spinnerMsg := "Adding NFS folders."
-		endMsg := "NFS folders added successfully."
-		utils.Spinner(spinnerMsg, endMsg, spinnerDone)
-		nodesData := platformData.PlatformInfo.NodesData
-		nfsNode := common.NodeData{}
-		for _, node := range nodesData {
-			if node.NodeRole == "NFS server" {
-				nfsNode = node
-				break
-			}
-		}
-
-		organizations := platformData.Certs.MqttCerts.Organizations
-
-		addNfsFoldersScript := `#!/bin/bash
-org_acronym=$1
-nri_hashes_array=($(echo "$2" | tr ',' '\n'))
-
-for (( i=0; i < ${#nri_hashes_array[@]}; i++ )); do
-    nri_folder="/var/nfs_osi4iot/org_${org_acronym}_nri_${nri_hashes_array[$i]}_data"
-    if [ ! -d  $nri_folder ]; then
-        sudo mkdir $nri_folder
-        sudo chown nobody:nogroup $nri_folder
-    fi
-done
-
-sudo systemctl restart nfs-kernel-server
-`
-		nodeScripts := []utils.NodeScript{}
-		for _, org := range organizations {
-			orgAcronym := strings.ToLower(org.OrgAcronym)
-			nriHashes := []string{}
-			for _, nri := range org.NodeRedInstances {
-				nriHashes = append(nriHashes, nri.NriHash)
-			}
-			nriHashesString := strings.Join(nriHashes, ",")
-			nodeScript := utils.NodeScript{
-				Node:   nfsNode,
-				Script: addNfsFoldersScript,
-				Args:   []string{orgAcronym, nriHashesString},
-			}
-			nodeScripts = append(nodeScripts, nodeScript)
-		}
-		_, err := utils.RunScriptInNodes(platformData, nodeScripts)
-		if err != nil {
-			spinnerDone <- false
-			return err
-		}
-		spinnerDone <- true
-	}
-
-	return nil
-}
-
-func RemoveNfsFolders(platformData *common.PlatformData, orgAcronym string) error {
-	deploymentLocation := platformData.PlatformInfo.DeploymentLocation
-	numSwarmNodes := len(platformData.PlatformInfo.NodesData)
-
-	if deploymentLocation == "On-premise cluster deployment" && numSwarmNodes > 1 {
-		spinnerDone := make(chan bool)
-		spinnerMsg := fmt.Sprintf("Removing NFS folders for organization %s", orgAcronym)
-		endMsg := fmt.Sprintf("NFS folders removed successfully for organization %s", orgAcronym)
-		utils.Spinner(spinnerMsg, endMsg, spinnerDone)
-		nodesData := platformData.PlatformInfo.NodesData
-		nfsNode := common.NodeData{}
-		for _, node := range nodesData {
-			if node.NodeRole == "NFS server" {
-				nfsNode = node
-				break
-			}
-		}
-
-		organizations := platformData.Certs.MqttCerts.Organizations
-		orgToRemove := common.Organization{}
-		for _, org := range organizations {
-			if org.OrgAcronym == orgAcronym {
-				orgToRemove = org
-				break
-			}
-		}
-
-		if orgToRemove.OrgAcronym != "" {
-			orgAcronym := strings.ToLower(orgToRemove.OrgAcronym)
-			nriHashes := []string{}
-			for _, nri := range orgToRemove.NodeRedInstances {
-				nriHashes = append(nriHashes, nri.NriHash)
-			}
-			nriHashesString := strings.Join(nriHashes, ",")
-			removeNfsFoldersScript := `#!/bin/bash
-org_acronym=$1
-nri_hashes_array=($(echo "$2" | tr ',' '\n'))
-
-for (( i=0; i < ${#nri_hashes_array[@]}; i++ )); do
-    nri_folder="/var/nfs_osi4iot/org_${org_acronym}_nri_${nri_hashes_array[$i]}_data"
-    if [ -d  $nri_folder ]; then
-        sudo rm -rf $nri_folder
-    fi
-done
-
-sudo systemctl restart nfs-kernel-server		
-`
-			nodeScript := utils.NodeScript{
-				Node:   nfsNode,
-				Script: removeNfsFoldersScript,
-				Args:   []string{orgAcronym, nriHashesString},
-			}
-			_, err := utils.RunScriptInNodes(platformData, []utils.NodeScript{nodeScript})
-			if err != nil {
-				spinnerDone <- false
-				return err
-			}
-			spinnerDone <- true
-		}
-	}
-	return nil
-}
-
-func installEFS(platformData *common.PlatformData) error {
-	deploymentLocation := platformData.PlatformInfo.DeploymentLocation
-	numSwarmNodes := len(platformData.PlatformInfo.NodesData)
-
-	if deploymentLocation == "AWS cluster deployment" && numSwarmNodes > 1 {
-		spinnerDone := make(chan bool)
-		spinnerMsg := "Installing EFS client"
-		endMsg := "EFS client installed successfully"
-		utils.Spinner(spinnerMsg, endMsg, spinnerDone)
-		nodeData := platformData.PlatformInfo.NodesData[0]
-		efsScript := `#!/bin/bash
-export efs_dns=$1
-
-if ! command -v mount.nfs &>/dev/null; then
-    sudo apt-get update
-    sudo apt-get install -y nfs-common
-fi
-
-if [ ! -d /home/ubuntu/efs_osi4iot ]; then
-    sudo mkdir /home/ubuntu/efs_osi4iot
-    sudo chown ubuntu:ubuntu /home/ubuntu/efs_osi4iot
-    sudo mount -t nfs4 -o nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2,noresvport $efs_dns:/ /home/ubuntu/efs_osi4iot
-    sudo -E sh -c 'echo "$efs_dns:/ /home/ubuntu/efs_osi4iot nfs4 nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2,noresvport,_netdev 0 0" >> /etc/fstab'
-fi
-
-if [ ! -d /home/ubuntu/efs_osi4iot/admin_api_log ]; then
-    sudo mkdir /home/ubuntu/efs_osi4iot/admin_api_log
-    sudo chown ubuntu:ubuntu /home/ubuntu/efs_osi4iot/admin_api_log
-fi
-
-if [ ! -d /home/ubuntu/efs_osi4iot/grafana_data ]; then
-    sudo mkdir /home/ubuntu/efs_osi4iot/grafana_data
-    #sudo chown ubuntu:ubuntu /home/ubuntu/efs_osi4iot/grafana_data
-	sudo chown 472:472 /home/ubuntu/efs_osi4iot/grafana_data
-fi
-
-if [ ! -d /home/ubuntu/efs_osi4iot/mosquitto_data ]; then
-    sudo mkdir /home/ubuntu/efs_osi4iot/mosquitto_data
-    sudo chown ubuntu:ubuntu /home/ubuntu/efs_osi4iot/mosquitto_data
-fi
-
-if [ ! -d /home/ubuntu/efs_osi4iot/mosquitto_log ]; then
-    sudo mkdir /home/ubuntu/efs_osi4iot/mosquitto_log
-    sudo chown ubuntu:ubuntu /home/ubuntu/efs_osi4iot/mosquitto_log
-fi
-
-if [ ! -d  /home/ubuntu/efs_osi4iot/portainer_data ]; then
-    sudo mkdir /home/ubuntu/efs_osi4iot/portainer_data
-    sudo chown ubuntu:ubuntu /home/ubuntu/efs_osi4iot/portainer_data
-fi
-
-if [ ! -d  /home/ubuntu/efs_osi4iot/pgadmin4_data ]; then
-    sudo mkdir /home/ubuntu/efs_osi4iot/pgadmin4_data
-    sudo chown ubuntu:ubuntu /home/ubuntu/efs_osi4iot/pgadmin4_data
-fi
-
-if [ ! -d  /home/ubuntu/efs_osi4iot/pgdata ]; then
-    sudo mkdir /home/ubuntu/efs_osi4iot/pgdata
-    sudo chown ubuntu:ubuntu /home/ubuntu/efs_osi4iot/pgdata
-fi
-
-if [ ! -d  /home/ubuntu/efs_osi4iot/timescaledb_data ]; then
-    sudo mkdir /home/ubuntu/efs_osi4iot/timescaledb_data
-    sudo chown ubuntu:ubuntu /home/ubuntu/efs_osi4iot/timescaledb_data
-fi
-
-if [ ! -d  /home/ubuntu/efs_osi4iot/s3_storage_data ]; then
-    sudo mkdir /home/ubuntu/efs_osi4iot/s3_storage_data
-    sudo chown ubuntu:ubuntu /home/ubuntu/efs_osi4iot/s3_storage_data
-fi
-
-if [ ! -d  /home/ubuntu/efs_osi4iot/minio_storage ]; then
-    sudo mkdir /home/ubuntu/efs_osi4iot/minio_storage
-    sudo chown ubuntu:ubuntu /home/ubuntu/efs_osi4iot/minio_storage
-fi
-
-if [ ! -d  /home/ubuntu/efs_osi4iot/letsencrypt ]; then
-    sudo mkdir /home/ubuntu/efs_osi4iot/letsencrypt
-    sudo chown ubuntu:ubuntu /home/ubuntu/efs_osi4iot/letsencrypt
-fi
-`
-		efsDns := platformData.PlatformInfo.AwsEfsDNS
-		nodeScript := utils.NodeScript{
-			Node:   nodeData,
-			Script: efsScript,
-			Args:   []string{efsDns},
-		}
-		_, err := utils.RunScriptInNodes(platformData, []utils.NodeScript{nodeScript})
-		if err != nil {
-			spinnerDone <- false
-			return err
-		}
-		spinnerDone <- true
-	}
-
-	return nil
-}
-
-func AddEfsFolders(platformData *common.PlatformData) error {
-	deploymentLocation := platformData.PlatformInfo.DeploymentLocation
-	numSwarmNodes := len(platformData.PlatformInfo.NodesData)
-
-	if deploymentLocation == "AWS cluster deployment" && numSwarmNodes > 1 {
-		spinnerDone := make(chan bool)
-		spinnerMsg := "Adding EFS folders for organizations"
-		endMsg := "EFS folders added successfully"
-		utils.Spinner(spinnerMsg, endMsg, spinnerDone)
-		nodeData := platformData.PlatformInfo.NodesData[0]
-		organizations := platformData.Certs.MqttCerts.Organizations
-
-		addEfsFoldersScript := `#!/bin/bash
-org_acronym=$1
-nri_hashes_array=($(echo "$2" | tr ',' '\n'))
-
-for (( i=0; i < ${#nri_hashes_array[@]}; i++ )); do
-    nri_folder="/home/ubuntu/efs_osi4iot/org_${org_acronym}_nri_${nri_hashes_array[$i]}_data"
-    if [ ! -d  $nri_folder ]; then
-        sudo mkdir $nri_folder
-        sudo chown ubuntu:ubuntu $nri_folder
-    fi
-done
-`
-		nodeScripts := []utils.NodeScript{}
-		for _, org := range organizations {
-			orgAcronym := strings.ToLower(org.OrgAcronym)
-			nriHashes := []string{}
-			for _, nri := range org.NodeRedInstances {
-				nriHashes = append(nriHashes, nri.NriHash)
-			}
-			nriHashesString := strings.Join(nriHashes, ",")
-			nodeScript := utils.NodeScript{
-				Node:   nodeData,
-				Script: addEfsFoldersScript,
-				Args:   []string{orgAcronym, nriHashesString},
-			}
-			nodeScripts = append(nodeScripts, nodeScript)
-		}
-		_, err := utils.RunScriptInNodes(platformData, nodeScripts)
-		if err != nil {
-			spinnerDone <- false
-			return err
-		}
-		spinnerDone <- true
-	}
-
-	return nil
-}
-
-func RemoveEfsFolders(platformData *common.PlatformData, orgAcronym string) error {
-	deploymentLocation := platformData.PlatformInfo.DeploymentLocation
-	numSwarmNodes := len(platformData.PlatformInfo.NodesData)
-
-	if deploymentLocation == "AWS cluster deployment" && numSwarmNodes > 1 {
-		spinnerDone := make(chan bool)
-		spinnerMsg := fmt.Sprintf("Removing EFS folders for organization %s", orgAcronym)
-		endMsg := fmt.Sprintf("EFS folders removed successfully for organization %s", orgAcronym)
-		utils.Spinner(spinnerMsg, endMsg, spinnerDone)
-		nodeData := platformData.PlatformInfo.NodesData[0]
-		organizations := platformData.Certs.MqttCerts.Organizations
-		orgToRemove := common.Organization{}
-		for _, org := range organizations {
-			if org.OrgAcronym == orgAcronym {
-				orgToRemove = org
-				break
-			}
-		}
-
-		if orgToRemove.OrgAcronym != "" {
-			orgAcronym := orgToRemove.OrgAcronym
-			nriHashes := []string{}
-			for _, nri := range orgToRemove.NodeRedInstances {
-				nriHashes = append(nriHashes, nri.NriHash)
-			}
-			nriHashesString := strings.Join(nriHashes, ",")
-			removeNfsFoldersScript := `#!/bin/bash
-org_acronym=$1
-nri_hashes_array=($(echo "$2" | tr ',' '\n'))
-
-for (( i=0; i < ${#nri_hashes_array[@]}; i++ )); do
-    nri_folder="/home/ubuntu/efs_osi4iot/org_${org_acronym}_nri_${nri_hashes_array[$i]}_data"
-    if [ -d  $nri_folder ]; then
-        sudo rm -rf $nri_folder
-    fi
-done		
-`
-			nodeScript := utils.NodeScript{
-				Node:   nodeData,
-				Script: removeNfsFoldersScript,
-				Args:   []string{orgAcronym, nriHashesString},
-			}
-			_, err := utils.RunScriptInNodes(platformData, []utils.NodeScript{nodeScript})
-			if err != nil {
-				return err
-			}
-		}
-	}
-	return nil
-}
-
-func filterOrganizations(organizations []common.Organization, nodeName string) *common.Organization {
-	for _, org := range organizations {
-		for _, node := range org.ExclusiveWorkerNodes {
-			if node == nodeName {
-				return &org
-			}
-		}
-	}
-	return nil
-}
-
-func addNodesLabels(platformData *common.PlatformData) error {
+func addNodesLabels(pd *types.PlatformData) error {
+	pi := pd.PlatformInfo
 	spinnerDone := make(chan bool)
 	spinnerMsg := "Adding node labels"
 	endMsg := "Node labels added successfully"
 	utils.Spinner(spinnerMsg, endMsg, spinnerDone)
 
-	deploymentLocation := platformData.PlatformInfo.DeploymentLocation
+	deploymentLocation := pi.DeploymentLocation
 	docker, err := GetManagerDC()
 	if err != nil {
 		spinnerDone <- false
@@ -623,51 +120,131 @@ func addNodesLabels(platformData *common.PlatformData) error {
 		return fmt.Errorf("error creating swarm nodes map: %w", err)
 	}
 
-	nodesData := platformData.PlatformInfo.NodesData
-	numManagerNodes := 0
-	for _, node := range nodesData {
-		if node.NodeRole == "Manager" {
-			numManagerNodes++
+	// Garage instances first: their labels are written below, and the
+	// first time this runs on a platform they do not exist yet. Saved at
+	// once — an instance's identity handed to Swarm but not written down
+	// would be regenerated, and its volumes would no longer match it.
+	garageChanged, err := utils.EnsureGarageInstances(&pd.PlatformInfo)
+	if err != nil {
+		spinnerDone <- false
+		return fmt.Errorf("error planning the Garage instances: %w", err)
+	}
+	if garageChanged {
+		utils.SyncGarageServiceData(pd)
+		if err := utils.WritePlatformDataToFile(pd); err != nil {
+			spinnerDone <- false
+			return fmt.Errorf("error saving the Garage instances: %w", err)
 		}
 	}
-	priorities := []string{"300", "200", "100"}
+	pi = pd.PlatformInfo
+	garageLabels := map[string][]string{}
+	for _, inst := range pi.GarageInstances {
+		garageLabels[inst.NodeIP] = append(garageLabels[inst.NodeIP], utils.GarageInstanceLabel(inst.ID))
+	}
+
+	nodesData := pi.NodesData
+	usesPlacementLabels := resources.UsesPlacementLabels(pd)
+
+	// Refused before anything is written. Labelling only the first two
+	// of three replicas leaves the third pinned to a label nobody
+	// carries, and that failure is invisible: the service simply sits
+	// with a pending task.
+	if err := resources.ValidatePlacement(pd); err != nil {
+		spinnerDone <- false
+		return err
+	}
+
+	// The workers' NATS/Patroni numbers, decided before any label is
+	// touched: kept where they are, only free numbers handed out (see
+	// pinned_labels.go for why they must not be positional).
+	assigned := map[string]map[string]int{} // service -> node IP -> number
+	if usesPlacementLabels {
+		var workers []string
+		labelsNow := map[string]map[string]string{}
+		for _, node := range nodesData {
+			if node.NodeRole != "Platform worker" {
+				continue
+			}
+			if swarmNode, ok := swarmNodesMap[node.NodeIP]; ok {
+				workers = append(workers, node.NodeIP)
+				labelsNow[node.NodeIP] = swarmNode.Spec.Labels
+			}
+		}
+		for _, t := range pinnedTargets(pd) {
+			assigned[t.family.service] = assignPinnedIDs(workers,
+				currentPinnedIDs(t.family, workers, labelsNow))
+		}
+	}
+
+	// Highest priority to the first manager, so the floating IP has a
+	// deterministic holder. The list is extended rather than indexed
+	// blindly: a fourth manager used to panic here.
 	priorityIndex := 0
+
 	for _, node := range nodesData {
 		swarmNode, ok := swarmNodesMap[node.NodeIP]
 		if !ok {
-			continue
+			spinnerDone <- false
+			return fmt.Errorf("node %s is in the state file but not in the swarm, "+
+				"so its placement labels cannot be set", node.NodeIP)
 		}
-
 		spec := swarmNode.Spec
 		if spec.Labels == nil {
 			spec.Labels = make(map[string]string)
 		}
 
-		nodeName := node.NodeHostName
-		nodeRole := node.NodeRole
-		switch nodeRole {
-		case "Manager":
-			if deploymentLocation == "On-premise cluster deployment" && numManagerNodes > 0 {
-				spec.Labels["KEEPALIVED_PRIORITY"] = priorities[priorityIndex]
-				priorityIndex++
+		// Cleared on EVERY node and on every run, before anything is
+		// assigned. Removing the last worker from a platform has to
+		// remove its nats_1 and admin-id too, and a node that changed
+		// role must not keep the labels of the role it had.
+		for key := range spec.Labels {
+			if strings.HasPrefix(key, "nats_") ||
+				strings.HasPrefix(key, "admin-id") ||
+				strings.HasPrefix(key, "metrics-id") {
+				delete(spec.Labels, key)
 			}
-			spec.Labels["KEEPALIVED_PRIORITY"] = "0"
-		case "Platform worker":
-			spec.Labels["platform_worker"] = "true"
-		case "Generic org worker":
-			spec.Labels["generic_org_worker"] = "true"
-		case "Exclusive org worker":
-			organizations := platformData.Certs.MqttCerts.Organizations
-			filteredOrg := filterOrganizations(organizations, nodeName)
-			if filteredOrg != nil {
-				spec.Labels["org_hash"] = filteredOrg.OrgHash
+			if _, isGarage := utils.GarageInstanceIDFromService(key); isGarage {
+				delete(spec.Labels, key)
 			}
-		case "NFS server":
-			spec.Labels["nfs_server"] = "true"
+		}
+		delete(spec.Labels, "platform_worker")
+
+		// Garage instances, on whatever role their node has (managers on
+		// a platform without workers) and in every deployment: an
+		// instance is pinned to its volumes, always.
+		for _, label := range garageLabels[node.NodeIP] {
+			spec.Labels[label] = "true"
 		}
 
-		err = docker.Cli.NodeUpdate(docker.Ctx, swarmNode.ID, swarmNode.Version, spec)
-		if err != nil {
+		switch node.NodeRole {
+		case "Manager":
+			priority := "0"
+			if deploymentLocation == "On-premise cluster deployment" {
+				priority = keepalivedPriority(priorityIndex)
+				priorityIndex++
+			}
+			spec.Labels["KEEPALIVED_PRIORITY"] = priority
+
+		case "Platform worker":
+			spec.Labels["platform_worker"] = "true"
+
+			// Skipped entirely when the platform pins nothing: with no
+			// workers the services run on the managers unconstrained,
+			// and with a local deployment there is one node running
+			// everything. Writing the labels anyway would describe a
+			// placement scheme nothing consults.
+			if !usesPlacementLabels {
+				break
+			}
+
+			for _, t := range pinnedTargets(pd) {
+				if id, ok := assigned[t.family.service][node.NodeIP]; ok {
+					t.family.write(spec.Labels, id)
+				}
+			}
+		}
+
+		if err := docker.Cli.NodeUpdate(docker.Ctx, swarmNode.ID, swarmNode.Version, spec); err != nil {
 			spinnerDone <- false
 			return fmt.Errorf("error updating node %s: %w", node.NodeIP, err)
 		}
@@ -677,75 +254,16 @@ func addNodesLabels(platformData *common.PlatformData) error {
 	return nil
 }
 
-func removeEfsRootFolder(platformData *common.PlatformData) error {
-	deploymentLocation := platformData.PlatformInfo.DeploymentLocation
-	numSwarmNodes := len(platformData.PlatformInfo.NodesData)
-
-	if deploymentLocation == "AWS cluster deployment" && numSwarmNodes > 1 {
-		spinnerDone := make(chan bool)
-		spinnerMsg := "Removing EFS root folder"
-		endMsg := "EFS root folder removed successfully"
-		utils.Spinner(spinnerMsg, endMsg, spinnerDone)
-		nodeData := platformData.PlatformInfo.NodesData[0]
-		efsScript := `#!/bin/bash
-if [ -d /home/ubuntu/efs_osi4iot ]; then
-	sudo rm -rf /home/ubuntu/efs_osi4iot/*
-    sudo umount /home/ubuntu/efs_osi4iot
-	sudo rm -rf /home/ubuntu/efs_osi4iot
-	sudo sed -i '/efs_osi4iot nfs4 nfsvers=4.1/d' /etc/fstab
-fi
-`
-		nodeScript := utils.NodeScript{
-			Node:   nodeData,
-			Script: efsScript,
-			Args:   []string{},
-		}
-		_, err := utils.RunScriptInNodes(platformData, []utils.NodeScript{nodeScript})
-		if err != nil {
-			spinnerDone <- false
-			return err
-		}
-		spinnerDone <- true
+// keepalivedPriority returns the VRRP priority for the nth manager.
+//
+// Descending, so the first manager listed holds the floating IP in
+// steady state and the others take over in order. Managers past the
+// list get the lowest priority instead of an index out of range, which
+// is what the old fixed three-element slice did with a fourth manager.
+func keepalivedPriority(index int) string {
+	priorities := []string{"300", "200", "100"}
+	if index < len(priorities) {
+		return priorities[index]
 	}
-	return nil
-}
-
-func removeNfsRootFolder(platformData *common.PlatformData) error {
-	deploymentLocation := platformData.PlatformInfo.DeploymentLocation
-	numSwarmNodes := len(platformData.PlatformInfo.NodesData)
-
-	if deploymentLocation == "On-premise cluster deployment" && numSwarmNodes > 1 {
-		spinnerDone := make(chan bool)
-		spinnerMsg := "Removing NFS root folder"
-		endMsg := "NFS root folder removed successfully"
-		utils.Spinner(spinnerMsg, endMsg, spinnerDone)
-		nodesData := platformData.PlatformInfo.NodesData
-		nfsNode := common.NodeData{}
-		for _, node := range nodesData {
-			if node.NodeRole == "NFS server" {
-				nfsNode = node
-				break
-			}
-		}
-		if nfsNode.NodeIP != "" {
-			nfsScript := `#!/bin/bash
-if [ -d /var/nfs_osi4iot ]; then
-	sudo rm -rf /var/nfs_osi4iot
-fi
-`
-			nodeScript := utils.NodeScript{
-				Node:   nfsNode,
-				Script: nfsScript,
-				Args:   []string{},
-			}
-			_, err := utils.RunScriptInNodes(platformData, []utils.NodeScript{nodeScript})
-			if err != nil {
-				spinnerDone <- false
-				return err
-			}
-			spinnerDone <- true
-		}
-	}
-
-	return nil
+	return "50"
 }

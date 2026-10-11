@@ -1,2 +1,2 @@
-docker buildx build --platform linux/amd64,linux/arm64 -t ghcr.io/osi4iot/pgadmin4:2023-10-18-2 --push .
+docker buildx build --platform linux/amd64,linux/arm64 -t ghcr.io/osi4iot/pgadmin4:2026-07-30-1 --push .
 docker buildx build --platform linux/amd64,linux/arm64 -t ghcr.io/osi4iot/pgadmin4:latest --push .

@@ -4,6 +4,7 @@ import FormTitle from "../../Tools/FormTitle";
 import TableWithPaginationAndRowSelection from '../Utils/TableWithPaginationAndRowSelection';
 import { useSelectOrgUsersTable } from '../../../contexts/platformAssistantContext';
 import { ISelectOrgUser, SELECT_ORG_USERS } from '../TableColumns/selectOrgUsersColumns';
+import { Column } from 'react-table';
 
 const FormContainer = styled.div`
 	font-size: 12px;
@@ -127,7 +128,7 @@ const SelectOrgUsers: FC<SelectOrgUsersProps> = ({ orgId, backToCreate, setSelec
                 <TableContainer>
                     <TableWithPaginationAndRowSelection
                         dataTable={selectOrgUsers}
-                        columnsTable={SELECT_ORG_USERS}
+                        columnsTable={SELECT_ORG_USERS as Column<any>[]}
                         setSelectedItems={(selectedUsers: ISelectOrgUser[]) => setSelectedUsers(selectedUsers)}
                     />
                 </TableContainer>

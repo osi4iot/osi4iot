@@ -1,5 +1,5 @@
 import { Type } from "class-transformer";
-import { IsEnum, IsNumber, IsString, ValidateNested } from "class-validator";
+import { IsBoolean, IsEnum, IsNumber, IsString, ValidateNested } from "class-validator";
 import { FolderPermissionOptions, FolderPermissionOption } from "./FolerPermissionsOptions";
 import CreateGroupAdminDto from "./groupAdmin.dto";
 
@@ -33,6 +33,9 @@ class CreateGroupDto {
 
 	@IsString()
 	public mqttAccessControl: string;
+
+	@IsBoolean()
+	public llmEnabled: boolean;
 
 	@ValidateNested({ each: true })
 	@Type(() => CreateGroupAdminDto)

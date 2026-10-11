@@ -3,7 +3,6 @@ package utils
 import (
 	"bufio"
 	"bytes"
-	"encoding/json"
 	"fmt"
 	"net"
 	"os"
@@ -11,10 +10,11 @@ import (
 	"strings"
 	"time"
 
+	cryptorand "crypto/rand"
+	"math/big"
+
 	"github.com/charmbracelet/lipgloss"
-	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/common"
 	"golang.org/x/crypto/bcrypt"
-	"golang.org/x/exp/rand"
 )
 
 // countryMap contiene los países y sus respectivos códigos.
@@ -272,29 +272,31 @@ func GiveCountryCode(countryName string) string {
 	return ""
 }
 
+// passwordAlphabet is the character set GeneratePassword draws from.
+const passwordAlphabet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+
+// GeneratePassword returns a random password of the given length drawn
+// uniformly from passwordAlphabet (~5.95 bits per character, so 20
+// characters ≈ 119 bits).
+//
+// Uses crypto/rand. It used to seed math/rand with the current time in
+// microseconds, which made every password exactly as unpredictable as
+// the moment it was created — tens of bits, not a hundred, with that
+// moment often public (certificate transparency logs) — and made the
+// passwords generated in one run, seeded microseconds apart, derivable
+// from each other.
 func GeneratePassword(passwordLength int) string {
-	time.Sleep(1 * time.Microsecond)
-	source := rand.NewSource(uint64(time.Now().UnixMicro()))
-	rng := rand.New(source)
-	lowerCase := "abcdefghijklmnopqrstuvwxyz" // lowercase
-	upperCase := "ABCDEFGHIJKLMNOPQRSTUVWXYZ" // uppercase
-	numbers := "0123456789"
-	var password strings.Builder
-	for n := 0; n < passwordLength; n++ {
-		randNum := rng.Intn(3)
-		switch randNum {
-		case 0:
-			randCharNum := rng.Intn(len(lowerCase))
-			password.WriteByte(lowerCase[randCharNum])
-		case 1:
-			randCharNum := rng.Intn(len(upperCase))
-			password.WriteByte(upperCase[randCharNum])
-		case 2:
-			randCharNum := rng.Intn(len(numbers))
-			password.WriteByte(numbers[randCharNum])
+	max := big.NewInt(int64(len(passwordAlphabet)))
+	b := make([]byte, passwordLength)
+	for i := range b {
+		n, err := cryptorand.Int(cryptorand.Reader, max)
+		if err != nil {
+			// Same stance as GenerateHexKey: no safe fallback exists.
+			panic(fmt.Sprintf("utils.GeneratePassword: crypto/rand failed: %v", err))
 		}
+		b[i] = passwordAlphabet[n.Int64()]
 	}
-	return password.String()
+	return string(b)
 }
 
 func HashPassword(password string) (string, error) {
@@ -335,6 +337,13 @@ func IntValueToStr(value int) string {
 		return ""
 	}
 	return strconv.Itoa(value)
+}
+
+func BoolValueToStr(value bool) string {
+	if !value {
+		return "no"
+	}
+	return "yes"
 }
 
 func GiveChoiceFocus(choice string, choices []string, defaultFocus int) int {
@@ -384,74 +393,6 @@ func Spinner(spinnerMsg string, endMsg string, done chan bool) {
 			}
 		}
 	}()
-}
-
-var AwsRegions = []string{
-	"US East (Ohio)",
-	"US East (N. Virginia)",
-	"US West (N. California)",
-	"US West (Oregon)",
-	"Africa (Cape Town)",
-	"Asia Pacific (Hong Kong)",
-	"Asia Pacific (Hyderabad)",
-	"Asia Pacific (Jakarta)",
-	"Asia Pacific (Malaysia)",
-	"Asia Pacific (Melbourne)",
-	"Asia Pacific (Mumbai)",
-	"Asia Pacific (Osaka)",
-	"Asia Pacific (Seoul)",
-	"Asia Pacific (Singapore)",
-	"Asia Pacific (Sydney)",
-	"Asia Pacific (Thailand)",
-	"Asia Pacific (Tokyo)",
-	"Canada (Central)",
-	"Canada West (Calgary)",
-	"Europe (Frankfurt)",
-	"Europe (Ireland)",
-	"Europe (London)",
-	"Europe (Milan)",
-	"Europe (Paris)",
-	"Europe (Spain)",
-	"Europe (Stockholm)",
-	"Europe (Zurich)",
-	"Israel (Tel Aviv)",
-	"Middle East (Bahrain)",
-	"Middle East (UAE)",
-	"South America (São Paulo)",
-}
-
-var AwsRegionsMap = map[string]string{
-	"US East (Ohio)":            "us-east-2",
-	"US East (N. Virginia)":     "us-east-1",
-	"US West (N. California)":   "us-west-1",
-	"US West (Oregon)":          "us-west-2",
-	"Africa (Cape Town)":        "af-south-1",
-	"Asia Pacific (Hong Kong)":  "ap-east-1",
-	"Asia Pacific (Hyderabad)":  "ap-south-2",
-	"Asia Pacific (Jakarta)":    "ap-southeast-3",
-	"Asia Pacific (Malaysia)":   "ap-southeast-5",
-	"Asia Pacific (Melbourne)":  "ap-southeast-4",
-	"Asia Pacific (Mumbai)":     "ap-south-1",
-	"Asia Pacific (Osaka)":      "ap-northeast-3",
-	"Asia Pacific (Seoul)":      "ap-northeast-2",
-	"Asia Pacific (Singapore)":  "ap-southeast-1",
-	"Asia Pacific (Sydney)":     "ap-southeast-2",
-	"Asia Pacific (Thailand)":   "ap-southeast-7",
-	"Asia Pacific (Tokyo)":      "ap-northeast-1",
-	"Canada (Central)":          "ca-central-1",
-	"Canada West (Calgary)":     "ca-west-1",
-	"Europe (Frankfurt)":        "eu-central-1",
-	"Europe (Ireland)":          "eu-west-1",
-	"Europe (London)":           "eu-west-2",
-	"Europe (Milan)":            "eu-south-1",
-	"Europe (Paris)":            "eu-west-3",
-	"Europe (Spain)":            "eu-south-2",
-	"Europe (Stockholm)":        "eu-north-1",
-	"Europe (Zurich)":           "eu-central-2",
-	"Israel (Tel Aviv)":         "il-central-1",
-	"Middle East (Bahrain)":     "me-south-1",
-	"Middle East (UAE)":         "me-central-1",
-	"South America (São Paulo)": "sa-east-1",
 }
 
 func IsHostIP(ipStr string) (bool, error) {
@@ -508,17 +449,6 @@ func GetFileData(filePath string) string {
 	buf := new(bytes.Buffer)
 	buf.ReadFrom(file)
 	return buf.String()
-}
-
-var osi4iotStateFile = "osi4iot_state.json"
-
-func WritePlatformDataToFile(platformData *common.PlatformData) error {
-	file, _ := json.Marshal(platformData)
-	err := os.WriteFile(osi4iotStateFile, file, 0644)
-	if err != nil {
-		return err
-	}
-	return nil
 }
 
 func GetLocalNodeIP() (string, error) {

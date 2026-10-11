@@ -149,6 +149,7 @@ const RegisterPage: FC<{}> = () => {
 							>
 								{
 									formik => (
+										// @ts-ignore
 										<Form>
 											<ControlsContainer>
 												<FormikControl

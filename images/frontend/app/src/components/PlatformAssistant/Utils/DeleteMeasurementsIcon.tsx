@@ -13,7 +13,7 @@ import { AxiosResponse, AxiosError } from "axios";
 const domainName = getDomainName();
 const protocol = getProtocol();
 
-const FaTrashStyled = styled(FaTrash)`
+const FaTrashStyled = styled(FaTrash as any)`
     font-size: 20px;
     color: white;
     background-color: #202226;

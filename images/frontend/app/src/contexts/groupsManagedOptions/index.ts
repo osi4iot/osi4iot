@@ -6,7 +6,6 @@ import {
     setGroupManagedIdToEdit,
     setGroupsManagedBuildingId,
     setGroupManagedInputFormData,
-    setGroupManagedNriId
 } from './groupsManagedAction';
 import {
     GroupsManagedProvider,
@@ -18,7 +17,6 @@ import {
     useGroupManagedIdToEdit,
     useGroupManagedInputFormData,
     useGroupManagedBuildingId,
-    useGroupManagedNriId,
 } from './groupsManagedContext';
 
 export {
@@ -31,7 +29,6 @@ export {
     useGroupManagedIdToEdit,
     useGroupManagedInputFormData,
     useGroupManagedBuildingId,
-    useGroupManagedNriId,
     setGroupsManagedOptionToShow,
     setGroupManagedIdToCreateGroupMembers,
     setGroupManagedIdToRemoveAllGroupMembers,
@@ -39,5 +36,4 @@ export {
     setGroupManagedIdToEdit,
     setGroupsManagedBuildingId,
     setGroupManagedInputFormData,
-    setGroupManagedNriId,
 };

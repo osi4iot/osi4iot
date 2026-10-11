@@ -106,9 +106,9 @@ export const Create_REFRESH_TOKENS_COLUMNS = (refreshRefreshTokens: () => void):
             accessor: "delete",
             disableFilters: true,
             disableSortBy: true,
-            Cell: props => {
+            Cell: (props: { row: { id: string; }; rows: any[]; }) => {
                 const rowIndex = parseInt(props.row.id, 10);
-                const row = props.rows.filter(row => row.index === rowIndex)[0];
+                const row = props.rows.filter((row: { index: number; }) => row.index === rowIndex)[0];
                 const refreshTokenId = row?.cells[0]?.value;
                 return <DeleteRefreshTokenModal refreshTokenId={refreshTokenId} rowIndex={rowIndex} refreshRefreshTokens={refreshRefreshTokens} />
             }

@@ -1,4 +1,4 @@
-import pool from "../../config/dbconfig";
+import pool, { readQuery } from "../../config/dbconfig";
 import CreateBuildingDto from "./building.dto";
 import IBuiliding from "./building.interface";
 import CreateFloorDto from "./floor.dto";
@@ -31,86 +31,91 @@ export const createBuilding = async (buildingInput: CreateBuildingDto): Promise<
 };
 
 export const getBuildingByProp = async (propName: string, propValue: (string | number)): Promise<IBuiliding> => {
-	const response = await pool.query(`SELECT id, name, geodata AS "geoJsonData",
-									outer_bounds[1:2][1:2] AS "outerBounds",
-									geolocation[0] AS longitude, geolocation[1] AS latitude,
-									address, city, zip_code AS "zipCode", state, country,
-									building_file_name AS "buildingFileName",
-									building_file_last_modif_date AS "buildingFileLastModifDate",
-									AGE(NOW(), created) AS "createdAtAge",
-									AGE(NOW(), updated) AS "updatedAtAge"
-									FROM grafanadb.building
-									WHERE grafanadb.building.${propName} = $1`, [propValue]);
+	const response = await readQuery(`
+		SELECT id, name, geodata AS "geoJsonData",
+		outer_bounds[1:2][1:2] AS "outerBounds",
+		geolocation[0] AS longitude, geolocation[1] AS latitude,
+		address, city, zip_code AS "zipCode", state, country,
+		building_file_name AS "buildingFileName",
+		building_file_last_modif_date AS "buildingFileLastModifDate",
+		AGE(NOW(), created) AS "createdAtAge",
+		AGE(NOW(), updated) AS "updatedAtAge"
+		FROM grafanadb.building
+		WHERE grafanadb.building.${propName} = $1`, [propValue]);
 	return response.rows[0] as IBuiliding;
 };
 
 export const getBuildingByOrgId = async (orgId: number): Promise<IBuiliding> => {
-	const response = await pool.query(`SELECT grafanadb.building.id, grafanadb.building.name,
-									grafanadb.building.geodata AS "geoJsonData",
-									grafanadb.building.outer_bounds[1:2][1:2] AS "outerBounds",
-									grafanadb.building.geolocation[0] AS longitude,
-									grafanadb.building.geolocation[1] AS latitude,
-									address, city, zip_code AS "zipCode", state, country,
-									grafanadb.building.building_file_name AS "buildingFileName",
-									grafanadb.building.building_file_last_modif_date AS "buildingFileLastModifDate",
-									AGE(NOW(), grafanadb.building.created) AS "createdAtAge",
-									AGE(NOW(), grafanadb.building.updated) AS "updatedAtAge"
-									FROM grafanadb.building
-									INNER JOIN grafanadb.org ON grafanadb.building.id = grafanadb.org.building_id
-									WHERE grafanadb.org.building_id = $1`, [orgId]);
+	const response = await readQuery(`
+		SELECT grafanadb.building.id, grafanadb.building.name,
+		grafanadb.building.geodata AS "geoJsonData",
+		grafanadb.building.outer_bounds[1:2][1:2] AS "outerBounds",
+		grafanadb.building.geolocation[0] AS longitude,
+		grafanadb.building.geolocation[1] AS latitude,
+		address, city, zip_code AS "zipCode", state, country,
+		grafanadb.building.building_file_name AS "buildingFileName",
+		grafanadb.building.building_file_last_modif_date AS "buildingFileLastModifDate",
+		AGE(NOW(), grafanadb.building.created) AS "createdAtAge",
+		AGE(NOW(), grafanadb.building.updated) AS "updatedAtAge"
+		FROM grafanadb.building
+		INNER JOIN grafanadb.org ON grafanadb.building.id = grafanadb.org.building_id
+		WHERE grafanadb.org.building_id = $1`, [orgId]);
 	return response.rows[0] as IBuiliding;
 };
 
 export const existsBuildingWithId = async (buildingId: number): Promise<boolean> => {
-	const result = await pool.query(`SELECT COUNT(*) FROM grafanadb.building
+	const result = await readQuery(`SELECT COUNT(*) FROM grafanadb.building
 									WHERE grafanadb.building.id = $1`, [buildingId]);
 	return result.rows[0].count !== 0;
 };
 
 export const getFloorByBuildingIdAndFloorNumber = async (buildingId: number, floorNumber: number): Promise<IFloor> => {
-	const response = await pool.query(`SELECT grafanadb.floor.id, grafanadb.floor.building_id AS "buildingId",
-									grafanadb.building.name AS "buildingName",
-									grafanadb.floor.floor_number AS "floorNumber",
-									grafanadb.floor.geodata AS "geoJsonData",
-									grafanadb.floor.outer_bounds AS "outerBounds",
-									grafanadb.floor.floor_file_name AS "floorFileName",
-									grafanadb.floor.floor_file_last_modif_date AS "floorFileLastModifDate",
-									AGE(NOW(), grafanadb.floor.created) AS "createdAtAge",
-									AGE(NOW(), grafanadb.floor.updated) AS "updatedAtAge"
-									FROM grafanadb.floor
-									INNER JOIN grafanadb.building ON grafanadb.building.id = grafanadb.floor.building_id
-									WHERE building_id = $1 AND floor_number = $2`, [buildingId, floorNumber]);
+	const response = await readQuery(`
+		SELECT grafanadb.floor.id, grafanadb.floor.building_id AS "buildingId",
+		grafanadb.building.name AS "buildingName",
+		grafanadb.floor.floor_number AS "floorNumber",
+		grafanadb.floor.geodata AS "geoJsonData",
+		grafanadb.floor.outer_bounds AS "outerBounds",
+		grafanadb.floor.floor_file_name AS "floorFileName",
+		grafanadb.floor.floor_file_last_modif_date AS "floorFileLastModifDate",
+		AGE(NOW(), grafanadb.floor.created) AS "createdAtAge",
+		AGE(NOW(), grafanadb.floor.updated) AS "updatedAtAge"
+		FROM grafanadb.floor
+		INNER JOIN grafanadb.building ON grafanadb.building.id = grafanadb.floor.building_id
+		WHERE building_id = $1 AND floor_number = $2`, [buildingId, floorNumber]);
 	return response.rows[0] as IFloor;
 };
 
 export const getFloorById = async (floorId: number): Promise<IFloor> => {
-	const response = await pool.query(`SELECT id, building_id AS "buildingId", floor_number AS "floorNumber",
-									geodata AS "geoJsonData",
-									outer_bounds AS "outerBounds",
-									grafanadb.floor.floor_file_name AS "floorFileName",
-									grafanadb.floor.floor_file_last_modif_date AS "floorFileLastModifDate",
-									AGE(NOW(), created) AS "createdAtAge",
-									AGE(NOW(), updated) AS "updatedAtAge"
-									FROM grafanadb.floor
-									WHERE id = $1`, [floorId]);
+	const response = await readQuery(`
+		SELECT id, building_id AS "buildingId", floor_number AS "floorNumber",
+		geodata AS "geoJsonData",
+		outer_bounds AS "outerBounds",
+		grafanadb.floor.floor_file_name AS "floorFileName",
+		grafanadb.floor.floor_file_last_modif_date AS "floorFileLastModifDate",
+		AGE(NOW(), created) AS "createdAtAge",
+		AGE(NOW(), updated) AS "updatedAtAge"
+		FROM grafanadb.floor
+		WHERE id = $1`, [floorId]);
 	return response.rows[0] as IFloor;
 };
 
 export const getFloorByOrgIdAndFloorNumber = async (orgId: number, floorNumber: number): Promise<IFloor> => {
-	const response = await pool.query(`SELECT grafanadb.floor.id,
-									grafanadb.floor.building_id AS "buildingId",
-									grafanadb.floor.floor_number AS "floorNumber",
-									grafanadb.floor.geodata AS "geoJsonData",
-									grafanadb.floor.outer_bounds AS "outerBounds",
-									grafanadb.floor.floor_file_name AS "floorFileName",
-									grafanadb.floor.floor_file_last_modif_date AS "floorFileLastModifDate",
-									AGE(NOW(), grafanadb.floor.created) AS "createdAtAge",
-									AGE(NOW(), grafanadb.floor.updated) AS "updatedAtAge"
-									FROM grafanadb.floor
-									INNER JOIN grafanadb.building ON grafanadb.building.id = grafanadb.floor.building_id
-									INNER JOIN grafanadb.org ON grafanadb.floor.building_id = grafanadb.org.building_id
-									WHERE grafanadb.org.id = $1
-									AND grafanadb.floor.floor_number = $2`, [orgId, floorNumber]);
+	const response = await readQuery(`
+		SELECT grafanadb.floor.id,
+		grafanadb.floor.building_id AS "buildingId",
+		grafanadb.floor.floor_number AS "floorNumber",
+		grafanadb.floor.geodata AS "geoJsonData",
+		grafanadb.floor.outer_bounds AS "outerBounds",
+		grafanadb.floor.floor_file_name AS "floorFileName",
+		grafanadb.floor.floor_file_last_modif_date AS "floorFileLastModifDate",
+		AGE(NOW(), grafanadb.floor.created) AS "createdAtAge",
+		AGE(NOW(), grafanadb.floor.updated) AS "updatedAtAge"
+		FROM grafanadb.floor
+		INNER JOIN grafanadb.building ON grafanadb.building.id = grafanadb.floor.building_id
+		INNER JOIN grafanadb.org ON grafanadb.floor.building_id = grafanadb.org.building_id
+		WHERE grafanadb.org.id = $1
+		AND grafanadb.floor.floor_number = $2`, [orgId, floorNumber]);
 	return response.rows[0] as IFloor;
 };
 
@@ -193,77 +198,81 @@ export const updateFloorById = async (floorId: number, floor: IFloor): Promise<I
 };
 
 export const getAllBuildings = async (): Promise<IBuiliding[]> => {
-	const response = await pool.query(`SELECT id, name,
-									geolocation[0] AS longitude, geolocation[1] AS latitude,
-									geodata AS "geoJsonData",
-									outer_bounds[1:2][1:2] AS "outerBounds",
-									address, city, zip_code AS "zipCode", state, country,
-									building_file_name AS "buildingFileName",
-									building_file_last_modif_date AS "buildingFileLastModifDate",
-									AGE(NOW(), created) AS "createdAtAge",
-									AGE(NOW(), updated) AS "updatedAtAge"
-									FROM grafanadb.building
-									ORDER BY id ASC;`);
+	const response = await readQuery(`
+		SELECT id, name,
+		geolocation[0] AS longitude, geolocation[1] AS latitude,
+		geodata AS "geoJsonData",
+		outer_bounds[1:2][1:2] AS "outerBounds",
+		address, city, zip_code AS "zipCode", state, country,
+		building_file_name AS "buildingFileName",
+		building_file_last_modif_date AS "buildingFileLastModifDate",
+		AGE(NOW(), created) AS "createdAtAge",
+		AGE(NOW(), updated) AS "updatedAtAge"
+		FROM grafanadb.building
+		ORDER BY id ASC;`);
 	return response.rows as IBuiliding[];
 };
 
 export const getBuildingsFromOrgIdArray = async (orgIdArray: number[]): Promise<IBuiliding[]> => {
-	const response = await pool.query(`SELECT DISTINCT grafanadb.building.id, grafanadb.building.name,
-									grafanadb.building.geodata AS "geoJsonData",
-									grafanadb.building.outer_bounds AS "outerBounds",
-									grafanadb.building.geolocation[0] AS longitude, grafanadb.building.geolocation[1] AS latitude,
-									grafanadb.building.address AS "address", 
-									grafanadb.building.city AS "city", 
-									grafanadb.building.zip_code AS "zipCode", 
-									grafanadb.building.state AS "state",  
-									grafanadb.building.country AS "country", 
-									grafanadb.building.building_file_name AS "buildingFileName",
-									grafanadb.building.building_file_last_modif_date AS "buildingFileLastModifDate",
-									grafanadb.building.created, grafanadb.building.updated,
-									AGE(NOW(), grafanadb.building.created) AS "createdAtAge",
-									AGE(NOW(), grafanadb.building.updated) AS "updatedAtAge"
-									FROM grafanadb.building
-									INNER JOIN grafanadb.org ON grafanadb.org.building_id = grafanadb.building.id
-									WHERE grafanadb.org.id = ANY($1::integer[])
-									ORDER BY id ASC;`, [orgIdArray]);
+	const response = await readQuery(`
+		SELECT DISTINCT grafanadb.building.id, grafanadb.building.name,
+		grafanadb.building.geodata AS "geoJsonData",
+		grafanadb.building.outer_bounds AS "outerBounds",
+		grafanadb.building.geolocation[0] AS longitude, grafanadb.building.geolocation[1] AS latitude,
+		grafanadb.building.address AS "address", 
+		grafanadb.building.city AS "city", 
+		grafanadb.building.zip_code AS "zipCode", 
+		grafanadb.building.state AS "state",  
+		grafanadb.building.country AS "country", 
+		grafanadb.building.building_file_name AS "buildingFileName",
+		grafanadb.building.building_file_last_modif_date AS "buildingFileLastModifDate",
+		grafanadb.building.created, grafanadb.building.updated,
+		AGE(NOW(), grafanadb.building.created) AS "createdAtAge",
+		AGE(NOW(), grafanadb.building.updated) AS "updatedAtAge"
+		FROM grafanadb.building
+		INNER JOIN grafanadb.org ON grafanadb.org.building_id = grafanadb.building.id
+		WHERE grafanadb.org.id = ANY($1::integer[])
+		ORDER BY id ASC;`, [orgIdArray]);
 	return response.rows as IBuiliding[];
 };
 
 export const getAllFloors = async (): Promise<IFloor[]> => {
-	const response = await pool.query(`SELECT grafanadb.floor.id, grafanadb.floor.building_id AS "buildingId",
-									grafanadb.building.name AS "buildingName",
-									grafanadb.floor.floor_number AS "floorNumber",
-									grafanadb.floor.geodata AS "geoJsonData",
-									grafanadb.floor.outer_bounds AS "outerBounds",
-									grafanadb.floor.floor_file_name AS "floorFileName",
-									grafanadb.floor.floor_file_last_modif_date AS "floorFileLastModifDate",
-									AGE(NOW(), grafanadb.floor.created) AS "createdAtAge",
-									AGE(NOW(), grafanadb.floor.updated) AS "updatedAtAge"
-									FROM grafanadb.floor
-									INNER JOIN grafanadb.building ON grafanadb.building.id = grafanadb.floor.building_id
-									ORDER BY grafanadb.floor.id ASC,
-											grafanadb.floor.building_id ASC,
-											grafanadb.floor.floor_number ASC;`);
+	const response = await readQuery(`
+		SELECT grafanadb.floor.id, grafanadb.floor.building_id AS "buildingId",
+		grafanadb.building.name AS "buildingName",
+		grafanadb.floor.floor_number AS "floorNumber",
+		grafanadb.floor.geodata AS "geoJsonData",
+		grafanadb.floor.outer_bounds AS "outerBounds",
+		grafanadb.floor.floor_file_name AS "floorFileName",
+		grafanadb.floor.floor_file_last_modif_date AS "floorFileLastModifDate",
+		AGE(NOW(), grafanadb.floor.created) AS "createdAtAge",
+		AGE(NOW(), grafanadb.floor.updated) AS "updatedAtAge"
+		FROM grafanadb.floor
+		INNER JOIN grafanadb.building ON grafanadb.building.id = grafanadb.floor.building_id
+		ORDER BY grafanadb.floor.id ASC,
+				grafanadb.floor.building_id ASC,
+				grafanadb.floor.floor_number ASC;`);
 	return response.rows as IFloor[];
 };
 
 export const getAllFloorsFromOrgIdArray = async (orgIdArray: number[]): Promise<IFloor[]> => {
-	const response = await pool.query(`SELECT DISTINCT grafanadb.floor.id,
-									grafanadb.floor.building_id AS "buildingId",
-									grafanadb.building.name AS "buildingName",
-									grafanadb.floor.floor_number AS "floorNumber",
-									grafanadb.floor.geodata AS "geoJsonData",
-									grafanadb.floor.outer_bounds AS "outerBounds",
-									grafanadb.floor.floor_file_name AS "floorFileName",
-									grafanadb.floor.floor_file_last_modif_date AS "floorFileLastModifDate",
-									AGE(NOW(), grafanadb.floor.created) AS "createdAtAge",
-									AGE(NOW(), grafanadb.floor.updated) AS "updatedAtAge"
-									FROM grafanadb.floor
-									INNER JOIN grafanadb.building ON grafanadb.building.id = grafanadb.floor.building_id
-									INNER JOIN grafanadb.org ON grafanadb.org.building_id = grafanadb.building.id
-									WHERE grafanadb.org.id = ANY($1::integer[])
-									ORDER BY grafanadb.floor.id ASC,
-											grafanadb.floor.building_id ASC,
-											grafanadb.floor.floor_number ASC;`, [orgIdArray]);
+	const response = await readQuery(`
+		SELECT DISTINCT grafanadb.floor.id,
+		grafanadb.floor.building_id AS "buildingId",
+		grafanadb.building.name AS "buildingName",
+		grafanadb.floor.floor_number AS "floorNumber",
+		grafanadb.floor.geodata AS "geoJsonData",
+		grafanadb.floor.outer_bounds AS "outerBounds",
+		grafanadb.floor.floor_file_name AS "floorFileName",
+		grafanadb.floor.floor_file_last_modif_date AS "floorFileLastModifDate",
+		AGE(NOW(), grafanadb.floor.created) AS "createdAtAge",
+		AGE(NOW(), grafanadb.floor.updated) AS "updatedAtAge"
+		FROM grafanadb.floor
+		INNER JOIN grafanadb.building ON grafanadb.building.id = grafanadb.floor.building_id
+		INNER JOIN grafanadb.org ON grafanadb.org.building_id = grafanadb.building.id
+		WHERE grafanadb.org.id = ANY($1::integer[])
+		ORDER BY grafanadb.floor.id ASC,
+				grafanadb.floor.building_id ASC,
+				grafanadb.floor.floor_number ASC;`, [orgIdArray]);
 	return response.rows as IFloor[];
 };

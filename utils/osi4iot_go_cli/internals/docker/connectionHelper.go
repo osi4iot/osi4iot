@@ -55,7 +55,7 @@ func addSSHTimeout(sshFlags []string) []string {
 	return sshFlags
 }
 
-// disablePseudoTerminalAllocation disables pseudo-terminal allocation to
+// DisablePseudoTerminalAllocation disables pseudo-terminal allocation to
 // prevent SSH from executing as a login shell
 func disablePseudoTerminalAllocation(sshFlags []string) []string {
 	for _, flag := range sshFlags {

@@ -1,5 +1,5 @@
 import { Type } from "class-transformer";
-import { IsNumber, IsString, IsEnum, ValidateIf, ValidateNested } from "class-validator";
+import { IsNumber, IsString, IsEnum, ValidateIf, ValidateNested, IsBoolean } from "class-validator";
 import CreateUserDto from "../../user/interfaces/User.dto";
 import { OrgRoleOption, OrgRoleOptions } from "./orgRoleOptions";
 
@@ -16,22 +16,35 @@ class CreateOrganizationDto {
 	@IsNumber()
 	public buildingId: number;
 
+	@ValidateIf((obj) => obj.orgHash !== undefined)
 	@IsString()
 	public orgHash: string;
 
-	@IsString({each: true})
-	public nriHashes: string[];
-
-	@ValidateIf((obj) => obj.telegramInvitationLink !== undefined)
-	@IsString()
-	public telegramInvitationLink?: string;
-
-	@ValidateIf((obj) => obj.telegramChatId !== undefined)
-	@IsString()
-	public telegramChatId?: string;
-
 	@IsString()
 	public mqttAccessControl: string;
+
+	@IsBoolean()
+	public llmEnabled: boolean;
+
+	@IsString()
+	@ValidateIf((obj) => obj.llmEnabled === true)
+	public llmProviderUrl: string;
+
+	@ValidateIf((obj) => obj.llmEnabled === true)
+	@IsString()
+	public llmProviderApiKey: string;
+
+	public hashedLlmProviderApiKey?: string;
+
+	@IsBoolean()
+	public telegramEnabled?: boolean;
+
+	@IsString()
+	@ValidateIf((obj) => obj.telegramEnabled === true)
+	public telegramBotToken?: string;
+
+	public hashedTelegramBotToken?: string;
+	public hashedTelegramWebhookSecretToken?: string;
 
 	@ValidateNested({ each: true })
 	@Type(() => CreateUserDto)

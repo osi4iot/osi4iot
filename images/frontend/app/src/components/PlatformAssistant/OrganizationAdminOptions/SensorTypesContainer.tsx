@@ -10,6 +10,7 @@ import {
 import CreateSensorType from './CreateSensorType';
 import EditSensorType from './EditSensorType';
 import { useOrgsManagedTable } from '../../../contexts/platformAssistantContext';
+import { Column } from 'react-table';
 
 interface SensorTypesContainerProps {
     sensorTypes: ISensorType[];
@@ -49,7 +50,7 @@ const SensorTypesContainer: FC<SensorTypesContainerProps> = ({
             {sensorTypesOptionToShow === SENSOR_TYPES_OPTIONS.TABLE &&
                 <TableWithPagination
                     dataTable={sensorTypes}
-                    columnsTable={Create_SENSOR_TYPES_COLUMNS(refreshSensorTypes)}
+                    columnsTable={Create_SENSOR_TYPES_COLUMNS(refreshSensorTypes) as Column<any>[]}
                     componentName="sensor type"
                     reloadTable={refreshSensorTypes}
                     createComponent={() =>

@@ -12,7 +12,7 @@ export const PrivateRoute: FC<PrivateRouteProps> = ({ component: Component, ...r
 
 	return (
 		<Route {...rest}>
-			{useIsUserAuth() ? <Component /> : <Redirect to={{ pathname: "/login", state: { from: location } }} />}
+			{useIsUserAuth() ? <Component children={undefined} /> : <Redirect to={{ pathname: "/login", state: { from: location } }} />}
 		</Route>
 	);
 };

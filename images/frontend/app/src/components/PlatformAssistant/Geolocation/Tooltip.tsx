@@ -1,8 +1,11 @@
 import styled from "styled-components";
 
 import { Tooltip } from 'react-leaflet';
+import { asStylable } from "../../../tools/styledLeaflet";
 
-export const StyledTooltip = styled(Tooltip)`
+const StylableTooltip = asStylable(Tooltip);
+
+export const StyledTooltip = styled(StylableTooltip)`
     &.leaflet-tooltip {
         background: #202226;
         opacity: 1;

@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { toast } from "react-toastify";
-import { IFemSimulationObject } from "../components/PlatformAssistant/DigitalTwin3DViewer/Model";
-import { FemSimulationObjectState } from "../components/PlatformAssistant/DigitalTwin3DViewer/ViewerUtils";
+import { IFemSimulationObject } from "../components/PlatformAssistant/DigitalTwin3DViewer/Main/Model";
+import { FemSimulationObjectState } from "../components/PlatformAssistant/DigitalTwin3DViewer/ViewerTools/ViewerUtils";
 
 const femResultCalcWorkersManager = (
     numWorkers: number,
@@ -25,7 +25,8 @@ const femResultCalcWorkersManager = (
     meshIndex: number,
     meshRefCurrent: any,
     meshResult: any,
-    currentJobIdRef: React.MutableRefObject<number>
+    currentJobIdRef: React.MutableRefObject<number>,
+    onWorkersCompleted: () => void
 ) => {
     let startTime: number = 0;
     if (logElapsedTime) startTime = Date.now();
@@ -109,7 +110,7 @@ const femResultCalcWorkersManager = (
         // eslint-disable-next-line no-loop-func
         workers[iworker - 1].onmessage = (e: MessageEvent<string>) => {
             const { buffer0, buffer1, buffer2, buffer3 } = e.data as any;
-        
+
             const currentJobArray = new Float32Array(buffer0);
             const jobId = currentJobArray[0];
             if (currentJobId !== jobId) {
@@ -161,6 +162,12 @@ const femResultCalcWorkersManager = (
                         meshRefCurrent.geometry = wireframeGeometry;
                         meshRefCurrent.visible = true;
                     } else meshRefCurrent.visible = false;
+                }
+
+                if (onWorkersCompleted) {
+                    setTimeout(() => {
+                        onWorkersCompleted();
+                    }, 0);
                 }
             }
 

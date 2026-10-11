@@ -7,6 +7,7 @@ import CreateMlModel from './CreateMlModel';
 import EditMlModel from './EditMlModel';
 import { IOrgOfGroupsManaged } from '../TableColumns/orgsOfGroupsManagedColumns';
 import { IGroupManaged } from '../TableColumns/groupsManagedColumns';
+import { Column } from 'react-table';
 
 interface MlModelsContainerProps {
     orgsOfGroupManaged: IOrgOfGroupsManaged[];
@@ -47,7 +48,7 @@ const MlModelsContainer: FC<MlModelsContainerProps> = ({
             {mlModelsOptionToShow === ML_MODELS_OPTIONS.TABLE &&
                 <TableWithPagination
                     dataTable={mlModels}
-                    columnsTable={Create_ML_MODELS_COLUMNS(refreshMlModels)}
+                    columnsTable={Create_ML_MODELS_COLUMNS(refreshMlModels) as Column<any>[]}
                     componentName="ML model"
                     reloadTable={refreshMlModels}
                     createComponent={() => setMlModelsOptionToShow(mlModelsDispatch, { mlModelsOptionToShow: ML_MODELS_OPTIONS.CREATE_ML_MODEL })}

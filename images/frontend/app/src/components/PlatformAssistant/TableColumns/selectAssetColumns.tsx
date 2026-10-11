@@ -46,9 +46,9 @@ export const SELECT_ASSET_COLUMNS: Column<ISelectAsset>[] = [
         Header: "Status",
         accessor: "state",
         disableFilters: true,
-        Cell: props => {
+        Cell: (props: { row: { id: string; }; rows: any[]; }) => {
             const rowIndex = parseInt(props.row.id, 10);
-            const row = props.rows.filter(row => row.index === rowIndex)[0];
+            const row = props.rows.filter((row: { index: number; }) => row.index === rowIndex)[0];
             const status = row?.cells[7]?.value;
             return <StatusLed status={status} size="12px"/>
         }

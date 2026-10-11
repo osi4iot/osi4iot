@@ -2,6 +2,7 @@ import { FC, useState, SyntheticEvent, useEffect } from "react";
 import styled from "styled-components";
 import { Formik, Form, FormikProps } from "formik";
 import * as Yup from "yup";
+import YAML from "yaml";
 import { useFilePicker } from "use-file-picker";
 import { GLTFLoader } from "three-stdlib";
 import { useAuthState, useAuthDispatch } from "../../../contexts/authContext";
@@ -38,8 +39,18 @@ import { getAxiosInstance } from "../../../tools/axiosIntance";
 import axiosErrorHandler from "../../../tools/axiosErrorHandler";
 import { getSensorsRef, getSensorsRefFromDigitalTwinGltfData } from "./CreateDigitalTwin";
 import { FieldContainer } from "./EditAsset";
-import { ControlsContainer, FormContainer } from "./CreateAsset";
 import { AxiosResponse, AxiosError } from "axios";
+
+// CodeMirror imports
+import CodeMirror, { keymap } from "@uiw/react-codemirror";
+import { indentUnit, indentOnInput } from "@codemirror/language";
+import { completionKeymap } from "@codemirror/autocomplete";
+import { indentWithTab } from "@codemirror/commands";
+import { json } from "@codemirror/lang-json";
+import { oneDark } from "@codemirror/theme-one-dark";
+import { CodeMirrorWrapper } from "../../Tools/CodeMirrorWrapper";
+import { ControlsContainer, DraggableFormContainer, FieldErrorScroller } from "../../Tools/FormTools";
+import { ReIndentCommand } from "../DigitalTwin3DViewer/Pipeline/types";
 
 const DataFileTitle = styled.div`
     margin-bottom: 5px;
@@ -122,7 +133,7 @@ const digitalTwinTypeOptions = [
     },
 ];
 
-const chatAssistantEnabledOptions = [
+const restartPipelineOptions = [
     {
         label: "Yes",
         value: true,
@@ -133,6 +144,27 @@ const chatAssistantEnabledOptions = [
     },
 ];
 
+const reinitializePipelineOptions = [
+    {
+        label: "Yes",
+        value: true,
+    },
+    {
+        label: "No",
+        value: false,
+    },
+];
+
+const chatAssistantEnabledOptions = [
+    {
+        label: "Yes",
+        value: true,
+    },
+    {
+        label: "No",
+        value: false,
+    },
+];
 
 const chatAssistantLanguageOptions = [
     {
@@ -182,6 +214,8 @@ type FormikType = FormikProps<{
     chatAssistantEnabled: boolean;
     chatAssistantLanguage: string;
     digitalTwinSimulationFormat: string;
+    restartPipeline: boolean;
+    reinitializePipeline: boolean;
 }>;
 
 const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, refreshDigitalTwins }) => {
@@ -213,16 +247,36 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
     const [gltfFileLastModif, setGltfFileLastModif] = useState("-");
     const [localFemResFileLoaded, setLocalFemResFileLoaded] = useState(false);
     const [digitalTwinFemResData, setDigitalTwiFemResData] = useState({});
+    const [localPipelineFileLoaded, setLocalPipelineFileLoaded] = useState(false);
+    const [digitalTwinPipelineData, setDigitalTwinPipelineData] = useState({});
     const [femResFile, setFemResFile] = useState<File>();
     const [femResFileNames, setFemResFileNames] = useState<string[]>([]);
     const [femResFilesLastModif, setFemResFilesLastModif] = useState<string[]>([]);
     const [femResFileName, setFemResFileName] = useState("-");
     const [femResFileLastModifDateString, setFemResFileLastModifDateString] = useState("-");
+    const storedPipelineFileData = digitalTwins[digitalTwinRowIndex].pipelineFileData;
+    const storedPipelineFileName = digitalTwins[digitalTwinRowIndex].pipelineFileName || "-";
+    const [pipelineFileName, setPipelineFileName] = useState(storedPipelineFileName);
+    const storedPipelineFileLastModifDate = digitalTwins[digitalTwinRowIndex].pipelineFileLastModifDate || "-";
+    const [pipelineFileLastModifDateString, setPipelineFileLastModifDateString] = useState(
+        storedPipelineFileLastModifDate,
+    );
+    const [restartPipeline, setRestartPipeline] = useState(true);
+    const [reinitializePipeline, setReinitializePipeline] = useState(false);
+
+    const [docInfoFileName, setDocInfoFileName] = useState("-");
+    const [docInfoFileLastModif, setDocInfoFileLastModif] = useState("-");
+    const [docInfoFile, setDocInfoFile] = useState<File>();
+    const [localDocInfoFileLoaded, setLocalDocInfoFileLoaded] = useState(false);
+    const [docInfoFileData, setDocInfoFileData] = useState("");
+    const [storedDocInfoFileName, setStoredDocInfoFileName] = useState("-");
+    const [storedDocInfoFileLastModif, setStoredDocInfoFileLastModif] = useState("-");
+
     const [digitalTwinType, setDigitalTwinType] = useState(digitalTwinInitialData.type);
     const [sensorsRef, setSensorsRef] = useState<string[]>([]);
     const [isGlftDataReady, setIsGlftDataReady] = useState(storedDigitalTwinType !== "Gltf 3D model");
     const [isChatAssistantEnabled, setIsChatAssistantEnabled] = useState(
-        digitalTwins[digitalTwinRowIndex].chatAssistantEnabled
+        digitalTwins[digitalTwinRowIndex].chatAssistantEnabled,
     );
     const digitalTwinUid = digitalTwins[digitalTwinRowIndex].digitalTwinUid;
 
@@ -236,6 +290,18 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
         readAs: "Text",
         multiple: false,
         accept: ".json",
+    });
+
+    const [openPipelineFileSelector, pipelineFileParams] = useFilePicker({
+        readAs: "Text",
+        multiple: false,
+        accept: ".yml, .yaml",
+    });
+
+    const [openDocInfoFileSelector, docInfoFileParams] = useFilePicker({
+        readAs: "Text",
+        multiple: false,
+        accept: ".txt",
     });
 
     useEffect(() => {
@@ -263,15 +329,40 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
                                 const femResFileList: { fileName: string; lastModified: string }[] = response.data;
                                 if (femResFileList.length !== 0) {
                                     const femResFileNames = femResFileList.map(
-                                        (femResFile) => femResFile.fileName.split("/")[4]
+                                        (femResFile) => femResFile.fileName.split("/")[4],
                                     );
                                     setFemResFileNames(femResFileNames);
                                     setFemResFileName(femResFileNames[0]);
                                     const femResFilesLastModif = femResFileList.map(
-                                        (femResFile) => femResFile.lastModified
+                                        (femResFile) => femResFile.lastModified,
                                     );
                                     setFemResFilesLastModif(femResFilesLastModif);
                                     setFemResFileLastModifDateString(formatDateString(femResFilesLastModif[0]));
+                                }
+                                setDigitalTwinGltfDataLoading(false);
+                                setIsSubmitting(false);
+                            })
+                            .catch((error: AxiosError) => {
+                                axiosErrorHandler(error, authDispatch);
+                                setDigitalTwinGltfDataLoading(false);
+                            });
+
+                        const urldocInfoFileList = `${urlDigitalTwinFileListBase}/docInfoFiles`;
+                        getAxiosInstance(refreshToken, authDispatch)
+                            .get(urldocInfoFileList, config)
+                            .then((response: AxiosResponse<any, any>) => {
+                                const docInfoFileList: { fileName: string; lastModified: string }[] = response.data;
+                                if (docInfoFileList.length !== 0) {
+                                    const docInfoFileNames = docInfoFileList.map(
+                                        (docInfoFile) => docInfoFile.fileName.split("/")[4],
+                                    );
+                                    setStoredDocInfoFileName(docInfoFileNames[0]);
+                                    setDocInfoFileName(docInfoFileNames[0]);
+                                    const docInfoFilesLastModif = docInfoFileList.map(
+                                        (docInfoFile) => docInfoFile.lastModified,
+                                    );
+                                    setDocInfoFileLastModif(docInfoFilesLastModif[0]);
+                                    setStoredDocInfoFileLastModif(docInfoFilesLastModif[0]);
                                 }
                                 setDigitalTwinGltfDataLoading(false);
                                 setIsSubmitting(false);
@@ -328,7 +419,7 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
             }
         },
         // eslint-disable-next-line react-hooks/exhaustive-deps
-        [gltfFileContent]
+        [gltfFileContent],
     );
 
     useEffect(() => {
@@ -389,6 +480,63 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
         }
     }, [femResFileParams.loading, femResFileParams.filesContent, femResFileParams.plainFiles, femResFileParams]);
 
+    useEffect(() => {
+        if (
+            !pipelineFileParams.loading &&
+            pipelineFileParams.filesContent.length !== 0 &&
+            pipelineFileParams.plainFiles.length !== 0
+        ) {
+            setLocalPipelineFileLoaded(true);
+            try {
+                const fileContent = pipelineFileParams.filesContent[0].content;
+                const pipelineData = YAML.parse(fileContent);
+                setDigitalTwinPipelineData(pipelineData);
+                const pipelineFileName = pipelineFileParams.plainFiles[0].name;
+                setPipelineFileName(pipelineFileName);
+                const dateString = (pipelineFileParams.plainFiles[0] as any).lastModified;
+                setPipelineFileLastModifDateString(formatDateString(dateString));
+                setLocalPipelineFileLoaded(false);
+                pipelineFileParams.clear();
+            } catch (e) {
+                console.log(e);
+                toast.error("Invalid pipeline file");
+                setLocalPipelineFileLoaded(false);
+                pipelineFileParams.clear();
+            }
+        }
+    }, [
+        pipelineFileParams.loading,
+        pipelineFileParams.filesContent,
+        pipelineFileParams.plainFiles,
+        pipelineFileParams,
+    ]);
+
+    useEffect(() => {
+        if (
+            !docInfoFileParams.loading &&
+            docInfoFileParams.filesContent.length !== 0 &&
+            docInfoFileParams.plainFiles.length !== 0
+        ) {
+            setLocalDocInfoFileLoaded(true);
+            try {
+                const fileContent = docInfoFileParams.filesContent[0].content;
+                setDocInfoFileData(fileContent);
+                setDocInfoFile(docInfoFileParams.plainFiles[0]);
+                const docInfoFileName = docInfoFileParams.plainFiles[0].name;
+                setDocInfoFileName(docInfoFileName);
+                const dateString = (docInfoFileParams.plainFiles[0] as any).lastModified;
+                setDocInfoFileLastModif(dateString);
+                setLocalDocInfoFileLoaded(false);
+                docInfoFileParams.clear();
+            } catch (e) {
+                console.log(e);
+                toast.error("Invalid document information file");
+                setLocalDocInfoFileLoaded(false);
+                docInfoFileParams.clear();
+            }
+        }
+    }, [docInfoFileParams.loading, docInfoFileParams.filesContent, docInfoFileParams.plainFiles, docInfoFileParams]);
+
     const onSubmit = async (values: any, actions: any) => {
         const groupId = digitalTwins[digitalTwinRowIndex].groupId;
         const url = `${protocol}://${domainName}/admin_api/digital_twin/${groupId}/${digitalTwinId}`;
@@ -401,59 +549,157 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
         let isGltfFileModified = false;
         const maxNumResFemFiles = parseInt(values.maxNumResFemFiles, 10);
 
-        if (isValidGltfFile && (values.type === "Gltf 3D model" || values.type === "Glb 3D model")) {
+        if (values.type === "Gltf 3D model" || values.type === "Glb 3D model") {
             if (
-                Object.keys(digitalTwinFemResData).length !== 0 &&
-                (femResFileNames[0] !== femResFileName ||
-                    formatDateString(femResFilesLastModif[0]) !== formatDateString(femResFileLastModifDateString))
+                isValidGltfFile ||
+                (storedGltfFileName === gltfFileName &&
+                    formatDateString(storedGltfFileLastModif) === formatDateString(gltfFileLastModif))
             ) {
-                if (digitalTwins[digitalTwinRowIndex].maxNumResFemFiles < maxNumResFemFiles && maxNumResFemFiles >= 2) {
-                    const warningMessage =
-                        "Please increase the 'Max number of FEM result files stored' before uploading a new file.";
-                    toast.warning(warningMessage);
-                    setIsSubmitting(false);
-                    return;
-                }
-                const femResData = new FormData();
-                femResData.append("file", femResFile as File, femResFileName);
-                const urlUploadFemResFile = `${urlUploadGltfBase}/femResFiles/${femResFileName}`;
-                try {
-                    const response = await getAxiosInstance(refreshToken, authDispatch).post(
-                        urlUploadFemResFile,
-                        femResData,
-                        configMultipart
-                    );
-                    if (response.data) {
-                        toast.success(response.data.message);
+                if (
+                    Object.keys(digitalTwinFemResData).length !== 0 &&
+                    (femResFileNames[0] !== femResFileName ||
+                        formatDateString(femResFilesLastModif[0]) !== formatDateString(femResFileLastModifDateString))
+                ) {
+                    if (
+                        digitalTwins[digitalTwinRowIndex].maxNumResFemFiles < maxNumResFemFiles &&
+                        maxNumResFemFiles >= 2
+                    ) {
+                        const warningMessage =
+                            "Please increase the 'Max number of FEM result files stored' before uploading a new file.";
+                        toast.warning(warningMessage);
+                        setIsSubmitting(false);
+                        return;
                     }
-                } catch (error: any) {
-                    axiosErrorHandler(error, authDispatch);
-                    backToTable();
+                    const femResData = new FormData();
+                    femResData.append("file", femResFile as File, femResFileName);
+                    const urlUploadFemResFile = `${urlUploadGltfBase}/femResFiles/${femResFileName}`;
+                    try {
+                        const response = await getAxiosInstance(refreshToken, authDispatch).post(
+                            urlUploadFemResFile,
+                            femResData,
+                            configMultipart,
+                        );
+                        if (response.data) {
+                            toast.success(response.data.message);
+                        }
+                    } catch (error: any) {
+                        axiosErrorHandler(error, authDispatch);
+                        // backToTable();
+                    }
+                }
+
+                if (
+                    gltfFile !== undefined &&
+                    (storedGltfFileName !== gltfFileName ||
+                        formatDateString(storedGltfFileLastModif) !== formatDateString(gltfFileLastModif))
+                ) {
+                    isGltfFileModified = true;
+                    const gltfData = new FormData();
+                    gltfData.append("file", gltfFile as File, gltfFileName);
+                    const urlUploadGltfFile = `${urlUploadGltfBase}/gltfFile/${gltfFileName}`;
+                    try {
+                        const response = await getAxiosInstance(refreshToken, authDispatch).post(
+                            urlUploadGltfFile,
+                            gltfData,
+                            configMultipart,
+                        );
+                        if (response.data) {
+                            toast.success(response.data.message);
+                        }
+                    } catch (error: any) {
+                        axiosErrorHandler(error, authDispatch);
+                        // backToTable();
+                    }
                 }
             }
 
+            const storedDate = formatDateString(storedPipelineFileLastModifDate);
+            const newDate = formatDateString(pipelineFileLastModifDateString);
             if (
-                gltfFile !== undefined &&
-                (storedGltfFileName !== gltfFileName ||
-                    formatDateString(storedGltfFileLastModif) !== formatDateString(gltfFileLastModif))
+                storedPipelineFileData !== "" &&
+                pipelineFileName === "-" &&
+                pipelineFileLastModifDateString === "-" &&
+                Object.keys(digitalTwinPipelineData).length === 0
             ) {
-                isGltfFileModified = true;
-                const gltfData = new FormData();
-                gltfData.append("file", gltfFile as File, gltfFileName);
-                const urlUploadGltfFile = `${urlUploadGltfBase}/gltfFile/${gltfFileName}`;
-                try {
-                    const response = await getAxiosInstance(refreshToken, authDispatch).post(
-                        urlUploadGltfFile,
-                        gltfData,
-                        configMultipart
-                    );
-                    if (response.data) {
+                const urlUploadPipelineBase = `${protocol}://${domainName}/admin_api/digital_twin_pipeline`;
+                const urlUploadPipeline = `${urlUploadPipelineBase}/${groupId}/${digitalTwinId}`;
+                getAxiosInstance(refreshToken, authDispatch)
+                    .delete(urlUploadPipeline, config)
+                    .then((response: AxiosResponse<any, any>) => {
                         toast.success(response.data.message);
-                    }
-                } catch (error: any) {
-                    axiosErrorHandler(error, authDispatch);
-                    backToTable();
+                    })
+                    .catch((error: AxiosError) => {
+                        axiosErrorHandler(error, authDispatch);
+                    })
+                    .finally(() => {
+                        refreshDigitalTwins();
+                    });
+            }
+
+            let isPipelineRestartNeeded = true;
+            if (
+                Object.keys(digitalTwinPipelineData).length !== 0 &&
+                (storedPipelineFileName !== pipelineFileName || storedDate !== newDate)
+            ) {
+                isPipelineRestartNeeded = false;
+                const pipelineNodes = (JSON.parse(JSON.stringify(digitalTwinPipelineData)) as any).nodes;
+                for (let inode = 0; inode < pipelineNodes.length; inode++) {
+                    pipelineNodes[inode].settings = JSON.stringify(pipelineNodes[inode].settings);
                 }
+                const pipelineData = {
+                    pipelineFileName: pipelineFileName,
+                    pipelineFileLastModifDate: pipelineFileLastModifDateString,
+                    nodes: pipelineNodes,
+                    reinitialize: reinitializePipeline,
+                };
+                const urlUploadPipelineBase = `${protocol}://${domainName}/admin_api/digital_twin_pipeline`;
+                const urlUploadPipeline = `${urlUploadPipelineBase}/${groupId}/${digitalTwinId}`;
+                getAxiosInstance(refreshToken, authDispatch)
+                    .patch(urlUploadPipeline, pipelineData, config)
+                    .then((response: AxiosResponse<any, any>) => {
+                        toast.success(response.data.message);
+                        refreshDigitalTwins();
+                    })
+                    .catch((error: AxiosError) => {
+                        axiosErrorHandler(error, authDispatch);
+                        // backToTable();
+                    });
+            }
+
+            if (restartPipeline && isPipelineRestartNeeded) {
+                const urlSetPipelineActionBase = `${protocol}://${domainName}/admin_api/digital_twin_pipeline_action`;
+                const urlSetPipelineAction = `${urlSetPipelineActionBase}/${groupId}/${digitalTwinId}`;
+                const pipelineAction = {
+                    action: "restart",
+                    reinitialize: reinitializePipeline,
+                };
+                getAxiosInstance(refreshToken, authDispatch)
+                    .post(urlSetPipelineAction, pipelineAction, config)
+                    .then((response: AxiosResponse<any, any>) => {
+                        toast.success(response.data.message);
+                    })
+                    .catch((error: AxiosError) => {
+                        axiosErrorHandler(error, authDispatch);
+                        // backToTable();
+                    });
+            }
+
+            if (
+                docInfoFileData !== "" &&
+                (storedDocInfoFileName !== docInfoFileName ||
+                    formatDateString(storedDocInfoFileLastModif) !== formatDateString(docInfoFileLastModif))
+            ) {
+                const docInfoData = new FormData();
+                docInfoData.append("file", docInfoFile as File, "docInfoFile");
+                const urlUploadDocInfoFile = `${urlUploadGltfBase}/docInfoFiles/${docInfoFileName}`;
+                getAxiosInstance(refreshToken, authDispatch)
+                    .post(urlUploadDocInfoFile, docInfoData, configMultipart)
+                    .then((response: AxiosResponse<any, any>) => {
+                        toast.success(response.data.message);
+                    })
+                    .catch((error: AxiosError) => {
+                        axiosErrorHandler(error, authDispatch);
+                    });
             }
         }
 
@@ -507,8 +753,10 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
         digitalTwinSimulationFormat: JSON.stringify(
             digitalTwins[digitalTwinRowIndex].digitalTwinSimulationFormat,
             null,
-            4
+            4,
         ),
+        restartPipeline: restartPipeline,
+        reinitializePipeline: reinitializePipeline,
     };
 
     const validationSchema = Yup.object().shape({
@@ -524,7 +772,7 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
             is: "Gltf 3D model",
             then: Yup.string()
                 .test("test-name", "Wrong format for the json object", (value: any) =>
-                    digitalTwinFormatValidation(value)
+                    digitalTwinFormatValidation(value),
                 )
                 .required("Must enter Digital twin simulation format"),
         }),
@@ -547,6 +795,16 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
 
     const onchatAssistantLanguageOptions = (e: { value: string }, formik: FormikType) => {
         formik.setFieldValue("chatAssistantLanguage", e.value);
+    };
+
+    const onRestartPipelineSelectChange = (e: { value: boolean }, formik: FormikType) => {
+        formik.setFieldValue("restartPipeline", e.value);
+        setRestartPipeline(e.value);
+    };
+
+    const onReinitializePipelineSelectChange = (e: { value: boolean }, formik: FormikType) => {
+        formik.setFieldValue("reinitializePipeline", e.value);
+        setReinitializePipeline(e.value);
     };
 
     const clearGltfDataFile = () => {
@@ -577,6 +835,32 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
         }
     };
 
+    const clearPipelineFile = () => {
+        setPipelineFileName("-");
+        setPipelineFileLastModifDateString("-");
+        setLocalPipelineFileLoaded(false);
+        pipelineFileParams.clear();
+    };
+
+    const localPipelineFileButtonHandler = () => {
+        if (!localPipelineFileLoaded) {
+            selectFile(openPipelineFileSelector, pipelineFileParams.clear);
+        }
+    };
+
+    const clearDocInfoFile = () => {
+        setDocInfoFileName("-");
+        setDocInfoFileLastModif("-");
+        setLocalDocInfoFileLoaded(false);
+        docInfoFileParams.clear();
+    };
+
+    const localDocInfoFileButtonHandler = () => {
+        if (!localDocInfoFileLoaded) {
+            selectFile(openDocInfoFileSelector, docInfoFileParams.clear);
+        }
+    };
+
     return (
         <>
             {digitalTwinGltfDataLoading ? (
@@ -584,7 +868,7 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
             ) : (
                 <>
                     <FormTitle isSubmitting={isSubmitting}>Edit digital twin</FormTitle>
-                    <FormContainer>
+                    <DraggableFormContainer>
                         <Formik
                             initialValues={initialDigitalTwinData}
                             validationSchema={validationSchema}
@@ -592,6 +876,7 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
                         >
                             {(formik) => {
                                 return (
+                                    // @ts-ignore
                                     <Form>
                                         <ControlsContainer>
                                             <FieldContainer>
@@ -612,6 +897,44 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
                                                 name="description"
                                                 type="text"
                                             />
+                                            <DataFileTitle>Pipeline</DataFileTitle>
+                                            <DataFileContainer>
+                                                <FieldContainer>
+                                                    <label>File name</label>
+                                                    <div>{pipelineFileName}</div>
+                                                </FieldContainer>
+                                                <FieldContainer>
+                                                    <label>Last modification date</label>
+                                                    <div>{pipelineFileLastModifDateString}</div>
+                                                </FieldContainer>
+                                                <FormikControl
+                                                    control="select"
+                                                    label="Need reinitialization"
+                                                    name="reinitializePipeline"
+                                                    options={reinitializePipelineOptions}
+                                                    type="text"
+                                                    onChange={(e) => onReinitializePipelineSelectChange(e, formik)}
+                                                />
+                                                <FormikControl
+                                                    control="select"
+                                                    label="Restart pipeline"
+                                                    name="restartPipeline"
+                                                    options={restartPipelineOptions}
+                                                    type="text"
+                                                    onChange={(e) => onRestartPipelineSelectChange(e, formik)}
+                                                />
+                                                <SelectDataFilenButtonContainer>
+                                                    <FileButton type="button" onClick={clearPipelineFile}>
+                                                        Clear
+                                                    </FileButton>
+                                                    <FileButton
+                                                        type="button"
+                                                        onClick={() => localPipelineFileButtonHandler()}
+                                                    >
+                                                        Select local file
+                                                    </FileButton>
+                                                </SelectDataFilenButtonContainer>
+                                            </DataFileContainer>
                                             <FormikControl
                                                 control="select"
                                                 label="Type"
@@ -673,43 +996,110 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
                                                             </FileButton>
                                                         </SelectDataFilenButtonContainer>
                                                     </DataFileContainer>
-                                                    <ChatAssistantTitle>Chat assistant</ChatAssistantTitle>
-                                                    <ChatAssistantContainer>
-                                                        <FormikControl
-                                                            control="select"
-                                                            label="Use chat assistant"
-                                                            name="chatAssistantEnabled"
-                                                            options={chatAssistantEnabledOptions}
-                                                            type="text"
-                                                            onChange={(e) => onchatAssistantEnabledOptions(e, formik)}
-                                                        />
-                                                        {isChatAssistantEnabled && (
-                                                            <FormikControl
-                                                                control="select"
-                                                                label="Select chat assistant language"
-                                                                name="chatAssistantLanguage"
-                                                                options={chatAssistantLanguageOptions}
-                                                                type="text"
-                                                                onChange={(e) =>
-                                                                    onchatAssistantLanguageOptions(e, formik)
-                                                                }
+                                                    {organization.llmEnabled && group.llmEnabled && (
+                                                        <>
+                                                            <DataFileTitle>Documental info</DataFileTitle>
+                                                            <DataFileContainer>
+                                                                <FieldContainer>
+                                                                    <label>File name</label>
+                                                                    <div>{docInfoFileName}</div>
+                                                                </FieldContainer>
+                                                                <FieldContainer>
+                                                                    <label>Last modification date</label>
+                                                                    <div>{formatDateString(docInfoFileLastModif)}</div>
+                                                                </FieldContainer>
+                                                                <SelectDataFilenButtonContainer>
+                                                                    <FileButton
+                                                                        type="button"
+                                                                        onClick={clearDocInfoFile}
+                                                                    >
+                                                                        Clear
+                                                                    </FileButton>
+                                                                    <FileButton
+                                                                        type="button"
+                                                                        onClick={() => localDocInfoFileButtonHandler()}
+                                                                    >
+                                                                        Select local file
+                                                                    </FileButton>
+                                                                </SelectDataFilenButtonContainer>
+                                                            </DataFileContainer>
+                                                            <ChatAssistantTitle>Chat assistant</ChatAssistantTitle>
+                                                            <ChatAssistantContainer>
+                                                                <FormikControl
+                                                                    control="select"
+                                                                    label="Use chat assistant"
+                                                                    name="chatAssistantEnabled"
+                                                                    options={chatAssistantEnabledOptions}
+                                                                    type="text"
+                                                                    onChange={(e) =>
+                                                                        onchatAssistantEnabledOptions(e, formik)
+                                                                    }
+                                                                />
+                                                                {isChatAssistantEnabled && (
+                                                                    <FormikControl
+                                                                        control="select"
+                                                                        label="Select chat assistant language"
+                                                                        name="chatAssistantLanguage"
+                                                                        options={chatAssistantLanguageOptions}
+                                                                        type="text"
+                                                                        onChange={(e) =>
+                                                                            onchatAssistantLanguageOptions(e, formik)
+                                                                        }
+                                                                    />
+                                                                )}
+                                                            </ChatAssistantContainer>
+                                                        </>
+                                                    )}
+                                                    <CodeMirrorWrapper fontSize="14px">
+                                                        <label>Digital twin simulation format</label>
+                                                        <div className="cm-wrapper">
+                                                            <CodeMirror
+                                                                value={formik.values.digitalTwinSimulationFormat}
+                                                                height="300px"
+                                                                theme={oneDark}
+                                                                extensions={[
+                                                                    json(),
+                                                                    indentUnit.of("    "),
+                                                                    indentOnInput(),
+                                                                    keymap.of([
+                                                                        ...completionKeymap,
+                                                                        indentWithTab,
+                                                                        ReIndentCommand,
+                                                                    ]),
+                                                                ]}
+                                                                onChange={(value) => {
+                                                                    formik.setFieldValue(
+                                                                        "digitalTwinSimulationFormat",
+                                                                        value,
+                                                                    );
+                                                                }}
+                                                                onBlur={() => {
+                                                                    formik.setFieldTouched(
+                                                                        "digitalTwinSimulationFormat",
+                                                                        true,
+                                                                    );
+                                                                }}
+                                                                basicSetup={{
+                                                                    lineNumbers: true,
+                                                                    foldGutter: true,
+                                                                    bracketMatching: true,
+                                                                    closeBrackets: true,
+                                                                    syntaxHighlighting: true,
+                                                                    autocompletion: true,
+                                                                    tabSize: 4,
+                                                                    searchKeymap: true,
+                                                                }}
                                                             />
-                                                        )}
-                                                    </ChatAssistantContainer>
-                                                    <FormikControl
-                                                        control="textarea"
-                                                        label="Digital twin simulation format"
-                                                        name="digitalTwinSimulationFormat"
-                                                        textAreaSize="Small"
-                                                    />
+                                                        </div>
+                                                        <FieldErrorScroller name="digitalTwinSimulationFormat" />
+                                                    </CodeMirrorWrapper>
                                                 </>
                                             )}
                                         </ControlsContainer>
                                         <FormButtonsProps
                                             onCancel={onCancel}
                                             isValid={
-                                                formik.isValid &&
-                                                (isGlftDataReady || formik.values.type === "Grafana dashboard")
+                                                formik.isValid && (isGlftDataReady || formik.values.type === "Grafana dashboard")
                                             }
                                             isSubmitting={formik.isSubmitting}
                                         />
@@ -717,7 +1107,7 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
                                 );
                             }}
                         </Formik>
-                    </FormContainer>
+                    </DraggableFormContainer>
                 </>
             )}
         </>

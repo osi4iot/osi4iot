@@ -1,8 +1,8 @@
 import { toast } from "react-toastify";
-import { IDigitalTwinGltfData, createUrl } from "../components/PlatformAssistant/DigitalTwin3DViewer/ViewerUtils";
+import { IDigitalTwinGltfData, createUrl } from "../components/PlatformAssistant/DigitalTwin3DViewer/ViewerTools/ViewerUtils";
 import { IAsset } from "../components/PlatformAssistant/TableColumns/assetsColumns";
 import { write3DModelFile } from "./fileSystem";
-import { IMqttTopicData } from "../components/PlatformAssistant/DigitalTwin3DViewer/Model";
+import { INatsSubjectData } from "../components/PlatformAssistant/DigitalTwin3DViewer/Main/Model";
 import { loadAndParseGltfFile } from "./loadAndParseGltfFile";
 import { giveBrowserType } from "./tools";
 
@@ -24,27 +24,27 @@ const load3DModelData = (
         gltfFile = digitalTwin3DModelFile;
     }
 
-    let digitalTwin3DModelUrl: string | null;
+    let digitalTwin3DModelUrl: string | null = null;
     if (gltfFile !== '{}') {
         digitalTwin3DModelUrl = createUrl(gltfFile);
     } else digitalTwin3DModelUrl = null;
 
-    const digitalTwinGltfData = {
+    const digitalTwinGltfData: IDigitalTwinGltfData = {
         id: digitalTwin3DModelData.id,
         gltfFile,
         digitalTwinGltfUrl: digitalTwin3DModelUrl,
         femResFileInfoList: digitalTwin3DModelData.femResFileInfoList,
-        mqttTopicsData: digitalTwin3DModelData.mqttTopicsData,
+        natsSubjectsData: digitalTwin3DModelData.natsSubjectsData,
         sensorsDashboards: digitalTwin3DModelData.sensorsDashboards,
         topicIdBySensorRef: digitalTwin3DModelData.topicIdBySensorRef,
         digitalTwinSimulationFormat: digitalTwin3DModelData.digitalTwinSimulationFormat,
         isGroupDTDemo: digitalTwin3DModelData.isGroupDTDemo,
     };
 
-    const mqttTopics = digitalTwin3DModelData.mqttTopicsData.map((topicData: IMqttTopicData) => topicData.mqttTopic);
-    const inexistentMqttTopics = mqttTopics.filter((topic: string) => topic.slice(0, 7) === "Warning");
-    if (inexistentMqttTopics.length !== 0) {
-        const warningMessage = "Some mqtt topics no longer exist"
+    const natsSubjects = digitalTwin3DModelData.natsSubjectsData.map((subjectData: INatsSubjectData) => subjectData.natsSubject);
+    const inexistentNatsSubjects = natsSubjects.filter((subject: string) => subject.slice(0, 7) === "Warning");
+    if (inexistentNatsSubjects.length !== 0) {
+        const warningMessage = "Some NATS subjects no longer exist"
         toast.warning(warningMessage);
     }
     let isGroupDTDemo = false;
