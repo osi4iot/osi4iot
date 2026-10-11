@@ -1,0 +1,42 @@
+{
+  "version": 1,
+  "fileName": "mensula_estatica_res.json",
+  "date": "Tue Dec 23 2025 10:50:00 GMT+0100 (Central European Standard Time)",
+  "resultFields": [
+    {
+      "location": "nodes",
+      "description": "",
+      "resultName": "Disp_X",
+      "units": "m"
+    },
+    {
+      "location": "nodes",
+      "description": "",
+      "resultName": "Disp_Y",
+      "units": "m"
+    },
+    {
+      "location": "nodes",
+      "description": "",
+      "resultName": "Disp_Z",
+      "units": "m"
+    },
+    {
+      "location": "gauss_points",
+      "description": "",
+      "resultName": "Sx_top",
+      "units": "Pa"
+    },
+    {
+      "location": "gauss_points",
+      "description": "",
+      "resultName": "Sx_bottom",
+      "units": "Pa"
+    }
+  ],
+  "deformationFields": [
+    "Disp_X",
+    "Disp_Y",
+    "Disp_Z"
+  ]
+}

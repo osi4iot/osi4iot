@@ -1,0 +1,9 @@
+| Material    | Elastic limit (MPa) |
+| ----------- | ------------------- |
+| Steel       |                 235 |
+| Aluminum    |                 120 |
+| Titanium    |                 830 |
+| Magnesium   |                 180 |
+| Copper      |                 120 |
+| Brass       |                 200 |
+

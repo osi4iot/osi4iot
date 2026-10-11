@@ -1,0 +1,10 @@
+LICENSE
+README.md
+pyproject.toml
+server.py
+mcp_calcualte_server.egg-info/PKG-INFO
+mcp_calcualte_server.egg-info/SOURCES.txt
+mcp_calcualte_server.egg-info/dependency_links.txt
+mcp_calcualte_server.egg-info/requires.txt
+mcp_calcualte_server.egg-info/top_level.txt
+test/test_server.py

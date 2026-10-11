@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "fileName": "girder_res.json",
+  "date": "Mon Jan 05 2026 09:25:57 GMT+0100 (Central European Standard Time)",
+  "resultFields": [
+    {
+      "location": "nodes",
+      "description": "",
+      "resultName": "Temperature",
+      "units": "°C"
+    }
+  ],
+  "deformationFields": [
+    "Disp_X",
+    "Disp_Y",
+    "Disp_Z"
+  ]
+}

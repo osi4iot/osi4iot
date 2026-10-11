@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "fileName": "tube_res.json",
+  "date": "Tue Nov 04 2025 10:24:17 GMT+0100 (Central European Standard Time)",
+  "resultFields": [
+    {
+      "location": "nodes",
+      "description": "",
+      "resultName": "Disp_X",
+      "units": "m"
+    },
+    {
+      "location": "nodes",
+      "description": "",
+      "resultName": "Disp_Y",
+      "units": "m"
+    },
+    {
+      "location": "nodes",
+      "description": "",
+      "resultName": "Disp_Z",
+      "units": "m"
+    },
+    {
+      "location": "gauss_points",
+      "description": "",
+      "resultName": "Nx'",
+      "units": "N/m"
+    }
+  ],
+  "deformationFields": [
+    "Disp_X",
+    "Disp_Y",
+    "Disp_Z"
+  ]
+}

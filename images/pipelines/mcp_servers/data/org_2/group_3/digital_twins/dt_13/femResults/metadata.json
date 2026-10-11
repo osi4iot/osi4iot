@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "fileName": "barra_aluminio_30cm_70cm_res.json",
+  "date": "Thu Dec 04 2025 09:43:13 GMT+0100 (Central European Standard Time)",
+  "resultFields": [
+    {
+      "location": "nodes",
+      "description": "",
+      "resultName": "Disp_X",
+      "units": "m"
+    },
+    {
+      "location": "nodes",
+      "description": "",
+      "resultName": "Disp_Y",
+      "units": "m"
+    },
+    {
+      "location": "nodes",
+      "description": "",
+      "resultName": "Disp_Z",
+      "units": "m"
+    }
+  ],
+  "deformationFields": [
+    "Disp_X",
+    "Disp_Y",
+    "Disp_Z"
+  ]
+}

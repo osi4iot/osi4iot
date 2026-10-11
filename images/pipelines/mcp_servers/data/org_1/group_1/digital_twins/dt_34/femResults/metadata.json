@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "fileName": "losa_composites_res.json",
+  "date": "Fri Apr 10 2026 10:47:06 GMT+0200 (Central European Summer Time)",
+  "resultFields": [
+    {
+      "location": "nodes",
+      "description": "",
+      "resultName": "Disp_X",
+      "units": "m"
+    },
+    {
+      "location": "nodes",
+      "description": "",
+      "resultName": "Disp_Y",
+      "units": "m"
+    },
+    {
+      "location": "nodes",
+      "description": "",
+      "resultName": "Disp_Z",
+      "units": "m"
+    },
+    {
+      "location": "gauss_points",
+      "description": "",
+      "resultName": "Von_mises",
+      "units": "Pa"
+    }
+  ],
+  "deformationFields": [
+    "Disp_X",
+    "Disp_Y",
+    "Disp_Z"
+  ]
+}
