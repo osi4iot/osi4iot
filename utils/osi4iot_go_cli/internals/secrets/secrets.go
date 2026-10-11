@@ -213,6 +213,9 @@ func GenerateSecrets(pd *pt.PlatformData) (map[string]pt.Secret, error) {
 		fmt.Sprintf("NATS_NKEY_PUB=%s", pd.Certs.NatsCerts.VectorNKeyPublic),
 		fmt.Sprintf("NATS_NKEY_SEED=%s", pd.Certs.NatsCerts.VectorNKeySeed),
 	}
+	if pi.UsePatroniTool {
+		vectorSecretsDataArray = appendSidecarToken(vectorSecretsDataArray, pi)
+	}
 	vectorSecretsData := strings.Join(vectorSecretsDataArray, "\n")
 	vectorSecretsHash := utils.GetMD5Hash(vectorSecretsData)
 	vectorSecretName := fmt.Sprintf("vector_%s", vectorSecretsHash)
