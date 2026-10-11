@@ -55,7 +55,7 @@ images/s3_storage/node_modules
 images/s3_storage/.env
 images/auth_callout/config.env
 images/dev2pdb_nats/config.yaml
-images/pipeline/config.yaml
+images/pipelines/config.yaml
 images/org_flows/config.yml
 images/sensor_demo/nodejs/temp_monitoring/certs
 images/sensor_demo/nodejs/temp_monitoring/node_modules
