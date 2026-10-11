@@ -3,6 +3,7 @@ import fs from 'fs';
 
 
 
+
 // import process from 'process';
 
 
@@ -19,22 +20,31 @@ if (arg2 == undefined) {
     throw new Error('You need to specify a folder.gid where the .post.msh and .post.res are located.');
 }
 
-if (arg2.includes('/')){
+if (arg2.includes('/')) {
 
 }
-else{if(arg2.includes('\\')){
-    arg2=arg2.replace(/\\/g,'/')
+else {
+    if (arg2.includes('\\')) {
+        arg2 = arg2.replace(/\\/g, '/')
+    }
+    else {
+        console.log(`introduce the path using '/' instead of '\\'`)
+    }
 }
-else{
-    console.log(`introduce the path using '/' instead of '\\'`)
-}}
 
 
-const inputMeshPath = `${arg2}/${arg2.split('/')[arg2.split('/').length-1].replace('.gid','')}.post.msh`
-const inputResultsPath = `${arg2}/${arg2.split('/')[arg2.split('/').length-1].replace('.gid','')}.post.res`
+const inputMeshPath = `${arg2}/${arg2.split('/')[arg2.split('/').length - 1].replace('.gid', '')}.post.msh`
+const inputResultsPath = `${arg2}/${arg2.split('/')[arg2.split('/').length - 1].replace('.gid', '')}.post.res`
 const inputDataPathArray = inputMeshPath.split('/');
 const directory = inputDataPathArray.slice(0, -1).join('/');
 const fileName = inputDataPathArray[inputDataPathArray.length - 1].split('.')[0];
+
+let globalModeCounter = 0;
+const modeMapping = {}; // Mapeo de modos originales a modos globales
+const modeMetadata = {}; // Metadatos de cada modo global
+
+// Modificar el parsing de argumentos para incluir --pre-read-results
+let preReadMode = false;
 
 
 let resultsOfInterest = undefined;
@@ -50,136 +60,139 @@ let thresholdLimits = {
     },
 }
 
-let skipArg=0; // how many arguments to skip, by default no-skip = 0
-    let lastArg=undefined;
-    for (let argidx = 3; argidx < args.length; argidx++) {
-        let argi=args[argidx];
-        if (skipArg==0){
-            switch (argi) {
-                case '--reverse-field':
-                    skipArg=1;
-                    lastArg=argi
-                    break;
-                case '--results-of-interest':
-                    skipArg=1;
-                    lastArg=argi
-                    break;
-                case '--min-threshold-field':
-                    skipArg=2;
-                    lastArg=argi
-                    break;
-                case '--max-threshold-field':
-                    skipArg=2;
-                    lastArg=argi
-                    break;
-                default:
-                    break;
-            }
-        } else {
-            switch (lastArg) {
-                case '--reverse-field':
-                    try {
-                        reverseField=argi.replace('[','').replace(']','').split(/[ ,]+/);
-                    } catch (error) {
-                        console.log('No reverse field specified, using the defaults.')
-                        reverseField = undefined
-                    }
-                    break;
-                case '--results-of-interest':
-                    try {
-                        resultsOfInterest = argi.replace('[','').replace(']','').split(/[ ,]+/);
-                    } catch (error) {
-                        console.log('Error parsing the result inserted.')
-                        throw new Error(error)
-                    }
-                    break;
-                case '--min-threshold-field':
-                    switch (skipArg) {
-                        case 2:
-                            try {
-                                thresholdLimits.min.field = argi.replace('[','').replace(']','').split(/[ ,]+/);
-                            } catch (error) {
-                                console.log('Error parsing the min field inserted.')
-                                throw new Error(error)
-                            }
-                            break;
-                        case 1:
-                            try {
-                                thresholdLimits.min.value = argi.replace('[','').replace(']','').split(/[ ,]+/);
-                                for (let idx = 0; idx < thresholdLimits.min.value.length; idx++) {
-                                    thresholdLimits.min.value[idx] = parseFloat(thresholdLimits.min.value[idx]);
-                                    
-                                }
-                            } catch (error) {
-                                console.log('Error parsing the min value inserted.')
-                                throw new Error(error)
-                            }
-                            break;
-                        default:
-                            break;
-                    }
-                    break;
-                case '--max-threshold-field':
-                    switch (skipArg) {
-                        case 2:
-                            try {
-                                thresholdLimits.max.field = argi.replace('[','').replace(']','').split(/[ ,]+/);
-                            } catch (error) {
-                                console.log('Error parsing the max field inserted.')
-                                throw new Error(error)
-                            }
-                            break;
-                        case 1:
-                            try {
-                                thresholdLimits.max.value = argi.replace('[','').replace(']','').split(/[ ,]+/);
-                                for (let idx = 0; idx < thresholdLimits.max.value.length; idx++) {
-                                    thresholdLimits.max.value[idx] = parseFloat(thresholdLimits.max.value[idx]);
-                                    
-                                }
-                            } catch (error) {
-                                console.log('Error parsing the max value inserted.')
-                                throw new Error(error)
-                            }
-                            break;
-                        default:
-                            break;
-                    }
-                    break;
-                default:
-                    // switch (skipArg) {
-                        // case 1: 
-                        //      break;
-                        // case 2:
-                        //      break;
-                        // ...
-                        // case 3:
-                        //      break;
-                    // }
-                    break;
-            }
-            skipArg--;
+let skipArg = 0; // how many arguments to skip, by default no-skip = 0
+let lastArg = undefined;
+for (let argidx = 3; argidx < args.length; argidx++) {
+    let argi = args[argidx];
+    if (skipArg == 0) {
+        switch (argi) {
+            case '--reverse-field':
+                skipArg = 1;
+                lastArg = argi
+                break;
+            case '--results-of-interest':
+                skipArg = 1;
+                lastArg = argi
+                break;
+            case '--min-threshold-field':
+                skipArg = 2;
+                lastArg = argi
+                break;
+            case '--max-threshold-field':
+                skipArg = 2;
+                lastArg = argi
+                break;
+            case '--pre-read-results':
+                preReadMode = true;
+                break;
+            default:
+                break;
         }
+    } else {
+        switch (lastArg) {
+            case '--reverse-field':
+                try {
+                    reverseField = argi.replace('[', '').replace(']', '').split(/[ ,]+/);
+                } catch (error) {
+                    console.log('No reverse field specified, using the defaults.')
+                    reverseField = undefined
+                }
+                break;
+            case '--results-of-interest':
+                try {
+                    resultsOfInterest = argi.replace('[', '').replace(']', '').split(/[ ,]+/);
+                } catch (error) {
+                    console.log('Error parsing the result inserted.')
+                    throw new Error(error)
+                }
+                break;
+            case '--min-threshold-field':
+                switch (skipArg) {
+                    case 2:
+                        try {
+                            thresholdLimits.min.field = argi.replace('[', '').replace(']', '').split(/[ ,]+/);
+                        } catch (error) {
+                            console.log('Error parsing the min field inserted.')
+                            throw new Error(error)
+                        }
+                        break;
+                    case 1:
+                        try {
+                            thresholdLimits.min.value = argi.replace('[', '').replace(']', '').split(/[ ,]+/);
+                            for (let idx = 0; idx < thresholdLimits.min.value.length; idx++) {
+                                thresholdLimits.min.value[idx] = parseFloat(thresholdLimits.min.value[idx]);
+
+                            }
+                        } catch (error) {
+                            console.log('Error parsing the min value inserted.')
+                            throw new Error(error)
+                        }
+                        break;
+                    default:
+                        break;
+                }
+                break;
+            case '--max-threshold-field':
+                switch (skipArg) {
+                    case 2:
+                        try {
+                            thresholdLimits.max.field = argi.replace('[', '').replace(']', '').split(/[ ,]+/);
+                        } catch (error) {
+                            console.log('Error parsing the max field inserted.')
+                            throw new Error(error)
+                        }
+                        break;
+                    case 1:
+                        try {
+                            thresholdLimits.max.value = argi.replace('[', '').replace(']', '').split(/[ ,]+/);
+                            for (let idx = 0; idx < thresholdLimits.max.value.length; idx++) {
+                                thresholdLimits.max.value[idx] = parseFloat(thresholdLimits.max.value[idx]);
+
+                            }
+                        } catch (error) {
+                            console.log('Error parsing the max value inserted.')
+                            throw new Error(error)
+                        }
+                        break;
+                    default:
+                        break;
+                }
+                break;
+            default:
+                // switch (skipArg) {
+                // case 1: 
+                //      break;
+                // case 2:
+                //      break;
+                // ...
+                // case 3:
+                //      break;
+                // }
+                break;
+        }
+        skipArg--;
     }
+}
 
 const dictCompOfInterest = {
-    'Displacements':3,
-    'Shells//Stresses_Top':1,
-    'Shells//Stresses_Bottom':1,
-    'Shells//Equivalent_stresses//Von_Mises//Top':1,
-    'Shells//Equivalent_stresses//Von_Mises//Bottom':1,
-    'Shells//Stresses_Top//Von_mises':6,
-    'Shells//Main_stresses//Top//Si':1,
-    'Shells//Main_stresses//Top//Sii':1,
-    'Shells//Main_stresses//Top//Siii':1,
-    'Shells//Main_stresses//Bottom//Si':1,
-    'Shells//Main_stresses//Bottom//Sii':1,
-    'Shells//Main_stresses//Bottom//Siii':1,
-    'Shells//Stresses_Top//SI':1,
-    'Shells//Stresses_Top//SII':1,
-    'Shells//Stresses_Top//SIII':1,
-    'Stresses_Top (Pa)':6,
-    'Stresses_Bottom':6,
-    'Axial_Force':4,
+    'Displacements': 3,
+    'Shells//Stresses_Top': 1,
+    'Shells//Stresses_Bottom': 1,
+    'Shells//Equivalent_stresses//Von_Mises//Top': 1,
+    'Shells//Equivalent_stresses//Von_Mises//Bottom': 1,
+    'Shells//Stresses_Top//Von_mises': 6,
+    'Shells//Main_stresses//Top//Si': 1,
+    'Shells//Main_stresses//Top//Sii': 1,
+    'Shells//Main_stresses//Top//Siii': 1,
+    'Shells//Main_stresses//Bottom//Si': 1,
+    'Shells//Main_stresses//Bottom//Sii': 1,
+    'Shells//Main_stresses//Bottom//Siii': 1,
+    'Shells//Stresses_Top//SI': 1,
+    'Shells//Stresses_Top//SII': 1,
+    'Shells//Stresses_Top//SIII': 1,
+    'Stresses_Top (Pa)': 6,
+    'Stresses_Bottom': 6,
+    'Axial_Force': 4,
     'Temperature': 1,
     // Please if you ask for something different, complete this dictionary.
 }
@@ -236,41 +249,145 @@ const readGaussPoints = (liner) => {
 }
 
 
-var numCompOfInterest = new Array(resultsOfInterest.length).fill(0);
+// Agregar esta llamada al inicio de calculateNumCompOfInterest
+const calculateNumCompOfInterest = () => {
+    
+    const numCompOfInterest = new Array(resultsOfInterest.length).fill(0);
+    
+    for (let icomp = 0; icomp < numCompOfInterest.length; icomp++) {
+        const resultName = resultsOfInterest[icomp];
+        const numComponents = dictCompOfInterest[resultName];
+        numCompOfInterest[icomp] = numComponents || 1; // Usar 1 como fallback
+        
+        console.log(`Result: ${resultName} -> ${numComponents} components`);
+    }
+    
+    console.log('Final numCompOfInterest:', numCompOfInterest);
+    
+    return numCompOfInterest;
+};
 
-for (let icomp = 0; icomp < numCompOfInterest.length; icomp++) {
-    numCompOfInterest[icomp] = dictCompOfInterest[resultsOfInterest[icomp]];
-}
+var numCompOfInterest = calculateNumCompOfInterest (); 
 let numberOfModes = 0;
 
 const isResultOfInterest = (resultName) => {
     return resultsOfInterest.includes(resultName);
 }
 
+// Función auxiliar para extraer información del modo
+const parseModeInfo = (headerArray) => {
+    let modeString = null;
+    let increment = null;
+    let modeStringIndex = -1;
+
+    // Buscar el patrón "Mode_#" en el array
+    for (let i = 0; i < headerArray.length; i++) {
+        if (headerArray[i].startsWith('"Mode_') && headerArray[i].endsWith('"')) {
+            modeString = headerArray[i].slice(1, -1); // Remover las comillas
+            modeStringIndex = i;
+            break;
+        }
+    }
+
+    if (modeString && modeStringIndex !== -1) {
+        // El incremento debería estar en la siguiente posición
+        if (modeStringIndex + 1 < headerArray.length) {
+            increment = parseInt(headerArray[modeStringIndex + 1]);
+        }
+    }
+
+    return { modeString, increment };
+};
+
+// Función para obtener o crear un modo global
+const getOrCreateGlobalMode = (modeString, increment) => {
+    const modeKey = `${modeString}_${increment}`;
+
+    if (!modeMapping[modeKey]) {
+        globalModeCounter++;
+        modeMapping[modeKey] = globalModeCounter;
+
+        // Extraer número del modo original
+        const modeNumberMatch = modeString.match(/Mode_(\d+)/);
+        const originalModeNumber = modeNumberMatch ? parseInt(modeNumberMatch[1]) : 1;
+
+        modeMetadata[globalModeCounter] = {
+            originalMode: originalModeNumber,
+            increment: increment,
+            modeString: modeString,
+            modeKey: modeKey
+        };
+    }
+
+    return modeMapping[modeKey];
+};
+
+// Función para generar el archivo nodered.json al final del proceso
+const generateNodeRedMapping = () => {
+    const nodeRedConfig = {
+        metadata: {
+            totalModes: numberOfModes,
+            generatedAt: new Date().toISOString(),
+            sourceFiles: {
+                mesh: inputMeshPath,
+                results: inputResultsPath
+            }
+        },
+        modeMapping: modeMapping,
+        modeMetadata: modeMetadata,
+        resultsOfInterest: resultsOfInterest,
+        fieldConfiguration: {
+            reverseField: reverseField,
+            thresholdLimits: thresholdLimits
+        }
+    };
+
+    try {
+        const nodeRedFilePath = `${directory}/${fileName}_nodered.json`;
+        fs.writeFileSync(nodeRedFilePath, JSON.stringify(nodeRedConfig, null, 2));
+        console.log(`NodeRed mapping saved to: ${nodeRedFilePath}`);
+    } catch (error) {
+        console.error('Error writing NodeRed mapping:', error);
+    }
+};
+
 const readResults = (header, liner, elements, nodalResults, elemResults, maxValues, minValues, units) => {
-    const headerStringArray = header.split(" ").filter(word => word !== "");
-    let mode = parseInt(headerStringArray[3]);
-    let ishift = 0;
-    if (isNaN(mode)) ishift=+1
-    mode = parseInt(headerStringArray[3+ishift])
-    // const modeAux = headerStringArray[2].slice(1, -1);
-    // let mode = null;
-    // if (modeAux !== "") mode = parseInt(modeAux.slice(5), 10);
-    if (mode > numberOfModes) numberOfModes = mode;
+    const cleanHeader = header.replace(/\r/g, '');
+    const headerStringArray = cleanHeader.split(" ").filter(word => word !== "");
 
-    const resultName = headerStringArray[1].slice(1,).replace("\"","") // RP: before was 1,-1 but then it was Displacement instead of Displacements
+    // Usar la nueva función para parsear la información del modo
+    const { modeString, increment } = parseModeInfo(headerStringArray);
 
+    if (!modeString || increment === null) {
+        console.warn(`No se pudo parsear el modo del header: ${header}`);
+        return;
+    }
 
-    const resultTypeAux = headerStringArray[5+ishift];
-    let resultType;
-    if (resultTypeAux.slice(0, 7) === "OnNodes") resultType = "OnNodes";
-    else if (resultTypeAux.slice(0, 13) === "OnGaussPoints") resultType = "OnGaussPoints";
-    else resultType = "Not relevant";
+    // Obtener el modo global
+    const globalMode = getOrCreateGlobalMode(modeString, increment);
+
+    // Actualizar numberOfModes si es necesario
+    if (globalMode > numberOfModes) numberOfModes = globalMode;
+
+    const resultName = headerStringArray[1].slice(1,).replace("\"", "");
+
+    // Buscar el tipo de resultado (OnNodes o OnGaussPoints)
+    let resultType = "Not relevant";
+    for (let i = 0; i < headerStringArray.length; i++) {
+        if (headerStringArray[i].startsWith("OnNodes")) {
+            resultType = "OnNodes";
+            break;
+        } else if (headerStringArray[i].startsWith("OnGaussPoints")) {
+            resultType = "OnGaussPoints";
+            break;
+        }
+    }
 
     const lineString2 = liner.next().toString();
     const lineString2Array = lineString2.split(" ").filter(word => word !== "");
     let componentNamesArray = null;
     let resUnits = "";
+
     if (isResultOfInterest(resultName)) {
         if (lineString2Array[0] === "ComponentNames") {
             const componentNamesArrayAux2 = lineString2Array.map((word, index, array) => {
@@ -281,7 +398,6 @@ const readResults = (header, liner, elements, nodalResults, elemResults, maxValu
             componentNamesArray = componentNamesArrayAux2.slice(1, numCompOfInterest[index] + 1)
             const unitsLine = liner.next();
             resUnits = unitsLine.toString().split('"')[1];
-
         } else {
             const componentName = resultName.split("//").slice(-1);
             componentNamesArray = componentName;
@@ -289,7 +405,7 @@ const readResults = (header, liner, elements, nodalResults, elemResults, maxValu
         }
 
         for (let icomp = 0; icomp < componentNamesArray.length; icomp++) {
-            const fieldName = `${componentNamesArray[icomp]}__${mode}`
+            const fieldName = `${componentNamesArray[icomp]}__${globalMode}` // Usar globalMode
             if (resultType == "OnNodes" && nodalResults[fieldName] === undefined) nodalResults[fieldName] = [];
             if (resultType == "OnGaussPoints" && elemResults[fieldName] === undefined) elemResults[fieldName] = [];
             if (units[componentNamesArray[icomp]] === undefined) units[componentNamesArray[icomp]] = resUnits;
@@ -311,22 +427,22 @@ const readResults = (header, liner, elements, nodalResults, elemResults, maxValu
         if (componentNamesArray) {
             if (resultType === "OnNodes") {
                 const valuesArray = lineString.split(" ").filter(word => word !== "").slice(1);
-                let idx_elm=parseInt(lineString.split(" ").filter(word => word !== "").slice(0,1));
-                if (elements[0] == undefined ||elements[0][idx_elm]==undefined) boolMixMaxSave = false;
+                let idx_elm = parseInt(lineString.split(" ").filter(word => word !== "").slice(0, 1));
+                if (elements[0] == undefined || elements[0][idx_elm] == undefined) boolMixMaxSave = false;
                 for (let icomp = 0; icomp < componentNamesArray.length; icomp++) {
-                    const fieldNameParent =componentNamesArray[icomp]
-                    if (reverseField && reverseField.indexOf(fieldNameParent)>-1){
-                        valueSign=-1;
-                    } else { valueSign=1}
-                    const fieldName = `${fieldNameParent}__${mode}`;
-                    
+                    const fieldNameParent = componentNamesArray[icomp]
+                    if (reverseField && reverseField.indexOf(fieldNameParent) > -1) {
+                        valueSign = -1;
+                    } else { valueSign = 1 }
+                    const fieldName = `${fieldNameParent}__${globalMode}`;
+
                     let value = valueSign * parseFloat(valuesArray[icomp]);
                     if (!value || Math.abs(value) < 1.0e-30) value = 0.0;
-                    if (thresholdLimits.min.field && thresholdLimits.min.value && thresholdLimits.min.field.indexOf(fieldNameParent)>-1 && value < thresholdLimits.min.value[thresholdLimits.min.field.indexOf(fieldNameParent)]) value = thresholdLimits.min.value[thresholdLimits.min.field.indexOf(fieldNameParent)];
-                    if (thresholdLimits.max.field && thresholdLimits.max.value && thresholdLimits.max.field.indexOf(fieldNameParent)>-1 && value > thresholdLimits.max.value[thresholdLimits.min.field.indexOf(fieldNameParent)]) value = thresholdLimits.max.value[thresholdLimits.max.field.indexOf(fieldNameParent)];
+                    if (thresholdLimits.min.field && thresholdLimits.min.value && thresholdLimits.min.field.indexOf(fieldNameParent) > -1 && value < thresholdLimits.min.value[thresholdLimits.min.field.indexOf(fieldNameParent)]) value = thresholdLimits.min.value[thresholdLimits.min.field.indexOf(fieldNameParent)];
+                    if (thresholdLimits.max.field && thresholdLimits.max.value && thresholdLimits.max.field.indexOf(fieldNameParent) > -1 && value > thresholdLimits.max.value[thresholdLimits.min.field.indexOf(fieldNameParent)]) value = thresholdLimits.max.value[thresholdLimits.max.field.indexOf(fieldNameParent)];
                     nodalResults[fieldName].push(value);
 
-                    if (boolMixMaxSave){
+                    if (boolMixMaxSave) {
                         if (maxValues[fieldNameParent] === undefined) maxValues[fieldNameParent] = value;
                         if (minValues[fieldNameParent] === undefined) minValues[fieldNameParent] = value;
                         if (value > maxValues[fieldNameParent]) maxValues[fieldNameParent] = value;
@@ -336,8 +452,8 @@ const readResults = (header, liner, elements, nodalResults, elemResults, maxValu
             } else if (resultType === "OnGaussPoints") {
                 const gpValuesMatrix = [];
                 gpValuesMatrix[0] = lineString.split(" ").filter(word => word !== "").slice(1);
-                let idx_elm=parseInt(lineString.split(" ").filter(word => word !== "").slice(0,1));
-                if (elements[0] == undefined ||elements[0][idx_elm]==undefined) boolMixMaxSave = false;
+                let idx_elm = parseInt(lineString.split(" ").filter(word => word !== "").slice(0, 1));
+                if (elements[0] == undefined || elements[0][idx_elm] == undefined) boolMixMaxSave = false;
                 line = liner.next()
                 lineString = line.toString('ascii');
                 gpValuesMatrix[1] = lineString.split(" ").filter(word => word !== "");
@@ -347,22 +463,22 @@ const readResults = (header, liner, elements, nodalResults, elemResults, maxValu
                 gpValuesMatrix[2] = lineString.split(" ").filter(word => word !== "");
 
                 for (let icomp = 0; icomp < componentNamesArray.length; icomp++) {
-                    const fieldNameParent =componentNamesArray[icomp]
-                    if (reverseField && reverseField.indexOf(fieldNameParent)>-1){
-                        valueSign=-1;
-                    } else {valueSign=1}
-                    const fieldName = `${fieldNameParent}__${mode}`;
+                    const fieldNameParent = componentNamesArray[icomp]
+                    if (reverseField && reverseField.indexOf(fieldNameParent) > -1) {
+                        valueSign = -1;
+                    } else { valueSign = 1 }
+                    const fieldName = `${fieldNameParent}__${globalMode}`;
                     const nodalValues = [];
                     for (let inode = 0; inode < 3; inode++) {
                         nodalValues[inode] = 0.0;
                         for (let igauss = 0; igauss < 3; igauss++) {
                             let value = valueSign * parseFloat(gpValuesMatrix[igauss][icomp]);
                             if (!value || Math.abs(value) < 1.0e-30) value = 0.0;
-                            if (thresholdLimits.min.field && thresholdLimits.min.value && thresholdLimits.min.field.indexOf(fieldNameParent)>-1 && value < thresholdLimits.min.value[thresholdLimits.min.field.indexOf(fieldNameParent)]) value = thresholdLimits.min.value[thresholdLimits.min.field.indexOf(fieldNameParent)];
-                    if (thresholdLimits.max.field && thresholdLimits.max.value && thresholdLimits.max.field.indexOf(fieldNameParent)>-1 && value > thresholdLimits.max.value[thresholdLimits.min.field.indexOf(fieldNameParent)]) value = thresholdLimits.max.value[thresholdLimits.max.field.indexOf(fieldNameParent)];
+                            if (thresholdLimits.min.field && thresholdLimits.min.value && thresholdLimits.min.field.indexOf(fieldNameParent) > -1 && value < thresholdLimits.min.value[thresholdLimits.min.field.indexOf(fieldNameParent)]) value = thresholdLimits.min.value[thresholdLimits.min.field.indexOf(fieldNameParent)];
+                            if (thresholdLimits.max.field && thresholdLimits.max.value && thresholdLimits.max.field.indexOf(fieldNameParent) > -1 && value > thresholdLimits.max.value[thresholdLimits.min.field.indexOf(fieldNameParent)]) value = thresholdLimits.max.value[thresholdLimits.max.field.indexOf(fieldNameParent)];
                             nodalValues[inode] += Ninv[inode][igauss] * value;
                         }
-                        if (boolMixMaxSave){
+                        if (boolMixMaxSave) {
                             if (maxValues[fieldNameParent] === undefined) maxValues[fieldNameParent] = nodalValues[inode];
                             if (minValues[fieldNameParent] === undefined) minValues[fieldNameParent] = nodalValues[inode];
                             if (nodalValues[inode] > maxValues[fieldNameParent]) maxValues[fieldNameParent] = nodalValues[inode];
@@ -407,11 +523,11 @@ const gid2json = () => {
         }
 
         if (lineClasifier(lineString)) {
-            if (lineString.slice(0, 11) === 'Coordinates' 
-            // && (meshName == "Fixed constraints Auto1" || meshName == "Elastic constraints Auto1")
+            if (lineString.slice(0, 11) === 'Coordinates'
+                // && (meshName == "Fixed constraints Auto1" || meshName == "Elastic constraints Auto1")
             ) readCoordinates(linerMesh, nodes);
-            else if (lineString.slice(0, 8) === 'Elements' 
-            && meshName.slice(0, 5) === "Mesh_"
+            else if (lineString.slice(0, 8) === 'Elements'
+                && meshName.slice(0, 5) === "Mesh_"
             ) {
                 numMeshes++;
                 const indexMesh = parseInt(meshName.slice(5), 10) - 1;
@@ -428,7 +544,7 @@ const gid2json = () => {
     };
 
     const elemsConnectivities = [];
-    const nodesInMesh = [];      
+    const nodesInMesh = [];
     for (let imesh = 0; imesh < numMeshes; imesh++) {
         let nodeCont = 0;
         elemsConnectivities[imesh] = [];
@@ -443,7 +559,7 @@ const gid2json = () => {
                     nodesInMesh[imesh].push(node);
                     elemsConnectivities[imesh].push(nodeCont);
                 } else {
-                    elemsConnectivities[imesh].push(indexOfNode+1);
+                    elemsConnectivities[imesh].push(indexOfNode + 1);
                 }
             }
         }
@@ -547,7 +663,7 @@ const gid2json = () => {
         for (let imesh = 0; imesh < numMeshes; imesh++) {
             const nodalResultsInMesh = [];
             nodesInMesh[imesh].forEach(inode => {
-                const nodalResult = nodalResults[modalFieldName][inode-1];
+                const nodalResult = nodalResults[modalFieldName][inode - 1];
                 nodalResultsInMesh.push(nodalResult)
             })
             meshNodalResultField[resultName].modalValues[modalFieldName] = {
@@ -615,6 +731,8 @@ const gid2json = () => {
 
         const resultsFilePath = `${directory}/${fileName}_res.json`
         fs.writeFileSync(resultsFilePath, resultsDataString);
+
+        generateNodeRedMapping();
         console.log(`JSON data is saved in ${directory}.`);
     } catch (error) {
         console.error(err);
@@ -622,4 +740,254 @@ const gid2json = () => {
 
 }
 
-gid2json();
+
+import readline from 'readline';
+
+const preReadResults = () => {
+    console.log('Pre-reading results file to discover available results...');
+
+    const linerResults = new nReadlines(inputResultsPath);
+    const availableResults = [];
+    let line;
+
+    while (line = linerResults.next()) {
+        const lineString = line.toString('ascii').replace(/\r/g, '');
+        if (lineString === "") continue;
+
+        if (lineString.slice(0, 6) === 'Result') {
+            const headerStringArray = lineString.split(" ").filter(word => word !== "");
+            const resultName = headerStringArray[1].slice(1).replace(/"/g, "");
+
+            console.log(`\nProcessing result: ${resultName}`);
+
+            // Leer la siguiente línea para obtener componentes
+            const nextLine = linerResults.next();
+            if (nextLine) {
+                const nextLineString = nextLine.toString('ascii').replace(/\r/g, '');
+                const nextLineArray = nextLineString.split(" ").filter(word => word !== "");
+
+                let numComponents = 1;
+                let componentNames = [resultName];
+
+                console.log(`Next line: ${nextLineString}`);
+                console.log(`Next line array: ${JSON.stringify(nextLineArray)}`);
+
+                if (nextLineArray[0] === "ComponentNames") {
+                    // Los nombres de componentes están entre comillas
+                    componentNames = nextLineArray.slice(1).map(name => name.replace(/"/g, ""));
+                    numComponents = componentNames.length;
+                    
+                    console.log(`Found ComponentNames: ${JSON.stringify(componentNames)}`);
+                    console.log(`Number of components: ${numComponents}`);
+                } else {
+                    // Si no hay ComponentNames, puede ser un resultado escalar
+                    // Pero algunos resultados como Shells//Stresses_Top tienen 6 componentes implícitos
+                    
+                    // Verificar si es un resultado conocido que debería tener más componentes
+                    if (resultName.includes('Stresses_Top') || resultName.includes('Stresses_Bottom')) {
+                        numComponents = 6;
+                        componentNames = ['Sxx', 'Syy', 'Szz', 'Sxy', 'Sxz', 'Syz'];
+                        console.log(`Known stress result - assuming 6 components: ${JSON.stringify(componentNames)}`);
+                    } else if (resultName.includes('Displacements')) {
+                        numComponents = 3;
+                        componentNames = ['Disp_X', 'Disp_Y', 'Disp_Z'];
+                        console.log(`Known displacement result - assuming 3 components: ${JSON.stringify(componentNames)}`);
+                    } else if (resultName.includes('Axial_Force')) {
+                        numComponents = 4;
+                        componentNames = ['Fx', 'Fy', 'Fz', 'Magnitude'];
+                        console.log(`Known force result - assuming 4 components: ${JSON.stringify(componentNames)}`);
+                    }
+                }
+
+                // Verificar si ya existe este resultado
+                const existingResult = availableResults.find(r => r.name === resultName);
+                if (!existingResult) {
+                    availableResults.push({
+                        name: resultName,
+                        components: numComponents,
+                        componentNames: componentNames
+                    });
+                    console.log(`Added result: ${resultName} with ${numComponents} components`);
+                } else {
+                    console.log(`Result already exists: ${resultName}`);
+                }
+            }
+        }
+    }
+
+    return availableResults;
+};
+
+// También actualiza la función showInteractiveMenu para limpiar los nombres
+const showInteractiveMenu = async (availableResults) => {
+    const rl = readline.createInterface({
+        input: process.stdin,
+        output: process.stdout
+    });
+
+    const selectedIndices = new Set();
+
+    const displayMenu = () => {
+        console.log('\n=== AVAILABLE RESULTS ===');
+        console.log('Index | Selected | Result Name | Components');
+        console.log('------|----------|-------------|------------');
+
+        availableResults.forEach((result, index) => {
+            const selected = selectedIndices.has(index) ? '[X]' : '[ ]';
+            const truncatedName = result.name.length > 30 ? result.name.substring(0, 30) + '...' : result.name;
+            console.log(`${index.toString().padStart(5)} | ${selected.padEnd(8)} | ${truncatedName.padEnd(33)} | ${result.components}`);
+        });
+
+        console.log('\nCommands:');
+        console.log('- Enter numbers (0,2,3,7) to toggle selection');
+        console.log('- "all" to select all results');
+        console.log('- "clear" to clear all selections');
+        console.log('- "show" to show component details');
+        console.log('- Press Enter (empty) to finish selection');
+        console.log(`\nCurrently selected: ${selectedIndices.size} results`);
+    };
+
+    const showComponentDetails = () => {
+        console.log('\n=== COMPONENT DETAILS ===');
+        availableResults.forEach((result, index) => {
+            const selected = selectedIndices.has(index) ? '[SELECTED]' : '';
+            console.log(`${index}: ${result.name} ${selected}`);
+            console.log(`   Components (${result.components}): ${result.componentNames.join(', ')}`);
+        });
+    };
+
+    const askQuestion = (question) => {
+        return new Promise((resolve) => {
+            rl.question(question, (answer) => {
+                resolve(answer.trim());
+            });
+        });
+    };
+
+    while (true) {
+        displayMenu();
+        const input = await askQuestion('\nEnter your choice: ');
+
+        if (input === '') {
+            break;
+        } else if (input.toLowerCase() === 'all') {
+            availableResults.forEach((_, index) => selectedIndices.add(index));
+            console.log('All results selected.');
+        } else if (input.toLowerCase() === 'clear') {
+            selectedIndices.clear();
+            console.log('All selections cleared.');
+        } else if (input.toLowerCase() === 'show') {
+            showComponentDetails();
+        } else {
+            const numbers = input.split(',').map(n => parseInt(n.trim())).filter(n => !isNaN(n));
+
+            numbers.forEach(num => {
+                if (num >= 0 && num < availableResults.length) {
+                    if (selectedIndices.has(num)) {
+                        selectedIndices.delete(num);
+                        console.log(`Deselected: ${availableResults[num].name}`);
+                    } else {
+                        selectedIndices.add(num);
+                        console.log(`Selected: ${availableResults[num].name}`);
+                    }
+                } else {
+                    console.log(`Invalid index: ${num}`);
+                }
+            });
+        }
+    }
+
+    rl.close();
+
+    // Crear el array de resultados seleccionados CON NOMBRES LIMPIOS
+    const selectedResults = Array.from(selectedIndices)
+        .sort((a, b) => a - b)
+        .map(index => availableResults[index].name.trim()); // Limpiar espacios y caracteres extra
+
+    // Crear el diccionario actualizado
+    const updatedDictCompOfInterest = {};
+    selectedIndices.forEach(index => {
+        const result = availableResults[index];
+        // Usar el nombre limpio
+        const cleanName = result.name.trim();
+        updatedDictCompOfInterest[cleanName] = result.components;
+    });
+
+    console.log('\n=== DEBUG SELECTION ===');
+    console.log('Selected results:', selectedResults);
+    console.log('Updated dictionary:', updatedDictCompOfInterest);
+    console.log('=== END DEBUG ===');
+
+    return { selectedResults, updatedDictCompOfInterest };
+};
+
+// Función para debuggear el matching de nombres
+const debugNameMatching = () => {
+    console.log('\n=== DEBUG NAME MATCHING ===');
+    console.log('resultsOfInterest:', resultsOfInterest);
+    console.log('dictCompOfInterest keys:', Object.keys(dictCompOfInterest));
+    
+    for (let i = 0; i < resultsOfInterest.length; i++) {
+        const resultName = resultsOfInterest[i];
+        const numComponents = dictCompOfInterest[resultName];
+        console.log(`Index ${i}: "${resultName}" -> ${numComponents} components`);
+        
+        if (numComponents === undefined) {
+            console.log(`  ERROR: No match found for "${resultName}"`);
+            console.log(`  Available keys: ${Object.keys(dictCompOfInterest).join(', ')}`);
+        }
+    }
+    console.log('=== END DEBUG ===');
+};
+
+
+// Función principal modificada para manejar el modo pre-read
+const main = async () => {
+    if (preReadMode) {
+        try {
+            const availableResults = preReadResults();
+            console.log(`\nFound ${availableResults.length} different result types:`);
+
+            const { selectedResults, updatedDictCompOfInterest } = await showInteractiveMenu(availableResults);
+
+            if (selectedResults.length > 0) {
+                console.log('\n=== FINAL SELECTION ===');
+                console.log('Selected results:', selectedResults);
+                console.log('Updated dictionary:', updatedDictCompOfInterest);
+
+                // Actualizar las variables globales
+                resultsOfInterest = selectedResults;
+                Object.assign(dictCompOfInterest, updatedDictCompOfInterest);
+
+                numCompOfInterest = calculateNumCompOfInterest (); 
+
+                // Guardar la configuración en un archivo
+                const configFile = `${directory}/${fileName}_config.json`;
+                const config = {
+                    resultsOfInterest: selectedResults,
+                    dictCompOfInterest: updatedDictCompOfInterest,
+                    generatedAt: new Date().toISOString()
+                };
+
+                fs.writeFileSync(configFile, JSON.stringify(config, null, 2));
+                console.log(`Configuration saved to: ${configFile}`);
+
+                // Continuar con el procesamiento normal
+                console.log('\nProceeding with normal processing...');
+                gid2json();
+            } else {
+                console.log('No results selected. Exiting...');
+                process.exit(0);
+            }
+        } catch (error) {
+            console.error('Error in pre-read mode:', error);
+            process.exit(1);
+        }
+    } else {
+        // Procesamiento normal
+        gid2json();
+    }
+};
+
+// Cambiar la llamada final de gid2json() por:
+main();
