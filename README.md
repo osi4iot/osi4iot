@@ -163,6 +163,16 @@ The same as the on-premise cluster, on EC2 instances. The volumes can optionally
 
 ## Architecture
 
+![OSI4IOT architecture](./docs/img/architecture.png)
+
+-	**Edge**: sensors and machines are read by devices that publish their data over MQTT or NATS.
+-	**Messaging & streaming**: a NATS cluster with JetStream ingests the data; `auth_callout` authenticates every device and user.
+-	**Core services**: the pipelines transform and consume the data in flows, run ML models with ONNX Runtime, run AI agents (LLM with MCP tools) and query with DuckDB.
+-	**Storage**: TimescaleDB keeps the recent sensor time series (hot data) and the S3 bucket keeps the history as Parquet files (warm and cold data); PostgreSQL holds the platform's own data. Both databases run on Patroni clusters and are backed up continuously to S3 with WAL-G.
+-	**Analytics & UI**: the 3D digital twins of the frontend receive live data through NATS (WebSockets), and Grafana dashboards query the stored data.
+-	**ML model training**: models are trained from the Parquet files in S3 and go back to the pipelines as ONNX models.
+-	**Platform & operations**: everything runs on Docker Swarm, deployed and operated with the `osi4iot` CLI; `system_manager` takes the backups and renews the certificates, and Vector collects logs and node metrics.
+
 The platform runs as Docker Swarm services:
 
 | Service | Role |
