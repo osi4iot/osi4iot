@@ -21,4 +21,5 @@ export default interface IGroup {
 	mqttSalt?: string;
 	mqttAccessControl: string;
 	llmEnabled: boolean;
+	gpuUsageEnabled: boolean;
 }

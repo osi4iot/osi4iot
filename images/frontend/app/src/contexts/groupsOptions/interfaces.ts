@@ -20,6 +20,7 @@ export interface IGroupInputData {
 	featureIndex: number;
 	mqttAccessControl: string;
 	llmEnabled: boolean;
+	gpuUsageEnabled: boolean;
     groupAdminDataArray?: IGroupAdminData[];
 }
 

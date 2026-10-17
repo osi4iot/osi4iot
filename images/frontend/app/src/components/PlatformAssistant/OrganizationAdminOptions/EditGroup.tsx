@@ -37,7 +37,7 @@ import { IFloor } from "../TableColumns/floorsColumns";
 import { AxiosResponse, AxiosError } from "axios";
 import { ControlsContainer, StaticFormContainer } from "../../Tools/FormTools";
 
-const GroupLocationTitle = styled.div`
+const Title = styled.div`
     margin-bottom: 5px;
 `;
 
@@ -113,7 +113,7 @@ const mqttAccessControlOptions = [
     },
 ];
 
-const enableLLMOptions = [
+const enableDisableOptions = [
     {
         label: "Enabled",
         value: true,
@@ -161,6 +161,7 @@ const EditGroup: FC<EditGroupProps> = ({
     const [isSubmitting, setIsSubmitting] = useState(false);
     const { accessToken, refreshToken } = useAuthState();
     const [llmEnabledInOrg, setLlmEnabledInOrg] = useState(false);
+    const [gpuUsageEnabledInOrg, setGpuUsageEnabledInOrg] = useState(false);
 
     useEffect(() => {
         const groupsPreviousOption = { groupsPreviousOption: GROUPS_PREVIOUS_OPTIONS.EDIT_GROUP };
@@ -172,6 +173,8 @@ const EditGroup: FC<EditGroupProps> = ({
         const selectedOrg = orgsManagedTable.filter((org) => org.id === orgId)[0];
         const llmEnabledInOrg = selectedOrg ? selectedOrg.llmEnabled : false;
         setLlmEnabledInOrg(llmEnabledInOrg);
+        const gpuUsageEnabledInOrg = selectedOrg ? selectedOrg.gpuUsageEnabled : false;
+        setGpuUsageEnabledInOrg(gpuUsageEnabledInOrg);
     }, [groupRowIndex, groups, orgsManagedTable]);
 
     const onSubmit = (values: any, actions: any) => {
@@ -197,6 +200,7 @@ const EditGroup: FC<EditGroupProps> = ({
             featureIndex: values.featureIndex,
             mqttAccessControl: values.mqttAccessControl,
             llmEnabled: values.llmEnabled,
+            gpuUsageEnabled: values.gpuUsageEnabled,
         };
         setIsSubmitting(true);
 
@@ -260,7 +264,7 @@ const EditGroup: FC<EditGroupProps> = ({
                 setGroupBuildingId(groupsDispatch, groupBuildingId);
                 const floorNumber = parseInt(groupInputData.floorNumber as unknown as string, 10);
                 const floorSelected = floors.filter(
-                    (floor) => floor.buildingId === buildingId && floor.floorNumber === floorNumber
+                    (floor) => floor.buildingId === buildingId && floor.floorNumber === floorNumber,
                 )[0];
                 if (floorSelected) {
                     selectFloor(floorSelected);
@@ -314,16 +318,45 @@ const EditGroup: FC<EditGroupProps> = ({
                                     name="telegramChatId"
                                     type="text"
                                 />
+                                {gpuUsageEnabledInOrg && (
+                                    <FormikControl
+                                        control="select"
+                                        label="GPU Usage"
+                                        name="gpuUsageEnabled"
+                                        options={enableDisableOptions}
+                                        type="text"
+                                    />
+                                )}{" "}
                                 {llmEnabledInOrg && (
                                     <FormikControl
                                         control="select"
                                         label="Large Language Model (LLM)"
                                         name="llmEnabled"
-                                        options={enableLLMOptions}
+                                        options={enableDisableOptions}
                                         type="text"
                                     />
-                                )}
-                                <GroupLocationTitle>Group location</GroupLocationTitle>
+                                )}{" "}
+                                <Title>Group location</Title>
+                                <GroupLocationContainer>
+                                    <FormikControl
+                                        control="input"
+                                        label="Floor number"
+                                        name="floorNumber"
+                                        type="text"
+                                    />
+                                    <FormikControl
+                                        control="input"
+                                        label="Feature index"
+                                        name="featureIndex"
+                                        type="text"
+                                    />
+                                    <SelectGroupLocationButtonContainer>
+                                        <SelectSpaceButton type="button" onClick={() => selectSpace(formik.values)}>
+                                            Select space
+                                        </SelectSpaceButton>
+                                    </SelectGroupLocationButtonContainer>
+                                </GroupLocationContainer>
+                                <Title>Group location</Title>
                                 <GroupLocationContainer>
                                     <FormikControl
                                         control="input"

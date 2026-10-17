@@ -31,13 +31,14 @@ var platformNeeds = map[string]struct {
 	need platformNeed
 	what string // what there is nothing of, for the message
 }{
-	"backup":         {needServices, "backups are taken, listed and restored by system_manager"},
-	"certs":          {needServices, "certificates are renewed and stored by system_manager"},
-	"certs check":    {needStateFile, ""}, // reads the state file only
-	"service":        {needServices, "services"},
-	"streams":        {needServices, "NATS streams"},
-	"custom_service": {needServices, "custom services"},
-	"node":           {needSwarm, "swarm nodes"},
+	"backup":           {needServices, "backups are taken, listed and restored by system_manager"},
+	"certs":            {needServices, "certificates are renewed and stored by system_manager"},
+	"certs check":      {needStateFile, ""}, // reads the state file only
+	"service":          {needServices, "services"},
+	"service gpu_mode": {needStateFile, ""}, // stored in the state; applied if running
+	"streams":          {needServices, "NATS streams"},
+	"custom_service":   {needServices, "custom services"},
+	"node":             {needSwarm, "swarm nodes"},
 }
 
 // requirePlatformFor stops cmd with an explanation when the platform's

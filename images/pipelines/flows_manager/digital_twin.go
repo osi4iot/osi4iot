@@ -58,7 +58,12 @@ func (fm *FlowsManager) AddDigitalTwin(ctx context.Context, digitalTwin *common.
 			digitalTwin.KvStore = kv
 		}
 
-		if createPipeline {
+		if createPipeline && !fm.canRunPipeline(digitalTwin) {
+			// At start-up the GPU replicas may simply not be up yet, so
+			// no "no GPU" error is announced from here.
+			digitalTwin.Pipeline = nil
+			fm.skipPipelineOnThisReplica(ctx, digitalTwin, false)
+		} else if createPipeline {
 			digitalTwin.Pipeline = fm.createPipeline(ctx, digitalTwin, org, "create")
 			digitalTwin.PipelineStatusSubscription = fm.SetPipelineStatusSubscription(ctx, digitalTwin)
 		} else {
@@ -85,9 +90,20 @@ func (fm *FlowsManager) CreatePipelineInDigitalTwin(ctx context.Context, digital
 		return
 	}
 
+	if !fm.canRunPipeline(digitalTwin) {
+		fm.skipPipelineOnThisReplica(ctx, digitalTwin, true)
+		return
+	}
+
 	if digitalTwin.Pipeline != nil {
 		digitalTwin.Pipeline.StopStatusPublisher()
 		digitalTwin.Pipeline.Stop(ctx, "create")
+	}
+	// The old subscription answers for the old pipeline object (it is
+	// captured when subscribing), or is the no-GPU handler: replace it.
+	if digitalTwin.PipelineStatusSubscription != nil {
+		digitalTwin.PipelineStatusSubscription.Unsubscribe()
+		digitalTwin.PipelineStatusSubscription = nil
 	}
 	org := fm.GetOrg(digitalTwin.OrgId)
 	if org == nil {
@@ -109,9 +125,20 @@ func (fm *FlowsManager) UpdatePipelineInDigitalTwin(ctx context.Context, digital
 		return
 	}
 
+	if !fm.canRunPipeline(digitalTwin) {
+		fm.skipPipelineOnThisReplica(ctx, digitalTwin, true)
+		return
+	}
+
 	if digitalTwin.Pipeline != nil {
 		digitalTwin.Pipeline.StopStatusPublisher()
 		digitalTwin.Pipeline.Stop(ctx, "update")
+	}
+	// The old subscription answers for the old pipeline object (it is
+	// captured when subscribing), or is the no-GPU handler: replace it.
+	if digitalTwin.PipelineStatusSubscription != nil {
+		digitalTwin.PipelineStatusSubscription.Unsubscribe()
+		digitalTwin.PipelineStatusSubscription = nil
 	}
 	org := fm.GetOrg(digitalTwin.OrgId)
 	if org == nil {
@@ -119,6 +146,7 @@ func (fm *FlowsManager) UpdatePipelineInDigitalTwin(ctx context.Context, digital
 		return
 	}
 	digitalTwin.Pipeline = fm.createPipeline(ctx, digitalTwin, org, "update")
+	digitalTwin.PipelineStatusSubscription = fm.SetPipelineStatusSubscription(ctx, digitalTwin)
 	digitalTwin.Pipeline.Start(ctx, false)
 	digitalTwin.Pipeline.StartStatusPublisher(ctx)
 }
@@ -218,6 +246,7 @@ func (fm *FlowsManager) UpdateDigitalTwin(updatedDigitalTwin *common.DigitalTwin
 		digitalTwin.PipelineFileName = updatedDigitalTwin.PipelineFileName
 		digitalTwin.PipelineFileLastModifDate = updatedDigitalTwin.PipelineFileLastModifDate
 		digitalTwin.PipelineFileData = updatedDigitalTwin.PipelineFileData
+		digitalTwin.PipelineRequiresGpu = updatedDigitalTwin.PipelineRequiresGpu
 
 		fm.DigitalTwins.Store(digitalTwinIdStr, digitalTwin)
 		return nil

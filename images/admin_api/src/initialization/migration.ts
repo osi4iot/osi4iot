@@ -146,6 +146,7 @@ export const dataBaseInitialization = async () => {
 											ADD COLUMN mqtt_access_control VARCHAR(10),
 											ADD COLUMN llm_enabled BOOLEAN NOT NULL DEFAULT false,
 											ADD COLUMN llm_provider_url VARCHAR(255),
+											ADD COLUMN gpu_usage_enabled BOOLEAN NOT NULL DEFAULT false,
 											ADD COLUMN hashed_llm_provider_api_key TEXT,
 											ADD COLUMN telegram_enabled BOOLEAN NOT NULL DEFAULT false,
 											ADD COLUMN hashed_telegram_bot_token TEXT DEFAULT '',
@@ -474,6 +475,7 @@ export const dataBaseInitialization = async () => {
 					mqtt_password VARCHAR(255),
 					mqtt_salt VARCHAR(40),
 					llm_enabled BOOLEAN DEFAULT false,
+					gpu_usage_enabled BOOLEAN DEFAULT false,
 					created TIMESTAMPTZ,
 					updated TIMESTAMPTZ,
 					CONSTRAINT fk_org_id
@@ -522,6 +524,7 @@ export const dataBaseInitialization = async () => {
 						outerBounds: [] as number[][],
 						mqttAccessControl: "Pub & Sub",
 						llmEnabled: false,
+						gpuUsageEnabled: false,
 					};
 					group = await createGroup(1, defaultMainOrgGroup, process_env.MAIN_ORGANIZATION_NAME, true, true);
 					await createHomeDashboard(1, orgAcronym, orgName, group.folderId);
@@ -963,6 +966,7 @@ export const dataBaseInitialization = async () => {
 					pipeline_file_name VARCHAR(100) NOT NULL DEFAULT '-',
 					pipeline_file_last_modif_date VARCHAR(100) NOT NULL DEFAULT '-',
 					pipeline_file_data TEXT NOT NULL DEFAULT '',
+					pipeline_requires_gpu BOOLEAN NOT NULL DEFAULT FALSE,
 					created TIMESTAMPTZ,
 					updated TIMESTAMPTZ,
 					UNIQUE (group_id, asset_id, scope),

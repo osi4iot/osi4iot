@@ -101,6 +101,7 @@ type ServiceUpdateOptions struct {
 	Image         *string           // Update container image
 	Env           map[string]string // Update environment variables (add or modify)
 	RemoveEnv     []string          // Environment variables to remove
+	Placement     *swarm.Placement  // Replace constraints and preferences
 
 	// SkipMonitor returns as soon as Docker accepts the update instead
 	// of waiting for the service to become healthy.
@@ -137,7 +138,8 @@ func ServiceUpdate(
 		options.Resources != nil ||
 		options.Image != nil ||
 		len(options.Env) > 0 ||
-		len(options.RemoveEnv) > 0
+		len(options.RemoveEnv) > 0 ||
+		options.Placement != nil
 
 	targetReplicas := uint64(0)
 	if service.Spec.Mode.Replicated != nil && service.Spec.Mode.Replicated.Replicas != nil {
@@ -303,6 +305,11 @@ func ServiceUpdate(
 			newEnv = append(newEnv, fmt.Sprintf("%s=%s", key, value))
 		}
 		service.Spec.TaskTemplate.ContainerSpec.Env = newEnv
+	}
+
+	// 6b. Placement
+	if options.Placement != nil {
+		service.Spec.TaskTemplate.Placement = options.Placement
 	}
 
 	// 7. Apply the update in Docker
@@ -503,8 +510,17 @@ func UpdateSwarmServiceImage(
 		return "", fmt.Errorf("error inspecting service: %v", err)
 	}
 
+	// pipelines runs the GPU or CPU flavor of the image depending on
+	// PIPELINES_GPU_MODE: the state keeps the image as given and the
+	// service gets the flavor the mode asks for.
+	deployed := image
+	if serviceName == "pipelines" {
+		deployed = services.PipelinesImageFlavor(image,
+			services.PipelinesGPUSpecFor(pd, resources.GetNodeRoleNumMap(pd)).UsesGPU)
+	}
+
 	updateOptions := ServiceUpdateOptions{
-		Image: &image,
+		Image: &deployed,
 	}
 	updateResult, err := ServiceUpdate(pd, dc, service, serviceName, updateOptions)
 	if err != nil {

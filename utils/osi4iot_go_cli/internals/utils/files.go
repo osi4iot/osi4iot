@@ -97,6 +97,8 @@ func ReadPlatformDataFromFile(data *pt.PlatformData) error {
 }
 
 func fixingPlatformData(pd *pt.PlatformData) error {
+	applyPlatformInfoDefaults(&pd.PlatformInfo)
+
 	nodesData := pd.PlatformInfo.NodesData
 	for nodeIdx, node := range nodesData {
 		if node.NodeIP == "localhost" {
@@ -184,6 +186,21 @@ func fixingPlatformData(pd *pt.PlatformData) error {
 
 	pd.PlatformInfo.ServicesData = servicesData
 	return nil
+}
+
+// applyPlatformInfoDefaults fills in the PlatformInfo settings that have a
+// default and are missing, typically from a state file written before the
+// setting existed. Runs on every read of the state file, so the next write
+// stores them explicitly. Add new defaultable settings here.
+//
+// Only empty values are filled in (and normalized). A value that is
+// present but invalid is left as it is: failing here would block every
+// command, including the one that fixes it; the commands that use the
+// setting report it instead.
+func applyPlatformInfoDefaults(pi *pt.PlatformInfo) {
+	if mode, err := pt.NormalizePipelinesGPUMode(pi.PipelinesGPUMode); err == nil {
+		pi.PipelinesGPUMode = mode
+	}
 }
 
 func ExportUnencrypted(passphrase []byte) error {

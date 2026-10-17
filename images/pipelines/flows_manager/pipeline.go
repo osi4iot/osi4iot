@@ -31,6 +31,7 @@ type Pipeline struct {
 	NodeInputWires         map[string][]*common.Wire   // key: "nodeID" -> []*Wire (wires that arrive at the node)
 	NodeOutputByIndex      map[string][]*common.Wire   // key: "nodeID:outputIndex" -> []*Wire
 	LeaderElector          *leader_election.LeaderElector
+	RequiresGpu            bool // created only on GPU replicas
 	mu                     sync.RWMutex
 	statusPublisherCancel  context.CancelFunc
 	statusPublisherWg      sync.WaitGroup
@@ -66,6 +67,7 @@ func (fm *FlowsManager) createPipeline(
 		FileData:               digitalTwin.PipelineFileData,
 		FileName:               digitalTwin.PipelineFileName,
 		FileLastModifDate:      digitalTwin.PipelineFileLastModifDate,
+		RequiresGpu:            fm.usesGpuReplicas(digitalTwin),
 	}
 
 	pipeline, err := fm.createPipelineInstanceFromData(ctx, pipelineData)
@@ -97,6 +99,7 @@ func (fm *FlowsManager) createPipelineInstanceFromData(ctx context.Context, pd *
 		DigitalTwinId:          pd.DigitalTwinId,
 		DigitalTwinUid:         pd.DigitalTwinUid,
 		DigitalTwinDescription: pd.DigitalTwinDescription,
+		RequiresGpu:            pd.RequiresGpu,
 		Fm:                     fm,
 		Status:                 common.PipelineStatusUnknown,
 		NodesData:              make(map[string]*common.NodeData),
@@ -620,7 +623,7 @@ func (p *Pipeline) LogPipelineError(description string, message string) {
 	mustLog := false
 	if p.LeaderElector != nil && p.LeaderElector.IsLeader() {
 		mustLog = true
-	} else if description == "Pipeline creation failed" && p.Fm.ReplicaIndex == 1 {
+	} else if description == "Pipeline creation failed" && p.Fm.isPipelineErrorReporter(context.Background(), p.RequiresGpu) {
 		mustLog = true
 	}
 	if !mustLog {

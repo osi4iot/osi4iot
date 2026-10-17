@@ -69,6 +69,9 @@ type FlowsManager struct {
 	MaxChatMessagesPerUser   int
 	PipelinesDataPath        string
 	LeaderKvStore            *nats_pkg.KVStore
+	// GpuCapable: this replica can run ONNX models on CUDA (see gpu.go).
+	GpuCapable bool
+	GpuReason  string
 }
 
 func CreateFlowsManager(
@@ -173,6 +176,8 @@ func CreateFlowsManager(
 	flowManager.AddDigitalTwinTopicsRef(digitalTwinTopics)
 	flowManager.AddAssetS3Folders(ctx, assetS3Folders)
 	flowManager.AddMlModels(ctx, mlModels)
+	// Before the digital twins: it decides which pipelines live here.
+	flowManager.initGpuCapability(ctx)
 	flowManager.AddDigitalTwins(ctx, digitalTwins)
 	flowManager.AddFemResultsInDigitalTwins(ctx)
 	flowManager.AddDocInfoFilesInDigitalTwins(ctx)

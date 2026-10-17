@@ -160,6 +160,7 @@ const EditOrganization: FC<EditOrganizationProps> = ({ organizations, refreshOrg
         llmProviderUrl: organizations[orgRowIndex].llmProviderUrl || "https://api.openai.com/v1",
         changeLlmProviderApiKey: false,
         llmProviderApiKey: "",
+        gpuUsageEnabled: organizations[orgRowIndex].gpuUsageEnabled || false,
         telegramEnabled: organizations[orgRowIndex].telegramEnabled || false,
         changeTelegramSettings: false,
         telegramBotToken: "",
@@ -259,6 +260,10 @@ const EditOrganization: FC<EditOrganizationProps> = ({ organizations, refreshOrg
         formik.setFieldValue("llmEnabled", e.value);
     };
 
+    const onEnableGpuUsageChange = (e: { value: boolean }, formik: any) => {
+        formik.setFieldValue("gpuUsageEnabled", e.value);
+    };
+
     const onEnableTelegramChange = (e: { value: boolean }, formik: any) => {
         setTelegramEnabled(e.value);
         formik.setFieldValue("telegramEnabled", e.value);
@@ -304,6 +309,14 @@ const EditOrganization: FC<EditOrganizationProps> = ({ organizations, refreshOrg
                                     name="mqttAccessControl"
                                     options={mqttAccessControlOptions}
                                     type="text"
+                                />
+                                <FormikControl
+                                    control="select"
+                                    label="Enable GPU usage"
+                                    name="gpuUsageEnabled"
+                                    options={enableDisableOptions}
+                                    type="text"
+                                    onChange={(e) => onEnableGpuUsageChange(e, formik)}
                                 />
                                 <Title>Telegram bot</Title>
                                 <DataContainer>

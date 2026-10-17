@@ -118,7 +118,7 @@ const mqttAccessControlOptions = [
     },
 ];
 
-const enableLLMOptions = [
+const enableDisableOptions = [
     {
         label: "Enabled",
         value: true,
@@ -140,6 +140,7 @@ const initialCreateGroupInputData = {
     featureIndex: 1,
     mqttAccessControl: "Pub & Sub",
     llmEnabled: false,
+    gpuUsageEnabled: false,
     groupAdminDataArray: [
         {
             firstName: "",
@@ -185,6 +186,7 @@ const CreateGroup: FC<CreateGroupProps> = ({
     const groupsDispatch = useGroupsDispatch();
     const [orgOptions, setOrgOptions] = useState<IOption[]>([]);
     const [llmEnabledInOrg, setLlmEnabledInOrg] = useState(false);
+    const [gpuUsageEnabledInOrg, setGpuUsageEnabledInOrg] = useState(false);
 
     useEffect(() => {
         if (selectedUsersArray.length !== 0) {
@@ -224,6 +226,8 @@ const CreateGroup: FC<CreateGroupProps> = ({
         const selectedOrg = orgsManagedTable.filter((org) => org.id === selectedOrgId)[0];
         const llmEnabledInOrg = selectedOrg ? selectedOrg.llmEnabled : false;
         setLlmEnabledInOrg(llmEnabledInOrg);
+        const gpuUsageEnabledInOrg = selectedOrg ? selectedOrg.gpuUsageEnabled : false;
+        setGpuUsageEnabledInOrg(gpuUsageEnabledInOrg);
     }, [selectedOrgId, orgsManagedTable]);
 
     useEffect(() => {
@@ -255,6 +259,7 @@ const CreateGroup: FC<CreateGroupProps> = ({
             featureIndex: values.featureIndex,
             mqttAccessControl: values.mqttAccessControl,
             llmEnabled: values.llmEnabled,
+            gpuUsageEnabled: values.gpuUsageEnabled,
         };
         setIsSubmitting(true);
         getAxiosInstance(refreshToken, authDispatch)
@@ -315,7 +320,7 @@ const CreateGroup: FC<CreateGroupProps> = ({
                         .email("Enter a valid email")
                         .max(190, "The maximum number of characters allowed is 190")
                         .required("Required"),
-                })
+                }),
             )
             .required("Must have org admin") // these constraints are shown if and only if inner constraints are satisfied
             .min(1, "Must be at least one org amdin"),
@@ -362,7 +367,7 @@ const CreateGroup: FC<CreateGroupProps> = ({
                 const buildingId = orgFiltered.buildingId;
                 const floorNumber = parseInt(groupInputData.floorNumber as unknown as string, 10);
                 const floorSelected = floors.filter(
-                    (floor) => floor.buildingId === buildingId && floor.floorNumber === floorNumber
+                    (floor) => floor.buildingId === buildingId && floor.floorNumber === floorNumber,
                 )[0];
                 if (floorSelected) {
                     selectFloor(floorSelected);
@@ -435,12 +440,21 @@ const CreateGroup: FC<CreateGroupProps> = ({
                                             name="telegramChatId"
                                             type="text"
                                         />
+                                        {gpuUsageEnabledInOrg && (
+                                            <FormikControl
+                                                control="select"
+                                                label="GPU Usage"
+                                                name="gpuUsageEnabled"
+                                                options={enableDisableOptions}
+                                                type="text"
+                                            />
+                                        )}
                                         {llmEnabledInOrg && (
                                             <FormikControl
                                                 control="select"
                                                 label="Large Language Model (LLM)"
                                                 name="llmEnabled"
-                                                options={enableLLMOptions}
+                                                options={enableDisableOptions}
                                                 type="text"
                                             />
                                         )}

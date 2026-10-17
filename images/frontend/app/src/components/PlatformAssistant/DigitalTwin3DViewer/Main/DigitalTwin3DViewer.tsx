@@ -101,7 +101,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
     const legendRenderer = useLegendRenderer();
     const { connectionStatus, natsClient } = useNatsConnection();
     const openDashboardTab = useOpenWindowTab();
-    const { imageUrl, handleImageUrlChange } = useImageFrame();
+    const { frameStore, handleImageUrlChange } = useImageFrame();
 
     const {
         canvasContainerRef,
@@ -779,7 +779,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
                     </ReactFlowProvider>
                 )}
 
-                {assetWithCameraSelected && state.activeViewer === "image_frame" && <ImageFrame imageUrl={imageUrl} />}
+                {assetWithCameraSelected && state.activeViewer === "image_frame" && <ImageFrame frameStore={frameStore} />}
 
                 {/* FEM Simulation Legend */}
                 {state.activeViewer === "3D" &&

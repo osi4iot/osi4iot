@@ -50,11 +50,11 @@ import { CodeMirrorWrapper } from "../../Tools/CodeMirrorWrapper";
 import { ControlsContainer, DraggableFormContainer, FieldErrorScroller } from "../../Tools/FormTools";
 import { ReIndentCommand } from "../DigitalTwin3DViewer/Pipeline/types";
 
-const DataFileTitle = styled.div`
+const Title = styled.div`
     margin-bottom: 5px;
 `;
 
-const DataFileContainer = styled.div`
+const Container = styled.div`
     border: 2px solid #2c3235;
     border-radius: 10px;
     padding: 10px;
@@ -62,32 +62,35 @@ const DataFileContainer = styled.div`
     margin-bottom: 20px;
 `;
 
-const ChatAssistantTitle = styled.div`
-    margin-bottom: 5px;
-`;
-
-const ChatAssistantContainer = styled.div`
-    border: 2px solid #2c3235;
-    border-radius: 10px;
-    padding: 10px;
-    width: 100%;
-    margin-bottom: 20px;
-`;
+const pipelineRequiresGpuOptions = [
+    {
+        label: "Required",
+        value: true,
+    },
+    {
+        label: "Not Required",
+        value: false,
+    },
+];
 
 const SelectDataFilenButtonContainer = styled.div`
     display: flex;
-    margin-bottom: 10px;
     flex-direction: row;
     justify-content: center;
     align-items: center;
-    background-color: #202226;
+    gap: 20px;
     width: 100%;
+    margin: 10px 0 25px 0;
+    padding: 10px 10px 18px 10px;
+    background-color: #202226;
+    border-radius: 8px;
+    box-sizing: border-box;
 `;
 
 const FileButton = styled.button`
     background-color: #3274d9;
     padding: 5px 10px;
-    margin: 5px 10px;
+    margin: 0; /* la separación entre botones la da el gap */
     color: white;
     border: 1px solid #2c3235;
     border-radius: 10px;
@@ -132,6 +135,13 @@ const FieldContainer = styled.div`
         color: white;
         width: 100%;
     }
+`;
+
+const SubSection = styled.div`
+    width: 100%;
+    margin-top: 10px;
+    padding-top: 15px;
+    border-top: 1px solid #2c3235;
 `;
 
 const selectFile = (openFileSelector: () => void, clear: () => void) => {
@@ -302,6 +312,7 @@ interface IFormikValues {
     maxNumResFemFiles: string;
     chatAssistantEnabled: boolean;
     chatAssistantLanguage: string;
+    pipelineRequiresGpu: boolean;
     digitalTwinSimulationFormat: string;
 }
 
@@ -398,6 +409,8 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
     const [isChatAssistantEnabled, setIsChatAssistantEnabled] = useState(false);
     const [orgLlmEnabled, setOrgLlmEnabled] = useState(false);
     const [groupLlmEnabled, setGroupLlmEnabled] = useState(false);
+    const [gpuUsageEnabledInOrg, setGpuUsageEnabledInOrg] = useState(false);
+    const [gpuUsageEnabledInGroup, setGpuUsageEnabledInGroup] = useState(false);
 
     useEffect(() => {
         const orgArray = orgsOfGroupManaged.map((org) => org.acronym);
@@ -417,8 +430,10 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
         setAssetDescription(assetDescription);
         const org = orgsOfGroupManaged.filter((o) => o.acronym === orgAcronym)[0];
         setOrgLlmEnabled(org.llmEnabled);
+        setGpuUsageEnabledInOrg(org.gpuUsageEnabled);
         const group = groupsManaged.filter((g) => g.acronym === groupAcronym)[0];
         setGroupLlmEnabled(group.llmEnabled);
+        setGpuUsageEnabledInGroup(group.gpuUsageEnabled);
     }, [assets, groupsManaged, initAsset.assetUid, initGroup.acronym, initOrg.acronym, orgsOfGroupManaged]);
 
     const handleChangeOrg = (e: { value: string }, formik: FormikType) => {
@@ -436,6 +451,7 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
         setAssetDescription(assetDescription);
         const org = orgsOfGroupManaged.filter((o) => o.acronym === orgAcronym)[0];
         setOrgLlmEnabled(org.llmEnabled);
+        setGpuUsageEnabledInOrg(org.gpuUsageEnabled);
     };
 
     const handleChangeGroup = (e: { value: string }, formik: FormikType) => {
@@ -449,6 +465,7 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
         setAssetDescription(assetDescription);
         const group = groupsManaged.filter((g) => g.acronym === groupAcronym)[0];
         setGroupLlmEnabled(group.llmEnabled);
+        setGpuUsageEnabledInGroup(group.gpuUsageEnabled);
     };
 
     const handleChangeAsset = (e: { value: string }, formik: FormikType) => {
@@ -878,6 +895,7 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
         digitalTwinUid,
         maxNumResFemFiles: "1",
         chatAssistantEnabled: false,
+        pipelineRequiresGpu: false,
         chatAssistantLanguage: "en-UK-male",
         digitalTwinSimulationFormat: "{}",
     };
@@ -927,8 +945,8 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
                                         type="text"
                                     />
                                     <FormikControl control="input" label="Description" name="description" type="text" />
-                                    <DataFileTitle>Pipeline</DataFileTitle>
-                                    <DataFileContainer>
+                                    <Title>Pipeline</Title>
+                                    <Container>
                                         <FieldContainer>
                                             <label>File name</label>
                                             <div>{pipelineFileName}</div>
@@ -945,7 +963,18 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
                                                 Select local file
                                             </FileButton>
                                         </SelectDataFilenButtonContainer>
-                                    </DataFileContainer>
+                                        {gpuUsageEnabledInOrg && gpuUsageEnabledInGroup && (
+                                            <SubSection>
+                                                <FormikControl
+                                                    control="select"
+                                                    label="Pipeline requires GPU"
+                                                    name="pipelineRequiresGpu"
+                                                    options={pipelineRequiresGpuOptions}
+                                                    type="text"
+                                                />
+                                            </SubSection>
+                                        )}
+                                    </Container>
                                     <FormikControl
                                         control="select"
                                         label="Type"
@@ -956,8 +985,8 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
                                     />
                                     {(digitalTwinType === "Gltf 3D model" || digitalTwinType === "Glb 3D model") && (
                                         <>
-                                            <DataFileTitle>Gltf data file</DataFileTitle>
-                                            <DataFileContainer>
+                                            <Title>Gltf data file</Title>
+                                            <Container>
                                                 <FieldContainer>
                                                     <label>File name</label>
                                                     <div>{gltfFileName}</div>
@@ -977,9 +1006,9 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
                                                         Select local file
                                                     </FileButton>
                                                 </SelectDataFilenButtonContainer>
-                                            </DataFileContainer>
-                                            <DataFileTitle>FEM results file</DataFileTitle>
-                                            <DataFileContainer>
+                                            </Container>
+                                            <Title>FEM results file</Title>
+                                            <Container>
                                                 <FormikControl
                                                     control="input"
                                                     label="Max number of FEM result files stored"
@@ -1005,11 +1034,11 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
                                                         Select local file
                                                     </FileButton>
                                                 </SelectDataFilenButtonContainer>
-                                            </DataFileContainer>
+                                            </Container>
                                             {orgLlmEnabled && groupLlmEnabled && (
                                                 <>
-                                                    <DataFileTitle>Documental info</DataFileTitle>
-                                                    <DataFileContainer>
+                                                    <Title>Documental info</Title>
+                                                    <Container>
                                                         <FieldContainer>
                                                             <label>File name</label>
                                                             <div>{docInfoFileName}</div>
@@ -1029,9 +1058,9 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
                                                                 Select local file
                                                             </FileButton>
                                                         </SelectDataFilenButtonContainer>
-                                                    </DataFileContainer>
-                                                    <ChatAssistantTitle>Chat assistant</ChatAssistantTitle>
-                                                    <ChatAssistantContainer>
+                                                    </Container>
+                                                    <Title>Chat assistant</Title>
+                                                    <Container>
                                                         <FormikControl
                                                             control="select"
                                                             label="Use chat assistant"
@@ -1052,7 +1081,7 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
                                                                 }
                                                             />
                                                         )}
-                                                    </ChatAssistantContainer>
+                                                    </Container>
                                                 </>
                                             )}
                                             <CodeMirrorWrapper fontSize="14px">

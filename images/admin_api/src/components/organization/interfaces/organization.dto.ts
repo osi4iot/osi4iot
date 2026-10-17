@@ -37,6 +37,9 @@ class CreateOrganizationDto {
 	public hashedLlmProviderApiKey?: string;
 
 	@IsBoolean()
+	public gpuUsageEnabled: boolean;
+
+	@IsBoolean()
 	public telegramEnabled?: boolean;
 
 	@IsString()

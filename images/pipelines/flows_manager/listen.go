@@ -49,7 +49,14 @@ func (fm *FlowsManager) Listen(ctx context.Context) {
 			case "update":
 				org := fm.Admin.GetOrg(ctx, adminMsg.Id, encryptionSecretKey)
 				if org != nil {
+					gpuChanged := false
+					if current := fm.GetOrg(org.Id); current != nil {
+						gpuChanged = current.GpuUsageEnabled != org.GpuUsageEnabled
+					}
 					fm.UpdateOrg(ctx, org)
+					if gpuChanged {
+						fm.ApplyGpuPolicyChange(ctx, fm.GetDigitalTwinsInOrg(org.Id))
+					}
 				}
 			case "delete":
 				fm.DeleteOrg(ctx, adminMsg.Id)
@@ -67,7 +74,14 @@ func (fm *FlowsManager) Listen(ctx context.Context) {
 			case "update":
 				group := fm.Admin.GetGroup(ctx, adminMsg.Id)
 				if group != nil {
+					gpuChanged := false
+					if current := fm.GetGroup(group.Id); current != nil {
+						gpuChanged = current.GpuUsageEnabled != group.GpuUsageEnabled
+					}
 					fm.UpdateGroup(group)
+					if gpuChanged {
+						fm.ApplyGpuPolicyChange(ctx, fm.GetDigitalTwinsInGroup(group.Id))
+					}
 				}
 			case "delete":
 				fm.DeleteGroup(ctx, adminMsg.Id)
@@ -210,7 +224,14 @@ func (fm *FlowsManager) Listen(ctx context.Context) {
 				groupId := int(adminMsg.Context["groupId"].(float64))
 				digitalTwin := fm.Admin.GetDigitalTwin(ctx, groupId, adminMsg.Id)
 				if digitalTwin != nil {
+					requiresGpuChanged := false
+					if current := fm.GetDigitalTwin(digitalTwin.Id); current != nil {
+						requiresGpuChanged = current.PipelineRequiresGpu != digitalTwin.PipelineRequiresGpu
+					}
 					fm.UpdateDigitalTwin(digitalTwin)
+					if requiresGpuChanged {
+						fm.ReconcilePipelineRequiresGpu(ctx, digitalTwin.Id)
+					}
 				}
 			case "delete":
 				fm.DeleteDigitalTwin(ctx, adminMsg.Id)

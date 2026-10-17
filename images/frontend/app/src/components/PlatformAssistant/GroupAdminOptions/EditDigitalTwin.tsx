@@ -78,18 +78,22 @@ const ChatAssistantContainer = styled.div`
 
 const SelectDataFilenButtonContainer = styled.div`
     display: flex;
-    margin-bottom: 10px;
     flex-direction: row;
     justify-content: center;
     align-items: center;
-    background-color: #202226;
+    gap: 20px;
     width: 100%;
+    margin: 10px 0 25px 0;
+    padding: 10px 10px 18px 10px;
+    background-color: #202226;
+    border-radius: 8px;
+    box-sizing: border-box;
 `;
 
 const FileButton = styled.button`
     background-color: #3274d9;
     padding: 5px 10px;
-    margin: 5px 10px;
+    margin: 0; /* la separación entre botones la da el gap */
     color: white;
     border: 1px solid #2c3235;
     border-radius: 10px;
@@ -108,6 +112,13 @@ const FileButton = styled.button`
         box-shadow: 0 2px #173b70;
         transform: translateY(4px);
     }
+`;
+
+const SubSection = styled.div`
+    width: 100%;
+    margin-top: 10px;
+    padding-top: 15px;
+    border-top: 1px solid #2c3235;
 `;
 
 const selectFile = (openFileSelector: () => void, clear: () => void) => {
@@ -201,6 +212,17 @@ const chatAssistantLanguageOptions = [
     },
 ];
 
+const pipelineRequiresGpuOptions = [
+    {
+        label: "Required",
+        value: true,
+    },
+    {
+        label: "Not Required",
+        value: false,
+    },
+];
+
 interface EditDigitalTwinProps {
     digitalTwins: IDigitalTwin[];
     backToTable: () => void;
@@ -216,6 +238,7 @@ type FormikType = FormikProps<{
     digitalTwinSimulationFormat: string;
     restartPipeline: boolean;
     reinitializePipeline: boolean;
+    pipelineRequiresGpu: boolean;
 }>;
 
 const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, refreshDigitalTwins }) => {
@@ -715,6 +738,7 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
             isGltfFileModified,
             chatAssistantEnabled: values.chatAssistantEnabled,
             chatAssistantLanguage,
+            pipelineRequiresGpu: values.pipelineRequiresGpu,
             digitalTwinSimulationFormat: JSON.stringify(JSON.parse(values.digitalTwinSimulationFormat)),
             sensorsRef,
         };
@@ -757,6 +781,7 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
         ),
         restartPipeline: restartPipeline,
         reinitializePipeline: reinitializePipeline,
+        pipelineRequiresGpu: digitalTwins[digitalTwinRowIndex].pipelineRequiresGpu,
     };
 
     const validationSchema = Yup.object().shape({
@@ -907,22 +932,6 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
                                                     <label>Last modification date</label>
                                                     <div>{pipelineFileLastModifDateString}</div>
                                                 </FieldContainer>
-                                                <FormikControl
-                                                    control="select"
-                                                    label="Need reinitialization"
-                                                    name="reinitializePipeline"
-                                                    options={reinitializePipelineOptions}
-                                                    type="text"
-                                                    onChange={(e) => onReinitializePipelineSelectChange(e, formik)}
-                                                />
-                                                <FormikControl
-                                                    control="select"
-                                                    label="Restart pipeline"
-                                                    name="restartPipeline"
-                                                    options={restartPipelineOptions}
-                                                    type="text"
-                                                    onChange={(e) => onRestartPipelineSelectChange(e, formik)}
-                                                />
                                                 <SelectDataFilenButtonContainer>
                                                     <FileButton type="button" onClick={clearPipelineFile}>
                                                         Clear
@@ -934,6 +943,33 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
                                                         Select local file
                                                     </FileButton>
                                                 </SelectDataFilenButtonContainer>
+                                                <SubSection>
+                                                    <FormikControl
+                                                        control="select"
+                                                        label="Need reinitialization"
+                                                        name="reinitializePipeline"
+                                                        options={reinitializePipelineOptions}
+                                                        type="text"
+                                                        onChange={(e) => onReinitializePipelineSelectChange(e, formik)}
+                                                    />
+                                                    <FormikControl
+                                                        control="select"
+                                                        label="Restart pipeline"
+                                                        name="restartPipeline"
+                                                        options={restartPipelineOptions}
+                                                        type="text"
+                                                        onChange={(e) => onRestartPipelineSelectChange(e, formik)}
+                                                    />
+                                                    {organization.gpuUsageEnabled && group.gpuUsageEnabled && (
+                                                        <FormikControl
+                                                            control="select"
+                                                            label="Pipeline requires GPU"
+                                                            name="pipelineRequiresGpu"
+                                                            options={pipelineRequiresGpuOptions}
+                                                            type="text"
+                                                        />
+                                                    )}
+                                                </SubSection>
                                             </DataFileContainer>
                                             <FormikControl
                                                 control="select"
@@ -1099,7 +1135,8 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
                                         <FormButtonsProps
                                             onCancel={onCancel}
                                             isValid={
-                                                formik.isValid && (isGlftDataReady || formik.values.type === "Grafana dashboard")
+                                                formik.isValid &&
+                                                (isGlftDataReady || formik.values.type === "Grafana dashboard")
                                             }
                                             isSubmitting={formik.isSubmitting}
                                         />

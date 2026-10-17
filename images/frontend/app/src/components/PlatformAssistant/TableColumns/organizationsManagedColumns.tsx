@@ -128,6 +128,7 @@ export interface IOrgManaged {
     mqttAccessControl: string;
     llmEnabled: boolean;
     llmProviderUrl: string;
+    gpuUsageEnabled: boolean;
 }
 
 interface IOrgManagedColumn extends IOrgManaged {

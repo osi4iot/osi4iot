@@ -306,6 +306,20 @@ func (b *ServiceBuilder) WithPlacement(constraints []string) *ServiceBuilder {
 	return b
 }
 
+// WithPlacementPreferences adds spread preferences: Swarm then balances
+// the tasks across the values of each descriptor (e.g. "node.labels.gpu"),
+// nodes without the label counting as one more group.
+func (b *ServiceBuilder) WithPlacementPreferences(spreadDescriptors []string) *ServiceBuilder {
+	for _, descriptor := range spreadDescriptors {
+		if descriptor == "" {
+			continue
+		}
+		b.svc.TaskTemplate.Placement.Preferences = append(b.svc.TaskTemplate.Placement.Preferences,
+			swarm.PlacementPreference{Spread: &swarm.SpreadOver{SpreadDescriptor: descriptor}})
+	}
+	return b
+}
+
 // WithUpdateConfig sets the service update configuration.
 func (b *ServiceBuilder) WithUpdateConfig(updateConfig *swarm.UpdateConfig) *ServiceBuilder {
 	b.svc.UpdateConfig = updateConfig
@@ -473,6 +487,9 @@ func GenerateServices(pd *pt.PlatformData, sd pt.SwarmData) map[string]pt.Servic
 	}
 
 	services["system_manager"] = SystemManagerService(pd, sd, svcResourcesMap["system_manager"])
+
+	// GPU nodes are kept for pipelines (see gpu_placement.go).
+	applyGpuAvoidance(services, pd)
 
 	filteredServices := map[string]pt.Service{}
 	for name, svc := range services {

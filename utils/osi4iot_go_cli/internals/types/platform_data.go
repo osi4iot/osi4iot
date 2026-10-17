@@ -80,6 +80,17 @@ type PlatformInfo struct {
 	DefaultNumOfNatsReplicas int    `json:"DEFAULT_NUMBER_OF_NATS_REPLICAS"`
 	NATSBackupS3Prefix       string `json:"NATS_BACKUP_S3_PREFIX"`
 
+	// PipelinesGPUMode decides how the pipelines service uses the GPU
+	// nodes (those with the gpu=nvidia label). 'osi4iot init' writes it
+	// ("auto" by default) and 'osi4iot service gpu_mode' changes it. A
+	// state file without it (older platforms) means "auto".
+	//   "" or "auto" – GPU image everywhere; replicas on GPU nodes run
+	//                  the ONNX models on CUDA, the rest fall back to CPU.
+	//   "gpu_only"   – as auto, and the replicas are constrained to GPU
+	//                  nodes, so every inference runs on a GPU.
+	//   "off"        – CPU image and CPU inference, GPUs ignored.
+	PipelinesGPUMode string `json:"PIPELINES_GPU_MODE,omitempty"`
+
 	// Patroni cluster sizes — must be odd (1, 3 or 5) for Raft quorum.
 	// Set to 1 automatically for local deployments; default 3 for clusters.
 	NumPatroniAdminNodes     int    `json:"NUM_PATRONI_ADMIN_NODES"`
@@ -341,6 +352,10 @@ type NodeData struct {
 	NodeArch        string `json:"nodeArch"`
 	NodeNanoCPUs    int64  `json:"nodeNanoCPUs"`
 	NodeMemoryBytes int64  `json:"nodeMemory"`
+	// NodeGPU is the GPU vendor Swarm tasks can use on this node
+	// ("nvidia"), or "" when none. Detected on every init/run from the
+	// daemon's default runtime; see docker/gpu_nodes.go.
+	NodeGPU string `json:"nodeGPU,omitempty"`
 }
 
 type ServiceData struct {

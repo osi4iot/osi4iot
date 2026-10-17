@@ -426,6 +426,7 @@ class OrganizationController implements IController {
 					featureIndex: 1,
 					mqttAccessControl: "Pub & Sub",
 					llmEnabled: false,
+					gpuUsageEnabled: false,
 				};
 				const adminIdArray = await addAdminToOrganization(orgId, organizationData.orgAdminArray);
 				defaultOrgGroup.groupAdminDataArray.forEach((admin, index) => (admin.userId = adminIdArray[index]));

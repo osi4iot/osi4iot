@@ -23,6 +23,7 @@ export const initialState = {
         featureIndex: 1,
         mqttAccessControl: "Pub & Sub",
         llmEnabled: false,
+        gpuUsageEnabled: false,
         groupAdminDataArray: [
             {
                 firstName: "",

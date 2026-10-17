@@ -14,6 +14,8 @@ import (
 	"github.com/osi4iot/osi4iot/utils/osi4iot/internals/crypto"
 	"github.com/osi4iot/osi4iot/utils/osi4iot/internals/data"
 	"github.com/osi4iot/osi4iot/utils/osi4iot/internals/docker"
+	"github.com/osi4iot/osi4iot/utils/osi4iot/internals/resources"
+	"github.com/osi4iot/osi4iot/utils/osi4iot/internals/services"
 	pt "github.com/osi4iot/osi4iot/utils/osi4iot/internals/types"
 	"github.com/osi4iot/osi4iot/utils/osi4iot/internals/utils"
 	"github.com/osi4iot/osi4iot/utils/osi4iot/ui/form"
@@ -170,6 +172,17 @@ var cmdInit = &cobra.Command{
 		// up. Both restoring modes hold admin_api, grafana and
 		// pipelines back, because they read the database once at
 		// startup and the database is about to be replaced.
+		// Defaults of missing settings are filled in when the state file
+		// is read (applyPlatformInfoDefaults), so init writes them all,
+		// PIPELINES_GPU_MODE included. A hand-edited value that is not a
+		// mode is left there by design; init refuses it here instead of
+		// deploying something other than what the file seems to say.
+		gpuMode, err := pt.NormalizePipelinesGPUMode(pd.PlatformInfo.PipelinesGPUMode)
+		if err != nil {
+			exitWithError(fmt.Sprintf("Error in PIPELINES_GPU_MODE of the state file: %v", err))
+		}
+		pd.PlatformInfo.PipelinesGPUMode = gpuMode
+
 		var deferred []string
 		if snapshotPath != "" || fromBucket != "" {
 			deferred = docker.DeferredUntilRestored
@@ -608,6 +621,67 @@ var subCmdServiceUpdateImage = &cobra.Command{
 	},
 }
 
+var subCmdServiceGPUMode = &cobra.Command{
+	Use:   "gpu_mode [auto|gpu_only|off]",
+	Short: "Show or set how pipelines uses the GPU nodes",
+	Long: `Show or set how the pipelines service uses the nodes with a GPU
+(those whose Docker daemon has nvidia as default runtime; they carry the
+gpu=nvidia label).
+
+  auto      GPU image on every replica. Replicas that land on a GPU node run
+            the ONNX models on CUDA, the others on CPU; digital twins with
+            pipelineRequiresGpu only run on the replicas with a GPU. The
+            replicas are spread over GPU and non-GPU nodes. For clusters
+            that mix both. This is the default.
+  gpu_only  As auto, but every replica is placed on a GPU node, so every
+            pipeline can use the GPU. Needs at least one GPU node.
+  off       CPU image and CPU inference everywhere; GPUs are ignored.
+
+Organizations and groups must still have gpuUsageEnabled for their models
+to use the GPU.
+
+Without an argument it shows the current mode. With the platform running
+the pipelines service is updated at once (rolling update); with it stopped
+the mode is stored and used by the next 'osi4iot run'.
+
+Examples:
+  osi4iot service gpu_mode
+  osi4iot service gpu_mode gpu_only
+`,
+	Args:      cobra.MaximumNArgs(1),
+	ValidArgs: pt.PipelinesGPUModes,
+	Run: func(cmd *cobra.Command, args []string) {
+		pd := data.GetData()
+
+		if len(args) == 0 {
+			spec := services.PipelinesGPUSpecFor(pd, resources.GetNodeRoleNumMap(pd))
+			fmt.Printf("Pipelines GPU mode: %s\n", spec.Mode)
+			fmt.Printf("GPU nodes available to pipelines: %d\n", spec.GPUNodes)
+			fmt.Printf("Image: %s\n", spec.Image)
+			if spec.Mode != pt.PipelinesGPUOff && spec.GPUNodes == 0 {
+				fmt.Println(utils.StyleWarningMsg.Render("No GPU node detected: pipelines runs on CPU."))
+			}
+			return
+		}
+
+		dc, _ := docker.GetManagerDC() // nil with the platform stopped: only the state is updated
+		res, err := docker.SetPipelinesGPUMode(pd, dc, args[0])
+		if err != nil {
+			exitWithError(fmt.Sprintf("Error setting the pipelines GPU mode: %v", err))
+		}
+
+		if res.Warnings != "" {
+			fmt.Println(utils.StyleWarningMsg.Render("Warnings:\n" + res.Warnings))
+		}
+		fmt.Println()
+		msg := fmt.Sprintf("Pipelines GPU mode set to '%s' (image %s)", res.Spec.Mode, res.Spec.Image)
+		if !res.Applied {
+			msg += "; it will be used the next time the platform runs"
+		}
+		fmt.Println(utils.StyleOKMsg.Render(msg))
+	},
+}
+
 var subCmdCertsCheck = &cobra.Command{
 	Use:   "check",
 	Short: "Check certificates expiration",
@@ -952,6 +1026,7 @@ func init() {
 		"also write and read test data in each service (see the help)")
 	cmdService.AddCommand(subCmdServiceUpdateResources)
 	cmdService.AddCommand(subCmdServiceUpdateImage)
+	cmdService.AddCommand(subCmdServiceGPUMode)
 	rootCmd.AddCommand(cmdService)
 
 	cmdCerts.AddCommand(subCmdCertsCheck)

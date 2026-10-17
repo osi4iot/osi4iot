@@ -1,12 +1,12 @@
 # => Build container
-FROM node:lts-alpine AS builder
+# => Build container
+FROM node:24-alpine AS builder
+RUN npm install -g pnpm@12.11.2
 WORKDIR /app
-COPY ./app/package.json .
-COPY ./app/yarn.lock .
-COPY ./app/scripts ./scripts
-RUN yarn --network-timeout 600000
+COPY ./app/package.json ./app/pnpm-lock.yaml ./app/pnpm-workspace.yaml ./
+RUN pnpm install --frozen-lockfile
 COPY ./app/. .
-RUN yarn build
+RUN pnpm build
 
 # => Run container
 FROM nginx:1.25.3

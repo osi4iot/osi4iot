@@ -136,6 +136,11 @@ func addNodesLabels(pd *types.PlatformData) error {
 			return fmt.Errorf("error saving the Garage instances: %w", err)
 		}
 	}
+	// Which nodes can lend their GPU to Swarm tasks. Written into
+	// NodesData before pi is re-read, so the label loop below and the
+	// pipelines service spec see the same answer.
+	detectNodeGPUs(pd)
+
 	pi = pd.PlatformInfo
 	garageLabels := map[string][]string{}
 	for _, inst := range pi.GarageInstances {
@@ -208,6 +213,12 @@ func addNodesLabels(pd *types.PlatformData) error {
 			}
 		}
 		delete(spec.Labels, "platform_worker")
+
+		// GPU, on any role: a manager-only cluster can have GPUs too.
+		delete(spec.Labels, GPULabel)
+		if node.NodeGPU != "" {
+			spec.Labels[GPULabel] = node.NodeGPU
+		}
 
 		// Garage instances, on whatever role their node has (managers on
 		// a platform without workers) and in every deployment: an

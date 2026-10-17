@@ -54,6 +54,7 @@ export const insertDigitalTwin = async (digitalTwinData: Partial<IDigitalTwin>):
 		pipeline_file_name AS "pipelineFileName",
 		pipeline_file_last_modif_date AS "pipelineFileLastModifDate",
 		pipeline_file_data AS "pipelineFileData",
+		pipeline_requires_gpu AS "pipelineRequiresGpu",
 		created, updated`;
 
 	const result = await pool.query(queryString, [
@@ -85,6 +86,7 @@ export const getAllDigitalTwins = async (): Promise<IDigitalTwin[]> => {
 		grafanadb.digital_twin.pipeline_file_name AS "pipelineFileName",
 		grafanadb.digital_twin.pipeline_file_last_modif_date AS "pipelineFileLastModifDate",
 		grafanadb.digital_twin.pipeline_file_data AS "pipelineFileData",
+		grafanadb.digital_twin.pipeline_requires_gpu AS "pipelineRequiresGpu",
 		grafanadb.digital_twin.created, grafanadb.digital_twin.updated
 		FROM grafanadb.digital_twin
 		INNER JOIN grafanadb.group ON grafanadb.digital_twin.group_id = grafanadb.group.id
@@ -132,6 +134,7 @@ export const getDigitalTwinsByOrgId = async (orgId: number): Promise<IDigitalTwi
 		grafanadb.digital_twin.pipeline_file_name AS "pipelineFileName",
 		grafanadb.digital_twin.pipeline_file_last_modif_date AS "pipelineFileLastModifDate",
 		grafanadb.digital_twin.pipeline_file_data AS "pipelineFileData",
+		grafanadb.digital_twin.pipeline_requires_gpu AS "pipelineRequiresGpu",
 		grafanadb.digital_twin.created, grafanadb.digital_twin.updated
 		FROM grafanadb.digital_twin
 		INNER JOIN grafanadb.group ON grafanadb.digital_twin.group_id = grafanadb.group.id
@@ -159,6 +162,7 @@ export const getDigitalTwinsByGroupId = async (groupId: number): Promise<IDigita
 		grafanadb.digital_twin.pipeline_file_name AS "pipelineFileName",
 		grafanadb.digital_twin.pipeline_file_last_modif_date AS "pipelineFileLastModifDate",
 		grafanadb.digital_twin.pipeline_file_data AS "pipelineFileData",
+		grafanadb.digital_twin.pipeline_requires_gpu AS "pipelineRequiresGpu",
 		grafanadb.digital_twin.created, grafanadb.digital_twin.updated
 		FROM grafanadb.digital_twin
 		INNER JOIN grafanadb.group ON grafanadb.digital_twin.group_id = grafanadb.group.id
@@ -186,6 +190,7 @@ export const getDigitalTwinsByGroupsIdArray = async (groupsIdArray: number[]): P
 		grafanadb.digital_twin.pipeline_file_name AS "pipelineFileName",
 		grafanadb.digital_twin.pipeline_file_last_modif_date AS "pipelineFileLastModifDate",
 		grafanadb.digital_twin.pipeline_file_data AS "pipelineFileData",
+		grafanadb.digital_twin.pipeline_requires_gpu AS "pipelineRequiresGpu",
 		grafanadb.digital_twin.created, grafanadb.digital_twin.updated
 		FROM grafanadb.digital_twin
 		INNER JOIN grafanadb.group ON grafanadb.digital_twin.group_id = grafanadb.group.id
@@ -215,6 +220,7 @@ export const getDigitalTwinByProp = async (propName: string, propValue: string |
 		grafanadb.digital_twin.pipeline_file_name AS "pipelineFileName",
 		grafanadb.digital_twin.pipeline_file_last_modif_date AS "pipelineFileLastModifDate",
 		grafanadb.digital_twin.pipeline_file_data AS "pipelineFileData",
+		grafanadb.digital_twin.pipeline_requires_gpu AS "pipelineRequiresGpu",
 		grafanadb.digital_twin.created, grafanadb.digital_twin.updated
 		FROM grafanadb.digital_twin
 		INNER JOIN grafanadb.group ON grafanadb.digital_twin.group_id = grafanadb.group.id
@@ -243,9 +249,10 @@ export const updateDigitalTwinById = async (
 	                description = $2, type = $3, max_num_resfem_files = $4,
 					chat_assistant_enabled = $5,
 					chat_assistant_language = $6,
-					digital_twin_simulation_format = $7,
+					pipeline_requires_gpu = $7,
+					digital_twin_simulation_format = $8,
 					updated = NOW()
-					WHERE grafanadb.digital_twin.id = $8;`;
+					WHERE grafanadb.digital_twin.id = $9;`;
 	await pool.query(query, [
 		digitalTwinData.digitalTwinUid,
 		digitalTwinData.description,
@@ -253,6 +260,7 @@ export const updateDigitalTwinById = async (
 		digitalTwinData.maxNumResFemFiles,
 		digitalTwinData.chatAssistantEnabled,
 		digitalTwinData.chatAssistantLanguage,
+		digitalTwinData.pipelineRequiresGpu,
 		digitalTwinData.digitalTwinSimulationFormat,
 		digitalTwinId,
 	]);

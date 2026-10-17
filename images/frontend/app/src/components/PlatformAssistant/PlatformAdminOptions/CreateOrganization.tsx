@@ -298,6 +298,10 @@ const CreateOrganization: FC<CreateOrganizationProps> = ({
         formik.setFieldValue("llmEnabled", e.value);
     };
 
+    const onEnableGpuUsageChange = (e: { value: boolean }, formik: any) => {
+        formik.setFieldValue("gpuUsageEnabled", e.value);
+    };
+
     const onEnableTelegramChange = (e: { value: boolean }, formik: any) => {
         setTelegramEnabled(e.value);
         formik.setFieldValue("telegramEnabled", e.value);
@@ -335,6 +339,14 @@ const CreateOrganization: FC<CreateOrganizationProps> = ({
                                             name="mqttAccessControl"
                                             options={mqttAccessControlOptions}
                                             type="text"
+                                        />
+                                        <FormikControl
+                                            control="select"
+                                            label="Enable GPU usage"
+                                            name="gpuUsageEnabled"
+                                            options={enableDisableOptions}
+                                            type="text"
+                                            onChange={(e) => onEnableGpuUsageChange(e, formik)}
                                         />
                                         <Title>Telegram bot</Title>
                                         <DataContainer>

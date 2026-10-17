@@ -26,7 +26,7 @@ interface ConnectionLedProps {
 }
 
 const ConnectionLed = styled.span<ConnectionLedProps>`
-    background-color: ${(props) => (props.isNatsConnected ? "#62f700" : "#f80000")};
+    background-color: ${(props: { isNatsConnected: any; }) => (props.isNatsConnected ? "#62f700" : "#f80000")};
     width: 17px;
     height: 17px;
     margin: -2px 10px;
@@ -155,7 +155,7 @@ const MobileVideoForm: FC<MobileVideoFormProps> = ({
             intervalRef.current = null;
         }
         if (streamRef.current) {
-            streamRef.current.getTracks().forEach((track) => track.stop());
+            streamRef.current.getTracks().forEach((track: { stop: () => any; }) => track.stop());
             streamRef.current = null;
         }
         if (videoRef.current) {
@@ -205,32 +205,41 @@ const MobileVideoForm: FC<MobileVideoFormProps> = ({
 
         setIsStreaming(true);
 
-        intervalRef.current = setInterval(async () => {
-            const video = videoRef.current;
-            if (!video || video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA) return;
+        let busy = false;
+        let seq = 0;
+        const ctx = offscreenCanvas.getContext("2d");
 
-            // Draw current video frame onto offscreen canvas
+        intervalRef.current = setInterval(() => {
+            const video = videoRef.current;
+            if (busy || !ctx || !video || video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA) return;
+
             const w = video.videoWidth;
             const h = video.videoHeight;
             if (w === 0 || h === 0) return;
 
-            offscreenCanvas.width = w;
-            offscreenCanvas.height = h;
-            const ctx = offscreenCanvas.getContext("2d");
-            if (!ctx) return;
+            if (offscreenCanvas.width !== w || offscreenCanvas.height !== h) {
+                offscreenCanvas.width = w;
+                offscreenCanvas.height = h;
+            }
             ctx.drawImage(video, 0, 0, w, h);
 
-            // Encode as JPEG blob and publish as binary NATS message
+            busy = true;
+            const capturedAt = Date.now();
             offscreenCanvas.toBlob(
                 async (blob) => {
-                    if (!blob || !natsClient) return;
-                    const arrayBuffer = await blob.arrayBuffer();
-                    const imageBytes = new Uint8Array(arrayBuffer);
+                    try {
+                        if (!blob || !natsClient) return;
+                        const imageBytes = new Uint8Array(await blob.arrayBuffer());
 
-                    const h = headers();
-                    h.set("Content-Type", "image/jpeg");
+                        const hdrs = headers();
+                        hdrs.set("Content-Type", "image/jpeg");
+                        hdrs.set("X-Frame-Seq", String(seq++));
+                        hdrs.set("X-Capture-Ts", String(capturedAt));
 
-                    natsClient.publish(natsSubject, imageBytes, { headers: h });
+                        natsClient.publish(natsSubject, imageBytes, { headers: hdrs });
+                    } finally {
+                        busy = false;
+                    }
                 },
                 "image/jpeg",
                 jpegQuality,
@@ -245,7 +254,7 @@ const MobileVideoForm: FC<MobileVideoFormProps> = ({
             </Title>
             <FormContainer>
                 <Formik initialValues={initialValues} validationSchema={validationSchema} onSubmit={handleSubmit}>
-                    {(formik) => (
+                    {(formik: { isValid: any; }) => (
                         // @ts-ignore
                         <Form>
                             <ControlsContainer>

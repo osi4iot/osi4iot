@@ -49,6 +49,9 @@ var PlatformLabelPrefixes = []string{
 	// volumes (see utils/garage_cluster.go). Removing one by hand would
 	// leave the instance with nowhere to run.
 	"garage_",
+	// gpu=nvidia is detected from each daemon's default runtime on every
+	// init/run (see gpu_nodes.go); set by hand it would be overwritten.
+	GPULabel,
 }
 
 // NodeView is one machine, as both Docker and the state file see it.

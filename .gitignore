@@ -37,6 +37,7 @@ images/frontend/static/register/public/env-config.js
 images/frontend/app/.env
 images/frontend/app/node_modules
 images/frontend/app/build
+images/frontend/app/dist
 images/frontend/app/public/env-config.js
 images/frontend/app_r18/.env
 images/frontend/app_r18/node_modules
@@ -62,6 +63,7 @@ images/org_flows/config.yml
 images/sensor_demo/nodejs/temp_monitoring/certs
 images/sensor_demo/nodejs/temp_monitoring/node_modules
 images/sensor_demo/nodejs/temp_monitoring/.env
+images/pipelines/onnx_libs
 images/pipelines/config.yml
 images/pipelines/flow_data.yml
 images/pipelines/mcp_servers/current_date/current_date
@@ -71,6 +73,7 @@ images/pipelines/mcp_servers/mcp_calculate_server/uv.lock
 images/pipelines/mcp_servers/chroma/
 images/pipelines/mcp_servers/fem_results/fem_results
 images/pipelines/mcp_servers/data/
+images/pipelines/assets/onnx_runtime_linux_amd64_gpu/
 utils/osi4iot_cli/node_modules
 utils/osi4iot_cli/osi4iot_state_old.json
 utils/osi4iot_cli/osi4iot_state.json

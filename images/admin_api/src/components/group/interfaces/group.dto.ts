@@ -37,6 +37,9 @@ class CreateGroupDto {
 	@IsBoolean()
 	public llmEnabled: boolean;
 
+	@IsBoolean()
+	public gpuUsageEnabled: boolean;
+
 	@ValidateNested({ each: true })
 	@Type(() => CreateGroupAdminDto)
 	public groupAdminDataArray: CreateGroupAdminDto[];

@@ -1,28 +1,31 @@
-## this is the stage one , also know as the build step
-
-FROM node:lts-alpine
-RUN mkdir -p /app/node_modules && chown -R node:node /app
+# ---------- Stage 1: build ----------
+FROM node:24-alpine AS build
+RUN npm install -g pnpm@12.11.2
 WORKDIR /app
-COPY package*.json yarn.lock ./
-RUN yarn install
-RUN cat node_modules/typescript/package.json | grep '"version"'
+
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+RUN pnpm install --frozen-lockfile
+
 COPY . .
-RUN ./node_modules/.bin/tsc
+RUN pnpm build \
+ && pnpm prune --prod
 
-## this is stage two , where the app actually runs
-FROM node:lts-alpine
-RUN mkdir -p /app/node_modules && chown -R node:node /app
-RUN mkdir -p /app/logs && chown node:node /app/logs
-WORKDIR /app
-COPY package*.json yarn.lock ./
+# ---------- Stage 2: execution ----------
+FROM node:24-alpine
+ENV NODE_ENV=production
 
 RUN apk add --no-cache tzdata curl ca-certificates \
  && update-ca-certificates
 
-RUN yarn install --production
+WORKDIR /app
+RUN mkdir -p /app/logs && chown node:node /app/logs
+
+COPY --from=build /app/package.json ./
+COPY --from=build /app/node_modules ./node_modules
+COPY --from=build /app/build ./build
+
 USER node
-COPY --from=0 /app/build ./build
-CMD ["yarn", "start"]
+EXPOSE 3200
 HEALTHCHECK --interval=10s --timeout=5s --start-period=30s --retries=10 \
   CMD curl --fail --insecure http://localhost:3200/health || exit 1
-EXPOSE 3200
+CMD ["node", "build/index.js"]

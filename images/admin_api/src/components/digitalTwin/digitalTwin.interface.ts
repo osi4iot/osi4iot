@@ -17,6 +17,7 @@ export default interface IDigitalTwin {
 	pipelineFileName: string;
 	pipelineFileLastModifDate: string;
 	pipelineFileData: string;
+	pipelineRequiresGpu: boolean;
 	created?: string;
 	updated?: string;
 }

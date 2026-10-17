@@ -34,6 +34,9 @@ class UpdateOrganizationDto {
 	public llmProviderApiKey: string;
 
 	@IsBoolean()
+	public gpuUsageEnabled: boolean;
+
+	@IsBoolean()
 	public telegramEnabled: boolean;
 
 	@IsBoolean()

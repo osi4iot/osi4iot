@@ -8,5 +8,8 @@
         "url": "http://localhost:3000",
         "webRoot": "${workspaceFolder}/images/frontend/app/src"
       }
-    ]
+    ],
+    "env": { 
+      "LD_LIBRARY_PATH": "/home/daniel/nvidia-libs/nvidia/cuda_runtime/lib:/home/daniel/nvidia-libs/nvidia/cublas/lib:/home/daniel/nvidia-libs/nvidia/cufft/lib:/home/daniel/nvidia-libs/nvidia/curand/lib:/home/daniel/nvidia-libs/nvidia/cudnn/lib:/home/daniel/.wasmedge/lib" 
+    }
   }

@@ -388,7 +388,7 @@ export const useChatMessages = (
     const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
 
     const handleUpdateChatAssistantMessages = useCallback((newLlmMessage: any) => {
-        setChatMessages((prevMessages) => {
+        setChatMessages((prevMessages: any) => {
             const newMessages = [...prevMessages];
             const newMessage = {
                 userName: "Assistant",
@@ -536,14 +536,14 @@ export const usePipelineLogs = (setChatMessages: React.Dispatch<React.SetStateAc
 
     const handleUpdateLogMessages = useCallback(
         (newLogMessage: PipelineLog) => {
-            setLogMessages((prevMessages) => {
+            setLogMessages((prevMessages: any) => {
                 const newMessages = [...prevMessages];
                 newMessages.push(newLogMessage);
                 return newMessages;
             });
 
             if (newLogMessage.description === "MCP Host error") {
-                setChatMessages((prevMessages) => {
+                setChatMessages((prevMessages: any) => {
                     const newChatMessages = [...prevMessages];
                     const newMessage = {
                         userName: "Assistant",
@@ -912,40 +912,62 @@ export const useFormChanges = (selectedNode: any) => {
     };
 };
 
+ // useImageFrame — replaces the previous version in hooks.ts.
+//
+// Frames no longer go through React state. With `imageUrl` as state of
+// DigitalTwin3DViewer, every frame (10 per second) re-rendered the whole
+// viewer: the R3F <Canvas> and <Model> with dozens of inline props, the
+// header, the handlers, useNatsSubscription… even while the 3D view was
+// hidden. When a render took longer than the gap between frames, the
+// picture fell behind.
+//
+// Now a frame is handed to whoever is listening (ImageFrame) through a
+// stable store, and nothing else re-renders. `handleImageUrlChange` keeps
+// its name and signature, so useNatsSubscription is called exactly as
+// before, but its identity is now stable: before, it changed on every
+// render, and any effect depending on it ran again on every frame.
+
+export type FrameListener = (frame: Blob) => void;
+
+export interface FrameStore {
+    /** Registers a listener; it immediately gets the last frame, if any. Returns the unsubscribe function. */
+    subscribe: (listener: FrameListener) => () => void;
+}
+
 export const useImageFrame = () => {
-    const [imageUrl, setImageUrl] = useState<string>("");
-    const prevUrlRef = useRef<string>("");
- 
-    useEffect(() => {
-        return () => {
-            if (prevUrlRef.current) URL.revokeObjectURL(prevUrlRef.current);
-            if (imageUrl) URL.revokeObjectURL(imageUrl);
+    const storeRef = useRef<{ store: FrameStore; publish: FrameListener } | null>(null);
+
+    if (storeRef.current === null) {
+        const listeners = new Set<FrameListener>();
+        let latest: Blob | null = null;
+        storeRef.current = {
+            store: {
+                subscribe: (listener: FrameListener) => {
+                    listeners.add(listener);
+                    if (latest) listener(latest);
+                    return () => {
+                        listeners.delete(listener);
+                    };
+                },
+            },
+            publish: (frame: Blob | null) => {
+                latest = frame;
+                listeners.forEach((listener) => listener(frame));
+            },
         };
-        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }
+
+    const handleImageUrlChange = useCallback((imageBytes: Uint8Array, mimeType: string) => {
+        // Copy: the NATS client may reuse the buffer behind msg.data.
+        const blob = new Blob([imageBytes.slice()], { type: mimeType });
+        storeRef.current!.publish(blob);
     }, []);
- 
-    const handleImageUrlChange = (imageBytes: Uint8Array, mimeType: string) => {
-        const arrayBuffer = new ArrayBuffer(imageBytes.byteLength);
-        new Uint8Array(arrayBuffer).set(imageBytes);
-        const blob = new Blob([arrayBuffer], { type: mimeType });
-        const newUrl = URL.createObjectURL(blob);
- 
-        setImageUrl((currentUrl) => {
-            if (currentUrl) {
-                requestAnimationFrame(() => URL.revokeObjectURL(currentUrl));
-            }
-            prevUrlRef.current = newUrl;
-            return newUrl;
-        });
-    };
- 
+
     return {
-        imageUrl,
+        frameStore: storeRef.current.store,
         handleImageUrlChange,
     };
 };
- 
- 
  
 const createPipelineData = (pipelineNodes: IPipelineNode[], pipelineEdges: IPipelineEdge[]): any => {
     const nodes = [] as any[];

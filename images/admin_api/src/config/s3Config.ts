@@ -22,6 +22,29 @@ import process_env from "./api_config";
 const endpoint = (process_env.AWS_ENDPOINT || "").trim();
 const region = (process_env.AWS_REGION || "").trim() || "us-east-1";
 
+// Garage only (a non-empty endpoint): checksums only where the S3 API
+// requires them.
+//
+// Since early 2025 the SDK sends a CRC32 with every upload and validates
+// the x-amz-checksum-* header of every download. For a multipart upload
+// Garage stores the COMPOSITE checksum (CRC32 of the parts' CRC32s) and
+// returns it WITHOUT the "-N" suffix AWS uses to mark it, so the SDK
+// takes it for a full-object checksum and every download of such an
+// object fails with "Checksum mismatch" — although the bytes are right.
+// Seen with yolo11n.onnx (10.7 MB, 3 parts of 5 MiB): Garage sent
+// "CzJgOQ==" (composite), the file's real CRC32 is "rsoL4w==".
+//
+// "WHEN_REQUIRED" keeps checksums where the API mandates them
+// (DeleteObjects, among others) and drops the rest. AWS keeps the
+// defaults: it marks composite checksums correctly.
+const garageChecksumOptions =
+	endpoint !== ""
+		? {
+				requestChecksumCalculation: "WHEN_REQUIRED" as const,
+				responseChecksumValidation: "WHEN_REQUIRED" as const,
+			}
+		: {};
+
 const s3Client = new S3Client({
 	credentials: {
 		accessKeyId: process_env.AWS_ACCESS_KEY_ID,
@@ -32,6 +55,7 @@ const s3Client = new S3Client({
 	// path-style. Harmless with AWS, where it was already set.
 	forcePathStyle: true,
 	...(endpoint !== "" ? { endpoint } : {}),
+	...garageChecksumOptions,
 });
 
 // DeleteObjects: send the classic Content-MD5 when the SDK did not add

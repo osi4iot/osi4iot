@@ -47,6 +47,14 @@ func CreateS3Client(ctx context.Context, s3Config localConfig.AwsS3Config, log *
         if s3Config.Endpoint != "" {
             o.BaseEndpoint = aws.String(s3Config.Endpoint)
             o.UsePathStyle = true
+            // Garage returns the COMPOSITE checksum of a multipart
+            // upload (CRC32 of the parts' CRC32s) without AWS's "-N"
+            // suffix, so the SDK takes it for a full-object checksum
+            // and fails every download of such an object with a
+            // checksum mismatch, although the bytes are right.
+            // Validate and send checksums only where the API requires.
+            o.ResponseChecksumValidation = aws.ResponseChecksumValidationWhenRequired
+            o.RequestChecksumCalculation = aws.RequestChecksumCalculationWhenRequired
         }
     })
 

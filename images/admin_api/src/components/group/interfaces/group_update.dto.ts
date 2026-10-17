@@ -28,6 +28,9 @@ class UpdateGroupDto {
 
 	@IsBoolean()
 	public llmEnabled: boolean;
+
+	@IsBoolean()
+	public gpuUsageEnabled: boolean;
 }
 
 export default UpdateGroupDto;

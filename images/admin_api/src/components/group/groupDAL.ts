@@ -153,6 +153,7 @@ export const createGroup = async (
 	const mqttPassword = crypto.pbkdf2Sync(password, mqttSalt, iterations, 50, "sha256").toString("hex");
 
 	const llmEnabled = groupInput.llmEnabled;
+	const gpuUsageEnabled = groupInput.gpuUsageEnabled;
 	const isAdminGroup = isMainOrgDefaultGroup;
 
 	const group: IGroup = {
@@ -176,6 +177,7 @@ export const createGroup = async (
 		mqttPassword,
 		mqttSalt,
 		llmEnabled,
+		gpuUsageEnabled,
 	};
 
 	await createView(group);
@@ -269,6 +271,7 @@ export const getAllGroups = async (): Promise<IGroup[]> => {
 				outer_bounds AS "outerBounds",
 				mqtt_access_control AS "mqttAccessControl",
 				llm_enabled AS "llmEnabled",
+				gpu_usage_enabled AS "gpuUsageEnabled",
 				grafanadb.group.created, grafanadb.group.updated
 				FROM grafanadb.group
 				INNER JOIN grafanadb.dashboard_acl ON grafanadb.group.team_id = grafanadb.dashboard_acl.team_id
@@ -302,6 +305,7 @@ export const getGroupsThatCanBeEditatedAndAdministratedByUserId = async (userId:
 				outer_bounds AS "outerBounds",
 				mqtt_access_control AS "mqttAccessControl",
 				llm_enabled AS "llmEnabled",
+				gpu_usage_enabled AS "gpuUsageEnabled",
 				grafanadb.group.created, grafanadb.group.updated
 				FROM grafanadb.group
 				INNER JOIN grafanadb.dashboard_acl ON grafanadb.group.team_id = grafanadb.dashboard_acl.team_id
@@ -331,6 +335,7 @@ export const getGroupsManagedByUserId = async (userId: number): Promise<IGroup[]
 				outer_bounds AS "outerBounds",
 				mqtt_access_control AS "mqttAccessControl",
 				llm_enabled AS "llmEnabled",
+				gpu_usage_enabled AS "gpuUsageEnabled",
 				grafanadb.group.created, grafanadb.group.updated
 				FROM grafanadb.group
 				INNER JOIN grafanadb.dashboard_acl ON grafanadb.group.team_id = grafanadb.dashboard_acl.team_id
@@ -443,6 +448,7 @@ export const getAllGroupsInOrganization = async (orgId: number): Promise<IGroup[
 				outer_bounds AS "outerBounds",
 				mqtt_access_control AS "mqttAccessControl",
 				llm_enabled AS "llmEnabled",
+				gpu_usage_enabled AS "gpuUsageEnabled",
 				grafanadb.group.created, grafanadb.group.updated
 				FROM grafanadb.group
 				INNER JOIN grafanadb.dashboard_acl ON grafanadb.group.team_id = grafanadb.dashboard_acl.team_id
@@ -471,6 +477,7 @@ export const getAllGroupsInOrgArray = async (orgIdsArray: number[]): Promise<IGr
 				outer_bounds AS "outerBounds",
 				mqtt_access_control AS "mqttAccessControl",
 				llm_enabled AS "llmEnabled",
+				gpu_usage_enabled AS "gpuUsageEnabled",
 				grafanadb.group.created, grafanadb.group.updated
 				FROM grafanadb.group
 				INNER JOIN grafanadb.dashboard_acl ON grafanadb.group.team_id = grafanadb.dashboard_acl.team_id
@@ -501,6 +508,7 @@ export const getGroupByWithFolderPermissionProp = async (
 				outer_bounds AS "outerBounds",
 				mqtt_access_control AS "mqttAccessControl",
 				llm_enabled AS "llmEnabled",
+				gpu_usage_enabled AS "gpuUsageEnabled",
 				grafanadb.group.created, grafanadb.group.updated
 				FROM grafanadb.group
 				INNER JOIN grafanadb.dashboard_acl ON grafanadb.group.team_id = grafanadb.dashboard_acl.team_id
@@ -526,6 +534,7 @@ export const getGroupByProp = async (propName: string, propValue: string | numbe
 				outer_bounds AS "outerBounds",
 				mqtt_access_control AS "mqttAccessControl",
 				llm_enabled AS "llmEnabled",
+				gpu_usage_enabled AS "gpuUsageEnabled",
 				grafanadb.group.created, grafanadb.group.updated
 				FROM grafanadb.group
 				WHERE grafanadb.group.${propName} = $1;`;
@@ -550,6 +559,7 @@ export const getFullGroupDataById = async (groupId: number): Promise<IGroup> => 
 				mqtt_password AS "mqttPassword",
 				mqtt_salt AS "mqttSalt",
 				llm_enabled AS "llmEnabled",
+				gpu_usage_enabled AS "gpuUsageEnabled",
 				grafanadb.group.created, grafanadb.group.updated
 				FROM grafanadb.group
 				WHERE grafanadb.group.id = $1;`;
@@ -571,6 +581,7 @@ export const getDefaultOrgGroup = async (orgId: number): Promise<IGroup> => {
 				outer_bounds AS "outerBounds",
 				mqtt_access_control AS "mqttAccessControl",
 				llm_enabled AS "llmEnabled",
+				gpu_usage_enabled AS "gpuUsageEnabled",
 				is_admin_group AS "isAdminGroup",
 				grafanadb.group.created, grafanadb.group.updated
 				FROM grafanadb.group
@@ -587,10 +598,10 @@ export const insertGroup = async (group: IGroup): Promise<IGroup> => {
 					email_notification_channel_id,
 					telegram_notification_channel_id, is_org_default_group, is_admin_group,
 					floor_number, feature_index, outer_bounds,  mqtt_access_control,
-					mqtt_password, mqtt_salt, llm_enabled,
+					mqtt_password, mqtt_salt, llm_enabled, gpu_usage_enabled,
 					created, updated)
 					VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13,
-						    $14, $15, $16, $17, $18, $19, $20, NOW(), NOW())
+						    $14, $15, $16, $17, $18, $19, $20, $21, NOW(), NOW())
 					RETURNING *`,
 		[
 			group.orgId,
@@ -613,6 +624,7 @@ export const insertGroup = async (group: IGroup): Promise<IGroup> => {
 			group.mqttPassword,
 			group.mqttSalt,
 			group.llmEnabled,
+			group.gpuUsageEnabled,
 		]
 	);
 	return response.rows[0] as IGroup;
@@ -627,8 +639,9 @@ export const updateGroupById = async (group: IGroup): Promise<void> => {
 				outer_bounds = $7,
 				mqtt_access_control = $8,
 				llm_enabled = $9,
+				gpu_usage_enabled = $10,
 				updated = NOW()
-				WHERE grafanadb.group.id = $10;`;
+				WHERE grafanadb.group.id = $11;`;
 	await pool.query(query, [
 		group.name,
 		group.acronym,
@@ -639,6 +652,7 @@ export const updateGroupById = async (group: IGroup): Promise<void> => {
 		group.outerBounds,
 		group.mqttAccessControl,
 		group.llmEnabled,
+		group.gpuUsageEnabled,
 		group.id,
 	]);
 };

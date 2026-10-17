@@ -215,6 +215,7 @@ export interface IGroupManaged {
     outerBounds: number[][];
     sslCerts: string;
     llmEnabled: boolean;
+    gpuUsageEnabled: boolean;
 }
 
 interface IGroupManagedColumn extends IGroupManaged {

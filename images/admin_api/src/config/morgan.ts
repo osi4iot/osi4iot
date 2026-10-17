@@ -1,7 +1,7 @@
 import morgan from "morgan";
 import type { Request, Response } from "express";
 
-export const morganFormat = (tokens: morgan.TokenIndexer, req: Request, res: Response): string => {
+export const morganFormat = (tokens: morgan.TokenIndexer<Request, Response>, req: Request, res: Response): string => {
 	const status = Number(tokens.status?.(req, res) ?? 0);
 
 	// 5xx is the server failing; 4xx is the API doing its job. A 401 from

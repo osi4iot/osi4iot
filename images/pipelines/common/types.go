@@ -35,6 +35,7 @@ type Org struct {
 	TelegramBotToken                 string                         `json:"telegramBotToken"`
 	HashedTelegramWebhookSecretToken string                         `json:"hashedTelegramWebhookSecretToken"`
 	TelegramWebhookSecretToken       string                         `json:"telegramWebhookSecretToken"`
+	GpuUsageEnabled                  bool                           `json:"gpuUsageEnabled"`
 	LeaderElector                    *leader_election.LeaderElector `json:"-"`
 	TelegramListener                 *telegram.OrgListener          `json:"-"`
 }
@@ -54,8 +55,17 @@ type Group struct {
 	FloorNumber                   int    `json:"floorNumber"`
 	FeatureIndex                  int    `json:"featureIndex"`
 	LlmEnabled                    bool   `json:"llmEnabled"`
+	GpuUsageEnabled               bool   `json:"gpuUsageEnabled"`
 
 	KvStore *nats_pkg.KVStore `json:"-"`
+}
+
+// GpuUsageAllowed is the platform's GPU policy: a pipeline may use a GPU
+// only if the platform administrator enabled it for the organization AND
+// the organization administrator enabled it for the group. Anything else
+// (either flag off, or org/group unknown) means CPU.
+func GpuUsageAllowed(org *Org, group *Group) bool {
+	return org != nil && group != nil && org.GpuUsageEnabled && group.GpuUsageEnabled
 }
 
 type Asset struct {
@@ -138,6 +148,7 @@ type DigitalTwin struct {
 	PipelineFileName            string         `json:"pipelineFileName"`
 	PipelineFileLastModifDate   string         `json:"pipelineFileLastModifDate"`
 	PipelineFileData            string         `json:"pipelineFileData"`
+	PipelineRequiresGpu         bool           `json:"pipelineRequiresGpu"`
 	Created                     string         `json:"created"`
 	Updated                     string         `json:"updated"`
 
@@ -313,6 +324,7 @@ type PipelineData struct {
 	FileData               string `json:"file_data"`
 	FileName               string `json:"file_name"`
 	FileLastModifDate      string `json:"file_last_modif_date"`
+	RequiresGpu            bool   `json:"requires_gpu"`
 }
 
 type PipelineLog struct {

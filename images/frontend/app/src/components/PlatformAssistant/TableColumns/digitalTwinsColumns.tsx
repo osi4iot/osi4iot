@@ -51,6 +51,7 @@ export interface IDigitalTwin {
     pipelineFileName: string;
 	pipelineFileLastModifDate: string;
     pipelineFileData: string;
+    pipelineRequiresGpu: boolean;
 }
 
 export interface IDigitalTwinSimulator {

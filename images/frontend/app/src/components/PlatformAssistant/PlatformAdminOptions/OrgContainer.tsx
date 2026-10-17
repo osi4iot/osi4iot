@@ -40,6 +40,7 @@ const initialOrgData = {
     llmProviderApiKey: "",
     telegramEnabled: false,
     telegramBotToken: "",
+    gpuUsageEnabled: false,
     orgAdminArray: [
         {
             firstName: "",

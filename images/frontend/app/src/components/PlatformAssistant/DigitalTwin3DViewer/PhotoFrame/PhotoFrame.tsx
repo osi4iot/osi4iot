@@ -1,6 +1,7 @@
 import React, { useState, useRef, useCallback, useEffect } from "react";
 import styled from "styled-components";
 import { Camera } from "lucide-react";
+import type { FrameStore } from "../Utils/customHooks";
 
 // ---------------------------------------------------------------------------
 // Styled components
@@ -39,17 +40,14 @@ const ZoomContainer = styled.div.attrs<ZoomContainerProps>((props) => ({
     position: relative;
 `;
 
-const FramedImage = styled.img`
+const FramedCanvas = styled.canvas`
+    display: block;
     border: 8px solid #868585ff;
     border-radius: 2px;
     box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 10px 10px -5px rgba(0, 0, 0, 0.2),
         inset 0 0 0 1px rgba(0, 0, 0, 0.1);
     user-select: none;
     pointer-events: none;
-`;
-
-const HiddenImg = styled.img`
-    display: none;
 `;
 
 const ZoomControls = styled.div`
@@ -101,9 +99,7 @@ const ZoomIndicator = styled.div`
 `;
 
 interface ImageFrameProps {
-    imageUrl: string;
-    width?: string;
-    height?: string;
+    frameStore: FrameStore;
     className?: string;
     minZoom?: number;
     maxZoom?: number;
@@ -112,21 +108,15 @@ interface ImageFrameProps {
 }
 
 export const ImageFrame: React.FC<ImageFrameProps> = ({
-    imageUrl,
-    width = "auto",
-    height = "auto",
+    frameStore,
     className = "",
     minZoom = 0.5,
     maxZoom = 5,
     zoomStep = 0.1,
     showControls = true,
 }) => {
-    // visibleUrl: what is currently shown to the user
-    // pendingUrl: loading silently in the background <img>
-    const [visibleUrl, setVisibleUrl] = useState<string>("");
-    const [pendingUrl, setPendingUrl] = useState<string>("");
-    const [hasFirstLoad, setHasFirstLoad] = useState(false);
-    const [hasError, setHasError] = useState(false);
+    const canvasRef = useRef<HTMLCanvasElement>(null);
+    const [hasFirstFrame, setHasFirstFrame] = useState(false);
 
     const [scale, setScale] = useState(1);
     const [translateX, setTranslateX] = useState(0);
@@ -136,27 +126,52 @@ export const ImageFrame: React.FC<ImageFrameProps> = ({
 
     const containerRef = useRef<HTMLDivElement>(null);
 
-    // Each new imageUrl goes into the hidden <img> to preload.
-    // The visible <img> only updates once onLoad fires.
+    // Frames are painted straight onto the canvas, outside React: no state
+    // change and no re-render per frame. createImageBitmap decodes the JPEG
+    // off the main thread. While one frame is decoding, newer ones replace
+    // each other in `pending`: only the latest is drawn, so the picture
+    // never falls behind the stream.
     useEffect(() => {
-        if (!imageUrl) return;
-        setHasError(false);
-        setPendingUrl(imageUrl);
-    }, [imageUrl]);
+        let decoding = false;
+        let pending: Blob | null = null;
+        let cancelled = false;
 
-    // Called when the hidden img finishes loading — swap it to visible
-    const handlePendingLoad = useCallback(() => {
-        setVisibleUrl((prev) => {
-            // Revoke the previous object URL after the browser has painted
-            if (prev) requestAnimationFrame(() => URL.revokeObjectURL(prev));
-            return pendingUrl;
-        });
-        setHasFirstLoad(true);
-    }, [pendingUrl]);
+        const draw = async (frame: Blob) => {
+            if (decoding) {
+                pending = frame;
+                return;
+            }
+            decoding = true;
+            try {
+                const bitmap = await createImageBitmap(frame);
+                const canvas = canvasRef.current;
+                if (!cancelled && canvas) {
+                    if (canvas.width !== bitmap.width || canvas.height !== bitmap.height) {
+                        canvas.width = bitmap.width;
+                        canvas.height = bitmap.height;
+                    }
+                    canvas.getContext("2d")?.drawImage(bitmap, 0, 0);
+                    setHasFirstFrame(true); // only re-renders the first time
+                }
+                bitmap.close();
+            } catch (err) {
+                console.warn("ImageFrame: could not decode frame", err);
+            } finally {
+                decoding = false;
+                if (pending && !cancelled) {
+                    const next = pending;
+                    pending = null;
+                    draw(next);
+                }
+            }
+        };
 
-    const handleError = useCallback(() => {
-        setHasError(true);
-    }, []);
+        const unsubscribe = frameStore.subscribe(draw);
+        return () => {
+            cancelled = true;
+            unsubscribe();
+        };
+    }, [frameStore]);
 
     // Wheel zoom
     useEffect(() => {
@@ -214,7 +229,10 @@ export const ImageFrame: React.FC<ImageFrameProps> = ({
     const zoomOut = useCallback(() => {
         setScale((prev) => {
             const next = Math.max(prev * (1 - zoomStep * 2), minZoom);
-            if (next <= 1) { setTranslateX(0); setTranslateY(0); }
+            if (next <= 1) {
+                setTranslateX(0);
+                setTranslateY(0);
+            }
             return next;
         });
     }, [minZoom, zoomStep]);
@@ -225,14 +243,6 @@ export const ImageFrame: React.FC<ImageFrameProps> = ({
         setTranslateY(0);
     }, []);
 
-    if (hasError) {
-        return (
-            <FrameContainer className={className}>
-                <Camera size={100} color="#595858" />
-            </FrameContainer>
-        );
-    }
-
     return (
         <FrameContainer
             className={className}
@@ -242,30 +252,16 @@ export const ImageFrame: React.FC<ImageFrameProps> = ({
             onMouseUp={handleMouseUp}
             onMouseLeave={handleMouseUp}
         >
-            {!hasFirstLoad && <Camera size={100} color="#595858" />}
+            {!hasFirstFrame && <Camera size={100} color="#595858" />}
 
-            {/* Visible image — only updated after the pending one has loaded */}
-            {visibleUrl && (
+            {/* Always mounted, so frames can be drawn before the first one is shown */}
+            <div style={{ display: hasFirstFrame ? "block" : "none" }}>
                 <ZoomContainer scale={scale} translateX={translateX} translateY={translateY}>
-                    <FramedImage
-                        src={visibleUrl}
-                        alt="Image Frame"
-                        width={width}
-                        height={height}
-                    />
+                    <FramedCanvas ref={canvasRef} />
                 </ZoomContainer>
-            )}
+            </div>
 
-            {/* Hidden preloader — decodes the next frame before showing it */}
-            {pendingUrl && pendingUrl !== visibleUrl && (
-                <HiddenImg
-                    src={pendingUrl}
-                    onLoad={handlePendingLoad}
-                    onError={handleError}
-                />
-            )}
-
-            {showControls && hasFirstLoad && (
+            {showControls && hasFirstFrame && (
                 <ZoomControls>
                     <ZoomIndicator>{Math.round(scale * 100)}%</ZoomIndicator>
                     <ZoomButton onClick={zoomIn} title="Zoom In">+</ZoomButton>

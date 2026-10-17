@@ -8,10 +8,11 @@ import (
 	"image/draw"
 	"pipelines/common"
 	"pipelines/logger"
+	"runtime"
 	"sort"
 	"sync"
 
-	"github.com/nfnt/resize"
+	xdraw "golang.org/x/image/draw"
 	"golang.org/x/image/font"
 	"golang.org/x/image/font/opentype"
 	"golang.org/x/image/math/fixed"
@@ -151,7 +152,12 @@ func (yolo *Yolo) DrawBoundingBoxes(pic image.Image, boxes []BoundingBox, fontSi
 	// RGBA copy of the original image
 	bounds := pic.Bounds()
 	out := image.NewRGBA(bounds)
-	draw.Draw(out, bounds, pic, bounds.Min, draw.Src)
+	// Converting a decoded JPEG (YCbCr) to RGBA is a full-frame pass:
+	// split it in bands, one per CPU.
+	parallelRows(bounds.Dy(), func(y0, y1 int) {
+		r := image.Rect(bounds.Min.X, bounds.Min.Y+y0, bounds.Max.X, bounds.Min.Y+y1)
+		draw.Draw(out, r, pic, r.Min, draw.Src)
+	})
 
 	// Color per class (rotating over 'colors')
 	boxClassColors := make(map[string]color.RGBA, len(boxes))
@@ -248,27 +254,62 @@ func (yolo *Yolo) drawText(dst *image.RGBA, x, y int, text string, fg color.RGBA
 	return nil
 }
 
+// Preprocess turns a frame into YOLO's 1x3x640x640 float32 input (RGB,
+// planar, 0..1), stretching it to 640x640 as before.
+//
+// Resizing is bilinear (x/image ApproxBiLinear), the same interpolation
+// Ultralytics uses for YOLO (cv2.INTER_LINEAR), and the pixels are read
+// straight from the resized buffer. Both run in parallel over horizontal
+// bands. The previous version (nfnt Lanczos3 + image.At per pixel) took
+// ~70 ms for a 1080p frame on 2 cores; this one ~10 ms. The input to the
+// model changes slightly (bilinear instead of Lanczos3), which is what
+// the model was trained with.
 func (yolo *Yolo) Preprocess(pic image.Image) []float32 {
-	channelSize := 640 * 640
+	const n = 640
+	const channelSize = n * n
 	data := make([]float32, channelSize*3)
 	redChannel := data[0:channelSize]
 	greenChannel := data[channelSize : channelSize*2]
 	blueChannel := data[channelSize*2 : channelSize*3]
 
-	// Resize the image to 640x640 using Lanczos3 algorithm
-	pic = resize.Resize(640, 640, pic, resize.Lanczos3)
-	i := 0
-	for y := 0; y < 640; y++ {
-		for x := 0; x < 640; x++ {
-			r, g, b, _ := pic.At(x, y).RGBA()
-			redChannel[i] = float32(r>>8) / 255.0
-			greenChannel[i] = float32(g>>8) / 255.0
-			blueChannel[i] = float32(b>>8) / 255.0
-			i++
+	resized := image.NewRGBA(image.Rect(0, 0, n, n))
+	pix := resized.Pix
+	parallelRows(n, func(y0, y1 int) {
+		// Each band scales the whole frame onto the whole 640x640 target,
+		// clipped to its own rows: identical to one sequential Scale.
+		band := resized.SubImage(image.Rect(0, y0, n, y1)).(*image.RGBA)
+		xdraw.ApproxBiLinear.Scale(band, resized.Bounds(), pic, pic.Bounds(), xdraw.Src, nil)
+		for i := y0 * n; i < y1*n; i++ {
+			redChannel[i] = float32(pix[4*i]) / 255.0
+			greenChannel[i] = float32(pix[4*i+1]) / 255.0
+			blueChannel[i] = float32(pix[4*i+2]) / 255.0
 		}
-	}
+	})
 
 	return data
+}
+
+// parallelRows splits rows [0, h) into one band per CPU and runs f on
+// each band concurrently.
+func parallelRows(h int, f func(y0, y1 int)) {
+	workers := runtime.GOMAXPROCS(0)
+	if workers > h {
+		workers = h
+	}
+	if workers <= 1 {
+		f(0, h)
+		return
+	}
+	var wg sync.WaitGroup
+	for i := 0; i < workers; i++ {
+		y0, y1 := h*i/workers, h*(i+1)/workers
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			f(y0, y1)
+		}()
+	}
+	wg.Wait()
 }
 
 func (yolo *Yolo) Postprocess(output []float32, originalWidth, originalHeight int) []BoundingBox {

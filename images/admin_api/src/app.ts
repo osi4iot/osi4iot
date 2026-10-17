@@ -110,8 +110,8 @@ class App {
 	}
 
 	private initializeMiddlewares(): void {
-		this.app.use(bodyParser.json({ limit: "1000mb" }));
-		this.app.use(bodyParser.urlencoded({ limit: "1000mb", extended: true }));
+		this.app.use(express.json({ limit: "1000mb" }));
+		this.app.use(express.urlencoded({ limit: "1000mb", extended: true }));
 		this.app.set("json spaces", 4);
 		this.app.use(helmet());
 		this.app.use(compression());
@@ -141,21 +141,13 @@ class App {
 				docExpansion: "none",
 			},
 		};
-		const platformName = `${process_env.PLATFORM_NAME.replace(/_/g, " ").toUpperCase()} Platform`;
-		const platformPhrase = `${process_env.PLATFORM_PHRASE}`;
-		const serverUrl = `${getDomainUrl()}/admin_api/`;
-		this.app.use(
-			"/swagger",
-			(req: IRequestWithSwaggerDoc, res: Response, next: NextFunction) => {
-				(swaggerDocument as any).info.title = platformName;
-				(swaggerDocument as any).info.description = platformPhrase;
-				(swaggerDocument as any).servers[0].url = serverUrl;
-				req.swaggerDoc = swaggerDocument;
-				next();
-			},
-			swaggerUi.serve,
-			swaggerUi.setup(swaggerDocument, options)
-		);
+
+		const doc = swaggerDocument as any;
+		doc.info.title = `${process_env.PLATFORM_NAME.replace(/_/g, " ").toUpperCase()} Platform`;
+		doc.info.description = `${process_env.PLATFORM_PHRASE}`;
+		doc.servers[0].url = `${getDomainUrl()}/admin_api/`;
+
+		this.app.use("/swagger", swaggerUi.serve, swaggerUi.setup(doc, options));
 	}
 
 	private dbConnect() {

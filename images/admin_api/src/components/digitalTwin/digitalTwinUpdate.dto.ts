@@ -25,6 +25,9 @@ class UpdateDigitalTwinDto {
 	@IsString()
 	public digitalTwinSimulationFormat: string;
 
+	@IsBoolean()
+	public pipelineRequiresGpu: boolean;
+
 	@IsString({ each: true })
 	public sensorsRef: string[];
 }

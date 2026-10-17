@@ -1,4 +1,5 @@
-./node_modules
-./build
-npm-debug.log
+node_modules
+build
+.git
+*.log
 ./ssl_config

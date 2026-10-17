@@ -7,6 +7,7 @@ import (
 	"pipelines/logger"
 	"pipelines/utils"
 	"runtime"
+	"slices"
 	"time"
 
 	ort "github.com/yalue/onnxruntime_go"
@@ -20,22 +21,33 @@ type DynTensor struct {
 
 type MlmNode struct {
 	BaseNode
-	MlModelId     int
-	BatchSize     int64
-	Session       *ort.AdvancedSession
-	InputTensors  []*DynTensor
-	OutputTensors []*DynTensor
-	inputShapes   []ort.Shape
-	outputShapes  []ort.Shape
-	inputTypes    []ort.TensorElementDataType
-	outputTypes   []ort.TensorElementDataType
-	inputNames    []string
-	outputNames   []string
+	MlModelId int
+	BatchSize int64
+	// ExecutionProvider is the provider the session actually runs on
+	// (cpu, cuda, tensorrt), after any fallback.
+	ExecutionProvider string
+	Session           *ort.AdvancedSession
+	InputTensors      []*DynTensor
+	OutputTensors     []*DynTensor
+	inputShapes       []ort.Shape
+	outputShapes      []ort.Shape
+	inputTypes        []ort.TensorElementDataType
+	outputTypes       []ort.TensorElementDataType
+	inputNames        []string
+	outputNames       []string
 
 	// Cached hot-path functions
 	inputSetters  []func(any) error
 	outputGetters []func() (any, error)
 	outputBuffer  []any
+
+	// ortCalls feeds the node's ORT thread (see startOrtThread).
+	ortCalls chan ortCall
+}
+
+type ortCall struct {
+	fn   func() error
+	done chan error
 }
 
 func NewInputDynTensor[T ort.TensorData](shape ort.Shape, data []T) (*DynTensor, error) {
@@ -78,14 +90,18 @@ func NewOutputDynTensor[T ort.TensorData](shape ort.Shape) (*DynTensor, error) {
 	}, nil
 }
 
+// ReadDynTensor returns a COPY of the tensor's data. GetData() is the
+// tensor's own buffer, which the next Run overwrites: handing it out
+// let a message still being post-processed downstream see the results
+// of the next message. The copy is cheap next to the inference (~2.7 MB,
+// well under 1 ms, for yolo11n's output).
 func ReadDynTensor[T ort.TensorData](dt *DynTensor) ([]T, error) {
 	t, ok := dt.Value.(*ort.Tensor[T])
 	if !ok {
 		return nil, fmt.Errorf("it is not *ort.Tensor[%T]", *new(T))
 	}
-	return t.GetData(), nil
+	return slices.Clone(t.GetData()), nil
 }
-
 
 func CreateMlmNode(node common.NodeData, fm common.Manager, p common.Pipeline) (*MlmNode, error) {
 	mlModelIdFloat, ok := node.Settings["mlModelId"].(float64)
@@ -117,20 +133,20 @@ func CreateMlmNode(node common.NodeData, fm common.Manager, p common.Pipeline) (
 
 	mlmNode := &MlmNode{
 		BaseNode: BaseNode{
-			NodeUid:        node.NodeUid,
-			Name:           node.Name,
-			Xpos:           node.Xpos,
-			Ypos:           node.Ypos,
-			NumOutputs:     node.NumOutputs,
-			Settings:       node.Settings,
-			Debug:          node.Debug,
-			Type:           "MlModel",
-			LogSubject:     logSubject,
-			Fm:             fm,
-			Pipeline:       p,
-			Cancel:         nil,
-			Ctx:            nil,
-			status:         common.NodeStatusCreated,
+			NodeUid:    node.NodeUid,
+			Name:       node.Name,
+			Xpos:       node.Xpos,
+			Ypos:       node.Ypos,
+			NumOutputs: node.NumOutputs,
+			Settings:   node.Settings,
+			Debug:      node.Debug,
+			Type:       "MlModel",
+			LogSubject: logSubject,
+			Fm:         fm,
+			Pipeline:   p,
+			Cancel:     nil,
+			Ctx:        nil,
+			status:     common.NodeStatusCreated,
 		},
 		MlModelId: mlModelId,
 		BatchSize: batchSize,
@@ -146,8 +162,8 @@ func (n *MlmNode) Start(ctx context.Context, log *logger.Logger, needReinitializ
 	}
 
 	nodectx, nodeCancel := context.WithCancel(ctx)
-    n.Ctx = nodectx
-    n.Cancel = nodeCancel	
+	n.Ctx = nodectx
+	n.Cancel = nodeCancel
 
 	log.Infof("Starting MlModel with UID: %s", n.NodeUid)
 
@@ -180,16 +196,7 @@ func (n *MlmNode) Start(ctx context.Context, log *logger.Logger, needReinitializ
 }
 
 func (n *MlmNode) initializeONNXRuntime(log *logger.Logger) error {
-	sharedLibPath := n.getSharedLibPath()
-	ort.SetSharedLibraryPath(sharedLibPath)
-
-	if !ort.IsInitialized() {
-		if err := ort.InitializeEnvironment(); err != nil {
-			return fmt.Errorf("error initializing ORT environment: %w", err)
-		}
-		log.Infof("ONNX Runtime initialized with library: %s", sharedLibPath)
-	}
-	return nil
+	return initONNXRuntime(n.getSharedLibPath(), log)
 }
 
 func (n *MlmNode) loadModelInfo(log *logger.Logger) error {
@@ -276,25 +283,24 @@ func (n *MlmNode) createSession(log *logger.Logger) error {
 		sessionOutputTensors[i] = tensor.Value
 	}
 
-	options, err := ort.NewSessionOptions()
-	if err != nil {
-		for _, t := range inputTensors {
-			t.Destroy()
-		}
-		for _, t := range outputTensors {
-			t.Destroy()
-		}
-		return fmt.Errorf("error creating session options: %w", err)
+	requested := requestedProvider(n.Settings)
+	// GPU policy: only organizations AND groups the administrators enabled
+	// may use the GPU. Without that permission the model runs on CPU even
+	// on a replica with a GPU, whatever the node or the service asks for.
+	if requested != ProviderCPU && !common.GpuUsageAllowed(n.Fm.GetOrg(n.GetOrgId()), n.Fm.GetGroup(n.GetGroupId())) {
+		log.Infof("MlModel %s: GPU usage not enabled for org %d / group %d, running on CPU",
+			n.NodeUid, n.GetOrgId(), n.GetGroupId())
+		requested = ProviderCPU
 	}
-	defer options.Destroy()
 
-	session, err := ort.NewAdvancedSession(
+	session, provider, err := newSessionWithFallback(
 		mlModelFilePath,
 		n.inputNames,
 		n.outputNames,
 		sessionInputTensors,
 		sessionOutputTensors,
-		options)
+		requested,
+		log)
 	if err != nil {
 		for _, t := range inputTensors {
 			t.Destroy()
@@ -306,6 +312,7 @@ func (n *MlmNode) createSession(log *logger.Logger) error {
 	}
 
 	n.Session = session
+	n.ExecutionProvider = provider
 	n.InputTensors = inputTensors
 	n.OutputTensors = outputTensors
 
@@ -328,8 +335,94 @@ func (n *MlmNode) createSession(log *logger.Logger) error {
 	// Preallocate output buffer para evitar allocs en el hot path
 	n.outputBuffer = make([]any, len(outputTensors))
 
-	log.Infof("ONNX session created successfully")
+	log.Infof("ONNX session created successfully (execution provider: %s)", provider)
+	n.startOrtThread()
+	n.warmUp(log)
 	return nil
+}
+
+// warmUp runs one inference on the freshly created (zero-filled) input
+// tensors, so the first real message does not pay the one-off start-up
+// cost: with CUDA, loading the kernels and choosing the cuDNN algorithms
+// takes ~250 ms on the first Run, against ~5 ms afterwards (yolo11n).
+// On CPU it is cheap and still warms the thread pool and caches.
+//
+// A failure is only logged: some models may reject all-zero inputs, and
+// that must not stop a node that would work with real data.
+func (n *MlmNode) warmUp(log *logger.Logger) {
+	start := time.Now()
+	if err := n.onOrtThread(n.Session.Run); err != nil {
+		log.Warnf("ONNX warm-up run failed (the node keeps working; the first message will be slower): %v", err)
+		return
+	}
+	log.Infof("ONNX warm-up run on %s took %v", n.ExecutionProvider, time.Since(start))
+}
+
+// recreateSessionOnCPU replaces the session with a CPU one on the same
+// tensors. Called on the ORT thread after a sticky CUDA error.
+func (n *MlmNode) recreateSessionOnCPU(log *logger.Logger) error {
+	if n.Session != nil {
+		_ = n.Session.Destroy() // may fail too: the CUDA context is gone
+		n.Session = nil
+	}
+	inputs := make([]ort.Value, len(n.InputTensors))
+	for i, t := range n.InputTensors {
+		inputs[i] = t.Value
+	}
+	outputs := make([]ort.Value, len(n.OutputTensors))
+	for i, t := range n.OutputTensors {
+		outputs[i] = t.Value
+	}
+	modelPath := n.Fm.GetMlModelFilePath(n.GetOrgId(), n.GetGroupId(), n.MlModelId)
+	session, provider, err := newSessionWithFallback(modelPath, n.inputNames, n.outputNames, inputs, outputs, ProviderCPU, log)
+	if err != nil {
+		return err
+	}
+	n.Session = session
+	n.ExecutionProvider = provider
+	log.Warnf("MlModel %s: ONNX session rebuilt on %s after a GPU failure", n.NodeUid, provider)
+	return nil
+}
+
+// startOrtThread starts the goroutine through which every Run of this
+// node goes, pinned to one OS thread for its whole life.
+//
+// Why: with CUDA, ONNX Runtime keeps per-thread state (cuBLAS/cuDNN
+// handles, streams) and builds it the first time a thread calls Run. Go
+// moves goroutines between OS threads freely, so without pinning a
+// message can land on a thread with no such state and pay for building
+// it. Pinned, the warm-up builds it once and every message reuses it.
+//
+// It also serialises the Runs: handleInputWires starts one goroutine per
+// input wire, and two of them must not run the same session, writing the
+// same input tensors, at the same time.
+func (n *MlmNode) startOrtThread() {
+	calls := make(chan ortCall)
+	n.ortCalls = calls
+	go func() {
+		runtime.LockOSThread()
+		defer runtime.UnlockOSThread()
+		for c := range calls {
+			c.done <- c.fn()
+		}
+	}()
+}
+
+// onOrtThread runs fn on the node's ORT thread and waits for it.
+func (n *MlmNode) onOrtThread(fn func() error) error {
+	if n.ortCalls == nil {
+		return fn()
+	}
+	done := make(chan error, 1)
+	n.ortCalls <- ortCall{fn: fn, done: done}
+	return <-done
+}
+
+func (n *MlmNode) stopOrtThread() {
+	if n.ortCalls != nil {
+		close(n.ortCalls)
+		n.ortCalls = nil
+	}
 }
 
 func (n *MlmNode) buildOutputGetter(tensor *DynTensor, dtype ort.TensorElementDataType) (func() (any, error), error) {
@@ -365,40 +458,71 @@ func (n *MlmNode) processMessage(msg common.Message, log *logger.Logger) error {
 	start := time.Now()
 	payload := msg.GetPayload()
 
-	if len(n.inputSetters) == 1 {
-		if err := n.inputSetters[0](payload["mlmInput"]); err != nil {
-			return fmt.Errorf("failed to set input tensor: %w", err)
-		}
-	} else {
-		for i, setter := range n.inputSetters {
-			if err := setter(payload[fmt.Sprintf("mlmInput%d", i)]); err != nil {
-				return fmt.Errorf("failed to set input tensor %d: %w", i, err)
+	// Fill the inputs, run and read the outputs as ONE call on the ORT
+	// thread: with several input wires, another message must not rewrite
+	// the input tensors between this message's copy and its Run.
+	err := n.onOrtThread(func() error {
+		if len(n.inputSetters) == 1 {
+			if err := n.inputSetters[0](payload["mlmInput"]); err != nil {
+				return fmt.Errorf("failed to set input tensor: %w", err)
+			}
+		} else {
+			for i, setter := range n.inputSetters {
+				if err := setter(payload[fmt.Sprintf("mlmInput%d", i)]); err != nil {
+					return fmt.Errorf("failed to set input tensor %d: %w", i, err)
+				}
 			}
 		}
-	}
 
-	if err := n.runInference(log); err != nil {
-		return fmt.Errorf("inference failed: %w", err)
-	}
-
-	if len(n.outputGetters) == 1 {
-		result, err := n.outputGetters[0]()
-		if err != nil {
-			return fmt.Errorf("failed to get output tensor: %w", err)
+		if n.Session == nil {
+			return fmt.Errorf("inference failed: session not initialized")
 		}
-		payload["mlmOutput"] = result
-	} else {
-		for i, getter := range n.outputGetters {
-			result, err := getter()
+		if err := n.Session.Run(); err != nil {
+			// A sticky CUDA error leaves the GPU unusable for the whole
+			// process: rebuild this session on CPU and retry the message
+			// instead of failing every message from now on.
+			if n.ExecutionProvider != ProviderCPU && IsStickyCUDAError(err) {
+				MarkCUDABroken(err, log)
+				if rerr := n.recreateSessionOnCPU(log); rerr != nil {
+					log.Errorf("could not rebuild ONNX session on CPU: %v", rerr)
+				} else {
+					n.HandleError(fmt.Errorf("GPU failure (%v): this model now runs on CPU until pipelines is restarted", err))
+					err = n.Session.Run()
+				}
+			}
 			if err != nil {
-				return fmt.Errorf("failed to get output tensor %d: %w", i, err)
+				log.Errorf("error running inference: %v", err)
+				return fmt.Errorf("inference failed: error running inference: %w", err)
 			}
-			n.outputBuffer[i] = result
 		}
-		payload["mlmOutput"] = n.outputBuffer
+
+		if len(n.outputGetters) == 1 {
+			result, err := n.outputGetters[0]()
+			if err != nil {
+				return fmt.Errorf("failed to get output tensor: %w", err)
+			}
+			payload["mlmOutput"] = result
+		} else {
+			// A fresh slice per message: the output buffer must not be
+			// shared with a message still travelling down the pipeline.
+			outputs := make([]any, len(n.outputGetters))
+			for i, getter := range n.outputGetters {
+				result, err := getter()
+				if err != nil {
+					return fmt.Errorf("failed to get output tensor %d: %w", i, err)
+				}
+				outputs[i] = result
+			}
+			payload["mlmOutput"] = outputs
+		}
+		return nil
+	})
+	if err != nil {
+		return err
 	}
 
 	payload["elapsedTime"] = time.Since(start).String()
+	payload["executionProvider"] = n.ExecutionProvider
 	n.sendToOutputs(msg, log)
 	return nil
 }
@@ -408,7 +532,7 @@ func (n *MlmNode) runInference(log *logger.Logger) error {
 		return fmt.Errorf("session not initialized")
 	}
 
-	if err := n.Session.Run(); err != nil {
+	if err := n.onOrtThread(n.Session.Run); err != nil {
 		log.Errorf("error running inference: %v", err)
 		return fmt.Errorf("error running inference: %w", err)
 	}
@@ -425,19 +549,7 @@ func (n *MlmNode) calculateTensorSize(dimensions []int64) int {
 }
 
 func (n *MlmNode) getSharedLibPath() string {
-	switch runtime.GOOS {
-	case "linux":
-		if runtime.GOARCH == "arm64" {
-			return "./assets/onnx_runtime_linux_arm64/onnxruntime_arm64.so"
-		}
-		return "./assets/onnx_runtime_linux_amd64/onnxruntime.so"
-	case "darwin":
-		return "./assets/onnx_runtime_darwin/onnxruntime.dylib"
-	case "windows":
-		return "./assets/onnx_runtime_windows/onnxruntime.dll"
-	default:
-		panic(fmt.Sprintf("Unsupported platform: %s/%s", runtime.GOOS, runtime.GOARCH))
-	}
+	return defaultSharedLibPath()
 }
 
 func (n *MlmNode) Stop(log *logger.Logger) {
@@ -448,6 +560,15 @@ func (n *MlmNode) Stop(log *logger.Logger) {
 
 	log.Infof("Stopping MlModel with UID: %s", n.NodeUid)
 	n.SetStatus(common.NodeStatusStopped)
+
+	// First stop the message goroutines and wait for them, THEN free the
+	// session: freeing it first let a message in flight call Run on a
+	// destroyed session.
+	if n.Cancel != nil {
+		n.Cancel()
+	}
+	n.wg.Wait()
+	n.stopOrtThread()
 
 	if n.Session != nil {
 		n.Session.Destroy()
@@ -468,13 +589,8 @@ func (n *MlmNode) Stop(log *logger.Logger) {
 		n.OutputTensors = nil
 	}
 
-	if n.Cancel != nil {
-		n.Cancel()
-	}
-
-    n.wg.Wait()
-    n.SetStatus(common.NodeStatusStopped)
-    log.Infof("Node %s stopped successfully", n.NodeUid)
+	n.SetStatus(common.NodeStatusStopped)
+	log.Infof("Node %s stopped successfully", n.NodeUid)
 }
 
 func (n *MlmNode) CreateDynInputTensorFromShape(shape []int64, dtype ort.TensorElementDataType) (*DynTensor, error) {

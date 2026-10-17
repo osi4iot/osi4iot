@@ -49,6 +49,7 @@ export interface IGroup {
     outerBounds: number[][];
     mqttAccessControl: string;
     llmEnabled: boolean;
+    gpuUsageEnabled: boolean;
 }
 
 interface IGroupColumn extends IGroup {
@@ -247,13 +248,25 @@ export const Create_GROUPS_COLUMNS = (refreshGroups: () => void): Column<IGroupC
             },
         },
         {
+            Header: "GPU Usage",
+            accessor: "gpuUsageEnabled",
+            disableFilters: true,
+            Cell: (props: { row: { id: string; }; rows: any[]; }) => {
+                const rowIndex = parseInt(props.row.id, 10);
+                const row = props.rows.filter((row: { index: number; }) => row.index === rowIndex)[0];
+                const gpuUsageEnabled = row?.cells[12]?.value || false;
+                const gpuUsageText = gpuUsageEnabled ? "Enabled" : "Disabled";
+                return <span>{gpuUsageText}</span>;
+            },
+        },
+        {
             Header: "LLM",
             accessor: "llmEnabled",
             disableFilters: true,
             Cell: (props: { row: { id: string; }; rows: any[]; }) => {
                 const rowIndex = parseInt(props.row.id, 10);
                 const row = props.rows.filter((row: { index: number; }) => row.index === rowIndex)[0];
-                const llmEnabled = row?.cells[12]?.value || false;
+                const llmEnabled = row?.cells[13]?.value || false;
                 const llmEnabledText = llmEnabled ? "Enabled" : "Disabled";
                 return <span>{llmEnabledText}</span>;
             },
@@ -280,7 +293,8 @@ export const Create_GROUPS_COLUMNS = (refreshGroups: () => void): Column<IGroupC
                 const floorNumber = row?.cells[9]?.value;
                 const featureIndex = row?.cells[10]?.value;
                 const mqttAccessControl = row?.cells[11]?.value;
-                const llmEnabled = row?.cells[12]?.value;
+                const gpuUsageEnabled = row?.cells[12]?.value; 
+                const llmEnabled = row?.cells[13]?.value;
                 const groupInputData = {
                     name,
                     acronym,
@@ -291,6 +305,7 @@ export const Create_GROUPS_COLUMNS = (refreshGroups: () => void): Column<IGroupC
                     featureIndex,
                     mqttAccessControl,
                     llmEnabled,
+                    gpuUsageEnabled,
                 };
                 return <EditGroup groupId={groupId} rowIndex={rowIndex} groupInputData={groupInputData} />;
             },

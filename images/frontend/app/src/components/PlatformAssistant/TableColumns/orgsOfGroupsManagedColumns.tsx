@@ -17,6 +17,7 @@ export interface IOrgOfGroupsManaged {
     mqttAccessControl: string;
     llmEnabled: boolean;
     llmProviderUrl: string;
+    gpuUsageEnabled: boolean;
 }
 
 

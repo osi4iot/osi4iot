@@ -67,11 +67,86 @@ RUN cd mcp_servers/fem_results && \
     go build -ldflags="-s -w" -o /usr/local/bin/fem_results .
 
 ########################################
+# 1b) GPU libraries (only with ORT_FLAVOR=gpu)
+#
+#  - ONNX Runtime GPU build: libonnxruntime + its CUDA provider libraries,
+#    which ORT loads from the directory of libonnxruntime.
+#  - CUDA + cuDNN user-space libraries, from NVIDIA's pip wheels. The
+#    driver (libcuda.so) is NOT here: the NVIDIA container runtime
+#    injects the host's one when the container starts on a GPU node.
+#
+#  amd64: ORT 1.25.1, official GPU tarball, CUDA 12.8 + cuDNN 9.
+#  arm64: ORT 1.31.0, CUDA 13 + cuDNN 9 (e.g. AWS g5g, Graviton2 + T4G).
+#         Microsoft publishes no Linux ARM64 GPU tarball; the libraries
+#         come from the official onnxruntime-gpu wheel, which ships the
+#         C API library (libonnxruntime.so) next to the CUDA provider.
+#         onnxruntime_go (C API 23) works with it: newer ORT versions keep
+#         serving older API versions. Needs an NVIDIA driver >= 580 (CUDA
+#         13) on the host.
+#
+# Runs on the BUILD platform and fetches the TARGET's wheels with
+# "pip --platform", so the arm64 image needs no QEMU emulation.
+# With ORT_FLAVOR=cpu both output folders stay empty and the image is the
+# same as before.
+########################################
+FROM --platform=$BUILDPLATFORM python:3.12-slim AS gpu-libs
+ARG TARGETARCH
+ARG ORT_FLAVOR=cpu
+ARG ORT_VERSION_AMD64=1.25.1
+ARG ORT_VERSION_ARM64=1.31.0
+
+RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates unzip \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN mkdir -p /out/ort /opt/nvidia \
+    && if [ "$ORT_FLAVOR" = "gpu" ] && [ "$TARGETARCH" = "amd64" ]; then \
+         V=${ORT_VERSION_AMD64} \
+         && curl -fsSL "https://github.com/microsoft/onnxruntime/releases/download/v${V}/onnxruntime-linux-x64-gpu-${V}.tgz" \
+           | tar xz -C /tmp \
+         && cp "/tmp/onnxruntime-linux-x64-gpu-${V}/lib/libonnxruntime.so.${V}" /out/ort/onnxruntime.so \
+         && cp /tmp/onnxruntime-linux-x64-gpu-${V}/lib/libonnxruntime_providers_*.so /out/ort/ \
+         && pip install --no-cache-dir --no-deps --target /opt/nvidia \
+              --only-binary=:all: --python-version 3.12 --implementation cp \
+              --platform manylinux2014_x86_64 --platform manylinux_2_17_x86_64 \
+              --platform manylinux_2_27_x86_64 --platform manylinux_2_28_x86_64 \
+              "nvidia-cuda-runtime-cu12==12.8.90" \
+              "nvidia-cublas-cu12==12.8.4.1" \
+              "nvidia-cufft-cu12==11.3.3.83" \
+              "nvidia-curand-cu12==10.3.9.90" \
+              "nvidia-cudnn-cu12==9.10.2.21" \
+         && rm -rf /tmp/onnxruntime-linux-x64-gpu-*; \
+       elif [ "$ORT_FLAVOR" = "gpu" ] && [ "$TARGETARCH" = "arm64" ]; then \
+         V=${ORT_VERSION_ARM64} \
+         && pip download --no-cache-dir --no-deps -d /tmp/ortwhl \
+              --only-binary=:all: --python-version 3.12 --implementation cp \
+              --platform manylinux_2_34_aarch64 \
+              "onnxruntime-gpu==${V}" \
+         && unzip -q -j /tmp/ortwhl/onnxruntime_gpu-*.whl \
+              "onnxruntime/capi/libonnxruntime.so.${V}" \
+              "onnxruntime/capi/libonnxruntime_providers_shared.so" \
+              "onnxruntime/capi/libonnxruntime_providers_cuda.so" \
+              -d /tmp/ortlib \
+         && cp "/tmp/ortlib/libonnxruntime.so.${V}" /out/ort/onnxruntime_arm64.so \
+         && cp /tmp/ortlib/libonnxruntime_providers_*.so /out/ort/ \
+         && pip install --no-cache-dir --no-deps --target /opt/nvidia \
+              --only-binary=:all: --python-version 3.12 --implementation cp \
+              --platform manylinux2014_aarch64 --platform manylinux_2_17_aarch64 \
+              --platform manylinux_2_27_aarch64 --platform manylinux_2_28_aarch64 \
+              "nvidia-cuda-runtime==13.4.92" \
+              "nvidia-cublas==13.8.1.7" \
+              "nvidia-curand==10.4.4.72" \
+              "nvidia-cuda-nvrtc==13.4.92" \
+              "nvidia-cudnn-cu13==9.27.0.42" \
+         && rm -rf /tmp/ortwhl /tmp/ortlib; \
+       fi
+
+########################################
 # 2) Runtime
 ########################################
 FROM python:3.12-slim AS runtime
 ARG TARGETPLATFORM
 ARG TARGETARCH
+ARG ORT_FLAVOR=cpu
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     tzdata curl ca-certificates \
@@ -134,6 +209,25 @@ RUN if [ "$TARGETARCH" = "amd64" ]; then \
     echo "Architecture not supported: $TARGETARCH" && exit 1; \
     fi && \
     rm -rf /tmp/assets
+
+# GPU flavour: replace the CPU library with the GPU build, at the same path
+# the Go code loads (amd64: onnxruntime.so, arm64: onnxruntime_arm64.so),
+# with its provider libraries next to it.
+COPY --from=gpu-libs /out/ort/ /tmp/ort/
+COPY --from=gpu-libs /opt/nvidia/ /opt/nvidia/
+RUN if ls /tmp/ort/*.so >/dev/null 2>&1; then \
+      case "$TARGETARCH" in \
+        amd64) d=./assets/onnx_runtime_linux_amd64 ;; \
+        arm64) d=./assets/onnx_runtime_linux_arm64 ;; \
+      esac && \
+      cp /tmp/ort/*.so "$d"/ && chmod 755 "$d"/*.so; \
+    fi && rm -rf /tmp/ort
+# amd64 (CUDA 12 wheels): one folder per library. arm64 (CUDA 13 wheels):
+# nvidia/cu13/lib. cuDNN: nvidia/cudnn/lib on both. Folders that do not
+# exist are ignored by the loader.
+ENV LD_LIBRARY_PATH="/opt/nvidia/nvidia/cu13/lib:/opt/nvidia/nvidia/cuda_runtime/lib:/opt/nvidia/nvidia/cublas/lib:/opt/nvidia/nvidia/cufft/lib:/opt/nvidia/nvidia/curand/lib:/opt/nvidia/nvidia/cudnn/lib"
+# Read by the NVIDIA container runtime (only on GPU nodes, ignored elsewhere).
+ENV NVIDIA_DRIVER_CAPABILITIES="compute,utility"
 
 RUN mkdir data && chown -R pipelines:pipelines_group /pipelines
 
