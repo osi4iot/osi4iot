@@ -92,20 +92,18 @@ func GarageReplicationFactor(pi osi_types.PlatformInfo) int {
 }
 
 // GarageHosts lists the nodes Garage instances may run on, in the
-// state file's order: the platform workers, or the managers on a
-// platform that has none (where everything runs on the managers).
+// state file's order: the platform workers without a GPU (see
+// types.PinnedWorkers), or the managers on a platform that has no
+// workers (where everything runs on the managers).
 func GarageHosts(pi osi_types.PlatformInfo) []osi_types.NodeData {
-	var workers, managers []osi_types.NodeData
+	if workers := osi_types.PinnedWorkers(pi.NodesData); len(workers) > 0 {
+		return workers
+	}
+	var managers []osi_types.NodeData
 	for _, node := range pi.NodesData {
-		switch node.NodeRole {
-		case "Platform worker":
-			workers = append(workers, node)
-		case "Manager":
+		if node.NodeRole == "Manager" {
 			managers = append(managers, node)
 		}
-	}
-	if len(workers) > 0 {
-		return workers
 	}
 	return managers
 }

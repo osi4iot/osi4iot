@@ -166,8 +166,10 @@ func addNodesLabels(pd *types.PlatformData) error {
 	if usesPlacementLabels {
 		var workers []string
 		labelsNow := map[string]map[string]string{}
+		// GPU workers get no NATS/Patroni number: see types.PinnedWorkers.
+		pinnedHosts := types.PinnedWorkerIPs(nodesData)
 		for _, node := range nodesData {
-			if node.NodeRole != "Platform worker" {
+			if !pinnedHosts[node.NodeIP] {
 				continue
 			}
 			if swarmNode, ok := swarmNodesMap[node.NodeIP]; ok {
@@ -278,3 +280,4 @@ func keepalivedPriority(index int) string {
 	}
 	return "50"
 }
+

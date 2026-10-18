@@ -72,25 +72,36 @@ func PlanNodeRemoval(pd *pt.PlatformData, target pt.NodeData, labels map[string]
 	pi := pd.PlatformInfo
 	impact := NodePlacementImpact{}
 
-	var before, after []string
+	var remainingNodes []pt.NodeData
 	for _, node := range pi.NodesData {
 		if node.NodeRole == "Manager" {
 			impact.ManagersBefore++
+		}
+		if !sameNode(node, target) {
+			remainingNodes = append(remainingNodes, node)
 		}
 		if node.NodeRole != "Platform worker" {
 			continue
 		}
 		impact.WorkersBefore++
-		before = append(before, node.NodeIP)
-		if sameNode(node, target) {
-			continue
+		if !sameNode(node, target) {
+			impact.WorkersAfter++
 		}
-		impact.WorkersAfter++
+	}
+
+	// The pinned instances only live on the workers PinnedWorkers allows
+	// (no GPU), before and after: removing a GPU worker moves none of
+	// them, and the instances of a removed worker never go to a GPU one.
+	var before, after []string
+	for _, node := range pt.PinnedWorkers(pi.NodesData) {
+		before = append(before, node.NodeIP)
+	}
+	for _, node := range pt.PinnedWorkers(remainingNodes) {
 		after = append(after, node.NodeIP)
 	}
 
 	targets := pinnedTargets(pd)
-	if target.NodeRole == "Platform worker" && impact.WorkersAfter > 0 {
+	if target.NodeRole == "Platform worker" && len(after) > 0 {
 		impact.Moves = planPinnedMoves(targets, before, after, labels)
 		names := map[string]string{}
 		for _, node := range pi.NodesData {
@@ -121,7 +132,7 @@ func PlanNodeRemoval(pd *pt.PlatformData, target pt.NodeData, labels map[string]
 	impact.GarageInstances = GarageInstancesOn(pi, target.NodeIP)
 	if impact.WorkersAfter > 0 {
 		for _, t := range targets {
-			for i := impact.WorkersAfter + 1; i <= t.replicas; i++ {
+			for i := len(after) + 1; i <= t.replicas; i++ {
 				impact.HomelessServices = append(impact.HomelessServices,
 					fmt.Sprintf("%s%d", t.family.prefix, i))
 			}

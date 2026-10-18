@@ -52,6 +52,13 @@ func PlatformWorkerCount(pd *pt.PlatformData) int {
 	return GetNodeRoleNumMap(pd)["Platform worker"]
 }
 
+// PinnedWorkerCount returns how many workers may host the pinned
+// services: the workers without a GPU (all of them if every worker has
+// one). See types.PinnedWorkers.
+func PinnedWorkerCount(pd *pt.PlatformData) int {
+	return len(pt.PinnedWorkers(pd.PlatformInfo.NodesData))
+}
+
 // UsesPlacementLabels reports whether the replicated services should be
 // pinned by label at all.
 //
@@ -104,7 +111,7 @@ func ValidatePlacement(pd *pt.PlatformData) error {
 		return nil
 	}
 
-	workers := PlatformWorkerCount(pd)
+	workers := PinnedWorkerCount(pd)
 
 	var tooMany []string
 	for _, target := range PlacementTargets(pd) {
@@ -117,12 +124,16 @@ func ValidatePlacement(pd *pt.PlatformData) error {
 		return nil
 	}
 
-	return fmt.Errorf("this platform has %d node(s) with the 'Platform worker' role, "+
+	gpuNote := ""
+	if gpuWorkers := PlatformWorkerCount(pd) - workers; gpuWorkers > 0 {
+		gpuNote = fmt.Sprintf(" (not counting %d GPU worker(s), which are kept for pipelines)", gpuWorkers)
+	}
+	return fmt.Errorf("this platform has %d node(s) with the 'Platform worker' role%s, "+
 		"and %s.\n"+
 		"Each replica is pinned to its own worker, so the ones with no worker to go to "+
 		"would sit unschedulable and nothing would report it.\n"+
 		"Either add workers, or lower the replica counts",
-		workers, strings.Join(tooMany, ", and "))
+		workers, gpuNote, strings.Join(tooMany, ", and "))
 }
 
 // natsReplicaCount reads how many NATS servers are configured: the
