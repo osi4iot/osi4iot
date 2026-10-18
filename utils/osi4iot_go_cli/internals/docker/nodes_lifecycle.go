@@ -452,3 +452,100 @@ func describeRemoval(impact NodePlacementImpact, target pt.NodeData) string {
 
 	return b.String()
 }
+
+// FindUnjoinedStateNode looks for a node that the state file names (by
+// address, hostname or label) but that is not a member of the swarm:
+// typically an 'osi4iot node add' that saved the node and then could not
+// reach the machine (a wrong address, a closed port, a refused key).
+//
+// found is false when ref names no such node; an error is returned only
+// when ref is ambiguous or the swarm cannot be listed.
+func FindUnjoinedStateNode(pd *pt.PlatformData, dc *pt.DockerClient, ref string) (node pt.NodeData, found bool, err error) {
+	views, err := ListNodeViews(pd, dc)
+	if err != nil {
+		return pt.NodeData{}, false, err
+	}
+	joined := func(candidate pt.NodeData) bool {
+		for _, view := range views {
+			if view.InStateFile && sameNode(view.Platform, candidate) {
+				return true
+			}
+		}
+		return false
+	}
+
+	var matches []pt.NodeData
+	for _, candidate := range pd.PlatformInfo.NodesData {
+		if joined(candidate) {
+			continue
+		}
+		if candidate.NodeIP == ref ||
+			(candidate.NodeHostName != "" && candidate.NodeHostName == ref) ||
+			(candidate.NodeLabel != "" && candidate.NodeLabel == ref) {
+			matches = append(matches, candidate)
+		}
+	}
+
+	switch len(matches) {
+	case 0:
+		return pt.NodeData{}, false, nil
+	case 1:
+		return matches[0], true, nil
+	default:
+		addresses := make([]string, len(matches))
+		for i, m := range matches {
+			addresses[i] = m.NodeIP
+		}
+		return pt.NodeData{}, false, fmt.Errorf("'%s' matches more than one node that is not in the swarm (%s): "+
+			"use the address", ref, strings.Join(addresses, ", "))
+	}
+}
+
+// ForgetUnjoinedNode removes from the state file a node that never joined
+// the swarm. Nothing runs on it and the swarm does not know it, so there
+// is nothing to drain or to take out of the swarm: only the state file
+// entry goes, and the placement labels of the remaining nodes are
+// rewritten in case the entry sat between them (they are positional).
+//
+// Refused when Garage instances are assigned to it: those have to be
+// moved, and a node outside the swarm cannot be moved from.
+func ForgetUnjoinedNode(pd *pt.PlatformData, node pt.NodeData, logger *log.Logger) error {
+	if ids := GarageInstancesOn(pd.PlatformInfo, node.NodeIP); len(ids) > 0 {
+		return fmt.Errorf("%s has Garage instances assigned (%s) although it is not in the swarm; "+
+			"this needs fixing by hand", nodeName(node), instanceNames(ids))
+	}
+
+	previous := pd.PlatformInfo.NodesData
+	remaining := make([]pt.NodeData, 0, len(previous))
+	for _, candidate := range previous {
+		if sameNode(candidate, node) {
+			continue
+		}
+		remaining = append(remaining, candidate)
+	}
+	if len(remaining) == len(previous) {
+		return fmt.Errorf("%s is not in the state file", node.NodeIP)
+	}
+	pd.PlatformInfo.NodesData = remaining
+	pd.PlatformInfo.NumberOfSwarmNodes = len(remaining)
+
+	if err := utils.WritePlatformDataToFile(pd); err != nil {
+		pd.PlatformInfo.NodesData = previous
+		pd.PlatformInfo.NumberOfSwarmNodes = len(previous)
+		return fmt.Errorf("error saving the state file: %w", err)
+	}
+
+	// Same reasons as in RemoveNodeFromPlatform: the client map may hold
+	// an entry for the forgotten address, and the labels are positional.
+	if err := ResetDockerClientsMap(); err != nil {
+		return fmt.Errorf("error closing the docker clients: %w", err)
+	}
+	if _, err := SetDockerClientsMap(pd, "update"); err != nil {
+		return fmt.Errorf("error reconnecting to the remaining nodes: %w", err)
+	}
+	logger.Printf("Reassigning placement labels across the remaining nodes...")
+	if err := addNodesLabels(pd); err != nil {
+		return fmt.Errorf("error reassigning the node labels: %w", err)
+	}
+	return nil
+}

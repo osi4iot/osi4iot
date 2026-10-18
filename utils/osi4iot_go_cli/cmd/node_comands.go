@@ -412,6 +412,16 @@ var subCmdNodeAdd = &cobra.Command{
 			NodeHostName: node.NodeHostName,
 		})
 		if err := candidate.Validate(); err != nil {
+			// The usual cause: an earlier 'node add' saved the node and
+			// then could not reach the machine (a mistyped --ip, say).
+			// Say how to drop that entry instead of leaving it a riddle.
+			for _, existing := range pd.PlatformInfo.NodesData {
+				if label := strings.TrimSpace(nodeAddLabel); (label != "" && existing.NodeLabel == label) || existing.NodeIP == strings.TrimSpace(nodeAddIP) {
+					exitWithError(fmt.Sprintf("%v\n%s is already in the state file (at %s). If it is left over "+
+						"from an 'osi4iot node add' that failed, remove it with 'osi4iot node remove %s' "+
+						"and add the node again", err, nodeName(existing), existing.NodeIP, existing.NodeIP))
+				}
+			}
 			exitWithError(err.Error())
 			return
 		}
@@ -566,6 +576,11 @@ var subCmdNodeRemove = &cobra.Command{
 
 		view, err := docker.GetNodeView(pd, dc, args[0])
 		if err != nil {
+			// Not in the swarm: maybe in the state file only, left there
+			// by an 'osi4iot node add' that could not reach the machine.
+			if removeUnjoinedNode(pd, dc, args[0], logger) {
+				return
+			}
 			exitWithError(err.Error())
 			return
 		}
@@ -672,6 +687,54 @@ var subCmdNodeRemove = &cobra.Command{
 			}
 		}
 	},
+}
+
+// removeUnjoinedNode handles 'node remove' for a node that is in the
+// state file but never joined the swarm. It returns false when ref names
+// no such node, so the caller reports its own "no node matches" error.
+func removeUnjoinedNode(pd *pt.PlatformData, dc *pt.DockerClient, ref string, logger *log.Logger) bool {
+	node, found, err := docker.FindUnjoinedStateNode(pd, dc, ref)
+	if err != nil {
+		exitWithError(err.Error())
+		return true
+	}
+	if !found {
+		return false
+	}
+
+	name := nodeName(node)
+	fmt.Printf("\n%s (%s, '%s') is in the state file but not in the swarm: it never joined,\n"+
+		"so nothing runs on it. Only its state file entry will be removed.\n", name, node.NodeIP, node.NodeRole)
+
+	if !nodeRemoveYes {
+		answer, err := promptLine("\nRemove it? [y/N]: ")
+		if err != nil {
+			exitWithError(err.Error())
+			return true
+		}
+		if !strings.EqualFold(answer, "y") && !strings.EqualFold(answer, "yes") {
+			fmt.Println("Cancelled.")
+			return true
+		}
+	}
+
+	if err := docker.ForgetUnjoinedNode(pd, node, logger); err != nil {
+		exitWithError(err.Error())
+		return true
+	}
+	fmt.Println(utils.StyleOKMsg.Render(fmt.Sprintf("%s (%s) has been removed from the state file", name, node.NodeIP)))
+	return true
+}
+
+// nodeName is the friendliest handle a state file node has.
+func nodeName(node pt.NodeData) string {
+	if node.NodeLabel != "" {
+		return node.NodeLabel
+	}
+	if node.NodeHostName != "" {
+		return node.NodeHostName
+	}
+	return node.NodeIP
 }
 
 // nodeContext is the two things every subcommand starts with.
