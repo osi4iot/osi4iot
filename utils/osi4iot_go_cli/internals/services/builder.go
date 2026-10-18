@@ -388,6 +388,21 @@ func (b *ServiceBuilder) WithStopGracePeriod(duration time.Duration) *ServiceBui
 	return b
 }
 
+// WithUpdateOrder sets the order ("start-first" or "stop-first") of the
+// rolling updates and rollbacks, keeping the rest of the update config.
+func (b *ServiceBuilder) WithUpdateOrder(order string) *ServiceBuilder {
+	if order == "" {
+		return b
+	}
+	if b.svc.UpdateConfig != nil {
+		b.svc.UpdateConfig.Order = order
+	}
+	if b.svc.RollbackConfig != nil {
+		b.svc.RollbackConfig.Order = order
+	}
+	return b
+}
+
 // WithStatefulUpdateConfig switches this service to a stop-first rolling
 // update. Use it for every service with a persistent volume.
 func (b *ServiceBuilder) WithStatefulUpdateConfig(monitor time.Duration) *ServiceBuilder {

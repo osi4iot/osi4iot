@@ -71,12 +71,19 @@ func SetPipelinesGPUMode(pd *pt.PlatformData, dc *pt.DockerClient, mode string) 
 			env[parts[0]] = parts[1]
 		}
 		image := res.Spec.Image
+		// Back to the builder's default when the mode no longer needs
+		// stop-first, so switching modes is symmetric.
+		order := res.Spec.UpdateOrder
+		if order == "" {
+			order = "start-first"
+		}
 
 		updateResult, err := ServiceUpdate(pd, dc, service, "pipelines", ServiceUpdateOptions{
-			Image:     &image,
-			Env:       env,
-			RemoveEnv: res.Spec.RemoveEnv,
-			Placement: &placement,
+			Image:       &image,
+			Env:         env,
+			RemoveEnv:   res.Spec.RemoveEnv,
+			Placement:   &placement,
+			UpdateOrder: order,
 		})
 		if err != nil {
 			pd.PlatformInfo.PipelinesGPUMode = previous

@@ -167,22 +167,20 @@ var cmdInit = &cobra.Command{
 			}
 		}
 
+		// Missing settings already got their defaults when the state file
+		// was read (applyPlatformInfoDefaults), PIPELINES_GPU_MODE
+		// included, and init writes them out. What that step leaves alone
+		// on purpose is a value that is present but invalid: refuse it
+		// here instead of deploying something the file does not say.
+		if _, err := pt.NormalizePipelinesGPUMode(pd.PlatformInfo.PipelinesGPUMode); err != nil {
+			exitWithError(fmt.Sprintf("Error in PIPELINES_GPU_MODE of the state file: %v", err))
+		}
+
 		// Three modes, differing in exactly two places: which services
 		// the first deployment leaves out, and what happens once it is
 		// up. Both restoring modes hold admin_api, grafana and
 		// pipelines back, because they read the database once at
 		// startup and the database is about to be replaced.
-		// Defaults of missing settings are filled in when the state file
-		// is read (applyPlatformInfoDefaults), so init writes them all,
-		// PIPELINES_GPU_MODE included. A hand-edited value that is not a
-		// mode is left there by design; init refuses it here instead of
-		// deploying something other than what the file seems to say.
-		gpuMode, err := pt.NormalizePipelinesGPUMode(pd.PlatformInfo.PipelinesGPUMode)
-		if err != nil {
-			exitWithError(fmt.Sprintf("Error in PIPELINES_GPU_MODE of the state file: %v", err))
-		}
-		pd.PlatformInfo.PipelinesGPUMode = gpuMode
-
 		var deferred []string
 		if snapshotPath != "" || fromBucket != "" {
 			deferred = docker.DeferredUntilRestored
@@ -525,6 +523,11 @@ Where:
   SERVICE  is the service name
   CPU      is expressed in cores (e.g. 0.50)
   MEM      is expressed in megabytes (e.g. 1000Mb)
+
+They are both the limits and the reservations, except for pipelines,
+which reserves half of them: an ONNX model on CUDA needs a few GB of
+memory when it warms up, so its limit has to be generous, and reserving
+all of it would take most of a GPU node.
 
 Example:
   osi4iot service resources admin_api=0.50CPU-1000Mb

@@ -39,6 +39,7 @@ func PipelinesService(
 	env = append(env, gpu.Env...)
 
 	image := gpu.Image
+	reservedCPUs, reservedMem := PipelinesReservations(svcResources.NanoCPUs, svcResources.MemoryBytes)
 	return NewService("pipelines", pd, sd).
 		WithImage(image).
 		WithEnv(env).
@@ -50,12 +51,15 @@ func PipelinesService(
 				Target: "/pipelines/data",
 			},
 		}).
-		WithResources(
+		WithBurstableResources(
+			reservedCPUs,
+			reservedMem,
 			svcResources.NanoCPUs,
 			svcResources.MemoryBytes,
 		).
 		WithPlacement(gpu.Constraints).
 		WithPlacementPreferences(gpu.Spread).
+		WithUpdateOrder(gpu.UpdateOrder).
 		WithModeReplicated(svcResources.ReplicasPtr).
 		WithNetworks([]swarm.NetworkAttachmentConfig{
 			{Target: sd.Networks["internal_net"].Name},
@@ -77,6 +81,23 @@ var pipelinesGPUEnvKeys = []string{
 	"ORT_EXECUTION_PROVIDER",
 }
 
+// pipelinesReservationPercent is how much of its configured CPU and
+// memory pipelines reserves. The configured values are the LIMITS, the
+// hard cgroup cap: an ONNX model on CUDA needs a few GB of host memory
+// when the session warms up, and a limit sized for steady state gets the
+// container OOM-killed then. Reserving the full limit as well, as other
+// services do, made pipelines claim most of a GPU node for nothing and,
+// with a second task during a rolling update, not fit at all
+// ("insufficient resources").
+const pipelinesReservationPercent = 50
+
+// PipelinesReservations returns what pipelines reserves for the given
+// limits (nanoCPUs, bytes). Used both when the service is built and by
+// 'osi4iot service resources pipelines=...', so the two agree.
+func PipelinesReservations(limitCPUs, limitMem int64) (cpus, mem int64) {
+	return limitCPUs * pipelinesReservationPercent / 100, limitMem * pipelinesReservationPercent / 100
+}
+
 // PipelinesGPUSpec is the GPU-dependent part of the pipelines service.
 type PipelinesGPUSpec struct {
 	Mode     string // normalized mode
@@ -88,6 +109,13 @@ type PipelinesGPUSpec struct {
 	RemoveEnv   []string // keys of pipelinesGPUEnvKeys that Env does not set
 	Constraints []string // all placement constraints of the service
 	Spread      []string // placement preferences (spread descriptors)
+
+	// UpdateOrder of the rolling updates. "stop-first" in gpu_only: the
+	// replicas only fit on the GPU nodes, and with start-first the new
+	// task needs a second reservation (CPU, memory, and GPU memory) on
+	// the node the old one still holds; on a single GPU node it never
+	// fits and the update sits pending ("insufficient resources").
+	UpdateOrder string
 }
 
 // PipelinesGPUSpecFor decides image, environment and placement of the
@@ -136,6 +164,7 @@ func PipelinesGPUSpecFor(pd *pt.PlatformData, nodeRoleNumMaps map[string]int) Pi
 		}
 		if mode == pt.PipelinesGPUOnly {
 			constraints = append(constraints, "node.labels.gpu==nvidia")
+			s.UpdateOrder = "stop-first"
 		} else {
 			// auto: digital twins with pipelineRequiresGpu run only on the
 			// replicas that landed on a GPU node. Spreading over the gpu

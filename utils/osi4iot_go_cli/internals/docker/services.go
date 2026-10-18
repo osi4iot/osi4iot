@@ -102,6 +102,7 @@ type ServiceUpdateOptions struct {
 	Env           map[string]string // Update environment variables (add or modify)
 	RemoveEnv     []string          // Environment variables to remove
 	Placement     *swarm.Placement  // Replace constraints and preferences
+	UpdateOrder   string            // "start-first" / "stop-first" for updates and rollbacks
 
 	// SkipMonitor returns as soon as Docker accepts the update instead
 	// of waiting for the service to become healthy.
@@ -139,7 +140,8 @@ func ServiceUpdate(
 		options.Image != nil ||
 		len(options.Env) > 0 ||
 		len(options.RemoveEnv) > 0 ||
-		options.Placement != nil
+		options.Placement != nil ||
+		options.UpdateOrder != ""
 
 	targetReplicas := uint64(0)
 	if service.Spec.Mode.Replicated != nil && service.Spec.Mode.Replicated.Replicas != nil {
@@ -312,6 +314,19 @@ func ServiceUpdate(
 		service.Spec.TaskTemplate.Placement = options.Placement
 	}
 
+	// 6c. Update order: Swarm applies this update with the new spec's
+	// UpdateConfig, so it already governs the update being made.
+	if options.UpdateOrder != "" {
+		if service.Spec.UpdateConfig == nil {
+			service.Spec.UpdateConfig = &swarm.UpdateConfig{}
+		}
+		service.Spec.UpdateConfig.Order = options.UpdateOrder
+		if service.Spec.RollbackConfig == nil {
+			service.Spec.RollbackConfig = &swarm.UpdateConfig{}
+		}
+		service.Spec.RollbackConfig.Order = options.UpdateOrder
+	}
+
 	// 7. Apply the update in Docker
 	response, err := dc.Cli.ServiceUpdate(dc.Ctx, service.ID, service.Version, service.Spec, serviceUpdateOptions)
 	if err != nil {
@@ -471,12 +486,18 @@ func UpdateSwarmServiceResources(
 
 	cpuNano := int64(cpu * 1e9)
 	memoryBytes := mem * 1024 * 1024
+	cpuReserved, memReserved := cpuNano, memoryBytes
+	if serviceName == "pipelines" {
+		// The configured values are pipelines' limits; it reserves less
+		// (see services.PipelinesReservations).
+		cpuReserved, memReserved = services.PipelinesReservations(cpuNano, memoryBytes)
+	}
 	updateOptions := ServiceUpdateOptions{
 		Resources: &ResourcesUpdateConfig{
 			CPULimit:          cpuNano,
-			CPUReservation:    cpuNano,
+			CPUReservation:    cpuReserved,
 			MemoryLimit:       memoryBytes,
-			MemoryReservation: memoryBytes,
+			MemoryReservation: memReserved,
 		},
 	}
 	updateResult, err := ServiceUpdate(pd, dc, service, serviceName, updateOptions)
