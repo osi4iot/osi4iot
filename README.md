@@ -30,6 +30,7 @@ The OSI4IOT platform is a web-based IOT platform for monitoring in real time ind
 - [Creating a platform](#creating-a-platform)
 - [Architecture](#architecture)
 - [Operating the platform](#operating-the-platform)
+- [GPU nodes](#gpu-nodes)
 - [Backups and recovery](#backups-and-recovery)
 - [CLI reference](#cli-reference)
 - [Glossary](#glossary)
@@ -58,6 +59,7 @@ In order to have the OSI4IOT platform running correctly, the following requireme
 -	A domain name to access the platform through a web page.
 -	An email address to send notifications from the platform, and its password.
 -	Optional: an AWS S3 bucket, if the platform's data should be stored outside it (see [Object storage](#object-storage)).
+-	Optional: one or more machines with an NVIDIA GPU, to run the pipelines' ONNX models on CUDA (see [GPU nodes](#gpu-nodes)).
 
 ## Installation
 
@@ -148,6 +150,7 @@ The platform runs on several machines of your own. The form asks for the number 
 
 -	`Manager`: a Docker Swarm manager. The entry point of the platform (Traefik) runs on the managers, and Keepalived keeps a floating IP on one of them. Use 1, 3 or 5 managers.
 -	`Platform worker`: runs the platform services. A cluster always needs at least one.
+-	A `Platform worker` with an NVIDIA GPU is detected automatically and labelled `gpu=nvidia`. It is kept for `pipelines` (see [GPU nodes](#gpu-nodes)).
 
 </p>
 </details>
@@ -156,7 +159,7 @@ The platform runs on several machines of your own. The form asks for the number 
 <summary> AWS cluster deployment </summary>
 <p>
 
-The same as the on-premise cluster, on EC2 instances. The volumes can optionally be AWS EBS volumes instead of local disks.
+The same as the on-premise cluster, on EC2 instances. The volumes can optionally be AWS EBS volumes instead of local disks. GPU instances (`g4dn`, `g5`, `g6`, `g5g`...) can be added as GPU workers.
 
 </p>
 </details>
@@ -182,7 +185,7 @@ The platform runs as Docker Swarm services:
 | `admin_api` | Platform API |
 | `nats1..N` | Messaging: NATS with JetStream, MQTT (port 1883) and WebSockets |
 | `auth_callout` | Authentication of NATS and MQTT clients |
-| `pipelines` | Processing of device data and digital twins |
+| `pipelines` | Processing of device data and digital twins; runs ONNX models on CPU or, on GPU nodes, on CUDA |
 | `patroni_admin1..N` | PostgreSQL cluster with the platform's data (Patroni, embedded Raft) |
 | `patroni_metrics1..N` | TimescaleDB cluster with the sensors' time series |
 | `haproxy_patroni` | Entry point to the primary of each database cluster |
@@ -202,13 +205,14 @@ NATS, the two Patroni clusters and Garage keep their data on local volumes, so e
 
 -	NATS and Patroni: every worker carries a placement number per service (`nats_N`, `admin-id=N`, `metrics-id=N`), and instance N runs where number N is. With 3 instances each, the platform keeps working when one worker fails. Numbers are stable: removing or adding a worker only moves what was on it.
 -	JetStream streams are kept with 1 copy on a single NATS server and 3 copies on a cluster of 3 or more.
+-	GPU workers (`gpu=nvidia`) never get these numbers, nor Garage instances: they are kept for `pipelines`, and a pinned instance there could not be moved off without moving its data. The only exception is a platform whose workers all have a GPU.
 -	`osi4iot node ls` shows every node's labels below the table.
 
 ### Object storage
 
 Backups (WAL-G for both databases, NATS streams, the state file) and the platform's files go to one S3 bucket:
 
--	**Local Garage**: a Garage cluster inside the platform. Replication factor 1 in a local deployment, 3 in a cluster. Its instances are spread over the workers: 1 worker holds 3, 2 workers 2 and 1, 3 or more one each. It needs no external service, but the bucket goes away with the platform's volumes.
+-	**Local Garage**: a Garage cluster inside the platform. Replication factor 1 in a local deployment, 3 in a cluster. Its instances are spread over the workers without a GPU: 1 worker holds 3, 2 workers 2 and 1, 3 or more one each. It needs no external service, but the bucket goes away with the platform's volumes.
 -	**Cloud AWS S3**: an external bucket. It outlives the platform, so a deleted platform can be brought back from it (`osi4iot init --from-bucket`).
 
 ## Operating the platform
@@ -244,6 +248,12 @@ For each instance it shows the Swarm task and the service's own view: NATS route
     osi4iot service rebalance garage
     osi4iot service resources admin_api=0.50CPU-1000Mb
     osi4iot service image admin_api=ghcr.io/osi4iot/admin_api_nats:1.3.0
+    osi4iot service gpu_mode                      # show how pipelines uses the GPU nodes
+    osi4iot service gpu_mode gpu_only             # auto | gpu_only | off (see GPU nodes)
+
+`service resources` sets both the limits and the reservations of a service, except for `pipelines`, which reserves half of its limits: a model on CUDA needs a few GB of memory while it warms up, so its limit must be generous, and reserving all of it would take most of a node.
+
+`service image pipelines=...` keeps the version you give and deploys its CPU or GPU flavor (`pipelines:X` / `pipelines:X-gpu`) as the GPU mode requires.
 
 Scaling NATS between 1 and 3 or more servers carries the streams over through a backup in the bucket. Every Garage change (adding, moving or retiring an instance) is one layout change at a time, and an old instance is only removed once its data is safe elsewhere; this takes at least about 10 minutes, Garage's own safety delay. An interrupted change is resumed by `osi4iot service rebalance garage`.
 
@@ -252,15 +262,72 @@ Scaling NATS between 1 and 3 or more servers carries the streams over through a 
     osi4iot node ls
     osi4iot node inspect worker_1
     osi4iot node ps worker_1
-    osi4iot node add --ip 192.168.1.14 --role "Platform worker" --user osi4iot
+    osi4iot node add --hostname worker-3 --ip 192.168.1.14 --label worker_3 --role "Platform worker" --user osi4iot
     osi4iot node drain worker_1
     osi4iot node activate worker_1
     osi4iot node remove worker_1
     osi4iot node update worker_1 --label-add rack=B12
 
--	`node add` joins the machine to the swarm and gives it its placement labels. Garage is rebalanced onto a new worker straight away (`--no-rebalance` to do it later). Adding a node does not change any replica count.
+-	`node add` joins the machine to the swarm and gives it its placement labels; a machine with a usable NVIDIA GPU also gets `gpu=nvidia`. Garage is rebalanced onto a new worker straight away (`--no-rebalance` to do it later). Adding a node does not change any replica count.
 -	`node drain` stops the node taking work, for maintenance. The NATS, Patroni and Garage instances on it are pinned there and wait. It is refused when one of those services would lose its quorum, counting nodes already drained or down. `node activate` brings the instances back with their data.
 -	`node remove` first moves Garage's instances off the node, then drains it, takes it out of the swarm and removes its volumes. Its NATS and Patroni instances go to a spare worker and rebuild their data there from the other instances. It is refused, before anything is touched, when fewer workers would be left than a service has replicas, when a service would lose its quorum, or when the node holds a service's only copy. In that last case, scale the service up first, or back it up, remove the node with `--rebuild-from-backup` and restore it.
+-	`node add` saves the node in the state file before it reaches the machine, so a failed add (an unreachable host, a refused key) can simply be run again once the machine is fixed. If the add failed because of a wrong `--ip` or `--label`, `node remove <ip>` takes out that entry: a node that never joined the swarm only has its state file entry removed.
+
+## GPU nodes
+
+The `MlModel` node of the pipelines runs ONNX models with ONNX Runtime. On a node with an NVIDIA GPU it runs them on CUDA (CUDA 12.8 and cuDNN 9 on amd64, CUDA 13 on arm64), falling back to CPU when CUDA is not usable.
+
+### Preparing a GPU machine
+
+The CUDA libraries are inside the `pipelines:<version>-gpu` image; the machine only needs:
+
+-	The NVIDIA driver: 570 or newer on amd64, 580 or newer on arm64.
+-	Docker and the [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html).
+-	`nvidia` as Docker's **default** runtime. Docker Swarm has no `--gpus`; a task reaches the GPU because the node's default runtime is `nvidia`:
+
+        sudo nvidia-ctk runtime configure --runtime=docker --set-as-default
+        sudo systemctl restart docker
+        docker info | grep -i "default runtime"                          # nvidia
+        docker run --rm -e NVIDIA_VISIBLE_DEVICES=all ubuntu nvidia-smi  # shows the GPU
+
+-	Recommended: the driver's persistence mode (`nvidia-smi -q | grep -i "persistence mode"`). On Ubuntu, `nvidia-persistenced` is started with `--no-persistence-mode`; override its `ExecStart` without that flag.
+-	A root volume of at least 50 GB: the GPU image is several GB.
+
+On AWS, the "Deep Learning Base AMI with Single CUDA (Ubuntu 24.04)" already has the driver, Docker and the toolkit; only the default runtime has to be set.
+
+Then add the machine with `osi4iot node add`, or run `osi4iot run`: the CLI asks each node's Docker which runtime it uses and labels the GPU nodes `gpu=nvidia`.
+
+### GPU mode
+
+`PIPELINES_GPU_MODE` decides how the `pipelines` service uses the GPU nodes. `osi4iot init` writes it to the state file (`auto` by default) and `osi4iot service gpu_mode` changes it:
+
+| Mode | Image | Where the replicas run | For |
+|---|---|---|---|
+| `auto` | GPU | Spread over GPU and non-GPU nodes; those on a GPU node use CUDA, the rest the CPU | Clusters with a few GPU nodes |
+| `gpu_only` | GPU | Only on GPU nodes | Every pipeline on a GPU |
+| `off` | CPU | Anywhere | Ignore the GPUs |
+
+    osi4iot service gpu_mode              # mode, GPU nodes available to pipelines, image
+    osi4iot service gpu_mode gpu_only
+
+With the platform running, the change is applied at once with a rolling update; with it stopped, it is stored and used by the next `osi4iot run`. In `gpu_only` the updates are stop-first, so a single GPU node does not need room for two copies. When no node has a usable GPU, pipelines runs on CPU and the command says so. On a local deployment or a single-node platform the GPU machine runs everything; on a cluster, every service other than `pipelines` and the global ones is kept off the GPU nodes.
+
+### Using the GPU in a digital twin
+
+A model only runs on the GPU when all of these hold:
+
+-	the digital twin has `pipelineRequiresGpu` enabled: its pipeline is then created only on the pipelines replicas with a GPU;
+-	its organization **and** its group have `gpuUsageEnabled` enabled; otherwise the model runs on CPU, even on a GPU replica.
+
+The log of a GPU replica shows `GPU capable: true (CUDA available)`, and the `MlModel` node adds `executionProvider` (`cuda` or `cpu`) to its output. If CUDA fails for good at runtime (a driver error, a GPU lost after a suspend), the models of that replica switch to CPU and the replica stops announcing itself as a GPU replica; restart `pipelines` once the driver is healthy to get the GPU back.
+
+### Memory
+
+A model on CUDA loads cuDNN and cuBLAS into the container's memory when it warms up. Give pipelines a generous memory limit on GPU nodes, for example:
+
+    osi4iot service resources pipelines=3.00CPU-6000Mb
+
+A pipelines task that exits with code 137 and `OOMKilled=true` needs a higher limit.
 
 ## Backups and recovery
 
@@ -311,7 +378,7 @@ Every command has its own help: `osi4iot <command> --help`.
 | `init` | Deploy the platform in the state file (`--snapshot-file`, `--from-bucket`, `--nodes`, `--reset-passwords`) |
 | `run` / `stop` / `delete` | Start, stop, remove the platform |
 | `status` | Platform state, services, Garage and nodes |
-| `service` | `ls`, `inspect`, `scale`, `rebalance`, `resources`, `image`, `state` |
+| `service` | `ls`, `inspect`, `scale`, `rebalance`, `resources`, `image`, `state`, `gpu_mode` |
 | `node` | `ls`, `inspect`, `ps`, `add`, `drain`, `activate`, `remove`, `update` |
 | `backup` | `trigger`, `list`, `restore`, `extract`, `apply`, `snapshot` |
 | `state` | `export`, `recover` |
@@ -644,4 +711,5 @@ Note: videos may take a few seconds to be loaded.
 - [x] Machine Learning.
 - [x] Improve database data retention policies.
 - [x] Health checks of the stateful services (`osi4iot service state`).
+- [x] GPU inference of ONNX models on NVIDIA GPU nodes (CUDA).
 - [ ] Org2Org & Group2Group message system.
