@@ -97,15 +97,35 @@ var (
 func GetFemResultsInstance() *FemResults {
 	femResultsOnce.Do(func() {
 		var resultsPath string
-		flag.StringVar(&resultsPath, "results_path", "./data", "Path to the FEM results directory")
+		flag.StringVar(&resultsPath, "results_path", "./data",
+			"FEM results: s3://bucket/prefix (bucket settings from the MCP_S3_* environment) or a local directory")
 		flag.Parse()
 
-		meshFilePath := filepath.Join(resultsPath, "mesh_0.parquet")
-		femResOnNodesPath := filepath.Join(resultsPath, "femres_OnNodes_mesh_0.parquet")
-		femResOnGPPath := filepath.Join(resultsPath, "femres_OnGaussPoints_mesh_0.parquet")
-		metadataPath := filepath.Join(resultsPath, "metadata.json")
+		meshFilePath := joinResultsPath(resultsPath, "mesh_0.parquet")
+		femResOnNodesPath := joinResultsPath(resultsPath, "femres_OnNodes_mesh_0.parquet")
+		femResOnGPPath := joinResultsPath(resultsPath, "femres_OnGaussPoints_mesh_0.parquet")
+		metadataPath := joinResultsPath(resultsPath, "metadata.json")
 
-		jsonData, err := os.ReadFile(metadataPath)
+		db, err := sql.Open("duckdb", "")
+		if err != nil {
+			log.Fatal("Error connecting to DuckDB:", err)
+		}
+		// One connection: the S3 settings below are per connection, and
+		// the server answers one tool call at a time anyway.
+		db.SetMaxOpenConns(1)
+
+		// Verificar que la conexión esté disponible
+		if err := db.Ping(); err != nil {
+			log.Fatal("Error verifying connection to DuckDB:", err)
+		}
+
+		if isS3Path(resultsPath) {
+			if err := setupS3(db); err != nil {
+				log.Fatal("Error configuring S3 access:", err)
+			}
+		}
+
+		jsonData, err := readMetadata(db, metadataPath)
 		if err != nil {
 			log.Fatal("Error reading metadata JSON:", err)
 		}
@@ -113,16 +133,6 @@ func GetFemResultsInstance() *FemResults {
 		var metadata Metadata
 		if err := json.Unmarshal(jsonData, &metadata); err != nil {
 			log.Fatal("Error parsing metadata JSON:", err)
-		}
-
-		db, err := sql.Open("duckdb", "")
-		if err != nil {
-			log.Fatal("Error connecting to DuckDB:", err)
-		}
-
-		// Verificar que la conexión esté disponible
-		if err := db.Ping(); err != nil {
-			log.Fatal("Error verifying connection to DuckDB:", err)
 		}
 
 		numElements, err := getNumElements(db, meshFilePath)
@@ -983,6 +993,107 @@ func getResultsList(db *sql.DB, gpResFilePath string, nodesResFilePath string, r
 	}
 
 	return &resultsList, nil
+}
+
+func isS3Path(p string) bool {
+	return strings.HasPrefix(p, "s3://")
+}
+
+// joinResultsPath joins a file name to a local directory or an s3:// URI.
+func joinResultsPath(base, name string) string {
+	if isS3Path(base) {
+		return strings.TrimRight(base, "/") + "/" + name
+	}
+	return filepath.Join(base, name)
+}
+
+// readMetadata reads metadata.json from S3 (through DuckDB's httpfs) or
+// from disk.
+func readMetadata(db *sql.DB, path string) ([]byte, error) {
+	if !isS3Path(path) {
+		return os.ReadFile(path)
+	}
+	var content string
+	if err := db.QueryRow("SELECT content FROM read_text(?)", path).Scan(&content); err != nil {
+		return nil, err
+	}
+	return []byte(content), nil
+}
+
+// setupS3 loads httpfs and points DuckDB at the platform's bucket, from
+// the environment pipelines passes on: MCP_S3_REGION,
+// MCP_S3_ACCESS_KEY_ID, MCP_S3_SECRET_ACCESS_KEY and MCP_S3_ENDPOINT
+// (empty for AWS S3; http://garage:3900 for Garage).
+//
+// In the pipelines image the httpfs extension is already on disk
+// (DUCKDB_EXT_DIR) and there is no network access to download it.
+func setupS3(db *sql.DB) error {
+	exec := func(stmt string, args ...any) error {
+		if _, err := db.Exec(stmt, args...); err != nil {
+			return fmt.Errorf("%s: %w", strings.SplitN(stmt, "=", 2)[0], err)
+		}
+		return nil
+	}
+	quote := func(s string) string { return "'" + strings.ReplaceAll(s, "'", "''") + "'" }
+
+	if home := os.Getenv("DUCKDB_HOME_DIR"); home != "" {
+		if err := exec("SET home_directory=" + quote(home)); err != nil {
+			return err
+		}
+	} else if _, err := os.Stat("/tmp/duckdb"); err == nil {
+		if err := exec("SET home_directory='/tmp/duckdb'"); err != nil {
+			return err
+		}
+	}
+
+	installed := false
+	if extDir := os.Getenv("DUCKDB_EXT_DIR"); extDir != "" {
+		if err := exec("SET extension_directory=" + quote(extDir)); err != nil {
+			return err
+		}
+		file := filepath.Join(extDir, "httpfs.duckdb_extension")
+		if _, err := os.Stat(file); err == nil {
+			if err := exec("INSTALL " + quote(file)); err != nil {
+				return err
+			}
+			installed = true
+		}
+	}
+	if !installed {
+		if err := exec("INSTALL httpfs"); err != nil {
+			return err
+		}
+	}
+	if err := exec("LOAD httpfs"); err != nil {
+		return err
+	}
+
+	region := os.Getenv("MCP_S3_REGION")
+	if region == "" {
+		region = "us-east-1"
+	}
+	stmts := []string{"SET s3_region=" + quote(region)}
+	if v := os.Getenv("MCP_S3_ACCESS_KEY_ID"); v != "" {
+		stmts = append(stmts, "SET s3_access_key_id="+quote(v))
+	}
+	if v := os.Getenv("MCP_S3_SECRET_ACCESS_KEY"); v != "" {
+		stmts = append(stmts, "SET s3_secret_access_key="+quote(v))
+	}
+	if raw := strings.TrimSpace(os.Getenv("MCP_S3_ENDPOINT")); raw != "" {
+		useSSL := !strings.HasPrefix(raw, "http://")
+		endpoint := strings.TrimRight(strings.TrimPrefix(strings.TrimPrefix(raw, "https://"), "http://"), "/")
+		stmts = append(stmts,
+			"SET s3_endpoint="+quote(endpoint),
+			"SET s3_url_style='path'",
+			fmt.Sprintf("SET s3_use_ssl=%v", useSSL),
+		)
+	}
+	for _, stmt := range stmts {
+		if err := exec(stmt); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func joinStrings(strs []string, sep string) string {

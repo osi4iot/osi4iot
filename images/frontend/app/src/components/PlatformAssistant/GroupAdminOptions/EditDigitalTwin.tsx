@@ -338,7 +338,7 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
                 .then((response: AxiosResponse<any, any>) => {
                     const gltfFileInfo = response.data;
                     if (gltfFileInfo.length !== 0) {
-                        const gltfFileName = gltfFileInfo[0].fileName.split("/")[4];
+                        const gltfFileName = gltfFileInfo[0].fileName.split("/")[5];
                         setStoredGltfFileName(gltfFileName);
                         setGltfFileName(gltfFileName);
                         const gltfFileLastModif = formatDateString(gltfFileInfo[0].lastModified);
@@ -352,7 +352,7 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
                                 const femResFileList: { fileName: string; lastModified: string }[] = response.data;
                                 if (femResFileList.length !== 0) {
                                     const femResFileNames = femResFileList.map(
-                                        (femResFile) => femResFile.fileName.split("/")[4],
+                                        (femResFile) => femResFile.fileName.split("/")[5],
                                     );
                                     setFemResFileNames(femResFileNames);
                                     setFemResFileName(femResFileNames[0]);
@@ -377,7 +377,7 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
                                 const docInfoFileList: { fileName: string; lastModified: string }[] = response.data;
                                 if (docInfoFileList.length !== 0) {
                                     const docInfoFileNames = docInfoFileList.map(
-                                        (docInfoFile) => docInfoFile.fileName.split("/")[4],
+                                        (docInfoFile) => docInfoFile.fileName.split("/")[5],
                                     );
                                     setStoredDocInfoFileName(docInfoFileNames[0]);
                                     setDocInfoFileName(docInfoFileNames[0]);

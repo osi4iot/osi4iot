@@ -85,22 +85,22 @@ func CreateAiAgentNode(ctx context.Context, node common.NodeData, fm common.Mana
 	logSubject := utils.TopicToNatsSubject(logTopic.TopicType, logTopic.GroupUid, logTopic.TopicUid)
 
 	mcpServersPath := fm.GetMcpServersPath()
-	dtPath := fm.GetDigitalTwinFolder(p.GetOrgId(), p.GetGroupId(), p.GetDigitalTwinId())
-	fileSystemPath := filepath.Join(dtPath, "filesystem")
-	utils.CreateDirectoryIfNotExists(fileSystemPath)
+	// The digital twin's documents are read straight from the bucket by
+	// the doc_info MCP server (list, read, search; no writing).
+	docInfoPrefix := fm.DocInfoFilesS3Prefix(p.GetOrgId(), p.GetGroupId(), p.GetDigitalTwinId())
+	mcpServers := map[string]mcphost.MCPServerConfig{}
 
-	mcpServers := map[string]mcphost.MCPServerConfig{
-		"filesystem": {
-			Type: "builtin",
-			Name: "fs",
-			Options: map[string]any{
-				"allowed_directories": []string{fileSystemPath},
-			},
-		},
-	}
-
-	femResultsInfo := fm.GetS3DigitalTwinFolderInfo(ctx, p.GetGroupId(), p.GetDigitalTwinId(), "femResFiles")
+	// The FEM results are queried straight from the bucket (Parquet,
+	// written when the results were uploaded); the MCP server takes the
+	// bucket's settings from the environment it inherits.
+	femResultsURI, hasFemResults := fm.FemResultsS3URI(ctx, p.GetOrgId(), p.GetGroupId(), p.GetDigitalTwinId())
 	if fm.GetMode() == "local" {
+		mcpServers["documents"] = mcphost.MCPServerConfig{
+			Type:    "local",
+			Name:    "documents",
+			Command: []string{filepath.Join(mcpServersPath, "doc_info", "doc_info")},
+			Args:    []string{"--prefix", docInfoPrefix},
+		}
 		mcpServers["current_date"] = mcphost.MCPServerConfig{
 			Type:    "local",
 			Name:    "current_date",
@@ -118,19 +118,21 @@ func CreateAiAgentNode(ctx context.Context, node common.NodeData, fm common.Mana
 				"server.py",
 			},
 		}
-		if len(femResultsInfo) > 0 {
-			femResultsPath := fm.GetFemResultsPath(p.GetOrgId(), p.GetGroupId(), p.GetDigitalTwinId())
-			utils.CreateDirectoryIfNotExists(femResultsPath)
-			if femResultsPath != "" {
-				mcpServers["fem_results"] = mcphost.MCPServerConfig{
-					Type:    "local",
-					Name:    "fem_results",
-					Command: []string{filepath.Join(mcpServersPath, "fem_results", "fem_results")},
-					Args:    []string{"--results_path", femResultsPath},
-				}
+		if hasFemResults {
+			mcpServers["fem_results"] = mcphost.MCPServerConfig{
+				Type:    "local",
+				Name:    "fem_results",
+				Command: []string{filepath.Join(mcpServersPath, "fem_results", "fem_results")},
+				Args:    []string{"--results_path", femResultsURI},
 			}
 		}
 	} else {
+		mcpServers["documents"] = mcphost.MCPServerConfig{
+			Type:    "local",
+			Name:    "documents",
+			Command: []string{"/usr/local/bin/doc_info"},
+			Args:    []string{"--prefix", docInfoPrefix},
+		}
 		mcpServers["current_date"] = mcphost.MCPServerConfig{
 			Type:    "local",
 			Name:    "current_date",
@@ -143,16 +145,12 @@ func CreateAiAgentNode(ctx context.Context, node common.NodeData, fm common.Mana
 			Command: []string{"/opt/venv/bin/python"},
 			Args:    []string{"-m", "server"},
 		}
-		if len(femResultsInfo) > 0 {
-			femResultsPath := fm.GetFemResultsPath(p.GetOrgId(), p.GetGroupId(), p.GetDigitalTwinId())
-			utils.CreateDirectoryIfNotExists(femResultsPath)
-			if femResultsPath != "" {
-				mcpServers["fem_results"] = mcphost.MCPServerConfig{
-					Type:    "local",
-					Name:    "fem_results",
-					Command: []string{"/usr/local/bin/fem_results"},
-					Args:    []string{"--results_path", femResultsPath},
-				}
+		if hasFemResults {
+			mcpServers["fem_results"] = mcphost.MCPServerConfig{
+				Type:    "local",
+				Name:    "fem_results",
+				Command: []string{"/usr/local/bin/fem_results"},
+				Args:    []string{"--results_path", femResultsURI},
 			}
 		}
 	}

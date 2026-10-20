@@ -55,12 +55,8 @@ type Manager interface {
 	DeleteMlModel(modelId int) error
 	UpdateMlModel(model *MLModel) error
 	GetS3MlModelFolderInfo(ctx context.Context, groupId int, mlModelId int) []*S3FolderFileInfo
-	GetMlModelFolder(orgId int, groupId int, mlModelId int) string
-	GetMlModelFilePath(orgId int, groupId int, mlModelId int) string
-	DownloadMlModelFile(ctx context.Context, mlModelFilePath string, groupId int, mlModelId int) string
+	GetMlModelData(ctx context.Context, orgId int, groupId int, mlModelId int) ([]byte, error)
 	GetMlModelFile(ctx context.Context, groupId int, mlModelId int) error
-	DeleteOldMlModelFiles(currentModels []*MLModel) error
-	GetModelFolders(rootPath string) ([]MlModelFolder, error)
 
 	StartNodes(ctx context.Context)
 	StopPipelines(ctx context.Context)
@@ -141,15 +137,13 @@ type Manager interface {
 
 	GetS3DigitalTwinFolderInfo(ctx context.Context, groupId int, digitalTwinId int, folder string) []*S3FolderFileInfo
 	GetFemResultsPath(orgId int, groupId int, digitalTwinId int) string
+	FemResultsS3URI(ctx context.Context, orgId, groupId, digitalTwinId int) (string, bool)
 	GetDigitalTwinFolder(orgId int, groupId int, digitalTwinId int) string
 	AddFemResultsInDigitalTwins(ctx context.Context) error
 	AddFemResultsInDigitalTwin(ctx context.Context, digitalTwinId int) error
 	DeleteFemResultsInDigitalTwin(digitalTwinId int) error
 
-	GetDocInfoFilesPath(orgId int, groupId int, digitalTwinId int) string
-	AddDocInfoFilesInDigitalTwins(ctx context.Context) error
-	AddDocInfoFileInDigitalTwin(ctx context.Context, digitalTwinId int) error
-	DeleteDocInfoFileInDigitalTwin(digitalTwinId int) error
+	DocInfoFilesS3Prefix(orgId, groupId, digitalTwinId int) string
 
 	GetLeaderKvStore() jetstream.KeyValue
 	SetPipelineStatusSubscription(ctx context.Context, digitalTwin *DigitalTwin) *nats.Subscription

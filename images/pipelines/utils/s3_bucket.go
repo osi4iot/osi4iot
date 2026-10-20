@@ -2,7 +2,9 @@ package utils
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 
@@ -10,6 +12,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 
 	localConfig "pipelines/config"
 	"pipelines/logger"
@@ -82,4 +85,109 @@ func UploadFileToS3(s3Client *s3.Client, bucketName, filePath, s3Key string, log
 
 	log.Info(fmt.Sprintf("File uploaded to S3: %s", s3Key))
 	return nil
+}
+
+// GetS3Object returns a (small) object's bytes. found is false when the
+// object does not exist.
+func GetS3Object(ctx context.Context, c *s3.Client, bucket, key string) (data []byte, found bool, err error) {
+	out, err := c.GetObject(ctx, &s3.GetObjectInput{Bucket: aws.String(bucket), Key: aws.String(key)})
+	if err != nil {
+		var noKey *types.NoSuchKey
+		var notFound *types.NotFound
+		if errors.As(err, &noKey) || errors.As(err, &notFound) {
+			return nil, false, nil
+		}
+		return nil, false, fmt.Errorf("error getting s3://%s/%s: %w", bucket, key, err)
+	}
+	defer out.Body.Close()
+	// Sized from Content-Length: io.ReadAll would grow the slice by
+	// doubling, up to about twice a large object's size.
+	if n := aws.ToInt64(out.ContentLength); n > 0 {
+		data = make([]byte, n)
+		_, err = io.ReadFull(out.Body, data)
+	} else {
+		data, err = io.ReadAll(out.Body)
+	}
+	if err != nil {
+		return nil, false, fmt.Errorf("error reading s3://%s/%s: %w", bucket, key, err)
+	}
+	return data, true, nil
+}
+
+// S3ObjectExists reports whether an object exists.
+func S3ObjectExists(ctx context.Context, c *s3.Client, bucket, key string) (bool, error) {
+	_, err := c.HeadObject(ctx, &s3.HeadObjectInput{Bucket: aws.String(bucket), Key: aws.String(key)})
+	if err != nil {
+		var noKey *types.NoSuchKey
+		var notFound *types.NotFound
+		if errors.As(err, &noKey) || errors.As(err, &notFound) {
+			return false, nil
+		}
+		return false, fmt.Errorf("error checking s3://%s/%s: %w", bucket, key, err)
+	}
+	return true, nil
+}
+
+// UploadFileToS3WithContext uploads a local file.
+func UploadFileToS3WithContext(ctx context.Context, c *s3.Client, bucket, filePath, key string) error {
+	file, err := os.Open(filePath)
+	if err != nil {
+		return fmt.Errorf("error opening %s: %w", filePath, err)
+	}
+	defer file.Close()
+	if _, err := c.PutObject(ctx, &s3.PutObjectInput{
+		Bucket: aws.String(bucket),
+		Key:    aws.String(key),
+		Body:   file,
+	}); err != nil {
+		return fmt.Errorf("error uploading s3://%s/%s: %w", bucket, key, err)
+	}
+	return nil
+}
+
+// DeleteS3Prefix deletes every object under prefix, one DeleteObject at
+// a time: these prefixes hold a handful of objects, and DeleteObjects
+// needs a request checksum Garage handles differently from AWS.
+func DeleteS3Prefix(ctx context.Context, c *s3.Client, bucket, prefix string) error {
+	paginator := s3.NewListObjectsV2Paginator(c, &s3.ListObjectsV2Input{
+		Bucket: aws.String(bucket),
+		Prefix: aws.String(prefix),
+	})
+	for paginator.HasMorePages() {
+		page, err := paginator.NextPage(ctx)
+		if err != nil {
+			return fmt.Errorf("error listing s3://%s/%s: %w", bucket, prefix, err)
+		}
+		for _, obj := range page.Contents {
+			if _, err := c.DeleteObject(ctx, &s3.DeleteObjectInput{
+				Bucket: aws.String(bucket),
+				Key:    obj.Key,
+			}); err != nil {
+				return fmt.Errorf("error deleting s3://%s/%s: %w", bucket, aws.ToString(obj.Key), err)
+			}
+		}
+	}
+	return nil
+}
+
+// NewestS3Object returns the key of the most recently modified object
+// under prefix, or "" when there is none.
+func NewestS3Object(ctx context.Context, c *s3.Client, bucket, prefix string) (string, error) {
+	var newest types.Object
+	paginator := s3.NewListObjectsV2Paginator(c, &s3.ListObjectsV2Input{
+		Bucket: aws.String(bucket),
+		Prefix: aws.String(prefix),
+	})
+	for paginator.HasMorePages() {
+		page, err := paginator.NextPage(ctx)
+		if err != nil {
+			return "", fmt.Errorf("error listing s3://%s/%s: %w", bucket, prefix, err)
+		}
+		for _, obj := range page.Contents {
+			if newest.Key == nil || aws.ToTime(obj.LastModified).After(aws.ToTime(newest.LastModified)) {
+				newest = obj
+			}
+		}
+	}
+	return aws.ToString(newest.Key), nil
 }

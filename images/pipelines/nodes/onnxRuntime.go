@@ -262,7 +262,7 @@ func appendTensorRT(options *ort.SessionOptions) error {
 // newSessionWithFallback creates the session with the first provider of
 // the candidates that works, and returns which one it was.
 func newSessionWithFallback(
-	modelPath string,
+	modelData []byte,
 	inputNames, outputNames []string,
 	inputs, outputs []ort.Value,
 	requested string,
@@ -278,7 +278,7 @@ func newSessionWithFallback(
 			log.Warnf("Execution provider %s not usable: %v", provider, err)
 			continue
 		}
-		session, err := ort.NewAdvancedSession(modelPath, inputNames, outputNames, inputs, outputs, options)
+		session, err := ort.NewAdvancedSessionWithONNXData(modelData, inputNames, outputNames, inputs, outputs, options)
 		options.Destroy()
 		if err != nil {
 			errs = append(errs, fmt.Sprintf("%s: %v", provider, err))

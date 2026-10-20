@@ -4,12 +4,10 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"path/filepath"
 	"pipelines/common"
 	"pipelines/config"
 	"pipelines/logger"
 	"pipelines/utils"
-	"strings"
 
 	"sync"
 	"time"
@@ -578,96 +576,11 @@ func (a *Admin) GetS3MlModelFolderInfo(ctx context.Context, groupId int, mlModel
 	return folderInfo
 }
 
-func (a *Admin) ProcessFemResultFile(ctx context.Context, femResultsPath string, groupId int, digitalTwinId int) {
-	femResultsInfo := a.GetS3DigitalTwinFolderInfo(ctx, groupId, digitalTwinId, "femResFiles")
-
-	if len(femResultsInfo) > 0 {
-		isFemResultsProcessed, err := utils.IsFemResultsFileProcessed(femResultsPath, femResultsInfo[0])
-		if err != nil {
-			a.log.Errorf("failed to check if fem results file is processed: %v", err)
-			return
-		}
-
-		if isFemResultsProcessed {
-			return
-		}
-
-		fileName := strings.Split(femResultsInfo[0].FileName, "/")[4]
-		lastModified := femResultsInfo[0].LastModified
-		femResultFileUrl := fmt.Sprintf("%s/digital_twin_download_file/%d/%d/femResFiles/%s", a.baseUrl, groupId, digitalTwinId, fileName)
-		response, err := utils.HttpGetWithJwt(ctx, femResultFileUrl, a.accessToken)
-		if err != nil {
-			a.log.Errorf("failed to download fem result file %s: %v", fileName, err)
-			return
-		}
-		// Save the file or process it as needed
-		jsonFilePath := filepath.Join(femResultsPath, fileName)
-		err = utils.SaveToFile(jsonFilePath, response)
-		if err != nil {
-			a.log.Errorf("failed to save fem result file %s: %v", fileName, err)
-		}
-
-		processor := utils.NewFemResultsProcessor(femResultsPath, fileName, lastModified)
-		err = processor.ProcessJSONFile(jsonFilePath)
-		if err != nil {
-			a.log.Errorf("Error processing JSON: %v\n", err)
-			return
-		}
-
-		err = utils.DeleteFile(jsonFilePath)
-		if err != nil {
-			a.log.Errorf("Error deleting fem results json file %s: %v\n", jsonFilePath, err)
-		}
-	}
-}
-
-func (a *Admin) ProcessDocInfoFile(ctx context.Context, docInfoFilesPath string, groupId int, digitalTwinId int) {
-	docInfoFilesInfo := a.GetS3DigitalTwinFolderInfo(ctx, groupId, digitalTwinId, "docInfoFiles")
-
-	if len(docInfoFilesInfo) > 0 {
-		fileName := strings.Split(docInfoFilesInfo[0].FileName, "/")[4]
-		docInfoFilePath := filepath.Join(docInfoFilesPath, fileName)
-		lastModified := docInfoFilesInfo[0].LastModified
-		isNewer, _ := utils.IsDateNewerThanFile(lastModified, docInfoFilePath)
-		if isNewer {
-			docInfoFileUrl := fmt.Sprintf("%s/digital_twin_download_file/%d/%d/docInfoFiles/%s", a.baseUrl, groupId, digitalTwinId, fileName)
-			response, err := utils.HttpGetWithJwt(ctx, docInfoFileUrl, a.accessToken)
-			if err != nil {
-				a.log.Errorf("failed to download doc info file %s: %v", fileName, err)
-				return
-			}
-			err = utils.SaveToFile(docInfoFilePath, response)
-			if err != nil {
-				a.log.Errorf("failed to save doc info file %s: %v", fileName, err)
-			}
-		}
-	}
-}
-
-func (a *Admin) DownloadMlModelFile(ctx context.Context, mlModelFolder string, groupId int, mlModelId int) string {
-	mlModelFileInfo := a.GetS3MlModelFolderInfo(ctx, groupId, mlModelId)
-	if len(mlModelFileInfo) > 0 {
-		fileName := strings.Split(mlModelFileInfo[0].FileName, "/")[5]
-		mlModelFilePath := filepath.Join(mlModelFolder, fileName)
-		lastModified := mlModelFileInfo[0].LastModified
-		isNewer, _ := utils.IsDateNewerThanFile(lastModified, mlModelFilePath)
-		if isNewer {
-			utils.DeleteFilesInFolder(mlModelFolder)
-			mlModelFileUrl := fmt.Sprintf("%s/ml_model_download_file/%d/%d/%s", a.baseUrl, groupId, mlModelId, fileName)
-			response, err := utils.HttpGetWithJwt(ctx, mlModelFileUrl, a.accessToken)
-			if err != nil {
-				a.log.Errorf("failed to download ML model file %s: %v", fileName, err)
-				return ""
-			}
-			err = utils.SaveToFile(mlModelFilePath, response)
-			if err != nil {
-				a.log.Errorf("failed to save ML model file %s: %v", fileName, err)
-			}
-		}
-
-		return fileName
-	}
-	return ""
+// DownloadDigitalTwinFile downloads one file of a digital twin's S3
+// folder (femResFiles, docInfoFiles...) through the admin API.
+func (a *Admin) DownloadDigitalTwinFile(ctx context.Context, groupId int, digitalTwinId int, folder string, fileName string) ([]byte, error) {
+	url := fmt.Sprintf("%s/digital_twin_download_file/%d/%d/%s/%s", a.baseUrl, groupId, digitalTwinId, folder, fileName)
+	return utils.HttpGetWithJwt(ctx, url, a.accessToken)
 }
 
 func (a *Admin) GetAssetS3Folders(ctx context.Context) []*common.AssetS3Folder {

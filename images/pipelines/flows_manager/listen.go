@@ -275,15 +275,9 @@ func (fm *FlowsManager) Listen(ctx context.Context) {
 				return
 			}
 		case "docInfoFile":
-			switch adminMsg.Action {
-			case "create":
-				fm.AddDocInfoFileInDigitalTwin(ctx, adminMsg.Id)
-			case "delete":
-				fm.DeleteDocInfoFileInDigitalTwin(adminMsg.Id)
-			default:
-				fm.log.Errorf("Unknown action: %s for component: %s", adminMsg.Action, adminMsg.Component)
-				return
-			}
+			// Nothing to do: the agents' doc_info MCP server reads the
+			// documents from the bucket when it is asked, so a new or
+			// deleted document is seen at once.
 		case "pipeline_action":
 			digitalTwinId := adminMsg.Id
 			switch adminMsg.Action {

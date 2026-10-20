@@ -84,11 +84,10 @@ func GenerateVolumes(platformData *pt.PlatformData) map[string]pt.Volume {
 		Volumes[volumeName] = SetVolumeConfig(pi, volumeName, "grafana", deploymentLocation, volOptions)
 	}
 
-	numPipelinesReplicas := utils.GetServiceReplicas(platformData, "pipelines")
-	for i := 1; i <= numPipelinesReplicas; i++ {
-		volName := fmt.Sprintf("pipelines_data_%d", i)
-		Volumes[volName] = SetVolumeConfig(pi, volName, "pipelines", deploymentLocation, volOptions, true)
-	}
+	// pipelines has no volume any more: it is stateless (see
+	// services.PipelinesService). The pipelines_data_N volumes of older
+	// versions are still known to platformVolumeNames, so that
+	// 'osi4iot delete' removes them.
 
 	if pi.UsePatroniTool {
 		for i := 1; i <= pi.NumPatroniAdminNodes; i++ {
@@ -502,6 +501,26 @@ func platformVolumeNames(pd *pt.PlatformData) map[string]bool {
 	for name := range GenerateVolumes(pd) {
 		names[name] = true
 	}
+	for name := range LegacyPipelinesVolumeNames(pd) {
+		names[name] = true
+	}
+	return names
+}
+
+// LegacyPipelinesVolumeNames are the pipelines_data_N volumes that
+// versions before the stateless pipelines created, one per replica. They
+// only held a cache; nothing uses them now. At least maxLegacyPipelinesReplicas
+// are listed, in case the platform was scaled down since.
+func LegacyPipelinesVolumeNames(pd *pt.PlatformData) map[string]bool {
+	const maxLegacyPipelinesReplicas = 5
+	n := utils.GetServiceReplicas(pd, "pipelines")
+	if n < maxLegacyPipelinesReplicas {
+		n = maxLegacyPipelinesReplicas
+	}
+	names := make(map[string]bool, n)
+	for i := 1; i <= n; i++ {
+		names[fmt.Sprintf("pipelines_data_%d", i)] = true
+	}
 	return names
 }
 
@@ -674,21 +693,14 @@ func RemovePatroniMetricsVolume(pd *pt.PlatformData, replica int) error {
 	return removeReplicaVolume(pd, fmt.Sprintf("patroni_metrics%d-data", replica))
 }
 
+// CreatePipelinesVolume creates nothing: pipelines is stateless. Kept
+// with the signature scaleReplicatedServiceWithVolumes expects.
 func CreatePipelinesVolume(pi pt.PlatformInfo, dc *pt.DockerClient, replica int) error {
-	volOptions := createDefaultOptions(pi)
-	volumeName := fmt.Sprintf("pipelines_data_%d", replica)
-	domainName := pi.DomainName
-	// pipelines_data holds regenerable cache/temp data — see GenerateVolumes
-	// for the full rationale on using a local volume here.
-	volume := SetVolumeConfig(pi, volumeName, "pipelines", pi.DeploymentLocation, volOptions, true)
-	err := CreateVolume(dc, domainName, &volume)
-	if err != nil {
-		return fmt.Errorf("error creating volume %s in node %s: %v", volume.Name, dc.Node.NodeIP, err)
-	}
-
 	return nil
 }
 
+// RemovePipelinesVolume removes the legacy pipelines_data_N volume of a
+// removed replica, if an older version left one. Idempotent.
 func RemovePipelinesVolume(pd *pt.PlatformData, replica int) error {
 	return removeReplicaVolume(pd, fmt.Sprintf("pipelines_data_%d", replica))
 }

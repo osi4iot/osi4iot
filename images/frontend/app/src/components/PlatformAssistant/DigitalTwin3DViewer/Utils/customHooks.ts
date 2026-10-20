@@ -642,7 +642,7 @@ export const useFemResults = (
                         lastModified: string;
                     }[] = response.data;
                     const dates = femResFilesInfo.map((fileInfo) => formatDateString(fileInfo.lastModified));
-                    const fileNames = femResFilesInfo.map((fileInfo) => fileInfo.fileName.split("/")[4]);
+                    const fileNames = femResFilesInfo.map((fileInfo) => fileInfo.fileName.split("/")[5]);
 
                     setFemResultDates(dates);
                     setFemResultFileNames(fileNames);
@@ -928,43 +928,49 @@ export const useFormChanges = (selectedNode: any) => {
 // render, and any effect depending on it ran again on every frame.
 
 export type FrameListener = (frame: Blob) => void;
+export type FramePublisher = (frame: Blob) => void;
 
 export interface FrameStore {
     /** Registers a listener; it immediately gets the last frame, if any. Returns the unsubscribe function. */
     subscribe: (listener: FrameListener) => () => void;
 }
 
-export const useImageFrame = () => {
-    const storeRef = useRef<{ store: FrameStore; publish: FrameListener } | null>(null);
-
-    if (storeRef.current === null) {
-        const listeners = new Set<FrameListener>();
-        let latest: Blob | null = null;
-        storeRef.current = {
-            store: {
-                subscribe: (listener: FrameListener) => {
-                    listeners.add(listener);
-                    if (latest) listener(latest);
-                    return () => {
-                        listeners.delete(listener);
-                    };
-                },
-            },
-            publish: (frame: Blob | null) => {
-                latest = frame;
-                listeners.forEach((listener) => listener(frame));
-            },
-        };
-    }
-
-    const handleImageUrlChange = useCallback((imageBytes: Uint8Array, mimeType: string) => {
-        // Copy: the NATS client may reuse the buffer behind msg.data.
-        const blob = new Blob([imageBytes.slice()], { type: mimeType });
-        storeRef.current!.publish(blob);
-    }, []);
+const createFrameStore = (): { store: FrameStore; publish: FramePublisher } => {
+    const listeners = new Set<FrameListener>();
+    let latest: Blob | null = null;
 
     return {
-        frameStore: storeRef.current.store,
+        store: {
+            subscribe: (listener) => {
+                listeners.add(listener);
+                if (latest) listener(latest);
+                return () => {
+                    listeners.delete(listener);
+                };
+            },
+        },
+        publish: (frame) => {
+            latest = frame;
+            listeners.forEach((listener) => listener(frame));
+        },
+    };
+};
+
+export const useImageFrame = () => {
+    // Lazy init: the store is created once and is never null, so no `!` is needed.
+    const [{ store, publish }] = useState(createFrameStore);
+
+    const handleImageUrlChange = useCallback(
+        (imageBytes: Uint8Array, mimeType: string) => {
+            // Copy: the NATS client may reuse the buffer behind msg.data.
+            const blob = new Blob([imageBytes.slice()], { type: mimeType });
+            publish(blob);
+        },
+        [publish],
+    );
+
+    return {
+        frameStore: store,
         handleImageUrlChange,
     };
 };

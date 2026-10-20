@@ -125,6 +125,8 @@ func CreateFlowsManager(
 		log.Fatalf("Failed to create leader KV store: %v", err)
 	}
 
+	exportMcpS3Env(config.AwsS3)
+
 	flowManager := FlowsManager{
 		Orgs:                     common.NewShardedSyncMap(config.ShardCount),
 		Groups:                   common.NewShardedSyncMap(config.ShardCount),
@@ -180,7 +182,6 @@ func CreateFlowsManager(
 	flowManager.initGpuCapability(ctx)
 	flowManager.AddDigitalTwins(ctx, digitalTwins)
 	flowManager.AddFemResultsInDigitalTwins(ctx)
-	flowManager.AddDocInfoFilesInDigitalTwins(ctx)
 
 	flowManager.Listen(ctx)
 	flowManager.StartNodes(ctx)
@@ -451,40 +452,6 @@ func (fm *FlowsManager) GetDigitalTwinFolder(orgId int, groupId int, digitalTwin
 	digitalTwin := fmt.Sprintf("dt_%d", digitalTwinId)
 	return filepath.Join(fm.PipelinesDataPath, org, group, "digital_twins", digitalTwin)
 
-}
-
-func (fm *FlowsManager) GetDocInfoFilesPath(orgId int, groupId int, digitalTwinId int) string {
-	dtFolder := fm.GetDigitalTwinFolder(orgId, groupId, digitalTwinId)
-	if dtFolder == "" {
-		return ""
-	}
-
-	return filepath.Join(dtFolder, "filesystem")
-}
-
-func (fm *FlowsManager) GetMlModelFolder(orgId int, groupId int, mlModelId int) string {
-	if fm.PipelinesDataPath == "" {
-		return ""
-	}
-
-	org := fmt.Sprintf("org_%d", orgId)
-	group := fmt.Sprintf("group_%d", groupId)
-	ml_model := fmt.Sprintf("model_%d", mlModelId)
-	return filepath.Join(fm.PipelinesDataPath, org, group, "ml_models", ml_model)
-}
-
-func (fm *FlowsManager) GetMlModelFilePath(orgId int, groupId int, mlModelId int) string {
-	mlmFolder := fm.GetMlModelFolder(orgId, groupId, mlModelId)
-	if mlmFolder == "" {
-		return ""
-	}
-
-	mlModel := fm.GetMlModel(mlModelId)
-	if mlModel == nil {
-		return ""
-	}
-
-	return filepath.Join(mlmFolder, mlModel.FileName)
 }
 
 func (fm *FlowsManager) GetLeaderKvStore() jetstream.KeyValue {

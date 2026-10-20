@@ -5,9 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"pipelines/common"
 
-	"strings"
 	"sync"
 
 	"github.com/apache/arrow/go/v14/arrow"
@@ -109,50 +107,15 @@ func NewFemResultsProcessor(femResultsDir string, jsonFileName string, jsonFileL
 	}
 }
 
-func IsFemResultsFileProcessed(femResultsDir string, femResultsInfo *common.S3FolderFileInfo) (bool, error) {
-	meshFilePath := filepath.Join(femResultsDir, "mesh_0.parquet")
-	femResOnNodesPath := filepath.Join(femResultsDir, "femres_OnNodes_mesh_0.parquet")
-	femResOnGPPath := filepath.Join(femResultsDir, "femres_OnGaussPoints_mesh_0.parquet")
-	metadataPath := filepath.Join(femResultsDir, "metadata.json")
-
-	if !FileExists(metadataPath) || !FileExists(meshFilePath) {
-		return false, nil
-	}
-
-	femResultsFileName := strings.Split(femResultsInfo.FileName, "/")[4]
-	jsonData, err := os.ReadFile(metadataPath)
-	if err != nil {
-		return false, err
-	}
+// FemResultsMetadataMatches reports whether a metadata.json written by
+// ProcessJSONFile belongs to this FEM results file (same name and same
+// modification date): then its Parquet files are up to date.
+func FemResultsMetadataMatches(metadataJSON []byte, fileName string, lastModified string) bool {
 	var metadata Metadata
-	if err := json.Unmarshal(jsonData, &metadata); err != nil {
-		return false, fmt.Errorf("failed to unmarshal metadata: %v", err)
+	if err := json.Unmarshal(metadataJSON, &metadata); err != nil {
+		return false
 	}
-
-	if metadata.FileName != femResultsFileName || metadata.LastModified != femResultsInfo.LastModified {
-		return false, nil
-	}
-
-	existsResultsOnNodes := false
-	existsResultsOnGaussPoints := false
-	for _, result := range metadata.ResultFields {
-		switch result.Location {
-		case "nodes":
-			existsResultsOnNodes = true
-		case "gauss_points":
-			existsResultsOnGaussPoints = true
-		}
-	}
-
-	if existsResultsOnNodes && !FileExists(femResOnNodesPath) {
-		return false, nil
-	}
-
-	if existsResultsOnGaussPoints && !FileExists(femResOnGPPath) {
-		return false, nil
-	}
-
-	return true, nil
+	return metadata.FileName == fileName && metadata.LastModified == lastModified
 }
 
 func (fr *FemResultsProcessor) FindMetadataResultNameIndex(resultName string, resultFields []MetadataResultField) int {

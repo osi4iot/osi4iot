@@ -3,7 +3,6 @@ package services
 import (
 	"strings"
 
-	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/osi4iot/osi4iot/utils/osi4iot/internals/resources"
 	pt "github.com/osi4iot/osi4iot/utils/osi4iot/internals/types"
@@ -18,8 +17,6 @@ func PipelinesService(
 	svcResources resources.SvcResources,
 	nodeRoleNumMaps map[string]int,
 ) pt.Service {
-	volName := "pipelines_data_{{.Task.Slot}}"
-
 	secrets := []*swarm.SecretReference{
 		{
 			File: &swarm.SecretReferenceFileTarget{
@@ -44,13 +41,12 @@ func PipelinesService(
 		WithImage(image).
 		WithEnv(env).
 		WithSecrets(secrets).
-		WithMounts([]mount.Mount{
-			{
-				Type:   mount.TypeVolume,
-				Source: volName,
-				Target: "/pipelines/data",
-			},
-		}).
+		// No volume: pipelines is stateless. Everything under
+		// /pipelines/data (ONNX models, FEM results turned into Parquet,
+		// the AI agents' document files, the TensorRT engine cache) is a
+		// cache of the bucket, rebuilt by each task in its own container
+		// filesystem. A task can then move to any node — the GPU node, say
+		// — without dragging a volume along or finding an empty one there.
 		WithBurstableResources(
 			reservedCPUs,
 			reservedMem,

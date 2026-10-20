@@ -171,7 +171,7 @@ const GeoSensors: FC<GeoSensorsProps> = ({
                 urlDigitalTwinGlbFile = `${urlDigitalTwinGlbFile}/${groupId}/${digitalTwin.id}`;
 
                 const digitalTwinUid = digitalTwin.digitalTwinUid;
-                const gltfFileName = digitalTwin3DModelData.gltfFileName.split("/")[4];
+                const gltfFileName = digitalTwin3DModelData.gltfFileName.split("/")[5];
                 const gltfFileDate = formatDateString(digitalTwin3DModelData.gltfFileDate);
                 const gltfFileSize = digitalTwin3DModelData.gltfFileSize;
                 const config3DModelFile = axiosAuthDigitalTwinFile(

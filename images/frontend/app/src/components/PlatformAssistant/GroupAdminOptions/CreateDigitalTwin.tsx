@@ -745,7 +745,8 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
                 }
 
                 if (Object.keys(digitalTwinPipelineData).length !== 0) {
-                    submitPipeline(configMultipart, groupId, data.digitalTwinId);
+                    // submitPipeline(configMultipart, groupId, data.digitalTwinId);
+                    submitPipeline(config, groupId, data.digitalTwinId);
                 }
 
                 if (docInfoFileData !== "") {

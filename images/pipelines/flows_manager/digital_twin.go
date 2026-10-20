@@ -216,13 +216,10 @@ func (fm *FlowsManager) DeleteDigitalTwin(ctx context.Context, digitalTwinId int
 		fm.DigitalTwins.Delete(digitalTwinIdStr)
 		fm.DeleteDigitalTwinTopicsRefByDTid(digitalTwinId)
 
-		// Delete FEM results folder
-		digitalTwinFolderPath := fm.GetDigitalTwinFolder(digitalTwin.OrgId, digitalTwin.GroupId, digitalTwin.Id)
-		if digitalTwinFolderPath != "" {
-			err := utils.DeleteFolder(digitalTwinFolderPath)
-			if err != nil {
-				return err
-			}
+		// Its Parquet FEM results in the bucket (admin_api removes the
+		// rest of the digital twin's files).
+		if err := fm.deleteFemResultsParquet(ctx, digitalTwin); err != nil {
+			fm.log.Errorf("Digital twin %d: %v", digitalTwinId, err)
 		}
 
 		return nil
@@ -382,76 +379,6 @@ func (fm *FlowsManager) CheckIfNodeExistInPipelineFile(digitalTwin *common.Digit
 
 func (fm *FlowsManager) GetS3DigitalTwinFolderInfo(ctx context.Context, groupId int, digitalTwinId int, folder string) []*common.S3FolderFileInfo {
 	return fm.Admin.GetS3DigitalTwinFolderInfo(ctx, groupId, digitalTwinId, folder)
-}
-
-func (fm *FlowsManager) AddFemResultsInDigitalTwin(ctx context.Context, digitalTwinId int) error {
-	digitalTwinIdStr := strconv.Itoa(digitalTwinId)
-	if entry, ok := fm.DigitalTwins.Load(digitalTwinIdStr); ok {
-		digitalTwin := entry.(*common.DigitalTwin)
-		femResultPath := fm.GetFemResultsPath(digitalTwin.OrgId, digitalTwin.GroupId, digitalTwin.Id)
-		if femResultPath != "" {
-			fm.Admin.ProcessFemResultFile(ctx, femResultPath, digitalTwin.GroupId, digitalTwin.Id)
-		}
-	}
-	return nil
-}
-
-func (fm *FlowsManager) AddFemResultsInDigitalTwins(ctx context.Context) error {
-	digitalTwins := fm.GetDigitalTwins()
-	for _, digitalTwin := range digitalTwins {
-		fm.AddFemResultsInDigitalTwin(ctx, digitalTwin.Id)
-	}
-	return nil
-}
-
-func (fm *FlowsManager) DeleteFemResultsInDigitalTwin(digitalTwinId int) error {
-	digitalTwinIdStr := strconv.Itoa(digitalTwinId)
-	if entry, ok := fm.DigitalTwins.Load(digitalTwinIdStr); ok {
-		digitalTwin := entry.(*common.DigitalTwin)
-		femResultPath := fm.GetFemResultsPath(digitalTwin.OrgId, digitalTwin.GroupId, digitalTwin.Id)
-		if femResultPath != "" {
-			err := utils.DeleteFolder(femResultPath)
-			if err != nil {
-				return err
-			}
-		}
-	}
-	return nil
-}
-
-func (fm *FlowsManager) AddDocInfoFileInDigitalTwin(ctx context.Context, digitalTwinId int) error {
-	digitalTwinIdStr := strconv.Itoa(digitalTwinId)
-	if entry, ok := fm.DigitalTwins.Load(digitalTwinIdStr); ok {
-		digitalTwin := entry.(*common.DigitalTwin)
-		docInfoFilesPath := fm.GetDocInfoFilesPath(digitalTwin.OrgId, digitalTwin.GroupId, digitalTwin.Id)
-		if docInfoFilesPath != "" {
-			fm.Admin.ProcessDocInfoFile(ctx, docInfoFilesPath, digitalTwin.GroupId, digitalTwin.Id)
-		}
-	}
-	return nil
-}
-
-func (fm *FlowsManager) AddDocInfoFilesInDigitalTwins(ctx context.Context) error {
-	digitalTwins := fm.GetDigitalTwins()
-	for _, digitalTwin := range digitalTwins {
-		fm.AddDocInfoFileInDigitalTwin(ctx, digitalTwin.Id)
-	}
-	return nil
-}
-
-func (fm *FlowsManager) DeleteDocInfoFileInDigitalTwin(digitalTwinId int) error {
-	digitalTwinIdStr := strconv.Itoa(digitalTwinId)
-	if entry, ok := fm.DigitalTwins.Load(digitalTwinIdStr); ok {
-		digitalTwin := entry.(*common.DigitalTwin)
-		docInfoFilePath := fm.GetDocInfoFilesPath(digitalTwin.OrgId, digitalTwin.GroupId, digitalTwin.Id)
-		if docInfoFilePath != "" {
-			err := utils.DeleteFolder(docInfoFilePath)
-			if err != nil {
-				return err
-			}
-		}
-	}
-	return nil
 }
 
 func makeDigitalTwinTopicRefKey(digitalTwinId int, topicRef string) string {

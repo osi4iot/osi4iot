@@ -199,6 +199,12 @@ The platform runs as Docker Swarm services:
 
 Without Patroni (`Use Patroni ... = no`) the databases run as single `postgres` and `timescaledb` services instead.
 
+`pipelines` is stateless: it has no volume and keeps nothing on disk, so a replica can run on, or move to, any node. Everything it uses lives in the bucket:
+
+-	ONNX models are read from the bucket straight into memory when an `MlModel` node starts.
+-	A digital twin's FEM results are converted once, when they are uploaded, from JSON into Parquet files stored in the bucket (`femResParquet/`); the AI agents' `fem_results` MCP server queries them there with DuckDB.
+-	A digital twin's documents (`docInfoFiles`) are read from the bucket by the agents' `doc_info` MCP server, which can list, read and search them (read only).
+
 ### High availability
 
 NATS, the two Patroni clusters and Garage keep their data on local volumes, so each of their instances is pinned to one worker:
@@ -251,7 +257,7 @@ For each instance it shows the Swarm task and the service's own view: NATS route
     osi4iot service gpu_mode                      # show how pipelines uses the GPU nodes
     osi4iot service gpu_mode gpu_only             # auto | gpu_only | off (see GPU nodes)
 
-`service resources` sets both the limits and the reservations of a service, except for `pipelines`, which reserves half of its limits: a model on CUDA needs a few GB of memory while it warms up, so its limit must be generous, and reserving all of it would take most of a node.
+`service resources` sets both the limits and the reservations of a service, except for `pipelines`, which reserves half of its limits, so that its limit can cover the peaks (a model warming up on CUDA, a FEM results conversion) without reserving them permanently.
 
 `service image pipelines=...` keeps the version you give and deploys its CPU or GPU flavor (`pipelines:X` / `pipelines:X-gpu`) as the GPU mode requires.
 
@@ -323,11 +329,11 @@ The log of a GPU replica shows `GPU capable: true (CUDA available)`, and the `Ml
 
 ### Memory
 
-A model on CUDA loads cuDNN and cuBLAS into the container's memory when it warms up. Give pipelines a generous memory limit on GPU nodes, for example:
+A GPU node does not need large resources for pipelines: the inference runs on the GPU. For example, a YOLO11n model on CUDA runs with
 
-    osi4iot service resources pipelines=3.00CPU-6000Mb
+    osi4iot service resources pipelines=0.50CPU-1000Mb
 
-A pipelines task that exits with code 137 and `OOMKilled=true` needs a higher limit.
+A model on CUDA loads cuDNN and cuBLAS into the container's memory when it warms up, so bigger models need more. A pipelines task that exits with code 137 and `OOMKilled=true` needs a higher memory limit.
 
 ## Backups and recovery
 

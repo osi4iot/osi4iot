@@ -72,6 +72,7 @@ images/pipelines/mcp_servers/mcp_calculate_server/mcp_calcualte_server.egg-info/
 images/pipelines/mcp_servers/mcp_calculate_server/uv.lock
 images/pipelines/mcp_servers/chroma/
 images/pipelines/mcp_servers/fem_results/fem_results
+images/pipelines/mcp_servers/doc_info/doc_info
 images/pipelines/mcp_servers/data/
 images/pipelines/assets/onnx_runtime_linux_amd64_gpu/
 utils/osi4iot_cli/node_modules

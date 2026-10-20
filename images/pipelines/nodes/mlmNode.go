@@ -7,6 +7,7 @@ import (
 	"pipelines/logger"
 	"pipelines/utils"
 	"runtime"
+	"runtime/debug"
 	"slices"
 	"time"
 
@@ -35,6 +36,10 @@ type MlmNode struct {
 	outputTypes       []ort.TensorElementDataType
 	inputNames        []string
 	outputNames       []string
+	// modelData is the .onnx file, read from the bucket by loadModelInfo
+	// and dropped once the session exists: ONNX Runtime keeps its own
+	// copy of the model, and nothing is written to disk.
+	modelData []byte
 
 	// Cached hot-path functions
 	inputSetters  []func(any) error
@@ -200,9 +205,13 @@ func (n *MlmNode) initializeONNXRuntime(log *logger.Logger) error {
 }
 
 func (n *MlmNode) loadModelInfo(log *logger.Logger) error {
-	mlModelFilePath := n.Fm.GetMlModelFilePath(n.GetOrgId(), n.GetGroupId(), n.MlModelId)
+	modelData, err := n.Fm.GetMlModelData(n.Ctx, n.GetOrgId(), n.GetGroupId(), n.MlModelId)
+	if err != nil {
+		return fmt.Errorf("error reading the ML model from the bucket: %w", err)
+	}
+	n.modelData = modelData
 
-	inputs, outputs, err := ort.GetInputOutputInfo(mlModelFilePath)
+	inputs, outputs, err := ort.GetInputOutputInfoWithONNXData(n.modelData)
 	if err != nil {
 		return fmt.Errorf("error getting input/output info: %w", err)
 	}
@@ -256,7 +265,8 @@ func (n *MlmNode) loadModelInfo(log *logger.Logger) error {
 }
 
 func (n *MlmNode) createSession(log *logger.Logger) error {
-	mlModelFilePath := n.Fm.GetMlModelFilePath(n.GetOrgId(), n.GetGroupId(), n.MlModelId)
+	// The model bytes are only needed to create the session.
+	defer n.releaseModelData()
 
 	inputTensors := make([]*DynTensor, len(n.inputShapes))
 	sessionInputTensors := make([]ort.Value, len(n.inputShapes))
@@ -294,7 +304,7 @@ func (n *MlmNode) createSession(log *logger.Logger) error {
 	}
 
 	session, provider, err := newSessionWithFallback(
-		mlModelFilePath,
+		n.modelData,
 		n.inputNames,
 		n.outputNames,
 		sessionInputTensors,
@@ -358,6 +368,16 @@ func (n *MlmNode) warmUp(log *logger.Logger) {
 	log.Infof("ONNX warm-up run on %s took %v", n.ExecutionProvider, time.Since(start))
 }
 
+// releaseModelData drops the model bytes. A large model is handed back to
+// the OS at once instead of waiting for the garbage collector.
+func (n *MlmNode) releaseModelData() {
+	size := len(n.modelData)
+	n.modelData = nil
+	if size >= 64<<20 {
+		debug.FreeOSMemory()
+	}
+}
+
 // recreateSessionOnCPU replaces the session with a CPU one on the same
 // tensors. Called on the ORT thread after a sticky CUDA error.
 func (n *MlmNode) recreateSessionOnCPU(log *logger.Logger) error {
@@ -373,8 +393,11 @@ func (n *MlmNode) recreateSessionOnCPU(log *logger.Logger) error {
 	for i, t := range n.OutputTensors {
 		outputs[i] = t.Value
 	}
-	modelPath := n.Fm.GetMlModelFilePath(n.GetOrgId(), n.GetGroupId(), n.MlModelId)
-	session, provider, err := newSessionWithFallback(modelPath, n.inputNames, n.outputNames, inputs, outputs, ProviderCPU, log)
+	modelData, err := n.Fm.GetMlModelData(context.Background(), n.GetOrgId(), n.GetGroupId(), n.MlModelId)
+	if err != nil {
+		return fmt.Errorf("error reading the ML model from the bucket: %w", err)
+	}
+	session, provider, err := newSessionWithFallback(modelData, n.inputNames, n.outputNames, inputs, outputs, ProviderCPU, log)
 	if err != nil {
 		return err
 	}
