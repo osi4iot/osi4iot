@@ -1409,7 +1409,7 @@ export const checkMaxNumberOfFemResFiles = async (digitalTwin: IDigitalTwin) => 
 	const digitalTwinId = digitalTwin.id;
 	const maxNumResFemFiles = digitalTwin.maxNumResFemFiles;
 	const keyBase = `org_data/org_${orgId}/group_${groupId}/digitalTwin_${digitalTwinId}`;
-	const folderPath = `${keyBase}/femResFiles`;
+	const folderPath = `${keyBase}/femResJson`;
 
 	const femResFileInfoList = await getBucketFolderInfoFileList(folderPath);
 	if (femResFileInfoList.length > maxNumResFemFiles) {

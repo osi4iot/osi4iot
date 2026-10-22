@@ -115,7 +115,12 @@ postgresql:
   parameters:
     unix_socket_directories: '/var/run/postgresql'
     wal_log_hints: "on"
-    shared_preload_libraries: 'pg_search,postgis-3'
+    # pg_textsearch: BM25 indexes (the knowledge bases' keyword search).
+    # Not pg_search (ParadeDB): its community edition stops the replicas,
+    # which cannot replay its indexes' WAL.
+    shared_preload_libraries: 'pg_textsearch,postgis-3'
+    # Asked by pg_textsearch for standbys that answer queries.
+    hot_standby_feedback: "on"
     shared_buffers: 256MB
     effective_cache_size: 768MB
     maintenance_work_mem: 64MB

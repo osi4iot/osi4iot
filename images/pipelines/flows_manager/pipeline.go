@@ -713,14 +713,14 @@ func (p *Pipeline) PublishChatMessages(ctx context.Context, userName string) {
 	kvStore := p.Fm.GetDigitalTwinKvStore(p.GetDigitalTwinId())
 	key := utils.GetFullChatMessageKvStoreKey(userName, p.GetOrgHash(), p.GetDigitalTwinUid())
 
-	chatSchemaMessages, mcpToolCallsArray, err := utils.GetCurrentChatMessages(ctx, p.Fm.Log(), kvStore, key, userName)
+	storedMessages, mcpToolCallsArray, err := utils.GetCurrentChatMessages(ctx, p.Fm.Log(), kvStore, key, userName)
 	if err != nil {
 		p.Fm.Log().Errorf("Failed to get current chat messages for user %s: %v", userName, err)
 		return
 	}
 
 	var chatMessages []utils.ChatMessage
-	for index, msg := range chatSchemaMessages {
+	for index, msg := range storedMessages {
 		chatMessages = append(chatMessages, utils.ChatMessage{
 			Message:      msg.Content,
 			UserName:     userName,

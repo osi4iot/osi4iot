@@ -28,6 +28,8 @@ type Org struct {
 	BuildingId                       int                            `json:"buildingId"`
 	LlmEnabled                       bool                           `json:"llmEnabled"`
 	LlmProviderUrl                   string                         `json:"llmProviderUrl"`
+	LlmProviderType                  string                         `json:"llmProviderType"`
+	LlmAllowedModels                 []string                       `json:"llmAllowedModels"`
 	HashedLlmProviderApiKey          string                         `json:"hashedLlmProviderApiKey"`
 	LlmProviderApiKey                string                         `json:"llmProviderApiKey"`
 	TelegramEnabled                  bool                           `json:"telegramEnabled"`

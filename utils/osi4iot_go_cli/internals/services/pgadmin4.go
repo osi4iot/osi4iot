@@ -62,7 +62,8 @@ func Pgadmin4Service(
 		}
 	}
 
-	image := utils.GetServiceImage(pd, "pgadmin4", "ghcr.io/osi4iot/pgadmin4:2026-07-30-1")
+	// image := utils.GetServiceImage(pd, "pgadmin4", "ghcr.io/osi4iot/pgadmin4:2026-07-30-1")
+	image := utils.GetServiceImage(pd, "pgadmin4", "ghcr.io/osi4iot/pgadmin4:9.18.0")
 	return NewService("pgadmin4", pd, sd).
 		WithImage(image).
 		WithAnnotationsLabels(annotationsLabels).

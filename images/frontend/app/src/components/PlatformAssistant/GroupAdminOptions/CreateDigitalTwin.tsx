@@ -695,7 +695,7 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
                 if (Object.keys(digitalTwinFemResData).length !== 0) {
                     const femResData = new FormData();
                     femResData.append("file", femResFile as File, "femResFile");
-                    const urlUploadFemResFile = `${urlUploadGltfBase}/femResFiles/${femResFileName}`;
+                    const urlUploadFemResFile = `${urlUploadGltfBase}/femResJson/${femResFileName}`;
                     getAxiosInstance(refreshToken, authDispatch)
                         .post(urlUploadFemResFile, femResData, configMultipart)
                         .then((response: AxiosResponse<any, any>) => {

@@ -31,13 +31,13 @@ export interface LlmMessage {
     message: string;
     uiOpts: Record<string, any>;
     mcpToolCalls: McpToolCall[];
-    sender: "user" | "assistant" | "mcphost";
+    sender: "user" | "assistant" | "system";
 }
 
 export interface ChatMessage {
     message: string;
     userName: string;
-    sender: "user" | "assistant" | "mcphost";
+    sender: "user" | "assistant" | "system";
     time: string;
     mcpToolCalls: McpToolCall[];
 }
@@ -126,7 +126,7 @@ const MessagesContainer = styled.div`
 `;
 
 interface MessageBubbleProps {
-    sender: "user" | "assistant" | "mcphost";
+    sender: "user" | "assistant" | "system";
 }
 
 const MessageBubble = styled.div<MessageBubbleProps>`
@@ -613,7 +613,7 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({
             }
 
             // Desactivar spinner cuando llega una respuesta del asistente
-            if ((lastMessage.sender === "assistant" || lastMessage.sender === "mcphost") && isLoading) {
+            if ((lastMessage.sender === "assistant" || lastMessage.sender === "system") && isLoading) {
                 setIsLoading(false);
             }
         }
@@ -756,7 +756,7 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({
                 {chatMessages.map((msg, index) => (
                     <MessageBubble key={index} sender={msg.sender}>
                         <Label>
-                            {msg.sender === "assistant" || msg.sender === "mcphost" ? "OSI" : userName}
+                            {msg.sender === "assistant" || msg.sender === "system" ? "OSI" : userName}
                             {msg.sender === "assistant" && containsLatex(msg.message) && (
                                 <span style={{ marginLeft: "10px", fontSize: "0.6rem", opacity: 0.7 }}>📊 LaTeX</span>
                             )}

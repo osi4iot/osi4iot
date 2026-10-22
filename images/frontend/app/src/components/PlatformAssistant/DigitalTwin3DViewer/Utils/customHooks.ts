@@ -542,13 +542,15 @@ export const usePipelineLogs = (setChatMessages: React.Dispatch<React.SetStateAc
                 return newMessages;
             });
 
-            if (newLogMessage.description === "MCP Host error") {
+            // The AI agent stopped and its node is restarting: say so in
+            // the chat. (A failed prompt is answered with its error.)
+            if (newLogMessage.description === "AI agent failure") {
                 setChatMessages((prevMessages: any) => {
                     const newChatMessages = [...prevMessages];
                     const newMessage = {
                         userName: "Assistant",
                         message: newLogMessage.message,
-                        sender: "mcphost" as "mcphost",
+                        sender: "system" as "system",
                         time: new Date().toLocaleTimeString(),
                         mcpToolCalls: [],
                     };
@@ -632,7 +634,7 @@ export const useFemResults = (
             const digitalTwinId = digitalTwinSelected.id;
             let urlBase = `${PROTOCOL}://${DOMAIN_NAME}/admin_api/digital_twin_file_list`;
             const urlFemResFolderBase = `${urlBase}/${groupId}/${digitalTwinId}`;
-            const urlFemResFolder = `${urlFemResFolderBase}/femResFiles`;
+            const urlFemResFolder = `${urlFemResFolderBase}/femResJson`;
 
             getAxiosInstance(refreshToken, authDispatch)
                 .get(urlFemResFolder, config)
@@ -672,7 +674,7 @@ export const useFemResults = (
             const digitalTwinId = digitalTwinSelected.id;
             let urlBase = `${PROTOCOL}://${DOMAIN_NAME}/admin_api/digital_twin_download_file`;
             const urlFemResFileBase = `${urlBase}/${groupId}/${digitalTwinId}`;
-            const urlFemResFile = `${urlFemResFileBase}/femResFiles/${femResultFileName}`;
+            const urlFemResFile = `${urlFemResFileBase}/femResJson/${femResultFileName}`;
             const config = axiosAuth(accessToken);
             const digitalTwinUid = digitalTwinSelected.digitalTwinUid;
 

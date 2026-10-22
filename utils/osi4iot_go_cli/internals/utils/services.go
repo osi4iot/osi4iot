@@ -782,7 +782,8 @@ func GetDefaultServicesDataMap(pd *osi_types.PlatformData) map[string]osi_types.
 		},
 		"pgadmin4": {
 			ServiceName: "pgadmin4",
-			Image:       "ghcr.io/osi4iot/pgadmin4:2026-07-30-1",
+			// Image:       "ghcr.io/osi4iot/pgadmin4:2026-07-30-1",
+			Image:       "ghcr.io/osi4iot/pgadmin4:9.18.0",
 			Replicas:    1,
 			Cpu:         uiSvcCpus_050,
 			Memory:      uiSvcMem_050,

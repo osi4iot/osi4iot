@@ -9,9 +9,9 @@ import (
 	"pipelines/admin"
 	"pipelines/common"
 	"pipelines/config"
-	"pipelines/rag"
 	"pipelines/iotdb"
 	"pipelines/logger"
+	"pipelines/rag"
 	"strconv"
 	"strings"
 	"sync"
@@ -342,7 +342,6 @@ func (fm *FlowsManager) NatsPublishWithHeaders(subject string, header nats.Heade
 	return nil
 }
 
-
 func (fm *FlowsManager) isPipelineInitialized(ctx context.Context, digitalTwin *common.DigitalTwin) bool {
 	kvstore := fm.GetDigitalTwinKvStore(digitalTwin.Id)
 	orgHash := fm.GetOrg(digitalTwin.OrgId).OrgHash
@@ -409,6 +408,27 @@ func (fm *FlowsManager) GetOrgLlmProviderUrl(orgId int) string {
 		return ""
 	}
 	return org.LlmProviderUrl
+}
+
+// GetOrgLlmProviderType is the API of the organization's LLM provider:
+// "openai" (any OpenAI-compatible API: OpenAI, OpenRouter, Groq...),
+// "anthropic", "google", "ollama", "azure" or "deepseek".
+func (fm *FlowsManager) GetOrgLlmProviderType(orgId int) string {
+	org := fm.GetOrg(orgId)
+	if org == nil || org.LlmProviderType == "" {
+		return "openai"
+	}
+	return org.LlmProviderType
+}
+
+// GetOrgLlmAllowedModels are the models the organization's AI nodes may
+// use; empty: any the provider offers.
+func (fm *FlowsManager) GetOrgLlmAllowedModels(orgId int) []string {
+	org := fm.GetOrg(orgId)
+	if org == nil {
+		return nil
+	}
+	return org.LlmAllowedModels
 }
 
 func (fm *FlowsManager) GetGroupLlmEnabled(groupId int) bool {

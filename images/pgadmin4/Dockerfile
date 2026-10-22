@@ -1,4 +1,4 @@
-FROM dpage/pgadmin4:2026-07-30-1
+FROM dpage/pgadmin4:9.18.0
 USER root
 COPY /template/servers.json.template /pgadmin4/scripts/servers.json.template
 COPY entry_script.sh /src/scripts/entry_script.sh

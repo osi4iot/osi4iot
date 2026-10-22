@@ -25,6 +25,10 @@ export interface IOrgInputData {
     name: string;
     acronym: string;
     buildingId: number;
+    llmProviderType?: string;
+    llmProviderUrl?: string;
+    llmProviderApiKey?: string;
+    llmAllowedModelsText?: string;
     orgAdminArray: IOrgAdminData[];
 }
 
@@ -36,8 +40,10 @@ const initialOrgData = {
     buildingId: 1,
     mqttAccessControl: "Pub & Sub",
     llmEnabled: false,
-    llmProviderUrl: "",
+    llmProviderUrl: "https://api.openai.com/v1",
+    llmProviderType: "openai",
     llmProviderApiKey: "",
+    llmAllowedModelsText: "",
     telegramEnabled: false,
     telegramBotToken: "",
     gpuUsageEnabled: false,

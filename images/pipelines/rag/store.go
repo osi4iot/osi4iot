@@ -84,10 +84,17 @@ CREATE INDEX IF NOT EXISTS chunks_group_idx ON rag.chunks (group_id);
 -- Semantic search: HNSW over cosine distance (pgvector).
 CREATE INDEX IF NOT EXISTS chunks_embedding_idx ON rag.chunks
     USING hnsw (embedding vector_cosine_ops);
--- Keyword search: BM25 (pg_search). group_id is in the index so the
--- group filter is applied inside it.
-CREATE INDEX IF NOT EXISTS chunks_bm25_idx ON rag.chunks
-    USING bm25 (id, content, group_id) WITH (key_field = 'id');
+-- Keyword search: BM25 with pg_textsearch, whose index is WAL-logged like
+-- PostgreSQL's own, so the Patroni replicas replay it (pg_search's
+-- community edition, used before, stops them: "replicas are not supported
+-- on community"). The 'simple' text configuration: no stemming and no stop
+-- words, any language; this part is for exact terms such as codes and
+-- references, the meaning is pgvector's. The group filter is applied
+-- first, with chunks_group_idx.
+CREATE INDEX IF NOT EXISTS chunks_content_bm25_idx ON rag.chunks
+    USING bm25 (content) WITH (text_config = 'simple');
+-- A plain full-text column of an intermediate version, unused.
+ALTER TABLE rag.chunks DROP COLUMN IF EXISTS content_tsv;
 `
 
 // NewStore connects to the knowledge bases' database. The connection is
@@ -225,7 +232,8 @@ func (s *Store) DeleteGroupsNotIn(ctx context.Context, groupIDs []int) (int64, e
 }
 
 // searchSQL is the hybrid search: the best chunks by meaning (pgvector,
-// cosine distance) and by words (pg_search, BM25), each ranked, fused
+// cosine distance) and by words (BM25, pg_textsearch: chunks with any of
+// the question's words), each ranked, fused
 // with Reciprocal Rank Fusion: score = Σ 1/(60 + rank). A chunk found by
 // both rises to the top; one found by only one still counts.
 const searchSQL = `
@@ -240,14 +248,17 @@ WITH semantic AS (
     ) s
 ),
 keyword AS (
-    SELECT id, ROW_NUMBER() OVER (ORDER BY score DESC) AS rank
+    -- <@> gives the BM25 score negated (lower is better), and 0 to a
+    -- chunk without any of the words: those are not candidates.
+    SELECT id, ROW_NUMBER() OVER (ORDER BY score) AS rank
     FROM (
-        SELECT id, paradedb.score(id) AS score
+        SELECT id, content <@> to_bm25query($3, 'rag.chunks_content_bm25_idx') AS score
         FROM rag.chunks
-        WHERE id @@@ paradedb.match('content', $3) AND group_id = $2
-        ORDER BY paradedb.score(id) DESC
+        WHERE group_id = $2
+        ORDER BY content <@> to_bm25query($3, 'rag.chunks_content_bm25_idx')
         LIMIT $4
     ) k
+    WHERE score < 0
 ),
 fused AS (
     SELECT COALESCE(s.id, k.id) AS id,

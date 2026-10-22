@@ -57,12 +57,15 @@ func CreateTranslatorNode(node common.NodeData, fm common.Manager, p common.Pipe
 		targetLanguage = "English"
 	}
 
+	// The Translator calls an OpenAI-compatible chat API itself: OpenAI,
+	// OpenRouter, Groq, Ollama's /v1... (organizations of type "openai").
 	llmModel, _ := node.Settings["llmModel"].(string)
-	if llmModel == "" {
-		llmModel = translatorDefaultModel
+	if strings.TrimSpace(llmModel) == "" {
+		llmModel = defaultLlmModel(fm.GetOrgLlmAllowedModels(orgId), translatorDefaultModel)
 	}
-	if after, ok :=strings.CutPrefix(llmModel, "openai:"); ok  {
-		llmModel = after
+	llmModel = llmModelID(llmModel, providerUrl)
+	if t := fm.GetOrgLlmProviderType(orgId); t != "openai" {
+		fm.Log().Warnf("TranslatorNode %s: the organization's LLM provider is of type %q; the Translator needs an OpenAI-compatible API", node.NodeUid, t)
 	}
 
 	logTopic := fm.GetTopicByTopicRef(p.GetAssetId(), p.GetDigitalTwinId(), "dtmlog")

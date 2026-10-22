@@ -30,7 +30,8 @@ RUN uv venv /opt/venv \
 ########################################
 # 1) Go builder: compila binarios (enlace estático)
 ########################################
-FROM golang:1.25.1-bookworm AS builder
+# Go 1.26: required by agent-sdk-go (the AiAgent nodes' agents).
+FROM golang:1.26-bookworm AS builder
 ARG TARGETARCH
 
 WORKDIR /src
@@ -44,6 +45,7 @@ COPY duckdb/ ./duckdb/
 COPY flows_manager/ ./flows_manager/
 COPY function_library/ ./function_library/
 COPY leader_election/ ./leader_election/
+COPY llmagent/ ./llmagent/
 COPY iotdb/ ./iotdb/
 COPY logger/ ./logger/
 COPY message/ ./message/

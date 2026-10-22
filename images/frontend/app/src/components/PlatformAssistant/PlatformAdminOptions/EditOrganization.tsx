@@ -27,6 +27,14 @@ import { getAxiosInstance } from "../../../tools/axiosIntance";
 import axiosErrorHandler from "../../../tools/axiosErrorHandler";
 import { AxiosResponse, AxiosError } from "axios";
 import { IOrganization } from "../TableColumns/organizationsColumns";
+import {
+    LLM_PROVIDER_DEFAULT_URLS,
+    LLM_PROVIDER_TYPE_OPTIONS,
+    formatAllowedModels,
+    isDefaultLlmProviderUrl,
+    parseAllowedModels,
+} from "../Utils/llmProviders";
+import LlmAllowedModelsPicker from "./LlmAllowedModelsPicker";
 
 const FormContainer = styled.div`
     font-size: 12px;
@@ -158,6 +166,8 @@ const EditOrganization: FC<EditOrganizationProps> = ({ organizations, refreshOrg
         mqttAccessControl: organizations[orgRowIndex].mqttAccessControl,
         llmEnabled: organizations[orgRowIndex].llmEnabled,
         llmProviderUrl: organizations[orgRowIndex].llmProviderUrl || "https://api.openai.com/v1",
+        llmProviderType: organizations[orgRowIndex].llmProviderType || "openai",
+        llmAllowedModelsText: formatAllowedModels(organizations[orgRowIndex].llmAllowedModels),
         changeLlmProviderApiKey: false,
         llmProviderApiKey: "",
         gpuUsageEnabled: organizations[orgRowIndex].gpuUsageEnabled || false,
@@ -221,9 +231,13 @@ const EditOrganization: FC<EditOrganizationProps> = ({ organizations, refreshOrg
             (values as any).buildingId = parseInt((values as any).buildingId, 10);
         }
 
+        // The allowed models are edited as text, one id per line.
+        const { llmAllowedModelsText, ...orgData } = values as any;
+        orgData.llmAllowedModels = parseAllowedModels(llmAllowedModelsText);
+
         setIsSubmitting(true);
         getAxiosInstance(refreshToken, authDispatch)
-            .patch(url, values, config)
+            .patch(url, orgData, config)
             .then((response: AxiosResponse<any, any>) => {
                 const data = response.data;
                 toast.success(data.message);
@@ -253,6 +267,14 @@ const EditOrganization: FC<EditOrganizationProps> = ({ organizations, refreshOrg
     const onCancel = (e: SyntheticEvent) => {
         e.preventDefault();
         backToTable();
+    };
+
+    // A new provider type brings its usual URL, unless one was typed.
+    const onLlmProviderTypeChange = (e: { value: string }, formik: any) => {
+        formik.setFieldValue("llmProviderType", e.value);
+        if (isDefaultLlmProviderUrl(formik.values.llmProviderUrl)) {
+            formik.setFieldValue("llmProviderUrl", LLM_PROVIDER_DEFAULT_URLS[e.value] || "");
+        }
     };
 
     const onEnableLLMChange = (e: { value: boolean }, formik: any) => {
@@ -361,6 +383,14 @@ const EditOrganization: FC<EditOrganizationProps> = ({ organizations, refreshOrg
                                     {llmEnabled && (
                                         <>
                                             <FormikControl
+                                                control="select"
+                                                label="LLM provider type"
+                                                name="llmProviderType"
+                                                options={LLM_PROVIDER_TYPE_OPTIONS}
+                                                type="text"
+                                                onChange={(e) => onLlmProviderTypeChange(e, formik)}
+                                            />
+                                            <FormikControl
                                                 control="input"
                                                 label="LLM provider url"
                                                 name="llmProviderUrl"
@@ -383,6 +413,20 @@ const EditOrganization: FC<EditOrganizationProps> = ({ organizations, refreshOrg
                                                     autocomplete="off"
                                                 />
                                             )}
+                                            <FormikControl
+                                                control="textarea"
+                                                label="Allowed models (one id per line; empty: all the provider offers)"
+                                                name="llmAllowedModelsText"
+                                                type="text"
+                                            />
+                                            <LlmAllowedModelsPicker
+                                                orgId={orgId}
+                                                providerType={formik.values.llmProviderType}
+                                                providerUrl={formik.values.llmProviderUrl}
+                                                apiKey={changeLlmProviderApiKey ? formik.values.llmProviderApiKey : ""}
+                                                value={formik.values.llmAllowedModelsText}
+                                                onChange={(text) => formik.setFieldValue("llmAllowedModelsText", text)}
+                                            />
                                         </>
                                     )}
                                 </DataContainer>

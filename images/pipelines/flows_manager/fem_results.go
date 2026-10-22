@@ -18,13 +18,19 @@ import (
 // FEM results
 //
 // A digital twin's FEM results arrive as one JSON file in its S3 folder
-// femResFiles. The AI agents query them through the fem_results MCP
+// femResJson. The AI agents query them through the fem_results MCP
 // server, which reads Parquet with DuckDB. The JSON is turned into Parquet
 // ONCE, when the admin API announces a new file (femResults "create"),
-// and the Parquet files go to the bucket, under
+// and the Parquet files go to the bucket, next to it:
 //
-//	femResParquet/org_<org>/group_<group>/dt_<dt>/
-//	    mesh_<n>.parquet, femres_On*_mesh_<n>.parquet, metadata.json
+//	org_data/org_<org>/group_<group>/digitalTwin_<dt>/
+//	    femResJson/<file>.json
+//	    femResParquet/mesh_<n>.parquet, femres_On*_mesh_<n>.parquet, metadata.json
+//
+// (admin_api deletes the whole digitalTwin_<dt> folder with the digital
+// twin, and moves the folders of older versions at startup: femResFiles
+// to femResJson, and the root femResParquet/ is deleted to be converted
+// again here.)
 //
 // where the MCP server reads them directly. Nothing is kept on the
 // pipelines' disk, so pipelines stays stateless.
@@ -37,7 +43,11 @@ import (
 // others find the set current in the bucket, or the lock in the leader
 // KV store taken, and skip it.
 
-const femResultsParquetRoot = "femResParquet"
+// The digital twin's folders of FEM results (see above).
+const (
+	femResultsJSONFolder    = "femResJson"
+	femResultsParquetFolder = "femResParquet"
+)
 
 // Environment of the MCP servers the AI agents start (fem_results,
 // doc_info): they inherit it from pipelines, so the bucket credentials
@@ -51,7 +61,7 @@ const (
 )
 
 func femResultsParquetPrefix(orgId, groupId, digitalTwinId int) string {
-	return fmt.Sprintf("%s/org_%d/group_%d/dt_%d", femResultsParquetRoot, orgId, groupId, digitalTwinId)
+	return fmt.Sprintf("org_data/org_%d/group_%d/digitalTwin_%d/%s", orgId, groupId, digitalTwinId, femResultsParquetFolder)
 }
 
 // exportMcpS3Env makes the bucket settings available to the agents' MCP
@@ -149,7 +159,7 @@ func (fm *FlowsManager) processFemResults(ctx context.Context, dt *common.Digita
 	if fm.S3Client == nil || fm.S3BucketName == "" {
 		return fmt.Errorf("no S3 client")
 	}
-	infos := fm.Admin.GetS3DigitalTwinFolderInfo(ctx, dt.GroupId, dt.Id, "femResFiles")
+	infos := fm.Admin.GetS3DigitalTwinFolderInfo(ctx, dt.GroupId, dt.Id, femResultsJSONFolder)
 	if len(infos) == 0 {
 		return nil // no FEM results
 	}
@@ -181,7 +191,7 @@ func (fm *FlowsManager) processFemResults(ctx context.Context, dt *common.Digita
 	}
 	defer os.RemoveAll(tmpDir)
 
-	data, err := fm.Admin.DownloadDigitalTwinFile(ctx, dt.GroupId, dt.Id, "femResFiles", fileName)
+	data, err := fm.Admin.DownloadDigitalTwinFile(ctx, dt.GroupId, dt.Id, femResultsJSONFolder, fileName)
 	if err != nil {
 		return fmt.Errorf("error downloading %s: %w", fileName, err)
 	}

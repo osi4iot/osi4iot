@@ -10,18 +10,24 @@
 #            CGO_ENABLED=0 from BUILDPLATFORM — no QEMU needed either way.
 #
 # Extensions installed:
-#   - pg_search  (ParadeDB)  — full-text and semantic search
-#   - postgis-3              — geospatial data
-#   - pgvector               — vector embeddings (compiled from source)
+#   - pg_textsearch (Tiger Data) — BM25 full-text search (compiled from source)
+#   - postgis-3                  — geospatial data
+#   - pgvector                   — vector embeddings (compiled from source)
 #
-# pgvector is NOT in shared_preload_libraries — it does not need preloading.
-# Use CREATE EXTENSION vector; in each database that needs it.
+# pg_textsearch is in shared_preload_libraries (patroni.yml); pgvector does
+# not need preloading. CREATE EXTENSION in each database that needs them
+# (post_init.sh does it for the knowledge bases).
+#
+# Not pg_search (ParadeDB): its community edition does not replicate its
+# indexes — a Patroni replica that replays their WAL stops with "replicas
+# are not supported on community". pg_textsearch's index is WAL-logged
+# like PostgreSQL's own and replays on the replicas.
 # =============================================================================
 
 ARG PG_MAJOR=18
 ARG WALG_VERSION=v3.0.8
 ARG PATRONI_VERSION=4.0.4
-ARG PGSEARCH_VERSION=0.24.1
+ARG PGTEXTSEARCH_VERSION=v1.4.0
 ARG PGVECTOR_VERSION=v0.8.6
 
 # ── Stage 0: patroni_sidecar builder (cross-compiled, no QEMU needed) ────────
@@ -74,7 +80,7 @@ FROM ubuntu:24.04
 ARG PG_MAJOR
 ARG WALG_VERSION
 ARG PATRONI_VERSION
-ARG PGSEARCH_VERSION
+ARG PGTEXTSEARCH_VERSION
 ARG PGVECTOR_VERSION
 
 ENV DEBIAN_FRONTEND=noninteractive \
@@ -112,17 +118,16 @@ RUN curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc \
         postgresql-${PG_MAJOR}-postgis-3 \
     && rm -rf /var/lib/apt/lists/*
 
-# ── pg_search (ParadeDB) — installed from ParadeDB GitHub Releases ────────────
-# pg_search is NOT in the PGDG apt repo.
-# URL pattern: postgresql-<PG>-pg-search_<VER>-1PARADEDB-<codename>_<arch>.deb
-RUN ARCH=$(dpkg --print-architecture) \
-    && CODENAME=$(lsb_release -cs) \
-    && curl -fsSL \
-        "https://github.com/paradedb/paradedb/releases/download/v${PGSEARCH_VERSION}/postgresql-${PG_MAJOR}-pg-search_${PGSEARCH_VERSION}-1PARADEDB-${CODENAME}_${ARCH}.deb" \
-        -o /tmp/pg_search.deb \
-    && apt-get install -y /tmp/pg_search.deb \
-    && rm -f /tmp/pg_search.deb \
-    && rm -rf /var/lib/apt/lists/*
+# ── pg_textsearch — compiled from source ─────────────────────────────────────
+# BM25 indexes (CREATE INDEX ... USING bm25). Plain C against PostgreSQL's
+# headers, no other dependency: the same build on amd64 and arm64.
+# Requires PostgreSQL 17+ and shared_preload_libraries.
+RUN git clone --depth 1 --branch ${PGTEXTSEARCH_VERSION} \
+        https://github.com/timescale/pg_textsearch.git /tmp/pg_textsearch \
+    && cd /tmp/pg_textsearch \
+    && make PG_CONFIG=/usr/lib/postgresql/${PG_MAJOR}/bin/pg_config \
+    && make install PG_CONFIG=/usr/lib/postgresql/${PG_MAJOR}/bin/pg_config \
+    && rm -rf /tmp/pg_textsearch
 
 # ── pgvector — compiled from source ──────────────────────────────────────────
 # The PGDG package postgresql-18-pgvector may lag behind releases.

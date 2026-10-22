@@ -125,6 +125,8 @@ type Manager interface {
 	GetOrgLlmEnabled(orgId int) bool
 	GetOrgLlmProviderApiKey(orgId int) string
 	GetOrgLlmProviderUrl(orgId int) string
+	GetOrgLlmProviderType(orgId int) string
+	GetOrgLlmAllowedModels(orgId int) []string
 	GetGroupLlmEnabled(groupId int) bool
 	GetDefaultLlmModel() string
 	GetDefaultLlmTemperature() float32

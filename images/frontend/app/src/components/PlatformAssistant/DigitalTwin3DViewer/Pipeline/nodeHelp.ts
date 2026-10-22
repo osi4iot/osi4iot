@@ -573,7 +573,7 @@ Use this node whenever a pipeline must react to live data published on NATS or M
         description: "Sends a user message to an AI agent and forwards the agent response into the pipeline.",
 
         details:
-            "The AiAgent node connects the pipeline to a configured language model with tool support. For each incoming message, it reads the user name from 'payload.userName' and the prompt text from 'payload.message'. If either field is missing, fallback values are used. The node sends that request to the configured AI agent together with the selected model, system prompt, temperature, Top K, and Top P settings. The system prompt is mandatory and defines the agent's behavior. The agent can access MCP tools made available by the platform, including filesystem access inside the digital twin workspace, date and calculation tools, and FEM results tools when available. The agent response is transformed into a structured JSON payload containing the response message, optional UI metadata, and any tool calls performed during execution. The original message is replaced by the agent response.",
+            "The AiAgent node connects the pipeline to a configured language model with tool support. For each incoming message, it reads the user name from 'payload.userName' and the prompt text from 'payload.message'. If either field is missing, fallback values are used. The node sends that request to the configured AI agent together with the selected model, system prompt, temperature, Top K, and Top P settings. The system prompt is mandatory and defines the agent's behavior. The agent can access MCP tools made available by the platform, including the documents of the group's knowledge base (list, read and search), date and calculation tools, and FEM results tools when available. The agent response is transformed into a structured JSON payload containing the response message, optional UI metadata, and any tool calls performed during execution. The original message is replaced by the agent response.",
 
         params: [
             {
@@ -583,7 +583,7 @@ Use this node whenever a pipeline must react to live data published on NATS or M
             },
             {
                 name: "Model",
-                description: "Selects the language model used by the AI agent.",
+                description: "Selects the language model used by the AI agent, among the models of the organization's LLM provider (or the ones the platform administrator allowed for the organization). With OpenRouter, models of OpenAI, Anthropic, Google, Meta, Mistral, DeepSeek and others are available through the same provider. The model must support tool calling to use the MCP tools.",
             },
             {
                 name: "Temperature",
@@ -719,7 +719,7 @@ Use this node whenever a pipeline must react to live data published on NATS or M
             {
                 name: "LLM model",
                 description:
-                    "The model used to perform the translation. Defaults to gpt-4o-mini. The 'openai:' prefix is stripped automatically if present.",
+                    "The model used to perform the translation, among the models of the organization's LLM provider. When none is chosen, the organization's first allowed model is used, or gpt-4o-mini.",
             },
         ],
         inputExamples: [

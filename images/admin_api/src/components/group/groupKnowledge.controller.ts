@@ -13,6 +13,8 @@ import process_env from "../../config/api_config";
 import natsClient from "../../config/natsConfig";
 import infoLogger from "../../utils/logger/infoLogger";
 import { deleteBucketFile, getBucketFolderInfoFileList } from "../digitalTwin/digitalTwinDAL";
+import pool from "../../config/dbconfig";
+import { logger } from "../../config/winston";
 
 // Knowledge base of a group (RAG)
 //
@@ -76,6 +78,29 @@ const uploadKnowledgeFile = multer({
 	}),
 });
 
+interface IKnowledgeDocumentRow {
+	s3_key: string;
+	status: string;
+	num_chunks: number;
+	error: string | null;
+}
+
+// How far pipelines got indexing each of the group's documents (its
+// rag.documents table, in the same database), by S3 key. null when there
+// is no knowledge database: the platform runs without Patroni, or
+// pipelines has not created its tables yet.
+const getKnowledgeIndexingStatus = async (groupId: number): Promise<Map<string, IKnowledgeDocumentRow> | null> => {
+	const exists = await pool.query<{ exists: boolean }>(
+		"SELECT to_regclass('rag.documents') IS NOT NULL AS exists"
+	);
+	if (!exists.rows[0]?.exists) return null;
+	const result = await pool.query<IKnowledgeDocumentRow>(
+		"SELECT s3_key, status, num_chunks, error FROM rag.documents WHERE group_id = $1",
+		[groupId]
+	);
+	return new Map(result.rows.map((row) => [row.s3_key, row]));
+};
+
 class GroupKnowledgeController implements IController {
 	public path = "/group_knowledge";
 
@@ -129,8 +154,30 @@ class GroupKnowledgeController implements IController {
 		try {
 			const folder = knowledgeFolder(req.group.orgId, req.group.id);
 			const list = await getBucketFolderInfoFileList(folder);
+			// The list is still useful without the indexing status: a failure
+			// reading it (e.g. no permission on the rag schema) is logged and
+			// the documents are shown with status "unknown".
+			let indexing: Map<string, IKnowledgeDocumentRow> | null | undefined;
+			try {
+				indexing = await getKnowledgeIndexingStatus(req.group.id);
+			} catch (err) {
+				logger.log("error", `Knowledge indexing status of group ${req.group.id}: ${(err as Error).message}`);
+				indexing = undefined;
+			}
 			// File names without the folder, as the other endpoints take them.
-			const files = list.map((f) => ({ ...f, fileName: f.fileName.slice(folder.length + 1) }));
+			const files = list.map((f) => {
+				const doc = indexing?.get(f.fileName);
+				return {
+					...f,
+					fileName: f.fileName.slice(folder.length + 1),
+					// "pending": uploaded, not picked up by pipelines yet;
+					// "disabled": the platform has no knowledge database.
+					status:
+						indexing === undefined ? "unknown" : indexing ? (doc?.status ?? "pending") : "disabled",
+					numChunks: doc?.num_chunks ?? 0,
+					error: doc?.error ?? "",
+				};
+			});
 			res.status(200).send(files);
 		} catch (error) {
 			next(error);

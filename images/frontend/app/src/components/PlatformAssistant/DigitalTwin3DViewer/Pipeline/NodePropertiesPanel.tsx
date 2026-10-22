@@ -15,6 +15,7 @@ import { IMqttTopicData, INatsSubjectData } from "../Main/Model";
 import { json } from "@codemirror/lang-json";
 import { IDigitalTwin } from "../../TableColumns/digitalTwinsColumns";
 import { useMlModelsTableInGroup } from "../../../../contexts/platformAssistantContext/platformAssistantContext";
+import LlmModelSelect from "./LlmModelSelect";
 import { TimeSelector } from "./Utils/TimeSelector";
 import { timezoneOptions } from "./Utils/timezones";
 import {
@@ -1016,20 +1017,11 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                                 {renderOutputSelector()}
                                 <FormGroup>
                                     <Label>Model</Label>
-                                    <Select
-                                        value={formData.llmModel || "openai:gpt-oss-120b"}
-                                        onChange={(e: { target: { value: any } }) =>
-                                            handleInputChange("llmModel", e.target.value)
-                                        }
-                                    >
-                                        <option value="openai:gpt-oss-120b">openai/gpt-oss-120b</option>
-                                        <option value="openai:gpt-oss-20b">openai/gpt-oss-20b</option>
-                                        <option value="openai:gpt-4o">openai/gpt-4o</option>
-                                        <option value="openai:gpt-4o-mini">openai/gpt-4o-mini</option>
-                                        <option value="openai:gpt-5-mini">openai/gpt-5-mini</option>
-                                        <option value="openai:gpt-5-nano">openai/gpt-5-nano</option>
-                                        {/* <option value="openai:gpt-6-luna">openai/gpt-6-luna</option> */}
-                                    </Select>
+                                    <LlmModelSelect
+                                        groupId={digitalTwinSelected.groupId}
+                                        value={formData.llmModel || ""}
+                                        onChange={(model) => handleInputChange("llmModel", model)}
+                                    />
                                 </FormGroup>
                                 <FormGroup>
                                     <Label>Temperature</Label>
@@ -1729,19 +1721,11 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                         </FormGroup>
                         <FormGroup>
                             <Label>LLM Model</Label>
-                            <Select
-                                value={formData.llmModel || "openai:gpt-4o-mini"}
-                                onChange={(e: { target: { value: any } }) =>
-                                    handleInputChange("llmModel", e.target.value)
-                                }
-                            >
-                                <option value="openai:gpt-oss-120b">openai:gpt-oss-120b</option>
-                                <option value="openai:gpt-oss-20b">openai:gpt-oss-20b</option>
-                                <option value="openai:gpt-4o">openai:gpt-4o</option>
-                                <option value="openai:gpt-4o-mini">openai:gpt-4o-mini</option>
-                                <option value="openai:gpt-5-mini">openai:gpt-5-mini</option>
-                                <option value="openai:gpt-5-nano">openai:gpt-5-nano</option>
-                            </Select>
+                            <LlmModelSelect
+                                groupId={digitalTwinSelected.groupId}
+                                value={formData.llmModel || ""}
+                                onChange={(model) => handleInputChange("llmModel", model)}
+                            />
                         </FormGroup>
                     </>
                 );

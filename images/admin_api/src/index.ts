@@ -19,6 +19,7 @@ import SensorController from "./components/sensor/sensor.controller";
 import natsClient from "./config/natsConfig";
 import S3FolderController from "./components/s3_folder/s3_folder.controller";
 import GroupKnowledgeController from "./components/group/groupKnowledge.controller";
+import LlmModelsController from "./components/organization/llmModels.controller";
 
 const main = async (): Promise<void> => {
 	try {
@@ -34,6 +35,7 @@ const main = async (): Promise<void> => {
 			new BuildingController(),
 			new GroupController(),
 			new GroupKnowledgeController(),
+			new LlmModelsController(),
 			new AssetController(),
 			new S3FolderController(),
 			new SensorController(),

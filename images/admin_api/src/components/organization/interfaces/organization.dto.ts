@@ -1,5 +1,6 @@
 import { Type } from "class-transformer";
-import { IsNumber, IsString, IsEnum, ValidateIf, ValidateNested, IsBoolean } from "class-validator";
+import { IsNumber, IsString, IsEnum, ValidateIf, ValidateNested, IsBoolean, IsOptional, IsIn, IsArray } from "class-validator";
+import { LLM_PROVIDER_TYPES } from "../llmModels";
 import CreateUserDto from "../../user/interfaces/User.dto";
 import { OrgRoleOption, OrgRoleOptions } from "./orgRoleOptions";
 
@@ -35,6 +36,17 @@ class CreateOrganizationDto {
 	public llmProviderApiKey: string;
 
 	public hashedLlmProviderApiKey?: string;
+
+	@IsOptional()
+	@IsIn(LLM_PROVIDER_TYPES as unknown as string[], {
+		message: `llmProviderType must be one of: ${LLM_PROVIDER_TYPES.join(", ")}`,
+	})
+	public llmProviderType?: string;
+
+	@IsOptional()
+	@IsArray()
+	@IsString({ each: true })
+	public llmAllowedModels?: string[];
 
 	@IsBoolean()
 	public gpuUsageEnabled: boolean;

@@ -46,6 +46,8 @@ export interface IOrganization {
     mqttAccessControl: string;
     llmEnabled: boolean;
     llmProviderUrl?: string;
+    llmProviderType?: string;
+    llmAllowedModels?: string[];
     llmProviderApiKey?: string;
     gpuUsageEnabled: boolean;
     telegramEnabled: boolean;

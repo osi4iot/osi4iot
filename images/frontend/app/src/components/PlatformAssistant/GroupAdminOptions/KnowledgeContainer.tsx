@@ -113,7 +113,6 @@ const validateFile = (file: File): string | null => {
 const toRows = (files: IKnowledgeFile[]): IKnowledgeFileRow[] =>
     files.map((file) => ({
         ...file,
-        sizeMB: (file.size / 1048576).toFixed(file.size < 104858 ? 3 : 2),
         lastModifiedString: formatDateString(file.lastModified),
     }));
 
@@ -289,3 +288,4 @@ const KnowledgeContainer: FC<KnowledgeContainerProps> = ({ groupsManaged }) => {
 };
 
 export default KnowledgeContainer;
+

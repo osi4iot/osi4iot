@@ -426,7 +426,7 @@ const nodeTypes = [
         debug: "off",
         settings: {
             systemPrompt: "",
-            llmModel: "openai:gpt-4o-mini",
+            llmModel: "", // chosen from the organization's models (LlmModelSelect)
             llmTemperature: 0.7,
             llmTopK: 40,
             llmTopP: 0.95,
@@ -454,7 +454,7 @@ const nodeTypes = [
         debug: "off",
         settings: {
             targetLanguage: "en",
-            llmModel: "openai:gpt-4o-mini",
+            llmModel: "", // chosen from the organization's models (LlmModelSelect)
         },
     },
     {

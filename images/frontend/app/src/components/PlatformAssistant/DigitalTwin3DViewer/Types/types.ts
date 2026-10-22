@@ -160,7 +160,7 @@ export interface INatsClientOptions {
 export interface ChatMessage {
     userName: string;
     message: string;
-    sender: "user" | "assistant" | "mcphost";
+    sender: "user" | "assistant" | "system";
     mcpToolCalls: McpToolCall[];
     time: string;
 }

@@ -114,7 +114,7 @@ CREATE TABLE IF NOT EXISTS osi4iot_probe.probe (
 SQL
 
 # ── Knowledge bases (RAG) ────────────────────────────────────────────────────
-# pgvector and pg_search in the platform's database, and the rag schema
+# pgvector and pg_textsearch in the platform's database, and the rag schema
 # owned by pipelines_rag, the role pipelines connects with (pipelines
 # creates its tables there). Skipped when the secret has no
 # PIPELINES_RAG_PASSWORD (a CLI from before the knowledge bases): the
@@ -123,13 +123,13 @@ if [ -n "${PIPELINES_RAG_PASSWORD:-}" ]; then
     echo "post_init: preparing the knowledge bases (rag schema) in ${POSTGRES_DB}..."
     psql "${PLATFORM_DB_CONN}" << SQL
 CREATE EXTENSION IF NOT EXISTS vector;
-CREATE EXTENSION IF NOT EXISTS pg_search;
+CREATE EXTENSION IF NOT EXISTS pg_textsearch;
 CREATE ROLE pipelines_rag WITH LOGIN PASSWORD '${PIPELINES_RAG_PASSWORD}';
 GRANT CONNECT ON DATABASE ${POSTGRES_DB} TO pipelines_rag;
--- The extensions' types, operators and functions live in public (and
--- pg_search's in paradedb), closed to PUBLIC above.
+-- The extensions' types, operators and functions live in public, closed
+-- to PUBLIC above. (pg_textsearch for BM25, not pg_search: the community
+-- edition of pg_search does not replicate its indexes to the replicas.)
 GRANT USAGE ON SCHEMA public TO pipelines_rag;
-GRANT USAGE ON SCHEMA paradedb TO pipelines_rag;
 CREATE SCHEMA IF NOT EXISTS rag AUTHORIZATION pipelines_rag;
 COMMENT ON SCHEMA rag IS 'Knowledge bases of the groups (RAG), owned by pipelines';
 SQL

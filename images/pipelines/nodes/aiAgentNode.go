@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"pipelines/common"
+	"pipelines/llmagent"
 	"pipelines/logger"
 	"pipelines/message"
 	"pipelines/utils"
@@ -16,38 +17,44 @@ import (
 	"strings"
 	"sync"
 	"time"
-
-	"github.com/cloudwego/eino/schema"
-	"github.com/osi4iot/mcphost/pkg/mcphost"
 )
 
+// AiAgentNode runs an AI agent (package llmagent, on agent-sdk-go): an
+// LLM with the platform's MCP tools, which answers the prompts that
+// reach the node and keeps each user's conversation in the digital
+// twin's KV store.
 type AiAgentNode struct {
 	BaseNode
-	LlmModel       string
-	LlmTemperature float64
-	InputChan      chan mcphost.ChatMessage
-	OutputChan     chan mcphost.LlmResponse
-	hostConfig     *mcphost.HostConfig
-	McpHost        mcphost.MCPHost
+
+	agentConfig llmagent.Config // channels and callbacks are set in Start
+	agentIn     chan llmagent.Prompt
+	agentOut    chan llmagent.Answer
+	agentHost   *llmagent.Host
 
 	// The prompt being answered, to tell in the log where an agent is
-	// stuck: mcphost logs nothing unless Debug is on.
+	// stuck.
 	pendingMu   sync.Mutex
 	pendingUser string
 	pendingAt   time.Time // zero when no prompt is waiting for an answer
 }
 
 // How long before the log says that an agent is still busy: accepting a
-// prompt (the MCP host is still loading its MCP servers, or answering
-// the previous one) or answering it (the LLM or a tool has not replied).
+// prompt (it is still starting its MCP servers, or answering the
+// previous one) or answering it (the LLM or a tool has not replied).
 const (
 	aiAgentAcceptWarnAfter = 30 * time.Second
 	aiAgentAnswerWarnEvery = 60 * time.Second
 )
 
-// aiAgentDebug turns on mcphost's debug output (each tool call, its
-// arguments and result, and the LLM's replies, on stdout) outside local
-// mode too: PIPELINES_AI_AGENT_DEBUG=true.
+// aiAgentServer is an MCP server of the node.
+type aiAgentServer struct {
+	command []string
+	args    []string
+}
+
+// aiAgentDebug logs the agents' tool calls, arguments and results, and
+// the LLM's requests, outside local mode too:
+// PIPELINES_AI_AGENT_DEBUG=true.
 func aiAgentDebug() bool {
 	v, _ := strconv.ParseBool(os.Getenv("PIPELINES_AI_AGENT_DEBUG"))
 	return v
@@ -76,22 +83,21 @@ func CreateAiAgentNode(ctx context.Context, node common.NodeData, fm common.Mana
 		return nil, fmt.Errorf("API key must be configured")
 	}
 
-	llmModel, ok := node.Settings["llmModel"].(string)
-	if !ok {
-		llmModel = fm.GetDefaultLlmModel()
+	llmModel, _ := node.Settings["llmModel"].(string)
+	if strings.TrimSpace(llmModel) == "" {
+		llmModel = defaultLlmModel(fm.GetOrgLlmAllowedModels(orgId), fm.GetDefaultLlmModel())
 	}
+	// "<provider type>:<model id>" (see llmModel.go).
+	llmModel = resolveLlmModel(llmModel, fm.GetOrgLlmProviderType(orgId), providerUrl)
 
-	llmTemperature, ok := node.Settings["llmTemperature"].(float32)
-	if !ok {
-		llmTemperature = fm.GetDefaultLlmTemperature()
-	}
-
-	var llmTopK int32 = 40
-	llmTopKFloat64, ok := node.Settings["llmTopK"].(float64)
-	if !ok {
-		llmTopK = fm.GetDefaultLlmTopK()
-	} else {
-		llmTopK = int32(llmTopKFloat64)
+	// JSON numbers arrive as float64: the float32 assertion alone never
+	// matched, and the default was always used.
+	llmTemperature := fm.GetDefaultLlmTemperature()
+	switch t := node.Settings["llmTemperature"].(type) {
+	case float64:
+		llmTemperature = float32(t)
+	case float32:
+		llmTemperature = t
 	}
 
 	var llmTopP float32 = 0.95
@@ -124,30 +130,23 @@ func CreateAiAgentNode(ctx context.Context, node common.NodeData, fm common.Mana
 			"--knowledge_url", url,
 			"--knowledge_token", token)
 	}
-	mcpServers := map[string]mcphost.MCPServerConfig{}
+	servers := map[string]aiAgentServer{}
 
 	// The FEM results are queried straight from the bucket (Parquet,
 	// written when the results were uploaded); the MCP server takes the
 	// bucket's settings from the environment it inherits.
 	femResultsURI, hasFemResults := fm.FemResultsS3URI(ctx, p.GetOrgId(), p.GetGroupId(), p.GetDigitalTwinId())
 	if fm.GetMode() == "local" {
-		mcpServers["documents"] = mcphost.MCPServerConfig{
-			Type:    "local",
-			Name:    "documents",
-			Command: []string{filepath.Join(mcpServersPath, "doc_info", "doc_info")},
-			Args:    docInfoArgs,
+		servers["documents"] = aiAgentServer{
+			command: []string{filepath.Join(mcpServersPath, "doc_info", "doc_info")},
+			args:    docInfoArgs,
 		}
-		mcpServers["current_date"] = mcphost.MCPServerConfig{
-			Type:    "local",
-			Name:    "current_date",
-			Command: []string{filepath.Join(mcpServersPath, "current_date", "current_date")},
-			Args:    []string{},
+		servers["current_date"] = aiAgentServer{
+			command: []string{filepath.Join(mcpServersPath, "current_date", "current_date")},
 		}
-		mcpServers["calculate_expression1"] = mcphost.MCPServerConfig{
-			Type:    "local",
-			Name:    "calculate_expression1",
-			Command: []string{"uv"},
-			Args: []string{
+		servers["calculate_expression1"] = aiAgentServer{
+			command: []string{"uv"},
+			args: []string{
 				"run",
 				"--directory",
 				filepath.Join(mcpServersPath, "mcp_calculate_server"),
@@ -155,68 +154,50 @@ func CreateAiAgentNode(ctx context.Context, node common.NodeData, fm common.Mana
 			},
 		}
 		if hasFemResults {
-			mcpServers["fem_results"] = mcphost.MCPServerConfig{
-				Type:    "local",
-				Name:    "fem_results",
-				Command: []string{filepath.Join(mcpServersPath, "fem_results", "fem_results")},
-				Args:    []string{"--results_path", femResultsURI},
+			servers["fem_results"] = aiAgentServer{
+				command: []string{filepath.Join(mcpServersPath, "fem_results", "fem_results")},
+				args:    []string{"--results_path", femResultsURI},
 			}
 		}
 	} else {
-		mcpServers["documents"] = mcphost.MCPServerConfig{
-			Type:    "local",
-			Name:    "documents",
-			Command: []string{"/usr/local/bin/doc_info"},
-			Args:    docInfoArgs,
+		servers["documents"] = aiAgentServer{
+			command: []string{"/usr/local/bin/doc_info"},
+			args:    docInfoArgs,
 		}
-		mcpServers["current_date"] = mcphost.MCPServerConfig{
-			Type:    "local",
-			Name:    "current_date",
-			Command: []string{"/usr/local/bin/current_date"},
-			Args:    []string{},
+		servers["current_date"] = aiAgentServer{
+			command: []string{"/usr/local/bin/current_date"},
 		}
-		mcpServers["calculate_expression1"] = mcphost.MCPServerConfig{
-			Type:    "local",
-			Name:    "calculate_expression1",
-			Command: []string{"/opt/venv/bin/python"},
-			Args:    []string{"-m", "server"},
+		servers["calculate_expression1"] = aiAgentServer{
+			command: []string{"/opt/venv/bin/python"},
+			args:    []string{"-m", "server"},
 		}
 		if hasFemResults {
-			mcpServers["fem_results"] = mcphost.MCPServerConfig{
-				Type:    "local",
-				Name:    "fem_results",
-				Command: []string{"/usr/local/bin/fem_results"},
-				Args:    []string{"--results_path", femResultsURI},
+			servers["fem_results"] = aiAgentServer{
+				command: []string{"/usr/local/bin/fem_results"},
+				args:    []string{"--results_path", femResultsURI},
 			}
 		}
 	}
 
-	debug := fm.GetMode() == "local" || aiAgentDebug()
-
-	switch providerUrl {
-	case "https://api.openai.com/v1":
-		if strings.Contains(llmModel, "gpt-5") {
-			providerUrl = ""
+	agentServers := map[string]llmagent.ServerConfig{}
+	for name, srv := range servers {
+		agentServers[name] = llmagent.ServerConfig{
+			Command: srv.command[0],
+			Args:    append(append([]string{}, srv.command[1:]...), srv.args...),
 		}
-	case "https://api.groq.com/openai/v1":
-		llmModel = strings.ReplaceAll(llmModel, "openai:", "openai:openai/")
 	}
 
-	// Guardamos la config sin InputChan/OutputChan, se asignan en Start
-	hostConfig := &mcphost.HostConfig{
-		NatsClient:     fm.GetNatsClient(),
-		MCPServers:     mcpServers,
+	// No max tokens: the providers use the model's own limit.
+	agentConfig := llmagent.Config{
 		Model:          llmModel,
-		MaxSteps:       500,
-		Debug:          debug,
-		SystemPrompt:   systemPrompt,
-		ProviderAPIKey: providerApiKey,
 		ProviderURL:    providerUrl,
-		MaxTokens:      fm.GetLlmMaxTokens(),
-		Temperature:    &llmTemperature,
-		TopP:           &llmTopP,
-		TopK:           &llmTopK,
-		SavedMessages:  nil,
+		ProviderAPIKey: providerApiKey,
+		SystemPrompt:   systemPrompt,
+		Temperature:    float64(llmTemperature),
+		TopP:           float64(llmTopP),
+		MCPServers:     agentServers,
+		Debug:          fm.GetMode() == "local" || aiAgentDebug(),
+		Log:            fm.Log(),
 	}
 
 	return &AiAgentNode{
@@ -236,7 +217,7 @@ func CreateAiAgentNode(ctx context.Context, node common.NodeData, fm common.Mana
 			Ctx:        nil,
 			status:     common.NodeStatusCreated,
 		},
-		hostConfig: hostConfig, // config guardada, sin canales ni ctx
+		agentConfig: agentConfig, // the configuration; channels and callbacks are set in Start
 	}, nil
 }
 
@@ -246,93 +227,97 @@ func (n *AiAgentNode) Start(ctx context.Context, log *logger.Logger, needReiniti
 		return
 	}
 
-	// Canales frescos en cada Start, importante para reinicios
-	n.InputChan = make(chan mcphost.ChatMessage)
-	n.OutputChan = make(chan mcphost.LlmResponse)
-	n.hostConfig.InputChan = n.InputChan
-	n.hostConfig.OutputChan = n.OutputChan
-
-	// Ctx fresco derivado del ctx de la pipeline
+	// A fresh context and channels on every start (restarts too).
 	nodeCtx, nodeCancel := context.WithCancel(ctx)
 	n.Ctx = nodeCtx
 	n.Cancel = nodeCancel
+	n.agentIn = make(chan llmagent.Prompt)
+	n.agentOut = make(chan llmagent.Answer)
 
-	// McpHost se crea aquí con el ctx y canales correctos
-	newMcpHost, err := mcphost.NewMCPHost(n.hostConfig, nodeCtx, n.GetChatMessages, n.SaveChatMessages)
+	cfg := n.agentConfig
+	cfg.Input = n.agentIn
+	cfg.Output = n.agentOut
+	cfg.GetHistory = n.agentHistory
+	cfg.SaveTurn = n.saveAgentTurn
+	host, err := llmagent.New(nodeCtx, cfg)
 	if err != nil {
-		log.Errorf("AiAgentNode %s: failed to create MCP host: %v", n.NodeUid, err)
+		log.Errorf("AiAgentNode %s: failed to create the AI agent: %v", n.NodeUid, err)
 		n.Cancel()
 		n.SetStatus(common.NodeStatusError)
 		return
 	}
-	n.McpHost = newMcpHost
+	n.agentHost = host
 
 	n.SetStatus(common.NodeStatusRunning)
-	serverNames := make([]string, 0, len(n.hostConfig.MCPServers))
-	for name := range n.hostConfig.MCPServers {
+	serverNames := make([]string, 0, len(cfg.MCPServers))
+	for name := range cfg.MCPServers {
 		serverNames = append(serverNames, name)
 	}
 	sort.Strings(serverNames)
 	log.Infof("Starting AiAgentNode with UID: %s (model %s, MCP servers: %s)",
-		n.NodeUid, n.hostConfig.Model, strings.Join(serverNames, ", "))
+		n.NodeUid, cfg.Model, strings.Join(serverNames, ", "))
 
 	n.wg.Add(1)
 	go func() {
 		defer n.wg.Done()
-		defer log.Infof("MCP Host goroutine terminated for UID: %s", n.NodeUid)
+		defer log.Infof("AI agent goroutine terminated for UID: %s", n.NodeUid)
 
-		if err := n.McpHost.Run(); err != nil {
-			if !errors.Is(err, context.Canceled) {
-				n.handleMCPHostError(err)
-				n.McpHost.Close()
-			} else {
-				log.Infof("MCP Host stopped gracefully due to context cancellation")
+		if err := host.Run(); err != nil {
+			if errors.Is(err, context.Canceled) {
+				log.Infof("AI agent stopped gracefully due to context cancellation")
+				return
 			}
+			n.handleAgentFailure(err)
+			host.Close()
+			n.Cancel()
+			go func() {
+				_ = n.Pipeline.RestartNode(ctx, n.NodeUid)
+			}()
 		}
 	}()
 
-	n.handleInputWires(log, n.sendPromptToMcpHost)
-	n.handleMcpHostMessage(ctx, log)
+	n.handleInputWires(log, n.sendPrompt)
+	n.handleAgentAnswers(log)
 	n.watchPendingPrompt(log)
 }
 
-// sendPromptToMcpHost hands a prompt to the MCP host. The host takes it
-// only when it is ready: after loading its MCP servers, and after
-// answering the previous prompt. Until then this waits, saying so in the
-// log, and gives up if the node stops.
-func (n *AiAgentNode) sendPromptToMcpHost(msg mcphost.ChatMessage, log *logger.Logger) error {
+// sendPrompt hands a prompt to the agent. The agent takes it when it is
+// ready: after starting its MCP servers, and after answering the
+// previous prompt. Until then this waits, saying so in the log, and
+// gives up if the node stops.
+func (n *AiAgentNode) sendPrompt(prompt llmagent.Prompt, log *logger.Logger) error {
 	if n.GetStatus() != common.NodeStatusRunning {
 		log.Infof("AiAgentNode %s stopped during delay, discarding message", n.NodeUid)
 		return nil
 	}
 
-	log.Infof("AiAgentNode %s: prompt from %s received (%d characters)", n.NodeUid, msg.UserName, len(msg.Prompt))
+	log.Infof("AiAgentNode %s: prompt from %s received (%d characters)", n.NodeUid, prompt.UserName, len(prompt.Text))
 	waitingSince := time.Now()
 	warn := time.NewTicker(aiAgentAcceptWarnAfter)
 	defer warn.Stop()
 	for {
 		select {
-		case n.InputChan <- msg:
+		case n.agentIn <- prompt:
 			n.pendingMu.Lock()
-			n.pendingUser, n.pendingAt = msg.UserName, time.Now()
+			n.pendingUser, n.pendingAt = prompt.UserName, time.Now()
 			n.pendingMu.Unlock()
 			if waited := time.Since(waitingSince); waited > time.Second {
-				log.Infof("AiAgentNode %s: prompt from %s accepted by the MCP host after %s", n.NodeUid, msg.UserName, waited.Round(time.Second))
+				log.Infof("AiAgentNode %s: prompt from %s accepted by the agent after %s", n.NodeUid, prompt.UserName, waited.Round(time.Second))
 			}
 			return nil
 		case <-n.Ctx.Done():
-			log.Infof("AiAgentNode %s stopped, discarding the prompt from %s", n.NodeUid, msg.UserName)
+			log.Infof("AiAgentNode %s stopped, discarding the prompt from %s", n.NodeUid, prompt.UserName)
 			return nil
 		case <-warn.C:
 			n.pendingMu.Lock()
 			busyUser, busySince := n.pendingUser, n.pendingAt
 			n.pendingMu.Unlock()
 			if !busySince.IsZero() {
-				log.Warnf("AiAgentNode %s: prompt from %s waiting %s: the MCP host is still answering %s (for %s)",
-					n.NodeUid, msg.UserName, time.Since(waitingSince).Round(time.Second), busyUser, time.Since(busySince).Round(time.Second))
+				log.Warnf("AiAgentNode %s: prompt from %s waiting %s: the agent is still answering %s (for %s)",
+					n.NodeUid, prompt.UserName, time.Since(waitingSince).Round(time.Second), busyUser, time.Since(busySince).Round(time.Second))
 			} else {
-				log.Warnf("AiAgentNode %s: prompt from %s waiting %s: the MCP host is not ready yet (still loading its MCP servers?)",
-					n.NodeUid, msg.UserName, time.Since(waitingSince).Round(time.Second))
+				log.Warnf("AiAgentNode %s: prompt from %s waiting %s: the agent is not ready yet (still starting its MCP servers?)",
+					n.NodeUid, prompt.UserName, time.Since(waitingSince).Round(time.Second))
 			}
 		}
 	}
@@ -376,7 +361,7 @@ func (n *AiAgentNode) answered() (string, time.Duration) {
 	return user, time.Since(since)
 }
 
-func (n *AiAgentNode) handleInputWires(log *logger.Logger, processor func(mcphost.ChatMessage, *logger.Logger) error) {
+func (n *AiAgentNode) handleInputWires(log *logger.Logger, processor func(llmagent.Prompt, *logger.Logger) error) {
 	nodeInputWires := n.GetNodeInputWires()
 	if len(nodeInputWires) == 0 {
 		return
@@ -406,20 +391,16 @@ func (n *AiAgentNode) handleInputWires(log *logger.Logger, processor func(mcphos
 						continue
 					}
 
-					var userName, prompt string
+					var userName, text string
 					userName, ok = msg.GetStringFromPayload("userName")
 					if !ok || userName == "" {
 						userName = "unknown"
 					}
-					prompt, ok = msg.GetStringFromPayload("message")
-					if !ok || prompt == "" {
-						prompt = "no prompt"
+					text, ok = msg.GetStringFromPayload("message")
+					if !ok || text == "" {
+						text = "no prompt"
 					}
-					chatMessage := mcphost.ChatMessage{
-						UserName: userName,
-						Prompt:   prompt,
-					}
-					if err := processor(chatMessage, log); err != nil {
+					if err := processor(llmagent.Prompt{UserName: userName, Text: text}, log); err != nil {
 						n.HandleError(err)
 					}
 				}
@@ -428,48 +409,134 @@ func (n *AiAgentNode) handleInputWires(log *logger.Logger, processor func(mcphos
 	}
 }
 
-func (n *AiAgentNode) handleMcpHostMessage(ctx context.Context, log *logger.Logger) {
+func (n *AiAgentNode) handleAgentAnswers(log *logger.Logger) {
 	n.wg.Add(1)
 	go func() {
 		defer n.wg.Done()
-		defer log.Infof("MCP host message handler terminated for UID: %s", n.NodeUid)
+		defer log.Infof("AI agent answer handler terminated for UID: %s", n.NodeUid)
 
 		for {
 			select {
 			case <-n.Ctx.Done():
-				log.Infof("Stopping MCP host message handler for Node with UID: %s", n.NodeUid)
+				log.Infof("Stopping AI agent answer handler for Node with UID: %s", n.NodeUid)
 				return
-			case msg, ok := <-n.OutputChan:
+			case answer, ok := <-n.agentOut:
 				if !ok {
-					log.Infof("OutputChan closed for Node with UID: %s", n.NodeUid)
+					log.Infof("Agent output closed for Node with UID: %s", n.NodeUid)
 					return
 				}
-
-				user, took := n.answered()
-				if msg.Status == "error" {
-					log.Errorf("AiAgentNode %s: prompt from %s failed after %s", n.NodeUid, user, took.Round(time.Millisecond))
-					errMsg := fmt.Errorf("MCP Host error: %s", msg.Message)
-					n.handleMCPHostError(errMsg)
-					n.McpHost.Close()
-					n.Cancel()
-					go func() {
-						n.Pipeline.RestartNode(ctx, n.NodeUid)
-					}()
-					return
-				}
-
-				tools := make([]string, 0, len(msg.McpToolCalls))
-				for _, call := range msg.McpToolCalls {
-					tools = append(tools, call.ToolName)
-				}
-				log.Infof("AiAgentNode %s: answered %s in %s (tools: %s)", n.NodeUid, user, took.Round(time.Millisecond), strings.Join(tools, ", "))
-
-				parsed := utils.ParseMessage(msg.Message)
-				payload := utils.CreateCommonMessage(parsed, msg.McpToolCalls)
-				n.sendToOutputs(message.NewMessageFromPayload(payload), log)
+				n.handleAgentAnswer(answer, log)
 			}
 		}
 	}()
+}
+
+// handleAgentAnswer sends an answer to the node's outputs. An error (a
+// failed or timed-out prompt) does not restart the node: the agent is
+// still working, so the user gets the error as the answer and the
+// pipeline log records it.
+func (n *AiAgentNode) handleAgentAnswer(answer llmagent.Answer, log *logger.Logger) {
+	user, took := n.answered()
+	calls := toolCalls(answer.ToolCalls)
+	tools := make([]string, 0, len(calls))
+	for _, c := range calls {
+		tools = append(tools, c.ToolName)
+	}
+
+	text := answer.Message
+	if !answer.OK {
+		log.Errorf("AiAgentNode %s: prompt from %s failed after %s: %s", n.NodeUid, user, took.Round(time.Millisecond), answer.Message)
+		n.publishAgentLog("error", "AI agent error", "The AI agent could not answer: "+answer.Message)
+		text = "Error: " + answer.Message
+	} else {
+		usage := ""
+		if answer.Usage != nil {
+			usage = fmt.Sprintf(", tokens in/out %d/%d", answer.Usage.InputTokens, answer.Usage.OutputTokens)
+		}
+		log.Infof("AiAgentNode %s: answered %s in %s (tools: %s%s)", n.NodeUid, user, took.Round(time.Millisecond), strings.Join(tools, ", "), usage)
+	}
+
+	parsed := utils.ParseMessage(text)
+	payload := utils.CreateCommonMessage(parsed, calls)
+	n.sendToOutputs(message.NewMessageFromPayload(payload), log)
+}
+
+func toolCalls(calls []llmagent.ToolCall) []utils.ToolCall {
+	out := make([]utils.ToolCall, 0, len(calls))
+	for _, c := range calls {
+		out = append(out, utils.ToolCall{ToolName: c.ToolName, Args: c.Args})
+	}
+	return out
+}
+
+// agentHistory gives the agent a user's stored conversation.
+func (n *AiAgentNode) agentHistory(userName string) []llmagent.HistoryMessage {
+	kvStore, _ := n.GetDigitalTwinKvStore(n.GetDigitalTwinId())
+	if kvStore == nil {
+		return nil
+	}
+	stored := utils.GetChatMessages(n.Ctx, n.Fm.Log(), kvStore, userName, n.GetOrgHash(), n.GetDigitalTwinUid())
+	history := make([]llmagent.HistoryMessage, 0, len(stored))
+	for _, m := range stored {
+		history = append(history, llmagent.HistoryMessage{Role: m.Role, Content: m.Content})
+	}
+	return history
+}
+
+// saveAgentTurn stores a prompt and its answer: the user message, the
+// assistant message, and the tool calls of the answer.
+func (n *AiAgentNode) saveAgentTurn(userName, prompt, answer string, calls []llmagent.ToolCall) error {
+	kvStore, err := n.GetDigitalTwinKvStore(n.GetDigitalTwinId())
+	if err != nil {
+		return err
+	}
+	messages := []utils.StoredMessage{
+		{Role: "user", Content: prompt},
+		{Role: "assistant", Content: answer},
+	}
+	err = utils.SaveChatMessages(
+		n.Ctx,
+		n.Fm.Log(),
+		kvStore,
+		userName,
+		n.GetOrgHash(),
+		n.GetDigitalTwinUid(),
+		n.Fm.GetMaxChatMessagesPerUser(),
+		messages,
+		[][]utils.ToolCall{nil, toolCalls(calls)},
+	)
+	if err != nil {
+		n.Fm.Log().Errorf("Failed to save chat messages for user %s: %v", userName, err)
+	}
+	return err
+}
+
+func (n *AiAgentNode) publishAgentLog(level, description, text string) {
+	if n.LogSubject == "" {
+		return
+	}
+	logData := common.PipelineLog{
+		Level:       level,
+		Component:   "node",
+		Name:        n.Name,
+		Uid:         n.NodeUid,
+		Description: description,
+		Message:     text,
+	}
+	if logJSON, err := json.Marshal(logData); err == nil {
+		n.Fm.NatsPublish(n.LogSubject, logJSON)
+	} else {
+		n.Fm.Log().Errorf("Failed to marshal log data for node %s: %v", n.NodeUid, err)
+	}
+}
+
+// handleAgentFailure records that the agent itself stopped (not a
+// prompt): the node is restarted.
+func (n *AiAgentNode) handleAgentFailure(err error) {
+	n.SetStatus(common.NodeStatusError)
+	n.Fm.Log().Errorf("AiAgentNode %s: the AI agent stopped: %v", n.NodeUid, err)
+	n.publishAgentLog("error", "AI agent failure",
+		"An unexpected error has occurred in the AI Agent.\n The node is going to be restarted automatically.")
 }
 
 func (n *AiAgentNode) Stop(log *logger.Logger) {
@@ -480,87 +547,19 @@ func (n *AiAgentNode) Stop(log *logger.Logger) {
 
 	log.Infof("Stopping AiAgentNode %s", n.NodeUid)
 
-	if n.McpHost != nil {
-		n.McpHost.Close() // cierra recursos del McpHost antes de cancelar el ctx
+	if n.agentHost != nil {
+		n.agentHost.Close() // stops the MCP servers before the context ends
 	}
-
 	if n.Cancel != nil {
-		n.Cancel() // señaliza a todas las goroutines que paren
+		n.Cancel()
 	}
-
-	n.wg.Wait() // espera que todas las goroutines confirmen que terminaron
-
-	n.SetStatus(common.NodeStatusStopped) // ahora sí refleja la realidad
+	n.wg.Wait()
+	n.SetStatus(common.NodeStatusStopped)
 
 	log.Infof("AiAgentNode %s stopped successfully", n.NodeUid)
-}
-
-func (n *AiAgentNode) GetChatMessages(userName string) []*schema.Message {
-	kvStore, _ := n.GetDigitalTwinKvStore(n.GetDigitalTwinId())
-	if kvStore == nil {
-		return nil
-	}
-	chatMessages := utils.GetChatMessages(n.Ctx, n.Fm.Log(), kvStore, userName, n.GetOrgHash(), n.GetDigitalTwinUid())
-
-	return chatMessages
-}
-
-func (n *AiAgentNode) SaveChatMessages(
-	userName string,
-	messages []*schema.Message,
-	mcpToolCallsArray [][]mcphost.McpToolCall,
-) error {
-	kvStore, err := n.GetDigitalTwinKvStore(n.GetDigitalTwinId())
-	if err != nil {
-		return err
-	}
-
-	err = utils.SaveChatMessages(
-		n.Ctx,
-		n.Fm.Log(),
-		kvStore,
-		userName,
-		n.GetOrgHash(),
-		n.GetDigitalTwinUid(),
-		n.Fm.GetMaxChatMessagesPerUser(),
-		messages,
-		mcpToolCallsArray,
-	)
-
-	if err != nil {
-		n.Fm.Log().Errorf("Failed to save chat messages for user %s: %v", userName, err)
-		return err
-	}
-
-	return nil
-}
-
-func (n *AiAgentNode) handleMCPHostError(err error) {
-	n.SetStatus(common.NodeStatusError)
-
-	if n.LogSubject == "" {
-		n.Fm.Log().Errorf("Node %s encountered an error but no log subject is set", n.NodeUid)
-		return
-	}
-
-	n.Fm.Log().Errorf("MCP Host error: %v", err)
-
-	logData := common.PipelineLog{
-		Level:       "error",
-		Component:   "node",
-		Name:        n.Name,
-		Uid:         n.NodeUid,
-		Description: "MCP Host error",
-		Message:     "An unexpected error has occurred in the AI Agent.\n The node is going to be restarted automatically.",
-	}
-
-	if logJSON, marshallErr := json.Marshal(logData); marshallErr == nil {
-		n.Fm.NatsPublish(n.LogSubject, logJSON)
-	} else {
-		n.Fm.Log().Errorf("Failed to marshal log error data for node %s: %v", n.NodeUid, marshallErr)
-	}
 }
 
 func (n *AiAgentNode) GetName() string {
 	return n.Name
 }
+

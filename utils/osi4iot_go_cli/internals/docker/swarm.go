@@ -465,10 +465,18 @@ func StopPlatform(platformData *pt.PlatformData) error {
 	// `run`.
 	saveCertsFromSystemManager(platformData, docker)
 
-	err = removeSwarmServices(docker)
-	if err != nil {
-		return fmt.Errorf("error removing services: %v", err)
+	// In order, and waiting for it: the Patroni replicas, then their
+	// leaders, stop while the storage they archive to is still up (see
+	// stop_order.go). The leaders are asked for now, while system_manager
+	// is up.
+	leaders := patroniLeaders(platformData, docker)
+	done := make(chan bool)
+	utils.Spinner("Stopping the platform's services", "", done)
+	if err := removeSwarmServicesInOrder(docker, leaders); err != nil {
+		done <- false
+		return fmt.Errorf("error stopping services: %v", err)
 	}
+	done <- true
 
 	return nil
 }

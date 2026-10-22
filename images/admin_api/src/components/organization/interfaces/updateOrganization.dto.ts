@@ -1,4 +1,5 @@
-import { IsBoolean, IsEnum, IsNumber, IsString, ValidateIf } from "class-validator";
+import { IsArray, IsBoolean, IsEnum, IsIn, IsNumber, IsOptional, IsString, ValidateIf } from "class-validator";
+import { LLM_PROVIDER_TYPES } from "../llmModels";
 import { OrgRoleOption, OrgRoleOptions } from "./orgRoleOptions";
 
 class UpdateOrganizationDto {
@@ -32,6 +33,17 @@ class UpdateOrganizationDto {
 	@ValidateIf((obj) => obj.llmEnabled === true && obj.changeLlmProviderApiKey === true)
 	@IsString()
 	public llmProviderApiKey: string;
+
+	@IsOptional()
+	@IsIn(LLM_PROVIDER_TYPES as unknown as string[], {
+		message: `llmProviderType must be one of: ${LLM_PROVIDER_TYPES.join(", ")}`,
+	})
+	public llmProviderType?: string;
+
+	@IsOptional()
+	@IsArray()
+	@IsString({ each: true })
+	public llmAllowedModels?: string[];
 
 	@IsBoolean()
 	public gpuUsageEnabled: boolean;

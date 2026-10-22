@@ -31,6 +31,7 @@ The OSI4IOT platform is a web-based IOT platform for monitoring in real time ind
 - [Architecture](#architecture)
 - [Operating the platform](#operating-the-platform)
 - [GPU nodes](#gpu-nodes)
+- [LLM providers and models](#llm-providers-and-models)
 - [Knowledge bases (RAG)](#knowledge-bases-rag)
 - [Backups and recovery](#backups-and-recovery)
 - [CLI reference](#cli-reference)
@@ -203,8 +204,12 @@ Without Patroni (`Use Patroni ... = no`) the databases run as single `postgres` 
 `pipelines` is stateless: it has no volume and keeps nothing on disk, so a replica can run on, or move to, any node. Everything it uses lives in the bucket:
 
 -	ONNX models are read from the bucket straight into memory when an `MlModel` node starts.
--	A digital twin's FEM results are converted once, when they are uploaded, from JSON into Parquet files stored in the bucket (`femResParquet/`); the AI agents' `fem_results` MCP server queries them there with DuckDB.
+-	A digital twin's FEM results are converted once, when they are uploaded, from JSON into Parquet files stored in the bucket next to the JSON: `org_data/org_<org>/group_<group>/digitalTwin_<dt>/femResJson/` (the uploaded JSON) and `.../femResParquet/` (the Parquet). On its first start, admin_api moves the JSON of older versions from `femResFiles/` to `femResJson/` and deletes the old root folder `femResParquet/`; pipelines then converts them again. The AI agents' `fem_results` MCP server queries them there with DuckDB.
 -	The agents' documents are no longer attached to each digital twin: they are the group's knowledge base (see [Knowledge bases (RAG)](#knowledge-bases-rag)). The agents' `doc_info` MCP server reads them from the bucket (read only).
+
+The AI agents (`AiAgent` nodes) run on [agent-sdk-go](https://github.com/Ingenimax/agent-sdk-go): the LLM of the organization's provider (see [LLM providers and models](#llm-providers-and-models)) with the platform's MCP servers as tools, named `<server>__<tool>` (`fem_results__critical-value`, `documents__search-knowledge`...). The MCP servers start in parallel, each with 30 s to start, and each prompt has a 10-minute limit: a server or an LLM that does not reply does not block the agent. A failed prompt is answered with the error. Each user's conversation is kept in the digital twin's KV store.
+
+`PIPELINES_AI_AGENT_DEBUG=true` logs the agents' tool calls, arguments and results (they include the MCP servers' arguments, so do not leave it on).
 
 ### High availability
 
@@ -317,7 +322,7 @@ Then add the machine with `osi4iot node add`, or run `osi4iot run`: the CLI asks
     osi4iot service gpu_mode              # mode, GPU nodes available to pipelines, image
     osi4iot service gpu_mode gpu_only
 
-With the platform running, the change is applied at once with a rolling update; with it stopped, it is stored and used by the next `osi4iot run`. In `gpu_only` the updates are stop-first, so a single GPU node does not need room for two copies. When no node has a usable GPU, pipelines runs on CPU and the command says so. On a local deployment or a single-node platform the GPU machine runs everything; on a cluster, every service other than `pipelines` and the global ones is kept off the GPU nodes.
+With the platform running, the change is applied at once with a rolling update; with it stopped, it is stored and used by the next `osi4iot run`. The updates of `pipelines` are always stop-first: two copies of the same replica never run at once (they would share its NATS consumer and its pipelines), and in `gpu_only` a single GPU node does not need room for two copies. When no node has a usable GPU, pipelines runs on CPU and the command says so. On a local deployment or a single-node platform the GPU machine runs everything; on a cluster, every service other than `pipelines` and the global ones is kept off the GPU nodes.
 
 ### Using the GPU in a digital twin
 
@@ -336,12 +341,24 @@ A GPU node does not need large resources for pipelines: the inference runs on th
 
 A model on CUDA loads cuDNN and cuBLAS into the container's memory when it warms up, so bigger models need more. A pipelines task that exits with code 137 and `OOMKilled=true` needs a higher memory limit.
 
+## LLM providers and models
+
+Each organization has one LLM provider, set by the platform administrator in **Platform admin → Organizations**:
+
+-	**Provider type**: the API pipelines talks to. *OpenAI-compatible* covers OpenAI, [OpenRouter](https://openrouter.ai), Groq, vLLM, LM Studio and similar; the others are *Anthropic*, *Google Gemini*, *Ollama*, *Azure OpenAI* and *DeepSeek*.
+-	**Provider URL** and **API key**. With OpenRouter (type *OpenAI-compatible*, URL `https://eu.openrouter.ai/api/v1`, its EU endpoint, which processes the requests in the European Union) one key gives access to the models of OpenAI, Anthropic, Google, Meta, Mistral, DeepSeek and others.
+-	**Allowed models** (optional): the models the organization's AI nodes may use, one id per line. Empty: every model the provider offers. Both when creating and when editing an organization, *Choose from the provider's models* lists them to pick from (with context size and price on OpenRouter). It asks the provider with the type, URL and key in the form, before they are saved (`POST /organization_llm_models_preview`); when editing without a new key, admin_api uses the saved one.
+
+The `AiAgent` and `Translator` nodes choose their model from a list that admin_api asks the provider for (`GET /group_llm_models/:groupId`; the API key never reaches the browser). On OpenRouter the list has only the models that support tool calling, which the agents need for their MCP tools. When the provider gives no list (Azure), the model id is typed.
+
+A node stores the model id the provider knows (`anthropic/claude-sonnet-4.5` on OpenRouter, `gpt-4o` on OpenAI, `llama3.1:8b` on Ollama) and pipelines adds the provider type. Nodes made before, with `openai:<model>`, keep working, also on Groq and OpenRouter (as `openai/<model>`). A node with no model uses the organization's first allowed model, or the platform default.
+
 ## Knowledge bases (RAG)
 
 Every group has a knowledge base: documents its administrators upload (manuals, procedures, specifications, reports) that all the group's AI agents can search.
 
 -	Formats: text (`.txt`, `.md`, `.csv`, `.json`…), PDF with a text layer, and Word `.docx` (not the old `.doc`; a scanned PDF needs OCR first). Up to 100 MB per file.
--	Group administrators manage them in **Platform assistant → Group admin → Knowledge**. There they choose the group, upload documents (several at once) and download or delete them. The **Status** column follows the indexing: *Pending*, *Indexing…*, *Ready* (with the number of chunks) or *Error* with the reason, for example a scanned PDF without a text layer.
+-	Group administrators manage them in **Platform assistant → Group admin → Knowledge**. There they choose the group, upload documents (several at once) and download or delete them. The **Status** column follows the indexing: *Pending*, *Indexing…*, *Ready* (with the number of chunks: the passages indexed for search) or *Error*. Then **Indexing error** gives the reason, for example a scanned PDF without a text layer; it is empty when the document was indexed. *Unknown* means admin_api could not read the status (see its log).
 -	The files are stored in the bucket under `org_data/org_<org>/group_<group>/knowledge/` (admin API: `group_knowledge_upload_file`, `_file_list`, `_download_file`, `_delete_file`).
 -	When a file is uploaded, `pipelines` extracts its text, cuts it into passages and computes their embeddings with `multilingual-e5-small` (ONNX, multilingual, on CPU), and stores them in the `rag` schema of `patroni_admin`, which has `pgvector` and `pg_search`.
 -	The agents' `doc_info` MCP server lists the documents and reads them whole (`list-documents`, `read-document`; PDF and Word are read as text).

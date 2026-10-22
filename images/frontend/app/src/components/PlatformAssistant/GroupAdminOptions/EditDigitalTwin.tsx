@@ -331,7 +331,7 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
                         setStoredGltfFileLastModif(gltfFileLastModif);
                         setGltfFileLastModif(gltfFileLastModif);
                         setIsGlftDataReady(true);
-                        const urlfemResFileList = `${urlDigitalTwinFileListBase}/femResFiles`;
+                        const urlfemResFileList = `${urlDigitalTwinFileListBase}/femResJson`;
                         getAxiosInstance(refreshToken, authDispatch)
                             .get(urlfemResFileList, config)
                             .then((response: AxiosResponse<any, any>) => {
@@ -530,7 +530,7 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
                     }
                     const femResData = new FormData();
                     femResData.append("file", femResFile as File, femResFileName);
-                    const urlUploadFemResFile = `${urlUploadGltfBase}/femResFiles/${femResFileName}`;
+                    const urlUploadFemResFile = `${urlUploadGltfBase}/femResJson/${femResFileName}`;
                     try {
                         const response = await getAxiosInstance(refreshToken, authDispatch).post(
                             urlUploadFemResFile,

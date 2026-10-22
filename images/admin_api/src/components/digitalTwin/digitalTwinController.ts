@@ -93,7 +93,7 @@ const uploadDigitalTwinFile = multer({
 // The folders a digital twin's files can be uploaded to. The documents
 // the AI agents read are no longer per digital twin (docInfoFiles): they
 // are the group's knowledge base (group_knowledge_upload_file).
-const DIGITAL_TWIN_UPLOAD_FOLDERS = ["gltfFile", "femResFiles"];
+const DIGITAL_TWIN_UPLOAD_FOLDERS = ["gltfFile", "femResJson"];
 
 const validDigitalTwinUploadFolder = (req: IRequestWithDigitalTwinAndGroup, res: Response, next: NextFunction): void => {
 	const { folder } = req.params;
@@ -515,7 +515,7 @@ class DigitalTwinController implements IController {
 			const message = {
 				message: `The file ${fileName} has been successfully uploaded in the S3 bucket`,
 			};
-			if (folder === "femResFiles") {
+			if (folder === "femResJson") {
 				await checkMaxNumberOfFemResFiles(req.digitalTwin);
 				const context = {
 					groupId: req.digitalTwin.groupId,
@@ -585,7 +585,7 @@ class DigitalTwinController implements IController {
 		const fileKey = `${keyBase}/${folder}/${fileName}`;
 		try {
 			await deleteBucketFile(fileKey);
-			if (folder === "femResFiles") {
+			if (folder === "femResJson") {
 				const context = {
 					groupId: req.digitalTwin.groupId,
 					digitalTwinId: req.digitalTwin.id,
