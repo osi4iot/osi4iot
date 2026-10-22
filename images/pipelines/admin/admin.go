@@ -577,7 +577,7 @@ func (a *Admin) GetS3MlModelFolderInfo(ctx context.Context, groupId int, mlModel
 }
 
 // DownloadDigitalTwinFile downloads one file of a digital twin's S3
-// folder (femResFiles, docInfoFiles...) through the admin API.
+// folder (gltfFile, femResFiles) through the admin API.
 func (a *Admin) DownloadDigitalTwinFile(ctx context.Context, groupId int, digitalTwinId int, folder string, fileName string) ([]byte, error) {
 	url := fmt.Sprintf("%s/digital_twin_download_file/%d/%d/%s/%s", a.baseUrl, groupId, digitalTwinId, folder, fileName)
 	return utils.HttpGetWithJwt(ctx, url, a.accessToken)

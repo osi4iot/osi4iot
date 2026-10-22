@@ -31,6 +31,7 @@ The OSI4IOT platform is a web-based IOT platform for monitoring in real time ind
 - [Architecture](#architecture)
 - [Operating the platform](#operating-the-platform)
 - [GPU nodes](#gpu-nodes)
+- [Knowledge bases (RAG)](#knowledge-bases-rag)
 - [Backups and recovery](#backups-and-recovery)
 - [CLI reference](#cli-reference)
 - [Glossary](#glossary)
@@ -203,7 +204,7 @@ Without Patroni (`Use Patroni ... = no`) the databases run as single `postgres` 
 
 -	ONNX models are read from the bucket straight into memory when an `MlModel` node starts.
 -	A digital twin's FEM results are converted once, when they are uploaded, from JSON into Parquet files stored in the bucket (`femResParquet/`); the AI agents' `fem_results` MCP server queries them there with DuckDB.
--	A digital twin's documents (`docInfoFiles`) are read from the bucket by the agents' `doc_info` MCP server, which can list, read and search them (read only).
+-	The agents' documents are no longer attached to each digital twin: they are the group's knowledge base (see [Knowledge bases (RAG)](#knowledge-bases-rag)). The agents' `doc_info` MCP server reads them from the bucket (read only).
 
 ### High availability
 
@@ -334,6 +335,18 @@ A GPU node does not need large resources for pipelines: the inference runs on th
     osi4iot service resources pipelines=0.50CPU-1000Mb
 
 A model on CUDA loads cuDNN and cuBLAS into the container's memory when it warms up, so bigger models need more. A pipelines task that exits with code 137 and `OOMKilled=true` needs a higher memory limit.
+
+## Knowledge bases (RAG)
+
+Every group has a knowledge base: documents its administrators upload (manuals, procedures, specifications, reports) that all the group's AI agents can search.
+
+-	Formats: text (`.txt`, `.md`, `.csv`, `.json`…), PDF with a text layer, and Word `.docx` (not the old `.doc`; a scanned PDF needs OCR first). Up to 100 MB per file.
+-	Group administrators manage them in **Platform assistant → Group admin → Knowledge**. There they choose the group, upload documents (several at once) and download or delete them. The **Status** column follows the indexing: *Pending*, *Indexing…*, *Ready* (with the number of chunks) or *Error* with the reason, for example a scanned PDF without a text layer.
+-	The files are stored in the bucket under `org_data/org_<org>/group_<group>/knowledge/` (admin API: `group_knowledge_upload_file`, `_file_list`, `_download_file`, `_delete_file`).
+-	When a file is uploaded, `pipelines` extracts its text, cuts it into passages and computes their embeddings with `multilingual-e5-small` (ONNX, multilingual, on CPU), and stores them in the `rag` schema of `patroni_admin`, which has `pgvector` and `pg_search`.
+-	The agents' `doc_info` MCP server lists the documents and reads them whole (`list-documents`, `read-document`; PDF and Word are read as text).
+-	Its `search-knowledge` tool runs a hybrid search: by meaning (pgvector, HNSW) and by exact terms such as codes and references (pg_search, BM25), fused with Reciprocal Rank Fusion. Each passage comes with its document and page or section.
+-	The indexing and `search-knowledge` require Patroni (`Use Patroni = yes`). Without it the documents are still stored, and the agents can list and read them and run a plain text search (`search-documents`). `post_init.sh` creates the `pipelines_rag` role, the `rag` schema and the `vector` / `pg_search` extensions when the Patroni cluster is bootstrapped (`osi4iot init`); `pipelines` creates its tables. Platforms created before this version have to be recreated, or that SQL run by hand.
 
 ## Backups and recovery
 
@@ -718,4 +731,5 @@ Note: videos may take a few seconds to be loaded.
 - [x] Improve database data retention policies.
 - [x] Health checks of the stateful services (`osi4iot service state`).
 - [x] GPU inference of ONNX models on NVIDIA GPU nodes (CUDA).
+- [x] Knowledge bases for the AI agents (hybrid RAG with pgvector and pg_search).
 - [ ] Org2Org & Group2Group message system.

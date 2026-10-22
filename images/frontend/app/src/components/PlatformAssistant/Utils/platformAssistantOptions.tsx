@@ -106,6 +106,7 @@ export const GROUP_ADMIN_OPTIONS = {
     MEASUREMENTS: "Measurements",
     S3_STORAGE: "S3_Storage",
     DIGITAL_TWINS: "Digital twins",
+    KNOWLEDGE: "Knowledge",
     ML_MODELS: "ML models"
 }
 
@@ -200,6 +201,3 @@ export const USER_PROFILE_OPTIONS = {
 export const HOME_OPTIONS = {
     PLATFORM_LAYOUT: "Platform layout",
 }
-
-
-

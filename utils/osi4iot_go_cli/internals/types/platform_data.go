@@ -249,6 +249,13 @@ type PlatformInfo struct {
 	// both sides are redeployed together; hence "only if empty" in
 	// data.SetData, like the other generated secrets.
 	PatroniSidecarAPIToken string `json:"PATRONI_SIDECAR_API_TOKEN"`
+
+	// PipelinesRagPassword is the password of pipelines_rag, the
+	// patroni_admin role that owns the "rag" schema (the groups'
+	// knowledge bases: documents, chunks and their embeddings). Only with
+	// Patroni, whose image has pgvector and pg_search. Generated at
+	// creation; filled in at the next deploy in older state files.
+	PipelinesRagPassword string `json:"PIPELINES_RAG_PASSWORD,omitempty"`
 }
 
 // GarageInstance is one Garage node of the platform.

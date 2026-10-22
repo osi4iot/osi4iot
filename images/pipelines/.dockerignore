@@ -3,3 +3,4 @@
 # Local GPU build of ONNX Runtime for debugging outside Docker (see
 # ONNXRUNTIME_SHARED_LIB). The -gpu image downloads its own.
 assets/onnx_runtime_linux_amd64_gpu/
+assets/embeddings/

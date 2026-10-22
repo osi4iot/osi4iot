@@ -106,6 +106,7 @@ import { AssetS3FolderProvider } from "../../../contexts/assetS3FolderOptions";
 import AssetS3FolderContainer from "./AssetS3FolderContainer";
 import IAssetS3Folder from "../TableColumns/assetS3FolderColumns";
 import { Column } from "react-table";
+import KnowledgeContainer from "./KnowledgeContainer";
 
 const GroupAdminOptionsContainer = styled.div`
     display: flex;
@@ -854,6 +855,12 @@ const GroupAdminOptions: FC<{}> = () => {
                     Digital twins
                 </OptionContainer>
                 <OptionContainer
+                    isOptionActive={optionToShow === GROUP_ADMIN_OPTIONS.KNOWLEDGE}
+                    onClick={() => clickHandler(GROUP_ADMIN_OPTIONS.KNOWLEDGE)}
+                >
+                    Knowledge
+                </OptionContainer>
+                <OptionContainer
                     isOptionActive={optionToShow === GROUP_ADMIN_OPTIONS.ML_MODELS}
                     onClick={() => clickHandler(GROUP_ADMIN_OPTIONS.ML_MODELS)}
                 >
@@ -965,6 +972,9 @@ const GroupAdminOptions: FC<{}> = () => {
                                     refreshDigitalTwins={refreshDigitalTwins}
                                 />
                             </DigitalTwinsProvider>
+                        )}
+                        {optionToShow === GROUP_ADMIN_OPTIONS.KNOWLEDGE && (
+                            <KnowledgeContainer groupsManaged={groupsManagedTable} />
                         )}
                         {optionToShow === GROUP_ADMIN_OPTIONS.ML_MODELS && (
                             <MlModelsProvider>

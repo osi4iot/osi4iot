@@ -511,7 +511,8 @@ class GroupController implements IController {
 			if (!group) throw new ItemNotFoundException(req, res, "The group", propName, propValue);
 			const orgKey = await getOrganizationKey(orgId);
 			const message = await deleteGroup(group, orgKey);
-			const bucketFolder = `org_${orgId}/group_${group.id}`;
+			// Everything of the group in the bucket, its knowledge base included.
+			const bucketFolder = `org_data/org_${orgId}/group_${group.id}`;
 			await removeFilesFromBucketFolder(bucketFolder);
 			res.status(200).send({ message });
 		} catch (error) {

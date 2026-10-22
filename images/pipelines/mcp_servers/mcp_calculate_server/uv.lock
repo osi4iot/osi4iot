@@ -179,7 +179,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "mcp", specifier = ">=1.5.0" },
+    { name = "mcp", specifier = ">=1.5.0,<2" },
     { name = "sympy", specifier = ">=1.13.3" },
 ]
 

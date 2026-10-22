@@ -106,13 +106,25 @@ type PipelinesGPUSpec struct {
 	Constraints []string // all placement constraints of the service
 	Spread      []string // placement preferences (spread descriptors)
 
-	// UpdateOrder of the rolling updates. "stop-first" in gpu_only: the
-	// replicas only fit on the GPU nodes, and with start-first the new
-	// task needs a second reservation (CPU, memory, and GPU memory) on
-	// the node the old one still holds; on a single GPU node it never
-	// fits and the update sits pending ("insufficient resources").
+	// UpdateOrder of the rolling updates: always PipelinesUpdateOrder.
 	UpdateOrder string
 }
+
+// PipelinesUpdateOrder is "stop-first" in every GPU mode: two tasks of
+// the same replica must never run together.
+//
+//   - Both would share the replica's identity: its NATS consumer
+//     (pipelines_shard_<s>_replica_<r>), so an admin message could reach
+//     the task being stopped and be lost, and its index in the leader
+//     election of the digital twins' pipelines.
+//   - In gpu_only the replicas only fit on the GPU nodes: with
+//     start-first the new task needs a second reservation (CPU, memory
+//     and GPU memory) on the node the old one still holds, and on a
+//     single GPU node the update sits pending ("insufficient
+//     resources").
+//
+// The price is a few seconds without that replica during an update.
+const PipelinesUpdateOrder = "stop-first"
 
 // PipelinesGPUSpecFor decides image, environment and placement of the
 // pipelines service from PIPELINES_GPU_MODE and from how many of the
@@ -146,7 +158,7 @@ func PipelinesGPUSpecFor(pd *pt.PlatformData, nodeRoleNumMaps map[string]int) Pi
 		}
 	}
 
-	s := PipelinesGPUSpec{Mode: mode, GPUNodes: gpuNodes}
+	s := PipelinesGPUSpec{Mode: mode, GPUNodes: gpuNodes, UpdateOrder: PipelinesUpdateOrder}
 	s.UsesGPU = mode != pt.PipelinesGPUOff && gpuNodes > 0
 
 	if !s.UsesGPU {
@@ -160,7 +172,6 @@ func PipelinesGPUSpecFor(pd *pt.PlatformData, nodeRoleNumMaps map[string]int) Pi
 		}
 		if mode == pt.PipelinesGPUOnly {
 			constraints = append(constraints, "node.labels.gpu==nvidia")
-			s.UpdateOrder = "stop-first"
 		} else {
 			// auto: digital twins with pipelineRequiresGpu run only on the
 			// replicas that landed on a GPU node. Spreading over the gpu

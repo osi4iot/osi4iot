@@ -1348,17 +1348,24 @@ export const generateDashboardsUrl = (dashboardsInfo: IDashboardInfo[]): string[
 	return dashboarsdUrl;
 };
 
+// Every key under a folder. The prefix always ends in "/": without it,
+// "…/group_1" would also match "…/group_10", "…/group_11"… And all the
+// pages, not just the first 1000 keys.
 const getBucketFolderFileList = async (folderPath: string): Promise<string[]> => {
-	const bucketParams = {
-		Bucket: process_env.S3_BUCKET_NAME,
-		Prefix: folderPath,
-	};
-
-	let fileList: string[] = [];
-	const data = await s3Client.send(new ListObjectsV2Command(bucketParams));
-	if (data.KeyCount !== 0) {
-		fileList = data.Contents.map((fileData) => fileData.Key);
-	}
+	const prefix = folderPath.endsWith("/") ? folderPath : `${folderPath}/`;
+	const fileList: string[] = [];
+	let continuationToken: string | undefined;
+	do {
+		const data = await s3Client.send(
+			new ListObjectsV2Command({
+				Bucket: process_env.S3_BUCKET_NAME,
+				Prefix: prefix,
+				ContinuationToken: continuationToken,
+			})
+		);
+		(data.Contents ?? []).forEach((fileData) => fileList.push(fileData.Key));
+		continuationToken = data.IsTruncated ? data.NextContinuationToken : undefined;
+	} while (continuationToken);
 	return fileList;
 };
 
@@ -1472,7 +1479,8 @@ export const deleteBucketFiles = async (filesToRemove: string[]) => {
 
 export const removeFilesFromBucketFolder = async (folderPath: string) => {
 	const filesToRemove = await getBucketFolderFileList(folderPath);
-	if (filesToRemove.length !== 0) {
-		await deleteBucketFiles(filesToRemove);
+	// DeleteObjects takes at most 1000 keys per request.
+	for (let i = 0; i < filesToRemove.length; i += 1000) {
+		await deleteBucketFiles(filesToRemove.slice(i, i + 1000));
 	}
 };

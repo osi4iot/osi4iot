@@ -398,11 +398,6 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
     const [femResFileLastModifDateString, setFemResFileLastModifDateString] = useState("-");
     const [pipelineFileName, setPipelineFileName] = useState("-");
     const [pipelineFileLastModifDateString, setPipelineFileLastModifDateString] = useState("-");
-    const [docInfoFileName, setDocInfoFileName] = useState("-");
-    const [docInfoFileLastModifDateString, setDocInfoFileLastModifDateString] = useState("-");
-    const [docInfoFile, setDocInfoFile] = useState<File>();
-    const [localDocInfoFileLoaded, setLocalDocInfoFileLoaded] = useState(false);
-    const [docInfoFileData, setDocInfoFileData] = useState("");
     const [digitalTwinType, setDigitalTwinType] = useState("None");
     const [isGlftDataReady, setIsGlftDataReady] = useState(false);
     const [sensorsRef, setSensorsRef] = useState<string[]>([]);
@@ -491,12 +486,6 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
         readAs: "Text",
         multiple: false,
         accept: ".yml, .yaml",
-    });
-
-    const [openDocInfoFileSelector, docInfoFileParams] = useFilePicker({
-        readAs: "Text",
-        multiple: false,
-        accept: ".txt",
     });
 
     useEffect(
@@ -627,32 +616,6 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
         pipelineFileParams,
     ]);
 
-    useEffect(() => {
-        if (
-            !docInfoFileParams.loading &&
-            docInfoFileParams.filesContent.length !== 0 &&
-            docInfoFileParams.plainFiles.length !== 0
-        ) {
-            setLocalDocInfoFileLoaded(true);
-            try {
-                const fileContent = docInfoFileParams.filesContent[0].content;
-                setDocInfoFileData(fileContent);
-                setDocInfoFile(docInfoFileParams.plainFiles[0]);
-                const docInfoFileName = docInfoFileParams.plainFiles[0].name;
-                setDocInfoFileName(docInfoFileName);
-                const dateString = (docInfoFileParams.plainFiles[0] as any).lastModified;
-                setDocInfoFileLastModifDateString(formatDateString(dateString));
-                setLocalDocInfoFileLoaded(false);
-                docInfoFileParams.clear();
-            } catch (e) {
-                console.log(e);
-                toast.error("Invalid document information file");
-                setLocalDocInfoFileLoaded(false);
-                docInfoFileParams.clear();
-            }
-        }
-    }, [docInfoFileParams.loading, docInfoFileParams.filesContent, docInfoFileParams.plainFiles, docInfoFileParams]);
-
     const submitPipeline = (config: any, groupId: number, digitalTwinId: number) => {
         const urlUploadPipelineBase = `${protocol}://${domainName}/admin_api/digital_twin_pipeline`;
         const urlUploadPipeline = `${urlUploadPipelineBase}/${groupId}/${digitalTwinId}`;
@@ -747,20 +710,6 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
                 if (Object.keys(digitalTwinPipelineData).length !== 0) {
                     // submitPipeline(configMultipart, groupId, data.digitalTwinId);
                     submitPipeline(config, groupId, data.digitalTwinId);
-                }
-
-                if (docInfoFileData !== "") {
-                    const docInfoData = new FormData();
-                    docInfoData.append("file", docInfoFile as File, "docInfoFile");
-                    const urlUploadDocInfoFile = `${urlUploadGltfBase}/docInfoFiles/${docInfoFileName}`;
-                    getAxiosInstance(refreshToken, authDispatch)
-                        .post(urlUploadDocInfoFile, docInfoData, configMultipart)
-                        .then((response: AxiosResponse<any, any>) => {
-                            toast.success(response.data.message);
-                        })
-                        .catch((error: AxiosError) => {
-                            axiosErrorHandler(error, authDispatch);
-                        });
                 }
             })
             .catch((error: AxiosError) => {
@@ -868,22 +817,9 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
         pipelineFileParams.clear();
     };
 
-    const clearDocInfoFile = () => {
-        setDocInfoFileName("-");
-        setDocInfoFileLastModifDateString("-");
-        setLocalDocInfoFileLoaded(false);
-        docInfoFileParams.clear();
-    };
-
     const localPipelineFileButtonHandler = () => {
         if (!localPipelineFileLoaded) {
             selectFile(openPipelineFileSelector, pipelineFileParams.clear);
-        }
-    };
-
-    const docInfoFileButtonHandler = () => {
-        if (!localDocInfoFileLoaded) {
-            selectFile(openDocInfoFileSelector, docInfoFileParams.clear);
         }
     };
 
@@ -1038,28 +974,6 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
                                             </Container>
                                             {orgLlmEnabled && groupLlmEnabled && (
                                                 <>
-                                                    <Title>Documental info</Title>
-                                                    <Container>
-                                                        <FieldContainer>
-                                                            <label>File name</label>
-                                                            <div>{docInfoFileName}</div>
-                                                        </FieldContainer>
-                                                        <FieldContainer>
-                                                            <label>Last modification date</label>
-                                                            <div>{docInfoFileLastModifDateString}</div>
-                                                        </FieldContainer>
-                                                        <SelectDataFilenButtonContainer>
-                                                            <FileButton type="button" onClick={clearDocInfoFile}>
-                                                                Clear
-                                                            </FileButton>
-                                                            <FileButton
-                                                                type="button"
-                                                                onClick={() => docInfoFileButtonHandler()}
-                                                            >
-                                                                Select local file
-                                                            </FileButton>
-                                                        </SelectDataFilenButtonContainer>
-                                                    </Container>
                                                     <Title>Chat assistant</Title>
                                                     <Container>
                                                         <FormikControl

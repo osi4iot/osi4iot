@@ -90,6 +90,20 @@ const uploadDigitalTwinFile = multer({
 	}),
 });
 
+// The folders a digital twin's files can be uploaded to. The documents
+// the AI agents read are no longer per digital twin (docInfoFiles): they
+// are the group's knowledge base (group_knowledge_upload_file).
+const DIGITAL_TWIN_UPLOAD_FOLDERS = ["gltfFile", "femResFiles"];
+
+const validDigitalTwinUploadFolder = (req: IRequestWithDigitalTwinAndGroup, res: Response, next: NextFunction): void => {
+	const { folder } = req.params;
+	if (!DIGITAL_TWIN_UPLOAD_FOLDERS.includes(folder)) {
+		const hint = folder === "docInfoFiles" ? " Documents for the AI agents go to the group's knowledge base." : "";
+		return next(new HttpException(req, res, 400, `Invalid digital twin folder: ${folder}.${hint}`));
+	}
+	next();
+};
+
 class DigitalTwinController implements IController {
 	public path = "/digital_twin";
 
@@ -145,6 +159,7 @@ class DigitalTwinController implements IController {
 				`${this.path}_upload_file/:groupId/:digitalTwinId/:folder/:fileName`,
 				digitalTwinAndGroupExist,
 				groupAdminAuth,
+				validDigitalTwinUploadFolder,
 				uploadDigitalTwinFile.single("file"),
 				this.uploadDigitalTwinFile
 			)
@@ -401,7 +416,7 @@ class DigitalTwinController implements IController {
 			await deleteDigitalTwinById(digitalTwin);
 			const orgId = digitalTwin.orgId;
 			const groupId = digitalTwin.groupId;
-			const bucketFolder = `org_${orgId}/group_${groupId}/digitalTwin_${digitalTwinId}`;
+			const bucketFolder = `org_data/org_${orgId}/group_${groupId}/digitalTwin_${digitalTwinId}`;
 			await removeFilesFromBucketFolder(bucketFolder);
 			const message = { message: "Digital twin deleted successfully" };
 			res.status(200).json(message);
@@ -509,13 +524,6 @@ class DigitalTwinController implements IController {
 				await natsClient.jsPublish("femResults", "create", req.digitalTwin.id, context);
 			} else if (folder === "gltfFile") {
 				await checkNumberOfGltfFiles(req.digitalTwin);
-			} else if (folder === "docInfoFiles") {
-				const context = {
-					groupId: req.digitalTwin.groupId,
-					digitalTwinId: req.digitalTwin.id,
-					fileName,
-				};
-				await natsClient.jsPublish("docInfoFile", "create", req.digitalTwin.id, context);
 			}
 			infoLogger(req, res, 200, message.message);
 			res.status(200).send(message);
@@ -583,13 +591,6 @@ class DigitalTwinController implements IController {
 					digitalTwinId: req.digitalTwin.id,
 				};
 				await natsClient.jsPublish("femResults", "delete", req.digitalTwin.id, context);
-			} else if (folder === "docInfoFiles") {
-				const context = {
-					groupId: req.digitalTwin.groupId,
-					digitalTwinId: req.digitalTwin.id,
-					fileName,
-				};
-				await natsClient.jsPublish("docInfoFile", "delete", req.digitalTwin.id, context);
 			}
 			const message = {
 				message: `The file ${fileName} has been successfully deleted from the S3 bucket`,

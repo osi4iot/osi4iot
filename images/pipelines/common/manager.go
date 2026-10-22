@@ -143,7 +143,8 @@ type Manager interface {
 	AddFemResultsInDigitalTwin(ctx context.Context, digitalTwinId int) error
 	DeleteFemResultsInDigitalTwin(digitalTwinId int) error
 
-	DocInfoFilesS3Prefix(orgId, groupId, digitalTwinId int) string
+	KnowledgeS3Prefix(orgId, groupId int) string
+	KnowledgeSearch(groupId int) (url string, token string, ok bool)
 
 	GetLeaderKvStore() jetstream.KeyValue
 	SetPipelineStatusSubscription(ctx context.Context, digitalTwin *DigitalTwin) *nats.Subscription

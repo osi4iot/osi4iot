@@ -136,6 +136,11 @@ func createSwarmServices(platformData *pt.PlatformData, dc *pt.DockerClient) err
 	if garageChanged {
 		fmt.Println("Generated the missing Garage credentials")
 	}
+	// Same for the knowledge bases' database role (older state files).
+	if utils.EnsurePipelinesRagPassword(&platformData.PlatformInfo) {
+		fmt.Println("Generated the password of the knowledge bases' database role")
+		garageChanged = true // saved below with the rest
+	}
 	// The Garage Web UI login follows the administrator's password: its
 	// hash is regenerated only when the password changed.
 	// Garage instances are normally planned, and their nodes labelled,

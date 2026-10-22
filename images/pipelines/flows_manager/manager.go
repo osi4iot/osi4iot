@@ -9,6 +9,7 @@ import (
 	"pipelines/admin"
 	"pipelines/common"
 	"pipelines/config"
+	"pipelines/rag"
 	"pipelines/iotdb"
 	"pipelines/logger"
 	"strconv"
@@ -69,6 +70,8 @@ type FlowsManager struct {
 	MaxChatMessagesPerUser   int
 	PipelinesDataPath        string
 	LeaderKvStore            *nats_pkg.KVStore
+	// Knowledge is the groups' knowledge bases (RAG); nil when off.
+	Knowledge *rag.Service
 	// GpuCapable: this replica can run ONNX models on CUDA (see gpu.go).
 	GpuCapable bool
 	GpuReason  string
@@ -127,6 +130,18 @@ func CreateFlowsManager(
 
 	exportMcpS3Env(config.AwsS3)
 
+	knowledge, err := rag.NewService(ctx, config, s3Client, log)
+	if err != nil {
+		log.Errorf("Knowledge bases disabled: %v", err)
+		knowledge = nil
+	}
+	if knowledge != nil {
+		if err := knowledge.StartSearchServer(ctx); err != nil {
+			log.Errorf("Knowledge bases disabled: %v", err)
+			knowledge = nil
+		}
+	}
+
 	flowManager := FlowsManager{
 		Orgs:                     common.NewShardedSyncMap(config.ShardCount),
 		Groups:                   common.NewShardedSyncMap(config.ShardCount),
@@ -166,6 +181,7 @@ func CreateFlowsManager(
 		MaxChatMessagesPerUser:   config.MaxChatMessagesPerUser,
 		PipelinesDataPath:        config.PipelinesDataPath,
 		LeaderKvStore:            leaderKvStore,
+		Knowledge:                knowledge,
 		log:                      log,
 	}
 
@@ -182,6 +198,7 @@ func CreateFlowsManager(
 	flowManager.initGpuCapability(ctx)
 	flowManager.AddDigitalTwins(ctx, digitalTwins)
 	flowManager.AddFemResultsInDigitalTwins(ctx)
+	flowManager.reconcileKnowledgeBases(ctx)
 
 	flowManager.Listen(ctx)
 	flowManager.StartNodes(ctx)

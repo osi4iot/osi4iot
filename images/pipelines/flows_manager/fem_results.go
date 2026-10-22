@@ -68,12 +68,6 @@ func exportMcpS3Env(cfg config.AwsS3Config) {
 	os.Setenv(mcpS3EndpointEnv, strings.TrimSpace(cfg.Endpoint))
 }
 
-// DocInfoFilesS3Prefix is where admin_api stores a digital twin's
-// documents (docInfoFiles); the doc_info MCP server reads them there.
-func (fm *FlowsManager) DocInfoFilesS3Prefix(orgId, groupId, digitalTwinId int) string {
-	return fmt.Sprintf("org_data/org_%d/group_%d/digitalTwin_%d/docInfoFiles/", orgId, groupId, digitalTwinId)
-}
-
 // FemResultsS3URI returns the s3:// URI of a digital twin's Parquet FEM
 // results, and whether they are there (complete) to be queried.
 func (fm *FlowsManager) FemResultsS3URI(ctx context.Context, orgId, groupId, digitalTwinId int) (string, bool) {

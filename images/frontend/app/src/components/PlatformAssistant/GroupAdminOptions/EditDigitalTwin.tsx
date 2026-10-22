@@ -287,14 +287,6 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
     const [restartPipeline, setRestartPipeline] = useState(true);
     const [reinitializePipeline, setReinitializePipeline] = useState(false);
 
-    const [docInfoFileName, setDocInfoFileName] = useState("-");
-    const [docInfoFileLastModif, setDocInfoFileLastModif] = useState("-");
-    const [docInfoFile, setDocInfoFile] = useState<File>();
-    const [localDocInfoFileLoaded, setLocalDocInfoFileLoaded] = useState(false);
-    const [docInfoFileData, setDocInfoFileData] = useState("");
-    const [storedDocInfoFileName, setStoredDocInfoFileName] = useState("-");
-    const [storedDocInfoFileLastModif, setStoredDocInfoFileLastModif] = useState("-");
-
     const [digitalTwinType, setDigitalTwinType] = useState(digitalTwinInitialData.type);
     const [sensorsRef, setSensorsRef] = useState<string[]>([]);
     const [isGlftDataReady, setIsGlftDataReady] = useState(storedDigitalTwinType !== "Gltf 3D model");
@@ -319,12 +311,6 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
         readAs: "Text",
         multiple: false,
         accept: ".yml, .yaml",
-    });
-
-    const [openDocInfoFileSelector, docInfoFileParams] = useFilePicker({
-        readAs: "Text",
-        multiple: false,
-        accept: ".txt",
     });
 
     useEffect(() => {
@@ -361,31 +347,6 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
                                     );
                                     setFemResFilesLastModif(femResFilesLastModif);
                                     setFemResFileLastModifDateString(formatDateString(femResFilesLastModif[0]));
-                                }
-                                setDigitalTwinGltfDataLoading(false);
-                                setIsSubmitting(false);
-                            })
-                            .catch((error: AxiosError) => {
-                                axiosErrorHandler(error, authDispatch);
-                                setDigitalTwinGltfDataLoading(false);
-                            });
-
-                        const urldocInfoFileList = `${urlDigitalTwinFileListBase}/docInfoFiles`;
-                        getAxiosInstance(refreshToken, authDispatch)
-                            .get(urldocInfoFileList, config)
-                            .then((response: AxiosResponse<any, any>) => {
-                                const docInfoFileList: { fileName: string; lastModified: string }[] = response.data;
-                                if (docInfoFileList.length !== 0) {
-                                    const docInfoFileNames = docInfoFileList.map(
-                                        (docInfoFile) => docInfoFile.fileName.split("/")[5],
-                                    );
-                                    setStoredDocInfoFileName(docInfoFileNames[0]);
-                                    setDocInfoFileName(docInfoFileNames[0]);
-                                    const docInfoFilesLastModif = docInfoFileList.map(
-                                        (docInfoFile) => docInfoFile.lastModified,
-                                    );
-                                    setDocInfoFileLastModif(docInfoFilesLastModif[0]);
-                                    setStoredDocInfoFileLastModif(docInfoFilesLastModif[0]);
                                 }
                                 setDigitalTwinGltfDataLoading(false);
                                 setIsSubmitting(false);
@@ -534,32 +495,6 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
         pipelineFileParams,
     ]);
 
-    useEffect(() => {
-        if (
-            !docInfoFileParams.loading &&
-            docInfoFileParams.filesContent.length !== 0 &&
-            docInfoFileParams.plainFiles.length !== 0
-        ) {
-            setLocalDocInfoFileLoaded(true);
-            try {
-                const fileContent = docInfoFileParams.filesContent[0].content;
-                setDocInfoFileData(fileContent);
-                setDocInfoFile(docInfoFileParams.plainFiles[0]);
-                const docInfoFileName = docInfoFileParams.plainFiles[0].name;
-                setDocInfoFileName(docInfoFileName);
-                const dateString = (docInfoFileParams.plainFiles[0] as any).lastModified;
-                setDocInfoFileLastModif(dateString);
-                setLocalDocInfoFileLoaded(false);
-                docInfoFileParams.clear();
-            } catch (e) {
-                console.log(e);
-                toast.error("Invalid document information file");
-                setLocalDocInfoFileLoaded(false);
-                docInfoFileParams.clear();
-            }
-        }
-    }, [docInfoFileParams.loading, docInfoFileParams.filesContent, docInfoFileParams.plainFiles, docInfoFileParams]);
-
     const onSubmit = async (values: any, actions: any) => {
         const groupId = digitalTwins[digitalTwinRowIndex].groupId;
         const url = `${protocol}://${domainName}/admin_api/digital_twin/${groupId}/${digitalTwinId}`;
@@ -704,24 +639,6 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
                     .catch((error: AxiosError) => {
                         axiosErrorHandler(error, authDispatch);
                         // backToTable();
-                    });
-            }
-
-            if (
-                docInfoFileData !== "" &&
-                (storedDocInfoFileName !== docInfoFileName ||
-                    formatDateString(storedDocInfoFileLastModif) !== formatDateString(docInfoFileLastModif))
-            ) {
-                const docInfoData = new FormData();
-                docInfoData.append("file", docInfoFile as File, "docInfoFile");
-                const urlUploadDocInfoFile = `${urlUploadGltfBase}/docInfoFiles/${docInfoFileName}`;
-                getAxiosInstance(refreshToken, authDispatch)
-                    .post(urlUploadDocInfoFile, docInfoData, configMultipart)
-                    .then((response: AxiosResponse<any, any>) => {
-                        toast.success(response.data.message);
-                    })
-                    .catch((error: AxiosError) => {
-                        axiosErrorHandler(error, authDispatch);
                     });
             }
         }
@@ -873,19 +790,6 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
         }
     };
 
-    const clearDocInfoFile = () => {
-        setDocInfoFileName("-");
-        setDocInfoFileLastModif("-");
-        setLocalDocInfoFileLoaded(false);
-        docInfoFileParams.clear();
-    };
-
-    const localDocInfoFileButtonHandler = () => {
-        if (!localDocInfoFileLoaded) {
-            selectFile(openDocInfoFileSelector, docInfoFileParams.clear);
-        }
-    };
-
     return (
         <>
             {digitalTwinGltfDataLoading ? (
@@ -1034,31 +938,6 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
                                                     </DataFileContainer>
                                                     {organization.llmEnabled && group.llmEnabled && (
                                                         <>
-                                                            <DataFileTitle>Documental info</DataFileTitle>
-                                                            <DataFileContainer>
-                                                                <FieldContainer>
-                                                                    <label>File name</label>
-                                                                    <div>{docInfoFileName}</div>
-                                                                </FieldContainer>
-                                                                <FieldContainer>
-                                                                    <label>Last modification date</label>
-                                                                    <div>{formatDateString(docInfoFileLastModif)}</div>
-                                                                </FieldContainer>
-                                                                <SelectDataFilenButtonContainer>
-                                                                    <FileButton
-                                                                        type="button"
-                                                                        onClick={clearDocInfoFile}
-                                                                    >
-                                                                        Clear
-                                                                    </FileButton>
-                                                                    <FileButton
-                                                                        type="button"
-                                                                        onClick={() => localDocInfoFileButtonHandler()}
-                                                                    >
-                                                                        Select local file
-                                                                    </FileButton>
-                                                                </SelectDataFilenButtonContainer>
-                                                            </DataFileContainer>
                                                             <ChatAssistantTitle>Chat assistant</ChatAssistantTitle>
                                                             <ChatAssistantContainer>
                                                                 <FormikControl

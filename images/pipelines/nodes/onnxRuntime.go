@@ -419,3 +419,16 @@ func ProbeGPU(log *logger.Logger) (bool, string) {
 	}
 	return true, "CUDA available"
 }
+
+// InitONNXRuntime initializes ONNX Runtime once for the process, with the
+// same library the MlModel nodes use. For other users of ORT, such as the
+// knowledge bases' embedding model (package rag).
+func InitONNXRuntime(log *logger.Logger) error {
+	return initONNXRuntime(defaultSharedLibPath(), log)
+}
+
+// IntraOpThreads is the size of ORT's CPU thread pool for a session; see
+// intraOpThreads.
+func IntraOpThreads() int {
+	return intraOpThreads()
+}

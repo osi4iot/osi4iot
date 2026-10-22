@@ -28,6 +28,7 @@ func createPatroniSecrets(pd *pt.PlatformData) map[string]pt.Secret {
 		fmt.Sprintf("SUPERADMIN_USER=%s", pi.PlatformAdminUserName),
 		fmt.Sprintf("SUPERADMIN_PASSWORD=%s", pi.PlatformAdminPassword),
 		fmt.Sprintf("GRAFANA_DB_PASSWORD=%s", pi.GrafanaDBPassword),
+		fmt.Sprintf("PIPELINES_RAG_PASSWORD=%s", pi.PipelinesRagPassword),
 		fmt.Sprintf("POSTGRES_DB=%s", pi.PostgresDB),
 		fmt.Sprintf("WALG_LIBSODIUM_KEY=%s", pi.WalgLibsodiumKey),
 		fmt.Sprintf("WALG_S3_PREFIX=%s", pi.WalgS3PrefixAdmin),

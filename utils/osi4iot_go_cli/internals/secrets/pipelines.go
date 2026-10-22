@@ -50,6 +50,17 @@ timescaledb:
   dbName: "{{ .TimescaleDB.DBName }}"
   sslmode: "{{ .TimescaleDB.SSLMode }}"
 
+{{- if .KnowledgeDB.Enabled }}
+
+knowledgeDb:
+  user: "{{ .KnowledgeDB.User }}"
+  password: "{{ .KnowledgeDB.Password }}"
+  host: "{{ .KnowledgeDB.Host }}"
+  port: {{ .KnowledgeDB.Port }}
+  dbName: "{{ .KnowledgeDB.DBName }}"
+  sslmode: "{{ .KnowledgeDB.SSLMode }}"
+{{- end }}
+
 awsS3:
   accessKeyId: "{{ .AwsS3.AccessKeyId }}"
   secretAccessKey: "{{ .AwsS3.SecretAccessKey }}"
@@ -118,7 +129,20 @@ type PipelinesParams struct {
 	PipelinesDataPath        string
 	NATS                     NATSParams
 	TimescaleDB              TimescaleDBParams
+	KnowledgeDB              KnowledgeDBParams
 	AwsS3                    AwsS3Config
+}
+
+// KnowledgeDBParams is pipelines' connection to the knowledge bases (RAG)
+// in patroni_admin, as the pipelines_rag role. Disabled without Patroni.
+type KnowledgeDBParams struct {
+	Enabled  bool
+	User     string
+	Password string
+	Host     string
+	Port     int
+	DBName   string
+	SSLMode  string
 }
 
 // PipelinesConfig generates a configuration string for the pipelines service.
@@ -176,6 +200,15 @@ func PipelinesConfig(pd *types.PlatformData, numNatsReplicas int) (string, error
 			Port:     tsPort,
 			ReadPort: tsReadPort,
 			DBName:   "iot_data_db",
+			SSLMode:  "disable",
+		},
+		KnowledgeDB: KnowledgeDBParams{
+			Enabled:  utils.RagEnabled(pi) && pi.PipelinesRagPassword != "",
+			User:     utils.RagRole,
+			Password: pi.PipelinesRagPassword,
+			Host:     "haproxy_patroni",
+			Port:     5000, // patroni_admin's primary
+			DBName:   pi.PostgresDB,
 			SSLMode:  "disable",
 		},
 		AwsS3: AwsS3Config{

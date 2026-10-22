@@ -11,10 +11,12 @@ require (
 	github.com/bytectlgo/edge-tts v1.0.5
 	github.com/cenkalti/backoff/v4 v4.3.0
 	github.com/cloudwego/eino v0.5.0-alpha.11
+	github.com/daulet/tokenizers v1.27.0
 	github.com/dop251/goja v0.0.0-20250630131328-58d95d85e994
 	github.com/duckdb/duckdb-go/v2 v2.10502.0
 	github.com/golang-jwt/jwt/v5 v5.2.2
 	github.com/jackc/pgx/v5 v5.8.0
+	github.com/mark3labs/mcp-go v0.39.1
 	github.com/nats-io/nats.go v1.45.0
 	github.com/nats-io/nkeys v0.4.11
 	github.com/nfnt/resize v0.0.0-20180221191011-83c6a9932646
@@ -124,7 +126,6 @@ require (
 	github.com/lucasb-eyer/go-colorful v1.2.0 // indirect
 	github.com/mailru/easyjson v0.9.0 // indirect
 	github.com/mark3labs/mcp-filesystem-server v0.11.1 // indirect
-	github.com/mark3labs/mcp-go v0.39.1 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/mattn/go-localereader v0.0.1 // indirect
 	github.com/mattn/go-runewidth v0.0.20 // indirect

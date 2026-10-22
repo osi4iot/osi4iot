@@ -97,6 +97,9 @@ func GeneratePlatformSecrets(pd *pt.PlatformData, force bool) error {
 			// Shared secret the sidecar checks on every endpoint but
 			// /health — see PlatformInfo.PatroniSidecarAPIToken.
 			secret{&pi.PatroniSidecarAPIToken, key},
+
+			// ── pipelines_rag — the knowledge bases (RAG) ───────────
+			secret{&pi.PipelinesRagPassword, password},
 		)
 	}
 

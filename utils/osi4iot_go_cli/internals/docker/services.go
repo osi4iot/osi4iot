@@ -143,6 +143,12 @@ func ServiceUpdate(
 		options.Placement != nil ||
 		options.UpdateOrder != ""
 
+	// pipelines never runs two tasks of the same replica at once, also
+	// when the service was created before it was stop-first.
+	if serviceName == "pipelines" && isRollingUpdate {
+		options.UpdateOrder = services.PipelinesUpdateOrder
+	}
+
 	targetReplicas := uint64(0)
 	if service.Spec.Mode.Replicated != nil && service.Spec.Mode.Replicated.Replicas != nil {
 		targetReplicas = *service.Spec.Mode.Replicated.Replicas

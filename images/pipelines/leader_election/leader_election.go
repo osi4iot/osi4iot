@@ -2,12 +2,14 @@ package leader_election
 
 import (
 	"context"
+	crand "crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"math/rand"
+	"os"
 	"pipelines/logger"
-	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -17,8 +19,28 @@ import (
 
 type lockValue struct {
 	ID         string    `json:"id"`
+	Process    string    `json:"process,omitempty"`
 	Epoch      uint64    `json:"epoch"`
 	LeaseUntil time.Time `json:"leaseUntil"`
+}
+
+// processID tells this pipelines process apart from any other with the
+// same replica index. The ID of a lock (pipelines_replica_<n>-…) comes
+// from the replica index, which two tasks of the same replica share
+// while Swarm replaces one with the other, or when an old container is
+// left running: comparing the ID alone, both took the lock as their own
+// ("reconfirmed leadership") and ran the same pipelines at once. A lock
+// is ours only when ID and process both match.
+//
+// The hostname is the container's (one per Swarm task); the random
+// suffix keeps it unique outside containers too.
+var processID = newProcessID()
+
+func newProcessID() string {
+	host, _ := os.Hostname()
+	b := make([]byte, 4)
+	_, _ = crand.Read(b)
+	return host + "-" + hex.EncodeToString(b)
 }
 
 type LeaderInstanceID struct {
@@ -31,6 +53,7 @@ type LeaderElector struct {
 	log        *logger.Logger
 	kv         jetstream.KeyValue
 	instanceID LeaderInstanceID
+	process    string // processID, kept per elector so tests can tell processes apart
 	lockKey    string
 	ttl        time.Duration
 	cancel     context.CancelFunc
@@ -74,6 +97,7 @@ func NewLeaderElector(
 		log:        log,
 		kv:         kv,
 		instanceID: instanceID,
+		process:    processID,
 		lockKey:    lockKey,
 		ttl:        ttl,
 		random:     r1,
@@ -143,9 +167,9 @@ func (le *LeaderElector) handleWatchUpdate(entry jetstream.KeyValueEntry) {
 		if err != nil {
 			return
 		}
-		if v.ID != le.instanceID.getString() {
+		if !le.isOurs(v) {
 			if le.isLeader.Load() {
-				le.log.Warnf("Lost leadership to [%s] (epoch=%d)", v.ID, v.Epoch)
+				le.log.Warnf("Lost leadership to [%s] (process %s, epoch=%d)", v.ID, v.Process, v.Epoch)
 			}
 			le.isLeader.Store(false)
 			// Trigger acquisition loop
@@ -168,6 +192,12 @@ func (le *LeaderElector) handleWatchUpdate(entry jetstream.KeyValueEntry) {
 	}
 }
 
+// isOurs reports whether a lock was taken by this elector in this
+// process.
+func (le *LeaderElector) isOurs(v lockValue) bool {
+	return v.ID == le.instanceID.getString() && v.Process == le.process
+}
+
 func (le *LeaderElector) tryBecomeLeader(ctx context.Context) bool {
 	// Avoid multiple simultaneous attempts
 	if !le.acquisitionMu.TryLock() {
@@ -185,7 +215,7 @@ func (le *LeaderElector) tryBecomeLeader(ctx context.Context) bool {
 			// Check if lease expired
 			if time.Now().Before(v.LeaseUntil) {
 				// Lock still valid, we cannot take it
-				if v.ID == le.instanceID.getString() {
+				if le.isOurs(v) {
 					// It's our lock, synchronize state
 					le.epoch.Store(v.Epoch)
 					le.rev.Store(e.Revision())
@@ -205,6 +235,7 @@ func (le *LeaderElector) tryBecomeLeader(ctx context.Context) bool {
 	// Try to create the lock
 	val := lockValue{
 		ID:         le.instanceID.getString(),
+		Process:    le.process,
 		Epoch:      nextEpoch,
 		LeaseUntil: time.Now().Add(le.ttl),
 	}
@@ -221,7 +252,7 @@ func (le *LeaderElector) tryBecomeLeader(ctx context.Context) bool {
 	// If exists, check if it's ours
 	if errors.Is(err, jetstream.ErrKeyExists) {
 		if e, err2 := le.kv.Get(opCtx, le.lockKey); err2 == nil {
-			if v, err3 := lockUnmarshal(e.Value()); err3 == nil && v.ID == le.instanceID.getString() {
+			if v, err3 := lockUnmarshal(e.Value()); err3 == nil && le.isOurs(v) {
 				le.epoch.Store(v.Epoch)
 				le.rev.Store(e.Revision())
 				le.isLeader.Store(true)
@@ -260,6 +291,7 @@ func (le *LeaderElector) renewLock(ctx context.Context) {
 
 	val := lockValue{
 		ID:         le.instanceID.getString(),
+		Process:    le.process,
 		Epoch:      currentEpoch,
 		LeaseUntil: time.Now().Add(le.ttl),
 	}
@@ -331,10 +363,10 @@ func (le *LeaderElector) splitBrainDetectionLoop(ctx context.Context) {
 
 			// Verify id + epoch
 			v, err := lockUnmarshal(e.Value())
-			if err != nil || v.ID != le.instanceID.getString() || v.Epoch != le.epoch.Load() {
+			if err != nil || !le.isOurs(v) || v.Epoch != le.epoch.Load() {
 				le.isLeader.Store(false)
-				le.log.Warnf("Leadership validation failed (id/epoch mismatch). id=%s kvID=%s epoch(local=%d kv=%d) err=%v",
-					le.instanceID.getString(), v.ID, le.epoch.Load(), v.Epoch, err)
+				le.log.Warnf("Leadership validation failed (id/process/epoch mismatch). id=%s kvID=%s process(local=%s kv=%s) epoch(local=%d kv=%d) err=%v",
+					le.instanceID.getString(), v.ID, le.process, v.Process, le.epoch.Load(), v.Epoch, err)
 				continue
 			}
 
@@ -401,17 +433,23 @@ func (le *LeaderElector) Stop(ctx context.Context) {
 		defer cancel()
 
 		currentRev := le.rev.Load()
+		released := true
 		err := le.kv.Delete(opCtx, le.lockKey, jetstream.LastRevision(currentRev))
-
-		if err != nil && strings.Contains(err.Error(), "wrong last sequence") {
-			// Fallback: unconditional delete
-			le.log.Warn("Conditional delete failed, attempting unconditional delete")
-			if err := le.kv.Delete(opCtx, le.lockKey); err != nil {
-				le.log.Warnf("Unconditional delete also failed: %v", err)
+		if err != nil {
+			// The lock changed since our last renewal. Delete it only
+			// if it is still ours: never the lock another process (e.g.
+			// the task replacing this one) has taken meanwhile.
+			if e, getErr := le.kv.Get(opCtx, le.lockKey); getErr == nil {
+				if v, uErr := lockUnmarshal(e.Value()); uErr == nil && le.isOurs(v) {
+					err = le.kv.Delete(opCtx, le.lockKey, jetstream.LastRevision(e.Revision()))
+				} else {
+					err, released = nil, false // someone else's lock: nothing to release
+				}
 			}
-		} else if err != nil {
+		}
+		if err != nil {
 			le.log.Warnf("Failed to release lock on stop: %v", err)
-		} else {
+		} else if released {
 			le.log.Infof("Instance [%s] released leadership gracefully", le.instanceID.getString())
 		}
 	}

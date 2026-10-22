@@ -14,15 +14,24 @@ WORKDIR /mcp_servers_python
 
 COPY mcp_servers/mcp_calculate_server/ ./mcp_calculate_server/
 
-# Crear venv e instalar el paquete (no editable -> queda embebido en el venv)
+# Crear venv e instalar el paquete (no editable -> queda embebido en el venv).
+# The dependencies are the exact versions of uv.lock (with their hashes),
+# not whatever is newest on PyPI when the image is built: an unpinned
+# resolve once brought in mcp 2.x, which dropped mcp.server.fastmcp, and
+# the server no longer started. To upgrade them: `uv lock --upgrade` in
+# mcp_servers/mcp_calculate_server, and commit uv.lock.
 RUN uv venv /opt/venv \
-    && . /opt/venv/bin/activate \
-    && uv pip install ./mcp_calculate_server
+    && cd mcp_calculate_server \
+    && uv export --frozen --no-dev --no-emit-project --quiet -o /tmp/requirements.txt \
+    && VIRTUAL_ENV=/opt/venv uv pip install --require-hashes -r /tmp/requirements.txt \
+    && VIRTUAL_ENV=/opt/venv uv pip install --no-deps . \
+    && rm /tmp/requirements.txt
 
 ########################################
 # 1) Go builder: compila binarios (enlace estático)
 ########################################
 FROM golang:1.25.1-bookworm AS builder
+ARG TARGETARCH
 
 WORKDIR /src
 
@@ -44,10 +53,27 @@ COPY s3folder/ ./s3folder/
 COPY telegram/ ./telegram/
 COPY timeparser/ ./timeparser/
 COPY utils/ ./utils/
+COPY rag/ ./rag/
 RUN go mod download && go mod verify
 
+# libtokenizers.a (Hugging Face tokenizers, Rust) for the knowledge bases'
+# embedding model: the prebuilt static library of the version in go.mod.
+RUN TOKENIZERS_VERSION=$(awk '$1 == "github.com/daulet/tokenizers" {print $2}' go.mod) \
+    && test -n "$TOKENIZERS_VERSION" \
+    && mkdir -p /usr/local/lib/tokenizers \
+    && curl -fsSL "https://github.com/daulet/tokenizers/releases/download/${TOKENIZERS_VERSION}/libtokenizers.linux-${TARGETARCH}.tar.gz" \
+       | tar -xz -C /usr/local/lib/tokenizers
+
 # pipelines
-RUN CGO_ENABLED=1 CC=gcc go build -ldflags="-s -w" -o /usr/local/bin/pipelines .
+RUN CGO_ENABLED=1 CC=gcc CGO_LDFLAGS="-L/usr/local/lib/tokenizers" \
+    go build -ldflags="-s -w" -o /usr/local/bin/pipelines .
+
+# doc_info (MCP server: the agents' documents, read from the bucket).
+# Part of the pipelines module, so it shares its go.mod: only main.go is
+# copied, so a go.mod left in its folder (which would make it a separate
+# module, outside pipelines) cannot break the build.
+COPY mcp_servers/doc_info/main.go ./mcp_servers/doc_info/
+RUN CGO_ENABLED=0 go build -ldflags="-s -w" -o /usr/local/bin/doc_info ./mcp_servers/doc_info
 
 # current_date
 COPY mcp_servers/current_date/go.mod ./mcp_servers/current_date/
@@ -149,7 +175,7 @@ ARG TARGETARCH
 ARG ORT_FLAVOR=cpu
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    tzdata curl ca-certificates \
+    tzdata curl ca-certificates poppler-utils \
     && update-ca-certificates \
     && rm -rf /var/lib/apt/lists/* \
     && addgroup --system pipelines_group \
@@ -161,6 +187,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY --from=builder /usr/local/bin/pipelines     /usr/local/bin/pipelines
 COPY --from=builder /usr/local/bin/current_date  /usr/local/bin/current_date
 COPY --from=builder /usr/local/bin/fem_results   /usr/local/bin/fem_results
+COPY --from=builder /usr/local/bin/doc_info      /usr/local/bin/doc_info
 
 # Venv Python
 COPY --from=python-builder --chown=pipelines:pipelines_group /opt/venv /opt/venv
@@ -228,6 +255,15 @@ RUN if ls /tmp/ort/*.so >/dev/null 2>&1; then \
 ENV LD_LIBRARY_PATH="/opt/nvidia/nvidia/cu13/lib:/opt/nvidia/nvidia/cuda_runtime/lib:/opt/nvidia/nvidia/cublas/lib:/opt/nvidia/nvidia/cufft/lib:/opt/nvidia/nvidia/curand/lib:/opt/nvidia/nvidia/cudnn/lib"
 # Read by the NVIDIA container runtime (only on GPU nodes, ignored elsewhere).
 ENV NVIDIA_DRIVER_CAPABILITIES="compute,utility"
+
+# Embedding model of the knowledge bases (RAG): multilingual-e5-small,
+# int8 quantized ONNX (118 MB), with its tokenizer. config: rag.modelDir.
+ARG E5_MODEL_REPO=https://huggingface.co/Xenova/multilingual-e5-small/resolve/main
+RUN mkdir -p ./assets/embeddings/multilingual-e5-small \
+    && curl -fsSL "${E5_MODEL_REPO}/onnx/model_quantized.onnx" \
+         -o ./assets/embeddings/multilingual-e5-small/model_quantized.onnx \
+    && curl -fsSL "${E5_MODEL_REPO}/tokenizer.json" \
+         -o ./assets/embeddings/multilingual-e5-small/tokenizer.json
 
 RUN mkdir data && chown -R pipelines:pipelines_group /pipelines
 

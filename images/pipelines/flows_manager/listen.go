@@ -85,6 +85,7 @@ func (fm *FlowsManager) Listen(ctx context.Context) {
 				}
 			case "delete":
 				fm.DeleteGroup(ctx, adminMsg.Id)
+				fm.deleteKnowledgeBase(ctx, adminMsg.Id)
 			default:
 				fm.log.Errorf("Unknown action: %s for component: %s", adminMsg.Action, adminMsg.Component)
 				return
@@ -274,10 +275,11 @@ func (fm *FlowsManager) Listen(ctx context.Context) {
 				fm.log.Errorf("Unknown action: %s for component: %s", adminMsg.Action, adminMsg.Component)
 				return
 			}
-		case "docInfoFile":
-			// Nothing to do: the agents' doc_info MCP server reads the
-			// documents from the bucket when it is asked, so a new or
-			// deleted document is seen at once.
+		case "knowledgeFile":
+			// A document uploaded to, or deleted from, a group's
+			// knowledge base; adminMsg.Id is the group.
+			fileName, _ := adminMsg.Context["fileName"].(string)
+			fm.knowledgeFileMessage(ctx, adminMsg.Action, adminMsg.Id, fileName)
 		case "pipeline_action":
 			digitalTwinId := adminMsg.Id
 			switch adminMsg.Action {
@@ -320,3 +322,4 @@ func (fm *FlowsManager) Listen(ctx context.Context) {
 		fm.log.Info("JetStream consumer stopped")
 	}()
 }
+

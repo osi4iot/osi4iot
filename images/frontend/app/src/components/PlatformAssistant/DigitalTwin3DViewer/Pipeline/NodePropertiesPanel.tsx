@@ -1028,6 +1028,7 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                                         <option value="openai:gpt-4o-mini">openai/gpt-4o-mini</option>
                                         <option value="openai:gpt-5-mini">openai/gpt-5-mini</option>
                                         <option value="openai:gpt-5-nano">openai/gpt-5-nano</option>
+                                        {/* <option value="openai:gpt-6-luna">openai/gpt-6-luna</option> */}
                                     </Select>
                                 </FormGroup>
                                 <FormGroup>

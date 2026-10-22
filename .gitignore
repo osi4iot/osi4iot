@@ -75,6 +75,7 @@ images/pipelines/mcp_servers/fem_results/fem_results
 images/pipelines/mcp_servers/doc_info/doc_info
 images/pipelines/mcp_servers/data/
 images/pipelines/assets/onnx_runtime_linux_amd64_gpu/
+images/pipelines/assets/embeddings/
 utils/osi4iot_cli/node_modules
 utils/osi4iot_cli/osi4iot_state_old.json
 utils/osi4iot_cli/osi4iot_state.json

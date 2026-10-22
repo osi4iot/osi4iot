@@ -1,8 +1,8 @@
-// internal/config/config.go
 package config
 
 import (
 	"fmt"
+	"net/url"
 	"strconv"
 	"time"
 
@@ -40,6 +40,8 @@ type Config struct {
 	PipelinesDataPath        string            `mapstructure:"pipelinesDataPath"`
 	AwsS3                    AwsS3Config       `mapstructure:"awsS3"`
 	DuckDB                   DuckDBConfig      `mapstructure:"duckdb"`
+	KnowledgeDB              KnowledgeDBConfig `mapstructure:"knowledgeDb"`
+	Rag                      RagConfig         `mapstructure:"rag"`
 }
 
 type NATSConfig struct {
@@ -65,6 +67,44 @@ type AwsS3Config struct {
 	Region          string `mapstructure:"region"`
 	Bucket          string `mapstructure:"bucket"`
 	Endpoint        string `mapstructure:"endpoint,omitempty"`
+}
+
+// KnowledgeDBConfig is the connection to the groups' knowledge bases
+// (RAG): the rag schema of patroni_admin, as the pipelines_rag role.
+// Without a host (no Patroni, or an older CLI) the knowledge bases are off.
+type KnowledgeDBConfig struct {
+	User     string `mapstructure:"user"`
+	Password string `mapstructure:"password"`
+	Host     string `mapstructure:"host"`
+	Port     int    `mapstructure:"port"`
+	DBName   string `mapstructure:"dbName"`
+	SSLMode  string `mapstructure:"sslmode"`
+}
+
+// Enabled reports whether the knowledge bases are configured.
+func (k KnowledgeDBConfig) Enabled() bool {
+	return k.Host != "" && k.User != "" && k.DBName != ""
+}
+
+// DSN is the pgx connection string.
+func (k KnowledgeDBConfig) DSN() string {
+	sslmode := k.SSLMode
+	if sslmode == "" {
+		sslmode = "disable"
+	}
+	port := k.Port
+	if port == 0 {
+		port = 5432
+	}
+	return fmt.Sprintf("postgres://%s:%s@%s:%d/%s?sslmode=%s",
+		url.QueryEscape(k.User), url.QueryEscape(k.Password), k.Host, port, url.PathEscape(k.DBName), sslmode)
+}
+
+// RagConfig holds the knowledge bases' embedding model and the address
+// of the internal search endpoint the agents' doc_info servers call.
+type RagConfig struct {
+	ModelDir   string `mapstructure:"modelDir"`   // model.onnx (or model_quantized.onnx) + tokenizer.json
+	SearchAddr string `mapstructure:"searchAddr"` // loopback only
 }
 
 type DuckDBConfig struct {
@@ -104,6 +144,9 @@ func Load() (*Config, error) {
 	viper.SetDefault("numReplicas", 1)
 	viper.SetDefault("numStreamReplicas", 1)
 	viper.SetDefault("shardIndex", 1)
+
+	viper.SetDefault("rag.modelDir", "./assets/embeddings/multilingual-e5-small")
+	viper.SetDefault("rag.searchAddr", "127.0.0.1:7071")
 
 	viper.SetDefault("iotDataBatchSize", 1000)
 	viper.SetDefault("iotDataNumWorkers", 10)
