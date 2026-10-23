@@ -111,8 +111,8 @@ type Host struct {
 	log    *sdkLogger
 
 	llm     interfaces.LLM
-	tools   []interfaces.Tool
-	servers *serverSet
+	tools   []interfaces.Tool // set by Run, used only by Run
+	servers *serverSet        // created by New: Close may come before Run starts them
 
 	closeOnce sync.Once
 }
@@ -140,7 +140,7 @@ func New(ctx context.Context, cfg Config) (*Host, error) {
 	}
 
 	hostCtx, cancel := context.WithCancel(ctx)
-	h := &Host{cfg: cfg, ctx: hostCtx, cancel: cancel, log: newSDKLogger(cfg.Log, cfg.Debug)}
+	h := &Host{cfg: cfg, ctx: hostCtx, cancel: cancel, log: newSDKLogger(cfg.Log, cfg.Debug), servers: newServerSet()}
 
 	llm, err := newLLM(hostCtx, cfg.Model, cfg.ProviderURL, cfg.ProviderAPIKey, h.log)
 	if err != nil {
@@ -156,7 +156,7 @@ func New(ctx context.Context, cfg Config) (*Host, error) {
 func (h *Host) Run() error {
 	defer h.Close()
 
-	h.servers, h.tools = startServers(h.ctx, h.cfg.MCPServers, h.cfg.ServerInitTimeout, h.log, h.cfg.Log)
+	h.tools = startServers(h.ctx, h.servers, h.cfg.MCPServers, h.cfg.ServerInitTimeout, h.log, h.cfg.Log)
 	names := make([]string, 0, len(h.tools))
 	for _, t := range h.tools {
 		names = append(names, t.Name())
@@ -185,9 +185,7 @@ func (h *Host) Run() error {
 func (h *Host) Close() {
 	h.closeOnce.Do(func() {
 		h.cancel()
-		if h.servers != nil {
-			h.servers.closeAll()
-		}
+		h.servers.closeAll()
 	})
 }
 

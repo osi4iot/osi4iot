@@ -1,6 +1,8 @@
 package services
 
 import (
+	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/docker/docker/api/types/swarm"
@@ -34,6 +36,17 @@ func PipelinesService(
 
 	env := []string{"REPLICA={{.Task.Slot}}"}
 	env = append(env, gpu.Env...)
+	// GOMEMLIMIT and MALLOC_ARENA_MAX, from the memory limit (see
+	// pipelines_memory.go).
+	memEnv := PipelinesMemoryEnv(svcResources.MemoryBytes)
+	memKeys := make([]string, 0, len(memEnv))
+	for k := range memEnv {
+		memKeys = append(memKeys, k)
+	}
+	sort.Strings(memKeys)
+	for _, k := range memKeys {
+		env = append(env, fmt.Sprintf("%s=%s", k, memEnv[k]))
+	}
 
 	image := gpu.Image
 	reservedCPUs, reservedMem := PipelinesReservations(svcResources.NanoCPUs, svcResources.MemoryBytes)

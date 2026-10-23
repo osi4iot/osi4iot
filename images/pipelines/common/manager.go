@@ -139,7 +139,7 @@ type Manager interface {
 
 	GetS3DigitalTwinFolderInfo(ctx context.Context, groupId int, digitalTwinId int, folder string) []*S3FolderFileInfo
 	GetFemResultsPath(orgId int, groupId int, digitalTwinId int) string
-	FemResultsS3URI(ctx context.Context, orgId, groupId, digitalTwinId int) (string, bool)
+	FemResultsS3URI(ctx context.Context, orgId, groupId, digitalTwinId int) (uri string, version string, err error)
 	GetDigitalTwinFolder(orgId int, groupId int, digitalTwinId int) string
 	AddFemResultsInDigitalTwins(ctx context.Context) error
 	AddFemResultsInDigitalTwin(ctx context.Context, digitalTwinId int) error

@@ -29,7 +29,16 @@ type AiAgentNode struct {
 	agentConfig llmagent.Config // channels and callbacks are set in Start
 	agentIn     chan llmagent.Prompt
 	agentOut    chan llmagent.Answer
-	agentHost   *llmagent.Host
+	parentCtx   context.Context // the pipeline's: node restarts go through it
+
+	// The running agent. It is replaced, with its MCP servers, when the
+	// digital twin's FEM results appear, change or go (see
+	// reloadIfFemResultsChanged).
+	hostMu            sync.Mutex
+	agentHost         *llmagent.Host
+	hostDone          chan struct{} // closed when agentHost's Run returns
+	femResultsServer  aiAgentServer // without --results_path
+	femResultsVersion string        // of the results agentHost has; "" none
 
 	// The prompt being answered, to tell in the log where an agent is
 	// stuck.
@@ -134,8 +143,9 @@ func CreateAiAgentNode(ctx context.Context, node common.NodeData, fm common.Mana
 
 	// The FEM results are queried straight from the bucket (Parquet,
 	// written when the results were uploaded); the MCP server takes the
-	// bucket's settings from the environment it inherits.
-	femResultsURI, hasFemResults := fm.FemResultsS3URI(ctx, p.GetOrgId(), p.GetGroupId(), p.GetDigitalTwinId())
+	// bucket's settings from the environment it inherits. It is added
+	// when the agent starts, if the results are there (startHost).
+	var femResultsServer aiAgentServer
 	if fm.GetMode() == "local" {
 		servers["documents"] = aiAgentServer{
 			command: []string{filepath.Join(mcpServersPath, "doc_info", "doc_info")},
@@ -153,11 +163,8 @@ func CreateAiAgentNode(ctx context.Context, node common.NodeData, fm common.Mana
 				"server.py",
 			},
 		}
-		if hasFemResults {
-			servers["fem_results"] = aiAgentServer{
-				command: []string{filepath.Join(mcpServersPath, "fem_results", "fem_results")},
-				args:    []string{"--results_path", femResultsURI},
-			}
+		femResultsServer = aiAgentServer{
+			command: []string{filepath.Join(mcpServersPath, "fem_results", "fem_results")},
 		}
 	} else {
 		servers["documents"] = aiAgentServer{
@@ -171,20 +178,14 @@ func CreateAiAgentNode(ctx context.Context, node common.NodeData, fm common.Mana
 			command: []string{"/opt/venv/bin/python"},
 			args:    []string{"-m", "server"},
 		}
-		if hasFemResults {
-			servers["fem_results"] = aiAgentServer{
-				command: []string{"/usr/local/bin/fem_results"},
-				args:    []string{"--results_path", femResultsURI},
-			}
+		femResultsServer = aiAgentServer{
+			command: []string{"/usr/local/bin/fem_results"},
 		}
 	}
 
 	agentServers := map[string]llmagent.ServerConfig{}
 	for name, srv := range servers {
-		agentServers[name] = llmagent.ServerConfig{
-			Command: srv.command[0],
-			Args:    append(append([]string{}, srv.command[1:]...), srv.args...),
-		}
+		agentServers[name] = srv.config()
 	}
 
 	// No max tokens: the providers use the model's own limit.
@@ -217,8 +218,140 @@ func CreateAiAgentNode(ctx context.Context, node common.NodeData, fm common.Mana
 			Ctx:        nil,
 			status:     common.NodeStatusCreated,
 		},
-		agentConfig: agentConfig, // the configuration; channels and callbacks are set in Start
+		agentConfig:      agentConfig, // the configuration; channels and callbacks are set in Start
+		femResultsServer: femResultsServer,
 	}, nil
+}
+
+func (s aiAgentServer) config() llmagent.ServerConfig {
+	return llmagent.ServerConfig{
+		Command: s.command[0],
+		Args:    append(append([]string{}, s.command[1:]...), s.args...),
+	}
+}
+
+// femResultsCheckTimeout bounds the look at the bucket for the FEM
+// results (one HEAD request).
+const femResultsCheckTimeout = 10 * time.Second
+
+// femResults returns where the digital twin's FEM results are and their
+// version ("" none). ok is false when the bucket could not be asked.
+func (n *AiAgentNode) femResults(ctx context.Context, log *logger.Logger) (uri, version string, ok bool) {
+	ctx, cancel := context.WithTimeout(ctx, femResultsCheckTimeout)
+	defer cancel()
+	p := n.Pipeline
+	uri, version, err := n.Fm.FemResultsS3URI(ctx, p.GetOrgId(), p.GetGroupId(), p.GetDigitalTwinId())
+	if err != nil {
+		log.Warnf("AiAgentNode %s: could not check the FEM results: %v", n.NodeUid, err)
+		return "", "", false
+	}
+	return uri, version, true
+}
+
+// startHost creates and runs the agent, with the fem_results MCP server
+// when the FEM results are there. Called with hostMu held, or before the
+// node runs.
+func (n *AiAgentNode) startHost(log *logger.Logger, femURI, femVersion string) ([]string, error) {
+	cfg := n.agentConfig
+	cfg.Input = n.agentIn
+	cfg.Output = n.agentOut
+	cfg.GetHistory = n.agentHistory
+	cfg.SaveTurn = n.saveAgentTurn
+	cfg.MCPServers = make(map[string]llmagent.ServerConfig, len(n.agentConfig.MCPServers)+1)
+	for name, srv := range n.agentConfig.MCPServers {
+		cfg.MCPServers[name] = srv
+	}
+	if femVersion != "" && len(n.femResultsServer.command) > 0 {
+		srv := n.femResultsServer
+		srv.args = []string{"--results_path", femURI}
+		cfg.MCPServers["fem_results"] = srv.config()
+	}
+
+	host, err := llmagent.New(n.Ctx, cfg)
+	if err != nil {
+		return nil, err
+	}
+	done := make(chan struct{})
+	n.agentHost, n.hostDone, n.femResultsVersion = host, done, femVersion
+
+	parentCtx := n.parentCtx
+	n.wg.Add(1)
+	go func() {
+		defer n.wg.Done()
+		defer close(done)
+		defer log.Infof("AI agent goroutine terminated for UID: %s", n.NodeUid)
+
+		if err := host.Run(); err != nil {
+			// Canceled: the node stopped, or this agent was replaced.
+			if errors.Is(err, context.Canceled) {
+				log.Infof("AI agent stopped gracefully due to context cancellation")
+				return
+			}
+			n.handleAgentFailure(err)
+			host.Close()
+			n.Cancel()
+			go func() {
+				_ = n.Pipeline.RestartNode(parentCtx, n.NodeUid)
+			}()
+		}
+	}()
+
+	names := make([]string, 0, len(cfg.MCPServers))
+	for name := range cfg.MCPServers {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	return names, nil
+}
+
+// reloadIfFemResultsChanged restarts the agent, and so its MCP servers,
+// when the digital twin's FEM results have appeared, changed or gone
+// since it started: the node may start before pipelines has converted
+// them (at startup, or after an upload), and the fem_results server reads
+// the results it was started with. Checked before each prompt (a HEAD
+// request to the bucket) and only while no prompt is being answered; the
+// conversations are kept (KV store).
+func (n *AiAgentNode) reloadIfFemResultsChanged(log *logger.Logger) {
+	n.hostMu.Lock()
+	defer n.hostMu.Unlock()
+
+	uri, version, ok := n.femResults(n.Ctx, log)
+	if !ok || version == n.femResultsVersion {
+		return
+	}
+	n.pendingMu.Lock()
+	busy := !n.pendingAt.IsZero()
+	n.pendingMu.Unlock()
+	if busy {
+		return // checked again with the next prompt
+	}
+
+	what := "updated"
+	switch {
+	case n.femResultsVersion == "":
+		what = "available"
+	case version == "":
+		what = "removed"
+	}
+	if n.agentHost != nil {
+		n.agentHost.Close()
+		// The old agent must not take the next prompt.
+		select {
+		case <-n.hostDone:
+		case <-time.After(30 * time.Second):
+			log.Warnf("AiAgentNode %s: the previous AI agent is slow to stop", n.NodeUid)
+		}
+	}
+	names, err := n.startHost(log, uri, version)
+	if err != nil {
+		log.Errorf("AiAgentNode %s: failed to restart the AI agent: %v", n.NodeUid, err)
+		n.handleAgentFailure(err)
+		n.Cancel()
+		go func() { _ = n.Pipeline.RestartNode(n.parentCtx, n.NodeUid) }()
+		return
+	}
+	log.Infof("AiAgentNode %s: FEM results %s, AI agent restarted (MCP servers: %s)",
+		n.NodeUid, what, strings.Join(names, ", "))
 }
 
 func (n *AiAgentNode) Start(ctx context.Context, log *logger.Logger, needReinitialization bool) {
@@ -231,50 +364,26 @@ func (n *AiAgentNode) Start(ctx context.Context, log *logger.Logger, needReiniti
 	nodeCtx, nodeCancel := context.WithCancel(ctx)
 	n.Ctx = nodeCtx
 	n.Cancel = nodeCancel
+	n.parentCtx = ctx
 	n.agentIn = make(chan llmagent.Prompt)
 	n.agentOut = make(chan llmagent.Answer)
 
-	cfg := n.agentConfig
-	cfg.Input = n.agentIn
-	cfg.Output = n.agentOut
-	cfg.GetHistory = n.agentHistory
-	cfg.SaveTurn = n.saveAgentTurn
-	host, err := llmagent.New(nodeCtx, cfg)
+	// Without an answer from the bucket the agent starts without
+	// fem_results; the next prompt checks again.
+	femURI, femVersion, _ := n.femResults(nodeCtx, log)
+	n.hostMu.Lock()
+	serverNames, err := n.startHost(log, femURI, femVersion)
+	n.hostMu.Unlock()
 	if err != nil {
 		log.Errorf("AiAgentNode %s: failed to create the AI agent: %v", n.NodeUid, err)
 		n.Cancel()
 		n.SetStatus(common.NodeStatusError)
 		return
 	}
-	n.agentHost = host
 
 	n.SetStatus(common.NodeStatusRunning)
-	serverNames := make([]string, 0, len(cfg.MCPServers))
-	for name := range cfg.MCPServers {
-		serverNames = append(serverNames, name)
-	}
-	sort.Strings(serverNames)
 	log.Infof("Starting AiAgentNode with UID: %s (model %s, MCP servers: %s)",
-		n.NodeUid, cfg.Model, strings.Join(serverNames, ", "))
-
-	n.wg.Add(1)
-	go func() {
-		defer n.wg.Done()
-		defer log.Infof("AI agent goroutine terminated for UID: %s", n.NodeUid)
-
-		if err := host.Run(); err != nil {
-			if errors.Is(err, context.Canceled) {
-				log.Infof("AI agent stopped gracefully due to context cancellation")
-				return
-			}
-			n.handleAgentFailure(err)
-			host.Close()
-			n.Cancel()
-			go func() {
-				_ = n.Pipeline.RestartNode(ctx, n.NodeUid)
-			}()
-		}
-	}()
+		n.NodeUid, n.agentConfig.Model, strings.Join(serverNames, ", "))
 
 	n.handleInputWires(log, n.sendPrompt)
 	n.handleAgentAnswers(log)
@@ -292,6 +401,7 @@ func (n *AiAgentNode) sendPrompt(prompt llmagent.Prompt, log *logger.Logger) err
 	}
 
 	log.Infof("AiAgentNode %s: prompt from %s received (%d characters)", n.NodeUid, prompt.UserName, len(prompt.Text))
+	n.reloadIfFemResultsChanged(log)
 	waitingSince := time.Now()
 	warn := time.NewTicker(aiAgentAcceptWarnAfter)
 	defer warn.Stop()
@@ -547,9 +657,11 @@ func (n *AiAgentNode) Stop(log *logger.Logger) {
 
 	log.Infof("Stopping AiAgentNode %s", n.NodeUid)
 
+	n.hostMu.Lock()
 	if n.agentHost != nil {
 		n.agentHost.Close() // stops the MCP servers before the context ends
 	}
+	n.hostMu.Unlock()
 	if n.Cancel != nil {
 		n.Cancel()
 	}
@@ -562,4 +674,3 @@ func (n *AiAgentNode) Stop(log *logger.Logger) {
 func (n *AiAgentNode) GetName() string {
 	return n.Name
 }
-

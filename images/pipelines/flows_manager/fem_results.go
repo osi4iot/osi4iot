@@ -79,21 +79,20 @@ func exportMcpS3Env(cfg config.AwsS3Config) {
 }
 
 // FemResultsS3URI returns the s3:// URI of a digital twin's Parquet FEM
-// results, and whether they are there (complete) to be queried.
-func (fm *FlowsManager) FemResultsS3URI(ctx context.Context, orgId, groupId, digitalTwinId int) (string, bool) {
+// results and the version of the set (its metadata.json's ETag and date,
+// uploaded last): "" when there is no complete set to query. The AI agents
+// compare the version to notice results converted, updated or deleted
+// after they started. err: the bucket could not be asked.
+func (fm *FlowsManager) FemResultsS3URI(ctx context.Context, orgId, groupId, digitalTwinId int) (uri string, version string, err error) {
 	if fm.S3Client == nil || fm.S3BucketName == "" {
-		return "", false
+		return "", "", nil
 	}
 	prefix := femResultsParquetPrefix(orgId, groupId, digitalTwinId)
-	exists, err := utils.S3ObjectExists(ctx, fm.S3Client, fm.S3BucketName, prefix+"/metadata.json")
-	if err != nil {
-		fm.log.Errorf("FEM results of digital twin %d: %v", digitalTwinId, err)
-		return "", false
+	version, err = utils.S3ObjectVersion(ctx, fm.S3Client, fm.S3BucketName, prefix+"/metadata.json")
+	if err != nil || version == "" {
+		return "", "", err
 	}
-	if !exists {
-		return "", false
-	}
-	return fmt.Sprintf("s3://%s/%s", fm.S3BucketName, prefix), true
+	return fmt.Sprintf("s3://%s/%s", fm.S3BucketName, prefix), version, nil
 }
 
 // AddFemResultsInDigitalTwin turns the digital twin's FEM results JSON

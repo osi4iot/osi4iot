@@ -46,17 +46,22 @@ func (s *serverSet) closeAll() {
 	s.servers = map[string]interfaces.MCPServer{}
 }
 
-// startServers starts the MCP servers in parallel, each with initTimeout
-// to start and list its tools. A server that fails or is late is left
-// out, with a warning; if it starts later anyway it is closed.
+func newServerSet() *serverSet {
+	return &serverSet{servers: map[string]interfaces.MCPServer{}}
+}
+
+// startServers starts the MCP servers in parallel into set, each with
+// initTimeout to start and list its tools. A server that fails or is late
+// is left out, with a warning; if it starts later anyway it is closed, as
+// is one that starts after set was closed (the host stopped meanwhile).
 func startServers(
 	ctx context.Context,
+	set *serverSet,
 	configs map[string]ServerConfig,
 	initTimeout time.Duration,
 	sdkLog *sdkLogger,
 	log *logger.Logger,
-) (*serverSet, []interfaces.Tool) {
-	set := &serverSet{servers: map[string]interfaces.MCPServer{}}
+) []interfaces.Tool {
 
 	type result struct {
 		name  string
@@ -91,7 +96,7 @@ func startServers(
 		all = append(all, r.tools...)
 	}
 	sort.Slice(all, func(i, j int) bool { return all[i].Name() < all[j].Name() })
-	return set, all
+	return all
 }
 
 func startServer(

@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
@@ -112,6 +113,28 @@ func GetS3Object(ctx context.Context, c *s3.Client, bucket, key string) (data []
 		return nil, false, fmt.Errorf("error reading s3://%s/%s: %w", bucket, key, err)
 	}
 	return data, true, nil
+}
+
+// S3ObjectVersion identifies an object's current content: its ETag and
+// last modification. "" when the object does not exist.
+func S3ObjectVersion(ctx context.Context, c *s3.Client, bucket, key string) (string, error) {
+	out, err := c.HeadObject(ctx, &s3.HeadObjectInput{Bucket: aws.String(bucket), Key: aws.String(key)})
+	if err != nil {
+		var noKey *types.NoSuchKey
+		var notFound *types.NotFound
+		if errors.As(err, &noKey) || errors.As(err, &notFound) {
+			return "", nil
+		}
+		return "", fmt.Errorf("error checking s3://%s/%s: %w", bucket, key, err)
+	}
+	version := aws.ToString(out.ETag)
+	if out.LastModified != nil {
+		version += "@" + out.LastModified.UTC().Format(time.RFC3339Nano)
+	}
+	if version == "" {
+		version = "present"
+	}
+	return version, nil
 }
 
 // S3ObjectExists reports whether an object exists.

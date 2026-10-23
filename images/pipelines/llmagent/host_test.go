@@ -228,7 +228,8 @@ func TestStartServersTimeout(t *testing.T) {
 	// left out (with a warning), without blocking.
 	log := logger.NewLogger()
 	start := time.Now()
-	set, tools := startServers(context.Background(), map[string]ServerConfig{
+	set := newServerSet()
+	tools := startServers(context.Background(), set, map[string]ServerConfig{
 		"missing": {Command: "/nonexistent/mcp-server"},
 	}, 200*time.Millisecond, newSDKLogger(log, false), log)
 	defer set.closeAll()

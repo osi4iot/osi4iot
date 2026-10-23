@@ -209,6 +209,10 @@ Without Patroni (`Use Patroni ... = no`) the databases run as single `postgres` 
 
 The AI agents (`AiAgent` nodes) run on [agent-sdk-go](https://github.com/Ingenimax/agent-sdk-go): the LLM of the organization's provider (see [LLM providers and models](#llm-providers-and-models)) with the platform's MCP servers as tools, named `<server>__<tool>` (`fem_results__critical-value`, `documents__search-knowledge`...). The MCP servers start in parallel, each with 30 s to start, and each prompt has a 10-minute limit: a server or an LLM that does not reply does not block the agent. A failed prompt is answered with the error. Each user's conversation is kept in the digital twin's KV store.
 
+An agent gets the `fem_results` MCP server when its digital twin has FEM results converted to Parquet. Before each prompt it checks the version of those results in the bucket (one HEAD request): when they have appeared since it started (converted after the node started, or uploaded later), changed or gone, it restarts its MCP servers before answering, keeping the conversations. It does so only between prompts, never while answering one.
+
+The pipelines containers get `GOMEMLIMIT` (60% of the service's memory limit; the rest is left to ONNX Runtime, CUDA and the other C libraries) and `MALLOC_ARENA_MAX=2` (less fragmentation of the C heap with ONNX Runtime's many threads). Both are set when the service is created and updated when its memory limit changes.
+
 `PIPELINES_AI_AGENT_DEBUG=true` logs the agents' tool calls, arguments and results (they include the MCP servers' arguments, so do not leave it on).
 
 ### High availability
@@ -238,6 +242,8 @@ Backups (WAL-G for both databases, NATS streams, the state file) and the platfor
     osi4iot delete       # remove the platform from the swarm (the S3 bucket is not touched)
 
 Commands that need the platform running say so when it is not, instead of failing.
+
+`osi4iot stop` stops the services in order and returns once they are all stopped: first the applications, then the Patroni databases, waiting for them, and last Garage and NATS. PostgreSQL archives its last WAL to the bucket when it shuts down, so Garage has to still be up for Patroni to stop cleanly instead of being killed at the end of its grace period.
 
 `osi4iot delete` with an external bucket backs everything up one last time first (`--no-final-backups` skips it). `--remove-bucket` also empties and deletes the bucket, which cannot be undone.
 
@@ -346,7 +352,7 @@ A model on CUDA loads cuDNN and cuBLAS into the container's memory when it warms
 Each organization has one LLM provider, set by the platform administrator in **Platform admin → Organizations**:
 
 -	**Provider type**: the API pipelines talks to. *OpenAI-compatible* covers OpenAI, [OpenRouter](https://openrouter.ai), Groq, vLLM, LM Studio and similar; the others are *Anthropic*, *Google Gemini*, *Ollama*, *Azure OpenAI* and *DeepSeek*.
--	**Provider URL** and **API key**. With OpenRouter (type *OpenAI-compatible*, URL `https://eu.openrouter.ai/api/v1`, its EU endpoint, which processes the requests in the European Union) one key gives access to the models of OpenAI, Anthropic, Google, Meta, Mistral, DeepSeek and others.
+-	**Provider URL** and **API key**. The default URL is OpenAI's, `https://api.openai.com/v1`. With OpenRouter (type *OpenAI-compatible*, URL `https://eu.openrouter.ai/api/v1`, its EU endpoint, which processes the requests in the European Union) one key gives access to the models of OpenAI, Anthropic, Google, Meta, Mistral, DeepSeek and others.
 -	**Allowed models** (optional): the models the organization's AI nodes may use, one id per line. Empty: every model the provider offers. Both when creating and when editing an organization, *Choose from the provider's models* lists them to pick from (with context size and price on OpenRouter). It asks the provider with the type, URL and key in the form, before they are saved (`POST /organization_llm_models_preview`); when editing without a new key, admin_api uses the saved one.
 
 The `AiAgent` and `Translator` nodes choose their model from a list that admin_api asks the provider for (`GET /group_llm_models/:groupId`; the API key never reaches the browser). On OpenRouter the list has only the models that support tool calling, which the agents need for their MCP tools. When the provider gives no list (Azure), the model id is typed.
@@ -360,10 +366,11 @@ Every group has a knowledge base: documents its administrators upload (manuals, 
 -	Formats: text (`.txt`, `.md`, `.csv`, `.json`…), PDF with a text layer, and Word `.docx` (not the old `.doc`; a scanned PDF needs OCR first). Up to 100 MB per file.
 -	Group administrators manage them in **Platform assistant → Group admin → Knowledge**. There they choose the group, upload documents (several at once) and download or delete them. The **Status** column follows the indexing: *Pending*, *Indexing…*, *Ready* (with the number of chunks: the passages indexed for search) or *Error*. Then **Indexing error** gives the reason, for example a scanned PDF without a text layer; it is empty when the document was indexed. *Unknown* means admin_api could not read the status (see its log).
 -	The files are stored in the bucket under `org_data/org_<org>/group_<group>/knowledge/` (admin API: `group_knowledge_upload_file`, `_file_list`, `_download_file`, `_delete_file`).
--	When a file is uploaded, `pipelines` extracts its text, cuts it into passages and computes their embeddings with `multilingual-e5-small` (ONNX, multilingual, on CPU), and stores them in the `rag` schema of `patroni_admin`, which has `pgvector` and `pg_search`.
+-	When a file is uploaded, `pipelines` extracts its text, cuts it into passages and computes their embeddings with `multilingual-e5-small` (ONNX, multilingual, on CPU), and stores them in the `rag` schema of `patroni_admin`, with `pgvector` and `pg_textsearch`.
 -	The agents' `doc_info` MCP server lists the documents and reads them whole (`list-documents`, `read-document`; PDF and Word are read as text).
--	Its `search-knowledge` tool runs a hybrid search: by meaning (pgvector, HNSW) and by exact terms such as codes and references (pg_search, BM25), fused with Reciprocal Rank Fusion. Each passage comes with its document and page or section.
--	The indexing and `search-knowledge` require Patroni (`Use Patroni = yes`). Without it the documents are still stored, and the agents can list and read them and run a plain text search (`search-documents`). `post_init.sh` creates the `pipelines_rag` role, the `rag` schema and the `vector` / `pg_search` extensions when the Patroni cluster is bootstrapped (`osi4iot init`); `pipelines` creates its tables. Platforms created before this version have to be recreated, or that SQL run by hand.
+-	Its `search-knowledge` tool runs a hybrid search: by meaning (pgvector, HNSW) and by exact terms such as codes and references (BM25 with [pg_textsearch](https://github.com/timescale/pg_textsearch), `simple` text configuration, so any language), fused with Reciprocal Rank Fusion. Each passage comes with its document and page or section.
+-	The indexing and `search-knowledge` require Patroni (`Use Patroni = yes`). Without it the documents are still stored, and the agents can list and read them and run a plain text search (`search-documents`). `post_init.sh` creates the `pipelines_rag` role, the `rag` schema and the `vector` and `pg_textsearch` extensions when the Patroni cluster is bootstrapped (`osi4iot init`); `pipelines` creates its tables. Platforms created before this version have to be recreated, or that SQL run by hand.
+-	BM25 comes from `pg_textsearch` (PostgreSQL license), not from `pg_search` (ParadeDB): the community edition of `pg_search` does not let the Patroni replicas replay its indexes' WAL, and stops them (`replicas are not supported on community`). `pg_textsearch`'s index is WAL-logged like PostgreSQL's own, so the replicas replay it and keep it after a failover. The image no longer has `pg_search`; a platform that had created its extension has to be recreated.
 
 ## Backups and recovery
 
@@ -748,5 +755,5 @@ Note: videos may take a few seconds to be loaded.
 - [x] Improve database data retention policies.
 - [x] Health checks of the stateful services (`osi4iot service state`).
 - [x] GPU inference of ONNX models on NVIDIA GPU nodes (CUDA).
-- [x] Knowledge bases for the AI agents (hybrid RAG with pgvector and pg_search).
+- [x] Knowledge bases for the AI agents (hybrid RAG: pgvector and BM25 with pg_textsearch).
 - [ ] Org2Org & Group2Group message system.

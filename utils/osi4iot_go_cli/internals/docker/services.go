@@ -291,6 +291,19 @@ func ServiceUpdate(
 		service.Spec.TaskTemplate.ContainerSpec.Image = *options.Image
 	}
 
+	// 5b. pipelines' memory settings follow its memory limit (see
+	// services/pipelines_memory.go).
+	if serviceName == "pipelines" && options.Resources != nil && options.Resources.MemoryLimit > 0 {
+		if options.Env == nil {
+			options.Env = map[string]string{}
+		}
+		for k, v := range services.PipelinesMemoryEnv(options.Resources.MemoryLimit) {
+			if _, set := options.Env[k]; !set {
+				options.Env[k] = v
+			}
+		}
+	}
+
 	// 6. Env vars
 	if len(options.Env) > 0 || len(options.RemoveEnv) > 0 {
 		envMap := make(map[string]string)
