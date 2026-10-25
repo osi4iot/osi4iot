@@ -1,14 +1,9 @@
 import { v4 as uuidv4 } from "uuid";
 import pool, { readQuery } from "../../config/dbconfig";
 import ITopic from "../topic/topic.interface";
-import { createAlert } from "./alertDAL";
 import { accelDashboardJson } from "./defaultDashboards/accelDashboardJson";
 import { homeDashboardJson } from "./defaultDashboards/homeDashboardJson";
-import { tempAlertJson } from "./defaultDashboards/tempAlertJson";
-import { accelAlertJson } from "./defaultDashboards/accelAlertJson";
 import { tempDashboardJson } from "./defaultDashboards/tempDashboardJson";
-import { getNotificationChannelUid } from "./groupDAL";
-import IAlert from "./interfaces/Alert.interface";
 import IDashboardData from "./interfaces/DashboardData.interface";
 import IGroup from "./interfaces/Group.interface";
 import process_env, { isWalArchiverEnabled } from "../../config/api_config";
@@ -28,14 +23,25 @@ import walArchiverMetricsDashboard from './defaultDashboards/walArchiverMetricsD
 import systemMonitoringDashboard from './defaultDashboards/systemMonitoringDashboard.json';
 
 
+// A dashboard of a group's folder, written straight into Grafana's
+// dashboard table. Since Grafana 10 a dashboard belongs to its folder by
+// folder_uid (the folder_id column is only kept for compatibility): without
+// it the dashboard shows at the root, and does not get the folder's
+// permissions. The uid of the row and the one in its JSON must be the same
+// (Grafana 12 serves dashboards by uid, from the row, and saves the JSON).
 export const insertDashboard = async (orgId: number, folderId: number, title: string, data: any): Promise<any> => {
 	const now = new Date();
 	const slug = title.replace(/ /g, "_").toLocaleLowerCase();
 	const uuid = uuidv4();
+	data.uid = uuid;
+	data.title = title;
+	data.version = 1;
+	delete data.id;
 	const queryString = `INSERT INTO grafanadb.dashboard (version, slug, title,
 		data, org_id, created, updated, created_by, updated_by, gnet_id,
-		plugin_id, folder_id, is_folder, has_acl, uid)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+		plugin_id, folder_id, is_folder, has_acl, uid, folder_uid)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12::bigint, $13, $14, $15,
+			(SELECT uid FROM grafanadb.dashboard WHERE id = $12::bigint AND is_folder = true))
 		RETURNING *`;
 
 	const response = await pool.query(queryString, [
@@ -163,12 +169,14 @@ export const updateDashboardData = async (dashboardId: number, data: any): Promi
 	await pool.query("UPDATE grafanadb.dashboard SET updated = $1, data = $2 WHERE id = $3", [now, data, dashboardId]);
 };
 
-export const insertPreference = async (orgId: number, homeDashboardId: number): Promise<void> => {
+// The organization's home dashboard. Grafana 12 finds it by
+// home_dashboard_uid (home_dashboard_id is no longer read).
+export const insertPreference = async (orgId: number, homeDashboardId: number, homeDashboardUid: string): Promise<void> => {
 	const now = new Date();
 	const queryString = `INSERT INTO grafanadb.preferences (org_id, user_id, version,
-		home_dashboard_id, timezone, theme, created, updated, team_id)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`;
-	await pool.query(queryString, [orgId, 0, 0, homeDashboardId, "", "", now, now, 0]);
+		home_dashboard_id, home_dashboard_uid, timezone, theme, created, updated, team_id)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`;
+	await pool.query(queryString, [orgId, 0, 0, homeDashboardId, homeDashboardUid, "", "", now, now, 0]);
 };
 
 export const createHomeDashboard = async (
@@ -188,21 +196,21 @@ export const createHomeDashboard = async (
 		x: 0,
 		y: 0,
 	};
+	// Grafana 12's header is taller than Grafana 8's: panels are two rows
+	// shorter so a dashboard fits the screen without scrolling.
 	homeDashboard.panels[1].gridPos = {
-		h: 18,
+		h: 16,
 		w: 24,
 		x: 0,
 		y: 4,
 	};
 	homeDashboard.uid = uuidv4();
 	const response = await insertDashboard(orgId, folderId, title, homeDashboard);
-	await insertPreference(orgId, response.id);
+	await insertPreference(orgId, response.id, response.uid);
 };
 
 export const createDemoDashboards = async (group: IGroup, topics: Partial<ITopic>[]): Promise<number[]> => {
 	const dataSourceName = generateGrafanaDataSourceName(group.orgId, "timescaledb");
-	const orgKey = await getOrganizationKey(group.orgId);
-	const dataSource = (await grafanaApi.getDataSourceByName(dataSourceName, orgKey)) as IDataSource;
 	const grouAcronym = group.acronym;
 	const tempDashboard = JSON.parse(tempDashboardJson);
 	const titleTempDashboard = `${grouAcronym.replace(/ /g, "_")}_Temp_demo`;
@@ -215,27 +223,15 @@ export const createDemoDashboards = async (group: IGroup, topics: Partial<ITopic
 		tempDashboard.panels[i].targets[0].rawSql = rawSqlTemp;
 		tempDashboard.panels[i].datasource = dataSourceName;
 	}
-	const emailNotificationChannelUid = await getNotificationChannelUid(group.emailNotificationChannelId);
-	tempDashboard.panels[0].alert.notifications[0].uid = emailNotificationChannelUid;
-	const telegramNotificationChannelUid = await getNotificationChannelUid(group.telegramNotificationChannelId);
-	tempDashboard.panels[0].alert.notifications[1].uid = telegramNotificationChannelUid;
+	// No Grafana alerts (legacy alerting was removed in Grafana 11): the
+	// platform's alarms and notifications are sent by pipelines.
 	const tempDashboardCreated = await insertDashboard(group.orgId, group.folderId, titleTempDashboard, tempDashboard);
-
-	const tempAlertData = JSON.parse(tempAlertJson);
-	tempAlertData.conditions[0].query.datasourceId = dataSource.id;
-	tempAlertData.conditions[0].query.model.rawSql = rawSqlTemp;
-	tempAlertData.notifications[0].uid = emailNotificationChannelUid;
-	tempAlertData.notifications[1].uid = telegramNotificationChannelUid;
-	const tempAlert = createTempDemoAlert(group.orgId, tempDashboardCreated.id, 2, tempAlertData);
-	await createAlert(tempAlert);
 
 	const accelDashboard = JSON.parse(accelDashboardJson);
 	const titleAccelDashboard = `${grouAcronym.replace(/ /g, "_")}_Accel_demo`;
 	accelDashboard.uid = uuidv4();
 	accelDashboard.title = titleAccelDashboard;
 	accelDashboard.panels[0].datasource = dataSourceName;
-	accelDashboard.panels[0].alert.notifications[0].uid = emailNotificationChannelUid;
-	accelDashboard.panels[0].alert.notifications[1].uid = telegramNotificationChannelUid;
 	const topic2Hash = `Topic_${topics[1].topicUid}`;
 	const rawSqlAccel = `SELECT timestamp AS \"time\", CAST(payload->'accelerations'->>0 AS DOUBLE PRECISION) AS \"Ax\", CAST(payload->'accelerations'->>1 AS DOUBLE PRECISION) AS \"Ay\", CAST(payload->'accelerations'->>2 AS DOUBLE PRECISION) AS \"Az\" FROM  iot_datasource.${tableHash} WHERE topic = '${topic2Hash}' AND $__timeFilter(timestamp) ORDER BY time DESC;`;
 	accelDashboard.panels[0].targets[0].rawSql = rawSqlAccel;
@@ -245,14 +241,6 @@ export const createDemoDashboards = async (group: IGroup, topics: Partial<ITopic
 		titleAccelDashboard,
 		accelDashboard
 	);
-
-	const accelAlertData = JSON.parse(accelAlertJson);
-	accelAlertData.conditions[0].query.datasourceId = dataSource.id;
-	accelAlertData.conditions[0].query.model.rawSql = rawSqlAccel;
-	accelAlertData.notifications[0].uid = emailNotificationChannelUid;
-	accelAlertData.notifications[1].uid = telegramNotificationChannelUid;
-	const accelAlert = createAccelDemoAlert(group.orgId, accelDashboardCreated.id, 2, accelAlertData);
-	await createAlert(accelAlert);
 
 	return [tempDashboardCreated.id as number, accelDashboardCreated.id as number];
 };
@@ -353,50 +341,6 @@ export const createSensorDashboard = async (
 	const dashboardCreated = await insertDashboard(group.orgId, group.folderId, dashboard.title, dashboard);
 
 	return dashboardCreated.id as number;
-};
-
-const createTempDemoAlert = (orgId: number, dashboardId: number, panelId: number, settings: any): Partial<IAlert> => {
-	const alert: Partial<IAlert> = {
-		version: 0,
-		dashboardId,
-		panelId,
-		orgId,
-		name: "Temperature evolution alert",
-		message: "Device temperature has exceeded 50°C, please try to fix it as soon as possible",
-		state: "unknown",
-		settings,
-		frequency: 60,
-		handler: 1,
-		severity: "",
-		silenced: false,
-		executionError: "",
-		evalData: "",
-		stateChanges: 0,
-		for: 180000000000,
-	};
-	return alert;
-};
-
-const createAccelDemoAlert = (orgId: number, dashboardId: number, panelId: number, settings: any): Partial<IAlert> => {
-	const alert: Partial<IAlert> = {
-		version: 0,
-		dashboardId,
-		panelId,
-		orgId,
-		name: "Acceleration evolution alert",
-		message: "Acceleration of some axis of the mobile has exceeded 40 m/s^2.",
-		state: "unknown",
-		settings,
-		frequency: 20,
-		handler: 1,
-		severity: "",
-		silenced: false,
-		executionError: "",
-		evalData: "",
-		stateChanges: 0,
-		for: 180000000000,
-	};
-	return alert;
 };
 
 export const createSystemMonitoringSensorDashboard = async (

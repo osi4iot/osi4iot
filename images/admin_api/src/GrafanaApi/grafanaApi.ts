@@ -19,15 +19,14 @@ import IUserInOrgGrafana from "./interfaces/UserInOrgGrafana.interface";
 import IUserGlobalGrafana from "./interfaces/UserGlobalGrafana.interface";
 import IPlatformStatistics from "./interfaces/PlatformStatistics";
 import IOptionsToken from "./interfaces/OptionsToken";
-import INotificationChannel from "./interfaces/NotificationChannel";
-import { updateNotificationChannelSettings } from "../components/group/groupDAL";
 import CreateUserDto from "../components/user/interfaces/User.dto";
 import wait from "../utils/helpers/wait";
 import process_env from "../config/api_config";
 import IDataSource from "../components/group/interfaces/DataSource.interface";
-import natsClient from "../config/natsConfig";
 
 const GrafanaApiURL = "grafana:5000/api";
+const POSTGRES_DATASOURCE_TYPE = "grafana-postgresql-datasource";
+const DATASOURCE_MAX_OPEN_CONNS = 20;
 const optionsBasicAuthApiAdmin = {
 	username: "api_admin",
 	password: process_env.PLATFORM_ADMIN_PASSWORD,
@@ -112,12 +111,37 @@ export default class GrafanaApi implements IDashboardApi {
 		return message;
 	}
 
-	async createApiKeyToken(apiKeyData: IApiKeyDTO): Promise<IApiKey> {
-		const url = `${GrafanaApiURL}/auth/keys`;
-		const apikey = await needle("post", url, apiKeyData, optionsBasicAuthApiAdmin)
-			.then((res) => res.body)
-			.catch((err) => logger.log("error", "Api token could not be created: %s", err.message));
-		return apikey;
+	// The organization's token for admin_api: Grafana 12 has no API keys
+	// (/api/auth/keys), so a service account with the role asked for, in the
+	// organization, and a token of it that never expires.
+	async createApiKeyToken(apiKeyData: IApiKeyDTO, orgId: number): Promise<IApiKey> {
+		const options = {
+			...optionsBasicAuthApiAdmin,
+			headers: { "X-Grafana-Org-Id": String(orgId) },
+		};
+		const serviceAccount = await needle(
+			"post",
+			`${GrafanaApiURL}/serviceaccounts`,
+			{ name: apiKeyData.name, role: apiKeyData.role, isDisabled: false },
+			options
+		).then((res) => {
+			if (res.statusCode !== 201 && res.statusCode !== 200) {
+				throw new Error(`HTTP ${res.statusCode}: ${JSON.stringify(res.body)}`);
+			}
+			return res.body as { id: number };
+		});
+		const token = await needle(
+			"post",
+			`${GrafanaApiURL}/serviceaccounts/${serviceAccount.id}/tokens`,
+			{ name: apiKeyData.name, secondsToLive: 0 },
+			options
+		).then((res) => {
+			if (res.statusCode !== 200 || !res.body?.key) {
+				throw new Error(`HTTP ${res.statusCode}: ${JSON.stringify(res.body)}`);
+			}
+			return res.body as IApiKey;
+		});
+		return token;
 	}
 
 	async getUsers(): Promise<IUserGlobalGrafana[]> {
@@ -471,10 +495,31 @@ export default class GrafanaApi implements IDashboardApi {
 		const url = `${GrafanaApiURL}/folders/${uid}/permissions`;
 		const optionsToken = this.generateOptionsToken(orgKey);
 		const message = await needle("post", url, folderPermissionDTO, optionsToken)
-			.then((res) => res.body)
-			.catch((err) =>
-				logger.log("error", "Permissions to folder with id=${teamId} could not be assigned: %s", err.message)
-			);
+			.then((res) => {
+				if (res.statusCode !== 200) {
+					logger.log(
+						"error",
+						`Permissions of folder ${uid} (org ${orgId}) could not be set: HTTP ${res.statusCode} %s`,
+						JSON.stringify(res.body)
+					);
+				}
+				return res.body;
+			})
+			.catch((err) => logger.log("error", `Permissions of folder ${uid} could not be set: %s`, err.message));
+		return message;
+	}
+
+	async updateFolderTitle(uid: string, title: string, orgKey: string): Promise<IMessage> {
+		const url = `${GrafanaApiURL}/folders/${uid}`;
+		const optionsToken = this.generateOptionsToken(orgKey);
+		const message = await needle("put", url, { title, overwrite: true }, optionsToken)
+			.then((res) => {
+				if (res.statusCode !== 200) {
+					logger.log("error", `Folder ${uid} could not be renamed: HTTP ${res.statusCode} %s`, JSON.stringify(res.body));
+				}
+				return res.body;
+			})
+			.catch((err) => logger.log("error", `Folder ${uid} could not be renamed: %s`, err.message));
 		return message;
 	}
 
@@ -529,7 +574,12 @@ export default class GrafanaApi implements IDashboardApi {
 			name,
 			orgId,
 			password: "",
-			type: "postgres",
+			// Grafana >= 10 names the plugin grafana-postgresql-datasource
+			// ("postgres" is only an alias) and its frontend reads the
+			// database from jsonData.database: with type "postgres" and the
+			// database only at the top level every query fails with "You do
+			// not currently have a default database configured".
+			type: POSTGRES_DATASOURCE_TYPE,
 			url: `${process_env.TIMESCALE_HOST}:${process_env.TIMESCALE_PORT}`,
 			user,
 			isDefault: true,
@@ -537,8 +587,11 @@ export default class GrafanaApi implements IDashboardApi {
 				password,
 			},
 			jsonData: {
+				database: process_env.TIMESCALE_DB,
 				sslmode: "disable",
-				maxOpenConns: 0,
+				// The pgx pool size in Grafana 12: 0 is rejected ("MaxSize
+				// must be >= 1"), it no longer means "unlimited".
+				maxOpenConns: DATASOURCE_MAX_OPEN_CONNS,
 				maxIdleConns: 2,
 				connMaxLifetime: 14400,
 				postgresVersion: 903,
@@ -572,7 +625,7 @@ export default class GrafanaApi implements IDashboardApi {
 			id: oldDataSource.id,
 			orgId: oldDataSource.orgId,
 			name: oldDataSource.name,
-			type: oldDataSource.type,
+			type: POSTGRES_DATASOURCE_TYPE,
 			access: oldDataSource.access,
 			url: oldDataSource.url,
 			password: oldDataSource.password,
@@ -584,7 +637,13 @@ export default class GrafanaApi implements IDashboardApi {
 				password: newPassword,
 			},
 			isDefault: oldDataSource.isDefault,
-			jsonData: oldDataSource.jsonData,
+			jsonData: {
+				...oldDataSource.jsonData,
+				database: oldDataSource.jsonData?.database || oldDataSource.database,
+				maxOpenConns: Number(oldDataSource.jsonData?.maxOpenConns) > 0
+					? oldDataSource.jsonData.maxOpenConns
+					: DATASOURCE_MAX_OPEN_CONNS,
+			},
 		};
 
 		const message = await needle("put", url, dataSourceUpdated, optionsToken)
@@ -593,44 +652,5 @@ export default class GrafanaApi implements IDashboardApi {
 				logger.log("error", `Data source with id: ${oldDataSource.id} could not be updated: %s`, err.message)
 			);
 		return message;
-	}
-
-	async createNotificationChannel(
-		orgKey: string,
-		notifChannelData: INotificationChannel,
-		isMainOrgDefaultGroup = false
-	): Promise<INotificationChannel> {
-		const url = `${GrafanaApiURL}/alert-notifications`;
-		const optionsToken = this.generateOptionsToken(orgKey);
-		const notificationChannel: INotificationChannel = await needle("post", url, notifChannelData, optionsToken)
-			.then((res) => res.body)
-			.catch((err) => logger.log("error", "A new notification channel could not be created: %s", err.message));
-		if (!isMainOrgDefaultGroup) {
-			await natsClient.jsPublish("notification_channel", "create", notificationChannel.id);
-		}
-		await updateNotificationChannelSettings(
-			notificationChannel.id,
-			notifChannelData.settings,
-			isMainOrgDefaultGroup
-		);
-		return notificationChannel;
-	}
-
-	async updateNotificationChannel(
-		orgKey: string,
-		notifChannelData: INotificationChannel,
-		isMainOrgDefaultGroup = false
-	): Promise<INotificationChannel> {
-		const url = `${GrafanaApiURL}/alert-notifications/${notifChannelData.id}`;
-		const optionsToken = this.generateOptionsToken(orgKey);
-		const notificationChannel: INotificationChannel = await needle("put", url, notifChannelData, optionsToken)
-			.then((res) => res.body)
-			.catch((err) => logger.log("error", "The notification channel could not be updated: %s", err.message));
-		await updateNotificationChannelSettings(
-			notificationChannel.id,
-			notifChannelData.settings,
-			isMainOrgDefaultGroup
-		);
-		return notificationChannel;
 	}
 }

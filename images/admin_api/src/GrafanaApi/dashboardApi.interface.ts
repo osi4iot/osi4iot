@@ -14,7 +14,6 @@ import IApiKeyDTO from "./interfaces/ApiKeyDTO";
 import IUserInOrgGrafana from "./interfaces/UserInOrgGrafana.interface";
 import IUserGlobalGrafana from "./interfaces/UserGlobalGrafana.interface";
 import IPlatformStatistics from "./interfaces/PlatformStatistics";
-import INotificationChannel from "./interfaces/NotificationChannel";
 import CreateUserDto from "../components/user/interfaces/User.dto";
 import IDataSource from "../components/group/interfaces/DataSource.interface";
 
@@ -28,7 +27,7 @@ export default interface IDashboardApi {
 	updateOrganizationById(orgId: number, newName: string): Promise<IMessage>;
 	deleteOrganizationById(orgId: number): Promise<IMessage>;
 	switchOrgContextForAdmin(newOrgId: number): Promise<IMessage>;
-	createApiKeyToken(apiKeyData: IApiKeyDTO): Promise<IApiKey>;
+	createApiKeyToken(apiKeyData: IApiKeyDTO, orgId: number): Promise<IApiKey>;
 
 	getUsers(): Promise<IUserGlobalGrafana[]>;
 	getOrganizationUsers(orgId: number): Promise<IUserInOrgGrafana[]>;
@@ -68,6 +67,7 @@ export default interface IDashboardApi {
 		orgKey: string
 	): Promise<IMessage>;
 	deleteFolderByUid(orgId: number, folderUid: string, orgKey: string): Promise<IMessage>;
+	updateFolderTitle(uid: string, title: string, orgKey: string): Promise<IMessage>;
 
 	createDataSourceTimescaledb(
 		orgId: number,
@@ -88,6 +88,4 @@ export default interface IDashboardApi {
 		orgKey: string
 	): Promise<IDataSource | IMessage>;
 
-	createNotificationChannel(orgKey: string, notifChannelData: INotificationChannel): Promise<INotificationChannel>;
-	updateNotificationChannel(orgKey: string, notifChannelData: INotificationChannel): Promise<INotificationChannel>;
 }

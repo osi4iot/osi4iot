@@ -45,7 +45,7 @@ export const homeDashboardJson =
 				},
 				"folderId": null,
 				"gridPos": {
-					"h": 19,
+					"h": 17,
 					"w": 24,
 					"x": 0,
 					"y": 3

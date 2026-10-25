@@ -21,49 +21,6 @@ export const accelDashboardJson =
 		"links": [],
 		"panels": [
 			{
-				"alert": {
-					"alertRuleTags": {},
-					"conditions": [
-						{
-						"evaluator": {
-							"params": [
-							40
-							],
-							"type": "gt"
-						},
-						"operator": {
-							"type": "and"
-						},
-						"query": {
-							"params": [
-							"A",
-							"20s",
-							"now"
-							]
-						},
-						"reducer": {
-							"params": [],
-							"type": "max"
-						},
-						"type": "query"
-						}
-					],
-					"executionErrorState": "keep_state",
-					"for": "0m",
-					"frequency": "10s",
-					"handler": 1,
-					"message": "The acceleration of some axis of the mobile has exceeded 40 m/s^2.",
-					"name": "Accelerations evolution alert",
-					"noDataState": "ok",
-					"notifications": [
-						{
-							"uid": ""
-						},
-						{
-							"uid": ""
-						}
-					]
-				},
 				"aliasColors": {},
 				"bars": false,
 				"dashLength": 10,
@@ -79,7 +36,7 @@ export const accelDashboardJson =
 				"fill": 1,
 				"fillGradient": 0,
 				"gridPos": {
-					"h": 20,
+					"h": 19,
 					"w": 24,
 					"x": 0,
 					"y": 0

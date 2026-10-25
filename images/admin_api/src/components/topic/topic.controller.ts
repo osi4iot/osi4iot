@@ -11,7 +11,6 @@ import IRequestWithOrganization from "../organization/interfaces/requestWithOrga
 import IRequestWithGroup from "../group/interfaces/requestWithGroup.interface";
 import { getDashboardsDataWithRawSqlOfGroup, updateDashboardsDataRawSqlOfTopic } from "../group/dashboardDAL";
 import LoginDto from "../Authentication/login.dto";
-import { updateTopicUidRawSqlAlertSettingOfGroup } from "../group/alertDAL";
 import IRequestWithUser from "../../interfaces/requestWithUser.interface";
 import ITopic from "./topic.interface";
 import { getAllGroupsInOrgArray, getGroupsThatCanBeEditatedAndAdministratedByUserId } from "../group/groupDAL";
@@ -275,7 +274,6 @@ class TopicController implements IController {
 			const dashboards = await getDashboardsDataWithRawSqlOfGroup(req.group);
 			const newTopicUid = await changeTopicUidByUid(topic);
 			await updateDashboardsDataRawSqlOfTopic(topic, newTopicUid, dashboards);
-			await updateTopicUidRawSqlAlertSettingOfGroup(req.group, topic.topicUid, newTopicUid);
 			await updateMeasurementsTopicByTopic(topic, newTopicUid)
 			const message = { newTopicUid };
 			res.status(200).json(message);

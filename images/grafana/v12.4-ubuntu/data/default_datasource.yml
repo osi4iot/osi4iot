@@ -1,0 +1,25 @@
+apiVersion: 1
+
+datasources:
+  - name: timescaledb_org_1
+    # The plugin id since Grafana 10 ("postgres" is an alias). Its
+    # frontend needs the database in jsonData.database.
+    type: grafana-postgresql-datasource
+    access: proxy
+    url: ${TIMESCALE_HOST}:${TIMESCALE_PORT}
+    database: $TIMESCALE_DB
+    orgId: 1
+    isDefault: true
+    user: data_source_user_org_1
+    secureJsonData:
+      password: ${GRAFANA_DATASOURCE_PASSWORD}
+    jsonData:
+      database: $TIMESCALE_DB
+      sslmode: "disable"
+      # Grafana 12 (pgx driver) uses it as the pool size: 0 is rejected
+      # ("MaxSize must be >= 1"); it no longer means "unlimited".
+      maxOpenConns: 20
+      maxIdleConns: 2
+      connMaxLifetime: 14400
+      postgresVersion: 903
+      timescaledb: true

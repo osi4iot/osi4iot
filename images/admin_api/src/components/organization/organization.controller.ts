@@ -10,7 +10,6 @@ import IOrganizationGrafanaDTO from "../../GrafanaApi/interfaces/IOrganizationGr
 import grafanaApi from "../../GrafanaApi";
 import AlreadyExistingItemException from "../../exceptions/AlreadyExistingItemException";
 import {
-	getApiKeyIdByName,
 	insertOrganizationToken,
 	exitsOrganizationWithName,
 	exitsOrganizationWithAcronym,
@@ -377,10 +376,9 @@ class OrganizationController implements IController {
 				const apyKeyName = `ApiKey_${organizationData.acronym.replace(/"/g, "")}`;
 				const apiKeyData = { name: apyKeyName, role: "Admin" };
 				await grafanaApi.switchOrgContextForAdmin(orgId);
-				const apiKeyObj = await grafanaApi.createApiKeyToken(apiKeyData);
+				const apiKeyObj = await grafanaApi.createApiKeyToken(apiKeyData, orgId);
 				const hashedApiKey = encrypt(apiKeyObj.key);
-				const apiKeyId = await getApiKeyIdByName(apyKeyName);
-				await insertOrganizationToken(orgId, apiKeyId, hashedApiKey);
+				await insertOrganizationToken(orgId, apiKeyObj.id, hashedApiKey);
 				await grafanaApi.changeUserRoleInOrganization(orgId, 1, "Admin"); // Giving org. admin permissions to Grafana Admin
 				await createTimescaledbOrgDataSource(orgId, apiKeyObj.key);
 				const groupAdminDataArray: CreateGroupAdminDto[] = [];

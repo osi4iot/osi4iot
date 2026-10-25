@@ -20,49 +20,6 @@ export const tempDashboardJson =
 		"links": [],
 		"panels": [
 			{
-				"alert": {
-					"alertRuleTags": {},
-					"conditions": [
-						{
-							"evaluator": {
-								"params": [
-									50
-								],
-								"type": "gt"
-							},
-							"operator": {
-								"type": "and"
-							},
-							"query": {
-								"params": [
-									"A",
-									"5m",
-									"now"
-								]
-							},
-							"reducer": {
-								"params": [],
-								"type": "max"
-							},
-							"type": "query"
-						}
-					],
-					"executionErrorState": "keep_state",
-					"for": "3m",
-					"frequency": "1m",
-					"handler": 1,
-					"message": "Device temperature has exceeded 50°C, please try to fix it as soon as possible.",
-					"name": "Temperature evolution alert",
-					"noDataState": "ok",
-					"notifications": [
-						{
-							"uid": ""
-						},
-						{
-							"uid": ""
-						}
-					]
-				},
 				"aliasColors": {},
 				"bars": false,
 				"dashLength": 10,
@@ -78,7 +35,7 @@ export const tempDashboardJson =
 				"fill": 1,
 				"fillGradient": 0,
 				"gridPos": {
-					"h": 21,
+					"h": 19,
 					"w": 18,
 					"x": 0,
 					"y": 0
@@ -314,7 +271,7 @@ export const tempDashboardJson =
 					]
 				},
 				"gridPos": {
-					"h": 11,
+					"h": 9,
 					"w": 6,
 					"x": 18,
 					"y": 10

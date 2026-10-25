@@ -163,7 +163,7 @@
           "group": [],
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "SELECT\n  COUNT(*)                                    AS \"running\",\n  COUNT(*) FILTER (WHERE state = 'running')   AS \"total\"\nFROM (\n  SELECT DISTINCT ON (container_id)\n    state\n  FROM observability.container_metrics\n  WHERE time > NOW() - INTERVAL '2 minutes'\n  ORDER BY container_id, time DESC\n) latest;\n",
+          "rawSql": "SELECT\n  COUNT(*) FILTER (WHERE state = 'running')   AS \"running\",\n  COUNT(*)                                    AS \"total\"\nFROM (\n  SELECT DISTINCT ON (container_id)\n    state\n  FROM observability.container_metrics\n  WHERE time > NOW() - INTERVAL '2 minutes'\n  ORDER BY container_id, time DESC\n) latest;\n",
           "refId": "A",
           "select": [
             [

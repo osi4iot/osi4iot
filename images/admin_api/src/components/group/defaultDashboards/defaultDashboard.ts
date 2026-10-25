@@ -80,7 +80,7 @@ export const defaultDashboard = `
 				"overrides": []
 			},
 			"gridPos": {
-				"h": 21,
+				"h": 19,
 				"w": 24,
 				"x": 0,
 				"y": 0

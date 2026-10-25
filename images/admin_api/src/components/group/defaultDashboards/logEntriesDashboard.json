@@ -3,7 +3,9 @@
     "list": [
       {
         "builtIn": 1,
-        "datasource": "-- Grafana --",
+        "datasource": {
+          "uid": "-- Grafana --"
+        },
         "enable": true,
         "hide": true,
         "iconColor": "rgba(0, 211, 255, 1)",
@@ -22,15 +24,20 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
-  "id": 10,
-  "iteration": 1778912162974,
   "links": [],
-  "liveNow": false,
   "panels": [
     {
+      "datasource": {
+        "type": "postgres",
+        "uid": "PC9F690ACD2F736A4"
+      },
       "description": "Log metrics",
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
       "gridPos": {
-        "h": 21,
+        "h": 20,
         "w": 24,
         "x": 0,
         "y": 0
@@ -38,25 +45,29 @@
       "id": 2,
       "options": {
         "dedupStrategy": "none",
+        "enableInfiniteScrolling": false,
         "enableLogDetails": true,
         "prettifyLogMessage": false,
         "showCommonLabels": false,
+        "showControls": false,
         "showLabels": false,
         "showTime": true,
         "sortOrder": "Descending",
+        "unwrappedColumns": false,
         "wrapLogMessage": false
       },
+      "pluginVersion": "12.4.13",
       "targets": [
         {
           "datasource": {
             "type": "postgres",
-            "uid": ""
+            "uid": "PC9F690ACD2F736A4"
           },
           "format": "table",
           "group": [],
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "SELECT\nformat(\n'| %s | %s | replica:%s|%s',\nlevel,\nservice,\nreplica,\nmessage\n) AS line,\ntime,\nlevel,\nservice,\nreplica,\nmessage,\nCOALESCE(metadata::text, '{}') AS metadata\nFROM observability.log_entries\nWHERE $__timeFilter(time)\nAND ('$level' = 'All' OR level = '$level')\nAND (service = $service)\nAND (replica = $replica)\nAND ('$text_search' = '' OR message ILIKE '%$text_search%')\nORDER BY time DESC\nLIMIT 1000;",
+          "rawSql": "SELECT\nformat(\n'| %s | %s | replica:%s|%s',\nlevel,\nservice,\nreplica,\nmessage\n) AS line,\ntime,\nlevel,\nservice,\nreplica,\nmessage,\nCOALESCE(metadata::text, '{}') AS metadata\nFROM observability.log_entries\nWHERE $__timeFilter(time)\nAND ('$level' = 'All' OR level = '$level')\nAND service IN (${service:singlequote})\nAND replica IN (${replica:singlequote})\nAND ('$text_search' = '' OR message ILIKE '%$text_search%')\nORDER BY time DESC\nLIMIT 1000;",
           "refId": "A",
           "select": [
             [
@@ -82,113 +93,68 @@
       "type": "logs"
     }
   ],
+  "preload": false,
   "refresh": "1s",
-  "schemaVersion": 35,
-  "style": "dark",
+  "schemaVersion": 42,
   "tags": [],
   "templating": {
     "list": [
       {
         "current": {
-          "selected": true,
           "text": "All",
           "value": "All"
         },
         "description": "Log level",
-        "hide": 0,
         "includeAll": false,
         "label": "Level",
-        "multi": false,
         "name": "level",
-        "options": [
-          {
-            "selected": true,
-            "text": "All",
-            "value": "All"
-          },
-          {
-            "selected": false,
-            "text": "debug",
-            "value": "debug"
-          },
-          {
-            "selected": false,
-            "text": "info",
-            "value": "info"
-          },
-          {
-            "selected": false,
-            "text": "warn",
-            "value": "warn"
-          },
-          {
-            "selected": false,
-            "text": "error",
-            "value": "error"
-          },
-          {
-            "selected": false,
-            "text": "fatal",
-            "value": "fatal"
-          }
-        ],
+        "options": [],
         "query": "All,debug,info,warn,error,fatal",
-        "queryValue": "",
-        "skipUrlSync": false,
-        "type": "custom"
+        "type": "custom",
+        "valuesFormat": "csv"
       },
       {
-        "allValue": "service",
         "current": {
-          "selected": true,
           "text": "All",
           "value": "$__all"
         },
         "definition": "SELECT DISTINCT service FROM observability.log_entries ORDER BY 1;",
         "description": "Service name",
-        "hide": 0,
         "includeAll": true,
         "label": "Service",
-        "multi": false,
         "name": "service",
         "options": [],
         "query": "SELECT DISTINCT service FROM observability.log_entries ORDER BY 1;",
         "refresh": 1,
         "regex": "",
-        "skipUrlSync": false,
+        "regexApplyTo": "value",
         "sort": 1,
         "type": "query"
       },
       {
-        "allValue": "replica",
         "current": {
-          "selected": false,
           "text": "All",
           "value": "$__all"
         },
-        "definition": "SELECT DISTINCT replica\nFROM observability.log_entries\nWHERE (service = $service)\nORDER BY 1;",
+        "definition": "SELECT DISTINCT replica\nFROM observability.log_entries\nWHERE service IN (${service:singlequote})\nORDER BY 1;",
         "description": "Service replica",
-        "hide": 0,
         "includeAll": true,
         "label": "Replica",
-        "multi": false,
         "name": "replica",
         "options": [],
-        "query": "SELECT DISTINCT replica\nFROM observability.log_entries\nWHERE (service = $service)\nORDER BY 1;",
+        "query": "SELECT DISTINCT replica\nFROM observability.log_entries\nWHERE service IN (${service:singlequote})\nORDER BY 1;",
         "refresh": 1,
         "regex": "",
-        "skipUrlSync": false,
+        "regexApplyTo": "value",
         "sort": 1,
         "type": "query"
       },
       {
         "current": {
-          "selected": false,
           "text": "",
           "value": ""
         },
         "description": "Text searchi in log message",
-        "hide": 0,
         "label": "Text search",
         "name": "text_search",
         "options": [
@@ -199,7 +165,6 @@
           }
         ],
         "query": "",
-        "skipUrlSync": false,
         "type": "textbox"
       }
     ]
@@ -224,9 +189,9 @@
       "1d"
     ]
   },
-  "timezone": "",
+  "timezone": "browser",
   "title": "",
   "uid": "",
-  "version": 6,
+  "version": 2,
   "weekStart": ""
 }

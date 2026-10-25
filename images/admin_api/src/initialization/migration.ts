@@ -139,21 +139,6 @@ export const dataBaseInitialization = async () => {
 				process.exit(1);
 			}
 
-			// Columns added after the first version, on every start: IF NOT
-			// EXISTS makes it a no-op once they are there, and brings the
-			// platforms created before them up to date. On a new platform
-			// they are added here too, before the columns below.
-			const queryStringUpgradeOrg = `ALTER TABLE grafanadb.org
-										ADD COLUMN IF NOT EXISTS llm_provider_type VARCHAR(20) NOT NULL DEFAULT 'openai',
-										ADD COLUMN IF NOT EXISTS llm_allowed_models TEXT[] NOT NULL DEFAULT '{}',
-										ADD COLUMN IF NOT EXISTS rag_enabled BOOLEAN NOT NULL DEFAULT false;`;
-			try {
-				await postgresClient.query(queryStringUpgradeOrg);
-			} catch (err) {
-				const message = err instanceof Error ? err.message : String(err);
-				logger.log("error", `Columns llm_provider_type and llm_allowed_models could not be added to ${tableOrg}: %s`, message);
-			}
-
 			// Sensor types have no marker (only asset types do: a sensor is
 			// drawn around its asset, never as a marker of its own). The
 			// columns of older platforms go.
@@ -179,7 +164,10 @@ export const dataBaseInitialization = async () => {
 											ADD COLUMN hashed_llm_provider_api_key TEXT,
 											ADD COLUMN telegram_enabled BOOLEAN NOT NULL DEFAULT false,
 											ADD COLUMN hashed_telegram_bot_token TEXT DEFAULT '',
-											ADD COLUMN hashed_telegram_webhook_secret_token TEXT DEFAULT '';`;
+											ADD COLUMN hashed_telegram_webhook_secret_token TEXT DEFAULT '',
+											ADD COLUMN IF NOT EXISTS llm_provider_type VARCHAR(20) NOT NULL DEFAULT 'openai',
+											ADD COLUMN IF NOT EXISTS llm_allowed_models TEXT[] NOT NULL DEFAULT '{}',
+											ADD COLUMN IF NOT EXISTS rag_enabled BOOLEAN NOT NULL DEFAULT false;`;
 				try {
 					await postgresClient.query(queryStringAlterOrg);
 					logger.log("info", `Column acronym has been added sucessfully to Table ${tableOrg}`);
@@ -418,13 +406,15 @@ export const dataBaseInitialization = async () => {
 				await grafanaApi.changeUserRoleInOrganization(1, 2, "Admin");
 
 				let apiKeyMainOrg: string;
+				let apiKeyMainOrgId: number;
 				try {
 					const apyKeyName = `ApiKey_${process_env.MAIN_ORGANIZATION_ACRONYM.replace(/ /g, "_")
 						.replace(/"/g, "")
 						.toUpperCase()}`;
 					const apiKeyData = { name: apyKeyName, role: "Admin" };
-					const apiKeyObj = await grafanaApi.createApiKeyToken(apiKeyData);
+					const apiKeyObj = await grafanaApi.createApiKeyToken(apiKeyData, 1);
 					apiKeyMainOrg = apiKeyObj.key;
+					apiKeyMainOrgId = apiKeyObj.id;
 					logger.log("info", `Api key token created sucessfully`);
 				} catch (err) {
 					const message = err instanceof Error ? err.message : String(err);
@@ -461,7 +451,7 @@ export const dataBaseInitialization = async () => {
 
 				const queryStringInsertOrgToken = `INSERT INTO ${tableOrgToken} (org_id, api_key_id, organization_key) VALUES ($1, $2, $3)`;
 				const hashedApiKey = encrypt(apiKeyMainOrg);
-				const queryParametersInsertOrgToken = [1, 1, hashedApiKey];
+				const queryParametersInsertOrgToken = [1, apiKeyMainOrgId, hashedApiKey];
 				try {
 					await postgresClient.query(queryStringInsertOrgToken, queryParametersInsertOrgToken);
 					logger.log("info", `Data in table ${tableOrgToken} has been inserted sucessfully`);

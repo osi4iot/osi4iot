@@ -6,6 +6,7 @@ import grafanaApi from "../../GrafanaApi";
 import IEmailNotificationChannelSettings from "../../GrafanaApi/interfaces/EmailNotificationChannelSettings";
 import IGrafanaNotificationChannelSettings from "../../GrafanaApi/interfaces/GrafanaNotificationChannelSettings";
 import IFolderPermission from "../../GrafanaApi/interfaces/FolderPermission";
+import { IFolderPermissionItem } from "../../GrafanaApi/interfaces/FolderPermissionDTO";
 import { getOrganizationByProp, getOrganizationKey } from "../organization/organizationDAL";
 import CreateGroupDto from "./interfaces/group.dto";
 import IGroup from "./interfaces/Group.interface";
@@ -24,6 +25,7 @@ import { RoleInGroupOption } from "./interfaces/RoleInGroupOptions";
 import CreateGroupAdminDto from "./interfaces/groupAdmin.dto";
 import UpdateGroupDto from "./interfaces/group_update.dto";
 import INotificationChannel from "./interfaces/NotificationChannel";
+import INotificationChannelData from "../../GrafanaApi/interfaces/NotificationChannel";
 import IMembershipInGroups from "./interfaces/MembershipInGroups.interface";
 import { findGroupBounds, findGroupGeojsonData } from "../../utils/geolocation.ts/geolocation";
 import { getBuildingByOrgId, getFloorByOrgIdAndFloorNumber } from "../building/buildingDAL";
@@ -40,6 +42,26 @@ export const defaultOrgGroupName = (orgName: string, orgAcronym: string): string
 	let groupName = `${orgName} general`;
 	if (groupName.length > 50) groupName = `${orgAcronym.replace(/"/g, "").toUpperCase()} general`;
 	return groupName;
+};
+
+// The platform works on Grafana's own tables: a group's folder must be a
+// row of grafanadb.dashboard (is_folder). Grafana 12 can keep folders and
+// dashboards in its "unified storage" instead (it does so on new installs
+// unless grafana.ini sets [unified_storage] disable_data_migrations = true);
+// the folder would then have no row there and the id the API returns would
+// not be a legacy id.
+export const getLegacyFolderId = async (orgId: number, folderUid: string): Promise<number> => {
+	const result = await pool.query(
+		"SELECT id FROM grafanadb.dashboard WHERE uid = $1 AND org_id = $2 AND is_folder = true",
+		[folderUid, orgId]
+	);
+	if (result.rows.length === 0) {
+		throw new Error(
+			`Grafana folder ${folderUid} is not in grafanadb.dashboard: Grafana is keeping folders in unified storage ` +
+			"(grafana.ini must set [unified_storage] disable_data_migrations = true, on a new Grafana database)"
+		);
+	}
+	return Number(result.rows[0].id);
 };
 
 export const createGroup = async (
@@ -60,8 +82,8 @@ export const createGroup = async (
 	const folderData = { title: groupInput.name, uid: newFolderUid };
 	const folder = await grafanaApi.createFolder(folderData, orgKey);
 	const teamId = team.teamId;
-	const folderId = folder.id;
 	const folderUid = folder.uid;
+	const folderId = await getLegacyFolderId(orgId, folderUid);
 	const telegramInvitationLink = groupInput.telegramInvitationLink;
 	const telegramChatId = groupInput.telegramChatId;
 	const folderPermission = groupInput.folderPermission;
@@ -117,8 +139,8 @@ export const createGroup = async (
 			severity: "critical",
 		},
 	};
-	const emailNotificationChannel = await grafanaApi.createNotificationChannel(
-		orgKey,
+	const emailNotificationChannel = await insertNotificationChannel(
+		orgId,
 		emailNotificationChannelData,
 		isMainOrgDefaultGroup
 	);
@@ -139,8 +161,8 @@ export const createGroup = async (
 			severity: "critical",
 		},
 	};
-	const telegramNotificationChannel = await grafanaApi.createNotificationChannel(
-		orgKey,
+	const telegramNotificationChannel = await insertNotificationChannel(
+		orgId,
 		telegramNotificationChannelData,
 		isMainOrgDefaultGroup
 	);
@@ -221,7 +243,7 @@ export const updateGroup = async (newGroupData: UpdateGroupDto, existentGroup: I
 
 	if (groupData.name && groupData.name !== existentGroup.name) {
 		await updateTeamName(groupData.teamId, groupData.name);
-		await updateFolderName(groupData.folderId, groupData.name);
+		await updateFolderName(groupData, groupData.name);
 		hasGroupChange = true;
 	}
 
@@ -252,8 +274,11 @@ const updateTeamName = async (teamId: number, newName: string): Promise<void> =>
 	await pool.query("UPDATE grafanadb.team SET name = $1 WHERE id = $2", [newName, teamId]);
 };
 
-const updateFolderName = async (folderId: number, newTitle: string): Promise<void> => {
-	await pool.query("UPDATE grafanadb.dashboard SET title = $1 WHERE id = $2", [newTitle, folderId]);
+// Through Grafana's API: since Grafana 10 a folder is also a row of the
+// folder table (nested folders), which is the one Grafana shows.
+const updateFolderName = async (group: IGroup, newTitle: string): Promise<void> => {
+	const orgKey = await getOrganizationKey(group.orgId);
+	await grafanaApi.updateFolderTitle(group.folderUid, newTitle, orgKey);
 };
 
 export const getAllGroups = async (): Promise<IGroup[]> => {
@@ -717,6 +742,39 @@ export const deleteGroup = async (group: IGroup, orgKey: string): Promise<string
 };
 
 type settingType = IGrafanaNotificationChannelSettings | IEmailNotificationChannelSettings;
+
+// The email and Telegram notification channels of a group: where pipelines
+// sends the group's alarms (addresses, chat id). Kept in Grafana's
+// alert_notification table, as before, but written here: Grafana 11 removed
+// the legacy alerting and its /api/alert-notifications endpoint, and does
+// not use the table any more.
+export const insertNotificationChannel = async (
+	orgId: number,
+	notifChannelData: INotificationChannelData,
+	isMainOrgDefaultGroup = false
+): Promise<INotificationChannel> => {
+	const response = await pool.query(
+		`INSERT INTO grafanadb.alert_notification (org_id, uid, name, type, settings,
+			is_default, send_reminder, disable_resolve_message, frequency, secure_settings, created, updated)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, false, 0, '{}', NOW(), NOW())
+		RETURNING id, uid, name, type, settings, is_default AS "isDefault", send_reminder AS "sendReminder",
+			created, updated`,
+		[
+			orgId,
+			notifChannelData.uid,
+			notifChannelData.name,
+			notifChannelData.type,
+			JSON.stringify(notifChannelData.settings),
+			notifChannelData.isDefault,
+			notifChannelData.sendReminder,
+		]
+	);
+	const notificationChannel = response.rows[0] as INotificationChannel;
+	if (!isMainOrgDefaultGroup) {
+		await natsClient.jsPublish("notification_channel", "create", notificationChannel.id);
+	}
+	return notificationChannel;
+};
 export const updateNotificationChannelSettings = async (
 	id: number,
 	settings: settingType,
@@ -803,6 +861,42 @@ export const setFolderPermissionsForNewAddedMember = async (
 	await giveFolderPermissionsForMemberArray(group, groupMembersWithEditOrAdminPrivileges);
 };
 
+// Folder permissions
+//
+// admin_api keeps the permissions of each group's folder (its team's and
+// its members') in grafanadb.dashboard_acl, as it always did: the groups
+// are read joined with it. But Grafana stopped reading dashboard_acl in
+// v9-10 (permissions are RBAC managed roles since), so after each change
+// the folder's whole list is also sent to Grafana's API, which is what
+// Grafana enforces. The codes are the same: 1 View, 2 Edit, 4 Admin.
+export const syncFolderPermissionsWithGrafana = async (orgId: number, folderId: number): Promise<void> => {
+	try {
+		const folder = await pool.query<{ uid: string }>(
+			"SELECT uid FROM grafanadb.dashboard WHERE id = $1 AND is_folder = true",
+			[folderId]
+		);
+		if (!folder.rows[0]) {
+			logger.log("error", `Permissions of folder ${folderId}: the folder does not exist`);
+			return;
+		}
+		const acl = await pool.query<{ team_id: number; user_id: number; permission: number }>(
+			`SELECT COALESCE(team_id, 0) AS team_id, COALESCE(user_id, 0) AS user_id, permission
+			FROM grafanadb.dashboard_acl WHERE dashboard_id = $1 AND permission > 0`,
+			[folderId]
+		);
+		const items: IFolderPermissionItem[] = [];
+		for (const row of acl.rows) {
+			if (row.team_id > 0) items.push({ teamId: row.team_id, permission: row.permission });
+			else if (row.user_id > 0) items.push({ userId: row.user_id, permission: row.permission });
+		}
+		const orgKey = await getOrganizationKey(orgId);
+		await grafanaApi.folderPermission(orgId, folder.rows[0].uid, { items }, orgKey);
+	} catch (err) {
+		const message = err instanceof Error ? err.message : String(err);
+		logger.log("error", `Permissions of folder ${folderId} could not be sent to Grafana: %s`, message);
+	}
+};
+
 const updateFolderPermissionsForMemberArray = async (
 	group: IGroup,
 	groupMembersArray: CreateGroupMemberDto[]
@@ -820,6 +914,7 @@ const updateFolderPermissionsForMemberArray = async (
 		folderPermissionQueries.push(query);
 	}
 	await Promise.all(folderPermissionQueries);
+	await syncFolderPermissionsWithGrafana(group.orgId, group.folderId);
 };
 
 const giveFolderPermissionsForMemberArray = async (
@@ -839,6 +934,7 @@ const giveFolderPermissionsForMemberArray = async (
 		folderPermissionQueries.push(query);
 	}
 	await Promise.all(folderPermissionQueries);
+	await syncFolderPermissionsWithGrafana(group.orgId, group.folderId);
 };
 
 export const removeFolderPermissionsForMemberArray = async (
@@ -855,6 +951,7 @@ export const removeFolderPermissionsForMemberArray = async (
 		folderPermissionQueries.push(query);
 	}
 	await Promise.all(folderPermissionQueries);
+	await syncFolderPermissionsWithGrafana(group.orgId, group.folderId);
 };
 
 const setFolderPermissions = async (
@@ -885,6 +982,7 @@ const setFolderPermissions = async (
 	}
 	await Promise.all(folderPermissionQueries);
 	await pool.query("UPDATE grafanadb.dashboard SET has_acl = $1 WHERE id = $2", [true, folderId]);
+	await syncFolderPermissionsWithGrafana(orgId, folderId);
 };
 
 const updateFolderPermissionsForTeam = async (group: IGroup): Promise<void> => {
@@ -895,6 +993,7 @@ const updateFolderPermissionsForTeam = async (group: IGroup): Promise<void> => {
 		`UPDATE grafanadb.dashboard_acl SET permission = $1, updated = $2 WHERE dashboard_id = $3 AND team_id = $4`,
 		[permission, now, group.folderId, group.teamId]
 	);
+	await syncFolderPermissionsWithGrafana(group.orgId, group.folderId);
 };
 
 export const teamMembersPermissions = async (

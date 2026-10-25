@@ -76,11 +76,6 @@ export const updateOrganizationHashById = async (orgId: number, newOrgHash: stri
 	await natsClient.jsPublish("org", "update", orgId);
 };
 
-export const getApiKeyIdByName = async (apiKeyName: string): Promise<number> => {
-	const result = await readQuery(`SELECT id FROM grafanadb.api_key WHERE name = $1`, [apiKeyName]);
-	return result.rows[0].id as number;
-};
-
 export const insertOrganizationToken = async (orgId: number, apiKeyId: number, hashedApiKey: string): Promise<void> => {
 	await pool.query(`INSERT INTO grafanadb.org_token (org_id, api_key_id, organization_key) VALUES ($1, $2, $3)`, [
 		orgId,

@@ -19,18 +19,16 @@ func GrafanaService(
 	volName := "grafana_data_{{.Task.Slot}}"
 
 	grafanaRule := fmt.Sprintf("Host(`%s`) && PathPrefix(`/grafana/`)", domainName)
-	grafanaRedirectRegex := fmt.Sprintf("%s/(grafana*)", domainName)
-	grafanaRedirectReplacement := fmt.Sprintf("%s/$${1}", domainName)
 
 	annotationsLabels := map[string]string{
 		"traefik.enable":                    "true",
 		"traefik.http.routers.grafana.rule": grafanaRule,
-		"traefik.http.middlewares.grafana-prefix.stripprefix.prefixes":                       "/grafana",
-		"traefik.http.routers.grafana.middlewares":                                           "grafana-prefix,grafana-header,grafana-redirectregex",
-		"traefik.http.middlewares.grafana-prefix.stripprefix.forceslash":                     "false",
+		// Grafana serves from /grafana/ itself (serve_from_sub_path = true):
+		// the path reaches it unchanged. Stripping the prefix (as with
+		// Grafana 8) makes Grafana >= 9 redirect to /grafana/... over and
+		// over (its SubPathRedirect middleware): a redirect loop.
+		"traefik.http.routers.grafana.middlewares":                                           "grafana-header",
 		"traefik.http.middlewares.grafana-header.headers.customrequestheaders.X-Script-Name": "/grafana/",
-		"traefik.http.middlewares.grafana-redirectregex.redirectregex.regex":                 grafanaRedirectRegex,
-		"traefik.http.middlewares.grafana-redirectregex.redirectregex.replacement":           grafanaRedirectReplacement,
 		"traefik.http.routers.grafana.entrypoints":                                           "websecure",
 		"traefik.http.routers.grafana.tls":                                                   "true",
 		"traefik.http.routers.grafana.tls.certresolver":                                      "",
@@ -71,10 +69,9 @@ func GrafanaService(
 		"node.role==manager",
 	}
 
-	image := utils.GetServiceImage(pd, "grafana", "ghcr.io/osi4iot/grafana:8.4.1-ubuntu")
+	image := utils.GetServiceImage(pd, "grafana", "ghcr.io/osi4iot/grafana:12.4.13-ubuntu")
 	return NewService("grafana", pd, sd).
 		WithImage(image).
-		//WithImage("ghcr.io/osi4iot/grafana:12.3.0-17718666199-ubuntu").
 		WithAnnotationsLabels(annotationsLabels).
 		WithSecrets(secrets).
 		WithConfigs(configs).

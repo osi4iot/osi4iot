@@ -165,7 +165,7 @@
         ]
       },
       "gridPos": {
-        "h": 10,
+        "h": 9,
         "w": 15,
         "x": 0,
         "y": 0
@@ -277,10 +277,10 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 10,
+        "h": 9,
         "w": 23,
         "x": 0,
-        "y": 10
+        "y": 9
       },
       "id": 4,
       "options": {
@@ -304,7 +304,7 @@
           "group": [],
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "SELECT\n    time,\n    node_name || ' → ' || volume_name AS metric,\n    usage_percent\nFROM observability.volume_metrics\nWHERE\n    $__timeFilter(time)\n    AND node_name IN ($node)\n    AND service IN ($service)\n    AND volume_name IS NOT NULL\nORDER BY time ASC; \n",
+          "rawSql": "SELECT\n    time,\n    node_name || ' → ' || volume_name AS metric,\n    usage_percent\nFROM observability.volume_metrics\nWHERE\n    $__timeFilter(time)\n    AND node_name IN (${node:singlequote})\n    AND service IN (${service:singlequote})\n    AND volume_name IS NOT NULL\nORDER BY time ASC; \n",
           "refId": "A",
           "select": [
             [
@@ -338,7 +338,7 @@
     "list": [
       {
         "current": {
-          "selected": false,
+          "selected": true,
           "text": "All",
           "value": "$__all"
         },
@@ -359,18 +359,18 @@
       },
       {
         "current": {
-          "selected": false,
+          "selected": true,
           "text": "All",
           "value": "$__all"
         },
-        "definition": "SELECT DISTINCT service\nFROM observability.volume_metrics\nWHERE node_name IN ($node)\nORDER BY 1;",
+        "definition": "SELECT DISTINCT service\nFROM observability.volume_metrics\nWHERE node_name IN (${node:singlequote})\nORDER BY 1;",
         "hide": 0,
         "includeAll": true,
         "label": "Service",
         "multi": false,
         "name": "service",
         "options": [],
-        "query": "SELECT DISTINCT service\nFROM observability.volume_metrics\nWHERE node_name IN ($node)\nORDER BY 1;",
+        "query": "SELECT DISTINCT service\nFROM observability.volume_metrics\nWHERE node_name IN (${node:singlequote})\nORDER BY 1;",
         "refresh": 1,
         "regex": "",
         "skipUrlSync": false,

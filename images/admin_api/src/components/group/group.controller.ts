@@ -46,7 +46,6 @@ import UpdateGroupMemberDto from "./interfaces/groupMemberUpdate.dto";
 import IRequestWithUser from "../../interfaces/requestWithUser.interface";
 import IGroup from "./interfaces/Group.interface";
 import { getDashboardsDataWithRawSqlOfGroup, updateDashboardsDataRawSqlOfGroup } from "./dashboardDAL";
-import { updateGroupUidOfRawSqlAlertSettingOfGroup } from "./alertDAL";
 import IUser from "../user/interfaces/User.interface";
 import {
 	createDigitalTwin,
@@ -831,7 +830,6 @@ class GroupController implements IController {
 			const dashboards = await getDashboardsDataWithRawSqlOfGroup(req.group);
 			const newGroupUid = await changeGroupUidByUid(req.group);
 			await updateDashboardsDataRawSqlOfGroup(req.group, newGroupUid, dashboards);
-			await updateGroupUidOfRawSqlAlertSettingOfGroup(req.group, newGroupUid);
 			await updateMeasurementsGroupUid(req.group, newGroupUid);
 			const message = { message: "Group hash changed successfully" };
 			infoLogger(req, res, 200, message.message);
