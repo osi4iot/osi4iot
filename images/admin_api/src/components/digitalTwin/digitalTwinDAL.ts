@@ -38,6 +38,7 @@ import {
 	createDigitalTwinPipeline,
 } from "./pipeline";
 import PipelineDto from "./pipeline.dto";
+import { setDigitalTwinKnowledgeDocuments } from "../group/knowledgeDAL";
 
 export const insertDigitalTwin = async (digitalTwinData: Partial<IDigitalTwin>): Promise<IDigitalTwin> => {
 	const queryString = `INSERT INTO grafanadb.digital_twin (group_id, asset_id,
@@ -55,6 +56,7 @@ export const insertDigitalTwin = async (digitalTwinData: Partial<IDigitalTwin>):
 		pipeline_file_last_modif_date AS "pipelineFileLastModifDate",
 		pipeline_file_data AS "pipelineFileData",
 		pipeline_requires_gpu AS "pipelineRequiresGpu",
+		'{}'::text[] AS "knowledgeDocuments",
 		created, updated`;
 
 	const result = await pool.query(queryString, [
@@ -87,6 +89,8 @@ export const getAllDigitalTwins = async (): Promise<IDigitalTwin[]> => {
 		grafanadb.digital_twin.pipeline_file_last_modif_date AS "pipelineFileLastModifDate",
 		grafanadb.digital_twin.pipeline_file_data AS "pipelineFileData",
 		grafanadb.digital_twin.pipeline_requires_gpu AS "pipelineRequiresGpu",
+		ARRAY(SELECT dk.file_name FROM grafanadb.digital_twin_knowledge_document dk
+			WHERE dk.digital_twin_id = grafanadb.digital_twin.id ORDER BY dk.file_name) AS "knowledgeDocuments",
 		grafanadb.digital_twin.created, grafanadb.digital_twin.updated
 		FROM grafanadb.digital_twin
 		INNER JOIN grafanadb.group ON grafanadb.digital_twin.group_id = grafanadb.group.id
@@ -135,6 +139,8 @@ export const getDigitalTwinsByOrgId = async (orgId: number): Promise<IDigitalTwi
 		grafanadb.digital_twin.pipeline_file_last_modif_date AS "pipelineFileLastModifDate",
 		grafanadb.digital_twin.pipeline_file_data AS "pipelineFileData",
 		grafanadb.digital_twin.pipeline_requires_gpu AS "pipelineRequiresGpu",
+		ARRAY(SELECT dk.file_name FROM grafanadb.digital_twin_knowledge_document dk
+			WHERE dk.digital_twin_id = grafanadb.digital_twin.id ORDER BY dk.file_name) AS "knowledgeDocuments",
 		grafanadb.digital_twin.created, grafanadb.digital_twin.updated
 		FROM grafanadb.digital_twin
 		INNER JOIN grafanadb.group ON grafanadb.digital_twin.group_id = grafanadb.group.id
@@ -163,6 +169,8 @@ export const getDigitalTwinsByGroupId = async (groupId: number): Promise<IDigita
 		grafanadb.digital_twin.pipeline_file_last_modif_date AS "pipelineFileLastModifDate",
 		grafanadb.digital_twin.pipeline_file_data AS "pipelineFileData",
 		grafanadb.digital_twin.pipeline_requires_gpu AS "pipelineRequiresGpu",
+		ARRAY(SELECT dk.file_name FROM grafanadb.digital_twin_knowledge_document dk
+			WHERE dk.digital_twin_id = grafanadb.digital_twin.id ORDER BY dk.file_name) AS "knowledgeDocuments",
 		grafanadb.digital_twin.created, grafanadb.digital_twin.updated
 		FROM grafanadb.digital_twin
 		INNER JOIN grafanadb.group ON grafanadb.digital_twin.group_id = grafanadb.group.id
@@ -191,6 +199,8 @@ export const getDigitalTwinsByGroupsIdArray = async (groupsIdArray: number[]): P
 		grafanadb.digital_twin.pipeline_file_last_modif_date AS "pipelineFileLastModifDate",
 		grafanadb.digital_twin.pipeline_file_data AS "pipelineFileData",
 		grafanadb.digital_twin.pipeline_requires_gpu AS "pipelineRequiresGpu",
+		ARRAY(SELECT dk.file_name FROM grafanadb.digital_twin_knowledge_document dk
+			WHERE dk.digital_twin_id = grafanadb.digital_twin.id ORDER BY dk.file_name) AS "knowledgeDocuments",
 		grafanadb.digital_twin.created, grafanadb.digital_twin.updated
 		FROM grafanadb.digital_twin
 		INNER JOIN grafanadb.group ON grafanadb.digital_twin.group_id = grafanadb.group.id
@@ -221,6 +231,8 @@ export const getDigitalTwinByProp = async (propName: string, propValue: string |
 		grafanadb.digital_twin.pipeline_file_last_modif_date AS "pipelineFileLastModifDate",
 		grafanadb.digital_twin.pipeline_file_data AS "pipelineFileData",
 		grafanadb.digital_twin.pipeline_requires_gpu AS "pipelineRequiresGpu",
+		ARRAY(SELECT dk.file_name FROM grafanadb.digital_twin_knowledge_document dk
+			WHERE dk.digital_twin_id = grafanadb.digital_twin.id ORDER BY dk.file_name) AS "knowledgeDocuments",
 		grafanadb.digital_twin.created, grafanadb.digital_twin.updated
 		FROM grafanadb.digital_twin
 		INNER JOIN grafanadb.group ON grafanadb.digital_twin.group_id = grafanadb.group.id
@@ -264,6 +276,9 @@ export const updateDigitalTwinById = async (
 		digitalTwinData.digitalTwinSimulationFormat,
 		digitalTwinId,
 	]);
+	if (Array.isArray(digitalTwinData.knowledgeDocuments)) {
+		await setDigitalTwinKnowledgeDocuments(digitalTwinId, digitalTwinData.knowledgeDocuments);
+	}
 	const context = {
 		groupId: digitalTwinData.groupId,
 	};
@@ -965,6 +980,10 @@ export const createDigitalTwin = async (
 		digitalTwinSimulationFormat: digitalTwinInput.digitalTwinSimulationFormat,
 	};
 	const digitalTwin = await insertDigitalTwin(digitalTwinUpdated);
+	if (digitalTwinInput.knowledgeDocuments && digitalTwinInput.knowledgeDocuments.length !== 0) {
+		await setDigitalTwinKnowledgeDocuments(digitalTwin.id, digitalTwinInput.knowledgeDocuments);
+		digitalTwin.knowledgeDocuments = digitalTwinInput.knowledgeDocuments;
+	}
 	if (!isDefault) {
 		const context = {
 			groupId: group.id,
@@ -1484,3 +1503,4 @@ export const removeFilesFromBucketFolder = async (folderPath: string) => {
 		await deleteBucketFiles(filesToRemove.slice(i, i + 1000));
 	}
 };
+

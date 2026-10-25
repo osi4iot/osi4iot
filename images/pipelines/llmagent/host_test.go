@@ -240,3 +240,21 @@ func TestStartServersTimeout(t *testing.T) {
 		t.Errorf("startServers took %s", time.Since(start))
 	}
 }
+
+func TestExpectedCloseError(t *testing.T) {
+	cases := []struct {
+		msg  string
+		err  string
+		want bool
+	}{
+		{"Failed to close MCP server connection", "signal: killed", true},
+		{"Failed to close MCP server connection", "os: process already finished", true},
+		{"Failed to close MCP server connection", "broken pipe", false},
+		{"Request failed", "signal: killed", false},
+	}
+	for _, c := range cases {
+		if got := expectedCloseError(c.msg, map[string]interface{}{"error": c.err}); got != c.want {
+			t.Errorf("%q / %q: got %v, want %v", c.msg, c.err, got, c.want)
+		}
+	}
+}

@@ -18,6 +18,7 @@ export interface IOrgOfGroupsManaged {
     llmEnabled: boolean;
     llmProviderUrl: string;
     gpuUsageEnabled: boolean;
+    ragEnabled?: boolean;
 }
 
 

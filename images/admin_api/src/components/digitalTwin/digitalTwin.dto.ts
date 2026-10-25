@@ -1,4 +1,4 @@
-import { IsBoolean, IsNumber, IsString } from "class-validator";
+import { IsArray, IsBoolean, IsNumber, IsOptional, IsString } from "class-validator";
 
 class CreateDigitalTwinDto {
 	@IsString()
@@ -24,6 +24,14 @@ class CreateDigitalTwinDto {
 
 	@IsString({ each: true })
 	public sensorsRef: string[];
+
+	// The knowledge base documents (file names) its AI agents may read:
+	// none unless chosen.
+	@IsOptional()
+	@IsArray()
+	@IsString({ each: true })
+	public knowledgeDocuments?: string[];
 }
 
 export default CreateDigitalTwinDto;
+

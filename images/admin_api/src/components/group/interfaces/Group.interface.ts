@@ -22,4 +22,5 @@ export default interface IGroup {
 	mqttAccessControl: string;
 	llmEnabled: boolean;
 	gpuUsageEnabled: boolean;
+	ragEnabled?: boolean;
 }

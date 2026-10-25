@@ -41,16 +41,9 @@ import { getSensorsRef, getSensorsRefFromDigitalTwinGltfData } from "./CreateDig
 import { FieldContainer } from "./EditAsset";
 import { AxiosResponse, AxiosError } from "axios";
 
-// CodeMirror imports
-import CodeMirror, { keymap } from "@uiw/react-codemirror";
-import { indentUnit, indentOnInput } from "@codemirror/language";
-import { completionKeymap } from "@codemirror/autocomplete";
-import { indentWithTab } from "@codemirror/commands";
-import { json } from "@codemirror/lang-json";
-import { oneDark } from "@codemirror/theme-one-dark";
-import { CodeMirrorWrapper } from "../../Tools/CodeMirrorWrapper";
-import { ControlsContainer, DraggableFormContainer, FieldErrorScroller } from "../../Tools/FormTools";
-import { ReIndentCommand } from "../DigitalTwin3DViewer/Pipeline/types";
+import JsonFileField, { mustBeObject } from "../../Tools/JsonFileField";
+import { ControlsContainer, DraggableFormContainer } from "../../Tools/FormTools";
+import KnowledgeDocumentsSelector from "./KnowledgeDocumentsSelector";
 
 const DataFileTitle = styled.div`
     margin-bottom: 5px;
@@ -289,6 +282,10 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
 
     const [digitalTwinType, setDigitalTwinType] = useState(digitalTwinInitialData.type);
     const [sensorsRef, setSensorsRef] = useState<string[]>([]);
+    // The knowledge base documents its AI agents may read: none unless chosen.
+    const [knowledgeDocuments, setKnowledgeDocuments] = useState<string[]>(
+        digitalTwins[digitalTwinRowIndex].knowledgeDocuments || [],
+    );
     const [isGlftDataReady, setIsGlftDataReady] = useState(storedDigitalTwinType !== "Gltf 3D model");
     const [isChatAssistantEnabled, setIsChatAssistantEnabled] = useState(
         digitalTwins[digitalTwinRowIndex].chatAssistantEnabled,
@@ -658,6 +655,7 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
             pipelineRequiresGpu: values.pipelineRequiresGpu,
             digitalTwinSimulationFormat: JSON.stringify(JSON.parse(values.digitalTwinSimulationFormat)),
             sensorsRef,
+            knowledgeDocuments,
         };
 
         getAxiosInstance(refreshToken, authDispatch)
@@ -936,6 +934,14 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
                                                             </FileButton>
                                                         </SelectDataFilenButtonContainer>
                                                     </DataFileContainer>
+                                                    <KnowledgeDocumentsSelector
+                                                        groupId={groupId}
+                                                        ragEnabled={
+                                                            organization.ragEnabled === true && group.ragEnabled === true
+                                                        }
+                                                        selected={knowledgeDocuments}
+                                                        onChange={setKnowledgeDocuments}
+                                                    />
                                                     {organization.llmEnabled && group.llmEnabled && (
                                                         <>
                                                             <ChatAssistantTitle>Chat assistant</ChatAssistantTitle>
@@ -965,49 +971,14 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
                                                             </ChatAssistantContainer>
                                                         </>
                                                     )}
-                                                    <CodeMirrorWrapper fontSize="14px">
-                                                        <label>Digital twin simulation format</label>
-                                                        <div className="cm-wrapper">
-                                                            <CodeMirror
-                                                                value={formik.values.digitalTwinSimulationFormat}
-                                                                height="300px"
-                                                                theme={oneDark}
-                                                                extensions={[
-                                                                    json(),
-                                                                    indentUnit.of("    "),
-                                                                    indentOnInput(),
-                                                                    keymap.of([
-                                                                        ...completionKeymap,
-                                                                        indentWithTab,
-                                                                        ReIndentCommand,
-                                                                    ]),
-                                                                ]}
-                                                                onChange={(value) => {
-                                                                    formik.setFieldValue(
-                                                                        "digitalTwinSimulationFormat",
-                                                                        value,
-                                                                    );
-                                                                }}
-                                                                onBlur={() => {
-                                                                    formik.setFieldTouched(
-                                                                        "digitalTwinSimulationFormat",
-                                                                        true,
-                                                                    );
-                                                                }}
-                                                                basicSetup={{
-                                                                    lineNumbers: true,
-                                                                    foldGutter: true,
-                                                                    bracketMatching: true,
-                                                                    closeBrackets: true,
-                                                                    syntaxHighlighting: true,
-                                                                    autocompletion: true,
-                                                                    tabSize: 4,
-                                                                    searchKeymap: true,
-                                                                }}
-                                                            />
-                                                        </div>
-                                                        <FieldErrorScroller name="digitalTwinSimulationFormat" />
-                                                    </CodeMirrorWrapper>
+                                                    <JsonFileField
+                                                        name="digitalTwinSimulationFormat"
+                                                        label="Digital twin simulation format"
+                                                        initialSourceLabel="Current"
+                                                        resetValue={initialDigitalTwinData.digitalTwinSimulationFormat}
+                                                        downloadFileName={`${digitalTwins[digitalTwinRowIndex].digitalTwinUid}_simulation_format.json`}
+                                                        check={mustBeObject}
+                                                    />
                                                 </>
                                             )}
                                         </ControlsContainer>
@@ -1031,3 +1002,5 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
 };
 
 export default EditDigitalTwin;
+
+

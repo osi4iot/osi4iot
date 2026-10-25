@@ -1,4 +1,4 @@
-import { IsBoolean, IsEnum, IsNumber, IsString } from "class-validator";
+import { IsBoolean, IsEnum, IsNumber, IsOptional, IsString } from "class-validator";
 import { FolderPermissionOptions, FolderPermissionOption } from "./FolerPermissionsOptions";
 
 class UpdateGroupDto {
@@ -31,6 +31,11 @@ class UpdateGroupDto {
 
 	@IsBoolean()
 	public gpuUsageEnabled: boolean;
+
+	// Knowledge base (RAG) of its groups: off unless enabled.
+	@IsOptional()
+	@IsBoolean()
+	public ragEnabled?: boolean;
 }
 
 export default UpdateGroupDto;

@@ -134,6 +134,16 @@ func (fm *FlowsManager) gpuAllowed(dt *common.DigitalTwin) bool {
 	return common.GpuUsageAllowed(fm.GetOrg(dt.OrgId), fm.GetGroup(dt.GroupId))
 }
 
+// groupGpuAllowed applies the GPU policy to a group (the knowledge bases'
+// embeddings): its organization AND the group must have gpuUsageEnabled.
+func (fm *FlowsManager) groupGpuAllowed(groupID int) bool {
+	group := fm.GetGroup(groupID)
+	if group == nil {
+		return false
+	}
+	return common.GpuUsageAllowed(fm.GetOrg(group.OrgId), group)
+}
+
 // usesGpuReplicas reports whether a digital twin's pipeline is confined to
 // the GPU replicas: it asks for a GPU AND is allowed one. A pipeline that
 // asks without permission is an ordinary pipeline: every replica, CPU.

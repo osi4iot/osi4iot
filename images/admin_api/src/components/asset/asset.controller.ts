@@ -27,6 +27,7 @@ import {
 	getAssetTypesByOrgsIdArray,
 	getAssetsByGroupsIdArray,
 	getAssetsByOrgId,
+	isAssetDescriptionTaken,
 	updateAssetByPropName,
 	updateAssetTypeByPropName,
 } from "./assetDAL";
@@ -334,6 +335,10 @@ class AssetController implements IController {
 			if (!this.isValidAssetPropName(propName)) throw new InvalidPropNameExeception(req, res, propName);
 			let asset = await getAssetByPropName(propName, propValue);
 			if (!asset) throw new ItemNotFoundException(req, res, "The asset", propName, propValue);
+			if (typeof assetData.description === "string") {
+				assetData.description = assetData.description.trim();
+				await this.checkAssetDescription(req, res, asset.groupId, assetData.description, asset.id);
+			}
 			asset = { ...asset, ...assetData };
 			await updateAssetByPropName(propName, propValue, asset);
 			const message = { message: "Asset updated successfully" };
@@ -343,9 +348,33 @@ class AssetController implements IController {
 		}
 	};
 
+	// Assets are chosen by their description: it must be given and not be
+	// another asset's of the group.
+	private checkAssetDescription = async (
+		req: Request,
+		res: Response,
+		groupId: number,
+		description: string,
+		exceptAssetId: number | null = null
+	): Promise<void> => {
+		if (description === "") {
+			throw new HttpException(req, res, 400, "The asset description is required");
+		}
+		if (await isAssetDescriptionTaken(groupId, description, exceptAssetId)) {
+			throw new HttpException(
+				req,
+				res,
+				400,
+				`The group already has an asset with the description "${description}". Assets are chosen by their description: use a different one.`
+			);
+		}
+	};
+
 	private createAsset = async (req: IRequestWithGroup, res: Response, next: NextFunction): Promise<void> => {
 		try {
 			const assetData: CreateAssetDto = req.body;
+			assetData.description = (assetData.description || "").trim();
+			await this.checkAssetDescription(req, res, req.group.id, assetData.description);
 			await checkInitialAssetGeolocation(req.group, assetData);
 			const areSensorTypesOk = await checkSensorReferences(req.group, assetData);
 			if (!areSensorTypesOk) {

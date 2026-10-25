@@ -1,5 +1,6 @@
 import { FC, useMemo, useState } from "react";
 import styled from "styled-components";
+import { scrollbarStyle } from "../../Tools/FormTools";
 import { AxiosError, AxiosResponse } from "axios";
 import { useAuthState, useAuthDispatch } from "../../../contexts/authContext";
 import { axiosAuth, getDomainName, getProtocol } from "../../../tools/tools";
@@ -68,6 +69,7 @@ const Filter = styled.input`
 const List = styled.div`
     max-height: 220px;
     overflow-y: auto;
+    ${scrollbarStyle}
     border: 1px solid #2c3235;
     border-radius: 5px;
     padding: 4px;

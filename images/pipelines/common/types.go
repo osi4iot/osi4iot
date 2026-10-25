@@ -38,6 +38,7 @@ type Org struct {
 	HashedTelegramWebhookSecretToken string                         `json:"hashedTelegramWebhookSecretToken"`
 	TelegramWebhookSecretToken       string                         `json:"telegramWebhookSecretToken"`
 	GpuUsageEnabled                  bool                           `json:"gpuUsageEnabled"`
+	RagEnabled                       bool                           `json:"ragEnabled"`
 	LeaderElector                    *leader_election.LeaderElector `json:"-"`
 	TelegramListener                 *telegram.OrgListener          `json:"-"`
 }
@@ -58,6 +59,7 @@ type Group struct {
 	FeatureIndex                  int    `json:"featureIndex"`
 	LlmEnabled                    bool   `json:"llmEnabled"`
 	GpuUsageEnabled               bool   `json:"gpuUsageEnabled"`
+	RagEnabled                    bool   `json:"ragEnabled"`
 
 	KvStore *nats_pkg.KVStore `json:"-"`
 }
@@ -68,6 +70,13 @@ type Group struct {
 // (either flag off, or org/group unknown) means CPU.
 func GpuUsageAllowed(org *Org, group *Group) bool {
 	return org != nil && group != nil && org.GpuUsageEnabled && group.GpuUsageEnabled
+}
+
+// RagAllowed is the knowledge bases' policy, like the GPU's: a group has
+// one only if it is enabled for its organization (platform administrator)
+// AND for the group (organization administrator). Off by default.
+func RagAllowed(org *Org, group *Group) bool {
+	return org != nil && group != nil && org.RagEnabled && group.RagEnabled
 }
 
 type Asset struct {

@@ -41,6 +41,7 @@ import { oneDark } from "@codemirror/theme-one-dark";
 import { CodeMirrorWrapper } from "../../Tools/CodeMirrorWrapper";
 import { ControlsContainer, DraggableFormContainer, FieldErrorScroller } from "../../Tools/FormTools";
 import { ReIndentCommand } from "../DigitalTwin3DViewer/Pipeline/types";
+import { assetOptions, sortAssetNamesByDescription } from "../../../tools/tools";
 
 const SvgIconPreviewContainerDiv = styled.div`
     margin: 5px 0;
@@ -122,6 +123,7 @@ const findGroupArray = (
 };
 
 const findAssetNameArray = (assetsManaged: IAsset[], groupsManaged: IGroupManaged[]): Record<string, string[]> => {
+    const descriptions: Record<string, string> = {};
     const assetArray: Record<string, string[]> = {};
     for (const asset of assetsManaged) {
         const groupAcronym = groupsManaged.filter((group) => group.id === asset.groupId)[0].acronym;
@@ -129,11 +131,12 @@ const findAssetNameArray = (assetsManaged: IAsset[], groupsManaged: IGroupManage
             assetArray[groupAcronym] = [];
         }
         const assetName = `Asset_${asset.assetUid}`;
+        descriptions[assetName] = asset.description;
         if (assetArray[groupAcronym].indexOf(assetName) === -1) {
             assetArray[groupAcronym].push(assetName);
         }
     }
-    return assetArray;
+    return sortAssetNamesByDescription(assetArray, descriptions);
 };
 
 const findAssetDescription = (assetsManaged: IAsset[], assetName: string): string => {
@@ -275,7 +278,7 @@ const CreateSensor: FC<CreateSensorProps> = ({ backToTable, refreshSensors }) =>
         setAssetNameArray(assetNameArray);
         const groupAcronym = initGroup.acronym;
         const assetsForGroupSelected = assetNameArray[groupAcronym];
-        setAssetNameOptions(convertArrayToOptions(assetsForGroupSelected));
+        setAssetNameOptions(assetOptions(assetsForGroupSelected, (name) => findAssetDescription(assets, name)));
         const assetName = `Asset_${initAsset.assetUid}`;
         const assetDescription = findAssetDescription(assets, assetName);
         setAssetDescription(assetDescription);
@@ -306,7 +309,7 @@ const CreateSensor: FC<CreateSensorProps> = ({ backToTable, refreshSensors }) =>
         const groupAcronym = groupsForOrgSelected[0];
         formik.setFieldValue("groupAcronym", groupsForOrgSelected[0]);
         const assetsForGroupSelected = assetNameArray[groupAcronym];
-        setAssetNameOptions(convertArrayToOptions(assetsForGroupSelected));
+        setAssetNameOptions(assetOptions(assetsForGroupSelected, (name) => findAssetDescription(assets, name)));
         const assetName = assetsForGroupSelected[0];
         formik.setFieldValue("assetName", assetName);
         const assetDescription = findAssetDescription(assets, assetName);
@@ -330,7 +333,7 @@ const CreateSensor: FC<CreateSensorProps> = ({ backToTable, refreshSensors }) =>
         const groupAcronym = e.value;
         formik.setFieldValue("groupAcronym", groupAcronym);
         const assetsForGroupSelected = assetNameArray[groupAcronym];
-        setAssetNameOptions(convertArrayToOptions(assetsForGroupSelected));
+        setAssetNameOptions(assetOptions(assetsForGroupSelected, (name) => findAssetDescription(assets, name)));
         const assetName = assetsForGroupSelected[0];
         formik.setFieldValue("assetName", assetName);
         const assetDescription = findAssetDescription(assets, assetName);
@@ -452,15 +455,15 @@ const CreateSensor: FC<CreateSensorProps> = ({ backToTable, refreshSensors }) =>
                                 />
                                 <FormikControl
                                     control="select"
-                                    label="Select asset"
+                                    label="Select asset (by description)"
                                     name="assetName"
                                     type="text"
                                     options={assetNameOptions}
                                     onChange={(e) => handleChangeAsset(e, formik)}
                                 />
                                 <FieldContainer>
-                                    <label>Asset description</label>
-                                    <div>{assetDescription}</div>
+                                    <label>Asset name</label>
+                                    <div>{formik.values.assetName}</div>
                                 </FieldContainer>
                                 <FormikControl
                                     control="select"

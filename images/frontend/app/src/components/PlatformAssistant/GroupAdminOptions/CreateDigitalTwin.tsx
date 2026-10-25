@@ -38,17 +38,11 @@ import { IGroupManaged } from "../TableColumns/groupsManagedColumns";
 import { IOrgOfGroupsManaged } from "../TableColumns/orgsOfGroupsManagedColumns";
 import { IAsset } from "../TableColumns/assetsColumns";
 import { AxiosError, AxiosResponse } from "axios";
+import KnowledgeDocumentsSelector from "./KnowledgeDocumentsSelector";
 
-// CodeMirror imports
-import CodeMirror, { keymap } from "@uiw/react-codemirror";
-import { indentUnit, indentOnInput } from "@codemirror/language";
-import { completionKeymap } from "@codemirror/autocomplete";
-import { indentWithTab } from "@codemirror/commands";
-import { json } from "@codemirror/lang-json";
-import { oneDark } from "@codemirror/theme-one-dark";
-import { CodeMirrorWrapper } from "../../Tools/CodeMirrorWrapper";
-import { ControlsContainer, DraggableFormContainer, FieldErrorScroller } from "../../Tools/FormTools";
-import { ReIndentCommand } from "../DigitalTwin3DViewer/Pipeline/types";
+import JsonFileField, { mustBeObject } from "../../Tools/JsonFileField";
+import { ControlsContainer, DraggableFormContainer } from "../../Tools/FormTools";
+import { assetOptions, sortAssetNamesByDescription } from "../../../tools/tools";
 
 const Title = styled.div`
     margin-bottom: 5px;
@@ -278,6 +272,7 @@ const findGroupArray = (
 };
 
 const findAssetNameArray = (assetsManaged: IAsset[], groupsManaged: IGroupManaged[]): Record<string, string[]> => {
+    const descriptions: Record<string, string> = {};
     const assetArray: Record<string, string[]> = {};
     for (const asset of assetsManaged) {
         const groupAcronym = groupsManaged.filter((group) => group.id === asset.groupId)[0].acronym;
@@ -285,11 +280,12 @@ const findAssetNameArray = (assetsManaged: IAsset[], groupsManaged: IGroupManage
             assetArray[groupAcronym] = [];
         }
         const assetName = `Asset_${asset.assetUid}`;
+        descriptions[assetName] = asset.description;
         if (assetArray[groupAcronym].indexOf(assetName) === -1) {
             assetArray[groupAcronym].push(assetName);
         }
     }
-    return assetArray;
+    return sortAssetNamesByDescription(assetArray, descriptions);
 };
 
 const findAssetDescription = (assetsManaged: IAsset[], assetName: string): string => {
@@ -406,6 +402,8 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
     const [groupLlmEnabled, setGroupLlmEnabled] = useState(false);
     const [gpuUsageEnabledInOrg, setGpuUsageEnabledInOrg] = useState(false);
     const [gpuUsageEnabledInGroup, setGpuUsageEnabledInGroup] = useState(false);
+    // The knowledge base documents its AI agents may read: none unless chosen.
+    const [knowledgeDocuments, setKnowledgeDocuments] = useState<string[]>([]);
 
     useEffect(() => {
         const orgArray = orgsOfGroupManaged.map((org) => org.acronym);
@@ -419,7 +417,7 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
         setAssetNameArray(assetNameArray);
         const groupAcronym = initGroup.acronym;
         const assetsForGroupSelected = assetNameArray[groupAcronym];
-        setAssetNameOptions(convertArrayToOptions(assetsForGroupSelected));
+        setAssetNameOptions(assetOptions(assetsForGroupSelected, (name) => findAssetDescription(assets, name)));
         const assetName = `Asset_${initAsset.assetUid}`;
         const assetDescription = findAssetDescription(assets, assetName);
         setAssetDescription(assetDescription);
@@ -439,7 +437,7 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
         const groupAcronym = groupsForOrgSelected[0];
         formik.setFieldValue("groupAcronym", groupsForOrgSelected[0]);
         const assetsForGroupSelected = assetNameArray[groupAcronym];
-        setAssetNameOptions(convertArrayToOptions(assetsForGroupSelected));
+        setAssetNameOptions(assetOptions(assetsForGroupSelected, (name) => findAssetDescription(assets, name)));
         const assetName = assetsForGroupSelected[0];
         formik.setFieldValue("assetName", assetName);
         const assetDescription = findAssetDescription(assets, assetName);
@@ -447,13 +445,14 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
         const org = orgsOfGroupManaged.filter((o) => o.acronym === orgAcronym)[0];
         setOrgLlmEnabled(org.llmEnabled);
         setGpuUsageEnabledInOrg(org.gpuUsageEnabled);
+        setKnowledgeDocuments([]);
     };
 
     const handleChangeGroup = (e: { value: string }, formik: FormikType) => {
         const groupAcronym = e.value;
         formik.setFieldValue("groupAcronym", groupAcronym);
         const assetsForGroupSelected = assetNameArray[groupAcronym];
-        setAssetNameOptions(convertArrayToOptions(assetsForGroupSelected));
+        setAssetNameOptions(assetOptions(assetsForGroupSelected, (name) => findAssetDescription(assets, name)));
         const assetName = assetsForGroupSelected[0];
         formik.setFieldValue("assetName", assetName);
         const assetDescription = findAssetDescription(assets, assetName);
@@ -461,6 +460,8 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
         const group = groupsManaged.filter((g) => g.acronym === groupAcronym)[0];
         setGroupLlmEnabled(group.llmEnabled);
         setGpuUsageEnabledInGroup(group.gpuUsageEnabled);
+        // The documents are the group's.
+        setKnowledgeDocuments([]);
     };
 
     const handleChangeAsset = (e: { value: string }, formik: FormikType) => {
@@ -660,6 +661,7 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
             chatAssistantLanguage,
             digitalTwinSimulationFormat: JSON.stringify(JSON.parse(values.digitalTwinSimulationFormat)),
             sensorsRef,
+            knowledgeDocuments,
         };
 
         setIsSubmitting(true);
@@ -865,15 +867,15 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
                                     />
                                     <FormikControl
                                         control="select"
-                                        label="Select asset"
+                                        label="Select asset (by description)"
                                         name="assetName"
                                         type="text"
                                         options={assetNameOptions}
                                         onChange={(e) => handleChangeAsset(e, formik)}
                                     />
                                     <FieldContainer>
-                                        <label>Asset description</label>
-                                        <div>{assetDescription}</div>
+                                        <label>Asset name</label>
+                                        <div>{formik.values.assetName}</div>
                                     </FieldContainer>
                                     <FormikControl
                                         control="input"
@@ -972,6 +974,22 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
                                                     </FileButton>
                                                 </SelectDataFilenButtonContainer>
                                             </Container>
+                                            {(() => {
+                                                const org = orgsOfGroupManaged.find(
+                                                    (o) => o.acronym === formik.values.orgAcronym,
+                                                );
+                                                const group = groupsManaged.find(
+                                                    (g) => g.acronym === formik.values.groupAcronym,
+                                                );
+                                                return (
+                                                    <KnowledgeDocumentsSelector
+                                                        groupId={group ? group.id : null}
+                                                        ragEnabled={org?.ragEnabled === true && group?.ragEnabled === true}
+                                                        selected={knowledgeDocuments}
+                                                        onChange={setKnowledgeDocuments}
+                                                    />
+                                                );
+                                            })()}
                                             {orgLlmEnabled && groupLlmEnabled && (
                                                 <>
                                                     <Title>Chat assistant</Title>
@@ -999,43 +1017,14 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
                                                     </Container>
                                                 </>
                                             )}
-                                            <CodeMirrorWrapper fontSize="14px">
-                                                <label>Digital twin simulation format</label>
-                                                <div className="cm-wrapper">
-                                                    <CodeMirror
-                                                        value={formik.values.digitalTwinSimulationFormat}
-                                                        height="300px"
-                                                        theme={oneDark}
-                                                        extensions={[
-                                                            json(),
-                                                            indentUnit.of("    "),
-                                                            indentOnInput(),
-                                                            keymap.of([
-                                                                ...completionKeymap,
-                                                                indentWithTab,
-                                                                ReIndentCommand,
-                                                            ]),
-                                                        ]}
-                                                        onChange={(value) => {
-                                                            formik.setFieldValue("digitalTwinSimulationFormat", value);
-                                                        }}
-                                                        onBlur={() => {
-                                                            formik.setFieldTouched("digitalTwinSimulationFormat", true);
-                                                        }}
-                                                        basicSetup={{
-                                                            lineNumbers: true,
-                                                            foldGutter: true,
-                                                            bracketMatching: true,
-                                                            closeBrackets: true,
-                                                            syntaxHighlighting: true,
-                                                            autocompletion: true,
-                                                            tabSize: 4,
-                                                            searchKeymap: true,
-                                                        }}
-                                                    />
-                                                </div>
-                                                <FieldErrorScroller name="digitalTwinSimulationFormat" />
-                                            </CodeMirrorWrapper>
+                                            <JsonFileField
+                                                name="digitalTwinSimulationFormat"
+                                                label="Digital twin simulation format"
+                                                initialSourceLabel="Default (empty)"
+                                                resetValue="{}"
+                                                downloadFileName="digital_twin_simulation_format.json"
+                                                check={mustBeObject}
+                                            />
                                         </>
                                     )}
                                 </ControlsContainer>
@@ -1057,3 +1046,4 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
 };
 
 export default CreateDigitalTwin;
+

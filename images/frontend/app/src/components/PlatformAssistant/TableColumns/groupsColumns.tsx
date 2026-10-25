@@ -50,6 +50,7 @@ export interface IGroup {
     mqttAccessControl: string;
     llmEnabled: boolean;
     gpuUsageEnabled: boolean;
+    ragEnabled?: boolean;
 }
 
 interface IGroupColumn extends IGroup {
@@ -277,6 +278,12 @@ export const Create_GROUPS_COLUMNS = (refreshGroups: () => void): Column<IGroupC
             disableFilters: true,
         },
         {
+            Header: "RAG",
+            accessor: "ragEnabled",
+            disableFilters: true,
+            Cell: (props: { value?: boolean }) => <span>{props.value ? "Enabled" : "Disabled"}</span>,
+        },
+        {
             Header: "",
             accessor: "edit",
             disableFilters: true,
@@ -295,6 +302,7 @@ export const Create_GROUPS_COLUMNS = (refreshGroups: () => void): Column<IGroupC
                 const mqttAccessControl = row?.cells[11]?.value;
                 const gpuUsageEnabled = row?.cells[12]?.value; 
                 const llmEnabled = row?.cells[13]?.value;
+                const ragEnabled = row?.original?.ragEnabled === true;
                 const groupInputData = {
                     name,
                     acronym,
@@ -306,6 +314,7 @@ export const Create_GROUPS_COLUMNS = (refreshGroups: () => void): Column<IGroupC
                     mqttAccessControl,
                     llmEnabled,
                     gpuUsageEnabled,
+                    ragEnabled,
                 };
                 return <EditGroup groupId={groupId} rowIndex={rowIndex} groupInputData={groupInputData} />;
             },

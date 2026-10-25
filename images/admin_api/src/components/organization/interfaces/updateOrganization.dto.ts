@@ -48,6 +48,11 @@ class UpdateOrganizationDto {
 	@IsBoolean()
 	public gpuUsageEnabled: boolean;
 
+	// Knowledge base (RAG) of its groups: off unless enabled.
+	@IsOptional()
+	@IsBoolean()
+	public ragEnabled?: boolean;
+
 	@IsBoolean()
 	public telegramEnabled: boolean;
 

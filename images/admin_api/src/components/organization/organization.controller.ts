@@ -459,8 +459,6 @@ class OrganizationController implements IController {
 						type: sensorType.type,
 						iconSvgFileName: sensorType.iconSvgFileName,
 						iconSvgString: sensorType.iconSvgString,
-						markerSvgFileName: sensorType.markerSvgFileName,
-						markerSvgString: sensorType.markerSvgString,
 						defaultPayloadJsonSchema: JSON.stringify(sensorType.defaultPayloadJsonSchema),
 						isPredefined: true,
 						dashboardRefreshString: sensorType.dashboardRefreshString,

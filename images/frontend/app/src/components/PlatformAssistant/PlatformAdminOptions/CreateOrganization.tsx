@@ -375,6 +375,14 @@ const CreateOrganization: FC<CreateOrganizationProps> = ({
                                             type="text"
                                             onChange={(e) => onEnableGpuUsageChange(e, formik)}
                                         />
+                                        <FormikControl
+                                            control="select"
+                                            label="Enable knowledge base (RAG)"
+                                            name="ragEnabled"
+                                            options={enableDisableOptions}
+                                            type="text"
+                                            onChange={(e) => formik.setFieldValue("ragEnabled", e.value)}
+                                        />
                                         <Title>Telegram bot</Title>
                                         <DataContainer>
                                             <FormikControl

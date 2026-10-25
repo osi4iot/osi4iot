@@ -50,6 +50,7 @@ export interface IOrganization {
     llmAllowedModels?: string[];
     llmProviderApiKey?: string;
     gpuUsageEnabled: boolean;
+    ragEnabled?: boolean;
     telegramEnabled: boolean;
     changeTelegramSettings?: boolean;
     telegramBotToken?: string;
@@ -257,6 +258,12 @@ export const Create_ORGANIZATIONS_COLUMNS = (refreshOrgs: () => void): Column<IO
                 const telegramEnabledText = telegramEnabled ? "Enabled" : "Disabled";
                 return <span>{telegramEnabledText}</span>;
             },
+        },
+        {
+            Header: "RAG",
+            accessor: "ragEnabled",
+            disableFilters: true,
+            Cell: (props: { value?: boolean }) => <span>{props.value ? "Enabled" : "Disabled"}</span>,
         },
         {
             Header: "",

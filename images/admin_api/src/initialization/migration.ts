@@ -41,6 +41,8 @@ import {
 import ISensorType from "../components/sensor/sensorType.interface";
 import { predefinedSensorTypes, systemMonitoringSensorTypes } from "./predefinedSensorTypes";
 import process_env from "../config/api_config";
+import { ensureKnowledgeTables } from "./knowledgeTables";
+import { ensureAssetDescriptionIndex } from "./assetDescriptionIndex";
 
 export const dataBaseInitialization = async () => {
 	const timescaledb_pool = new Pool({
@@ -137,6 +139,33 @@ export const dataBaseInitialization = async () => {
 				process.exit(1);
 			}
 
+			// Columns added after the first version, on every start: IF NOT
+			// EXISTS makes it a no-op once they are there, and brings the
+			// platforms created before them up to date. On a new platform
+			// they are added here too, before the columns below.
+			const queryStringUpgradeOrg = `ALTER TABLE grafanadb.org
+										ADD COLUMN IF NOT EXISTS llm_provider_type VARCHAR(20) NOT NULL DEFAULT 'openai',
+										ADD COLUMN IF NOT EXISTS llm_allowed_models TEXT[] NOT NULL DEFAULT '{}',
+										ADD COLUMN IF NOT EXISTS rag_enabled BOOLEAN NOT NULL DEFAULT false;`;
+			try {
+				await postgresClient.query(queryStringUpgradeOrg);
+			} catch (err) {
+				const message = err instanceof Error ? err.message : String(err);
+				logger.log("error", `Columns llm_provider_type and llm_allowed_models could not be added to ${tableOrg}: %s`, message);
+			}
+
+			// Sensor types have no marker (only asset types do: a sensor is
+			// drawn around its asset, never as a marker of its own). The
+			// columns of older platforms go.
+			try {
+				await postgresClient.query(`ALTER TABLE IF EXISTS grafanadb.sensor_type
+					DROP COLUMN IF EXISTS marker_svg_file_name,
+					DROP COLUMN IF EXISTS marker_svg_string;`);
+			} catch (err) {
+				const message = err instanceof Error ? err.message : String(err);
+				logger.log("error", `The marker columns of grafanadb.sensor_type could not be removed: %s`, message);
+			}
+
 			if (Number(result0.rows[0].count) !== 0) {
 				const queryStringAlterOrg = `ALTER TABLE grafanadb.org
 											ADD COLUMN acronym varchar(20) UNIQUE,
@@ -145,9 +174,7 @@ export const dataBaseInitialization = async () => {
 											ADD COLUMN org_hash varchar(20) UNIQUE,
 											ADD COLUMN mqtt_access_control VARCHAR(10),
 											ADD COLUMN llm_enabled BOOLEAN NOT NULL DEFAULT false,
-											ADD COLUMN llm_provider_type VARCHAR(20) NOT NULL DEFAULT 'openai',
 											ADD COLUMN llm_provider_url VARCHAR(255),
-											ADD COLUMN llm_allowed_models TEXT[] NOT NULL DEFAULT '{}',
 											ADD COLUMN gpu_usage_enabled BOOLEAN NOT NULL DEFAULT false,
 											ADD COLUMN hashed_llm_provider_api_key TEXT,
 											ADD COLUMN telegram_enabled BOOLEAN NOT NULL DEFAULT false,
@@ -478,6 +505,7 @@ export const dataBaseInitialization = async () => {
 					mqtt_salt VARCHAR(40),
 					llm_enabled BOOLEAN DEFAULT false,
 					gpu_usage_enabled BOOLEAN DEFAULT false,
+					rag_enabled BOOLEAN NOT NULL DEFAULT false,
 					created TIMESTAMPTZ,
 					updated TIMESTAMPTZ,
 					CONSTRAINT fk_org_id
@@ -553,8 +581,6 @@ export const dataBaseInitialization = async () => {
 					type VARCHAR(40),
 					icon_svg_file_name VARCHAR(100),
 					icon_svg_string TEXT,
-					marker_svg_file_name VARCHAR(100),
-					marker_svg_string TEXT,
 					default_payload_json_schema jsonb NOT NULL DEFAULT '{}'::jsonb,
 					is_predefined boolean NOT NULL DEFAULT FALSE,
 					dashboard_refresh_string VARCHAR(20),
@@ -588,8 +614,6 @@ export const dataBaseInitialization = async () => {
 							type: sensorType.type,
 							iconSvgFileName: sensorType.iconSvgFileName,
 							iconSvgString: sensorType.iconSvgString,
-							markerSvgFileName: sensorType.markerSvgFileName,
-							markerSvgString: sensorType.markerSvgString,
 							defaultPayloadJsonSchema: JSON.stringify(sensorType.defaultPayloadJsonSchema),
 							isPredefined: true,
 							dashboardRefreshString: sensorType.dashboardRefreshString,
@@ -707,6 +731,7 @@ export const dataBaseInitialization = async () => {
 					const message = err instanceof Error ? err.message : String(err);
 					logger.log("error", `Table ${tableAsset} can not be created: %s`, message);
 				}
+				await ensureAssetDescriptionIndex(postgresClient);
 
 				const tableS3Folder = "grafanadb.s3_folder";
 				const queryStringS3Folder = `
@@ -996,6 +1021,8 @@ export const dataBaseInitialization = async () => {
 					const message = err instanceof Error ? err.message : String(err);
 					logger.log("error", `Table ${tableDigitalTwin} can not be created: %s`, message);
 				}
+
+				await ensureKnowledgeTables(postgresClient);
 
 				const tableDigitalTwinTopic = "grafanadb.digital_twin_topic";
 				const queryStringDigitalTwinTopic = `
@@ -1454,6 +1481,9 @@ export const dataBaseInitialization = async () => {
 					logger.log("info", `Timescaldb migration pool has ended`);
 				});
 			} else {
+				await ensureKnowledgeTables(postgresClient);
+				await ensureAssetDescriptionIndex(postgresClient);
+
 				try {
 					const queryViews = `SELECT table_name from INFORMATION_SCHEMA.views WHERE table_schema = 'iot_datasource';`;
 					const result = await timescaledbClient.query(queryViews);

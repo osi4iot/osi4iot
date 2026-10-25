@@ -420,6 +420,19 @@ func ProbeGPU(log *logger.Logger) (bool, string) {
 	return true, "CUDA available"
 }
 
+// NewSessionOptionsFor builds the session options of a provider (cpu,
+// cuda, tensorrt) as the MlModel nodes have them, for other users of ORT
+// such as the knowledge bases' embedder. The caller must Destroy them.
+func NewSessionOptionsFor(provider string) (*ort.SessionOptions, error) {
+	return newSessionOptions(provider)
+}
+
+// GPUUsable reports whether this process can use CUDA now: a GPU is
+// visible and CUDA has not failed for good (MarkCUDABroken).
+func GPUUsable() bool {
+	return gpuVisible() && !cudaBroken.Load()
+}
+
 // InitONNXRuntime initializes ONNX Runtime once for the process, with the
 // same library the MlModel nodes use. For other users of ORT, such as the
 // knowledge bases' embedding model (package rag).

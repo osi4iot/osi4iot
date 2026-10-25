@@ -15,6 +15,8 @@ import DeleteModal from "../../Tools/DeleteModal";
 // group_knowledge_file_list returns it.
 export interface IKnowledgeFile {
     fileName: string;
+    // Optional: "" shows the file name.
+    title: string;
     lastModified: string;
     size: number;
     // pending | indexing | ready | error | disabled | unknown
@@ -63,6 +65,37 @@ const StatusText = styled.span<{ color: string }>`
     font-weight: 600;
 `;
 
+const TitleCell = styled.span<{ untitled: boolean }>`
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    white-space: normal;
+    color: ${(props) => (props.untitled ? "#8e8e8e" : "white")};
+    font-style: ${(props) => (props.untitled ? "italic" : "normal")};
+    cursor: pointer;
+
+    &:hover .edit-title {
+        color: #3274d9;
+    }
+`;
+
+const EditTitleMark = styled.span`
+    color: #8e8e8e;
+    font-size: 12px;
+`;
+
+const TitleEditInput = styled.input`
+    width: 100%;
+    min-width: 200px;
+    background-color: #0c0d0f;
+    color: white;
+    border: 1px solid #3274d9;
+    border-radius: 4px;
+    padding: 4px 8px;
+    font-size: 14px;
+    outline: none;
+`;
+
 const ErrorText = styled.span`
     color: #f2495c;
     white-space: normal;
@@ -70,6 +103,75 @@ const ErrorText = styled.span`
 
 const knowledgeFileUrl = (action: string, groupId: number, fileName: string) =>
     `${protocol}://${domainName}/admin_api/group_knowledge_${action}/${groupId}/${encodeURIComponent(fileName)}`;
+
+interface EditableTitleProps {
+    groupId: number;
+    fileName: string;
+    title: string;
+    refreshKnowledgeFiles: () => void;
+}
+
+// The document's title: click to edit; Enter or leaving the field saves,
+// Escape cancels. An empty title shows the file name.
+const EditableTitle: FC<EditableTitleProps> = ({ groupId, fileName, title, refreshKnowledgeFiles }) => {
+    const { accessToken, refreshToken } = useAuthState();
+    const authDispatch = useAuthDispatch();
+    const [editing, setEditing] = useState(false);
+    const [value, setValue] = useState(title);
+    const [saving, setSaving] = useState(false);
+
+    useEffect(() => {
+        if (!editing) setValue(title);
+    }, [title, editing]);
+
+    const save = () => {
+        const newTitle = value.trim();
+        if (saving) return;
+        if (newTitle === title) {
+            setEditing(false);
+            return;
+        }
+        setSaving(true);
+        getAxiosInstance(refreshToken, authDispatch)
+            .patch(knowledgeFileUrl("file_title", groupId, fileName), { title: newTitle }, axiosAuth(accessToken))
+            .then(() => {
+                setSaving(false);
+                setEditing(false);
+                refreshKnowledgeFiles();
+            })
+            .catch((error: AxiosError) => {
+                setSaving(false);
+                axiosErrorHandler(error, authDispatch);
+            });
+    };
+
+    if (editing) {
+        return (
+            <TitleEditInput
+                autoFocus
+                value={value}
+                maxLength={200}
+                disabled={saving}
+                placeholder={fileName}
+                onChange={(e) => setValue(e.target.value)}
+                onBlur={save}
+                onKeyDown={(e) => {
+                    if (e.key === "Enter") save();
+                    if (e.key === "Escape") {
+                        setValue(title);
+                        setEditing(false);
+                    }
+                }}
+            />
+        );
+    }
+    return (
+        <TitleCell untitled={!title} title="Click to edit the title" onClick={() => setEditing(true)}>
+            {title || fileName}
+            <EditTitleMark className="edit-title">✎</EditTitleMark>
+        </TitleCell>
+    );
+};
 
 interface DownloadKnowledgeFileProps {
     rowIndex: number;
@@ -124,7 +226,7 @@ const DeleteKnowledgeFileModal: FC<DeleteKnowledgeFileModalProps> = ({
     const [isSubmitting, setIsSubmitting] = useState(false);
     const title = "DELETE DOCUMENT";
     const question = `Are you sure to delete ${fileName}?`;
-    const consequences = "The group's AI agents will no longer find its content.";
+    const consequences = "It is also removed from the digital twins that had access to it.";
     const { accessToken, refreshToken } = useAuthState();
     const authDispatch = useAuthDispatch();
 
@@ -165,6 +267,18 @@ export const Create_KNOWLEDGE_COLUMNS = (
     refreshKnowledgeFiles: () => void,
 ): Column<IKnowledgeFileColumn>[] => {
     return [
+        {
+            Header: "Title",
+            accessor: "title",
+            Cell: ({ row }: CellProps<IKnowledgeFileColumn>) => (
+                <EditableTitle
+                    groupId={groupId}
+                    fileName={row.original.fileName}
+                    title={row.original.title || ""}
+                    refreshKnowledgeFiles={refreshKnowledgeFiles}
+                />
+            ),
+        },
         {
             Header: "File",
             accessor: "fileName",
@@ -233,4 +347,3 @@ export const Create_KNOWLEDGE_COLUMNS = (
         },
     ];
 };
-

@@ -22,6 +22,7 @@ import { useAssetIdToEdit, useAssetInputData, useAssetsPreviousOption } from '..
 import DraggableAssetCircle from './DraggableAssetCircle';
 import NonDraggableAssetCircle from './NonDraggableAssetCircle';
 import { IAssetType } from '../TableColumns/assetTypesColumns';
+import { findAssetType } from './typeLookup';
 
 
 const MapContainerStyled = styled(MapContainer)`
@@ -366,7 +367,7 @@ const GeoGroupSpaceMap: FC<GeoGroupSpaceMapProps> = ({
                             <NonDraggableAssetCircle
                                 key={asset.id}
                                 asset={asset}
-                                iconSvgString={assetTypes.filter(assetType=> assetType.type === asset.assetType)[0].iconSvgString}
+                                iconSvgString={findAssetType(assetTypes, asset).iconSvgString}
                             />
                         )
                     }

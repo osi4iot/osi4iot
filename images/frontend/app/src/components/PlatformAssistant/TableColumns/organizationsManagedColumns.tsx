@@ -129,6 +129,7 @@ export interface IOrgManaged {
     llmEnabled: boolean;
     llmProviderUrl: string;
     gpuUsageEnabled: boolean;
+    ragEnabled?: boolean;
 }
 
 interface IOrgManagedColumn extends IOrgManaged {

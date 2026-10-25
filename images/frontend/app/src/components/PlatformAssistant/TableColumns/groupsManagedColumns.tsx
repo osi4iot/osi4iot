@@ -216,6 +216,7 @@ export interface IGroupManaged {
     sslCerts: string;
     llmEnabled: boolean;
     gpuUsageEnabled: boolean;
+    ragEnabled?: boolean;
 }
 
 interface IGroupManagedColumn extends IGroupManaged {

@@ -259,13 +259,20 @@ ENV LD_LIBRARY_PATH="/opt/nvidia/nvidia/cu13/lib:/opt/nvidia/nvidia/cuda_runtime
 ENV NVIDIA_DRIVER_CAPABILITIES="compute,utility"
 
 # Embedding model of the knowledge bases (RAG): multilingual-e5-small,
-# int8 quantized ONNX (118 MB), with its tokenizer. config: rag.modelDir.
+# int8 quantized ONNX (118 MB, for CPU), with its tokenizer. The GPU
+# image also has the float32 model (470 MB), for the groups whose
+# embeddings run on CUDA: the quantized operators have no CUDA kernels.
+# config: rag.modelDir.
 ARG E5_MODEL_REPO=https://huggingface.co/Xenova/multilingual-e5-small/resolve/main
 RUN mkdir -p ./assets/embeddings/multilingual-e5-small \
     && curl -fsSL "${E5_MODEL_REPO}/onnx/model_quantized.onnx" \
          -o ./assets/embeddings/multilingual-e5-small/model_quantized.onnx \
     && curl -fsSL "${E5_MODEL_REPO}/tokenizer.json" \
-         -o ./assets/embeddings/multilingual-e5-small/tokenizer.json
+         -o ./assets/embeddings/multilingual-e5-small/tokenizer.json \
+    && if [ "$ORT_FLAVOR" = "gpu" ]; then \
+         curl -fsSL "${E5_MODEL_REPO}/onnx/model.onnx" \
+           -o ./assets/embeddings/multilingual-e5-small/model.onnx; \
+       fi
 
 RUN mkdir data && chown -R pipelines:pipelines_group /pipelines
 

@@ -4,6 +4,7 @@ import { toast } from "react-toastify";
 import { IAsset } from "../TableColumns/assetsColumns";
 import { ISensor } from "../TableColumns/sensorsColumns";
 import GeoSensor from "./GeoSensor";
+import { findSensorType } from "./typeLookup";
 import { IDigitalTwinGltfData } from "../DigitalTwin3DViewer/ViewerTools/ViewerUtils";
 import { IDigitalTwin } from "../TableColumns/digitalTwinsColumns";
 import { IDigitalTwinState, ISensorState } from "./GeolocationContainer";
@@ -308,7 +309,7 @@ const GeoSensors: FC<GeoSensorsProps> = ({
                     key={sensor.id}
                     sensorLabel={`${(sensorsSetIndex - 1) * 10 + index + 1}/${sensors.length}`}
                     assetData={assetSelected}
-                    sensorType={sensorTypes.filter((sensorType) => sensorType.type === sensor.sensorType)[0]}
+                    sensorType={findSensorType(sensorTypes, sensor)}
                     sensorData={sensor}
                     sensorIndex={index}
                     sensorSelected={sensorSelected}

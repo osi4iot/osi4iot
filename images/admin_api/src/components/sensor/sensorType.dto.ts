@@ -1,4 +1,4 @@
-import { IsString } from "class-validator";
+import { IsNotEmpty, IsString, Matches } from "class-validator";
 
 class CreateSensorTypeDto {
 	orgId: number;
@@ -9,14 +9,11 @@ class CreateSensorTypeDto {
 	@IsString()
 	public iconSvgFileName: string;
 
+	// Required: it is how the sensor is drawn around its asset.
 	@IsString()
+	@IsNotEmpty({ message: "The icon svg file of the sensor type is required" })
+	@Matches(/<svg[\s>]/i, { message: "The icon of the sensor type must be an svg file" })
 	public iconSvgString: string;
-
-	@IsString()
-	public markerSvgFileName: string;
-
-	@IsString()
-	public markerSvgString: string;
 
 	@IsString()
 	public dashboardRefreshString: string;

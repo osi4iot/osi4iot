@@ -20,6 +20,7 @@ export default interface IOrganization {
 	llmAllowedModels: string[];
 	hashedLlmProviderApiKey: string;
 	gpuUsageEnabled: boolean;
+	ragEnabled?: boolean;
 	telegramEnabled: boolean;
 	hashedTelegramBotToken: string;
 	hashedTelegramWebhookSecretToken: string;

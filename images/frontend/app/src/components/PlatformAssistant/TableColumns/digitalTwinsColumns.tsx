@@ -52,6 +52,8 @@ export interface IDigitalTwin {
 	pipelineFileLastModifDate: string;
     pipelineFileData: string;
     pipelineRequiresGpu: boolean;
+    // The knowledge base documents (file names) its AI agents may read.
+    knowledgeDocuments?: string[];
 }
 
 export interface IDigitalTwinSimulator {

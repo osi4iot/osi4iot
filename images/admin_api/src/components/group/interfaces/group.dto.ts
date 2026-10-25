@@ -1,5 +1,5 @@
 import { Type } from "class-transformer";
-import { IsBoolean, IsEnum, IsNumber, IsString, ValidateNested } from "class-validator";
+import { IsBoolean, IsEnum, IsNumber, IsOptional, IsString, ValidateNested } from "class-validator";
 import { FolderPermissionOptions, FolderPermissionOption } from "./FolerPermissionsOptions";
 import CreateGroupAdminDto from "./groupAdmin.dto";
 
@@ -39,6 +39,11 @@ class CreateGroupDto {
 
 	@IsBoolean()
 	public gpuUsageEnabled: boolean;
+
+	// Knowledge base (RAG) of its groups: off unless enabled.
+	@IsOptional()
+	@IsBoolean()
+	public ragEnabled?: boolean;
 
 	@ValidateNested({ each: true })
 	@Type(() => CreateGroupAdminDto)

@@ -146,7 +146,13 @@ type Manager interface {
 	DeleteFemResultsInDigitalTwin(digitalTwinId int) error
 
 	KnowledgeS3Prefix(orgId, groupId int) string
-	KnowledgeSearch(groupId int) (url string, token string, ok bool)
+	// KnowledgeAccess is what a digital twin's doc_info server needs to
+	// list and search the knowledge base documents the digital twin may
+	// read; ok is false when its group's knowledge base is not enabled.
+	KnowledgeAccess(groupId, digitalTwinId int) (url string, token string, ok bool)
+	// KnowledgeDocumentsVersion changes when the documents a digital twin
+	// may read change; "" when it may read none.
+	KnowledgeDocumentsVersion(ctx context.Context, groupId, digitalTwinId int) (string, error)
 
 	GetLeaderKvStore() jetstream.KeyValue
 	SetPipelineStatusSubscription(ctx context.Context, digitalTwin *DigitalTwin) *nats.Subscription

@@ -7,6 +7,7 @@ import MobileSensorSelectFormButtons from "./MobileSensorSelectFormButtons";
 import { IMobileTopic } from '../PlatformAssistant/TableColumns/topicsColumns';
 import { InitialMobileSensorData } from '../../pages/MobileSensorsPage';
 import { IOption, convertArrayToOptions } from '../../tools/tools';
+import { assetOptions, sortAssetNamesByDescription } from '../../tools/tools';
 
 const Title = styled.h2`
 	font-size: 20px;
@@ -149,17 +150,19 @@ const findGroupArray = (mobileTopicsManaged: IMobileTopic[]): Record<string, str
 }
 
 const findAssetNameArray = (mobileTopicsManaged: IMobileTopic[]): Record<string, string[]> => {
+    const descriptions: Record<string, string> = {};
     const assetArray: Record<string, string[]> = {}
     for (const mobileTopic of mobileTopicsManaged) {
         if (assetArray[mobileTopic.groupAcronym] === undefined) {
             assetArray[mobileTopic.groupAcronym] = [];
         }
         const assetName = `Asset_${mobileTopic.assetUid}`;
+        descriptions[assetName] = mobileTopic.assetDescription;
         if (assetArray[mobileTopic.groupAcronym].indexOf(assetName) === -1) {
             assetArray[mobileTopic.groupAcronym].push(assetName);
         }
     }
-    return assetArray;
+    return sortAssetNamesByDescription(assetArray, descriptions);
 }
 
 const findAssetDescription = (mobileTopicsManaged: IMobileTopic[], assetName: string): string => {
@@ -229,7 +232,7 @@ const MobileSensorSelectForm: FC<MobileSensorSelectFormProps> = (
             setAssetNameArray(assetNameArray);
             const groupAcronym = initialMobileSensorData.groupAcronym
             const assetsForGroupSelected = assetNameArray[groupAcronym];
-            setAssetNameOptions(convertArrayToOptions(assetsForGroupSelected));
+            setAssetNameOptions(assetOptions(assetsForGroupSelected, (name) => findAssetDescription(mobileTopicsManaged, name)));
             const assetName = initialMobileSensorData.assetName;
             const assetDescription = findAssetDescription(mobileTopicsManaged, assetName);
             setAssetDescription(assetDescription);
@@ -254,7 +257,7 @@ const MobileSensorSelectForm: FC<MobileSensorSelectFormProps> = (
         const groupAcronym = groupsForOrgSelected[0];
         formik.setFieldValue("groupAcronym", groupsForOrgSelected[0]);
         const assetsForGroupSelected = assetNameArray[groupAcronym];
-        setAssetNameOptions(convertArrayToOptions(assetsForGroupSelected));
+        setAssetNameOptions(assetOptions(assetsForGroupSelected, (name) => findAssetDescription(mobileTopicsManaged, name)));
         const assetName = assetsForGroupSelected[0];
         formik.setFieldValue("assetName", assetName);
         const assetDescription = findAssetDescription(mobileTopicsManaged, assetName);
@@ -278,7 +281,7 @@ const MobileSensorSelectForm: FC<MobileSensorSelectFormProps> = (
         const groupAcronym = e.value;
         formik.setFieldValue("groupAcronym", groupAcronym);
         const assetsForGroupSelected = assetNameArray[groupAcronym];
-        setAssetNameOptions(convertArrayToOptions(assetsForGroupSelected));
+        setAssetNameOptions(assetOptions(assetsForGroupSelected, (name) => findAssetDescription(mobileTopicsManaged, name)));
         const assetName = assetsForGroupSelected[0];
         formik.setFieldValue("assetName", assetName);
         const assetDescription = findAssetDescription(mobileTopicsManaged, assetName);
@@ -373,15 +376,15 @@ const MobileSensorSelectForm: FC<MobileSensorSelectFormProps> = (
                                     />
                                     <FormikControl
                                         control='select'
-                                        label='Select asset'
+                                        label='Select asset (by description)'
                                         name='assetName'
                                         type='text'
                                         options={assetNameOptions}
                                         onChange={(e) => handleChangeAsset(e, formik)}
                                     />
                                     <FieldContainer>
-                                        <label>Asset description</label>
-                                        <div>{assetDescription}</div>
+                                        <label>Asset name</label>
+                                        <div>{formik.values.assetName}</div>
                                     </FieldContainer>
                                     <FormikControl
                                         control='select'

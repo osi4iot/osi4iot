@@ -171,6 +171,7 @@ const EditOrganization: FC<EditOrganizationProps> = ({ organizations, refreshOrg
         changeLlmProviderApiKey: false,
         llmProviderApiKey: "",
         gpuUsageEnabled: organizations[orgRowIndex].gpuUsageEnabled || false,
+        ragEnabled: organizations[orgRowIndex].ragEnabled || false,
         telegramEnabled: organizations[orgRowIndex].telegramEnabled || false,
         changeTelegramSettings: false,
         telegramBotToken: "",
@@ -339,6 +340,14 @@ const EditOrganization: FC<EditOrganizationProps> = ({ organizations, refreshOrg
                                     options={enableDisableOptions}
                                     type="text"
                                     onChange={(e) => onEnableGpuUsageChange(e, formik)}
+                                />
+                                <FormikControl
+                                    control="select"
+                                    label="Enable knowledge base (RAG)"
+                                    name="ragEnabled"
+                                    options={enableDisableOptions}
+                                    type="text"
+                                    onChange={(e) => formik.setFieldValue("ragEnabled", e.value)}
                                 />
                                 <Title>Telegram bot</Title>
                                 <DataContainer>

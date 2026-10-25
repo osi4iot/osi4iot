@@ -18,6 +18,8 @@ export default interface IDigitalTwin {
 	pipelineFileLastModifDate: string;
 	pipelineFileData: string;
 	pipelineRequiresGpu: boolean;
+	// File names of the group's knowledge base its AI agents may read.
+	knowledgeDocuments?: string[];
 	created?: string;
 	updated?: string;
 }

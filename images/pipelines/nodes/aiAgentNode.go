@@ -32,13 +32,14 @@ type AiAgentNode struct {
 	parentCtx   context.Context // the pipeline's: node restarts go through it
 
 	// The running agent. It is replaced, with its MCP servers, when the
-	// digital twin's FEM results appear, change or go (see
-	// reloadIfFemResultsChanged).
-	hostMu            sync.Mutex
-	agentHost         *llmagent.Host
-	hostDone          chan struct{} // closed when agentHost's Run returns
-	femResultsServer  aiAgentServer // without --results_path
-	femResultsVersion string        // of the results agentHost has; "" none
+	// digital twin's FEM results appear, change or go, or the knowledge
+	// base documents it may read change (see reloadIfToolsChanged).
+	hostMu           sync.Mutex
+	agentHost        *llmagent.Host
+	hostDone         chan struct{} // closed when agentHost's Run returns
+	femResultsServer aiAgentServer // without --results_path
+	documentsServer  aiAgentServer // without the knowledge base arguments
+	tools            agentTools    // what agentHost was started with
 
 	// The prompt being answered, to tell in the log where an agent is
 	// stuck.
@@ -59,6 +60,15 @@ const (
 type aiAgentServer struct {
 	command []string
 	args    []string
+}
+
+// agentTools is what decides the agent's optional MCP servers:
+// fem_results when the digital twin has FEM results, documents when it
+// may read documents of its group's knowledge base.
+type agentTools struct {
+	femURI      string
+	femVersion  string // "" no FEM results
+	docsVersion string // "" no documents
 }
 
 // aiAgentDebug logs the agents' tool calls, arguments and results, and
@@ -127,29 +137,19 @@ func CreateAiAgentNode(ctx context.Context, node common.NodeData, fm common.Mana
 	logSubject := utils.TopicToNatsSubject(logTopic.TopicType, logTopic.GroupUid, logTopic.TopicUid)
 
 	mcpServersPath := fm.GetMcpServersPath()
-	// The documents of the group's knowledge base are read straight from
-	// the bucket by the doc_info MCP server (list, read; no writing).
-	docInfoPrefix := fm.KnowledgeS3Prefix(p.GetOrgId(), p.GetGroupId())
-	docInfoArgs := []string{"--prefix", docInfoPrefix}
-	// The group's knowledge base (search-knowledge): searched through
-	// pipelines' loopback endpoint, with a token valid for this group only.
-	if url, token, ok := fm.KnowledgeSearch(p.GetGroupId()); ok {
-		docInfoArgs = append(docInfoArgs,
-			"--group_id", strconv.Itoa(p.GetGroupId()),
-			"--knowledge_url", url,
-			"--knowledge_token", token)
-	}
 	servers := map[string]aiAgentServer{}
 
 	// The FEM results are queried straight from the bucket (Parquet,
 	// written when the results were uploaded); the MCP server takes the
 	// bucket's settings from the environment it inherits. It is added
 	// when the agent starts, if the results are there (startHost).
-	var femResultsServer aiAgentServer
+	//
+	// The documents server (doc_info) is added only when the digital twin
+	// may read documents of its group's knowledge base (startHost).
+	var femResultsServer, documentsServer aiAgentServer
 	if fm.GetMode() == "local" {
-		servers["documents"] = aiAgentServer{
+		documentsServer = aiAgentServer{
 			command: []string{filepath.Join(mcpServersPath, "doc_info", "doc_info")},
-			args:    docInfoArgs,
 		}
 		servers["current_date"] = aiAgentServer{
 			command: []string{filepath.Join(mcpServersPath, "current_date", "current_date")},
@@ -167,9 +167,8 @@ func CreateAiAgentNode(ctx context.Context, node common.NodeData, fm common.Mana
 			command: []string{filepath.Join(mcpServersPath, "fem_results", "fem_results")},
 		}
 	} else {
-		servers["documents"] = aiAgentServer{
+		documentsServer = aiAgentServer{
 			command: []string{"/usr/local/bin/doc_info"},
-			args:    docInfoArgs,
 		}
 		servers["current_date"] = aiAgentServer{
 			command: []string{"/usr/local/bin/current_date"},
@@ -220,6 +219,7 @@ func CreateAiAgentNode(ctx context.Context, node common.NodeData, fm common.Mana
 		},
 		agentConfig:      agentConfig, // the configuration; channels and callbacks are set in Start
 		femResultsServer: femResultsServer,
+		documentsServer:  documentsServer,
 	}, nil
 }
 
@@ -230,28 +230,41 @@ func (s aiAgentServer) config() llmagent.ServerConfig {
 	}
 }
 
-// femResultsCheckTimeout bounds the look at the bucket for the FEM
-// results (one HEAD request).
-const femResultsCheckTimeout = 10 * time.Second
+// toolsCheckTimeout bounds each look for the optional tools: the bucket
+// for the FEM results (one HEAD request), the database for the documents.
+const toolsCheckTimeout = 10 * time.Second
 
-// femResults returns where the digital twin's FEM results are and their
-// version ("" none). ok is false when the bucket could not be asked.
-func (n *AiAgentNode) femResults(ctx context.Context, log *logger.Logger) (uri, version string, ok bool) {
-	ctx, cancel := context.WithTimeout(ctx, femResultsCheckTimeout)
-	defer cancel()
+// currentTools looks at what the agent's optional MCP servers depend on
+// now. What could not be checked is taken from prev (the next prompt
+// checks again).
+func (n *AiAgentNode) currentTools(ctx context.Context, log *logger.Logger, prev agentTools) agentTools {
 	p := n.Pipeline
-	uri, version, err := n.Fm.FemResultsS3URI(ctx, p.GetOrgId(), p.GetGroupId(), p.GetDigitalTwinId())
+	t := prev
+
+	femCtx, cancel := context.WithTimeout(ctx, toolsCheckTimeout)
+	uri, version, err := n.Fm.FemResultsS3URI(femCtx, p.GetOrgId(), p.GetGroupId(), p.GetDigitalTwinId())
+	cancel()
 	if err != nil {
 		log.Warnf("AiAgentNode %s: could not check the FEM results: %v", n.NodeUid, err)
-		return "", "", false
+	} else {
+		t.femURI, t.femVersion = uri, version
 	}
-	return uri, version, true
+
+	docsCtx, cancel := context.WithTimeout(ctx, toolsCheckTimeout)
+	docs, err := n.Fm.KnowledgeDocumentsVersion(docsCtx, p.GetGroupId(), p.GetDigitalTwinId())
+	cancel()
+	if err != nil {
+		log.Warnf("AiAgentNode %s: could not check the knowledge base documents: %v", n.NodeUid, err)
+	} else {
+		t.docsVersion = docs
+	}
+	return t
 }
 
 // startHost creates and runs the agent, with the fem_results MCP server
-// when the FEM results are there. Called with hostMu held, or before the
-// node runs.
-func (n *AiAgentNode) startHost(log *logger.Logger, femURI, femVersion string) ([]string, error) {
+// when the FEM results are there and the documents server when it may
+// read documents. Called with hostMu held, or before the node runs.
+func (n *AiAgentNode) startHost(log *logger.Logger, tools agentTools) ([]string, error) {
 	cfg := n.agentConfig
 	cfg.Input = n.agentIn
 	cfg.Output = n.agentOut
@@ -261,10 +274,26 @@ func (n *AiAgentNode) startHost(log *logger.Logger, femURI, femVersion string) (
 	for name, srv := range n.agentConfig.MCPServers {
 		cfg.MCPServers[name] = srv
 	}
-	if femVersion != "" && len(n.femResultsServer.command) > 0 {
+	if tools.femVersion != "" && len(n.femResultsServer.command) > 0 {
 		srv := n.femResultsServer
-		srv.args = []string{"--results_path", femURI}
+		srv.args = []string{"--results_path", tools.femURI}
 		cfg.MCPServers["fem_results"] = srv.config()
+	}
+	// The documents of the knowledge base this digital twin may read:
+	// listed and searched through pipelines' loopback endpoint, with a
+	// token valid for this digital twin only; read from the bucket.
+	p := n.Pipeline
+	if url, token, ok := n.Fm.KnowledgeAccess(p.GetGroupId(), p.GetDigitalTwinId()); ok &&
+		tools.docsVersion != "" && len(n.documentsServer.command) > 0 {
+		srv := n.documentsServer
+		srv.args = []string{
+			"--prefix", n.Fm.KnowledgeS3Prefix(p.GetOrgId(), p.GetGroupId()),
+			"--group_id", strconv.Itoa(p.GetGroupId()),
+			"--digital_twin_id", strconv.Itoa(p.GetDigitalTwinId()),
+			"--knowledge_url", url,
+			"--knowledge_token", token,
+		}
+		cfg.MCPServers["documents"] = srv.config()
 	}
 
 	host, err := llmagent.New(n.Ctx, cfg)
@@ -272,7 +301,7 @@ func (n *AiAgentNode) startHost(log *logger.Logger, femURI, femVersion string) (
 		return nil, err
 	}
 	done := make(chan struct{})
-	n.agentHost, n.hostDone, n.femResultsVersion = host, done, femVersion
+	n.agentHost, n.hostDone, n.tools = host, done, tools
 
 	parentCtx := n.parentCtx
 	n.wg.Add(1)
@@ -304,19 +333,23 @@ func (n *AiAgentNode) startHost(log *logger.Logger, femURI, femVersion string) (
 	return names, nil
 }
 
-// reloadIfFemResultsChanged restarts the agent, and so its MCP servers,
-// when the digital twin's FEM results have appeared, changed or gone
-// since it started: the node may start before pipelines has converted
-// them (at startup, or after an upload), and the fem_results server reads
-// the results it was started with. Checked before each prompt (a HEAD
-// request to the bucket) and only while no prompt is being answered; the
-// conversations are kept (KV store).
-func (n *AiAgentNode) reloadIfFemResultsChanged(log *logger.Logger) {
+// reloadIfToolsChanged restarts the agent, and so its MCP servers, when
+// since it started the digital twin's FEM results have appeared, changed
+// or gone (the node may start before pipelines has converted them, and
+// the fem_results server reads the results it was started with) or the
+// set of knowledge base documents it may read has changed (chosen in the
+// digital twin; the knowledge base enabled or disabled). Checked before
+// each prompt (a HEAD request to the bucket, a query to the database)
+// and only while no prompt is being answered; the conversations are kept
+// (KV store). A change of titles needs no restart: they are read when
+// the documents are listed.
+func (n *AiAgentNode) reloadIfToolsChanged(log *logger.Logger) {
 	n.hostMu.Lock()
 	defer n.hostMu.Unlock()
 
-	uri, version, ok := n.femResults(n.Ctx, log)
-	if !ok || version == n.femResultsVersion {
+	prev := n.tools
+	tools := n.currentTools(n.Ctx, log, prev)
+	if tools == prev {
 		return
 	}
 	n.pendingMu.Lock()
@@ -326,13 +359,6 @@ func (n *AiAgentNode) reloadIfFemResultsChanged(log *logger.Logger) {
 		return // checked again with the next prompt
 	}
 
-	what := "updated"
-	switch {
-	case n.femResultsVersion == "":
-		what = "available"
-	case version == "":
-		what = "removed"
-	}
 	if n.agentHost != nil {
 		n.agentHost.Close()
 		// The old agent must not take the next prompt.
@@ -342,7 +368,7 @@ func (n *AiAgentNode) reloadIfFemResultsChanged(log *logger.Logger) {
 			log.Warnf("AiAgentNode %s: the previous AI agent is slow to stop", n.NodeUid)
 		}
 	}
-	names, err := n.startHost(log, uri, version)
+	names, err := n.startHost(log, tools)
 	if err != nil {
 		log.Errorf("AiAgentNode %s: failed to restart the AI agent: %v", n.NodeUid, err)
 		n.handleAgentFailure(err)
@@ -350,8 +376,37 @@ func (n *AiAgentNode) reloadIfFemResultsChanged(log *logger.Logger) {
 		go func() { _ = n.Pipeline.RestartNode(n.parentCtx, n.NodeUid) }()
 		return
 	}
-	log.Infof("AiAgentNode %s: FEM results %s, AI agent restarted (MCP servers: %s)",
-		n.NodeUid, what, strings.Join(names, ", "))
+	log.Infof("AiAgentNode %s: %s, AI agent restarted (MCP servers: %s)",
+		n.NodeUid, toolsChange(prev, tools), strings.Join(names, ", "))
+}
+
+// toolsChange says what changed between two agentTools, for the log.
+func toolsChange(prev, now agentTools) string {
+	var changes []string
+	if prev.femVersion != now.femVersion {
+		switch {
+		case prev.femVersion == "":
+			changes = append(changes, "FEM results available")
+		case now.femVersion == "":
+			changes = append(changes, "FEM results removed")
+		default:
+			changes = append(changes, "FEM results updated")
+		}
+	}
+	if prev.docsVersion != now.docsVersion {
+		switch {
+		case prev.docsVersion == "":
+			changes = append(changes, "knowledge base documents available")
+		case now.docsVersion == "":
+			changes = append(changes, "no knowledge base documents")
+		default:
+			changes = append(changes, "knowledge base documents changed")
+		}
+	}
+	if len(changes) == 0 {
+		return "tools changed"
+	}
+	return strings.Join(changes, ", ")
 }
 
 func (n *AiAgentNode) Start(ctx context.Context, log *logger.Logger, needReinitialization bool) {
@@ -368,11 +423,12 @@ func (n *AiAgentNode) Start(ctx context.Context, log *logger.Logger, needReiniti
 	n.agentIn = make(chan llmagent.Prompt)
 	n.agentOut = make(chan llmagent.Answer)
 
-	// Without an answer from the bucket the agent starts without
-	// fem_results; the next prompt checks again.
-	femURI, femVersion, _ := n.femResults(nodeCtx, log)
+	// Without an answer from the bucket (or the database) the agent
+	// starts without fem_results (or documents); the next prompt checks
+	// again.
+	tools := n.currentTools(nodeCtx, log, agentTools{})
 	n.hostMu.Lock()
-	serverNames, err := n.startHost(log, femURI, femVersion)
+	serverNames, err := n.startHost(log, tools)
 	n.hostMu.Unlock()
 	if err != nil {
 		log.Errorf("AiAgentNode %s: failed to create the AI agent: %v", n.NodeUid, err)
@@ -401,7 +457,7 @@ func (n *AiAgentNode) sendPrompt(prompt llmagent.Prompt, log *logger.Logger) err
 	}
 
 	log.Infof("AiAgentNode %s: prompt from %s received (%d characters)", n.NodeUid, prompt.UserName, len(prompt.Text))
-	n.reloadIfFemResultsChanged(log)
+	n.reloadIfToolsChanged(log)
 	waitingSince := time.Now()
 	warn := time.NewTicker(aiAgentAcceptWarnAfter)
 	defer warn.Stop()

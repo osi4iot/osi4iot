@@ -40,8 +40,8 @@ export const updateOrganizationByProp = async (
 	llm_provider_url = $7, hashed_llm_provider_api_key = $8,
 	gpu_usage_enabled = $9, telegram_enabled = $10,
 	hashed_telegram_bot_token = $11, hashed_telegram_webhook_secret_token = $12,
-	llm_provider_type = $13, llm_allowed_models = $14
-	WHERE grafanadb.org.${propName} = $15 RETURNING *;`;
+	llm_provider_type = $13, llm_allowed_models = $14, rag_enabled = $15
+	WHERE grafanadb.org.${propName} = $16 RETURNING *;`;
 	const queryArray = [
 		orgData.name,
 		orgData.acronym,
@@ -57,6 +57,7 @@ export const updateOrganizationByProp = async (
 		orgData.hashedTelegramWebhookSecretToken,
 		normalizeLlmProviderType(orgData.llmProviderType),
 		normalizeLlmAllowedModels(orgData.llmAllowedModels),
+		orgData.ragEnabled === true,
 		propValue,
 	];
 	const result = await pool.query(query, queryArray);
@@ -99,6 +100,7 @@ export const getOrganizations = async (): Promise<IOrganization[]> => {
 					llm_provider_type AS "llmProviderType",
 					llm_allowed_models AS "llmAllowedModels",
 					gpu_usage_enabled AS "gpuUsageEnabled",
+					rag_enabled AS "ragEnabled",
 					telegram_enabled AS "telegramEnabled"
 					FROM grafanadb.org
 					INNER JOIN grafanadb.building ON grafanadb.org.building_id = grafanadb.building.id
@@ -119,6 +121,7 @@ export const getOrganizationsFullInfo = async (): Promise<IOrganization[]> => {
 					llm_allowed_models AS "llmAllowedModels",
 					hashed_llm_provider_api_key AS "hashedLlmProviderApiKey",
 					gpu_usage_enabled AS "gpuUsageEnabled",
+					rag_enabled AS "ragEnabled",
 					telegram_enabled AS "telegramEnabled",
 					hashed_telegram_bot_token AS "hashedTelegramBotToken",
 					hashed_telegram_webhook_secret_token AS "hashedTelegramWebhookSecretToken"
@@ -140,7 +143,8 @@ export const getOrganizationsWithIdsArray = async (orgIdsArray: number[]): Promi
 					llm_provider_type AS "llmProviderType",
 					llm_allowed_models AS "llmAllowedModels",
 					telegram_enabled AS "telegramEnabled",
-					gpu_usage_enabled AS "gpuUsageEnabled"
+					gpu_usage_enabled AS "gpuUsageEnabled",
+					rag_enabled AS "ragEnabled"
 					FROM grafanadb.org
 					INNER JOIN grafanadb.building ON grafanadb.org.building_id = grafanadb.building.id
 					WHERE grafanadb.org.id = ANY($1::integer[])
@@ -166,6 +170,7 @@ export const getOrganizationByProp = async (propName: string, propValue: string 
 					llm_provider_type AS "llmProviderType",
 					llm_allowed_models AS "llmAllowedModels",
 					gpu_usage_enabled AS "gpuUsageEnabled",
+					rag_enabled AS "ragEnabled",
 					telegram_enabled AS "telegramEnabled"
 					FROM grafanadb.org
 					INNER JOIN grafanadb.building ON grafanadb.org.building_id = grafanadb.building.id
@@ -189,6 +194,7 @@ export const getOrganizationFullInfoByProp = async (
 					llm_allowed_models AS "llmAllowedModels",
 					hashed_llm_provider_api_key AS "hashedLlmProviderApiKey",
 					gpu_usage_enabled AS "gpuUsageEnabled",
+					rag_enabled AS "ragEnabled",
 					telegram_enabled AS "telegramEnabled",
 					hashed_telegram_bot_token AS "hashedTelegramBotToken",
 					hashed_telegram_webhook_secret_token AS "hashedTelegramWebhookSecretToken"
@@ -266,6 +272,7 @@ export const getOrganizationsManagedByUserId = async (userId: number): Promise<I
 					mqtt_access_control AS "mqttAccessControl",
 					llm_enabled AS "llmEnabled",
 					gpu_usage_enabled AS "gpuUsageEnabled",
+					rag_enabled AS "ragEnabled",
 					telegram_enabled AS "telegramEnabled",
 					llm_provider_url AS "llmProviderUrl",
 					llm_provider_type AS "llmProviderType",
@@ -292,6 +299,7 @@ export const organizationsWhichTheLoggedUserIsUser = async (
 					llm_provider_type AS "llmProviderType",
 					llm_allowed_models AS "llmAllowedModels",
 					gpu_usage_enabled AS "gpuUsageEnabled",
+					rag_enabled AS "ragEnabled",
 					telegram_enabled AS "telegramEnabled"
 					FROM grafanadb.org
 					INNER JOIN grafanadb.building ON grafanadb.org.building_id = grafanadb.building.id

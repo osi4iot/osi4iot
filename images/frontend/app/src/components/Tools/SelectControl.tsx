@@ -1,4 +1,4 @@
-import { FC } from 'react';
+import { FC, useRef } from 'react';
 import styled from "styled-components";
 import { FieldProps, Field } from "formik";
 import Select, { OptionsType, ValueType } from "react-select";
@@ -119,7 +119,46 @@ interface DropDownProps extends FieldProps {
     placeholder?: string;
 }
 
+// The class prefix of the selects' parts (osi-select__menu...), to find
+// the menu when it opens.
+const CLASS_PREFIX = "osi-select";
+
+// The box that scrolls around an element: the form's controls, a panel.
+const scrollParentOf = (element: HTMLElement): HTMLElement | null => {
+    for (let parent = element.parentElement; parent; parent = parent.parentElement) {
+        const { overflowY } = window.getComputedStyle(parent);
+        if ((overflowY === "auto" || overflowY === "scroll") && parent.scrollHeight > parent.clientHeight) {
+            return parent;
+        }
+    }
+    return null;
+};
+
+// When a menu opens below the visible part of the box that scrolls around
+// it (a long list, or a select near the bottom of a form), the box scrolls
+// so that the whole menu can be seen. react-select only does it when the
+// menu goes beyond the window, not beyond that box.
+const scrollMenuIntoView = (container: HTMLElement | null) => {
+    if (!container) return;
+    // After react-select has rendered the menu.
+    window.requestAnimationFrame(() => {
+        const menu = container.querySelector<HTMLElement>(`.${CLASS_PREFIX}__menu`);
+        if (!menu) return;
+        const box = scrollParentOf(container);
+        if (!box) return;
+        const menuRect = menu.getBoundingClientRect();
+        const boxRect = box.getBoundingClientRect();
+        const below = menuRect.bottom + 8 - boxRect.bottom;
+        if (below > 0) {
+            // Never so far that the select itself goes out at the top.
+            const room = container.getBoundingClientRect().top - boxRect.top;
+            box.scrollBy({ top: Math.min(below, Math.max(room, 0)), behavior: "smooth" });
+        }
+    });
+};
+
 export const DropDown: FC<DropDownProps> = ({ options, form, field, placeholder, ...rest }) => {
+    const containerRef = useRef<HTMLDivElement>(null);
 
     const onChange = (option: ValueType<IOption, false>) => {
         form.setFieldValue(
@@ -137,8 +176,10 @@ export const DropDown: FC<DropDownProps> = ({ options, form, field, placeholder,
     };
 
     return (
-        <SelectContainer>
+        <SelectContainer ref={containerRef}>
             <Select
+                classNamePrefix={CLASS_PREFIX}
+                onMenuOpen={() => scrollMenuIntoView(containerRef.current)}
                 styles={customStyles}
                 name={field.name}
                 value={getValue()}

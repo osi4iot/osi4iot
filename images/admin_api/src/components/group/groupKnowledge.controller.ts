@@ -15,6 +15,14 @@ import infoLogger from "../../utils/logger/infoLogger";
 import { deleteBucketFile, getBucketFolderInfoFileList } from "../digitalTwin/digitalTwinDAL";
 import pool from "../../config/dbconfig";
 import { logger } from "../../config/winston";
+import {
+	deleteKnowledgeDocument,
+	isRagEnabledForGroup,
+	normalizeKnowledgeTitle,
+	syncKnowledgeDocuments,
+	updateKnowledgeDocumentTitle,
+	upsertKnowledgeDocument,
+} from "./knowledgeDAL";
 
 // Knowledge base of a group (RAG)
 //
@@ -24,7 +32,15 @@ import { logger } from "../../config/winston";
 // knowledgeFile messages published below, and the agents search them
 // with the search-knowledge tool.
 //
-// They live in the bucket under org_data/org_<org>/group_<group>/knowledge/.
+// They live in the bucket under org_data/org_<org>/group_<group>/knowledge/,
+// and each one has a row in grafanadb.knowledge_document with its title
+// (optional; the file name is shown without one). Each digital twin
+// chooses which of them its agents may read (none unless chosen).
+//
+// The knowledge base is off unless enabled for the organization and for
+// the group: then documents cannot be uploaded (the ones there can still
+// be listed, retitled, downloaded and deleted) and pipelines does not
+// index them.
 
 const KNOWLEDGE_MAX_FILE_SIZE = 100 * 1024 * 1024; // 100 MB, as pipelines reads at most
 
@@ -61,6 +77,25 @@ const validKnowledgeFileName = (req: IRequestWithGroup, res: Response, next: Nex
 		);
 	}
 	next();
+};
+
+// Uploading needs the knowledge base enabled for the organization and the group.
+const ragEnabled = async (req: IRequestWithGroup, res: Response, next: NextFunction): Promise<void> => {
+	try {
+		if (!(await isRagEnabledForGroup(req.group))) {
+			return next(
+				new HttpException(
+					req,
+					res,
+					400,
+					"The knowledge base is not enabled for this group. It must be enabled for its organization and for the group."
+				)
+			);
+		}
+		next();
+	} catch (error) {
+		next(error);
+	}
 };
 
 const uploadKnowledgeFile = multer({
@@ -117,10 +152,19 @@ class GroupKnowledgeController implements IController {
 				groupExists,
 				groupAdminAuth,
 				validKnowledgeFileName,
+				ragEnabled,
 				uploadKnowledgeFile.single("file"),
 				this.uploadKnowledgeFile
 			)
 			.get(`${this.path}_file_list/:groupId`, groupExists, groupAdminAuth, this.getKnowledgeFileList)
+			.get(`${this.path}_enabled/:groupId`, groupExists, groupAdminAuth, this.getKnowledgeEnabled)
+			.patch(
+				`${this.path}_file_title/:groupId/:fileName`,
+				groupExists,
+				groupAdminAuth,
+				validKnowledgeFileName,
+				this.updateKnowledgeFileTitle
+			)
 			.get(
 				`${this.path}_download_file/:groupId/:fileName`,
 				groupExists,
@@ -140,6 +184,10 @@ class GroupKnowledgeController implements IController {
 	private uploadKnowledgeFile = async (req: IRequestWithGroup, res: Response, next: NextFunction): Promise<void> => {
 		const { fileName } = req.params;
 		try {
+			// The title comes in the query string (?title=...): optional; a
+			// file uploaded again keeps its title when none is given.
+			const title = req.query.title === undefined ? undefined : normalizeKnowledgeTitle(req.query.title);
+			await upsertKnowledgeDocument(req.group.id, fileName, title);
 			// pipelines indexes it (again, if it replaces a file of the same name).
 			await natsClient.jsPublish("knowledgeFile", "create", req.group.id, { groupId: req.group.id, fileName });
 			const message = `The file ${fileName} has been uploaded to the group's knowledge base`;
@@ -165,11 +213,14 @@ class GroupKnowledgeController implements IController {
 				indexing = undefined;
 			}
 			// File names without the folder, as the other endpoints take them.
-			const files = list.map((f) => {
+			const fileNames = list.map((f) => f.fileName.slice(folder.length + 1));
+			const titles = await syncKnowledgeDocuments(req.group.id, fileNames);
+			const files = list.map((f, index) => {
 				const doc = indexing?.get(f.fileName);
 				return {
 					...f,
-					fileName: f.fileName.slice(folder.length + 1),
+					fileName: fileNames[index],
+					title: titles.get(fileNames[index]) ?? "",
 					// "pending": uploaded, not picked up by pipelines yet;
 					// "disabled": the platform has no knowledge database.
 					status:
@@ -179,6 +230,33 @@ class GroupKnowledgeController implements IController {
 				};
 			});
 			res.status(200).send(files);
+		} catch (error) {
+			next(error);
+		}
+	};
+
+	private getKnowledgeEnabled = async (req: IRequestWithGroup, res: Response, next: NextFunction): Promise<void> => {
+		try {
+			res.status(200).send({ enabled: await isRagEnabledForGroup(req.group) });
+		} catch (error) {
+			next(error);
+		}
+	};
+
+	private updateKnowledgeFileTitle = async (
+		req: IRequestWithGroup,
+		res: Response,
+		next: NextFunction
+	): Promise<void> => {
+		const { fileName } = req.params;
+		try {
+			const title = normalizeKnowledgeTitle((req.body as { title?: unknown })?.title);
+			if (!(await updateKnowledgeDocumentTitle(req.group.id, fileName, title))) {
+				throw new HttpException(req, res, 404, `The file ${fileName} is not in the group's knowledge base`);
+			}
+			const message = `The title of the file ${fileName} has been updated`;
+			infoLogger(req, res, 200, message);
+			res.status(200).send({ message });
 		} catch (error) {
 			next(error);
 		}
@@ -205,6 +283,8 @@ class GroupKnowledgeController implements IController {
 		const { fileName } = req.params;
 		try {
 			await deleteBucketFile(`${knowledgeFolder(req.group.orgId, req.group.id)}/${fileName}`);
+			// Also removes it from the digital twins that had it.
+			await deleteKnowledgeDocument(req.group.id, fileName);
 			await natsClient.jsPublish("knowledgeFile", "delete", req.group.id, { groupId: req.group.id, fileName });
 			const message = `The file ${fileName} has been deleted from the group's knowledge base`;
 			infoLogger(req, res, 200, message);

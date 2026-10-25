@@ -87,15 +87,15 @@ func minimalPDF(text string) []byte {
 	offsets := make([]int, len(objs))
 	for i, o := range objs {
 		offsets[i] = b.Len()
-		b.WriteString(itoa(i+1) + " 0 obj\n" + o + "\nendobj\n")
+		b.WriteString(itoa(i + 1));b.WriteString(" 0 obj\n");b.WriteString(o);b.WriteString("\nendobj\n")
 	}
 	xref := b.Len()
-	b.WriteString("xref\n0 " + itoa(len(objs)+1) + "\n0000000000 65535 f \n")
+	b.WriteString("xref\n0 ");b.WriteString(itoa(len(objs) + 1));b.WriteString("\n0000000000 65535 f \n")
 	for _, off := range offsets {
 		s := itoa(off)
-		b.WriteString(strings.Repeat("0", 10-len(s)) + s + " 00000 n \n")
+		b.WriteString(strings.Repeat("0", 10-len(s)));b.WriteString(s);b.WriteString(" 00000 n \n")
 	}
-	b.WriteString("trailer\n<< /Size " + itoa(len(objs)+1) + " /Root 1 0 R >>\nstartxref\n" + itoa(xref) + "\n%%EOF\n")
+	b.WriteString("trailer\n<< /Size ");b.WriteString(itoa(len(objs) + 1));b.WriteString(" /Root 1 0 R >>\nstartxref\n");b.WriteString(itoa(xref));b.WriteString("\n%%EOF\n")
 	return b.Bytes()
 }
 

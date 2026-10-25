@@ -40,8 +40,25 @@ func (l *sdkLogger) Warn(_ context.Context, msg string, fields map[string]interf
 	l.log.Warnf("[agent-sdk] %s%s", msg, formatFields(fields))
 }
 
-func (l *sdkLogger) Error(_ context.Context, msg string, fields map[string]interface{}) {
+func (l *sdkLogger) Error(ctx context.Context, msg string, fields map[string]interface{}) {
+	if expectedCloseError(msg, fields) {
+		l.Debug(ctx, msg, fields)
+		return
+	}
 	l.log.Errorf("[agent-sdk] %s%s", msg, formatFields(fields))
+}
+
+// expectedCloseError: closing an MCP server whose process has already
+// ended. When a host closes (the node stops, or the agent is restarted
+// with other MCP servers) its context ends first, and that kills the
+// servers' processes (they run under it); the SDK's close then reports
+// "signal: killed", once per server. Nothing failed.
+func expectedCloseError(msg string, fields map[string]interface{}) bool {
+	if !strings.HasPrefix(msg, "Failed to close MCP server") {
+		return false
+	}
+	err := fmt.Sprintf("%v", fields["error"])
+	return strings.Contains(err, "signal: killed") || strings.Contains(err, "process already finished")
 }
 
 // formatFields renders the fields in key order, each value cut to 500

@@ -137,20 +137,6 @@ func S3ObjectVersion(ctx context.Context, c *s3.Client, bucket, key string) (str
 	return version, nil
 }
 
-// S3ObjectExists reports whether an object exists.
-func S3ObjectExists(ctx context.Context, c *s3.Client, bucket, key string) (bool, error) {
-	_, err := c.HeadObject(ctx, &s3.HeadObjectInput{Bucket: aws.String(bucket), Key: aws.String(key)})
-	if err != nil {
-		var noKey *types.NoSuchKey
-		var notFound *types.NotFound
-		if errors.As(err, &noKey) || errors.As(err, &notFound) {
-			return false, nil
-		}
-		return false, fmt.Errorf("error checking s3://%s/%s: %w", bucket, key, err)
-	}
-	return true, nil
-}
-
 // UploadFileToS3WithContext uploads a local file.
 func UploadFileToS3WithContext(ctx context.Context, c *s3.Client, bucket, filePath, key string) error {
 	file, err := os.Open(filePath)

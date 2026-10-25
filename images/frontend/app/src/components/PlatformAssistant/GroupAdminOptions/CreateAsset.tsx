@@ -33,16 +33,8 @@ import {
 } from "../../../contexts/platformAssistantContext";
 import { AxiosError, AxiosResponse } from "axios";
 
-// CodeMirror imports
-import CodeMirror, { keymap } from "@uiw/react-codemirror";
-import { indentUnit, indentOnInput } from "@codemirror/language";
-import { completionKeymap } from "@codemirror/autocomplete";
-import { indentWithTab } from "@codemirror/commands";
-import { json } from "@codemirror/lang-json";
-import { oneDark } from "@codemirror/theme-one-dark";
-import { CodeMirrorWrapper } from "../../Tools/CodeMirrorWrapper";
-import { ControlsContainer, DraggableFormContainer, FieldErrorScroller } from "../../Tools/FormTools";
-import { ReIndentCommand } from "../DigitalTwin3DViewer/Pipeline/types";
+import JsonFileField, { mustBeArray } from "../../Tools/JsonFileField";
+import { ControlsContainer, DraggableFormContainer } from "../../Tools/FormTools";
 
 const AssetLocationTitle = styled.div`
     margin-bottom: 5px;
@@ -502,72 +494,22 @@ const CreateAsset: FC<CreateAssetProps> = ({
                                         </SelectLocationButton>
                                     </SelectAssetLocationDivButtonContainer>
                                 </AssetLocationContainerDiv>
-                                <CodeMirrorWrapper fontSize="14px">
-                                    <label>Topic references</label>
-                                    <div className="cm-wrapper">
-                                        <CodeMirror
-                                            value={formik.values.topicsRef}
-                                            height="300px"
-                                            theme={oneDark}
-                                            extensions={[
-                                                json(),
-                                                indentUnit.of("    "),
-                                                indentOnInput(),
-                                                keymap.of([...completionKeymap, indentWithTab, ReIndentCommand]),
-                                            ]}
-                                            onChange={(value) => {
-                                                formik.setFieldValue("topicsRef", value);
-                                            }}
-                                            onBlur={() => {
-                                                formik.setFieldTouched("topicsRef", true);
-                                            }}
-                                            basicSetup={{
-                                                lineNumbers: true,
-                                                foldGutter: true,
-                                                bracketMatching: true,
-                                                closeBrackets: true,
-                                                syntaxHighlighting: true,
-                                                autocompletion: true,
-                                                tabSize: 4,
-                                                searchKeymap: true,
-                                            }}
-                                        />
-                                    </div>
-                                    <FieldErrorScroller name="topicsRef" />
-                                </CodeMirrorWrapper>
-                                <CodeMirrorWrapper fontSize="14px">
-                                    <label>Sensor references</label>
-                                    <div className="cm-wrapper">
-                                        <CodeMirror
-                                            value={formik.values.sensorsRef}
-                                            height="300px"
-                                            theme={oneDark}
-                                            extensions={[
-                                                json(),
-                                                indentUnit.of("    "),
-                                                indentOnInput(),
-                                                keymap.of([...completionKeymap, indentWithTab, ReIndentCommand]),
-                                            ]}
-                                            onChange={(value) => {
-                                                formik.setFieldValue("sensorsRef", value);
-                                            }}
-                                            onBlur={() => {
-                                                formik.setFieldTouched("sensorsRef", true);
-                                            }}
-                                            basicSetup={{
-                                                lineNumbers: true,
-                                                foldGutter: true,
-                                                bracketMatching: true,
-                                                closeBrackets: true,
-                                                syntaxHighlighting: true,
-                                                autocompletion: true,
-                                                tabSize: 4,
-                                                searchKeymap: true,
-                                            }}
-                                        />
-                                    </div>
-                                    <FieldErrorScroller name="sensorsRef" />
-                                </CodeMirrorWrapper>
+                                <JsonFileField
+                                    name="topicsRef"
+                                    label="Topic references"
+                                    initialSourceLabel="Default"
+                                    resetValue={JSON.stringify(defaultTopicsRef, null, 4)}
+                                    downloadFileName="topic_references.json"
+                                    check={mustBeArray}
+                                />
+                                <JsonFileField
+                                    name="sensorsRef"
+                                    label="Sensor references"
+                                    initialSourceLabel="Default"
+                                    resetValue={JSON.stringify(defaultSensorsRef, null, 4)}
+                                    downloadFileName="sensor_references.json"
+                                    check={mustBeArray}
+                                />
                             </ControlsContainer>
                             <FormButtonsProps
                                 onCancel={onCancel}

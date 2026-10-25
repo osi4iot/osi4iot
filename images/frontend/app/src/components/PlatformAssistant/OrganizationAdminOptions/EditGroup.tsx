@@ -162,6 +162,7 @@ const EditGroup: FC<EditGroupProps> = ({
     const { accessToken, refreshToken } = useAuthState();
     const [llmEnabledInOrg, setLlmEnabledInOrg] = useState(false);
     const [gpuUsageEnabledInOrg, setGpuUsageEnabledInOrg] = useState(false);
+    const [ragEnabledInOrg, setRagEnabledInOrg] = useState(false);
 
     useEffect(() => {
         const groupsPreviousOption = { groupsPreviousOption: GROUPS_PREVIOUS_OPTIONS.EDIT_GROUP };
@@ -175,6 +176,7 @@ const EditGroup: FC<EditGroupProps> = ({
         setLlmEnabledInOrg(llmEnabledInOrg);
         const gpuUsageEnabledInOrg = selectedOrg ? selectedOrg.gpuUsageEnabled : false;
         setGpuUsageEnabledInOrg(gpuUsageEnabledInOrg);
+        setRagEnabledInOrg(selectedOrg ? selectedOrg.ragEnabled === true : false);
     }, [groupRowIndex, groups, orgsManagedTable]);
 
     const onSubmit = (values: any, actions: any) => {
@@ -201,6 +203,9 @@ const EditGroup: FC<EditGroupProps> = ({
             mqttAccessControl: values.mqttAccessControl,
             llmEnabled: values.llmEnabled,
             gpuUsageEnabled: values.gpuUsageEnabled,
+            // Not sent when the organization has it disabled: the group keeps
+            // its setting, which counts only with the organization's.
+            ...(ragEnabledInOrg ? { ragEnabled: values.ragEnabled === true } : {}),
         };
         setIsSubmitting(true);
 
@@ -336,26 +341,15 @@ const EditGroup: FC<EditGroupProps> = ({
                                         type="text"
                                     />
                                 )}{" "}
-                                <Title>Group location</Title>
-                                <GroupLocationContainer>
+                                {ragEnabledInOrg && (
                                     <FormikControl
-                                        control="input"
-                                        label="Floor number"
-                                        name="floorNumber"
+                                        control="select"
+                                        label="Knowledge base (RAG)"
+                                        name="ragEnabled"
+                                        options={enableDisableOptions}
                                         type="text"
                                     />
-                                    <FormikControl
-                                        control="input"
-                                        label="Feature index"
-                                        name="featureIndex"
-                                        type="text"
-                                    />
-                                    <SelectGroupLocationButtonContainer>
-                                        <SelectSpaceButton type="button" onClick={() => selectSpace(formik.values)}>
-                                            Select space
-                                        </SelectSpaceButton>
-                                    </SelectGroupLocationButtonContainer>
-                                </GroupLocationContainer>
+                                )}{" "}
                                 <Title>Group location</Title>
                                 <GroupLocationContainer>
                                     <FormikControl

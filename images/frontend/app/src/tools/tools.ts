@@ -487,6 +487,26 @@ export interface IOption {
     label: string;
 }
 
+// An asset is chosen by its description: its name, Asset_<uid>, says
+// nothing about it. The option's value is still the name, which is what
+// the forms work with; the form shows it under the selector.
+export const assetOptions = (assetNames: string[], describe: (assetName: string) => string): IOption[] =>
+    assetNames.map((assetName) => ({ value: assetName, label: describe(assetName) || assetName }));
+
+// Sorts the asset names of each group by their descriptions, so that the
+// list and the asset selected first follow the descriptions.
+export const sortAssetNamesByDescription = (
+    assetArray: Record<string, string[]>,
+    descriptions: Record<string, string>,
+): Record<string, string[]> => {
+    for (const key of Object.keys(assetArray)) {
+        assetArray[key].sort((a, b) =>
+            (descriptions[a] || a).localeCompare(descriptions[b] || b, undefined, { sensitivity: "base", numeric: true }),
+        );
+    }
+    return assetArray;
+};
+
 export const convertArrayToOptions = (vector: string[]): IOption[] => {
     const options: IOption[] = [];
     for (const elem of vector) {

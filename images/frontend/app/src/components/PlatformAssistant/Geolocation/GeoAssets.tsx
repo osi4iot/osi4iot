@@ -6,6 +6,7 @@ import GeoAsset from "./GeoAsset";
 import { IAsset } from "../TableColumns/assetsColumns";
 import { ISensor } from "../TableColumns/sensorsColumns";
 import { IAssetType } from "../TableColumns/assetTypesColumns";
+import { findAssetType } from "./typeLookup";
 import { ISensorType } from "../TableColumns/sensorTypesColumns";
 
 interface GeoAssetsProps {
@@ -58,7 +59,7 @@ const GeoAssets: FC<GeoAssetsProps> = (
                 assetDataArray.map(asset => {
                     return <GeoAsset
                         key={asset.id}
-                        assetTypeData={assetTypeDataArray.filter(assetType=> assetType.type === asset.assetType)[0]}
+                        assetTypeData={findAssetType(assetTypeDataArray, asset)}
                         assetData={asset}
                         assetSelected={assetSelected}
                         selectAsset={selectAsset}

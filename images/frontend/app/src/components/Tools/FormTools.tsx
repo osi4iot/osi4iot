@@ -1,6 +1,29 @@
 import { useFormikContext } from "formik";
 import { FC, useEffect, useRef, useState } from "react";
-import styled from "styled-components";
+import styled, { css } from "styled-components";
+
+// The scroll bars of the forms (dark, rounded), for any scrolling box
+// inside them: lists, pickers.
+export const scrollbarStyle = css`
+    ::-webkit-scrollbar {
+        width: 10px;
+        height: 10px;
+    }
+
+    ::-webkit-scrollbar-track {
+        background: #202226;
+        border-radius: 5px;
+    }
+
+    ::-webkit-scrollbar-thumb {
+        background: #2c3235;
+        border-radius: 5px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+        background-color: #343840;
+    }
+`;
 
 const FormContainerDiv = styled.div<{ width: number }>`
     font-size: 12px;

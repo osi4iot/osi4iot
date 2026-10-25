@@ -50,6 +50,7 @@ const (
 // SearchResult is one chunk found by Search.
 type SearchResult struct {
 	FileName string  `json:"file"`
+	Title    string  `json:"title,omitempty"`
 	Location string  `json:"location,omitempty"`
 	Content  string  `json:"content"`
 	Score    float64 `json:"score"`
@@ -242,7 +243,7 @@ WITH semantic AS (
     FROM (
         SELECT id, embedding <=> $1::vector AS distance
         FROM rag.chunks
-        WHERE group_id = $2
+        WHERE group_id = $2 AND document_id = ANY($6::bigint[])
         ORDER BY embedding <=> $1::vector
         LIMIT $4
     ) s
@@ -254,7 +255,7 @@ keyword AS (
     FROM (
         SELECT id, content <@> to_bm25query($3, 'rag.chunks_content_bm25_idx') AS score
         FROM rag.chunks
-        WHERE group_id = $2
+        WHERE group_id = $2 AND document_id = ANY($6::bigint[])
         ORDER BY content <@> to_bm25query($3, 'rag.chunks_content_bm25_idx')
         LIMIT $4
     ) k
@@ -274,8 +275,12 @@ WHERE d.status = 'ready'
 ORDER BY f.score DESC
 LIMIT $5`
 
-// Search returns a group's best chunks for a question.
-func (s *Store) Search(ctx context.Context, groupID int, query string, queryVector []float32, topK int) ([]SearchResult, error) {
+// Search returns the best chunks for a question among some documents of a
+// group (rag.documents ids).
+func (s *Store) Search(ctx context.Context, groupID int, documentIDs []int64, query string, queryVector []float32, topK int) ([]SearchResult, error) {
+	if len(documentIDs) == 0 {
+		return nil, nil
+	}
 	candidates := max(topK*5, 40)
 
 	tx, err := s.pool.Begin(ctx)
@@ -289,7 +294,7 @@ func (s *Store) Search(ctx context.Context, groupID int, query string, queryVect
 		return nil, err
 	}
 
-	rows, err := tx.Query(ctx, searchSQL, vectorLiteral(queryVector), groupID, query, candidates, topK)
+	rows, err := tx.Query(ctx, searchSQL, vectorLiteral(queryVector), groupID, query, candidates, topK, documentIDs)
 	if err != nil {
 		return nil, fmt.Errorf("knowledge search failed: %w", err)
 	}
@@ -302,6 +307,49 @@ func (s *Store) Search(ctx context.Context, groupID int, query string, queryVect
 		return nil, fmt.Errorf("knowledge search failed: %w", err)
 	}
 	return results, tx.Commit(ctx)
+}
+
+// AllowedDocument is a document of a group's knowledge base that a
+// digital twin's AI agents may read (admin_api's
+// grafanadb.digital_twin_knowledge_document), with its title and how far
+// its indexing got.
+type AllowedDocument struct {
+	FileName   string `json:"file"`
+	Title      string `json:"title"`
+	Status     string `json:"status"` // pending (not indexed yet), indexing, ready, error
+	NumChunks  int    `json:"chunks"`
+	DocumentID int64  `json:"-"` // rag.documents id; 0 when not indexed
+}
+
+// allowedDocumentsSQL reads admin_api's tables (SELECT granted to this
+// role by admin_api) joined with the index. The title is the file name
+// when there is none.
+const allowedDocumentsSQL = `
+SELECT dk.file_name,
+       COALESCE(NULLIF(kd.title, ''), dk.file_name),
+       COALESCE(d.status, 'pending'),
+       COALESCE(d.num_chunks, 0),
+       COALESCE(d.id, 0)
+FROM grafanadb.digital_twin_knowledge_document dk
+JOIN grafanadb.knowledge_document kd
+     ON kd.group_id = dk.group_id AND kd.file_name = dk.file_name
+LEFT JOIN rag.documents d
+     ON d.group_id = dk.group_id AND d.file_name = dk.file_name
+WHERE dk.digital_twin_id = $1 AND dk.group_id = $2
+ORDER BY 2, 1`
+
+// DigitalTwinDocuments returns the documents of its group a digital
+// twin's agents may read: none unless chosen in the digital twin.
+func (s *Store) DigitalTwinDocuments(ctx context.Context, groupID, digitalTwinID int) ([]AllowedDocument, error) {
+	rows, err := s.pool.Query(ctx, allowedDocumentsSQL, digitalTwinID, groupID)
+	if err != nil {
+		return nil, fmt.Errorf("error reading the documents of digital twin %d (does admin_api grant SELECT on grafanadb.knowledge_document to this role?): %w", digitalTwinID, err)
+	}
+	return pgx.CollectRows(rows, func(row pgx.CollectableRow) (AllowedDocument, error) {
+		var d AllowedDocument
+		err := row.Scan(&d.FileName, &d.Title, &d.Status, &d.NumChunks, &d.DocumentID)
+		return d, err
+	})
 }
 
 // vectorLiteral formats a vector for pgvector's text input: [0.1,0.2,...].

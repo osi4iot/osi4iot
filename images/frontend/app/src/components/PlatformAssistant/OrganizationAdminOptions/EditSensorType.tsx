@@ -208,11 +208,6 @@ const EditSensorType: FC<EditSensorTypeProps> = ({
     const [iconSvgFileLoaded, setIconSvgFileLoaded] = useState(storedIconSvgString !== "");
     const storedIconSvgFileName = sensorTypes[sensorTypeRowIndex].iconSvgFileName;
     const [iconSvgFileName, setIconSvgFileName] = useState(storedIconSvgFileName);
-    const storedMarkerSvgString = sensorTypes[sensorTypeRowIndex].markerSvgString;
-    const [markerSvgString, setMarkerSvgString] = useState(storedMarkerSvgString);
-    const [markerSvgFileLoaded, setMarkerSvgFileLoaded] = useState(storedMarkerSvgString !== "");
-    const storedMarkerSvgFileName = sensorTypes[sensorTypeRowIndex].markerSvgFileName;
-    const [markerSvgFileName, setMarkerSvgFileName] = useState(storedMarkerSvgFileName);
 
     const [openIconSvgFileSelector, iconSvgFileParams] = useFilePicker({
         readAs: 'Text',
@@ -220,11 +215,6 @@ const EditSensorType: FC<EditSensorTypeProps> = ({
         accept: '.svg',
     });
 
-    const [openMarkerSvgFileSelector, markerSvgFileParams] = useFilePicker({
-        readAs: 'Text',
-        multiple: false,
-        accept: '.svg',
-    });
 
     useEffect(() => {
         if (
@@ -259,48 +249,20 @@ const EditSensorType: FC<EditSensorTypeProps> = ({
         iconSvgFileParams,
     ])
 
-    useEffect(() => {
-        if (
-            !markerSvgFileParams.loading &&
-            markerSvgFileParams.filesContent.length !== 0 &&
-            markerSvgFileParams.plainFiles.length !== 0
-        ) {
-            setMarkerSvgFileLoaded(true)
-            try {
-                const markerSvgString = markerSvgFileParams.filesContent[0].content;
-                const newMarkerSvgString  = cleanSvgString(markerSvgString);
-                setMarkerSvgString(newMarkerSvgString);
-                const markerSvgFileName = markerSvgFileParams.plainFiles[0].name;
-                setMarkerSvgFileName(markerSvgFileName);
-                markerSvgFileParams.clear();
-            } catch (error) {
-                if (error instanceof Error) {
-                    toast.error(`Invalid marker svg file. ${error.message}`);
-                } else {
-                    toast.error("Invalid marker svg file");
-                }
-                setMarkerSvgFileLoaded(false);
-                setMarkerSvgFileName("-");
-                setMarkerSvgString("");
-                markerSvgFileParams.clear();
-            }
-        }
-    }, [
-        markerSvgFileParams.loading,
-        markerSvgFileParams.filesContent,
-        markerSvgFileParams.plainFiles,
-        markerSvgFileParams,
-    ])
 
     const onSubmit = (values: any, actions: any) => {
+        // The icon is how the sensor is drawn around its asset.
+        if (!iconSvgString || iconSvgString.trim() === "") {
+            toast.error("Select the icon svg file of the sensor type");
+            actions.setSubmitting(false);
+            return;
+        }
         const url = `${protocol}://${domainName}/admin_api/sensor_type/${orgId}/id/${sensorTypeId}`;
         const config = axiosAuth(accessToken);
 
         const sensorTypeData = {
             type: values.type,
             iconSvgFileName,
-            markerSvgFileName,
-            markerSvgString,
             iconSvgString,
             dashboardRefreshString: values.dashboardRefresh,
             dashboardTimeWindow: values.dashboardTimeWindow,
@@ -359,18 +321,7 @@ const EditSensorType: FC<EditSensorTypeProps> = ({
         iconSvgFileParams.clear();
     }
 
-    const markerSvgFileButtonHandler = () => {
-        if (!markerSvgFileLoaded) {
-            selectFile(openMarkerSvgFileSelector, markerSvgFileParams.clear);
-        }
-    }
 
-    const clearMarkerSvgDataFile = () => {
-        setMarkerSvgFileLoaded(false);
-        setMarkerSvgFileName("-");
-        setMarkerSvgString("");
-        markerSvgFileParams.clear();
-    }
 
     return (
         <>
@@ -392,7 +343,7 @@ const EditSensorType: FC<EditSensorTypeProps> = ({
                                         name='type'
                                         type='text'
                                     />
-                                    <DataFileTitle>Select icon svg file</DataFileTitle>
+                                    <DataFileTitle>Select icon svg file (required)</DataFileTitle>
                                     <FileSelectionContainer>
                                         <DataFileContainer>
                                             {
@@ -425,45 +376,6 @@ const EditSensorType: FC<EditSensorTypeProps> = ({
                                                 <FileButton
                                                     type='button'
                                                     onClick={() => iconSvgFileButtonHandler()}
-                                                >
-                                                    Select local file
-                                                </FileButton>
-                                            </SelectDataFilenButtonContainer>
-                                        </DataFileContainer>
-                                    </FileSelectionContainer>
-                                    <DataFileTitle>Select marker svg file</DataFileTitle>
-                                    <FileSelectionContainer>
-                                        <DataFileContainer>
-                                            {
-                                                markerSvgFileLoaded &&
-                                                <SvgIconPreviewContainerDiv>
-                                                    <SvgIconPreviewTitle>
-                                                        Marker preview
-                                                    </SvgIconPreviewTitle>
-                                                    <SvgComponentContainerDiv>
-                                                        <SvgComponent
-                                                            svgString={markerSvgString}
-                                                            imgWidth="100"
-                                                            imgHeight="100"
-                                                            backgroundColor="#202226"
-                                                        />
-                                                    </SvgComponentContainerDiv>
-                                                </SvgIconPreviewContainerDiv>
-                                            }
-                                            <FieldContainer>
-                                                <label>File name</label>
-                                                <div>{markerSvgFileName}</div>
-                                            </FieldContainer>
-                                            <SelectDataFilenButtonContainer >
-                                                <FileButton
-                                                    type='button'
-                                                    onClick={clearMarkerSvgDataFile}
-                                                >
-                                                    Clear
-                                                </FileButton>
-                                                <FileButton
-                                                    type='button'
-                                                    onClick={() => markerSvgFileButtonHandler()}
                                                 >
                                                     Select local file
                                                 </FileButton>

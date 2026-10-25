@@ -6,6 +6,8 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"sort"
+	"time"
 
 	"github.com/daulet/tokenizers"
 	ort "github.com/yalue/onnxruntime_go"
@@ -26,16 +28,34 @@ const (
 	passagePrefix  = "passage: "
 )
 
-// modelFiles are tried in order: the int8 quantized model is ~4x smaller
-// and faster on CPU, where the embeddings run.
-var modelFiles = []string{"model_quantized.onnx", "model.onnx"}
+// modelFilesFor lists, in order of preference, the model files for a
+// provider. On CPU the int8 quantized model: ~4x smaller and faster. On
+// CUDA the float32 one: the quantized operators have no CUDA kernels and
+// would run on CPU, copying the tensors back and forth. Either is taken
+// when the other is missing (the CPU images have only the quantized one).
+func modelFilesFor(provider string) []string {
+	if provider == nodes.ProviderCUDA {
+		return []string{"model.onnx", "model_quantized.onnx"}
+	}
+	return []string{"model_quantized.onnx", "model.onnx"}
+}
 
 // Embedder computes embeddings on its own OS thread (ORT sessions are
-// used from one thread, as in the MlModel nodes). It runs on CPU: the
-// model is small, embeddings are computed in bursts (a document being
-// indexed, one query), and a quantized model has no CUDA kernels anyway.
+// used from one thread, as in the MlModel nodes), on CPU or CUDA.
+//
+// Memory: the session has no CPU memory arena. With it, ONNX Runtime
+// keeps the peak of the intermediate tensors of the largest batch (16
+// chunks of up to 512 tokens: hundreds of MB of attention matrices) for
+// the life of the process; without it they are freed after each batch,
+// and malloc_trim gives them back to the system after each document.
+//
+// Once loaded, the model stays loaded for the life of the process: a
+// knowledge base's searches must not wait for it (on CUDA, loading takes
+// seconds of CPU). What it keeps is the model (about 220 MB of memory on
+// CPU with the int8 model) and, on CUDA, its GPU memory.
 type Embedder struct {
-	calls chan embedCall
+	calls    chan embedCall
+	provider string
 }
 
 type embedCall struct {
@@ -48,10 +68,12 @@ type embedResult struct {
 	err     error
 }
 
-// NewEmbedder loads the model and the tokenizer from dir.
-func NewEmbedder(dir string, log *logger.Logger) (*Embedder, error) {
+// NewEmbedder loads the model and the tokenizer from dir, for provider
+// (nodes.ProviderCPU or nodes.ProviderCUDA).
+func NewEmbedder(dir, provider string, log *logger.Logger) (*Embedder, error) {
+	start := time.Now()
 	var modelPath string
-	for _, name := range modelFiles {
+	for _, name := range modelFilesFor(provider) {
 		p := filepath.Join(dir, name)
 		if _, err := os.Stat(p); err == nil {
 			modelPath = p
@@ -59,7 +81,7 @@ func NewEmbedder(dir string, log *logger.Logger) (*Embedder, error) {
 		}
 	}
 	if modelPath == "" {
-		return nil, fmt.Errorf("no embedding model (%v) in %s", modelFiles, dir)
+		return nil, fmt.Errorf("no embedding model (%v) in %s", modelFilesFor(provider), dir)
 	}
 	tokenizerPath := filepath.Join(dir, "tokenizer.json")
 
@@ -67,15 +89,21 @@ func NewEmbedder(dir string, log *logger.Logger) (*Embedder, error) {
 		return nil, err
 	}
 
-	e := &Embedder{calls: make(chan embedCall)}
+	e := &Embedder{
+		calls:    make(chan embedCall),
+		provider: provider,
+	}
 	ready := make(chan error, 1)
-	go e.run(modelPath, tokenizerPath, log, ready)
+	go e.run(modelPath, tokenizerPath, ready)
 	if err := <-ready; err != nil {
 		return nil, err
 	}
-	log.Infof("Knowledge bases: embedding model %s loaded", modelPath)
+	log.Infof("Knowledge bases: embedding model %s loaded (%s) in %s", modelPath, provider, time.Since(start).Round(time.Millisecond))
 	return e, nil
 }
+
+// Provider is where the embeddings run: cpu or cuda.
+func (e *Embedder) Provider() string { return e.provider }
 
 // EmbedQuery embeds a question.
 func (e *Embedder) EmbedQuery(text string) ([]float32, error) {
@@ -102,8 +130,9 @@ func (e *Embedder) embed(texts []string) ([][]float32, error) {
 	return r.vectors, r.err
 }
 
-// run owns the tokenizer and the ORT session, on a locked OS thread.
-func (e *Embedder) run(modelPath, tokenizerPath string, log *logger.Logger, ready chan<- error) {
+// run owns the tokenizer and the ORT session, on a locked OS thread, for
+// the life of the process.
+func (e *Embedder) run(modelPath, tokenizerPath string, ready chan<- error) {
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
 
@@ -125,32 +154,76 @@ func (e *Embedder) run(modelPath, tokenizerPath string, log *logger.Logger, read
 	}
 	outputName := outputs[0].Name // last_hidden_state
 
-	options, err := ort.NewSessionOptions()
+	// The provider's options (CUDA with the MlModel nodes' settings),
+	// without the CPU memory arena or the memory pattern (see Embedder).
+	options, err := nodes.NewSessionOptionsFor(e.provider)
 	if err != nil {
 		ready <- err
 		return
 	}
-	_ = options.SetIntraOpNumThreads(nodes.IntraOpThreads())
+	if err := options.SetCpuMemArena(false); err != nil {
+		options.Destroy()
+		ready <- fmt.Errorf("error disabling the CPU memory arena: %w", err)
+		return
+	}
+	if err := options.SetMemPattern(false); err != nil {
+		options.Destroy()
+		ready <- fmt.Errorf("error disabling the memory pattern: %w", err)
+		return
+	}
+	// ORT's threads spin for a while after each run, waiting for more
+	// work: CPU burnt for nothing between the batches of a document and
+	// after it. Embeddings come in bursts; sleeping costs microseconds.
+	if err := options.AddSessionConfigEntry("session.intra_op.allow_spinning", "0"); err != nil {
+		options.Destroy()
+		ready <- fmt.Errorf("error disabling thread spinning: %w", err)
+		return
+	}
 	session, err := ort.NewDynamicAdvancedSession(modelPath, inputNames, []string{outputName}, options)
 	options.Destroy()
 	if err != nil {
-		ready <- fmt.Errorf("error creating the embedding session: %w", err)
+		ready <- fmt.Errorf("error creating the embedding session (%s): %w", e.provider, err)
 		return
 	}
 	defer session.Destroy()
 	ready <- nil
 
 	for call := range e.calls {
-		var vectors [][]float32
-		var err error
-		for start := 0; start < len(call.texts) && err == nil; start += embedBatchSize {
-			end := min(start+embedBatchSize, len(call.texts))
-			var batch [][]float32
-			batch, err = embedBatch(tk, session, inputNames, call.texts[start:end])
-			vectors = append(vectors, batch...)
-		}
+		vectors, err := embedTexts(tk, session, inputNames, call.texts)
 		call.reply <- embedResult{vectors: vectors, err: err}
+		if len(call.texts) > 1 {
+			releaseFreedMemory() // after a document: give the peak back
+		}
 	}
+}
+
+// embedTexts embeds texts in batches of embedBatchSize, the texts sorted
+// by length first: each batch is padded to its longest text, so similar
+// lengths together waste less (padding costs memory and time). The
+// vectors come back in the order of texts.
+func embedTexts(tk *tokenizers.Tokenizer, session *ort.DynamicAdvancedSession, inputNames []string, texts []string) ([][]float32, error) {
+	order := make([]int, len(texts))
+	for i := range order {
+		order[i] = i
+	}
+	sort.SliceStable(order, func(a, b int) bool { return len(texts[order[a]]) < len(texts[order[b]]) })
+
+	vectors := make([][]float32, len(texts))
+	for start := 0; start < len(order); start += embedBatchSize {
+		end := min(start+embedBatchSize, len(order))
+		batch := make([]string, 0, end-start)
+		for _, i := range order[start:end] {
+			batch = append(batch, texts[i])
+		}
+		out, err := embedBatch(tk, session, inputNames, batch)
+		if err != nil {
+			return nil, err
+		}
+		for j, i := range order[start:end] {
+			vectors[i] = out[j]
+		}
+	}
+	return vectors, nil
 }
 
 // embedBatch tokenizes, pads to the longest text, runs the model and

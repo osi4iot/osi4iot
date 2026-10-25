@@ -246,6 +246,9 @@ class SensorController implements IController {
 			let sensorType = await getSensorTypeByPropName(orgId, propName, propValue);
 			if (!sensorType) throw new ItemNotFoundException(req, res, "The sensor type", propName, propValue);
 			sensorType = { ...sensorType, ...sensorTypeData };
+			if (!/<svg[\s>]/i.test(sensorType.iconSvgString || "")) {
+				throw new HttpException(req, res, 400, "The icon svg file of the sensor type is required");
+			}
 			await updateSensorTypeByPropName(propName, propValue, sensorType);
 			const message = { message: "Sensor type updated successfully" }
 			res.status(200).json(message);

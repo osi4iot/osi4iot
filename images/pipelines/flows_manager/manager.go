@@ -196,9 +196,21 @@ func CreateFlowsManager(
 	flowManager.AddMlModels(ctx, mlModels)
 	// Before the digital twins: it decides which pipelines live here.
 	flowManager.initGpuCapability(ctx)
+	if knowledge != nil {
+		// Embeddings on this replica's GPU for the groups allowed one. Set
+		// before reconcileKnowledgeBases, whose indexing starts at once.
+		fm := &flowManager
+		knowledge.SetGPUPolicy(func(groupID int) bool {
+			return fm.GpuCapable && fm.groupGpuAllowed(groupID)
+		})
+		knowledge.SetRAGPolicy(fm.groupRagAllowed)
+	}
 	flowManager.AddDigitalTwins(ctx, digitalTwins)
 	flowManager.AddFemResultsInDigitalTwins(ctx)
 	flowManager.reconcileKnowledgeBases(ctx)
+	if knowledge != nil {
+		knowledge.Preload(flowManager.groupIDs())
+	}
 
 	flowManager.Listen(ctx)
 	flowManager.StartNodes(ctx)

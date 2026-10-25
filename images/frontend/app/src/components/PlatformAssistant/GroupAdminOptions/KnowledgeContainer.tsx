@@ -13,10 +13,18 @@ import Loader from "../../Tools/Loader";
 import { IGroupManaged } from "../TableColumns/groupsManagedColumns";
 import { Create_KNOWLEDGE_COLUMNS, IKnowledgeFile, IKnowledgeFileRow } from "../TableColumns/knowledgeColumns";
 
-// The group's knowledge base: the documents its AI agents search with
-// the search-knowledge tool. pipelines indexes each one when it is
-// uploaded (text, chunks and embeddings), so the Status column moves
-// from Pending to Indexing… to Ready, or Error with the reason.
+// The group's knowledge base: the documents its digital twins' AI agents
+// read and search (each digital twin chooses which ones, by title, in its
+// settings). pipelines indexes each one when it is uploaded (text, chunks
+// and embeddings), so the Status column moves from Pending to Indexing…
+// to Ready, or Error with the reason.
+//
+// Each document has an optional title, given when it is uploaded and
+// editable in the table: what the document is about, which a file name
+// often does not say. Without one the file name is shown.
+//
+// The knowledge base is off unless enabled for the organization and for
+// the group: then nothing can be uploaded (and nothing is indexed).
 
 // As admin_api accepts them (group_knowledge_upload_file).
 const KNOWLEDGE_EXTENSIONS = [
@@ -26,6 +34,7 @@ const KNOWLEDGE_EXTENSIONS = [
 const KNOWLEDGE_MAX_FILE_SIZE = 100 * 1024 * 1024; // 100 MB
 // While some document is still being indexed the table refreshes itself.
 const POLL_INTERVAL_MS = 4000;
+const KNOWLEDGE_TITLE_MAX_LENGTH = 200;
 
 const domainName = getDomainName();
 const protocol = getProtocol();
@@ -84,6 +93,75 @@ const UploadProgress = styled.span`
     font-weight: 600;
 `;
 
+// The files chosen to upload, each with its title, before uploading them.
+const PendingUploads = styled.div`
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    width: calc(100% - 40px);
+    margin: 15px 20px 0 20px;
+    padding: 12px 15px;
+    border: 1px solid #2c3235;
+    border-radius: 5px;
+    background-color: #141619;
+    color: white;
+    font-size: 14px;
+`;
+
+const PendingUploadRow = styled.div`
+    display: grid;
+    grid-template-columns: minmax(150px, 1fr) 2fr;
+    align-items: center;
+    gap: 10px;
+`;
+
+const PendingFileName = styled.span`
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: #c9c9c9;
+`;
+
+const TitleInput = styled.input`
+    background-color: #0c0d0f;
+    color: white;
+    border: 1px solid #2c3235;
+    border-radius: 5px;
+    padding: 6px 10px;
+    font-size: 14px;
+    outline: none;
+
+    &:focus {
+        border: 1px solid #3274d9;
+    }
+`;
+
+const PendingButtons = styled.div`
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 4px;
+`;
+
+const Button = styled.button<{ primary?: boolean }>`
+    background-color: ${(props) => (props.primary ? "#3274d9" : "#202226")};
+    color: white;
+    border: 1px solid ${(props) => (props.primary ? "#3274d9" : "#2c3235")};
+    border-radius: 5px;
+    padding: 6px 16px;
+    font-size: 14px;
+    cursor: pointer;
+
+    &:hover {
+        border: 1px solid #5a95f5;
+    }
+`;
+
+interface IPendingUpload {
+    file: File;
+    title: string;
+}
+
 const NoGroupsMessage = styled.div`
     color: white;
     margin-top: 40px;
@@ -127,6 +205,9 @@ const KnowledgeContainer: FC<KnowledgeContainerProps> = ({ groupsManaged }) => {
     const [knowledgeFiles, setKnowledgeFiles] = useState<IKnowledgeFileRow[]>([]);
     const [loading, setLoading] = useState(true);
     const [uploadProgress, setUploadProgress] = useState<{ done: number; total: number } | null>(null);
+    const [pendingUploads, setPendingUploads] = useState<IPendingUpload[]>([]);
+    // null: not known yet (or admin_api could not say).
+    const [ragEnabled, setRagEnabled] = useState<boolean | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const selectedGroup = useMemo(() => groupsManaged.find((group) => group.id === groupId), [groupsManaged, groupId]);
@@ -158,6 +239,19 @@ const KnowledgeContainer: FC<KnowledgeContainerProps> = ({ groupsManaged }) => {
         fetchKnowledgeFiles(true);
     }, [fetchKnowledgeFiles]);
 
+    // Whether the group's knowledge base is enabled (organization and group).
+    useEffect(() => {
+        if (groupId === null) return;
+        setRagEnabled(null);
+        setPendingUploads([]);
+        const config = axiosAuth(accessToken);
+        const url = `${protocol}://${domainName}/admin_api/group_knowledge_enabled/${groupId}`;
+        getAxiosInstance(refreshToken, authDispatch)
+            .get(url, config)
+            .then((response: AxiosResponse<{ enabled: boolean }>) => setRagEnabled(response.data.enabled === true))
+            .catch(() => setRagEnabled(null));
+    }, [accessToken, refreshToken, authDispatch, groupId]);
+
     // Follow the indexing of the documents that are not done yet.
     const indexingInProgress = knowledgeFiles.some((file) => file.status === "pending" || file.status === "indexing");
     useEffect(() => {
@@ -168,11 +262,17 @@ const KnowledgeContainer: FC<KnowledgeContainerProps> = ({ groupsManaged }) => {
 
     const openFileSelector = useCallback(() => {
         if (uploadProgress) return;
+        if (ragEnabled === false) {
+            toast.warning("The knowledge base is not enabled for this group");
+            return;
+        }
         fileInputRef.current?.click();
-    }, [uploadProgress]);
+    }, [uploadProgress, ragEnabled]);
 
-    const uploadFiles = async (files: File[]) => {
-        if (groupId === null) return;
+    // The chosen files wait, with a title each, until Upload is pressed. A
+    // file already in the knowledge base starts with its title (an empty
+    // title keeps no title).
+    const chooseFiles = (files: File[]) => {
         const valid: File[] = [];
         for (const file of files) {
             const problem = validateFile(file);
@@ -180,6 +280,25 @@ const KnowledgeContainer: FC<KnowledgeContainerProps> = ({ groupsManaged }) => {
             else valid.push(file);
         }
         if (valid.length === 0) return;
+        const titles = new Map(knowledgeFiles.map((file) => [file.fileName, file.title || ""]));
+        setPendingUploads((current) => {
+            const byName = new Map(current.map((pending) => [pending.file.name, pending]));
+            for (const file of valid) {
+                byName.set(file.name, { file, title: byName.get(file.name)?.title ?? titles.get(file.name) ?? "" });
+            }
+            return Array.from(byName.values());
+        });
+    };
+
+    const setPendingTitle = (fileName: string, title: string) =>
+        setPendingUploads((current) =>
+            current.map((pending) => (pending.file.name === fileName ? { ...pending, title } : pending)),
+        );
+
+    const uploadFiles = async (pending: IPendingUpload[]) => {
+        if (groupId === null || pending.length === 0) return;
+        setPendingUploads([]);
+        const valid = pending.map((p) => p.file);
 
         const existing = new Set(knowledgeFiles.map((file) => file.fileName));
         const replaced = valid.filter((file) => existing.has(file.name)).map((file) => file.name);
@@ -193,10 +312,12 @@ const KnowledgeContainer: FC<KnowledgeContainerProps> = ({ groupsManaged }) => {
         setUploadProgress({ done: 0, total: valid.length });
         // One at a time: they can be large, and pipelines indexes them in
         // the order they arrive anyway.
-        for (const file of valid) {
+        for (const { file, title } of pending) {
             const formData = new FormData();
             formData.append("file", file, file.name);
-            const url = `${protocol}://${domainName}/admin_api/group_knowledge_upload_file/${groupId}/${encodeURIComponent(file.name)}`;
+            const url =
+                `${protocol}://${domainName}/admin_api/group_knowledge_upload_file/${groupId}/${encodeURIComponent(file.name)}` +
+                `?title=${encodeURIComponent(title.trim())}`;
             try {
                 await axiosInstance.post(url, formData, config);
                 uploaded++;
@@ -220,7 +341,7 @@ const KnowledgeContainer: FC<KnowledgeContainerProps> = ({ groupsManaged }) => {
         const files = e.target.files ? Array.from(e.target.files) : [];
         // Allow selecting the same file again later.
         e.target.value = "";
-        if (files.length !== 0) uploadFiles(files);
+        if (files.length !== 0) chooseFiles(files);
     };
 
     const columnsTable = useMemo(
@@ -255,6 +376,12 @@ const KnowledgeContainer: FC<KnowledgeContainerProps> = ({ groupsManaged }) => {
                 {selectedGroup && !selectedGroup.llmEnabled && (
                     <WarningText>AI agents are not enabled for this group</WarningText>
                 )}
+                {ragEnabled === false && (
+                    <WarningText>
+                        The knowledge base is not enabled for this group: it must be enabled for its organization and
+                        for the group. Documents cannot be uploaded and are not indexed.
+                    </WarningText>
+                )}
                 {indexingDisabled && (
                     <WarningText>This platform has no knowledge database: documents are stored but not indexed</WarningText>
                 )}
@@ -264,6 +391,33 @@ const KnowledgeContainer: FC<KnowledgeContainerProps> = ({ groupsManaged }) => {
                     </UploadProgress>
                 )}
             </HeaderContainer>
+            {pendingUploads.length !== 0 && (
+                <PendingUploads>
+                    <span>Title of each document (optional: what it is about; without one the file name is shown)</span>
+                    {pendingUploads.map((pending) => (
+                        <PendingUploadRow key={pending.file.name}>
+                            <PendingFileName title={pending.file.name}>{pending.file.name}</PendingFileName>
+                            <TitleInput
+                                value={pending.title}
+                                maxLength={KNOWLEDGE_TITLE_MAX_LENGTH}
+                                placeholder="Title"
+                                onChange={(e) => setPendingTitle(pending.file.name, e.target.value)}
+                            />
+                        </PendingUploadRow>
+                    ))}
+                    <PendingButtons>
+                        <Button type="button" onClick={() => setPendingUploads([])}>
+                            Cancel
+                        </Button>
+                        <Button type="button" onClick={openFileSelector}>
+                            Add files
+                        </Button>
+                        <Button type="button" primary onClick={() => uploadFiles(pendingUploads)}>
+                            Upload {pendingUploads.length === 1 ? "1 document" : `${pendingUploads.length} documents`}
+                        </Button>
+                    </PendingButtons>
+                </PendingUploads>
+            )}
             <input
                 ref={fileInputRef}
                 type="file"

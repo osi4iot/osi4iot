@@ -213,6 +213,24 @@ export const getNumAssetTypesByOrgsIdArray = async (orgsIdArray: number[]): Prom
 	return parseInt(result.rows[0].count, 10);
 };
 
+// Whether another asset of the group has this description (ignoring case
+// and the spaces around it): assets are chosen by their description.
+// Asked to the primary, not a replica, to see an asset just created.
+export const isAssetDescriptionTaken = async (
+	groupId: number,
+	description: string,
+	exceptAssetId: number | null = null
+): Promise<boolean> => {
+	const result = await pool.query(
+		`SELECT 1 FROM grafanadb.asset
+		WHERE group_id = $1 AND lower(btrim(description)) = lower(btrim($2))
+		AND ($3::bigint IS NULL OR id <> $3)
+		LIMIT 1`,
+		[groupId, description, exceptAssetId]
+	);
+	return result.rows.length !== 0;
+};
+
 export const insertAsset = async (assetData: IAsset): Promise<IAsset> => {
 	const queryString = `INSERT INTO grafanadb.asset (group_id, asset_uid,
 		asset_type_id, description, geolocation, icon_radio, icon_size_factor,

@@ -25,8 +25,6 @@ export interface ISensorType {
 	type: string;
 	iconSvgFileName: string;
 	iconSvgString: string;
-	markerSvgFileName: string;
-	markerSvgString: string;
     isPredefined: boolean;
     isPredefinedString: string;
 	defaultPayloadJsonSchema: string;

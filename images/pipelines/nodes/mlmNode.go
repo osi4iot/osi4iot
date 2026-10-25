@@ -550,19 +550,6 @@ func (n *MlmNode) processMessage(msg common.Message, log *logger.Logger) error {
 	return nil
 }
 
-func (n *MlmNode) runInference(log *logger.Logger) error {
-	if n.Session == nil {
-		return fmt.Errorf("session not initialized")
-	}
-
-	if err := n.onOrtThread(n.Session.Run); err != nil {
-		log.Errorf("error running inference: %v", err)
-		return fmt.Errorf("error running inference: %w", err)
-	}
-
-	return nil
-}
-
 func (n *MlmNode) calculateTensorSize(dimensions []int64) int {
 	size := 1
 	for _, dim := range dimensions {

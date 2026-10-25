@@ -25,6 +25,7 @@ export interface IOrgInputData {
     name: string;
     acronym: string;
     buildingId: number;
+    // The form's LLM provider fields (see CreateOrganization).
     llmProviderType?: string;
     llmProviderUrl?: string;
     llmProviderApiKey?: string;
@@ -47,6 +48,7 @@ const initialOrgData = {
     telegramEnabled: false,
     telegramBotToken: "",
     gpuUsageEnabled: false,
+    ragEnabled: false,
     orgAdminArray: [
         {
             firstName: "",

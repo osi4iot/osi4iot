@@ -557,13 +557,6 @@ func (n *FuncNode) mapToMessageFromOriginal(data map[string]interface{}, origina
 	return msg
 }
 
-func stringOrDefault(m map[string]interface{}, key, defaultVal string) string {
-	if val, ok := m[key].(string); ok && val != "" {
-		return val
-	}
-	return defaultVal
-}
-
 func (n *FuncNode) isMessageLike(data map[string]interface{}) bool {
 	_, hasPayload := data["payload"]
 	return hasPayload

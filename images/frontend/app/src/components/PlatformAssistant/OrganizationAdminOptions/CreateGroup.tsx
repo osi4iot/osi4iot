@@ -141,6 +141,7 @@ const initialCreateGroupInputData = {
     mqttAccessControl: "Pub & Sub",
     llmEnabled: false,
     gpuUsageEnabled: false,
+    ragEnabled: false,
     groupAdminDataArray: [
         {
             firstName: "",
@@ -187,6 +188,7 @@ const CreateGroup: FC<CreateGroupProps> = ({
     const [orgOptions, setOrgOptions] = useState<IOption[]>([]);
     const [llmEnabledInOrg, setLlmEnabledInOrg] = useState(false);
     const [gpuUsageEnabledInOrg, setGpuUsageEnabledInOrg] = useState(false);
+    const [ragEnabledInOrg, setRagEnabledInOrg] = useState(false);
 
     useEffect(() => {
         if (selectedUsersArray.length !== 0) {
@@ -228,6 +230,7 @@ const CreateGroup: FC<CreateGroupProps> = ({
         setLlmEnabledInOrg(llmEnabledInOrg);
         const gpuUsageEnabledInOrg = selectedOrg ? selectedOrg.gpuUsageEnabled : false;
         setGpuUsageEnabledInOrg(gpuUsageEnabledInOrg);
+        setRagEnabledInOrg(selectedOrg ? selectedOrg.ragEnabled === true : false);
     }, [selectedOrgId, orgsManagedTable]);
 
     useEffect(() => {
@@ -260,6 +263,8 @@ const CreateGroup: FC<CreateGroupProps> = ({
             mqttAccessControl: values.mqttAccessControl,
             llmEnabled: values.llmEnabled,
             gpuUsageEnabled: values.gpuUsageEnabled,
+            // Only when enabled for the organization.
+            ragEnabled: ragEnabledInOrg ? values.ragEnabled === true : false,
         };
         setIsSubmitting(true);
         getAxiosInstance(refreshToken, authDispatch)
@@ -454,6 +459,15 @@ const CreateGroup: FC<CreateGroupProps> = ({
                                                 control="select"
                                                 label="Large Language Model (LLM)"
                                                 name="llmEnabled"
+                                                options={enableDisableOptions}
+                                                type="text"
+                                            />
+                                        )}
+                                        {ragEnabledInOrg && (
+                                            <FormikControl
+                                                control="select"
+                                                label="Knowledge base (RAG)"
+                                                name="ragEnabled"
                                                 options={enableDisableOptions}
                                                 type="text"
                                             />

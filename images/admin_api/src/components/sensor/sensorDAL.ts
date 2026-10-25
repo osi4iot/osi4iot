@@ -10,16 +10,13 @@ import natsClient from "../../config/natsConfig";
 
 export const insertSensorType = async (sensorTypeData: ISensorType): Promise<ISensorType> => {
 	const queryString = `INSERT INTO grafanadb.sensor_type (org_id, sensor_type_uid,
-		type, icon_svg_file_name, icon_svg_string, marker_svg_file_name,
-		marker_svg_string,  default_payload_json_schema, is_predefined,
+		type, icon_svg_file_name, icon_svg_string, default_payload_json_schema, is_predefined,
 		dashboard_refresh_string, dashboard_time_window, created, updated)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW(), NOW())
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW())
 		RETURNING id, org_id AS "orgId",
 		sensor_type_uid AS "assetTypeUid", type,
 		icon_svg_file_name AS "iconSvgFileName",
 		icon_svg_string AS "iconSvgString", 
-		marker_svg_file_name AS "markerSvgFileName",
-		marker_svg_string  AS "markerSvgString",
 		default_payload_json_schema AS "defaultPayloadJsonSchema",
         is_predefined AS "isPredefined",
 		dashboard_refresh_string AS "dashboardRefreshString",
@@ -32,8 +29,6 @@ export const insertSensorType = async (sensorTypeData: ISensorType): Promise<ISe
 		sensorTypeData.type,
 		sensorTypeData.iconSvgFileName,
 		sensorTypeData.iconSvgString,
-		sensorTypeData.markerSvgFileName,
-		sensorTypeData.markerSvgString,
 		sensorTypeData.defaultPayloadJsonSchema,
 		sensorTypeData.isPredefined || false,
 		sensorTypeData.dashboardRefreshString,
@@ -49,17 +44,14 @@ export const updateSensorTypeByPropName = async (
 ): Promise<void> => {
 	const query = `UPDATE grafanadb.sensor_type SET type = $1,
 	            icon_svg_file_name = $2, icon_svg_string = $3,
-				marker_svg_file_name = $4, marker_svg_string = $5,
-				dashboard_refresh_string = $6, dashboard_time_window =$7,
-				default_payload_json_schema = $8,
+				dashboard_refresh_string = $4, dashboard_time_window = $5,
+				default_payload_json_schema = $6,
 				updated = NOW()
-				WHERE grafanadb.sensor_type.${propName} = $9;`;
+				WHERE grafanadb.sensor_type.${propName} = $7;`;
 	await pool.query(query, [
 		sensorType.type,
 		sensorType.iconSvgFileName,
 		sensorType.iconSvgString,
-		sensorType.markerSvgFileName,
-		sensorType.markerSvgString,
 		sensorType.dashboardRefreshString,
 		sensorType.dashboardTimeWindow,
 		sensorType.defaultPayloadJsonSchema,
@@ -86,8 +78,6 @@ export const getAllSensorTypes = async (): Promise<ISensorType[]> => {
 		grafanadb.sensor_type.type,
 		grafanadb.sensor_type.icon_svg_file_name AS "iconSvgFileName",
 		grafanadb.sensor_type.icon_svg_string AS "iconSvgString",
-		grafanadb.sensor_type.marker_svg_file_name AS "markerSvgFileName",
-		grafanadb.sensor_type.marker_svg_string AS "markerSvgString",
 		grafanadb.sensor_type.default_payload_json_schema AS "defaultPayloadJsonSchema",
 		grafanadb.sensor_type.dashboard_refresh_string AS "dashboardRefreshString",
 		grafanadb.sensor_type.dashboard_time_window AS "dashboardTimeWindow",
@@ -107,8 +97,6 @@ export const getSensorTypesByOrgsIdArray = async (orgsIdArray: number[]): Promis
 		grafanadb.sensor_type.type,
 		grafanadb.sensor_type.icon_svg_file_name AS "iconSvgFileName",
 		grafanadb.sensor_type.icon_svg_string AS "iconSvgString",
-		grafanadb.sensor_type.marker_svg_file_name AS "markerSvgFileName",
-		grafanadb.sensor_type.marker_svg_string AS "markerSvgString",
 		grafanadb.sensor_type.default_payload_json_schema AS "defaultPayloadJsonSchema",
 		grafanadb.sensor_type.dashboard_refresh_string AS "dashboardRefreshString",
 		grafanadb.sensor_type.dashboard_time_window AS "dashboardTimeWindow",
@@ -130,8 +118,6 @@ export const getSensorTypesByOrgId = async (orgId: number): Promise<ISensorType[
 		grafanadb.sensor_type.type,
 		grafanadb.sensor_type.icon_svg_file_name AS "iconSvgFileName",
 		grafanadb.sensor_type.icon_svg_string AS "iconSvgString",
-		grafanadb.sensor_type.marker_svg_file_name AS "markerSvgFileName",
-		grafanadb.sensor_type.marker_svg_string AS "markerSvgString",
 		grafanadb.sensor_type.default_payload_json_schema AS "defaultPayloadJsonSchema",
 		grafanadb.sensor_type.dashboard_refresh_string AS "dashboardRefreshString",
 		grafanadb.sensor_type.dashboard_time_window AS "dashboardTimeWindow",
@@ -157,8 +143,6 @@ export const getSensorTypeByPropName = async (
 		grafanadb.sensor_type.type,
 		grafanadb.sensor_type.icon_svg_file_name AS "iconSvgFileName",
 		grafanadb.sensor_type.icon_svg_string AS "iconSvgString",
-		grafanadb.sensor_type.marker_svg_file_name AS "markerSvgFileName",
-		grafanadb.sensor_type.marker_svg_string AS "markerSvgString",
 		grafanadb.sensor_type.default_payload_json_schema AS "defaultPayloadJsonSchema",
 		grafanadb.sensor_type.dashboard_refresh_string AS "dashboardRefreshString",
 		grafanadb.sensor_type.dashboard_time_window AS "dashboardTimeWindow",
@@ -180,8 +164,6 @@ export const getSensorTypeByTypeAndOrgId = async (orgId: number, type: string): 
 		grafanadb.sensor_type.type,
 		grafanadb.sensor_type.icon_svg_file_name AS "iconSvgFileName",
 		grafanadb.sensor_type.icon_svg_string AS "iconSvgString",
-		grafanadb.sensor_type.marker_svg_file_name AS "markerSvgFileName",
-		grafanadb.sensor_type.marker_svg_string AS "markerSvgString",
 		grafanadb.sensor_type.default_payload_json_schema AS "defaultPayloadJsonSchema",
 		grafanadb.sensor_type.dashboard_refresh_string AS "dashboardRefreshString",
 		grafanadb.sensor_type.dashboard_time_window AS "dashboardTimeWindow",

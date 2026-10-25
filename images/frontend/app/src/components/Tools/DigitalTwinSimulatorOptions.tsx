@@ -1,16 +1,12 @@
-import React, { FC, SyntheticEvent, useEffect, useState } from "react";
+import { FC, useState, SyntheticEvent, useEffect } from 'react';
 import styled from "styled-components";
-import Paho from "paho-mqtt";
-import { useAuthState, useAuthDispatch } from "../../contexts/authContext";
-import axiosErrorHandler from "../../tools/axiosErrorHandler";
-import { getAxiosInstance } from "../../tools/axiosIntance";
-import { getDomainName, getProtocol, axiosAuth } from "../../tools/tools";
-import { IDigitalTwinSimulator } from "../PlatformAssistant/TableColumns/digitalTwinsColumns";
-import ServerError from "./ServerError";
-import Slider from "./Slider";
-import { useWindowWidth } from "@react-hook/window-size";
-import { AxiosResponse, AxiosError } from "axios";
-
+import { useHistory } from "react-router-dom";
+import { Formik, Form, FormikProps } from 'formik';
+import FormikControl from "./FormikControl";
+import MobileSensorSelectFormButtons from "./MobileSensorSelectFormButtons";
+import { IDigitalTwinSimulator } from '../PlatformAssistant/TableColumns/digitalTwinsColumns';
+import { InitialDigitalTwinSimulatorData } from '../../pages/DigitalTwinSimulatorMobilePage';
+import { assetOptions, sortAssetNamesByDescription } from '../../tools/tools';
 
 const Title = styled.h2`
 	font-size: 20px;
@@ -37,24 +33,28 @@ const ConnectionLed = styled.span<ConnectionLedProps>`
 `;
 
 const FormContainer = styled.div`
-	position: relative;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-	margin: 0 5px;
-	color: white;
-	margin: 10px 0;
-	padding: 10px 12px;
-	width: 310px;
-	border: 2px solid #3274d9;
-	border-radius: 15px;
+    font-size: 12px;
+    height: calc(100vh - 190px);
+    position: relative;
+    margin: 0 5px;
+    color: white;
+    margin: 10px 0;
+    padding: 10px;
+    width: calc(100vw - 40px);
+    max-width: 400px;
+    border: 2px solid #3274d9;
+    border-radius: 15px;
+
+    form > div:nth-child(2) {
+        margin-right: 10px;
+    }
 `;
 
-const ParametersContainer = styled.div`
-    height: calc(100vh - 305px);
+const ControlsContainer = styled.div`
+    height: calc(100vh - 280px);
     width: 100%;
-    padding: 0px 5px;
+    padding: 10px 5px;
+    margin-bottom: 15px;
     overflow-y: auto;
     /* width */
     ::-webkit-scrollbar {
@@ -87,247 +87,384 @@ const ParametersContainer = styled.div`
     }
 `;
 
-const GetLastMeasurementsButtom = styled.button`
-	width: 250px;
-	background-color: #3274d9;
-	padding: 8px;
-	color: white;
-	border: 1px solid #2c3235;
-	border-radius: 10px;
-	outline: none;
-	cursor: pointer;
-	box-shadow: 0 5px #173b70;
-	margin-bottom: 10px;
+const FieldContainer = styled.div`
+    margin: 20px 0;
 
-	&:hover {
-		background-color: #2461c0;
-		padding: 8px;
-	}
-
-	&:active {
-		background-color: #2461c0;
-		box-shadow: 0 2px #173b70;
-		transform: translateY(4px);
-	}
-`;
-
-interface ButtonsContainerProps {
-    isMobile: boolean;
-}
-
-const ButtonsContainer = styled.div<ButtonsContainerProps>`
     display: flex;
-    flex-direction: row;
-    justify-content: space-between;
-    padding: 10px 10px;
-	align-items: center;
-    background-color: #0c0d0f;
-`;
+    flex-direction: column;
+    justify-content: flex-start;
+    align-items: flex-start;
+    width: 100%;
 
-const Button = styled.button`
-	background-color: #3274d9;
-	padding: 8px 20px;
-	color: white;
-	border: 1px solid #2c3235;
-	border-radius: 10px;
-	outline: none;
-	cursor: pointer;
-	box-shadow: 0 5px #173b70;
-    font-size: 15px;
-    width: 250px;
+    & label {
+        font-size: 12px;
+        margin: 0 0 5px 3px;
+        width: 100%;
+    }
 
-	&:hover {
-		background-color: #2461c0;
-	}
-
-	&:active {
-		background-color: #2461c0;
-		box-shadow: 0 2px #173b70;
-		transform: translateY(4px);
-	}
-
-    &:disabled {
-        cursor: pointer;
-        background-color: #3c3d40;
-        box-shadow: 0 6px #19191a;
+    & div {
+        font-size: 14px;
+        background-color: #0c0d0f;
+        border: 2px solid #2c3235;
+        padding: 5px;
+        margin-left: 2px;
         color: white;
-
-        &:hover,
-        &:focus {
-            cursor: not-allowed;
-        }
+        width: 100%;
     }
 `;
 
-const domainName = getDomainName();
-const protocol = getProtocol();
-
-interface IDTSParam {
-    path: string;
-    units?: string;
+interface IOption {
+    value: string;
     label: string;
-    minValue: number;
-    maxValue: number;
-    defaultValue?: number;
-    step: number;
 }
 
-interface DigitalTwinSimulatorOptionsProps {
+const convertArrayToOptions = (vector: string[]): IOption[] => {
+    const options: IOption[] = [];
+    for (const elem of vector) {
+        const option: IOption = {
+            label: elem,
+            value: elem
+        }
+        options.push(option);
+    }
+    return options;
+}
+
+const findOrgArray = (digitalTwinSimulatorsManaged: IDigitalTwinSimulator[]): string[] => {
+    const orgArray: string[] = []
+    for (const digitalTwinSim of digitalTwinSimulatorsManaged) {
+        if (orgArray.indexOf(digitalTwinSim.orgAcronym) === -1) {
+            orgArray.push(digitalTwinSim.orgAcronym);
+        }
+    }
+    return orgArray;
+}
+
+const findGroupArray = (digitalTwinSimulatorsManaged: IDigitalTwinSimulator[]): Record<string, string[]> => {
+    const groupArray: Record<string, string[]> = {}
+    for (const digitalTwinSim of digitalTwinSimulatorsManaged) {
+        if (groupArray[digitalTwinSim.orgAcronym] === undefined) {
+            groupArray[digitalTwinSim.orgAcronym] = [];
+        }
+        if (groupArray[digitalTwinSim.orgAcronym].indexOf(digitalTwinSim.groupAcronym) === -1) {
+            groupArray[digitalTwinSim.orgAcronym].push(digitalTwinSim.groupAcronym);
+        }
+    }
+    return groupArray;
+}
+
+const findAssetNameArray = (digitalTwinSimulatorsManaged: IDigitalTwinSimulator[]): Record<string, string[]> => {
+    const descriptions: Record<string, string> = {};
+    const assetArray: Record<string, string[]> = {}
+    for (const digitalTwinSim of digitalTwinSimulatorsManaged) {
+        if (assetArray[digitalTwinSim.groupAcronym] === undefined) {
+            assetArray[digitalTwinSim.groupAcronym] = [];
+        }
+        const assetName = `Asset_${digitalTwinSim.assetUid}`;
+        descriptions[assetName] = digitalTwinSim.assetDescription;
+        if (assetArray[digitalTwinSim.groupAcronym].indexOf(assetName) === -1) {
+            assetArray[digitalTwinSim.groupAcronym].push(assetName);
+        }
+    }
+    return sortAssetNamesByDescription(assetArray, descriptions);
+}
+
+const findAssetDescription = (
+    digitalTwinSimulatorsManaged: IDigitalTwinSimulator[],
+    assetName: string
+): string => {
+    const digitalTwinSimulator = digitalTwinSimulatorsManaged.filter(digitalTwinSim =>
+        `Asset_${digitalTwinSim.assetUid}` === assetName
+    )[0];
+    return digitalTwinSimulator.assetDescription;
+}
+
+const findDigitalTwinNameArray = (digitalTwinSimulatorsManaged: IDigitalTwinSimulator[]): Record<string, string[]> => {
+    const digitalTwinNameArray: Record<string, string[]> = {}
+    for (const digitalTwinSim of digitalTwinSimulatorsManaged) {
+        const assetName = `Asset_${digitalTwinSim.assetUid}`;
+        if (digitalTwinNameArray[assetName] === undefined) {
+            digitalTwinNameArray[assetName] = [];
+        }
+        const digitalTwinName = `DT_${digitalTwinSim.digitalTwinUid}`;
+        if (digitalTwinNameArray[assetName].indexOf(digitalTwinName) === -1) {
+            digitalTwinNameArray[assetName].push(digitalTwinName);
+        }
+    }
+    return digitalTwinNameArray;
+}
+
+const findDigitalTwinDescription = (
+    digitalTwinSimulatorsManaged: IDigitalTwinSimulator[],
+    digitalTwinName: string
+): string => {
+    const digitalTwinSimulator = digitalTwinSimulatorsManaged.filter(digitalTwinSim =>
+        `DT_${digitalTwinSim.digitalTwinUid}` === digitalTwinName
+    )[0];
+    return digitalTwinSimulator.digitalTwinDescription;
+}
+
+const findDigitalTwinSimulatoricSelected = (
+    digitalTwinSimulatorsManaged: IDigitalTwinSimulator[],
+    orgAcronym: string,
+    groupAcronym: string,
+    assetName: string,
+    digitalTwinName: string,
+): IDigitalTwinSimulator => {
+    const  digitalTwinSimulatorSelected = digitalTwinSimulatorsManaged.filter(digitalTwinSim =>
+        digitalTwinSim.orgAcronym === orgAcronym &&
+        digitalTwinSim.groupAcronym === groupAcronym &&
+        `Asset_${digitalTwinSim.assetUid}` === assetName &&
+        `DT_${digitalTwinSim.digitalTwinUid}` === digitalTwinName
+    )[0];
+    return digitalTwinSimulatorSelected
+}
+
+type FormikType = FormikProps<InitialDigitalTwinSimulatorData>
+
+interface DigitalTwinSimulatorSelectFormProps {
     isMqttConnected: boolean;
-    mqttClient: Paho.Client | null,
-    digitalTwinSimulatorSelected: IDigitalTwinSimulator,
-    setShowDigitalTwinSimulator: React.Dispatch<React.SetStateAction<boolean>>;
+    handleNextButton: (digitalTwinSimulatorSelected: IDigitalTwinSimulator | null) => void
+    digitalTwinSimulatorsManaged: IDigitalTwinSimulator[];
+    initialDigitalTwinSimulatorData: InitialDigitalTwinSimulatorData;
+    setInitialDigitalTwinSimulatorData: React.Dispatch<React.SetStateAction<InitialDigitalTwinSimulatorData | null>>;
+    digitalTwinSimulatorSelected: IDigitalTwinSimulator | null;
+    setDigitalTwinSimulatorSelected: React.Dispatch<React.SetStateAction<IDigitalTwinSimulator | null>>;
 }
 
-
-const DigitalTwinSimulatorOptions: FC<DigitalTwinSimulatorOptionsProps> = ({
-    isMqttConnected,
-    mqttClient,
-    digitalTwinSimulatorSelected,
-    setShowDigitalTwinSimulator,
-}) => {
-    const [digitalTwinSimulatorParams, setDigitalTwinSimulatorParams] = useState<IDTSParam[]>([]);
-    const [paramValues, setParamValues] = useState<Record<string, number>>({});
-    const { accessToken, refreshToken, errorMessage } = useAuthState();
-    const authDispatch = useAuthDispatch();
-    const [lastMqttMessageSended, setLastMqttMessageSended] = useState("");
-    const [getLastMeasurementsButtomLabel, setGetLastMeasurementsButtomLabel] = useState("Get last measurement");
-    const windowWidth = useWindowWidth();
-    const isMobile = windowWidth < 768;
-
-    const setParamValue = (path: string, value: number) => {
-        setParamValues((prevValues: Record<string, number>) => {
-            const newValues = { ...prevValues };
-            newValues[path] = value;
-            return newValues;
-        })
-    }
-
-    const handleGetLastMeasurementsButton = () => {
-        const digitalTwinSimulationFormat = digitalTwinSimulatorSelected.digitalTwinSimulationFormat;
-        if (digitalTwinSimulatorSelected && Object.keys(digitalTwinSimulationFormat).length !== 0) {
-            const topicsIdArray: number[] = [];
-            Object.keys(digitalTwinSimulationFormat).forEach((field: string) => {
-                if (digitalTwinSimulationFormat[field].topicId !== undefined) {
-                    const topicId = digitalTwinSimulationFormat[field].topicId;
-                    if (!topicsIdArray.includes(topicId)) topicsIdArray.push(topicId);
-                }
-            })
-
-            if (topicsIdArray.length !== 0) {
-                setGetLastMeasurementsButtomLabel("Loading...");
-                const groupId = digitalTwinSimulatorSelected.groupId;
-                const urlLastMeasurements = `${protocol}://${domainName}/admin_api/measurements_last_from_topicsid_array/${groupId}/`;
-                const config = axiosAuth(accessToken);
-                const topicsIdArrayObj = { topicsIdArray }
-                getAxiosInstance(refreshToken, authDispatch)
-                    .post(urlLastMeasurements, topicsIdArrayObj, config)
-                    .then((response: AxiosResponse<any, any>) => {
-                        const lastMeasurements = response.data;
-                        const newParamValues = { ...paramValues };
-                        lastMeasurements.forEach((measurement: { payload: Record<string, number> }) => {
-                            const payload = measurement.payload;
-                            Object.keys(payload).forEach(fieldName => {
-                                if (newParamValues[fieldName] !== undefined) {
-                                    newParamValues[fieldName] = payload[fieldName];
-                                }
-                            });
-
-                        });
-                        setParamValues(newParamValues);
-                        setGetLastMeasurementsButtomLabel("Get last measurement");
-                    })
-                    .catch((error: AxiosError) => {
-                        axiosErrorHandler(error, authDispatch);
-                        setGetLastMeasurementsButtomLabel("Get last measurement");
-                    });
-            }
-        }
-    }
-
-    useEffect(() => {
-        if (
-            mqttClient &&
-            isMqttConnected &&
-            Object.keys(paramValues).length !== 0
-        ) {
-            const mqttTopic = digitalTwinSimulatorSelected.mqttTopic;
-            const message = JSON.stringify(paramValues);
-            if (lastMqttMessageSended !== message) {
-                const mqttMessage = new Paho.Message(message);
-                mqttMessage.destinationName = mqttTopic;
-                mqttClient.send(mqttMessage);
-                setLastMqttMessageSended(message);
-            }
-        }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [mqttClient, paramValues]);
+const DigitalTwinSimulatorSelectForm: FC<DigitalTwinSimulatorSelectFormProps> = (
+    {
+        isMqttConnected,
+        handleNextButton,
+        digitalTwinSimulatorsManaged,
+        initialDigitalTwinSimulatorData,
+        setInitialDigitalTwinSimulatorData,
+        digitalTwinSimulatorSelected,
+        setDigitalTwinSimulatorSelected
+    }) => {
+    const history = useHistory();
+    const [orgOptions, setOrgOptions] = useState<IOption[]>([]);
+    const [groupArray, setGroupArray] = useState<Record<string, string[]>>({});
+    const [groupOptions, setGroupOptions] = useState<IOption[]>([]);
+    const [assetNameOptions, setAssetNameOptions] = useState<IOption[]>([]);
+    const [assetNameArray, setAssetNameArray] = useState<Record<string, string[]>>({});
+    const [assetDescription, setAssetDescription] = useState<string>(initialDigitalTwinSimulatorData.assetDescription);
+    const [digitalTwinNameArray, setDigitalTwinNameArray] = useState<Record<string, string[]>>({});
+    const [digitalTwinDescription, setDigitalTwinDescription] =
+        useState<string>(initialDigitalTwinSimulatorData.digitalTwinDescription);
+    const [digitalTwinOptions, setDigitalTwinOptions] = useState<IOption[]>([]);
 
 
     useEffect(() => {
-        const digitalTwinSimulatorFormat = digitalTwinSimulatorSelected.digitalTwinSimulationFormat as unknown as Record<string, IDTSParam>;
-        const digitalTwinSimulatorParamNames = Object.keys(digitalTwinSimulatorFormat);
-        const digitalTwinSimulatorParams: IDTSParam[] = [];
-        const initialParamValues: Record<string, number> = {};
-        digitalTwinSimulatorParamNames.forEach(paramPath => {
-            const label = `${digitalTwinSimulatorFormat[paramPath].label} (${digitalTwinSimulatorFormat[paramPath].units}) `
-            const digitalTwinSimulatorParam = {
-                path: paramPath,
-                label,
-                minValue: digitalTwinSimulatorFormat[paramPath].minValue,
-                maxValue: digitalTwinSimulatorFormat[paramPath].maxValue,
-                step: digitalTwinSimulatorFormat[paramPath].step,
-            }
-            digitalTwinSimulatorParams.push(digitalTwinSimulatorParam);
-            initialParamValues[paramPath] = digitalTwinSimulatorFormat[paramPath].defaultValue as number;
-        });
-        setDigitalTwinSimulatorParams(digitalTwinSimulatorParams);
-        setParamValues(initialParamValues);
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+        if (digitalTwinSimulatorsManaged.length !== 0) {
+            const orgArray = findOrgArray(digitalTwinSimulatorsManaged);
+            setOrgOptions(convertArrayToOptions(orgArray));
+            const groupArray = findGroupArray(digitalTwinSimulatorsManaged);
+            setGroupArray(groupArray);
+            const orgAcronym = initialDigitalTwinSimulatorData.orgAcronym;
+            const groupsForOrgSelected = groupArray[orgAcronym];
+            setGroupOptions(convertArrayToOptions(groupsForOrgSelected));
+            const assetNameArray = findAssetNameArray(digitalTwinSimulatorsManaged);
+            setAssetNameArray(assetNameArray);
+            const groupAcronym = initialDigitalTwinSimulatorData.groupAcronym
+            const assetsForGroupSelected = assetNameArray[groupAcronym];
+            setAssetNameOptions(assetOptions(assetsForGroupSelected, (name) => findAssetDescription(digitalTwinSimulatorsManaged, name)));
+            const assetName = initialDigitalTwinSimulatorData.assetName;
+            const assetDescription = findAssetDescription(digitalTwinSimulatorsManaged, assetName);
+            setAssetDescription(assetDescription);
+            const digitalTwinNameArray = findDigitalTwinNameArray(digitalTwinSimulatorsManaged);
+            setDigitalTwinNameArray(digitalTwinNameArray);
+            const digitalTwinNamesForAssetSelected = digitalTwinNameArray[assetName];
+            setDigitalTwinOptions(convertArrayToOptions(digitalTwinNamesForAssetSelected));
+            const digitalTwinName = initialDigitalTwinSimulatorData.digitalTwinName;
+            const digitalTwinDescription = findDigitalTwinDescription(digitalTwinSimulatorsManaged, digitalTwinName);
+            setDigitalTwinDescription(digitalTwinDescription);
+            setDigitalTwinSimulatorSelected(digitalTwinSimulatorsManaged[0]);
+        }
+    }, [digitalTwinSimulatorsManaged, initialDigitalTwinSimulatorData, setDigitalTwinSimulatorSelected]);
+
 
     const onCancel = (e: SyntheticEvent) => {
         e.preventDefault();
-        setShowDigitalTwinSimulator(false);
+        history.push("/");
+    };
+
+    const handleChangeOrg = (e: { value: string }, formik: FormikType) => {
+        const orgAcronym = e.value;
+        formik.setFieldValue("orgAcronym", orgAcronym);
+        const groupsForOrgSelected = groupArray[orgAcronym];
+        setGroupOptions(convertArrayToOptions(groupsForOrgSelected));
+        const groupAcronym = groupsForOrgSelected[0];
+        formik.setFieldValue("groupAcronym", groupsForOrgSelected[0]);
+        const assetsForGroupSelected = assetNameArray[groupAcronym];
+        setAssetNameOptions(assetOptions(assetsForGroupSelected, (name) => findAssetDescription(digitalTwinSimulatorsManaged, name)));
+        const assetName = assetsForGroupSelected[0];
+        formik.setFieldValue("assetName", assetName);
+        const assetDescription = findAssetDescription(digitalTwinSimulatorsManaged, assetName);
+        setAssetDescription(assetDescription);
+        formik.setFieldValue("assetDescription", assetDescription);
+        const digitalTwinNamesForAssetSelected = digitalTwinNameArray[assetName];
+        const digitalTwinName = digitalTwinNamesForAssetSelected[0];
+        formik.setFieldValue("digitalTwinName", digitalTwinName);
+        setDigitalTwinOptions(convertArrayToOptions(digitalTwinNamesForAssetSelected));
+        const digitalTwinDescription = findDigitalTwinDescription(digitalTwinSimulatorsManaged, digitalTwinName);
+        setDigitalTwinDescription(digitalTwinDescription);
+        formik.setFieldValue("digitalTwinDescription", digitalTwinDescription);
+        const digitalTwinSimulatorSelected = findDigitalTwinSimulatoricSelected(
+            digitalTwinSimulatorsManaged,
+            orgAcronym,
+            groupAcronym,
+            assetName,
+            digitalTwinName
+        );
+        setDigitalTwinSimulatorSelected(digitalTwinSimulatorSelected);
     }
 
+    const handleChangeGroup = (e: { value: string }, formik: FormikType) => {
+        const orgAcronym = formik.values.orgAcronym;
+        const groupAcronym = e.value;
+        formik.setFieldValue("groupAcronym", groupAcronym);
+        const assetsForGroupSelected = assetNameArray[groupAcronym];
+        setAssetNameOptions(assetOptions(assetsForGroupSelected, (name) => findAssetDescription(digitalTwinSimulatorsManaged, name)));
+        const assetName = assetsForGroupSelected[0];
+        formik.setFieldValue("assetName", assetName);
+        const assetDescription = findAssetDescription(digitalTwinSimulatorsManaged, assetName);
+        setAssetDescription(assetDescription);
+        const digitalTwinNamesForAssetSelected = digitalTwinNameArray[assetName];
+        const digitalTwinName = digitalTwinNamesForAssetSelected[0];
+        formik.setFieldValue("digitalTwinName", digitalTwinName);
+        setDigitalTwinOptions(convertArrayToOptions(digitalTwinNamesForAssetSelected));
+        const digitalTwinDescription = findDigitalTwinDescription(digitalTwinSimulatorsManaged, digitalTwinName);
+        setDigitalTwinDescription(digitalTwinDescription);
+        formik.setFieldValue("digitalTwinDescription", digitalTwinDescription);
+        const digitalTwinSimulatorSelected = findDigitalTwinSimulatoricSelected(
+            digitalTwinSimulatorsManaged,
+            orgAcronym,
+            groupAcronym,
+            assetName,
+            digitalTwinName
+        );
+        setDigitalTwinSimulatorSelected(digitalTwinSimulatorSelected);
+    }
+
+    const handleChangeAsset = (e: { value: string }, formik: FormikType) => {
+        const orgAcronym = formik.values.orgAcronym;
+        const groupAcronym = formik.values.groupAcronym;
+        const assetName = e.value;
+        formik.setFieldValue("assetName", assetName);
+        const assetDescription = findAssetDescription(digitalTwinSimulatorsManaged, assetName);
+        setAssetDescription(assetDescription);
+        const digitalTwinNamesForAssetSelected = digitalTwinNameArray[assetName];
+        const digitalTwinName = digitalTwinNamesForAssetSelected[0];
+        formik.setFieldValue("digitalTwinName", digitalTwinName);
+        setDigitalTwinOptions(convertArrayToOptions(digitalTwinNamesForAssetSelected));
+        const digitalTwinDescription = findDigitalTwinDescription(digitalTwinSimulatorsManaged, digitalTwinName);
+        setDigitalTwinDescription(digitalTwinDescription);
+        formik.setFieldValue("digitalTwinDescription", digitalTwinDescription);
+        const digitalTwinSimulatorSelected = findDigitalTwinSimulatoricSelected(
+            digitalTwinSimulatorsManaged,
+            orgAcronym,
+            groupAcronym,
+            assetName,
+            digitalTwinName
+        );
+        setDigitalTwinSimulatorSelected(digitalTwinSimulatorSelected);
+    }
+
+    const handleChangeDigitalTwinName = (e: { value: string }, formik: FormikType) => {
+        const digitalTwinName = e.value;
+        formik.setFieldValue("digitalTwinName", digitalTwinName);
+        const orgAcronym = formik.values.orgAcronym;
+        const groupAcronym = formik.values.groupAcronym;
+        const assetName = formik.values.assetName;
+        const assetDescription = findAssetDescription(digitalTwinSimulatorsManaged, assetName);
+        setAssetDescription(assetDescription);
+        const digitalTwinDescription = findDigitalTwinDescription(digitalTwinSimulatorsManaged, digitalTwinName);
+        setDigitalTwinDescription(digitalTwinDescription);
+        formik.setFieldValue("digitalTwinDescription", digitalTwinDescription);
+        const digitalTwinSimulatorSelected = findDigitalTwinSimulatoricSelected(
+            digitalTwinSimulatorsManaged,
+            orgAcronym,
+            groupAcronym,
+            assetName,
+            digitalTwinName
+        );
+        setDigitalTwinSimulatorSelected(digitalTwinSimulatorSelected);
+
+        setInitialDigitalTwinSimulatorData({
+            orgAcronym,
+            groupAcronym,
+            assetName,
+            assetDescription,
+            digitalTwinName,
+            digitalTwinDescription
+        });
+    }
 
     return (
         <>
-
             <Title>
-                Digital twin simulator <ConnectionLed isMqttConnected={isMqttConnected} />
+                Select digital twin <ConnectionLed isMqttConnected={isMqttConnected} />
             </Title>
-            {errorMessage && <ServerError errorText={errorMessage} />}
             <FormContainer>
-                <ParametersContainer>
+                <Formik
+                    initialValues={initialDigitalTwinSimulatorData as InitialDigitalTwinSimulatorData}
+                    onSubmit={() => handleNextButton(digitalTwinSimulatorSelected)}
+                >
                     {
-                        digitalTwinSimulatorParams.length &&
-                        digitalTwinSimulatorParams.map((param) => {
-                            return <Slider
-                                key={param.path}
-                                label={param.label}
-                                min={param.minValue}
-                                max={param.maxValue}
-                                step={param.step}
-                                value={paramValues[param.path]}
-                                setValue={(value) => setParamValue(param.path, value)}
-                            />;
-                        })
+                        formik => (
+                            // @ts-ignore
+                            <Form>
+                                <ControlsContainer>
+                                    <FormikControl
+                                        control='select'
+                                        label='Select org'
+                                        name='orgAcronym'
+                                        type='text'
+                                        options={orgOptions}
+                                        onChange={(e) => handleChangeOrg(e, formik)}
+                                    />
+                                    <FormikControl
+                                        control='select'
+                                        label='Select group'
+                                        name='groupAcronym'
+                                        type='text'
+                                        options={groupOptions}
+                                        onChange={(e) => handleChangeGroup(e, formik)}
+                                    />
+                                    <FormikControl
+                                        control='select'
+                                        label='Select asset (by description)'
+                                        name='assetName'
+                                        type='text'
+                                        options={assetNameOptions}
+                                        onChange={(e) => handleChangeAsset(e, formik)}
+                                    />
+                                    <FieldContainer>
+                                        <label>Asset name</label>
+                                        <div>{formik.values.assetName}</div>
+                                    </FieldContainer>
+                                    <FormikControl
+                                        control='select'
+                                        label='Select digital twin'
+                                        name='digitalTwinName'
+                                        type='text'
+                                        options={digitalTwinOptions}
+                                        onChange={(e) => handleChangeDigitalTwinName(e, formik)}
+                                    />
+                                    <FieldContainer>
+                                        <label>Digital twin description</label>
+                                        <div>{digitalTwinDescription}</div>
+                                    </FieldContainer>
+                                </ControlsContainer>
+                                <MobileSensorSelectFormButtons onCancel={onCancel} isValid={formik.isValid} isSubmitting={formik.isSubmitting} />
+                            </Form>
+                        )
                     }
-                </ParametersContainer>
-                <GetLastMeasurementsButtom onClick={handleGetLastMeasurementsButton}>
-                    {getLastMeasurementsButtomLabel}
-                </GetLastMeasurementsButtom>
-                <ButtonsContainer isMobile={isMobile}>
-                    <Button onClick={onCancel}>
-                        Cancel
-                    </Button>
-                </ButtonsContainer>
+                </Formik>
             </FormContainer>
         </>
+    )
+}
 
-    );
-};
-
-export default DigitalTwinSimulatorOptions;
+export default DigitalTwinSimulatorSelectForm;
