@@ -21,9 +21,6 @@ fi
 if [ -f "/run/configs/grafana.conf" ]
 then
     export HOME_DASHBOARD_PATH=/var/lib/grafana/data/home_dashboard.json
-    export GF_RENDERING_SERVER_URL=http://grafana_renderer:8081/render
-    export GF_RENDERING_CALLBACK_URL=http://grafana:5000/grafana/
-    export GF_LOG_FILTERS=rendering:debug
     export $(cat /run/configs/grafana.conf | grep DOMAIN_NAME)
     export $(cat /run/configs/grafana.conf | grep DEFAULT_TIME_ZONE)
     MAIN_ORGANIZATION_NAME_LINE=$(cat /run/configs/grafana.conf | grep MAIN_ORGANIZATION_NAME)

@@ -3,7 +3,6 @@ package services
 import (
 	"fmt"
 
-	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/osi4iot/osi4iot/utils/osi4iot/internals/resources"
 	pt "github.com/osi4iot/osi4iot/utils/osi4iot/internals/types"
@@ -16,7 +15,6 @@ func GrafanaService(
 	svcResources resources.SvcResources,
 ) pt.Service {
 	domainName := pd.PlatformInfo.DomainName
-	volName := "grafana_data_{{.Task.Slot}}"
 
 	grafanaRule := fmt.Sprintf("Host(`%s`) && PathPrefix(`/grafana/`)", domainName)
 
@@ -75,13 +73,12 @@ func GrafanaService(
 		WithAnnotationsLabels(annotationsLabels).
 		WithSecrets(secrets).
 		WithConfigs(configs).
-		WithMounts([]mount.Mount{
-			{
-				Type:   mount.TypeVolume,
-				Source: volName,
-				Target: "/var/lib/grafana",
-			},
-		}).
+		// No volume: grafana is stateless. Its state (organisations,
+		// users, teams, folders, dashboards, data sources, preferences,
+		// sessions) is in the grafanadb database; the plugins are in the
+		// image; what it writes under /var/lib/grafana (rendered images,
+		// temporary files) is disposable. A task can then move to any
+		// manager without dragging a volume along or finding an empty one.
 		WithResources(
 			svcResources.NanoCPUs,
 			svcResources.MemoryBytes,

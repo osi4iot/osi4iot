@@ -476,9 +476,9 @@ func GenerateServices(pd *pt.PlatformData, sd pt.SwarmData) map[string]pt.Servic
 			break
 		}
 	}
-	if !existArmArchNodes {
-		services["grafana_renderer"] = GrafanaRendererService(pd, sd, svcResourcesMap["grafana_renderer"], nodeRoleNumMap)
-	}
+	// No grafana_renderer: it rendered Grafana's legacy alert images and
+	// panel PNGs. The platform's alarms and notifications are sent by
+	// pipelines, so it is no longer deployed.
 
 	if utils.IsGarage(pi) {
 		primary, _ := utils.GaragePrimaryInstance(pi)

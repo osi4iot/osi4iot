@@ -193,7 +193,7 @@ The platform runs as Docker Swarm services:
 | `haproxy_patroni` | Entry point to the primary of each database cluster |
 | `garage_<ID>` | Garage S3 object store (only with "Local Garage") |
 | `garage_webui` | Garage web interface, at `https://<domain>/garage_webui` |
-| `grafana`, `grafana_renderer` | Dashboards |
+| `grafana` | Dashboards |
 | `pgadmin4` | Database administration |
 | `system_manager` | Scheduled and on-demand backups, certificate renewal |
 | `keepalived` | Floating IP across the managers (on-premise clusters) |
@@ -302,6 +302,10 @@ The dashboards run on Grafana **12.4** (image `ghcr.io/osi4iot/grafana:12.4.13-u
 -	TimescaleDB data sources (provisioned `timescaledb_org_1` and the ones admin_api creates for each organization) use the plugin id `grafana-postgresql-datasource` and set `jsonData.database`. With the old type `postgres` and the database only at the top level, Grafana 12's frontend refuses every query ("You do not currently have a default database configured"), so panels and variables show no data. Their `jsonData.maxOpenConns` is 20: Grafana 12 (pgx driver) takes it as the connection pool size and rejects 0 ("MaxSize must be >= 1"), which used to mean unlimited.
 
 -	Grafana 12's header (breadcrumbs, a toolbar and the time picker row) is about two grid rows taller than Grafana 8's, so the default dashboards' panels are two rows shorter (a full-screen panel is 19 rows, 18 when the dashboard has variables) and fit the screen without scrolling. Only dashboards created from now on change; existing ones can be resized in Grafana.
+
+-	Grafana is stateless, like pipelines: no `grafana_data_N` volume. Its state (organisations, users, teams, folders, dashboards, data sources, preferences, sessions) is in the `grafanadb` database and its plugins are in the image; what it writes under `/var/lib/grafana` is disposable. The plugin catalog cannot install plugins (`plugin_admin_enabled = false`: one installed there would be lost at the next restart; add it to the Dockerfile instead), and the apps Grafana 12 downloads on every start (Logs, Traces, Metrics and Profiles Drilldown) are not downloaded (`preinstall_disabled = true`). The `grafana_data_N` volumes of older versions are still known to `osi4iot delete`, which removes them.
+
+-	There is no `grafana_renderer` service any more. It rendered Grafana's alert images and panel PNGs; the platform's alarms and notifications are sent by pipelines. Grafana's "Share → Image" export of a panel is therefore not available. A platform file of an older version that still lists `grafana_renderer` is accepted (the entry is dropped), and `osi4iot delete` removes a leftover service.
 
 
 -	Panel plugins: Grafana 12 has no AngularJS. Clock, D3 Gauge and Status Panel are installed in their React versions; Discrete and Cal-HeatMap (Angular only) are not: use the core State timeline and Heatmap panels. Old Graph panels are migrated to Time series when opened.

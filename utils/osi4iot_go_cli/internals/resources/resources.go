@@ -69,7 +69,6 @@ func NewSvcResourcesMap(pd *pt.PlatformData) map[string]SvcResources {
 		"pgadmin4",
 		"garage",
 		"garage_webui",
-		"grafana_renderer",
 		"vector",
 		"keepalived",
 	}

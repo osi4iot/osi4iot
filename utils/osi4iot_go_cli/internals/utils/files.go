@@ -96,6 +96,14 @@ func ReadPlatformDataFromFile(data *pt.PlatformData) error {
 	return fixingPlatformData(data)
 }
 
+// retiredServices are services older versions deployed and this one does
+// not: grafana_renderer (Grafana's image renderer; the alarms are sent by
+// pipelines). 'osi4iot delete' still removes a leftover one, since it
+// removes every service labelled app=osi4iot.
+var retiredServices = map[string]struct{}{
+	"grafana_renderer": {},
+}
+
 func fixingPlatformData(pd *pt.PlatformData) error {
 	applyPlatformInfoDefaults(&pd.PlatformInfo)
 
@@ -120,7 +128,6 @@ func fixingPlatformData(pd *pt.PlatformData) error {
 		"pipelines",
 		"traefik",
 		"pgadmin4",
-		"grafana_renderer",
 		"garage",
 		"garage_webui",
 		"keepalived",
@@ -154,6 +161,16 @@ func fixingPlatformData(pd *pt.PlatformData) error {
 		}
 		servicesData = defaultServicesData
 	} else {
+		// Services the platform no longer deploys: a platform file
+		// written by an older version may still list them.
+		kept := servicesData[:0]
+		for _, svc := range servicesData {
+			if _, retired := retiredServices[svc.ServiceName]; !retired {
+				kept = append(kept, svc)
+			}
+		}
+		servicesData = kept
+
 		for serviceName, defaultSvcData := range defaultServicesDataMap {
 			found := false
 			for _, svcData := range servicesData {

@@ -78,11 +78,9 @@ func GenerateVolumes(platformData *pt.PlatformData) map[string]pt.Volume {
 		Volumes[volumeName] = SetVolumeConfig(pi, volumeName, serviceName, deploymentLocation, volOptions)
 	}
 
-	numGrafanaReplicas := utils.GetServiceReplicas(platformData, "grafana")
-	for replica := 1; replica <= numGrafanaReplicas; replica++ {
-		volumeName := fmt.Sprintf("grafana_data_%d", replica)
-		Volumes[volumeName] = SetVolumeConfig(pi, volumeName, "grafana", deploymentLocation, volOptions)
-	}
+	// grafana has no volume any more either: it is stateless (see
+	// services.GrafanaService). Its grafana_data_N volumes of older
+	// versions are known to platformVolumeNames, like pipelines' ones.
 
 	// pipelines has no volume any more: it is stateless (see
 	// services.PipelinesService). The pipelines_data_N volumes of older
@@ -504,6 +502,27 @@ func platformVolumeNames(pd *pt.PlatformData) map[string]bool {
 	for name := range LegacyPipelinesVolumeNames(pd) {
 		names[name] = true
 	}
+	for name := range LegacyGrafanaVolumeNames(pd) {
+		names[name] = true
+	}
+	return names
+}
+
+// LegacyGrafanaVolumeNames are the grafana_data_N volumes that versions
+// before the stateless grafana created, one per replica. Its state is in
+// the database and its plugins in the image: nothing uses them now. At
+// least maxLegacyGrafanaReplicas are listed, in case the platform was
+// scaled down since.
+func LegacyGrafanaVolumeNames(pd *pt.PlatformData) map[string]bool {
+	const maxLegacyGrafanaReplicas = 5
+	n := utils.GetServiceReplicas(pd, "grafana")
+	if n < maxLegacyGrafanaReplicas {
+		n = maxLegacyGrafanaReplicas
+	}
+	names := make(map[string]bool, n)
+	for i := 1; i <= n; i++ {
+		names[fmt.Sprintf("grafana_data_%d", i)] = true
+	}
 	return names
 }
 
@@ -705,18 +724,14 @@ func RemovePipelinesVolume(pd *pt.PlatformData, replica int) error {
 	return removeReplicaVolume(pd, fmt.Sprintf("pipelines_data_%d", replica))
 }
 
+// CreateGrafanaVolume creates nothing: grafana is stateless. Kept with the
+// signature scaleReplicatedServiceWithVolumes expects.
 func CreateGrafanaVolume(pi pt.PlatformInfo, dc *pt.DockerClient, replica int) error {
-	volOptions := createDefaultOptions(pi)
-	volumeName := fmt.Sprintf("grafana_data_%d", replica)
-	domainName := pi.DomainName
-	volume := SetVolumeConfig(pi, volumeName, "grafana", pi.DeploymentLocation, volOptions)
-	err := CreateVolume(dc, domainName, &volume)
-	if err != nil {
-		return fmt.Errorf("error creating volume %s in node %s: %v", volume.Name, dc.Node.NodeIP, err)
-	}
 	return nil
 }
 
+// RemoveGrafanaVolume removes the legacy grafana_data_N volume of a
+// removed replica, if an older version left one. Idempotent.
 func RemoveGrafanaVolume(pd *pt.PlatformData, replica int) error {
 	return removeReplicaVolume(pd, fmt.Sprintf("grafana_data_%d", replica))
 }

@@ -657,10 +657,6 @@ func GetAllServiceNames(pd *osi_types.PlatformData) []string {
 		}
 	}
 
-	if existArmArchNodes {
-		excluded["grafana_renderer"] = struct{}{}
-	}
-
 	numSwarmNodes := len(pi.NodesData)
 	deploymentLocation := pi.DeploymentLocation
 	if numSwarmNodes <= 1 || existArmArchNodes || deploymentLocation != "On-premise cluster deployment" {
@@ -754,7 +750,7 @@ func GetDefaultServicesDataMap(pd *osi_types.PlatformData) map[string]osi_types.
 		},
 		"grafana": {
 			ServiceName: "grafana",
-			Image:       "ghcr.io/osi4iot/grafana:8.4.1-ubuntu",
+			Image:       "ghcr.io/osi4iot/grafana:12.4.13-ubuntu",
 			Replicas:    1,
 			Cpu:         uiSvcCpus,
 			Memory:      uiSvcMem,
@@ -782,15 +778,7 @@ func GetDefaultServicesDataMap(pd *osi_types.PlatformData) map[string]osi_types.
 		},
 		"pgadmin4": {
 			ServiceName: "pgadmin4",
-			// Image:       "ghcr.io/osi4iot/pgadmin4:2026-07-30-1",
-			Image:       "ghcr.io/osi4iot/pgadmin4:9.18.0",
-			Replicas:    1,
-			Cpu:         uiSvcCpus_050,
-			Memory:      uiSvcMem_050,
-		},
-		"grafana_renderer": {
-			ServiceName: "grafana_renderer",
-			Image:       "ghcr.io/osi4iot/grafana_renderer:3.12.0",
+			Image:       "ghcr.io/osi4iot/pgadmin4:2026-07-30-1",
 			Replicas:    1,
 			Cpu:         uiSvcCpus_050,
 			Memory:      uiSvcMem_050,
