@@ -1,4 +1,5 @@
 import { FC, useState, useEffect } from "react";
+import { reloadTable } from "../../../state";
 import { Column } from '../Utils/platformTable';
 import { toast } from "react-toastify";
 import { axiosAuth, getDomainName, getProtocol } from "../../../tools/tools";
@@ -14,12 +15,6 @@ import {
     useSensorsDispatch,
 } from "../../../contexts/sensorsOptions";
 
-import {
-    setReloadDashboardsTable,
-    setReloadTopicsTable,
-    setReloadSensorsTable,
-    usePlatformAssitantDispatch,
-} from "../../../contexts/platformAssistantContext";
 import { getAxiosInstance } from "../../../tools/axiosIntance";
 import axiosErrorHandler from "../../../tools/axiosErrorHandler";
 import { AxiosResponse, AxiosError } from "axios";
@@ -58,7 +53,6 @@ const domainName = getDomainName();
 const protocol = getProtocol();
 
 const DeleteSensorModal: FC<DeleteSensorModalProps> = ({ rowIndex, groupId, sensorId, refreshSensors }) => {
-    const plaformAssistantDispatch = usePlatformAssitantDispatch();
     const [isSensorDeleted, setIsSensorDeleted] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const title = "DELETE ASSET";
@@ -74,14 +68,11 @@ const DeleteSensorModal: FC<DeleteSensorModalProps> = ({ rowIndex, groupId, sens
     useEffect(() => {
         if (isSensorDeleted) {
             refreshSensors();
-            const reloadSensorsTable = true;
-            setReloadSensorsTable(plaformAssistantDispatch, { reloadSensorsTable });
-            const reloadTopicsTable = true;
-            setReloadTopicsTable(plaformAssistantDispatch, { reloadTopicsTable });
-            const reloadDashboardsTable = true;
-            setReloadDashboardsTable(plaformAssistantDispatch, { reloadDashboardsTable });
+            reloadTable("sensors");
+            reloadTable("topics");
+            reloadTable("dashboards");
         }
-    }, [isSensorDeleted, plaformAssistantDispatch, refreshSensors]);
+    }, [isSensorDeleted, refreshSensors]);
 
     const action = (hideModal: () => void) => {
         const url = `${protocol}://${domainName}/admin_api/sensor/${groupId}/id/${sensorId}`;

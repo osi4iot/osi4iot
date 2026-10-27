@@ -9,6 +9,7 @@ import (
 	"image/png"
 	"maps"
 	"pipelines/common"
+	"strings"
 )
 
 type Message struct {
@@ -187,15 +188,26 @@ func (m *Message) IsAudio() bool {
 	if m.File == nil {
 		return false
 	}
-	switch m.File.ContentType {
+	// "audio/webm;codecs=opus" -> "audio/webm": the parameters do not change the type
+	switch MediaType(m.File.ContentType) {
 	case "audio/wav", "audio/wave", "audio/x-wav",
 		"audio/mp3", "audio/mpeg",
 		"audio/ogg", "audio/flac",
 		"audio/aac", "audio/pcm",
-		"audio/ogg; codecs=opus":
+		// recorded by browsers (MediaRecorder): Chrome/Firefox webm, Safari mp4
+		"audio/webm", "audio/mp4", "audio/x-m4a":
 		return true
 	}
 	return false
+}
+
+// MediaType returns a content type without its parameters, in lower case
+// ("audio/webm; codecs=opus" -> "audio/webm").
+func MediaType(contentType string) string {
+	if i := strings.Index(contentType, ";"); i >= 0 {
+		contentType = contentType[:i]
+	}
+	return strings.ToLower(strings.TrimSpace(contentType))
 }
 
 // GetJsonStructure returns the JSON structure of the message

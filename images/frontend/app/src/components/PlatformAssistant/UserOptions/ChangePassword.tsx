@@ -11,15 +11,7 @@ import FormTitle from "../../Tools/FormTitle";
 import { getAxiosInstance } from '../../../tools/axiosIntance';
 import axiosErrorHandler from '../../../tools/axiosErrorHandler';
 import { AxiosResponse, AxiosError } from "axios";
-
-const FormContainer = styled.div`
-	font-size: 12px;
-    padding: 10px 20px 30px 20px;
-    width: 300px;
-    border: 3px solid #3274d9;
-    border-radius: 20px;
-`;
-
+import { FormCard as FormContainer } from "../../Tools/FormTools";
 
 interface ChangePasswordProps {
     backToUserProfile: () => void;

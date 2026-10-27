@@ -724,6 +724,14 @@ const setQuaternionIniRecursively = (obj: IThreeMesh) => {
 // Cada objeto de primer nivel recibe sus propias copias de los materiales de sus descendientes: en glTF los
 // materiales se comparten entre objetos, y al resaltar uno (emissive/opacidad) se iluminaban también los demás.
 // Las texturas siguen compartidas (Material.clone no las duplica).
+// Material original (el del glTF) de cada malla: si el visor se vuelve a montar con el mismo modelo, los
+// materiales se vuelven a preparar a partir de los originales y no de las copias ya modificadas.
+const originalMaterialOf = new WeakMap<THREE.Object3D, THREE.Material | THREE.Material[]>();
+const originalMaterial = (obj: any) => {
+	if (!originalMaterialOf.has(obj)) originalMaterialOf.set(obj, obj.material);
+	return originalMaterialOf.get(obj);
+};
+
 const cloneDescendantMaterials = (obj: THREE.Object3D) => {
 	const clones = new Map<THREE.Material, THREE.Material>();
 	const cloneOf = (material: THREE.Material) => {
@@ -736,9 +744,14 @@ const cloneDescendantMaterials = (obj: THREE.Object3D) => {
 	};
 	obj.traverse((child: any) => {
 		if (child === obj || !child.material) return;
-		child.material = Array.isArray(child.material) ? child.material.map(cloneOf) : cloneOf(child.material);
+		const base = originalMaterial(child) as any;
+		child.material = Array.isArray(base) ? base.map(cloneOf) : cloneOf(base);
 	});
 }
+
+// Objetos de primer nivel de cada modelo (ver sortObjects). WeakMap y no userData: Object3D.copy serializa
+// userData con JSON y estos objetos tienen referencias circulares.
+const topLevelObjectsByRoot = new WeakMap<THREE.Object3D, THREE.Object3D[]>();
 
 export const sortObjects: (
 	nodes: any,
@@ -776,10 +789,14 @@ export const sortObjects: (
 			}
 		}
 	}
-	// copia: los objetos se reubican en la escena de R3F al renderizarse
-	const objectList: any[] = [...(root ? root.children : [])];
+	// copia: los objetos se reubican en la escena de R3F al renderizarse. La lista original se guarda en la
+	// raíz para que, si el visor se vuelve a montar con el mismo modelo (al volver de otra capa), se encuentren
+	// los mismos objetos aunque ya no cuelguen de ella.
+	if (root && !topLevelObjectsByRoot.has(root)) topLevelObjectsByRoot.set(root, [...root.children]);
+	const objectList: any[] = [...(root ? topLevelObjectsByRoot.get(root)! : [])];
 	for (let imesh = 0; imesh < objectList.length; imesh++) {
 		const obj = objectList[imesh];
+		if (obj.material) obj.material = originalMaterial(obj);
 		obj.material = findMaterial(obj, materials);
 		if (obj.userData.type !== "femObject") cloneDescendantMaterials(obj);
 		setQuaternionIniRecursively(obj);
@@ -1321,3 +1338,5 @@ export const setAnimationMixerRecursively = (
 		setAnimationMixerRecursively(node_child as any, meshRef, mixer, setMixer, clipsDuration, setClipsDuration)
 	}
 }
+
+

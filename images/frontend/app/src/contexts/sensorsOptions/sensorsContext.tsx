@@ -1,53 +1,28 @@
-import React, { createContext, FC, useContext, useReducer } from 'react';
+import { FC } from 'react';
 import { ChildrenProp } from '../../interfaces/interfaces'
 import { SensorsContextProps } from './interfaces'
 import { initialState, SensorsReducer } from './sensorsReducer';
+import { createSectionStore, SectionStoreProvider } from '../../state/createSectionStore';
 
-
-const SensorsStateContext = createContext<SensorsContextProps>(initialState);
-const SensorsDispatchContext = createContext<any>({});
+// Estado de la sección en un almacén Zustand global (antes Context + useReducer): se conserva al cambiar de capa
+const useSensorsStore = createSectionStore(SensorsReducer, initialState);
 
 export function useSensorsDispatch() {
-	const context = React.useContext(SensorsDispatchContext);
-	if (context === undefined) {
-		throw new Error('useSensorsDispatch must be used within a SensorsProvider');
-	}
-
-	return context;
+	return useSensorsStore.dispatch;
 }
 
-export const SensorsProvider: FC<ChildrenProp> = ({ children }) => {
-	const [user, sensorsDispatch] = useReducer(SensorsReducer, initialState);
-
-	return (
-		<SensorsStateContext.Provider value={user}>
-			<SensorsDispatchContext.Provider value={sensorsDispatch}>
-				{children}
-			</SensorsDispatchContext.Provider>
-		</SensorsStateContext.Provider>
-	);
-};
+export const SensorsProvider: FC<ChildrenProp> = ({ children }) => (
+	<SectionStoreProvider store={useSensorsStore}>{children}</SectionStoreProvider>
+);
 
 export const useSensorsOptionToShow = (): string => {
-	const context = useContext(SensorsStateContext);
-	if (context === undefined) {
-		throw new Error('useSensorsOptionToShow must be used within a SensorsProvider');
-	}
-	return context.sensorsOptionToShow;
+	return useSensorsStore((state) => state.sensorsOptionToShow);
 }
 
 export const useSensorIdToEdit = (): number => {
-	const context = useContext(SensorsStateContext);
-	if (context === undefined) {
-		throw new Error('useSensorIdToEdit must be used within a SensorsProvider');
-	}
-	return context.sensorIdToEdit;
+	return useSensorsStore((state) => state.sensorIdToEdit);
 }
 
 export const useSensorRowIndexToEdit = (): number => {
-	const context = useContext(SensorsStateContext);
-	if (context === undefined) {
-		throw new Error('useSensorRowIndexToEdit must be used within a SensorsProvider');
-	}
-	return context.sensorRowIndexToEdit;
+	return useSensorsStore((state) => state.sensorRowIndexToEdit);
 }

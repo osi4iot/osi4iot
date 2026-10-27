@@ -23,7 +23,7 @@ import { ISensorType } from '../TableColumns/sensorTypesColumns';
 import { IOrgManaged } from '../TableColumns/organizationsManagedColumns';
 import { cleanSvgString } from '../../../tools/generateAssetTypeMarker';
 import { AxiosResponse, AxiosError } from 'axios';
-import { ControlsContainer, StaticFormContainer } from '../../Tools/FormTools';
+import { ControlsContainer, StaticFormContainer, FormSection } from "../../Tools/FormTools";
 
 const SvgIconPreviewContainerDiv = styled.div`
     margin: 5px 0;
@@ -48,10 +48,6 @@ const SvgComponentContainerDiv = styled.div`
 const FileSelectionContainer = styled.div`
     width: 100%;
     margin-bottom: 15px;
-`;
-
-const DataFileTitle = styled.div`
-    margin-bottom: 5px;
 `;
 
 const DataFileContainer = styled.div`
@@ -343,7 +339,7 @@ const EditSensorType: FC<EditSensorTypeProps> = ({
                                         name='type'
                                         type='text'
                                     />
-                                    <DataFileTitle>Select icon svg file (required)</DataFileTitle>
+                                    <FormSection title="Select icon svg file (required)">
                                     <FileSelectionContainer>
                                         <DataFileContainer>
                                             {
@@ -382,6 +378,7 @@ const EditSensorType: FC<EditSensorTypeProps> = ({
                                             </SelectDataFilenButtonContainer>
                                         </DataFileContainer>
                                     </FileSelectionContainer>
+                                    </FormSection>
                                     <FormikControl
                                         control='select'
                                         label='Dashboard refresh time'

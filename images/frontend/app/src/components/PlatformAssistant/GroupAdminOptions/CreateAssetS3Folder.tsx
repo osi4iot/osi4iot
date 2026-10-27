@@ -1,4 +1,5 @@
 import { FC, useState, SyntheticEvent, useEffect } from "react";
+import { useTable } from "../../../state";
 import styled from "styled-components";
 import { Formik, Form, FormikProps } from "formik";
 import * as Yup from "yup";
@@ -13,11 +14,6 @@ import { getAxiosInstance } from "../../../tools/axiosIntance";
 import axiosErrorHandler from "../../../tools/axiosErrorHandler";
 import { IOrgOfGroupsManaged } from "../TableColumns/orgsOfGroupsManagedColumns";
 import { IGroupManaged } from "../TableColumns/groupsManagedColumns";
-import {
-    useAssetsTable,
-    useGroupsManagedTable,
-    useOrgsOfGroupsManagedTable,
-} from "../../../contexts/platformAssistantContext";
 import { IAsset } from "../TableColumns/assetsColumns";
 import { AxiosError, AxiosResponse } from "axios";
 import { setAssetS3FolderOptionToShow, useAssetS3FolderDispatch } from "../../../contexts/assetS3FolderOptions";
@@ -166,9 +162,9 @@ const CreateAssetS3Folder: FC<CreateAssetS3FolderProps> = ({ backToTable, refres
     const [isSubmitting, setIsSubmitting] = useState(false);
     const { accessToken, refreshToken } = useAuthState();
     const authDispatch = useAuthDispatch();
-    const orgsOfGroupManaged = useOrgsOfGroupsManagedTable();
-    const groupsManaged = useGroupsManagedTable();
-    const assets = useAssetsTable();
+    const orgsOfGroupManaged = useTable("orgsOfGroupsManaged");
+    const groupsManaged = useTable("groupsManaged");
+    const assets = useTable("assets");
     const assetS3FolderDispatch = useAssetS3FolderDispatch();
     const [orgOptions, setOrgOptions] = useState<IOption[]>([]);
     const [groupArray, setGroupArray] = useState<Record<string, string[]>>({});

@@ -1,4 +1,5 @@
 import { FC, SyntheticEvent, useState } from "react";
+import { reloadTable } from "../../../state";
 import styled from "styled-components";
 import { Formik, Form } from "formik";
 import * as Yup from "yup";
@@ -15,14 +16,6 @@ import {
     useOrgIdToEdit,
 } from "../../../contexts/orgsOptions";
 import { ORGS_OPTIONS } from "../Utils/platformAssistantOptions";
-import {
-    setReloadGroupsMembershipTable,
-    setReloadOrgsManagedTable,
-    setReloadOrgsMembershipTable,
-    usePlatformAssitantDispatch,
-    setReloadGroupsTable,
-    setReloadOrgsOfGroupsManagedTable,
-} from "../../../contexts/platformAssistantContext";
 import { getAxiosInstance } from "../../../tools/axiosIntance";
 import axiosErrorHandler from "../../../tools/axiosErrorHandler";
 import { AxiosResponse, AxiosError } from "axios";
@@ -35,51 +28,7 @@ import {
     parseAllowedModels,
 } from "../Utils/llmProviders";
 import LlmAllowedModelsPicker from "./LlmAllowedModelsPicker";
-
-const FormContainer = styled.div`
-    font-size: 12px;
-    padding: 30px 10px 30px 20px;
-    border: 3px solid #3274d9;
-    border-radius: 20px;
-    width: 400px;
-    height: calc(100vh - 310px);
-`;
-
-const ControlsContainer = styled.div`
-    height: calc(100vh - 430px);
-    width: 100%;
-    padding: 0px 5px;
-    overflow-y: auto;
-    /* width */
-    &::-webkit-scrollbar {
-        width: 10px;
-    }
-
-    /* Track */
-    &::-webkit-scrollbar-track {
-        background: #202226;
-        border-radius: 5px;
-    }
-
-    /* Handle */
-    &::-webkit-scrollbar-thumb {
-        background: #2c3235;
-        border-radius: 5px;
-    }
-
-    /* Handle on hover */
-    &::-webkit-scrollbar-thumb:hover {
-        background-color: #343840;
-    }
-
-    div:first-child {
-        margin-top: 0;
-    }
-
-    div:last-child {
-        margin-bottom: 3px;
-    }
-`;
+import { FormCard as FormContainer, ControlsContainer, FormSection } from "../../Tools/FormTools";
 
 const mqttAccessControlOptions = [
     {
@@ -99,10 +48,6 @@ const mqttAccessControlOptions = [
         value: "None",
     },
 ];
-
-const Title = styled.div`
-    margin-bottom: 5px;
-`;
 
 const DataContainer = styled.div`
     border: 2px solid #2c3235;
@@ -138,7 +83,6 @@ const roleOptions = [
 ];
 
 const EditOrganization: FC<EditOrganizationProps> = ({ organizations, refreshOrgs, backToTable }) => {
-    const plaformAssistantDispatch = usePlatformAssitantDispatch();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const orgsDispatch = useOrgsDispatch();
     const { accessToken, refreshToken } = useAuthState();
@@ -252,16 +196,11 @@ const EditOrganization: FC<EditOrganizationProps> = ({ organizations, refreshOrg
             })
             .finally(() => {
                 refreshOrgs();
-                const reloadOrgsManagedTable = true;
-                setReloadOrgsManagedTable(plaformAssistantDispatch, { reloadOrgsManagedTable });
-                const reloadOrgsMembershipTable = true;
-                setReloadOrgsMembershipTable(plaformAssistantDispatch, { reloadOrgsMembershipTable });
-                const reloadGroupsTable = true;
-                setReloadGroupsTable(plaformAssistantDispatch, { reloadGroupsTable });
-                const reloadGroupsMembershipTable = true;
-                setReloadGroupsMembershipTable(plaformAssistantDispatch, { reloadGroupsMembershipTable });
-                const reloadOrgsOfGroupsManagedTable = true;
-                setReloadOrgsOfGroupsManagedTable(plaformAssistantDispatch, { reloadOrgsOfGroupsManagedTable });
+                reloadTable("orgsManaged");
+                reloadTable("orgsMembership");
+                reloadTable("groups");
+                reloadTable("groupsMembership");
+                reloadTable("orgsOfGroupsManaged");
             });
     };
 
@@ -349,7 +288,7 @@ const EditOrganization: FC<EditOrganizationProps> = ({ organizations, refreshOrg
                                     type="text"
                                     onChange={(e) => formik.setFieldValue("ragEnabled", e.value)}
                                 />
-                                <Title>Telegram bot</Title>
+                                <FormSection title="Telegram bot">
                                 <DataContainer>
                                     <FormikControl
                                         control="select"
@@ -379,7 +318,8 @@ const EditOrganization: FC<EditOrganizationProps> = ({ organizations, refreshOrg
                                         />
                                     )}
                                 </DataContainer>
-                                <Title>Large language model (LLM)</Title>
+                                </FormSection>
+                                <FormSection title="Large language model (LLM)">
                                 <DataContainer>
                                     <FormikControl
                                         control="select"
@@ -439,6 +379,7 @@ const EditOrganization: FC<EditOrganizationProps> = ({ organizations, refreshOrg
                                         </>
                                     )}
                                 </DataContainer>
+                                </FormSection>
                             </ControlsContainer>
                             <FormButtonsProps
                                 onCancel={onCancel}

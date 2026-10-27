@@ -1,11 +1,11 @@
 import React, { FC, useCallback } from 'react';
+import { useTable } from "../../../state";
 import TableWithPagination from '../Utils/TableWithPagination';
 import { ASSET_TYPES_OPTIONS } from '../Utils/platformAssistantOptions';
 import { Create_ASSET_TYPES_COLUMNS, IAssetType } from '../TableColumns/assetTypesColumns';
 import { setAssetTypesOptionToShow, useAssetTypesDispatch, useAssetTypesOptionToShow } from '../../../contexts/assetTypesOptions';
 import CreateAssetType from './CreateAssetType';
 import EditAssetType from './EditAssetType';
-import { useOrgsManagedTable } from '../../../contexts/platformAssistantContext';
 
 interface AssetTypesContainerProps {
     assetTypes: IAssetType[];
@@ -18,7 +18,7 @@ const AssetTypesContainer: FC<AssetTypesContainerProps> = ({
 }) => {
     const assetTypesDispatch = useAssetTypesDispatch();
     const assetTypesOptionToShow = useAssetTypesOptionToShow();
-    const orgsManagedTable = useOrgsManagedTable();
+    const orgsManagedTable = useTable("orgsManaged");
 
     const showAssetTypesTableOption = useCallback(() => {
         setAssetTypesOptionToShow(assetTypesDispatch, { assetTypesOptionToShow: ASSET_TYPES_OPTIONS.TABLE });

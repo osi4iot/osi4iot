@@ -17,7 +17,7 @@ import { setSensorTypesOptionToShow, useSensorTypesDispatch } from '../../../con
 import { IOrgManaged } from '../TableColumns/organizationsManagedColumns';
 import { cleanSvgString } from '../../../tools/generateAssetTypeMarker';
 import { AxiosResponse, AxiosError } from 'axios';
-import { ControlsContainer, StaticFormContainer } from '../../Tools/FormTools';
+import { ControlsContainer, StaticFormContainer, FormSection } from "../../Tools/FormTools";
 
 
 const SvgIconPreviewContainerDiv = styled.div`
@@ -43,10 +43,6 @@ const SvgComponentContainerDiv = styled.div`
 const FileSelectionContainer = styled.div`
     width: 100%;
     margin-bottom: 15px;
-`;
-
-const DataFileTitle = styled.div`
-    margin-bottom: 5px;
 `;
 
 const DataFileContainer = styled.div`
@@ -390,7 +386,7 @@ const CreateSensorType: FC<CreateSensorTypeProps> = ({
                                         name='defaultPayloadJsonSchema'
                                         textAreaSize='Small'
                                     />
-                                    <DataFileTitle>Select icon svg file (required)</DataFileTitle>
+                                    <FormSection title="Select icon svg file (required)">
                                     <FileSelectionContainer>
                                         <DataFileContainer>
                                             {
@@ -429,6 +425,7 @@ const CreateSensorType: FC<CreateSensorTypeProps> = ({
                                             </SelectDataFilenButtonContainer>
                                         </DataFileContainer>
                                     </FileSelectionContainer>
+                                    </FormSection>
                                 </ControlsContainer>
                                 <FormButtonsProps onCancel={onCancel} isValid={formik.isValid} isSubmitting={formik.isSubmitting} />
                             </Form>

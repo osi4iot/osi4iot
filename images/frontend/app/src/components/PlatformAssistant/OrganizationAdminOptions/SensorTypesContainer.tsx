@@ -1,4 +1,5 @@
 import React, { FC, useCallback } from 'react';
+import { useTable } from "../../../state";
 import TableWithPagination from '../Utils/TableWithPagination';
 import { SENSOR_TYPES_OPTIONS } from '../Utils/platformAssistantOptions';
 import { Create_SENSOR_TYPES_COLUMNS, ISensorType } from '../TableColumns/sensorTypesColumns';
@@ -9,7 +10,6 @@ import {
 } from '../../../contexts/sensorTypesOptions';
 import CreateSensorType from './CreateSensorType';
 import EditSensorType from './EditSensorType';
-import { useOrgsManagedTable } from '../../../contexts/platformAssistantContext';
 import { Column } from '../Utils/platformTable';
 
 interface SensorTypesContainerProps {
@@ -23,7 +23,7 @@ const SensorTypesContainer: FC<SensorTypesContainerProps> = ({
 }) => {
     const sensorTypesDispatch = useSensorTypesDispatch();
     const sensorTypesOptionToShow = useSensorTypesOptionToShow();
-    const orgsManagedTable = useOrgsManagedTable();
+    const orgsManagedTable = useTable("orgsManaged");
 
     const showSensorTypesTableOption = useCallback(() => {
         setSensorTypesOptionToShow(sensorTypesDispatch, { sensorTypesOptionToShow: SENSOR_TYPES_OPTIONS.TABLE });

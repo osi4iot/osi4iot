@@ -1,55 +1,28 @@
-import React, { createContext, FC, useContext, useReducer } from 'react';
+import { FC } from 'react';
 import { ChildrenProp } from '../../interfaces/interfaces'
 import { TopicsContextProps } from './interfaces'
 import { initialState, TopicsReducer } from './topicsReducer';
+import { createSectionStore, SectionStoreProvider } from '../../state/createSectionStore';
 
-
-const TopicsStateContext = createContext<TopicsContextProps>(initialState);
-const TopicsDispatchContext = createContext<any>({});
-
+// Estado de la sección en un almacén Zustand global (antes Context + useReducer): se conserva al cambiar de capa
+const useTopicsStore = createSectionStore(TopicsReducer, initialState);
 
 export function useTopicsDispatch() {
-	const context = React.useContext(TopicsDispatchContext);
-	if (context === undefined) {
-		throw new Error('useTopicsDispatch must be used within a TopicsProvider');
-	}
-
-	return context;
+	return useTopicsStore.dispatch;
 }
 
-export const TopicsProvider: FC<ChildrenProp> = ({ children }) => {
-	const [user, topicsDispatch] = useReducer(TopicsReducer, initialState);
-
-	return (
-		<TopicsStateContext.Provider value={user}>
-			<TopicsDispatchContext.Provider value={topicsDispatch}>
-				{children}
-			</TopicsDispatchContext.Provider>
-		</TopicsStateContext.Provider>
-	);
-};
-
+export const TopicsProvider: FC<ChildrenProp> = ({ children }) => (
+	<SectionStoreProvider store={useTopicsStore}>{children}</SectionStoreProvider>
+);
 
 export const useTopicsOptionToShow = (): string => {
-	const context = useContext(TopicsStateContext);
-	if (context === undefined) {
-		throw new Error('useTopicsOptionToShow must be used within a TopicsProvider');
-	}
-	return context.topicsOptionToShow;
+	return useTopicsStore((state) => state.topicsOptionToShow);
 }
 
 export const useTopicIdToEdit = (): number => {
-	const context = useContext(TopicsStateContext);
-	if (context === undefined) {
-		throw new Error('useTopicIdToEdit must be used within a TopicsProvider');
-	}
-	return context.topicIdToEdit;
+	return useTopicsStore((state) => state.topicIdToEdit);
 }
 
 export const useTopicRowIndexToEdit = (): number => {
-	const context = useContext(TopicsStateContext);
-	if (context === undefined) {
-		throw new Error('useTopicRowIndexToEdit must be used within a TopicsProvider');
-	}
-	return context.topicRowIndexToEdit;
+	return useTopicsStore((state) => state.topicRowIndexToEdit);
 }

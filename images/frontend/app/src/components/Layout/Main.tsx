@@ -1,6 +1,7 @@
 import { FC, ReactNode } from "react";
 import { useLocation } from "react-router";
 import styled from "styled-components";
+import { TOP_BAR_HEIGHT } from "./TopBar";
 
 
 interface MainContainerProps {
@@ -26,7 +27,8 @@ const MainContainer = styled.main<MainContainerProps>`
 	display: flex;
 	flex-direction: ${(props) => (isFlexDireccionRow(props.currentPath) ? "row" : "column")};
 	align-items: ${(props) => (isFlexDireccionRow(props.currentPath) ? "flex-start" : "center")};
-	height: calc(100vh - 80px);
+	height: calc(100vh - ${TOP_BAR_HEIGHT}px);
+	height: calc(100dvh - ${TOP_BAR_HEIGHT}px);
 	background-color: #0c0d0f;
 
 	overflow: auto;
@@ -56,14 +58,6 @@ const MainContainer = styled.main<MainContainerProps>`
 	&::-webkit-scrollbar-corner {
         background: #202226;
     }
-
-	@media screen and (max-width: 350px) {
-		height: calc(100vh - 60px);
-	}
-
-	@media screen and (min-height: 900px) {
-		height: calc(100vh - 100px);
-	}
 `;
 
 interface MainProps {

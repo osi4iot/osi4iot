@@ -8,7 +8,6 @@ import DeleteIcon from '../Utils/DeleteIcon';
 import DeleteModal from '../../Tools/DeleteModal';
 import { getAxiosInstance } from '../../../tools/axiosIntance';
 import axiosErrorHandler from '../../../tools/axiosErrorHandler';
-import { usePlatformAssitantDispatch } from '../../../contexts/platformAssistantContext';
 import { setAssetTypeIdToEdit, setAssetTypeRowIndexToEdit, setAssetTypesOptionToShow, useAssetTypesDispatch } from '../../../contexts/assetTypesOptions';
 import { ASSET_TYPES_OPTIONS } from '../Utils/platformAssistantOptions';
 import { AxiosResponse, AxiosError } from 'axios';
@@ -44,7 +43,6 @@ const domainName = getDomainName();
 const protocol = getProtocol();
 
 const DeleteAssetTypeModal: FC<DeleteAssetTypeModalProps> = ({ rowIndex, orgId, assetTypeId, refreshAssetTypes }) => {
-    const plaformAssistantDispatch = usePlatformAssitantDispatch();
     const [isAssetTypeDeleted, setIsAssetTypeDeleted] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const title = "DELETE ASSET TYPE";
@@ -61,7 +59,7 @@ const DeleteAssetTypeModal: FC<DeleteAssetTypeModalProps> = ({ rowIndex, orgId, 
         if (isAssetTypeDeleted) {
             refreshAssetTypes();
         }
-    }, [isAssetTypeDeleted, plaformAssistantDispatch, refreshAssetTypes]);
+    }, [isAssetTypeDeleted, refreshAssetTypes]);
 
     const action = (hideModal: () => void) => {
         const url = `${protocol}://${domainName}/admin_api/asset_type/${orgId}/id/${assetTypeId}`;

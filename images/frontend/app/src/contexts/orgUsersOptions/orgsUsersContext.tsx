@@ -1,71 +1,36 @@
-import React, { createContext, FC, useContext, useReducer } from 'react';
+import { FC } from 'react';
 import { ChildrenProp } from '../../interfaces/interfaces'
 import { OrgUsersContextProps } from './interfaces'
 import { initialState, OrgUsersReducer } from './orgsUsersReducer';
+import { createSectionStore, SectionStoreProvider } from '../../state/createSectionStore';
 
+// Estado de la sección en un almacén Zustand global (antes Context + useReducer): se conserva al cambiar de capa
+const useOrgUsersStore = createSectionStore(OrgUsersReducer, initialState);
 
-const OrgUsersStateContext = createContext<OrgUsersContextProps>(initialState);
-const OrgUsersDispatchContext = createContext<any>({});
-
-export function usePlatformAssitantState() {
-	const context = useContext(OrgUsersStateContext);
-	if (context === undefined) {
-		throw new Error('usePlatformAssitantState must be used within a OrgUsersProvider');
-	}
-	return context;
+export function useOrgUsersState() {
+	return useOrgUsersStore();
 }
 
-
-export const OrgUsersProvider: FC<ChildrenProp> = ({ children }) => {
-	const [data, orgUsersDispatch] = useReducer(OrgUsersReducer, initialState);
-
-	return (
-		<OrgUsersStateContext.Provider value={data}>
-			<OrgUsersDispatchContext.Provider value={orgUsersDispatch}>
-				{children}
-			</OrgUsersDispatchContext.Provider>
-		</OrgUsersStateContext.Provider>
-	);
-};
+export const OrgUsersProvider: FC<ChildrenProp> = ({ children }) => (
+	<SectionStoreProvider store={useOrgUsersStore}>{children}</SectionStoreProvider>
+);
 
 export function useOrgUsersDispatch() {
-	const context = React.useContext(OrgUsersDispatchContext);
-	if (context === undefined) {
-		throw new Error('useOrgsDispatch must be used within a OrgUsersProvider');
-	}
-
-	return context;
+	return useOrgUsersStore.dispatch;
 }
 
-
 export const useOrgUsersOptionToShow = (): string => {
-	const context = useContext(OrgUsersStateContext);
-	if (context === undefined) {
-		throw new Error('useOrgUsersOptionToShow must be used within a OrgUsersProvider');
-	}
-	return context.orgUsersOptionToShow;
+	return useOrgUsersStore((state) => state.orgUsersOptionToShow);
 };
 
 export const useOrgUserOrgIdToEdit = (): number => {
-	const context = useContext(OrgUsersStateContext);
-	if (context === undefined) {
-		throw new Error('useOrgUserOrgIdToEdit must be used within a OrgUsersProvider');
-	}
-	return context.orgUserOrgIdToEdit;
+	return useOrgUsersStore((state) => state.orgUserOrgIdToEdit);
 };
 
 export const useOrgUserUserIdToEdit = (): number => {
-	const context = useContext(OrgUsersStateContext);
-	if (context === undefined) {
-		throw new Error('useOrgUserUserIdToEdit must be used within a OrgUsersProvider');
-	}
-	return context.orgUserUserIdToEdit;
+	return useOrgUsersStore((state) => state.orgUserUserIdToEdit);
 };
 
 export const useOrgUserRowIndexToEdit = (): number => {
-	const context = useContext(OrgUsersStateContext);
-	if (context === undefined) {
-		throw new Error('useOrgUserRowIndexToEdit must be used within a OrgUsersProvider');
-	}
-	return context.orgUserRowIndexToEdit;
+	return useOrgUsersStore((state) => state.orgUserRowIndexToEdit);
 };

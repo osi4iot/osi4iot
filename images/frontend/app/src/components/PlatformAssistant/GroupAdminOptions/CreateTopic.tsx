@@ -1,4 +1,5 @@
 import { FC, useState, SyntheticEvent, useEffect } from "react";
+import { reloadTable } from "../../../state";
 import { Formik, Form, FormikProps } from "formik";
 import * as Yup from "yup";
 import { useAuthState, useAuthDispatch } from "../../../contexts/authContext";
@@ -11,7 +12,6 @@ import { TOPICS_OPTIONS } from "../Utils/platformAssistantOptions";
 import { setTopicsOptionToShow, useTopicsDispatch } from "../../../contexts/topicsOptions";
 import { getAxiosInstance } from "../../../tools/axiosIntance";
 import axiosErrorHandler from "../../../tools/axiosErrorHandler";
-import { setReloadAssetTopicsTable, usePlatformAssitantDispatch } from "../../../contexts/platformAssistantContext";
 import { IGroupManaged } from "../TableColumns/groupsManagedColumns";
 import { IOrgOfGroupsManaged } from "../TableColumns/orgsOfGroupsManagedColumns";
 import { AxiosError, AxiosResponse } from "axios";
@@ -150,7 +150,6 @@ interface CreateTopicProps {
 }
 
 const CreateTopic: FC<CreateTopicProps> = ({ orgsOfGroupManaged, groupsManaged, backToTable, refreshTopics }) => {
-    const plaformAssistantDispatch = usePlatformAssitantDispatch();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const { accessToken, refreshToken } = useAuthState();
     const authDispatch = useAuthDispatch();
@@ -214,8 +213,7 @@ const CreateTopic: FC<CreateTopicProps> = ({ orgsOfGroupManaged, groupsManaged, 
             })
             .finally(() => {
                 refreshTopics();
-                const reloadAssetTopicsTable = true;
-                setReloadAssetTopicsTable(plaformAssistantDispatch, { reloadAssetTopicsTable });
+                reloadTable("assetTopics");
             });
     };
 

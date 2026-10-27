@@ -1,4 +1,5 @@
 import { FC, useState, useEffect } from 'react';
+import { reloadTable } from "../../../state";
 import { Column } from '../Utils/platformTable';
 import { FeatureCollection } from 'geojson';
 import { toast } from 'react-toastify';
@@ -14,10 +15,6 @@ import {
     setBuildingsOptionToShow,
     useBuildingsDispatch
 } from '../../../contexts/buildingsOptions';
-import {
-    setReloadFloorsTable,
-    usePlatformAssitantDispatch
-} from '../../../contexts/platformAssistantContext';
 import { getAxiosInstance } from '../../../tools/axiosIntance';
 import axiosErrorHandler from '../../../tools/axiosErrorHandler';
 import { AxiosResponse, AxiosError } from 'axios';
@@ -56,7 +53,6 @@ const domainName = getDomainName();
 const protocol = getProtocol();
 
 const DeleteBuildingModal: FC<DeleteBuildingModalProps> = ({ rowIndex, buildingId, refreshBuildings }) => {
-    const plaformAssistantDispatch = usePlatformAssitantDispatch();
     const [isBuildingDeleted, setIsBuildingDeleted] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const title = "DELETE BUILDING";
@@ -85,8 +81,7 @@ const DeleteBuildingModal: FC<DeleteBuildingModalProps> = ({ rowIndex, buildingI
                 setIsSubmitting(false);
                 const data = response.data;
                 toast.success(data.message);
-                const reloadFloorsTable = true;
-                setReloadFloorsTable(plaformAssistantDispatch, { reloadFloorsTable });
+                reloadTable("floors");
                 hideModal();
             })
             .catch((error: AxiosError) => {

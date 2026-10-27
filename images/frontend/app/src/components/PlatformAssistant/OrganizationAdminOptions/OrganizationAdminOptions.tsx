@@ -1,96 +1,28 @@
-import { FC, useEffect, useState, useCallback } from 'react'
+import { FC, useCallback, useMemo } from 'react'
 import styled from "styled-components";
-import { useAuthState, useAuthDispatch } from '../../../contexts/authContext';
-import { axiosAuth, getDomainName, getProtocol } from '../../../tools/tools';
 import Loader from "../../Tools/Loader";
-import elaspsedTimeFormat from '../../../tools/elapsedTimeFormat';
 import { ORG_ADMIN_OPTIONS } from '../Utils/platformAssistantOptions';
 import { OrgUsersProvider } from '../../../contexts/orgUsersOptions';
 import OrgUsersContainer from './OrgUsersContainer';
 import { GroupsProvider } from '../../../contexts/groupsOptions';
 import GroupsContainer from './GroupsContainer';
-import { IOrgUser } from '../TableColumns/orgUsersColumns';
 import { OrgsManagedProvider } from '../../../contexts/orgsManagedOptions';
-import {
-    usePlatformAssitantDispatch,
-    useOrgsManagedTable,
-    useOrgUsersTable,
-    useGroupsTable,
-    useReloadGroupsTable,
-    setOrgsManagedTable,
-    setOrgUsersTable,
-    setGroupsTable,
-    setReloadGroupsTable,
-    useGlobalUsersTable,
-    setGlobalUsersTable,
-    useBuildingsTable,
-    useFloorsTable,
-    setBuildingsTable,
-    setFloorsTable,
-    useReloadOrgsManagedTable,
-    setReloadOrgsManagedTable,
-    useReloadOrgUsersTable,
-    setReloadOrgUsersTable,
-    setReloadGlobalUsersTable,
-    useAssetTypesTable,
-    useReloadAssetTypesTable,
-    setAssetTypesTable,
-    setReloadAssetTypesTable,
-    setReloadSensorTypesTable,
-    setSensorTypesTable,
-} from '../../../contexts/platformAssistantContext';
 import OrgsManagedContainer from './OrgsManagedContainer';
 import { filterBuildings } from '../../../tools/filterBuildings';
-import { IBuilding } from '../TableColumns/buildingsColumns';
-import { IFloor } from '../TableColumns/floorsColumns';
 import { filterFloors } from '../../../tools/filterFloors';
-import { IGlobalUser } from '../TableColumns/globalUsersColumns';
-import { getAxiosInstance } from '../../../tools/axiosIntance';
-import axiosErrorHandler from '../../../tools/axiosErrorHandler';
 import { AssetTypesProvider } from '../../../contexts/assetTypesOptions';
 import AssetTypesContainer from './AssetTypesContainer';
-import { IAssetType } from '../TableColumns/assetTypesColumns';
-import { useReloadSensorTypesTable, useSensorTypesTable } from '../../../contexts/platformAssistantContext/platformAssistantContext';
-import { ISensorType } from '../TableColumns/sensorTypesColumns';
 import { SensorTypesProvider } from '../../../contexts/sensorTypesOptions';
 import SensorTypesContainer from './SensorTypesContainer';
-import { AxiosResponse, AxiosError } from 'axios';
+import { reloadTable, reloadTables, usePersistentState, useTable, useTablesPending } from '../../../state';
 
-
-const OrganizationAdminOptionsContainer = styled.div`
-	display: flex;
-	flex-direction: row;
-    justify-content: flex-start;
-	align-items: center;
-    width: 60%;
-    height: 50px;
-    background-color: #0c0d0f;
-`;
-
-interface OptionContainerProps {
-    isOptionActive: boolean;
-}
-
-const OptionContainer = styled.div<OptionContainerProps>`
-	color: "white";
-    margin: 10px 20px 0 20px;
-    background-color: ${(props) => props.isOptionActive ? "#202226" : "#0c0d0f"};
-    padding: 10px 10px 10px 10px;
-    border-top: ${(props) => props.isOptionActive ? "3px solid #3274d9;" : "3px solid #0c0d0f"};
-    align-content: center;
-
-    &:hover {
-        cursor: pointer;
-        background-color: #202226;
-        border-top: ${(props) => props.isOptionActive ? "3px solid #3274d9;" : "3px solid white"};
-    }
-`;
 
 const ContentContainer = styled.div`
-    width: calc(100vw - 75px);
-    height: calc(100vh - 220px);
+    flex: 1;
+    min-height: 0;
+    width: 100%;
+    box-sizing: border-box;
     background-color: #202226;
-    margin-bottom: 5px;
     display: flex;
 	flex-direction: column;
     justify-content: flex-start;
@@ -126,408 +58,44 @@ const ContentContainer = styled.div`
     }
 `;
 
-const domainName = getDomainName();
-const protocol = getProtocol();
-
 const OrganizationAdminOptions: FC<{}> = () => {
-    const { accessToken, refreshToken } = useAuthState();
-    const authDispatch = useAuthDispatch();
-    const plaformAssistantDispatch = usePlatformAssitantDispatch();
-    const buildingsTable = useBuildingsTable();
-    const floorsTable = useFloorsTable();
-    const orgsManagedTable = useOrgsManagedTable();
-    const orgUsersTable = useOrgUsersTable();
-    const groupsTable = useGroupsTable();
-    const assetTypesTable = useAssetTypesTable();
-    const sensorTypesTable = useSensorTypesTable();
-    const globalUsersTable = useGlobalUsersTable();
-    const [buildingsLoading, setBuildingsLoading] = useState(true);
-    const [floorsLoading, setFloorsLoading] = useState(true);
-    const [orgsManagedLoading, setOrgsManagedLoading] = useState(true);
-    const [groupsLoading, setGroupsLoading] = useState(true);
-    const [sensorTypesLoading, setSensorTypesLoading] = useState(true);
-    const [assetTypesLoading, setAssetTypesLoading] = useState(true);
-    const [orgUsersLoading, setOrgUsersLoading] = useState(true);
-    const [globalUsersLoading, setGlobalUsersLoading] = useState(true);
-    const [optionToShow, setOptionToShow] = useState(ORG_ADMIN_OPTIONS.ORGS_MANAGED);
-    const [buildingsFiltered, setBuildingsFiltered] = useState<IBuilding[]>([]);
-    const [floorsFiltered, setFloorsFiltered] = useState<IFloor[]>([]);
-
-    const [reloadBuildings, setReloadBuildings] = useState(false);
-    const [reloadFloors, setReloadloors] = useState(false);
-    const reloadOrgsManagedTable = useReloadOrgsManagedTable();
-    const reloadOrgUsersTable = useReloadOrgUsersTable();
-    const reloadGroupsTable = useReloadGroupsTable();
-    const reloadAssetTypesTable = useReloadAssetTypesTable();
-    const reloadSensorTypesTable = useReloadSensorTypesTable();
-
-    const refreshOrgsManaged = useCallback(() => {
-        setOrgsManagedLoading(true);
-        const reloadOrgsManagedTable = true;
-        setReloadOrgsManagedTable(plaformAssistantDispatch, { reloadOrgsManagedTable });
-    }, [plaformAssistantDispatch]);
-
-    const refreshOrgUsers = useCallback(() => {
-        setOrgUsersLoading(true);
-        const reloadOrgUsersTable = true;
-        setReloadOrgUsersTable(plaformAssistantDispatch, { reloadOrgUsersTable });
-    }, [plaformAssistantDispatch,])
-
-    const refreshGroups = useCallback(() => {
-        setGroupsLoading(true);
-        const reloadGroupsTable = true;
-        setReloadGroupsTable(plaformAssistantDispatch, { reloadGroupsTable });
-    }, [plaformAssistantDispatch])
-
-    const refreshSensorTypes = useCallback(() => {
-        setSensorTypesLoading(true);
-        const reloadSensorTypesTable = true;
-        setReloadSensorTypesTable(plaformAssistantDispatch, { reloadSensorTypesTable });
-    }, [plaformAssistantDispatch])
-
-    const refreshAssetTypes = useCallback(() => {
-        setAssetTypesLoading(true);
-        const reloadAssetTypesTable = true;
-        setReloadAssetTypesTable(plaformAssistantDispatch, { reloadAssetTypesTable });
-    }, [plaformAssistantDispatch])
-
-    const refreshBuildings = useCallback(() => {
-        setReloadBuildings(true);
-        setBuildingsLoading(true);
-        setTimeout(() => setReloadBuildings(false), 500);
-    }, []);
-
-    const refreshFloors = useCallback(() => {
-        setReloadloors(true);
-        setFloorsLoading(true);
-        setTimeout(() => setReloadloors(false), 500);
-    }, []);
-
-    useEffect(() => {
-        if (buildingsTable.length === 0 || reloadBuildings) {
-            const urlBuildings = `${protocol}://${domainName}/admin_api/buildings/user_groups_managed/`;
-            const config = axiosAuth(accessToken);
-            getAxiosInstance(refreshToken, authDispatch)
-                .get(urlBuildings, config)
-                .then((response: AxiosResponse<any, any>) => {
-                    const buildings = response.data;
-                    buildings.map((building: IBuilding) => {
-                        building.createdAtAge = elaspsedTimeFormat(building.createdAtAge);
-                        building.updatedAtAge = elaspsedTimeFormat(building.updatedAtAge);
-                        return building;
-                    })
-                    setBuildingsTable(plaformAssistantDispatch, { buildings });
-                    setBuildingsLoading(false);
-                    const buildingsFiltered = filterBuildings(buildings);
-                    setBuildingsFiltered(buildingsFiltered);
-                })
-                .catch((error: AxiosError) => {
-                    axiosErrorHandler(error, authDispatch);
-                });
-        } else {
-            setBuildingsLoading(false);
-        }
-    }, [
-        accessToken,
-        refreshToken,
-        authDispatch,
-        plaformAssistantDispatch,
-        reloadBuildings,
-        buildingsTable.length
+    const buildingsTable = useTable("buildings");
+    const floorsTable = useTable("floors");
+    const orgsManagedTable = useTable("orgsManaged");
+    const orgUsersTable = useTable("orgUsers");
+    const groupsTable = useTable("groups");
+    const assetTypesTable = useTable("assetTypes");
+    const sensorTypesTable = useTable("sensorTypes");
+    const loading = useTablesPending([
+        "buildings",
+        "floors",
+        "orgsManaged",
+        "orgUsers",
+        "groups",
+        "globalUsers",
+        "assetTypes",
+        "sensorTypes",
     ]);
+    // sección abierta: la elige el menú lateral y se conserva al cambiar de capa
+    const [optionToShow] = usePersistentState("org.optionToShow", ORG_ADMIN_OPTIONS.ORGS_MANAGED);
+    const buildingsFiltered = useMemo(() => filterBuildings(buildingsTable), [buildingsTable]);
+    const floorsFiltered = useMemo(() => filterFloors(floorsTable), [floorsTable]);
 
-    useEffect(() => {
-        if (floorsTable.length === 0 || reloadFloors) {
-            const urlFloors = `${protocol}://${domainName}/admin_api/building_floors/user_groups_managed/`;
-            const config = axiosAuth(accessToken);
-            getAxiosInstance(refreshToken, authDispatch)
-                .get(urlFloors, config)
-                .then((response: AxiosResponse<any, any>) => {
-                    const floors = response.data;
-                    floors.map((floor: IFloor) => {
-                        floor.createdAtAge = elaspsedTimeFormat(floor.createdAtAge);
-                        floor.updatedAtAge = elaspsedTimeFormat(floor.updatedAtAge);
-                        return floor;
-                    })
-                    setFloorsTable(plaformAssistantDispatch, { floors });
-                    setFloorsLoading(false);
-                    const floorsFiltered = filterFloors(floors);
-                    setFloorsFiltered(floorsFiltered);
-                })
-                .catch((error: AxiosError) => {
-                    axiosErrorHandler(error, authDispatch);
-                });
-        } else {
-            setFloorsLoading(false);
-        }
-    }, [
-        accessToken,
-        refreshToken,
-        authDispatch,
-        plaformAssistantDispatch,
-        reloadFloors,
-        floorsTable.length
-    ]);
+    const refreshOrgsManaged = useCallback(() => reloadTable("orgsManaged"), []);
+    const refreshOrgUsers = useCallback(() => reloadTables(["orgUsers", "globalUsers"]), []);
+    const refreshGroups = useCallback(() => reloadTable("groups"), []);
+    const refreshSensorTypes = useCallback(() => reloadTable("sensorTypes"), []);
+    const refreshAssetTypes = useCallback(() => reloadTable("assetTypes"), []);
+    const refreshBuildings = useCallback(() => reloadTable("buildings"), []);
+    const refreshFloors = useCallback(() => reloadTable("floors"), []);
 
-    useEffect(() => {
-        if (buildingsTable.length !== 0) {
-            const buildingsFiltered = filterBuildings(buildingsTable);
-            setBuildingsFiltered(buildingsFiltered);
-        }
-    }, [buildingsTable]);
-
-    useEffect(() => {
-        if (floorsTable.length !== 0) {
-            const floorsFiltered = filterFloors(floorsTable);
-            setFloorsFiltered(floorsFiltered);
-        }
-    }, [floorsTable]);
-
-
-    useEffect(() => {
-        if (orgsManagedTable.length === 0 || reloadOrgsManagedTable) {
-            const urlOrgsManaged = `${protocol}://${domainName}/admin_api/organizations/user_managed/`;
-            const config = axiosAuth(accessToken);
-            getAxiosInstance(refreshToken, authDispatch)
-                .get(urlOrgsManaged, config)
-                .then((response: AxiosResponse<any, any>) => {
-                    const orgsManaged = response.data;
-                    setOrgsManagedTable(plaformAssistantDispatch, { orgsManaged });
-                    setOrgsManagedLoading(false);
-                    const reloadOrgsManagedTable = false;
-                    setReloadOrgsManagedTable(plaformAssistantDispatch, { reloadOrgsManagedTable });
-                })
-                .catch((error: AxiosError) => {
-                    axiosErrorHandler(error, authDispatch);
-                });
-        } else {
-            setOrgsManagedLoading(false);
-        }
-    }, [
-        accessToken,
-        refreshToken,
-        authDispatch,
-        plaformAssistantDispatch,
-        reloadOrgsManagedTable,
-        orgsManagedTable.length
-    ]);
-
-    useEffect(() => {
-        if (orgUsersTable.length === 0 || reloadOrgUsersTable) {
-            const config = axiosAuth(accessToken);
-            const urlOrganizationUsers = `${protocol}://${domainName}/admin_api/organization_users/user_orgs_managed/`;
-            getAxiosInstance(refreshToken, authDispatch)
-                .get(urlOrganizationUsers, config)
-                .then((response: AxiosResponse<any, any>) => {
-                    const orgUsers = response.data.filter((user: IOrgUser) => user.login.slice(-9) !== "api_admin");
-                    orgUsers.map((user: IOrgUser) => {
-                        user.lastSeenAtAge = elaspsedTimeFormat(user.lastSeenAtAge);
-                        return user;
-                    })
-                    setOrgUsersTable(plaformAssistantDispatch, { orgUsers });
-                    setOrgUsersLoading(false);
-                    const reloadOrgUsersTable = false;
-                    setReloadOrgUsersTable(plaformAssistantDispatch, { reloadOrgUsersTable });
-                    const reloadGlobalUsersTable = false;
-                    setReloadGlobalUsersTable(plaformAssistantDispatch, { reloadGlobalUsersTable });
-                })
-                .catch((error: AxiosError) => {
-                    axiosErrorHandler(error, authDispatch);
-                });
-        } else {
-            setOrgUsersLoading(false);
-        }
-    }, [
-        accessToken,
-        refreshToken,
-        authDispatch,
-        plaformAssistantDispatch,
-        reloadOrgUsersTable,
-        orgUsersTable.length
-    ]);
-
-    useEffect(() => {
-        if (groupsTable.length === 0 || reloadGroupsTable) {
-            const config = axiosAuth(accessToken);
-            const urlGroups = `${protocol}://${domainName}/admin_api/groups/user_managed`;
-            getAxiosInstance(refreshToken, authDispatch)
-                .get(urlGroups, config)
-                .then((response: AxiosResponse<any, any>) => {
-                    const groups = response.data;
-                    groups.map((group: { isOrgDefaultGroup: string; }) => {
-                        group.isOrgDefaultGroup = group.isOrgDefaultGroup ? "Default" : "Generic";
-                        return group;
-                    })
-                    setGroupsTable(plaformAssistantDispatch, { groups });
-                    setGroupsLoading(false);
-                    const reloadGroupsTable = false;
-                    setReloadGroupsTable(plaformAssistantDispatch, { reloadGroupsTable });
-                })
-                .catch((error: AxiosError) => {
-                    axiosErrorHandler(error, authDispatch);
-                });
-        } else {
-            setGroupsLoading(false);
-        }
-    }, [
-        accessToken,
-        refreshToken,
-        authDispatch,
-        plaformAssistantDispatch,
-        reloadGroupsTable,
-        groupsTable.length
-    ]);
-
-    useEffect(() => {
-        if (sensorTypesTable.length === 0 || reloadSensorTypesTable) {
-            const config = axiosAuth(accessToken);
-            const urlSensorTypes = `${protocol}://${domainName}/admin_api/sensor_types/user_managed`;
-            getAxiosInstance(refreshToken, authDispatch)
-                .get(urlSensorTypes, config)
-                .then((response: AxiosResponse<any, any>) => {
-                    const sensorTypes = response.data;
-                    sensorTypes.map((sensorType: ISensorType) => {
-                        sensorType.isPredefinedString = "No";
-                        if (sensorType.isPredefined) sensorType.isPredefinedString = "Yes";
-                        return sensorType;
-                    })
-                    setSensorTypesTable(plaformAssistantDispatch, { sensorTypes });
-                    setSensorTypesLoading(false);
-                    const reloadSensorTypesTable = false;
-                    setReloadSensorTypesTable(plaformAssistantDispatch, { reloadSensorTypesTable });
-                })
-                .catch((error: AxiosError) => {
-                    axiosErrorHandler(error, authDispatch);
-                });
-        } else {
-            setSensorTypesLoading(false);
-        }
-    }, [
-        accessToken,
-        refreshToken,
-        authDispatch,
-        plaformAssistantDispatch,
-        reloadSensorTypesTable,
-        sensorTypesTable.length
-    ]);
-
-    useEffect(() => {
-        if (assetTypesTable.length === 0 || reloadAssetTypesTable) {
-            const config = axiosAuth(accessToken);
-            const urlAssetTypes = `${protocol}://${domainName}/admin_api/asset_types/user_managed`;
-            getAxiosInstance(refreshToken, authDispatch)
-                .get(urlAssetTypes, config)
-                .then((response: AxiosResponse<any, any>) => {
-                    const assetTypes = response.data;
-                    assetTypes.map((assetType: IAssetType) => {
-                        assetType.isPredefinedString = "No";
-                        if (assetType.isPredefined) assetType.isPredefinedString = "Yes";
-                        return assetType;
-                    })
-                    setAssetTypesTable(plaformAssistantDispatch, { assetTypes });
-                    setAssetTypesLoading(false);
-                    const reloadAssetTypesTable = false;
-                    setReloadAssetTypesTable(plaformAssistantDispatch, { reloadAssetTypesTable });
-                })
-                .catch((error: AxiosError) => {
-                    axiosErrorHandler(error, authDispatch);
-                });
-        } else {
-            setAssetTypesLoading(false);
-        }
-    }, [
-        accessToken,
-        refreshToken,
-        authDispatch,
-        plaformAssistantDispatch,
-        reloadAssetTypesTable,
-        assetTypesTable.length
-    ]);
-
-    useEffect(() => {
-        if (globalUsersTable.length === 0 || reloadOrgUsersTable) {
-            const config = axiosAuth(accessToken);
-            const urlGlobalUsers = `${protocol}://${domainName}/admin_api/application/global_users`;
-            getAxiosInstance(refreshToken, authDispatch)
-                .get(urlGlobalUsers, config)
-                .then((response: AxiosResponse<any, any>) => {
-                    const globalUsers = response.data.filter((user: IGlobalUser) => user.login.slice(-9) !== "api_admin");
-                    globalUsers.map((user: { roleInPlatform: string; lastSeenAtAge: string, isGrafanaAdmin: boolean }) => {
-                        user.roleInPlatform = user.isGrafanaAdmin ? "Admin" : "";
-                        user.lastSeenAtAge = elaspsedTimeFormat(user.lastSeenAtAge);
-                        return user;
-                    })
-                    setGlobalUsersTable(plaformAssistantDispatch, { globalUsers });
-                    setGlobalUsersLoading(false);
-                })
-                .catch((error: AxiosError) => {
-                    axiosErrorHandler(error, authDispatch);
-                });
-        } else {
-            setGlobalUsersLoading(false);
-        }
-
-    }, [
-        accessToken,
-        refreshToken,
-        authDispatch,
-        reloadOrgUsersTable,
-        plaformAssistantDispatch,
-        globalUsersTable.length
-    ]);
-
-
-    const clickHandler = (optionToShow: string) => {
-        setOptionToShow(optionToShow);
-    }
 
 
     return (
         <>
-            <OrganizationAdminOptionsContainer>
-                <OptionContainer
-                    isOptionActive={optionToShow === ORG_ADMIN_OPTIONS.ORGS_MANAGED}
-                    onClick={() => clickHandler(ORG_ADMIN_OPTIONS.ORGS_MANAGED)}
-                >
-                    Orgs managed
-                </OptionContainer>
-                <OptionContainer
-                    isOptionActive={optionToShow === ORG_ADMIN_OPTIONS.ORG_USERS}
-                    onClick={() => clickHandler(ORG_ADMIN_OPTIONS.ORG_USERS)}
-                >
-                    Org users
-                </OptionContainer>
-                <OptionContainer
-                    isOptionActive={optionToShow === ORG_ADMIN_OPTIONS.GROUPS}
-                    onClick={() => clickHandler(ORG_ADMIN_OPTIONS.GROUPS)}
-                >
-                    Groups
-                </OptionContainer>
-                <OptionContainer
-                    isOptionActive={optionToShow === ORG_ADMIN_OPTIONS.SENSOR_TYPES}
-                    onClick={() => clickHandler(ORG_ADMIN_OPTIONS.SENSOR_TYPES)}
-                >
-                    Sensor types
-                </OptionContainer>
-                <OptionContainer
-                    isOptionActive={optionToShow === ORG_ADMIN_OPTIONS.ASSET_TYPES}
-                    onClick={() => clickHandler(ORG_ADMIN_OPTIONS.ASSET_TYPES)}
-                >
-                    Asset types
-                </OptionContainer>
-            </OrganizationAdminOptionsContainer>
             <ContentContainer >
                 {
-                    (
-                        buildingsLoading ||
-                        floorsLoading ||
-                        orgsManagedLoading ||
-                        groupsLoading ||
-                        orgUsersLoading ||
-                        globalUsersLoading ||
-                        assetTypesLoading ||
-                        sensorTypesLoading
-                    ) ?
+loading ?
                         <Loader />
                         :
                         <>

@@ -1,4 +1,5 @@
 import { FC, useState, SyntheticEvent, useEffect } from "react";
+import { reloadTable } from "../../../state";
 import styled from "styled-components";
 import { Formik, Form } from "formik";
 import * as Yup from "yup";
@@ -22,24 +23,13 @@ import { GROUPS_OPTIONS, GROUPS_PREVIOUS_OPTIONS } from "../Utils/platformAssist
 import { IGroup } from "../TableColumns/groupsColumns";
 import { IOrgManaged } from "../TableColumns/organizationsManagedColumns";
 import { IGroupInputData } from "../../../contexts/groupsOptions/interfaces";
-import {
-    setReloadAssetsTable,
-    setReloadGroupsManagedTable,
-    setReloadGroupsMembershipTable,
-    setReloadSensorsTable,
-    usePlatformAssitantDispatch,
-} from "../../../contexts/platformAssistantContext";
 import { IBuilding } from "../TableColumns/buildingsColumns";
 import { getAxiosInstance } from "../../../tools/axiosIntance";
 import axiosErrorHandler from "../../../tools/axiosErrorHandler";
 import { FieldContainer } from "../GroupAdminOptions/EditAsset";
 import { IFloor } from "../TableColumns/floorsColumns";
 import { AxiosResponse, AxiosError } from "axios";
-import { ControlsContainer, StaticFormContainer } from "../../Tools/FormTools";
-
-const Title = styled.div`
-    margin-bottom: 5px;
-`;
+import { ControlsContainer, StaticFormContainer, FormSection } from "../../Tools/FormTools";
 
 const GroupLocationContainer = styled.div`
     border: 2px solid #2c3235;
@@ -152,7 +142,6 @@ const EditGroup: FC<EditGroupProps> = ({
 }) => {
     const authDispatch = useAuthDispatch();
     const groupsDispatch = useGroupsDispatch();
-    const plaformAssistantDispatch = usePlatformAssitantDispatch();
     const groupId = useGroupIdToEdit();
     const editGroupInputData = useGroupInputData();
     const groupRowIndex = useGroupRowIndexToEdit();
@@ -224,14 +213,10 @@ const EditGroup: FC<EditGroupProps> = ({
             })
             .finally(() => {
                 refreshGroups();
-                const reloadGroupsManagedTable = true;
-                setReloadGroupsManagedTable(plaformAssistantDispatch, { reloadGroupsManagedTable });
-                const reloadAssetsTable = true;
-                setReloadAssetsTable(plaformAssistantDispatch, { reloadAssetsTable });
-                const reloadSensorsTable = true;
-                setReloadSensorsTable(plaformAssistantDispatch, { reloadSensorsTable });
-                const reloadGroupsMembershipTable = true;
-                setReloadGroupsMembershipTable(plaformAssistantDispatch, { reloadGroupsMembershipTable });
+                reloadTable("groupsManaged");
+                reloadTable("assets");
+                reloadTable("sensors");
+                reloadTable("groupsMembership");
             });
     };
 
@@ -350,7 +335,7 @@ const EditGroup: FC<EditGroupProps> = ({
                                         type="text"
                                     />
                                 )}{" "}
-                                <Title>Group location</Title>
+                                <FormSection title="Group location">
                                 <GroupLocationContainer>
                                     <FormikControl
                                         control="input"
@@ -370,6 +355,7 @@ const EditGroup: FC<EditGroupProps> = ({
                                         </SelectSpaceButton>
                                     </SelectGroupLocationButtonContainer>
                                 </GroupLocationContainer>
+                                </FormSection>
                             </ControlsContainer>
                             <FormButtonsProps
                                 onCancel={onCancel}

@@ -17,7 +17,7 @@ import { setAssetTypesOptionToShow, useAssetTypesDispatch } from '../../../conte
 import { IOrgManaged } from '../TableColumns/organizationsManagedColumns';
 import { generateAssetTypeMarker, cleanSvgString } from '../../../tools/generateAssetTypeMarker';
 import { AxiosResponse, AxiosError } from 'axios';
-import { ControlsContainer, StaticFormContainer } from '../../Tools/FormTools';
+import { ControlsContainer, StaticFormContainer, FormSection } from "../../Tools/FormTools";
 
 const SvgIconPreviewContainerDiv = styled.div`
     margin: 5px 0;
@@ -41,10 +41,6 @@ const SvgComponentContainerDiv = styled.div`
 
 const FileSelectionContainer = styled.div`
     width: 100%;
-`;
-
-const DataFileTitle = styled.div`
-    margin-bottom: 5px;
 `;
 
 const DataFileContainer = styled.div`
@@ -395,7 +391,7 @@ const CreateAssetType: FC<CreateAssetTypeProps> = ({
                                         name='type'
                                         type='text'
                                     />
-                                    <DataFileTitle>Select icon svg file</DataFileTitle>
+                                    <FormSection title="Select icon svg file">
                                     <FileSelectionContainer>
                                         <DataFileContainer>
                                             {
@@ -434,6 +430,7 @@ const CreateAssetType: FC<CreateAssetTypeProps> = ({
                                             </SelectDataFilenButtonContainer>
                                         </DataFileContainer>
                                     </FileSelectionContainer>
+                                    </FormSection>
                                     <FormikControl
                                         control='select'
                                         label='Geolocation mode'
@@ -445,7 +442,7 @@ const CreateAssetType: FC<CreateAssetTypeProps> = ({
                                     {
                                         geolocationMode === "dynamic" &&
                                         <>
-                                            <DataFileTitle>Select marker svg file</DataFileTitle>
+                                            <FormSection title="Select marker svg file">
                                             <FileSelectionContainer>
                                                 <DataFileContainer>
                                                     {
@@ -484,6 +481,7 @@ const CreateAssetType: FC<CreateAssetTypeProps> = ({
                                                     </SelectDataFilenButtonContainer>
                                                 </DataFileContainer>
                                             </FileSelectionContainer>
+                                            </FormSection>
                                         </>
                                     }
                                     <FormikControl

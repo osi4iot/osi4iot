@@ -34,27 +34,33 @@ const UserProfileContainer = styled.div`
 	flex-direction: column;
     justify-content: flex-start;
 	align-items: flex-start;
-    width: 390px;
+    width: calc(100% - 32px);
+    max-width: 640px;
     background-color: #202226;
-    border: 3px solid #3274d9;
-    border-radius: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 14px;
+
+    @media (max-width: 600px) {
+        width: 100%;
+        margin-top: 8px;
+        padding: 16px;
+    }
 `;
 
 const ItemType = styled.span`
-    background-color: #202226;
     font-weight: 600;
     margin-right: 5px;
 `;
 
 const ItemValue = styled.span`
-    background-color: #202226;
 `;
 
 const UserProfileItem = styled.div`
     margin-top: 10px;
     margin-bottom: 10px;
     width: 100%;
-    background-color: #202226;
+    flex-wrap: wrap;
+    gap: 12px;
 `;
 
 const ButtonsContainer = styled.div`
@@ -64,7 +70,8 @@ const ButtonsContainer = styled.div`
     justify-content: space-between;
 	align-items: center;
     width: 100%;
-    background-color: #202226;
+    flex-wrap: wrap;
+    gap: 12px;
 `;
 
 export interface IUserProfile {

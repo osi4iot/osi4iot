@@ -1,54 +1,28 @@
-import React, { createContext, FC, useContext, useReducer } from 'react';
+import { FC } from 'react';
 import { ChildrenProp } from '../../interfaces/interfaces'
 import { MlModelsContextProps } from './interfaces'
 import { initialState, MlModelsReducer } from './mlModelsReducer';
+import { createSectionStore, SectionStoreProvider } from '../../state/createSectionStore';
 
-
-const MlModelsStateContext = createContext<MlModelsContextProps>(initialState);
-const MlModelsDispatchContext = createContext<any>({});
+// Estado de la sección en un almacén Zustand global (antes Context + useReducer): se conserva al cambiar de capa
+const useMlModelsStore = createSectionStore(MlModelsReducer, initialState);
 
 export function useMlModelsDispatch() {
-	const context = React.useContext(MlModelsDispatchContext);
-	if (context === undefined) {
-		throw new Error('useMlModelsDispatch must be used within a MlModelsProvider');
-	}
-
-	return context;
+	return useMlModelsStore.dispatch;
 }
 
-export const MlModelsProvider: FC<ChildrenProp> = ({ children }) => {
-	const [user, mlModelsDispatch] = useReducer(MlModelsReducer, initialState);
-
-	return (
-		<MlModelsStateContext.Provider value={user}>
-			<MlModelsDispatchContext.Provider value={mlModelsDispatch}>
-				{children}
-			</MlModelsDispatchContext.Provider>
-		</MlModelsStateContext.Provider>
-	);
-};
-
+export const MlModelsProvider: FC<ChildrenProp> = ({ children }) => (
+	<SectionStoreProvider store={useMlModelsStore}>{children}</SectionStoreProvider>
+);
 
 export const useMlModelsOptionToShow = (): string => {
-	const context = useContext(MlModelsStateContext);
-	if (context === undefined) {
-		throw new Error('useMlModelsOptionToShow must be used within a MlModelsProvider');
-	}
-	return context.mlModelsOptionToShow;
+	return useMlModelsStore((state) => state.mlModelsOptionToShow);
 }
 
 export const useMlModelIdToEdit = (): number => {
-	const context = useContext(MlModelsStateContext);
-	if (context === undefined) {
-		throw new Error('useMlModelIdToEdit must be used within a MlModelsProvider');
-	}
-	return context.mlModelIdToEdit;
+	return useMlModelsStore((state) => state.mlModelIdToEdit);
 }
 
 export const useMlModelRowIndexToEdit = (): number => {
-	const context = useContext(MlModelsStateContext);
-	if (context === undefined) {
-		throw new Error('useMlModelRowIndexToEdit must be used within a MlModelsProvider');
-	}
-	return context.mlModelRowIndexToEdit;
+	return useMlModelsStore((state) => state.mlModelRowIndexToEdit);
 }

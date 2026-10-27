@@ -1,53 +1,28 @@
-import React, { createContext, FC, useContext, useReducer } from 'react';
+import { FC } from 'react';
 import { ChildrenProp } from '../../interfaces/interfaces'
 import { GlobalUsersContextProps } from './interfaces'
 import { initialState, GlobalUsersReducer } from './globalUsersReducer';
+import { createSectionStore, SectionStoreProvider } from '../../state/createSectionStore';
 
-
-const GlobalUsersStateContext = createContext<GlobalUsersContextProps>(initialState);
-const GlobalUsersDispatchContext = createContext<any>({});
+// Estado de la sección en un almacén Zustand global (antes Context + useReducer): se conserva al cambiar de capa
+const useGlobalUsersStore = createSectionStore(GlobalUsersReducer, initialState);
 
 export function useGlobalUsersDispatch() {
-	const context = React.useContext(GlobalUsersDispatchContext);
-	if (context === undefined) {
-		throw new Error('useGlobalUsersDispatch must be used within a GlobalUsersProvider');
-	}
-
-	return context;
+	return useGlobalUsersStore.dispatch;
 }
 
-export const GlobalUsersProvider: FC<ChildrenProp> = ({ children }) => {
-	const [data,globalUsersDispatch] = useReducer(GlobalUsersReducer, initialState);
-
-	return (
-		<GlobalUsersStateContext.Provider value={data}>
-			<GlobalUsersDispatchContext.Provider value={globalUsersDispatch}>
-				{children}
-			</GlobalUsersDispatchContext.Provider>
-		</GlobalUsersStateContext.Provider>
-	);
-};
+export const GlobalUsersProvider: FC<ChildrenProp> = ({ children }) => (
+	<SectionStoreProvider store={useGlobalUsersStore}>{children}</SectionStoreProvider>
+);
 
 export const useGlobalUsersOptionToShow = (): string => {
-	const context = useContext(GlobalUsersStateContext);
-	if (context === undefined) {
-		throw new Error('useGlobalUsersOptionToShow must be used within a GlobalUsersProvider');
-	}
-	return context.globalUsersOptionToShow;
+	return useGlobalUsersStore((state) => state.globalUsersOptionToShow);
 }
 
 export const useGlobalUserIdToEdit = (): number => {
-	const context = useContext(GlobalUsersStateContext);
-	if (context === undefined) {
-		throw new Error('useGlobalUserIdToEdit must be used within a GlobalUsersProvider');
-	}
-	return context.globalUserIdToEdit;
+	return useGlobalUsersStore((state) => state.globalUserIdToEdit);
 }
 
 export const useGlobalUserRowIndexToEdit = (): number => {
-	const context = useContext(GlobalUsersStateContext);
-	if (context === undefined) {
-		throw new Error('useGlobalUserRowIndexToEdit must be used within a GlobalUsersProvider');
-	}
-	return context.globalUserRowIndexToEdit;
+	return useGlobalUsersStore((state) => state.globalUserRowIndexToEdit);
 }

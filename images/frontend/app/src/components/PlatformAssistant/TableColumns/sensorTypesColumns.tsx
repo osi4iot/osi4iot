@@ -8,7 +8,6 @@ import DeleteIcon from '../Utils/DeleteIcon';
 import DeleteModal from '../../Tools/DeleteModal';
 import { getAxiosInstance } from '../../../tools/axiosIntance';
 import axiosErrorHandler from '../../../tools/axiosErrorHandler';
-import { usePlatformAssitantDispatch } from '../../../contexts/platformAssistantContext';
 import { SENSOR_TYPES_OPTIONS } from '../Utils/platformAssistantOptions';
 import {
     setSensorTypeIdToEdit,
@@ -48,7 +47,6 @@ const domainName = getDomainName();
 const protocol = getProtocol();
 
 const DeleteSensorTypeModal: FC<DeleteSensorTypeModalProps> = ({ rowIndex, orgId, sensorTypeId, refreshSensorTypes }) => {
-    const plaformAssistantDispatch = usePlatformAssitantDispatch();
     const [isSensorTypeDeleted, setIsSensorTypeDeleted] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const title = "DELETE SENSOR TYPE";
@@ -65,7 +63,7 @@ const DeleteSensorTypeModal: FC<DeleteSensorTypeModalProps> = ({ rowIndex, orgId
         if (isSensorTypeDeleted) {
             refreshSensorTypes();
         }
-    }, [isSensorTypeDeleted, plaformAssistantDispatch, refreshSensorTypes]);
+    }, [isSensorTypeDeleted, refreshSensorTypes]);
 
     const action = (hideModal: () => void) => {
         const url = `${protocol}://${domainName}/admin_api/sensor_type/${orgId}/id/${sensorTypeId}`;

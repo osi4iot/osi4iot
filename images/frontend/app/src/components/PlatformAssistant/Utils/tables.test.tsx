@@ -64,6 +64,12 @@ describe("TableWithPagination (TanStack v9 con columnas formato v7)", () => {
         expect(bodyRows()).toHaveLength(5);
     });
 
+    it("cada celda lleva el nombre de su columna para la vista de tarjetas en pantallas estrechas", () => {
+        render(<TableWithPagination dataTable={makeRows(1)} columnsTable={makeColumns(() => {})} componentName="" />);
+        const cells = within(screen.getAllByRole("row")[1]).getAllByRole("cell");
+        expect(cells.map((cell) => cell.getAttribute("data-label"))).toEqual(["TopicId", "GroupId", "Description", ""]);
+    });
+
     it("el Cell recibe rows/row.id/cells[n].value como en v7", () => {
         const onEdit = vi.fn();
         render(<TableWithPagination dataTable={makeRows(5)} columnsTable={makeColumns(onEdit)} componentName="" />);

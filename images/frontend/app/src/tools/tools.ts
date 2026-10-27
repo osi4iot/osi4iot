@@ -2,7 +2,7 @@ import * as THREE from "three";
 import { AxiosProgressEvent } from "axios";
 import { IThreeMesh } from "../components/PlatformAssistant/DigitalTwin3DViewer/Types/threeInterfaces";
 import { PLATFORM_ASSISTANT_ROUTES } from "../components/PlatformAssistant/Utils/platformAssistantOptions";
-import { IWindowObjectReferences, PlatformAssistantDispatch } from "../contexts/platformAssistantContext/interfaces";
+import { useSessionStore } from "../state/sessionStore";
 
 
 export const isRegistrationRequest = () => {
@@ -483,12 +483,8 @@ export const changeMaterialPropRecursively = (
     }
 }
 
-export const openWindowTab = (
-    url: string,
-    plaformAssistantDispatch: any,
-    windowObjectReferences: Record<string, Window | null>,
-    setWindowObjectReferences: (plaformAssistantDispatch: PlatformAssistantDispatch, data: IWindowObjectReferences) => void,
-) => {
+// Abre (o enfoca si ya está abierta) la pestaña de un dashboard de Grafana o de Node-RED
+export const openWindowTab = (url: string) => {
     const serviceName = (url.split("/")[3]).split("_")[0];
     let name = "";
     if (serviceName === "grafana") {
@@ -498,11 +494,11 @@ export const openWindowTab = (
     }
 
     if (name !== "") {
+        const { windowObjectReferences, setWindowObjectReferences } = useSessionStore.getState();
         if (!windowObjectReferences[name] || windowObjectReferences[name]?.closed) {
             const windowObjectRef = window.open(url, name);
             windowObjectRef?.focus();
-            windowObjectReferences[name] = windowObjectRef;
-            setWindowObjectReferences(plaformAssistantDispatch, { windowObjectReferences });
+            setWindowObjectReferences({ ...windowObjectReferences, [name]: windowObjectRef });
         } else {
             windowObjectReferences[name]?.focus();
         }
@@ -583,3 +579,4 @@ export const giveBrowserType = () => {
       }
     return browserType;
 }
+

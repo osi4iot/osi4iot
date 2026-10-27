@@ -1,11 +1,11 @@
 import React, { FC, useCallback } from 'react'
+import { useTable } from "../../../state";
 import TableWithPagination from '../Utils/TableWithPagination';
 import { FLOORS_OPTIONS } from '../Utils/platformAssistantOptions';
 import CreateFloor from './CreateFloor';
 import EditFloor from './EditFloor';
 import { setFloorsOptionToShow, useFloorsDispatch, useFloorsOptionToShow } from '../../../contexts/floorsOptions';
 import { IFloor, Create_FLOORS_COLUMNS } from '../TableColumns/floorsColumns';
-import { useBuildingsTable } from '../../../contexts/platformAssistantContext';
 import { Column } from '../Utils/platformTable';
 
 interface FloorsContainerProps {
@@ -16,7 +16,7 @@ interface FloorsContainerProps {
 const FloorsContainer: FC<FloorsContainerProps> = ({ floors, refreshFloors }) => {
     const floorsDispatch = useFloorsDispatch();
     const floorsOptionToShow = useFloorsOptionToShow();
-    const buildingsTable = useBuildingsTable();
+    const buildingsTable = useTable("buildings");
 
     const showFloorsTableOption = useCallback(() => {
         setFloorsOptionToShow(floorsDispatch, { floorsOptionToShow: FLOORS_OPTIONS.TABLE });

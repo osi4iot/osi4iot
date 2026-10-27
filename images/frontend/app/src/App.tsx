@@ -1,7 +1,7 @@
 import "./App.css";
 import AppRouter from "./routers/AppRouter";
 import { AuthProvider } from "./contexts/authContext";
-import { PlatformAssitantProvider } from "./contexts/platformAssistantContext"
+import { StateProvider } from "./state";
 
 declare global {
 	interface Window {
@@ -13,9 +13,9 @@ declare global {
 function App() {
 	return (
 		<AuthProvider>
-			<PlatformAssitantProvider>
+			<StateProvider>
 				<AppRouter />
-			</PlatformAssitantProvider>
+			</StateProvider>
 		</AuthProvider>
 	);
 }

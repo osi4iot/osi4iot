@@ -1,4 +1,5 @@
-import React, { FC, useCallback, useState } from "react";
+import React, { FC, useCallback, useMemo, useState } from "react";
+import { useTable } from "../../../state";
 import { toast } from "react-toastify";
 import TableWithPagination from "../Utils/TableWithPagination";
 import { GROUPS_OPTIONS, GROUPS_PREVIOUS_OPTIONS } from "../Utils/platformAssistantOptions";
@@ -16,7 +17,6 @@ import { IGroup, Create_GROUPS_COLUMNS } from "../TableColumns/groupsColumns";
 import GroupLocationContainer from "./GroupLocationContainer";
 import { IFloor } from "../TableColumns/floorsColumns";
 import { IBuilding } from "../TableColumns/buildingsColumns";
-import { useOrgsManagedTable } from "../../../contexts/platformAssistantContext";
 import { Column } from '../Utils/platformTable';
 
 interface GroupsContainerProps {
@@ -38,11 +38,19 @@ const GroupsContainer: FC<GroupsContainerProps> = ({
 }) => {
     const groupsDispatch = useGroupsDispatch();
     const groupsOptionToShow = useGroupsOptionToShow();
-    const orgsManagedTable = useOrgsManagedTable();
+    const orgsManagedTable = useTable("orgsManaged");
     const groupInputData = useGroupInputData();
     const previousOption = useGroupsPreviousOption();
-    const initialGroupData = useGroupInputData();
-    initialGroupData.orgAcronym = orgsManagedTable[0].acronym;
+    // por defecto, la primera organización gestionada; se respeta la elegida en el formulario al volver de
+    // "Select user" o "Select space" (antes se sobrescribía siempre con la primera)
+    const storedGroupData = useGroupInputData();
+    const initialGroupData = useMemo(
+        () =>
+            storedGroupData.orgAcronym
+                ? storedGroupData
+                : { ...storedGroupData, orgAcronym: orgsManagedTable[0]?.acronym ?? "" },
+        [storedGroupData, orgsManagedTable],
+    );
     const [floorSelected, setFloorSelected] = useState<IFloor | null>(null);
 
     const setGroupLocationData = useCallback(

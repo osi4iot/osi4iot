@@ -1,54 +1,28 @@
-import React, { createContext, FC, useContext, useReducer } from 'react';
+import { FC } from 'react';
 import { ChildrenProp } from '../../interfaces/interfaces'
 import { DigitalTwinsContextProps } from './interfaces'
 import { initialState, DigitalTwinsReducer } from './digitalTwinsReducer';
+import { createSectionStore, SectionStoreProvider } from '../../state/createSectionStore';
 
-
-const DigitalTwinsStateContext = createContext<DigitalTwinsContextProps>(initialState);
-const DigitalTwinsDispatchContext = createContext<any>({});
-
+// Estado de la sección en un almacén Zustand global (antes Context + useReducer): se conserva al cambiar de capa
+const useDigitalTwinsStore = createSectionStore(DigitalTwinsReducer, initialState);
 
 export function useDigitalTwinsDispatch() {
-	const context = React.useContext(DigitalTwinsDispatchContext);
-	if (context === undefined) {
-		throw new Error('useDigitalTwinsDispatch must be used within a DigitalTwinsProvider');
-	}
-
-	return context;
+	return useDigitalTwinsStore.dispatch;
 }
 
-export const DigitalTwinsProvider: FC<ChildrenProp> = ({ children }) => {
-	const [user, digitalTwinsDispatch] = useReducer(DigitalTwinsReducer, initialState);
-
-	return (
-		<DigitalTwinsStateContext.Provider value={user}>
-			<DigitalTwinsDispatchContext.Provider value={digitalTwinsDispatch}>
-				{children}
-			</DigitalTwinsDispatchContext.Provider>
-		</DigitalTwinsStateContext.Provider>
-	);
-};
+export const DigitalTwinsProvider: FC<ChildrenProp> = ({ children }) => (
+	<SectionStoreProvider store={useDigitalTwinsStore}>{children}</SectionStoreProvider>
+);
 
 export const useDigitalTwinsOptionToShow = (): string => {
-	const context = useContext(DigitalTwinsStateContext);
-	if (context === undefined) {
-		throw new Error('useDigitalTwinsOptionToShow must be used within a DigitalTwinsProvider');
-	}
-	return context.digitalTwinsOptionToShow;
+	return useDigitalTwinsStore((state) => state.digitalTwinsOptionToShow);
 }
 
 export const useDigitalTwinIdToEdit = (): number => {
-	const context = useContext(DigitalTwinsStateContext);
-	if (context === undefined) {
-		throw new Error('useDigitalTwinIdToEdit must be used within a DigitalTwinsProvider');
-	}
-	return context.digitalTwinIdToEdit;
+	return useDigitalTwinsStore((state) => state.digitalTwinIdToEdit);
 }
 
 export const useDigitalTwinRowIndexToEdit = (): number => {
-	const context = useContext(DigitalTwinsStateContext);
-	if (context === undefined) {
-		throw new Error('useDigitalTwinRowIndexToEdit must be used within a DigitalTwinsProvider');
-	}
-	return context.digitalTwinRowIndexToEdit;
+	return useDigitalTwinsStore((state) => state.digitalTwinRowIndexToEdit);
 }

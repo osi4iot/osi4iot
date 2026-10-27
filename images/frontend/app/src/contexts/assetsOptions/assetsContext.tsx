@@ -1,86 +1,44 @@
-import React, { createContext, FC, useContext, useReducer } from 'react';
+import { FC } from 'react';
 import { ChildrenProp } from '../../interfaces/interfaces'
 import { AssetsContextProps, IAssetInputData } from './interfaces'
 import { initialState, AssetsReducer } from './assetsReducer';
+import { createSectionStore, SectionStoreProvider } from '../../state/createSectionStore';
 
-const AssetsStateContext = createContext<AssetsContextProps>(initialState);
-const AssetsDispatchContext = createContext<any>({});
+// Estado de la sección en un almacén Zustand global (antes Context + useReducer): se conserva al cambiar de capa
+const useAssetsStore = createSectionStore(AssetsReducer, initialState);
 
 export function useAssetsDispatch() {
-	const context = React.useContext(AssetsDispatchContext);
-	if (context === undefined) {
-		throw new Error('useAssetsDispatch must be used within a AssetsProvider');
-	}
-
-	return context;
+	return useAssetsStore.dispatch;
 }
 
-export const AssetsProvider: FC<ChildrenProp> = ({ children }) => {
-	const [user, assetsDispatch] = useReducer(AssetsReducer, initialState);
-
-	return (
-		<AssetsStateContext.Provider value={user}>
-			<AssetsDispatchContext.Provider value={assetsDispatch}>
-				{children}
-			</AssetsDispatchContext.Provider>
-		</AssetsStateContext.Provider>
-	);
-};
+export const AssetsProvider: FC<ChildrenProp> = ({ children }) => (
+	<SectionStoreProvider store={useAssetsStore}>{children}</SectionStoreProvider>
+);
 
 export const useAssetsOptionToShow = (): string => {
-	const context = useContext(AssetsStateContext);
-	if (context === undefined) {
-		throw new Error('useAssetsOptionToShow must be used within a AssetsProvider');
-	}
-	return context.assetsOptionToShow;
+	return useAssetsStore((state) => state.assetsOptionToShow);
 }
 
 export const useAssetsPreviousOption = (): string => {
-	const context = useContext(AssetsStateContext);
-	if (context === undefined) {
-		throw new Error('useAssetsPreviousOption must be used within a AssetsProvider');
-	}
-	return context.assetsPreviousOption;
+	return useAssetsStore((state) => state.assetsPreviousOption);
 }
 
 export const useAssetIdToEdit = (): number => {
-	const context = useContext(AssetsStateContext);
-	if (context === undefined) {
-		throw new Error('useAssetIdToEdit must be used within a AssetsProvider');
-	}
-	return context.assetIdToEdit;
+	return useAssetsStore((state) => state.assetIdToEdit);
 }
 
 export const useAssetRowIndexToEdit = (): number => {
-	const context = useContext(AssetsStateContext);
-	if (context === undefined) {
-		throw new Error('useAssetRowIndexToEdit must be used within a AssetsProvider');
-	}
-	return context.assetRowIndexToEdit;
+	return useAssetsStore((state) => state.assetRowIndexToEdit);
 }
 
 export const useAssetBuildingId = (): number => {
-	const context = useContext(AssetsStateContext);
-	if (context === undefined) {
-		throw new Error('useAssetBuildingId must be used within a AssetsProvider');
-	}
-	return context.assetBuildingId;
+	return useAssetsStore((state) => state.assetBuildingId);
 }
 
 export const useAssetGroupId = (): number => {
-	const context = useContext(AssetsStateContext);
-	if (context === undefined) {
-		throw new Error('useAssetGroupId must be used within a AssetsProvider');
-	}
-	return context.assetGroupId;
+	return useAssetsStore((state) => state.assetGroupId);
 }
 
 export const useAssetInputData = (): IAssetInputData => {
-	const context = useContext(AssetsStateContext);
-	if (context === undefined) {
-		throw new Error('useAssetInputData must be used within a AssetsProvider');
-	}
-	return context.assetInputFormData;
+	return useAssetsStore((state) => state.assetInputFormData);
 }
-
-

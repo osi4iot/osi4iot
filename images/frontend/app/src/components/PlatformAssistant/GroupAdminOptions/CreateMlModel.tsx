@@ -18,11 +18,7 @@ import { setMlModelsOptionToShow, useMlModelsDispatch } from "../../../contexts/
 import { IGroupManaged } from "../TableColumns/groupsManagedColumns";
 import { IOrgOfGroupsManaged } from "../TableColumns/orgsOfGroupsManagedColumns";
 import { AxiosError, AxiosResponse } from "axios";
-import { ControlsContainer, StaticFormContainer } from "../../Tools/FormTools";
-
-const DataFileTitle = styled.div`
-    margin-bottom: 5px;
-`;
+import { ControlsContainer, StaticFormContainer, FormSection } from "../../Tools/FormTools";
 
 const DataFileContainer = styled.div`
     border: 2px solid #2c3235;
@@ -556,7 +552,7 @@ const CreateMlModel: FC<CreateMlModelProps> = ({ backToTable, refreshMlModels, o
                                     type="text"
                                     onChange={(e) => onMlLibrarySelectChange(e, formik)}
                                 />
-                                <DataFileTitle>ML model files</DataFileTitle>
+                                <FormSection title="ML model files">
                                 {mlLibrary === "Tensorflow" && (
                                     <DataFileContainer>
                                         <MlModelFileName>
@@ -625,6 +621,7 @@ const CreateMlModel: FC<CreateMlModelProps> = ({ backToTable, refreshMlModels, o
                                         </SelectDataFilesButtonContainer>
                                     </DataFileContainer>
                                 )}
+                                </FormSection>
                             </ControlsContainer>
                             <FormButtonsProps
                                 onCancel={onCancel}

@@ -7,8 +7,27 @@ import TextError from "./TextError";
 import { FaTrashAlt } from "react-icons/fa";
 import { DropDown } from "./SelectControl";
 
+// Filas de campos (p. ej. usuarios: nombre, apellido, email...). En un espacio ancho es una tabla con las
+// etiquetas arriba y columnas fluidas; en uno estrecho (consulta de contenedor) cada fila es una tarjeta
+// con los campos uno debajo de otro y su etiqueta.
 const Container = styled.div`
     margin: 20px 0 0;
+    width: 100%;
+    container-type: inline-size;
+    container-name: input-rows;
+`;
+
+const columnFlex = (type?: string) => (type === "email" ? "1.75 1 0" : "1 1 0");
+
+const FieldLabel = styled.div`
+    display: none;
+    font-size: 12px;
+    color: #c3c9d1;
+    margin: 4px 0 0 7px;
+
+    @container input-rows (max-width: 640px) {
+        display: block;
+    }
 `;
 
 
@@ -32,6 +51,11 @@ const LabelsContainer = styled.div`
     width: 100%;
     height: 20px;
     padding-left: 10px;
+    padding-right: 30px;
+
+    @container input-rows (max-width: 640px) {
+        display: none;
+    }
 `;
 
 interface LabelContainerProps {
@@ -43,7 +67,8 @@ const LabelContainer = styled.div<LabelContainerProps>`
     flex-direction: column;
     justify-content: flex-start;
     align-items: flex-start;
-    width: ${props => props.type === 'email' ? '350px' : '200px'};
+    flex: ${props => columnFlex(props.type)};
+    min-width: 0;
 `;
 
 const Label = styled.div`
@@ -61,7 +86,29 @@ const Item = styled.div`
     justify-content: flex-start;
     align-items: flex-start;
     width: 100%;
-    /* height: 40px; */
+
+    & > div[data-type] {
+        min-width: 0;
+    }
+
+    @container input-rows (max-width: 640px) {
+        flex-wrap: wrap;
+        position: relative;
+        margin-bottom: 10px;
+        padding: 6px 34px 8px 4px;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 12px;
+
+        & > div[data-type] {
+            flex: 1 1 100% !important;
+        }
+
+        & > div:last-child {
+            position: absolute;
+            top: 4px;
+            right: 2px;
+        }
+    }
 `;
 
 interface FieldContainerProps {
@@ -74,7 +121,7 @@ const FieldContainer = styled.div<FieldContainerProps>`
     flex-direction: column;
     justify-content: center;
     align-items: flex-start;
-    width: ${props => props.type === 'email' ? '350px' : '200px'};
+    width: 100%;
 
     & label {
         font-size: 12px;
@@ -233,7 +280,7 @@ const DropDownContainer = styled.div`
     flex-direction: column;
     justify-content: center;
     align-items: flex-start;
-    width: 200px;
+    width: 100%;
 
     & label {
         font-size: 12px;
@@ -321,7 +368,7 @@ const InputArrayRows: FC<InputArrayRowsProps> = (
 
 
     return (
-        <Container>
+        <Container data-wide>
             <InputArrayStyled>
                 <LabelsContainer>
                     {labelArray.map((item, index) => (
@@ -375,7 +422,8 @@ const InputArrayRows: FC<InputArrayRowsProps> = (
                                     <div key={index}>
                                         <Item>
                                             {labelArray.map((subitem, subIndex) => (
-                                                <div key={subIndex}>
+                                                <div key={subIndex} data-type={typeArray[subIndex]} style={{ flex: columnFlex(typeArray[subIndex]) }}>
+                                                    <FieldLabel>{labelArray[subIndex]}</FieldLabel>
                                                     {
                                                         typeArray[subIndex] === "select" ?
                                                             <DropDownContainer >

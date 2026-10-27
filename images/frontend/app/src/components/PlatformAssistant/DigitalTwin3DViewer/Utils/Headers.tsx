@@ -1,3 +1,5 @@
+// Barra superior del visor del gemelo digital (diseño "inspector acoplado"): nombre del gemelo,
+// selector de vista, herramientas de la vista activa y estados (pipeline, gemelo digital, NATS).
 import { FC, ReactNode, useRef } from "react";
 import styled, { css, keyframes } from "styled-components";
 import {
@@ -17,6 +19,8 @@ import {
     X,
 } from "lucide-react";
 import { INSPECTOR_GAP, INSPECTOR_WIDTH } from "../Inspector/Inspector";
+import { useUiStore } from "../../../../state/uiStore";
+import { PALETTE_WIDTH, PALETTE_WIDTH_KEY } from "../Pipeline/usePipelineLayout";
 import { focusRing, inspectorColors as c } from "../Inspector/controls";
 
 const HiddenFileInput = styled.input`
@@ -340,10 +344,11 @@ export const Header: FC<HeaderProps> = ({
 }) => {
     const fileInputRef = useRef<HTMLInputElement>(null);
 
-    // En la vista Pipeline la barra se ajusta a su contenido a la derecha (no tapa la paleta de nodos);
-    // en la vista 3D ocupa el ancho libre a la izquierda del inspector.
+    // En la vista Pipeline la barra ocupa el ancho a la derecha de la paleta de nodos (el lienzo empieza
+    // debajo de ella); en la vista 3D ocupa el ancho libre a la izquierda del inspector.
+    const paletteWidth = useUiStore((s) => (s.values[PALETTE_WIDTH_KEY] as number | undefined) ?? PALETTE_WIDTH);
     const inspectorVisible = activeViewer === "3D" && isControlPanelOpen;
-    const left = activeViewer === "pipeline" ? "auto" : `${INSPECTOR_GAP}px`;
+    const left = activeViewer === "pipeline" ? `${paletteWidth + INSPECTOR_GAP}px` : `${INSPECTOR_GAP}px`;
     const right = inspectorVisible ? `${INSPECTOR_WIDTH + 2 * INSPECTOR_GAP}px` : `${INSPECTOR_GAP}px`;
 
     const dtOk = digitalTwinState === "OK";

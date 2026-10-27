@@ -1,4 +1,5 @@
 import { FC, useState, SyntheticEvent } from "react";
+import { reloadTable } from "../../../state";
 import styled from "styled-components";
 import { Formik, Form } from "formik";
 import * as Yup from "yup";
@@ -20,76 +21,10 @@ import {
     parseAllowedModels,
 } from "../Utils/llmProviders";
 import LlmAllowedModelsPicker from "./LlmAllowedModelsPicker";
-import {
-    setReloadGroupsTable,
-    setReloadGroupsMembershipTable,
-    setReloadOrgsManagedTable,
-    setReloadOrgsMembershipTable,
-    usePlatformAssitantDispatch,
-    setReloadGroupsManagedTable,
-    setReloadGroupMembersTable,
-    setReloadDigitalTwinsTable,
-    setReloadDashboardsTable,
-    setReloadOrgsOfGroupsManagedTable,
-    setReloadOrgUsersTable,
-    setReloadTopicsTable,
-    setReloadAssetsTable,
-    setReloadSensorsTable,
-    setReloadAssetTypesTable,
-    setReloadSensorTypesTable,
-} from "../../../contexts/platformAssistantContext";
 import { getAxiosInstance } from "../../../tools/axiosIntance";
 import axiosErrorHandler from "../../../tools/axiosErrorHandler";
 import { AxiosResponse, AxiosError } from "axios";
-
-const FormContainer = styled.div`
-    font-size: 12px;
-    padding: 30px 10px 30px 20px;
-    border: 3px solid #3274d9;
-    border-radius: 20px;
-    width: 400px;
-    height: calc(100vh - 310px);
-
-    form > div:nth-child(2) {
-        margin-right: 10px;
-    }
-`;
-
-const ControlsContainer = styled.div`
-    height: calc(100vh - 430px);
-    width: 100%;
-    padding: 0px 5px;
-    overflow-y: auto;
-    /* width */
-    &::-webkit-scrollbar {
-        width: 10px;
-    }
-
-    /* Track */
-    &::-webkit-scrollbar-track {
-        background: #202226;
-        border-radius: 5px;
-    }
-
-    /* Handle */
-    &::-webkit-scrollbar-thumb {
-        background: #2c3235;
-        border-radius: 5px;
-    }
-
-    /* Handle on hover */
-    &::-webkit-scrollbar-thumb:hover {
-        background-color: #343840;
-    }
-
-    div:first-child {
-        margin-top: 0;
-    }
-
-    div:last-child {
-        margin-bottom: 3px;
-    }
-`;
+import { FormCard as FormContainer, ControlsContainer, FormSection } from "../../Tools/FormTools";
 
 const roleOptions = [
     { label: "Generic", value: "Generic" },
@@ -114,10 +49,6 @@ const mqttAccessControlOptions = [
         value: "None",
     },
 ];
-
-const Title = styled.div`
-    margin-bottom: 5px;
-`;
 
 const DataContainer = styled.div`
     border: 2px solid #2c3235;
@@ -154,7 +85,6 @@ const CreateOrganization: FC<CreateOrganizationProps> = ({
     orgInputData,
     setOrgInputData,
 }) => {
-    const plaformAssistantDispatch = usePlatformAssitantDispatch();
     const [showCreateOrg, setShowCreateOrg] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [selectedUsersArray, setSelectedUsersArray] = useState<ISelectGlobalUser[]>([]);
@@ -268,37 +198,22 @@ const CreateOrganization: FC<CreateOrganizationProps> = ({
             })
             .finally(() => {
                 refreshOrgs();
-                const reloadOrgsManagedTable = true;
-                setReloadOrgsManagedTable(plaformAssistantDispatch, { reloadOrgsManagedTable });
-                const reloadOrgUsersTable = true;
-                setReloadOrgUsersTable(plaformAssistantDispatch, { reloadOrgUsersTable });
-                const reloadOrgsMembershipTable = true;
-                setReloadOrgsMembershipTable(plaformAssistantDispatch, { reloadOrgsMembershipTable });
-                const reloadGroupsTable = true;
-                setReloadGroupsTable(plaformAssistantDispatch, { reloadGroupsTable });
-                const reloadGroupsMembershipTable = true;
-                setReloadGroupsMembershipTable(plaformAssistantDispatch, { reloadGroupsMembershipTable });
-                const reloadGroupsManagedTable = true;
-                setReloadGroupsManagedTable(plaformAssistantDispatch, { reloadGroupsManagedTable });
+                reloadTable("orgsManaged");
+                reloadTable("orgUsers");
+                reloadTable("orgsMembership");
+                reloadTable("groups");
+                reloadTable("groupsMembership");
+                reloadTable("groupsManaged");
 
-                const reloadOrgsOfGroupsManagedTable = true;
-                setReloadOrgsOfGroupsManagedTable(plaformAssistantDispatch, { reloadOrgsOfGroupsManagedTable });
-                const reloadGroupMembersTable = true;
-                setReloadGroupMembersTable(plaformAssistantDispatch, { reloadGroupMembersTable });
-                const reloadAssetTypesTable = true;
-                setReloadAssetTypesTable(plaformAssistantDispatch, { reloadAssetTypesTable });
-                const reloadAssetsTable = true;
-                setReloadAssetsTable(plaformAssistantDispatch, { reloadAssetsTable });
-                const reloadSensorTypesTable = true;
-                setReloadSensorTypesTable(plaformAssistantDispatch, { reloadSensorTypesTable });
-                const reloadSensorsTable = true;
-                setReloadSensorsTable(plaformAssistantDispatch, { reloadSensorsTable });
-                const reloadTopicsTable = true;
-                setReloadTopicsTable(plaformAssistantDispatch, { reloadTopicsTable });
-                const reloadDigitalTwinsTable = true;
-                setReloadDigitalTwinsTable(plaformAssistantDispatch, { reloadDigitalTwinsTable });
-                const reloadDashboardsTable = true;
-                setReloadDashboardsTable(plaformAssistantDispatch, { reloadDashboardsTable });
+                reloadTable("orgsOfGroupsManaged");
+                reloadTable("groupMembers");
+                reloadTable("assetTypes");
+                reloadTable("assets");
+                reloadTable("sensorTypes");
+                reloadTable("sensors");
+                reloadTable("topics");
+                reloadTable("digitalTwins");
+                reloadTable("dashboards");
             });
     };
 
@@ -383,7 +298,7 @@ const CreateOrganization: FC<CreateOrganizationProps> = ({
                                             type="text"
                                             onChange={(e) => formik.setFieldValue("ragEnabled", e.value)}
                                         />
-                                        <Title>Telegram bot</Title>
+                                        <FormSection title="Telegram bot">
                                         <DataContainer>
                                             <FormikControl
                                                 control="select"
@@ -403,7 +318,8 @@ const CreateOrganization: FC<CreateOrganizationProps> = ({
                                                 />
                                             )}
                                         </DataContainer>
-                                        <Title>Large language model (LLM)</Title>
+                                        </FormSection>
+                                        <FormSection title="Large language model (LLM)">
                                         <DataContainer>
                                             <FormikControl
                                                 control="select"
@@ -452,6 +368,7 @@ const CreateOrganization: FC<CreateOrganizationProps> = ({
                                                 </>
                                             )}
                                         </DataContainer>
+                                        </FormSection>
                                         <FormikControl
                                             control="inputArray"
                                             label="Organization admins"
@@ -465,7 +382,7 @@ const CreateOrganization: FC<CreateOrganizationProps> = ({
                                             ]}
                                             nameArray={["firstName", "surname", "email", "login", "password"]}
                                             typeArray={["text", "text", "email", "text", "password"]}
-                                            addLabel="org admim"
+                                            addLabel="org admin"
                                             selectLabel="user"
                                             goToSelect={() => goToSelect(formik.values)}
                                         />

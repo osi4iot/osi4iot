@@ -1,4 +1,5 @@
 import { FC, useState, SyntheticEvent } from 'react';
+import { reloadTable } from "../../../state";
 import styled from "styled-components";
 import { Formik, Form } from 'formik';
 import * as Yup from 'yup';
@@ -17,27 +18,11 @@ import {
 } from '../../../contexts/groupMembersOptions';
 import { GROUP_MEMBERS_OPTIONS } from '../Utils/platformAssistantOptions';
 import { IGroupMember } from '../TableColumns/groupMemberColumns';
-import { setReloadGroupsMembershipTable, usePlatformAssitantDispatch } from '../../../contexts/platformAssistantContext';
 import { getAxiosInstance } from '../../../tools/axiosIntance';
 import axiosErrorHandler from '../../../tools/axiosErrorHandler';
 import { AxiosResponse, AxiosError } from 'axios';
+import { FormCard as FormContainer, ControlsContainer } from "../../Tools/FormTools";
 
-
-const FormContainer = styled.div`
-	font-size: 12px;
-    padding: 30px 20px;
-    border: 3px solid #3274d9;
-    border-radius: 20px;
-    width: 400px;
-`;
-
-const ControlsContainer = styled.div`
-    width: 100%;
-
-    div:first-child {
-        margin-top: 0;
-    }
-`;
 
 const FieldContainer = styled.div`
     margin: 20px 0;
@@ -90,7 +75,6 @@ interface EditGroupMemberProps {
 }
 
 const EditGroupMember: FC<EditGroupMemberProps> = ({ groupMembers, refreshGroupMembers, backToTable }) => {
-    const plaformAssistantDispatch = usePlatformAssitantDispatch();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const { accessToken, refreshToken } = useAuthState();
     const authDispatch = useAuthDispatch();
@@ -118,8 +102,7 @@ const EditGroupMember: FC<EditGroupMemberProps> = ({ groupMembers, refreshGroupM
                 toast.success(data.message);
                 setIsSubmitting(false);
                 setGroupMembersOptionToShow(groupMembersDispatch, { groupMembersOptionToShow: GROUP_MEMBERS_OPTIONS.TABLE });
-                const reloadGroupsMembershipTable = true;
-                setReloadGroupsMembershipTable(plaformAssistantDispatch, { reloadGroupsMembershipTable });
+                reloadTable("groupsMembership");
             })
             .catch((error: AxiosError) => {
                 axiosErrorHandler(error, authDispatch);

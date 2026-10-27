@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1
 ########################################
 # 0) Python builder: crea venv con uv
 ########################################
@@ -224,33 +225,28 @@ ENV HOME=/tmp/duckdb
 
 WORKDIR /pipelines
 
-RUN mkdir -p ./assets
-COPY assets/ /tmp/assets/
-RUN if [ "$TARGETARCH" = "amd64" ]; then \
-    mkdir -p ./assets/onnx_runtime_linux_amd64 && \
-    cp /tmp/assets/onnx_runtime_linux_amd64/onnxruntime.so ./assets/onnx_runtime_linux_amd64/ && \
-    chmod 755 ./assets/onnx_runtime_linux_amd64/onnxruntime.so; \
-    elif [ "$TARGETARCH" = "arm64" ]; then \
-    mkdir -p ./assets/onnx_runtime_linux_arm64 && \
-    cp /tmp/assets/onnx_runtime_linux_arm64/onnxruntime_arm64.so ./assets/onnx_runtime_linux_arm64/ && \
-    chmod 755 ./assets/onnx_runtime_linux_arm64/onnxruntime_arm64.so; \
-    else \
-    echo "Architecture not supported: $TARGETARCH" && exit 1; \
-    fi && \
-    rm -rf /tmp/assets
-
-# GPU flavour: replace the CPU library with the GPU build, at the same path
-# the Go code loads (amd64: onnxruntime.so, arm64: onnxruntime_arm64.so),
-# with its provider libraries next to it.
-COPY --from=gpu-libs /out/ort/ /tmp/ort/
+# ONNX Runtime library, at the path the Go code loads (amd64: onnxruntime.so,
+# arm64: onnxruntime_arm64.so): the GPU build (with its provider libraries
+# next to it) when ORT_FLAVOR=gpu, otherwise the CPU one from assets/.
+# Both sources are bind-mounted, not copied into the image: a COPY to /tmp
+# followed by "rm" in a later step leaves the files in the COPY's layer,
+# and the CPU library overwritten by the GPU one would stay in its layer
+# too (several hundred MB of the -gpu image stored twice).
 COPY --from=gpu-libs /opt/nvidia/ /opt/nvidia/
-RUN if ls /tmp/ort/*.so >/dev/null 2>&1; then \
-      case "$TARGETARCH" in \
-        amd64) d=./assets/onnx_runtime_linux_amd64 ;; \
-        arm64) d=./assets/onnx_runtime_linux_arm64 ;; \
-      esac && \
-      cp /tmp/ort/*.so "$d"/ && chmod 755 "$d"/*.so; \
-    fi && rm -rf /tmp/ort
+RUN --mount=type=bind,source=assets,target=/tmp/assets \
+    --mount=type=bind,from=gpu-libs,source=/out/ort,target=/tmp/ort \
+    case "$TARGETARCH" in \
+      amd64) d=./assets/onnx_runtime_linux_amd64; f=onnxruntime.so ;; \
+      arm64) d=./assets/onnx_runtime_linux_arm64; f=onnxruntime_arm64.so ;; \
+      *) echo "Architecture not supported: $TARGETARCH" && exit 1 ;; \
+    esac \
+    && mkdir -p "$d" \
+    && if ls /tmp/ort/*.so >/dev/null 2>&1; then \
+         cp /tmp/ort/*.so "$d"/; \
+       else \
+         cp "/tmp/assets/onnx_runtime_linux_${TARGETARCH}/$f" "$d"/; \
+       fi \
+    && chmod 755 "$d"/*.so
 # amd64 (CUDA 12 wheels): one folder per library. arm64 (CUDA 13 wheels):
 # nvidia/cu13/lib. cuDNN: nvidia/cudnn/lib on both. Folders that do not
 # exist are ignored by the loader.
@@ -274,7 +270,10 @@ RUN mkdir -p ./assets/embeddings/multilingual-e5-small \
            -o ./assets/embeddings/multilingual-e5-small/model.onnx; \
        fi
 
-RUN mkdir data && chown -R pipelines:pipelines_group /pipelines
+# Only /pipelines and its data folder belong to the pipelines user: the
+# assets (libraries and models, more than 1 GB in the -gpu image) are only
+# read. A "chown -R /pipelines" would store all of them again in its layer.
+RUN mkdir -p data && chown pipelines:pipelines_group /pipelines /pipelines/data
 
 COPY --chown=pipelines:pipelines_group entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod 755 /usr/local/bin/entrypoint.sh

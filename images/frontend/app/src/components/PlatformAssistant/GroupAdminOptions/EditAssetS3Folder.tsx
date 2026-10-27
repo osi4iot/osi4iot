@@ -1,4 +1,5 @@
 import { FC, useState, SyntheticEvent } from "react";
+import { useTable } from "../../../state";
 import { Formik, Form } from "formik";
 import * as Yup from "yup";
 import { useAuthState, useAuthDispatch } from "../../../contexts/authContext";
@@ -9,11 +10,6 @@ import FormTitle from "../../Tools/FormTitle";
 import { ASSET_S3_FOLDER_OPTIONS } from "../Utils/platformAssistantOptions";
 import { getAxiosInstance } from "../../../tools/axiosIntance";
 import axiosErrorHandler from "../../../tools/axiosErrorHandler";
-import {
-    useAssetsTable,
-    useGroupsManagedTable,
-    useOrgsOfGroupsManagedTable,
-} from "../../../contexts/platformAssistantContext";
 import { FieldContainer } from "./EditAsset";
 import { AxiosResponse, AxiosError } from "axios";
 import IAssetS3Folder from "../TableColumns/assetS3FolderColumns";
@@ -51,14 +47,14 @@ const EditAssetS3Folder: FC<EditAssetS3FolderProps> = ({ assetS3Folders, backToT
     const assetS3FolderRowIndex = useAssetS3FoldersRowIndexToEdit();
     const storedAssetS3Folder = assetS3Folders[assetS3FolderRowIndex];
     const assetId = storedAssetS3Folder.assetId;
-    const groupsManaged = useGroupsManagedTable();
+    const groupsManaged = useTable("groupsManaged");
     const groupId = storedAssetS3Folder.groupId;
     const group = groupsManaged.filter((groupManaged) => groupManaged.id === groupId)[0];
     const groupAcronym = group.acronym;
-    const orgsOfGroupsManaged = useOrgsOfGroupsManagedTable();
+    const orgsOfGroupsManaged = useTable("orgsOfGroupsManaged");
     const organization = orgsOfGroupsManaged.filter((org) => org.id === group.orgId)[0];
     const orgAcronym = organization.acronym;
-    const assets = useAssetsTable();
+    const assets = useTable("assets");
     const asset = assets.filter((asset) => asset.id === assetId)[0];
     const assetName = `Asset_${asset.assetUid}`;
     const assetDescription = asset.description;

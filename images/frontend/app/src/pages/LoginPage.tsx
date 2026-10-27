@@ -9,7 +9,6 @@ import Main from "../components/Layout/Main";
 import { loginUser, useAuthState, useAuthDispatch } from "../contexts/authContext";
 import ServerError from "../components/Tools/ServerError";
 import { getUserRoleAndRedirect } from "../tools/userRole";
-import { usePlatformAssitantDispatch } from "../contexts/platformAssistantContext";
 
 const Title = styled.h2`
 	font-size: 30px;
@@ -160,7 +159,6 @@ const LoginPage: FC<{}> = () => {
 	const [isValidationRequired, setIsValidationRequired] = useState(false);
 	const [formValues, setFormValues] = useState(initialFormValues);
 	const [showPassword, setShowPassword] = useState(false);
-	const platformAssistantDispatch = usePlatformAssitantDispatch();
 	const { userName, password } = formValues;
 
 	const navigate = useNavigate();
@@ -191,7 +189,7 @@ const LoginPage: FC<{}> = () => {
 				let response = await loginUser(authDispatch, loginData);
 				if (!response?.accessToken) return;
 				if (previusObjectURL) navigate(previusObjectURL);
-				else getUserRoleAndRedirect(response.accessToken, platformAssistantDispatch, navigate);
+				else getUserRoleAndRedirect(response.accessToken, navigate);
 			} catch (error) {
 				console.log(error);
 			}

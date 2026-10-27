@@ -1,4 +1,5 @@
 import { FC, SyntheticEvent, useState } from 'react';
+import { reloadTable } from "../../../state";
 import styled from "styled-components";
 import { Formik, Form } from 'formik';
 import * as Yup from 'yup';
@@ -17,33 +18,11 @@ import {
 } from '../../../contexts/orgUsersOptions';
 import { ORG_USERS_OPTIONS } from '../Utils/platformAssistantOptions';
 import { IOrgUser } from '../TableColumns/orgUsersColumns';
-import {
-    setReloadGroupMembersTable,
-    setReloadGroupsMembershipTable,
-    setReloadOrgsMembershipTable,
-    setReloadSelectOrgUsersTable,
-    usePlatformAssitantDispatch
-} from '../../../contexts/platformAssistantContext';
 import { getAxiosInstance } from '../../../tools/axiosIntance';
 import axiosErrorHandler from '../../../tools/axiosErrorHandler';
 import { AxiosResponse, AxiosError } from 'axios';
+import { FormCard as FormContainer, ControlsContainer } from "../../Tools/FormTools";
 
-
-const FormContainer = styled.div`
-	font-size: 12px;
-    padding: 30px 20px;
-    border: 3px solid #3274d9;
-    border-radius: 20px;
-    width: 400px;
-`;
-
-const ControlsContainer = styled.div`
-    width: 100%;
-
-    div:first-child {
-        margin-top: 0;
-    }
-`;
 
 const FieldContainer = styled.div`
     margin: 20px 0;
@@ -97,7 +76,6 @@ interface EditOrgUserProps {
 
 
 const EditOrgUser: FC<EditOrgUserProps> = ({ orgUsers, backToTable, refreshOrgUsers }) => {
-    const plaformAssistantDispatch = usePlatformAssitantDispatch();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const { accessToken, refreshToken } = useAuthState();
     const authDispatch = useAuthDispatch();
@@ -132,14 +110,10 @@ const EditOrgUser: FC<EditOrgUserProps> = ({ orgUsers, backToTable, refreshOrgUs
             })
             .finally(() => {
                 refreshOrgUsers();
-                const reloadSelectOrgUsersTable = true;
-                setReloadSelectOrgUsersTable(plaformAssistantDispatch, { reloadSelectOrgUsersTable });
-                const reloadGroupMembersTable = true;
-                setReloadGroupMembersTable(plaformAssistantDispatch, { reloadGroupMembersTable });
-                const reloadOrgsMembershipTable = true;
-                setReloadOrgsMembershipTable(plaformAssistantDispatch, { reloadOrgsMembershipTable });
-                const reloadGroupsMembershipTable = true;
-                setReloadGroupsMembershipTable(plaformAssistantDispatch, { reloadGroupsMembershipTable });
+                reloadTable("selectOrgUsers");
+                reloadTable("groupMembers");
+                reloadTable("orgsMembership");
+                reloadTable("groupsMembership");
             })
     }
 

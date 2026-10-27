@@ -117,10 +117,12 @@ export const PanelContainer = styled.div.attrs<{ isOpen: boolean; isClosing: boo
     },
     className: "resizable-panel",
 }))<{ isOpen: boolean; isClosing: boolean }>`
-    position: fixed;
-    left: 262px;
-    top: 203px;
-    height: calc(100vh - 219px);
+    /* junto a la paleta de nodos y debajo de la barra del visor, dentro del área del editor */
+    position: absolute;
+    left: var(--palette-width, 190px);
+    top: var(--viewer-bar-offset, 0px);
+    height: calc(100% - var(--viewer-bar-offset, 0px));
+    max-width: calc(100% - var(--palette-width, 190px));
     background-color: #2a2a2a;
     border-right: 1px solid #444;
     box-shadow: 2px 0 10px rgba(0, 0, 0, 0.3);
@@ -525,7 +527,7 @@ export const TextAreaSystemPrompt = styled.textarea`
     font-family: "Monaco", "Menlo", "Ubuntu Mono", monospace;
     transition: border-color 0.2s;
     resize: vertical;
-    min-height: calc(100vh - 440px);
+    min-height: calc(100vh + var(--pa-gain, 0px) - 440px);
 
     &:focus {
         outline: none;

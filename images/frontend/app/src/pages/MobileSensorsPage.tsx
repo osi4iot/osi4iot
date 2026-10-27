@@ -18,6 +18,7 @@ import styled from "styled-components";
 import { AxiosResponse, AxiosError } from "axios";
 import NatsConnect from "../tools/Natsconnection";
 import MobileVideoForm from "../components/Tools/MobileVideoForm";
+import MobileAudioForm from "../components/Tools/MobileAudioForm";
 
 const LoadingItem = styled.div`
     background-color: #202226;
@@ -180,6 +181,14 @@ const MobileSensorsPage: FC<ChildrenProp> = ({ children }) => {
                     )}
                     {mobileSensorSelected === "Mobile video" && (
                         <MobileVideoForm
+                            natsClient={natsClientRef.current as NatsConnection}
+                            isNatsConnected={isNatsConnected}
+                            setMobileSensorSelected={setMobileSensorSelected}
+                            mobileTopicSelected={mobileTopicSelected as IMobileTopic}
+                        />
+                    )}
+                    {mobileSensorSelected === "Mobile audio" && (
+                        <MobileAudioForm
                             natsClient={natsClientRef.current as NatsConnection}
                             isNatsConnected={isNatsConnected}
                             setMobileSensorSelected={setMobileSensorSelected}

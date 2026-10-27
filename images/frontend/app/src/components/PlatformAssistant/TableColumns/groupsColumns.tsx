@@ -1,4 +1,5 @@
 import { FC, useState, useEffect } from "react";
+import { reloadTable } from "../../../state";
 import { Column } from '../Utils/platformTable';
 import { toast } from "react-toastify";
 import { FeatureCollection } from "geojson";
@@ -16,18 +17,6 @@ import {
     useGroupsDispatch,
 } from "../../../contexts/groupsOptions";
 import { IGroupInputData } from "../../../contexts/groupsOptions/interfaces";
-import {
-    setReloadAssetsTable,
-    setReloadDashboardsTable,
-    setReloadDigitalTwinsTable,
-    setReloadGroupMembersTable,
-    setReloadGroupsManagedTable,
-    setReloadGroupsMembershipTable,
-    setReloadOrgsOfGroupsManagedTable,
-    setReloadSensorsTable,
-    setReloadTopicsTable,
-    usePlatformAssitantDispatch,
-} from "../../../contexts/platformAssistantContext";
 import { getAxiosInstance } from "../../../tools/axiosIntance";
 import axiosErrorHandler from "../../../tools/axiosErrorHandler";
 import { AxiosResponse, AxiosError } from "axios";
@@ -69,7 +58,6 @@ const domainName = getDomainName();
 const protocol = getProtocol();
 
 const DeleteGroupModal: FC<DeleteGroupModalProps> = ({ rowIndex, orgId, groupId, refreshGroups }) => {
-    const plaformAssistantDispatch = usePlatformAssitantDispatch();
     const [isGroupDeleted, setIsGroupDeleted] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const title = "DELETE GROUP";
@@ -86,26 +74,17 @@ const DeleteGroupModal: FC<DeleteGroupModalProps> = ({ rowIndex, orgId, groupId,
     useEffect(() => {
         if (isGroupDeleted) {
             refreshGroups();
-            const reloadGroupsManagedTable = true;
-            setReloadGroupsManagedTable(plaformAssistantDispatch, { reloadGroupsManagedTable });
-            const reloadGroupsMembershipTable = true;
-            setReloadGroupsMembershipTable(plaformAssistantDispatch, { reloadGroupsMembershipTable });
-            const reloadOrgsOfGroupsManagedTable = true;
-            setReloadOrgsOfGroupsManagedTable(plaformAssistantDispatch, { reloadOrgsOfGroupsManagedTable });
-            const reloadGroupMembersTable = true;
-            setReloadGroupMembersTable(plaformAssistantDispatch, { reloadGroupMembersTable });
-            const reloadTopicsTable = true;
-            setReloadTopicsTable(plaformAssistantDispatch, { reloadTopicsTable });
-            const reloadDigitalTwinsTable = true;
-            setReloadDigitalTwinsTable(plaformAssistantDispatch, { reloadDigitalTwinsTable });
-            const reloadDashboardsTable = true;
-            setReloadDashboardsTable(plaformAssistantDispatch, { reloadDashboardsTable });
-            const reloadAssetsTable = true;
-            setReloadAssetsTable(plaformAssistantDispatch, { reloadAssetsTable });
-            const reloadSensorsTable = true;
-            setReloadSensorsTable(plaformAssistantDispatch, { reloadSensorsTable });
+            reloadTable("groupsManaged");
+            reloadTable("groupsMembership");
+            reloadTable("orgsOfGroupsManaged");
+            reloadTable("groupMembers");
+            reloadTable("topics");
+            reloadTable("digitalTwins");
+            reloadTable("dashboards");
+            reloadTable("assets");
+            reloadTable("sensors");
         }
-    }, [isGroupDeleted, plaformAssistantDispatch, refreshGroups]);
+    }, [isGroupDeleted, refreshGroups]);
 
     const action = (hideModal: () => void) => {
         const url = `${protocol}://${domainName}/admin_api/group/${orgId}/id/${groupId}`;

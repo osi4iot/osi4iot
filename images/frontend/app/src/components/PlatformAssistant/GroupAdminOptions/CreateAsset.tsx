@@ -1,4 +1,5 @@
 import { FC, useState, SyntheticEvent, useEffect } from "react";
+import { reloadTable } from "../../../state";
 import styled from "styled-components";
 import { Formik, Form, FormikProps } from "formik";
 import * as Yup from "yup";
@@ -24,21 +25,10 @@ import { IOrgOfGroupsManaged } from "../TableColumns/orgsOfGroupsManagedColumns"
 import { IGroupManaged } from "../TableColumns/groupsManagedColumns";
 import { IAssetType } from "../TableColumns/assetTypesColumns";
 import SvgComponent from "../../Tools/SvgComponent";
-import {
-    setReloadAssetTopicsTable,
-    setReloadDashboardsTable,
-    setReloadSensorsTable,
-    setReloadTopicsTable,
-    usePlatformAssitantDispatch,
-} from "../../../contexts/platformAssistantContext";
 import { AxiosError, AxiosResponse } from "axios";
 
 import JsonFileField, { mustBeArray } from "../../Tools/JsonFileField";
-import { ControlsContainer, DraggableFormContainer } from "../../Tools/FormTools";
-
-const AssetLocationTitle = styled.div`
-    margin-bottom: 5px;
-`;
+import { ControlsContainer, DraggableFormContainer, FormSection } from "../../Tools/FormTools";
 
 const AssetLocationContainerDiv = styled.div`
     border: 2px solid #2c3235;
@@ -204,7 +194,6 @@ const CreateAsset: FC<CreateAssetProps> = ({
     assetTypes,
     selectLocationOption,
 }) => {
-    const plaformAssistantDispatch = usePlatformAssitantDispatch();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const { accessToken, refreshToken } = useAuthState();
     const authDispatch = useAuthDispatch();
@@ -352,14 +341,10 @@ const CreateAsset: FC<CreateAssetProps> = ({
             })
             .finally(() => {
                 refreshAssets();
-                const reloadAssetTopicsTable = true;
-                setReloadAssetTopicsTable(plaformAssistantDispatch, { reloadAssetTopicsTable });
-                const reloadSensorsTable = true;
-                setReloadSensorsTable(plaformAssistantDispatch, { reloadSensorsTable });
-                const reloadTopicsTable = true;
-                setReloadTopicsTable(plaformAssistantDispatch, { reloadTopicsTable });
-                const reloadDashboardsTable = true;
-                setReloadDashboardsTable(plaformAssistantDispatch, { reloadDashboardsTable });
+                reloadTable("assetTopics");
+                reloadTable("sensors");
+                reloadTable("topics");
+                reloadTable("dashboards");
             });
     };
 
@@ -474,7 +459,7 @@ const CreateAsset: FC<CreateAssetProps> = ({
                                     </SvgIconPreviewContainerDiv>
                                 )}
                                 <FormikControl control="input" label="Description" name="description" type="text" />
-                                <AssetLocationTitle>Asset location and icon size</AssetLocationTitle>
+                                <FormSection title="Asset location and icon size">
                                 <AssetLocationContainerDiv>
                                     <FormikControl control="input" label="Longitude" name="longitude" type="text" />
                                     <FormikControl control="input" label="Latitude" name="latitude" type="text" />
@@ -494,6 +479,7 @@ const CreateAsset: FC<CreateAssetProps> = ({
                                         </SelectLocationButton>
                                     </SelectAssetLocationDivButtonContainer>
                                 </AssetLocationContainerDiv>
+                                </FormSection>
                                 <JsonFileField
                                     name="topicsRef"
                                     label="Topic references"

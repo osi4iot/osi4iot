@@ -1,4 +1,5 @@
 import { FC, useState, SyntheticEvent, useEffect } from "react";
+import { reloadTable, useTable } from "../../../state";
 import styled from "styled-components";
 import { Formik, Form, FormikProps } from "formik";
 import * as Yup from "yup";
@@ -12,13 +13,6 @@ import FormTitle from "../../Tools/FormTitle";
 import { ML_MODELS_OPTIONS } from "../Utils/platformAssistantOptions";
 import Loader from "../../Tools/Loader";
 import formatDateString from "../../../tools/formatDate";
-import {
-    setReloadDashboardsTable,
-    setReloadTopicsTable,
-    useGroupsManagedTable,
-    useOrgsOfGroupsManagedTable,
-    usePlatformAssitantDispatch,
-} from "../../../contexts/platformAssistantContext";
 import { getAxiosInstance } from "../../../tools/axiosIntance";
 import axiosErrorHandler from "../../../tools/axiosErrorHandler";
 import { IMlModel } from "../TableColumns/mlModelsColumns";
@@ -31,11 +25,7 @@ import {
 import { MlModelFileName } from "./CreateMlModel";
 import { FieldContainer } from "./EditAsset";
 import { AxiosResponse, AxiosError } from "axios";
-import { ControlsContainer, StaticFormContainer } from "../../Tools/FormTools";
-
-const DataFileTitle = styled.div`
-    margin-bottom: 5px;
-`;
+import { ControlsContainer, StaticFormContainer, FormSection } from "../../Tools/FormTools";
 
 const DataFileContainer = styled.div`
     border: 2px solid #2c3235;
@@ -148,17 +138,16 @@ interface EditMlModelProps {
 
 const EditMlModel: FC<EditMlModelProps> = ({ mlModels, backToTable, refreshMlModels }) => {
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const plaformAssistantDispatch = usePlatformAssitantDispatch();
     const { accessToken, refreshToken } = useAuthState();
     const authDispatch = useAuthDispatch();
     const mlModelsDispatch = useMlModelsDispatch();
     const mlModelRowIndex = useMlModelRowIndexToEdit();
     const mLModelId = useMlModelIdToEdit();
     const groupId = mlModels[mlModelRowIndex].groupId;
-    const groupsManaged = useGroupsManagedTable();
+    const groupsManaged = useTable("groupsManaged");
     const group = groupsManaged.filter((groupManaged) => groupManaged.id === groupId)[0];
     const groupAcronym = group.acronym;
-    const orgsOfGroupsManaged = useOrgsOfGroupsManagedTable();
+    const orgsOfGroupsManaged = useTable("orgsOfGroupsManaged");
     const organization = orgsOfGroupsManaged.filter((org) => org.id === group.orgId)[0];
     const orgAcronym = organization.acronym;
     const [mLModelDataLoading, setMlModelDataLoading] = useState(true);
@@ -448,10 +437,8 @@ const EditMlModel: FC<EditMlModelProps> = ({ mlModels, backToTable, refreshMlMod
                 setMlModelsOptionToShow(mlModelsDispatch, mlModelsOptionToShow);
                 refreshMlModels();
 
-                const reloadTopicsTable = true;
-                setReloadTopicsTable(plaformAssistantDispatch, { reloadTopicsTable });
-                const reloadDashboardsTable = true;
-                setReloadDashboardsTable(plaformAssistantDispatch, { reloadDashboardsTable });
+                reloadTable("topics");
+                reloadTable("dashboards");
             }
         } catch (error: any) {
             axiosErrorHandler(error, authDispatch);
@@ -589,7 +576,7 @@ const EditMlModel: FC<EditMlModelProps> = ({ mlModels, backToTable, refreshMlMod
                                                 type="text"
                                                 onChange={(e) => onMlLibrarySelectChange(e, formik)}
                                             />
-                                            <DataFileTitle>ML model files</DataFileTitle>
+                                            <FormSection title="ML model files">
                                             {mlLibrary === "Tensorflow" && (
                                                 <DataFileContainer>
                                                     <MlModelFileName>
@@ -667,6 +654,7 @@ const EditMlModel: FC<EditMlModelProps> = ({ mlModels, backToTable, refreshMlMod
                                                     </SelectDataFilesButtonContainer>
                                                 </DataFileContainer>
                                             )}
+                                            </FormSection>
                                         </ControlsContainer>
                                         <FormButtonsProps
                                             onCancel={onCancel}

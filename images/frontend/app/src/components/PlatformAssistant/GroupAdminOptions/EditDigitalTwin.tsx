@@ -1,4 +1,5 @@
 import { FC, useState, SyntheticEvent, useEffect } from "react";
+import { reloadTable, useTable } from "../../../state";
 import styled from "styled-components";
 import { Formik, Form, FormikProps } from "formik";
 import * as Yup from "yup";
@@ -27,14 +28,6 @@ import {
 import { IDigitalTwin } from "../TableColumns/digitalTwinsColumns";
 import Loader from "../../Tools/Loader";
 import formatDateString from "../../../tools/formatDate";
-import {
-    setReloadDashboardsTable,
-    setReloadSensorsTable,
-    setReloadTopicsTable,
-    useGroupsManagedTable,
-    useOrgsOfGroupsManagedTable,
-    usePlatformAssitantDispatch,
-} from "../../../contexts/platformAssistantContext";
 import { getAxiosInstance } from "../../../tools/axiosIntance";
 import axiosErrorHandler from "../../../tools/axiosErrorHandler";
 import { getSensorsRef, getSensorsRefFromDigitalTwinGltfData } from "./CreateDigitalTwin";
@@ -42,12 +35,8 @@ import { FieldContainer } from "./EditAsset";
 import { AxiosResponse, AxiosError } from "axios";
 
 import JsonFileField, { mustBeObject } from "../../Tools/JsonFileField";
-import { ControlsContainer, DraggableFormContainer } from "../../Tools/FormTools";
+import { ControlsContainer, DraggableFormContainer, FormSection } from "../../Tools/FormTools";
 import KnowledgeDocumentsSelector from "./KnowledgeDocumentsSelector";
-
-const DataFileTitle = styled.div`
-    margin-bottom: 5px;
-`;
 
 const DataFileContainer = styled.div`
     border: 2px solid #2c3235;
@@ -55,10 +44,6 @@ const DataFileContainer = styled.div`
     padding: 10px;
     width: 100%;
     margin-bottom: 20px;
-`;
-
-const ChatAssistantTitle = styled.div`
-    margin-bottom: 5px;
 `;
 
 const ChatAssistantContainer = styled.div`
@@ -236,7 +221,6 @@ type FormikType = FormikProps<{
 
 const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, refreshDigitalTwins }) => {
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const plaformAssistantDispatch = usePlatformAssitantDispatch();
     const { accessToken, refreshToken } = useAuthState();
     const authDispatch = useAuthDispatch();
     const digitalTwinsDispatch = useDigitalTwinsDispatch();
@@ -245,10 +229,10 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
     const digitalTwinId = useDigitalTwinIdToEdit();
     const groupId = digitalTwinInitialData.groupId;
     const orgId = digitalTwins[digitalTwinRowIndex].orgId;
-    const groupsManaged = useGroupsManagedTable();
+    const groupsManaged = useTable("groupsManaged");
     const group = groupsManaged.filter((groupManaged) => groupManaged.id === groupId)[0];
     const groupAcronym = group.acronym;
-    const orgsOfGroupsManaged = useOrgsOfGroupsManagedTable();
+    const orgsOfGroupsManaged = useTable("orgsOfGroupsManaged");
     const organization = orgsOfGroupsManaged.filter((org) => org.id === orgId)[0];
     const orgAcronym = organization.acronym;
     const storedDigitalTwinType = digitalTwinInitialData.type;
@@ -672,12 +656,9 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
             })
             .finally(() => {
                 refreshDigitalTwins();
-                const reloadTopicsTable = true;
-                setReloadTopicsTable(plaformAssistantDispatch, { reloadTopicsTable });
-                const reloadSensorsTable = true;
-                setReloadSensorsTable(plaformAssistantDispatch, { reloadSensorsTable });
-                const reloadDashboardsTable = true;
-                setReloadDashboardsTable(plaformAssistantDispatch, { reloadDashboardsTable });
+                reloadTable("topics");
+                reloadTable("sensors");
+                reloadTable("dashboards");
             });
     };
 
@@ -822,7 +803,7 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
                                                 name="description"
                                                 type="text"
                                             />
-                                            <DataFileTitle>Pipeline</DataFileTitle>
+                                            <FormSection title="Pipeline">
                                             <DataFileContainer>
                                                 <FieldContainer>
                                                     <label>File name</label>
@@ -871,6 +852,7 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
                                                     )}
                                                 </SubSection>
                                             </DataFileContainer>
+                                            </FormSection>
                                             <FormikControl
                                                 control="select"
                                                 label="Type"
@@ -882,7 +864,7 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
                                             {(digitalTwinType === "Gltf 3D model" ||
                                                 digitalTwinType === "Glb 3D model") && (
                                                 <>
-                                                    <DataFileTitle>Gltf data file</DataFileTitle>
+                                                    <FormSection title="Gltf data file">
                                                     <DataFileContainer>
                                                         <FieldContainer>
                                                             <label>File name</label>
@@ -904,7 +886,8 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
                                                             </FileButton>
                                                         </SelectDataFilenButtonContainer>
                                                     </DataFileContainer>
-                                                    <DataFileTitle>FEM results file</DataFileTitle>
+                                                    </FormSection>
+                                                    <FormSection title="FEM results file">
                                                     <DataFileContainer>
                                                         <FormikControl
                                                             control="input"
@@ -932,6 +915,7 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
                                                             </FileButton>
                                                         </SelectDataFilenButtonContainer>
                                                     </DataFileContainer>
+                                                    </FormSection>
                                                     <KnowledgeDocumentsSelector
                                                         groupId={groupId}
                                                         ragEnabled={
@@ -942,7 +926,7 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
                                                     />
                                                     {organization.llmEnabled && group.llmEnabled && (
                                                         <>
-                                                            <ChatAssistantTitle>Chat assistant</ChatAssistantTitle>
+                                                            <FormSection title="Chat assistant">
                                                             <ChatAssistantContainer>
                                                                 <FormikControl
                                                                     control="select"
@@ -967,6 +951,7 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
                                                                     />
                                                                 )}
                                                             </ChatAssistantContainer>
+                                                            </FormSection>
                                                         </>
                                                     )}
                                                     <JsonFileField
@@ -1000,3 +985,5 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
 };
 
 export default EditDigitalTwin;
+
+

@@ -2,3 +2,6 @@ allowBuilds:
   '@parcel/watcher': true
   core-js-pure: false
   esbuild: false
+minimumReleaseAgeExclude:
+  - '@tanstack/query-core@5.105.0'
+  - '@tanstack/react-query@5.105.0'

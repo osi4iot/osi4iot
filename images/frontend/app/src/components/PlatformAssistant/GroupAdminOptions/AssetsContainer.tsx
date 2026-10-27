@@ -1,4 +1,5 @@
 import React, { FC, useCallback } from 'react'
+import { useTable } from "../../../state";
 import TableWithPagination from '../Utils/TableWithPagination';
 import { ASSETS_OPTIONS, ASSETS_PREVIOUS_OPTIONS } from '../Utils/platformAssistantOptions';
 import { Create_ASSETS_COLUMNS, IAsset } from '../TableColumns/assetsColumns';
@@ -11,11 +12,6 @@ import {
 import CreateAsset from './CreateAsset';
 import EditAsset from './EditAsset';
 import AssetLocationContainer from './AssetLocationContainer';
-import {
-    useBuildingsTable,
-    useFloorsTable,
-    useGroupsManagedTable
-} from '../../../contexts/platformAssistantContext';
 import { toast } from 'react-toastify';
 import { IBuilding } from '../TableColumns/buildingsColumns';
 import { IFloor } from '../TableColumns/floorsColumns';
@@ -54,9 +50,9 @@ const AssetsContainer: FC<AssetsContainerProps> = ({
     const assetsDispatch = useAssetsDispatch();
     const assetsOptionToShow = useAssetsOptionToShow();
     const previousOption = useAssetsPreviousOption();
-    const buildingsTable = useBuildingsTable();
-    const floorsTable = useFloorsTable();
-    const groupsManagedTable = useGroupsManagedTable();
+    const buildingsTable = useTable("buildings");
+    const floorsTable = useTable("floors");
+    const groupsManagedTable = useTable("groupsManaged");
     const assetInputData = useAssetInputData();
 
     const showAssetsTableOption = () => {

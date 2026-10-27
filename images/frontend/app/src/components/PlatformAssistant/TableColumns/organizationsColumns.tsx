@@ -1,4 +1,5 @@
 import { FC, useState, useEffect } from "react";
+import { reloadTable } from "../../../state";
 import { Column } from '../Utils/platformTable';
 import { toast } from "react-toastify";
 import EditIcon from "../Utils/EditIcon";
@@ -13,20 +14,6 @@ import {
     setOrgsOptionToShow,
     useOrgsDispatch,
 } from "../../../contexts/orgsOptions";
-import {
-    usePlatformAssitantDispatch,
-    setReloadGroupsMembershipTable,
-    setReloadGroupsTable,
-    setReloadOrgsManagedTable,
-    setReloadOrgsMembershipTable,
-    setReloadOrgUsersTable,
-    setReloadGroupsManagedTable,
-    setReloadGroupMembersTable,
-    setReloadDigitalTwinsTable,
-    setReloadDashboardsTable,
-    setReloadOrgsOfGroupsManagedTable,
-    setReloadTopicsTable,
-} from "../../../contexts/platformAssistantContext";
 import { getAxiosInstance } from "../../../tools/axiosIntance";
 import axiosErrorHandler from "../../../tools/axiosErrorHandler";
 import { AxiosResponse, AxiosError } from "axios";
@@ -71,7 +58,6 @@ const domainName = getDomainName();
 const protocol = getProtocol();
 
 const DeleteOrgModal: FC<DeleteOrgModalProps> = ({ rowIndex, orgId, refreshOrgs }) => {
-    const plaformAssistantDispatch = usePlatformAssitantDispatch();
     const [isOrgDeleted, setIsOrgDeleted] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const title = "DELETE ORGANIZATION";
@@ -88,31 +74,20 @@ const DeleteOrgModal: FC<DeleteOrgModalProps> = ({ rowIndex, orgId, refreshOrgs 
     useEffect(() => {
         if (isOrgDeleted) {
             refreshOrgs();
-            const reloadOrgsManagedTable = true;
-            setReloadOrgsManagedTable(plaformAssistantDispatch, { reloadOrgsManagedTable });
-            const reloadOrgUsersTable = true;
-            setReloadOrgUsersTable(plaformAssistantDispatch, { reloadOrgUsersTable });
-            const reloadOrgsMembershipTable = true;
-            setReloadOrgsMembershipTable(plaformAssistantDispatch, { reloadOrgsMembershipTable });
-            const reloadGroupsTable = true;
-            setReloadGroupsTable(plaformAssistantDispatch, { reloadGroupsTable });
-            const reloadGroupsMembershipTable = true;
-            setReloadGroupsMembershipTable(plaformAssistantDispatch, { reloadGroupsMembershipTable });
-            const reloadGroupsManagedTable = true;
-            setReloadGroupsManagedTable(plaformAssistantDispatch, { reloadGroupsManagedTable });
+            reloadTable("orgsManaged");
+            reloadTable("orgUsers");
+            reloadTable("orgsMembership");
+            reloadTable("groups");
+            reloadTable("groupsMembership");
+            reloadTable("groupsManaged");
 
-            const reloadOrgsOfGroupsManagedTable = true;
-            setReloadOrgsOfGroupsManagedTable(plaformAssistantDispatch, { reloadOrgsOfGroupsManagedTable });
-            const reloadGroupMembersTable = true;
-            setReloadGroupMembersTable(plaformAssistantDispatch, { reloadGroupMembersTable });
-            const reloadTopicsTable = true;
-            setReloadTopicsTable(plaformAssistantDispatch, { reloadTopicsTable });
-            const reloadDigitalTwinsTable = true;
-            setReloadDigitalTwinsTable(plaformAssistantDispatch, { reloadDigitalTwinsTable });
-            const reloadDashboardsTable = true;
-            setReloadDashboardsTable(plaformAssistantDispatch, { reloadDashboardsTable });
+            reloadTable("orgsOfGroupsManaged");
+            reloadTable("groupMembers");
+            reloadTable("topics");
+            reloadTable("digitalTwins");
+            reloadTable("dashboards");
         }
-    }, [isOrgDeleted, plaformAssistantDispatch, refreshOrgs]);
+    }, [isOrgDeleted, refreshOrgs]);
 
     const action = (hideModal: () => void) => {
         const url = `${protocol}://${domainName}/admin_api/organization/id/${orgId}`;

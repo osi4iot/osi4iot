@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { reloadTable, useTable } from "../../../state";
 import { FC, useState, SyntheticEvent, useEffect } from "react";
 import styled from "styled-components";
 import { Formik, Form, FormikProps } from "formik";
@@ -24,15 +25,6 @@ import { DIGITAL_TWINS_OPTIONS } from "../Utils/platformAssistantOptions";
 import { setDigitalTwinsOptionToShow, useDigitalTwinsDispatch } from "../../../contexts/digitalTwinsOptions";
 import { useFilePicker } from "use-file-picker";
 import formatDateString from "../../../tools/formatDate";
-import {
-    setReloadDashboardsTable,
-    setReloadSensorsTable,
-    setReloadTopicsTable,
-    useAssetsTable,
-    useGroupsManagedTable,
-    useOrgsOfGroupsManagedTable,
-    usePlatformAssitantDispatch,
-} from "../../../contexts/platformAssistantContext";
 import { getAxiosInstance } from "../../../tools/axiosIntance";
 import axiosErrorHandler from "../../../tools/axiosErrorHandler";
 import { IGroupManaged } from "../TableColumns/groupsManagedColumns";
@@ -42,12 +34,8 @@ import { AxiosError, AxiosResponse } from "axios";
 import KnowledgeDocumentsSelector from "./KnowledgeDocumentsSelector";
 
 import JsonFileField, { mustBeObject } from "../../Tools/JsonFileField";
-import { ControlsContainer, DraggableFormContainer } from "../../Tools/FormTools";
+import { ControlsContainer, DraggableFormContainer, FormSection } from "../../Tools/FormTools";
 import { assetOptions, sortAssetNamesByDescription } from "../../../tools/tools";
-
-const Title = styled.div`
-    margin-bottom: 5px;
-`;
 
 const Container = styled.div`
     border: 2px solid #2c3235;
@@ -362,14 +350,13 @@ type FormikType = FormikProps<IFormikValues>;
 
 const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDigitalTwins }) => {
     const digitalTwinUid = nanoid(20).replace(/-/g, "x").replace(/_/g, "X");
-    const plaformAssistantDispatch = usePlatformAssitantDispatch();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const { accessToken, refreshToken } = useAuthState();
     const authDispatch = useAuthDispatch();
     const digitalTwinsDispatch = useDigitalTwinsDispatch();
-    const orgsOfGroupManaged = useOrgsOfGroupsManagedTable();
-    const groupsManaged = useGroupsManagedTable();
-    const assets = useAssetsTable();
+    const orgsOfGroupManaged = useTable("orgsOfGroupsManaged");
+    const groupsManaged = useTable("groupsManaged");
+    const assets = useTable("assets");
     const initOrg = orgsOfGroupManaged[0];
     const initGroup = groupsManaged.filter((group) => group.orgId === initOrg.id)[0];
     const initAsset = assets.filter((asset) => asset.groupId === initGroup.id)[0];
@@ -719,12 +706,9 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
             })
             .finally(() => {
                 refreshDigitalTwins();
-                const reloadTopicsTable = true;
-                setReloadTopicsTable(plaformAssistantDispatch, { reloadTopicsTable });
-                const reloadSensorsTable = true;
-                setReloadSensorsTable(plaformAssistantDispatch, { reloadSensorsTable });
-                const reloadDashboardsTable = true;
-                setReloadDashboardsTable(plaformAssistantDispatch, { reloadDashboardsTable });
+                reloadTable("topics");
+                reloadTable("sensors");
+                reloadTable("dashboards");
             });
     };
 
@@ -883,7 +867,7 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
                                         type="text"
                                     />
                                     <FormikControl control="input" label="Description" name="description" type="text" />
-                                    <Title>Pipeline</Title>
+                                    <FormSection title="Pipeline">
                                     <Container>
                                         <FieldContainer>
                                             <label>File name</label>
@@ -913,6 +897,7 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
                                             </SubSection>
                                         )}
                                     </Container>
+                                    </FormSection>
                                     <FormikControl
                                         control="select"
                                         label="Type"
@@ -923,7 +908,7 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
                                     />
                                     {(digitalTwinType === "Gltf 3D model" || digitalTwinType === "Glb 3D model") && (
                                         <>
-                                            <Title>Gltf data file</Title>
+                                            <FormSection title="Gltf data file">
                                             <Container>
                                                 <FieldContainer>
                                                     <label>File name</label>
@@ -945,7 +930,8 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
                                                     </FileButton>
                                                 </SelectDataFilenButtonContainer>
                                             </Container>
-                                            <Title>FEM results file</Title>
+                                            </FormSection>
+                                            <FormSection title="FEM results file">
                                             <Container>
                                                 <FormikControl
                                                     control="input"
@@ -973,6 +959,7 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
                                                     </FileButton>
                                                 </SelectDataFilenButtonContainer>
                                             </Container>
+                                            </FormSection>
                                             {(() => {
                                                 const org = orgsOfGroupManaged.find(
                                                     (o) => o.acronym === formik.values.orgAcronym,
@@ -991,7 +978,7 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
                                             })()}
                                             {orgLlmEnabled && groupLlmEnabled && (
                                                 <>
-                                                    <Title>Chat assistant</Title>
+                                                    <FormSection title="Chat assistant">
                                                     <Container>
                                                         <FormikControl
                                                             control="select"
@@ -1014,6 +1001,7 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
                                                             />
                                                         )}
                                                     </Container>
+                                                    </FormSection>
                                                 </>
                                             )}
                                             <JsonFileField
@@ -1045,3 +1033,4 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
 };
 
 export default CreateDigitalTwin;
+

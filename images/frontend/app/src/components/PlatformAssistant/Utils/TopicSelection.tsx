@@ -12,6 +12,15 @@ const TopicSelectionContainer = styled.div`
     justify-content: flex-start;
     align-items: center;
     background-color: #202226;
+    /* adaptable: ocupa el ancho disponible y reparte los datos en varias líneas si no caben */
+    width: calc(100% - 32px);
+    max-width: 100%;
+    flex-wrap: wrap;
+    row-gap: 10px;
+
+    @media (max-width: 600px) {
+        width: 100%;
+    }
 `;
 
 const ItemContainer = styled.div`
@@ -20,8 +29,8 @@ const ItemContainer = styled.div`
     flex-direction: column;
     justify-content: flex-start;
     align-items: flex-start;
-    min-width: 100px;
-    width: auto;
+    flex: 1 1 120px;
+    min-width: 0;
 
     & label {
         font-size: 12px;
@@ -37,6 +46,7 @@ const ItemContainer = styled.div`
         margin-left: 2px;
         color: white;
         width: 100%;
+        overflow-wrap: anywhere;
     }
 `;
 

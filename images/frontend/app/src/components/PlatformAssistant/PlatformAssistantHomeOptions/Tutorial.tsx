@@ -23,7 +23,7 @@ const TutorialContainer = styled.div`
 
 const PageContainer = styled.div`
     width: 100%;
-    height: calc(100vh - 310px);
+    height: calc(100vh + var(--pa-gain, 0px) - 310px);
 	background-color: #202226;
 
 	overflow: auto;

@@ -4,7 +4,7 @@ import { useFormikContext } from "formik";
 import { toast } from "react-toastify";
 import YAML from "yaml";
 import formatDateString from "../../tools/formatDate";
-import { FieldErrorScroller, scrollbarStyle } from "./FormTools";
+import { FieldErrorScroller, scrollbarStyle, FormSection } from "./FormTools";
 
 // A form field whose value is a JSON document (asset topic and sensor
 // references, a digital twin's simulation format...), set by choosing a
@@ -12,10 +12,6 @@ import { FieldErrorScroller, scrollbarStyle } from "./FormTools";
 // formik value stays the JSON text, indented, so validation and submit
 // work as before. The content can be looked at, downloaded (to use as a
 // template) or reset to its starting value.
-
-const Title = styled.div`
-    margin-bottom: 5px;
-`;
 
 const Container = styled.div`
     border: 2px solid #2c3235;
@@ -251,8 +247,7 @@ const JsonFileField: FC<JsonFileFieldProps> = ({
     };
 
     return (
-        <>
-            <Title>{label}</Title>
+        <FormSection title={label}>
             <Container>
                 <FieldContainer>
                     <label>File name</label>
@@ -290,7 +285,7 @@ const JsonFileField: FC<JsonFileFieldProps> = ({
                     onChange={onFileSelected}
                 />
             </Container>
-        </>
+        </FormSection>
     );
 };
 

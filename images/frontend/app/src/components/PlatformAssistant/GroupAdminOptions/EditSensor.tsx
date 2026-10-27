@@ -1,4 +1,5 @@
 import { FC, useState, SyntheticEvent, useEffect } from "react";
+import { useTable } from "../../../state";
 import styled from "styled-components";
 import { Formik, Form, FormikProps } from "formik";
 import * as Yup from "yup";
@@ -18,13 +19,6 @@ import {
 import { ISensor } from "../TableColumns/sensorsColumns";
 import { getAxiosInstance } from "../../../tools/axiosIntance";
 import axiosErrorHandler from "../../../tools/axiosErrorHandler";
-import {
-    useAssetTopicsTable,
-    useAssetsTable,
-    useGroupsManagedTable,
-    useOrgsOfGroupsManagedTable,
-    useSensorTypesTable,
-} from "../../../contexts/platformAssistantContext";
 import SvgComponent from "../../Tools/SvgComponent";
 import { ISensorType } from "../TableColumns/sensorTypesColumns";
 import IAssetTopic from "../TableColumns/assetTopics.interface";
@@ -97,20 +91,20 @@ const EditSensor: FC<EdiSensorProps> = ({ sensors, backToTable, refreshSensors }
     const sensorsDispatch = useSensorsDispatch();
     const sensorRowIndex = useSensorRowIndexToEdit();
     const storedSensor = sensors[sensorRowIndex];
-    const assetTopics = useAssetTopicsTable();
+    const assetTopics = useTable("assetTopics");
     const assetId = storedSensor.assetId;
     const assetTopicsFiltered = assetTopics.filter((assetTopic) => assetTopic.assetId === assetId);
-    const sensorTypes = useSensorTypesTable();
+    const sensorTypes = useTable("sensorTypes");
     const orgId = storedSensor.orgId;
-    const groupsManaged = useGroupsManagedTable();
+    const groupsManaged = useTable("groupsManaged");
     const groupId = sensors[sensorRowIndex].groupId;
     const group = groupsManaged.filter((groupManaged) => groupManaged.id === groupId)[0];
     const groupAcronym = group.acronym;
-    const orgsOfGroupsManaged = useOrgsOfGroupsManagedTable();
+    const orgsOfGroupsManaged = useTable("orgsOfGroupsManaged");
     const organization = orgsOfGroupsManaged.filter((org) => org.id === group.orgId)[0];
     const orgAcronym = organization.acronym;
     const sensorTypesFiltered = sensorTypes.filter((sensorType) => sensorType.orgId === orgId);
-    const assets = useAssetsTable();
+    const assets = useTable("assets");
     const sensorId = useSensorIdToEdit();
     const sensorAsset = assets.filter((asset) => asset.id === assetId)[0];
     const assetName = `Asset_${sensorAsset.assetUid}`;

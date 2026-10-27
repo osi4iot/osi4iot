@@ -198,7 +198,7 @@ func (n *ListenNode) buildMessageFromNats(msg *nats.Msg, contentType, jsonStruct
 		}
 
 	default:
-		outMsg := message.NewMessage(msg.Subject, map[string]any{}, nil, contentType, &common.File{
+		outMsg := message.NewMessage(msg.Subject, payloadFromHeaders(msg.Header), nil, contentType, &common.File{
 			Name:        msg.Subject,
 			ContentType: contentType,
 			Data:        msg.Data,
@@ -206,4 +206,20 @@ func (n *ListenNode) buildMessageFromNats(msg *nats.Msg, contentType, jsonStruct
 		outMsg.JsonStructure = jsonStructure
 		return outMsg, nil
 	}
+}
+
+// payloadFromHeaders gives a binary message (an image, an audio clip...) the
+// fields that came with it as "Payload-<Field>" headers: "Payload-Language: es"
+// -> payload["language"] = "es". The sender can attach data to a file this
+// way (for example the language of a recording for the Transcriptor node).
+func payloadFromHeaders(header nats.Header) map[string]any {
+	payload := map[string]any{}
+	for key, values := range header {
+		if len(values) == 0 || len(key) <= len("payload-") || !strings.EqualFold(key[:len("payload-")], "payload-") {
+			continue
+		}
+		field := key[len("payload-"):]
+		payload[strings.ToLower(field[:1])+field[1:]] = values[0]
+	}
+	return payload
 }

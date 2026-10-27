@@ -7,6 +7,7 @@ import { axiosAuth, getDomainName, getProtocol } from "../../../tools/tools";
 import { getAxiosInstance } from "../../../tools/axiosIntance";
 import axiosErrorHandler from "../../../tools/axiosErrorHandler";
 import { IKnowledgeFile } from "../TableColumns/knowledgeColumns";
+import { FormSection } from "../../Tools/FormTools";
 
 // Which documents of its group's knowledge base a digital twin's AI agents
 // may read and search: none unless chosen here. They are shown by title
@@ -14,10 +15,6 @@ import { IKnowledgeFile } from "../TableColumns/knowledgeColumns";
 
 const domainName = getDomainName();
 const protocol = getProtocol();
-
-const Title = styled.div`
-    margin-bottom: 5px;
-`;
 
 const Container = styled.div`
     display: flex;
@@ -203,10 +200,9 @@ const KnowledgeDocumentsSelector: FC<KnowledgeDocumentsSelectorProps> = ({ group
     }
 
     return (
-        <>
-            <Title>Knowledge base documents</Title>
+        <FormSection title="Knowledge base documents">
             <Container>{content}</Container>
-        </>
+        </FormSection>
     );
 };
 

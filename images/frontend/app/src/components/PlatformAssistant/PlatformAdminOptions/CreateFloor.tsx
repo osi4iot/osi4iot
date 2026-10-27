@@ -18,61 +18,14 @@ import formatDateString from '../../../tools/formatDate';
 import { isGeoJSONString } from '../../../tools/geojsonValidation';
 import { IBuilding } from '../TableColumns/buildingsColumns';
 import { AxiosResponse, AxiosError } from 'axios';
+import { FormCard as FormContainer, ControlsContainer, FormSection } from "../../Tools/FormTools";
 
-
-const FormContainer = styled.div`
-	font-size: 12px;
-    padding: 30px 20px;
-    border: 3px solid #3274d9;
-    border-radius: 20px;
-    width: 400px;
-`;
-
-const ControlsContainer = styled.div`
-    height: calc(100vh - 500px);
-    width: 100%;
-    padding: 0px 5px;
-    overflow-y: auto;
-    /* width */
-    &::-webkit-scrollbar {
-        width: 10px;
-    }
-
-    /* Track */
-    &::-webkit-scrollbar-track {
-        background: #202226;
-        border-radius: 5px;
-    }
-
-    /* Handle */
-    &::-webkit-scrollbar-thumb {
-        background: #2c3235; 
-        border-radius: 5px;
-    }
-
-    /* Handle on hover */
-    &::-webkit-scrollbar-thumb:hover {
-        background-color: #343840;
-    }
-
-    div:first-child {
-        margin-top: 0;
-    }
-`;
-
-const FloorLocationTitle = styled.div`
-    margin-bottom: 5px;
-`;
 
 const FloorLocationContainer = styled.div`
     border: 2px solid #2c3235;
     border-radius: 10px;
     padding: 10px;
     width: 100%;
-`;
-
-const DataFileTitle = styled.div`
-    margin-bottom: 5px;
 `;
 
 const DataFileContainer = styled.div`
@@ -297,7 +250,7 @@ const CreateFloor: FC<CreateFloorProps> = ({ buildingsTable, backToTable, refres
 
 
     const initialFloorData = {
-        buildingName: initialBuilding.name,
+        buildingName: initialBuilding?.name ?? "",
         floorNumber: 0,
     }
 
@@ -329,7 +282,7 @@ const CreateFloor: FC<CreateFloorProps> = ({ buildingsTable, backToTable, refres
                                             options={buildingOptions}
                                             onChange={(e) => handleChangeBuilding(e, formik)}
                                         />
-                                        <FloorLocationTitle>Floor location</FloorLocationTitle>
+                                        <FormSection title="Floor location">
                                         <FloorLocationContainer>
                                             <FormikControl
                                                 control='input'
@@ -337,7 +290,7 @@ const CreateFloor: FC<CreateFloorProps> = ({ buildingsTable, backToTable, refres
                                                 name='floorNumber'
                                                 type='text'
                                             />
-                                            <DataFileTitle>Geojson file</DataFileTitle>
+                                            <FormSection title="Geojson file">
                                             <DataFileContainer>
                                                 <FieldContainer>
                                                     <label>File name</label>
@@ -362,7 +315,9 @@ const CreateFloor: FC<CreateFloorProps> = ({ buildingsTable, backToTable, refres
                                                     </FileButton>
                                                 </SelectDataFilenButtonContainer>
                                             </DataFileContainer>
+                                            </FormSection>
                                         </FloorLocationContainer>
+                                        </FormSection>
                                     </ControlsContainer>
                                     <FormButtonsProps
                                         onCancel={onCancel}

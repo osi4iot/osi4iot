@@ -1,97 +1,48 @@
-import React, { createContext, FC, useContext, useReducer } from 'react';
+import { FC } from 'react';
 import { ChildrenProp } from '../../interfaces/interfaces'
 import { GroupsManagedContextProps, IGroupManagedData } from './interfaces'
 import { initialState, GroupsManagedReducer } from './groupsManagedReducer';
+import { createSectionStore, SectionStoreProvider } from '../../state/createSectionStore';
 
-
-const GroupsManagedStateContext = createContext<GroupsManagedContextProps>(initialState);
-const GroupsManagedDispatchContext = createContext<any>({});
+// Estado de la sección en un almacén Zustand global (antes Context + useReducer): se conserva al cambiar de capa
+const useGroupsManagedStore = createSectionStore(GroupsManagedReducer, initialState);
 
 export function useGroupsManagedState() {
-	const context = useContext(GroupsManagedStateContext);
-	if (context === undefined) {
-		throw new Error('useOrgsManagedState must be used within a GroupsManagedProvider');
-	}
-	return context;
+	return useGroupsManagedStore();
 }
 
-
-export const GroupsManagedProvider: FC<ChildrenProp> = ({ children }) => {
-	const [data, groupsManagedDispatch] = useReducer(GroupsManagedReducer, initialState);
-
-	return (
-		<GroupsManagedStateContext.Provider value={data}>
-			<GroupsManagedDispatchContext.Provider value={groupsManagedDispatch}>
-				{children}
-			</GroupsManagedDispatchContext.Provider>
-		</GroupsManagedStateContext.Provider>
-	);
-};
+export const GroupsManagedProvider: FC<ChildrenProp> = ({ children }) => (
+	<SectionStoreProvider store={useGroupsManagedStore}>{children}</SectionStoreProvider>
+);
 
 export function useGroupsManagedDispatch() {
-	const context = React.useContext(GroupsManagedDispatchContext);
-	if (context === undefined) {
-		throw new Error('useGroupsManagedDispatch must be used within a GroupsManagedProvider');
-	}
-
-	return context;
+	return useGroupsManagedStore.dispatch;
 }
 
 export const useGroupsManagedOptionToShow = (): string => {
-	const context = useContext(GroupsManagedStateContext);
-	if (context === undefined) {
-		throw new Error('useGroupsManagedOptionToShow must be used within a GroupsManagedProvider');
-	}
-	return context.groupsManagedOptionToShow;
+	return useGroupsManagedStore((state) => state.groupsManagedOptionToShow);
 };
 
 export const useGroupManagedIdToCreateGroupMembers = (): number => {
-	const context = useContext(GroupsManagedStateContext);
-	if (context === undefined) {
-		throw new Error('useGroupManagedIdToCreateGroupMembers must be used within a GroupsManagedProvider');
-	}
-	return context.groupManagedIdToCreateGroupMembers;
+	return useGroupsManagedStore((state) => state.groupManagedIdToCreateGroupMembers);
 };
 
 export const useGroupManagedIdToRemoveAllGroupMembers = (): number => {
-	const context = useContext(GroupsManagedStateContext);
-	if (context === undefined) {
-		throw new Error('useGroupManagedIdToRemoveAllGroupMembers must be used within a GroupsManagedProvider');
-	}
-	return context.groupManagedIdToRemoveAllGroupMembers;
+	return useGroupsManagedStore((state) => state.groupManagedIdToRemoveAllGroupMembers);
 };
 
 export const useGroupManagedRowIndex = (): number => {
-	const context = useContext(GroupsManagedStateContext);
-	if (context === undefined) {
-		throw new Error('useGroupManagedRowIndex must be used within a GroupsManagedProvider');
-	}
-	return context.groupManagedRowIndex;
+	return useGroupsManagedStore((state) => state.groupManagedRowIndex);
 };
 
 export const useGroupManagedIdToEdit = (): number => {
-	const context = useContext(GroupsManagedStateContext);
-	if (context === undefined) {
-		throw new Error('useGroupManagedIdToEdit must be used within a GroupsManagedProvider');
-	}
-	return context.groupManagedIdToEdit;
+	return useGroupsManagedStore((state) => state.groupManagedIdToEdit);
 };
 
 export const useGroupManagedInputFormData = (): IGroupManagedData => {
-	const context = useContext(GroupsManagedStateContext);
-	if (context === undefined) {
-		throw new Error('useGroupManagedInputFormData must be used within a GroupsManagedProvider');
-	}
-	return context.groupManagedInputFormData;
+	return useGroupsManagedStore((state) => state.groupManagedInputFormData);
 };
 
 export const useGroupManagedBuildingId = (): number => {
-	const context = useContext(GroupsManagedStateContext);
-	if (context === undefined) {
-		throw new Error('useGroupManagedBuildingId must be used within a GroupsManagedProvider');
-	}
-	return context.groupManagedBuildingId;
+	return useGroupsManagedStore((state) => state.groupManagedBuildingId);
 };
-
-
-

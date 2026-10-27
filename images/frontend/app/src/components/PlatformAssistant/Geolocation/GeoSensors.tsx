@@ -1,4 +1,5 @@
 import { FC, useEffect, useState } from "react";
+import { reloadTable } from "../../../state";
 import { LayerGroup } from "react-leaflet";
 import { toast } from "react-toastify";
 import { IAsset } from "../TableColumns/assetsColumns";
@@ -11,7 +12,6 @@ import { IDigitalTwinState, ISensorState } from "./GeolocationContainer";
 import GeoDigitalTwin from "./GeoDigitalTwin";
 import GeoFordwardAndBackwardSensor from "./GeoFordwardAndBackwardSensor";
 import { ISensorType } from "../TableColumns/sensorTypesColumns";
-import { setReloadDigitalTwinsTable, usePlatformAssitantDispatch } from "../../../contexts/platformAssistantContext";
 import { useAuthDispatch, useAuthState } from "../../../contexts/authContext";
 import { getAxiosInstance } from "../../../tools/axiosIntance";
 import { axiosAuth, axiosAuthDigitalTwinFile, getDomainName, getProtocol } from "../../../tools/tools";
@@ -63,7 +63,6 @@ const GeoSensors: FC<GeoSensorsProps> = ({
 }) => {
     const { accessToken, refreshToken } = useAuthState();
     const authDispatch = useAuthDispatch();
-    const plaformAssistantDispatch = usePlatformAssitantDispatch();
     const arrayLength = sensors.length;
     const [sensorsArray, setSensorsArray] = useState(sensors.slice(0, 10));
     const [sensorsSetIndex, setSensorsSetIndex] = useState(1);
@@ -220,8 +219,7 @@ const GeoSensors: FC<GeoSensorsProps> = ({
                                     gltfFileName,
                                     gltfFileDate,
                                 );
-                                const reloadDigitalTwinsTable = true;
-                                setReloadDigitalTwinsTable(plaformAssistantDispatch, { reloadDigitalTwinsTable });
+                                reloadTable("digitalTwins");
                             })
                             .catch((error: AxiosError) => {
                                 axiosErrorHandler(error, authDispatch);
@@ -242,8 +240,7 @@ const GeoSensors: FC<GeoSensorsProps> = ({
                                     gltfFileName,
                                     gltfFileDate,
                                 );
-                                const reloadDigitalTwinsTable = true;
-                                setReloadDigitalTwinsTable(plaformAssistantDispatch, { reloadDigitalTwinsTable });
+                                reloadTable("digitalTwins");
                             })
                             .catch((error: AxiosError) => {
                                 axiosErrorHandler(error, authDispatch);

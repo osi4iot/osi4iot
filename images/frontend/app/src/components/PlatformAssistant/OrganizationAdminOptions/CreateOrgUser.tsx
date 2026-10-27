@@ -1,4 +1,5 @@
 import React, { FC, SyntheticEvent, useState } from 'react';
+import { reloadTable, useTable } from "../../../state";
 import styled from "styled-components";
 import { Formik, Form } from 'formik';
 import * as Yup from 'yup';
@@ -12,62 +13,10 @@ import { useOrgManagedIdToCreateOrgUsers, useOrgManagedRowIndex } from '../../..
 import { IOrgUsersInput } from './OrgsManagedContainer';
 import SelectGlobalUsers from '../PlatformAdminOptions/SelectGlobalUsers';
 import { ISelectGlobalUser } from '../TableColumns/selectGlobalUserColumns';
-import {
-    setReloadGroupMembersTable,
-    setReloadGroupsMembershipTable,
-    setReloadOrgsMembershipTable,
-    setReloadSelectOrgUsersTable,
-    useOrgsManagedTable,
-    usePlatformAssitantDispatch
-} from '../../../contexts/platformAssistantContext';
 import { getAxiosInstance } from '../../../tools/axiosIntance';
 import axiosErrorHandler from '../../../tools/axiosErrorHandler';
 import { AxiosResponse, AxiosError } from 'axios';
-
-const FormContainer = styled.div`
-	font-size: 12px;
-    padding: 20px 10px 30px 10px;
-    border: 3px solid #3274d9;
-    border-radius: 20px;
-    /* width: 700px; */
-    height: calc(100vh - 310px);
-
-    form > div:nth-child(2) {
-        margin-right: 10px;
-    }
-`;
-
-const ControlsContainer = styled.div`
-    height: calc(100vh - 440px);
-    width: 100%;
-    padding: 0px 5px;
-    overflow-y: auto;
-    /* width */
-    &::-webkit-scrollbar {
-        width: 10px;
-    }
-
-    /* Track */
-    &::-webkit-scrollbar-track {
-        background: #202226;
-        border-radius: 5px;
-    }
-    
-    /* Handle */
-    &::-webkit-scrollbar-thumb {
-        background: #2c3235; 
-        border-radius: 5px;
-    }
-
-    /* Handle on hover */
-    &::-webkit-scrollbar-thumb:hover {
-        background-color: #343840;
-    }
-
-    div:first-child {
-        margin-top: 0;
-    }
-`;
+import { FormCard as FormContainer, ControlsContainer } from "../../Tools/FormTools";
 
 const domainName = getDomainName();
 const protocol = getProtocol();
@@ -108,8 +57,7 @@ const initialOrgUsersValues = {
 }
 
 const CreateOrgUser: FC<CreateOrgUserProps> = ({ refreshOrgUsers, backToTable, orgUsersInputData, setOrgUsersInputData }) => {
-    const plaformAssistantDispatch = usePlatformAssitantDispatch();
-    const orgsManagedTable = useOrgsManagedTable();
+    const orgsManagedTable = useTable("orgsManaged");
     const orgManagedRowIndex = useOrgManagedRowIndex();
     const orgAcronym = orgsManagedTable[orgManagedRowIndex].acronym;
     const orgManagedId = useOrgManagedIdToCreateOrgUsers();
@@ -173,14 +121,10 @@ const CreateOrgUser: FC<CreateOrgUserProps> = ({ refreshOrgUsers, backToTable, o
             })
             .finally(() => {
                 refreshOrgUsers();
-                const reloadSelectOrgUsersTable = true;
-                setReloadSelectOrgUsersTable(plaformAssistantDispatch, { reloadSelectOrgUsersTable });
-                const reloadGroupMembersTable = true;
-                setReloadGroupMembersTable(plaformAssistantDispatch, { reloadGroupMembersTable });
-                const reloadOrgsMembershipTable = true;
-                setReloadOrgsMembershipTable(plaformAssistantDispatch, { reloadOrgsMembershipTable });
-                const reloadGroupsMembershipTable = true;
-                setReloadGroupsMembershipTable(plaformAssistantDispatch, { reloadGroupsMembershipTable });
+                reloadTable("selectOrgUsers");
+                reloadTable("groupMembers");
+                reloadTable("orgsMembership");
+                reloadTable("groupsMembership");
             })
     }
 

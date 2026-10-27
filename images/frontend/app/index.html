@@ -12,10 +12,41 @@
     <link rel="manifest" href="/manifest.json" />
     <script src="/env-config.js"></script>
     <title>IOT Platform</title>
+    <style>
+      /* Fondo oscuro desde el primer instante: sin él, al recargar (Ctrl-F5) se ve una página en blanco
+         mientras se descarga la aplicación. */
+      html, body { background-color: #0b0c0e; margin: 0; }
+      #app-splash {
+        position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center;
+        justify-content: center; gap: 22px; color: #c3c9d1; letter-spacing: 0.04em;
+        font: 14px "Roboto", "Helvetica Neue", Arial, sans-serif;
+        background: radial-gradient(ellipse at center, #1b1d22 0%, #0b0c0e 70%);
+        animation: app-splash-in 0.4s ease-out 0.15s both;
+      }
+      #app-splash img { width: 72px; height: auto; opacity: 0.95; }
+      #app-splash .bar { width: 180px; height: 3px; border-radius: 2px; background: #202226; overflow: hidden; }
+      #app-splash .bar div {
+        width: 40%; height: 100%; border-radius: 2px; background: linear-gradient(90deg, #3274d9, #62f700);
+        animation: app-splash-slide 1.2s ease-in-out infinite;
+      }
+      @keyframes app-splash-slide { from { transform: translateX(-100%); } to { transform: translateX(250%); } }
+      @keyframes app-splash-in { from { opacity: 0; } to { opacity: 1; } }
+      @media (prefers-reduced-motion: reduce) {
+        #app-splash, #app-splash .bar div { animation: none; }
+        #app-splash .bar div { width: 100%; }
+      }
+    </style>
   </head>
   <body>
     <noscript>You need to enable JavaScript to run this app.</noscript>
-    <div id="root"></div>
+    <div id="root">
+      <!-- React reemplaza este contenido al arrancar -->
+      <div id="app-splash" role="status" aria-live="polite">
+        <img src="/plaftorm_logo.png" alt="" />
+        <div class="bar"><div></div></div>
+        <span>Loading platform…</span>
+      </div>
+    </div>
     <script type="module" src="/src/index.tsx"></script>
   </body>
 </html>

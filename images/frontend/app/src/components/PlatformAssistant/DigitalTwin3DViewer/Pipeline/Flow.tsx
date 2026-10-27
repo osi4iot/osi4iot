@@ -1,5 +1,6 @@
 // @ts-nocheck
 import styled from "styled-components";
+import { useMlModelsInGroup } from "../../../../state";
 import { nanoid } from "nanoid";
 import {
     Background,
@@ -36,9 +37,9 @@ import {
 } from "./Nodes";
 import NodePalette from "./NodePalette";
 import NodePropertiesPanel from "./NodePropertiesPanel";
+import { usePipelineLayout } from "./usePipelineLayout";
 import { createNodesAndEdges } from "../Utils/customHooks";
 import { toast } from "react-toastify";
-import { useMlModelsTableInGroup } from "../../../../contexts/platformAssistantContext/platformAssistantContext";
 import { usePipelineEditing } from "./usePipelineEditing";
 
 export const processInitialPipelineData = (digitalTwinSelected, natsClient, natsSubjectsData) => {
@@ -65,7 +66,10 @@ export const processInitialPipelineData = (digitalTwinSelected, natsClient, nats
 // Removed the panelOpen prop from the styled component
 const ReactFlowWrapper = styled.div`
     flex: 1;
+    min-width: 0;
     position: relative;
+    /* debajo de la barra del visor */
+    margin-top: var(--viewer-bar-offset, 0px);
     color: #222;
     background-color: #212121;
     /* Removed margin-left and transition - now canvas stays fixed */
@@ -128,12 +132,14 @@ export default function Flow({
     importPipelineRef,
 }) {
     const reactFlowWrapper = useRef(null);
+    const rootRef = useRef(null);
     const { screenToFlowPosition } = useReactFlow();
+    const { paletteCollapsed, togglePalette, paletteWidth, barOffset } = usePipelineLayout(rootRef);
 
     const [selectedNode, setSelectedNode] = useState(null);
     const [isPanelOpen, setIsPanelOpen] = useState(false);
     const [nodeCounters, setNodeCounters] = useState({});
-    const mlModelsTable = useMlModelsTableInGroup(digitalTwinSelected.groupId);
+    const mlModelsTable = useMlModelsInGroup(digitalTwinSelected.groupId);
 
     // Restricciones de la organización/grupo para nodos pegados o importados
     const validateNodes = useCallback(
@@ -413,6 +419,7 @@ export default function Flow({
 
             takeSnapshot();
             setNodes((nds) => nds.concat(newNode));
+            handlePipelineUiChanged(true);
         },
         // eslint-disable-next-line react-hooks/exhaustive-deps
         [screenToFlowPosition, natsClient, natsSubjectsData, nodeCounters, takeSnapshot],
@@ -447,8 +454,18 @@ export default function Flow({
     );
 
     return (
-        <div style={{ width: "100%", height: "100%", display: "flex" }}>
-            <NodePalette />
+        <div
+            ref={rootRef}
+            style={{
+                width: "100%",
+                height: "100%",
+                display: "flex",
+                position: "relative",
+                "--palette-width": `${paletteWidth}px`,
+                "--viewer-bar-offset": `${barOffset}px`,
+            }}
+        >
+            <NodePalette collapsed={paletteCollapsed} onToggle={togglePalette} />
 
             <NodePropertiesPanel
                 isOpen={isPanelOpen}

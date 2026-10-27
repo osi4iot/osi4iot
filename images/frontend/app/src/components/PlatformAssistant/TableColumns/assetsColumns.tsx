@@ -1,4 +1,5 @@
 import { FC, useState, useEffect } from 'react';
+import { reloadTable } from "../../../state";
 import { Column } from '../Utils/platformTable';
 import { toast } from 'react-toastify';
 import { axiosAuth, getDomainName, getProtocol } from '../../../tools/tools';
@@ -15,13 +16,6 @@ import {
     useAssetsDispatch
 } from '../../../contexts/assetsOptions';
 
-import {
-    setReloadDashboardsTable,
-    setReloadTopicsTable,
-    setReloadSensorsTable,
-    usePlatformAssitantDispatch,
-    setReloadDigitalTwinsTable
-} from '../../../contexts/platformAssistantContext';
 import { getAxiosInstance } from '../../../tools/axiosIntance';
 import axiosErrorHandler from '../../../tools/axiosErrorHandler';
 import { IAssetInputData } from '../../../contexts/assetsOptions/interfaces';
@@ -63,7 +57,6 @@ const domainName = getDomainName();
 const protocol = getProtocol();
 
 const DeleteAssetModal: FC<DeleteAssetModalProps> = ({ rowIndex, groupId, assetId, refreshAssets }) => {
-    const plaformAssistantDispatch = usePlatformAssitantDispatch();
     const [isAssetDeleted, setIsAssetDeleted] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const title = "DELETE ASSET";
@@ -79,16 +72,12 @@ const DeleteAssetModal: FC<DeleteAssetModalProps> = ({ rowIndex, groupId, assetI
     useEffect(() => {
         if (isAssetDeleted) {
             refreshAssets();
-            const reloadSensorsTable = true;
-            setReloadSensorsTable(plaformAssistantDispatch, { reloadSensorsTable });
-            const reloadTopicsTable = true;
-            setReloadTopicsTable(plaformAssistantDispatch, { reloadTopicsTable });
-            const reloadDashboardsTable = true;
-            setReloadDashboardsTable(plaformAssistantDispatch, { reloadDashboardsTable });
-            const reloadDigitalTwinsTable = true;
-            setReloadDigitalTwinsTable(plaformAssistantDispatch, { reloadDigitalTwinsTable })
+            reloadTable("sensors");
+            reloadTable("topics");
+            reloadTable("dashboards");
+            reloadTable("digitalTwins");
         }
-    }, [isAssetDeleted, plaformAssistantDispatch, refreshAssets]);
+    }, [isAssetDeleted, refreshAssets]);
 
     const action = (hideModal: () => void) => {
         const url = `${protocol}://${domainName}/admin_api/asset/${groupId}/id/${assetId}`;

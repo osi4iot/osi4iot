@@ -25,21 +25,13 @@ import axiosErrorHandler from '../../../tools/axiosErrorHandler';
 import formatDateString from '../../../tools/formatDate';
 import { isGeoJSONString } from '../../../tools/geojsonValidation';
 import { AxiosResponse, AxiosError } from 'axios';
-import { ControlsContainer, StaticFormContainer } from '../../Tools/FormTools';
-
-const BuildingLocationTitle = styled.div`
-    margin-bottom: 5px;
-`;
+import { ControlsContainer, StaticFormContainer, FormSection } from "../../Tools/FormTools";
 
 const BuildingLocationContainer = styled.div`
     border: 2px solid #2c3235;
     border-radius: 10px;
     padding: 10px;
     width: 100%;
-`;
-
-const DataFileTitle = styled.div`
-    margin-bottom: 5px;
 `;
 
 const DataFileContainer = styled.div`
@@ -327,7 +319,7 @@ const EditBuilding: FC<EditBuildingProps> = ({ buildings, backToTable, refreshBu
                                             name='country'
                                             type='text'
                                         />
-                                        <BuildingLocationTitle>Building location</BuildingLocationTitle>
+                                        <FormSection title="Building location">
                                         <BuildingLocationContainer>
                                             <FieldContainer>
                                                 <label>Longitude</label>
@@ -337,7 +329,7 @@ const EditBuilding: FC<EditBuildingProps> = ({ buildings, backToTable, refreshBu
                                                 <label>Latitude</label>
                                                 <div>{latitude}</div>
                                             </FieldContainer>
-                                            <DataFileTitle>Geojson file</DataFileTitle>
+                                            <FormSection title="Geojson file">
                                             <DataFileContainer>
                                                 <FieldContainer>
                                                     <label>File name</label>
@@ -362,7 +354,9 @@ const EditBuilding: FC<EditBuildingProps> = ({ buildings, backToTable, refreshBu
                                                     </FileButton>
                                                 </SelectDataFilenButtonContainer>
                                             </DataFileContainer>
+                                            </FormSection>
                                         </BuildingLocationContainer>
+                                        </FormSection>
                                     </ControlsContainer>
                                     <FormButtonsProps
                                         onCancel={onCancel}

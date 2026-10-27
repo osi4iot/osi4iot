@@ -1,11 +1,6 @@
 import { Column } from '../Utils/platformTable';
+import { reloadTable } from "../../../state";
 import { axiosAuth, getDomainName, getProtocol } from "../../../tools/tools";
-import {
-    setReloadAssetS3FoldersTable,
-    setReloadDashboardsTable,
-    setReloadTopicsTable,
-    usePlatformAssitantDispatch,
-} from "../../../contexts/platformAssistantContext";
 import { AxiosResponse, AxiosError } from "axios";
 import EditIcon from "../Utils/EditIcon";
 import DeleteIcon from "../Utils/DeleteIcon";
@@ -72,7 +67,6 @@ const DeleteAssetS3FolderModal: FC<DeleteAssetS3FolderModalProps> = ({
     isCurrent,
     refreshAssetS3Folders,
 }) => {
-    const plaformAssistantDispatch = usePlatformAssitantDispatch();
     const [isAssetS3FolderDeleted, setIsAssetS3FolderDeleted] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const title = "DELETE ASSET S3 FOLDER";
@@ -88,14 +82,11 @@ const DeleteAssetS3FolderModal: FC<DeleteAssetS3FolderModalProps> = ({
     useEffect(() => {
         if (isAssetS3FolderDeleted) {
             refreshAssetS3Folders();
-            const reloadAssetS3FoldersTable = true;
-            setReloadAssetS3FoldersTable(plaformAssistantDispatch, { reloadAssetS3FoldersTable });
-            const reloadTopicsTable = true;
-            setReloadTopicsTable(plaformAssistantDispatch, { reloadTopicsTable });
-            const reloadDashboardsTable = true;
-            setReloadDashboardsTable(plaformAssistantDispatch, { reloadDashboardsTable });
+            reloadTable("assetS3Folders");
+            reloadTable("topics");
+            reloadTable("dashboards");
         }
-    }, [isAssetS3FolderDeleted, plaformAssistantDispatch, refreshAssetS3Folders]);
+    }, [isAssetS3FolderDeleted, refreshAssetS3Folders]);
 
     const action = (hideModal: () => void) => {
         const url = `${protocol}://${domainName}/admin_api/asset_s3_folder/${groupId}/${assetId}/${folderName}`;

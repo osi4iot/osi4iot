@@ -1,31 +1,20 @@
 import { FC, SyntheticEvent, useState } from 'react';
+import { useTable } from "../../../state";
 import styled from "styled-components";
 import FormTitle from "../../Tools/FormTitle";
 import TableWithPaginationAndRowSelection from '../Utils/TableWithPaginationAndRowSelection';
-import { useGroupsManagedTable } from '../../../contexts/platformAssistantContext';
 import { IGroupManaged } from '../TableColumns/groupsManagedColumns';
 import { SELECT_GROUP_MANAGED_COLUMNS, ISelectGroupManaged } from '../TableColumns/selectGroupManagedColumns';
 import { IDigitalTwinState, ISensorState } from './GeolocationContainer';
 import { findOutStatus } from './statusTools';
 import { IAsset } from '../TableColumns/assetsColumns';
 import { Column } from '../Utils/platformTable';
+import { FormCard as FormContainer } from "../../Tools/FormTools";
 
-
-const FormContainer = styled.div`
-	font-size: 12px;
-    padding: 20px 10px 30px 10px;
-    border: 3px solid #3274d9;
-    border-radius: 20px;
-    /* width: 700px; */
-    height: calc(100vh - 310px);
-
-    form > div:nth-child(2) {
-        margin-right: 10px;
-    }
-`;
 
 const TableContainer = styled.div`
-    height: calc(100vh - 430px);
+    flex: 1 1 auto;
+    min-height: 0;
     width: 100%;
     padding: 0px 5px;
     overflow: auto;
@@ -57,12 +46,16 @@ const TableContainer = styled.div`
 `;
 
 const ButtonsContainer = styled.div`
-    margin-top: 30px;
+    flex-shrink: 0;
+    margin-top: 8px;
+    padding-top: 16px;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
     display: flex;
     flex-direction: row;
-    justify-content: space-around;
-	align-items: center;
-    background-color: #202226;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 12px;
 `;
 
 
@@ -76,7 +69,12 @@ const Button = styled.button`
 	cursor: pointer;
 	box-shadow: 0 5px #173b70;
     font-size: 16px;
-    width: 25%;
+    min-width: 130px;
+
+    @media (max-width: 600px) {
+        flex: 1;
+        min-width: 0;
+    }
 
 	&:hover {
 		background-color: #2461c0;
@@ -138,7 +136,7 @@ const SelectGroupManaged: FC<SelectGroupManagedProps> = (
         sensorsState
     }) => {
     const [selectedGroupManaged, setSelectedGroupManaged] = useState<ISelectGroupManaged | null>(null);
-    const groupsManagedTable = useGroupsManagedTable();
+    const groupsManagedTable = useTable("groupsManaged");
     const groupsManagedFiltered = groupsManagedTable.filter(group => group.orgId === orgId && group.floorNumber === floorNumber);
     const selectGroupsManaged = useState(groupsManagedFiltered.map(group =>
         addStateToGroupManaged(group, assets, digitalTwinsState, sensorsState)

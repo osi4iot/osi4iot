@@ -1,4 +1,5 @@
 import { FC, useState, SyntheticEvent, useEffect } from "react";
+import { reloadTable } from "../../../state";
 import styled from "styled-components";
 import { Formik, Form, FormikProps } from "formik";
 import * as Yup from "yup";
@@ -21,27 +22,11 @@ import SelectOrgUsersOfOrgManaged from "./SelectOrgUsersOfOrgManaged";
 import { IOrgManaged } from "../TableColumns/organizationsManagedColumns";
 import { IFloor } from "../TableColumns/floorsColumns";
 import { IGroupInputData } from "../../../contexts/groupsOptions/interfaces";
-import {
-    setReloadAssetsTable,
-    setReloadDashboardsTable,
-    setReloadDigitalTwinsTable,
-    setReloadGroupMembersTable,
-    setReloadGroupsManagedTable,
-    setReloadGroupsMembershipTable,
-    setReloadOrgsOfGroupsManagedTable,
-    setReloadSensorsTable,
-    setReloadTopicsTable,
-    usePlatformAssitantDispatch,
-} from "../../../contexts/platformAssistantContext";
 import { IBuilding } from "../TableColumns/buildingsColumns";
 import { getAxiosInstance } from "../../../tools/axiosIntance";
 import axiosErrorHandler from "../../../tools/axiosErrorHandler";
 import { AxiosError, AxiosResponse } from "axios";
-import { ControlsContainer, StaticFormContainer } from "../../Tools/FormTools";
-
-const GroupLocationTitle = styled.div`
-    margin-bottom: 5px;
-`;
+import { ControlsContainer, StaticFormContainer, FormSection } from "../../Tools/FormTools";
 
 const GroupLocationContainer = styled.div`
     border: 2px solid #2c3235;
@@ -178,10 +163,8 @@ const CreateGroup: FC<CreateGroupProps> = ({
     refreshGroups,
 }) => {
     const [selectedOrgId, setSelectedOrgId] = useState(initialGroupData.orgId as number);
-    const plaformAssistantDispatch = usePlatformAssitantDispatch();
     const [showCreateGroup, setShowCreateGroup] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [selectedUsersArray, setSelectedUsersArray] = useState<ISelectOrgUser[]>([]);
     const { accessToken, refreshToken } = useAuthState();
     const authDispatch = useAuthDispatch();
     const groupsDispatch = useGroupsDispatch();
@@ -190,34 +173,22 @@ const CreateGroup: FC<CreateGroupProps> = ({
     const [gpuUsageEnabledInOrg, setGpuUsageEnabledInOrg] = useState(false);
     const [ragEnabledInOrg, setRagEnabledInOrg] = useState(false);
 
-    useEffect(() => {
-        if (selectedUsersArray.length !== 0) {
-            const newGroupAdmins = selectedUsersArray.map((user) => {
-                const groupAdminData = {
-                    firstName: user.firstName,
-                    surname: user.surname,
-                    email: user.email,
-                };
-                return groupAdminData;
-            });
-            if (initialGroupData.groupAdminDataArray) {
-                const lastOrgAdmin =
-                    initialGroupData.groupAdminDataArray[initialGroupData.groupAdminDataArray.length - 1];
-                if (Object.values(lastOrgAdmin).filter((value) => value !== "").length === 0) {
-                    initialGroupData.groupAdminDataArray = [
-                        ...initialGroupData.groupAdminDataArray.slice(0, -1),
-                        ...newGroupAdmins,
-                    ];
-                } else {
-                    initialGroupData.groupAdminDataArray = [...initialGroupData.groupAdminDataArray, ...newGroupAdmins];
-                }
-                const newgroupInputData = { ...initialGroupData };
-                const groupInputFormData = { groupInputFormData: newgroupInputData };
-                setGroupInputData(groupsDispatch, groupInputFormData);
-            }
-        }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [selectedUsersArray]);
+    // Usuarios elegidos en "Select user": se añaden a los administradores del grupo en el momento, antes
+    // de volver al formulario. (Antes se hacía en un efecto después de montar el formulario, y Formik ya
+    // había tomado los valores iniciales anteriores: la selección no aparecía.)
+    const addSelectedGroupAdmins = (selectedUsers: ISelectOrgUser[]) => {
+        if (selectedUsers.length === 0) return;
+        const newGroupAdmins = selectedUsers.map((user) => ({
+            firstName: user.firstName,
+            surname: user.surname,
+            email: user.email,
+        }));
+        const currentAdmins = initialGroupData.groupAdminDataArray ?? [];
+        const lastAdmin = currentAdmins[currentAdmins.length - 1];
+        const lastIsEmpty = !lastAdmin || Object.values(lastAdmin).every((value) => value === "");
+        const groupAdminDataArray = [...(lastIsEmpty ? currentAdmins.slice(0, -1) : currentAdmins), ...newGroupAdmins];
+        setGroupInputData(groupsDispatch, { groupInputFormData: { ...initialGroupData, groupAdminDataArray } });
+    };
 
     useEffect(() => {
         const orgArray = orgsManagedTable.map((org) => org.acronym);
@@ -282,24 +253,15 @@ const CreateGroup: FC<CreateGroupProps> = ({
             })
             .finally(() => {
                 refreshGroups();
-                const reloadGroupsManagedTable = true;
-                setReloadGroupsManagedTable(plaformAssistantDispatch, { reloadGroupsManagedTable });
-                const reloadGroupsMembershipTable = true;
-                setReloadGroupsMembershipTable(plaformAssistantDispatch, { reloadGroupsMembershipTable });
-                const reloadOrgsOfGroupsManagedTable = true;
-                setReloadOrgsOfGroupsManagedTable(plaformAssistantDispatch, { reloadOrgsOfGroupsManagedTable });
-                const reloadGroupMembersTable = true;
-                setReloadGroupMembersTable(plaformAssistantDispatch, { reloadGroupMembersTable });
-                const reloadAssetsTable = true;
-                setReloadAssetsTable(plaformAssistantDispatch, { reloadAssetsTable });
-                const reloadSensorsTable = true;
-                setReloadSensorsTable(plaformAssistantDispatch, { reloadSensorsTable });
-                const reloadTopicsTable = true;
-                setReloadTopicsTable(plaformAssistantDispatch, { reloadTopicsTable });
-                const reloadDigitalTwinsTable = true;
-                setReloadDigitalTwinsTable(plaformAssistantDispatch, { reloadDigitalTwinsTable });
-                const reloadDashboardsTable = true;
-                setReloadDashboardsTable(plaformAssistantDispatch, { reloadDashboardsTable });
+                reloadTable("groupsManaged");
+                reloadTable("groupsMembership");
+                reloadTable("orgsOfGroupsManaged");
+                reloadTable("groupMembers");
+                reloadTable("assets");
+                reloadTable("sensors");
+                reloadTable("topics");
+                reloadTable("digitalTwins");
+                reloadTable("dashboards");
             });
     };
 
@@ -472,7 +434,7 @@ const CreateGroup: FC<CreateGroupProps> = ({
                                                 type="text"
                                             />
                                         )}
-                                        <GroupLocationTitle>Group location</GroupLocationTitle>
+                                        <FormSection title="Group location">
                                         <GroupLocationContainer>
                                             <FormikControl
                                                 control="input"
@@ -495,6 +457,7 @@ const CreateGroup: FC<CreateGroupProps> = ({
                                                 </SelectSpaceButton>
                                             </SelectGroupLocationButtonContainer>
                                         </GroupLocationContainer>
+                                        </FormSection>
                                         <FormikControl
                                             control="inputArray"
                                             label="Group admins"
@@ -502,7 +465,7 @@ const CreateGroup: FC<CreateGroupProps> = ({
                                             labelArray={["First name", "Surname", "Email"]}
                                             nameArray={["firstName", "surname", "email"]}
                                             typeArray={["text", "text", "email"]}
-                                            addLabel="group admim"
+                                            addLabel="group admin"
                                             selectLabel="user"
                                             goToSelect={() => goToSelect(formik.values)}
                                         />
@@ -521,7 +484,7 @@ const CreateGroup: FC<CreateGroupProps> = ({
                 <SelectOrgUsersOfOrgManaged
                     orgId={selectedOrgId}
                     backToCreate={() => setShowCreateGroup(true)}
-                    setSelectedUsersArray={(selectedUsers: ISelectOrgUser[]) => setSelectedUsersArray(selectedUsers)}
+                    setSelectedUsersArray={addSelectedGroupAdmins}
                 />
             )}
         </>

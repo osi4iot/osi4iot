@@ -1,55 +1,28 @@
-import React, { createContext, FC, useContext, useReducer } from 'react';
+import { FC } from 'react';
 import { ChildrenProp } from '../../interfaces/interfaces'
 import { OrgsContextProps } from './interfaces'
 import { initialState, OrgsReducer } from './orgsReducer';
+import { createSectionStore, SectionStoreProvider } from '../../state/createSectionStore';
 
+// Estado de la sección en un almacén Zustand global (antes Context + useReducer): se conserva al cambiar de capa
+const useOrgsStore = createSectionStore(OrgsReducer, initialState);
 
-const OrgsStateContext = createContext<OrgsContextProps>(initialState);
-const OrgsDispatchContext = createContext<any>({});
-
-
-export const OrgsProvider: FC<ChildrenProp> = ({ children }) => {
-	const [data, orgsDispatch] = useReducer(OrgsReducer, initialState);
-
-	return (
-		<OrgsStateContext.Provider value={data}>
-			<OrgsDispatchContext.Provider value={orgsDispatch}>
-				{children}
-			</OrgsDispatchContext.Provider>
-		</OrgsStateContext.Provider>
-	);
-};
+export const OrgsProvider: FC<ChildrenProp> = ({ children }) => (
+	<SectionStoreProvider store={useOrgsStore}>{children}</SectionStoreProvider>
+);
 
 export function useOrgsDispatch() {
-	const context = React.useContext(OrgsDispatchContext);
-	if (context === undefined) {
-		throw new Error('useOrgsDispatch must be used within a OrgsProvider');
-	}
-
-	return context;
+	return useOrgsStore.dispatch;
 }
 
 export const useOrgsOptionToShow = (): string => {
-	const context = useContext(OrgsStateContext);
-	if (context === undefined) {
-		throw new Error('useOrgsOptionToShow must be used within a OrgsProvider');
-	}
-	return context.orgsOptionToShow;
+	return useOrgsStore((state) => state.orgsOptionToShow);
 }
 
 export const useOrgIdToEdit = (): number => {
-	const context = useContext(OrgsStateContext);
-	if (context === undefined) {
-		throw new Error('useOrgIdToEdit must be used within a OrgsProvider');
-	}
-	return context.orgIdToEdit;
+	return useOrgsStore((state) => state.orgIdToEdit);
 }
 
 export const useOrgRowIndexToEdit = (): number => {
-	const context = useContext(OrgsStateContext);
-	if (context === undefined) {
-		throw new Error('useOrgRowIndexToEdit must be used within a OrgsProvider');
-	}
-	return context.orgRowIndexToEdit;
+	return useOrgsStore((state) => state.orgRowIndexToEdit);
 }
-

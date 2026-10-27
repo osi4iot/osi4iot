@@ -1,7 +1,8 @@
 // @ts-nocheck
 import {
     SquareFunction,
-    WifiHigh,
+    SatelliteDish,
+    RadioTower,
     ArrowBigRight,
     Mail,
     ClockFading,
@@ -12,6 +13,8 @@ import {
     Database,
     MessageSquareText,
     Mic,
+    PanelLeftClose,
+    PanelLeftOpen,
 } from "lucide-react";
 import { FaTelegramPlane } from "react-icons/fa";
 import { PiFileAudioFill } from "react-icons/pi";
@@ -22,8 +25,10 @@ import { MdGTranslate } from "react-icons/md";
 import styled from "styled-components";
 import { useState, useRef } from "react";
 
-const PaletteContainer = styled.div`
-    width: 190px;
+const PaletteContainer = styled.div<{ $collapsed: boolean }>`
+    width: ${({ $collapsed }) => ($collapsed ? "56px" : "190px")};
+    flex-shrink: 0;
+    transition: width 0.18s ease;
     background-color: #2a2a2a;
     border-right: 1px solid #444;
     border-bottom: 1px solid #444;
@@ -33,20 +38,58 @@ const PaletteContainer = styled.div`
     flex-direction: column;
 `;
 
+const PaletteHeader = styled.div<{ $collapsed: boolean }>`
+    display: flex;
+    align-items: center;
+    justify-content: ${({ $collapsed }) => ($collapsed ? "center" : "space-between")};
+    gap: 4px;
+    min-height: 44px;
+    padding: 0 6px 0 ${({ $collapsed }) => ($collapsed ? "6px" : "14px")};
+    border-bottom: 1px solid #444;
+`;
+
 const PaletteTitle = styled.h3`
     color: #e7e3df;
     font-size: 14px;
     margin: 0;
-    padding: 12px 0;
     font-family: Helvetica, Arial, sans-serif;
-    text-align: center;
-    border-bottom: 1px solid #444;
     font-weight: 700;
+    white-space: nowrap;
     user-select: none;
+`;
+
+const CollapseButton = styled.button`
+    width: 32px;
+    height: 32px;
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: #c3c9d1;
+    cursor: pointer;
+
+    &:hover {
+        background-color: rgba(255, 255, 255, 0.08);
+        color: #ffffff;
+    }
+
+    &:focus-visible {
+        outline: 2px solid #3d82f0;
+    }
+
+    svg {
+        width: 18px;
+        height: 18px;
+    }
 `;
 
 const NodesContainer = styled.div`
     overflow-y: auto;
+    overflow-x: hidden;
     flex: 1;
     margin: 10px 0;
     padding: 5px 10px;
@@ -67,11 +110,12 @@ const NodesContainer = styled.div`
     }
 `;
 
-const NodeItem = styled.div`
+const NodeItem = styled.div<{ $collapsed?: boolean }>`
     display: flex;
     align-items: center;
+    justify-content: ${({ $collapsed }) => ($collapsed ? "center" : "flex-start")};
     gap: 10px;
-    padding: 4px 10px;
+    padding: ${({ $collapsed }) => ($collapsed ? "4px 0" : "4px 10px")};
     margin-bottom: 10px;
     background-color: ${(props) => props.bgColor || "#c4a07d"};
     border: 1px solid #a09c98;
@@ -294,7 +338,7 @@ const nodeTypes = [
         label: "Nats listen",
         bgColor: "#aa97aa",
         hoverColor: "#b5a5b5",
-        icon: <WifiHigh size={30} color="#e7e3df" style={{ transform: "rotate(90deg)" }} />,
+        icon: <SatelliteDish size={28} color="#e7e3df" />,
         numOutputs: 1,
         debug: "off",
         settings: {
@@ -307,7 +351,7 @@ const nodeTypes = [
         label: "Nats publish",
         bgColor: "#aa97aa",
         hoverColor: "#b5a5b5",
-        icon: <WifiHigh size={30} color="#e7e3df" style={{ transform: "rotate(90deg)" }} />,
+        icon: <RadioTower size={28} color="#e7e3df" />,
         numOutputs: 0,
         debug: "off",
         settings: {
@@ -576,12 +620,17 @@ const nodeTypes = [
     },
 ];
 
-export default function NodePalette() {
+interface NodePaletteProps {
+    collapsed?: boolean;
+    onToggle?: () => void;
+}
+
+export default function NodePalette({ collapsed = false, onToggle }: NodePaletteProps) {
     const [tooltip, setTooltip] = useState({ visible: false, text: "", top: 0, left: 0 });
     // Keep a hide timer ref to avoid flicker when moving between items
     const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-    const showTooltip = (e: React.MouseEvent<HTMLDivElement>, nodeType: string) => {
+    const showTooltip = (e: React.MouseEvent<HTMLDivElement>, nodeType: string, label = "") => {
         if (hideTimer.current) {
             clearTimeout(hideTimer.current);
             hideTimer.current = null;
@@ -589,7 +638,7 @@ export default function NodePalette() {
         const rect = e.currentTarget.getBoundingClientRect();
         setTooltip({
             visible: true,
-            text: NODE_DESCRIPTIONS[nodeType] ?? "",
+            text: collapsed ? `${label}: ${NODE_DESCRIPTIONS[nodeType] ?? ""}` : (NODE_DESCRIPTIONS[nodeType] ?? ""),
             // Vertically centred on the hovered item
             top: rect.top + rect.height / 2 - 20,
             // 12px gap to the right of the palette item
@@ -615,16 +664,30 @@ export default function NodePalette() {
 
     return (
         <>
-            <PaletteContainer>
-                <PaletteTitle>Node Palette</PaletteTitle>
+            <PaletteContainer $collapsed={collapsed}>
+                <PaletteHeader $collapsed={collapsed}>
+                    {!collapsed && <PaletteTitle>Node Palette</PaletteTitle>}
+                    {onToggle && (
+                        <CollapseButton
+                            type="button"
+                            onClick={onToggle}
+                            aria-label={collapsed ? "Expand node palette" : "Collapse node palette"}
+                            title={collapsed ? "Expand node palette" : "Collapse node palette"}
+                        >
+                            {collapsed ? <PanelLeftOpen /> : <PanelLeftClose />}
+                        </CollapseButton>
+                    )}
+                </PaletteHeader>
 
                 <NodesContainer>
                     {nodeTypes.map((node) => (
                         <NodeItem
                             key={node.type}
                             bgColor={node.bgColor}
+                            $collapsed={collapsed}
+                            aria-label={node.label}
                             draggable
-                            onMouseEnter={(e) => showTooltip(e, node.type)}
+                            onMouseEnter={(e) => showTooltip(e, node.type, node.label)}
                             onMouseLeave={hideTooltip}
                             onDragStart={(event) =>
                                 onDragStart(
@@ -638,7 +701,9 @@ export default function NodePalette() {
                                 )
                             }
                         >
-                            {node.type === "Publish" ||
+                            {collapsed ? (
+                                <IconContainer>{node.icon}</IconContainer>
+                            ) : node.type === "Publish" ||
                             node.type === "Email" ||
                             node.type === "TelegramSend" ||
                             node.type === "IoTDb" ||

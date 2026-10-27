@@ -1,4 +1,5 @@
 import { FC, useState, SyntheticEvent, useEffect } from "react";
+import { reloadTable, useTable } from "../../../state";
 import styled from "styled-components";
 import { Formik, Form, FormikProps } from "formik";
 import * as Yup from "yup";
@@ -14,16 +15,6 @@ import axiosErrorHandler from "../../../tools/axiosErrorHandler";
 import { IOrgOfGroupsManaged } from "../TableColumns/orgsOfGroupsManagedColumns";
 import { IGroupManaged } from "../TableColumns/groupsManagedColumns";
 import SvgComponent from "../../Tools/SvgComponent";
-import {
-    setReloadDashboardsTable,
-    useAssetTopicsTable,
-    useAssetsTable,
-    useGroupsManagedTable,
-    useOrgsOfGroupsManagedTable,
-    usePlatformAssitantDispatch,
-    useSensorTypesTable,
-    useSensorsTable,
-} from "../../../contexts/platformAssistantContext";
 import { IAsset } from "../TableColumns/assetsColumns";
 import { ISensorType } from "../TableColumns/sensorTypesColumns";
 import { setSensorsOptionToShow, useSensorsDispatch } from "../../../contexts/sensorsOptions";
@@ -224,17 +215,16 @@ interface CreateSensorProps {
 }
 
 const CreateSensor: FC<CreateSensorProps> = ({ backToTable, refreshSensors }) => {
-    const plaformAssistantDispatch = usePlatformAssitantDispatch();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const { accessToken, refreshToken } = useAuthState();
     const authDispatch = useAuthDispatch();
     const sensorsDispatch = useSensorsDispatch();
-    const orgsOfGroupManaged = useOrgsOfGroupsManagedTable();
-    const groupsManaged = useGroupsManagedTable();
-    const sensorTypes = useSensorTypesTable();
-    const assets = useAssetsTable();
-    const storedSensors = useSensorsTable();
-    const assetTopics = useAssetTopicsTable();
+    const orgsOfGroupManaged = useTable("orgsOfGroupsManaged");
+    const groupsManaged = useTable("groupsManaged");
+    const sensorTypes = useTable("sensorTypes");
+    const assets = useTable("assets");
+    const storedSensors = useTable("sensors");
+    const assetTopics = useTable("assetTopics");
     const [orgOptions, setOrgOptions] = useState<IOption[]>([]);
     const [groupArray, setGroupArray] = useState<Record<string, string[]>>({});
     const [groupOptions, setGroupOptions] = useState<IOption[]>([]);
@@ -414,8 +404,7 @@ const CreateSensor: FC<CreateSensorProps> = ({ backToTable, refreshSensors }) =>
             })
             .finally(() => {
                 refreshSensors();
-                const reloadDashboardsTable = true;
-                setReloadDashboardsTable(plaformAssistantDispatch, { reloadDashboardsTable });
+                reloadTable("dashboards");
             });
     };
 

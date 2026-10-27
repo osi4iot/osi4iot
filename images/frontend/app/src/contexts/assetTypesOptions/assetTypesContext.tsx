@@ -1,53 +1,28 @@
-import React, { createContext, FC, useContext, useReducer } from 'react';
+import { FC } from 'react';
 import { ChildrenProp } from '../../interfaces/interfaces'
 import { AssetTypesContextProps } from './interfaces'
 import { initialState, AssetTypesReducer } from './assetTypesReducer';
+import { createSectionStore, SectionStoreProvider } from '../../state/createSectionStore';
 
-const AssetTypesStateContext = createContext<AssetTypesContextProps>(initialState);
-const AssetTypesDispatchContext = createContext<any>({});
+// Estado de la sección en un almacén Zustand global (antes Context + useReducer): se conserva al cambiar de capa
+const useAssetTypesStore = createSectionStore(AssetTypesReducer, initialState);
 
 export function useAssetTypesDispatch() {
-	const context = React.useContext(AssetTypesDispatchContext);
-	if (context === undefined) {
-		throw new Error('useAssetTypesDispatch must be used within a AssetTypesProvider');
-	}
-
-	return context;
+	return useAssetTypesStore.dispatch;
 }
 
-export const AssetTypesProvider: FC<ChildrenProp> = ({ children }) => {
-	const [user, assetTypesDispatch] = useReducer(AssetTypesReducer, initialState);
-
-	return (
-		<AssetTypesStateContext.Provider value={user}>
-			<AssetTypesDispatchContext.Provider value={assetTypesDispatch}>
-				{children}
-			</AssetTypesDispatchContext.Provider>
-		</AssetTypesStateContext.Provider>
-	);
-};
-
+export const AssetTypesProvider: FC<ChildrenProp> = ({ children }) => (
+	<SectionStoreProvider store={useAssetTypesStore}>{children}</SectionStoreProvider>
+);
 
 export const useAssetTypesOptionToShow = (): string => {
-	const context = useContext(AssetTypesStateContext);
-	if (context === undefined) {
-		throw new Error('useAssetTypesOptionToShow must be used within a AssetTypesProvider');
-	}
-	return context.assetTypesOptionToShow;
+	return useAssetTypesStore((state) => state.assetTypesOptionToShow);
 }
 
 export const useAssetTypeIdToEdit = (): number => {
-	const context = useContext(AssetTypesStateContext);
-	if (context === undefined) {
-		throw new Error('useAssetTypeIdToEdit must be used within a AssetTypesProvider');
-	}
-	return context.assetTypeIdToEdit;
+	return useAssetTypesStore((state) => state.assetTypeIdToEdit);
 }
 
 export const useAssetTypeRowIndexToEdit = (): number => {
-	const context = useContext(AssetTypesStateContext);
-	if (context === undefined) {
-		throw new Error('useAssetTypeRowIndexToEdit must be used within a AssetTypesProvider');
-	}
-	return context.assetTypeRowIndexToEdit;
+	return useAssetTypesStore((state) => state.assetTypeRowIndexToEdit);
 }

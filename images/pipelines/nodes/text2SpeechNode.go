@@ -11,6 +11,7 @@ import (
 	"pipelines/logger"
 	"pipelines/message"
 	"pipelines/utils"
+	"strings"
 	"time"
 
 	"github.com/bytectlgo/edge-tts/pkg/edge_tts"
@@ -305,7 +306,20 @@ func (n *Text2SpeechNode) processMessage(msg common.Message, log *logger.Logger)
 	case ttsModeOpenAI:
 		audioData, err = n.synthesizeOpenAI(n.Ctx, text)
 	case ttsModeEdgeTTS:
-		audioData, err = n.synthesizeEdgeTTS(n.Ctx, text)
+		voice := n.Voice
+		// a message can ask for another language: payload["voiceLanguage"] ("es", "en"...)
+		if language, ok := msg.GetStringFromPayload("voiceLanguage"); ok && language != "" {
+			// "es-ES" -> "es"
+			if i := strings.IndexAny(language, "-_"); i > 0 {
+				language = language[:i]
+			}
+			settings := map[string]any{"voiceLanguage": strings.ToLower(language)}
+			if gender, ok := n.Settings["voiceGender"].(string); ok {
+				settings["voiceGender"] = gender
+			}
+			voice = resolveEdgeTTSVoice(settings)
+		}
+		audioData, err = n.synthesizeEdgeTTSWithVoice(n.Ctx, text, voice)
 	}
 
 	if err != nil {
@@ -317,6 +331,9 @@ func (n *Text2SpeechNode) processMessage(msg common.Message, log *logger.Logger)
 	filename := "speech." + n.Format
 
 	outMsg := message.NewMessageFromPayload(msg.GetPayload())
+	// for a NATS request, a Publish node with "Reply" sends the audio back to the sender
+	outMsg.Topic = msg.GetTopic()
+	outMsg.SetReplyContext(msg.GetReplyContext())
 	if err := outMsg.AttachAudio(audioData, filename, contentType); err != nil {
 		log.Errorf("Text2SpeechNode %s: failed to attach audio to message: %v", n.NodeUid, err)
 		return fmt.Errorf("failed to attach audio: %w", err)
@@ -369,12 +386,17 @@ func (n *Text2SpeechNode) synthesizeOpenAI(ctx context.Context, text string) ([]
 // synthesizeEdgeTTS uses the edge-tts Go library to stream audio from
 // Microsoft Edge's speech service and reassemble it into a single []byte.
 func (n *Text2SpeechNode) synthesizeEdgeTTS(ctx context.Context, text string) ([]byte, error) {
+	return n.synthesizeEdgeTTSWithVoice(ctx, text, n.Voice)
+}
+
+// synthesizeEdgeTTSWithVoice is synthesizeEdgeTTS with a given voice (ShortName).
+func (n *Text2SpeechNode) synthesizeEdgeTTSWithVoice(ctx context.Context, text, voice string) ([]byte, error) {
 	ctx, cancel := context.WithTimeout(ctx, edgeTTSTimeout)
 	defer cancel()
 
 	comm := edge_tts.NewCommunicate(
 		text,
-		n.Voice,
+		voice,
 		edge_tts.WithRate("+0%"),
 		edge_tts.WithVolume("+0%"),
 		edge_tts.WithPitch("+0Hz"),

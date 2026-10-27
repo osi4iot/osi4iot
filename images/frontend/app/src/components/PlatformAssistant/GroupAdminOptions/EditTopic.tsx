@@ -1,4 +1,5 @@
 import { FC, useState, SyntheticEvent } from "react";
+import { useTable } from "../../../state";
 import { Formik, Form, FormikProps } from "formik";
 import * as Yup from "yup";
 import { useAuthState, useAuthDispatch } from "../../../contexts/authContext";
@@ -17,7 +18,6 @@ import {
 import { ITopic } from "../TableColumns/topicsColumns";
 import { getAxiosInstance } from "../../../tools/axiosIntance";
 import axiosErrorHandler from "../../../tools/axiosErrorHandler";
-import { useGroupsManagedTable, useOrgsOfGroupsManagedTable } from "../../../contexts/platformAssistantContext";
 import { FieldContainer } from "./EditAsset";
 import { AxiosResponse, AxiosError } from "axios";
 
@@ -143,10 +143,10 @@ const EditTopic: FC<EdiTopicProps> = ({ topics, backToTable, refreshTopics }) =>
     const topicId = useTopicIdToEdit();
     const groupId = topics[topicRowIndex].groupId;
     const orgId = topics[topicRowIndex].orgId;
-    const groupsManaged = useGroupsManagedTable();
+    const groupsManaged = useTable("groupsManaged");
     const group = groupsManaged.filter((groupManaged) => groupManaged.id === groupId)[0];
     const groupAcronym = group.acronym;
-    const orgsOfGroupsManaged = useOrgsOfGroupsManagedTable();
+    const orgsOfGroupsManaged = useTable("orgsOfGroupsManaged");
     const organization = orgsOfGroupsManaged.filter((org) => org.id === orgId)[0];
     const orgAcronym = organization.acronym;
     const [requireS3Storage, setRequireS3Storage] = useState(topics[topicRowIndex].requireS3Storage);

@@ -14,6 +14,7 @@ import {
     useLegacyColumns,
     useResetPageOnSortOrFilter,
 } from "./platformTable";
+import { tableBodyCss, tableContainerCss, tableToolbarCss, paginationCss, globalSearchCss, cellLabel } from "./responsiveTable";
 
 interface TableStylesProps {
     columnsWidth: string[];
@@ -141,6 +142,8 @@ const TableStyles = styled.div<TableStylesProps>`
             word-wrap: break-word;
         }
     }
+
+    ${tableBodyCss}
 `;
 
 const TableContainer = styled.div`
@@ -153,6 +156,8 @@ const TableContainer = styled.div`
     background-color: #202226;
     margin-left: auto;
     margin-right: auto;
+
+    ${tableContainerCss}
 `;
 
 const TableOptionsContainer = styled.div`
@@ -164,6 +169,8 @@ const TableOptionsContainer = styled.div`
     width: 100%;
     margin-bottom: 10px;
     padding-right: 20px;
+
+    ${tableToolbarCss}
 `;
 
 const Pagination = styled.div`
@@ -204,6 +211,8 @@ const Pagination = styled.div`
             cursor: pointer;
         }
     }
+
+    ${paginationCss}
 `;
 
 const StyledFaRedo = styled(FaRedo as any)`
@@ -333,7 +342,7 @@ const SearchIcon = styled(FaSearch as any)`
 const GlobalSearchIcon = styled(FaSearch as any)`
     position: absolute;
     top: 8px;
-    left: 38px;
+    left: 8px;
     font-size: 12px;
     color: #3274d9;
     background-color: #0c0d0f;
@@ -360,6 +369,8 @@ const SearchGlobal = styled.div`
                 rgb(31 96 196) 0px 0px 0px 4px;
         }
     }
+
+    ${globalSearchCss}
 `;
 
 interface GlobalFilterProps {
@@ -627,7 +638,7 @@ const TableWithPagination: FC<TableProps<any>> = ({
                         {table.getRowModel().rows.map((row) => (
                             <tr key={row.id} role="row">
                                 {row.getVisibleCells().map((cell) => (
-                                    <td key={cell.id} role="cell">
+                                    <td key={cell.id} role="cell" data-label={cellLabel(cell)}>
                                         <table.FlexRender cell={cell} />
                                     </td>
                                 ))}

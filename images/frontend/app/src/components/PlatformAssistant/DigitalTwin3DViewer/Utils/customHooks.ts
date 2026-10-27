@@ -1,5 +1,6 @@
 // hooks.ts
 import { useState, useEffect, useCallback, useRef } from "react";
+import { reloadTable } from "../../../../state";
 import YAML from "yaml";
 import * as THREE from "three";
 import { nanoid } from "nanoid";
@@ -19,12 +20,6 @@ import {
 import { DEFAULT_VIEWER_OPTIONS, BUTTON_LABELS, PROTOCOL, DOMAIN_NAME, NATS_SEED_SERVERS, LEGACY_COLOR_MANAGEMENT } from "../Utils/constants";
 import { useAuthDispatch, useAuthState, useLoggedUserLogin } from "../../../../contexts/authContext/authContext";
 import { PipelineLog } from "../Pipeline/PipelineLogs";
-import {
-    setReloadDigitalTwinsTable,
-    setWindowObjectReferences,
-    usePlatformAssitantDispatch,
-    useWindowObjectReferences,
-} from "../../../../contexts/platformAssistantContext";
 import { axiosAuth, openWindowTab } from "../../../../tools/tools";
 import { existFemResFileLocallyStored, readFemResFile, writeFemResFile } from "../../../../tools/fileSystem";
 import { readFemSimulationInfo } from "../ViewerTools/ViewerUtils";
@@ -38,7 +33,7 @@ import { IMqttTopicData, INatsSubjectData } from "../Main/Model";
 import { base64ToJpg } from "../../../../tools/base64ToJpg";
 import { wsconnect, type NatsConnection } from "@nats-io/nats-core";
 
-export const useViewerState = (initialActiveViewer?: "3D" | "pipeline" | "image_frame") => {
+export const useViewerState = (initialActiveViewer?: "3D" | "pipeline" | "image_frame", initialPipelineUiChanged = false) => {
     const [state, setState] = useState<ViewerState>({
         isControlPanelOpen: false,
         isChatAssistantOpen: false,
@@ -77,14 +72,14 @@ export const useViewerState = (initialActiveViewer?: "3D" | "pipeline" | "image_
         lockReadingButtomLabel: BUTTON_LABELS.LOCK_READ_MEASUREMENTS,
         getLastMeasurementsButtomLabel: BUTTON_LABELS.GET_LAST_MEASUREMENTS,
         legendRenderer: null,
-        isPipelineUiChanged: false,
+        isPipelineUiChanged: initialPipelineUiChanged,
     });
 
     return [state, setState] as const;
 };
 
-export const useViewerOptions = (femResultDates: string[]) => {
-    const [opts, setOptsState] = useState<ViewerOptions>({
+export const useViewerOptions = (femResultDates: string[], initialOptions?: ViewerOptions) => {
+    const [opts, setOptsState] = useState<ViewerOptions>(() => initialOptions ?? {
         ...DEFAULT_VIEWER_OPTIONS,
         femResultDate: femResultDates[0] || "-",
         sensorsVisibilityState: {} as any,
@@ -574,8 +569,11 @@ export const usePipelineState = (
     };
 };
 
-export const usePipelineLogs = (setChatMessages: React.Dispatch<React.SetStateAction<ChatMessage[]>>) => {
-    const [logMessages, setLogMessages] = useState<PipelineLog[]>([]);
+export const usePipelineLogs = (
+    setChatMessages: React.Dispatch<React.SetStateAction<ChatMessage[]>>,
+    initialLogMessages: PipelineLog[] = [],
+) => {
+    const [logMessages, setLogMessages] = useState<PipelineLog[]>(initialLogMessages);
 
     const handleUpdateLogMessages = useCallback(
         (newLogMessage: PipelineLog) => {
@@ -612,19 +610,7 @@ export const usePipelineLogs = (setChatMessages: React.Dispatch<React.SetStateAc
     };
 };
 
-export const useOpenWindowTab = () => {
-    const plaformAssistantDispatch = usePlatformAssitantDispatch();
-    const windowObjectReferences = useWindowObjectReferences();
-
-    const openDashboardTab = useCallback(
-        (url: string) => {
-            openWindowTab(url, plaformAssistantDispatch, windowObjectReferences, setWindowObjectReferences);
-        },
-        [plaformAssistantDispatch, windowObjectReferences]
-    );
-
-    return openDashboardTab;
-};
+export const useOpenWindowTab = () => useCallback((url: string) => openWindowTab(url), []);
 
 export const useLegendRenderer = () => {
     const [legendRenderer, setLegendRenderer] = useState<THREE.WebGLRenderer | null>(null);
@@ -665,7 +651,6 @@ export const useFemResults = (
 ) => {
     const { accessToken, refreshToken } = useAuthState();
     const authDispatch = useAuthDispatch();
-    const plaformAssistantDispatch = usePlatformAssitantDispatch();
 
     const [femResultDates, setFemResultDates] = useState<string[]>([]);
     const [femResultFileNames, setFemResultFileNames] = useState<string[]>([]);
@@ -751,8 +736,7 @@ export const useFemResults = (
                                     setFemSimulationGeneralInfo
                                 );
                                 writeFemResFile(digitalTwinUid, femResultFileName, femResData, femResultDate);
-                                const reloadDigitalTwinsTable = true;
-                                setReloadDigitalTwinsTable(plaformAssistantDispatch, { reloadDigitalTwinsTable });
+                                reloadTable("digitalTwins");
                             };
                             fetchFemResFileWorker.onerror = (event: ErrorEvent) => {
                                 const errorMessage = "FEM results file can not be downloaded";
@@ -790,7 +774,6 @@ export const useFemResults = (
         accessToken,
         refreshToken,
         authDispatch,
-        plaformAssistantDispatch,
     ]);
 
     return {

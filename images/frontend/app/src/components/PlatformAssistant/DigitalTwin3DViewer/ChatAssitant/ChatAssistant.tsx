@@ -7,6 +7,8 @@ import { useLoggedUserLogin } from "../../../../contexts/authContext/authContext
 import { normalizeForTTS } from "./ttsNormalizer";
 import { containsLatex, MathMessage } from "./MathMessage";
 import { asIcon } from "../../../../tools/icons";
+import { canRecordAudio, Recording, startRecording } from "../../../../tools/audioRecorder";
+import { hasSpeechSynthesisVoices, PipelineVoiceService, playAudioBlob } from "./voiceService";
 
 const FaMicrophoneIcon = asIcon(FaMicrophone);
 const FaMicrophoneSlashIcon = asIcon(FaMicrophoneSlash);
@@ -367,13 +369,19 @@ interface ChatAssistantProps {
     setChatMessages: (messages: ChatMessage[] | ((prev: ChatMessage[]) => ChatMessage[])) => void;
     chatAssistantLanguage: string;
     handleRemoveChatAssistantHistory: () => void;
+    // voz a texto y texto a voz con el pipeline del gemelo digital, cuando el navegador no los ofrece
+    voiceService?: PipelineVoiceService | null;
 }
+
+// errores del reconocimiento de voz del navegador por los que se pasa a usar el pipeline
+const NATIVE_STT_UNAVAILABLE_ERRORS = ["network", "service-not-allowed", "language-not-supported"];
 
 const ChatAssistant: React.FC<ChatAssistantProps> = ({
     chatMessages,
     setChatMessages,
     chatAssistantLanguage,
     handleRemoveChatAssistantHistory,
+    voiceService = null,
 }) => {
     const isMounted = useRef(true);
     const userName = useLoggedUserLogin();
@@ -397,6 +405,38 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({
     const containerRef = useRef<HTMLDivElement>(null);
     const [voice, setVoice] = useState<IChatVoice | null>(null);
     const textAreaRef = useRef<HTMLTextAreaElement | null>(null);
+
+    // Voz a texto: la del navegador si la tiene y funciona; si no, grabación + transcripción en el pipeline
+    const [nativeSttFailed, setNativeSttFailed] = useState(false);
+    const nativeStt = browserSupportsSpeechRecognition && !nativeSttFailed;
+    const pipelineStt = !nativeStt && !!voiceService && canRecordAudio();
+    const voiceInputAvailable = nativeStt || pipelineStt;
+    const recordingRef = useRef<Recording | null>(null);
+    const audioRef = useRef<HTMLAudioElement | null>(null);
+    const voiceEnabledRef = useRef(false);
+    useEffect(() => {
+        voiceEnabledRef.current = isVoiceEnabled;
+    }, [isVoiceEnabled]);
+
+    // La voz (idioma) se carga siempre, también cuando el chat ya tiene historial: antes solo se cargaba
+    // con el chat vacío y, con historial, el micrófono avisaba "voice not loaded" y no hacía nada.
+    useEffect(() => {
+        let alive = true;
+        getVoices(chatAssistantLanguage).then((loaded) => alive && setVoice(loaded));
+        return () => {
+            alive = false;
+        };
+    }, [chatAssistantLanguage]);
+
+    const addSystemMessage = useCallback(
+        (message: string) => {
+            setChatMessages((prev: ChatMessage[]) => [
+                ...prev,
+                { message, userName: "Assistant", sender: "system", time: new Date().toISOString(), mcpToolCalls: [] },
+            ]);
+        },
+        [setChatMessages],
+    );
 
     const normalizeTextForSpeech = useCallback(
         (text: string): string => {
@@ -441,9 +481,95 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({
         [containerWidth],
     );
 
+    // envía un texto como pregunta del usuario (escrito o dictado)
+    const sendText = useCallback(
+        (text: string) => {
+            const messageToSend = text.trim();
+            if (messageToSend === "") return;
+
+            setIsLoading(true);
+
+            const newMessage: ChatMessage = {
+                userName: userName,
+                message: messageToSend,
+                sender: "user",
+                time: new Date().toISOString(),
+                mcpToolCalls: [],
+            };
+
+            setChatMessages((prev: ChatMessage[]) => [...prev, newMessage]);
+            setInput("");
+            resetTranscript();
+            lastTranscriptRef.current = "";
+        },
+        [resetTranscript, userName, setChatMessages],
+    );
+
+    // Pregunta por voz con el pipeline: graba hasta un silencio, la transcribe y la envía como texto
+    const listenWithPipeline = useCallback(async () => {
+        if (!voiceService || !voice) return;
+        recordingRef.current?.cancel();
+        voiceEnabledRef.current = true;
+        setIsVoiceEnabled(true);
+        setSystemStatus("listening");
+
+        let recording: Recording;
+        try {
+            recording = await startRecording({ stopAfterSilenceMs: 1300, noSpeechTimeoutMs: 15000, maxDurationMs: 45000 });
+        } catch (error) {
+            console.error("Microphone not available:", error);
+            voiceEnabledRef.current = false;
+            setIsVoiceEnabled(false);
+            setSystemStatus("idle");
+            addSystemMessage("The microphone is not available: allow access to it in the browser to talk to the assistant.");
+            return;
+        }
+        recordingRef.current = recording;
+        const audio = await recording.finished;
+        if (recordingRef.current === recording) recordingRef.current = null;
+        if (!voiceEnabledRef.current) return;
+
+        if (!audio) {
+            // nadie habló: se apaga el micrófono
+            voiceEnabledRef.current = false;
+            setIsVoiceEnabled(false);
+            setSystemStatus("idle");
+            return;
+        }
+
+        setSystemStatus("processing");
+        setIsLoading(true);
+        try {
+            const text = await voiceService.transcribe(audio, voice.recognitionLang);
+            if (!voiceEnabledRef.current) {
+                setIsLoading(false);
+                return;
+            }
+            if (!text) {
+                setIsLoading(false);
+                void listenWithPipeline();
+                return;
+            }
+            setInput(text);
+            sendText(text);
+        } catch (error) {
+            console.error(error);
+            setIsLoading(false);
+            voiceEnabledRef.current = false;
+            setIsVoiceEnabled(false);
+            setSystemStatus("idle");
+            addSystemMessage(error instanceof Error ? error.message : String(error));
+        }
+    }, [voiceService, voice, sendText, addSystemMessage]);
+
     const startListening = useCallback(() => {
-        if (!browserSupportsSpeechRecognition || !voice) {
-            console.warn("Speech recognition not supported or voice not loaded");
+        if (!voice) {
+            console.warn("Speech recognition: the chat language is not loaded yet");
+            return;
+        }
+        if (!nativeStt) {
+            if (pipelineStt) void listenWithPipeline();
+            else addSystemMessage("Voice input is not available in this browser.");
             return;
         }
 
@@ -459,22 +585,79 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({
         } catch (error) {
             console.error("Error starting speech recognition:", error);
         }
-    }, [browserSupportsSpeechRecognition, voice, resetTranscript]);
+    }, [voice, nativeStt, pipelineStt, listenWithPipeline, addSystemMessage, resetTranscript]);
 
-    const { speak, cancel } = useSpeechSynthesis({
-        onEnd: useCallback(() => {
-            if (isMounted.current && isVoiceEnabled) {
-                setIsSpeaking(false);
-                setSystemStatus("idle");
+    // al terminar de hablar el asistente se vuelve a escuchar
+    const handleSpeechEnd = useCallback(() => {
+        if (isMounted.current && voiceEnabledRef.current) {
+            setIsSpeaking(false);
+            setSystemStatus("idle");
 
-                setTimeout(() => {
-                    if (isMounted.current && isVoiceEnabled && !isSpeaking) {
-                        startListening();
-                    }
-                }, 800);
+            setTimeout(() => {
+                if (isMounted.current && voiceEnabledRef.current) {
+                    startListening();
+                }
+            }, 800);
+        }
+    }, [startListening]);
+
+    const { speak, cancel } = useSpeechSynthesis({ onEnd: handleSpeechEnd });
+
+    // Texto a voz: speechSynthesis del navegador si tiene voces; si no, el audio lo genera el pipeline
+    const speakAnswer = useCallback(
+        (text: string, speechLang: string) => {
+            if (hasSpeechSynthesisVoices() || !voiceService) {
+                speak({ text, voice: speechLang });
+                return;
             }
-        }, [isVoiceEnabled, isSpeaking, startListening]),
-    });
+            voiceService
+                .synthesize(text, speechLang)
+                .then((audio) =>
+                    playAudioBlob(audio, (element) => {
+                        audioRef.current = element;
+                    }),
+                )
+                .catch((error) => console.error(error))
+                .finally(() => {
+                    audioRef.current = null;
+                    handleSpeechEnd();
+                });
+        },
+        [speak, voiceService, handleSpeechEnd],
+    );
+
+    // Si la voz a texto del navegador falla por no tener servicio (p. ej. Chrome sin acceso al de Google),
+    // se pasa a la del pipeline
+    useEffect(() => {
+        if (!browserSupportsSpeechRecognition) return;
+        const recognition = SpeechRecognition.getRecognition() as
+            | (EventTarget & { addEventListener: EventTarget["addEventListener"] })
+            | null;
+        if (!recognition?.addEventListener) return;
+        const onError = (event: Event) => {
+            const error = (event as Event & { error?: string }).error ?? "";
+            if (NATIVE_STT_UNAVAILABLE_ERRORS.includes(error)) {
+                console.warn(`Speech recognition of the browser not available (${error}): using the pipeline`);
+                setNativeSttFailed(true);
+            }
+        };
+        recognition.addEventListener("error", onError);
+        return () => recognition.removeEventListener("error", onError);
+    }, [browserSupportsSpeechRecognition]);
+
+    useEffect(() => {
+        if (nativeSttFailed && voiceEnabledRef.current) {
+            SpeechRecognition.stopListening();
+            if (voiceService && canRecordAudio()) void listenWithPipeline();
+            else {
+                voiceEnabledRef.current = false;
+                setIsVoiceEnabled(false);
+                setSystemStatus("idle");
+                addSystemMessage("Voice input is not available in this browser.");
+            }
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [nativeSttFailed]);
 
     useEffect(() => {
         return () => {
@@ -483,6 +666,8 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({
                 clearTimeout(processingTimeoutRef.current);
             }
             SpeechRecognition.stopListening();
+            recordingRef.current?.cancel();
+            audioRef.current?.pause();
             setTimeout(() => {
                 if ("speechSynthesis" in window) {
                     window.speechSynthesis.cancel();
@@ -553,25 +738,7 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({
         }, 1000);
     }, [transcript, isVoiceEnabled]);
 
-    const handleSend = useCallback(() => {
-        const messageToSend = input.trim();
-        if (messageToSend === "") return;
-
-        setIsLoading(true);
-
-        const newMessage: ChatMessage = {
-            userName: userName,
-            message: messageToSend,
-            sender: "user",
-            time: new Date().toISOString(),
-            mcpToolCalls: [],
-        };
-
-        setChatMessages((prev: ChatMessage[]) => [...prev, newMessage]);
-        setInput("");
-        resetTranscript();
-        lastTranscriptRef.current = "";
-    }, [input, resetTranscript, userName, setChatMessages]);
+    const handleSend = useCallback(() => sendText(input), [input, sendText]);
 
     useEffect(() => {
         handleSendRef.current = handleSend;
@@ -602,11 +769,8 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({
                 const normalizedText = normalizeTextForSpeech(lastMessage.message);
 
                 setTimeout(() => {
-                    if (isMounted.current && isVoiceEnabled) {
-                        speak({
-                            text: normalizedText,
-                            voice: voice.speechLang,
-                        });
+                    if (isMounted.current && voiceEnabledRef.current) {
+                        speakAnswer(normalizedText, voice.speechLang);
                     }
                 }, 200);
             } else {
@@ -668,6 +832,9 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({
     const stopListening = useCallback(() => {
         try {
             SpeechRecognition.stopListening();
+            voiceEnabledRef.current = false;
+            recordingRef.current?.cancel();
+            audioRef.current?.pause();
             setIsVoiceEnabled(false);
             setSystemStatus("idle");
             setIsSpeaking(false);
@@ -796,7 +963,14 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({
                         <MicButton
                             active={isVoiceEnabled}
                             onClick={toggleVoice}
-                            disabled={!browserSupportsSpeechRecognition}
+                            disabled={!voiceInputAvailable}
+                            title={
+                                voiceInputAvailable
+                                    ? nativeStt
+                                        ? "Talk to the assistant"
+                                        : "Talk to the assistant (speech recognized by the digital twin pipeline)"
+                                    : "Voice input is not available in this browser"
+                            }
                         >
                             {isVoiceEnabled ? <FaMicrophoneIcon /> : <FaMicrophoneSlashIcon />}
                         </MicButton>

@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useRef, useMemo } from "react";
+import { useMlModelsInGroup } from "../../../../state";
 import { X, Save, RotateCcw, Bug } from "lucide-react";
 import { indentUnit, indentOnInput } from "@codemirror/language";
 import { completionKeymap } from "@codemirror/autocomplete";
@@ -14,7 +15,6 @@ import { useFormChanges } from "../Utils/customHooks";
 import { IMqttTopicData, INatsSubjectData } from "../Main/Model";
 import { json } from "@codemirror/lang-json";
 import { IDigitalTwin } from "../../TableColumns/digitalTwinsColumns";
-import { useMlModelsTableInGroup } from "../../../../contexts/platformAssistantContext/platformAssistantContext";
 import LlmModelSelect from "./LlmModelSelect";
 import { TimeSelector } from "./Utils/TimeSelector";
 import { timezoneOptions } from "./Utils/timezones";
@@ -156,7 +156,7 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
     const [isDragging, setIsDragging] = useState(false);
     const dragStartRef = useRef({ x: 0, widthInicial: 0 });
     const panelRef = useRef<HTMLDivElement>(null);
-    const mlModelsTable = useMlModelsTableInGroup(digitalTwinSelected.groupId);
+    const mlModelsTable = useMlModelsInGroup(digitalTwinSelected.groupId);
 
     // Función para actualizar el width usando CSS nativo
     const updatePanelWidth = useCallback((newWidth: number) => {
@@ -1688,6 +1688,7 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                                     handleInputChange("language", e.target.value)
                                 }
                             >
+                                <option value="auto">Automatic (detected from the audio)</option>
                                 <option value="en">English</option>
                                 <option value="es">Spanish</option>
                                 <option value="fr">French</option>

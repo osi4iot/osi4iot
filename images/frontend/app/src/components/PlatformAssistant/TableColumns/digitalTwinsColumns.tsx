@@ -1,4 +1,5 @@
 import { FC, useState, useEffect } from 'react';
+import { reloadTable } from "../../../state";
 import { Column } from '../Utils/platformTable';
 import { toast } from 'react-toastify';
 import { axiosAuth, getDomainName, getProtocol } from '../../../tools/tools';
@@ -14,12 +15,6 @@ import {
     useDigitalTwinsDispatch
 } from '../../../contexts/digitalTwinsOptions';
 import { DigitalTwinSimulationParameter } from '../DigitalTwin3DViewer/ViewerTools/ViewerUtils';
-import {
-    setReloadDashboardsTable,
-    setReloadSensorsTable,
-    setReloadTopicsTable,
-    usePlatformAssitantDispatch
-} from '../../../contexts/platformAssistantContext';
 import { getAxiosInstance } from '../../../tools/axiosIntance';
 import axiosErrorHandler from '../../../tools/axiosErrorHandler';
 import RemoveDTLocalStorageIcon from '../Utils/RemoveDTLocalStorageIcon';
@@ -89,7 +84,6 @@ const domainName = getDomainName();
 const protocol = getProtocol();
 
 const DeleteDigitalTwinModal: FC<DeleteDigitalTwinModalProps> = ({ rowIndex, groupId, digitalTwinId, refreshDigitalTwins }) => {
-    const plaformAssistantDispatch = usePlatformAssitantDispatch();
     const [isDigitalTwinDeleted, setIsDigitalTwinDeleted] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const title = "DELETE DIGITAL TWIN";
@@ -105,15 +99,12 @@ const DeleteDigitalTwinModal: FC<DeleteDigitalTwinModalProps> = ({ rowIndex, gro
     useEffect(() => {
         if (isDigitalTwinDeleted) {
             refreshDigitalTwins();
-            const reloadTopicsTable = true;
-            setReloadTopicsTable(plaformAssistantDispatch, { reloadTopicsTable });
-            const reloadSensorsTable = true;
-            setReloadSensorsTable(plaformAssistantDispatch, { reloadSensorsTable });
-            const reloadDashboardsTable = true;
-            setReloadDashboardsTable(plaformAssistantDispatch, { reloadDashboardsTable });
+            reloadTable("topics");
+            reloadTable("sensors");
+            reloadTable("dashboards");
 
         }
-    }, [isDigitalTwinDeleted, plaformAssistantDispatch, refreshDigitalTwins]);
+    }, [isDigitalTwinDeleted, refreshDigitalTwins]);
 
     const action = (hideModal: () => void) => {
         const url = `${protocol}://${domainName}/admin_api/digital_twin/${groupId}/${digitalTwinId}`;

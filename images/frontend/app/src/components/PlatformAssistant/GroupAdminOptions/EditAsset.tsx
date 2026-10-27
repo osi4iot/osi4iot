@@ -25,7 +25,7 @@ import { IGroupManaged } from '../TableColumns/groupsManagedColumns';
 import { IAssetType } from '../TableColumns/assetTypesColumns';
 import SvgComponent from '../../Tools/SvgComponent';
 import { AxiosResponse, AxiosError } from 'axios';
-import { ControlsContainer, DraggableFormContainer } from '../../Tools/FormTools';
+import { ControlsContainer, DraggableFormContainer, FormSection } from "../../Tools/FormTools";
 
 export const FieldContainer = styled.div`
     margin: 20px 0;
@@ -51,10 +51,6 @@ export const FieldContainer = styled.div`
         color: white;
         width: 100%;
     }
-`;
-
-const AssetLocationTitle = styled.div`
-    margin-bottom: 5px;
 `;
 
 const AssetLocationContainer = styled.div`
@@ -323,7 +319,7 @@ const EditAsset: FC<EditAssetProps> = ({
                                             </SvgComponentContainerDiv>
                                         </SvgIconPreviewContainerDiv>
                                     }
-                                    <AssetLocationTitle>Asset location and icon size</AssetLocationTitle>
+                                    <FormSection title="Asset location and icon size">
                                     <AssetLocationContainer>
                                         <FormikControl
                                             control='input'
@@ -355,6 +351,7 @@ const EditAsset: FC<EditAssetProps> = ({
                                             </SelectLocationButton>
                                         </SelectAssetLocationButtonContainer>
                                     </AssetLocationContainer>
+                                    </FormSection>
                                 </ControlsContainer>
                                 <FormButtonsProps onCancel={onCancel} isValid={formik.isValid} isSubmitting={formik.isSubmitting} />
                             </Form>

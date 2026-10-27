@@ -1,3 +1,4 @@
+import { resetAllState } from '../../state/resetAll';
 import axios from "axios";
 import { AuthDispatch,  LoginData } from "./interfaces";
 import { getDomainName, getProtocol } from "../../tools/tools";
@@ -34,6 +35,8 @@ export async function loginUser(authDispatch: AuthDispatch, loginPayload: LoginD
 }
 
 export function logout(authDispatch: AuthDispatch) {
+	// cualquier cierre de sesión (botón o token caducado) vacía el estado en memoria de la plataforma
+	resetAllState();
 	authDispatch({ type: 'LOGOUT' });
 	localStorage.removeItem('iot_platform_auth');
 }

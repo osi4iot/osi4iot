@@ -1,78 +1,40 @@
-import React, { createContext, FC, useContext, useReducer } from 'react';
+import { FC } from 'react';
 import { ChildrenProp } from '../../interfaces/interfaces'
 import { GroupsContextProps, IGroupInputData } from './interfaces'
 import { initialState, GroupsReducer } from './groupsReducer';
+import { createSectionStore, SectionStoreProvider } from '../../state/createSectionStore';
 
-const GroupsStateContext = createContext<GroupsContextProps>(initialState);
-const GroupsDispatchContext = createContext<any>({});
+// Estado de la sección en un almacén Zustand global (antes Context + useReducer): se conserva al cambiar de capa
+const useGroupsStore = createSectionStore(GroupsReducer, initialState);
 
 export function useGroupsDispatch() {
-	const context = React.useContext(GroupsDispatchContext);
-	if (context === undefined) {
-		throw new Error('useGroupsDispatch must be used within a GroupsProvider');
-	}
-
-	return context;
+	return useGroupsStore.dispatch;
 }
 
-export const GroupsProvider: FC<ChildrenProp> = ({ children }) => {
-	const [data, groupsDispatch] = useReducer(GroupsReducer, initialState);
-
-	return (
-		<GroupsStateContext.Provider value={data}>
-			<GroupsDispatchContext.Provider value={groupsDispatch}>
-				{children}
-			</GroupsDispatchContext.Provider>
-		</GroupsStateContext.Provider>
-	);
-};
-
+export const GroupsProvider: FC<ChildrenProp> = ({ children }) => (
+	<SectionStoreProvider store={useGroupsStore}>{children}</SectionStoreProvider>
+);
 
 export const useGroupsOptionToShow = (): string => {
-	const context = useContext(GroupsStateContext);
-	if (context === undefined) {
-		throw new Error('useGroupsOptionToShow must be used within a GroupsProvider');
-	}
-	return context.groupsOptionToShow;
+	return useGroupsStore((state) => state.groupsOptionToShow);
 }
 
 export const useGroupsPreviousOption = (): string => {
-	const context = useContext(GroupsStateContext);
-	if (context === undefined) {
-		throw new Error('useGroupsPreviousOption must be used within a GroupsProvider');
-	}
-	return context.groupsPreviousOption;
+	return useGroupsStore((state) => state.groupsPreviousOption);
 }
 
 export const useGroupIdToEdit = (): number => {
-	const context = useContext(GroupsStateContext);
-	if (context === undefined) {
-		throw new Error('useGroupIdToEdit must be used within a GroupsProvider');
-	}
-	return context.groupIdToEdit;
+	return useGroupsStore((state) => state.groupIdToEdit);
 }
 
 export const useGroupRowIndexToEdit = (): number => {
-	const context = useContext(GroupsStateContext);
-	if (context === undefined) {
-		throw new Error('useGroupRowIndexToEdit must be used within a GroupsProvider');
-	}
-	return context.groupRowIndexToEdit;
+	return useGroupsStore((state) => state.groupRowIndexToEdit);
 }
 
 export const useGroupBuildingId = (): number => {
-	const context = useContext(GroupsStateContext);
-	if (context === undefined) {
-		throw new Error('useGroupBuildingId must be used within a GroupsProvider');
-	}
-	return context.groupBuildingId;
+	return useGroupsStore((state) => state.groupBuildingId);
 }
 
 export const useGroupInputData = (): IGroupInputData => {
-	const context = useContext(GroupsStateContext);
-	if (context === undefined) {
-		throw new Error('useGroupEditInputData must be used within a GroupsProvider');
-	}
-	return context.groupInputFormData;
+	return useGroupsStore((state) => state.groupInputFormData);
 }
-

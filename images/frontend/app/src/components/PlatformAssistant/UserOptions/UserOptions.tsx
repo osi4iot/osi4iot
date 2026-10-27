@@ -1,66 +1,21 @@
-import React, { FC, useEffect, useState, useCallback } from 'react'
+import { FC, useCallback } from 'react'
 import styled from "styled-components";
-import { axiosAuth, getDomainName, getProtocol } from '../../../tools/tools';
-import { useAuthState, useAuthDispatch } from '../../../contexts/authContext';
 import Loader from "../../Tools/Loader";
 import TableWithPagination from '../Utils/TableWithPagination';
 import { MEMBERSHIP_IN_ORGS } from '../TableColumns/membershipInOrgs';
 import { MEMBERSHIP_IN_GROUPS } from '../TableColumns/membershipInGroups';
 import { USER_OPTIONS } from '../Utils/platformAssistantOptions';
 import UserProfile from './UserProfile';
-import {
-    usePlatformAssitantDispatch,
-    setUserProfileTable,
-    setOrgsMembershipTable,
-    setGroupsMembershipTable,
-    useUserProfileTable,
-    useOrgsMembershipTable,
-    useGroupsMembershipTable,
-    useReloadOrgsMembershipTable,
-    useReloadGroupsMembershipTable,
-    setReloadOrgsMembershipTable,
-    setReloadGroupsMembershipTable,
-} from '../../../contexts/platformAssistantContext';
-import { getAxiosInstance } from '../../../tools/axiosIntance';
-import axiosErrorHandler from '../../../tools/axiosErrorHandler';
-import { AxiosResponse, AxiosError } from 'axios';
+import { reloadTable, usePersistentState, useTable, useTablesPending } from '../../../state';
 import { Column } from '../Utils/platformTable';
 
 
-const UserOptionsContainer = styled.div`
-	display: flex;
-	flex-direction: row;
-    justify-content: flex-start;
-	align-items: center;
-    width: 60%;
-    height: 50px;
-    background-color: #0c0d0f;
-`;
-
-interface OptionContainerProps {
-    isOptionActive: boolean;
-}
-
-const OptionContainer = styled.div<OptionContainerProps>`
-	color: "white";
-    margin: 10px 20px 0 20px;
-    background-color: ${(props) => props.isOptionActive ? "#202226" : "#0c0d0f"};
-    padding: 10px 10px 10px 10px;
-    border-top: ${(props) => props.isOptionActive ? "3px solid #3274d9;" : "3px solid #0c0d0f"};
-    align-content: center;
-
-    &:hover {
-        cursor: pointer;
-        background-color: #202226;
-        border-top: ${(props) => props.isOptionActive ? "3px solid #3274d9;" : "3px solid white"};
-    }
-`;
-
 const ContentContainer = styled.div`
-    width: calc(100vw - 75px);
-    height: calc(100vh - 200px);
+    flex: 1;
+    min-height: 0;
+    width: 100%;
+    box-sizing: border-box;
     background-color: #202226;
-    margin-bottom: 5px;
     display: flex;
 	flex-direction: column;
     justify-content: flex-start;
@@ -96,152 +51,24 @@ const ContentContainer = styled.div`
     }
 `;
 
-const domainName = getDomainName();
-const protocol = getProtocol();
-
 const UserOptions: FC<{}> = () => {
-    const { accessToken, refreshToken } = useAuthState();
-    const authDispatch = useAuthDispatch();
-    const plaformAssistantDispatch = usePlatformAssitantDispatch();
-    const [optionToShow, setOptionToShow] = useState(USER_OPTIONS.USER_PROFILE);
+    // sección abierta: la elige el menú lateral y se conserva al cambiar de capa
+    const [optionToShow] = usePersistentState("user.optionToShow", USER_OPTIONS.USER_PROFILE);
 
-    const userProfileTable = useUserProfileTable();
-    const orgsMembershipTable = useOrgsMembershipTable();
-    const groupsMembershipTable = useGroupsMembershipTable();
+    const userProfileTable = useTable("userProfile");
+    const orgsMembershipTable = useTable("orgsMembership");
+    const groupsMembershipTable = useTable("groupsMembership");
+    const loading = useTablesPending(["userProfile", "orgsMembership", "groupsMembership"]);
 
-    const [userProfileLoading, setUserProfileLoading] = useState(true);
-    const [loadingOrgsMembership, setLoadingOrgsMembership] = useState(true);
-    const [loadingGroupsMembership, setLoadinGroupsMembership] = useState(true);
+    const refreshUserProfile = useCallback(() => reloadTable("userProfile"), []);
+    const refreshOrgsMembership = useCallback(() => reloadTable("orgsMembership"), []);
+    const refreshGroupsMembership = useCallback(() => reloadTable("groupsMembership"), []);
 
-    const [reloadUserProfile, setReloadUserProfile] = useState(false);
-    const reloadOrgsMembershipTable = useReloadOrgsMembershipTable();
-    const reloadGroupsMembershipTable = useReloadGroupsMembershipTable();
-
-    const refreshUserProfile = useCallback(() => {
-        setReloadUserProfile(true);
-        setUserProfileLoading(true);
-        setTimeout(() => setReloadUserProfile(false), 500);
-    }, []);
-
-    const refreshOrgsMembership = useCallback(() => {
-        setLoadingOrgsMembership(true);
-        const reloadOrgsMembershipTable = true;
-        setReloadOrgsMembershipTable(plaformAssistantDispatch, { reloadOrgsMembershipTable });
-    }, [plaformAssistantDispatch]);
-
-
-    const refreshGroupsMembership = useCallback(() => {
-        setLoadinGroupsMembership(true);
-        const reloadGroupsMembershipTable = true;
-        setReloadGroupsMembershipTable(plaformAssistantDispatch, { reloadGroupsMembershipTable });
-    }, [plaformAssistantDispatch]);
-    
-    useEffect(() => {
-        if (userProfileTable.userId === 0 || reloadUserProfile) {
-            const config = axiosAuth(accessToken);
-            const urlUserProfile = `${protocol}://${domainName}/admin_api/auth/user_profile`;
-            getAxiosInstance(refreshToken, authDispatch)
-                .get(urlUserProfile, config)
-                .then((response: AxiosResponse<any, any>) => {
-                    const userProfile = response.data;
-                    setUserProfileTable(plaformAssistantDispatch, { userProfile });
-                    setUserProfileLoading(false);
-                })
-                .catch((error: AxiosError) => {
-                    axiosErrorHandler(error, authDispatch);
-                });
-        } else {
-            setUserProfileLoading(false);
-        }
-
-    }, [accessToken, refreshToken, authDispatch, plaformAssistantDispatch, reloadUserProfile, userProfileTable.userId]);
-
-    useEffect(() => {
-        if (orgsMembershipTable.length === 0 || reloadOrgsMembershipTable) {
-
-            const config = axiosAuth(accessToken);
-            const urlMembershipInOrgs = `${protocol}://${domainName}/admin_api/organizations/which_the_logged_user_is_user/`;
-            getAxiosInstance(refreshToken, authDispatch)
-                .get(urlMembershipInOrgs, config)
-                .then((response: AxiosResponse<any, any>) => {
-                    const orgsMembership = response.data;
-                    setOrgsMembershipTable(plaformAssistantDispatch, { orgsMembership });
-                    setLoadingOrgsMembership(false);
-                    const reloadOrgsMembershipTable = false;
-                    setReloadOrgsMembershipTable(plaformAssistantDispatch, { reloadOrgsMembershipTable });
-                })
-                .catch((error: AxiosError) => {
-                    axiosErrorHandler(error, authDispatch);
-                });
-        } else {
-            setLoadingOrgsMembership(false);
-        }
-
-    }, [
-        accessToken,
-        refreshToken,
-        authDispatch,
-        plaformAssistantDispatch,
-        reloadOrgsMembershipTable,
-        orgsMembershipTable.length]);
-
-    useEffect(() => {
-        if (groupsMembershipTable.length === 0 || reloadGroupsMembershipTable) {
-            const config = axiosAuth(accessToken);
-            const urlMembershipInGroups = `${protocol}://${domainName}/admin_api/groups/which_the_logged_user_is_member/`;
-            getAxiosInstance(refreshToken, authDispatch)
-                .get(urlMembershipInGroups, config)
-                .then((response: AxiosResponse<any, any>) => {
-                    const groupsMembership = response.data;
-                    setGroupsMembershipTable(plaformAssistantDispatch, { groupsMembership });
-                    setLoadinGroupsMembership(false);
-                    const reloadGroupsMembershipTable = false;
-                    setReloadGroupsMembershipTable(plaformAssistantDispatch, { reloadGroupsMembershipTable });
-                })
-                .catch((error: AxiosError) => {
-                    axiosErrorHandler(error, authDispatch);
-                });
-        } else {
-            setLoadinGroupsMembership(false);
-        }
-
-    }, [
-        accessToken,
-        refreshToken,
-        authDispatch,
-        plaformAssistantDispatch,
-        reloadGroupsMembershipTable,
-        groupsMembershipTable.length
-    ]);
-
-    const clickHandler = (optionToShow: string) => {
-        setOptionToShow(optionToShow);
-    }
 
     return (
         <>
-            <UserOptionsContainer>
-                <OptionContainer
-                    isOptionActive={optionToShow === USER_OPTIONS.USER_PROFILE}
-                    onClick={() => clickHandler(USER_OPTIONS.USER_PROFILE)}
-                >
-                    User profile
-                </OptionContainer>
-                <OptionContainer
-                    isOptionActive={optionToShow === USER_OPTIONS.MEMBERSHIP_IN_ORGS}
-                    onClick={() => clickHandler(USER_OPTIONS.MEMBERSHIP_IN_ORGS)}
-                >
-                    Membership in orgs
-                </OptionContainer>
-                <OptionContainer
-                    isOptionActive={optionToShow === USER_OPTIONS.MEMBERSHIP_IN_GROUPS}
-                    onClick={() => clickHandler(USER_OPTIONS.MEMBERSHIP_IN_GROUPS)}
-                >
-                    Membership in groups
-                </OptionContainer>
-            </UserOptionsContainer>
             <ContentContainer >
-                {(userProfileLoading || loadingOrgsMembership || loadingGroupsMembership) ?
+                {loading ?
                     <Loader />
                     :
                     <>

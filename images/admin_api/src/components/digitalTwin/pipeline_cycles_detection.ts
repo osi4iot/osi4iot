@@ -220,7 +220,7 @@ export const areThereInjectTopicsInPublish = (nodes: PipelineNodeDto[]): boolean
 		if (node.type === "Publish") {
 			if (node.settings === "") continue;
 			const settings = JSON.parse(node.settings) as Record<string, any>;
-			if (typeof settings !== "object" || settings.topic === "undefined" || settings.topic === "") continue;
+			if (typeof settings !== "object" || typeof settings.topic !== "string" || settings.topic === "") continue;
 			if (settings.topic.slice(0, 6) === "inject") {
 				return true;
 			}

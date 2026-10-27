@@ -1,55 +1,28 @@
-import React, { createContext, FC, useContext, useReducer } from 'react';
+import { FC } from 'react';
 import { ChildrenProp } from '../../interfaces/interfaces'
 import { FloorsContextProps } from './interfaces'
 import { initialState, FloorsReducer } from './floorsReducer';
+import { createSectionStore, SectionStoreProvider } from '../../state/createSectionStore';
 
-
-const FloorsStateContext = createContext<FloorsContextProps>(initialState);
-const FloorsDispatchContext = createContext<any>({});
-
+// Estado de la sección en un almacén Zustand global (antes Context + useReducer): se conserva al cambiar de capa
+const useFloorsStore = createSectionStore(FloorsReducer, initialState);
 
 export function useFloorsDispatch() {
-	const context = React.useContext(FloorsDispatchContext);
-	if (context === undefined) {
-		throw new Error('useFloorsDispatch must be used within a FloorsProvider');
-	}
-
-	return context;
+	return useFloorsStore.dispatch;
 }
 
-export const FloorsProvider: FC<ChildrenProp> = ({ children }) => {
-	const [user, floorsDispatch] = useReducer(FloorsReducer, initialState);
-
-	return (
-		<FloorsStateContext.Provider value={user}>
-			<FloorsDispatchContext.Provider value={floorsDispatch}>
-				{children}
-			</FloorsDispatchContext.Provider>
-		</FloorsStateContext.Provider>
-	);
-};
-
+export const FloorsProvider: FC<ChildrenProp> = ({ children }) => (
+	<SectionStoreProvider store={useFloorsStore}>{children}</SectionStoreProvider>
+);
 
 export const useFloorsOptionToShow = (): string => {
-	const context = useContext(FloorsStateContext);
-	if (context === undefined) {
-		throw new Error('useFloorsOptionToShow must be used within a FloorsProvider');
-	}
-	return context.floorsOptionToShow;
+	return useFloorsStore((state) => state.floorsOptionToShow);
 }
 
 export const useFloorIdToEdit = (): number => {
-	const context = useContext(FloorsStateContext);
-	if (context === undefined) {
-		throw new Error('useFloorIdToEdit must be used within a FloorsProvider');
-	}
-	return context.floorIdToEdit;
+	return useFloorsStore((state) => state.floorIdToEdit);
 }
 
 export const useFloorRowIndexToEdit = (): number => {
-	const context = useContext(FloorsStateContext);
-	if (context === undefined) {
-		throw new Error('useFloorRowIndexToEdit must be used within a FloorsProvider');
-	}
-	return context.floorRowIndexToEdit;
+	return useFloorsStore((state) => state.floorRowIndexToEdit);
 }

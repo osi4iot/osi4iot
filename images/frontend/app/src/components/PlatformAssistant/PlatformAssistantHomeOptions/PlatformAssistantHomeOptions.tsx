@@ -1,40 +1,6 @@
 import { FC, useEffect, useState, useCallback, Suspense, useMemo } from "react";
 import styled from "styled-components";
-import { axiosAuth, getDomainName, getProtocol } from "../../../tools/tools";
-import { useAuthState, useAuthDispatch } from "../../../contexts/authContext";
-//import Loader from "../../Tools/Loader";
 import { PLATFORM_ASSISTANT_HOME_OPTIONS } from "../Utils/platformAssistantOptions";
-import {
-    usePlatformAssitantDispatch,
-    useGroupsManagedTable,
-    setGroupsManagedTable,
-    useOrgsOfGroupsManagedTable,
-    setOrgsOfGroupsManagedTable,
-    useDigitalTwinsTable,
-    setDigitalTwinsTable,
-    useBuildingsTable,
-    useFloorsTable,
-    setBuildingsTable,
-    setFloorsTable,
-    useReloadGroupsManagedTable,
-    setReloadGroupsManagedTable,
-    useReloadBuildingsTable,
-    useReloadFloorsTable,
-    setReloadBuildingsTable,
-    setReloadFloorsTable,
-    useReloadOrgsOfGroupsManagedTable,
-    setReloadOrgsOfGroupsManagedTable,
-    setReloadAssetsTable,
-    setReloadSensorsTable,
-    setAssetsTable,
-    setSensorsTable,
-    setAssetTypesTable,
-    setReloadAssetTypesTable,
-    setSensorTypesTable,
-    setReloadSensorTypesTable,
-    setReloadAssetsWithMarkerTable,
-    setAssetsWithMarkerTable,
-} from "../../../contexts/platformAssistantContext";
 import Tutorial from "./Tutorial";
 import GeolocationContainer, { IDigitalTwinState, ISensorState } from "../Geolocation/GeolocationContainer";
 import { IGroupManaged } from "../TableColumns/groupsManagedColumns";
@@ -48,80 +14,21 @@ import DigitalTwin3DViewer from "../DigitalTwin3DViewer/Main/DigitalTwin3DViewer
 import { toast } from "react-toastify";
 import { IDigitalTwinGltfData } from "../DigitalTwin3DViewer/ViewerTools/ViewerUtils";
 import SceneLoader from "../../Tools/SceneLoader";
-import { useNavigate } from "react-router";
-import { getAxiosInstance } from "../../../tools/axiosIntance";
-import axiosErrorHandler from "../../../tools/axiosErrorHandler";
-import {
-    useAssetS3FoldersTable,
-    useAssetTypesTable,
-    useAssetsTable,
-    useAssetsWithMarkerTable,
-    useMlModelsTable,
-    useReloadAssetS3FoldersTable,
-    useReloadAssetTypesTable,
-    useReloadAssetsTable,
-    useReloadAssetsWithMarkerTable,
-    useReloadDigitalTwinsTable,
-    useReloadMlModelsTable,
-    useReloadSensorTypesTable,
-    useReloadSensorsTable,
-    useSensorTypesTable,
-    useSensorsTable,
-} from "../../../contexts/platformAssistantContext/platformAssistantContext";
 import { IAsset } from "../TableColumns/assetsColumns";
 import { ISensor } from "../TableColumns/sensorsColumns";
-import elaspsedTimeFormat from "../../../tools/elapsedTimeFormat";
 import { IAssetType } from "../TableColumns/assetTypesColumns";
-import { ISensorType } from "../TableColumns/sensorTypesColumns";
 import fetchFemResFileCode from "../../../webWorkers/fetchFemResFileCode";
-import { getDTStorageInfo, syncDigitalTwinsLocalStorage } from "../../../tools/fileSystem";
-import { IGeolocationMeasurement } from "../TableColumns/measurementsColumns";
 import HomeOptionsLoader from "../../Tools/HomeOptionsLoader";
-import { AxiosResponse, AxiosError } from "axios";
-import {
-    setAssetS3FoldersTable,
-    setMlModelsTable,
-    setReloadAssetS3FoldersTable,
-    setReloadMlModelsTable,
-} from "../../../contexts/platformAssistantContext/platformAssistantAction";
 import IAssetS3Folder from "../TableColumns/assetS3FolderColumns";
 import WebGLErrorBoundary from "./WebGLErrorBoundary";
-
-const PlatformAssistantHomeOptionsContainer = styled.div`
-    display: flex;
-    flex-direction: row;
-    justify-content: flex-start;
-    align-items: center;
-    width: 60%;
-    height: 50px;
-    background-color: #0c0d0f;
-`;
-
-interface OptionContainerProps {
-    isOptionActive: boolean;
-}
-
-const OptionContainer = styled.div<OptionContainerProps>`
-    color: "white";
-    margin: 10px 20px 0 20px;
-    background-color: ${(props) => (props.isOptionActive ? "#202226" : "#0c0d0f")};
-    padding: 10px 10px 10px 10px;
-    border-top: ${(props) => (props.isOptionActive ? "3px solid #3274d9;" : "3px solid #0c0d0f")};
-    align-content: center;
-    user-select: none;
-
-    &:hover {
-        cursor: pointer;
-        background-color: #202226;
-        border-top: ${(props) => (props.isOptionActive ? "3px solid #3274d9;" : "3px solid white")};
-    }
-`;
+import { reloadTable, TableName, usePersistentState, useTable, useTableQuery, useTablesPending } from "../../../state";
 
 const ContentContainer = styled.div`
-    width: calc(100vw - 75px);
-    height: calc(100vh - 220px);
+    flex: 1;
+    min-height: 0;
+    width: 100%;
+    box-sizing: border-box;
     background-color: #202226;
-    margin-bottom: 5px;
     display: flex;
     flex-direction: column;
     justify-content: flex-start;
@@ -243,141 +150,135 @@ const findBounds = (buildings: IBuilding[], assetsWithMarker: IAsset[]) => {
     return outerBounds;
 };
 
-const domainName = getDomainName();
-const protocol = getProtocol();
+// Tablas de la capa principal (se piden al entrar; las que ya están en caché se muestran al momento)
+const HOME_TABLES: TableName[] = [
+    "buildings",
+    "floors",
+    "orgsOfGroupsManaged",
+    "groupsManaged",
+    "assetTypes",
+    "assets",
+    "sensorTypes",
+    "sensors",
+    "digitalTwins",
+    "mlModels",
+    "assetS3Folders",
+];
+
+// Un único worker para descargar resultados FEM (antes se creaba uno nuevo cada vez que se montaba la capa)
+let fetchFemResFileWorkerSingleton: Worker | null = null;
+const getFetchFemResFileWorker = () => {
+    if (!fetchFemResFileWorkerSingleton) fetchFemResFileWorkerSingleton = new Worker(fetchFemResFileCode);
+    return fetchFemResFileWorkerSingleton;
+};
+
+// Aviso de dashboards inexistentes una sola vez por cada carga de los gemelos digitales
+let lastDigitalTwinsWarningAt = 0;
+
+const sameBounds = (a: number[][], b: number[][]) => JSON.stringify(a) === JSON.stringify(b);
 
 const PlatformAssistantHomeOptions: FC<{}> = () => {
-    const navigate = useNavigate();
-    const { accessToken, refreshToken } = useAuthState();
-    const authDispatch = useAuthDispatch();
-    const plaformAssistantDispatch = usePlatformAssitantDispatch();
-    const buildingsTable = useBuildingsTable();
-    const floorsTable = useFloorsTable();
-    const orgsOfGroupsManagedTable = useOrgsOfGroupsManagedTable();
-    const groupsManagedTable = useGroupsManagedTable();
-    const assetTypesTable = useAssetTypesTable();
-    const assetsTable = useAssetsTable();
-    const assetsWithMarker = useAssetsWithMarkerTable();
-    const sensorTypesTable = useSensorTypesTable();
-    const sensorsTable = useSensorsTable();
-    const digitalTwinsTable = useDigitalTwinsTable();
-    const mlModelsTable = useMlModelsTable();
-    const assetS3FoldersTable = useAssetS3FoldersTable();
-    const [buildingsLoading, setBuildingsLoading] = useState(true);
-    const [floorsLoading, setFloorsLoading] = useState(true);
-    const [orgsOfGroupsManagedLoading, setOrgsOfGroupsManagedLoading] = useState(true);
-    const [groupsManagedLoading, setGroupsManagedLoading] = useState(true);
-    const [assetTypesLoading, setAssetTypesLoading] = useState(true);
-    const [assetsLoading, setAssetsLoading] = useState(true);
-    const [assetsWithMarkerLoading, setAssetsWithMarkerLoading] = useState(true);
-    const [sensorTypesLoading, setSensorTypesLoading] = useState(true);
-    const [sensorsLoading, setSensorsLoading] = useState(true);
-    const [digitalTwinLoading, setDigitalTwinsLoading] = useState(true);
-    const [mlModelsLoading, setMlModelsLoading] = useState(true);
-    const [assetS3FoldersLoading, setAssetS3FoldersLoading] = useState(true);
-    const [digitalTwinGltfData, setDigitalTwinGltfData] = useState<IDigitalTwinGltfData | null>(null);
-    const [optionToShow, setOptionToShow] = useState(PLATFORM_ASSISTANT_HOME_OPTIONS.GEOLOCATION);
+    // ---- datos del servidor (TanStack Query, compartidos con el resto de capas)
+    const buildingsTable = useTable("buildings");
+    const floorsTable = useTable("floors");
+    const orgsOfGroupsManagedTable = useTable("orgsOfGroupsManaged");
+    const groupsManagedTable = useTable("groupsManaged");
+    const assetTypesTable = useTable("assetTypes");
+    const assetsTable = useTable("assets");
+    const sensorTypesTable = useTable("sensorTypes");
+    const sensorsTable = useTable("sensors");
+    const digitalTwinsQuery = useTableQuery("digitalTwins");
+    const digitalTwinsTable = useTable("digitalTwins");
+    const assetS3FoldersTable = useTable("assetS3Folders");
+    const tablesPending = useTablesPending(HOME_TABLES);
+
+    const buildingsFiltered = useMemo(() => filterBuildings(buildingsTable), [buildingsTable]);
+    const floorsFiltered = useMemo(() => filterFloors(floorsTable), [floorsTable]);
+
+    // Activos con marcador en el mapa: su última geolocalización se pide solo si hay activos de ese tipo
+    const assetsWithMarkerCandidates = useMemo(
+        () => findAssetsWithMarker(assetTypesTable, assetsTable),
+        [assetTypesTable, assetsTable],
+    );
+    const lastGeolocationsEnabled =
+        assetsWithMarkerCandidates.length !== 0 && buildingsFiltered.length !== 0 && orgsOfGroupsManagedTable.length !== 0;
+    const lastGeolocationsQuery = useTableQuery("lastGeolocations", { enabled: lastGeolocationsEnabled });
+    const assetsWithMarker = useMemo(() => {
+        if (!lastGeolocationsEnabled || !lastGeolocationsQuery.data) return [] as IAsset[];
+        const lastGeolocationMeasurements = lastGeolocationsQuery.data;
+        const positioned = assetsWithMarkerCandidates.map((asset) => {
+            const lastGeolocation = lastGeolocationMeasurements.find((item) => item.assetUid === asset.assetUid);
+            return lastGeolocation
+                ? { ...asset, longitude: lastGeolocation.longitude, latitude: lastGeolocation.latitude }
+                : { ...asset };
+        });
+        return filterAssetWithMarker(positioned, buildingsFiltered, orgsOfGroupsManagedTable);
+    }, [lastGeolocationsEnabled, lastGeolocationsQuery.data, assetsWithMarkerCandidates, buildingsFiltered, orgsOfGroupsManagedTable]);
+    const loading = tablesPending || (lastGeolocationsQuery.isPending && lastGeolocationsQuery.fetchStatus !== "idle");
+
+    // ---- estado de la interfaz (Zustand): se conserva al ir a otra capa y volver
+    const [optionToShow, setOptionToShow] = usePersistentState("home.optionToShow", PLATFORM_ASSISTANT_HOME_OPTIONS.GEOLOCATION);
+    const [digitalTwinGltfData, setDigitalTwinGltfData] = usePersistentState<IDigitalTwinGltfData | null>(
+        "home.digitalTwinGltfData",
+        null,
+    );
     const isDigitalTwinViewerOpen = optionToShow === PLATFORM_ASSISTANT_HOME_OPTIONS.DIGITAL_TWINS && !!digitalTwinGltfData;
-    const reloadBuildingsTable = useReloadBuildingsTable();
-    const reloadFloorsTable = useReloadFloorsTable();
-    const reloadOrgsOfGroupsManagedTable = useReloadOrgsOfGroupsManagedTable();
-    const reloadGroupsManagedTable = useReloadGroupsManagedTable();
-    const reloadAssetTypesTable = useReloadAssetTypesTable();
-    const reloadAssetsTable = useReloadAssetsTable();
-    const reloadAssetsWithMarkerTable = useReloadAssetsWithMarkerTable();
-    const reloadSensorsTable = useReloadSensorsTable();
-    const reloadSensorTypesTable = useReloadSensorTypesTable();
-    const reloadMlModelsTable = useReloadMlModelsTable();
-    const reloadDigitalTwinsTable = useReloadDigitalTwinsTable();
-    const reloadAssetS3FoldersTable = useReloadAssetS3FoldersTable();
-    const [reloadDigitalTwins, setReloadDigitalTwins] = useState(false);
-    const initialBuildingsFiltered = filterBuildings(buildingsTable);
-    const [buildingsFiltered, setBuildingsFiltered] = useState<IBuilding[]>(initialBuildingsFiltered);
-    const initOuterBounds = findBounds(buildingsFiltered, assetsWithMarker);
-    const [outerBounds, setOuterBounds] = useState(initOuterBounds);
-    const [initialOuterBounds, setInitialOuterBounds] = useState(initOuterBounds);
-    const [floorsFiltered, setFloorsFiltered] = useState<IFloor[]>([]);
-    const [buildingSelected, setBuildingSelected] = useState<IBuilding | null>(null);
-    const [floorSelected, setFloorSelected] = useState<IFloor | null>(null);
-    const [orgSelected, setOrgSelected] = useState<IOrgOfGroupsManaged | null>(null);
-    const [groupSelected, setGroupSelected] = useState<IGroupManaged | null>(null);
-    const [assetSelected, setAssetSelected] = useState<IAsset | null>(null);
-    const [sensorSelected, setSensorSelected] = useState<ISensor | null>(null);
-    const [digitalTwinSelected, setDigitalTwinSelected] = useState<IDigitalTwin | null>(null);
-    const [assetS3Folders, setAssetS3Folders] = useState<IAssetS3Folder[]>([]);
+    const computedOuterBounds = useMemo(() => findBounds(buildingsFiltered, assetsWithMarker), [buildingsFiltered, assetsWithMarker]);
+    const [outerBounds, setOuterBounds] = usePersistentState("home.outerBounds", computedOuterBounds);
+    const [initialOuterBounds, setInitialOuterBounds] = usePersistentState("home.initialOuterBounds", computedOuterBounds);
+    const [buildingSelected, setBuildingSelected] = usePersistentState<IBuilding | null>("home.buildingSelected", null);
+    const [floorSelected, setFloorSelected] = usePersistentState<IFloor | null>("home.floorSelected", null);
+    const [orgSelected, setOrgSelected] = usePersistentState<IOrgOfGroupsManaged | null>("home.orgSelected", null);
+    const [groupSelected, setGroupSelected] = usePersistentState<IGroupManaged | null>("home.groupSelected", null);
+    const [assetSelected, setAssetSelected] = usePersistentState<IAsset | null>("home.assetSelected", null);
+    const [sensorSelected, setSensorSelected] = usePersistentState<ISensor | null>("home.sensorSelected", null);
+    const [digitalTwinSelected, setDigitalTwinSelected] = usePersistentState<IDigitalTwin | null>(
+        "home.digitalTwinSelected",
+        null,
+    );
+    const [assetS3Folders, setAssetS3Folders] = usePersistentState<IAssetS3Folder[]>("home.assetS3Folders", []);
+    const [digitalTwinsState, setDigitalTwinsState] = usePersistentState<IDigitalTwinState[]>("home.digitalTwinsState", []);
+    const [sensorsState, setSensorsState] = usePersistentState<ISensorState[]>("home.sensorsState", []);
+    const [assetMarkerSelected, setAssetMarkerSelected] = usePersistentState("home.assetMarkerSelected", false);
+    const [assetWithCameraSelected, setAssetWithCameraSelected] = usePersistentState("home.assetWithCameraSelected", false);
+    const [sensorWithCameraSelected, setSensorWithCameraSelected] = usePersistentState("home.sensorWithCameraSelected", false);
+    // estado transitorio de la carga de un modelo 3D
     const [glftDataLoading, setGlftDataLoading] = useState(false);
     const [gltfFileDownloadProgress, setGltfFileDownloadProgress] = useState(0);
-    const [digitalTwinsState, setDigitalTwinsState] = useState<IDigitalTwinState[]>([]);
-    const [sensorsState, setSensorsState] = useState<ISensorState[]>([]);
-    const [assetMarkerSelected, setAssetMarkerSelected] = useState(false);
-    const fetchFemResFileWorker: Worker = useMemo(() => new Worker(fetchFemResFileCode), []);
-    const [assetWithCameraSelected, setAssetWithCameraSelected] = useState(false);
-    const [sensorWithCameraSelected, setSensorWithCameraSelected] = useState(false);
+    const fetchFemResFileWorker = useMemo(() => getFetchFemResFileWorker(), []);
 
-    const refreshBuildings = useCallback(() => {
-        setBuildingsLoading(true);
-        const reloadBuildingsTable = true;
-        setReloadBuildingsTable(plaformAssistantDispatch, { reloadBuildingsTable });
-    }, [plaformAssistantDispatch]);
+    // Límites del mapa: al llegar datos nuevos se actualizan los iniciales y, si el usuario no ha movido
+    // el mapa a otro sitio, también los actuales
+    useEffect(() => {
+        if (sameBounds(computedOuterBounds, initialOuterBounds)) return;
+        if (sameBounds(outerBounds, initialOuterBounds)) setOuterBounds(computedOuterBounds);
+        setInitialOuterBounds(computedOuterBounds);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [computedOuterBounds]);
 
-    const refreshFloors = useCallback(() => {
-        setFloorsLoading(true);
-        const reloadFloorsTable = true;
-        setReloadFloorsTable(plaformAssistantDispatch, { reloadFloorsTable });
-    }, [plaformAssistantDispatch]);
+    useEffect(() => {
+        const updatedAt = digitalTwinsQuery.dataUpdatedAt;
+        if (!updatedAt || updatedAt === lastDigitalTwinsWarningAt || !digitalTwinsQuery.data) return;
+        lastDigitalTwinsWarningAt = updatedAt;
+        const inexistentDashboards = digitalTwinsQuery.data.filter((dt) => dt.dashboardUrl?.slice(0, 7) === "Warning");
+        if (inexistentDashboards.length !== 0) toast.warning("Some dashboards no longer exist");
+    }, [digitalTwinsQuery.dataUpdatedAt, digitalTwinsQuery.data]);
 
-    const refreshOrgsOfGroupsManaged = useCallback(() => {
-        setOrgsOfGroupsManagedLoading(true);
-        const reloadOrgsOfGroupsManagedTable = true;
-        setReloadOrgsOfGroupsManagedTable(plaformAssistantDispatch, { reloadOrgsOfGroupsManagedTable });
-    }, [plaformAssistantDispatch]);
-
-    const refreshGroupsManaged = useCallback(() => {
-        setGroupsManagedLoading(true);
-        const reloadGroupsManagedTable = true;
-        setReloadGroupsManagedTable(plaformAssistantDispatch, { reloadGroupsManagedTable });
-    }, [plaformAssistantDispatch]);
-
-    const refreshAssetTypes = useCallback(() => {
-        setAssetTypesLoading(true);
-        const reloadAssetTypesTable = true;
-        setReloadAssetTypesTable(plaformAssistantDispatch, { reloadAssetTypesTable });
-    }, [plaformAssistantDispatch]);
-
-    const refreshAssets = useCallback(() => {
-        setAssetsLoading(true);
-        const reloadAssetsTable = true;
-        setReloadAssetsTable(plaformAssistantDispatch, { reloadAssetsTable });
-    }, [plaformAssistantDispatch]);
-
-    const refreshAssetsWithMarker = useCallback(() => {
-        setAssetsWithMarkerLoading(true);
-        const reloadAssetsWithMarkerTable = true;
-        setReloadAssetsWithMarkerTable(plaformAssistantDispatch, { reloadAssetsWithMarkerTable });
-    }, [plaformAssistantDispatch]);
-
-    const refreshSensors = useCallback(() => {
-        setSensorsLoading(true);
-        const reloadSensorsTable = true;
-        setReloadSensorsTable(plaformAssistantDispatch, { reloadSensorsTable });
-    }, [plaformAssistantDispatch]);
-
-    const refreshDigitalTwins = useCallback(() => {
-        setReloadDigitalTwins(true);
-        setDigitalTwinsLoading(true);
-        setTimeout(() => setReloadDigitalTwins(false), 500);
-    }, []);
-
-    const refreshAssetS3Folders = useCallback(() => {
-        setAssetS3FoldersLoading(true);
-        const reloadAssetS3FoldersTable = true;
-        setReloadAssetS3FoldersTable(plaformAssistantDispatch, { reloadAssetS3FoldersTable });
-    }, [plaformAssistantDispatch]);
+    const refreshBuildings = useCallback(() => reloadTable("buildings"), []);
+    const refreshFloors = useCallback(() => reloadTable("floors"), []);
+    const refreshOrgsOfGroupsManaged = useCallback(() => reloadTable("orgsOfGroupsManaged"), []);
+    const refreshGroupsManaged = useCallback(() => reloadTable("groupsManaged"), []);
+    const refreshAssetTypes = useCallback(() => reloadTable("assetTypes"), []);
+    const refreshAssets = useCallback(() => reloadTable("assets"), []);
+    const refreshAssetsWithMarker = useCallback(() => reloadTable("lastGeolocations"), []);
+    const refreshSensors = useCallback(() => reloadTable("sensors"), []);
+    const refreshDigitalTwins = useCallback(() => reloadTable("digitalTwins"), []);
+    const refreshAssetS3Folders = useCallback(() => reloadTable("assetS3Folders"), []);
 
     const openDigitalTwin3DViewer = useCallback((digitalTwinGltfData: IDigitalTwinGltfData) => {
         setDigitalTwinGltfData(digitalTwinGltfData);
         setOptionToShow(PLATFORM_ASSISTANT_HOME_OPTIONS.DIGITAL_TWINS);
-    }, []);
+    }, [setDigitalTwinGltfData, setOptionToShow]);
 
     const setNewOuterBounds = (outerBounds: number[][]) => {
         setOuterBounds(outerBounds);
@@ -442,485 +343,20 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
                 setOuterBounds(initialOuterBounds);
             }
         }
+        // se libera el modelo 3D (ya no hace falta conservarlo)
+        setDigitalTwinGltfData(null);
         setOptionToShow(PLATFORM_ASSISTANT_HOME_OPTIONS.GEOLOCATION);
     };
 
-    useEffect(() => {
-        if (floorsTable.length !== 0) {
-            const floorsFiltered = filterFloors(floorsTable);
-            setFloorsFiltered(floorsFiltered);
-        }
-    }, [floorsTable]);
 
-    useEffect(() => {
-        if (buildingsTable.length === 0 || reloadBuildingsTable) {
-            const urlBuildings = `${protocol}://${domainName}/admin_api/buildings/user_groups_managed/`;
-            const config = axiosAuth(accessToken);
-            getAxiosInstance(refreshToken, authDispatch)
-                .get(urlBuildings, config)
-                .then((response: AxiosResponse<any, any>) => {
-                    const buildings = response.data;
-                    buildings.map((building: IBuilding) => {
-                        building.createdAtAge = elaspsedTimeFormat(building.createdAtAge);
-                        building.updatedAtAge = elaspsedTimeFormat(building.updatedAtAge);
-                        return building;
-                    });
-                    setBuildingsTable(plaformAssistantDispatch, { buildings });
-                    setBuildingsLoading(false);
-                    const buildingsFiltered = filterBuildings(buildings);
-                    setBuildingsFiltered(buildingsFiltered);
-                    const reloadBuildingsTable = false;
-                    setReloadBuildingsTable(plaformAssistantDispatch, { reloadBuildingsTable });
-                })
-                .catch((error: AxiosError) => {
-                    axiosErrorHandler(error, authDispatch);
-                });
-        } else {
-            setBuildingsLoading(false);
-        }
-    }, [
-        refreshToken,
-        accessToken,
-        authDispatch,
-        navigate,
-        plaformAssistantDispatch,
-        reloadBuildingsTable,
-        buildingsTable.length,
-    ]);
-
-    useEffect(() => {
-        if (floorsTable.length === 0 || reloadFloorsTable) {
-            const urlFloors = `${protocol}://${domainName}/admin_api/building_floors/user_groups_managed/`;
-            const config = axiosAuth(accessToken);
-            getAxiosInstance(refreshToken, authDispatch)
-                .get(urlFloors, config)
-                .then((response: AxiosResponse<any, any>) => {
-                    const floors = response.data;
-                    floors.map((floor: IFloor) => {
-                        floor.createdAtAge = elaspsedTimeFormat(floor.createdAtAge);
-                        floor.updatedAtAge = elaspsedTimeFormat(floor.updatedAtAge);
-                        return floor;
-                    });
-                    setFloorsTable(plaformAssistantDispatch, { floors });
-                    setFloorsLoading(false);
-                    const floorsFiltered = filterFloors(floors);
-                    setFloorsFiltered(floorsFiltered);
-                    const reloadFloorsTable = false;
-                    setReloadFloorsTable(plaformAssistantDispatch, { reloadFloorsTable });
-                })
-                .catch((error: AxiosError) => {
-                    axiosErrorHandler(error, authDispatch);
-                });
-        } else {
-            setFloorsLoading(false);
-        }
-    }, [refreshToken, accessToken, authDispatch, plaformAssistantDispatch, reloadFloorsTable, floorsTable.length]);
-
-    useEffect(() => {
-        if (orgsOfGroupsManagedTable.length === 0 || reloadOrgsOfGroupsManagedTable) {
-            const urlOrgsManaged = `${protocol}://${domainName}/admin_api/organizations/user_groups_managed/`;
-            const config = axiosAuth(accessToken);
-            getAxiosInstance(refreshToken, authDispatch)
-                .get(urlOrgsManaged, config)
-                .then((response: AxiosResponse<any, any>) => {
-                    const orgsOfGroupsManaged = response.data;
-                    setOrgsOfGroupsManagedTable(plaformAssistantDispatch, { orgsOfGroupsManaged });
-                    setOrgsOfGroupsManagedLoading(false);
-                    const reloadOrgsOfGroupsManagedTable = false;
-                    setReloadOrgsOfGroupsManagedTable(plaformAssistantDispatch, { reloadOrgsOfGroupsManagedTable });
-                })
-                .catch((error: AxiosError) => {
-                    axiosErrorHandler(error, authDispatch);
-                });
-        } else {
-            setOrgsOfGroupsManagedLoading(false);
-        }
-    }, [
-        refreshToken,
-        accessToken,
-        authDispatch,
-        plaformAssistantDispatch,
-        reloadOrgsOfGroupsManagedTable,
-        orgsOfGroupsManagedTable.length,
-    ]);
-
-    useEffect(() => {
-        if (groupsManagedTable.length === 0 || reloadGroupsManagedTable) {
-            const config = axiosAuth(accessToken);
-            const urlGroupsManaged = `${protocol}://${domainName}/admin_api/groups/user_managed`;
-            getAxiosInstance(refreshToken, authDispatch)
-                .get(urlGroupsManaged, config)
-                .then((response: AxiosResponse<any, any>) => {
-                    const groupsManaged = response.data;
-                    groupsManaged.map((group: { isOrgDefaultGroup: string }) => {
-                        group.isOrgDefaultGroup = group.isOrgDefaultGroup ? "Default" : "Generic";
-                        return group;
-                    });
-                    setGroupsManagedTable(plaformAssistantDispatch, { groupsManaged });
-                    setGroupsManagedLoading(false);
-                    const reloadGroupsManagedTable = false;
-                    setReloadGroupsManagedTable(plaformAssistantDispatch, { reloadGroupsManagedTable });
-                })
-                .catch((error: AxiosError) => {
-                    axiosErrorHandler(error, authDispatch);
-                });
-        } else {
-            setGroupsManagedLoading(false);
-        }
-    }, [
-        refreshToken,
-        accessToken,
-        authDispatch,
-        plaformAssistantDispatch,
-        groupsManagedTable.length,
-        reloadGroupsManagedTable,
-    ]);
-
-    useEffect(() => {
-        if (assetTypesTable.length === 0 || reloadAssetTypesTable) {
-            const config = axiosAuth(accessToken);
-            const urlAssetTypes = `${protocol}://${domainName}/admin_api/asset_types/user_managed`;
-            getAxiosInstance(refreshToken, authDispatch)
-                .get(urlAssetTypes, config)
-                .then((response: AxiosResponse<any, any>) => {
-                    const assetTypes = response.data;
-                    assetTypes.map((assetType: IAssetType) => {
-                        assetType.isPredefinedString = "No";
-                        if (assetType.isPredefined) assetType.isPredefinedString = "Yes";
-                        return assetType;
-                    });
-                    setAssetTypesTable(plaformAssistantDispatch, { assetTypes });
-                    setAssetTypesLoading(false);
-                    const reloadAssetTypesTable = false;
-                    setReloadAssetTypesTable(plaformAssistantDispatch, { reloadAssetTypesTable });
-                })
-                .catch((error: AxiosError) => {
-                    axiosErrorHandler(error, authDispatch);
-                });
-        } else {
-            setAssetTypesLoading(false);
-        }
-    }, [
-        accessToken,
-        refreshToken,
-        authDispatch,
-        plaformAssistantDispatch,
-        reloadAssetTypesTable,
-        assetTypesTable.length,
-    ]);
-
-    useEffect(() => {
-        if (assetsTable.length === 0 || reloadAssetsTable) {
-            const config = axiosAuth(accessToken);
-            const urlAssets = `${protocol}://${domainName}/admin_api/assets/user_managed`;
-            getAxiosInstance(refreshToken, authDispatch)
-                .get(urlAssets, config)
-                .then((response: AxiosResponse<any, any>) => {
-                    const assets = response.data;
-                    setAssetsTable(plaformAssistantDispatch, { assets });
-                    setAssetsLoading(false);
-                    const reloadAssetsTable = false;
-                    setReloadAssetsTable(plaformAssistantDispatch, { reloadAssetsTable });
-                })
-                .catch((error: AxiosError) => {
-                    axiosErrorHandler(error, authDispatch);
-                });
-        } else {
-            setAssetsLoading(false);
-        }
-    }, [refreshToken, accessToken, authDispatch, plaformAssistantDispatch, assetsTable.length, reloadAssetsTable]);
-
-    useEffect(() => {
-        if (sensorTypesTable.length === 0 || reloadSensorTypesTable) {
-            const config = axiosAuth(accessToken);
-            const urlSensorTypes = `${protocol}://${domainName}/admin_api/sensor_types/user_managed`;
-            getAxiosInstance(refreshToken, authDispatch)
-                .get(urlSensorTypes, config)
-                .then((response: AxiosResponse<any, any>) => {
-                    const sensorTypes = response.data;
-                    sensorTypes.map((sensorType: ISensorType) => {
-                        sensorType.isPredefinedString = "No";
-                        if (sensorType.isPredefined) sensorType.isPredefinedString = "Yes";
-                        return sensorType;
-                    });
-                    setSensorTypesTable(plaformAssistantDispatch, { sensorTypes });
-                    setSensorTypesLoading(false);
-                    const reloadSensorTypesTable = false;
-                    setReloadSensorTypesTable(plaformAssistantDispatch, { reloadSensorTypesTable });
-                })
-                .catch((error: AxiosError) => {
-                    axiosErrorHandler(error, authDispatch);
-                });
-        } else {
-            setSensorTypesLoading(false);
-        }
-    }, [
-        refreshToken,
-        accessToken,
-        authDispatch,
-        plaformAssistantDispatch,
-        sensorTypesTable.length,
-        reloadSensorTypesTable,
-    ]);
-
-    useEffect(() => {
-        if (sensorsTable.length === 0 || reloadSensorsTable) {
-            const config = axiosAuth(accessToken);
-            const urlSensors = `${protocol}://${domainName}/admin_api/sensors/user_managed`;
-            getAxiosInstance(refreshToken, authDispatch)
-                .get(urlSensors, config)
-                .then((response: AxiosResponse<any, any>) => {
-                    const sensors = response.data;
-                    setSensorsTable(plaformAssistantDispatch, { sensors });
-                    setSensorsLoading(false);
-                    const reloadSensorsTable = false;
-                    setReloadSensorsTable(plaformAssistantDispatch, { reloadSensorsTable });
-                })
-                .catch((error: AxiosError) => {
-                    axiosErrorHandler(error, authDispatch);
-                });
-        } else {
-            setSensorsLoading(false);
-        }
-    }, [refreshToken, accessToken, authDispatch, plaformAssistantDispatch, sensorsTable.length, reloadSensorsTable]);
-
-    useEffect(() => {
-        if (digitalTwinsTable.length === 0 || reloadDigitalTwins || reloadDigitalTwinsTable) {
-            setDigitalTwinsLoading(false);
-            const config = axiosAuth(accessToken);
-            const urlDigitalTwins = `${protocol}://${domainName}/admin_api/digital_twins/user_managed`;
-            getAxiosInstance(refreshToken, authDispatch)
-                .get(urlDigitalTwins, config)
-                .then(async (response: AxiosResponse<any, any>) => {
-                    const digitalTwins = response.data as IDigitalTwin[];
-                    digitalTwins.forEach((dt) => {
-                        dt.digitalTwinRef = `DT_${dt.digitalTwinUid}`;
-                        dt.numGltfFilesLocallyStored = 0;
-                        dt.numFemResFilesLocallyStored = 0;
-                    });
-                    setDigitalTwinsLoading(false);
-                    syncDigitalTwinsLocalStorage(digitalTwins).then(async () => {
-                        const dtStorageInfo = await getDTStorageInfo();
-                        const digitalTwinUidArray = dtStorageInfo.map((dt) => dt.digitalTwinUid);
-                        digitalTwins.forEach((dt) => {
-                            const dtIndex = digitalTwinUidArray.indexOf(dt.digitalTwinUid);
-                            if (dtIndex !== -1) {
-                                dt.numGltfFilesLocallyStored = dtStorageInfo[dtIndex].numGltfFiles;
-                                dt.numFemResFilesLocallyStored = dtStorageInfo[dtIndex].numFemResFiles;
-                            }
-                        });
-                        setDigitalTwinsTable(plaformAssistantDispatch, { digitalTwins });
-                        const inexistentDashboards = digitalTwins.filter(
-                            (dt: IDigitalTwin) => dt.dashboardUrl.slice(0, 7) === "Warning",
-                        );
-                        if (inexistentDashboards.length !== 0) {
-                            const warningMessage = "Some dashboards no longer exist";
-                            toast.warning(warningMessage);
-                        }
-                    });
-                })
-                .catch((error: AxiosError) => {
-                    const digitalTwins: never[] = [];
-                    setDigitalTwinsTable(plaformAssistantDispatch, { digitalTwins });
-                    setDigitalTwinsLoading(false);
-                    axiosErrorHandler(error, authDispatch);
-                });
-        } else {
-            setDigitalTwinsLoading(false);
-        }
-    }, [
-        refreshToken,
-        accessToken,
-        authDispatch,
-        plaformAssistantDispatch,
-        reloadDigitalTwins,
-        digitalTwinsTable.length,
-        reloadDigitalTwinsTable,
-    ]);
-
-    useEffect(() => {
-        const initialAssetsWithMarker = findAssetsWithMarker(assetTypesTable, assetsTable);
-        if (
-            initialAssetsWithMarker.length !== 0 &&
-            buildingsFiltered.length !== 0 &&
-            orgsOfGroupsManagedTable.length !== 0 &&
-            !(assetsLoading || assetTypesLoading || buildingsLoading || orgsOfGroupsManagedLoading)
-        ) {
-            const urlBuildings = `${protocol}://${domainName}/admin_api/measurement_last_of_assets_geolocation/user_managed/`;
-            const config = axiosAuth(accessToken);
-            if (assetsWithMarker.length === 0 || reloadAssetsWithMarkerTable) {
-                getAxiosInstance(refreshToken, authDispatch)
-                    .get(urlBuildings, config)
-                    .then((response: AxiosResponse<any, any>) => {
-                        const lastGeolocationMeasurements = response.data as IGeolocationMeasurement[];
-                        initialAssetsWithMarker.forEach((asset) => {
-                            const lastGeolocation = lastGeolocationMeasurements.filter(
-                                (item) => item.assetUid === asset.assetUid,
-                            )[0];
-                            if (lastGeolocation) {
-                                asset.longitude = lastGeolocation.longitude;
-                                asset.latitude = lastGeolocation.latitude;
-                            }
-                        });
-                        const assetsWithMarkerFiltered = filterAssetWithMarker(
-                            initialAssetsWithMarker,
-                            buildingsFiltered,
-                            orgsOfGroupsManagedTable,
-                        );
-                        setAssetsWithMarkerTable(plaformAssistantDispatch, {
-                            assetsWithMarker: assetsWithMarkerFiltered,
-                        });
-                        const outerBounds = findBounds(buildingsFiltered, assetsWithMarkerFiltered);
-                        setOuterBounds(outerBounds);
-                        setInitialOuterBounds(outerBounds);
-                        setAssetsWithMarkerLoading(false);
-                        const reloadAssetsWithMarkerTable = false;
-                        setReloadAssetsWithMarkerTable(plaformAssistantDispatch, { reloadAssetsWithMarkerTable });
-                    })
-                    .catch((error: AxiosError) => {
-                        axiosErrorHandler(error, authDispatch);
-                    });
-            } else {
-                setAssetsWithMarkerLoading(false);
-            }
-        }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [
-        assetsTable,
-        assetsLoading,
-        assetTypesTable,
-        assetTypesLoading,
-        buildingsFiltered,
-        buildingsLoading,
-        orgsOfGroupsManagedTable,
-        orgsOfGroupsManagedLoading,
-        reloadAssetsWithMarkerTable,
-        accessToken,
-        refreshToken,
-        authDispatch,
-        plaformAssistantDispatch,
-    ]);
-
-    useEffect(() => {
-        if (mlModelsTable.length === 0 || reloadMlModelsTable) {
-            const config = axiosAuth(accessToken);
-            const urlMlModels = `${protocol}://${domainName}/admin_api/ml_models/user_managed`;
-            getAxiosInstance(refreshToken, authDispatch)
-                .get(urlMlModels, config)
-                .then((response: AxiosResponse<any, any>) => {
-                    const mlModels = response.data;
-                    setMlModelsTable(plaformAssistantDispatch, { mlModels });
-                    setMlModelsLoading(false);
-                    const reloadMlModelsTable = false;
-                    setReloadMlModelsTable(plaformAssistantDispatch, { reloadMlModelsTable });
-                })
-                .catch((error: AxiosError) => {
-                    const mlModels: never[] = [];
-                    setMlModelsTable(plaformAssistantDispatch, { mlModels });
-                    setMlModelsLoading(false);
-                    axiosErrorHandler(error, authDispatch);
-                });
-        } else {
-            setMlModelsLoading(false);
-        }
-    }, [accessToken, refreshToken, authDispatch, plaformAssistantDispatch, reloadMlModelsTable, mlModelsTable.length]);
-
-    useEffect(() => {
-        if (assetS3FoldersTable.length === 0 || reloadAssetS3FoldersTable) {
-            const config = axiosAuth(accessToken);
-            const urlAssetS3Folders = `${protocol}://${domainName}/admin_api/asset_s3_folders_with_history/user_managed`;
-            getAxiosInstance(refreshToken, authDispatch)
-                .get(urlAssetS3Folders, config)
-                .then((response: AxiosResponse<any, any>) => {
-                    const assetS3Folders: IAssetS3Folder[] = response.data;
-                    for (const assetS3Folder of assetS3Folders) {
-                        if (assetS3Folder.lastS3Storage == null) {
-                            assetS3Folder.lastS3Storage = "-";
-                        }
-                        let numDecimals = 2;
-                        if (assetS3Folder.parquetTotalBytes !== 0) {
-                            numDecimals = Math.max(2, -Math.log10(assetS3Folder.parquetTotalBytes / 1048576) + 1);
-                        }
-                        assetS3Folder.parquetTotalMBytes = (
-                            assetS3Folder.parquetTotalBytes ? assetS3Folder.parquetTotalBytes / 1048576 : 0
-                        ).toFixed(numDecimals);
-
-                        if (assetS3Folder.isCurrent === true) {
-                            assetS3Folder.isCurrent = "Yes";
-                        } else if (assetS3Folder.isCurrent === false) {
-                            assetS3Folder.isCurrent = "No";
-                        }
-                    }
-                    setAssetS3FoldersTable(plaformAssistantDispatch, { assetS3Folders });
-                    setAssetS3FoldersLoading(false);
-                    const reloadAssetS3FoldersTable = false;
-                    setReloadAssetS3FoldersTable(plaformAssistantDispatch, { reloadAssetS3FoldersTable });
-                })
-                .catch((error: AxiosError) => {
-                    const assetS3Folders: never[] = [];
-                    setAssetS3FoldersTable(plaformAssistantDispatch, { assetS3Folders });
-                    setAssetS3FoldersLoading(false);
-                    axiosErrorHandler(error, authDispatch);
-                });
-        } else {
-            setAssetS3FoldersLoading(false);
-        }
-    }, [
-        accessToken,
-        refreshToken,
-        authDispatch,
-        plaformAssistantDispatch,
-        reloadAssetS3FoldersTable,
-        assetS3FoldersTable.length,
-    ]);
-
-    const clickHandler = (optionToShow: string) => {
-        setOptionToShow(optionToShow);
-    };
-
-    const geoLocationOrDTOptionTitle = () => {
-        let title = "Geolocation";
-        if (optionToShow === PLATFORM_ASSISTANT_HOME_OPTIONS.DIGITAL_TWINS) title = "Digital twins";
-        return title;
-    };
 
     return (
         <>
-            <PlatformAssistantHomeOptionsContainer>
-                <OptionContainer
-                    isOptionActive={
-                        optionToShow === PLATFORM_ASSISTANT_HOME_OPTIONS.GEOLOCATION ||
-                        optionToShow === PLATFORM_ASSISTANT_HOME_OPTIONS.DIGITAL_TWINS
-                    }
-                    onClick={() => clickHandler(PLATFORM_ASSISTANT_HOME_OPTIONS.GEOLOCATION)}
-                >
-                    {geoLocationOrDTOptionTitle()}
-                </OptionContainer>
-                <OptionContainer
-                    isOptionActive={optionToShow === PLATFORM_ASSISTANT_HOME_OPTIONS.TUTORIAL}
-                    onClick={() => clickHandler(PLATFORM_ASSISTANT_HOME_OPTIONS.TUTORIAL)}
-                >
-                    Tutorial
-                </OptionContainer>
-            </PlatformAssistantHomeOptionsContainer>
             <ContentContainer>
                 <>
                     {/* Con el visor del gemelo digital abierto, recargar tablas (p. ej. tras "Deploy changes")
                         no debe desmontarlo: se perdería la vista activa (Pipeline) y el estado del visor. */}
-                    {glftDataLoading ||
-                    (!isDigitalTwinViewerOpen &&
-                        (buildingsLoading ||
-                            floorsLoading ||
-                            orgsOfGroupsManagedLoading ||
-                            groupsManagedLoading ||
-                            assetTypesLoading ||
-                            sensorTypesLoading ||
-                            assetsLoading ||
-                            assetsWithMarkerLoading ||
-                            sensorsLoading ||
-                            digitalTwinLoading ||
-                            mlModelsLoading ||
-                            assetS3FoldersLoading)) ? (
+                    {glftDataLoading || (!isDigitalTwinViewerOpen && loading) ? (
                         <HomeOptionsLoader
                             key={gltfFileDownloadProgress}
                             glftDataLoading={glftDataLoading}

@@ -12,6 +12,7 @@ import (
 	"pipelines/logger"
 	"pipelines/message"
 	"pipelines/utils"
+	"strings"
 )
 
 const (
@@ -49,6 +50,8 @@ func CreateTranscriptorNode(node common.NodeData, fm common.Manager, p common.Pi
 		return nil, fmt.Errorf("API key must be configured")
 	}
 
+	// "auto": the language is detected from the audio. A message can choose
+	// it with payload["language"] (see ListenNode: "Payload-Language" header).
 	language, _ := node.Settings["language"].(string)
 	if language == "" {
 		language = "en"
@@ -122,28 +125,44 @@ func (n *TranscriptorNode) processMessage(msg common.Message, log *logger.Logger
 	file := msg.GetFile()
 	log.Infof("TranscriptorNode %s: transcribing file '%s' (%s)", n.NodeUid, file.Name, file.ContentType)
 
-	transcription, err := n.callWhisperAPI(n.Ctx, file.Data, file.Name, file.ContentType, log)
+	language := n.Language
+	if requested, ok := msg.GetStringFromPayload("language"); ok && requested != "" {
+		language = requested
+	}
+
+	transcription, err := n.callWhisperAPI(n.Ctx, file.Data, file.Name, file.ContentType, language, log)
 	if err != nil {
 		log.Errorf("TranscriptorNode %s: failed to transcribe audio: %v", n.NodeUid, err)
 		return fmt.Errorf("failed to transcribe audio: %w", err)
 	}
 
-	outMsg := message.NewMessageFromPayload(map[string]any{
-		"message": transcription,
-	})
+	// The transcription replaces the audio; the rest of the message is kept
+	// (the fields that came with the audio and, for a NATS request, where to
+	// reply: a Publish node with "Reply" answers the sender).
+	outMsg := message.NewMessageFromPayload(map[string]any{})
+	for key, value := range msg.GetPayload() {
+		outMsg.Payload[key] = value
+	}
+	outMsg.Payload["message"] = transcription
+	outMsg.Topic = msg.GetTopic()
+	outMsg.SetReplyContext(msg.GetReplyContext())
 	n.sendToOutputs(outMsg, log)
 	return nil
 }
 
-func (n *TranscriptorNode) callWhisperAPI(ctx context.Context, audioData []byte, filename, contentType string, log *logger.Logger) (string, error) {
+func (n *TranscriptorNode) callWhisperAPI(ctx context.Context, audioData []byte, filename, contentType, language string, log *logger.Logger) (string, error) {
 	var body bytes.Buffer
 	writer := multipart.NewWriter(&body)
 
 	if err := writer.WriteField("model", whisperModel); err != nil {
 		return "", fmt.Errorf("failed to write model field: %w", err)
 	}
-	if n.Language != "" {
-		if err := writer.WriteField("language", n.Language); err != nil {
+	if language != "" && language != "auto" {
+		// ISO-639-1: "es-ES" -> "es"
+		if i := strings.IndexAny(language, "-_"); i > 0 {
+			language = language[:i]
+		}
+		if err := writer.WriteField("language", strings.ToLower(language)); err != nil {
 			return "", fmt.Errorf("failed to write language field: %w", err)
 		}
 	}
@@ -197,12 +216,12 @@ func (n *TranscriptorNode) callWhisperAPI(ctx context.Context, audioData []byte,
 
 // extensionFromContentType returns the file extension Whisper expects for a given MIME type.
 func extensionFromContentType(contentType string) string {
-	switch contentType {
-	case "audio/ogg", "audio/ogg; codecs=opus":
+	switch message.MediaType(contentType) {
+	case "audio/ogg":
 		return ".ogg"
 	case "audio/mp3", "audio/mpeg":
 		return ".mp3"
-	case "audio/mp4":
+	case "audio/mp4", "audio/x-m4a":
 		return ".mp4"
 	case "audio/flac":
 		return ".flac"

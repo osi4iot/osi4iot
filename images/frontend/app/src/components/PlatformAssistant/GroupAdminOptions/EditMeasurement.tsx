@@ -14,23 +14,8 @@ import { setMeasurementsOptionToShow, useMeasurementRowIndexToEdit, useMeasureme
 import { getAxiosInstance } from '../../../tools/axiosIntance';
 import axiosErrorHandler from '../../../tools/axiosErrorHandler';
 import { AxiosResponse, AxiosError } from 'axios';
+import { FormCard as FormContainer, ControlsContainer } from "../../Tools/FormTools";
 
-
-const FormContainer = styled.div`
-	font-size: 12px;
-    padding: 30px 20px;
-    border: 3px solid #3274d9;
-    border-radius: 20px;
-    width: 500px;
-`;
-
-const ControlsContainer = styled.div`
-    width: 100%;
-
-    div:first-child {
-        margin-top: 0;
-    }
-`;
 
 const FieldContainer = styled.div`
     margin: 20px 0;

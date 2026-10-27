@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { SquareFunction, WifiHigh, ArrowBigRight, Mail, ClockFading, BrainCog, Layers, Zap } from "lucide-react";
+import { SquareFunction, SatelliteDish, RadioTower, ArrowBigRight, Mail, ClockFading, BrainCog, Layers, Zap } from "lucide-react";
 import { Handle, Position } from "@xyflow/react";
 import styled from "styled-components";
 import { toast } from "react-toastify";
@@ -237,8 +237,8 @@ export function ListenNode({ data, selected }) {
     return (
         <NodeContainer bgColor="#aa97aaff" hoverColor="#b5a5b5" selected={selected}>
             <NodeContent numOutputs={numOutputs}>
-                <IconContainer rotate="90deg" size="20px">
-                    <WifiHigh size={20} color="#e7e3dfff" />
+                <IconContainer size="20px" title="Receives from NATS">
+                    <SatelliteDish size={18} color="#e7e3dfff" />
                 </IconContainer>
                 <NodeLabel>{data?.label || "Listen"}</NodeLabel>
             </NodeContent>
@@ -265,8 +265,8 @@ export function PublishNode({ data, selected }) {
             <StyledHandle type="target" position={Position.Left} style={{ top: "50%", left: "-1px" }} />
             <NodeContent>
                 <NodeLabel>{data?.label || "Publish"}</NodeLabel>
-                <IconContainer rotate="90deg" size="20px">
-                    <WifiHigh size={20} color="#e7e3dfff" />
+                <IconContainer size="20px" title="Publishes to NATS">
+                    <RadioTower size={18} color="#e7e3dfff" />
                 </IconContainer>
             </NodeContent>
         </NodeContainer>

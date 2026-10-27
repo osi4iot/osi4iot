@@ -364,6 +364,16 @@ class GroupController implements IController {
 						s3Folder: "",
 						parquetSchema: "{}",
 					},
+					{
+						topicRef: "dev2pdb_7",
+						topicType: "dev2dtm",
+						description: `Mobile audio topic`,
+						mqttAccessControl: "Pub & Sub",
+						payloadJsonSchema: JSON.stringify(predefinedSensorTypes[6].defaultPayloadJsonSchema),
+						requireS3Storage: false,
+						s3Folder: "",
+						parquetSchema: "{}",
+					},
 				],
 				sensorsRef: [
 					{
@@ -407,6 +417,13 @@ class GroupController implements IController {
 						topicRef: "dev2pdb_6",
 						description: `Mobile video`,
 						payloadJsonSchema: JSON.stringify(predefinedSensorTypes[5].defaultPayloadJsonSchema),
+					},
+					{
+						sensorRef: "sensor_7",
+						sensorType: "Mobile audio",
+						topicRef: "dev2pdb_7",
+						description: `Mobile audio`,
+						payloadJsonSchema: JSON.stringify(predefinedSensorTypes[6].defaultPayloadJsonSchema),
 					},
 				],
 			};

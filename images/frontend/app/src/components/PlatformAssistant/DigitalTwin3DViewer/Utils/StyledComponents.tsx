@@ -24,20 +24,6 @@ export const CanvasContainer = styled.div`
     position: relative;
 `;
 
-// Above the panels opened below it (pipeline logs, chat assistant,
-// control panel), which are fixed too and come later in the page: the
-// viewer dropdown (3D Model, Pipelines, Image) opens over them. Below the
-// modals (1001).
-export const HeaderContainer = styled.div`
-    background-color: #141619;
-    width: 600px;
-    position: fixed;
-    top: 210px;
-    right: 15px;
-    border-bottom: 3px solid #212121;
-    z-index: 1000;
-`;
-
 export const HeaderOptionsContainer = styled.div`
     display: flex;
     flex-direction: row;
@@ -80,10 +66,13 @@ export const MaxMinValuesContainer = styled.div`
     border-radius: 10px;
     padding: 5px;
     color: white;
-    position: fixed;
+    position: absolute;
     bottom: 12px;
-    left: 30;
+    left: 12px;
+    margin: 0;
     width: 18%;
+    min-width: 220px;
+    z-index: 900;
 `;
 
 export const MaxMinFlexContainer = styled.div`

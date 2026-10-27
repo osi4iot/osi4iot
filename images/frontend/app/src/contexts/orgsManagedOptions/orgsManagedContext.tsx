@@ -1,71 +1,36 @@
-import React, { createContext, FC, useContext, useReducer } from 'react';
+import { FC } from 'react';
 import { ChildrenProp } from '../../interfaces/interfaces'
 import { OrgsManagedContextProps } from './interfaces'
 import { initialState, OrgsManagedReducer } from './orgsManagedReducer';
+import { createSectionStore, SectionStoreProvider } from '../../state/createSectionStore';
 
-
-const OrgsManagedStateContext = createContext<OrgsManagedContextProps>(initialState);
-const OrgsManagedDispatchContext = createContext<any>({});
+// Estado de la sección en un almacén Zustand global (antes Context + useReducer): se conserva al cambiar de capa
+const useOrgsManagedStore = createSectionStore(OrgsManagedReducer, initialState);
 
 export function useOrgsManagedState() {
-	const context = useContext(OrgsManagedStateContext);
-	if (context === undefined) {
-		throw new Error('useOrgsManagedState must be used within a OrgsManagedProvider');
-	}
-	return context;
+	return useOrgsManagedStore();
 }
 
-
-export const OrgsManagedProvider: FC<ChildrenProp> = ({ children }) => {
-	const [data, orgsManagedDispatch] = useReducer(OrgsManagedReducer, initialState);
-
-	return (
-		<OrgsManagedStateContext.Provider value={data}>
-			<OrgsManagedDispatchContext.Provider value={orgsManagedDispatch}>
-				{children}
-			</OrgsManagedDispatchContext.Provider>
-		</OrgsManagedStateContext.Provider>
-	);
-};
+export const OrgsManagedProvider: FC<ChildrenProp> = ({ children }) => (
+	<SectionStoreProvider store={useOrgsManagedStore}>{children}</SectionStoreProvider>
+);
 
 export function useOrgsManagedDispatch() {
-	const context = React.useContext(OrgsManagedDispatchContext);
-	if (context === undefined) {
-		throw new Error('useOrgsManagedDispatch must be used within a OrgsManagedProvider');
-	}
-
-	return context;
+	return useOrgsManagedStore.dispatch;
 }
 
-
 export const useOrgsManagedOptionToShow = (): string => {
-	const context = useContext(OrgsManagedStateContext);
-	if (context === undefined) {
-		throw new Error('useOrgsManagedOptionToShow must be used within a OrgsManagedProvider');
-	}
-	return context.orgsManagedOptionToShow;
+	return useOrgsManagedStore((state) => state.orgsManagedOptionToShow);
 };
 
 export const useOrgManagedIdToCreateOrgUsers = (): number => {
-	const context = useContext(OrgsManagedStateContext);
-	if (context === undefined) {
-		throw new Error('useOrgManagedIdToCreateOrgUsers must be used within a OrgsManagedProvider');
-	}
-	return context.orgManagedIdToCreateOrgUsers;
+	return useOrgsManagedStore((state) => state.orgManagedIdToCreateOrgUsers);
 };
 
 export const useOrgManagedIdToRemoveAllOrgUsers = (): number => {
-	const context = useContext(OrgsManagedStateContext);
-	if (context === undefined) {
-		throw new Error('useOrgManagedIdToRemoveAllOrgUsers must be used within a OrgsManagedProvider');
-	}
-	return context.orgManagedIdToRemoveAllOrgUsers;
+	return useOrgsManagedStore((state) => state.orgManagedIdToRemoveAllOrgUsers);
 };
 
 export const useOrgManagedRowIndex = (): number => {
-	const context = useContext(OrgsManagedStateContext);
-	if (context === undefined) {
-		throw new Error('useOrgManagedRowIndex must be used within a OrgsManagedProvider');
-	}
-	return context.orgManagedRowIndex;
+	return useOrgsManagedStore((state) => state.orgManagedRowIndex);
 };

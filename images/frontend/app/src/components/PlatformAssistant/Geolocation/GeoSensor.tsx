@@ -104,6 +104,10 @@ const GeoSensor: FC<GeoSensorProps> = ({
         ) {
             setSensorWithCameraSelected(true);
             clickToOpenDigitalTwin3DViewer();
+        } else if (sensorData.sensorType === "Mobile audio") {
+            // el audio del móvil no tiene dashboard: sus clips van a los pipelines (tópico dev2dtm)
+            setSensorWithCameraSelected(false);
+            toast.info(`"${sensorData.description}" has no dashboard: its audio goes to the digital twin pipelines.`);
         } else {
             const url = sensorData.dashboardUrl as string;
             if (url.slice(0, 7) === "Warning") {

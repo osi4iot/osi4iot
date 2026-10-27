@@ -22,7 +22,8 @@ const SimulationLegendDiv = styled.div`
   border: 1px solid #141619;
   overflow: hidden;
   position: absolute;
-  bottom: calc((100vh - 155px)/2 - 180px);
+  top: 50%;
+  transform: translateY(-50%);
   left: 20px;
 `;
 

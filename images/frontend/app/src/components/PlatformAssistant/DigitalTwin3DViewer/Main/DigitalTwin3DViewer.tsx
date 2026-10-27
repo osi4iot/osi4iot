@@ -1,12 +1,13 @@
 // DigitalTwin3DViewer.tsx
 import { FC, SetStateAction, useEffect, useLayoutEffect, useState, useRef, useCallback, useMemo } from "react";
+import { useTable } from "../../../../state";
 import { Canvas, useThree } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
 import { type NatsConnection, headers } from "@nats-io/nats-core";
 import { StringCodec } from "../../../../tools/natsCodec";
 
 // Types and constants
-import { IPipelineEdge, IPipelineNode, Viewer3DProps } from "../Types/types";
+import { IPipelineEdge, IPipelineNode, Viewer3DProps, ViewerOptions } from "../Types/types";
 import { MOUSE_BUTTONS, LEGACY_COLOR_MANAGEMENT } from "../Utils/constants";
 
 // Components
@@ -15,7 +16,8 @@ import Model from "./Model";
 import SetGltfObjects from "../Objects/SetGlftOjbects";
 import SimulationLegend from "../Utils/SimulationLegend";
 import ChatAssistant from "../ChatAssitant/ChatAssistant";
-import PipelineLogs from "../Pipeline/PipelineLogs";
+import { createPipelineVoiceService } from "../ChatAssitant/voiceService";
+import PipelineLogs, { PipelineLog } from "../Pipeline/PipelineLogs";
 import DigitalTwinSimulatorModal from "../ViewerTools/DigitalTwinSimulatorModal";
 import { Header } from "../Utils/Headers";
 import Inspector, { INSPECTOR_GAP, INSPECTOR_WIDTH } from "../Inspector/Inspector";
@@ -51,11 +53,8 @@ import {
 // Handlers
 import { createHandlers } from "../Utils/handlers";
 import { useAuthDispatch, useAuthState } from "../../../../contexts/authContext";
-import {
-    useGroupsManagedTable,
-    useOrgsOfGroupsManagedTable,
-} from "../../../../contexts/platformAssistantContext/platformAssistantContext";
 import PipelineErrorBoundary from "../Pipeline/PipelineErrorBoundary";
+import { forgetViewer, getViewerMemory, rememberViewer } from "../../../../state/viewerMemoryStore";
 import {
     AssetState,
     FemSimulationObjectState,
@@ -87,9 +86,13 @@ const ShaderPrewarm: FC<{ gltfData: any }> = ({ gltfData }) => {
     return null;
 };
 
-// Vista activa (3D / Pipeline / Imagen) de cada gemelo digital mientras el visor sigue abierto. Si el visor se
-// vuelve a montar (p. ej. al recargar datos) se recupera la vista en la que estaba el usuario.
-const lastActiveViewerByDt = new Map<string, "3D" | "pipeline" | "image_frame">();
+// Visibilidad por colección: al volver a montar el visor se conserva la que tenía el usuario para las
+// colecciones que siguen existiendo
+const mergeVisibilityState = <T,>(initial: Record<string, T>, previous: Record<string, T> | undefined) => {
+    const merged: Record<string, T> = {};
+    for (const key of Object.keys(initial)) merged[key] = previous?.[key] ?? initial[key];
+    return merged;
+};
 
 const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
     digitalTwinSelected,
@@ -107,19 +110,22 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
     const { accessToken, refreshToken } = useAuthState();
     const authDispatch = useAuthDispatch();
     const dtUid = digitalTwinSelected?.digitalTwinUid ?? "";
-    const [state, setState] = useViewerState(lastActiveViewerByDt.get(dtUid));
+    // Memoria del visor de este gemelo digital (vista activa, opciones, pipeline sin desplegar, logs): si el
+    // visor se vuelve a montar (cambio de capa, recarga de datos) se recupera lo que tenía el usuario.
+    const memory = useMemo(() => getViewerMemory(dtUid), [dtUid]);
+    const [state, setState] = useViewerState(memory.activeViewer, !!memory.pipeline?.changed);
     useEffect(() => {
-        if (dtUid) lastActiveViewerByDt.set(dtUid, state.activeViewer);
+        rememberViewer(dtUid, { activeViewer: state.activeViewer });
     }, [dtUid, state.activeViewer]);
     const handleClose3DViewer = useCallback(() => {
-        lastActiveViewerByDt.delete(dtUid);
+        forgetViewer(dtUid);
         close3DViewer();
     }, [dtUid, close3DViewer]);
 
     // Grupo y organización del gemelo digital: si no hay ninguno seleccionado en el mapa (o es otro),
     // se buscan en las tablas a partir del groupId del gemelo digital.
-    const groupsManagedTable = useGroupsManagedTable();
-    const orgsOfGroupsManagedTable = useOrgsOfGroupsManagedTable();
+    const groupsManagedTable = useTable("groupsManaged");
+    const orgsOfGroupsManagedTable = useTable("orgsOfGroupsManaged");
     const dtGroup = useMemo(() => {
         const groupId = digitalTwinSelected?.groupId;
         if (groupSelected && (groupId === undefined || groupSelected.id === groupId)) return groupSelected;
@@ -146,9 +152,18 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
         selectedObjCollectionNameRef,
     } = useRefs();
 
-    const [opts, setOpts] = useViewerOptions([]);
+    const [opts, setOpts] = useViewerOptions([], memory.opts as ViewerOptions | undefined);
+    useEffect(() => {
+        rememberViewer(dtUid, { opts });
+    }, [dtUid, opts]);
     const { chatMessages, setChatMessages, handleUpdateChatAssistantMessages } = useChatMessages(setOpts);
-    const { logMessages, setLogMessages, handleUpdateLogMessages } = usePipelineLogs(setChatMessages);
+    const { logMessages, setLogMessages, handleUpdateLogMessages } = usePipelineLogs(
+        setChatMessages,
+        memory.logMessages as PipelineLog[] | undefined,
+    );
+    useEffect(() => {
+        rememberViewer(dtUid, { logMessages });
+    }, [dtUid, logMessages]);
     const sim2stateTopic =
         digitalTwinGltfData?.natsSubjectsData?.find((subject) => subject.topicRef === "sim2state")?.natsSubject ||
         "";
@@ -265,7 +280,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
         if (state.initialGenericObjectsVisibilityState) {
             setOpts((prev) => ({
                 ...prev,
-                genericObjectsVisibilityState: state.initialGenericObjectsVisibilityState || {},
+                genericObjectsVisibilityState: mergeVisibilityState(state.initialGenericObjectsVisibilityState || {}, prev.genericObjectsVisibilityState),
             }));
         }
     }, [state.initialGenericObjectsVisibilityState, setOpts]);
@@ -274,7 +289,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
         if (state.initialSensorsVisibilityState) {
             setOpts((prev) => ({
                 ...prev,
-                sensorsVisibilityState: state.initialSensorsVisibilityState || {},
+                sensorsVisibilityState: mergeVisibilityState(state.initialSensorsVisibilityState || {}, prev.sensorsVisibilityState),
             }));
         }
     }, [state.initialSensorsVisibilityState, setOpts]);
@@ -283,7 +298,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
         if (state.initialAssetsVisibilityState) {
             setOpts((prev) => ({
                 ...prev,
-                assetsVisibilityState: state.initialAssetsVisibilityState || {},
+                assetsVisibilityState: mergeVisibilityState(state.initialAssetsVisibilityState || {}, prev.assetsVisibilityState),
             }));
         }
     }, [state.initialAssetsVisibilityState, setOpts]);
@@ -292,7 +307,10 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
         if (state.initialFemSimObjectsVisibilityState) {
             setOpts((prev) => ({
                 ...prev,
-                femSimulationObjectsVisibilityState: state.initialFemSimObjectsVisibilityState || {},
+                femSimulationObjectsVisibilityState: mergeVisibilityState(
+                    state.initialFemSimObjectsVisibilityState || {},
+                    prev.femSimulationObjectsVisibilityState,
+                ),
             }));
         }
     }, [state.initialFemSimObjectsVisibilityState, setOpts]);
@@ -442,6 +460,14 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
         digitalTwinGltfData?.natsSubjectsData?.filter((subject) => subject.topicRef === "sim2dtm")[0] || null;
     const digitalTwinModelChatAssistantTopic =
         digitalTwinGltfData?.natsSubjectsData?.filter((subject) => subject.topicRef === "sim2llm")[0] || null;
+    // voz del asistente con el pipeline (peticiones NATS al tópico dev2dtm del gemelo digital) cuando el
+    // navegador no tiene reconocimiento de voz o voces para leer las respuestas
+    const voiceTopicSubject =
+        digitalTwinGltfData?.natsSubjectsData?.find((subject) => subject.topicRef === "dev2dtm")?.natsSubject ?? null;
+    const chatVoiceService = useMemo(
+        () => (natsClient && voiceTopicSubject ? createPipelineVoiceService(natsClient, voiceTopicSubject) : null),
+        [natsClient, voiceTopicSubject],
+    );
 
     // Sync initial states with current states when they change
     useEffect(() => {
@@ -559,6 +585,22 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 
     useEffect(() => {
         if (digitalTwinSelected) {
+            // cambios del pipeline sin desplegar que el usuario tenía antes de salir del visor
+            const unsaved = getViewerMemory(dtUid).pipeline;
+            if (unsaved?.changed) {
+                setPipelineNodes(
+                    unsaved.nodes.map((node) =>
+                        node.type === "Inject"
+                            ? {
+                                  ...node,
+                                  data: { ...node.data, natsClient, natsSubjectsData: digitalTwinGltfData.natsSubjectsData },
+                              }
+                            : node,
+                    ),
+                );
+                setPipelineEdges(unsaved.edges);
+                return;
+            }
             const { nodes, edges } = processInitialPipelineData(
                 digitalTwinSelected,
                 natsClient,
@@ -567,7 +609,16 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
             setPipelineNodes(nodes);
             setPipelineEdges(edges);
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [digitalTwinSelected, natsClient, digitalTwinGltfData.natsSubjectsData]);
+
+    useEffect(() => {
+        rememberViewer(dtUid, {
+            pipeline: state.isPipelineUiChanged
+                ? { nodes: pipelineNodes, edges: pipelineEdges, changed: true }
+                : undefined,
+        });
+    }, [dtUid, pipelineNodes, pipelineEdges, state.isPipelineUiChanged]);
 
     useEffect(() => {
         if (digitalTwinSelected) {
@@ -923,6 +974,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
                         setChatMessages={setChatMessages}
                         chatAssistantLanguage={digitalTwinSelected.chatAssistantLanguage}
                         handleRemoveChatAssistantHistory={handleRemoveChatAssistantHistory}
+                        voiceService={chatVoiceService}
                     />
                 )}
 
