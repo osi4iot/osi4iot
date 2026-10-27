@@ -1,4 +1,4 @@
-import { Column } from 'react-table';
+import { Column } from '../Utils/platformTable';
 import { FeatureCollection } from 'geojson';
 
 

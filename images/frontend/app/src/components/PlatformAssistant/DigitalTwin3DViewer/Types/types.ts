@@ -1,3 +1,4 @@
+import * as THREE from "three";
 import {
     IDigitalTwinGltfData,
     SensorState,
@@ -104,6 +105,7 @@ export interface ViewerOptions {
     pointLightPower: number;
     showPointLightHelper: boolean;
     showAxes: boolean;
+    axesScale: number;
     showShadows: boolean;
     sensorsOpacity: number;
     highlightAllSensors: boolean;

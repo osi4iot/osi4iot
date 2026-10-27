@@ -1,5 +1,5 @@
 import { FC, useState, useEffect } from 'react';
-import { Column } from 'react-table';
+import { Column } from '../Utils/platformTable';
 import AddUsersIcon from '../Utils/AddUsersIcon';
 import RemoveUsersIcon from '../Utils/RemoveUsersIcon';
 import { ORGS_MANAGED_OPTIONS } from '../Utils/platformAssistantOptions';

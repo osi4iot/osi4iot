@@ -1,4 +1,4 @@
-import { NatsConnection, headers } from "nats.ws";
+import { type NatsConnection, headers } from "@nats-io/nats-core";
 import { sc } from "./Natsconnection";
 
 const ReadAccelerations = (

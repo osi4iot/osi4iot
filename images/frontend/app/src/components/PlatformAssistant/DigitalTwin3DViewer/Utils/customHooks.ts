@@ -16,7 +16,7 @@ import {
     NodeWireData,
     INatsClientOptions,
 } from "../Types/types";
-import { DEFAULT_VIEWER_OPTIONS, BUTTON_LABELS, PROTOCOL, DOMAIN_NAME, NATS_SEED_SERVERS } from "../Utils/constants";
+import { DEFAULT_VIEWER_OPTIONS, BUTTON_LABELS, PROTOCOL, DOMAIN_NAME, NATS_SEED_SERVERS, LEGACY_COLOR_MANAGEMENT } from "../Utils/constants";
 import { useAuthDispatch, useAuthState, useLoggedUserLogin } from "../../../../contexts/authContext/authContext";
 import { PipelineLog } from "../Pipeline/PipelineLogs";
 import {
@@ -36,14 +36,14 @@ import { IDigitalTwin } from "../../TableColumns/digitalTwinsColumns";
 import axiosErrorHandler from "../../../../tools/axiosErrorHandler";
 import { IMqttTopicData, INatsSubjectData } from "../Main/Model";
 import { base64ToJpg } from "../../../../tools/base64ToJpg";
-import { connect, NatsConnection } from "nats.ws";
+import { wsconnect, type NatsConnection } from "@nats-io/nats-core";
 
-export const useViewerState = () => {
+export const useViewerState = (initialActiveViewer?: "3D" | "pipeline" | "image_frame") => {
     const [state, setState] = useState<ViewerState>({
         isControlPanelOpen: false,
         isChatAssistantOpen: false,
         isPipelineLogsOpen: false,
-        activeViewer: "3D", // Default to 3D viewer
+        activeViewer: initialActiveViewer ?? "3D", // Default to 3D viewer
         showDtSimulatorModal: false,
         digitalTwinState: "OK",
         digitalTwinSimulatorSendData: false,
@@ -301,7 +301,7 @@ export const useNatsConnection = () => {
         setStatus("Connecting");
  
         try {
-            const nc = await connect({
+            const nc = await wsconnect({
                 servers: NATS_SEED_SERVERS.split(",").map((s: string) => s.trim()),
                 user: options.username,
                 pass: options.accessToken,
@@ -430,6 +430,10 @@ export const useChatMessages = (
     };
 };
 
+const PIPELINE_KNOWN_STATUSES = ["running", "stopped", "error"];
+const PIPELINE_STATUS_GRACE_MS = 5000;
+const PIPELINE_UNKNOWN_DELAY_MS = 1500;
+
 export const usePipelineState = (
     digitalTwinSelected: IDigitalTwin | null,
     natsClient: NatsConnection | null,
@@ -440,22 +444,61 @@ export const usePipelineState = (
     const [pipelineLeaderReplicaIndex, setPipelineLeaderReplicaIndex] = useState<number>(-1);
     const userName = useLoggedUserLogin();
 
+    // Cada réplica del pipeline puede contestar a "queryPipelineStatus" y las que no son líderes pueden decir
+    // "unknown" justo antes o después de que el líder diga "running". Para que el icono de estado no parpadee
+    // ni alterne entre Unknown y Running, un "unknown" no sustituye a un estado conocido recibido hace poco y,
+    // si llega antes, se aplica con un pequeño retraso que se cancela cuando llega el estado conocido.
+    const lastKnownStatusAt = useRef(0);
+    const pendingUnknownTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const lastLeaderIndexAt = useRef(0);
+
+    useEffect(() => {
+        setPipelineStatus("unknown");
+        setPipelineLeaderReplicaIndex(-1);
+        lastKnownStatusAt.current = 0;
+        lastLeaderIndexAt.current = 0;
+        return () => {
+            if (pendingUnknownTimer.current) clearTimeout(pendingUnknownTimer.current);
+            pendingUnknownTimer.current = null;
+        };
+    }, [digitalTwinSelected?.digitalTwinUid]);
+
     const handlePipelineStatusChange = useCallback(
         (status: string) => {
-            if (digitalTwinSelected) {
-                setPipelineStatus(status);
-            } else {
+            if (!digitalTwinSelected) {
                 setPipelineStatus("unknown");
+                return;
             }
+            const normalized = typeof status === "string" ? status.toLowerCase() : "unknown";
+            const isKnown = PIPELINE_KNOWN_STATUSES.includes(normalized);
+            if (isKnown) {
+                if (pendingUnknownTimer.current) clearTimeout(pendingUnknownTimer.current);
+                pendingUnknownTimer.current = null;
+                lastKnownStatusAt.current = Date.now();
+                setPipelineStatus(normalized);
+                return;
+            }
+            if (Date.now() - lastKnownStatusAt.current < PIPELINE_STATUS_GRACE_MS) return;
+            if (pendingUnknownTimer.current) clearTimeout(pendingUnknownTimer.current);
+            pendingUnknownTimer.current = setTimeout(() => {
+                pendingUnknownTimer.current = null;
+                setPipelineStatus("unknown");
+            }, PIPELINE_UNKNOWN_DELAY_MS);
         },
         [digitalTwinSelected]
     );
 
     const handlePipelineLeaderReplicaIndexChange = useCallback(
         (index: number) => {
-            if (digitalTwinSelected) {
+            if (!digitalTwinSelected) {
+                setPipelineLeaderReplicaIndex(-1);
+                return;
+            }
+            const isValid = typeof index === "number" && index >= 0;
+            if (isValid) {
+                lastLeaderIndexAt.current = Date.now();
                 setPipelineLeaderReplicaIndex(index);
-            } else {
+            } else if (Date.now() - lastLeaderIndexAt.current >= PIPELINE_STATUS_GRACE_MS) {
                 setPipelineLeaderReplicaIndex(-1);
             }
         },
@@ -592,6 +635,9 @@ export const useLegendRenderer = () => {
 
         try {
             renderer = new THREE.WebGLRenderer({ antialias: true });
+            // three >= r152 usa salida sRGB por defecto (antes era lineal). En modo "legacy" se mantiene
+            // la salida lineal para que la leyenda se vea igual que con three r137.
+            renderer.outputColorSpace = LEGACY_COLOR_MANAGEMENT ? THREE.LinearSRGBColorSpace : THREE.SRGBColorSpace;
             if (active) setLegendRenderer(renderer);
         } catch (e) {
             console.warn("useLegendRenderer: It can't create WebGL context", e);
@@ -1060,7 +1106,8 @@ const deployPipeline = (
     handlePipelineUiChanged: (isChanged: boolean) => void,
     handleSetPipelineLogsOpen: (open: boolean) => void,
     refreshDigitalTwins: () => void,
-    params: UsePipelineActionsParamsProps
+    params: UsePipelineActionsParamsProps,
+    onPipelineImported?: (nodes: any[], edges: any[]) => void
 ) => {
     const { digitalTwinSelected, accessToken, refreshToken, authDispatch } = params;
     if (!digitalTwinSelected) {
@@ -1344,6 +1391,50 @@ export const createNodesAndEdges = (
     return { nodes, edges };
 };
 
+// Serializa nodos y conexiones al formato de nodos del YAML (el mismo que lee createNodesAndEdges)
+export const pipelineToYamlNodes = (pipelineNodes: IPipelineNode[], pipelineEdges: IPipelineEdge[]) => {
+    // Las conexiones se agrupan por nodo origen y salida. No se usa edge.id para obtener el origen porque
+    // las conexiones creadas en el editor tienen ids "xy-edge__..." y se perdían al descargar el YAML.
+    const wiresBySource = new Map<string, Map<string, NodeWireData>>();
+    const nodeNumOutputs = new Map<string, number>();
+
+    for (const edge of pipelineEdges) {
+        const sourceNode = edge.source;
+        const targetNode = edge.target;
+        const outputIndex = edge.sourceHandle ? parseInt(edge.sourceHandle.split("-")[1], 10) || 0 : 0;
+        const keyWire = `${sourceNode}-${outputIndex}-${targetNode}`;
+        if (!wiresBySource.has(sourceNode)) wiresBySource.set(sourceNode, new Map());
+        const sourceWires = wiresBySource.get(sourceNode)!;
+        if (!sourceWires.has(keyWire)) {
+            sourceWires.set(keyWire, { nodeEndUid: targetNode, outputIndex });
+            nodeNumOutputs.set(sourceNode, Math.max(nodeNumOutputs.get(sourceNode) || 0, outputIndex + 1));
+        }
+    }
+
+    const nodes = [] as any[];
+    for (const node of pipelineNodes) {
+        const nodeUid = node.id;
+        const numOutputs = Math.max(nodeNumOutputs.get(nodeUid) || 0, (node.data as any).numOutputs || 0);
+        const wires = new Array(numOutputs).fill(null).map(() => [] as { nodeEndUid: string }[]);
+        for (const wireData of Array.from(wiresBySource.get(nodeUid)?.values() ?? [])) {
+            wires[wireData.outputIndex].push({ nodeEndUid: wireData.nodeEndUid });
+        }
+        nodes.push({
+            name: node.data.label,
+            nodeUid,
+            type: node.type,
+            x: node.position.x,
+            y: node.position.y,
+            numOutputs,
+            debug: (node.data as any).debug || "off",
+            settings: node.data.settings,
+            wires,
+        });
+    }
+
+    return nodes;
+};
+
 const downloadYamlFile = (
     digitalTwinSelected: IDigitalTwin | null,
     pipelineNodes: IPipelineNode[],
@@ -1354,57 +1445,7 @@ const downloadYamlFile = (
         return;
     }
 
-    const nodes = [] as any[];
-    const wiresData = new Map<string, NodeWireData>();
-    const nodeNumOutputs = new Map<string, number>();
-
-    for (const edge of pipelineEdges) {
-        const sourceNode = edge.source;
-        const targetNode = edge.target;
-        const outputIndex = edge.sourceHandle ? parseInt(edge.sourceHandle.split("-")[1], 10) : 0
-
-        if (!wiresData.has(edge.id)) {
-            wiresData.set(edge.id, {
-                nodeEndUid: targetNode,
-                outputIndex,
-            });
-
-            const currentNumOutputs = nodeNumOutputs.get(sourceNode) || 0;
-            if (!nodeNumOutputs.has(sourceNode)) {
-                nodeNumOutputs.set(sourceNode, outputIndex + 1);
-            } else {
-                nodeNumOutputs.set(sourceNode, Math.max(currentNumOutputs, outputIndex + 1));
-            }
-        }
-    }
-
-    for (const node of pipelineNodes) {
-        const settings = node.data.settings;
-        const nodeUid = node.id;
-        const numOutputs = nodeNumOutputs.get(nodeUid) || 0;
-        const wires = new Array(numOutputs).fill(null).map(() => [] as { nodeEndUid: string }[]);
-        for (let [key, wireData] of Array.from(wiresData.entries())) {
-            const keyNodeUid = key.split("-")[0]; // Extract the nodeUid from the key
-            if (keyNodeUid === nodeUid) {
-                const newWireItem = {
-                    nodeEndUid: wireData.nodeEndUid,
-                };
-                wires[wireData.outputIndex].push(newWireItem);
-            }
-        }
-        const nodeData = {
-            name: node.data.label,
-            nodeUid,
-            type: node.type,
-            x: node.position.x,
-            y: node.position.y,
-            numOutputs,
-            settings,
-            wires,
-        };
-        nodes.push(nodeData);
-    }
-
+    const nodes = pipelineToYamlNodes(pipelineNodes, pipelineEdges);
     const pipelineData = {
         nodes,
     };
@@ -1438,7 +1479,8 @@ export const usePipelineActions = (
     natsClient: NatsConnection | null,
     natsSubjectsData: INatsSubjectData[],
     refreshDigitalTwins: () => void,
-    params: UsePipelineActionsParamsProps
+    params: UsePipelineActionsParamsProps,
+    onPipelineImported?: (nodes: any[], edges: any[]) => void
 ) => {
     const handleDeployPipeline = useCallback(() => {
         deployPipeline(
@@ -1469,10 +1511,23 @@ export const usePipelineActions = (
                             natsClient,
                             natsSubjectsData
                         );
-                        setPipelineNodes(nodes);
-                        setPipelineEdges(edges);
-                        handlePipelineUiChanged(true);
-                        toast.success("YAML file loaded successfully");
+                        if (onPipelineImported) {
+                            // El editor coloca los nodos nuevos siguiendo al ratón hasta que se hace clic
+                            const existingNodeIds = new Set(pipelineNodes.map((node) => node.id));
+                            const existingEdgeIds = new Set(pipelineEdges.map((edge) => edge.id));
+                            const importedNodes = nodes.filter((node) => !existingNodeIds.has(node.id));
+                            const importedEdges = edges.filter((edge) => !existingEdgeIds.has(edge.id));
+                            if (importedNodes.length === 0) {
+                                toast.warning("The YAML file does not contain any pipeline node");
+                                return;
+                            }
+                            onPipelineImported(importedNodes, importedEdges);
+                        } else {
+                            setPipelineNodes(nodes);
+                            setPipelineEdges(edges);
+                            handlePipelineUiChanged(true);
+                            toast.success("YAML file loaded successfully");
+                        }
                     } catch (error) {
                         toast.error("Error parsing YAML file");
                         console.error("YAML parsing error:", error);
@@ -1486,7 +1541,7 @@ export const usePipelineActions = (
             event.target.value = "";
         },
         // eslint-disable-next-line react-hooks/exhaustive-deps
-        [pipelineNodes, pipelineEdges, natsClient, natsSubjectsData]
+        [pipelineNodes, pipelineEdges, natsClient, natsSubjectsData, onPipelineImported]
     );
 
     const handleDownloadYamlFile = useCallback(() => {

@@ -51,18 +51,18 @@ const NodesContainer = styled.div`
     margin: 10px 0;
     padding: 5px 10px;
 
-    ::-webkit-scrollbar {
+    &::-webkit-scrollbar {
         width: 10px;
     }
-    ::-webkit-scrollbar-track {
+    &::-webkit-scrollbar-track {
         background: #202226;
         border-radius: 5px;
     }
-    ::-webkit-scrollbar-thumb {
+    &::-webkit-scrollbar-thumb {
         background: #3e474b;
         border-radius: 5px;
     }
-    ::-webkit-scrollbar-thumb:hover {
+    &::-webkit-scrollbar-thumb:hover {
         background-color: #515c61;
     }
 `;

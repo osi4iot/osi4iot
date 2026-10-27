@@ -2,7 +2,7 @@
 // editor/worker/LanguageServer.ts
 // ─────────────────────────────────────────────────────────────────────────────
 
-import * as ts from "typescript";
+import * as ts from "@typescript/typescript6";
 import dtsContent  from "./osi4iot.d.ts?raw";
 import es2020Lib   from "./es2020.lib.d.ts?raw";
 import { interfaceMap }     from "../inference/DtsRegistry";

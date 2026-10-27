@@ -1,19 +1,23 @@
-import {
-    useTable,
-    usePagination,
-    useFilters,
-    useGlobalFilter,
-    useAsyncDebounce,
-    useSortBy,
-    useRowSelect,
-    CellProps,
-} from "react-table";
-import { FC, useMemo, useState, forwardRef, useRef, useEffect, Ref, MutableRefObject, ChangeEvent, RefObject } from "react";
-import { Column } from "react-table";
+import { FC, useMemo, useState, forwardRef, useRef, useEffect, Ref, MutableRefObject, RefObject } from "react";
+import { useTable } from "@tanstack/react-table";
 import styled from "styled-components";
 import { FaSearch } from "react-icons/fa";
-import { numericTextFilter } from "./NumericFilter";
-import { fuzzyTextFilterFn } from "./FuzzyTextFilter";
+import {
+    Column,
+    LegacyFilterProps,
+    PlatformColumnDef,
+    PlatformRow,
+    PlatformTable,
+    getLegacyRows,
+    hiddenColumnsVisibility,
+    isClickInsideFormControl,
+    platformTableFeatures,
+    platformTableOptions,
+    renderColumnFilter,
+    useDebouncedCallback,
+    useLegacyColumns,
+    useResetPageOnSortOrFilter,
+} from "./platformTable";
 
 interface TableStylesProps {
     columnsWidth: string[];
@@ -31,13 +35,13 @@ const TableStyles = styled.div<TableStylesProps>`
         background-color: #202226;
 
         tr {
-            :nth-child(even) {
+            &:nth-child(even) {
                 td {
                     background-color: #202226;
                 }
             }
 
-            :nth-child(odd) {
+            &:nth-child(odd) {
                 td {
                     background-color: #0c0d0f;
                 }
@@ -180,9 +184,8 @@ const Pagination = styled.div`
 `;
 
 type GlobalFilterProps = {
-    preGlobalFilteredRows: any;
     globalFilter: any;
-    setGlobalFilter: any;
+    setGlobalFilter: (value: any) => void;
 };
 
 const SearchColumn = styled.div`
@@ -270,9 +273,9 @@ const SearchGlobal = styled.div`
     }
 `;
 
-const GlobalFilter = ({ preGlobalFilteredRows, globalFilter, setGlobalFilter }: GlobalFilterProps) => {
+const GlobalFilter = ({ globalFilter, setGlobalFilter }: GlobalFilterProps) => {
     const [value, setValue] = useState(globalFilter);
-    const onChange = useAsyncDebounce((value) => {
+    const onChange = useDebouncedCallback((value: string) => {
         setGlobalFilter(value || undefined);
     }, 200);
 
@@ -293,16 +296,8 @@ const GlobalFilter = ({ preGlobalFilteredRows, globalFilter, setGlobalFilter }: 
     );
 };
 
-type DefaultColumnFilterProps = {
-    column: {
-        filterValue: any;
-        preFilteredRows: any;
-        setFilter: any;
-    };
-};
-
 // Define a default UI for filtering
-const DefaultColumnFilter = ({ column: { filterValue, preFilteredRows, setFilter } }: DefaultColumnFilterProps) => {
+const DefaultColumnFilter = ({ column: { filterValue, setFilter } }: LegacyFilterProps) => {
     return (
         <input
             value={filterValue || ""}
@@ -357,7 +352,7 @@ const IndeterminateCheckboxUniqueSelection = forwardRef<
         const defaultRef = useRef(null);
         const resolvedRef = ref || defaultRef;
 
-        const handleClick = (e: ChangeEvent<HTMLInputElement>) => {
+        const handleClick = () => {
             if (numRowsSelected === 0) {
                 toggleRowSelected();
             } else {
@@ -385,10 +380,6 @@ const IndeterminateCheckboxUniqueSelection = forwardRef<
     },
 );
 
-interface ISelectedRow {
-    [key: string]: boolean;
-}
-
 type TableProps<T extends object> = {
     dataTable: T[];
     columnsTable: Column<T>[];
@@ -408,7 +399,7 @@ const TableWithPaginationAndRowSelection: FC<TableProps<any>> = ({
     multipleSelection = true.valueOf,
     isGlobalFilterRequired = true,
 }) => {
-    const columns = useMemo(() => columnsTable, [columnsTable]);
+    const legacyColumns = useLegacyColumns(columnsTable);
     const data = useMemo(() => dataTable, [dataTable]);
 
     const columnsWidth = columnsTable.map((column, index) => {
@@ -429,7 +420,7 @@ const TableWithPaginationAndRowSelection: FC<TableProps<any>> = ({
         } else return "auto";
     });
 
-    let selectedRowId: ISelectedRow = {};
+    let selectedRowId: Record<string, true> = {};
     if (!multipleSelection && selectedItem) {
         let rowId = -1;
         for (let irow = 0; irow < data.length; irow++) {
@@ -442,108 +433,98 @@ const TableWithPaginationAndRowSelection: FC<TableProps<any>> = ({
     }
     const selectedRowIds = useState(selectedRowId)[0];
 
-    const filterTypes = useMemo(
+    // Columna de selección (en v7 se añadía con hooks.visibleColumns); va la primera, como antes.
+    const selectionColumn = useMemo<PlatformColumnDef>(
         () => ({
-            // Add a new fuzzyTextFilterFn filter type.
-            fuzzyText: fuzzyTextFilterFn,
-            numeric: numericTextFilter,
-        }),
-        [],
-    );
-
-    const defaultColumn = useMemo(
-        () => ({
-            // Let's set up our default Filter UI
-            Filter: DefaultColumnFilter,
-        }),
-        [],
-    );
-
-    const {
-        getTableProps,
-        getTableBodyProps,
-        headerGroups,
-        prepareRow,
-        page, // Instead of using 'rows', we'll use page,
-        canPreviousPage,
-        canNextPage,
-        pageOptions,
-        pageCount,
-        gotoPage,
-        nextPage,
-        previousPage,
-        setPageSize,
-        state,
-        preGlobalFilteredRows,
-        setGlobalFilter,
-        selectedFlatRows,
-        toggleAllRowsSelected,
-    } = useTable(
-        {
-            columns,
-            data,
-            initialState: {
-                pageIndex: 0,
-                hiddenColumns: columns
-                    .filter((col: any) => col.accessor === "geoJsonData" || col.Header === "FloorId")
-                    .map((col) => col.id || col.accessor) as any,
-                selectedRowIds,
+            id: "selection",
+            enableSorting: false,
+            enableColumnFilter: false,
+            enableGlobalFilter: false,
+            header: ({ table }: { table: PlatformTable }) => {
+                if (multipleSelection) {
+                    return (
+                        <div>
+                            <IndeterminateCheckbox
+                                checked={table.getIsAllPageRowsSelected()}
+                                indeterminate={table.getIsSomePageRowsSelected() && !table.getIsAllPageRowsSelected()}
+                                onChange={table.getToggleAllPageRowsSelectedHandler()}
+                                title="Toggle All Current Page Rows Selected"
+                                style={{ cursor: "pointer" }}
+                            />
+                        </div>
+                    );
+                } else {
+                    return <div></div>;
+                }
             },
-            defaultColumn, // Be sure to pass the defaultColumn option
-            filterTypes,
-        },
-        useFilters, // useFilters!
-        useGlobalFilter, // useGlobalFilter!
-        useSortBy,
-        usePagination,
-        useRowSelect,
-        (hooks) => {
-            hooks.visibleColumns.push((columns) => [
-                // Let's make a column for selection
-                {
-                    id: "selection",
-                    // The header can use the table's getToggleAllRowsSelectedProps method
-                    // to render a checkbox
-                    Header: ({ getToggleAllPageRowsSelectedProps }) => {
-                        if (multipleSelection) {
-                            return (
-                                <div>
-                                    <IndeterminateCheckbox {...getToggleAllPageRowsSelectedProps()} />
-                                </div>
-                            );
-                        } else {
-                            return <div></div>;
-                        }
-                    },
-                    Cell: ({ row }: CellProps<any>) => {
-                        const numRowsSelected = page.filter((row) => row.isSelected).length;
-                        if (multipleSelection) {
-                            return (
-                                <div>
-                                    <IndeterminateCheckbox {...row.getToggleRowSelectedProps()} />
-                                </div>
-                            );
-                        } else {
-                            return (
-                                <div>
-                                    <IndeterminateCheckboxUniqueSelection
-                                        isSelected={row.isSelected}
-                                        toggleRowSelected={() => row.toggleRowSelected()}
-                                        numRowsSelected={numRowsSelected}
-                                        uncheckAllRowsSelected={() => toggleAllRowsSelected(false)}
-                                        {...row.getToggleRowSelectedProps()}
-                                    />
-                                </div>
-                            );
-                        }
-                    },
-                },
-                ...columns,
-            ]);
-        },
+            cell: ({ row, table }: { row: PlatformRow; table: PlatformTable }) => {
+                if (multipleSelection) {
+                    return (
+                        <div>
+                            <IndeterminateCheckbox
+                                checked={row.getIsSelected()}
+                                indeterminate={row.getIsSomeSelected()}
+                                onChange={row.getToggleSelectedHandler()}
+                                title="Toggle Row Selected"
+                                style={{ cursor: "pointer" }}
+                            />
+                        </div>
+                    );
+                } else {
+                    const numRowsSelected = table.getPaginatedRowModel().rows.filter((r) => r.getIsSelected()).length;
+                    return (
+                        <div>
+                            <IndeterminateCheckboxUniqueSelection
+                                isSelected={row.getIsSelected()}
+                                toggleRowSelected={() => row.toggleSelected()}
+                                numRowsSelected={numRowsSelected}
+                                uncheckAllRowsSelected={() => table.toggleAllRowsSelected(false)}
+                            />
+                        </div>
+                    );
+                }
+            },
+        }) as PlatformColumnDef,
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        [Boolean(multipleSelection)],
     );
 
-    const { globalFilter, pageIndex, pageSize } = state;
+    const columns = useMemo(() => [selectionColumn, ...legacyColumns], [selectionColumn, legacyColumns]);
+
+    const [initialState] = useState(() => ({
+        pagination: { pageIndex: 0, pageSize: 10 },
+        columnVisibility: hiddenColumnsVisibility(
+            columnsTable,
+            (col) => col.accessor === "geoJsonData" || col.Header === "FloorId",
+        ),
+        rowSelection: selectedRowIds,
+    }));
+
+    const table = useTable({
+        features: platformTableFeatures,
+        ...platformTableOptions,
+        columns,
+        data,
+        initialState,
+    });
+    useResetPageOnSortOrFilter(table);
+
+    const { globalFilter, rowSelection } = table.state;
+    const { pageIndex, pageSize } = table.state.pagination;
+    const pageCount = table.getPageCount();
+    const canPreviousPage = table.getCanPreviousPage();
+    const canNextPage = table.getCanNextPage();
+
+    const gotoPage = (page: number) => {
+        if (page >= 0 && page < pageCount) table.setPageIndex(page);
+    };
+
+    // Equivalente a selectedFlatRows de v7: filas seleccionadas entre las filtradas/ordenadas.
+    const legacyRows = getLegacyRows(table);
+    const selectedFlatRows = useMemo(
+        () => legacyRows.filter((row) => rowSelection[row.id]),
+        [legacyRows, rowSelection],
+    );
 
     useEffect(() => {
         const selectedRows = selectedFlatRows.map((d) => d.original);
@@ -560,10 +541,10 @@ const TableWithPaginationAndRowSelection: FC<TableProps<any>> = ({
                     <button onClick={() => gotoPage(0)} disabled={!canPreviousPage}>
                         {"<<"}
                     </button>{" "}
-                    <button onClick={() => previousPage()} disabled={!canPreviousPage}>
+                    <button onClick={() => table.previousPage()} disabled={!canPreviousPage}>
                         {"<"}
                     </button>{" "}
-                    <button onClick={() => nextPage()} disabled={!canNextPage}>
+                    <button onClick={() => table.nextPage()} disabled={!canNextPage}>
                         {">"}
                     </button>{" "}
                     <button onClick={() => gotoPage(pageCount - 1)} disabled={!canNextPage}>
@@ -572,7 +553,7 @@ const TableWithPaginationAndRowSelection: FC<TableProps<any>> = ({
                     <span>
                         Page{" "}
                         <strong>
-                            {pageIndex + 1} of {pageOptions.length}
+                            {pageIndex + 1} of {pageCount}
                         </strong>{" "}
                     </span>
                     <span>
@@ -581,7 +562,7 @@ const TableWithPaginationAndRowSelection: FC<TableProps<any>> = ({
                             type="number"
                             defaultValue={pageIndex + 1}
                             min={1}
-                            max={pageOptions.length}
+                            max={pageCount}
                             onChange={(e) => {
                                 const page = e.target.value ? Number(e.target.value) - 1 : 0;
                                 gotoPage(page);
@@ -591,7 +572,7 @@ const TableWithPaginationAndRowSelection: FC<TableProps<any>> = ({
                     <select
                         value={pageSize}
                         onChange={(e) => {
-                            setPageSize(Number(e.target.value));
+                            table.setPageSize(Number(e.target.value));
                         }}
                     >
                         {[10, 15, 20, 25, 30, 35, 40, 45, 50].map((pageSize) => (
@@ -602,50 +583,62 @@ const TableWithPaginationAndRowSelection: FC<TableProps<any>> = ({
                     </select>
                 </Pagination>
                 {isGlobalFilterRequired && (
-                    <GlobalFilter
-                        preGlobalFilteredRows={preGlobalFilteredRows}
-                        globalFilter={globalFilter}
-                        setGlobalFilter={setGlobalFilter}
-                    />
+                    <GlobalFilter globalFilter={globalFilter} setGlobalFilter={(value) => table.setGlobalFilter(value)} />
                 )}
             </TableOptionsContainer>
             <TableStyles columnsWidth={columnsWidth} columnsMaxWidth={columnsMaxWidth}>
-                <table {...getTableProps()}>
+                <table role="table">
                     <thead>
-                        {headerGroups.map((headerGroup) => (
-                            <tr {...headerGroup.getHeaderGroupProps()}>
-                                {headerGroup.headers.map((column) => (
-                                    <th {...column.getHeaderProps(column.getSortByToggleProps())}>
-                                        <HeaderContainer>
-                                            <HeaderTtileContainer>
-                                                {column.render("Header")}
-                                                <ArrowIcon>
-                                                    {column.isSorted ? (column.isSortedDesc ? " ▼" : " ▲") : ""}
-                                                </ArrowIcon>
-                                            </HeaderTtileContainer>
-                                            <SearchContainer>
-                                                {column.canFilter ? <SearchIcon /> : null}
-                                                <SearchColumn>
-                                                    {column.canFilter ? column.render("Filter") : null}
-                                                </SearchColumn>
-                                            </SearchContainer>
-                                        </HeaderContainer>
-                                    </th>
-                                ))}
+                        {table.getHeaderGroups().map((headerGroup) => (
+                            <tr key={headerGroup.id} role="row">
+                                {headerGroup.headers.map((header) => {
+                                    const column = header.column;
+                                    const canSort = column.getCanSort();
+                                    const toggleSorting = column.getToggleSortingHandler();
+                                    const isSorted = column.getIsSorted();
+                                    return (
+                                        <th
+                                            key={header.id}
+                                            colSpan={header.colSpan}
+                                            role="columnheader"
+                                            title={canSort ? "Toggle SortBy" : undefined}
+                                            style={canSort ? { cursor: "pointer" } : undefined}
+                                            onClick={(e) => {
+                                                if (toggleSorting && !isClickInsideFormControl(e)) toggleSorting(e);
+                                            }}
+                                        >
+                                            <HeaderContainer>
+                                                <HeaderTtileContainer>
+                                                    {header.isPlaceholder ? null : <table.FlexRender header={header} />}
+                                                    <ArrowIcon>
+                                                        {isSorted ? (isSorted === "desc" ? " ▼" : " ▲") : ""}
+                                                    </ArrowIcon>
+                                                </HeaderTtileContainer>
+                                                <SearchContainer>
+                                                    {column.getCanFilter() ? <SearchIcon /> : null}
+                                                    <SearchColumn>
+                                                        {column.getCanFilter()
+                                                            ? renderColumnFilter(table, column, DefaultColumnFilter)
+                                                            : null}
+                                                    </SearchColumn>
+                                                </SearchContainer>
+                                            </HeaderContainer>
+                                        </th>
+                                    );
+                                })}
                             </tr>
                         ))}
                     </thead>
-                    <tbody {...getTableBodyProps()}>
-                        {page.map((row, i) => {
-                            prepareRow(row);
-                            return (
-                                <tr {...row.getRowProps()}>
-                                    {row.cells.map((cell) => {
-                                        return <td {...cell.getCellProps()}>{cell.render("Cell")}</td>;
-                                    })}
-                                </tr>
-                            );
-                        })}
+                    <tbody role="rowgroup">
+                        {table.getRowModel().rows.map((row) => (
+                            <tr key={row.id} role="row">
+                                {row.getVisibleCells().map((cell) => (
+                                    <td key={cell.id} role="cell">
+                                        <table.FlexRender cell={cell} />
+                                    </td>
+                                ))}
+                            </tr>
+                        ))}
                     </tbody>
                 </table>
             </TableStyles>

@@ -1,6 +1,15 @@
 import * as THREE from "three";
 import { getDomainName, getNatsSeedServers, getProtocol, giveDefaultNumWebWorkers } from "../../../../tools/tools";
 
+// three.js >= r152 gestiona el color de forma "lineal" (ColorManagement activado): los colores
+// hexadecimales/CSS definidos en el código se interpretan como sRGB y se muestran tal cual.
+// En three r137 se interpretaban como lineales, por lo que se veían más claros/desaturados.
+// Pon true para recuperar el aspecto antiguo (R3F <Canvas legacy />).
+export const LEGACY_COLOR_MANAGEMENT = false;
+// Se aplica aquí (al cargar el módulo) para que la LUT de resultados FEM y el resto de colores
+// creados fuera del <Canvas> usen el mismo modo que el visor.
+THREE.ColorManagement.enabled = !LEGACY_COLOR_MANAGEMENT;
+
 export const ENVIRONMENT_OPTIONS = [
     "none",
     "sunset", 
@@ -14,13 +23,6 @@ export const MOUSE_BUTTONS = {
     LEFT: THREE.MOUSE.PAN,
     MIDDLE: THREE.MOUSE.ROTATE,
     RIGHT: THREE.MOUSE.DOLLY,
-};
-
-export const DAT_GUI_STYLE = {
-    marginTop: "256px",
-    button: {
-        borderLeft: "0px",
-    },
 };
 
 export const DOMAIN_NAME = getDomainName();
@@ -38,6 +40,8 @@ export const DEFAULT_VIEWER_OPTIONS = {
     pointLightPower: 5,
     showPointLightHelper: false,
     showAxes: false,
+    // longitud de las líneas de los ejes respecto a la automática (las puntas de flecha no cambian)
+    axesScale: 1,
     showShadows: true,
     sensorsOpacity: 1,
     highlightAllSensors: false,

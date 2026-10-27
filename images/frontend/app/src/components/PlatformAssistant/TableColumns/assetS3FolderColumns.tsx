@@ -1,4 +1,4 @@
-import { Column } from "react-table";
+import { Column } from '../Utils/platformTable';
 import { axiosAuth, getDomainName, getProtocol } from "../../../tools/tools";
 import {
     setReloadAssetS3FoldersTable,

@@ -229,7 +229,7 @@ const CreateSensorType: FC<CreateSensorTypeProps> = ({
         formik.setFieldValue("orgAcronym", orgAcronym);
     }
 
-    const [openIconSvgFileSelector, iconSvgFileParams] = useFilePicker({
+    const { openFilePicker: openIconSvgFileSelector, ...iconSvgFileParams } = useFilePicker({
         readAs: 'Text',
         multiple: false,
         accept: '.svg',

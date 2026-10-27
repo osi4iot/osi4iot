@@ -245,11 +245,11 @@ const DownloadS3FolderZipFile = (
                         <DatePickerContainer>
                             <DatePicker
                                 selected={selectedInitDate}
-                                onChange={changeSelectedInitDate}
+                                onChange={(date: Date | null) => { if (date) changeSelectedInitDate(date); }}
                                 inline
                                 fixedHeight
                                 filterDate={(date) => date <= today}
-                                dayClassName={(date) => (date > today ? "future-day" : null)}
+                                dayClassName={(date) => (date > today ? "future-day" : "")}
                             />
                         </DatePickerContainer>
                     </Col>
@@ -258,11 +258,11 @@ const DownloadS3FolderZipFile = (
                         <DatePickerContainer>
                             <DatePicker
                                 selected={selectedFinalDate}
-                                onChange={changeSelectedFinalDate}
+                                onChange={(date: Date | null) => { if (date) changeSelectedFinalDate(date); }}
                                 inline
                                 fixedHeight
                                 filterDate={(date) => date <= today}
-                                dayClassName={(date) => (date > today ? "future-day" : null)}
+                                dayClassName={(date) => (date > today ? "future-day" : "")}
                             />
                         </DatePickerContainer>
                     </Col>

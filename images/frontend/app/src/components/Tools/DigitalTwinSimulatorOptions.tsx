@@ -1,6 +1,6 @@
 import { FC, useState, SyntheticEvent, useEffect } from 'react';
 import styled from "styled-components";
-import { useHistory } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { Formik, Form, FormikProps } from 'formik';
 import FormikControl from "./FormikControl";
 import MobileSensorSelectFormButtons from "./MobileSensorSelectFormButtons";
@@ -57,24 +57,24 @@ const ControlsContainer = styled.div`
     margin-bottom: 15px;
     overflow-y: auto;
     /* width */
-    ::-webkit-scrollbar {
+    &::-webkit-scrollbar {
         width: 10px;
     }
 
     /* Track */
-    ::-webkit-scrollbar-track {
+    &::-webkit-scrollbar-track {
         background: #202226;
         border-radius: 5px;
     }
     
     /* Handle */
-    ::-webkit-scrollbar-thumb {
+    &::-webkit-scrollbar-thumb {
         background: #2c3235; 
         border-radius: 5px;
     }
 
     /* Handle on hover */
-    ::-webkit-scrollbar-thumb:hover {
+    &::-webkit-scrollbar-thumb:hover {
         background-color: #343840;
     }
 
@@ -242,7 +242,7 @@ const DigitalTwinSimulatorSelectForm: FC<DigitalTwinSimulatorSelectFormProps> = 
         digitalTwinSimulatorSelected,
         setDigitalTwinSimulatorSelected
     }) => {
-    const history = useHistory();
+    const navigate = useNavigate();
     const [orgOptions, setOrgOptions] = useState<IOption[]>([]);
     const [groupArray, setGroupArray] = useState<Record<string, string[]>>({});
     const [groupOptions, setGroupOptions] = useState<IOption[]>([]);
@@ -286,7 +286,7 @@ const DigitalTwinSimulatorSelectForm: FC<DigitalTwinSimulatorSelectFormProps> = 
 
     const onCancel = (e: SyntheticEvent) => {
         e.preventDefault();
-        history.push("/");
+        navigate("/");
     };
 
     const handleChangeOrg = (e: { value: string }, formik: FormikType) => {

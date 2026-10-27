@@ -12,8 +12,6 @@ import { IGenericObject } from "../Main/Model";
 import { changeMaterialPropRecursively } from "../../../../tools/tools";
 import { IThreeMesh } from "../Types/threeInterfaces";
 
-const MeshComponent = "mesh" as any;
-const PrimitivesComponent = "primitive" as any;
 
 interface GenericObjectProps {
     obj: IThreeMesh;
@@ -44,9 +42,10 @@ const GenericObjectBase: FC<GenericObjectProps> = ({
 
     const defOpacity = defaultOpacity(obj);
     const recursiveTransparency = obj.userData.recursiveTransparency;
-    const hasEndlessAnimations = obj.blenderAnimationTypes?.includes("blenderEndless");
     if (recursiveTransparency === undefined || recursiveTransparency === "true") {
-        const isTransparent = hasEndlessAnimations ? true : defOpacity * opacity < 1;
+        // La transparencia propia de los materiales glTF (BLEND) se conserva en changeMaterialPropRecursively;
+        // aquí solo se activa cuando el usuario baja la opacidad.
+        const isTransparent = defOpacity * opacity < 1;
         changeMaterialPropRecursively(obj, "transparent", isTransparent);
         changeMaterialPropRecursively(obj, "depthWrite", !showDeepObjects);
     }
@@ -145,7 +144,7 @@ const GenericObjectBase: FC<GenericObjectProps> = ({
                     changeMaterialPropRecursively(obj, "opacity", defOpacity * opacity);
 
                     if (recursiveTransparency === undefined || recursiveTransparency === "true") {
-                        const isTransparent = hasEndlessAnimations ? true : defOpacity * opacity < 1;
+                        const isTransparent = defOpacity * opacity < 1;
                         changeMaterialPropRecursively(obj, "transparent", isTransparent);
                         changeMaterialPropRecursively(obj, "depthWrite", !showDeepObjects);
                     }
@@ -160,19 +159,17 @@ const GenericObjectBase: FC<GenericObjectProps> = ({
         obj.animations.length !== 0 ||
         obj.customAnimationObjectNames.length !== 0 ||
         obj.children.length !== 0 ? (
-        <MeshComponent ref={meshRef as React.MutableRefObject<IThreeMesh>} castShadow receiveShadow material={material}>
-            <PrimitivesComponent material={material} object={obj} />
-        </MeshComponent>
+        <mesh ref={meshRef as React.MutableRefObject<IThreeMesh>} castShadow receiveShadow material={material}>
+            <primitive material={material} object={obj} />
+        </mesh>
     ) : (
-        <MeshComponent
+        // Se dibuja el objeto original del glTF (no una copia de su geometría): así conserva
+        // morph targets, esqueleto y nombre (necesario para enlazar sus animaciones).
+        <primitive
             ref={meshRef as React.MutableRefObject<IThreeMesh>}
+            object={obj}
             castShadow
             receiveShadow
-            geometry={obj.geometry}
-            material={material}
-            position={obj.position}
-            scale={obj.scale}
-            quaternion={obj.quaternion}
         />
     );
 };

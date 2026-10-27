@@ -8,7 +8,7 @@ import {
     useOrgUsersOptionToShow,
     setOrgUsersOptionToShow
 } from '../../../contexts/orgUsersOptions';
-import { Column } from 'react-table';
+import { Column } from '../Utils/platformTable';
 
 interface OrgUsersContainerProps {
     orgUsers: IOrgUser[];

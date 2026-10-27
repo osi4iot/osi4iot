@@ -14,12 +14,6 @@ import { RiWifiLine, RiWifiOffLine } from "react-icons/ri";
 import { TiFlowMerge } from "react-icons/ti";
 import { BsChatDotsFill } from "react-icons/bs";
 import { SlidersHorizontal, Logs, Box, RotateCcw, RefreshCw, Download, CircleX, Upload, Play, Camera } from "lucide-react";
-import DatGui, { 
-    DatNumber, 
-    DatBoolean, 
-    DatSelect, 
-    DatButton 
-} from "react-dat-gui";
 
 // Layout components
 export const CanvasContainer = styled.div`
@@ -52,28 +46,32 @@ export const HeaderOptionsContainer = styled.div`
 `;
 
 // Info containers
-export const SelectedObjectInfoContainer = styled.div`
-    background-color: #141619;
-    margin: 5px 10px;
-    border-radius: 10px;
-    padding: 5px;
-    color: white;
-    position: fixed;
-    bottom: 20px;
-    right: 5px;
-    width: 600px;
+// Datos del objeto bajo el ratón (Name, Type, Collection), abajo a la derecha junto al inspector
+export const SelectedObjectInfoContainer = styled.div<{ $right?: number }>`
+    position: absolute;
+    bottom: 12px;
+    right: ${({ $right }) => $right ?? 12}px;
+    max-width: 600px;
+    padding: 8px 6px;
+    background-color: rgba(20, 22, 26, 0.88);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    color: #e6e8eb;
+    z-index: 900;
+    pointer-events: none;
 `;
 
 export const ObjectInfoContainer = styled.div`
     font-size: 12px;
-    padding: 3px 10px;
+    padding: 0 6px;
     display: flex;
-    justify-content: space-between;
+    gap: 16px;
     flex-wrap: wrap;
 `;
 
 export const ObjectInfo = styled.div`
-    margin: 0px 10px;
+    margin: 0 4px;
+    white-space: nowrap;
 `;
 
 export const MaxMinValuesContainer = styled.div`
@@ -324,169 +322,4 @@ export const NoWifiIcon = styled(RiWifiOffLine as any)`
     color: #3274d9;
     margin: 10px 5px;
     transform: rotate(90deg);
-`;
-
-// DatGui styled components
-export const StyledDataGui = styled(DatGui)`
-    &.react-dat-gui li.folder.closed .title {
-        background-color: #141619;
-    }
-
-    &.react-dat-gui {
-        width: 600px;
-        top: 10px;
-        right: 15px;
-        position: fixed;
-        z-index: 1000;
-        max-height: calc(100vh - 320px);
-        background-color: #212121;
-        overflow-y: auto;
-        
-        ::-webkit-scrollbar {
-            width: 10px;
-        }
-
-        ::-webkit-scrollbar-track {
-            background: #202226;
-            border-radius: 5px;
-        }
-
-        ::-webkit-scrollbar-thumb {
-            background: #2c3235;
-            border-radius: 5px;
-        }
-
-        ::-webkit-scrollbar-thumb:hover {
-            background-color: #343840;
-        }
-
-        div:first-child {
-            margin-top: 0;
-        }
-
-        div:last-child {
-            margin-bottom: 3px;
-        }
-    }
-`;
-
-const datGuiFieldStyles = `
-    border-left: 5px solid #806787;
-    background-color: #141619;
-`;
-
-export const StyledDatBoolean = styled(DatBoolean)`
-    &.cr.boolean {
-        ${datGuiFieldStyles}
-
-        label {
-            width: 100%;
-
-            .label-text {
-                width: 35% !important;
-            }
-
-            .checkbox-container {
-                width: 65% !important;
-            }
-        }
-    }
-`;
-
-export const StyledDatNumber = styled(DatNumber)`
-    &.cr.number {
-        ${datGuiFieldStyles}
-
-        label {
-            width: 100%;
-
-            .label-text {
-                width: 34% !important;
-            }
-        }
-
-        span {
-            width: 66% !important;
-        }
-    }
-`;
-
-export const StyledDatNumberDTSimulator = styled(DatNumber)`
-    &.cr.number {
-        ${datGuiFieldStyles}
-
-        label {
-            width: 100%;
-            flex-direction: column;
-            margin: 5px 0;
-
-            .label-text {
-                width: 100% !important;
-                margin: 2px;
-            }
-
-            span {
-                width: 100% !important;
-
-                .slider {
-                    border-left: 0;
-                }
-            }
-        }
-    }
-`;
-
-export const StyledDatSelect = styled(DatSelect)`
-    &.cr.select {
-        ${datGuiFieldStyles}
-
-        label {
-            width: 100%;
-
-            .label-text {
-                width: 20% !important;
-            }
-        }
-
-        select {
-            width: 80% !important;
-            color: white;
-            background-color: #141619;
-            border: 2px solid #7d7f80;
-            padding: 2px;
-            margin-right: 5px;
-
-            &:focus {
-                outline: none;
-                box-shadow: rgb(20 22 25) 0px 0px 0px 2px, rgb(31 96 196) 0px 0px 0px 4px;
-            }
-
-            &:hover {
-                cursor: pointer;
-                background-color: #0c0d0f;
-            }
-        }
-
-        option {
-            background-color: #35383d;
-        }
-    }
-`;
-
-export const StyledDatButtom = styled(DatButton)`
-    &.cr.button {
-        border: 5px solid #141619;
-        border-radius: 10px;
-        background-color: #3274d9;
-
-        &:hover {
-            background: #2461c0;
-        }
-
-        .label-text {
-            width: 90% !important;
-            margin: auto;
-            text-align: center;
-        }
-    }
 `;

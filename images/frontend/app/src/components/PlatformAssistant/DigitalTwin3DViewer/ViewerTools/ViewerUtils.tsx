@@ -543,9 +543,12 @@ const setCustomAnimationObjectProperty = (
 
 let camera: Camera;
 let container: HTMLCanvasElement | null;
-let selectedObjTypeRef: HTMLDivElement | null;
-let selectedObjNameRef: HTMLDivElement | null;
-let selectedObjCollectionNameRef: HTMLDivElement | null;
+// Se guardan las refs (no los elementos): la barra "Name/Type/Collection" se desmonta y vuelve a montar
+// al cambiar de vista (3D <-> Pipeline), así que el elemento se lee en cada evento.
+type DivRef = { current: HTMLDivElement | null } | null;
+let selectedObjTypeRef: DivRef;
+let selectedObjNameRef: DivRef;
+let selectedObjCollectionNameRef: DivRef;
 let openDashboardTab: (url: string) => void;
 
 var sensorsDashboards: IDigitalTwinSensorDashboard[] = [];
@@ -647,9 +650,9 @@ export const giveSceneCenter = (
 export const setParameters = (
 	l_camera: Camera,
 	l_container: HTMLCanvasElement | null,
-	l_selectedObjTypeRef: HTMLDivElement | null,
-	l_selectedObjNameRef: HTMLDivElement | null,
-	l_selectedObjCollectionNameRef: HTMLDivElement | null,
+	l_selectedObjTypeRef: DivRef,
+	l_selectedObjNameRef: DivRef,
+	l_selectedObjCollectionNameRef: DivRef,
 	l_changeObjectHighlight: (objType: string, objName: string, highlighted: boolean) => void,
 	l_sensorsDashboards: IDigitalTwinSensorDashboard[],
 	l_openDashboardTab: (url: string) => void,
@@ -718,10 +721,30 @@ const setQuaternionIniRecursively = (obj: IThreeMesh) => {
 	}
 }
 
+// Cada objeto de primer nivel recibe sus propias copias de los materiales de sus descendientes: en glTF los
+// materiales se comparten entre objetos, y al resaltar uno (emissive/opacidad) se iluminaban también los demás.
+// Las texturas siguen compartidas (Material.clone no las duplica).
+const cloneDescendantMaterials = (obj: THREE.Object3D) => {
+	const clones = new Map<THREE.Material, THREE.Material>();
+	const cloneOf = (material: THREE.Material) => {
+		let clone = clones.get(material);
+		if (!clone) {
+			clone = material.clone();
+			clones.set(material, clone);
+		}
+		return clone;
+	};
+	obj.traverse((child: any) => {
+		if (child === obj || !child.material) return;
+		child.material = Array.isArray(child.material) ? child.material.map(cloneOf) : cloneOf(child.material);
+	});
+}
+
 export const sortObjects: (
 	nodes: any,
 	materials: Record<string, THREE.MeshStandardMaterial>,
-	animations: THREE.AnimationClip[]
+	animations: THREE.AnimationClip[],
+	scene?: THREE.Object3D
 ) => {
 	sensorObjects: ISensorObject[],
 	assetObjects: IAssetObject[],
@@ -732,7 +755,7 @@ export const sortObjects: (
 	genericObjectsCollectionNames: string[],
 	femSimObjectCollectionNames: string[],
 
-} = function (nodes: any, materials: Record<string, THREE.MeshStandardMaterial>, animations: THREE.AnimationClip[]) {
+} = function (nodes: any, materials: Record<string, THREE.MeshStandardMaterial>, animations: THREE.AnimationClip[], scene?: THREE.Object3D) {
 	const sensorObjects: ISensorObject[] = [];
 	const assetObjects: IAssetObject[] = [];
 	const genericObjects: IGenericObject[] = [];
@@ -743,18 +766,22 @@ export const sortObjects: (
 	const femSimObjectCollectionNames: string[] = [];
 
 	setMeshList(nodes);
-	let sceneName = "Scene";
-	for (const prop in nodes) {
-		const obj = nodes[prop];
-		if (obj.parent === null) {
-			sceneName = obj.name;
-			break;
+	// Raíz del modelo: la escena del glTF (puede no llamarse "Scene" o no tener nombre).
+	let root: THREE.Object3D | undefined = scene;
+	if (!root) {
+		for (const prop in nodes) {
+			if (nodes[prop].parent === null) {
+				root = nodes[prop];
+				break;
+			}
 		}
 	}
-	const objectList = nodes[sceneName].children;
+	// copia: los objetos se reubican en la escena de R3F al renderizarse
+	const objectList: any[] = [...(root ? root.children : [])];
 	for (let imesh = 0; imesh < objectList.length; imesh++) {
 		const obj = objectList[imesh];
 		obj.material = findMaterial(obj, materials);
+		if (obj.userData.type !== "femObject") cloneDescendantMaterials(obj);
 		setQuaternionIniRecursively(obj);
 		switch (obj.userData.type) {
 			case "sensor":
@@ -871,6 +898,12 @@ export const sortObjects: (
 		nodeAnimations(obj.node, animations);
 	})
 
+	assignUnclaimedAnimations(
+		[...sensorObjects, ...assetObjects, ...genericObjects].map(obj => obj.node),
+		femSimulationObjects.map(obj => obj.node),
+		animations
+	);
+
 	return {
 		sensorObjects,
 		assetObjects,
@@ -880,6 +913,41 @@ export const sortObjects: (
 		assetsCollectionNames,
 		genericObjectsCollectionNames,
 		femSimObjectCollectionNames
+	}
+}
+
+// Clips del glTF que ningún nodo declara (userData.clipName): como en cualquier visor glTF de referencia,
+// se reproducen en bucle. Cada pista se asigna al objeto de primer nivel que contiene su nodo (si un clip
+// anima varios objetos se reparte entre ellos, con la misma duración para que sigan sincronizados).
+// No se tocan las mallas FEM ni los nodos que la plataforma anima con datos (userData.animationType).
+const assignUnclaimedAnimations = (
+	topLevelNodes: any[],
+	femNodes: any[],
+	animations: THREE.AnimationClip[]
+) => {
+	const claimed = new Set<THREE.AnimationClip>();
+	[...topLevelNodes, ...femNodes].forEach(node => (node.animations || []).forEach((clip: THREE.AnimationClip) => claimed.add(clip)));
+	const ownerByName = new Map<string, any>();
+	const excludedNames = new Set<string>();
+	topLevelNodes.forEach(top => top.traverse((child: THREE.Object3D) => {
+		ownerByName.set(child.name, top);
+		if (child.userData?.animationType !== undefined) excludedNames.add(child.name);
+	}));
+	femNodes.forEach(top => top.traverse((child: THREE.Object3D) => excludedNames.add(child.name)));
+	for (const clip of animations) {
+		if (claimed.has(clip) || clip.tracks.length === 0) continue;
+		const tracksByOwner = new Map<any, THREE.KeyframeTrack[]>();
+		for (const track of clip.tracks) {
+			const nodeName = THREE.PropertyBinding.parseTrackName(track.name).nodeName;
+			const owner = ownerByName.get(nodeName);
+			if (!owner || excludedNames.has(nodeName)) continue;
+			tracksByOwner.set(owner, [...(tracksByOwner.get(owner) || []), track]);
+		}
+		for (const [owner, tracks] of tracksByOwner) {
+			const ownerClip = tracks.length === clip.tracks.length ? clip : new THREE.AnimationClip(clip.name, clip.duration, tracks);
+			owner.animations = [...(owner.animations || []), ownerClip];
+			if (!owner.blenderAnimationTypes.includes("blenderEndless")) owner.blenderAnimationTypes.push("blenderEndless");
+		}
 	}
 }
 
@@ -903,6 +971,21 @@ const nodeAnimations = (node: any, animations: THREE.AnimationClip[]) => {
 	node.onOffObjectNames = onOffObjectNames;
 }
 
+// Busca el clip de animación de un nodo. Blender puede exportar el clip como "<Acción>_<Objeto>"
+// (p. ej. "SPARKS_01Action_SPARKS_01") aunque en userData.clipName figure solo "SPARKS_01Action".
+const findNodeAnimationClip = (node: any, clipName: string, animations: THREE.AnimationClip[]) => {
+	const exact = animations.find(clip => clip.name === clipName);
+	if (exact) return exact;
+	const withObjectName = animations.find(clip => clip.name === `${clipName}_${node.name}`);
+	if (withObjectName) return withObjectName;
+	const nodeTrackName = THREE.PropertyBinding.sanitizeNodeName(node.name);
+	return animations.find(clip =>
+		clip.name.startsWith(clipName) &&
+		clip.tracks.length !== 0 &&
+		clip.tracks.every(track => THREE.PropertyBinding.parseTrackName(track.name).nodeName === nodeTrackName)
+	);
+}
+
 const setNodeAnimationRecursively = (
 	node: any,
 	level: number,
@@ -915,7 +998,7 @@ const setNodeAnimationRecursively = (
 	if (node.userData !== undefined) {
 		if (node.userData.animationType !== undefined) {
 			if (node.userData.clipName !== undefined) {
-				const objAnimation = animations.filter(clip => clip.name === node.userData.clipName)[0];
+				const objAnimation = findNodeAnimationClip(node, node.userData.clipName, animations);
 				if (objAnimation) {
 					nodeAnimations.push(objAnimation);
 					if (node.userData.animationType === "blenderTemporary") {
@@ -954,7 +1037,7 @@ function sendCustomEvent(eventName: string, data: any) {
 	window.dispatchEvent(event);
 }
 
-function findSelectableObject(intersects: THREE.Intersection<THREE.Object3D<THREE.Event>>[]) {
+function findSelectableObject(intersects: THREE.Intersection<THREE.Object3D>[]) {
 	for (let i = 0; i < intersects.length; i++) {
 		const obj = intersects[i].object;
 		if (obj.parent && obj.parent.userData.selectable === "false") {
@@ -1105,9 +1188,9 @@ export const onMeshMouseEnter = (e: any) => {
 	const type = e.detail.type;
 	const collectionName = e.detail.collectionName;
 	changeObjectHighlight(type, objName, true);
-	if (selectedObjNameRef) selectedObjNameRef.innerHTML = `Name: ${objName}`;
-	if (selectedObjTypeRef) selectedObjTypeRef.innerHTML = `Type: ${type}`;
-	if (selectedObjCollectionNameRef) selectedObjCollectionNameRef.innerHTML = `Collection: ${collectionName}`;
+	if (selectedObjNameRef?.current) selectedObjNameRef.current.innerHTML = `Name: ${objName}`;
+	if (selectedObjTypeRef?.current) selectedObjTypeRef.current.innerHTML = `Type: ${type}`;
+	if (selectedObjCollectionNameRef?.current) selectedObjCollectionNameRef.current.innerHTML = `Collection: ${collectionName}`;
 }
 
 export const onMeshMouseExit = (e: any) => {
@@ -1115,9 +1198,9 @@ export const onMeshMouseExit = (e: any) => {
 	const objName = e.detail.name;
 	const type = e.detail.type;
 	changeObjectHighlight(type, objName, false);
-	if (selectedObjNameRef) selectedObjNameRef.innerHTML = "Name: -";
-	if (selectedObjTypeRef) selectedObjTypeRef.innerHTML = "Type: -";
-	if (selectedObjCollectionNameRef) selectedObjCollectionNameRef.innerHTML = "Collection: -";
+	if (selectedObjNameRef?.current) selectedObjNameRef.current.innerHTML = "Name: -";
+	if (selectedObjTypeRef?.current) selectedObjTypeRef.current.innerHTML = "Type: -";
+	if (selectedObjCollectionNameRef?.current) selectedObjCollectionNameRef.current.innerHTML = "Collection: -";
 }
 
 
@@ -1238,5 +1321,3 @@ export const setAnimationMixerRecursively = (
 		setAnimationMixerRecursively(node_child as any, meshRef, mixer, setMixer, clipsDuration, setClipsDuration)
 	}
 }
-
-

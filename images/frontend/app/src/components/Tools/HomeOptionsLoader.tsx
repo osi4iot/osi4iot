@@ -1,6 +1,6 @@
 import { FC } from 'react';
 import styled from "styled-components";
-import Spinner from "react-loader-spinner";
+import Spinner from "./OvalSpinner";
 
 
 const LoaderContainer = styled.div`
@@ -61,11 +61,11 @@ const StyledProgress = styled.progress`
     background-color: #808080;
     border: none;
 
-    ::-webkit-progress-value {
+    &::-webkit-progress-value {
         background-color: #65ff00;
     }
 
-    ::-moz-progress-bar {
+    &::-moz-progress-bar {
         background-color: #65ff00;
     }
 `;
@@ -96,7 +96,7 @@ const HomeOptionsLoader: FC<HomeOptionsLoaderProp> = (
                         </ProgressBarContainer>
                     </ProgressContainer>
                     :
-                    <StyledLoader type="Oval" color="#3274d9" secondaryColor="#235197" height={150} width={150} />
+                    <StyledLoader color="#3274d9" secondaryColor="#235197" height={150} width={150} />
 
             }
         </LoaderContainer >

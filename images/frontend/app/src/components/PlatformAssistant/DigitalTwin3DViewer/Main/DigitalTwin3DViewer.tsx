@@ -1,13 +1,13 @@
 // DigitalTwin3DViewer.tsx
-import { FC, SetStateAction, useEffect, useLayoutEffect, useState, useRef } from "react";
+import { FC, SetStateAction, useEffect, useLayoutEffect, useState, useRef, useCallback, useMemo } from "react";
 import { Canvas, useThree } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
-import { NatsConnection, StringCodec, headers } from "nats.ws";
-import "react-dat-gui/dist/index.css";
+import { type NatsConnection, headers } from "@nats-io/nats-core";
+import { StringCodec } from "../../../../tools/natsCodec";
 
 // Types and constants
 import { IPipelineEdge, IPipelineNode, Viewer3DProps } from "../Types/types";
-import { MOUSE_BUTTONS, DAT_GUI_STYLE } from "../Utils/constants";
+import { MOUSE_BUTTONS, LEGACY_COLOR_MANAGEMENT } from "../Utils/constants";
 
 // Components
 import { Stage } from "../Utils/Stage";
@@ -18,7 +18,7 @@ import ChatAssistant from "../ChatAssitant/ChatAssistant";
 import PipelineLogs from "../Pipeline/PipelineLogs";
 import DigitalTwinSimulatorModal from "../ViewerTools/DigitalTwinSimulatorModal";
 import { Header } from "../Utils/Headers";
-import { ControlPanel } from "../Utils/ControlPanels";
+import Inspector, { INSPECTOR_GAP, INSPECTOR_WIDTH } from "../Inspector/Inspector";
 
 // Styled components
 import {
@@ -52,6 +52,11 @@ import {
 import { createHandlers } from "../Utils/handlers";
 import { useAuthDispatch, useAuthState } from "../../../../contexts/authContext";
 import {
+    useGroupsManagedTable,
+    useOrgsOfGroupsManagedTable,
+} from "../../../../contexts/platformAssistantContext/platformAssistantContext";
+import PipelineErrorBoundary from "../Pipeline/PipelineErrorBoundary";
+import {
     AssetState,
     FemSimulationObjectState,
     generateInitialFemSimObjectsState,
@@ -82,6 +87,10 @@ const ShaderPrewarm: FC<{ gltfData: any }> = ({ gltfData }) => {
     return null;
 };
 
+// Vista activa (3D / Pipeline / Imagen) de cada gemelo digital mientras el visor sigue abierto. Si el visor se
+// vuelve a montar (p. ej. al recargar datos) se recupera la vista en la que estaba el usuario.
+const lastActiveViewerByDt = new Map<string, "3D" | "pipeline" | "image_frame">();
+
 const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
     digitalTwinSelected,
     digitalTwinGltfData,
@@ -97,7 +106,30 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
     // Hooks
     const { accessToken, refreshToken } = useAuthState();
     const authDispatch = useAuthDispatch();
-    const [state, setState] = useViewerState();
+    const dtUid = digitalTwinSelected?.digitalTwinUid ?? "";
+    const [state, setState] = useViewerState(lastActiveViewerByDt.get(dtUid));
+    useEffect(() => {
+        if (dtUid) lastActiveViewerByDt.set(dtUid, state.activeViewer);
+    }, [dtUid, state.activeViewer]);
+    const handleClose3DViewer = useCallback(() => {
+        lastActiveViewerByDt.delete(dtUid);
+        close3DViewer();
+    }, [dtUid, close3DViewer]);
+
+    // Grupo y organización del gemelo digital: si no hay ninguno seleccionado en el mapa (o es otro),
+    // se buscan en las tablas a partir del groupId del gemelo digital.
+    const groupsManagedTable = useGroupsManagedTable();
+    const orgsOfGroupsManagedTable = useOrgsOfGroupsManagedTable();
+    const dtGroup = useMemo(() => {
+        const groupId = digitalTwinSelected?.groupId;
+        if (groupSelected && (groupId === undefined || groupSelected.id === groupId)) return groupSelected;
+        return groupsManagedTable.find((group) => group.id === groupId) ?? groupSelected ?? null;
+    }, [groupSelected, groupsManagedTable, digitalTwinSelected?.groupId]);
+    const dtOrg = useMemo(() => {
+        const orgId = dtGroup?.orgId;
+        if (orgSelected && (orgId === undefined || orgSelected.id === orgId)) return orgSelected;
+        return orgsOfGroupsManagedTable.find((org) => org.id === orgId) ?? orgSelected ?? null;
+    }, [orgSelected, orgsOfGroupsManagedTable, dtGroup]);
     const legendRenderer = useLegendRenderer();
     const { connectionStatus, natsClient } = useNatsConnection();
     const openDashboardTab = useOpenWindowTab();
@@ -118,7 +150,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
     const { chatMessages, setChatMessages, handleUpdateChatAssistantMessages } = useChatMessages(setOpts);
     const { logMessages, setLogMessages, handleUpdateLogMessages } = usePipelineLogs(setChatMessages);
     const sim2stateTopic =
-        digitalTwinGltfData?.natsSubjectsData?.filter((subject) => subject.topicRef === "sim2state")[0].natsSubject ||
+        digitalTwinGltfData?.natsSubjectsData?.find((subject) => subject.topicRef === "sim2state")?.natsSubject ||
         "";
     const {
         pipelineStatus,
@@ -549,6 +581,20 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
         }
     }, [digitalTwinSelected, sensorWithCameraSelected]);
 
+    // El editor de pipelines (Flow) registra aquí la función que coloca con el ratón los nodos importados
+    const pipelineImportRef = useRef<((nodes: any[], edges: any[]) => void) | null>(null);
+    const handlePipelineImported = useCallback((importedNodes: any[], importedEdges: any[]) => {
+        if (pipelineImportRef.current) {
+            pipelineImportRef.current(importedNodes, importedEdges);
+        } else {
+            setPipelineNodes((nds: any[]) => nds.concat(importedNodes));
+            setPipelineEdges((eds: any[]) => eds.concat(importedEdges));
+            handlers.handlePipelineUiChanged(true);
+            toast.success("YAML file loaded successfully");
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
     const {
         handleDeployPipeline,
         handleStopPipeline,
@@ -571,6 +617,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
             refreshToken,
             authDispatch,
         },
+        handlePipelineImported,
     );
 
     return (
@@ -636,14 +683,12 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
                         ref={canvasRef}
                         dpr={window.devicePixelRatio}
                         orthographic
-                        shadows
+                        shadows="percentage"
+                        legacy={LEGACY_COLOR_MANAGEMENT}
                         gl={{
                             toneMapping: THREE.ACESFilmicToneMapping,
                             toneMappingExposure: 1.5,
-                            outputEncoding: THREE.sRGBEncoding,
-                        }}
-                        onCreated={(canvasCtx) => {
-                            canvasCtx.gl.physicallyCorrectLights = true;
+                            outputColorSpace: THREE.SRGBColorSpace,
                         }}
                         camera={{ position: [4, 4, 0], zoom: 300 }}
                     >
@@ -661,6 +706,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
                             showPointLightHelper={opts.showPointLightHelper}
                             shadows={opts.showShadows}
                             showAxes={opts.showAxes}
+                            axesScale={opts.axesScale}
                             femResultLoaded={state.femResultLoaded}
                         >
                             <Model
@@ -761,6 +807,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
                     </Canvas>
                 </div>
                 {state.activeViewer === "pipeline" && (
+                    <PipelineErrorBoundary resetKey={dtUid}>
                     <ReactFlowProvider>
                         <Flow
                             natsClient={natsClient}
@@ -768,15 +815,17 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
                             natsSubjectsData={digitalTwinGltfData.natsSubjectsData}
                             assetS3Folders={assetS3Folders}
                             digitalTwinSelected={digitalTwinSelected}
-                            orgSelected={orgSelected}
-                            groupSelected={groupSelected}
+                            orgSelected={dtOrg}
+                            groupSelected={dtGroup}
                             nodes={pipelineNodes}
                             edges={pipelineEdges}
                             setNodes={setPipelineNodes}
                             setEdges={setPipelineEdges}
                             handlePipelineUiChanged={handlers.handlePipelineUiChanged}
+                            importPipelineRef={pipelineImportRef}
                         />
                     </ReactFlowProvider>
+                    </PipelineErrorBoundary>
                 )}
 
                 {assetWithCameraSelected && state.activeViewer === "image_frame" && <ImageFrame frameStore={frameStore} />}
@@ -829,15 +878,19 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
                     handleDownloadYamlFile={handleDownloadYamlFile}
                     handleReinitiatePipeline={handleReinitiatePipeline}
                     isPipelineUiChanged={state.isPipelineUiChanged}
-                    close3DViewer={close3DViewer}
+                    close3DViewer={handleClose3DViewer}
                     assetWithCameraSelected={assetWithCameraSelected}
                     pipelineStatus={pipelineStatus}
                     pipelineLeaderReplicaIndex={pipelineLeaderReplicaIndex}
+                    digitalTwinName={digitalTwinSelected?.description || digitalTwinSelected?.digitalTwinUid}
+                    digitalTwinType={digitalTwinSelected?.type}
+                    isChatAssistantOpen={state.isChatAssistantOpen}
+                    isPipelineLogsOpen={state.isPipelineLogsOpen}
                 />
 
-                {/* Control Panel */}
-                {state.isControlPanelOpen && (
-                    <ControlPanel
+                {/* Inspector (panel de control) */}
+                {state.isControlPanelOpen && state.activeViewer === "3D" && (
+                    <Inspector
                         opts={opts}
                         setOpts={setOpts}
                         sensorObjects={state.sensorObjects}
@@ -855,7 +908,6 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
                         lockReadingButtomLabel={state.lockReadingButtomLabel}
                         handleGetLastMeasurementsButton={handlers.handleGetLastMeasurementsButton}
                         handleLockReadMeasurementsButtonClick={handlers.handleLockReadMeasurementsButtonClick}
-                        datGuiStyle={DAT_GUI_STYLE}
                     />
                 )}
 
@@ -902,7 +954,9 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 
                 {/* Selected Object Info */}
                 {state.activeViewer === "3D" && (
-                    <SelectedObjectInfoContainer>
+                    <SelectedObjectInfoContainer
+                        $right={state.isControlPanelOpen ? INSPECTOR_WIDTH + 2 * INSPECTOR_GAP : INSPECTOR_GAP}
+                    >
                         <ObjectInfoContainer>
                             <ObjectInfo ref={selectedObjNameRef}>Name: -</ObjectInfo>
                             <ObjectInfo ref={selectedObjTypeRef}>Type: -</ObjectInfo>

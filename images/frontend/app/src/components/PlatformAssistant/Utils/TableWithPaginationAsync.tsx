@@ -1,5 +1,6 @@
-import { useTable, usePagination, Column } from 'react-table';
-import { FC, useEffect } from 'react';
+import { FC, useEffect, useState } from 'react';
+import { useTable } from '@tanstack/react-table';
+import { Column, hiddenColumnsVisibility, platformTableFeatures, platformTableOptions, useLegacyColumns } from './platformTable';
 import styled from "styled-components";
 import { TimeRangeSelection } from './TimeRangeSelection';
 import DeleteMeasurementsIcon from './DeleteMeasurementsIcon';
@@ -18,13 +19,13 @@ const TableStyles = styled.div`
         background-color: #202226;
 
         tr {
-            :nth-child(even) {
+            &:nth-child(even) {
                 td {
                     background-color: #202226;
                 }
             }
 
-            :nth-child(odd) {
+            &:nth-child(odd) {
                 td {
                     background-color: #0c0d0f;
                 }
@@ -174,36 +175,35 @@ const TableWithPaginationAsync: FC<TableProps<any>> = (
         setStartDate,
         setEndDate
     }) => {
-    const {
-        getTableProps,
-        getTableBodyProps,
-        headerGroups,
-        prepareRow,
-        page, // Instead of using 'rows', we'll use page,
-        canPreviousPage,
-        canNextPage,
-        pageOptions,
-        pageCount,
-        gotoPage,
-        nextPage,
-        previousPage,
-        setPageSize,
-        state,
-    } = useTable(
-        {
-            columns,
-            data,
-            initialState: {
-                pageIndex: 0,
-                hiddenColumns: columns.filter((col: any) => hiddenColumnCondition(col)).map(col => col.id || col.accessor) as any
-            },
-            manualPagination: true,
-            pageCount: controlledPageCount,
-        },
-        usePagination
-    )
+    const tableColumns = useLegacyColumns(columns);
+    const [initialState] = useState(() => ({
+        pagination: { pageIndex: 0, pageSize: 10 },
+        columnVisibility: hiddenColumnsVisibility(columns, hiddenColumnCondition),
+    }));
 
-    const { pageIndex, pageSize } = state;
+    const table = useTable({
+        features: platformTableFeatures,
+        ...platformTableOptions,
+        columns: tableColumns,
+        data,
+        initialState,
+        // Paginación en servidor: `data` ya es la página actual
+        manualPagination: true,
+        pageCount: controlledPageCount,
+        // v7: esta tabla no tenía ordenación ni filtros
+        enableSorting: false,
+        enableFilters: false,
+        enableGlobalFilter: false,
+    });
+
+    const { pageIndex, pageSize } = table.state.pagination;
+    const pageCount = table.getPageCount();
+    const canPreviousPage = table.getCanPreviousPage();
+    const canNextPage = table.getCanNextPage();
+
+    const gotoPage = (page: number) => {
+        if (page >= 0 && (pageCount === -1 || page < pageCount)) table.setPageIndex(page);
+    };
 
     // Listen for changes in pagination and use the state to fetch our new data
     useEffect(() => {
@@ -223,10 +223,10 @@ const TableWithPaginationAsync: FC<TableProps<any>> = (
                     <button onClick={() => gotoPage(0)} disabled={!canPreviousPage}>
                         {'<<'}
                     </button>{' '}
-                    <button onClick={() => previousPage()} disabled={!canPreviousPage}>
+                    <button onClick={() => table.previousPage()} disabled={!canPreviousPage}>
                         {'<'}
                     </button>{' '}
-                    <button onClick={() => nextPage()} disabled={!canNextPage}>
+                    <button onClick={() => table.nextPage()} disabled={!canNextPage}>
                         {'>'}
                     </button>{' '}
                     <button onClick={() => gotoPage(pageCount - 1)} disabled={!canNextPage}>
@@ -235,7 +235,7 @@ const TableWithPaginationAsync: FC<TableProps<any>> = (
                     <span>
                         Page{' '}
                         <strong>
-                            {pageIndex + 1} of {pageOptions.length}
+                            {pageIndex + 1} of {pageCount}
                         </strong>{' '}
                     </span>
                     <span>
@@ -244,7 +244,7 @@ const TableWithPaginationAsync: FC<TableProps<any>> = (
                             type="number"
                             defaultValue={pageIndex + 1}
                             min={1}
-                            max={pageOptions.length}
+                            max={pageCount}
                             onChange={e => {
                                 const page = e.target.value ? Number(e.target.value) - 1 : 0
                                 gotoPage(page)
@@ -254,7 +254,7 @@ const TableWithPaginationAsync: FC<TableProps<any>> = (
                     <select
                         value={pageSize}
                         onChange={e => {
-                            setPageSize(Number(e.target.value))
+                            table.setPageSize(Number(e.target.value))
                         }}
                     >
                         {[10, 15, 20, 25, 30, 35, 40, 45, 50].map(pageSize => (
@@ -281,15 +281,15 @@ const TableWithPaginationAsync: FC<TableProps<any>> = (
                     <Loader />
                     :
                     <TableStyles >
-                        <table {...getTableProps()}>
+                        <table role="table">
                             <thead>
-                                {headerGroups.map(headerGroup => (
-                                    <tr {...headerGroup.getHeaderGroupProps()}>
-                                        {headerGroup.headers.map(column => (
-                                            <th {...column.getHeaderProps()}>
+                                {table.getHeaderGroups().map(headerGroup => (
+                                    <tr key={headerGroup.id} role="row">
+                                        {headerGroup.headers.map(header => (
+                                            <th key={header.id} colSpan={header.colSpan} role="columnheader">
                                                 <HeaderContainer>
                                                     <HeaderTtileContainer>
-                                                        {column.render('Header')}
+                                                        {header.isPlaceholder ? null : <table.FlexRender header={header} />}
                                                     </HeaderTtileContainer>
                                                 </HeaderContainer>
                                             </th>
@@ -297,17 +297,14 @@ const TableWithPaginationAsync: FC<TableProps<any>> = (
                                     </tr>
                                 ))}
                             </thead>
-                            <tbody {...getTableBodyProps()}>
-                                {page.map((row, i) => {
-                                    prepareRow(row)
-                                    return (
-                                        <tr {...row.getRowProps()}>
-                                            {row.cells.map(cell => {
-                                                return <td {...cell.getCellProps()}>{cell.render('Cell')}</td>
-                                            })}
-                                        </tr>
-                                    )
-                                })}
+                            <tbody role="rowgroup">
+                                {table.getRowModel().rows.map(row => (
+                                    <tr key={row.id} role="row">
+                                        {row.getVisibleCells().map(cell => (
+                                            <td key={cell.id} role="cell"><table.FlexRender cell={cell} /></td>
+                                        ))}
+                                    </tr>
+                                ))}
                             </tbody>
                         </table>
                     </TableStyles>

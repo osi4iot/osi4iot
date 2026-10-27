@@ -117,7 +117,7 @@ interface NodePropertiesPanelProps {
     } | null;
     onUpdateNode: (nodeId: string, newData: Partial<NodeData>) => void;
     digitalTwinSelected: IDigitalTwin;
-    groupSelected: IGroup;
+    groupSelected: IGroup | null;
     handlePipelineUiChanged: (isPipelineUiChanged: any) => void;
     natsSubjectsData: INatsSubjectData[];
     assetS3Folders: IAssetS3Folder[];
@@ -248,13 +248,13 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
         const dev2pdbTopics: string[] = [];
         const systemMonitoringTopics: SysMonitoringTopic[] = [];
 
-        natsSubjectsData.forEach((subjectData) => {
+        (natsSubjectsData ?? []).forEach((subjectData) => {
             if (subjectData.topicRef.slice(0, 7) === "dev2pdb") {
                 publishTopics.push(subjectData.topicRef);
                 dev2pdbTopics.push(subjectData.topicRef);
             }
             if (
-                groupSelected.isAdminGroup &&
+                groupSelected?.isAdminGroup &&
                 digitalTwinSelected.description === "System monitoring" &&
                 subjectData.topicRef.indexOf("system_") !== -1
             ) {
@@ -265,7 +265,7 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
             }
         });
 
-        if (groupSelected.isAdminGroup && digitalTwinSelected.description === "System monitoring") {
+        if (groupSelected?.isAdminGroup && digitalTwinSelected?.description === "System monitoring") {
             publishTopics.push("System alert");
         } else {
             listenTopics.push("sim2dtm", "dev2dtm", "sim2llm", "sim2state");
@@ -287,7 +287,7 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
         setPublishTopicsRef(publishTopics);
         setDev2pdbTopicsRef(dev2pdbTopics);
         setSystemMonitoringTopicsRef(systemMonitoringTopics);
-    }, [natsSubjectsData]);
+    }, [natsSubjectsData, groupSelected?.isAdminGroup, digitalTwinSelected?.description]);
 
     useEffect(() => {
         if (selectedNode) {

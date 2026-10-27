@@ -5,22 +5,22 @@ import styled, { css } from "styled-components";
 // The scroll bars of the forms (dark, rounded), for any scrolling box
 // inside them: lists, pickers.
 export const scrollbarStyle = css`
-    ::-webkit-scrollbar {
+    &::-webkit-scrollbar {
         width: 10px;
         height: 10px;
     }
 
-    ::-webkit-scrollbar-track {
+    &::-webkit-scrollbar-track {
         background: #202226;
         border-radius: 5px;
     }
 
-    ::-webkit-scrollbar-thumb {
+    &::-webkit-scrollbar-thumb {
         background: #2c3235;
         border-radius: 5px;
     }
 
-    ::-webkit-scrollbar-thumb:hover {
+    &::-webkit-scrollbar-thumb:hover {
         background-color: #343840;
     }
 `;
@@ -155,24 +155,24 @@ export const ControlsContainer = styled.div`
     padding: 0px 5px;
     overflow-y: auto;
     /* width */
-    ::-webkit-scrollbar {
+    &::-webkit-scrollbar {
         width: 10px;
     }
 
     /* Track */
-    ::-webkit-scrollbar-track {
+    &::-webkit-scrollbar-track {
         background: #202226;
         border-radius: 5px;
     }
 
     /* Handle */
-    ::-webkit-scrollbar-thumb {
+    &::-webkit-scrollbar-thumb {
         background: #2c3235;
         border-radius: 5px;
     }
 
     /* Handle on hover */
-    ::-webkit-scrollbar-thumb:hover {
+    &::-webkit-scrollbar-thumb:hover {
         background-color: #343840;
     }
 

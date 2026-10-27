@@ -61,24 +61,24 @@ const ControlsContainer = styled.div`
     padding: 0px 5px;
     overflow-y: auto;
     /* width */
-    ::-webkit-scrollbar {
+    &::-webkit-scrollbar {
         width: 10px;
     }
 
     /* Track */
-    ::-webkit-scrollbar-track {
+    &::-webkit-scrollbar-track {
         background: #202226;
         border-radius: 5px;
     }
 
     /* Handle */
-    ::-webkit-scrollbar-thumb {
+    &::-webkit-scrollbar-thumb {
         background: #2c3235;
         border-radius: 5px;
     }
 
     /* Handle on hover */
-    ::-webkit-scrollbar-thumb:hover {
+    &::-webkit-scrollbar-thumb:hover {
         background-color: #343840;
     }
 
@@ -197,15 +197,15 @@ const CreateOrganization: FC<CreateOrganizationProps> = ({
         buildingId: Yup.number().positive().integer().required("Required"),
         llmProviderUrl: Yup.string().when("llmEnabled", {
             is: true,
-            then: Yup.string().url("Enter a valid url").required("Required"),
+            then: (schema) => schema.url("Enter a valid url").required("Required"),
         }),
         llmProviderApiKey: Yup.string().when("llmEnabled", {
             is: true,
-            then: Yup.string().required("Required"),
+            then: (schema) => schema.required("Required"),
         }),
         telegramBotToken: Yup.string().when("telegramEnabled", {
             is: true,
-            then: Yup.string().required("Required"),
+            then: (schema) => schema.required("Required"),
         }),
         orgAdminArray: Yup.array()
             .of(

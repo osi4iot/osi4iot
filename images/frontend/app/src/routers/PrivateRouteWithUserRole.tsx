@@ -1,36 +1,24 @@
-
-import { FC } from "react";
-import { Route, Redirect, RouteProps, useLocation } from "react-router-dom";
+import { FC, ReactElement } from "react";
+import { Navigate, useLocation } from "react-router";
 import { useIsUserAuth } from "../contexts/authContext";
 import { useUserRole } from "../contexts/platformAssistantContext/platformAssistantContext";
-import { ChildrenProp } from "../interfaces/interfaces";
 import { getPlatformAssistantPathForUserRole } from "../tools/tools";
 
-interface PrivateRouteWithUserRoleProps extends RouteProps {
-    component: React.FC<ChildrenProp>;
+interface PrivateRouteWithUserRoleProps {
+    children: ReactElement;
     roleRequired: string;
 }
 
-
 const userRolesArray = ["User", "GroupAdmin", "OrgAdmin", "PlatformAdmin"];
 
-export const PrivateRouteWithUserRole: FC<PrivateRouteWithUserRoleProps> = ({ component: Component, roleRequired, ...rest }) => {
+export const PrivateRouteWithUserRole: FC<PrivateRouteWithUserRoleProps> = ({ children, roleRequired }) => {
     const location = useLocation();
     const userRole = useUserRole();
+    const isUserAuth = useIsUserAuth();
 
-    return (
-        <Route {...rest}>
-            {
-                useIsUserAuth() ?
-                    (
-                        userRolesArray.indexOf(userRole) >= userRolesArray.indexOf(roleRequired)
-                            ?
-                            <Component children={undefined} />
-                            :
-                            <Redirect to={{ pathname: getPlatformAssistantPathForUserRole(userRole) }} />
-                    )
-                    :
-                    <Redirect to={{ pathname: "/login", state: { from: location } }} />}
-        </Route>
-    );
+    if (!isUserAuth) return <Navigate to="/login" replace state={{ from: location }} />;
+    if (userRolesArray.indexOf(userRole) < userRolesArray.indexOf(roleRequired)) {
+        return <Navigate to={getPlatformAssistantPathForUserRole(userRole)} replace />;
+    }
+    return children;
 };

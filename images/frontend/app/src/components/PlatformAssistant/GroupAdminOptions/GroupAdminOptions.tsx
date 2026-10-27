@@ -105,7 +105,7 @@ import { AxiosResponse, AxiosError } from "axios";
 import { AssetS3FolderProvider } from "../../../contexts/assetS3FolderOptions";
 import AssetS3FolderContainer from "./AssetS3FolderContainer";
 import IAssetS3Folder from "../TableColumns/assetS3FolderColumns";
-import { Column } from "react-table";
+import { Column } from '../Utils/platformTable';
 import KnowledgeContainer from "./KnowledgeContainer";
 
 const GroupAdminOptionsContainer = styled.div`
@@ -150,29 +150,29 @@ const ContentContainer = styled.div`
     overflow: auto;
 
     /* width */
-    ::-webkit-scrollbar {
+    &::-webkit-scrollbar {
         width: 10px;
         height: 10px;
     }
 
     /* Track */
-    ::-webkit-scrollbar-track {
+    &::-webkit-scrollbar-track {
         background: #202226;
         border-radius: 5px;
     }
 
     /* Handle */
-    ::-webkit-scrollbar-thumb {
+    &::-webkit-scrollbar-thumb {
         background: #2c3235;
         border-radius: 5px;
     }
 
     /* Handle on hover */
-    ::-webkit-scrollbar-thumb:hover {
+    &::-webkit-scrollbar-thumb:hover {
         background-color: #343840;
     }
 
-    ::-webkit-scrollbar-corner {
+    &::-webkit-scrollbar-corner {
         /* background-color: #0c0d0f; */
         background: #202226;
     }

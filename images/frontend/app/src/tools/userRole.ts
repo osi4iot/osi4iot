@@ -8,7 +8,7 @@ import { AxiosError } from "axios";
 const domainName = getDomainName();
 const protocol = getProtocol();
 
-export const getUserRoleAndRedirect = (accessToken: string, platformAssistantDispatch: PlatformAssistantDispatch, history: { push(path: string): void} ) => {
+export const getUserRoleAndRedirect = (accessToken: string, platformAssistantDispatch: PlatformAssistantDispatch, navigate: (path: string) => void) => {
     const url = `${protocol}://${domainName}/admin_api/auth/user_managed_components`;
     const config = axiosAuth(accessToken);
     axios
@@ -16,7 +16,7 @@ export const getUserRoleAndRedirect = (accessToken: string, platformAssistantDis
         .then((response: AxiosResponse<any, any>) => {
             const data = response.data;
             setUserRole(platformAssistantDispatch, data);
-            history.push(PLATFORM_ASSISTANT_ROUTES.HOME);
+            navigate(PLATFORM_ASSISTANT_ROUTES.HOME);
 
         })
         .catch((error: AxiosError) => {

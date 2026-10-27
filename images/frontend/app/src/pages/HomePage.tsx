@@ -1,5 +1,5 @@
 import { FC } from "react";
-import { NavLink } from "react-router-dom";
+import { NavLink } from "react-router";
 import styled from "styled-components";
 import Main from "../components/Layout/Main";
 import Header from "../components/Layout/Header";
@@ -220,17 +220,17 @@ const HomePage: FC<{}> = () => {
                         <Title>Platform options</Title>
                         <MenuBorder>
                             <Menu>
-                                <StyledNavLink exact to="/platform_assistant">
+                                <StyledNavLink end to="/platform_assistant">
                                     Platform assistant
                                 </StyledNavLink>
                                 <ButtonLink onClick={() => handleLinkClick("/grafana/")}>Dashboards</ButtonLink>
                                 {((window._env_ && window._env_.PROTOCOL === "https") ||
                                     window.location.href.split("/")[2] === "localhost:3000") && (
                                     <>
-                                        <StyledNavLink exact to="/digital_twin_simulator_mobile">
+                                        <StyledNavLink end to="/digital_twin_simulator_mobile">
                                             Digital twin simulator
                                         </StyledNavLink>
-                                        <StyledNavLink exact to="/mobile_sensors">
+                                        <StyledNavLink end to="/mobile_sensors">
                                             <p>Mobile sensors</p>
                                             <p>(Only Android devices)</p>
                                         </StyledNavLink>

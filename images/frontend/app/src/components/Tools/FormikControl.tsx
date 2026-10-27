@@ -3,7 +3,7 @@ import Input from "./Input";
 import InputArray from "./InputArray";
 import InputArrayRows from "./InputArrayRows";
 import SelectControl from "./SelectControl";
-import { OptionsType } from "react-select";
+import { Options } from "react-select";
 import Textarea from "./Textarea";
 
 interface IOption {
@@ -22,7 +22,7 @@ interface FormikControlProps {
     addLabel?: string;
     selectLabel?: string;
     goToSelect?: () => void;
-    options?: OptionsType<IOption>;
+    options?: Options<IOption>;
     autoFocus?: boolean;
     onChange?: (option: any) => void;
     textAreaSize?: string;
@@ -75,7 +75,7 @@ const FormikControl: FC<FormikControlProps> = ({
                     typeArray={typeArray as string[]}
                     nameArray={nameArray as string[]}
                     addLabel={addLabel as string}
-                    inputSelectOptions={options as OptionsType<IOption>}
+                    inputSelectOptions={options as Options<IOption>}
                     selectLabel={selectLabel as string}
                     goToSelect={goToSelect as () => void}
                     {...rest}
@@ -96,7 +96,7 @@ const FormikControl: FC<FormikControlProps> = ({
                 <SelectControl
                     label={label as string}
                     name={name as string}
-                    options={options as OptionsType<IOption>}
+                    options={options as Options<IOption>}
                     autoFocus={autoFocus as boolean}
                     {...rest}
                 />

@@ -1,5 +1,5 @@
 import { FC, useState, useEffect } from "react";
-import { Column } from "react-table";
+import { Column } from '../Utils/platformTable';
 import { toast } from "react-toastify";
 import { axiosAuth, getDomainName, getProtocol } from "../../../tools/tools";
 import { useAuthState, useAuthDispatch } from "../../../contexts/authContext";

@@ -2,7 +2,7 @@ import React, { FC, useState, useEffect, ComponentType } from "react";
 import { Field, FieldArray, ErrorMessage } from 'formik';
 import styled from "styled-components";
 import { useFilePicker } from 'use-file-picker';
-import { OptionsType } from "react-select";
+import { Options } from "react-select";
 import TextError from "./TextError";
 import { FaTrashAlt } from "react-icons/fa";
 import { DropDown } from "./SelectControl";
@@ -260,7 +260,7 @@ interface InputArrayRowsProps {
     nameArray: string[];
     typeArray: string[];
     addLabel: string;
-    inputSelectOptions?: OptionsType<IOption>;
+    inputSelectOptions?: Options<IOption>;
     selectLabel: string;
     goToSelect: () => void;
 }
@@ -305,7 +305,7 @@ const InputArrayRows: FC<InputArrayRowsProps> = (
     const [localFileLoaded, setLocalFileLoaded] = useState(false);
     const [localFileLabel, setLocalFileLabel] = useState("Select local file");
 
-    const [openFileSelector, { filesContent, plainFiles, loading, clear }] = useFilePicker({
+    const { openFilePicker: openFileSelector, filesContent, plainFiles, loading, clear } = useFilePicker({
         readAs: 'Text',
         multiple: false,
         accept: '.txt,.csv',

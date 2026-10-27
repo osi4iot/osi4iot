@@ -1,6 +1,6 @@
 import { FC } from 'react';
 import styled from "styled-components";
-import Select, { ValueType } from "react-select";
+import Select, { SingleValue } from "react-select";
 import timeRangeCalculator from '../../../tools/timeRangeCalculator';
 
 
@@ -171,7 +171,7 @@ export const TimeRangeSelection: FC<TimeRangeSelectionProps> = (
         setEndDate
     }) => {
 
-    const onChange = (option: ValueType<IOption, false>) => {
+    const onChange = (option: SingleValue<IOption>) => {
         const selectedTimeRange = (option as IOption).value as string;
         setSelectedTimeRange(selectedTimeRange);
         const [startDateString, endDateString] = timeRangeCalculator(selectedTimeRange);

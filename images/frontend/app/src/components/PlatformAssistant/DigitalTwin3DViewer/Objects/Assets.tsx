@@ -6,8 +6,6 @@ import { AssetState, defaultOpacity, defaultVisibility, ObjectVisibilityState } 
 import { changeMaterialPropRecursively } from "../../../../tools/tools";
 import { IThreeMesh } from "../Types/threeInterfaces";
 
-const MeshComponent = "mesh" as any;
-const PrimitivesComponent = "primitive" as any;
 
 const assetOkColor = new THREE.Color(0x00ff00);
 const assetAlertingColor = new THREE.Color(0xff0000);
@@ -31,9 +29,12 @@ const AssetBase: FC<AssetProps> = ({ obj, blinking, opacity = 1, assetState, vis
     const material = obj.material;
     const defOpacity = defaultOpacity(obj);
     const recursiveTransparency = obj.userData.recursiveTransparency;
-    const hasEndlessAnimations = obj.blenderAnimationTypes?.includes("blenderEndless");
+    const hasEndlessAnimations =
+        obj.blenderAnimationTypes?.includes("blenderEndless") || obj.userData.animationType === "blenderEndless";
     if (recursiveTransparency === undefined || recursiveTransparency === "true") {
-        const isTransparent = hasEndlessAnimations ? true : defOpacity * opacity < 1;
+        // La transparencia propia de los materiales glTF (BLEND) se conserva en changeMaterialPropRecursively;
+        // aquí solo se activa cuando el usuario baja la opacidad.
+        const isTransparent = defOpacity * opacity < 1;
         changeMaterialPropRecursively(obj, "transparent", isTransparent);
     }
 
@@ -41,15 +42,15 @@ const AssetBase: FC<AssetProps> = ({ obj, blinking, opacity = 1, assetState, vis
     const mixerRef = useRef<THREE.AnimationMixer | null>(null);
 
     useEffect(() => {
+        // Se animan todos los clips del objeto y de sus descendientes (igual que en los objetos genéricos),
+        // no solo cuando el propio objeto declara clipName.
         if (obj.animations.length !== 0 && !(obj.animations as any).includes(undefined)) {
-            if (obj.userData.clipName) {
-                const mixer = new THREE.AnimationMixer(obj as any);
-                obj.animations.forEach((clip) => {
-                    const action = mixer.clipAction(clip);
-                    action.play();
-                });
-                mixerRef.current = mixer;
-            }
+            const mixer = new THREE.AnimationMixer(obj as any);
+            obj.animations.forEach((clip) => {
+                const action = mixer.clipAction(clip);
+                action.play();
+            });
+            mixerRef.current = mixer;
         }
         return () => {
             mixerRef.current?.stopAllAction();
@@ -75,7 +76,7 @@ const AssetBase: FC<AssetProps> = ({ obj, blinking, opacity = 1, assetState, vis
     }, [assetState.clipValue]);
 
     useFrame(({ clock }, delta) => {
-        if (obj.userData.animationType && obj.userData.animationType === "blenderEndless") {
+        if (hasEndlessAnimations) {
             let newDelta = delta;
             if (assetState.clipValue !== null) {
                 newDelta = delta * assetState.clipValue;
@@ -137,27 +138,25 @@ const AssetBase: FC<AssetProps> = ({ obj, blinking, opacity = 1, assetState, vis
         obj.customAnimationObjectNames.length !== 0 ||
         obj.children.length !== 0 ? (
         obj.userData.animationType === "blenderEndless" ? (
-            <PrimitivesComponent ref={meshRef as React.MutableRefObject<IThreeMesh>} object={obj} />
+            <primitive ref={meshRef as React.MutableRefObject<IThreeMesh>} object={obj} />
         ) : (
-            <MeshComponent
+            <mesh
                 ref={meshRef as React.MutableRefObject<IThreeMesh>}
                 castShadow
                 receiveShadow
                 material={material}
             >
-                <PrimitivesComponent object={obj} />
-            </MeshComponent>
+                <primitive object={obj} />
+            </mesh>
         )
     ) : (
-        <MeshComponent
+        // Se dibuja el objeto original del glTF (no una copia de su geometría): así conserva
+        // morph targets, esqueleto y nombre (necesario para enlazar sus animaciones).
+        <primitive
             ref={meshRef as React.MutableRefObject<IThreeMesh>}
+            object={obj}
             castShadow
             receiveShadow
-            geometry={obj.geometry}
-            material={material}
-            position={obj.position}
-            scale={obj.scale}
-            quaternion={obj.quaternion}
         />
     );
 };

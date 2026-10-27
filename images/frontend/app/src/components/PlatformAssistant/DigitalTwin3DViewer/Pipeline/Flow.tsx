@@ -39,7 +39,7 @@ import NodePropertiesPanel from "./NodePropertiesPanel";
 import { createNodesAndEdges } from "../Utils/customHooks";
 import { toast } from "react-toastify";
 import { useMlModelsTableInGroup } from "../../../../contexts/platformAssistantContext/platformAssistantContext";
-import { Sampler } from "@react-three/drei";
+import { usePipelineEditing } from "./usePipelineEditing";
 
 export const processInitialPipelineData = (digitalTwinSelected, natsClient, natsSubjectsData) => {
     if (!digitalTwinSelected.pipelineFileData || digitalTwinSelected.pipelineFileData === "") {
@@ -65,15 +65,52 @@ export const processInitialPipelineData = (digitalTwinSelected, natsClient, nats
 // Removed the panelOpen prop from the styled component
 const ReactFlowWrapper = styled.div`
     flex: 1;
+    position: relative;
     color: #222;
     background-color: #212121;
     /* Removed margin-left and transition - now canvas stays fixed */
+
+    /* Al seleccionar varios nodos (Shift + arrastrar, Ctrl + clic) no se debe seleccionar el texto de las etiquetas */
+    user-select: none;
+    -webkit-user-select: none;
+
+    & input,
+    & textarea,
+    & [contenteditable="true"] {
+        user-select: text;
+        -webkit-user-select: text;
+    }
+
+    &.placing .react-flow__pane,
+    &.placing .react-flow__node {
+        cursor: copy;
+    }
 
     .react-flow__attribution a {
         text-decoration: none;
         color: black;
     }
 `;
+
+const PlacementHint = styled.div`
+    position: absolute;
+    bottom: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 10;
+    padding: 6px 12px;
+    border-radius: 6px;
+    background-color: rgba(50, 116, 217, 0.9);
+    color: white;
+    font-size: 13px;
+    pointer-events: none;
+    white-space: nowrap;
+`;
+
+const clearTextSelection = () => {
+    const selection = window.getSelection?.();
+    if (selection && !selection.isCollapsed) selection.removeAllRanges();
+};
 
 export default function Flow({
     natsClient,
@@ -88,6 +125,7 @@ export default function Flow({
     setNodes,
     setEdges,
     handlePipelineUiChanged,
+    importPipelineRef,
 }) {
     const reactFlowWrapper = useRef(null);
     const { screenToFlowPosition } = useReactFlow();
@@ -96,6 +134,51 @@ export default function Flow({
     const [isPanelOpen, setIsPanelOpen] = useState(false);
     const [nodeCounters, setNodeCounters] = useState({});
     const mlModelsTable = useMlModelsTableInGroup(digitalTwinSelected.groupId);
+
+    // Restricciones de la organización/grupo para nodos pegados o importados
+    const validateNodes = useCallback(
+        (newNodes) => {
+            const types = new Set(newNodes.map((node) => node.type));
+            if (types.has("AiAgent") && !orgSelected?.llmEnabled) return "AiAgent is not enabled for this organization.";
+            if (types.has("AiAgent") && !groupSelected?.llmEnabled) return "AiAgent is not enabled for this group.";
+            if ((types.has("TelegramListen") || types.has("TelegramSend")) && !orgSelected?.telegramEnabled) {
+                return "Telegram integration is not enabled for this organization.";
+            }
+            return null;
+        },
+        [orgSelected, groupSelected],
+    );
+
+    const closePanelNow = useCallback(() => {
+        setIsPanelOpen(false);
+        setSelectedNode(null);
+    }, []);
+
+    const { takeSnapshot, resetHistory, importPipeline, isPlacing, wrapperHandlers } = usePipelineEditing({
+        nodes,
+        edges,
+        setNodes,
+        setEdges,
+        wrapperRef: reactFlowWrapper,
+        screenToFlowPosition,
+        handlePipelineUiChanged,
+        natsClient,
+        natsSubjectsData,
+        validateNodes,
+        onHistoryChange: closePanelNow,
+    });
+
+    useEffect(() => {
+        if (!importPipelineRef) return;
+        importPipelineRef.current = importPipeline;
+        return () => {
+            if (importPipelineRef.current === importPipeline) importPipelineRef.current = null;
+        };
+    }, [importPipelineRef, importPipeline]);
+
+    useEffect(() => {
+        resetHistory();
+    }, [digitalTwinSelected?.digitalTwinUid, resetHistory]);
 
     useEffect(() => {
         const newCounters = {
@@ -186,6 +269,7 @@ export default function Flow({
 
     const onConnect = useCallback(
         (params) => {
+            takeSnapshot();
             handlePipelineUiChanged(true);
             setEdges((edgesSnapshot) => addEdge(params, edgesSnapshot));
         },
@@ -212,6 +296,7 @@ export default function Flow({
 
     const onUpdateNode = useCallback(
         (nodeId, newData) => {
+            takeSnapshot();
             setNodes((nds) =>
                 nds.map((node) => {
                     if (node.id === nodeId) {
@@ -227,8 +312,18 @@ export default function Flow({
                 }),
             );
         },
-        [setNodes],
+        [setNodes, takeSnapshot],
     );
+
+    const onBeforeDelete = useCallback(async () => {
+        takeSnapshot();
+        return true;
+    }, [takeSnapshot]);
+
+    const onDragStartSnapshot = useCallback(() => {
+        clearTextSelection();
+        takeSnapshot();
+    }, [takeSnapshot]);
 
     const onClosePanel = useCallback(() => {
         setIsPanelOpen(false);
@@ -261,17 +356,17 @@ export default function Flow({
                     }
                 }
             } else if (nodeType === "AiAgent") {
-                if (!orgSelected.llmEnabled) {
+                if (!orgSelected?.llmEnabled) {
                     toast.error("AiAgent is not enabled for this organization.");
                     return;
                 }
 
-                if (!groupSelected.llmEnabled) {
+                if (!groupSelected?.llmEnabled) {
                     toast.error("AiAgent is not enabled for this group.");
                     return;
                 }
             } else if (nodeType === "TelegramListen" || nodeType === "TelegramSend") {
-                if (!orgSelected.telegramEnabled) {
+                if (!orgSelected?.telegramEnabled) {
                     toast.error("Telegram integration is not enabled for this organization.");
                     return;
                 }
@@ -316,10 +411,11 @@ export default function Flow({
                 newNode.data.natsSubjectsData = natsSubjectsData;
             }
 
+            takeSnapshot();
             setNodes((nds) => nds.concat(newNode));
         },
         // eslint-disable-next-line react-hooks/exhaustive-deps
-        [screenToFlowPosition, natsClient, natsSubjectsData, nodeCounters],
+        [screenToFlowPosition, natsClient, natsSubjectsData, nodeCounters, takeSnapshot],
     );
 
     const nodeTypes = useMemo(
@@ -366,7 +462,8 @@ export default function Flow({
                 assetS3Folders={assetS3Folders}
             />
 
-            <ReactFlowWrapper ref={reactFlowWrapper}>
+            <ReactFlowWrapper ref={reactFlowWrapper} className={isPlacing ? "placing" : undefined} {...wrapperHandlers}>
+                {isPlacing && <PlacementHint>Click to place the nodes · Esc to cancel</PlacementHint>}
                 <ReactFlow
                     nodes={nodes}
                     edges={edges}
@@ -378,6 +475,10 @@ export default function Flow({
                     onPaneClick={onPaneClick}
                     onDragOver={onDragOver}
                     onDrop={onDrop}
+                    onBeforeDelete={onBeforeDelete}
+                    onNodeDragStart={onDragStartSnapshot}
+                    onSelectionDragStart={onDragStartSnapshot}
+                    onSelectionStart={clearTextSelection}
                     nodeTypes={nodeTypes}
                     deleteKeyCode={["Backspace", "Delete"]}
                     multiSelectionKeyCode={["Control", "Meta"]}

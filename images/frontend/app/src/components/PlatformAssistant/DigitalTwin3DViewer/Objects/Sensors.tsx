@@ -16,9 +16,6 @@ import { changeMaterialPropRecursively } from "../../../../tools/tools";
 import { sensorDisplay } from "../../../../tools/sensorDisplay";
 import { IThreeMesh } from "../Types/threeInterfaces";
 
-const GroupComponent = "group" as any;
-const MeshComponent = "mesh" as any;
-const PrimitivesComponent = "primitive" as any;
 
 const MarkerContainer = styled.div`
     position: absolute;
@@ -72,9 +69,12 @@ const SensorBase: FC<SensorProps> = ({
 
     const defOpacity = defaultOpacity(obj);
     const recursiveTransparency = obj.userData.recursiveTransparency;
-    const hasEndlessAnimations = obj.blenderAnimationTypes?.includes("blenderEndless");
+    const hasEndlessAnimations =
+        obj.blenderAnimationTypes?.includes("blenderEndless") || obj.userData.animationType === "blenderEndless";
     if (recursiveTransparency === undefined || recursiveTransparency === "true") {
-        const isTransparent = hasEndlessAnimations ? true : defOpacity * opacity < 1;
+        // La transparencia propia de los materiales glTF (BLEND) se conserva en changeMaterialPropRecursively;
+        // aquí solo se activa cuando el usuario baja la opacidad.
+        const isTransparent = defOpacity * opacity < 1;
         changeMaterialPropRecursively(obj, "transparent", isTransparent);
     }
     const timeout = (obj.userData.timeout as number) || 60;
@@ -92,15 +92,12 @@ const SensorBase: FC<SensorProps> = ({
 
     useEffect(() => {
         if (obj.animations.length !== 0 && !(obj.animations as any).includes(undefined) && meshRef.current) {
-            if (obj.userData.clipName) {
-                const mixer = new THREE.AnimationMixer(meshRef.current as any);
-                const clip = obj.animations[0];
-                const action = mixer.clipAction(clip);
-                action.play();
-                const clipsDuration = obj.animations[0].duration - 0.00001;
-                setClipsDuration(clipsDuration);
-                setMixer(mixer);
-            }
+            // Todos los clips del sensor y de sus descendientes (antes solo el primero y solo con clipName).
+            const mixer = new THREE.AnimationMixer(meshRef.current as any);
+            obj.animations.forEach((clip) => mixer.clipAction(clip).play());
+            const clipsDuration = obj.animations[0].duration - 0.00001;
+            setClipsDuration(clipsDuration);
+            setMixer(mixer);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [obj.animations, meshRef]);
@@ -130,9 +127,11 @@ const SensorBase: FC<SensorProps> = ({
     }, [sensorState.sensorValue]);
 
     useFrame(({ clock }, delta) => {
-        if (obj.userData.animationType && obj.userData.animationType === "blenderEndless") {
+        if (hasEndlessAnimations) {
             let newDelta = delta;
             if (sensorState.clipValue !== null) {
+                // Se mantiene el comportamiento original de los sensores (clipValue como avance por fotograma),
+                // distinto del de activos y objetos genéricos (delta × clipValue), para no alterar modelos existentes.
                 newDelta = sensorState.clipValue;
             }
             mixer?.update(newDelta);
@@ -201,53 +200,41 @@ const SensorBase: FC<SensorProps> = ({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [opacity]);
 
+    // Marcador HTML en la posición del sensor
+    const markerElement = marker ? (
+        <group position={obj.position} quaternion={obj.quaternion} scale={obj.scale}>
+            <Html
+                castShadow // Make HTML cast a shadow
+                receiveShadow // Make HTML receive shadows
+            >
+                <MarkerContainer>
+                    <MarkerIcon onClick={markerClickHandler} />
+                </MarkerContainer>
+            </Html>
+        </group>
+    ) : null;
+
     return obj.type === "Group" ||
         obj.animations.length !== 0 ||
         obj.customAnimationObjectNames.length !== 0 ||
         obj.children.length !== 0 ? (
-        <GroupComponent>
-            <MeshComponent
+        <group>
+            <mesh
                 ref={meshRef as React.MutableRefObject<IThreeMesh>}
                 castShadow
                 receiveShadow
                 material={material}
             >
-                <PrimitivesComponent object={obj} />
-            </MeshComponent>
-            {marker && (
-                <Html
-                    castShadow // Make HTML cast a shadow
-                    receiveShadow // Make HTML receive shadows
-                >
-                    <MarkerContainer>
-                        <MarkerIcon onClick={markerClickHandler} />
-                    </MarkerContainer>
-                </Html>
-            )}
-        </GroupComponent>
+                <primitive object={obj} />
+            </mesh>
+            {markerElement}
+        </group>
     ) : (
-        <GroupComponent position={obj.position} quaternion={obj.quaternion} scale={obj.scale}>
-            <MeshComponent
-                ref={meshRef as React.MutableRefObject<IThreeMesh>}
-                castShadow
-                receiveShadow
-                geometry={obj.geometry}
-                material={material}
-                position={[0, 0, 0]}
-                scale={[1.0, 1.0, 1.0]}
-                rotation={[0, 0, 0]}
-            />
-            {marker && (
-                <Html
-                    castShadow // Make HTML cast a shadow
-                    receiveShadow // Make HTML receive shadows
-                >
-                    <MarkerContainer>
-                        <MarkerIcon onClick={markerClickHandler} />
-                    </MarkerContainer>
-                </Html>
-            )}
-        </GroupComponent>
+        <group>
+            {/* Se dibuja el objeto original del glTF (conserva morph targets, esqueleto y nombre) */}
+            <primitive ref={meshRef as React.MutableRefObject<IThreeMesh>} object={obj} castShadow receiveShadow />
+            {markerElement}
+        </group>
     );
 };
 

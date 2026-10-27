@@ -1,5 +1,5 @@
 import { FC, SyntheticEvent } from "react";
-import { useHistory } from "react-router-dom";
+import { useNavigate } from "react-router";
 import styled from "styled-components";
 import { useWindowWidth } from "@react-hook/window-size";
 
@@ -32,12 +32,12 @@ const LogoContainer = styled.div`
 
 
 const Logo: FC<{}> = () => {
-	const history = useHistory();
+	const navigate = useNavigate();
 	const windowWidth = useWindowWidth();
 	const isMobile = windowWidth < 800;
 
 	const handleSendHome = (e: SyntheticEvent) => {
-		history.push("/");
+		navigate("/");
 	};
 
 	return (

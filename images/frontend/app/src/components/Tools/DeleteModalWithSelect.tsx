@@ -3,7 +3,7 @@ import ReactModal from "react-modal";
 import { useModal } from "react-modal-hook";
 import styled from "styled-components";
 import MiniLoader from '../Tools/MiniLoader';
-import Select, { OptionsType, ValueType } from "react-select";
+import Select, { Options, SingleValue } from "react-select";
 
 const SelectContainer = styled.div`
     width: 100%;
@@ -180,7 +180,7 @@ const DeleteModalWithSelect =
         action: (hideModal: () => void, whoToRemove: string) => void,
         isSubmitting: boolean = false,
         showLoader: () => void,
-        options: OptionsType<IOption>,
+        options: Options<IOption>,
         width: number = 370,
         height: number = 380
     ) => {
@@ -234,7 +234,7 @@ const DeleteModalWithSelect =
             action(hideModal, (selectedOption as IOption)?.value);
         }
 
-        const onChange = (option: ValueType<IOption, false>) => {
+        const onChange = (option: SingleValue<IOption>) => {
             setSelectedOption(option as IOption);
         };
 

@@ -238,11 +238,11 @@ const CreateTopic: FC<CreateTopicProps> = ({ orgsOfGroupManaged, groupsManaged, 
         requireS3StorageString: Yup.string().required("Required"),
         s3Folder: Yup.string().when("requireS3StorageString", {
             is: "yes",
-            then: Yup.string().required("Must enter maxNumResFemFiles"),
+            then: (schema) => schema.required("Must enter maxNumResFemFiles"),
         }),
         parquetSchema: Yup.string().when("requireS3StorageString", {
             is: "yes",
-            then: Yup.string().required("Must enter maxNumResFemFiles"),
+            then: (schema) => schema.required("Must enter maxNumResFemFiles"),
         }),
     });
 

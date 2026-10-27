@@ -130,7 +130,7 @@ const CreateBuilding: FC<CreateBuildingProps> = ({ backToTable, refreshBuildings
     const [latitude, setLatitude] = useState(0);
     const [isBuildingDataReady, setIsBuildingDataReady] = useState(false);
 
-    const [openBuildingFileSelector, buildingFileParams] = useFilePicker({
+    const { openFilePicker: openBuildingFileSelector, ...buildingFileParams } = useFilePicker({
         readAs: 'Text',
         multiple: false,
         accept: '.geojson',

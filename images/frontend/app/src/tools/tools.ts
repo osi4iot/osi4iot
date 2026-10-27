@@ -1,3 +1,4 @@
+import * as THREE from "three";
 import { AxiosProgressEvent } from "axios";
 import { IThreeMesh } from "../components/PlatformAssistant/DigitalTwin3DViewer/Types/threeInterfaces";
 import { PLATFORM_ASSISTANT_ROUTES } from "../components/PlatformAssistant/Utils/platformAssistantOptions";
@@ -435,6 +436,32 @@ export const checkGltfFile_Old = (gltfFileData: any): string => {
 }
 
 
+const originalEmissiveColors = new WeakMap<THREE.Material, THREE.Color>();
+
+// Ajusta el valor pedido para no perder las propiedades originales del material glTF
+// (guardadas en loadAndParseGltfFile): materiales BLEND (transparencia, depthWrite),
+// alfa del baseColor y color emisivo propio.
+const resolveMaterialPropValue = (
+    material: THREE.Material,
+    prop: string,
+    propValue: string | number | boolean | THREE.Color
+) => {
+    const original = material.userData?.gltfOriginal;
+    if (!original) return propValue;
+    if (prop === "transparent") return (propValue as boolean) || original.transparent;
+    if (prop === "depthWrite") return (propValue as boolean) && original.depthWrite;
+    if (prop === "opacity") return (propValue as number) * original.opacity;
+    if (prop === "emissive" && propValue instanceof THREE.Color && propValue.getHex() === 0 && original.emissive) {
+        let color = originalEmissiveColors.get(material);
+        if (!color) {
+            color = new THREE.Color(original.emissive);
+            originalEmissiveColors.set(material, color);
+        }
+        return color;
+    }
+    return propValue;
+}
+
 export const changeMaterialPropRecursively = (
     obj: IThreeMesh,
     prop: string,
@@ -445,7 +472,7 @@ export const changeMaterialPropRecursively = (
         return;
     }
     if ((obj.material as THREE.Material) && (obj.material as any)[prop] !== undefined) {
-        (obj.material as any)[prop] = propValue;
+        (obj.material as any)[prop] = resolveMaterialPropValue(obj.material as THREE.Material, prop, propValue);
     }
     for (let node of obj.children) {
         changeMaterialPropRecursively(
@@ -556,4 +583,3 @@ export const giveBrowserType = () => {
       }
     return browserType;
 }
-

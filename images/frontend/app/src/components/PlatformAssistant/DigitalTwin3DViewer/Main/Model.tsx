@@ -27,7 +27,6 @@ import { LlmMessage } from "../ChatAssitant/ChatAssistant";
 import { PipelineLog } from "../Pipeline/PipelineLogs";
 import { ChatMessage } from "../Types/types";
 
-const GroupComponent = 'group' as any;
 
 export interface ISensorObject {
     node: IThreeMesh;
@@ -213,7 +212,9 @@ const Model: FC<ModelProps> = ({
     setCurrentFemSimulationObjectsState,
 }) => {
     const camera = useThree((state) => state.camera);
-    const container = canvasRef.current as HTMLCanvasElement | null;
+    // El canvas de R3F siempre existe aquí (canvasRef.current podía ser null en el primer render
+    // y entonces no se registraban los eventos de selección con el ratón).
+    const container = useThree((state) => state.gl.domElement) as HTMLCanvasElement | null;
     const group = useRef<THREE.Group | undefined>(undefined);
 
     const sensorsState = currentSensorsState;
@@ -324,9 +325,9 @@ const Model: FC<ModelProps> = ({
         setParameters(
             camera,
             container,
-            selectedObjTypeRef.current as HTMLDivElement | null,
-            selectedObjNameRef.current as HTMLDivElement | null,
-            selectedObjCollectionNameRef.current as HTMLDivElement | null,
+            selectedObjTypeRef as { current: HTMLDivElement | null },
+            selectedObjNameRef as { current: HTMLDivElement | null },
+            selectedObjCollectionNameRef as { current: HTMLDivElement | null },
             changeObjectHighlight,
             digitalTwinGltfData.sensorsDashboards,
             openDashboardTab,
@@ -339,8 +340,9 @@ const Model: FC<ModelProps> = ({
         container?.addEventListener("touchstart", onTouch, false);
 
         return () => {
-            container?.removeEventListener("mesh_mouse_enter", onMeshMouseEnter);
-            container?.removeEventListener("mesh_mouse_exit", onMeshMouseExit);
+            window.removeEventListener("mesh_mouse_enter", onMeshMouseEnter);
+            window.removeEventListener("mesh_mouse_exit", onMeshMouseExit);
+            container?.removeEventListener("click", onMouseClick);
             container?.removeEventListener("mousemove", onMouseMove);
             container?.removeEventListener("mousedown", onMouseDown);
             container?.removeEventListener("touchstart", onTouch);
@@ -349,7 +351,7 @@ const Model: FC<ModelProps> = ({
     }, [camera, container, setSensorsState, setAssetsState, setGenericObjectsState, setFemSimulationObjectsState]);
 
     return (
-        <GroupComponent ref={group as React.MutableRefObject<THREE.Group>} dispose={null}>
+        <group ref={group as React.MutableRefObject<THREE.Group>} dispose={null}>
             {sensorObjects.length !== 0 && sensorsState && sensorsVisibilityState && (
                 <Sensors
                     sensorObjects={sensorObjects}
@@ -414,7 +416,7 @@ const Model: FC<ModelProps> = ({
                     }
                 />
             )}
-        </GroupComponent>
+        </group>
     );
 };
 

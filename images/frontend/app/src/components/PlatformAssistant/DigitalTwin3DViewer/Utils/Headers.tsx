@@ -1,139 +1,247 @@
-import { FC, useRef, useState, useEffect } from "react";
+import { FC, ReactNode, useRef } from "react";
+import styled, { css, keyframes } from "styled-components";
 import {
-    HeaderContainer,
-    HeaderOptionsContainer,
-    ExitIcon,
-    DashboardIcon,
-    HiShieldCheckIcon,
-    HiShieldExclamationIcon,
-    OpenFolderIcon,
-    CloseFolderIcon,
-    TiFlowMergeIcon,
-    SlidersHorizontalIcon,
-    LogsIcon,
-    ChatAssistantIcon,
-    WifiIcon,
-    NoWifiIcon,
-    BoxIcon,
-    NatsText,
-    CircleXIcon,
-    DownloadIcon,
-    PlayIcon,
-    RefreshCwIcon,
-    UploadIcon,
-    CameraIcon,
-    StoppedIndicator,
-    RunningIndicator,
-    ErrorIndicator,
-    UnknownIndicator,
-    IndicatorContainer,
-    InstanceBadge,
-    NatsConnectionDiv,
-} from "./StyledComponents";
-import { TooltipWrapper } from "./TooltipWrapper";
-import styled from "styled-components";
-import { ChevronDown } from "lucide-react";
+    Box,
+    Camera,
+    ChartLine,
+    CircleStop,
+    Download,
+    Logs,
+    MessageSquare,
+    PanelRight,
+    Play,
+    RefreshCw,
+    SlidersHorizontal,
+    Upload,
+    Workflow,
+    X,
+} from "lucide-react";
+import { INSPECTOR_GAP, INSPECTOR_WIDTH } from "../Inspector/Inspector";
+import { focusRing, inspectorColors as c } from "../Inspector/controls";
 
 const HiddenFileInput = styled.input`
     display: none;
 `;
 
-const ViewerDropdownContainer = styled.div`
-    position: relative;
-    display: inline-block;
-`;
-
-const ViewerDropdownButton = styled.button`
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    background-color: #141619;
-    border: 1px solid #3274d9;
-    border-radius: 6px;
-    color: #3274d9;
-    padding: 4px 8px;
-    cursor: pointer;
-    font-size: 12px;
-    margin: 6px;
-    transition: all 0.2s;
-
-    &:hover {
-        background-color: #1e2a3a;
-        color: white;
-        border-color: white;
-
-        * {
-            color: white !important;
-            stroke: white !important;
-            background-color: transparent !important;
-        }
-    }
-
-    svg {
-        background-color: transparent !important;
-        margin: 0 !important;
-        font-size: 16px !important;
-        width: 16px;
-        height: 16px;
-    }
-`;
-
-const ViewerDropdownMenu = styled.div<{ open: boolean }>`
-    display: ${({ open }) => (open ? "flex" : "none")};
-    flex-direction: column;
+const Bar = styled.div<{ $left: string; $right: string }>`
     position: absolute;
-    top: calc(100% + 2px);
-    right: 5px;
-    background-color: #1a1d21;
-    border: 1px solid #3274d9;
-    border-radius: 6px;
-    z-index: 2000;
-    min-width: 110px;
-    overflow: hidden;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
-`;
-
-const ViewerDropdownItem = styled.button<{ active: boolean }>`
+    top: ${INSPECTOR_GAP}px;
+    left: ${({ $left }) => $left};
+    right: ${({ $right }) => $right};
+    max-width: calc(100% - ${2 * INSPECTOR_GAP}px);
+    min-height: 52px;
+    box-sizing: border-box;
     display: flex;
     align-items: center;
-    gap: 10px;
-    background-color: ${({ active }) => (active ? "#1e2a3a" : "transparent")};
-    border: none;
-    color: ${({ active }) => (active ? "white" : "#9ca3af")};
-    padding: 8px 12px;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 6px 8px 6px 16px;
+    background-color: ${c.surface};
+    backdrop-filter: blur(8px);
+    border: 1px solid ${c.border};
+    border-radius: 12px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+    color: ${c.text};
+    font-family: Roboto, "Helvetica Neue", Arial, sans-serif;
+    z-index: 1000;
+    user-select: none;
+`;
+
+const Title = styled.div`
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    max-width: 260px;
+    margin-right: 8px;
+
+    span {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+`;
+
+const TitleMain = styled.span`
+    font-size: 14px;
+    font-weight: 500;
+`;
+
+const TitleSub = styled.span`
+    font-size: 11px;
+    color: ${c.textMuted};
+`;
+
+const Segmented = styled.div`
+    display: flex;
+    gap: 2px;
+    padding: 3px;
+    background-color: ${c.field};
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 9px;
+`;
+
+const Segment = styled.button<{ $selected: boolean }>`
+    height: 30px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0 12px;
+    border: 0;
+    border-radius: 6px;
+    background-color: ${({ $selected }) => ($selected ? "#2a3140" : "transparent")};
+    color: ${({ $selected }) => ($selected ? "#ffffff" : c.textMuted)};
+    font: 500 12px Roboto, "Helvetica Neue", Arial, sans-serif;
     cursor: pointer;
-    font-size: 12px;
-    text-align: left;
-    transition: all 0.15s;
+    ${focusRing}
 
     &:hover {
-        background-color: #1e2a3a;
-        color: white;
-
-        * {
-            color: white !important;
-            stroke: white !important;
-            background-color: transparent !important;
-        }
+        color: #ffffff;
     }
 
     svg {
-        background-color: transparent !important;
-        margin: 0 !important;
-        font-size: 16px !important;
+        width: 14px;
+        height: 14px;
+    }
+`;
+
+const Spacer = styled.div`
+    flex: 1;
+`;
+
+const Group = styled.div`
+    display: flex;
+    align-items: center;
+    gap: 2px;
+`;
+
+const Divider = styled.div`
+    width: 1px;
+    height: 24px;
+    margin: 0 4px;
+    background-color: rgba(255, 255, 255, 0.1);
+`;
+
+// Tooltip debajo del botón (la barra está arriba del todo)
+const tooltip = css`
+    &::after {
+        content: attr(data-tooltip);
+        position: absolute;
+        top: calc(100% + 8px);
+        left: 50%;
+        transform: translateX(-50%);
+        padding: 5px 8px;
+        border-radius: 6px;
+        background-color: #1f2937;
+        border: 1px solid #4b5563;
+        color: #ffffff;
+        font: 12px Roboto, "Helvetica Neue", Arial, sans-serif;
+        white-space: nowrap;
+        pointer-events: none;
+        opacity: 0;
+        transition: opacity 0.15s;
+        z-index: 2000;
+    }
+
+    &[data-tooltip-align="end"]::after {
+        left: auto;
+        right: 0;
+        transform: none;
+    }
+
+    &:hover::after,
+    &:focus-visible::after {
+        opacity: 1;
+    }
+`;
+
+const ToolButton = styled.button<{ $active?: boolean; $attention?: boolean }>`
+    position: relative;
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 0;
+    border-radius: 8px;
+    background-color: ${({ $active }) => ($active ? "#2a3140" : "transparent")};
+    color: ${({ $active, $attention }) => ($attention ? "#ffb35c" : $active ? "#ffffff" : c.textSecondary)};
+    cursor: pointer;
+    ${focusRing}
+    ${tooltip}
+
+    &:hover {
+        background-color: ${({ $active }) => ($active ? "#2a3140" : c.hover)};
+        color: #ffffff;
+    }
+
+    svg {
         width: 18px;
         height: 18px;
-        flex-shrink: 0;
     }
 `;
 
-const ChevronIcon = styled(ChevronDown)<{ open: boolean }>`
-    background-color: transparent !important;
-    margin: 0 !important;
-    width: 14px !important;
-    height: 14px !important;
-    transition: transform 0.2s;
-    transform: ${({ open }) => (open ? "rotate(180deg)" : "rotate(0deg)")};
+const AttentionDot = styled.span`
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background-color: #ffb35c;
+    box-shadow: 0 0 0 2px ${c.surfaceSolid};
+`;
+
+const pulse = keyframes`
+    50% { opacity: 0.45; }
+`;
+
+type ChipTone = "ok" | "info" | "danger" | "muted";
+
+const chipColors: Record<ChipTone, { bg: string; fg: string; dot: string }> = {
+    ok: { bg: "rgba(98, 247, 0, 0.08)", fg: c.okText, dot: c.ok },
+    info: { bg: "rgba(61, 130, 240, 0.12)", fg: c.accentText, dot: c.accent },
+    danger: { bg: "rgba(255, 64, 64, 0.12)", fg: "#ff8a8a", dot: "#ff4040" },
+    muted: { bg: "rgba(255, 255, 255, 0.06)", fg: c.textMuted, dot: "#806787" },
+};
+
+const chipStyles = css<{ $tone: ChipTone; $pulse?: boolean }>`
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    height: 28px;
+    padding: 0 10px;
+    border: 0;
+    border-radius: 14px;
+    background-color: ${({ $tone }) => chipColors[$tone].bg};
+    color: ${({ $tone }) => chipColors[$tone].fg};
+    font: 500 12px Roboto, "Helvetica Neue", Arial, sans-serif;
+    white-space: nowrap;
+
+    &::before {
+        content: "";
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background-color: ${({ $tone }) => chipColors[$tone].dot};
+        animation: ${({ $pulse }) => ($pulse ? css`${pulse} 1s ease-in-out infinite` : "none")};
+    }
+`;
+
+const Chip = styled.span<{ $tone: ChipTone; $pulse?: boolean }>`
+    ${chipStyles}
+    ${tooltip}
+`;
+
+const ChipButton = styled.button<{ $tone: ChipTone; $pulse?: boolean }>`
+    ${chipStyles}
+    ${tooltip}
+    cursor: pointer;
+    ${focusRing}
+
+    &:hover {
+        filter: brightness(1.2);
+    }
 `;
 
 interface HeaderProps {
@@ -160,26 +268,47 @@ interface HeaderProps {
     assetWithCameraSelected: boolean;
     pipelineStatus: string;
     pipelineLeaderReplicaIndex: number;
+    digitalTwinName?: string;
+    digitalTwinType?: string;
+    isChatAssistantOpen?: boolean;
+    isPipelineLogsOpen?: boolean;
 }
 
-const RunningIndicatorWithBadge: FC<{ leaderIndex: number }> = ({ leaderIndex }) => {
+const VIEWER_OPTIONS: { value: "3D" | "pipeline" | "image_frame"; label: string; icon: ReactNode }[] = [
+    { value: "3D", label: "3D model", icon: <Box aria-hidden="true" /> },
+    { value: "pipeline", label: "Pipeline", icon: <Workflow aria-hidden="true" /> },
+    { value: "image_frame", label: "Image", icon: <Camera aria-hidden="true" /> },
+];
+
+const PipelineStatusChip: FC<{ status: string; leader: number }> = ({ status, leader }) => {
+    if (status === "running") {
+        const text = leader >= 0 ? `Running · leader ${leader}` : "Running";
+        return (
+            <Chip $tone="ok" data-tooltip="Pipeline status" role="status">
+                {text}
+            </Chip>
+        );
+    }
+    if (status === "stopped") {
+        return (
+            <Chip $tone="danger" data-tooltip="Pipeline status" role="status">
+                Stopped
+            </Chip>
+        );
+    }
+    if (status === "error") {
+        return (
+            <Chip $tone="danger" $pulse data-tooltip="Pipeline status" role="status">
+                Error
+            </Chip>
+        );
+    }
     return (
-        <IndicatorContainer>
-            <RunningIndicator />
-            <InstanceBadge>{leaderIndex}</InstanceBadge>
-        </IndicatorContainer>
+        <Chip $tone="muted" data-tooltip="Pipeline status" role="status">
+            Unknown
+        </Chip>
     );
 };
-
-const VIEWER_OPTIONS: {
-    value: "3D" | "pipeline" | "image_frame";
-    label: string;
-    icon: FC<{ className?: string }>;
-}[] = [
-    { value: "3D", label: "3D Model", icon: BoxIcon },
-    { value: "pipeline", label: "Pipeline", icon: TiFlowMergeIcon },
-    { value: "image_frame", label: "Image", icon: CameraIcon },
-];
 
 export const Header: FC<HeaderProps> = ({
     isControlPanelOpen,
@@ -188,7 +317,6 @@ export const Header: FC<HeaderProps> = ({
     activeViewer,
     showOnlyPipelineViewer,
     handleControlPanelOpenAndClose,
-    handleToggleActiveViewer,
     handleSetActiveViewer,
     handleChatAssistantOpen,
     handlePipelineLogsOpen,
@@ -205,217 +333,194 @@ export const Header: FC<HeaderProps> = ({
     assetWithCameraSelected,
     pipelineStatus,
     pipelineLeaderReplicaIndex,
+    digitalTwinName,
+    digitalTwinType,
+    isChatAssistantOpen = false,
+    isPipelineLogsOpen = false,
 }) => {
     const fileInputRef = useRef<HTMLInputElement>(null);
-    const [dropdownOpen, setDropdownOpen] = useState(false);
-    const dropdownRef = useRef<HTMLDivElement>(null);
 
-    // Close dropdown when clicking outside
-    useEffect(() => {
-        const handleClickOutside = (event: MouseEvent) => {
-            if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-                setDropdownOpen(false);
-            }
-        };
-        document.addEventListener("mousedown", handleClickOutside);
-        return () => document.removeEventListener("mousedown", handleClickOutside);
-    }, []);
+    // En la vista Pipeline la barra se ajusta a su contenido a la derecha (no tapa la paleta de nodos);
+    // en la vista 3D ocupa el ancho libre a la izquierda del inspector.
+    const inspectorVisible = activeViewer === "3D" && isControlPanelOpen;
+    const left = activeViewer === "pipeline" ? "auto" : `${INSPECTOR_GAP}px`;
+    const right = inspectorVisible ? `${INSPECTOR_WIDTH + 2 * INSPECTOR_GAP}px` : `${INSPECTOR_GAP}px`;
 
-    const activeOption = VIEWER_OPTIONS.find((o) => o.value === activeViewer);
-    const ActiveIcon = activeOption?.icon;
+    const dtOk = digitalTwinState === "OK";
+    const viewerOptions = VIEWER_OPTIONS.filter((o) => o.value !== "image_frame" || assetWithCameraSelected);
 
-    const viewerDropdown = () => (
-        <ViewerDropdownContainer ref={dropdownRef}>
-            <ViewerDropdownButton onClick={() => setDropdownOpen((prev) => !prev)}>
-                {ActiveIcon && <ActiveIcon className="w-4 h-4" />}
-                <span>{activeOption?.label}</span>
-                <ChevronIcon open={dropdownOpen} />
-            </ViewerDropdownButton>
-
-            <ViewerDropdownMenu open={dropdownOpen}>
-                {VIEWER_OPTIONS.map(({ value, label, icon: Icon }) => {
-                    // Hide image_frame option if no camera asset is selected
-                    if (value === "image_frame" && !assetWithCameraSelected) return null;
-                    return (
-                        <ViewerDropdownItem
-                            key={value}
-                            active={activeViewer === value}
-                            onClick={() => {
-                                handleSetActiveViewer(value);
-                                setDropdownOpen(false);
-                            }}
-                        >
-                            <Icon className="w-4 h-4" />
-                            {label}
-                        </ViewerDropdownItem>
-                    );
-                })}
-            </ViewerDropdownMenu>
-        </ViewerDropdownContainer>
+    const chatButton = (
+        <ToolButton
+            type="button"
+            aria-label="Chat with assistant"
+            data-tooltip="Chat with assistant"
+            aria-pressed={isChatAssistantOpen}
+            $active={isChatAssistantOpen}
+            onClick={handleChatAssistantOpen}
+        >
+            <MessageSquare aria-hidden="true" />
+        </ToolButton>
+    );
+    const logsButton = (
+        <ToolButton
+            type="button"
+            aria-label="Pipeline logs"
+            data-tooltip="Pipeline logs"
+            aria-pressed={isPipelineLogsOpen}
+            $active={isPipelineLogsOpen}
+            onClick={handlePipelineLogsOpen}
+        >
+            <Logs aria-hidden="true" />
+        </ToolButton>
+    );
+    const dashboardButton = (
+        <ToolButton type="button" aria-label="Grafana dashboard" data-tooltip="Grafana dashboard" onClick={handleOpenGrafanaDashboard}>
+            <ChartLine aria-hidden="true" />
+        </ToolButton>
     );
 
-    const pipelineStatusIndicator = () => {
-        if (activeViewer !== "pipeline") return null;
-        if (pipelineStatus === "running") {
-            return (
-                <TooltipWrapper tooltip={`Status: Running (Leader: ${pipelineLeaderReplicaIndex})`}>
-                    <RunningIndicatorWithBadge leaderIndex={pipelineLeaderReplicaIndex} />
-                </TooltipWrapper>
-            );
-        }
-        if (pipelineStatus === "stopped") {
-            return (
-                <TooltipWrapper tooltip="Status: Stopped">
-                    <StoppedIndicator />
-                </TooltipWrapper>
-            );
-        }
-        if (pipelineStatus === "error") {
-            return (
-                <TooltipWrapper tooltip="Status: Error">
-                    <ErrorIndicator />
-                </TooltipWrapper>
-            );
-        }
-        if (pipelineStatus === "unknown") {
-            return (
-                <TooltipWrapper tooltip="Status: Unknown">
-                    <UnknownIndicator />
-                </TooltipWrapper>
-            );
-        }
-        return null;
-    };
-
     return (
-        <HeaderContainer>
-            <HeaderOptionsContainer>
-                {!showOnlyPipelineViewer && viewerDropdown()}
-                {pipelineStatusIndicator()}
+        <Bar $left={left} $right={right} data-testid="viewer-top-bar">
+            {activeViewer !== "pipeline" && digitalTwinName && (
+                <Title>
+                    <TitleMain title={digitalTwinName}>{digitalTwinName}</TitleMain>
+                    {digitalTwinType && <TitleSub>{digitalTwinType}</TitleSub>}
+                </Title>
+            )}
 
-                {activeViewer === "3D" && (
-                    <>
-                        {isControlPanelOpen ? (
-                            <TooltipWrapper tooltip="Close control panel" onClick={handleControlPanelOpenAndClose}>
-                                <CloseFolderIcon />
-                            </TooltipWrapper>
-                        ) : (
-                            <TooltipWrapper tooltip="Open control panel" onClick={handleControlPanelOpenAndClose}>
-                                <OpenFolderIcon />
-                            </TooltipWrapper>
-                        )}
-                        <TooltipWrapper tooltip="Chat with assistant" onClick={handleChatAssistantOpen}>
-                            <ChatAssistantIcon />
-                        </TooltipWrapper>
-                        <TooltipWrapper tooltip="Open digital twin simulator" onClick={handleOpenSimulator}>
-                            <SlidersHorizontalIcon className="w-4 h-4" />
-                        </TooltipWrapper>
-                        <TooltipWrapper tooltip="Open pipeline logs" onClick={handlePipelineLogsOpen}>
-                            <LogsIcon />
-                        </TooltipWrapper>
-                        <TooltipWrapper tooltip="Open Grafana dashboard" onClick={handleOpenGrafanaDashboard}>
-                            <DashboardIcon />
-                        </TooltipWrapper>
-                        {digitalTwinState === "OK" ? (
-                            <TooltipWrapper tooltip="Digital twin state is OK">
-                                <HiShieldCheckIcon onClick={handleDigitalTwinStateShield} />
-                            </TooltipWrapper>
-                        ) : (
-                            <TooltipWrapper tooltip="Digital twin state is not OK">
-                                <HiShieldExclamationIcon onClick={handleDigitalTwinStateShield} />
-                            </TooltipWrapper>
-                        )}
-                    </>
+            {!showOnlyPipelineViewer && (
+                <Segmented role="tablist" aria-label="Viewer">
+                    {viewerOptions.map((option) => (
+                        <Segment
+                            key={option.value}
+                            type="button"
+                            role="tab"
+                            aria-selected={activeViewer === option.value}
+                            $selected={activeViewer === option.value}
+                            onClick={() => handleSetActiveViewer(option.value)}
+                        >
+                            {option.icon}
+                            {option.label}
+                        </Segment>
+                    ))}
+                </Segmented>
+            )}
+
+            {activeViewer === "pipeline" && <PipelineStatusChip status={pipelineStatus} leader={pipelineLeaderReplicaIndex} />}
+
+            <Spacer />
+
+            {activeViewer === "3D" && (
+                <Group>
+                    {chatButton}
+                    <ToolButton
+                        type="button"
+                        aria-label="Digital twin simulator"
+                        data-tooltip="Digital twin simulator"
+                        onClick={handleOpenSimulator}
+                    >
+                        <SlidersHorizontal aria-hidden="true" />
+                    </ToolButton>
+                    {logsButton}
+                    {dashboardButton}
+                </Group>
+            )}
+
+            {activeViewer === "pipeline" && (
+                <Group>
+                    <ToolButton
+                        type="button"
+                        aria-label={isPipelineUiChanged ? "Deploy changes (there are undeployed changes)" : "Deploy changes"}
+                        data-tooltip={isPipelineUiChanged ? "Deploy changes · not deployed yet" : "Deploy changes"}
+                        $attention={isPipelineUiChanged}
+                        onClick={handleDeployPipeline}
+                    >
+                        <Play aria-hidden="true" />
+                        {isPipelineUiChanged && <AttentionDot />}
+                    </ToolButton>
+                    <ToolButton type="button" aria-label="Stop pipeline" data-tooltip="Stop pipeline" onClick={handleStopPipeline}>
+                        <CircleStop aria-hidden="true" />
+                    </ToolButton>
+                    <ToolButton
+                        type="button"
+                        aria-label="Reinitiate pipeline"
+                        data-tooltip="Reinitiate pipeline"
+                        onClick={handleReinitiatePipeline}
+                    >
+                        <RefreshCw aria-hidden="true" />
+                    </ToolButton>
+                    <Divider />
+                    <ToolButton type="button" aria-label="Download YAML" data-tooltip="Download YAML" onClick={handleDownloadYamlFile}>
+                        <Download aria-hidden="true" />
+                    </ToolButton>
+                    <ToolButton
+                        type="button"
+                        aria-label="Upload YAML"
+                        data-tooltip="Upload YAML"
+                        onClick={() => fileInputRef.current?.click()}
+                    >
+                        <Upload aria-hidden="true" />
+                    </ToolButton>
+                    <Divider />
+                    {logsButton}
+                    {showOnlyPipelineViewer && dashboardButton}
+                </Group>
+            )}
+
+            {activeViewer === "image_frame" && (
+                <Group>
+                    {chatButton}
+                    {logsButton}
+                    {dashboardButton}
+                </Group>
+            )}
+
+            <Divider />
+            <Group style={{ gap: 6 }}>
+                {(activeViewer !== "pipeline" || showOnlyPipelineViewer) && (
+                    <ChipButton
+                        type="button"
+                        $tone={dtOk ? "ok" : "danger"}
+                        $pulse={!dtOk}
+                        data-tooltip={dtOk ? "Digital twin state is OK" : "Digital twin state is not OK"}
+                        onClick={handleDigitalTwinStateShield}
+                    >
+                        {dtOk ? "DT OK" : "DT alert"}
+                    </ChipButton>
                 )}
+                <Chip
+                    $tone={isNatsConnected ? "info" : "muted"}
+                    data-tooltip={isNatsConnected ? "NATS connection is active" : "NATS connection is inactive"}
+                    data-tooltip-align="end"
+                    role="status"
+                >
+                    {isNatsConnected ? "NATS" : "NATS offline"}
+                </Chip>
+            </Group>
 
-                {activeViewer === "pipeline" && (
-                    <>
-                        <TooltipWrapper tooltip="Deploy changes" onClick={handleDeployPipeline}>
-                            <PlayIcon
-                                className="w-4 h-4"
-                                style={{
-                                    backgroundColor: "#141619",
-                                    color: isPipelineUiChanged ? "#dc2626" : "#3274d9",
-                                    margin: "10px",
-                                    cursor: "pointer",
-                                    transition: "color 0.2s ease",
-                                }}
-                            />
-                        </TooltipWrapper>
-                        <TooltipWrapper tooltip="Open pipeline logs" onClick={handlePipelineLogsOpen}>
-                            <LogsIcon />
-                        </TooltipWrapper>
-                        <TooltipWrapper tooltip="Stop pipeline" onClick={handleStopPipeline}>
-                            <CircleXIcon className="w-4 h-4" />
-                        </TooltipWrapper>
-                        <TooltipWrapper tooltip="Reinitiate pipeline" onClick={handleReinitiatePipeline}>
-                            <RefreshCwIcon className="w-4 h-4" />
-                        </TooltipWrapper>
-                        <TooltipWrapper tooltip="Download YAML" onClick={handleDownloadYamlFile}>
-                            <DownloadIcon className="w-4 h-4" />
-                        </TooltipWrapper>
-                        <TooltipWrapper tooltip="Upload YAML" onClick={() => fileInputRef.current?.click()}>
-                            <UploadIcon className="w-4 h-4" />
-                        </TooltipWrapper>
-                        {showOnlyPipelineViewer && (
-                            <>
-                                <TooltipWrapper tooltip="Open Grafana dashboard" onClick={handleOpenGrafanaDashboard}>
-                                    <DashboardIcon />
-                                </TooltipWrapper>
-                                {digitalTwinState === "OK" ? (
-                                    <TooltipWrapper tooltip="Digital twin state is OK">
-                                        <HiShieldCheckIcon onClick={handleDigitalTwinStateShield} />
-                                    </TooltipWrapper>
-                                ) : (
-                                    <TooltipWrapper tooltip="Digital twin state is not OK">
-                                        <HiShieldExclamationIcon onClick={handleDigitalTwinStateShield} />
-                                    </TooltipWrapper>
-                                )}
-                            </>
-                        )}
-                    </>
-                )}
-
-                {activeViewer === "image_frame" && (
-                    <>
-                        <TooltipWrapper tooltip="Chat with assistant" onClick={handleChatAssistantOpen}>
-                            <ChatAssistantIcon />
-                        </TooltipWrapper>
-                        <TooltipWrapper tooltip="Open pipeline logs" onClick={handlePipelineLogsOpen}>
-                            <LogsIcon />
-                        </TooltipWrapper>
-                        <TooltipWrapper tooltip="Open Grafana dashboard" onClick={handleOpenGrafanaDashboard}>
-                            <DashboardIcon />
-                        </TooltipWrapper>
-                        {digitalTwinState === "OK" ? (
-                            <TooltipWrapper tooltip="Digital twin state is OK">
-                                <HiShieldCheckIcon onClick={handleDigitalTwinStateShield} />
-                            </TooltipWrapper>
-                        ) : (
-                            <TooltipWrapper tooltip="Digital twin state is not OK">
-                                <HiShieldExclamationIcon onClick={handleDigitalTwinStateShield} />
-                            </TooltipWrapper>
-                        )}
-                    </>
-                )}
-
-                <NatsConnectionDiv>
-                    {isNatsConnected ? (
-                        <TooltipWrapper tooltip="NATS connection is active">
-                            <NatsText>NATS</NatsText>
-                            <WifiIcon />
-                        </TooltipWrapper>
-                    ) : (
-                        <TooltipWrapper tooltip="NATS connection is inactive">
-                            <NatsText>NATS</NatsText>
-                            <NoWifiIcon />
-                        </TooltipWrapper>
-                    )}
-                </NatsConnectionDiv>
-
-                <ExitIcon onClick={close3DViewer} />
-            </HeaderOptionsContainer>
+            {activeViewer === "3D" && (
+                <ToolButton
+                    type="button"
+                    aria-label={isControlPanelOpen ? "Close inspector" : "Open inspector"}
+                    data-tooltip={isControlPanelOpen ? "Close inspector" : "Open inspector"}
+                    data-tooltip-align="end"
+                    aria-pressed={isControlPanelOpen}
+                    $active={isControlPanelOpen}
+                    onClick={handleControlPanelOpenAndClose}
+                >
+                    <PanelRight aria-hidden="true" />
+                </ToolButton>
+            )}
+            <ToolButton
+                type="button"
+                aria-label="Close viewer"
+                data-tooltip="Close viewer"
+                data-tooltip-align="end"
+                onClick={close3DViewer}
+            >
+                <X aria-hidden="true" />
+            </ToolButton>
             <HiddenFileInput ref={fileInputRef} type="file" accept=".yml,.yaml" onChange={handleFileUpload} />
-        </HeaderContainer>
+        </Bar>
     );
 };

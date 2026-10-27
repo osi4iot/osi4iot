@@ -209,7 +209,7 @@ const EditSensorType: FC<EditSensorTypeProps> = ({
     const storedIconSvgFileName = sensorTypes[sensorTypeRowIndex].iconSvgFileName;
     const [iconSvgFileName, setIconSvgFileName] = useState(storedIconSvgFileName);
 
-    const [openIconSvgFileSelector, iconSvgFileParams] = useFilePicker({
+    const { openFilePicker: openIconSvgFileSelector, ...iconSvgFileParams } = useFilePicker({
         readAs: 'Text',
         multiple: false,
         accept: '.svg',

@@ -1,4 +1,4 @@
-import { Column } from 'react-table';
+import { Column } from '../Utils/platformTable';
 
 export interface IMembershipInOrgs {
 	id: number;

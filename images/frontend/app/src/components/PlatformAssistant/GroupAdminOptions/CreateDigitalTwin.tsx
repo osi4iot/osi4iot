@@ -1,10 +1,11 @@
+import * as THREE from "three";
 import { FC, useState, SyntheticEvent, useEffect } from "react";
 import styled from "styled-components";
 import { Formik, Form, FormikProps } from "formik";
 import * as Yup from "yup";
 import YAML from "yaml";
 import { nanoid } from "nanoid";
-import { GLTFLoader } from "three-stdlib";
+import { parseGltf } from "../../../tools/gltfLoader";
 import { useAuthState, useAuthDispatch } from "../../../contexts/authContext";
 import {
     axiosAuth,
@@ -471,19 +472,19 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
         setAssetDescription(assetDescription);
     };
 
-    const [openGlftFileSelector, gltfFileParams] = useFilePicker({
+    const { openFilePicker: openGlftFileSelector, ...gltfFileParams } = useFilePicker({
         readAs: digitalTwinType === "Gltf 3D model" ? "Text" : "DataURL",
         multiple: false,
         accept: digitalTwinType === "Gltf 3D model" ? ".gltf" : ".glb",
     });
 
-    const [openFemResFileSelector, femResFileParams] = useFilePicker({
+    const { openFilePicker: openFemResFileSelector, ...femResFileParams } = useFilePicker({
         readAs: "Text",
         multiple: false,
         accept: ".json",
     });
 
-    const [openPipelineFileSelector, pipelineFileParams] = useFilePicker({
+    const { openFilePicker: openPipelineFileSelector, ...pipelineFileParams } = useFilePicker({
         readAs: "Text",
         multiple: false,
         accept: ".yml, .yaml",
@@ -493,9 +494,7 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
         () => {
             if (gltfFileContent === undefined || gltfFileName === "-") return;
             if (gltfFileName.slice(-3) === "glb") {
-                const loader = new GLTFLoader();
-                loader
-                    .loadAsync(gltfFileContent)
+                parseGltf(gltfFileContent)
                     .then((gltf) => {
                         const sensorsRef = getSensorsRef(gltf.scene);
                         setSensorsRef(sensorsRef);
@@ -736,20 +735,20 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
         maxNumResFemFiles: Yup.number()
             .when("type", {
                 is: "Gltf 3D model",
-                then: Yup.number()
+                then: (schema) => schema
                     .min(1, "The minimum numer of FEM results files is 1")
                     .required("Must enter maxNumResFemFiles"),
             })
             .when("type", {
                 is: "Glb 3D model",
-                then: Yup.number()
+                then: (schema) => schema
                     .min(1, "The minimum numer of FEM results files is 1")
                     .required("Must enter maxNumResFemFiles"),
             }),
         digitalTwinSimulationFormat: Yup.string()
             .when("type", {
                 is: "Gltf 3D model",
-                then: Yup.string()
+                then: (schema) => schema
                     .test("test-name", "Wrong format for the json object", (value: any) =>
                         digitalTwinFormatValidation(value),
                     )
@@ -757,7 +756,7 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
             })
             .when("type", {
                 is: "Glb 3D model",
-                then: Yup.string()
+                then: (schema) => schema
                     .test("test-name", "Wrong format for the json object", (value: any) =>
                         digitalTwinFormatValidation(value),
                     )
@@ -1046,4 +1045,3 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
 };
 
 export default CreateDigitalTwin;
-

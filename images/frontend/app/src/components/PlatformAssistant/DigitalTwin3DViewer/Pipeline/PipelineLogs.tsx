@@ -18,11 +18,14 @@ export interface PipelineLog {
 
 // Styled Components
 const Container = styled.div<{ width: number }>`
-    position: fixed;
-    top: 265px;
-    right: 15px;
+    /* debajo de la barra superior del visor, dentro del área del visor */
+    position: absolute;
+    top: 76px;
+    right: 12px;
+    bottom: 12px;
     width: ${(props: { width: any; }) => props.width}px;
-    height: calc(100vh - 330px);
+    max-width: calc(100% - 24px);
+    z-index: 999;
     background-color: #2c2c2c;
     border: 1px solid #444;
     border-radius: 8px;
@@ -347,18 +350,18 @@ const LogsList = styled.div`
     flex-direction: column;
     gap: 3px;
     overflow-y: auto;
-    ::-webkit-scrollbar {
+    &::-webkit-scrollbar {
         width: 10px;
     }
-    ::-webkit-scrollbar-track {
+    &::-webkit-scrollbar-track {
         background: #202226;
         border-radius: 5px;
     }
-    ::-webkit-scrollbar-thumb {
+    &::-webkit-scrollbar-thumb {
         background: #2c3235;
         border-radius: 5px;
     }
-    ::-webkit-scrollbar-thumb:hover {
+    &::-webkit-scrollbar-thumb:hover {
         background-color: #343840;
     }
 `;

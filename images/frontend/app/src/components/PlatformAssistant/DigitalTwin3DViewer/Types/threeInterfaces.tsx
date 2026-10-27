@@ -1,3 +1,4 @@
+import * as THREE from "three";
 export interface IThreeMesh extends
     THREE.Mesh<
         THREE.BufferGeometry,

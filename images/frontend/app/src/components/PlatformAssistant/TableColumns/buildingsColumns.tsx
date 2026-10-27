@@ -1,5 +1,5 @@
 import { FC, useState, useEffect } from 'react';
-import { Column } from 'react-table';
+import { Column } from '../Utils/platformTable';
 import { FeatureCollection } from 'geojson';
 import { toast } from 'react-toastify';
 import EditIcon from '../Utils/EditIcon';

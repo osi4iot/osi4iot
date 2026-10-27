@@ -1,5 +1,5 @@
-import { FC } from "react";
-import { useLocation } from "react-router-dom";
+import { FC, ReactNode } from "react";
+import { useLocation } from "react-router";
 import styled from "styled-components";
 
 
@@ -31,29 +31,29 @@ const MainContainer = styled.main<MainContainerProps>`
 
 	overflow: auto;
     /* width */
-    ::-webkit-scrollbar {
+    &::-webkit-scrollbar {
         width: 10px;
 		height: 10px;
     }
 
     /* Track */
-    ::-webkit-scrollbar-track {
+    &::-webkit-scrollbar-track {
         background: #202226;
         border-radius: 5px;
     }
 
     /* Handle */
-    ::-webkit-scrollbar-thumb {
+    &::-webkit-scrollbar-thumb {
         background: #2c3235; 
         border-radius: 5px;
     }
 
     /* Handle on hover */
-    ::-webkit-scrollbar-thumb:hover {
+    &::-webkit-scrollbar-thumb:hover {
 		background-color: #343840;
 	}
 
-	::-webkit-scrollbar-corner {
+	&::-webkit-scrollbar-corner {
         background: #202226;
     }
 
@@ -67,7 +67,7 @@ const MainContainer = styled.main<MainContainerProps>`
 `;
 
 interface MainProps {
-	children?: JSX.Element;
+	children?: ReactNode;
 }
 
 const Main: FC<MainProps> = ({ children }) => {

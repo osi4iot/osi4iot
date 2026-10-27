@@ -17,7 +17,7 @@ import GroupLocationContainer from "./GroupLocationContainer";
 import { IFloor } from "../TableColumns/floorsColumns";
 import { IBuilding } from "../TableColumns/buildingsColumns";
 import { useOrgsManagedTable } from "../../../contexts/platformAssistantContext";
-import { Column } from "react-table";
+import { Column } from '../Utils/platformTable';
 
 interface GroupsContainerProps {
     buildingsFiltered: IBuilding[];

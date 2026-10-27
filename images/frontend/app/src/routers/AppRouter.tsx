@@ -1,7 +1,6 @@
 import { FC } from "react";
-import { BrowserRouter as Router, Redirect, Route, Switch } from "react-router-dom";
-import { ToastContainer } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css";
+import { BrowserRouter, Navigate, Route, Routes } from "react-router";
+import { ToastContainer, ToastContainerProps } from "react-toastify";
 import styled from "styled-components";
 import HomePage from "../pages/HomePage";
 import LoginPage from "../pages/LoginPage";
@@ -18,67 +17,75 @@ import PlatformAssistantPageUser from "../pages/PlatformAssistantPageUser";
 import { PrivateRouteWithUserRole } from "./PrivateRouteWithUserRole";
 import DigitalTwinSimulatorMobilePage from "../pages/DigitalTwinSimulatorMobilePage";
 
-const StyledToastContainer = styled(ToastContainer)`
+// react-toastify v11 inyecta su CSS automáticamente y usa el tema "light" por defecto.
+// Se usa el tema "colored" (success verde, error rojo, warning amarillo, info azul) y sin iconos.
+// Ojo: `theme` no puede pasarse a través de styled(...) porque styled-components reserva esa prop,
+// por eso se fija en este envoltorio.
+const ColoredToastContainer: FC<ToastContainerProps> = (props) => (
+    <ToastContainer theme="colored" icon={false} {...props} />
+);
+
+const StyledToastContainer = styled(ColoredToastContainer)`
     .Toastify__toast-body {
         background-color: inherit;
         color: white;
-    }
-
-    .Toastify__toast--warning {
-        background-color: #ff8a23;
     }
 `;
 
 const AppRouter: FC<{}> = () => {
     return (
         <>
-            {/* @ts-ignore */}
-            <Router>
-                <Switch>
-                    <PublicRoute exact path="/register" component={RegisterPage} />
-                    <PublicRoute exact path="/login" component={LoginPage} />
-                    <PrivateRoute exact path="/mobile_sensors" component={MobileSensorsPage} />
-                    <PrivateRoute
-                        exact
+            <BrowserRouter>
+                <Routes>
+                    <Route path="/register" element={<PublicRoute><RegisterPage /></PublicRoute>} />
+                    <Route path="/login" element={<PublicRoute><LoginPage /></PublicRoute>} />
+                    <Route path="/mobile_sensors" element={<PrivateRoute><MobileSensorsPage /></PrivateRoute>} />
+                    <Route
                         path="/digital_twin_simulator_mobile"
-                        component={DigitalTwinSimulatorMobilePage}
+                        element={<PrivateRoute><DigitalTwinSimulatorMobilePage /></PrivateRoute>}
                     />
 
-                    <Route exact path="/" component={HomePage} />
+                    <Route path="/" element={<HomePage />} />
 
-                    <PrivateRoute exact path="/platform_assistant" component={PlatformAssistantPage} />
+                    <Route path="/platform_assistant" element={<PrivateRoute><PlatformAssistantPage /></PrivateRoute>} />
 
-                    <PrivateRouteWithUserRole
-                        roleRequired="PlatformAdmin"
-                        exact
+                    <Route
                         path="/platform_assistant/admin"
-                        component={PlatformAssistantPageAdmin}
+                        element={
+                            <PrivateRouteWithUserRole roleRequired="PlatformAdmin">
+                                <PlatformAssistantPageAdmin />
+                            </PrivateRouteWithUserRole>
+                        }
                     />
-                    <PrivateRouteWithUserRole
-                        roleRequired="OrgAdmin"
-                        exact
+                    <Route
                         path="/platform_assistant/org"
-                        component={PlatformAssistantPageOrg}
+                        element={
+                            <PrivateRouteWithUserRole roleRequired="OrgAdmin">
+                                <PlatformAssistantPageOrg />
+                            </PrivateRouteWithUserRole>
+                        }
                     />
-                    <PrivateRouteWithUserRole
-                        roleRequired="GroupAdmin"
-                        exact
+                    <Route
                         path="/platform_assistant/group"
-                        component={PlatformAssistantPageGroup}
+                        element={
+                            <PrivateRouteWithUserRole roleRequired="GroupAdmin">
+                                <PlatformAssistantPageGroup />
+                            </PrivateRouteWithUserRole>
+                        }
                     />
-                    <PrivateRouteWithUserRole
-                        roleRequired="User"
-                        exact
+                    <Route
                         path="/platform_assistant/user"
-                        component={PlatformAssistantPageUser}
+                        element={
+                            <PrivateRouteWithUserRole roleRequired="User">
+                                <PlatformAssistantPageUser />
+                            </PrivateRouteWithUserRole>
+                        }
                     />
 
-                    <Route exact path="/404" component={NotFoundPage} />
-                    <Route path="*">
-                        <Redirect to="/404" />
-                    </Route>
-                </Switch>
-            </Router>
+                    <Route path="/404" element={<NotFoundPage />} />
+                    <Route path="*" element={<Navigate to="/404" replace />} />
+                </Routes>
+            </BrowserRouter>
             <StyledToastContainer position="bottom-right" hideProgressBar={true} autoClose={5000} />
         </>
     );

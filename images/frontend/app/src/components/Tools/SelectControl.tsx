@@ -1,7 +1,7 @@
 import { FC, useRef } from 'react';
 import styled from "styled-components";
 import { FieldProps, Field } from "formik";
-import Select, { OptionsType, ValueType } from "react-select";
+import Select, { Options, SingleValue } from "react-select";
 
 
 const DropDownContainer = styled.div`
@@ -115,7 +115,7 @@ interface IOption {
 }
 
 interface DropDownProps extends FieldProps {
-    options: OptionsType<IOption>;
+    options: Options<IOption>;
     placeholder?: string;
 }
 
@@ -160,7 +160,7 @@ const scrollMenuIntoView = (container: HTMLElement | null) => {
 export const DropDown: FC<DropDownProps> = ({ options, form, field, placeholder, ...rest }) => {
     const containerRef = useRef<HTMLDivElement>(null);
 
-    const onChange = (option: ValueType<IOption, false>) => {
+    const onChange = (option: SingleValue<IOption>) => {
         form.setFieldValue(
             field.name,
             (option as IOption).value
@@ -198,7 +198,7 @@ export const DropDown: FC<DropDownProps> = ({ options, form, field, placeholder,
 interface SelectControlProps {
     label: string;
     name: string;
-    options: OptionsType<IOption>;
+    options: Options<IOption>;
     autoFocus: boolean;
 }
 

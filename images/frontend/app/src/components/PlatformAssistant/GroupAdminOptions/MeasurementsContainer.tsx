@@ -18,7 +18,7 @@ import { ISensor } from '../TableColumns/sensorsColumns';
 import SelectSensor from './SelectSensor';
 import { ISelectSensor } from '../TableColumns/selectSensorColumns';
 import { AxiosError, AxiosResponse } from 'axios';
-import { Column } from 'react-table';
+import { Column } from '../Utils/platformTable';
 
 const giveMeasurementSensor = (selectedSensor: ISensor) => {
     const topicUid = selectedSensor.topicUid;

@@ -1,6 +1,6 @@
 import { FC } from 'react';
 import styled from "styled-components";
-import Spinner from "react-loader-spinner";
+import Spinner from "./OvalSpinner";
 
 
 const SceneLoaderContainer = styled.div`
@@ -25,7 +25,7 @@ const SceneLoader: FC<{}> = () => {
     return (
         <SceneLoaderContainer>
             <Text>Loading scene</Text>
-            <StyledLoader type="Oval" color="#3274d9" secondaryColor="#235197" height={20} width={20} />
+            <StyledLoader color="#3274d9" secondaryColor="#235197" height={20} width={20} />
         </SceneLoaderContainer>
     );
 };

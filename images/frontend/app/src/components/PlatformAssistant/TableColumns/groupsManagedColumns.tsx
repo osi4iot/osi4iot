@@ -1,5 +1,5 @@
 import { FC, useState, useEffect } from 'react';
-import { Column } from 'react-table';
+import { Column } from '../Utils/platformTable';
 import styled from "styled-components";
 import ExChangeIcon from '../Utils/ExchangeIcon';
 import EditIcon from '../Utils/EditIcon';

@@ -1,10 +1,19 @@
-import { useTable, usePagination, useFilters, useGlobalFilter, useAsyncDebounce, useSortBy } from "react-table";
 import { FC, useMemo, useState } from "react";
-import { Column } from "react-table";
+import { useTable } from "@tanstack/react-table";
 import styled from "styled-components";
 import { FaSearch, FaRedo } from "react-icons/fa";
-import { numericTextFilter } from "./NumericFilter";
-import { fuzzyTextFilterFn } from "./FuzzyTextFilter";
+import {
+    Column,
+    LegacyFilterProps,
+    hiddenColumnsVisibility,
+    isClickInsideFormControl,
+    platformTableFeatures,
+    platformTableOptions,
+    renderColumnFilter,
+    useDebouncedCallback,
+    useLegacyColumns,
+    useResetPageOnSortOrFilter,
+} from "./platformTable";
 
 interface TableStylesProps {
     columnsWidth: string[];
@@ -22,13 +31,13 @@ const TableStyles = styled.div<TableStylesProps>`
         background-color: #202226;
 
         tr {
-            :nth-child(even) {
+            &:nth-child(even) {
                 td {
                     background-color: #202226;
                 }
             }
 
-            :nth-child(odd) {
+            &:nth-child(odd) {
                 td {
                     background-color: #0c0d0f;
                 }
@@ -267,12 +276,6 @@ const ToggleHistoryButton = styled.button<ToggleHistoryButtonProps>`
     }
 `;
 
-type GlobalFilterProps = {
-    preGlobalFilteredRows: any;
-    globalFilter: any;
-    setGlobalFilter: any;
-};
-
 const SearchColumn = styled.div`
     background-color: #202226;
 
@@ -359,9 +362,14 @@ const SearchGlobal = styled.div`
     }
 `;
 
-const GlobalFilter = ({ preGlobalFilteredRows, globalFilter, setGlobalFilter }: GlobalFilterProps) => {
+interface GlobalFilterProps {
+    globalFilter: any;
+    setGlobalFilter: (value: any) => void;
+}
+
+const GlobalFilter = ({ globalFilter, setGlobalFilter }: GlobalFilterProps) => {
     const [value, setValue] = useState(globalFilter);
-    const onChange = useAsyncDebounce((value) => {
+    const onChange = useDebouncedCallback((value: string) => {
         setGlobalFilter(value || undefined);
     }, 200);
 
@@ -382,15 +390,7 @@ const GlobalFilter = ({ preGlobalFilteredRows, globalFilter, setGlobalFilter }: 
     );
 };
 
-type DefaultColumnFilterProps = {
-    column: {
-        filterValue: any;
-        preFilteredRows: any;
-        setFilter: any;
-    };
-};
-
-const DefaultColumnFilter = ({ column: { filterValue, preFilteredRows, setFilter } }: DefaultColumnFilterProps) => {
+const DefaultColumnFilter = ({ column: { filterValue, setFilter } }: LegacyFilterProps) => {
     return (
         <input
             value={filterValue || ""}
@@ -439,7 +439,7 @@ const TableWithPagination: FC<TableProps<any>> = ({
     reloadTable,
     createComponent,
 }) => {
-    const columns = useMemo(() => columnsTable, [columnsTable]);
+    const columns = useLegacyColumns(columnsTable);
     const data = useMemo(() => dataTable, [dataTable]);
 
     // ── History toggle (only active when componentName === "S3 folder") ──────
@@ -491,62 +491,33 @@ const TableWithPagination: FC<TableProps<any>> = ({
         } else return "auto";
     });
 
-    const filterTypes = useMemo(
-        () => ({
-            fuzzyText: fuzzyTextFilterFn,
-            numeric: numericTextFilter,
-        }),
-        [],
-    );
-
-    const defaultColumn = useMemo(
-        () => ({
-            Filter: DefaultColumnFilter,
-        }),
-        [],
-    );
-
     const handleClick = () => {
         if (createComponent) createComponent();
     };
 
-    const {
-        getTableProps,
-        getTableBodyProps,
-        headerGroups,
-        prepareRow,
-        page,
-        canPreviousPage,
-        canNextPage,
-        pageOptions,
-        pageCount,
-        gotoPage,
-        nextPage,
-        previousPage,
-        setPageSize,
-        state,
-        preGlobalFilteredRows,
-        setGlobalFilter,
-    } = useTable(
-        {
-            columns,
-            data: filteredData,
-            initialState: {
-                pageIndex: 0,
-                hiddenColumns: columns
-                    .filter((col: any) => hiddenColumnCondition(col))
-                    .map((col) => col.id || col.accessor) as any,
-            },
-            defaultColumn,
-            filterTypes,
-        },
-        useFilters,
-        useGlobalFilter,
-        useSortBy,
-        usePagination,
-    );
+    const [initialState] = useState(() => ({
+        pagination: { pageIndex: 0, pageSize: 10 },
+        columnVisibility: hiddenColumnsVisibility(columnsTable, hiddenColumnCondition),
+    }));
 
-    const { globalFilter, pageIndex, pageSize } = state;
+    const table = useTable({
+        features: platformTableFeatures,
+        ...platformTableOptions,
+        columns,
+        data: filteredData,
+        initialState,
+    });
+    useResetPageOnSortOrFilter(table);
+
+    const { globalFilter } = table.state;
+    const { pageIndex, pageSize } = table.state.pagination;
+    const pageCount = table.getPageCount();
+    const canPreviousPage = table.getCanPreviousPage();
+    const canNextPage = table.getCanNextPage();
+
+    const gotoPage = (page: number) => {
+        if (page >= 0 && page < pageCount) table.setPageIndex(page);
+    };
 
     return (
         <TableContainer>
@@ -555,10 +526,10 @@ const TableWithPagination: FC<TableProps<any>> = ({
                     <button onClick={() => gotoPage(0)} disabled={!canPreviousPage}>
                         {"<<"}
                     </button>{" "}
-                    <button onClick={() => previousPage()} disabled={!canPreviousPage}>
+                    <button onClick={() => table.previousPage()} disabled={!canPreviousPage}>
                         {"<"}
                     </button>{" "}
-                    <button onClick={() => nextPage()} disabled={!canNextPage}>
+                    <button onClick={() => table.nextPage()} disabled={!canNextPage}>
                         {">"}
                     </button>{" "}
                     <button onClick={() => gotoPage(pageCount - 1)} disabled={!canNextPage}>
@@ -567,7 +538,7 @@ const TableWithPagination: FC<TableProps<any>> = ({
                     <span>
                         Page{" "}
                         <strong>
-                            {pageIndex + 1} of {pageOptions.length}
+                            {pageIndex + 1} of {pageCount}
                         </strong>{" "}
                     </span>
                     <span>
@@ -576,7 +547,7 @@ const TableWithPagination: FC<TableProps<any>> = ({
                             type="number"
                             defaultValue={pageIndex + 1}
                             min={1}
-                            max={pageOptions.length}
+                            max={pageCount}
                             onChange={(e) => {
                                 const page = e.target.value ? Number(e.target.value) - 1 : 0;
                                 gotoPage(page);
@@ -586,7 +557,7 @@ const TableWithPagination: FC<TableProps<any>> = ({
                     <select
                         value={pageSize}
                         onChange={(e) => {
-                            setPageSize(Number(e.target.value));
+                            table.setPageSize(Number(e.target.value));
                         }}
                     >
                         {[10, 15, 20, 25, 30, 35, 40, 45, 50].map((pageSize) => (
@@ -599,11 +570,7 @@ const TableWithPagination: FC<TableProps<any>> = ({
                         <StyledFaRedo />
                     </ReloadContainer>
                 </Pagination>
-                <GlobalFilter
-                    preGlobalFilteredRows={preGlobalFilteredRows}
-                    globalFilter={globalFilter}
-                    setGlobalFilter={setGlobalFilter}
-                />
+                <GlobalFilter globalFilter={globalFilter} setGlobalFilter={(value) => table.setGlobalFilter(value)} />
                 {componentName === "S3 folder" && (
                     <ToggleHistoryButton active={showHistory} onClick={() => setShowHistory((prev) => !prev)}>
                         {showHistory ? "Hide history" : "Show history"}
@@ -614,43 +581,58 @@ const TableWithPagination: FC<TableProps<any>> = ({
                 )}
             </TableOptionsContainer>
             <TableStyles columnsWidth={columnsWidth} columnsMaxWidth={columnsMaxWidth}>
-                <table {...getTableProps()}>
+                <table role="table">
                     <thead>
-                        {headerGroups.map((headerGroup) => (
-                            <tr {...headerGroup.getHeaderGroupProps()}>
-                                {headerGroup.headers.map((column) => (
-                                    <th {...column.getHeaderProps(column.getSortByToggleProps())}>
-                                        <HeaderContainer>
-                                            <HeaderTtileContainer>
-                                                {column.render("Header")}
-                                                <ArrowIcon>
-                                                    {column.isSorted ? (column.isSortedDesc ? " ▼" : " ▲") : ""}
-                                                </ArrowIcon>
-                                            </HeaderTtileContainer>
-                                            <SearchContainer>
-                                                {column.canFilter ? <SearchIcon /> : null}
-                                                <SearchColumn>
-                                                    {column.canFilter ? column.render("Filter") : null}
-                                                </SearchColumn>
-                                            </SearchContainer>
-                                        </HeaderContainer>
-                                    </th>
-                                ))}
+                        {table.getHeaderGroups().map((headerGroup) => (
+                            <tr key={headerGroup.id} role="row">
+                                {headerGroup.headers.map((header) => {
+                                    const column = header.column;
+                                    const canSort = column.getCanSort();
+                                    const toggleSorting = column.getToggleSortingHandler();
+                                    const isSorted = column.getIsSorted();
+                                    return (
+                                        <th
+                                            key={header.id}
+                                            colSpan={header.colSpan}
+                                            role="columnheader"
+                                            title={canSort ? "Toggle SortBy" : undefined}
+                                            style={canSort ? { cursor: "pointer" } : undefined}
+                                            onClick={(e) => {
+                                                if (toggleSorting && !isClickInsideFormControl(e)) toggleSorting(e);
+                                            }}
+                                        >
+                                            <HeaderContainer>
+                                                <HeaderTtileContainer>
+                                                    {header.isPlaceholder ? null : <table.FlexRender header={header} />}
+                                                    <ArrowIcon>
+                                                        {isSorted ? (isSorted === "desc" ? " ▼" : " ▲") : ""}
+                                                    </ArrowIcon>
+                                                </HeaderTtileContainer>
+                                                <SearchContainer>
+                                                    {column.getCanFilter() ? <SearchIcon /> : null}
+                                                    <SearchColumn>
+                                                        {column.getCanFilter()
+                                                            ? renderColumnFilter(table, column, DefaultColumnFilter)
+                                                            : null}
+                                                    </SearchColumn>
+                                                </SearchContainer>
+                                            </HeaderContainer>
+                                        </th>
+                                    );
+                                })}
                             </tr>
                         ))}
                     </thead>
-                    <tbody {...getTableBodyProps()}>
-                        {page.map((row, i) => {
-                            prepareRow(row);
-                            return (
-                                <tr {...row.getRowProps()}>
-                                    {row.cells.map((cell) => {
-                                        // @ts-ignore
-                                        return <td {...cell.getCellProps()}>{cell.render("Cell")}</td>;
-                                    })}
-                                </tr>
-                            );
-                        })}
+                    <tbody role="rowgroup">
+                        {table.getRowModel().rows.map((row) => (
+                            <tr key={row.id} role="row">
+                                {row.getVisibleCells().map((cell) => (
+                                    <td key={cell.id} role="cell">
+                                        <table.FlexRender cell={cell} />
+                                    </td>
+                                ))}
+                            </tr>
+                        ))}
                     </tbody>
                 </table>
             </TableStyles>

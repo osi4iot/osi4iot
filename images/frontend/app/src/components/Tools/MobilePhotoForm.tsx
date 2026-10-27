@@ -1,12 +1,14 @@
 import { FC, SyntheticEvent } from "react";
-import { NatsConnection, headers } from "nats.ws";
+import { type NatsConnection, headers } from "@nats-io/nats-core";
 import styled from "styled-components";
 import CameraComponent, { FACING_MODES } from 'react-html5-camera-photo';
 import "react-html5-camera-photo/build/css/index.css";
 import { IMobileTopic } from "../PlatformAssistant/TableColumns/topicsColumns";
 import { FaShareSquare } from "react-icons/fa";
 
-const Camera = CameraComponent as any;
+// El paquete solo publica un build CJS: con Vite 8 (rolldown) el import por defecto llega como el objeto
+// de exports ({ default, Camera, FACING_MODES... }). Se resuelve el componente en cualquier caso.
+const Camera = ((CameraComponent as any).default ?? CameraComponent) as any;
 
 const Title = styled.h2`
     font-size: 20px;

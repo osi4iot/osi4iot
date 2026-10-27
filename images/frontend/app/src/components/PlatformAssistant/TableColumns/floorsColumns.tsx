@@ -1,6 +1,6 @@
 import { FC, useState, useEffect } from 'react';
 import { FeatureCollection } from 'geojson';
-import { Column } from 'react-table';
+import { Column } from '../Utils/platformTable';
 import { toast } from 'react-toastify';
 import EditIcon from '../Utils/EditIcon';
 import DeleteIcon from '../Utils/DeleteIcon';

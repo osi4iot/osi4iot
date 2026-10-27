@@ -34,24 +34,24 @@ const ControlsContainer = styled.div`
     padding: 0px 5px;
     overflow-y: auto;
     /* width */
-    ::-webkit-scrollbar {
+    &::-webkit-scrollbar {
         width: 10px;
     }
 
     /* Track */
-    ::-webkit-scrollbar-track {
+    &::-webkit-scrollbar-track {
         background: #202226;
         border-radius: 5px;
     }
 
     /* Handle */
-    ::-webkit-scrollbar-thumb {
+    &::-webkit-scrollbar-thumb {
         background: #2c3235; 
         border-radius: 5px;
     }
 
     /* Handle on hover */
-    ::-webkit-scrollbar-thumb:hover {
+    &::-webkit-scrollbar-thumb:hover {
         background-color: #343840;
     }
 
@@ -189,7 +189,7 @@ const CreateFloor: FC<CreateFloorProps> = ({ buildingsTable, backToTable, refres
         formik.setFieldValue("buildingName", buildingName);
     }
 
-    const [openFloorFileSelector, floorFileParams] = useFilePicker({
+    const { openFilePicker: openFloorFileSelector, ...floorFileParams } = useFilePicker({
         readAs: 'Text',
         multiple: false,
         accept: '.geojson',

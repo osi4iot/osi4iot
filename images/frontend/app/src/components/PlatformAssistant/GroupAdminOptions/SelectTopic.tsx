@@ -4,7 +4,7 @@ import FormTitle from "../../Tools/FormTitle";
 import TableWithPaginationAndRowSelection from '../Utils/TableWithPaginationAndRowSelection';
 import { SELECT_TOPIC_COLUMNS, ISelectTopic  } from '../TableColumns/selectTopicColumns';
 import { useTopicsTable } from '../../../contexts/platformAssistantContext';
-import { Column } from 'react-table';
+import { Column } from '../Utils/platformTable';
 
 
 
@@ -27,24 +27,24 @@ const TableContainer = styled.div`
     padding: 0px 5px;
     overflow-y: auto;
     /* width */
-    ::-webkit-scrollbar {
+    &::-webkit-scrollbar {
         width: 10px;
     }
 
     /* Track */
-    ::-webkit-scrollbar-track {
+    &::-webkit-scrollbar-track {
         background: #202226;
         border-radius: 5px;
     }
     
     /* Handle */
-    ::-webkit-scrollbar-thumb {
+    &::-webkit-scrollbar-thumb {
         background: #2c3235; 
         border-radius: 5px;
     }
 
     /* Handle on hover */
-    ::-webkit-scrollbar-thumb:hover {
+    &::-webkit-scrollbar-thumb:hover {
         background-color: #343840;
     }
 

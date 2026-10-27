@@ -204,7 +204,7 @@ const CreateMlModel: FC<CreateMlModelProps> = ({ backToTable, refreshMlModels, o
         formik.setFieldValue("mlLibrary", e.value);
     };
 
-    const [openTensorflowFilesSelector, tensorflowFilesParams] = useFilePicker({
+    const { openFilePicker: openTensorflowFilesSelector, ...tensorflowFilesParams } = useFilePicker({
         readAs: "Text",
         multiple: true,
         accept: [".json", ".bin"],
@@ -295,7 +295,7 @@ const CreateMlModel: FC<CreateMlModelProps> = ({ backToTable, refreshMlModels, o
         }
     };
 
-    const [openScikitLearnFileSelector, scikitLearnFileParams] = useFilePicker({
+    const { openFilePicker: openScikitLearnFileSelector, ...scikitLearnFileParams } = useFilePicker({
         readAs: "Text",
         multiple: false,
         accept: [".pkl"],
@@ -345,7 +345,7 @@ const CreateMlModel: FC<CreateMlModelProps> = ({ backToTable, refreshMlModels, o
         }
     }, [scikitLearnFileParams.loading, scikitLearnFileParams.plainFiles, scikitLearnFileParams]);
 
-    const [onnxFileSelector, onnxFileParams] = useFilePicker({
+    const { openFilePicker: onnxFileSelector, ...onnxFileParams } = useFilePicker({
         readAs: "Text",
         multiple: false,
         accept: [".onnx"],

@@ -24,7 +24,7 @@ import { setAssetInputData } from '../../../contexts/assetsOptions/assetsAction'
 import { useAssetInputData } from '../../../contexts/assetsOptions/assetsContext';
 import { IGroupManaged } from '../TableColumns/groupsManagedColumns';
 import { IAssetType } from '../TableColumns/assetTypesColumns';
-import { Column } from 'react-table';
+import { Column } from '../Utils/platformTable';
 
 interface AssetsContainerProps {
     orgsOfGroupManaged: IOrgOfGroupsManaged[];

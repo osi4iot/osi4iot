@@ -1,18 +1,15 @@
-import { FC } from "react";
-import { Route, Redirect, RouteProps, useLocation } from "react-router-dom";
+import { FC, ReactElement } from "react";
+import { Navigate, useLocation } from "react-router";
 import { useIsUserAuth } from "../contexts/authContext";
-import { ChildrenProp } from "../interfaces/interfaces";
 
-interface PrivateRouteProps extends RouteProps {
-	component: React.FC<ChildrenProp>;
+interface PrivateRouteProps {
+	children: ReactElement;
 }
 
-export const PrivateRoute: FC<PrivateRouteProps> = ({ component: Component, ...rest }) => {
+// react-router v6+: los "guards" son elementos que envuelven a la página
+export const PrivateRoute: FC<PrivateRouteProps> = ({ children }) => {
 	const location = useLocation();
-
-	return (
-		<Route {...rest}>
-			{useIsUserAuth() ? <Component children={undefined} /> : <Redirect to={{ pathname: "/login", state: { from: location } }} />}
-		</Route>
-	);
+	const isUserAuth = useIsUserAuth();
+	if (!isUserAuth) return <Navigate to="/login" replace state={{ from: location }} />;
+	return children;
 };

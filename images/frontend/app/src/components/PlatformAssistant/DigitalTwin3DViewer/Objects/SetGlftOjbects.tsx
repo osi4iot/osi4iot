@@ -60,7 +60,7 @@ const SetGltfObjects: FC<SetGltfObjectsProps> = ({
                 assetsCollectionNames,
                 genericObjectsCollectionNames,
                 femSimObjectCollectionNames
-            } = sortObjects(nodes, materials, animations);
+            } = sortObjects(nodes, materials, animations, digitalTwinGltfData.gltfFile.scene);
             setSensorObjects(sensorObjects);
             setSensorCollectionNames(sensorsCollectionNames);
             setAssetObjects(assetObjects);

@@ -1,6 +1,7 @@
 import { FC, SyntheticEvent, ChangeEvent, useState } from "react";
-import { useHistory, useLocation } from "react-router-dom";
+import { useNavigate, useLocation, Location } from "react-router";
 import styled from "styled-components";
+import { Eye, EyeOff } from "lucide-react";
 import Header from "../components/Layout/Header";
 import Alert from "../components/Tools/Alert";
 import { isValidPassword, isValidText } from "../tools/tools";
@@ -41,6 +42,7 @@ const Label = styled.div`
 
 interface InputProps {
 	readonly isValidationRequired: boolean;
+	readonly $validateAs?: "text" | "password";
 }
 
 const Input = styled.input<InputProps>`
@@ -54,8 +56,9 @@ const Input = styled.input<InputProps>`
 	border-color: ${(props) => {
 		let color = "#2c3235";
 		if (props.isValidationRequired) {
-			if (props.type === "text" && !isValidText(props.value as string)) color = "#e02f44";
-			if (props.type === "password" && !isValidPassword(props.value as string)) color = "#e02f44";
+			const validateAs = props.$validateAs ?? props.type;
+			if (validateAs === "text" && !isValidText(props.value as string)) color = "#e02f44";
+			if (validateAs === "password" && !isValidPassword(props.value as string)) color = "#e02f44";
 		}
 		return color;
 	}};
@@ -63,6 +66,45 @@ const Input = styled.input<InputProps>`
 
 	&:focus {
 		box-shadow: rgb(20 22 25) 0px 0px 0px 2px, rgb(31 96 196) 0px 0px 0px 4px;
+	}
+`;
+
+const PasswordWrapper = styled.div`
+	position: relative;
+	width: 100%;
+
+	& input {
+		padding-right: 36px;
+	}
+
+	& input::-ms-reveal {
+		display: none;
+	}
+`;
+
+const TogglePasswordButton = styled.button`
+	position: absolute;
+	top: 50%;
+	right: 6px;
+	transform: translateY(-50%);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 4px;
+	background: none;
+	border: none;
+	color: #8e8e8e;
+	cursor: pointer;
+	outline: none;
+
+	&:hover,
+	&:focus-visible {
+		color: white;
+	}
+
+	&:disabled {
+		cursor: default;
+		opacity: 0.5;
 	}
 `;
 
@@ -117,12 +159,13 @@ const initialFormValues = {
 const LoginPage: FC<{}> = () => {
 	const [isValidationRequired, setIsValidationRequired] = useState(false);
 	const [formValues, setFormValues] = useState(initialFormValues);
+	const [showPassword, setShowPassword] = useState(false);
 	const platformAssistantDispatch = usePlatformAssitantDispatch();
 	const { userName, password } = formValues;
 
-	const history = useHistory();
-	const location = useLocation<any>();
-	const previusObjectURL = location.state?.from;
+	const navigate = useNavigate();
+	const location = useLocation();
+	const previusObjectURL = (location.state as { from?: Location } | null)?.from;
 
 	const authDispatch = useAuthDispatch();
 	const { loading, errorMessage } = useAuthState();
@@ -147,8 +190,8 @@ const LoginPage: FC<{}> = () => {
 			try {
 				let response = await loginUser(authDispatch, loginData);
 				if (!response?.accessToken) return;
-				if (previusObjectURL) history.push(previusObjectURL);
-				else getUserRoleAndRedirect(response.accessToken, platformAssistantDispatch, history);
+				if (previusObjectURL) navigate(previusObjectURL);
+				else getUserRoleAndRedirect(response.accessToken, platformAssistantDispatch, navigate);
 			} catch (error) {
 				console.log(error);
 			}
@@ -178,14 +221,27 @@ const LoginPage: FC<{}> = () => {
 
 						<ItemContainer>
 							<Label>Password:</Label>
-							<Input
-								type="password"
-								name="password"
-								isValidationRequired={isValidationRequired}
-								onChange={handleInputChange}
-								value={password}
-								disabled={loading}
-							/>
+							<PasswordWrapper>
+								<Input
+									type={showPassword ? "text" : "password"}
+									$validateAs="password"
+									name="password"
+									autoComplete="current-password"
+									isValidationRequired={isValidationRequired}
+									onChange={handleInputChange}
+									value={password}
+									disabled={loading}
+								/>
+								<TogglePasswordButton
+									type="button"
+									onClick={() => setShowPassword((show) => !show)}
+									aria-label={showPassword ? "Hide password" : "Show password"}
+									title={showPassword ? "Hide password" : "Show password"}
+									disabled={loading}
+								>
+									{showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+								</TogglePasswordButton>
+							</PasswordWrapper>
 							{isValidationRequired && !isValidPassword(password) && (
 								<Alert alertText="Password is required and must contain at least 4 characters" />
 							)}

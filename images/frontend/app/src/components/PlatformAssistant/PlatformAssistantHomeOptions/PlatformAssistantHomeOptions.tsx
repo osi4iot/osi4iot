@@ -48,7 +48,7 @@ import DigitalTwin3DViewer from "../DigitalTwin3DViewer/Main/DigitalTwin3DViewer
 import { toast } from "react-toastify";
 import { IDigitalTwinGltfData } from "../DigitalTwin3DViewer/ViewerTools/ViewerUtils";
 import SceneLoader from "../../Tools/SceneLoader";
-import { useHistory } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { getAxiosInstance } from "../../../tools/axiosIntance";
 import axiosErrorHandler from "../../../tools/axiosErrorHandler";
 import {
@@ -129,29 +129,29 @@ const ContentContainer = styled.div`
     overflow: auto;
 
     /* width */
-    ::-webkit-scrollbar {
+    &::-webkit-scrollbar {
         width: 10px;
         height: 10px;
     }
 
     /* Track */
-    ::-webkit-scrollbar-track {
+    &::-webkit-scrollbar-track {
         background: #202226;
         border-radius: 5px;
     }
 
     /* Handle */
-    ::-webkit-scrollbar-thumb {
+    &::-webkit-scrollbar-thumb {
         background: #2c3235;
         border-radius: 5px;
     }
 
     /* Handle on hover */
-    ::-webkit-scrollbar-thumb:hover {
+    &::-webkit-scrollbar-thumb:hover {
         background-color: #343840;
     }
 
-    ::-webkit-scrollbar-corner {
+    &::-webkit-scrollbar-corner {
         /* background-color: #0c0d0f; */
         background: #202226;
     }
@@ -247,7 +247,7 @@ const domainName = getDomainName();
 const protocol = getProtocol();
 
 const PlatformAssistantHomeOptions: FC<{}> = () => {
-    const history = useHistory();
+    const navigate = useNavigate();
     const { accessToken, refreshToken } = useAuthState();
     const authDispatch = useAuthDispatch();
     const plaformAssistantDispatch = usePlatformAssitantDispatch();
@@ -277,6 +277,7 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
     const [assetS3FoldersLoading, setAssetS3FoldersLoading] = useState(true);
     const [digitalTwinGltfData, setDigitalTwinGltfData] = useState<IDigitalTwinGltfData | null>(null);
     const [optionToShow, setOptionToShow] = useState(PLATFORM_ASSISTANT_HOME_OPTIONS.GEOLOCATION);
+    const isDigitalTwinViewerOpen = optionToShow === PLATFORM_ASSISTANT_HOME_OPTIONS.DIGITAL_TWINS && !!digitalTwinGltfData;
     const reloadBuildingsTable = useReloadBuildingsTable();
     const reloadFloorsTable = useReloadFloorsTable();
     const reloadOrgsOfGroupsManagedTable = useReloadOrgsOfGroupsManagedTable();
@@ -481,7 +482,7 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
         refreshToken,
         accessToken,
         authDispatch,
-        history,
+        navigate,
         plaformAssistantDispatch,
         reloadBuildingsTable,
         buildingsTable.length,
@@ -904,19 +905,22 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
             </PlatformAssistantHomeOptionsContainer>
             <ContentContainer>
                 <>
-                    {buildingsLoading ||
-                    floorsLoading ||
-                    orgsOfGroupsManagedLoading ||
-                    groupsManagedLoading ||
-                    assetTypesLoading ||
-                    sensorTypesLoading ||
-                    assetsLoading ||
-                    assetsWithMarkerLoading ||
-                    sensorsLoading ||
-                    digitalTwinLoading ||
-                    mlModelsLoading ||
-                    assetS3FoldersLoading ||
-                    glftDataLoading ? (
+                    {/* Con el visor del gemelo digital abierto, recargar tablas (p. ej. tras "Deploy changes")
+                        no debe desmontarlo: se perdería la vista activa (Pipeline) y el estado del visor. */}
+                    {glftDataLoading ||
+                    (!isDigitalTwinViewerOpen &&
+                        (buildingsLoading ||
+                            floorsLoading ||
+                            orgsOfGroupsManagedLoading ||
+                            groupsManagedLoading ||
+                            assetTypesLoading ||
+                            sensorTypesLoading ||
+                            assetsLoading ||
+                            assetsWithMarkerLoading ||
+                            sensorsLoading ||
+                            digitalTwinLoading ||
+                            mlModelsLoading ||
+                            assetS3FoldersLoading)) ? (
                         <HomeOptionsLoader
                             key={gltfFileDownloadProgress}
                             glftDataLoading={glftDataLoading}

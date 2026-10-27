@@ -31,24 +31,24 @@ const DatePickerContainer = styled.div`
         border: none;
 
         /* width */
-        ::-webkit-scrollbar {
+        &::-webkit-scrollbar {
             width: 10px;
         }
     
         /* Track */
-        ::-webkit-scrollbar-track {
+        &::-webkit-scrollbar-track {
             background: #0c0d0f;
             border-radius: 5px;
         }
         
         /* Handle */
-        ::-webkit-scrollbar-thumb {
+        &::-webkit-scrollbar-thumb {
             background: #585c66; 
             border-radius: 5px;
         }
     
         /* Handle on hover */
-        ::-webkit-scrollbar-thumb:hover {
+        &::-webkit-scrollbar-thumb:hover {
             background-color: #4a4e57;
         }
 
@@ -241,7 +241,7 @@ const DeleteModalWithDatePicker =
                 <DatePickerContainer>
                     <DatePicker
                         selected={selectedDate}
-                        onChange={changeSelectedDate}
+                        onChange={(date: Date | null) => { if (date) changeSelectedDate(date); }}
                         showTimeSelect
                         inline
                         timeIntervals={15}

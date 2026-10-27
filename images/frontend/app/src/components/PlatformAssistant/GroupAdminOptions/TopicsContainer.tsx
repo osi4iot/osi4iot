@@ -11,7 +11,7 @@ import {
 } from '../../../contexts/topicsOptions';
 import { IGroupManaged } from '../TableColumns/groupsManagedColumns';
 import { IOrgOfGroupsManaged } from '../TableColumns/orgsOfGroupsManagedColumns';
-import { Column } from 'react-table';
+import { Column } from '../Utils/platformTable';
 
 interface TopicsContainerProps {
     orgsOfGroupManaged: IOrgOfGroupsManaged[];

@@ -1,12 +1,18 @@
-import { FC } from "react";
-import { Route, Redirect, RouteProps } from "react-router-dom";
+import { FC, ReactElement } from "react";
+import { Location, Navigate, useLocation } from "react-router";
 import { useIsUserAuth } from "../contexts/authContext";
-import { ChildrenProp } from "../interfaces/interfaces";
 
-interface PublicRouteProps extends RouteProps {
-	component: React.FC<ChildrenProp>;
+interface PublicRouteProps {
+	children: ReactElement;
 }
 
-export const PublicRoute: FC<PublicRouteProps> = ({ component: Component, ...rest }) => {
-	return <Route {...rest}>{!useIsUserAuth() ? <Component children={undefined} /> : <Redirect to="/" />}</Route>;
+// Si el usuario ya está autenticado se le redirige. Si venía de una ruta privada (state.from, puesto por
+// PrivateRoute) se le devuelve allí: con react-router 7+ las navegaciones van en startTransition y este
+// <Navigate> se renderiza antes que el navigate(from) de LoginPage, así que debe apuntar al mismo destino.
+export const PublicRoute: FC<PublicRouteProps> = ({ children }) => {
+	const location = useLocation();
+	const isUserAuth = useIsUserAuth();
+	if (!isUserAuth) return children;
+	const from = (location.state as { from?: Location } | null)?.from;
+	return <Navigate to={from ?? "/"} replace />;
 };

@@ -1,13 +1,8 @@
-import React, { useState, useLayoutEffect, useRef } from "react";
+import React, { useState, useLayoutEffect, useRef, useMemo, useEffect } from "react";
 import * as THREE from 'three';
-import { useThree } from "@react-three/fiber";
+import { useThree, ThreeElements } from "@react-three/fiber";
 import { useHelper, Environment } from "@react-three/drei";
 
-const GroupComponent = 'group' as any;
-const PrimitiveComponent = 'primitive' as any;
-const AmbientLightComponent = 'ambientLight' as any;
-const SpotLightComponent = 'spotLight' as any;
-const PointLightComponent = 'pointLight' as any;
 
 const dirX = new THREE.Vector3(1, 0, 0);
 const redColor = new THREE.Color("#FF0000");
@@ -19,7 +14,7 @@ const origin = new THREE.Vector3(0, 0, 0);
 
 type ControlsProto = { update(): void; target: THREE.Vector3 };
 
-type Props = JSX.IntrinsicElements["group"] & {
+type Props = ThreeElements["group"] & {
     environment?: string;
     shadows?: boolean;
     ambientLight?: boolean;
@@ -31,6 +26,7 @@ type Props = JSX.IntrinsicElements["group"] & {
     pointLightPower?: number;
     showPointLightHelper?: boolean;
     showAxes?: boolean;
+    axesScale?: number;
     ambience?: number;
     controls?: React.MutableRefObject<ControlsProto>;
     shadowBias?: number;
@@ -51,6 +47,7 @@ export function Stage({
     pointLightPower = 5.0,
     showPointLightHelper = false,
     showAxes = false,
+    axesScale = 1,
     shadowBias = 0,
     femResultLoaded,
     ...props
@@ -58,10 +55,9 @@ export function Stage({
     const camera = useThree((state) => state.camera);
     const sceneWidth = useThree((state) => state.size.width);
     const sceneHeigth = useThree((state) => state.size.height);
-    // @ts-expect-error new in @react-three/fiber@7.0.5
     const defaultControls = useThree(
         (state) => state.controls
-    ) as ControlsProto;
+    ) as unknown as ControlsProto | null;
     const childrenGroup = React.useRef<THREE.Group>(null!);
     const [{ radius, width, height }, set] = useState({
         radius: 0,
@@ -120,6 +116,20 @@ export function Stage({
         setAxisLength(radius / 3.0);
     }, [radius]);
 
+    // Ejes: la escala solo alarga o acorta las líneas; las puntas conservan el tamaño de la longitud automática
+    const axes = useMemo(() => {
+        const headLength = 0.2 * axisLength;
+        const headWidth = 0.2 * headLength;
+        const length = Math.max(axisLength * axesScale, headLength * 1.05);
+        return [
+            new THREE.ArrowHelper(dirX, origin, length, redColor, headLength, headWidth),
+            new THREE.ArrowHelper(dirY, origin, length, greenColor, headLength, headWidth),
+            new THREE.ArrowHelper(dirZ, origin, length, blueColor, headLength, headWidth),
+        ];
+    }, [axisLength, axesScale]);
+
+    useEffect(() => () => axes.forEach((arrow) => arrow.dispose()), [axes]);
+
     useLayoutEffect(() => {
         camera.position.set(
             sceneCenter.x + radius * 1.0,
@@ -142,7 +152,7 @@ export function Stage({
     }, [defaultControls, radius, height, width]);
 
     return (
-        <GroupComponent {...props}>
+        <group {...props}>
             {/* {environment !== "none" && <Environment preset={environment as any}/>} */}
             {environment === "sunset" && (
                 <Environment files={"venice_sunset_1k.hdr"} />
@@ -153,11 +163,11 @@ export function Stage({
             {environment === "night" && (
                 <Environment files={"dikhololo_night_1k.hdr"} />
             )}
-            <GroupComponent ref={childrenGroup}>{children}</GroupComponent>
-            {ambientLight && <AmbientLightComponent intensity={ambientLightIntensity} />}
+            <group ref={childrenGroup}>{children}</group>
+            {ambientLight && <ambientLight intensity={ambientLightIntensity} />}
             {spotLight && (
                 <>
-                    <SpotLightComponent
+                    <spotLight
                         ref={spotLightRefBase as React.MutableRefObject<any>}
                         penumbra={0.5}
                         position={[
@@ -175,7 +185,7 @@ export function Stage({
             )}
 
             {pointLight && (
-                <PointLightComponent
+                <pointLight
                     ref={pointLightRefBase as React.MutableRefObject<any>}
                     // position={[-2.0 * radius, -0.5 * radius, -1.8 * radius]}
                     position={[
@@ -186,40 +196,7 @@ export function Stage({
                     power={pointLightPower}
                 />
             )}
-            {showAxes && (
-                <>
-                    <PrimitiveComponent
-                        object={
-                            new THREE.ArrowHelper(
-                                dirX,
-                                origin,
-                                axisLength,
-                                redColor
-                            )
-                        }
-                    />
-                    <PrimitiveComponent
-                        object={
-                            new THREE.ArrowHelper(
-                                dirY,
-                                origin,
-                                axisLength,
-                                greenColor
-                            )
-                        }
-                    />
-                    <PrimitiveComponent
-                        object={
-                            new THREE.ArrowHelper(
-                                dirZ,
-                                origin,
-                                axisLength,
-                                blueColor
-                            )
-                        }
-                    />
-                </>
-            )}
-        </GroupComponent>
+            {showAxes && axes.map((arrow, index) => <primitive key={index} object={arrow} />)}
+        </group>
     );
 }

@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
-import { NatsConnection, StringCodec } from "nats.ws";
+import { type NatsConnection } from "@nats-io/nats-core";
+import { StringCodec } from "../../../../tools/natsCodec";
 import * as THREE from "three";
 import { matches, mqttTopicToNatsSubject } from "./tools";
 import { IAssetObject, IFemSimulationObject, IGenericObject, IMqttTopicData, INatsSubjectData, ISensorObject } from "../Main/Model";

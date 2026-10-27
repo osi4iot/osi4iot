@@ -5,7 +5,7 @@ import CreateOrganization from './CreateOrganization';
 import EditOrganization from './EditOrganization';
 import { ORGS_OPTIONS } from '../Utils/platformAssistantOptions';
 import { useOrgsDispatch, setOrgsOptionToShow, useOrgsOptionToShow } from '../../../contexts/orgsOptions';
-import { Column } from 'react-table';
+import { Column } from '../Utils/platformTable';
 
 
 interface OrgsContainerProps {

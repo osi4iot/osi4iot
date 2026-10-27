@@ -1,5 +1,5 @@
 import { FC, useState, useEffect, useRef, SetStateAction, Dispatch } from "react";
-import { NatsConnection } from "nats.ws";
+import { type NatsConnection } from "@nats-io/nats-core";
 import { ChildrenProp } from "../interfaces/interfaces";
 import { axiosAuth, getDomainName, getProtocol } from "../tools/tools";
 import Header from "../components/Layout/Header";

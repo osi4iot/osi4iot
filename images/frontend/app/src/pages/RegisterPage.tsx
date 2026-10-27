@@ -1,5 +1,5 @@
 import { FC, SyntheticEvent, useState, useEffect } from "react";
-import { useHistory } from "react-router-dom";
+import { useNavigate } from "react-router";
 import axios, { AxiosError, AxiosResponse } from "axios";
 import styled from "styled-components";
 import * as Yup from 'yup';
@@ -65,7 +65,7 @@ const RegisterPage: FC<{}> = () => {
 	const [isValidToken, setIsValidToken] = useState(true);
 	const [initialRegistrationValues, setInitialRegistrationValues] = useState(initialFormValues);
 	const [isSubmitting, setIsSubmitting] = useState(false);
-	const history = useHistory();
+	const navigate = useNavigate();
 
 	const onSubmit = (values: any, actions: any) => {
 		const url = `${protocol}://${domainName}/admin_api/auth/register`;
@@ -80,7 +80,7 @@ const RegisterPage: FC<{}> = () => {
 				const data = response.data;
 				toast.success(data.message);
 				if (data.message === "User registered successfully") {
-					history.push("/");
+					navigate("/");
 				}
 			})
 			.catch((error: AxiosError) => {
@@ -128,7 +128,7 @@ const RegisterPage: FC<{}> = () => {
 
 	const onCancel = (e: SyntheticEvent) => {
 		e.preventDefault();
-		history.push("/");
+		navigate("/");
 	};
 
 	if (!isValidToken) {

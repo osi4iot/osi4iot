@@ -7,7 +7,7 @@ import CreateMlModel from './CreateMlModel';
 import EditMlModel from './EditMlModel';
 import { IOrgOfGroupsManaged } from '../TableColumns/orgsOfGroupsManagedColumns';
 import { IGroupManaged } from '../TableColumns/groupsManagedColumns';
-import { Column } from 'react-table';
+import { Column } from '../Utils/platformTable';
 
 interface MlModelsContainerProps {
     orgsOfGroupManaged: IOrgOfGroupsManaged[];

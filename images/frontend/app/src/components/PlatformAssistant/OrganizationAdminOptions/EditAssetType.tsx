@@ -179,13 +179,13 @@ const EditAssetType: FC<EditAssetTypeProps> = ({
     const [markerSvgFileName, setMarkerSvgFileName] = useState(storedMarkerSvgFileName);
     const [generateMarker, setGenerateMarker] = useState(false);
 
-    const [openIconSvgFileSelector, iconSvgFileParams] = useFilePicker({
+    const { openFilePicker: openIconSvgFileSelector, ...iconSvgFileParams } = useFilePicker({
         readAs: 'Text',
         multiple: false,
         accept: '.svg',
     });
 
-    const [openMarkerSvgFileSelector, markerSvgFileParams] = useFilePicker({
+    const { openFilePicker: openMarkerSvgFileSelector, ...markerSvgFileParams } = useFilePicker({
         readAs: 'Text',
         multiple: false,
         accept: '.svg',

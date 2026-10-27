@@ -1,5 +1,5 @@
 import { FC, useState, useRef, SyntheticEvent, useEffect, useCallback } from "react";
-import { NatsConnection, headers } from "nats.ws";
+import { type NatsConnection, headers } from "@nats-io/nats-core";
 import styled from "styled-components";
 import { Formik, Form } from "formik";
 import * as Yup from "yup";
@@ -59,18 +59,18 @@ const ControlsContainer = styled.div`
     padding: 10px 5px;
     margin-bottom: 15px;
     overflow-y: auto;
-    ::-webkit-scrollbar {
+    &::-webkit-scrollbar {
         width: 10px;
     }
-    ::-webkit-scrollbar-track {
+    &::-webkit-scrollbar-track {
         background: #202226;
         border-radius: 5px;
     }
-    ::-webkit-scrollbar-thumb {
+    &::-webkit-scrollbar-thumb {
         background: #2c3235;
         border-radius: 5px;
     }
-    ::-webkit-scrollbar-thumb:hover {
+    &::-webkit-scrollbar-thumb:hover {
         background-color: #343840;
     }
     div:first-child {

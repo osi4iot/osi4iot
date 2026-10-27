@@ -16,7 +16,8 @@ import {
     TranslatorIcon,
     Text2SpeechIcon,
 } from "./NodePalette";
-import { headers, StringCodec } from "nats.ws";
+import { headers } from "@nats-io/nats-core";
+import { StringCodec } from "../../../../tools/natsCodec";
 const sc = StringCodec();
 
 const NodeContainer = styled.div<{ bgColor: string; hoverColor?: string; selected?: boolean }>`

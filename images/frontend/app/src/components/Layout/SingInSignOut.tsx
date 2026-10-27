@@ -1,6 +1,6 @@
 import { FC, SyntheticEvent } from "react";
 import { RiLoginCircleLine, RiLogoutCircleLine } from "react-icons/ri";
-import { useHistory } from "react-router-dom";
+import { useNavigate } from "react-router";
 import styled from "styled-components";
 import { useWindowWidth } from "@react-hook/window-size";
 import { logout, useAuthDispatch, useIsUserAuth } from "../../contexts/authContext";
@@ -56,7 +56,7 @@ const SingInSignOut: FC<{}> = () => {
 	const windowWidth = useWindowWidth();
 
 	const authDispatch = useAuthDispatch();
-	const history = useHistory();
+	const navigate = useNavigate();
 	const isUserLogged = useIsUserAuth();
 	const userName = useLoggedUserLogin();
 	const platformAssistantDispatch = usePlatformAssitantDispatch();
@@ -69,7 +69,7 @@ const SingInSignOut: FC<{}> = () => {
 			setResetTables(platformAssistantDispatch);
 			logout(authDispatch);
 		}
-		else history.push("/login");
+		else navigate("/login");
 	};
 
 	if (isUserLogged) {

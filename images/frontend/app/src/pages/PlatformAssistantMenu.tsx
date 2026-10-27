@@ -1,5 +1,5 @@
 import React, { FC } from "react";
-import styled, { StyledComponent } from "styled-components";
+import styled from "styled-components";
 import { FaHome, FaUser, FaUsers, FaUniversity } from "react-icons/fa";
 import { IconType } from "react-icons";
 import {
@@ -11,7 +11,7 @@ import {
     PLATFORM_ASSISTANT_OPTION,
     PLATFORM_ASSISTANT_ROUTES
 } from "../components/PlatformAssistant/Utils/platformAssistantOptions";
-import { useHistory } from "react-router-dom";
+import { useNavigate } from "react-router";
 
 
 const Menu = styled.div`
@@ -27,13 +27,10 @@ const Menu = styled.div`
 `;
 
 
-const StyledIcon = (icon: IconType): StyledComponent<any, any, {}, never> => {
-    const styledIcon = (styled(icon as any)`
-        font-size: 30px;
-        user-select: none;
-    `) as StyledComponent<any, any, {}, never>;
-    return styledIcon;
-}
+const StyledIcon = (icon: IconType) => styled(icon)`
+    font-size: 30px;
+    user-select: none;
+`;
 
 const FaHometyled = StyledIcon(FaHome);
 const FaUserStyled = StyledIcon(FaUser);
@@ -97,10 +94,10 @@ const PlatformAssistantMenu: FC<PlatformAssistantMenuProps> = ({platformAssistan
     const isPlatformAdmin = useIsPlatformAdmin();
     const isOrgAdmin = useIsOrgAdmin();
     const isGroupdmin = useIsGroupAdmin();
-    const history = useHistory();
+    const navigate = useNavigate();
 
     const clickHandler = (routeToShow: string) => {
-        history.push(routeToShow);
+        navigate(routeToShow);
     }
 
     return (

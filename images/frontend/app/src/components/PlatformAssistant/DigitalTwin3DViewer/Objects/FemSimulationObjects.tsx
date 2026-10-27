@@ -16,9 +16,6 @@ import femResultCalcWorkersManager from "../../../../webWorkers/femResultCalcWor
 import { ElemTooltip } from "../Utils/ElemTooltip";
 import { NodeTooltip } from "../Utils/NodeTooltip";
 
-const GroupComponent = "group" as any;
-const MeshComponent = "mesh" as any;
-const PrimitivesComponent = "primitive" as any;
 
 interface FemSimulationObjectProps {
     femSimulationGeneralInfo: Record<string, IResultRenderInfo>;
@@ -524,8 +521,8 @@ const FemSimulationObjectBase: FC<FemSimulationObjectProps> = ({
     ]);
 
     return (
-        <GroupComponent ref={objectRef as React.MutableRefObject<THREE.Group>}>
-            <MeshComponent
+        <group ref={objectRef as React.MutableRefObject<THREE.Group>}>
+            <mesh
                 ref={
                     geometryRef as React.MutableRefObject<
                         THREE.Mesh<THREE.BufferGeometry, THREE.Material | THREE.Material[]>
@@ -535,11 +532,11 @@ const FemSimulationObjectBase: FC<FemSimulationObjectProps> = ({
                 receiveShadow
                 material={material}
             >
-                <PrimitivesComponent material={material} object={femSimulationObject.node} />
-            </MeshComponent>
-            <PrimitivesComponent ref={meshRef} object={femSimulationObject.wireFrameMesh} />
+                <primitive material={material} object={femSimulationObject.node} />
+            </mesh>
+            <primitive ref={meshRef} object={femSimulationObject.wireFrameMesh} />
             {showFemMesh && femElemLabels.length > 0 && (
-                <GroupComponent>
+                <group>
                     {femElemLabels.map((label, index) => (
                         <ElemTooltip
                             key={`elem-${index + 1}-${workersCompleted}`}
@@ -547,10 +544,10 @@ const FemSimulationObjectBase: FC<FemSimulationObjectProps> = ({
                             position={calcElemPosition(label) || new THREE.Vector3()}
                         />
                     ))}
-                </GroupComponent>
+                </group>
             )}
             {showFemMesh && femNodeLabels.length > 0 && (
-                <GroupComponent>
+                <group>
                     {femNodeLabels.map((label, index) => (
                         <NodeTooltip
                             key={`node-${index + 1}-${workersCompleted}`}
@@ -558,9 +555,9 @@ const FemSimulationObjectBase: FC<FemSimulationObjectProps> = ({
                             position={calcNodePosition(label) || new THREE.Vector3()}
                         />
                     ))}
-                </GroupComponent>
+                </group>
             )}
-        </GroupComponent>
+        </group>
     );
 };
 

@@ -142,7 +142,7 @@ const EditBuilding: FC<EditBuildingProps> = ({ buildings, backToTable, refreshBu
     const [latitude, setLatitude] = useState(buildings[buildingRowIndex].latitude);
     const [isBuildingDataReady, setIsBuildingDataReady] = useState(Object.keys(storedGeoJsonData).length !== 0);
 
-    const [openBuildingFileSelector, buildingFileParams] = useFilePicker({
+    const { openFilePicker: openBuildingFileSelector, ...buildingFileParams } = useFilePicker({
         readAs: 'Text',
         multiple: false,
         accept: '.geojson',

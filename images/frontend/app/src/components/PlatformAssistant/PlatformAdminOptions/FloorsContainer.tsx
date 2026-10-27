@@ -6,7 +6,7 @@ import EditFloor from './EditFloor';
 import { setFloorsOptionToShow, useFloorsDispatch, useFloorsOptionToShow } from '../../../contexts/floorsOptions';
 import { IFloor, Create_FLOORS_COLUMNS } from '../TableColumns/floorsColumns';
 import { useBuildingsTable } from '../../../contexts/platformAssistantContext';
-import { Column } from 'react-table';
+import { Column } from '../Utils/platformTable';
 
 interface FloorsContainerProps {
     floors: IFloor[];

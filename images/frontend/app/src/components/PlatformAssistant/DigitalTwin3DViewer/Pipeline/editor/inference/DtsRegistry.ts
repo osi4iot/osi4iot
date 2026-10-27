@@ -12,7 +12,7 @@
 //   instanceVarMap:  interfaceName → canonical var name (from GoAllResult)
 // ─────────────────────────────────────────────────────────────────────────────
 
-import * as ts from "typescript";
+import * as ts from "@typescript/typescript6";
 import dtsContent from "../worker/osi4iot.d.ts?raw";
 
 // ─── Public types ─────────────────────────────────────────────────────────────

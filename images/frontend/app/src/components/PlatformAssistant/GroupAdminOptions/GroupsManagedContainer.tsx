@@ -15,7 +15,7 @@ import { IBuilding } from '../TableColumns/buildingsColumns';
 import { IFloor } from '../TableColumns/floorsColumns';
 import { IAsset } from '../TableColumns/assetsColumns';
 import { IAssetType } from '../TableColumns/assetTypesColumns';
-import { Column } from 'react-table';
+import { Column } from '../Utils/platformTable';
 
 
 export interface IGroupMemberInput {

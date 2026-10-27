@@ -7,14 +7,14 @@ const ProgressBarContainer = styled.div`
 		width: 100%;
 		appearance: none;
 
-		::-webkit-progress-bar {
+		&::-webkit-progress-bar {
             background-color: #4d525c;
 			height: 10px;
 			border-radius: 20px;
 
 		}
 
-        ::-webkit-progress-value {
+        &::-webkit-progress-value {
 			background-color: #65ff00;
 			height: 10px;
 			border-radius: 20px;

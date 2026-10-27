@@ -41,7 +41,7 @@ const ChangePassword: FC<ChangePasswordProps> = ({ backToUserProfile }) => {
     const validationSchema = Yup.object({
         oldPassword: Yup.string().required('Required'),
         newPassword: Yup.string().required('Required'),
-        confirmPassword: Yup.string().oneOf([Yup.ref('newPassword'), null], "Passwords don't match!"),
+        confirmPassword: Yup.string().oneOf([Yup.ref('newPassword')], "Passwords don't match!"),
     });
 
 

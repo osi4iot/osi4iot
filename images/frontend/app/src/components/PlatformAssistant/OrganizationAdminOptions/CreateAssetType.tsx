@@ -182,13 +182,13 @@ const CreateAssetType: FC<CreateAssetTypeProps> = ({
         formik.setFieldValue("orgAcronym", orgAcronym);
     }
 
-    const [openIconSvgFileSelector, iconSvgFileParams] = useFilePicker({
+    const { openFilePicker: openIconSvgFileSelector, ...iconSvgFileParams } = useFilePicker({
         readAs: 'Text',
         multiple: false,
         accept: '.svg',
     });
 
-    const [openMarkerSvgFileSelector, markerSvgFileParams] = useFilePicker({
+    const { openFilePicker: openMarkerSvgFileSelector, ...markerSvgFileParams } = useFilePicker({
         readAs: 'Text',
         multiple: false,
         accept: '.svg',

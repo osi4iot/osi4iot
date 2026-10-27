@@ -1,11 +1,17 @@
-import { FC, useEffect, useState, useRef, WheelEvent } from 'react';
+import { FC, useState, useRef, WheelEvent } from 'react';
 import { useWindowHeight } from "@react-hook/window-size";
 import { Document, Page, pdfjs } from 'react-pdf';
-import 'react-pdf/dist/esm/Page/AnnotationLayer.css';
+import 'react-pdf/dist/Page/AnnotationLayer.css';
+import 'react-pdf/dist/Page/TextLayer.css';
+
 import { ImFirst, ImPrevious2, ImNext2, ImLast } from "react-icons/im";
 import { AiOutlineZoomOut, AiOutlineZoomIn } from "react-icons/ai";
 import styled from "styled-components";
 import PdfLoader from '../../Tools/PdfLoader';
+
+// react-pdf v11 (pdf.js 6): el worker se sirve desde el propio bundle (Vite) en lugar de un CDN.
+// Debe configurarse en el mismo módulo donde se usan <Document>/<Page>.
+pdfjs.GlobalWorkerOptions.workerSrc = new URL('pdfjs-dist/build/pdf.worker.min.mjs', import.meta.url).toString();
 
 const TutorialContainer = styled.div`
     display: flex;
@@ -22,29 +28,29 @@ const PageContainer = styled.div`
 
 	overflow: auto;
     /* width */
-    ::-webkit-scrollbar {
+    &::-webkit-scrollbar {
         width: 10px;
 		height: 10px;
     }
 
     /* Track */
-    ::-webkit-scrollbar-track {
+    &::-webkit-scrollbar-track {
         background: #202226;
         border-radius: 5px;
     }
 
     /* Handle */
-    ::-webkit-scrollbar-thumb {
+    &::-webkit-scrollbar-thumb {
         background: #485257;
         border-radius: 5px;
     }
 
     /* Handle on hover */
-    ::-webkit-scrollbar-thumb:hover {
+    &::-webkit-scrollbar-thumb:hover {
         background-color: #3b4347;
 	}
 
-	::-webkit-scrollbar-corner {
+	&::-webkit-scrollbar-corner {
         background: #202226;
     }
 `;
@@ -151,16 +157,12 @@ const Tutorial: FC<{}> = () => {
     const ref = useRef(null);
     const windowHeight = useWindowHeight();
 
-    useEffect(() => {
-        pdfjs.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.js`;
-    });
-
     const onDocumentLoadSuccess = ({ numPages }: { numPages: any }) => {
         setNumPages(numPages);
     }
 
-    const onItemClickHandler = ({ pageNumber }: { pageNumber: string; }) => {
-        setPageNumber(parseInt(pageNumber, 10))
+    const onItemClickHandler = ({ pageNumber }: { pageNumber: number }) => {
+        setPageNumber(pageNumber);
     }
 
     const onWheelHandler = (e: WheelEvent<HTMLDivElement>) => {
@@ -212,6 +214,9 @@ const Tutorial: FC<{}> = () => {
         <TutorialContainer>
             <StyledDocument
                 file="OSI4IOT_Tutorial.pdf"
+                // react-pdf v11 usa Suspense por defecto (suspende el árbol y lanza los errores);
+                // sin Suspense se mantiene el comportamiento de v5: `loading` y mensaje de error propios.
+                suspense={false}
                 onLoadSuccess={onDocumentLoadSuccess}
                 onItemClick={onItemClickHandler}
                 loading={<PdfLoader />}

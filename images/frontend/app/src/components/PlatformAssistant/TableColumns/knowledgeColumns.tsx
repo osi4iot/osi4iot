@@ -1,5 +1,5 @@
 import { FC, useState, useEffect } from "react";
-import { Column, CellProps } from "react-table";
+import { Column, CellProps } from '../Utils/platformTable';
 import { toast } from "react-toastify";
 import styled from "styled-components";
 import { AxiosResponse, AxiosError } from "axios";

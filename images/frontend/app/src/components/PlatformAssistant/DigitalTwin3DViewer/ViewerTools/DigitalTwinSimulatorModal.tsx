@@ -1,158 +1,172 @@
-import React, { useEffect, useState, useRef, FC, SyntheticEvent } from "react";
-import styled from "styled-components";
-import ModalSlider from "./ModalSlider";
+// Ventana flotante del simulador del gemelo digital, con el mismo diseño que el inspector del visor.
+// Se arrastra por la cabecera; al cerrarla se deja de enviar datos simulados.
+import React, { useEffect, useState, useRef, FC, KeyboardEvent as ReactKeyboardEvent } from "react";
+import styled, { keyframes } from "styled-components";
+import { GripVertical, RotateCcw, Square, X } from "lucide-react";
+import { SliderField, focusRing, inspectorColors as c } from "../Inspector/controls";
 
-const ModalContainer = styled.div<{ isDragging: boolean }>`
+const ModalContainer = styled.div<{ $dragging: boolean }>`
     position: fixed;
-    background-color: #1a1d23;
-    border: 2px solid #3274d9;
-    border-radius: 15px;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-    user-select: none;
-    cursor: ${(props) => (props.isDragging ? "grabbing" : "default")};
-    z-index: 1001;
-    max-height: 90vh;
-    width: 300px;
+    width: 340px;
+    max-width: calc(100vw - 24px);
+    max-height: 80vh;
     display: flex;
     flex-direction: column;
+    background-color: rgba(20, 22, 26, 0.96);
+    backdrop-filter: blur(8px);
+    border: 1px solid ${c.border};
+    border-radius: 14px;
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5);
+    color: ${c.text};
+    font-family: Roboto, "Helvetica Neue", Arial, sans-serif;
+    user-select: none;
+    z-index: 1001;
     overflow: hidden;
+    cursor: ${({ $dragging }) => ($dragging ? "grabbing" : "default")};
+
+    input {
+        user-select: text;
+    }
 `;
 
-const ModalHeader = styled.div`
-    background-color: #3274d9;
-    padding: 10px 15px;
-    border-top-left-radius: 13px;
-    border-top-right-radius: 13px;
-    cursor: grab;
+const Header = styled.div`
     display: flex;
-    justify-content: space-between;
     align-items: center;
+    gap: 8px;
+    height: 52px;
+    padding: 0 8px 0 10px;
+    border-bottom: 1px solid ${c.divider};
+    cursor: grab;
+    touch-action: none;
 
     &:active {
         cursor: grabbing;
     }
 `;
 
-const Title = styled.h2`
-    font-size: 20px;
-    margin: 0;
-    font-weight: 400;
-    color: white;
+const Grip = styled(GripVertical)`
+    width: 16px;
+    height: 16px;
+    flex: none;
+    color: ${c.textDisabled};
 `;
 
-const CloseButton = styled.button`
-    background: none;
-    border: none;
-    color: white;
-    font-size: 18px;
-    cursor: pointer;
-    padding: 0;
-    width: 24px;
-    height: 24px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 50%;
-
-    &:hover {
-        background-color: rgba(255, 255, 255, 0.1);
-    }
-`;
-
-const FormContainer = styled.div`
-    position: relative;
+const TitleBlock = styled.div`
     display: flex;
     flex-direction: column;
-    color: white;
-    padding: 10px 12px;
     flex: 1;
-    overflow: hidden;
+    min-width: 0;
 `;
 
-const ParametersContainer = styled.div`
-    flex: 1;
-    width: 100%;
-    padding: 0px;
-    overflow-y: auto;
-    overflow-x: hidden;
-    max-height: 300px;
-    margin-bottom: 10px;
-
-    /* width */
-    ::-webkit-scrollbar {
-        width: 8px;
-    }
-
-    /* Track */
-    ::-webkit-scrollbar-track {
-        background: #202226;
-        border-radius: 5px;
-    }
-
-    /* Handle */
-    ::-webkit-scrollbar-thumb {
-        background: #2c3235;
-        border-radius: 5px;
-    }
-
-    /* Handle on hover */
-    ::-webkit-scrollbar-thumb:hover {
-        background-color: #343840;
-    }
-
-    div:first-child {
-        margin-top: 0;
-    }
-
-    div:last-child {
-        margin-bottom: 3px;
-    }
+const Title = styled.h2`
+    margin: 0;
+    font-size: 14px;
+    font-weight: 500;
+    color: ${c.text};
 `;
 
-const ButtonsContainer = styled.div`
+const pulse = keyframes`
+    50% { opacity: 0.35; }
+`;
+
+const LiveStatus = styled.span`
     display: flex;
-    flex-direction: row;
-    justify-content: center;
-    padding: 10px;
     align-items: center;
-    border-bottom-left-radius: 13px;
-    border-bottom-right-radius: 13px;
-    flex-shrink: 0;
+    gap: 6px;
+    font-size: 11px;
+    color: ${c.okText};
+
+    &::before {
+        content: "";
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background-color: ${c.ok};
+        animation: ${pulse} 1.4s ease-in-out infinite;
+    }
 `;
 
-const Button = styled.button`
-    background-color: #3274d9;
-    padding: 8px 20px;
-    color: white;
-    border: 1px solid #2c3235;
-    border-radius: 10px;
-    outline: none;
+const IconButton = styled.button`
+    width: 32px;
+    height: 32px;
+    flex: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: ${c.textMuted};
     cursor: pointer;
-    box-shadow: 0 5px #173b70;
-    font-size: 15px;
-    width: 100px;
+    ${focusRing}
 
     &:hover {
-        background-color: #2461c0;
+        background-color: ${c.hover};
+        color: ${c.text};
     }
 
-    &:active {
-        background-color: #2461c0;
-        box-shadow: 0 2px #173b70;
-        transform: translateY(4px);
+    svg {
+        width: 16px;
+        height: 16px;
+    }
+`;
+
+const Body = styled.div`
+    flex: 1;
+    overflow-y: auto;
+    padding: 6px 16px 10px;
+
+    &::-webkit-scrollbar {
+        width: 8px;
+    }
+    &::-webkit-scrollbar-thumb {
+        background: ${c.track};
+        border-radius: 4px;
     }
 
-    &:disabled {
-        cursor: pointer;
-        background-color: #3c3d40;
-        box-shadow: 0 6px #19191a;
-        color: white;
-
-        &:hover,
-        &:focus {
-            cursor: not-allowed;
-        }
+    & > div + div {
+        border-top: 1px solid ${c.divider};
     }
+`;
+
+const Footer = styled.div`
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 10px 12px;
+    border-top: 1px solid ${c.divider};
+`;
+
+const FooterButton = styled.button<{ $primary?: boolean }>`
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    height: 34px;
+    padding: 0 12px;
+    border-radius: 8px;
+    border: 1px solid ${({ $primary }) => ($primary ? "transparent" : "rgba(255, 255, 255, 0.14)")};
+    background-color: ${({ $primary }) => ($primary ? c.accentStrong : "transparent")};
+    color: ${({ $primary }) => ($primary ? "#ffffff" : c.textSecondary)};
+    font: 500 13px Roboto, "Helvetica Neue", Arial, sans-serif;
+    cursor: pointer;
+    ${focusRing}
+
+    &:hover {
+        background-color: ${({ $primary }) => ($primary ? c.accentHover : c.hover)};
+        color: #ffffff;
+    }
+
+    svg {
+        width: 14px;
+        height: 14px;
+    }
+`;
+
+const EmptyText = styled.p`
+    margin: 12px 0;
+    font-size: 13px;
+    color: ${c.textMuted};
 `;
 
 interface DigitalTwinSimulationParameter {
@@ -180,16 +194,6 @@ export interface IDigitalTwinSimulator {
     mqttTopic: string;
 }
 
-interface IDTSParam {
-    path: string;
-    units?: string;
-    label: string;
-    minValue: number;
-    maxValue: number;
-    defaultValue?: number;
-    step: number;
-}
-
 interface DigitalTwinSimulatorModalProps {
     digitalTwinSimulatorFormat: Record<string, DigitalTwinSimulationParameter>;
     setShowDigitalTwinSimulator: React.Dispatch<React.SetStateAction<boolean>>;
@@ -197,179 +201,140 @@ interface DigitalTwinSimulatorModalProps {
     setDigitalTwinSimulatorSendData: (value: React.SetStateAction<boolean>) => void;
 }
 
+const defaultValues = (format: Record<string, DigitalTwinSimulationParameter>) => {
+    const values: Record<string, number> = {};
+    for (const paramName of Object.keys(format ?? {})) values[paramName] = Number(format[paramName].defaultValue);
+    return values;
+};
+
 const DigitalTwinSimulatorModal: FC<DigitalTwinSimulatorModalProps> = ({
     digitalTwinSimulatorFormat,
     setShowDigitalTwinSimulator,
     updateDigitalTwinSimulatorState,
     setDigitalTwinSimulatorSendData,
 }) => {
-    const [digitalTwinSimulatorParams, setDigitalTwinSimulatorParams] = useState<IDTSParam[]>([]);
-    const [paramValues, setParamValues] = useState<Record<string, number>>({});
-    const [isDragging, setIsDragging] = useState(false);
-    const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
-    const [position, setPosition] = useState({ x: 0, y: 0 });
+    const [paramValues, setParamValues] = useState<Record<string, number>>(() => defaultValues(digitalTwinSimulatorFormat));
+    const [position, setPosition] = useState<{ x: number; y: number } | null>(null);
+    const [dragging, setDragging] = useState(false);
+    const dragOffset = useRef({ x: 0, y: 0 });
     const modalRef = useRef<HTMLDivElement>(null);
-
-    const setParamValue = (path: string, value: number) => {
-        setParamValues((prevValues: Record<string, number>) => {
-            const newValues = { ...prevValues };
-            newValues[path] = value;
-            return newValues;
-        });
-    };
+    const paramNames = Object.keys(digitalTwinSimulatorFormat ?? {});
 
     useEffect(() => {
-        if (Object.keys(paramValues).length > 0) {
-            updateDigitalTwinSimulatorState(paramValues);
-        }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+        if (Object.keys(paramValues).length > 0) updateDigitalTwinSimulatorState(paramValues);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [paramValues]);
 
-    // Función para centrar el modal inicialmente
-    const centerModal = () => {
-        if (modalRef.current) {
-            const rect = modalRef.current.getBoundingClientRect();
-            const centerX = (window.innerWidth - rect.width) / 2;
-            const centerY = (window.innerHeight - rect.height) / 2;
-            setPosition({ x: centerX, y: centerY });
-        }
-    };
-
-    // Manejo del inicio del arrastre
-    const handleMouseDown = (e: React.MouseEvent) => {
-        if (modalRef.current) {
-            setIsDragging(true);
-            const rect = modalRef.current.getBoundingClientRect();
-            setDragOffset({
-                x: e.clientX - rect.left,
-                y: e.clientY - rect.top,
-            });
-        }
-    };
-
-    // Manejo del movimiento del mouse
-    const handleMouseMove = (e: MouseEvent) => {
-        if (isDragging && modalRef.current) {
-            const newX = e.clientX - dragOffset.x;
-            const newY = e.clientY - dragOffset.y;
-
-            // Limitar el movimiento dentro de los límites de la ventana
-            const rect = modalRef.current.getBoundingClientRect();
-            const maxX = window.innerWidth - rect.width;
-            const maxY = window.innerHeight - rect.height;
-
-            setPosition({
-                x: Math.max(0, Math.min(newX, maxX)),
-                y: Math.max(0, Math.min(newY, maxY)),
-            });
-        }
-    };
-
-    // Manejo del fin del arrastre
-    const handleMouseUp = () => {
-        setIsDragging(false);
-    };
-
-    useEffect(() => {
-        const digitalTwinSimulatorParamNames = Object.keys(digitalTwinSimulatorFormat);
-        const digitalTwinSimulatorParams: IDTSParam[] = [];
-        const initialParamValues: Record<string, number> = {};
-
-        digitalTwinSimulatorParamNames.forEach((paramPath) => {
-            const label = `${digitalTwinSimulatorFormat[paramPath].label} (${digitalTwinSimulatorFormat[paramPath].units}) `;
-            const digitalTwinSimulatorParam = {
-                path: paramPath,
-                label,
-                minValue: digitalTwinSimulatorFormat[paramPath].minValue,
-                maxValue: digitalTwinSimulatorFormat[paramPath].maxValue,
-                step: digitalTwinSimulatorFormat[paramPath].step,
-            };
-            digitalTwinSimulatorParams.push(digitalTwinSimulatorParam);
-            initialParamValues[paramPath] = digitalTwinSimulatorFormat[paramPath].defaultValue as number;
-        });
-
-        setDigitalTwinSimulatorParams(digitalTwinSimulatorParams);
-        setParamValues(initialParamValues);
-
-        // Centrar el modal después de que se monte
-        setTimeout(centerModal, 0);
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
-
-    // Efecto para manejar los eventos del mouse globalmente
-    useEffect(() => {
-        if (isDragging) {
-            document.addEventListener("mousemove", handleMouseMove);
-            document.addEventListener("mouseup", handleMouseUp);
-            return () => {
-                document.removeEventListener("mousemove", handleMouseMove);
-                document.removeEventListener("mouseup", handleMouseUp);
-            };
-        }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [isDragging, dragOffset]);
-
-    // Efecto para manejar el redimensionamiento de la ventana
-    useEffect(() => {
-        const handleResize = () => {
-            if (modalRef.current) {
-                const rect = modalRef.current.getBoundingClientRect();
-                const maxX = window.innerWidth - rect.width;
-                const maxY = window.innerHeight - rect.height;
-
-                setPosition((prev) => ({
-                    x: Math.max(0, Math.min(prev.x, maxX)),
-                    y: Math.max(0, Math.min(prev.y, maxY)),
-                }));
-            }
+    const clampToWindow = (x: number, y: number) => {
+        const rect = modalRef.current?.getBoundingClientRect();
+        const width = rect?.width ?? 340;
+        const height = rect?.height ?? 200;
+        return {
+            x: Math.max(0, Math.min(x, window.innerWidth - width)),
+            y: Math.max(0, Math.min(y, window.innerHeight - height)),
         };
+    };
 
-        window.addEventListener("resize", handleResize);
-        return () => window.removeEventListener("resize", handleResize);
+    // Posición inicial: centrada en la ventana
+    useEffect(() => {
+        const rect = modalRef.current?.getBoundingClientRect();
+        if (rect) setPosition(clampToWindow((window.innerWidth - rect.width) / 2, (window.innerHeight - rect.height) / 2));
+        const onResize = () => setPosition((prev) => (prev ? clampToWindow(prev.x, prev.y) : prev));
+        window.addEventListener("resize", onResize);
+        return () => window.removeEventListener("resize", onResize);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    const onCancel = (e: SyntheticEvent) => {
-        e.preventDefault();
+    useEffect(() => {
+        if (!dragging) return;
+        const onMove = (event: PointerEvent) =>
+            setPosition(clampToWindow(event.clientX - dragOffset.current.x, event.clientY - dragOffset.current.y));
+        const onUp = () => setDragging(false);
+        document.addEventListener("pointermove", onMove);
+        document.addEventListener("pointerup", onUp);
+        return () => {
+            document.removeEventListener("pointermove", onMove);
+            document.removeEventListener("pointerup", onUp);
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [dragging]);
+
+    const onHeaderPointerDown = (event: React.PointerEvent) => {
+        if ((event.target as HTMLElement).closest("button")) return;
+        const rect = modalRef.current?.getBoundingClientRect();
+        if (!rect) return;
+        dragOffset.current = { x: event.clientX - rect.left, y: event.clientY - rect.top };
+        setDragging(true);
+        event.preventDefault();
+    };
+
+    const close = () => {
         setShowDigitalTwinSimulator(false);
         setDigitalTwinSimulatorSendData(false);
+    };
+
+    const onKeyDown = (event: ReactKeyboardEvent) => {
+        if (event.key === "Escape") close();
     };
 
     return (
         <ModalContainer
             ref={modalRef}
-            isDragging={isDragging}
-            style={{
-                left: `${position.x}px`,
-                top: `${position.y}px`,
-            }}
+            role="dialog"
+            aria-label="Digital twin simulator"
+            $dragging={dragging}
+            onKeyDown={onKeyDown}
+            style={position ? { left: position.x, top: position.y } : { left: "50%", top: "50%", visibility: "hidden" }}
         >
-            <ModalHeader onMouseDown={handleMouseDown}>
-                <Title>Digital twin simulator</Title>
-                <CloseButton onClick={onCancel}>×</CloseButton>
-            </ModalHeader>
+            <Header onPointerDown={onHeaderPointerDown}>
+                <Grip aria-hidden="true" />
+                <TitleBlock>
+                    <Title>Digital twin simulator</Title>
+                    <LiveStatus>Sending simulated data</LiveStatus>
+                </TitleBlock>
+                <IconButton
+                    type="button"
+                    aria-label="Reset to default values"
+                    title="Reset to default values"
+                    onClick={() => setParamValues(defaultValues(digitalTwinSimulatorFormat))}
+                >
+                    <RotateCcw aria-hidden="true" />
+                </IconButton>
+                <IconButton type="button" aria-label="Close simulator" title="Close" onClick={close}>
+                    <X aria-hidden="true" />
+                </IconButton>
+            </Header>
 
-            <FormContainer>
-                <ParametersContainer>
-                    {digitalTwinSimulatorParams.length &&
-                        digitalTwinSimulatorParams.map((param) => {
-                            return (
-                                <ModalSlider
-                                    key={param.path}
-                                    label={param.label}
-                                    min={param.minValue}
-                                    max={param.maxValue}
-                                    step={param.step}
-                                    value={paramValues[param.path]}
-                                    setValue={(value: number) => setParamValue(param.path, value)}
-                                />
-                            );
-                        })}
-                </ParametersContainer>
+            <Body>
+                {paramNames.length === 0 && <EmptyText>This digital twin has no simulation parameters.</EmptyText>}
+                {paramNames.map((paramName) => {
+                    const format = digitalTwinSimulatorFormat[paramName];
+                    return (
+                        <SliderField
+                            key={paramName}
+                            id={`dt-simulator-${paramName.replace(/[^A-Za-z0-9_-]/g, "_")}`}
+                            label={format.label ?? paramName}
+                            unit={format.units}
+                            value={paramValues[paramName]}
+                            min={Number(format.minValue)}
+                            max={Number(format.maxValue)}
+                            step={Number(format.step)}
+                            inset={false}
+                            stepButtons
+                            showRange
+                            onChange={(value) => setParamValues((prev) => ({ ...prev, [paramName]: value }))}
+                        />
+                    );
+                })}
+            </Body>
 
-                <ButtonsContainer>
-                    <Button onClick={onCancel}>Cancel</Button>
-                </ButtonsContainer>
-            </FormContainer>
+            <Footer>
+                <span style={{ fontSize: 12, color: c.textMuted }}>Drag the header to move</span>
+                <FooterButton type="button" onClick={close}>
+                    <Square aria-hidden="true" />
+                    Stop simulation
+                </FooterButton>
+            </Footer>
         </ModalContainer>
     );
 };

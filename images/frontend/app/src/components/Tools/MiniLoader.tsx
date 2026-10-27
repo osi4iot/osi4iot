@@ -1,6 +1,6 @@
 import { FC } from 'react';
 import styled from "styled-components";
-import Spinner from "react-loader-spinner";
+import Spinner from "./OvalSpinner";
 
 const LoaderContainer = styled.div`
 	margin-left: 20px;
@@ -11,7 +11,7 @@ const LoaderContainer = styled.div`
 const MiniLoader: FC<{}> = () => {
 	return (
 		<LoaderContainer >
-			<Spinner type="Oval" color="#3274d9" secondaryColor="#235197" height={20} width={20} />
+			<Spinner color="#3274d9" secondaryColor="#235197" height={20} width={20} />
 		</LoaderContainer >
 	);
 };

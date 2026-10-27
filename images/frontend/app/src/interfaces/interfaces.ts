@@ -6,7 +6,7 @@ export interface LoggedUser {
 }
 
 export interface ChildrenProp {
-	children: React.ReactNode;
+	children?: React.ReactNode;
 }
 
 export interface SensorOptions {

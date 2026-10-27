@@ -10,7 +10,7 @@ import {
 import CreateSensorType from './CreateSensorType';
 import EditSensorType from './EditSensorType';
 import { useOrgsManagedTable } from '../../../contexts/platformAssistantContext';
-import { Column } from 'react-table';
+import { Column } from '../Utils/platformTable';
 
 interface SensorTypesContainerProps {
     sensorTypes: ISensorType[];
