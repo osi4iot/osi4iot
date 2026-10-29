@@ -22,6 +22,15 @@ class CreateDigitalTwinDto {
 	@IsString()
 	public digitalTwinSimulationFormat: string;
 
+	// The file the simulation format was loaded from ("-": none)
+	@IsOptional()
+	@IsString()
+	public digitalTwinSimulationFormatFileName?: string;
+
+	@IsOptional()
+	@IsString()
+	public digitalTwinSimulationFormatLastModifDate?: string;
+
 	@IsString({ each: true })
 	public sensorsRef: string[];
 
@@ -34,4 +43,3 @@ class CreateDigitalTwinDto {
 }
 
 export default CreateDigitalTwinDto;
-

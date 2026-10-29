@@ -3,7 +3,8 @@ import { FeatureCollection } from 'geojson';
 import styled from "styled-components";
 import { Formik, Form } from 'formik';
 import * as Yup from 'yup';
-import { useFilePicker } from 'use-file-picker';
+import { useFilePicker } from '../../../tools/useFilePicker';
+import FileDrop from "../../Tools/FileDrop";
 import { axiosAuth, getDomainName, getProtocol } from "../../../tools/tools";
 import { useAuthDispatch, useAuthState } from "../../../contexts/authContext";
 import { toast } from "react-toastify";
@@ -304,6 +305,13 @@ const EditFloor: FC<EditFloorProps> = ({ buildingsTable, floors, backToTable, re
                                                         Select local file
                                                     </FileButton>
                                                 </SelectDataFilenButtonContainer>
+                                                <FileDrop
+                                                    accept={'.geojson'}
+                                                    onFiles={(files) => {
+                                                        clearFloorDataFile();
+                                                        void floorFileParams.loadFiles(files);
+                                                    }}
+                                                />
                                             </DataFileContainer>
                                             </FormSection>
                                         </FloorLocationContainer>

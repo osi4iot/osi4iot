@@ -5,7 +5,8 @@ import { polygon } from '@turf/helpers';
 import styled from "styled-components";
 import { Formik, Form } from 'formik';
 import * as Yup from 'yup';
-import { useFilePicker } from 'use-file-picker';
+import { useFilePicker } from '../../../tools/useFilePicker';
+import FileDrop from "../../Tools/FileDrop";
 import { useAuthState, useAuthDispatch } from '../../../contexts/authContext';
 import { axiosAuth, getDomainName, getProtocol } from "../../../tools/tools";
 import { toast } from "react-toastify";
@@ -341,6 +342,13 @@ const CreateBuilding: FC<CreateBuildingProps> = ({ backToTable, refreshBuildings
                                                         Select local file
                                                     </FileButton>
                                                 </SelectDataFilenButtonContainer>
+                                                <FileDrop
+                                                    accept={'.geojson'}
+                                                    onFiles={(files) => {
+                                                        clearBuildingDataFile();
+                                                        void buildingFileParams.loadFiles(files);
+                                                    }}
+                                                />
                                             </DataFileContainer>
                                             </FormSection>
                                         </BuildingLocationContainer>

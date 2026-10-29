@@ -44,14 +44,17 @@ export const insertDigitalTwin = async (digitalTwinData: Partial<IDigitalTwin>):
 	const queryString = `INSERT INTO grafanadb.digital_twin (group_id, asset_id,
 		digital_twin_uid, description, type, dashboard_id, max_num_resfem_files,
 		chat_assistant_enabled, chat_assistant_language, 
-		digital_twin_simulation_format, created, updated)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), NOW())
+		digital_twin_simulation_format, digital_twin_simulation_format_file_name,
+		digital_twin_simulation_format_last_modif_date, created, updated)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, NOW(), NOW())
 		RETURNING  id, group_id AS "groupId", asset_id AS "assetId",
 		scope, digital_twin_uid AS "digitalTwinUid", description,
 		type, dashboard_id AS "dashboardId",
 		chat_assistant_enabled AS "chatAssistantEnabled",
 		chat_assistant_language AS "chatAssistantLanguage",
 		digital_twin_simulation_format AS "digitalTwinSimulationFormat",
+		digital_twin_simulation_format_file_name AS "digitalTwinSimulationFormatFileName",
+		digital_twin_simulation_format_last_modif_date AS "digitalTwinSimulationFormatLastModifDate",
 		pipeline_file_name AS "pipelineFileName",
 		pipeline_file_last_modif_date AS "pipelineFileLastModifDate",
 		pipeline_file_data AS "pipelineFileData",
@@ -70,6 +73,8 @@ export const insertDigitalTwin = async (digitalTwinData: Partial<IDigitalTwin>):
 		digitalTwinData.chatAssistantEnabled,
 		digitalTwinData.chatAssistantLanguage,
 		digitalTwinData.digitalTwinSimulationFormat,
+		digitalTwinData.digitalTwinSimulationFormatFileName || "-",
+		digitalTwinData.digitalTwinSimulationFormatLastModifDate || "-",
 	]);
 	return result.rows[0] as IDigitalTwin;
 };
@@ -85,6 +90,8 @@ export const getAllDigitalTwins = async (): Promise<IDigitalTwin[]> => {
 		grafanadb.digital_twin.chat_assistant_enabled AS "chatAssistantEnabled",
 		grafanadb.digital_twin.chat_assistant_language AS "chatAssistantLanguage",
 		grafanadb.digital_twin.digital_twin_simulation_format AS "digitalTwinSimulationFormat",
+		grafanadb.digital_twin.digital_twin_simulation_format_file_name AS "digitalTwinSimulationFormatFileName",
+		grafanadb.digital_twin.digital_twin_simulation_format_last_modif_date AS "digitalTwinSimulationFormatLastModifDate",
 		grafanadb.digital_twin.pipeline_file_name AS "pipelineFileName",
 		grafanadb.digital_twin.pipeline_file_last_modif_date AS "pipelineFileLastModifDate",
 		grafanadb.digital_twin.pipeline_file_data AS "pipelineFileData",
@@ -135,6 +142,8 @@ export const getDigitalTwinsByOrgId = async (orgId: number): Promise<IDigitalTwi
 		grafanadb.digital_twin.chat_assistant_enabled AS "chatAssistantEnabled",
 		grafanadb.digital_twin.chat_assistant_language AS "chatAssistantLanguage",
 		grafanadb.digital_twin.digital_twin_simulation_format AS "digitalTwinSimulationFormat",
+		grafanadb.digital_twin.digital_twin_simulation_format_file_name AS "digitalTwinSimulationFormatFileName",
+		grafanadb.digital_twin.digital_twin_simulation_format_last_modif_date AS "digitalTwinSimulationFormatLastModifDate",
 		grafanadb.digital_twin.pipeline_file_name AS "pipelineFileName",
 		grafanadb.digital_twin.pipeline_file_last_modif_date AS "pipelineFileLastModifDate",
 		grafanadb.digital_twin.pipeline_file_data AS "pipelineFileData",
@@ -165,6 +174,8 @@ export const getDigitalTwinsByGroupId = async (groupId: number): Promise<IDigita
 		grafanadb.digital_twin.chat_assistant_enabled AS "chatAssistantEnabled",
 		grafanadb.digital_twin.chat_assistant_language AS "chatAssistantLanguage",
 		grafanadb.digital_twin.digital_twin_simulation_format AS "digitalTwinSimulationFormat",
+		grafanadb.digital_twin.digital_twin_simulation_format_file_name AS "digitalTwinSimulationFormatFileName",
+		grafanadb.digital_twin.digital_twin_simulation_format_last_modif_date AS "digitalTwinSimulationFormatLastModifDate",
 		grafanadb.digital_twin.pipeline_file_name AS "pipelineFileName",
 		grafanadb.digital_twin.pipeline_file_last_modif_date AS "pipelineFileLastModifDate",
 		grafanadb.digital_twin.pipeline_file_data AS "pipelineFileData",
@@ -195,6 +206,8 @@ export const getDigitalTwinsByGroupsIdArray = async (groupsIdArray: number[]): P
 		grafanadb.digital_twin.chat_assistant_enabled AS "chatAssistantEnabled",
 		grafanadb.digital_twin.chat_assistant_language AS "chatAssistantLanguage",
 		grafanadb.digital_twin.digital_twin_simulation_format AS "digitalTwinSimulationFormat",
+		grafanadb.digital_twin.digital_twin_simulation_format_file_name AS "digitalTwinSimulationFormatFileName",
+		grafanadb.digital_twin.digital_twin_simulation_format_last_modif_date AS "digitalTwinSimulationFormatLastModifDate",
 		grafanadb.digital_twin.pipeline_file_name AS "pipelineFileName",
 		grafanadb.digital_twin.pipeline_file_last_modif_date AS "pipelineFileLastModifDate",
 		grafanadb.digital_twin.pipeline_file_data AS "pipelineFileData",
@@ -227,6 +240,8 @@ export const getDigitalTwinByProp = async (propName: string, propValue: string |
 		grafanadb.digital_twin.chat_assistant_enabled AS "chatAssistantEnabled",
 		grafanadb.digital_twin.chat_assistant_language AS "chatAssistantLanguage",
 		grafanadb.digital_twin.digital_twin_simulation_format AS "digitalTwinSimulationFormat",
+		grafanadb.digital_twin.digital_twin_simulation_format_file_name AS "digitalTwinSimulationFormatFileName",
+		grafanadb.digital_twin.digital_twin_simulation_format_last_modif_date AS "digitalTwinSimulationFormatLastModifDate",
 		grafanadb.digital_twin.pipeline_file_name AS "pipelineFileName",
 		grafanadb.digital_twin.pipeline_file_last_modif_date AS "pipelineFileLastModifDate",
 		grafanadb.digital_twin.pipeline_file_data AS "pipelineFileData",
@@ -263,8 +278,10 @@ export const updateDigitalTwinById = async (
 					chat_assistant_language = $6,
 					pipeline_requires_gpu = $7,
 					digital_twin_simulation_format = $8,
+					digital_twin_simulation_format_file_name = $9,
+					digital_twin_simulation_format_last_modif_date = $10,
 					updated = NOW()
-					WHERE grafanadb.digital_twin.id = $9;`;
+					WHERE grafanadb.digital_twin.id = $11;`;
 	await pool.query(query, [
 		digitalTwinData.digitalTwinUid,
 		digitalTwinData.description,
@@ -274,6 +291,8 @@ export const updateDigitalTwinById = async (
 		digitalTwinData.chatAssistantLanguage,
 		digitalTwinData.pipelineRequiresGpu,
 		digitalTwinData.digitalTwinSimulationFormat,
+		digitalTwinData.digitalTwinSimulationFormatFileName || "-",
+		digitalTwinData.digitalTwinSimulationFormatLastModifDate || "-",
 		digitalTwinId,
 	]);
 	if (Array.isArray(digitalTwinData.knowledgeDocuments)) {
@@ -354,6 +373,8 @@ export const getAllDigitalTwinSimulators = async (): Promise<IDigitalTwinSimulat
 		grafanadb.digital_twin.digital_twin_uid AS "digitalTwinUid", 
 		grafanadb.digital_twin.description AS "digitalTwinDescription", 
 		grafanadb.digital_twin.digital_twin_simulation_format AS "digitalTwinSimulationFormat",
+		grafanadb.digital_twin.digital_twin_simulation_format_file_name AS "digitalTwinSimulationFormatFileName",
+		grafanadb.digital_twin.digital_twin_simulation_format_last_modif_date AS "digitalTwinSimulationFormatLastModifDate",
 		grafanadb.digital_twin_topic.topic_id AS "sensorSimulationTopicId"
 		FROM grafanadb.digital_twin
 		INNER JOIN grafanadb.group ON grafanadb.digital_twin.group_id = grafanadb.group.id
@@ -385,6 +406,8 @@ export const getDigitalTwinSimulatorsByGroupsIdArray = async (
 		grafanadb.digital_twin.digital_twin_uid AS "digitalTwinUid", 
 		grafanadb.digital_twin.description AS "digitalTwinDescription", 
 		grafanadb.digital_twin.digital_twin_simulation_format AS "digitalTwinSimulationFormat",
+		grafanadb.digital_twin.digital_twin_simulation_format_file_name AS "digitalTwinSimulationFormatFileName",
+		grafanadb.digital_twin.digital_twin_simulation_format_last_modif_date AS "digitalTwinSimulationFormatLastModifDate",
 		grafanadb.digital_twin_topic.topic_id AS "sensorSimulationTopicId"
 		FROM grafanadb.digital_twin
 		INNER JOIN grafanadb.group ON grafanadb.digital_twin.group_id = grafanadb.group.id
@@ -978,6 +1001,8 @@ export const createDigitalTwin = async (
 		chatAssistantEnabled: digitalTwinInput.chatAssistantEnabled,
 		chatAssistantLanguage: digitalTwinInput.chatAssistantLanguage,
 		digitalTwinSimulationFormat: digitalTwinInput.digitalTwinSimulationFormat,
+		digitalTwinSimulationFormatFileName: digitalTwinInput.digitalTwinSimulationFormatFileName,
+		digitalTwinSimulationFormatLastModifDate: digitalTwinInput.digitalTwinSimulationFormatLastModifDate,
 	};
 	const digitalTwin = await insertDigitalTwin(digitalTwinUpdated);
 	if (digitalTwinInput.knowledgeDocuments && digitalTwinInput.knowledgeDocuments.length !== 0) {
@@ -1503,4 +1528,3 @@ export const removeFilesFromBucketFolder = async (folderPath: string) => {
 		await deleteBucketFiles(filesToRemove.slice(i, i + 1000));
 	}
 };
-

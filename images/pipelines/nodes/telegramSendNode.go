@@ -154,18 +154,16 @@ func (n *TelegramSendNode) sendImage(msg common.Message, log *logger.Logger) err
 	return telegram.SendTelegramPhoto(n.BotToken, n.ChatID, file.Data, file.Name, log, opts...)
 }
 
-// sendAudio sends the attached audio file to Telegram, with an optional caption.
+// sendAudio sends the attached audio file to Telegram, with an optional
+// caption: as audio (MP3, M4A), as a voice note (OGG/Opus) or as a file
+// (WebM, WAV...), see telegram.SendTelegramAudioFile.
 func (n *TelegramSendNode) sendAudio(msg common.Message, log *logger.Logger) error {
 	file := msg.GetFile()
 	log.Infof("TelegramSendNode %s: sending audio '%s' (%s, %d bytes)",
 		n.NodeUid, file.Name, file.ContentType, len(file.Data))
 
-	opts := []telegram.AudioOption{}
-	if caption := n.captionFor(msg); caption != "" {
-		opts = append(opts, telegram.WithAudioCaption(caption))
-	}
-
-	return telegram.SendTelegramAudio(n.BotToken, n.ChatID, file.Data, file.Name, log, opts...)
+	return telegram.SendTelegramAudioFile(n.BotToken, n.ChatID, file.Data, file.Name, file.ContentType,
+		n.captionFor(msg), log)
 }
 
 // captionFor returns the caption to attach alongside a media file.

@@ -212,7 +212,17 @@ const updateObjectsState = (
                 });
             }
 
-            if (messageTopicRef === "llm2sim") {
+            if (messageTopicRef === "llm2sim" && typeof natsMessage.transcription === "string") {
+                // pregunta de voz (sensor "Mobile audio", Telegram) transcrita en el pipeline, que también la envía
+                // al AI Agent: se muestra en el chat como del usuario (ver DigitalTwin3DViewer)
+                handleUpdateChatAssistantMessages({
+                    message: natsMessage.transcription,
+                    userName: typeof natsMessage.userName === "string" ? natsMessage.userName : undefined,
+                    uiOpts: {},
+                    mcpToolCalls: [],
+                    sender: "user",
+                });
+            } else if (messageTopicRef === "llm2sim") {
                 const newMessage: LlmMessage = {
                     message: natsMessage.message,
                     uiOpts: natsMessage.uiOpts,

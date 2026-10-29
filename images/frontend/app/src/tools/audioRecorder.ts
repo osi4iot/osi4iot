@@ -30,6 +30,9 @@ export interface RecordingOptions {
     onLevel?: (level: number) => void;
     // si es true (por defecto), una grabación en la que no se oyó voz no devuelve audio
     requireSpeech?: boolean;
+    // una vez oída voz, cada 100 ms: milisegundos de silencio desde la última voz (0 mientras se habla), para
+    // mostrar cuánto falta para que se detenga sola
+    onSilence?: (silentMs: number) => void;
 }
 
 export interface Recording {
@@ -38,6 +41,8 @@ export interface Recording {
     cancel(): void;
     // se resuelve cuando la grabación termina (sola o con stop)
     finished: Promise<Blob | null>;
+    // el audio grabado hasta ahora (null si aún no hay nada), para transcribirlo mientras se habla
+    snapshot(): Blob | null;
 }
 
 export const startRecording = async (options: RecordingOptions = {}): Promise<Recording> => {
@@ -48,6 +53,7 @@ export const startRecording = async (options: RecordingOptions = {}): Promise<Re
         speechThreshold = 0.035,
         onLevel,
         requireSpeech = true,
+        onSilence,
     } = options;
 
     const stream = await navigator.mediaDevices.getUserMedia({
@@ -114,6 +120,7 @@ export const startRecording = async (options: RecordingOptions = {}): Promise<Re
             // sin analizador no se puede detectar el silencio: se da por oída la voz
             heardSpeech = true;
         }
+        if (heardSpeech) onSilence?.(now - lastVoiceAt);
         if (now - startedAt > maxDurationMs) stopRecorder();
         else if (stopAfterSilenceMs > 0 && heardSpeech && now - lastVoiceAt > stopAfterSilenceMs) stopRecorder();
         else if (noSpeechTimeoutMs > 0 && !heardSpeech && now - startedAt > noSpeechTimeoutMs) stopRecorder();
@@ -129,5 +136,8 @@ export const startRecording = async (options: RecordingOptions = {}): Promise<Re
             stopRecorder();
         },
         finished,
+        snapshot() {
+            return chunks.length ? new Blob(chunks, { type: recorder.mimeType || mimeType || "audio/webm" }) : null;
+        },
     };
 };

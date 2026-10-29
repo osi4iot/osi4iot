@@ -1,7 +1,7 @@
 import React, { useState, KeyboardEvent, ChangeEvent, useRef, useEffect, useCallback } from "react";
 import styled from "styled-components";
 import SpeechRecognition, { useSpeechRecognition } from "react-speech-recognition";
-import { FaMicrophone, FaMicrophoneSlash, FaWrench, FaTrashAlt } from "react-icons/fa";
+import { FaMicrophone, FaMicrophoneSlash, FaWrench, FaTrashAlt, FaSlidersH, FaTimes } from "react-icons/fa";
 import { useSpeechSynthesis } from "./useSpeechSynthesis";
 import { useLoggedUserLogin } from "../../../../contexts/authContext/authContext";
 import { normalizeForTTS } from "./ttsNormalizer";
@@ -9,11 +9,20 @@ import { containsLatex, MathMessage } from "./MathMessage";
 import { asIcon } from "../../../../tools/icons";
 import { canRecordAudio, Recording, startRecording } from "../../../../tools/audioRecorder";
 import { hasSpeechSynthesisVoices, PipelineVoiceService, playAudioBlob } from "./voiceService";
+import {
+    COUNTDOWN_GRACE_MS,
+    MAX_PAUSE_MS,
+    MIN_PAUSE_MS,
+    turnPauseMs,
+    useVoiceTurnSettings,
+} from "./voiceTurn";
 
 const FaMicrophoneIcon = asIcon(FaMicrophone);
 const FaMicrophoneSlashIcon = asIcon(FaMicrophoneSlash);
 const FaWrenchIcon = asIcon(FaWrench);
 const FaTrashAltIcon = asIcon(FaTrashAlt);
+const FaSlidersHIcon = asIcon(FaSlidersH);
+const FaTimesIcon = asIcon(FaTimes);
 
 const getVoices = (lang: string) => {
     const isSpanish = lang.includes("es");
@@ -34,6 +43,8 @@ export interface LlmMessage {
     uiOpts: Record<string, any>;
     mcpToolCalls: McpToolCall[];
     sender: "user" | "assistant" | "system";
+    // pregunta de voz transcrita en el pipeline: quién la hizo
+    userName?: string;
 }
 
 export interface ChatMessage {
@@ -42,6 +53,9 @@ export interface ChatMessage {
     sender: "user" | "assistant" | "system";
     time: string;
     mcpToolCalls: McpToolCall[];
+    // "pipeline": pregunta de voz (sensor "Mobile audio", nota de voz de Telegram) transcrita en el pipeline, que
+    // ya la ha enviado al AI Agent: el visor solo la muestra
+    source?: "pipeline";
 }
 
 export interface IChatVoice {
@@ -213,6 +227,7 @@ const MiniSpinner = styled.div`
     }
 `;
 
+// El cuadro de texto ocupa toda la altura de la columna de botones: sus bordes quedan alineados
 const InputContainer = styled.div`
     display: flex;
     border-top: 1px solid #444;
@@ -220,49 +235,54 @@ const InputContainer = styled.div`
     background-color: #1f1f1f;
     font-size: 0.9rem;
     gap: 10px;
-    align-items: flex-start;
+    align-items: stretch;
 `;
 
 const TextArea = styled.textarea`
     flex: 1;
+    align-self: stretch;
+    min-width: 0;
     min-height: 80px;
+    margin: 0;
     padding: 8px;
     border: 1px solid #444;
     border-radius: 4px;
     background-color: #2c2c2c;
     color: #f1f1f1;
-    resize: vertical;
+    resize: none;
     font-family: inherit;
     font-size: inherit;
     line-height: 1.4;
 `;
 
+// Columna de botones: "Send", los iconos y el estado ocupan el mismo ancho
 const ButtonContainer = styled.div`
     display: flex;
     flex-direction: column;
     gap: 8px;
-    min-width: 90px;
+    width: 168px;
+    flex-shrink: 0;
 `;
 
 const ButtonRow = styled.div`
     display: flex;
     align-items: center;
-    justify-content: space-around;
-    gap: 8px;
+    justify-content: space-between;
+    gap: 6px;
     height: 30px;
 `;
 
 const Button = styled.button`
-    padding: 15px;
-    border: none;
+    padding: 0 12px;
+    margin: 0;
     color: #fff;
     cursor: pointer;
-    border: 2px solid #141619;
-    border-radius: 6px;
+    border: none;
+    border-radius: 4px;
     background-color: #3274d9;
     font-size: 0.95rem;
-    height: 26px;
-    width: 95%;
+    height: 30px;
+    width: 100%;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -340,10 +360,108 @@ const MicButton = styled.button<{ active: boolean }>`
     }
 `;
 
+// Cuenta atrás antes de enviar una pregunta hablada: anillo alrededor del micrófono
+const COUNTDOWN_RADIUS = 17;
+const COUNTDOWN_LENGTH = 2 * Math.PI * COUNTDOWN_RADIUS;
+
+const MicWrap = styled.div`
+    position: relative;
+    width: 30px;
+    height: 30px;
+    flex-shrink: 0;
+
+    svg.countdown {
+        position: absolute;
+        top: -4px;
+        left: -4px;
+        width: 38px;
+        height: 38px;
+        pointer-events: none;
+        transform: rotate(-90deg);
+    }
+
+    circle {
+        fill: none;
+        stroke: #f39c12;
+        stroke-width: 3;
+        stroke-linecap: round;
+        transition: stroke-dashoffset 0.1s linear;
+    }
+`;
+
+const SmallButton = styled.button<{ active?: boolean }>`
+    padding: 4px;
+    border: none;
+    border-radius: 50%;
+    background-color: ${({ active }) => (active ? "#3274d9" : "#666")};
+    color: #fff;
+    cursor: pointer;
+    font-size: 0.7rem;
+    width: 24px;
+    height: 24px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    &:hover {
+        background-color: ${({ active }) => (active ? "#2461c0" : "#555")};
+    }
+
+    &:focus-visible {
+        outline: 2px solid #3d82f0;
+        outline-offset: 2px;
+    }
+`;
+
+const VoiceSettingsPanel = styled.div`
+    border-top: 1px solid #444;
+    background-color: #1f1f1f;
+    padding: 10px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    font-size: 0.8rem;
+    color: #ddd;
+
+    strong {
+        font-size: 0.75rem;
+        color: #bbb;
+    }
+
+    label {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        cursor: pointer;
+    }
+
+    label[aria-disabled="true"] {
+        opacity: 0.5;
+        cursor: default;
+    }
+
+    input[type="range"] {
+        flex: 1;
+        min-width: 80px;
+        accent-color: #3274d9;
+    }
+
+    input[type="checkbox"] {
+        accent-color: #3274d9;
+        flex-shrink: 0;
+    }
+
+    output {
+        min-width: 3.2em;
+        text-align: right;
+        font-variant-numeric: tabular-nums;
+    }
+`;
+
 const StatusIndicator = styled.div<{ status: string }>`
     padding: 4px 6px;
     border-radius: 4px;
-    font-size: 0.65rem;
     background-color: ${({ status }) => {
         switch (status) {
             case "listening":
@@ -357,11 +475,16 @@ const StatusIndicator = styled.div<{ status: string }>`
         }
     }};
     color: white;
-    height: 26px;
+    height: 24px;
+    flex: 0 0 80%;
+    min-width: 0;
     display: flex;
     align-items: center;
+    justify-content: center;
     white-space: nowrap;
-    flex-shrink: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: 0.68rem;
 `;
 
 interface ChatAssistantProps {
@@ -372,6 +495,12 @@ interface ChatAssistantProps {
     // voz a texto y texto a voz con el pipeline del gemelo digital, cuando el navegador no los ofrece
     voiceService?: PipelineVoiceService | null;
 }
+
+// texto en directo con el pipeline: cada cuánto se transcribe lo grabado mientras se habla, silencio a partir del
+// cual se considera que empieza una pausa, y tiempo extra que se espera a la transcripción parcial en la pausa
+const PARTIAL_INTERVAL_MS = 1500;
+const PARTIAL_PAUSE_MS = 300;
+const PARTIAL_WAIT_MS = 1000;
 
 // errores del reconocimiento de voz del navegador por los que se pasa a usar el pipeline
 const NATIVE_STT_UNAVAILABLE_ERRORS = ["network", "service-not-allowed", "language-not-supported"];
@@ -393,8 +522,8 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({
     const [isVoiceEnabled, setIsVoiceEnabled] = useState<boolean>(false);
     const [systemStatus, setSystemStatus] = useState<"idle" | "listening" | "processing" | "speaking">("idle");
     const lastTranscriptRef = useRef<string>("");
-    const processingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-    const handleSendRef = useRef<(() => void) | undefined>(undefined);
+    // cuándo cambió por última vez el texto dictado (para la pausa antes de enviar)
+    const lastChangeAtRef = useRef<number>(0);
     const speakRef = useRef<((params: { text: string; voice: string }) => void) | undefined>(undefined);
     const initializedRef = useRef<boolean>(false);
     const [lastChatMessageIndex, setLastChatMessageIndex] = useState<number>(0);
@@ -417,6 +546,20 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({
     useEffect(() => {
         voiceEnabledRef.current = isVoiceEnabled;
     }, [isVoiceEnabled]);
+
+    // Fin de la pregunta hablada (voiceTurn.ts): pausa configurable y adaptativa, cuenta atrás visible (0..1) que
+    // se cancela al volver a hablar, y modo "pulsar para hablar"
+    const [voiceSettings, updateVoiceSettings] = useVoiceTurnSettings();
+    const voiceSettingsRef = useRef(voiceSettings);
+    voiceSettingsRef.current = voiceSettings;
+    const [showVoiceSettings, setShowVoiceSettings] = useState(false);
+    const [countdown, setCountdown] = useState<number | null>(null);
+    // grabación para el pipeline: ya se ha oído voz / se ha pedido descartarla
+    const [pipelineHeardSpeech, setPipelineHeardSpeech] = useState(false);
+    const pipelineHeardSpeechRef = useRef(false);
+    const discardRecordingRef = useRef(false);
+    // grabación en curso para el pipeline (las transcripciones parciales de una anterior se descartan)
+    const pipelineSessionRef = useRef(0);
 
     // La voz (idioma) se carga siempre, también cuando el chat ya tiene historial: antes solo se cargaba
     // con el chat vacío y, con historial, el micrófono avisaba "voice not loaded" y no hacía nada.
@@ -499,6 +642,7 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({
 
             setChatMessages((prev: ChatMessage[]) => [...prev, newMessage]);
             setInput("");
+            setCountdown(null);
             resetTranscript();
             lastTranscriptRef.current = "";
         },
@@ -513,9 +657,80 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({
         setIsVoiceEnabled(true);
         setSystemStatus("listening");
 
+        // Texto en directo: mientras se habla, el audio grabado hasta el momento se transcribe en el pipeline
+        // cada PARTIAL_INTERVAL_MS (y al empezar cada pausa) y se muestra en el cuadro de texto. Esa
+        // transcripción parcial también sirve para alargar la pausa si la frase parece a medias y, si ya cubre
+        // todo lo dicho, como transcripción final (sin otra petición).
+        // Con "pulsar para hablar" la grabación solo termina al tocar el micrófono.
+        const settings = voiceSettingsRef.current;
+        const lang = voice.recognitionLang;
+        const session = ++pipelineSessionRef.current;
+        const partial = { text: "", audioAt: 0, requestedAt: 0, pending: false };
+        let lastVoiceAt = 0;
+        let stopRequested = false;
+        pipelineHeardSpeechRef.current = false;
+        setPipelineHeardSpeech(false);
+        setCountdown(null);
+        setInput("");
+
+        const requestPartial = (now: number) => {
+            const snapshot = recordingRef.current?.snapshot();
+            if (!snapshot || partial.pending || stopRequested) return;
+            partial.pending = true;
+            partial.requestedAt = now;
+            voiceService
+                .transcribe(snapshot, lang)
+                .then((text) => {
+                    if (pipelineSessionRef.current !== session) return;
+                    partial.text = text;
+                    partial.audioAt = now;
+                    if (text) setInput(text);
+                })
+                .catch((error) => console.warn("Partial transcription failed:", error))
+                .finally(() => {
+                    partial.pending = false;
+                });
+        };
+
         let recording: Recording;
         try {
-            recording = await startRecording({ stopAfterSilenceMs: 1300, noSpeechTimeoutMs: 15000, maxDurationMs: 45000 });
+            recording = await startRecording({
+                stopAfterSilenceMs: 0,
+                noSpeechTimeoutMs: settings.pushToTalk ? 0 : 15000,
+                maxDurationMs: settings.pushToTalk ? 120000 : 60000,
+                onSilence: (silentMs) => {
+                    const now = Date.now();
+                    lastVoiceAt = now - silentMs;
+                    if (!pipelineHeardSpeechRef.current) {
+                        pipelineHeardSpeechRef.current = true;
+                        setPipelineHeardSpeech(true);
+                    }
+                    // transcripción parcial: periódica mientras se habla y una al empezar la pausa
+                    const speaking = silentMs < PARTIAL_PAUSE_MS;
+                    if (speaking ? now - partial.requestedAt >= PARTIAL_INTERVAL_MS : partial.requestedAt < lastVoiceAt) {
+                        requestPartial(now);
+                    }
+                    if (settings.pushToTalk || silentMs < COUNTDOWN_GRACE_MS) {
+                        setCountdown(null);
+                        return;
+                    }
+                    // pausa: adaptativa cuando la transcripción parcial ya cubre lo dicho; mientras llega, algo más
+                    // larga que la configurada para darle tiempo
+                    const covered = partial.audioAt >= lastVoiceAt;
+                    const pause = covered
+                        ? turnPauseMs(partial.text, lang, settings)
+                        : settings.pauseMs + PARTIAL_WAIT_MS;
+                    if (silentMs >= pause) {
+                        if (!stopRequested) {
+                            stopRequested = true;
+                            setCountdown(null);
+                            void recordingRef.current?.stop();
+                        }
+                        return;
+                    }
+                    setCountdown(Math.min(1, (silentMs - COUNTDOWN_GRACE_MS) / Math.max(1, pause - COUNTDOWN_GRACE_MS)));
+                },
+            });
         } catch (error) {
             console.error("Microphone not available:", error);
             voiceEnabledRef.current = false;
@@ -527,7 +742,18 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({
         recordingRef.current = recording;
         const audio = await recording.finished;
         if (recordingRef.current === recording) recordingRef.current = null;
+        setCountdown(null);
+        pipelineHeardSpeechRef.current = false;
+        setPipelineHeardSpeech(false);
         if (!voiceEnabledRef.current) return;
+
+        // lo dicho se ha descartado con la ✕: se sigue escuchando
+        if (discardRecordingRef.current) {
+            discardRecordingRef.current = false;
+            setInput("");
+            void listenWithPipeline();
+            return;
+        }
 
         if (!audio) {
             // nadie habló: se apaga el micrófono
@@ -536,6 +762,16 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({
             setSystemStatus("idle");
             return;
         }
+
+        // la transcripción parcial ya cubre todo lo dicho: se envía sin esperar a otra
+        if (partial.text && !partial.pending && partial.audioAt >= lastVoiceAt) {
+            pipelineSessionRef.current++;
+            setSystemStatus("processing");
+            setInput(partial.text);
+            sendText(partial.text);
+            return;
+        }
+        pipelineSessionRef.current++;
 
         setSystemStatus("processing");
         setIsLoading(true);
@@ -547,7 +783,8 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({
             }
             if (!text) {
                 setIsLoading(false);
-                void listenWithPipeline();
+                if (settings.pushToTalk) setSystemStatus("idle");
+                else void listenWithPipeline();
                 return;
             }
             setInput(text);
@@ -592,6 +829,8 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({
         if (isMounted.current && voiceEnabledRef.current) {
             setIsSpeaking(false);
             setSystemStatus("idle");
+            // con "pulsar para hablar" se espera a que se toque el micrófono
+            if (voiceSettingsRef.current.pushToTalk) return;
 
             setTimeout(() => {
                 if (isMounted.current && voiceEnabledRef.current) {
@@ -662,9 +901,6 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({
     useEffect(() => {
         return () => {
             isMounted.current = false;
-            if (processingTimeoutRef.current) {
-                clearTimeout(processingTimeoutRef.current);
-            }
             SpeechRecognition.stopListening();
             recordingRef.current?.cancel();
             audioRef.current?.pause();
@@ -715,34 +951,61 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [chatAssistantLanguage]);
 
-    // Manejar cambios en el transcript
+    // Manejar cambios en el transcript: cada palabra nueva reinicia la pausa (y cancela la cuenta atrás)
     useEffect(() => {
         if (!transcript || !isVoiceEnabled) return;
-
-        if (processingTimeoutRef.current) {
-            clearTimeout(processingTimeoutRef.current);
-        }
-
         if (transcript !== lastTranscriptRef.current) {
             setInput(transcript);
             lastTranscriptRef.current = transcript;
+            lastChangeAtRef.current = Date.now();
+            setCountdown(null);
             setSystemStatus("listening");
         }
-
-        processingTimeoutRef.current = setTimeout(() => {
-            if (transcript.trim() && transcript === lastTranscriptRef.current && isVoiceEnabled) {
-                setSystemStatus("processing");
-                setIsLoading(true);
-                handleSendRef.current?.();
-            }
-        }, 1000);
     }, [transcript, isVoiceEnabled]);
 
-    const handleSend = useCallback(() => sendText(input), [input, sendText]);
+    // envía lo dictado con el reconocimiento del navegador
+    const sendSpokenText = useCallback(() => {
+        const text = lastTranscriptRef.current.trim();
+        if (!text) return;
+        setSystemStatus("processing");
+        // con "pulsar para hablar" no se sigue escuchando hasta que se vuelva a tocar el micrófono
+        if (voiceSettingsRef.current.pushToTalk) SpeechRecognition.stopListening();
+        sendText(text);
+    }, [sendText]);
+    const sendSpokenTextRef = useRef(sendSpokenText);
+    sendSpokenTextRef.current = sendSpokenText;
 
+    // Envío automático tras la pausa (reconocimiento del navegador): la pausa depende del texto (voiceTurn.ts) y,
+    // pasado un instante sin palabras nuevas, se muestra la cuenta atrás
     useEffect(() => {
-        handleSendRef.current = handleSend;
-    }, [handleSend]);
+        if (!isVoiceEnabled || !nativeStt || systemStatus !== "listening" || voiceSettings.pushToTalk) return;
+        const lang = voice?.recognitionLang ?? chatAssistantLanguage;
+        const id = setInterval(() => {
+            const text = lastTranscriptRef.current.trim();
+            if (!text) {
+                setCountdown(null);
+                return;
+            }
+            const elapsed = Date.now() - lastChangeAtRef.current;
+            const pause = turnPauseMs(text, lang, voiceSettings);
+            if (elapsed >= pause) {
+                setCountdown(null);
+                sendSpokenTextRef.current();
+                return;
+            }
+            setCountdown(
+                elapsed < COUNTDOWN_GRACE_MS
+                    ? null
+                    : (elapsed - COUNTDOWN_GRACE_MS) / Math.max(1, pause - COUNTDOWN_GRACE_MS),
+            );
+        }, 100);
+        return () => {
+            clearInterval(id);
+            setCountdown(null);
+        };
+    }, [isVoiceEnabled, nativeStt, systemStatus, voiceSettings, voice?.recognitionLang, chatAssistantLanguage]);
+
+    const handleSend = useCallback(() => sendText(input), [input, sendText]);
 
     useEffect(() => {
         speakRef.current = speak;
@@ -781,6 +1044,10 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({
             // Desactivar spinner cuando llega una respuesta del asistente
             if ((lastMessage.sender === "assistant" || lastMessage.sender === "system") && isLoading) {
                 setIsLoading(false);
+            }
+            // pregunta de voz llegada del pipeline: se espera la respuesta como si se hubiera escrito aquí
+            if (lastMessage.sender === "user" && lastMessage.source === "pipeline" && !isLoading) {
+                setIsLoading(true);
             }
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -845,10 +1112,7 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({
 
             resetTranscript();
             lastTranscriptRef.current = "";
-
-            if (processingTimeoutRef.current) {
-                clearTimeout(processingTimeoutRef.current);
-            }
+            setCountdown(null);
 
             setLastChatMessageIndex(chatMessages.length);
         } catch (error) {
@@ -856,24 +1120,71 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({
         }
     }, [cancel, chatMessages.length, resetTranscript]);
 
-    const toggleVoice = useCallback(() => {
-        if (isVoiceEnabled) {
-            stopListening();
-        } else {
-            startListening();
+    // ¿hay algo dicho pendiente de enviar?
+    const pendingSpeech =
+        isVoiceEnabled && systemStatus === "listening" && (nativeStt ? input.trim() !== "" : pipelineHeardSpeech);
+
+    // envía ya lo dicho, sin esperar a la pausa
+    const sendNow = useCallback(() => {
+        setCountdown(null);
+        if (nativeStt) sendSpokenText();
+        else void recordingRef.current?.stop();
+    }, [nativeStt, sendSpokenText]);
+
+    // descarta lo dicho y sigue escuchando
+    const discardSpeech = useCallback(() => {
+        setCountdown(null);
+        if (nativeStt) {
+            resetTranscript();
+            lastTranscriptRef.current = "";
+            setInput("");
+            return;
         }
-    }, [isVoiceEnabled, stopListening, startListening]);
+        if (recordingRef.current) {
+            discardRecordingRef.current = true;
+            pipelineSessionRef.current++;
+            setInput("");
+            recordingRef.current.cancel();
+        }
+    }, [nativeStt, resetTranscript]);
+
+    // Micrófono: activa el modo de voz; mientras escucha, envía lo dicho (o, si no se ha dicho nada, apaga el modo
+    // de voz); con "pulsar para hablar", entre pregunta y pregunta empieza a escuchar
+    const handleMicClick = useCallback(() => {
+        if (!isVoiceEnabled) {
+            startListening();
+        } else if (pendingSpeech) {
+            sendNow();
+        } else if (voiceSettings.pushToTalk && systemStatus === "idle") {
+            startListening();
+        } else {
+            stopListening();
+        }
+    }, [isVoiceEnabled, pendingSpeech, sendNow, voiceSettings.pushToTalk, systemStatus, startListening, stopListening]);
+
+    const micTitle = !voiceInputAvailable
+        ? "Voice input is not available in this browser"
+        : !isVoiceEnabled
+          ? nativeStt
+              ? "Talk to the assistant"
+              : "Talk to the assistant (speech recognized by the digital twin pipeline)"
+          : pendingSpeech
+            ? "Send now"
+            : voiceSettings.pushToTalk && systemStatus === "idle"
+              ? "Start talking"
+              : "Turn off voice mode";
 
     const getStatusText = () => {
         switch (systemStatus) {
             case "listening":
-                return "Listening...";
+                if (countdown !== null) return "Sending...";
+                return voiceSettings.pushToTalk ? "Tap mic to send" : "Listening...";
             case "processing":
                 return "Processing...";
             case "speaking":
                 return "🔊 Speaking...";
             default:
-                return "Ready";
+                return isVoiceEnabled && voiceSettings.pushToTalk ? "Tap mic to talk" : "Ready";
         }
     };
 
@@ -925,7 +1236,7 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({
                 {chatMessages.map((msg, index) => (
                     <MessageBubble key={index} sender={msg.sender}>
                         <Label>
-                            {msg.sender === "assistant" || msg.sender === "system" ? "OSI" : userName}
+                            {msg.sender === "assistant" || msg.sender === "system" ? "OSI" : msg.userName || userName}
                             {msg.sender === "assistant" && containsLatex(msg.message) && (
                                 <span style={{ marginLeft: "10px", fontSize: "0.6rem", opacity: 0.7 }}>📊 LaTeX</span>
                             )}
@@ -937,6 +1248,41 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({
                 {renderLoadingMessage()}
                 <div ref={messagesEndRef} />
             </MessagesContainer>
+            {showVoiceSettings && (
+                <VoiceSettingsPanel role="group" aria-label="Voice mode settings">
+                    <strong>Voice mode</strong>
+                    <label aria-disabled={voiceSettings.pushToTalk}>
+                        Pause before sending
+                        <input
+                            type="range"
+                            min={MIN_PAUSE_MS / 1000}
+                            max={MAX_PAUSE_MS / 1000}
+                            step={0.1}
+                            value={voiceSettings.pauseMs / 1000}
+                            disabled={voiceSettings.pushToTalk}
+                            onChange={(e) => updateVoiceSettings({ pauseMs: Number(e.target.value) * 1000 })}
+                        />
+                        <output>{(voiceSettings.pauseMs / 1000).toFixed(1)} s</output>
+                    </label>
+                    <label aria-disabled={voiceSettings.pushToTalk}>
+                        <input
+                            type="checkbox"
+                            checked={voiceSettings.adaptivePause}
+                            disabled={voiceSettings.pushToTalk}
+                            onChange={(e) => updateVoiceSettings({ adaptivePause: e.target.checked })}
+                        />
+                        Wait longer when the sentence seems unfinished
+                    </label>
+                    <label>
+                        <input
+                            type="checkbox"
+                            checked={voiceSettings.pushToTalk}
+                            onChange={(e) => updateVoiceSettings({ pushToTalk: e.target.checked })}
+                        />
+                        Push to talk: tap the microphone to start and again to send
+                    </label>
+                </VoiceSettingsPanel>
+            )}
             <InputContainer>
                 <TextArea
                     ref={textAreaRef}
@@ -960,21 +1306,36 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({
                         >
                             <FaWrenchIcon style={{ opacity: showMcpTools ? 1 : 0.3 }} />
                         </ToggleButton>
-                        <MicButton
-                            active={isVoiceEnabled}
-                            onClick={toggleVoice}
-                            disabled={!voiceInputAvailable}
-                            title={
-                                voiceInputAvailable
-                                    ? nativeStt
-                                        ? "Talk to the assistant"
-                                        : "Talk to the assistant (speech recognized by the digital twin pipeline)"
-                                    : "Voice input is not available in this browser"
-                            }
+                        <ToggleButton
+                            active={showVoiceSettings}
+                            onClick={() => setShowVoiceSettings((open) => !open)}
+                            title="Voice mode settings"
+                            aria-expanded={showVoiceSettings}
                         >
-                            {isVoiceEnabled ? <FaMicrophoneIcon /> : <FaMicrophoneSlashIcon />}
-                        </MicButton>
-                        <StatusIndicator status={systemStatus}>{getStatusText()}</StatusIndicator>
+                            <FaSlidersHIcon style={{ opacity: showVoiceSettings ? 1 : 0.6 }} />
+                        </ToggleButton>
+                        <MicWrap>
+                            <MicButton
+                                active={isVoiceEnabled}
+                                onClick={handleMicClick}
+                                disabled={!voiceInputAvailable}
+                                title={micTitle}
+                                aria-label={micTitle}
+                            >
+                                {isVoiceEnabled ? <FaMicrophoneIcon /> : <FaMicrophoneSlashIcon />}
+                            </MicButton>
+                            {countdown !== null && (
+                                <svg className="countdown" viewBox="0 0 38 38" aria-hidden>
+                                    <circle
+                                        cx="19"
+                                        cy="19"
+                                        r={COUNTDOWN_RADIUS}
+                                        strokeDasharray={COUNTDOWN_LENGTH}
+                                        strokeDashoffset={COUNTDOWN_LENGTH * Math.min(1, countdown)}
+                                    />
+                                </svg>
+                            )}
+                        </MicWrap>
                         <TrashButton
                             active={chatMessages.length > 0}
                             onClick={removeChatAssistantHistory}
@@ -982,6 +1343,16 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({
                         >
                             <FaTrashAltIcon />
                         </TrashButton>
+                    </ButtonRow>
+                    <ButtonRow style={{ height: 24, justifyContent: "center" }}>
+                        <StatusIndicator status={countdown !== null ? "processing" : systemStatus} role="status">
+                            {getStatusText()}
+                        </StatusIndicator>
+                        {pendingSpeech && (
+                            <SmallButton onClick={discardSpeech} title="Discard what was said" aria-label="Discard what was said">
+                                <FaTimesIcon />
+                            </SmallButton>
+                        )}
                     </ButtonRow>
                 </ButtonContainer>
             </InputContainer>

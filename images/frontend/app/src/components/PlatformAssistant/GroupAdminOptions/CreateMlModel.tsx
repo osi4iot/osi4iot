@@ -10,7 +10,8 @@ import FormikControl from "../../Tools/FormikControl";
 import FormButtonsProps from "../../Tools/FormButtons";
 import FormTitle from "../../Tools/FormTitle";
 import { ML_MODELS_OPTIONS } from "../Utils/platformAssistantOptions";
-import { useFilePicker } from "use-file-picker";
+import { useFilePicker } from "../../../tools/useFilePicker";
+import FileDrop from "../../Tools/FileDrop";
 import formatDateString from "../../../tools/formatDate";
 import { getAxiosInstance } from "../../../tools/axiosIntance";
 import axiosErrorHandler from "../../../tools/axiosErrorHandler";
@@ -579,6 +580,14 @@ const CreateMlModel: FC<CreateMlModelProps> = ({ backToTable, refreshMlModels, o
                                                 Select local files
                                             </FileButton>
                                         </SelectDataFilesButtonContainer>
+                                        <FileDrop
+                                            multiple
+                                            accept={[".json", ".bin"]}
+                                            onFiles={(files) => {
+                                                clearTensorflowDataFile();
+                                                void tensorflowFilesParams.loadFiles(files);
+                                            }}
+                                        />
                                     </DataFileContainer>
                                 )}
                                 {mlLibrary === "Scikit-learn" && (
@@ -599,6 +608,13 @@ const CreateMlModel: FC<CreateMlModelProps> = ({ backToTable, refreshMlModels, o
                                                 Select local file
                                             </FileButton>
                                         </SelectDataFilesButtonContainer>
+                                        <FileDrop
+                                            accept={[".pkl"]}
+                                            onFiles={(files) => {
+                                                clearScikitLearnDataFile();
+                                                void scikitLearnFileParams.loadFiles(files);
+                                            }}
+                                        />
                                     </DataFileContainer>
                                 )}
                                 {mlLibrary === "Onnx" && (
@@ -619,6 +635,13 @@ const CreateMlModel: FC<CreateMlModelProps> = ({ backToTable, refreshMlModels, o
                                                 Select local file
                                             </FileButton>
                                         </SelectDataFilesButtonContainer>
+                                        <FileDrop
+                                            accept={[".onnx"]}
+                                            onFiles={(files) => {
+                                                clearOnnxDataFile();
+                                                void onnxFileParams.loadFiles(files);
+                                            }}
+                                        />
                                     </DataFileContainer>
                                 )}
                                 </FormSection>

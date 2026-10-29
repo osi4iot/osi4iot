@@ -38,6 +38,9 @@ export interface IDigitalTwin {
     chatAssistantEnabled: boolean;
     chatAssistantLanguage: string;
     digitalTwinSimulationFormat: string;
+    // archivo del que se cargó el formato de simulación ("-": ninguno)
+    digitalTwinSimulationFormatFileName?: string;
+    digitalTwinSimulationFormatLastModifDate?: string;
     dashboardUrl: string;
     digitalTwinRef: string;
     sensorsRef: string[];

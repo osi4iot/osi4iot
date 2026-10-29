@@ -2,12 +2,14 @@
 // como bytes, por el tópico "Mobile audio topic" del activo (tipo dev2dtm, como la foto y el vídeo):
 // dev2dtm.Group_<groupUid>.Topic_<topicUid>, con la cabecera Content-Type del formato grabado
 // (audio/webm en Chrome/Firefox, audio/mp4 en Safari). En un pipeline lo recibe un nodo Listen y, por
-// ejemplo, un nodo Transcriptor lo pasa a texto.
+// ejemplo, un nodo Transcriptor lo pasa a texto, lo envía al AI Agent y el chat del gemelo digital lo muestra
+// (mobile_audio_to_chat_pipeline.yml).
 import { FC, SyntheticEvent, useEffect, useRef, useState } from "react";
 import { type NatsConnection, headers } from "@nats-io/nats-core";
 import styled, { css, keyframes } from "styled-components";
 import { IMobileTopic } from "../PlatformAssistant/TableColumns/topicsColumns";
 import { canRecordAudio, Recording, startRecording } from "../../tools/audioRecorder";
+import { useLoggedUserLogin } from "../../contexts/authContext/authContext";
 
 const Title = styled.h2`
     font-size: 20px;
@@ -155,6 +157,7 @@ const MobileAudioForm: FC<MobileAudioFormProps> = ({
     const [seconds, setSeconds] = useState(0);
     const [status, setStatus] = useState("");
     const recordingRef = useRef<Recording | null>(null);
+    const userName = useLoggedUserLogin();
     const supported = canRecordAudio();
 
     useEffect(() => {
@@ -223,6 +226,9 @@ const MobileAudioForm: FC<MobileAudioFormProps> = ({
                 // sin parámetros: "audio/webm;codecs=opus" -> "audio/webm"
                 h.set("Content-Type", audio.type.split(";")[0] || "audio/webm");
                 h.set("X-Capture-Ts", String(Date.now()));
+                // quién lo grabó (el nodo Listen lo pasa al payload como "userName"): el chat del gemelo digital
+                // muestra la transcripción solo a este usuario
+                if (userName) h.set("Payload-UserName", userName);
                 natsClient.publish(natsSubject, new Uint8Array(buffer), { headers: h });
                 setStatus("Audio sent.");
                 setAudio(null);

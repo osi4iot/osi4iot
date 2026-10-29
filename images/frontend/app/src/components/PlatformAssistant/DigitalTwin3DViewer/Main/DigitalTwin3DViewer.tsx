@@ -15,7 +15,7 @@ import { Stage } from "../Utils/Stage";
 import Model from "./Model";
 import SetGltfObjects from "../Objects/SetGlftOjbects";
 import SimulationLegend from "../Utils/SimulationLegend";
-import ChatAssistant from "../ChatAssitant/ChatAssistant";
+import ChatAssistant, { LlmMessage } from "../ChatAssitant/ChatAssistant";
 import { createPipelineVoiceService } from "../ChatAssitant/voiceService";
 import PipelineLogs, { PipelineLog } from "../Pipeline/PipelineLogs";
 import DigitalTwinSimulatorModal from "../ViewerTools/DigitalTwinSimulatorModal";
@@ -53,6 +53,7 @@ import {
 // Handlers
 import { createHandlers } from "../Utils/handlers";
 import { useAuthDispatch, useAuthState } from "../../../../contexts/authContext";
+import { useLoggedUserLogin } from "../../../../contexts/authContext/authContext";
 import PipelineErrorBoundary from "../Pipeline/PipelineErrorBoundary";
 import { forgetViewer, getViewerMemory, rememberViewer } from "../../../../state/viewerMemoryStore";
 import {
@@ -532,7 +533,9 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
         if (natsClient && state.isChatAssistantOpen) {
             if (digitalTwinModelChatAssistantTopic) {
                 const natsSubject = digitalTwinModelChatAssistantTopic.natsSubject;
-                if (chatMessages.length !== 0 && chatMessages[chatMessages.length - 1].sender === "user") {
+                const lastMessage = chatMessages[chatMessages.length - 1];
+                // las preguntas de voz transcritas en el pipeline ya las ha enviado él al AI Agent
+                if (lastMessage && lastMessage.sender === "user" && lastMessage.source !== "pipeline") {
                     const messageToSend = JSON.stringify({
                         userName: chatMessages[chatMessages.length - 1].userName,
                         message: chatMessages[chatMessages.length - 1].message,
@@ -545,6 +548,42 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
             }
         }
     }, [natsClient, state.isChatAssistantOpen, chatMessages, digitalTwinModelChatAssistantTopic]);
+
+    // Pregunta de voz (sensor "Mobile audio", nota de voz de Telegram) transcrita por el pipeline: llega por
+    // llm2sim con el campo "transcription" y el pipeline ya la ha enviado al AI Agent, así que aquí solo se
+    // muestra, en todos los visores abiertos (la respuesta del AI Agent también les llega a todos). Antes la
+    // enviaba cada visor y, con el gemelo abierto en dos pestañas o dispositivos, el AI Agent contestaba dos
+    // veces. El chat se abre solo en el visor de quien la hizo. La suscripción NATS conserva el primer
+    // manejador, por eso el usuario se lee de una ref.
+    const loggedUserName = useLoggedUserLogin();
+    const loggedUserNameRef = useRef(loggedUserName);
+    loggedUserNameRef.current = loggedUserName;
+    const handleChatNatsMessage = useCallback(
+        (newMessage: LlmMessage) => {
+            if (newMessage.sender !== "user") {
+                handleUpdateChatAssistantMessages(newMessage);
+                return;
+            }
+            const text = (newMessage.message ?? "").trim();
+            if (text === "") return;
+            const author = newMessage.userName || loggedUserNameRef.current;
+            setChatMessages((prev) => [
+                ...prev,
+                {
+                    userName: author,
+                    message: text,
+                    sender: "user",
+                    time: new Date().toISOString(),
+                    mcpToolCalls: [],
+                    source: "pipeline",
+                },
+            ]);
+            if (author === loggedUserNameRef.current) {
+                setState((prev) => (prev.isChatAssistantOpen ? prev : { ...prev, isChatAssistantOpen: true }));
+            }
+        },
+        [handleUpdateChatAssistantMessages, setChatMessages, setState],
+    );
 
     useNatsSubscription(
         natsClient,
@@ -573,7 +612,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
                 digitalTwinState: resolveSetStateAction(digitalTwinState, prev.digitalTwinState),
             })),
         handleImageUrlChange,
-        handleUpdateChatAssistantMessages,
+        handleChatNatsMessage,
         handleUpdateLogMessages,
         handlePipelineStatusChange,
         handlePipelineLeaderReplicaIndexChange,

@@ -12,7 +12,8 @@ import { ASSET_TYPES_OPTIONS } from '../Utils/platformAssistantOptions';
 import { getAxiosInstance } from '../../../tools/axiosIntance';
 import axiosErrorHandler from '../../../tools/axiosErrorHandler';
 import SvgComponent from '../../Tools/SvgComponent';
-import { useFilePicker } from 'use-file-picker';
+import { useFilePicker } from '../../../tools/useFilePicker';
+import FileDrop from "../../Tools/FileDrop";
 import { setAssetTypesOptionToShow, useAssetTypesDispatch } from '../../../contexts/assetTypesOptions';
 import { IOrgManaged } from '../TableColumns/organizationsManagedColumns';
 import { generateAssetTypeMarker, cleanSvgString } from '../../../tools/generateAssetTypeMarker';
@@ -428,6 +429,13 @@ const CreateAssetType: FC<CreateAssetTypeProps> = ({
                                                     Select local file
                                                 </FileButton>
                                             </SelectDataFilenButtonContainer>
+                                            <FileDrop
+                                                accept={'.svg'}
+                                                onFiles={(files) => {
+                                                    clearIconSvgDataFile();
+                                                    void iconSvgFileParams.loadFiles(files);
+                                                }}
+                                            />
                                         </DataFileContainer>
                                     </FileSelectionContainer>
                                     </FormSection>
@@ -479,6 +487,13 @@ const CreateAssetType: FC<CreateAssetTypeProps> = ({
                                                             Select local file
                                                         </FileButton>
                                                     </SelectDataFilenButtonContainer>
+                                                    <FileDrop
+                                                        accept={'.svg'}
+                                                        onFiles={(files) => {
+                                                            clearMarkerSvgDataFile();
+                                                            void markerSvgFileParams.loadFiles(files);
+                                                        }}
+                                                    />
                                                 </DataFileContainer>
                                             </FileSelectionContainer>
                                             </FormSection>

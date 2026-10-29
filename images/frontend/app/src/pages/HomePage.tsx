@@ -7,6 +7,7 @@ import Header from "../components/Layout/Header";
 import { TOP_BAR_HEIGHT } from "../components/Layout/TopBar";
 import { getDomainName, getProtocol } from "../tools/tools";
 import { useMediaQuery } from "../tools/useMediaQuery";
+import { scrollbarStyle } from "../components/Tools/FormTools";
 import { Concept, CONCEPTS, useHeroStore } from "../components/HomeHero/heroState";
 
 // La escena 3D (three.js, postprocesado) se descarga aparte para no retrasar el resto de la aplicación
@@ -33,6 +34,9 @@ const Page = styled.main`
     background-color: ${colors.page};
     color: ${colors.ink};
     overflow: hidden;
+
+    /* barra de desplazamiento (pantallas estrechas) con el estilo del resto de la plataforma */
+    ${scrollbarStyle}
 
     @media (max-width: ${NARROW}px) {
         overflow-y: auto;
@@ -287,8 +291,14 @@ const Hint = styled.p`
 
 const Credits = styled.div`
     display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
     align-items: center;
-    gap: 12px;
+    gap: 6px 12px;
+
+    @media (max-width: ${NARROW}px) {
+        justify-content: flex-start;
+    }
 
     a {
         color: inherit;
@@ -437,6 +447,7 @@ const HomePage: FC<{}> = () => {
                         </GithubLink>
                         <span>Powered by Aula CIMNE-EEBE</span>
                         <a href="mailto:dicapua@cimne.upc.edu">dicapua@cimne.upc.edu</a>
+                        <a href="mailto:rafael.pacheco@upc.edu">rafael.pacheco@upc.edu</a>
                     </Credits>
                 </Aside>
             </Page>

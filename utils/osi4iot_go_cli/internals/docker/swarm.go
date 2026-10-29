@@ -471,7 +471,7 @@ func StopPlatform(platformData *pt.PlatformData) error {
 	// is up.
 	leaders := patroniLeaders(platformData, docker)
 	done := make(chan bool)
-	utils.Spinner("Stopping the platform's services", "", done)
+	utils.Spinner("Stopping the platform services", "", done)
 	if err := removeSwarmServicesInOrder(docker, leaders); err != nil {
 		done <- false
 		return fmt.Errorf("error stopping services: %v", err)

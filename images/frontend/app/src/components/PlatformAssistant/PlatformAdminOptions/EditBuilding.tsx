@@ -5,7 +5,8 @@ import centerOfMass from '@turf/center-of-mass';
 import { polygon } from '@turf/helpers';
 import { Formik, Form } from 'formik';
 import * as Yup from 'yup';
-import { useFilePicker } from 'use-file-picker';
+import { useFilePicker } from '../../../tools/useFilePicker';
+import FileDrop from "../../Tools/FileDrop";
 import { axiosAuth, getDomainName, getProtocol } from "../../../tools/tools";
 import { useAuthDispatch, useAuthState } from "../../../contexts/authContext";
 import { toast } from "react-toastify";
@@ -353,6 +354,13 @@ const EditBuilding: FC<EditBuildingProps> = ({ buildings, backToTable, refreshBu
                                                         Select local file
                                                     </FileButton>
                                                 </SelectDataFilenButtonContainer>
+                                                <FileDrop
+                                                    accept={'.geojson'}
+                                                    onFiles={(files) => {
+                                                        clearBuildingDataFile();
+                                                        void buildingFileParams.loadFiles(files);
+                                                    }}
+                                                />
                                             </DataFileContainer>
                                             </FormSection>
                                         </BuildingLocationContainer>

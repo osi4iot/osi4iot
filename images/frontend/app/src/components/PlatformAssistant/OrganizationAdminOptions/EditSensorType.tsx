@@ -12,7 +12,8 @@ import { SENSOR_TYPES_OPTIONS } from '../Utils/platformAssistantOptions';
 import { getAxiosInstance } from '../../../tools/axiosIntance';
 import axiosErrorHandler from '../../../tools/axiosErrorHandler';
 import SvgComponent from '../../Tools/SvgComponent';
-import { useFilePicker } from 'use-file-picker';
+import { useFilePicker } from '../../../tools/useFilePicker';
+import FileDrop from "../../Tools/FileDrop";
 import {
     useSensorTypesDispatch,
     useSensorTypeIdToEdit,
@@ -376,6 +377,13 @@ const EditSensorType: FC<EditSensorTypeProps> = ({
                                                     Select local file
                                                 </FileButton>
                                             </SelectDataFilenButtonContainer>
+                                            <FileDrop
+                                                accept={'.svg'}
+                                                onFiles={(files) => {
+                                                    clearIconSvgDataFile();
+                                                    void iconSvgFileParams.loadFiles(files);
+                                                }}
+                                            />
                                         </DataFileContainer>
                                     </FileSelectionContainer>
                                     </FormSection>

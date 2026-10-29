@@ -1,7 +1,7 @@
 import React, { FC, useState, useEffect, ComponentType } from "react";
 import { Field, FieldArray, ErrorMessage } from 'formik';
 import styled from "styled-components";
-import { useFilePicker } from 'use-file-picker';
+import { useFilePicker } from '../../tools/useFilePicker';
 import { Options } from "react-select";
 import TextError from "./TextError";
 import { FaTrashAlt } from "react-icons/fa";

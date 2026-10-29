@@ -23,7 +23,8 @@ import FormButtonsProps from "../../Tools/FormButtons";
 import FormTitle from "../../Tools/FormTitle";
 import { DIGITAL_TWINS_OPTIONS } from "../Utils/platformAssistantOptions";
 import { setDigitalTwinsOptionToShow, useDigitalTwinsDispatch } from "../../../contexts/digitalTwinsOptions";
-import { useFilePicker } from "use-file-picker";
+import { useFilePicker } from "../../../tools/useFilePicker";
+import FileDrop from "../../Tools/FileDrop";
 import formatDateString from "../../../tools/formatDate";
 import { getAxiosInstance } from "../../../tools/axiosIntance";
 import axiosErrorHandler from "../../../tools/axiosErrorHandler";
@@ -33,7 +34,9 @@ import { IAsset } from "../TableColumns/assetsColumns";
 import { AxiosError, AxiosResponse } from "axios";
 import KnowledgeDocumentsSelector from "./KnowledgeDocumentsSelector";
 
-import JsonFileField, { mustBeObject } from "../../Tools/JsonFileField";
+import JsonFileField, { loadJsonDocument, mustBeObject } from "../../Tools/JsonFileField";
+import MultiFileLoader from "../../Tools/MultiFileLoader";
+import { digitalTwinFileTargets } from "./digitalTwinFileTargets";
 import { ControlsContainer, DraggableFormContainer, FormSection } from "../../Tools/FormTools";
 import { assetOptions, sortAssetNamesByDescription } from "../../../tools/tools";
 
@@ -299,6 +302,8 @@ interface IFormikValues {
     chatAssistantLanguage: string;
     pipelineRequiresGpu: boolean;
     digitalTwinSimulationFormat: string;
+    digitalTwinSimulationFormatFileName: string;
+    digitalTwinSimulationFormatLastModifDate: string;
 }
 
 export type ObjectMap = {
@@ -646,6 +651,8 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
             chatAssistantEnabled: values.chatAssistantEnabled,
             chatAssistantLanguage,
             digitalTwinSimulationFormat: JSON.stringify(JSON.parse(values.digitalTwinSimulationFormat)),
+            digitalTwinSimulationFormatFileName: values.digitalTwinSimulationFormatFileName,
+            digitalTwinSimulationFormatLastModifDate: values.digitalTwinSimulationFormatLastModifDate,
             sensorsRef,
             knowledgeDocuments,
         };
@@ -820,6 +827,8 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
         pipelineRequiresGpu: false,
         chatAssistantLanguage: "en-UK-male",
         digitalTwinSimulationFormat: "{}",
+        digitalTwinSimulationFormatFileName: "-",
+        digitalTwinSimulationFormatLastModifDate: "-",
     };
 
     return (
@@ -885,6 +894,13 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
                                                 Select local file
                                             </FileButton>
                                         </SelectDataFilenButtonContainer>
+                                        <FileDrop
+                                            accept={".yml, .yaml"}
+                                            onFiles={(files) => {
+                                                clearPipelineFile();
+                                                void pipelineFileParams.loadFiles(files);
+                                            }}
+                                        />
                                         {gpuUsageEnabledInOrg && gpuUsageEnabledInGroup && (
                                             <SubSection>
                                                 <FormikControl
@@ -905,6 +921,26 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
                                         options={digitalTwinTypeOptions}
                                         type="text"
                                         onChange={(e) => onDigitalTwinTypeSelectChange(e, formik)}
+                                    />
+                                    <MultiFileLoader
+                                        description="All the files of this digital twin at once: Ctrl+click in the dialog, or drop them here."
+                                        targets={digitalTwinFileTargets({
+                                            digitalTwinType,
+                                            pipeline: pipelineFileParams,
+                                            clearPipeline: clearPipelineFile,
+                                            gltf: gltfFileParams,
+                                            clearGltf: clearGltfDataFile,
+                                            femResults: femResFileParams,
+                                            clearFemResults: clearFemResFile,
+                                            loadSimulationFormat: (file) =>
+                                                void loadJsonDocument(file, mustBeObject).then((doc) => {
+                                                    if (!doc) return;
+                                                    void formik.setFieldValue("digitalTwinSimulationFormat", doc.text);
+                                                    void formik.setFieldTouched("digitalTwinSimulationFormat", true, false);
+                                                    void formik.setFieldValue("digitalTwinSimulationFormatFileName", doc.fileName, false);
+                                                    void formik.setFieldValue("digitalTwinSimulationFormatLastModifDate", doc.lastModified, false);
+                                                }),
+                                        })}
                                     />
                                     {(digitalTwinType === "Gltf 3D model" || digitalTwinType === "Glb 3D model") && (
                                         <>
@@ -929,6 +965,13 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
                                                         Select local file
                                                     </FileButton>
                                                 </SelectDataFilenButtonContainer>
+                                                <FileDrop
+                                                    accept={digitalTwinType === "Gltf 3D model" ? ".gltf" : ".glb"}
+                                                    onFiles={(files) => {
+                                                        clearGltfDataFile();
+                                                        void gltfFileParams.loadFiles(files);
+                                                    }}
+                                                />
                                             </Container>
                                             </FormSection>
                                             <FormSection title="FEM results file">
@@ -958,6 +1001,13 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
                                                         Select local file
                                                     </FileButton>
                                                 </SelectDataFilenButtonContainer>
+                                                <FileDrop
+                                                    accept={".json"}
+                                                    onFiles={(files) => {
+                                                        clearFemResFile();
+                                                        void femResFileParams.loadFiles(files);
+                                                    }}
+                                                />
                                             </Container>
                                             </FormSection>
                                             {(() => {
@@ -1007,8 +1057,10 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
                                             <JsonFileField
                                                 name="digitalTwinSimulationFormat"
                                                 label="Digital twin simulation format"
-                                                initialSourceLabel="Default (empty)"
-                                                resetValue="{}"
+                                                initialSourceLabel="-"
+                                                clearValue="{}"
+                                                fileNameField="digitalTwinSimulationFormatFileName"
+                                                lastModifiedField="digitalTwinSimulationFormatLastModifDate"
                                                 downloadFileName="digital_twin_simulation_format.json"
                                                 check={mustBeObject}
                                             />
@@ -1033,4 +1085,3 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
 };
 
 export default CreateDigitalTwin;
-

@@ -43,6 +43,7 @@ import { predefinedSensorTypes, systemMonitoringSensorTypes } from "./predefined
 import process_env from "../config/api_config";
 import { ensureKnowledgeTables } from "./knowledgeTables";
 import { ensureAssetDescriptionIndex } from "./assetDescriptionIndex";
+import { ensureDigitalTwinSimulationFormatFile } from "./digitalTwinSimulationFormatFile";
 
 export const dataBaseInitialization = async () => {
 	const timescaledb_pool = new Pool({
@@ -137,18 +138,6 @@ export const dataBaseInitialization = async () => {
 				const message = err instanceof Error ? err.message : String(err);
 				logger.log("error", "The S3 bucket for the platform can not be created: %s", message);
 				process.exit(1);
-			}
-
-			// Sensor types have no marker (only asset types do: a sensor is
-			// drawn around its asset, never as a marker of its own). The
-			// columns of older platforms go.
-			try {
-				await postgresClient.query(`ALTER TABLE IF EXISTS grafanadb.sensor_type
-					DROP COLUMN IF EXISTS marker_svg_file_name,
-					DROP COLUMN IF EXISTS marker_svg_string;`);
-			} catch (err) {
-				const message = err instanceof Error ? err.message : String(err);
-				logger.log("error", `The marker columns of grafanadb.sensor_type could not be removed: %s`, message);
 			}
 
 			if (Number(result0.rows[0].count) !== 0) {
@@ -1013,6 +1002,7 @@ export const dataBaseInitialization = async () => {
 				}
 
 				await ensureKnowledgeTables(postgresClient);
+				await ensureDigitalTwinSimulationFormatFile(postgresClient);
 
 				const tableDigitalTwinTopic = "grafanadb.digital_twin_topic";
 				const queryStringDigitalTwinTopic = `
@@ -1490,6 +1480,7 @@ export const dataBaseInitialization = async () => {
 			} else {
 				await ensureKnowledgeTables(postgresClient);
 				await ensureAssetDescriptionIndex(postgresClient);
+				await ensureDigitalTwinSimulationFormatFile(postgresClient);
 
 				try {
 					const queryViews = `SELECT table_name from INFORMATION_SCHEMA.views WHERE table_schema = 'iot_datasource';`;

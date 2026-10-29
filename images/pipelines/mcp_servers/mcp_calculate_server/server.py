@@ -28,6 +28,7 @@ Example expressions:
     "integrate(exp(-x**2)*sin(x), (x, -oo, oo))"  # Complex integral
     "solve([x**2 + y**2 - 1, x + y - 1], [x, y])"  # Solve system of equations
     "Matrix([[1, 2, 3], [4, 5, 6], [7, 8, 9]]).eigenvals()"  # Matrix eigenvalues
+    "Matrix([[10, 2], [2, 5]]).eigenvects()"  # Eigenvalues and unit eigenvectors: numerical, in one call, for a numeric matrix
 Returns:
     str: Calculation result. If the expression cannot be parsed or computed, returns an error message (str).
 """
@@ -152,6 +153,13 @@ def handle_matrix_eigenvalues(expression, locals_dict):
         # Compute matrix
         matrix = eval(matrix_expr, globals(), locals_dict)
 
+        # A numeric matrix gets a numerical answer. The exact one of a 3x3 or
+        # larger matrix is a page of nested radicals with spurious imaginary
+        # parts (0.e-20*I), which the AI agents could not use and kept
+        # retrying with other expressions.
+        if isinstance(matrix, sp.MatrixBase) and not matrix.free_symbols:
+            return numeric_eigen(matrix, vectors=(operation == "eigenvects"))
+
         # Compute eigenvalues or eigenvectors
         if operation == "eigenvals":
             result = matrix.eigenvals()
@@ -164,7 +172,80 @@ def handle_matrix_eigenvalues(expression, locals_dict):
     except Exception as e:
         return f"Matrix eigenvalue calculation error: {e}"
 
+
+# Significant digits of the numerical results
+DIGITS = 10
+# Longest result returned as is: longer ones are evaluated numerically or cut
+MAX_RESULT_LENGTH = 4000
+
+
+def _clean_number(value):
+    """A sympy number with DIGITS significant digits, without spurious imaginary parts"""
+    value = sp.N(value, DIGITS + 5, chop=True)
+    real, imag = value.as_real_imag()
+    scale = max(abs(real), abs(imag), 1)
+    if abs(imag) < 1e-10 * scale:
+        return sp.Float(real, DIGITS)
+    return sp.Float(real, DIGITS) + sp.Float(imag, DIGITS) * sp.I
+
+
+def numeric_eigen(matrix, vectors=True):
+    """Eigenvalues (and unit eigenvectors) of a numeric matrix, sorted by eigenvalue"""
+    m = sp.Matrix(matrix).evalf(DIGITS + 5)
+    if m.rows != m.cols:
+        return f"Error: the matrix is {m.rows}x{m.cols}, it must be square"
+
+    pairs = []
+    for value, multiplicity, basis in m.eigenvects():
+        value = _clean_number(value)
+        for vector in basis:
+            norm = sp.sqrt(sum(abs(c) ** 2 for c in vector))
+            unit = [_clean_number(c / norm) for c in vector]
+            # sign convention: the largest component is positive
+            largest = max(unit, key=lambda c: abs(complex(c)))
+            if complex(largest).real < 0:
+                unit = [-c for c in unit]
+            pairs.append((value, multiplicity, unit))
+    pairs.sort(key=lambda p: (complex(p[0]).real, complex(p[0]).imag))
+
+    symmetric = m.is_symmetric()
+    lines = []
+    if vectors:
+        lines.append("Eigenvalues and unit eigenvectors (numerical, sorted by eigenvalue):")
+        for i, (value, multiplicity, unit) in enumerate(pairs, 1):
+            mult = f" (multiplicity {multiplicity})" if multiplicity > 1 else ""
+            lines.append(f"lambda_{i} = {value}{mult}; v_{i} = [{', '.join(str(c) for c in unit)}]")
+        if all(complex(v).imag == 0 and all(complex(c).imag == 0 for c in u) for v, _, u in pairs):
+            lines.append("Each eigenvector is defined up to its sign (here its largest component is positive).")
+    else:
+        values = []
+        for value, multiplicity, _ in pairs:
+            if not values or values[-1][0] != value:
+                values.append((value, multiplicity))
+        lines.append("Eigenvalues (numerical, sorted): " + ", ".join(
+            f"{v}" + (f" (multiplicity {m_})" if m_ > 1 else "") for v, m_ in values))
+    if symmetric:
+        lines.append("The matrix is symmetric: its eigenvalues are real and its eigenvectors orthogonal.")
+    return "\n".join(lines)
+
+
 def format_result(result):
+    """Format output based on result type (cut to MAX_RESULT_LENGTH)"""
+    text = _format_result(result)
+    if len(text) <= MAX_RESULT_LENGTH:
+        return text
+    # too long (usually exact radicals): the numerical value, if it has one
+    try:
+        numeric = _format_result(sp.N(result, DIGITS, chop=True))
+        if len(numeric) <= MAX_RESULT_LENGTH:
+            return "Numerical result (the exact one is too long): " + numeric
+    except Exception:
+        pass
+    return (text[:MAX_RESULT_LENGTH] + f"... [cut: the result has {len(text)} characters; "
+            "evaluate it numerically with .evalf() or simplify the expression]")
+
+
+def _format_result(result):
     """Format output based on result type"""
     try:
         # Handle dictionary type results (e.g., eigenvalues)
@@ -173,7 +254,7 @@ def format_result(result):
             for key, value in result.items():
                 # Try numerical computation
                 try:
-                    key_eval = key.evalf()
+                    key_eval = key.evalf(chop=True)
                 except:
                     key_eval = key
 
@@ -195,7 +276,7 @@ def format_result(result):
                     for val in item:
                         # Try numerical computation
                         try:
-                            val_eval = val.evalf()
+                            val_eval = val.evalf(chop=True)
                             coords.append(str(val_eval))
                         except:
                             coords.append(str(val))
@@ -204,7 +285,7 @@ def format_result(result):
                 else:
                     # Try numerical computation
                     try:
-                        item_eval = item.evalf()
+                        item_eval = item.evalf(chop=True)
                         formatted += f"{item_eval}, "
                     except:
                         formatted += f"{item}, "
@@ -219,7 +300,7 @@ def format_result(result):
         else:
             # Try numerical computation
             try:
-                return str(result.evalf())
+                return str(result.evalf(chop=True))
             except:
                 return str(result)
 

@@ -165,6 +165,9 @@ export interface ChatMessage {
     sender: "user" | "assistant" | "system";
     mcpToolCalls: McpToolCall[];
     time: string;
+    // "pipeline": pregunta de voz (sensor "Mobile audio", nota de voz de Telegram) transcrita en el pipeline, que
+    // ya la ha enviado al AI Agent: el visor solo la muestra
+    source?: "pipeline";
 }
 
 export interface IPipelineNode {

@@ -3,7 +3,8 @@ import { reloadTable, useTable } from "../../../state";
 import styled from "styled-components";
 import { Formik, Form, FormikProps } from "formik";
 import * as Yup from "yup";
-import { useFilePicker } from "use-file-picker";
+import { useFilePicker } from "../../../tools/useFilePicker";
+import FileDrop from "../../Tools/FileDrop";
 import { useAuthState, useAuthDispatch } from "../../../contexts/authContext";
 import { axiosAuth, getDomainName, getProtocol } from "../../../tools/tools";
 import { toast } from "react-toastify";
@@ -606,6 +607,14 @@ const EditMlModel: FC<EditMlModelProps> = ({ mlModels, backToTable, refreshMlMod
                                                             Select local files
                                                         </FileButton>
                                                     </SelectDataFilesButtonContainer>
+                                                    <FileDrop
+                                                        multiple
+                                                        accept={[".json", ".bin"]}
+                                                        onFiles={(files) => {
+                                                            clearTensorflowDataFile();
+                                                            void tensorflowFilesParams.loadFiles(files);
+                                                        }}
+                                                    />
                                                 </DataFileContainer>
                                             )}
                                             {mlLibrary === "ScikitLearn" && (
@@ -629,6 +638,13 @@ const EditMlModel: FC<EditMlModelProps> = ({ mlModels, backToTable, refreshMlMod
                                                             Select local file
                                                         </FileButton>
                                                     </SelectDataFilesButtonContainer>
+                                                    <FileDrop
+                                                        accept={[".pkl"]}
+                                                        onFiles={(files) => {
+                                                            clearScikitLearnDataFile();
+                                                            void scikitLearnFileParams.loadFiles(files);
+                                                        }}
+                                                    />
                                                 </DataFileContainer>
                                             )}
                                             {mlLibrary === "Onnx" && (
@@ -652,6 +668,13 @@ const EditMlModel: FC<EditMlModelProps> = ({ mlModels, backToTable, refreshMlMod
                                                             Select local file
                                                         </FileButton>
                                                     </SelectDataFilesButtonContainer>
+                                                    <FileDrop
+                                                        accept={[".onnx"]}
+                                                        onFiles={(files) => {
+                                                            clearOnnxDataFile();
+                                                            void onnxFileParams.loadFiles(files);
+                                                        }}
+                                                    />
                                                 </DataFileContainer>
                                             )}
                                             </FormSection>

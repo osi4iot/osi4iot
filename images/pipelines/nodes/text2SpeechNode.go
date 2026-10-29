@@ -383,12 +383,6 @@ func (n *Text2SpeechNode) synthesizeOpenAI(ctx context.Context, text string) ([]
 	return respBody, nil
 }
 
-// synthesizeEdgeTTS uses the edge-tts Go library to stream audio from
-// Microsoft Edge's speech service and reassemble it into a single []byte.
-func (n *Text2SpeechNode) synthesizeEdgeTTS(ctx context.Context, text string) ([]byte, error) {
-	return n.synthesizeEdgeTTSWithVoice(ctx, text, n.Voice)
-}
-
 // synthesizeEdgeTTSWithVoice is synthesizeEdgeTTS with a given voice (ShortName).
 func (n *Text2SpeechNode) synthesizeEdgeTTSWithVoice(ctx context.Context, text, voice string) ([]byte, error) {
 	ctx, cancel := context.WithTimeout(ctx, edgeTTSTimeout)
