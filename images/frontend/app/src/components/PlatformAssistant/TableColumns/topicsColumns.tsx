@@ -28,11 +28,8 @@ export interface ITopic {
     description: string;
     topicUid: string;
     mqttAccessControl: string;
-    payloadJsonSchema: string;
-    requireS3Storage: boolean;
-    requireS3StorageString: string;
-	s3Folder: string;
-	parquetSchema: string;
+    messageSchema: string;
+    messageSchemaVersion: number;
 }
 
 export interface IMobileTopic {
@@ -238,10 +235,11 @@ export const Create_TOPICS_COLUMNS = (refreshTopics: () => void): Column<ITopicC
             disableSortBy: true
         },
         {
-            Header: "S3 storage",
-            accessor: "requireS3StorageString",
+            Header: () => <div style={{ backgroundColor: '#202226' }}>Schema<br />version</div>,
+            accessor: "messageSchemaVersion",
             disableFilters: true,
-        },  
+            Cell: (props: { value?: number }) => <span>{props.value !== undefined ? `v${props.value}` : "-"}</span>
+        },
         {
             Header: () => <div style={{ backgroundColor: '#202226' }}>Change<br />hash</div>,
             accessor: "changeTopicHash",

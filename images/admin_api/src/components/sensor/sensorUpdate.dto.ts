@@ -1,4 +1,4 @@
-import { IsNumber, IsString } from "class-validator";
+import { IsNumber, IsOptional, IsString } from "class-validator";
 
 class UpdateSensorDto {
 	@IsNumber()
@@ -10,8 +10,15 @@ class UpdateSensorDto {
 	@IsNumber()
 	public sensorTypeId: number;
 
+	// Fields it measures, with label and units (see utils/measurements.ts)
+	@IsOptional()
 	@IsString()
-	public payloadJsonSchema: string;
+	public measurements?: string;
+
+	// Obsoleto (versiones anteriores, mismo contenido como JSON schema): se convierte a measurements
+	@IsOptional()
+	@IsString()
+	public payloadJsonSchema?: string;
 }
 
 export default UpdateSensorDto;

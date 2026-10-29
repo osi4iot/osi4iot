@@ -15,7 +15,7 @@ export default interface ISensor {
 	description: string;
 	dashboardId: number;
 	dashboardUrl: string;
-	payloadJsonSchema: string;
+	measurements: string;
 	created?: string;
 	updated?: string;
 }

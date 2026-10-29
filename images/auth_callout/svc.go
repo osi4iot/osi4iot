@@ -80,6 +80,8 @@ func (s *Service) ServicePermissions(authModel *AuthModel) jwt.Permissions {
 		Pub: jwt.Permission{
 			Allow: []string{
 				"_INBOX.*.*",
+				// respuestas a usuarios de la plataforma, que piden con su buzón propio (inbox.go)
+				"_INBOX_U_*.>",
 				fmt.Sprintf("%s.*", svcHash),
 			},
 		},

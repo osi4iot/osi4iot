@@ -141,9 +141,7 @@ const digitalTwinsTransform = async (digitalTwins: IDigitalTwin[]) => {
 
 const topicsTransform = (topics: ITopic[]) =>
     topics.map((topic: any) => {
-        topic.payloadJsonSchema = JSON.stringify(topic.payloadJsonSchema);
-        topic.parquetSchema = JSON.stringify(topic.parquetSchema);
-        topic.requireS3StorageString = topic.requireS3Storage ? "yes" : "no";
+        topic.messageSchema = JSON.stringify(topic.messageSchema ?? {});
         return topic as ITopic;
     });
 

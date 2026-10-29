@@ -167,20 +167,21 @@ export const getDuringSensorMeasurementsWithPagination = async (
 	payloadKey: string
 ): Promise<IMeasurement[]> => {
 	const offset = pageIndex * itemsPerPage;
+	// la clave va como parámetro; el nombre de la columna, entre comillas dobles escapadas
 	const queryString =
 		`SELECT ${timestampAsString},
-		topic, payload->>'${payloadKey}' AS "${payloadKey}"
+		topic, payload->>$7 AS "${payloadKey.replace(/"/g, '""')}"
 		FROM iot_data.thingData
 		WHERE group_uid = $1 AND
 		topic = $2 AND
 		timestamp >= $3 AND
 		timestamp <= $4 AND
-		payload->>'${payloadKey}' IS NOT NULL
+		payload->>$7 IS NOT NULL
 		ORDER BY timestamp DESC
 		LIMIT $5
 		OFFSET  $6;`
 	const response = await timescaledbReadQuery(queryString
-		, [groupUid, topic, start, end, itemsPerPage, offset]);
+		, [groupUid, topic, start, end, itemsPerPage, offset, payloadKey]);
 
 	return response.rows as IMeasurement[];
 };
@@ -232,9 +233,9 @@ export const getTotalRowsDuringSensorMeasurements = async (
 		topic = $2 AND
 		timestamp >= $3 AND
 		timestamp <= $4 AND
-		payload->>'${payloadKey}' IS NOT NULL`;
+		payload->>$5 IS NOT NULL`;
 	const response = await timescaledbReadQuery(queryString,
-		[groupUid, topic, start, end]);
+		[groupUid, topic, start, end, payloadKey]);
 	return response.rows[0].count as number;
 };
 
@@ -275,6 +276,3 @@ export const deleteSensorMeasurementsBeforeSomeDate = async (
 	const responses = await Promise.all(deleteQueries);
 	return responses.length;
 }
-
-
-

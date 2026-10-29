@@ -1,5 +1,6 @@
 import { wsconnect, type NatsConnection } from "@nats-io/nats-core";
 import { StringCodec } from "./natsCodec";
+import { natsInboxPrefix } from "./natsInbox";
 import { getDomainName, getNatsSeedServers } from "./tools";
 
 const sc = StringCodec();
@@ -17,6 +18,8 @@ const NatsConnect = async (
 			servers: urls,
 			user: `jwt_${userName}`,
 			pass: accessToken,
+			// buzón propio para request/reply (auth_callout solo le permite este)
+			inboxPrefix: natsInboxPrefix(userName),
 		});
 
 		setIsNatsConnected(true);

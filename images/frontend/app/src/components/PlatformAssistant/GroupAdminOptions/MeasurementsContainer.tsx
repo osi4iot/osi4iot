@@ -19,6 +19,8 @@ import SelectSensor from './SelectSensor';
 import { ISelectSensor } from '../TableColumns/selectSensorColumns';
 import { AxiosError, AxiosResponse } from 'axios';
 import { Column } from '../Utils/platformTable';
+import { sensorPayloadKey } from "../../../tools/measurements";
+import { useTable } from "../../../state";
 
 const giveMeasurementSensor = (selectedSensor: ISensor) => {
     const topicUid = selectedSensor.topicUid;
@@ -50,6 +52,9 @@ const MeasurementsContainer: FC<MeasurementsContainerProps> = ({ sensors, topics
 
     const groupId = selectedSensor.groupId;
     const measurementTopic = useMemo(() => giveMeasurementSensor(selectedSensor), [selectedSensor]);
+    const sensorTypes = useTable("sensorTypes");
+    // campo de los mensajes que se muestra: el primero que mide el sensor (o su tipo)
+    const payloadKey = useMemo(() => sensorPayloadKey(selectedSensor, sensorTypes), [selectedSensor, sensorTypes]);
 
     const updateMeasurementsTable = (measurementsTable: IMeasurement[]) => {
         setMeasurementsTable(measurementsTable);
@@ -61,6 +66,7 @@ const MeasurementsContainer: FC<MeasurementsContainerProps> = ({ sensors, topics
             let urlMeasurements = `${protocol}://${domainName}/admin_api/sensor_measurements_pagination/${groupId}`;
             const paginationData = {
                 sensorId: selectedSensor.id,
+                payloadKey,
                 startDate,
                 endDate,
                 pageIndex,
@@ -71,10 +77,14 @@ const MeasurementsContainer: FC<MeasurementsContainerProps> = ({ sensors, topics
                 .post(urlMeasurements, paginationData, config)
                 .then((response: AxiosResponse<any, any>) => {
                     const measurements = response.data;
-                    const payloadKey = selectedSensor.payloadJsonSchema;
                     measurements.map((measurement: any) => {
                         const payload: Record<string, string> = {};
-                        payload[payloadKey] = JSON.parse(measurement[payloadKey]);
+                        const value = measurement[payloadKey];
+                        try {
+                            payload[payloadKey] = JSON.parse(value);
+                        } catch {
+                            payload[payloadKey] = value;
+                        }
                         measurement.payload = JSON.stringify(payload);
                         return measurement;
                     })
@@ -96,6 +106,7 @@ const MeasurementsContainer: FC<MeasurementsContainerProps> = ({ sensors, topics
             accessToken,
             groupId,
             selectedSensor,
+            payloadKey,
             startDate,
             endDate,
             refreshToken,
@@ -139,12 +150,12 @@ const MeasurementsContainer: FC<MeasurementsContainerProps> = ({ sensors, topics
     const columnsTable = useMemo(() => Create_MEASUREMENTS_COLUMNS(
         selectedSensor.groupId,
         measurementTopic,
-        selectedSensor.payloadJsonSchema,
+        payloadKey,
         refreshMeasurements
     ),
         [
             selectedSensor.groupId,
-            selectedSensor.payloadJsonSchema,
+            payloadKey,
             measurementTopic,
             refreshMeasurements
         ]

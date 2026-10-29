@@ -102,25 +102,11 @@ const mqttAccessControlOptions = [
     },
 ];
 
-const requireS3StorateOptions = [
-    {
-        label: "Yes",
-        value: "yes",
-    },
-    {
-        label: "No",
-        value: "no",
-    },
-];
-
 interface IFormikValues {
     topicType: string;
     description: string;
     mqttAccessControl: string;
     payloadJsonSchema: string;
-    requireS3StorageString: string;
-    s3Folder: string;
-    parquetSchema: string;
 }
 
 type FormikType = FormikProps<IFormikValues>;
@@ -149,7 +135,6 @@ const EditTopic: FC<EdiTopicProps> = ({ topics, backToTable, refreshTopics }) =>
     const orgsOfGroupsManaged = useTable("orgsOfGroupsManaged");
     const organization = orgsOfGroupsManaged.filter((org) => org.id === orgId)[0];
     const orgAcronym = organization.acronym;
-    const [requireS3Storage, setRequireS3Storage] = useState(topics[topicRowIndex].requireS3Storage);
 
     const onSubmit = (values: any, actions: any) => {
         const url = `${protocol}://${domainName}/admin_api/topic/${groupId}/${topicId}`;
@@ -161,9 +146,6 @@ const EditTopic: FC<EdiTopicProps> = ({ topics, backToTable, refreshTopics }) =>
             description: values.description,
             mqttAccessControl: values.mqttAccessControl,
             payloadJsonSchema: values.payloadJsonSchema,
-            requireS3Storage: requireS3Storage,
-            s3Folder: values.s3Folder,
-            parquetSchema: values.parquetSchema,
         };
 
         getAxiosInstance(refreshToken, authDispatch)
@@ -189,34 +171,17 @@ const EditTopic: FC<EdiTopicProps> = ({ topics, backToTable, refreshTopics }) =>
         description: topics[topicRowIndex].description,
         mqttAccessControl: topics[topicRowIndex].mqttAccessControl,
         payloadJsonSchema: JSON.stringify(JSON.parse(topics[topicRowIndex].payloadJsonSchema), null, 4),
-        requireS3StorageString: topics[topicRowIndex].requireS3Storage ? "yes" : "no",
-        s3Folder: topics[topicRowIndex].s3Folder,
-        parquetSchema: JSON.stringify(JSON.parse(topics[topicRowIndex].parquetSchema), null, 4),
     };
 
     const validationSchema = Yup.object().shape({
         topicType: Yup.string().max(40, "The maximum number of characters allowed is 40").required("Required"),
         description: Yup.string().max(190, "The maximum number of characters allowed is 190").required("Required"),
         payloadJsonSchema: Yup.string().required("Required"),
-        requireS3StorageString: Yup.string().required("Required"),
-        s3Folder: Yup.string().when("requireS3StorageString", {
-            is: "yes",
-            then: (schema) => schema.required("Must enter maxNumResFemFiles"),
-        }),
-        parquetSchema: Yup.string().when("requireS3StorageString", {
-            is: "yes",
-            then: (schema) => schema.required("Must enter maxNumResFemFiles"),
-        }),
     });
 
     const onCancel = (e: SyntheticEvent) => {
         e.preventDefault();
         backToTable();
-    };
-
-    const onRequireS3StorageSelectChange = (e: { value: string }, formik: FormikType) => {
-        setRequireS3Storage(e.value === "yes" ? true : false);
-        formik.setFieldValue("requireS3StorageString", e.value);
     };
 
     return (
@@ -285,30 +250,6 @@ const EditTopic: FC<EdiTopicProps> = ({ topics, backToTable, refreshTopics }) =>
                                     </div>
                                     <FieldErrorScroller name="payloadJsonSchema" />
                                 </CodeMirrorWrapper>
-                                <FormikControl
-                                    control="select"
-                                    label="Require S3 storage"
-                                    name="requireS3StorageString"
-                                    options={requireS3StorateOptions}
-                                    type="text"
-                                    onChange={(e) => onRequireS3StorageSelectChange(e, formik)}
-                                />
-                                {requireS3Storage && (
-                                    <>
-                                        <FormikControl
-                                            control="input"
-                                            label="S3 folder name"
-                                            name="s3Folder"
-                                            type="text"
-                                        />
-                                        <FormikControl
-                                            control="textarea"
-                                            label="Parquet schema"
-                                            name="parquetSchema"
-                                            textAreaSize="Small"
-                                        />
-                                    </>
-                                )}
                             </ControlsContainer>
                             <FormButtonsProps
                                 onCancel={onCancel}

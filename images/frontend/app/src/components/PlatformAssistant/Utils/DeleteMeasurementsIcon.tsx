@@ -9,6 +9,8 @@ import { getAxiosInstance } from '../../../tools/axiosIntance';
 import axiosErrorHandler from '../../../tools/axiosErrorHandler';
 import { ISensor } from "../TableColumns/sensorsColumns";
 import { AxiosResponse, AxiosError } from "axios";
+import { sensorPayloadKey } from "../../../tools/measurements";
+import { useTable } from "../../../state";
 
 const domainName = getDomainName();
 const protocol = getProtocol();
@@ -49,6 +51,7 @@ const DeleteMeasurementsIcon: FC<DeleteMeasurementsIconProps> = ({ measurementTo
     const { accessToken, refreshToken } = useAuthState();
     const authDispatch = useAuthDispatch();
     const groupId = selectedSensor.groupId;
+    const sensorTypes = useTable("sensorTypes");
     const width = 380;
     const height = 560;
     const [selectedDate, setSelectedDate] = useState(new Date());
@@ -67,7 +70,7 @@ const DeleteMeasurementsIcon: FC<DeleteMeasurementsIconProps> = ({ measurementTo
         const payload = {
             deleteDate,
             topic: measurementTopic,
-            payloadKey: selectedSensor.payloadJsonSchema
+            payloadKey: sensorPayloadKey(selectedSensor, sensorTypes)
         }
         const url = `${protocol}://${domainName}/admin_api/sensor_measurements_before_date/${groupId}`;
         const config: { headers: { Authorization: string } } = axiosAuth(accessToken);

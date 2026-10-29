@@ -32,6 +32,7 @@ import axiosErrorHandler from "../../../../tools/axiosErrorHandler";
 import { IMqttTopicData, INatsSubjectData } from "../Main/Model";
 import { base64ToJpg } from "../../../../tools/base64ToJpg";
 import { wsconnect, type NatsConnection } from "@nats-io/nats-core";
+import { natsInboxPrefix } from "../../../../tools/natsInbox";
 
 export const useViewerState = (initialActiveViewer?: "3D" | "pipeline" | "image_frame", initialPipelineUiChanged = false) => {
     const [state, setState] = useState<ViewerState>({
@@ -300,6 +301,8 @@ export const useNatsConnection = () => {
                 servers: NATS_SEED_SERVERS.split(",").map((s: string) => s.trim()),
                 user: options.username,
                 pass: options.accessToken,
+                // buzón propio para request/reply (auth_callout solo le permite este)
+                inboxPrefix: natsInboxPrefix(options.username.replace(/^jwt_/, "")),
             });
  
             isConnectingRef.current = false;

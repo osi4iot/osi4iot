@@ -44,6 +44,9 @@ import process_env from "../config/api_config";
 import { ensureKnowledgeTables } from "./knowledgeTables";
 import { ensureAssetDescriptionIndex } from "./assetDescriptionIndex";
 import { ensureDigitalTwinSimulationFormatFile } from "./digitalTwinSimulationFormatFile";
+import { ensureTopicWithoutS3Columns } from "./topicWithoutS3Columns";
+import { ensureSensorMeasurements } from "./sensorMeasurements";
+import { ensureTopicMessageSchema } from "./topicMessageSchema";
 
 export const dataBaseInitialization = async () => {
 	const timescaledb_pool = new Pool({
@@ -138,6 +141,18 @@ export const dataBaseInitialization = async () => {
 				const message = err instanceof Error ? err.message : String(err);
 				logger.log("error", "The S3 bucket for the platform can not be created: %s", message);
 				process.exit(1);
+			}
+
+			// Sensor types have no marker (only asset types do: a sensor is
+			// drawn around its asset, never as a marker of its own). The
+			// columns of older platforms go.
+			try {
+				await postgresClient.query(`ALTER TABLE IF EXISTS grafanadb.sensor_type
+					DROP COLUMN IF EXISTS marker_svg_file_name,
+					DROP COLUMN IF EXISTS marker_svg_string;`);
+			} catch (err) {
+				const message = err instanceof Error ? err.message : String(err);
+				logger.log("error", `The marker columns of grafanadb.sensor_type could not be removed: %s`, message);
 			}
 
 			if (Number(result0.rows[0].count) !== 0) {
@@ -560,7 +575,7 @@ export const dataBaseInitialization = async () => {
 					type VARCHAR(40),
 					icon_svg_file_name VARCHAR(100),
 					icon_svg_string TEXT,
-					default_payload_json_schema jsonb NOT NULL DEFAULT '{}'::jsonb,
+					default_measurements jsonb NOT NULL DEFAULT '{}'::jsonb,
 					is_predefined boolean NOT NULL DEFAULT FALSE,
 					dashboard_refresh_string VARCHAR(20),
 					dashboard_time_window VARCHAR(20),
@@ -593,7 +608,7 @@ export const dataBaseInitialization = async () => {
 							type: sensorType.type,
 							iconSvgFileName: sensorType.iconSvgFileName,
 							iconSvgString: sensorType.iconSvgString,
-							defaultPayloadJsonSchema: JSON.stringify(sensorType.defaultPayloadJsonSchema),
+							defaultMeasurements: JSON.stringify(sensorType.defaultMeasurements),
 							isPredefined: true,
 							dashboardRefreshString: sensorType.dashboardRefreshString,
 							dashboardTimeWindow: sensorType.dashboardTimeWindow,
@@ -859,12 +874,9 @@ export const dataBaseInitialization = async () => {
 					topic_type VARCHAR(40),
 					description VARCHAR(190),
 					topic_uid VARCHAR(40) UNIQUE,
-					payload_json_schema jsonb NOT NULL DEFAULT '{}'::jsonb,
+					message_schema jsonb NOT NULL DEFAULT '{}'::jsonb,
+					message_schema_version integer NOT NULL DEFAULT 1,
 					mqtt_access_control VARCHAR(10),
-					require_s3_storage boolean NOT NULL DEFAULT FALSE,
-					s3_folder VARCHAR(190) NOT NULL DEFAULT '',
-					last_s3_storage TIMESTAMPTZ,
-					parquet_schema jsonb NOT NULL DEFAULT '{}'::jsonb,
 					created TIMESTAMPTZ,
 					updated TIMESTAMPTZ,
 					CONSTRAINT fk_group_id
@@ -883,6 +895,7 @@ export const dataBaseInitialization = async () => {
 					const message = err instanceof Error ? err.message : String(err);
 					logger.log("error", `Table ${tableTopic} can not be created: %s`, message);
 				}
+				await ensureTopicMessageSchema(postgresClient);
 
 				const tableAssetTopic = "grafanadb.asset_topic";
 				const queryStringAssetTopic = `
@@ -921,7 +934,7 @@ export const dataBaseInitialization = async () => {
 					description VARCHAR(190),
 					dashboard_id bigint,
 					dashboard_url VARCHAR(255),
-					payload_json_schema jsonb NOT NULL DEFAULT '{}'::jsonb,
+					measurements jsonb NOT NULL DEFAULT '{}'::jsonb,
 					created TIMESTAMPTZ,
 					updated TIMESTAMPTZ,
 					UNIQUE (asset_id, sensor_ref),
@@ -1096,60 +1109,42 @@ export const dataBaseInitialization = async () => {
 								topicType: "system",
 								description: "Log entries",
 								mqttAccessControl: "Pub & Sub",
-								payloadJsonSchema: "{}",
-								requireS3Storage: false,
-								s3Folder: "",
-								parquetSchema: "{}",
+								messageSchema: "{}",
 							},
 							{
 								topicRef: "system_2",
 								topicType: "system",
 								description: "Host metrics",
 								mqttAccessControl: "Pub & Sub",
-								payloadJsonSchema: "{}",
-								requireS3Storage: false,
-								s3Folder: "",
-								parquetSchema: "{}",
+								messageSchema: "{}",
 							},
 							{
 								topicRef: "system_3",
 								topicType: "system",
 								description: "Container metrics",
 								mqttAccessControl: "Pub & Sub",
-								payloadJsonSchema: "{}",
-								requireS3Storage: false,
-								s3Folder: "",
-								parquetSchema: "{}",
+								messageSchema: "{}",
 							},
 							{
 								topicRef: "system_4",
 								topicType: "system",
 								description: "Volume metrics",
 								mqttAccessControl: "Pub & Sub",
-								payloadJsonSchema: "{}",
-								requireS3Storage: false,
-								s3Folder: "",
-								parquetSchema: "{}",
+								messageSchema: "{}",
 							},
 							{
 								topicRef: "system_5",
 								topicType: "system",
 								description: "WAL archiver",
 								mqttAccessControl: "Pub & Sub",
-								payloadJsonSchema: "{}",
-								requireS3Storage: false,
-								s3Folder: "",
-								parquetSchema: "{}",
+								messageSchema: "{}",
 							},
 							{
 								topicRef: "system_6",
 								topicType: "system",
 								description: "System alert",
 								mqttAccessControl: "Pub & Sub",
-								payloadJsonSchema: "{}",
-								requireS3Storage: false,
-								s3Folder: "",
-								parquetSchema: "{}",
+								messageSchema: "{}",
 							},
 						],
 						sensorsRef: [
@@ -1158,35 +1153,35 @@ export const dataBaseInitialization = async () => {
 								sensorType: "Service logs",
 								topicRef: "system_1",
 								description: "Log entries sensor",
-								payloadJsonSchema: "{}",
+								measurements: "{}",
 							},
 							{
 								sensorRef: "sensor_2",
 								sensorType: "Host metrics",
 								topicRef: "system_2",
 								description: "Host metrics sensor",
-								payloadJsonSchema: "{}",
+								measurements: "{}",
 							},
 							{
 								sensorRef: "sensor_3",
 								sensorType: "Container metrics",
 								topicRef: "system_3",
 								description: "Container metrics sensor",
-								payloadJsonSchema: "{}",
+								measurements: "{}",
 							},
 							{
 								sensorRef: "sensor_4",
 								sensorType: "Volume metrics",
 								topicRef: "system_4",
 								description: "Volume metrics sensor",
-								payloadJsonSchema: "{}",
+								measurements: "{}",
 							},
 							{
 								sensorRef: "sensor_5",
 								sensorType: "WAL archiver metrics",
 								topicRef: "system_5",
 								description: "WAL archiver metrics sensor",
-								payloadJsonSchema: "{}",
+								measurements: "{}",
 							},
 						],
 					};
@@ -1213,70 +1208,49 @@ export const dataBaseInitialization = async () => {
 								topicType: "dev2pdb_wt",
 								description: `Mobile geolocation topic`,
 								mqttAccessControl: "Pub & Sub",
-								payloadJsonSchema: JSON.stringify(predefinedSensorTypes[0].defaultPayloadJsonSchema),
-								requireS3Storage: false,
-								s3Folder: "",
-								parquetSchema: "{}",
+								messageSchema: "{}",
 							},
 							{
 								topicRef: "dev2pdb_2",
 								topicType: "dev2pdb_wt",
 								description: `Mobile accelerations topic`,
 								mqttAccessControl: "Pub & Sub",
-								payloadJsonSchema: JSON.stringify(predefinedSensorTypes[1].defaultPayloadJsonSchema),
-								requireS3Storage: false,
-								s3Folder: "",
-								parquetSchema: "{}",
+								messageSchema: "{}",
 							},
 							{
 								topicRef: "dev2pdb_3",
 								topicType: "dev2pdb_wt",
 								description: `Mobile orientation topic`,
 								mqttAccessControl: "Pub & Sub",
-								payloadJsonSchema: JSON.stringify(predefinedSensorTypes[2].defaultPayloadJsonSchema),
-								requireS3Storage: false,
-								s3Folder: "",
-								parquetSchema: "{}",
+								messageSchema: "{}",
 							},
 							{
 								topicRef: "dev2pdb_4",
 								topicType: "dev2pdb_wt",
 								description: `Mobile motion topic`,
 								mqttAccessControl: "Pub & Sub",
-								payloadJsonSchema: JSON.stringify(predefinedSensorTypes[3].defaultPayloadJsonSchema),
-								requireS3Storage: false,
-								s3Folder: "",
-								parquetSchema: "{}",
+								messageSchema: "{}",
 							},
 							{
 								topicRef: "dev2pdb_5",
 								topicType: "dev2dtm",
 								description: `Mobile photo topic`,
 								mqttAccessControl: "Pub & Sub",
-								payloadJsonSchema: JSON.stringify(predefinedSensorTypes[4].defaultPayloadJsonSchema),
-								requireS3Storage: false,
-								s3Folder: "",
-								parquetSchema: "{}",
+								messageSchema: "{}",
 							},
 							{
 								topicRef: "dev2pdb_6",
 								topicType: "dev2dtm",
 								description: `Mobile video topic`,
 								mqttAccessControl: "Pub & Sub",
-								payloadJsonSchema: JSON.stringify(predefinedSensorTypes[5].defaultPayloadJsonSchema),
-								requireS3Storage: false,
-								s3Folder: "",
-								parquetSchema: "{}",
+								messageSchema: "{}",
 							},
 							{
 								topicRef: "dev2pdb_7",
 								topicType: "dev2dtm",
 								description: `Mobile audio topic`,
 								mqttAccessControl: "Pub & Sub",
-								payloadJsonSchema: JSON.stringify(predefinedSensorTypes[6].defaultPayloadJsonSchema),
-								requireS3Storage: false,
-								s3Folder: "",
-								parquetSchema: "{}",
+								messageSchema: "{}",
 							},
 						],
 						sensorsRef: [
@@ -1285,49 +1259,49 @@ export const dataBaseInitialization = async () => {
 								sensorType: "Mobile geolocation",
 								topicRef: "dev2pdb_1",
 								description: `Mobile geolocation`,
-								payloadJsonSchema: JSON.stringify(predefinedSensorTypes[0].defaultPayloadJsonSchema),
+								measurements: JSON.stringify(predefinedSensorTypes[0].defaultMeasurements),
 							},
 							{
 								sensorRef: "sensor_2",
 								sensorType: "Mobile accelerations",
 								topicRef: "dev2pdb_2",
 								description: `Mobile accelerations`,
-								payloadJsonSchema: JSON.stringify(predefinedSensorTypes[1].defaultPayloadJsonSchema),
+								measurements: JSON.stringify(predefinedSensorTypes[1].defaultMeasurements),
 							},
 							{
 								sensorRef: "sensor_3",
 								sensorType: "Mobile orientation",
 								topicRef: "dev2pdb_3",
 								description: `Mobile orientation`,
-								payloadJsonSchema: JSON.stringify(predefinedSensorTypes[2].defaultPayloadJsonSchema),
+								measurements: JSON.stringify(predefinedSensorTypes[2].defaultMeasurements),
 							},
 							{
 								sensorRef: "sensor_4",
 								sensorType: "Mobile motion",
 								topicRef: "dev2pdb_4",
 								description: `Mobile motion`,
-								payloadJsonSchema: JSON.stringify(predefinedSensorTypes[3].defaultPayloadJsonSchema),
+								measurements: JSON.stringify(predefinedSensorTypes[3].defaultMeasurements),
 							},
 							{
 								sensorRef: "sensor_5",
 								sensorType: "Mobile photo",
 								topicRef: "dev2pdb_5",
 								description: `Mobile photo`,
-								payloadJsonSchema: "{}",
+								measurements: "{}",
 							},
 							{
 								sensorRef: "sensor_6",
 								sensorType: "Mobile video",
 								topicRef: "dev2pdb_6",
 								description: `Mobile video`,
-								payloadJsonSchema: "{}",
+								measurements: "{}",
 							},
 							{
 								sensorRef: "sensor_7",
 								sensorType: "Mobile audio",
 								topicRef: "dev2pdb_7",
 								description: `Mobile audio`,
-								payloadJsonSchema: "{}",
+								measurements: "{}",
 							},
 						],
 					};
@@ -1481,6 +1455,9 @@ export const dataBaseInitialization = async () => {
 				await ensureKnowledgeTables(postgresClient);
 				await ensureAssetDescriptionIndex(postgresClient);
 				await ensureDigitalTwinSimulationFormatFile(postgresClient);
+				await ensureTopicWithoutS3Columns(postgresClient);
+				await ensureSensorMeasurements(postgresClient);
+				await ensureTopicMessageSchema(postgresClient);
 
 				try {
 					const queryViews = `SELECT table_name from INFORMATION_SCHEMA.views WHERE table_schema = 'iot_datasource';`;

@@ -25,6 +25,7 @@ import { IOrgManaged } from '../TableColumns/organizationsManagedColumns';
 import { cleanSvgString } from '../../../tools/generateAssetTypeMarker';
 import { AxiosResponse, AxiosError } from 'axios';
 import { ControlsContainer, StaticFormContainer, FormSection } from "../../Tools/FormTools";
+import { measurementsText, measurementsTextError, toMeasurements } from "../../../tools/measurements";
 
 const SvgIconPreviewContainerDiv = styled.div`
     margin: 5px 0;
@@ -263,7 +264,7 @@ const EditSensorType: FC<EditSensorTypeProps> = ({
             iconSvgString,
             dashboardRefreshString: values.dashboardRefresh,
             dashboardTimeWindow: values.dashboardTimeWindow,
-            defaultPayloadJsonSchema: values.defaultPayloadJsonSchema
+            defaultMeasurements: JSON.stringify(toMeasurements(values.defaultMeasurements))
         }
 
         setIsSubmitting(true);
@@ -289,7 +290,7 @@ const EditSensorType: FC<EditSensorTypeProps> = ({
         type: sensorTypes[sensorTypeRowIndex].type,
         dashboardRefresh: sensorTypes[sensorTypeRowIndex].dashboardRefreshString,
         dashboardTimeWindow: sensorTypes[sensorTypeRowIndex].dashboardTimeWindow,
-        defaultPayloadJsonSchema: JSON.stringify(sensorTypes[sensorTypeRowIndex].defaultPayloadJsonSchema, null, 4),
+        defaultMeasurements: measurementsText(sensorTypes[sensorTypeRowIndex].defaultMeasurements),
     }
 
     const validationSchema = Yup.object().shape({
@@ -297,7 +298,12 @@ const EditSensorType: FC<EditSensorTypeProps> = ({
         dashboardTimeWindow: Yup.string().matches(/\d+(s|m|h)$/,
             "Dashboard time window must contain a number follow by 's', 'm' or 'h'"
         ).required('Required'),
-        defaultPayloadJsonSchema: Yup.string().required('Required'),
+        defaultMeasurements: Yup.string()
+            .required('Required')
+            .test("measurements", (value, context) => {
+                const error = measurementsTextError(value);
+                return error ? context.createError({ message: error }) : true;
+            }),
     });
 
     const onCancel = (e: SyntheticEvent) => {
@@ -402,8 +408,8 @@ const EditSensorType: FC<EditSensorTypeProps> = ({
                                     />
                                     <FormikControl
                                         control='textarea'
-                                        label='Default payload json schema'
-                                        name='defaultPayloadJsonSchema'
+                                        label='Default measurements'
+                                        name='defaultMeasurements'
                                         textAreaSize='Small'
                                     />
                                 </ControlsContainer>

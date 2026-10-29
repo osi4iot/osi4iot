@@ -15,17 +15,10 @@ import axiosErrorHandler from "../../../tools/axiosErrorHandler";
 import { IGroupManaged } from "../TableColumns/groupsManagedColumns";
 import { IOrgOfGroupsManaged } from "../TableColumns/orgsOfGroupsManagedColumns";
 import { AxiosError, AxiosResponse } from "axios";
+import { ControlsContainer, DraggableFormContainer } from "../../Tools/FormTools";
+import MessageSchemaField from "./MessageSchemaField";
+import { isMessageSchemaEditable, messageSchemaTextError } from "../../../tools/messageSchema";
 
-// CodeMirror imports
-import CodeMirror, { keymap } from "@uiw/react-codemirror";
-import { indentUnit, indentOnInput } from "@codemirror/language";
-import { completionKeymap } from "@codemirror/autocomplete";
-import { indentWithTab } from "@codemirror/commands";
-import { json } from "@codemirror/lang-json";
-import { oneDark } from "@codemirror/theme-one-dark";
-import { CodeMirrorWrapper } from "../../Tools/CodeMirrorWrapper";
-import { ControlsContainer, DraggableFormContainer, FieldErrorScroller } from "../../Tools/FormTools";
-import { ReIndentCommand } from "../DigitalTwin3DViewer/Pipeline/types";
 
 const topicTypeOptions = [
     {
@@ -97,17 +90,6 @@ const mqttAccessControlOptions = [
     },
 ];
 
-const requireS3StorateOptions = [
-    {
-        label: "Yes",
-        value: "yes",
-    },
-    {
-        label: "No",
-        value: "no",
-    },
-];
-
 const findGroupArray = (
     orgsOfGroupManaged: IOrgOfGroupsManaged[],
     groupsManaged: IGroupManaged[],
@@ -131,10 +113,7 @@ interface IFormikValues {
     topicType: string;
     description: string;
     mqttAccessControl: string;
-    payloadJsonSchema: string;
-    requireS3StorageString: string;
-    s3Folder: string;
-    parquetSchema: string;
+    messageSchema: string;
 }
 
 type FormikType = FormikProps<IFormikValues>;
@@ -159,7 +138,6 @@ const CreateTopic: FC<CreateTopicProps> = ({ orgsOfGroupManaged, groupsManaged, 
     const [groupOptions, setGroupOptions] = useState<IOption[]>([]);
     const initOrg = orgsOfGroupManaged[0];
     const initGroup = groupsManaged.filter((group) => group.orgId === initOrg.id)[0];
-    const [requireS3Storage, setRequireS3Storage] = useState(false);
 
     useEffect(() => {
         const orgArray = orgsOfGroupManaged.map((org) => org.acronym);
@@ -191,10 +169,8 @@ const CreateTopic: FC<CreateTopicProps> = ({ orgsOfGroupManaged, groupsManaged, 
             topicType: values.topicType,
             description: values.description,
             mqttAccessControl: values.mqttAccessControl,
-            payloadJsonSchema: values.payloadJsonSchema,
-            requireS3Storage: requireS3Storage,
-            s3Folder: values.s3Folder,
-            parquetSchema: values.parquetSchema,
+            // solo los tipos que escribe el usuario: los demás los calcula la plataforma
+            ...(isMessageSchemaEditable(values.topicType) ? { messageSchema: values.messageSchema } : {}),
         };
 
         setIsSubmitting(true);
@@ -223,35 +199,25 @@ const CreateTopic: FC<CreateTopicProps> = ({ orgsOfGroupManaged, groupsManaged, 
         topicType: "dev2pdb",
         description: "",
         mqttAccessControl: "Pub & Sub",
-        payloadJsonSchema: "{}",
-        requireS3StorageString: "no",
-        s3Folder: "",
-        parquetSchema: "{}",
+        messageSchema: "{}",
     };
 
     const validationSchema = Yup.object().shape({
         topicType: Yup.string().max(40, "The maximum number of characters allowed is 40").required("Required"),
         description: Yup.string().max(190, "The maximum number of characters allowed is 190").required("Required"),
-        payloadJsonSchema: Yup.string().required("Required"),
-        requireS3StorageString: Yup.string().required("Required"),
-        s3Folder: Yup.string().when("requireS3StorageString", {
-            is: "yes",
-            then: (schema) => schema.required("Must enter maxNumResFemFiles"),
-        }),
-        parquetSchema: Yup.string().when("requireS3StorageString", {
-            is: "yes",
-            then: (schema) => schema.required("Must enter maxNumResFemFiles"),
+        messageSchema: Yup.string().when("topicType", {
+            is: (topicType: string) => isMessageSchemaEditable(topicType),
+            then: (schema) =>
+                schema.required("Required").test("messageSchema", (value, context) => {
+                    const error = messageSchemaTextError(value);
+                    return error ? context.createError({ message: error }) : true;
+                }),
         }),
     });
 
     const onCancel = (e: SyntheticEvent) => {
         e.preventDefault();
         backToTable();
-    };
-
-    const onRequireS3StorageSelectChange = (e: { value: string }, formik: FormikType) => {
-        setRequireS3Storage(e.value === "yes" ? true : false);
-        formik.setFieldValue("requireS3StorageString", e.value);
     };
 
     return (
@@ -293,64 +259,7 @@ const CreateTopic: FC<CreateTopicProps> = ({ orgsOfGroupManaged, groupsManaged, 
                                     options={mqttAccessControlOptions}
                                     type="text"
                                 />
-                                <CodeMirrorWrapper fontSize="14px">
-                                    <label>Payload json schema</label>
-                                    <div className="cm-wrapper">
-                                        <CodeMirror
-                                            value={formik.values.payloadJsonSchema}
-                                            height="300px"
-                                            theme={oneDark}
-                                            extensions={[
-                                                json(),
-                                                indentUnit.of("    "),
-                                                indentOnInput(),
-                                                keymap.of([...completionKeymap, indentWithTab, ReIndentCommand]),
-                                            ]}
-
-                                            onChange={(value) => {
-                                                formik.setFieldValue("payloadJsonSchema", value);
-                                            }}
-                                            onBlur={() => {
-                                                formik.setFieldTouched("payloadJsonSchema", true);
-                                            }}
-                                            basicSetup={{
-                                                lineNumbers: true,
-                                                foldGutter: true,
-                                                bracketMatching: true,
-                                                closeBrackets: true,
-                                                syntaxHighlighting: true,
-                                                autocompletion: true,
-                                                tabSize: 4,
-                                                searchKeymap: true,
-                                            }}
-                                        />
-                                    </div>
-                                    <FieldErrorScroller name="payloadJsonSchema" />
-                                </CodeMirrorWrapper>
-                                <FormikControl
-                                    control="select"
-                                    label="Require S3 storage"
-                                    name="requireS3StorageString"
-                                    options={requireS3StorateOptions}
-                                    type="text"
-                                    onChange={(e) => onRequireS3StorageSelectChange(e, formik)}
-                                />
-                                {requireS3Storage && (
-                                    <>
-                                        <FormikControl
-                                            control="input"
-                                            label="S3 folder name"
-                                            name="s3Folder"
-                                            type="text"
-                                        />
-                                        <FormikControl
-                                            control="textarea"
-                                            label="Parquet schema"
-                                            name="parquetSchema"
-                                            textAreaSize="Small"
-                                        />
-                                    </>
-                                )}
+                                <MessageSchemaField formik={formik} />
                             </ControlsContainer>
                             <FormButtonsProps
                                 onCancel={onCancel}
@@ -366,3 +275,4 @@ const CreateTopic: FC<CreateTopicProps> = ({ orgsOfGroupManaged, groupsManaged, 
 };
 
 export default CreateTopic;
+

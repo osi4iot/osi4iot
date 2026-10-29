@@ -1,4 +1,4 @@
-import { IsNotEmpty, IsString, Matches } from "class-validator";
+import { IsNotEmpty, IsOptional, IsString, Matches } from "class-validator";
 
 class CreateSensorTypeDto {
 	orgId: number;
@@ -21,8 +21,15 @@ class CreateSensorTypeDto {
 	@IsString()
 	public dashboardTimeWindow: string;
 
+	// Default measurements of its sensors (see utils/measurements.ts)
+	@IsOptional()
 	@IsString()
-	public defaultPayloadJsonSchema: string;
+	public defaultMeasurements?: string;
+
+	// Obsoleto (versiones anteriores, como JSON schema): se convierte a defaultMeasurements
+	@IsOptional()
+	@IsString()
+	public defaultPayloadJsonSchema?: string;
 
 	isPredefined: boolean;
 }

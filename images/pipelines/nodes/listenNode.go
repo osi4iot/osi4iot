@@ -154,6 +154,7 @@ func (n *ListenNode) processNatsMessage(msg *nats.Msg, log *logger.Logger) error
 	if err != nil {
 		return fmt.Errorf("failed to build message for node %s: %w", n.NodeUid, err)
 	}
+	addMissingTimestamp(outMsg, messageTimestamp(msg.Header, time.Now()))
 
 	if msg.Reply != "" {
 		timeoutMs := int64(30000)
@@ -222,4 +223,42 @@ func payloadFromHeaders(header nats.Header) map[string]any {
 		payload[strings.ToLower(field[:1])+field[1:]] = values[0]
 	}
 	return payload
+}
+
+// messageTimestamp is the time of a message received from NATS: the
+// "X-Capture-Ts" header (milliseconds since 1970, sent for example with the
+// audio of the "Mobile audio" sensor) or else the time it was received.
+func messageTimestamp(header nats.Header, received time.Time) time.Time {
+	if header != nil {
+		if v := header.Get("X-Capture-Ts"); v != "" {
+			if ms, err := strconv.ParseInt(v, 10, 64); err == nil && ms > 0 {
+				return time.UnixMilli(ms)
+			}
+		}
+	}
+	return received
+}
+
+// addMissingTimestamp gives a "timestamp" field (RFC 3339, UTC) to the
+// messages that come without one: an object, each row of an array or the
+// payload of a binary message. Messages that already have it keep theirs. So
+// every message of a pipeline carries the time of its data and the topics
+// "with timestamp" (dev2pdb_wt) are no longer needed.
+func addMissingTimestamp(msg common.Message, ts time.Time) {
+	value := ts.UTC().Format(time.RFC3339Nano)
+	payload := msg.GetPayload()
+	if payload == nil {
+		return
+	}
+	if rows, ok := payload["rows"].([]map[string]any); ok && msg.GetJsonStructure() == "array" {
+		for _, row := range rows {
+			if _, exists := row["timestamp"]; !exists && row != nil {
+				row["timestamp"] = value
+			}
+		}
+		return
+	}
+	if _, exists := payload["timestamp"]; !exists {
+		payload["timestamp"] = value
+	}
 }

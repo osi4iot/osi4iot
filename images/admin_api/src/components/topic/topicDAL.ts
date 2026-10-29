@@ -6,22 +6,26 @@ import CreateTopicDto from "./topic.dto";
 import ITopic from "./topic.interface";
 import ITopicInfoForMqttAcl from "./topicInfoForMqttAcl.interface";
 import natsClient from "../../config/natsConfig";
+import { messageSchemaToStore } from "./messageSchema";
+
+// schema sent by the user, with the field of the current version or the one of older versions
+const topicSchemaInput = (topic: { messageSchema?: unknown; payloadJsonSchema?: unknown }): unknown => {
+	const value = topic.messageSchema ?? topic.payloadJsonSchema;
+	delete topic.payloadJsonSchema;
+	return value;
+};
 
 export const insertTopic = async (topicData: Partial<ITopic>): Promise<ITopic> => {
 	const result = await pool.query(
 		`INSERT INTO grafanadb.topic (group_id, topic_type,
-		description, topic_uid,  mqtt_access_control, payload_json_schema,
-		require_s3_storage, s3_folder, parquet_schema, last_s3_storage,
+		description, topic_uid,  mqtt_access_control, message_schema,
 		created, updated)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW(), NOW())
+		VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
 		RETURNING  id, group_id AS "groupId", topic_type AS "topicType",
 		description, topic_uid AS "topicUid",
 		mqtt_access_control AS "mqttAccessControl",
-		payload_json_schema AS "payloadJsonSchema",
-		require_s3_storage AS "requireS3Storage",
-		s3_folder AS "s3Folder",
-		parquet_schema AS "parquetSchema",
-		last_s3_storage AS "lastS3Storage",
+		message_schema AS "messageSchema",
+		message_schema_version AS "messageSchemaVersion",
 		created, updated`,
 		[
 			topicData.groupId,
@@ -29,10 +33,7 @@ export const insertTopic = async (topicData: Partial<ITopic>): Promise<ITopic> =
 			topicData.description,
 			topicData.topicUid,
 			topicData.mqttAccessControl,
-			topicData.payloadJsonSchema,
-			topicData.requireS3Storage,
-			topicData.s3Folder,
-			topicData.parquetSchema,
+			JSON.stringify(await messageSchemaToStore(topicData.topicType, topicSchemaInput(topicData))),
 		]
 	);
 	return result.rows[0] as ITopic;
@@ -40,18 +41,14 @@ export const insertTopic = async (topicData: Partial<ITopic>): Promise<ITopic> =
 
 export const updateTopicById = async (groupId: number, topicId: number, topic: ITopic): Promise<void> => {
 	const query = `UPDATE grafanadb.topic SET topic_type = $1, description = $2,
-					mqtt_access_control = $3, payload_json_schema = $4,
-					require_s3_storage = $5, s3_folder = $6, parquet_schema = $7,
+					mqtt_access_control = $3, message_schema = $4,
 					updated = NOW()
-					WHERE grafanadb.topic.id = $8 RETURNING *;`;
+					WHERE grafanadb.topic.id = $5 RETURNING *;`;
 	await pool.query(query, [
 		topic.topicType,
 		topic.description,
 		topic.mqttAccessControl,
-		topic.payloadJsonSchema,
-		topic.requireS3Storage,
-		topic.s3Folder,
-		topic.parquetSchema,
+		JSON.stringify(await messageSchemaToStore(topic.topicType, topicSchemaInput(topic), topicId)),
 		topicId,
 	]);
 
@@ -100,11 +97,8 @@ export const getTopicByProp = async (propName: string, propValue: string | numbe
 		grafanadb.topic.description,
 		grafanadb.topic.topic_uid AS "topicUid",
 		grafanadb.topic.mqtt_access_control AS "mqttAccessControl",
-		grafanadb.topic.payload_json_schema AS "payloadJsonSchema",
-		grafanadb.topic.require_s3_storage AS "requireS3Storage",
-		grafanadb.topic.s3_folder AS "s3Folder",
-		grafanadb.topic.parquet_schema AS "parquetSchema",
-		grafanadb.topic.last_s3_storage AS "lastS3Storage",
+		grafanadb.topic.message_schema AS "messageSchema",
+		grafanadb.topic.message_schema_version AS "messageSchemaVersion",
 		grafanadb.topic.created, grafanadb.topic.updated
 		FROM grafanadb.topic
 		INNER JOIN grafanadb.group ON grafanadb.topic.group_id = grafanadb.group.id
@@ -123,11 +117,8 @@ export const getAllTopics = async (): Promise<ITopic[]> => {
 		grafanadb.topic.description,
 		grafanadb.topic.topic_uid AS "topicUid",
 		grafanadb.topic.mqtt_access_control AS "mqttAccessControl",
-		grafanadb.topic.payload_json_schema AS "payloadJsonSchema",
-		grafanadb.topic.require_s3_storage AS "requireS3Storage",
-		grafanadb.topic.s3_folder AS "s3Folder",
-		grafanadb.topic.parquet_schema AS "parquetSchema",
-		grafanadb.topic.last_s3_storage AS "lastS3Storage",
+		grafanadb.topic.message_schema AS "messageSchema",
+		grafanadb.topic.message_schema_version AS "messageSchemaVersion",
 		grafanadb.topic.created, grafanadb.topic.updated
 		FROM grafanadb.topic
 		INNER JOIN grafanadb.group ON grafanadb.topic.group_id = grafanadb.group.id
@@ -181,11 +172,8 @@ export const getTopicsByGroupId = async (groupId: number): Promise<ITopic[]> => 
 		grafanadb.topic.description,
 		grafanadb.topic.topic_uid AS "topicUid",
 		grafanadb.topic.mqtt_access_control AS "mqttAccessControl",
-		grafanadb.topic.payload_json_schema AS "payloadJsonSchema",
-		grafanadb.topic.require_s3_storage AS "requireS3Storage",
-		grafanadb.topic.s3_folder AS "s3Folder",
-		grafanadb.topic.parquet_schema AS "parquetSchema",
-		grafanadb.topic.last_s3_storage AS "lastS3Storage",
+		grafanadb.topic.message_schema AS "messageSchema",
+		grafanadb.topic.message_schema_version AS "messageSchemaVersion",
 		grafanadb.topic.created, grafanadb.topic.updated
 		FROM grafanadb.topic
 		INNER JOIN grafanadb.group ON grafanadb.topic.group_id = grafanadb.group.id
@@ -207,11 +195,8 @@ export const getTopicsByGroupsIdArray = async (groupsIdArray: number[]): Promise
 		grafanadb.topic.description,
 		grafanadb.topic.topic_uid AS "topicUid",
 		grafanadb.topic.mqtt_access_control AS "mqttAccessControl",
-		grafanadb.topic.payload_json_schema AS "payloadJsonSchema",
-		grafanadb.topic.require_s3_storage AS "requireS3Storage",
-		grafanadb.topic.s3_folder AS "s3Folder",
-		grafanadb.topic.parquet_schema AS "parquetSchema",
-		grafanadb.topic.last_s3_storage AS "lastS3Storage",
+		grafanadb.topic.message_schema AS "messageSchema",
+		grafanadb.topic.message_schema_version AS "messageSchemaVersion",
 		grafanadb.topic.created, grafanadb.topic.updated
 		FROM grafanadb.topic
 		INNER JOIN grafanadb.group ON grafanadb.topic.group_id = grafanadb.group.id
@@ -273,11 +258,8 @@ export const getTopicsByOrgId = async (orgId: number): Promise<ITopic[]> => {
 		grafanadb.topic.description,
 		grafanadb.topic.topic_uid AS "topicUid",
 		grafanadb.topic.mqtt_access_control AS "mqttAccessControl",
-		grafanadb.topic.payload_json_schema AS "payloadJsonSchema",
-		grafanadb.topic.require_s3_storage AS "requireS3Storage",
-		grafanadb.topic.s3_folder AS "s3Folder",
-		grafanadb.topic.parquet_schema AS "parquetSchema",
-		grafanadb.topic.last_s3_storage AS "lastS3Storage",
+		grafanadb.topic.message_schema AS "messageSchema",
+		grafanadb.topic.message_schema_version AS "messageSchemaVersion",
 		grafanadb.topic.created, grafanadb.topic.updated
 		FROM grafanadb.topic
 		INNER JOIN grafanadb.group ON grafanadb.topic.group_id = grafanadb.group.id

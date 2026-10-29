@@ -30,7 +30,8 @@ import LastMeasurementsForTopicsIdArrayDto from "./lastMeasurmentsForTopicsIdArr
 import { getMqttTopicsInfoFromIdArray } from "../topic/topicDAL";
 import { generateSqlTopic } from "../digitalTwin/digitalTwinDAL";
 import SensorMeasurementsWithPaginationDto from "./sensorMeasurementsWithPagination.dto";
-import { getAllGeolocationSensors, getGeolocationSensorsByGroupsIdArray, getSensorByPropName } from "../sensor/sensorDAL";
+import { getAllGeolocationSensors, getGeolocationSensorsByGroupsIdArray, getSensorByPropName, getSensorTypeByPropName } from "../sensor/sensorDAL";
+import { toMeasurements } from "../../utils/measurements/measurements";
 import SensorMeasurementRequestBodyDto from "./sensorMeasurementRequestBody.dto";
 import DeleteSensorMeasurementsBeforeDateDto from "./deleteSensorMeasurementsBeforeDate.dto";
 import IRequestWithUser from "../../interfaces/requestWithUser.interface";
@@ -236,10 +237,22 @@ class MeasurementController implements IController {
 	): Promise<void> => {
 		try {
 			const groupUid = req.group.groupUid;
-			const { sensorId, startDate, endDate, pageIndex, itemsPerPage, payloadKey } = req.body;
+			const { sensorId, startDate, endDate, pageIndex, itemsPerPage } = req.body;
 			const sensor = await getSensorByPropName("id", sensorId);
 			if (!sensor) throw new ItemNotFoundException(req, res, "The sensor", "id", sensorId);
 			const topic = `Topic_${sensor.topicUid}`;
+			// campo de los mensajes: uno de los que mide el sensor (o su tipo), por defecto el primero
+			let measurementKeys = Object.keys(toMeasurements(sensor.measurements));
+			if (measurementKeys.length === 0) {
+				const sensorType = await getSensorTypeByPropName(sensor.orgId, "id", sensor.sensorTypeId);
+				measurementKeys = Object.keys(toMeasurements(sensorType?.defaultMeasurements));
+			}
+			const requestedKey = req.body.payloadKey as string | undefined;
+			const payloadKey = requestedKey && measurementKeys.includes(requestedKey) ? requestedKey : measurementKeys[0];
+			if (payloadKey === undefined) {
+				res.status(200).send([]);
+				return;
+			}
 			const measurements = await getDuringSensorMeasurementsWithPagination(
 				groupUid,
 				topic,

@@ -29,6 +29,7 @@ import { AxiosError, AxiosResponse } from "axios";
 
 import JsonFileField, { mustBeArray } from "../../Tools/JsonFileField";
 import { ControlsContainer, DraggableFormContainer, FormSection } from "../../Tools/FormTools";
+import { toMeasurements } from "../../../tools/measurements";
 
 const AssetLocationContainerDiv = styled.div`
     border: 2px solid #2c3235;
@@ -98,10 +99,7 @@ const defaultTopicsRef = [
         topicType: "dev2pdb",
         description: "New asset topic",
         mqttAccessControl: "Pub & Sub",
-        payloadJsonSchema: "{}",
-        requireS3Storage: false,
-        s3Folder: "",
-        parquetSchema: "{}",
+        messageSchema: {},
     },
 ];
 
@@ -111,15 +109,8 @@ const defaultSensorsRef = [
         sensorType: "Generic sensor",
         topicRef: "dev2pdb_1",
         description: "New generic sensor",
-        payloadJsonSchema: {
-            type: "object",
-            properties: {
-                parameter: {
-                    type: "number",
-                    description: "parameter",
-                    units: "-",
-                },
-            },
+        measurements: {
+            parameter: { type: "number", label: "parameter", units: "-" },
         },
     },
 ];
@@ -303,15 +294,22 @@ const CreateAsset: FC<CreateAssetProps> = ({
 
         const topicsRef = JSON.parse(values.topicsRef);
         for (const topicRef of topicsRef) {
-            topicRef.payloadJsonSchema = JSON.stringify(topicRef.payloadJsonSchema);
-            if (typeof topicRef.parquetSchema === "object") {
-                topicRef.parquetSchema = JSON.stringify(topicRef.parquetSchema);
-            }
+            // esquema de mensaje (solo se usa en los tipos que escribe el usuario); payloadJsonSchema en archivos
+            // de versiones anteriores, a veces ya como texto
+            const messageSchema = topicRef.messageSchema ?? topicRef.payloadJsonSchema ?? {};
+            topicRef.messageSchema = typeof messageSchema === "string" ? messageSchema : JSON.stringify(messageSchema);
+            delete topicRef.payloadJsonSchema;
+            // campos de S3 de archivos antiguos: el tópico ya no los tiene
+            delete topicRef.requireS3Storage;
+            delete topicRef.s3Folder;
+            delete topicRef.parquetSchema;
         }
 
         const sensorsRef = JSON.parse(values.sensorsRef);
         for (const sensorRef of sensorsRef) {
-            sensorRef.payloadJsonSchema = JSON.stringify(sensorRef.payloadJsonSchema);
+            // los archivos de versiones anteriores traen payloadJsonSchema (JSON schema): se convierte
+            sensorRef.measurements = JSON.stringify(toMeasurements(sensorRef.measurements ?? sensorRef.payloadJsonSchema));
+            delete sensorRef.payloadJsonSchema;
         }
 
         const assetData = {

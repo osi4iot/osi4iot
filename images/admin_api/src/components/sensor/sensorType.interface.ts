@@ -6,7 +6,7 @@ export default interface ISensorType {
 	iconSvgFileName: string;
 	iconSvgString: string;
 	isPredefined: boolean;
-	defaultPayloadJsonSchema: string;
+	defaultMeasurements: string;
 	dashboardRefreshString: string;
 	dashboardTimeWindow: string;
 	created?: string;

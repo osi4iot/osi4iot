@@ -39,6 +39,7 @@ import {
 } from "./pipeline";
 import PipelineDto from "./pipeline.dto";
 import { setDigitalTwinKnowledgeDocuments } from "../group/knowledgeDAL";
+import { refreshTopicsMessageSchema, topicIdsOfDigitalTwin } from "../topic/messageSchema";
 
 export const insertDigitalTwin = async (digitalTwinData: Partial<IDigitalTwin>): Promise<IDigitalTwin> => {
 	const queryString = `INSERT INTO grafanadb.digital_twin (group_id, asset_id,
@@ -295,6 +296,7 @@ export const updateDigitalTwinById = async (
 		digitalTwinData.digitalTwinSimulationFormatLastModifDate || "-",
 		digitalTwinId,
 	]);
+	await refreshTopicsMessageSchema(await topicIdsOfDigitalTwin(digitalTwinId));
 	if (Array.isArray(digitalTwinData.knowledgeDocuments)) {
 		await setDigitalTwinKnowledgeDocuments(digitalTwinId, digitalTwinData.knowledgeDocuments);
 	}
@@ -472,6 +474,8 @@ export const createDigitalTwinTopic = async (
 	    RETURNING  digital_twin_id AS "digitalTwinId", topic_id AS "topicId", 
 		topic_ref AS "topicRef"`;
 	const result = await pool.query(queryString, [digitalTwinId, topicId, topicRef]);
+	// dev2sim, sim2dtm y dtm2sim toman el esquema de su gemelo digital
+	await refreshTopicsMessageSchema([topicId]);
 	if (!isDefault) {
 		const context = {
 			topicRef: result.rows[0].topicRef,
@@ -611,10 +615,7 @@ export const verifyAndCorrectDigitalTwinReferences = async (
 				topicType: "dev2dtm",
 				description: `dev2dtm for DT_${digitalTwinUid}`,
 				mqttAccessControl: "Pub & Sub",
-				payloadJsonSchema: "{}",
-				requireS3Storage: false,
-				s3Folder: "",
-				parquetSchema: "{}",
+				messageSchema: "{}",
 			};
 			const dev2dtmTopic = await createTopic(groupId, dev2dtmTopicData);
 			await createDigitalTwinTopic(digitalTwinId, dev2dtmTopic.id, "dev2dtm");
@@ -625,10 +626,7 @@ export const verifyAndCorrectDigitalTwinReferences = async (
 				topicType: "dtm2dev",
 				description: `dtm2dev for DT_${digitalTwinUid}`,
 				mqttAccessControl: "Pub & Sub",
-				payloadJsonSchema: "{}",
-				requireS3Storage: false,
-				s3Folder: "",
-				parquetSchema: "{}",
+				messageSchema: "{}",
 			};
 			const dtm2devTopic = await createTopic(groupId, dtm2devTopicData);
 			await createDigitalTwinTopic(digitalTwinId, dtm2devTopic.id, "dtm2dev");
@@ -639,10 +637,7 @@ export const verifyAndCorrectDigitalTwinReferences = async (
 				topicType: "dev2sim",
 				description: `dev2sim for DT_${digitalTwinUid}`,
 				mqttAccessControl: "Pub & Sub",
-				payloadJsonSchema: "{}",
-				requireS3Storage: false,
-				s3Folder: "",
-				parquetSchema: "{}",
+				messageSchema: "{}",
 			};
 			const dev2simTopic = await createTopic(groupId, dev2simTopicData);
 			await createDigitalTwinTopic(digitalTwinId, dev2simTopic.id, "dev2sim");
@@ -653,10 +648,7 @@ export const verifyAndCorrectDigitalTwinReferences = async (
 				topicType: "dtm2sim",
 				description: `dtm2sim for DT_${digitalTwinUid}`,
 				mqttAccessControl: "Pub & Sub",
-				payloadJsonSchema: "{}",
-				requireS3Storage: false,
-				s3Folder: "",
-				parquetSchema: "{}",
+				messageSchema: "{}",
 			};
 			const dtm2simTopic = await createTopic(0, dtm2simTopicData);
 			await createDigitalTwinTopic(digitalTwinId, dtm2simTopic.id, "dtm2sim");
@@ -667,10 +659,7 @@ export const verifyAndCorrectDigitalTwinReferences = async (
 				topicType: "sim2dtm",
 				description: `sim2dtm for DT_${digitalTwinUid}`,
 				mqttAccessControl: "Pub & Sub",
-				payloadJsonSchema: "{}",
-				requireS3Storage: false,
-				s3Folder: "",
-				parquetSchema: "{}",
+				messageSchema: "{}",
 			};
 			const sim2dtmTopic = await createTopic(0, sim2dtmTopicData);
 			await createDigitalTwinTopic(digitalTwinId, sim2dtmTopic.id, "sim2dtm");
@@ -682,10 +671,7 @@ export const verifyAndCorrectDigitalTwinReferences = async (
 				topicName: `${digitalTwinUid}_dtm2pdb`,
 				description: `dtm2pdb for DT_${digitalTwinUid}`,
 				mqttAccessControl: "Pub & Sub",
-				payloadJsonSchema: "{}",
-				requireS3Storage: false,
-				s3Folder: "",
-				parquetSchema: "{}",
+				messageSchema: "{}",
 			};
 			const dtm2pdbTopic = await createTopic(0, dtm2pdbTopicData);
 			await createDigitalTwinTopic(digitalTwinId, dtm2pdbTopic.id, "dtm2pdb");
@@ -697,10 +683,7 @@ export const verifyAndCorrectDigitalTwinReferences = async (
 				topicName: `${digitalTwinUid}_sim2llm`,
 				description: `sim2llm for DT_${digitalTwinUid}`,
 				mqttAccessControl: "Pub & Sub",
-				payloadJsonSchema: "{}",
-				requireS3Storage: false,
-				s3Folder: "",
-				parquetSchema: "{}",
+				messageSchema: "{}",
 			};
 			const sim2llmTopic = await createTopic(0, sim2llmTopicData);
 			await createDigitalTwinTopic(digitalTwinId, sim2llmTopic.id, "sim2llm");
@@ -712,10 +695,7 @@ export const verifyAndCorrectDigitalTwinReferences = async (
 				topicName: `${digitalTwinUid}_llm2sim`,
 				description: `llm2sim for DT_${digitalTwinUid}`,
 				mqttAccessControl: "Pub & Sub",
-				payloadJsonSchema: "{}",
-				requireS3Storage: false,
-				s3Folder: "",
-				parquetSchema: "{}",
+				messageSchema: "{}",
 			};
 			const llm2simTopic = await createTopic(0, llm2simTopicData);
 			await createDigitalTwinTopic(digitalTwinId, llm2simTopic.id, "llm2sim");
@@ -727,10 +707,7 @@ export const verifyAndCorrectDigitalTwinReferences = async (
 				topicName: `${digitalTwinUid}_dtmlog`,
 				description: `Log topic for DT_${digitalTwinUid}`,
 				mqttAccessControl: "Pub & Sub",
-				payloadJsonSchema: "{}",
-				requireS3Storage: false,
-				s3Folder: "",
-				parquetSchema: "{}",
+				messageSchema: "{}",
 			};
 			const dtmlogTopic = await createTopic(0, dtmlogTopicData);
 			await createDigitalTwinTopic(digitalTwinId, dtmlogTopic.id, "dtmlog");
@@ -742,10 +719,7 @@ export const verifyAndCorrectDigitalTwinReferences = async (
 				topicName: `${digitalTwinUid}_state2sim`,
 				description: `state2sim for DT_${digitalTwinUid}`,
 				mqttAccessControl: "Pub & Sub",
-				payloadJsonSchema: "{}",
-				requireS3Storage: false,
-				s3Folder: "",
-				parquetSchema: "{}",
+				messageSchema: "{}",
 			};
 			const state2simTopic = await createTopic(0, state2simTopicData);
 			await createDigitalTwinTopic(digitalTwinId, state2simTopic.id, "state2sim");
@@ -757,10 +731,7 @@ export const verifyAndCorrectDigitalTwinReferences = async (
 				topicName: `${digitalTwinUid}_sim2state`,
 				description: `sim2state for DT_${digitalTwinUid}`,
 				mqttAccessControl: "Pub & Sub",
-				payloadJsonSchema: "{}",
-				requireS3Storage: false,
-				s3Folder: "",
-				parquetSchema: "{}",
+				messageSchema: "{}",
 			};
 			const sim2stateTopic = await createTopic(0, sim2stateTopicData);
 			await createDigitalTwinTopic(digitalTwinId, sim2stateTopic.id, "sim2state");
@@ -772,10 +743,7 @@ export const verifyAndCorrectDigitalTwinReferences = async (
 				topicName: `${digitalTwinUid}_inject_1`,
 				description: `Inject_1 for DT_${digitalTwinUid}`,
 				mqttAccessControl: "Pub & Sub",
-				payloadJsonSchema: "{}",
-				requireS3Storage: false,
-				s3Folder: "",
-				parquetSchema: "{}",
+				messageSchema: "{}",
 			};
 			const inject_1_Topic = await createTopic(0, inject_1_TopicData);
 			await createDigitalTwinTopic(digitalTwinId, inject_1_Topic.id, "inject_1");
@@ -787,10 +755,7 @@ export const verifyAndCorrectDigitalTwinReferences = async (
 				topicName: `${digitalTwinUid}_inject_2`,
 				description: `Inject_2 for DT_${digitalTwinUid}`,
 				mqttAccessControl: "Pub & Sub",
-				payloadJsonSchema: "{}",
-				requireS3Storage: false,
-				s3Folder: "",
-				parquetSchema: "{}",
+				messageSchema: "{}",
 			};
 			const inject_2_Topic = await createTopic(0, inject_2_TopicData);
 			await createDigitalTwinTopic(digitalTwinId, inject_2_Topic.id, "inject_2");
@@ -802,10 +767,7 @@ export const verifyAndCorrectDigitalTwinReferences = async (
 				topicName: `${digitalTwinUid}_inject_3`,
 				description: `Inject_3 for DT_${digitalTwinUid}`,
 				mqttAccessControl: "Pub & Sub",
-				payloadJsonSchema: "{}",
-				requireS3Storage: false,
-				s3Folder: "",
-				parquetSchema: "{}",
+				messageSchema: "{}",
 			};
 			const inject_3_Topic = await createTopic(0, inject_3_TopicData);
 			await createDigitalTwinTopic(digitalTwinId, inject_3_Topic.id, "inject_3");
@@ -817,10 +779,7 @@ export const verifyAndCorrectDigitalTwinReferences = async (
 				topicName: `${digitalTwinUid}_inject_4`,
 				description: `Inject_4 for DT_${digitalTwinUid}`,
 				mqttAccessControl: "Pub & Sub",
-				payloadJsonSchema: "{}",
-				requireS3Storage: false,
-				s3Folder: "",
-				parquetSchema: "{}",
+				messageSchema: "{}",
 			};
 			const inject_4_Topic = await createTopic(0, inject_4_TopicData);
 			await createDigitalTwinTopic(digitalTwinId, inject_4_Topic.id, "inject_4");
@@ -832,10 +791,7 @@ export const verifyAndCorrectDigitalTwinReferences = async (
 				topicName: `${digitalTwinUid}_inject_5`,
 				description: `Inject_5 for DT_${digitalTwinUid}`,
 				mqttAccessControl: "Pub & Sub",
-				payloadJsonSchema: "{}",
-				requireS3Storage: false,
-				s3Folder: "",
-				parquetSchema: "{}",
+				messageSchema: "{}",
 			};
 			const inject_5_Topic = await createTopic(0, inject_5_TopicData);
 			await createDigitalTwinTopic(digitalTwinId, inject_5_Topic.id, "inject_5");
@@ -1021,10 +977,7 @@ export const createDigitalTwin = async (
 		topicType: "sim2dtm",
 		description: `sim2dtm for DT_${digitalTwinUid}`,
 		mqttAccessControl: "Pub & Sub",
-		payloadJsonSchema: "{}",
-		requireS3Storage: false,
-		s3Folder: "",
-		parquetSchema: "{}",
+		messageSchema: "{}",
 	};
 	const sim2dtmTopic = await createTopic(groupId, sim2dtmTopicData, isDefault);
 	await createDigitalTwinTopic(digitalTwin.id, sim2dtmTopic.id, "sim2dtm", isDefault);
@@ -1034,10 +987,7 @@ export const createDigitalTwin = async (
 		topicName: `${digitalTwinUid}_dtm2sim`,
 		description: `dtm2sim for DT_${digitalTwinUid}`,
 		mqttAccessControl: "Pub & Sub",
-		payloadJsonSchema: "{}",
-		requireS3Storage: false,
-		s3Folder: "",
-		parquetSchema: "{}",
+		messageSchema: "{}",
 	};
 	const dtm2simTopic = await createTopic(groupId, dtm2simTopicData, isDefault);
 	await createDigitalTwinTopic(digitalTwin.id, dtm2simTopic.id, "dtm2sim", isDefault);
@@ -1047,10 +997,7 @@ export const createDigitalTwin = async (
 		topicName: `${digitalTwinUid}_dtm2pdb`,
 		description: `dtm2pdb for DT_${digitalTwinUid}`,
 		mqttAccessControl: "Pub & Sub",
-		payloadJsonSchema: "{}",
-		requireS3Storage: false,
-		s3Folder: "",
-		parquetSchema: "{}",
+		messageSchema: "{}",
 	};
 	const dtm2pdbTopic = await createTopic(groupId, dtm2pdbTopicData, isDefault);
 	await createDigitalTwinTopic(digitalTwin.id, dtm2pdbTopic.id, "dtm2pdb", isDefault);
@@ -1059,10 +1006,7 @@ export const createDigitalTwin = async (
 		topicType: "dev2dtm",
 		description: `dev2dtm for DT_${digitalTwinUid}`,
 		mqttAccessControl: "Pub & Sub",
-		payloadJsonSchema: "{}",
-		requireS3Storage: false,
-		s3Folder: "",
-		parquetSchema: "{}",
+		messageSchema: "{}",
 	};
 	const dev2dtmTopic = await createTopic(groupId, dev2dtmTopicData, isDefault);
 	await createDigitalTwinTopic(digitalTwin.id, dev2dtmTopic.id, "dev2dtm", isDefault);
@@ -1071,10 +1015,7 @@ export const createDigitalTwin = async (
 		topicType: "dtm2dev",
 		description: `dtm2dev for DT_${digitalTwinUid}`,
 		mqttAccessControl: "Pub & Sub",
-		payloadJsonSchema: "{}",
-		requireS3Storage: false,
-		s3Folder: "",
-		parquetSchema: "{}",
+		messageSchema: "{}",
 	};
 	const dtm2devTopic = await createTopic(groupId, dtm2devTopicData, isDefault);
 	await createDigitalTwinTopic(digitalTwin.id, dtm2devTopic.id, "dtm2dev", isDefault);
@@ -1083,10 +1024,7 @@ export const createDigitalTwin = async (
 		topicType: "dev2sim",
 		description: `dev2sim for DT_${digitalTwinUid}`,
 		mqttAccessControl: "Pub & Sub",
-		payloadJsonSchema: "{}",
-		requireS3Storage: false,
-		s3Folder: "",
-		parquetSchema: "{}",
+		messageSchema: "{}",
 	};
 	const dev2simTopic = await createTopic(groupId, dev2simTopicData, isDefault);
 	await createDigitalTwinTopic(digitalTwin.id, dev2simTopic.id, "dev2sim", isDefault);
@@ -1095,10 +1033,7 @@ export const createDigitalTwin = async (
 		topicType: "sim2llm",
 		description: `sim2llm for DT_${digitalTwinUid}`,
 		mqttAccessControl: "Pub & Sub",
-		payloadJsonSchema: "{}",
-		requireS3Storage: false,
-		s3Folder: "",
-		parquetSchema: "{}",
+		messageSchema: "{}",
 	};
 	const sim2llmTopic = await createTopic(groupId, sim2llmTopicData, isDefault);
 	await createDigitalTwinTopic(digitalTwin.id, sim2llmTopic.id, "sim2llm", isDefault);
@@ -1107,10 +1042,7 @@ export const createDigitalTwin = async (
 		topicType: "llm2sim",
 		description: `llm2sim for DT_${digitalTwinUid}`,
 		mqttAccessControl: "Pub & Sub",
-		payloadJsonSchema: "{}",
-		requireS3Storage: false,
-		s3Folder: "",
-		parquetSchema: "{}",
+		messageSchema: "{}",
 	};
 	const llm2simTopic = await createTopic(groupId, llm2simTopicData, isDefault);
 	await createDigitalTwinTopic(digitalTwin.id, llm2simTopic.id, "llm2sim", isDefault);
@@ -1120,10 +1052,7 @@ export const createDigitalTwin = async (
 		topicName: `${digitalTwinUid}_dtmlog`,
 		description: `Log topic for DT_${digitalTwinUid}`,
 		mqttAccessControl: "Pub & Sub",
-		payloadJsonSchema: "{}",
-		requireS3Storage: false,
-		s3Folder: "",
-		parquetSchema: "{}",
+		messageSchema: "{}",
 	};
 	const dtmlogTopic = await createTopic(groupId, dtmlogTopicData, isDefault);
 	await createDigitalTwinTopic(digitalTwin.id, dtmlogTopic.id, "dtmlog", isDefault);
@@ -1133,10 +1062,7 @@ export const createDigitalTwin = async (
 		topicName: `${digitalTwinUid}_sim2state`,
 		description: `sim2state for DT_${digitalTwinUid}`,
 		mqttAccessControl: "Pub & Sub",
-		payloadJsonSchema: "{}",
-		requireS3Storage: false,
-		s3Folder: "",
-		parquetSchema: "{}",
+		messageSchema: "{}",
 	};
 	const sim2stateTopic = await createTopic(groupId, sim2stateTopicData, isDefault);
 	await createDigitalTwinTopic(digitalTwin.id, sim2stateTopic.id, "sim2state", isDefault);
@@ -1146,10 +1072,7 @@ export const createDigitalTwin = async (
 		topicName: `${digitalTwinUid}_state2sim`,
 		description: `state2sim for DT_${digitalTwinUid}`,
 		mqttAccessControl: "Pub & Sub",
-		payloadJsonSchema: "{}",
-		requireS3Storage: false,
-		s3Folder: "",
-		parquetSchema: "{}",
+		messageSchema: "{}",
 	};
 	const state2simTopic = await createTopic(groupId, state2simTopicData, isDefault);
 	await createDigitalTwinTopic(digitalTwin.id, state2simTopic.id, "state2sim", isDefault);
@@ -1162,10 +1085,7 @@ export const createDigitalTwin = async (
 				topicName: `${digitalTwinUid}_${topicType}`,
 				description: `Inject_${i + 1} for DT_${digitalTwinUid}`,
 				mqttAccessControl: "Pub & Sub",
-				payloadJsonSchema: "{}",
-				requireS3Storage: false,
-				s3Folder: "",
-				parquetSchema: "{}",
+				messageSchema: "{}",
 			};
 			const topic = await createTopic(groupId, topicData, isDefault);
 			await createDigitalTwinTopic(digitalTwin.id, topic.id, topicType, isDefault);
@@ -1374,6 +1294,7 @@ export const createSensorInDigitalTwin = async (digitalTwinId: number, sensorId:
 						VALUES ($1, $2)
 	                    RETURNING  digital_twin_id AS "digitalTwinId", sensor_id AS "sensorId"`;
 	const result = await pool.query(queryString, [digitalTwinId, sensorId]);
+	await refreshTopicsMessageSchema(await topicIdsOfDigitalTwin(digitalTwinId));
 	return result.rows[0] as IDigitalTwinTopic;
 };
 

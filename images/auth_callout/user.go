@@ -87,9 +87,10 @@ func (u *User) GetPermissions(authModel *AuthModel, group *Group, svc *Service) 
 			denyPub = append(denyPub, ">")
 		}
 
-		if len(subSubjectArray) == 0 {
-			denySub = append(denySub, ">")
-		}
+		// Buzón propio para las respuestas de sus peticiones (request/reply): el frontend se conecta con
+		// inboxPrefix = UserInboxPrefix(usuario). Solo el suyo: con "_INBOX.>" podría leer respuestas ajenas.
+		// (con ella Allow nunca queda vacío: lo que no esté en Allow sigue denegado)
+		subSubjectArray = append(subSubjectArray, UserInboxPrefix(u.Username)+".>")
 
 		return jwt.Permissions{
 			Pub: jwt.Permission{

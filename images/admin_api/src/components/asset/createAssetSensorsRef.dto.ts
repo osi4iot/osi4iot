@@ -1,4 +1,4 @@
-import { IsString } from "class-validator";
+import { IsOptional, IsString } from "class-validator";
 
 class CreateAssetSensorsRefDto {
 	topicId?: number;
@@ -17,8 +17,15 @@ class CreateAssetSensorsRefDto {
 	@IsString()
 	public description: string;
 
+	// Fields it measures, with label and units (see utils/measurements.ts)
+	@IsOptional()
 	@IsString()
-	public payloadJsonSchema: string;
+	public measurements?: string;
+
+	// Obsoleto (versiones anteriores, mismo contenido como JSON schema): se convierte a measurements
+	@IsOptional()
+	@IsString()
+	public payloadJsonSchema?: string;
 }
 
 export default CreateAssetSensorsRefDto;

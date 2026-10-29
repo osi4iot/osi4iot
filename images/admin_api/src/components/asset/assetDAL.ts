@@ -21,6 +21,7 @@ import IAssetTopic from "./assetTopic.interface";
 import IMqttDigitalTwinTopicInfo from "../digitalTwin/mqttDigitalTwinTopicInfo.interface";
 import IDigitalTwinTopic from "../digitalTwin/digitalTwinTopic.interface";
 import natsClient from "../../config/natsConfig";
+import { hasMeasurements } from "../../utils/measurements/measurements";
 
 export const insertAssetType = async (assetTypeData: IAssetType): Promise<IAssetType> => {
 	const queryString = `INSERT INTO grafanadb.asset_type (org_id, asset_type_uid,
@@ -296,7 +297,8 @@ export const createNewAsset = async (group: IGroup, assetData: CreateAssetDto, i
 		sensorsRef[i].topicId = topicId;
 		const sensorType = await getSensorTypeByPropName(group.orgId, "type", sensorsRef[i].sensorType);
 		sensorsRef[i].sensorTypeId = sensorType.id;
-		if (sensorsRef[i].payloadJsonSchema === "{}") {
+		// sin campos medidos (fotos, vídeo, audio...) no hay panel que mostrar
+		if (!hasMeasurements(sensorsRef[i].measurements ?? sensorsRef[i].payloadJsonSchema)) {
 			dashboarsId[i] = null;
 		} else {
 			dashboarsId[i] = await createSensorDashboard(group, sensorsRef[i], sensorsUid[i]);

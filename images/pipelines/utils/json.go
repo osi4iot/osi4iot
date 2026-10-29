@@ -35,6 +35,8 @@ func UnmarshalData(data []byte, v interface{}) error {
 
 var jsonStringFields = map[string]bool{
 	"payloadJsonSchema":           true,
+	"messageSchema":               true,
+	"measurements":                true,
 	"parquetSchema":               true,
 	"digitalTwinSimulationFormat": true,
 	"settings":                    true,

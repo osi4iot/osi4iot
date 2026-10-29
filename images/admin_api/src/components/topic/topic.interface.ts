@@ -8,11 +8,9 @@ export default interface ITopic {
 	description: string;
 	topicUid: string;
 	mqttAccessControl: string;
-	payloadJsonSchema: string;
-	requireS3Storage: boolean;
-	s3Folder: string;
-	lastS3Storage: string;
-	parquetSchema: string;
+	// JSON schema of its messages (see messageSchema.ts) and its version
+	messageSchema: string | Record<string, unknown>;
+	messageSchemaVersion?: number;
 	created?: string;
 	updated?: string;
 }

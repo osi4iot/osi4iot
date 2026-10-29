@@ -31,6 +31,16 @@ import { getOrganizationsManagedByUserId } from "../organization/organizationDAL
 import { updateMeasurementsTopicByTopic } from "../mesurement/measurementDAL";
 import IMobileTopic from "./mobileTopic.interface";
 import infoLogger from "../../utils/logger/infoLogger";
+import InvalidPropValueException from "../../exceptions/InvalidPropValueException";
+import { getMessageSchemaVersions, isMessageSchemaEditable, messageSchemaError } from "./messageSchema";
+
+// field of older versions (payloadJsonSchema) as messageSchema
+const takeMessageSchema = (topicData: { messageSchema?: string; payloadJsonSchema?: string }): void => {
+	if (topicData.messageSchema === undefined && topicData.payloadJsonSchema !== undefined) {
+		topicData.messageSchema = topicData.payloadJsonSchema;
+	}
+	delete topicData.payloadJsonSchema;
+};
 
 class TopicController implements IController {
 	public path = "/topic";
@@ -70,6 +80,12 @@ class TopicController implements IController {
 				groupExists,
 				groupAdminAuth,
 				this.changeTopicUid
+			)
+			.get(
+				`${this.path}_message_schemas/:groupId/:topicId`,
+				groupExists,
+				groupAdminAuth,
+				this.getMessageSchemaVersions
 			)
 			.get(
 				`${this.path}/:groupId/:propName/:propValue`,
@@ -253,6 +269,12 @@ class TopicController implements IController {
 			const groupId = req.group.id;
 			const topic = await getTopicByProp("id", topicId);
 			if (!topic) throw new ItemNotFoundException(req, res, "The topic", "id", topicId);
+			takeMessageSchema(topicData);
+			const topicType = topicData.topicType ?? topic.topicType;
+			if (isMessageSchemaEditable(topicType) && topicData.messageSchema !== undefined) {
+				const error = messageSchemaError(topicData.messageSchema);
+				if (error) throw new InvalidPropValueException(req, res, error);
+			}
 			const topicUpdate = { ...topic, ...topicData };
 			await updateTopicById(groupId, parseInt(topicId, 10), topicUpdate);
 			const message = { message: "Topic updated successfully" }
@@ -291,10 +313,34 @@ class TopicController implements IController {
 		try {
 			const topicData: CreateTopicDto = req.body;
 			const groupId = req.group.id;
+			takeMessageSchema(topicData);
+			if (isMessageSchemaEditable(topicData.topicType) && topicData.messageSchema !== undefined) {
+				const error = messageSchemaError(topicData.messageSchema);
+				if (error) throw new InvalidPropValueException(req, res, error);
+			}
 			await createTopic(groupId, topicData);
 			const message = { message: `A new topic has been created` };
 			infoLogger(req, res, 200, message.message);
 			res.status(200).send(message);
+		} catch (error) {
+			next(error);
+		}
+	};
+
+	// versions of the message schema of a topic, the newest first
+	private getMessageSchemaVersions = async (
+		req: IRequestWithGroup,
+		res: Response,
+		next: NextFunction
+	): Promise<void> => {
+		try {
+			const { topicId } = req.params;
+			const topic = await getTopicByProp("id", topicId);
+			if (!topic || topic.groupId !== req.group.id) {
+				throw new ItemNotFoundException(req, res, "The topic", "id", topicId);
+			}
+			const versions = await getMessageSchemaVersions(topic.id);
+			res.status(200).send(versions);
 		} catch (error) {
 			next(error);
 		}

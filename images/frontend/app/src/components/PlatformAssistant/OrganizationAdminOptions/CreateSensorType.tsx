@@ -19,6 +19,7 @@ import { IOrgManaged } from '../TableColumns/organizationsManagedColumns';
 import { cleanSvgString } from '../../../tools/generateAssetTypeMarker';
 import { AxiosResponse, AxiosError } from 'axios';
 import { ControlsContainer, StaticFormContainer, FormSection } from "../../Tools/FormTools";
+import { measurementsTextError, toMeasurements } from "../../../tools/measurements";
 
 
 const SvgIconPreviewContainerDiv = styled.div`
@@ -165,14 +166,8 @@ const dashboardRefreshOptions = [
     },
 ];
 
-const defaultPayloadJsonSchema = {
-    "type": "object",
-    "properties": {
-        "parameter1": {
-            "type": "number",
-            "units": "m"
-        }
-    }
+const defaultMeasurements = {
+    parameter1: { type: "number", label: "Parameter 1", units: "m" },
 };
 
 const selectFile = (openFileSelector: () => void, clear: () => void) => {
@@ -185,7 +180,7 @@ interface ISensorTypeInputData {
     type: string;
     dashboardRefresh: string;
     dashboardTimeWindow: string;
-    defaultPayloadJsonSchema: string;
+    defaultMeasurements: string;
 }
 
 type FormikType = FormikProps<ISensorTypeInputData>
@@ -285,7 +280,7 @@ const CreateSensorType: FC<CreateSensorTypeProps> = ({
             iconSvgString,
             dashboardRefreshString: values.dashboardRefresh,
             dashboardTimeWindow: values.dashboardTimeWindow,
-            defaultPayloadJsonSchema: values.defaultPayloadJsonSchema
+            defaultMeasurements: JSON.stringify(toMeasurements(values.defaultMeasurements))
         }
 
         setIsSubmitting(true);
@@ -312,7 +307,7 @@ const CreateSensorType: FC<CreateSensorTypeProps> = ({
         type: "",
         dashboardRefresh: "1s",
         dashboardTimeWindow: "5m",
-        defaultPayloadJsonSchema: JSON.stringify(defaultPayloadJsonSchema, null, 4)
+        defaultMeasurements: JSON.stringify(defaultMeasurements, null, 4)
     }
 
     const validationSchema = Yup.object().shape({
@@ -320,7 +315,12 @@ const CreateSensorType: FC<CreateSensorTypeProps> = ({
         dashboardTimeWindow: Yup.string().matches(/\d+(s|m|h)$/,
             "Dashboard time window must contain a number follow by 's', 'm' or 'h'"
         ).required('Required'),
-        defaultPayloadJsonSchema: Yup.string().required('Required'),
+        defaultMeasurements: Yup.string()
+            .required('Required')
+            .test("measurements", (value, context) => {
+                const error = measurementsTextError(value);
+                return error ? context.createError({ message: error }) : true;
+            }),
     });
 
 
@@ -383,8 +383,8 @@ const CreateSensorType: FC<CreateSensorTypeProps> = ({
                                     />
                                     <FormikControl
                                         control='textarea'
-                                        label='Default payload json schema'
-                                        name='defaultPayloadJsonSchema'
+                                        label='Default measurements'
+                                        name='defaultMeasurements'
                                         textAreaSize='Small'
                                     />
                                     <FormSection title="Select icon svg file (required)">

@@ -18,6 +18,7 @@ import {
 import { getAxiosInstance } from "../../../tools/axiosIntance";
 import axiosErrorHandler from "../../../tools/axiosErrorHandler";
 import { AxiosResponse, AxiosError } from "axios";
+import { Measurements } from "../../../tools/measurements";
 
 export interface ISensor {
     id: number;
@@ -34,7 +35,7 @@ export interface ISensor {
     description: string;
     dashboardId: string;
     dashboardUrl: string;
-    payloadJsonSchema: string;
+    measurements: Measurements;
 }
 
 interface ISensorColumn extends ISensor {

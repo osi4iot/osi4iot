@@ -94,22 +94,19 @@ type Asset struct {
 }
 
 type Topic struct {
-	Id                int            `json:"id"`
-	OrgId             int            `json:"orgId"`
-	GroupId           int            `json:"groupId"`
-	GroupUid          string         `json:"groupUid"`
-	TopicType         string         `json:"topicType"`
-	TopicName         string         `json:"topicName"`
-	Description       string         `json:"description"`
-	TopicUid          string         `json:"topicUid"`
-	MqttAccessControl string         `json:"mqttAccessControl"`
-	PayloadJsonSchema map[string]any `json:"payloadJsonSchema"`
-	RequireS3Storage  bool           `json:"requireS3Storage"`
-	S3Folder          string         `json:"s3Folder"`
-	LastS3Storage     string         `json:"lastS3Storage"`
-	ParquetSchema     map[string]any `json:"parquetSchema"`
-	Created           string         `json:"created"`
-	Updated           string         `json:"updated"`
+	Id                   int            `json:"id"`
+	OrgId                int            `json:"orgId"`
+	GroupId              int            `json:"groupId"`
+	GroupUid             string         `json:"groupUid"`
+	TopicType            string         `json:"topicType"`
+	TopicName            string         `json:"topicName"`
+	Description          string         `json:"description"`
+	TopicUid             string         `json:"topicUid"`
+	MqttAccessControl    string         `json:"mqttAccessControl"`
+	MessageSchema        map[string]any `json:"messageSchema"`
+	MessageSchemaVersion int            `json:"messageSchemaVersion"`
+	Created              string         `json:"created"`
+	Updated              string         `json:"updated"`
 }
 
 type AssetTopic struct {
@@ -119,25 +116,26 @@ type AssetTopic struct {
 }
 
 type Sensor struct {
-	Id                int    `json:"id"`
-	OrgId             int    `json:"orgId"`
-	GroupId           int    `json:"groupId"`
-	GroupUid          string `json:"groupUid"`
-	AssetId           int    `json:"assetId"`
-	AssetUid          string `json:"assetUid"`
-	SensorUid         string `json:"sensorUid"`
-	SensorRef         string `json:"sensorRef"`
-	SensorType        string `json:"sensorType"`
-	SensorTypeId      int    `json:"sensorTypeId"`
-	TopicId           int    `json:"topicId"`
-	TopicUid          string `json:"topicUid"`
-	TopicRef          int    `json:"topicRef"`
-	Description       string `json:"description"`
-	DashboardId       int    `json:"dashboardId"`
-	DashboardUrl      string `json:"dashboardUrl"`
-	PayloadJsonSchema string `json:"payloadJsonSchema"`
-	Created           string `json:"created"`
-	Updated           string `json:"updated"`
+	Id           int    `json:"id"`
+	OrgId        int    `json:"orgId"`
+	GroupId      int    `json:"groupId"`
+	GroupUid     string `json:"groupUid"`
+	AssetId      int    `json:"assetId"`
+	AssetUid     string `json:"assetUid"`
+	SensorUid    string `json:"sensorUid"`
+	SensorRef    string `json:"sensorRef"`
+	SensorType   string `json:"sensorType"`
+	SensorTypeId int    `json:"sensorTypeId"`
+	TopicId      int    `json:"topicId"`
+	TopicUid     string `json:"topicUid"`
+	TopicRef     int    `json:"topicRef"`
+	Description  string `json:"description"`
+	DashboardId  int    `json:"dashboardId"`
+	DashboardUrl string `json:"dashboardUrl"`
+	// fields of the messages it measures: { "<field>": { "type", "label", "units" } }
+	Measurements map[string]any `json:"measurements"`
+	Created      string         `json:"created"`
+	Updated      string         `json:"updated"`
 }
 
 type DigitalTwin struct {

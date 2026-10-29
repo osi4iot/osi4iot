@@ -33,6 +33,7 @@ import { CodeMirrorWrapper } from "../../Tools/CodeMirrorWrapper";
 import { ControlsContainer, DraggableFormContainer, FieldErrorScroller } from "../../Tools/FormTools";
 import { ReIndentCommand } from "../DigitalTwin3DViewer/Pipeline/types";
 import { assetOptions, sortAssetNamesByDescription } from "../../../tools/tools";
+import { measurementsText, measurementsTextError, toMeasurements } from "../../../tools/measurements";
 
 const SvgIconPreviewContainerDiv = styled.div`
     margin: 5px 0;
@@ -204,7 +205,7 @@ interface InitialSensorData {
     topicRef: string;
     sensorRef: string;
     description: string;
-    payloadJsonSchema: string;
+    measurements: string;
 }
 
 type FormikType = FormikProps<InitialSensorData>;
@@ -253,7 +254,7 @@ const CreateSensor: FC<CreateSensorProps> = ({ backToTable, refreshSensors }) =>
         topicRef: initTopicRef.topicRef,
         sensorRef: `sensor_${newSensorRefNum}`,
         description: "",
-        payloadJsonSchema: JSON.stringify(initSensorType.defaultPayloadJsonSchema, null, 4),
+        measurements: measurementsText(initSensorType.defaultMeasurements),
     };
 
     useEffect(() => {
@@ -314,8 +315,8 @@ const CreateSensor: FC<CreateSensorProps> = ({ backToTable, refreshSensors }) =>
         formik.setFieldValue("sensorRef", `sensor_${newSensorRefNum}`);
         const sensorTypeSelected = findSensorTypeSelected(sensorTypes, orgsOfGroupManaged, sensorType, orgAcronym);
         setIconSvgString(sensorTypeSelected.iconSvgString);
-        const payloadJsonSchema = JSON.stringify(sensorTypeSelected.defaultPayloadJsonSchema, null, 4);
-        formik.setFieldValue("payloadJsonSchema", payloadJsonSchema);
+        const measurements = measurementsText(sensorTypeSelected.defaultMeasurements);
+        formik.setFieldValue("measurements", measurements);
     };
 
     const handleChangeGroup = (e: { value: string }, formik: FormikType) => {
@@ -338,8 +339,8 @@ const CreateSensor: FC<CreateSensorProps> = ({ backToTable, refreshSensors }) =>
         formik.setFieldValue("sensorRef", `sensor_${newSensorRefNum}`);
         const sensorTypeSelected = findSensorTypeSelected(sensorTypes, orgsOfGroupManaged, sensorType, orgAcronym);
         setIconSvgString(sensorTypeSelected.iconSvgString);
-        const payloadJsonSchema = JSON.stringify(sensorTypeSelected.defaultPayloadJsonSchema, null, 4);
-        formik.setFieldValue("payloadJsonSchema", payloadJsonSchema);
+        const measurements = measurementsText(sensorTypeSelected.defaultMeasurements);
+        formik.setFieldValue("measurements", measurements);
     };
 
     const handleChangeAsset = (e: { value: string }, formik: FormikType) => {
@@ -358,8 +359,8 @@ const CreateSensor: FC<CreateSensorProps> = ({ backToTable, refreshSensors }) =>
         formik.setFieldValue("sensorRef", `sensor_${newSensorRefNum}`);
         const sensorTypeSelected = findSensorTypeSelected(sensorTypes, orgsOfGroupManaged, sensorType, orgAcronym);
         setIconSvgString(sensorTypeSelected.iconSvgString);
-        const payloadJsonSchema = JSON.stringify(sensorTypeSelected.defaultPayloadJsonSchema, null, 4);
-        formik.setFieldValue("payloadJsonSchema", payloadJsonSchema);
+        const measurements = measurementsText(sensorTypeSelected.defaultMeasurements);
+        formik.setFieldValue("measurements", measurements);
     };
 
     const handleChangeSensorType = (e: { value: string }, formik: FormikType) => {
@@ -368,8 +369,8 @@ const CreateSensor: FC<CreateSensorProps> = ({ backToTable, refreshSensors }) =>
         const orgAcronym = formik.values.orgAcronym;
         const sensorTypeSelected = findSensorTypeSelected(sensorTypes, orgsOfGroupManaged, sensorType, orgAcronym);
         setIconSvgString(sensorTypeSelected.iconSvgString);
-        const payloadJsonSchema = JSON.stringify(sensorTypeSelected.defaultPayloadJsonSchema, null, 4);
-        formik.setFieldValue("payloadJsonSchema", payloadJsonSchema);
+        const measurements = measurementsText(sensorTypeSelected.defaultMeasurements);
+        formik.setFieldValue("measurements", measurements);
     };
 
     const onSubmit = (values: any, actions: any) => {
@@ -385,7 +386,7 @@ const CreateSensor: FC<CreateSensorProps> = ({ backToTable, refreshSensors }) =>
             description: values.description,
             sensorTypeId,
             sensorRef: values.sensorRef,
-            payloadJsonSchema: values.payloadJsonSchema,
+            measurements: JSON.stringify(toMeasurements(values.measurements)),
         };
 
         setIsSubmitting(true);
@@ -410,6 +411,12 @@ const CreateSensor: FC<CreateSensorProps> = ({ backToTable, refreshSensors }) =>
 
     const validationSchema = Yup.object().shape({
         description: Yup.string().max(190, "The maximum number of characters allowed is 190").required("Required"),
+        measurements: Yup.string()
+            .required("Required")
+            .test("measurements", (value, context) => {
+                const error = measurementsTextError(value);
+                return error ? context.createError({ message: error }) : true;
+            }),
     });
 
     const onCancel = (e: SyntheticEvent) => {
@@ -485,10 +492,10 @@ const CreateSensor: FC<CreateSensorProps> = ({ backToTable, refreshSensors }) =>
                                 <FormikControl control="input" label="Sensor reference" name="sensorRef" type="text" />
                                 <FormikControl control="input" label="Description" name="description" type="text" />
                                 <CodeMirrorWrapper fontSize="14px">
-                                    <label>Payload json schema</label>
+                                    <label>Measurements</label>
                                     <div className="cm-wrapper">
                                         <CodeMirror
-                                            value={formik.values.payloadJsonSchema}
+                                            value={formik.values.measurements}
                                             height="300px"
                                             theme={oneDark}
                                             extensions={[
@@ -498,10 +505,10 @@ const CreateSensor: FC<CreateSensorProps> = ({ backToTable, refreshSensors }) =>
                                                 keymap.of([...completionKeymap, indentWithTab, ReIndentCommand]),
                                             ]}
                                             onChange={(value) => {
-                                                formik.setFieldValue("payloadJsonSchema", value);
+                                                formik.setFieldValue("measurements", value);
                                             }}
                                             onBlur={() => {
-                                                formik.setFieldTouched("payloadJsonSchema", true);
+                                                formik.setFieldTouched("measurements", true);
                                             }}
                                             basicSetup={{
                                                 lineNumbers: true,
@@ -515,7 +522,7 @@ const CreateSensor: FC<CreateSensorProps> = ({ backToTable, refreshSensors }) =>
                                             }}
                                         />
                                     </div>
-                                    <FieldErrorScroller name="payloadJsonSchema" />
+                                    <FieldErrorScroller name="measurements" />
                                 </CodeMirrorWrapper>
                             </ControlsContainer>
                             <FormButtonsProps

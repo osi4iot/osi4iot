@@ -16,6 +16,7 @@ import {
     useSensorTypesDispatch
 } from '../../../contexts/sensorTypesOptions';
 import { AxiosResponse, AxiosError } from 'axios';
+import { Measurements } from "../../../tools/measurements";
 
 export interface ISensorType {
 	id: number;
@@ -26,7 +27,7 @@ export interface ISensorType {
 	iconSvgString: string;
     isPredefined: boolean;
     isPredefinedString: string;
-	defaultPayloadJsonSchema: string;
+	defaultMeasurements: Measurements;
 	dashboardRefreshString: string;
 	dashboardTimeWindow: string;   
 }
