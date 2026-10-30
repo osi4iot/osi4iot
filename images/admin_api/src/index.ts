@@ -6,7 +6,6 @@ import AuthenticationController from "./components/Authentication/authentication
 import { logger } from "./config/winston";
 import { dataBaseInitialization } from "./initialization/migration";
 import { refreshAllComputedMessageSchemas } from "./components/topic/messageSchema";
-import { notifyMobileAudioSensors } from "./initialization/mobileAudioSensor";
 import OrganizationController from "./components/organization/organization.controller";
 import ApplicationController from "./components/application/application.controller";
 import GroupController from "./components/group/group.controller";
@@ -29,7 +28,6 @@ const main = async (): Promise<void> => {
 		// esquemas de mensaje calculados (sensores, simulación, fijos): por si ha cambiado algo de lo que dependen
 		await refreshAllComputedMessageSchemas();
 		await natsClient.connect();
-		await notifyMobileAudioSensors();
 
 		// prettier-ignore
 		const app = new App([

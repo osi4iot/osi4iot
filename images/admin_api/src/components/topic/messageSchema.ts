@@ -1,6 +1,6 @@
 // Message schema of a topic: JSON schema (2020-12) of the messages published on it. Each change of the schema is a
-// new version (message_schema_version); grafanadb.topic_message_schema keeps all of them (see
-// initialization/topicMessageSchema.ts).
+// new version (message_schema_version); grafanadb.topic_message_schema keeps all of them (created with
+// grafanadb.topic in initialization/migration.ts).
 //
 // Where the schema comes from depends on the type of the topic:
 //  - "sensors" (dev2pdb, dev2pdb_wt, dev2pdb_ma, dev2sim): the measurements of its sensors (for dev2sim, the sensors

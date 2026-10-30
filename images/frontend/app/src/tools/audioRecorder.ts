@@ -33,7 +33,15 @@ export interface RecordingOptions {
     // una vez oída voz, cada 100 ms: milisegundos de silencio desde la última voz (0 mientras se habla), para
     // mostrar cuánto falta para que se detenga sola
     onSilence?: (silentMs: number) => void;
+    // micrófono ya abierto (getUserMedia) para empezar sin esperas; no se cierra al terminar la grabación
+    stream?: MediaStream;
 }
+
+// abre el micrófono con los ajustes de la grabación
+export const openMicrophone = () =>
+    navigator.mediaDevices.getUserMedia({
+        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+    });
 
 export interface Recording {
     // detiene y devuelve el audio (null si se detuvo sin oír voz o se canceló)
@@ -56,9 +64,8 @@ export const startRecording = async (options: RecordingOptions = {}): Promise<Re
         onSilence,
     } = options;
 
-    const stream = await navigator.mediaDevices.getUserMedia({
-        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
-    });
+    const ownStream = !options.stream;
+    const stream = options.stream ?? (await openMicrophone());
     const mimeType = pickAudioMimeType();
     const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
     const chunks: Blob[] = [];
@@ -88,7 +95,7 @@ export const startRecording = async (options: RecordingOptions = {}): Promise<Re
     const cleanup = () => {
         if (timer) clearInterval(timer);
         timer = null;
-        stream.getTracks().forEach((track) => track.stop());
+        if (ownStream) stream.getTracks().forEach((track) => track.stop());
         audioContext?.close().catch(() => undefined);
     };
 

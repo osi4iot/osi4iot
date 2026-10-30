@@ -3,7 +3,7 @@ import IGroup from "./interfaces/Group.interface";
 import { getOrganizationByProp } from "../organization/organizationDAL";
 
 // Knowledge bases (RAG) in admin_api's tables: see
-// initialization/knowledgeTables.ts.
+// initialization/migration.ts.
 
 export const KNOWLEDGE_TITLE_MAX_LENGTH = 200;
 

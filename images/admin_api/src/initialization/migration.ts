@@ -41,12 +41,6 @@ import {
 import ISensorType from "../components/sensor/sensorType.interface";
 import { predefinedSensorTypes, systemMonitoringSensorTypes } from "./predefinedSensorTypes";
 import process_env from "../config/api_config";
-import { ensureKnowledgeTables } from "./knowledgeTables";
-import { ensureAssetDescriptionIndex } from "./assetDescriptionIndex";
-import { ensureDigitalTwinSimulationFormatFile } from "./digitalTwinSimulationFormatFile";
-import { ensureTopicWithoutS3Columns } from "./topicWithoutS3Columns";
-import { ensureSensorMeasurements } from "./sensorMeasurements";
-import { ensureTopicMessageSchema } from "./topicMessageSchema";
 
 export const dataBaseInitialization = async () => {
 	const timescaledb_pool = new Pool({
@@ -716,7 +710,12 @@ export const dataBaseInitialization = async () => {
 				);
 
 				CREATE INDEX IF NOT EXISTS idx_asset_uid
-				ON grafanadb.asset(asset_uid);`;
+				ON grafanadb.asset(asset_uid);
+
+				-- an asset is chosen by its description: two assets of a group cannot have the same one
+				-- (the same text, ignoring case and the spaces around it; asset.controller.ts also checks it)
+				CREATE UNIQUE INDEX IF NOT EXISTS uq_asset_group_description
+				ON grafanadb.asset (group_id, lower(btrim(description)));`;
 
 				try {
 					await postgresClient.query(queryStringAsset);
@@ -725,7 +724,6 @@ export const dataBaseInitialization = async () => {
 					const message = err instanceof Error ? err.message : String(err);
 					logger.log("error", `Table ${tableAsset} can not be created: %s`, message);
 				}
-				await ensureAssetDescriptionIndex(postgresClient);
 
 				const tableS3Folder = "grafanadb.s3_folder";
 				const queryStringS3Folder = `
@@ -886,7 +884,83 @@ export const dataBaseInitialization = async () => {
 				);
 
 				CREATE INDEX IF NOT EXISTS idx_topic_uid
-				ON grafanadb.topic(topic_uid);`;
+				ON grafanadb.topic(topic_uid);
+
+				-- every version of the message schema of each topic (SCD2: valid_from, valid_to, is_current),
+				-- filled by the triggers below (see components/topic/messageSchema.ts)
+				CREATE TABLE IF NOT EXISTS grafanadb.topic_message_schema(
+					id              serial      PRIMARY KEY,
+					topic_id        bigint      NOT NULL,
+					version         integer     NOT NULL,
+					message_schema  jsonb       NOT NULL DEFAULT '{}'::jsonb,
+					valid_from      TIMESTAMPTZ NOT NULL DEFAULT now(),
+					valid_to        TIMESTAMPTZ,            -- NULL = current version
+					is_current      boolean     NOT NULL DEFAULT true,
+					CONSTRAINT fk_topic_id
+						FOREIGN KEY (topic_id)
+						REFERENCES grafanadb.topic(id)
+						ON DELETE CASCADE,
+					CONSTRAINT uq_topic_message_schema_version UNIQUE (topic_id, version)
+				);
+
+				CREATE UNIQUE INDEX IF NOT EXISTS uq_topic_message_schema_current
+					ON grafanadb.topic_message_schema(topic_id)
+					WHERE is_current = true;
+
+				-- version of the schema: +1 when it changes (not when it replaces the empty schema {})
+				CREATE OR REPLACE FUNCTION grafanadb.topic_message_schema_version()
+				RETURNS TRIGGER LANGUAGE plpgsql AS $$
+				BEGIN
+					IF TG_OP = 'INSERT' THEN
+						NEW.message_schema_version := 1;
+					ELSIF NEW.message_schema IS NOT DISTINCT FROM OLD.message_schema OR OLD.message_schema = '{}'::jsonb THEN
+						NEW.message_schema_version := OLD.message_schema_version;
+					ELSE
+						NEW.message_schema_version := OLD.message_schema_version + 1;
+					END IF;
+					RETURN NEW;
+				END;
+				$$;
+
+				CREATE OR REPLACE TRIGGER trg_topic_message_schema_version
+					BEFORE INSERT OR UPDATE OF message_schema, message_schema_version ON grafanadb.topic
+					FOR EACH ROW
+					EXECUTE FUNCTION grafanadb.topic_message_schema_version();
+
+				-- history: close the current version and open the new one
+				CREATE OR REPLACE FUNCTION grafanadb.topic_message_schema_history()
+				RETURNS TRIGGER LANGUAGE plpgsql AS $$
+				BEGIN
+					IF TG_OP = 'UPDATE' THEN
+						IF NEW.message_schema IS NOT DISTINCT FROM OLD.message_schema THEN
+							RETURN NULL;
+						END IF;
+						IF NEW.message_schema_version = OLD.message_schema_version THEN
+							-- the empty schema of this version is replaced
+							UPDATE grafanadb.topic_message_schema
+								SET message_schema = NEW.message_schema, valid_from = now()
+								WHERE topic_id = NEW.id AND version = NEW.message_schema_version AND is_current = true;
+							IF FOUND THEN
+								RETURN NULL;
+							END IF;
+						END IF;
+					END IF;
+
+					UPDATE grafanadb.topic_message_schema
+						SET valid_to = now(), is_current = false
+						WHERE topic_id = NEW.id AND is_current = true;
+					INSERT INTO grafanadb.topic_message_schema (topic_id, version, message_schema)
+						VALUES (NEW.id, NEW.message_schema_version, NEW.message_schema)
+						ON CONFLICT (topic_id, version) DO UPDATE
+						SET message_schema = EXCLUDED.message_schema, valid_from = now(), valid_to = NULL, is_current = true;
+					RETURN NULL;
+				END;
+				$$;
+
+				CREATE OR REPLACE TRIGGER trg_topic_message_schema_history
+					AFTER INSERT OR UPDATE OF message_schema ON grafanadb.topic
+					FOR EACH ROW
+					EXECUTE FUNCTION grafanadb.topic_message_schema_history();`;
 
 				try {
 					await postgresClient.query(queryStringTopic);
@@ -895,7 +969,6 @@ export const dataBaseInitialization = async () => {
 					const message = err instanceof Error ? err.message : String(err);
 					logger.log("error", `Table ${tableTopic} can not be created: %s`, message);
 				}
-				await ensureTopicMessageSchema(postgresClient);
 
 				const tableAssetTopic = "grafanadb.asset_topic";
 				const queryStringAssetTopic = `
@@ -982,6 +1055,8 @@ export const dataBaseInitialization = async () => {
 					chat_assistant_enabled BOOLEAN NOT NULL DEFAULT FALSE,
 					chat_assistant_language VARCHAR(20) NOT NULL DEFAULT 'none',
 					digital_twin_simulation_format jsonb NOT NULL DEFAULT '{}'::jsonb,
+					digital_twin_simulation_format_file_name VARCHAR(255) NOT NULL DEFAULT '-',
+					digital_twin_simulation_format_last_modif_date VARCHAR(100) NOT NULL DEFAULT '-',
 					pipeline_file_name VARCHAR(100) NOT NULL DEFAULT '-',
 					pipeline_file_last_modif_date VARCHAR(100) NOT NULL DEFAULT '-',
 					pipeline_file_data TEXT NOT NULL DEFAULT '',
@@ -1014,8 +1089,58 @@ export const dataBaseInitialization = async () => {
 					logger.log("error", `Table ${tableDigitalTwin} can not be created: %s`, message);
 				}
 
-				await ensureKnowledgeTables(postgresClient);
-				await ensureDigitalTwinSimulationFormatFile(postgresClient);
+				// Knowledge bases (RAG): one row per document of a group's knowledge base (title '' shows the file
+				// name), and the documents each digital twin's AI agents may read (none unless chosen). pipelines reads
+				// them as the pipelines_rag role (SELECT only), which exists only when the CLI created the rag schema.
+				const tableKnowledgeDocument = "grafanadb.knowledge_document";
+				const queryStringKnowledgeDocument = `
+				CREATE TABLE IF NOT EXISTS ${tableKnowledgeDocument}(
+					group_id bigint NOT NULL,
+					file_name VARCHAR(200) NOT NULL,
+					title VARCHAR(200) NOT NULL DEFAULT '',
+					created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+					updated TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+					PRIMARY KEY (group_id, file_name),
+					CONSTRAINT fk_group_id
+						FOREIGN KEY(group_id)
+							REFERENCES grafanadb.group(id)
+							ON DELETE CASCADE
+				);
+
+				CREATE TABLE IF NOT EXISTS grafanadb.digital_twin_knowledge_document(
+					digital_twin_id bigint NOT NULL,
+					group_id bigint NOT NULL,
+					file_name VARCHAR(200) NOT NULL,
+					PRIMARY KEY (digital_twin_id, file_name),
+					CONSTRAINT fk_digital_twin_id
+						FOREIGN KEY(digital_twin_id)
+							REFERENCES grafanadb.digital_twin(id)
+							ON DELETE CASCADE,
+					CONSTRAINT fk_knowledge_document
+						FOREIGN KEY(group_id, file_name)
+							REFERENCES grafanadb.knowledge_document(group_id, file_name)
+							ON DELETE CASCADE
+				);
+
+				CREATE INDEX IF NOT EXISTS idx_digital_twin_knowledge_document_file
+				ON grafanadb.digital_twin_knowledge_document(group_id, file_name);
+
+				DO $$
+				BEGIN
+					IF EXISTS (SELECT FROM pg_roles WHERE rolname = 'pipelines_rag') THEN
+						GRANT USAGE ON SCHEMA grafanadb TO pipelines_rag;
+						GRANT SELECT ON grafanadb.knowledge_document, grafanadb.digital_twin_knowledge_document TO pipelines_rag;
+					END IF;
+				END
+				$$;`;
+
+				try {
+					await postgresClient.query(queryStringKnowledgeDocument);
+					logger.log("info", `Table ${tableKnowledgeDocument} has been created sucessfully`);
+				} catch (err) {
+					const message = err instanceof Error ? err.message : String(err);
+					logger.log("error", `Table ${tableKnowledgeDocument} can not be created: %s`, message);
+				}
 
 				const tableDigitalTwinTopic = "grafanadb.digital_twin_topic";
 				const queryStringDigitalTwinTopic = `
@@ -1452,13 +1577,6 @@ export const dataBaseInitialization = async () => {
 					logger.log("info", `Timescaldb migration pool has ended`);
 				});
 			} else {
-				await ensureKnowledgeTables(postgresClient);
-				await ensureAssetDescriptionIndex(postgresClient);
-				await ensureDigitalTwinSimulationFormatFile(postgresClient);
-				await ensureTopicWithoutS3Columns(postgresClient);
-				await ensureSensorMeasurements(postgresClient);
-				await ensureTopicMessageSchema(postgresClient);
-
 				try {
 					const queryViews = `SELECT table_name from INFORMATION_SCHEMA.views WHERE table_schema = 'iot_datasource';`;
 					const result = await timescaledbClient.query(queryViews);
