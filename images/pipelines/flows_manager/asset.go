@@ -52,34 +52,9 @@ func (fm *FlowsManager) GetAssetByShortUidAndGroupId(shortUid string, groupId in
 
 func (fm *FlowsManager) AddAsset(ctx context.Context, asset *common.Asset) {
 	assetIdStr := strconv.Itoa(asset.Id)
+	// The asset's state lives in the IoT DB (AssetState node); an asset
+	// without one there is shown with the "Unknown" status.
 	if _, ok := fm.Assets.Load(assetIdStr); !ok {
-		groupId := asset.GroupId
-		kvStore := fm.GetGroupKvStore(groupId)
-		if kvStore == nil {
-			fm.log.Warnf("KV Store for Group ID %d is not available for Asset with ID %d", groupId, asset.Id)
-		} else {
-			group := fm.GetGroup(groupId)
-			org := fm.GetOrg(group.OrgId)
-			if group != nil && org != nil {
-				assetStateKey := fm.GetAssetStateKvStoreKey(org.OrgHash, group.GroupUID, asset.AssetUid)
-				existsKey, err := kvStore.KeyExists(ctx, assetStateKey)
-				if err != nil {
-					fm.log.Errorf("Error checking if key exists in store for key %s: %v", assetStateKey, err)
-				}
-				if !existsKey {
-					assetState := map[string]any{
-						"status": "Unknown",
-						"state_description": common.DefaultAssetStateDescription,
-					}
-					err = kvStore.SetValue(ctx, assetStateKey, assetState)
-					if err != nil {
-						fm.log.Errorf("Error setting initial asset state in store for key %s: %v", assetStateKey, err)
-					}
-				}
-			} else {
-				fm.log.Warnf("Group with ID %d or Org with ID %d not found for Asset with ID %d", groupId, group.OrgId, asset.Id)
-			}
-		}
 		fm.Assets.Store(assetIdStr, asset)
 	} else {
 		fm.log.Warnf("Asset with ID %d already exists", asset.Id)
@@ -221,10 +196,6 @@ func (fm *FlowsManager) GetAssetsByGroupId(groupId int) []*common.Asset {
 		return true
 	})
 	return assets
-}
-
-func (fm *FlowsManager) GetAssetStateKvStoreKey(orgHash string, groupUid string, assetUid string) string {
-	return fmt.Sprintf("org_%s-group_%s.asset_states.asset_%s", orgHash, groupUid, assetUid)
 }
 
 func makeAssetTopicRefKey(assetId int, topicRef string) string {

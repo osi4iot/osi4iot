@@ -8,11 +8,11 @@ import IMLModel from "./ml_model.interface";
 export const insertMLModel = async (mlModelData: IMLModel): Promise<IMLModel> => {
 	const result = await pool.query(
 		`INSERT INTO grafanadb.ml_model(group_id, ml_model_uid,
-		description, ml_library, created, updated)
-		VALUES ($1, $2, $3, $4, NOW(), NOW())
+		description, created, updated)
+		VALUES ($1, $2, $3, NOW(), NOW())
 		RETURNING  id, group_id AS "groupId", ml_model_uid AS "mlModelUid",
-		description, ml_library AS "mlLibrary", created, updated`,
-		[mlModelData.groupId, mlModelData.mlModelUid, mlModelData.description, mlModelData.mlLibrary]
+		description, created, updated`,
+		[mlModelData.groupId, mlModelData.mlModelUid, mlModelData.description]
 	);
 	const context = {
 		groupId: mlModelData.groupId,
@@ -26,9 +26,9 @@ export const updateMLModelByProp = async (
 	propValue: string | number,
 	mlModel: IMLModel
 ): Promise<void> => {
-	const query = `UPDATE grafanadb.ml_model SET description = $1, ml_library =$2, updated = NOW()
-				WHERE grafanadb.ml_model.${propName} = $3;`;
-	await pool.query(query, [mlModel.description, mlModel.mlLibrary, propValue]);
+	const query = `UPDATE grafanadb.ml_model SET description = $1, updated = NOW()
+				WHERE grafanadb.ml_model.${propName} = $2;`;
+	await pool.query(query, [mlModel.description, propValue]);
 	const context = {
 		groupId: mlModel.groupId,
 	};
@@ -52,7 +52,6 @@ export const getMLModelByProp = async (propName: string, propValue: string | num
 		`SELECT grafanadb.ml_model.id, grafanadb.group.org_id AS "orgId",
 		grafanadb.ml_model.group_id AS "groupId", grafanadb.ml_model.description,
 		grafanadb.ml_model.ml_model_uid AS "mlModelUid",
-		grafanadb.ml_model.ml_library AS "mlLibrary",
 		grafanadb.ml_model.created, grafanadb.ml_model.updated
 		FROM grafanadb.ml_model
 		INNER JOIN grafanadb.group ON grafanadb.ml_model.group_id = grafanadb.group.id
@@ -67,7 +66,6 @@ export const getAllMLModels = async (): Promise<IMLModel[]> => {
 		`SELECT grafanadb.ml_model.id, grafanadb.group.org_id AS "orgId",
 		grafanadb.ml_model.group_id AS "groupId", grafanadb.ml_model.description,
 		grafanadb.ml_model.ml_model_uid AS "mlModelUid",
-		grafanadb.ml_model.ml_library AS "mlLibrary",
 		grafanadb.ml_model.created, grafanadb.ml_model.updated
 		FROM grafanadb.ml_model
 		INNER JOIN grafanadb.group ON grafanadb.ml_model.group_id = grafanadb.group.id
@@ -86,7 +84,6 @@ export const getMLModelsByGroupId = async (groupId: number): Promise<IMLModel[]>
 		`SELECT grafanadb.ml_model.id, grafanadb.group.org_id AS "orgId",
 		grafanadb.ml_model.group_id AS "groupId", grafanadb.ml_model.description,
 		grafanadb.ml_model.ml_model_uid AS "mlModelUid",
-		grafanadb.ml_model.ml_library AS "mlLibrary",
 		grafanadb.ml_model.created, grafanadb.ml_model.updated
 		FROM grafanadb.ml_model
 		INNER JOIN grafanadb.group ON grafanadb.ml_model.group_id = grafanadb.group.id
@@ -102,7 +99,6 @@ export const getMLModelsByGroupsIdArray = async (groupsIdArray: number[]): Promi
 		`SELECT grafanadb.ml_model.id, grafanadb.group.org_id AS "orgId",
 		grafanadb.ml_model.group_id AS "groupId", grafanadb.ml_model.description,
 		grafanadb.ml_model.ml_model_uid AS "mlModelUid",
-		grafanadb.ml_model.ml_library AS "mlLibrary",
 		grafanadb.ml_model.created, grafanadb.ml_model.updated
 		FROM grafanadb.ml_model
 		INNER JOIN grafanadb.group ON grafanadb.ml_model.group_id = grafanadb.group.id
@@ -128,7 +124,6 @@ export const getMLModelsByOrgId = async (orgId: number): Promise<IMLModel[]> => 
 		`SELECT grafanadb.ml_model.id, grafanadb.group.org_id AS "orgId",
 		grafanadb.ml_model.group_id AS "groupId", grafanadb.ml_model.description,
 		grafanadb.ml_model.ml_model_uid AS "mlModelUid",
-		grafanadb.ml_model.ml_library AS "mlLibrary",
 		grafanadb.ml_model.created, grafanadb.ml_model.updated
 		FROM grafanadb.ml_model
 		INNER JOIN grafanadb.group ON grafanadb.ml_model.group_id = grafanadb.group.id

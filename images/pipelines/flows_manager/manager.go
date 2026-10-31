@@ -5,8 +5,10 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"path/filepath"
 	"pipelines/admin"
+	"pipelines/agentdata"
 	"pipelines/common"
 	"pipelines/config"
 	"pipelines/iotdb"
@@ -72,9 +74,14 @@ type FlowsManager struct {
 	LeaderKvStore            *nats_pkg.KVStore
 	// Knowledge is the groups' knowledge bases (RAG); nil when off.
 	Knowledge *rag.Service
+	// AgentData serves the agents' sensor history and asset states; nil
+	// when off (no IoT DB, or its endpoint did not start).
+	AgentData *agentdata.Service
 	// GpuCapable: this replica can run ONNX models on CUDA (see gpu.go).
 	GpuCapable bool
 	GpuReason  string
+	// functionHttp is the Function nodes' HTTP client (function_http.go).
+	functionHttp *http.Client
 }
 
 func CreateFlowsManager(
@@ -194,6 +201,10 @@ func CreateFlowsManager(
 	flowManager.AddDigitalTwinTopicsRef(digitalTwinTopics)
 	flowManager.AddAssetS3Folders(ctx, assetS3Folders)
 	flowManager.AddMlModels(ctx, mlModels)
+	// The agents' sensor history and asset states: before the digital
+	// twins, whose AiAgent nodes give their MCP servers its address.
+	flowManager.startAgentData(ctx, config.AgentData.Addr)
+	flowManager.initFunctionHttp(config.FunctionHttp, log)
 	// Before the digital twins: it decides which pipelines live here.
 	flowManager.initGpuCapability(ctx)
 	if knowledge != nil {

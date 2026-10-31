@@ -17,12 +17,20 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/Ingenimax/agent-sdk-go/pkg/skill"
 )
 
 // AiAgentNode runs an AI agent (package llmagent, on agent-sdk-go): an
-// LLM with the platform's MCP tools, which answers the prompts that
-// reach the node and keeps each user's conversation in the digital
-// twin's KV store.
+// LLM with the platform's MCP tools and the node's skills, which answers
+// the prompts that reach the node and keeps each user's conversation in
+// the digital twin's KV store.
+//
+// Settings that choose the agent's tools:
+//   - "mcpServers": the MCP servers (aiAgentMcpServers); absent: all of
+//     them, as before the setting existed.
+//   - "skills": ["platform:<name>", "group:<name>"] (aiAgentSkills.go);
+//     absent or empty: none.
 type AiAgentNode struct {
 	BaseNode
 
@@ -36,10 +44,20 @@ type AiAgentNode struct {
 	// base documents it may read change (see reloadIfToolsChanged).
 	hostMu           sync.Mutex
 	agentHost        *llmagent.Host
-	hostDone         chan struct{} // closed when agentHost's Run returns
-	femResultsServer aiAgentServer // without --results_path
-	documentsServer  aiAgentServer // without the knowledge base arguments
-	tools            agentTools    // what agentHost was started with
+	hostDone         chan struct{}   // closed when agentHost's Run returns
+	femResultsServer aiAgentServer   // without --results_path
+	documentsServer  aiAgentServer   // without the knowledge base arguments
+	tools            agentTools      // what agentHost was started with
+	mcpSelected      map[string]bool // the "mcpServers" setting; nil: all
+
+	// Skills (aiAgentSkills.go). skillLib is under hostMu (startHost
+	// gives it to a new agent); the rest under skillsMu.
+	skillRefs     []aiAgentSkillRef // the "skills" setting, fixed
+	skillsMu      sync.Mutex
+	skillsVersion string // of the chosen skills' files in the bucket; "" none there
+	skillsChecked bool
+	skillsWarned  bool
+	skillLib      *skill.Library
 
 	// The prompt being answered, to tell in the log where an agent is
 	// stuck.
@@ -56,10 +74,53 @@ const (
 	aiAgentAnswerWarnEvery = 60 * time.Second
 )
 
+// aiAgentMcpServers are the MCP servers a node can choose (admin_api's
+// skill/skillFormat.ts has the same list, for the editor). The tools are
+// named <server>__<tool>: the system prompts use these names.
+var aiAgentMcpServers = []string{
+	"current_date", "calculate_expression1", "fem_results", "documents", "sensor_history", "asset_state",
+}
+
+// parseAiAgentMcpServers reads the node's "mcpServers" setting: nil when
+// the node has none (all the servers), else the ones chosen. Unknown
+// names are returned apart, for the log.
+func parseAiAgentMcpServers(settings map[string]interface{}) (selected map[string]bool, unknown []string) {
+	list, ok := settings["mcpServers"].([]interface{})
+	if !ok {
+		return nil, nil
+	}
+	selected = map[string]bool{}
+	for _, v := range list {
+		name, _ := v.(string)
+		known := false
+		for _, s := range aiAgentMcpServers {
+			if s == name {
+				known = true
+				break
+			}
+		}
+		if known {
+			selected[name] = true
+		} else {
+			unknown = append(unknown, fmt.Sprint(v))
+		}
+	}
+	return selected, unknown
+}
+
+// mcpChosen says whether the node uses an MCP server.
+func (n *AiAgentNode) mcpChosen(name string) bool {
+	return n.mcpSelected == nil || n.mcpSelected[name]
+}
+
 // aiAgentServer is an MCP server of the node.
 type aiAgentServer struct {
 	command []string
 	args    []string
+	// env (KEY=VALUE) carries the tokens: not in the arguments, which any
+	// process of the container can read (/proc/<pid>/cmdline) and the SDK
+	// logs in debug mode; it masks the variables named *TOKEN*.
+	env []string
 }
 
 // agentTools is what decides the agent's optional MCP servers:
@@ -182,9 +243,49 @@ func CreateAiAgentNode(ctx context.Context, node common.NodeData, fm common.Mana
 		}
 	}
 
+	// The sensors' history and the assets' states of the digital twin's
+	// group, read through pipelines' agent data endpoint with a token for
+	// this digital twin (package agentdata): the servers get no database
+	// credentials.
+	if url, token, ok := fm.AgentDataAccess(p.GetGroupId(), p.GetDigitalTwinId()); ok {
+		dataArgs := []string{
+			"--data_url", url,
+			"--group_id", strconv.Itoa(p.GetGroupId()),
+			"--digital_twin_id", strconv.Itoa(p.GetDigitalTwinId()),
+		}
+		dataEnv := []string{"OSI4IOT_AGENTDATA_TOKEN=" + token}
+		for _, name := range []string{"sensor_history", "asset_state"} {
+			bin := filepath.Join("/usr/local/bin", name)
+			if fm.GetMode() == "local" {
+				bin = filepath.Join(mcpServersPath, name, name)
+			}
+			servers[name] = aiAgentServer{command: []string{bin}, args: dataArgs, env: dataEnv}
+		}
+	}
+
+	// The MCP servers and skills the node chose.
+	mcpSelected, unknownServers := parseAiAgentMcpServers(node.Settings)
+	if len(unknownServers) > 0 {
+		fm.Log().Warnf("AI Agent Node %s: unknown MCP servers ignored: %s", node.NodeUid, strings.Join(unknownServers, ", "))
+	}
+	skillRefs, invalidSkills := parseAiAgentSkills(node.Settings)
+	if len(invalidSkills) > 0 {
+		fm.Log().Warnf("AI Agent Node %s: invalid skills ignored (expected platform:<name> or group:<name>): %s",
+			node.NodeUid, strings.Join(invalidSkills, ", "))
+	}
+	chosen := func(name string) bool { return mcpSelected == nil || mcpSelected[name] }
+	if !chosen("fem_results") {
+		femResultsServer = aiAgentServer{}
+	}
+	if !chosen("documents") {
+		documentsServer = aiAgentServer{}
+	}
+
 	agentServers := map[string]llmagent.ServerConfig{}
 	for name, srv := range servers {
-		agentServers[name] = srv.config()
+		if chosen(name) {
+			agentServers[name] = srv.config()
+		}
 	}
 
 	// No max tokens: the providers use the model's own limit.
@@ -220,6 +321,8 @@ func CreateAiAgentNode(ctx context.Context, node common.NodeData, fm common.Mana
 		agentConfig:      agentConfig, // the configuration; channels and callbacks are set in Start
 		femResultsServer: femResultsServer,
 		documentsServer:  documentsServer,
+		mcpSelected:      mcpSelected,
+		skillRefs:        skillRefs,
 	}, nil
 }
 
@@ -227,6 +330,7 @@ func (s aiAgentServer) config() llmagent.ServerConfig {
 	return llmagent.ServerConfig{
 		Command: s.command[0],
 		Args:    append(append([]string{}, s.command[1:]...), s.args...),
+		Env:     s.env,
 	}
 }
 
@@ -241,22 +345,27 @@ func (n *AiAgentNode) currentTools(ctx context.Context, log *logger.Logger, prev
 	p := n.Pipeline
 	t := prev
 
-	femCtx, cancel := context.WithTimeout(ctx, toolsCheckTimeout)
-	uri, version, err := n.Fm.FemResultsS3URI(femCtx, p.GetOrgId(), p.GetGroupId(), p.GetDigitalTwinId())
-	cancel()
-	if err != nil {
-		log.Warnf("AiAgentNode %s: could not check the FEM results: %v", n.NodeUid, err)
-	} else {
-		t.femURI, t.femVersion = uri, version
+	// Not checked for a server the node did not choose.
+	if n.mcpChosen("fem_results") {
+		femCtx, cancel := context.WithTimeout(ctx, toolsCheckTimeout)
+		uri, version, err := n.Fm.FemResultsS3URI(femCtx, p.GetOrgId(), p.GetGroupId(), p.GetDigitalTwinId())
+		cancel()
+		if err != nil {
+			log.Warnf("AiAgentNode %s: could not check the FEM results: %v", n.NodeUid, err)
+		} else {
+			t.femURI, t.femVersion = uri, version
+		}
 	}
 
-	docsCtx, cancel := context.WithTimeout(ctx, toolsCheckTimeout)
-	docs, err := n.Fm.KnowledgeDocumentsVersion(docsCtx, p.GetGroupId(), p.GetDigitalTwinId())
-	cancel()
-	if err != nil {
-		log.Warnf("AiAgentNode %s: could not check the knowledge base documents: %v", n.NodeUid, err)
-	} else {
-		t.docsVersion = docs
+	if n.mcpChosen("documents") {
+		docsCtx, cancel := context.WithTimeout(ctx, toolsCheckTimeout)
+		docs, err := n.Fm.KnowledgeDocumentsVersion(docsCtx, p.GetGroupId(), p.GetDigitalTwinId())
+		cancel()
+		if err != nil {
+			log.Warnf("AiAgentNode %s: could not check the knowledge base documents: %v", n.NodeUid, err)
+		} else {
+			t.docsVersion = docs
+		}
 	}
 	return t
 }
@@ -291,8 +400,8 @@ func (n *AiAgentNode) startHost(log *logger.Logger, tools agentTools) ([]string,
 			"--group_id", strconv.Itoa(p.GetGroupId()),
 			"--digital_twin_id", strconv.Itoa(p.GetDigitalTwinId()),
 			"--knowledge_url", url,
-			"--knowledge_token", token,
 		}
+		srv.env = []string{"OSI4IOT_KNOWLEDGE_TOKEN=" + token}
 		cfg.MCPServers["documents"] = srv.config()
 	}
 
@@ -300,6 +409,7 @@ func (n *AiAgentNode) startHost(log *logger.Logger, tools agentTools) ([]string,
 	if err != nil {
 		return nil, err
 	}
+	host.SetSkills(n.skillLib) // the ones loaded so far (reloadSkillsIfChanged)
 	done := make(chan struct{})
 	n.agentHost, n.hostDone, n.tools = host, done, tools
 
@@ -423,6 +533,10 @@ func (n *AiAgentNode) Start(ctx context.Context, log *logger.Logger, needReiniti
 	n.agentIn = make(chan llmagent.Prompt)
 	n.agentOut = make(chan llmagent.Answer)
 
+	// The skills first, so the agent starts with them. Without an answer
+	// from the bucket it starts without them; the next prompt checks again.
+	n.reloadSkillsIfChanged(log)
+
 	// Without an answer from the bucket (or the database) the agent
 	// starts without fem_results (or documents); the next prompt checks
 	// again.
@@ -458,6 +572,7 @@ func (n *AiAgentNode) sendPrompt(prompt llmagent.Prompt, log *logger.Logger) err
 
 	log.Infof("AiAgentNode %s: prompt from %s received (%d characters)", n.NodeUid, prompt.UserName, len(prompt.Text))
 	n.reloadIfToolsChanged(log)
+	n.reloadSkillsIfChanged(log)
 	waitingSince := time.Now()
 	warn := time.NewTicker(aiAgentAcceptWarnAfter)
 	defer warn.Stop()

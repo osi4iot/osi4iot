@@ -11,37 +11,39 @@ import (
 
 // Config holds the entire application configuration.
 type Config struct {
-	Mode                     string            `mapstructure:"mode"`
-	DomainName               string            `mapstructure:"domainName"`
-	AdminUsername            string            `mapstructure:"adminUsername"`
-	AdminPassword            string            `mapstructure:"adminPassword"`
-	NATS                     NATSConfig        `mapstructure:"nats"`
-	TimescaleDB              TimescaleDBConfig `mapstructure:"timescaledb"`
-	IotDataBatchSize         int               `mapstructure:"iotDataBatchSize"`
-	IotDataNumWorkers        int               `mapstructure:"iotDataNumWorkers"`
-	NumStreamReplicas        int               `mapstructure:"numStreamReplicas"`
-	ReplicaIndex             int               `mapstructure:"replicaIndex"`
-	ShardIndex               int               `mapstructure:"shardIndex"`
-	NumReplicas              int               `mapstructure:"numReplicas"`
-	FunctionsTimeout         int               `mapstructure:"functionsTimeout"`
-	PlatformEmailUsername    string            `mapstructure:"platformEmailUsername"`
-	PlatformEmailPassword    string            `mapstructure:"platformEmailPassword"`
-	PlatformTelegramBotToken string            `mapstructure:"platformTelegramBotToken"`
-	RefreshThreshold         uint              `mapstructure:"refreshThreshold"`
-	ShardCount               int               `mapstructure:"shardCount"`
-	EncryptionSecretKey      string            `mapstructure:"encryptionSecretKey"`
-	DefaultLlmModel          string            `mapstructure:"defaultLlmModel"`
-	DefaultLlmTemperature    float32           `mapstructure:"defaultLlmTemperature"`
-	DefaultLlmTopK           int32             `mapstructure:"defaultLlmTopK"`
-	DefaultLlmTopP           float32           `mapstructure:"defaultLlmTopP"`
-	LlmMaxTokens             int               `mapstructure:"llmMaxTokens"`
-	McpServersPath           string            `mapstructure:"mcpServersPath"`
-	MaxChatMessagesPerUser   int               `mapstructure:"maxChatMessagesPerUser"`
-	PipelinesDataPath        string            `mapstructure:"pipelinesDataPath"`
-	AwsS3                    AwsS3Config       `mapstructure:"awsS3"`
-	DuckDB                   DuckDBConfig      `mapstructure:"duckdb"`
-	KnowledgeDB              KnowledgeDBConfig `mapstructure:"knowledgeDb"`
-	Rag                      RagConfig         `mapstructure:"rag"`
+	Mode                     string             `mapstructure:"mode"`
+	DomainName               string             `mapstructure:"domainName"`
+	AdminUsername            string             `mapstructure:"adminUsername"`
+	AdminPassword            string             `mapstructure:"adminPassword"`
+	NATS                     NATSConfig         `mapstructure:"nats"`
+	TimescaleDB              TimescaleDBConfig  `mapstructure:"timescaledb"`
+	IotDataBatchSize         int                `mapstructure:"iotDataBatchSize"`
+	IotDataNumWorkers        int                `mapstructure:"iotDataNumWorkers"`
+	NumStreamReplicas        int                `mapstructure:"numStreamReplicas"`
+	ReplicaIndex             int                `mapstructure:"replicaIndex"`
+	ShardIndex               int                `mapstructure:"shardIndex"`
+	NumReplicas              int                `mapstructure:"numReplicas"`
+	FunctionsTimeout         int                `mapstructure:"functionsTimeout"`
+	PlatformEmailUsername    string             `mapstructure:"platformEmailUsername"`
+	PlatformEmailPassword    string             `mapstructure:"platformEmailPassword"`
+	PlatformTelegramBotToken string             `mapstructure:"platformTelegramBotToken"`
+	RefreshThreshold         uint               `mapstructure:"refreshThreshold"`
+	ShardCount               int                `mapstructure:"shardCount"`
+	EncryptionSecretKey      string             `mapstructure:"encryptionSecretKey"`
+	DefaultLlmModel          string             `mapstructure:"defaultLlmModel"`
+	DefaultLlmTemperature    float32            `mapstructure:"defaultLlmTemperature"`
+	DefaultLlmTopK           int32              `mapstructure:"defaultLlmTopK"`
+	DefaultLlmTopP           float32            `mapstructure:"defaultLlmTopP"`
+	LlmMaxTokens             int                `mapstructure:"llmMaxTokens"`
+	McpServersPath           string             `mapstructure:"mcpServersPath"`
+	MaxChatMessagesPerUser   int                `mapstructure:"maxChatMessagesPerUser"`
+	PipelinesDataPath        string             `mapstructure:"pipelinesDataPath"`
+	AwsS3                    AwsS3Config        `mapstructure:"awsS3"`
+	DuckDB                   DuckDBConfig       `mapstructure:"duckdb"`
+	KnowledgeDB              KnowledgeDBConfig  `mapstructure:"knowledgeDb"`
+	Rag                      RagConfig          `mapstructure:"rag"`
+	AgentData                AgentDataConfig    `mapstructure:"agentData"`
+	FunctionHttp             FunctionHttpConfig `mapstructure:"functionHttp"`
 }
 
 type NATSConfig struct {
@@ -107,6 +109,25 @@ type RagConfig struct {
 	SearchAddr string `mapstructure:"searchAddr"` // loopback only
 }
 
+// AgentDataConfig is the internal endpoint the agents' sensor_history and
+// asset_state MCP servers call (package agentdata).
+type AgentDataConfig struct {
+	Addr string `mapstructure:"addr"` // loopback only
+}
+
+// FunctionHttpConfig is what the Function nodes' go.http may reach besides
+// the internet (package safehttp). By default, nothing internal.
+//
+//	functionHttp:
+//	  allowPrivateNetworks: false      # true: every internal address
+//	  allowedHosts:                    # names, IPs or CIDR ranges
+//	    - sensors-gateway.example.local
+//	    - 10.20.0.0/16
+type FunctionHttpConfig struct {
+	AllowPrivateNetworks bool     `mapstructure:"allowPrivateNetworks"`
+	AllowedHosts         []string `mapstructure:"allowedHosts"`
+}
+
 type DuckDBConfig struct {
 	MaxOpenConns    int           `mapstructure:"maxOpenConns"`
 	MaxIdleConns    int           `mapstructure:"maxIdleConns"`
@@ -147,6 +168,9 @@ func Load() (*Config, error) {
 
 	viper.SetDefault("rag.modelDir", "./assets/embeddings/multilingual-e5-small")
 	viper.SetDefault("rag.searchAddr", "127.0.0.1:7071")
+	viper.SetDefault("agentData.addr", "127.0.0.1:7072")
+	viper.SetDefault("functionHttp.allowPrivateNetworks", false)
+	viper.SetDefault("functionHttp.allowedHosts", []string{})
 
 	viper.SetDefault("iotDataBatchSize", 1000)
 	viper.SetDefault("iotDataNumWorkers", 10)

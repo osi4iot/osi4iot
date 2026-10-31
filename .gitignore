@@ -73,6 +73,8 @@ images/pipelines/mcp_servers/mcp_calculate_server/uv.lock
 images/pipelines/mcp_servers/chroma/
 images/pipelines/mcp_servers/fem_results/fem_results
 images/pipelines/mcp_servers/doc_info/doc_info
+images/pipelines/mcp_servers/asset_state/asset_state
+images/pipelines/mcp_servers/sensor_history/sensor_history
 images/pipelines/mcp_servers/data/
 images/pipelines/assets/onnx_runtime_linux_amd64_gpu/
 images/pipelines/assets/embeddings/

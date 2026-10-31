@@ -573,7 +573,7 @@ Use this node whenever a pipeline must react to live data published on NATS or M
         description: "Sends a user message to an AI agent and forwards the agent response into the pipeline.",
 
         details:
-            "The AiAgent node connects the pipeline to a configured language model with tool support. For each incoming message, it reads the user name from 'payload.userName' and the prompt text from 'payload.message'. If either field is missing, fallback values are used. The node sends that request to the configured AI agent together with the selected model, system prompt, temperature, Top K, and Top P settings. The system prompt is mandatory and defines the agent's behavior. The agent can access MCP tools made available by the platform, including the documents of the group's knowledge base (list, read and search), date and calculation tools, and FEM results tools when available. The agent response is transformed into a structured JSON payload containing the response message, optional UI metadata, and any tool calls performed during execution. The original message is replaced by the agent response.",
+            "The AiAgent node connects the pipeline to a configured language model with tool support. For each incoming message, it reads the user name from 'payload.userName' and the prompt text from 'payload.message'. If either field is missing, fallback values are used. The node sends that request to the configured AI agent together with the selected model, system prompt, temperature, Top K, and Top P settings. The system prompt is mandatory and defines the agent's behavior. The agent can access the MCP tools chosen in the Tools tab (the documents of the group's knowledge base, the history of the group's sensors and the states of its assets, date and calculation tools, and FEM results tools when available) and the skills chosen there: instructions for specific tasks, which the agent loads only when it needs them. The agent response is transformed into a structured JSON payload containing the response message, optional UI metadata, and any tool calls performed during execution. The original message is replaced by the agent response.",
 
         params: [
             {
@@ -602,7 +602,17 @@ Use this node whenever a pipeline must react to live data published on NATS or M
             {
                 name: "System prompt",
                 description:
-                    "Instructions that define the agent's role, behavior, and constraints. This field is required.",
+                    "Instructions that define the agent's role, behavior, and constraints. This field is required. Procedures that are only needed for some requests can go in skills instead, which keeps the system prompt short.",
+            },
+            {
+                name: "MCP servers (Tools tab)",
+                description:
+                    "The MCP servers the agent may use. Their tools are named <server>__<tool> (e.g. fem_results__max-value). A node that never changed this setting has all of them. fem_results is only started when the digital twin has FEM results, and documents when the group's knowledge base is enabled and the digital twin may read documents. sensor_history (sensors, statistics, history and latest values from the IoT database) and asset_state (the states the AssetState nodes keep) read only the data of the digital twin's group.",
+            },
+            {
+                name: "Skills (Tools tab)",
+                description:
+                    "Skills of the platform and of the group (managed in Platform admin and Group admin → Skills). The agent always sees each chosen skill's name and description, and calls load_skill to read its instructions when a request needs them (and read_skill_resource for its other files). A skill can declare the MCP servers it needs (requires_mcp). Changes to a skill reach the agent at its next prompt, without restarting it. The platform's built-in skills (marked built-in) cannot be changed: viewer-ui-options, chosen in new nodes, tells the agent how to change the 3D viewer (uiOpts), and fem-results-analysis how to query the FEM results. The values specific to the digital twin (object and result names, simulator fields, reset-view values, load factor rule) go in the system prompt.",
             },
         ],
 
@@ -1316,14 +1326,9 @@ Use this node whenever a pipeline must react to live data published on NATS or M
         description: "Sets, updates, or retrieves the state of the current asset or the assets in the current group.",
 
         details:
-            "The AssetState node manages asset state information using either the IoT DB or the group key-value store. It supports three actions. 'Set or update state of current asset' stores the current asset state in the selected store. In that mode, the state can come from a custom JSON object configured in the node or from 'msg.payload.state'. 'Get state of current asset' reads the current asset state from the selected store and adds it to the outgoing payload under 'state', together with 'state_description'. 'Get states of assets in current group' reads the states of all assets in the current group and adds them to the outgoing payload under 'assetStates'. When reading state data, the node ensures that 'status' is always present, defaulting to 'Unknown' if missing. It also ensures that 'state_description' is present when returning state information.",
+            "The AssetState node manages asset state information in the IoT DB (the asset state table of the platform's time-series database), where the TelegramListen node reads it too. It supports three actions. 'Set or update state of current asset' stores the current asset state. In that mode, the state can come from a custom JSON object configured in the node or from 'msg.payload.state'. 'Get state of current asset' reads the current asset state and adds it to the outgoing payload under 'state', together with 'state_description'. 'Get states of assets in current group' reads the states of all assets in the current group and adds them to the outgoing payload under 'assetStates'. An asset whose state has never been set has the status 'Unknown'. When reading state data, the node ensures that 'status' is always present, defaulting to 'Unknown' if missing. It also ensures that 'state_description' is present when returning state information.",
 
         params: [
-            {
-                name: "Store type",
-                description:
-                    "Selects where asset state data is stored and retrieved from. 'IoT DB' uses the asset state table in the database. 'Key-Value Store' uses the group key-value store.",
-            },
             {
                 name: "Action",
                 description:

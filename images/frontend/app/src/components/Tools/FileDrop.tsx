@@ -18,9 +18,12 @@ import { acceptLabel, matchesAccept } from "../../tools/fileTypes";
 const FaFileImportIcon = asIcon(FaFileImport);
 const FaExclamationTriangleIcon = asIcon(FaExclamationTriangle);
 
+// justo debajo de los botones del recuadro: ~8 px bajo su sombra (botones con margen inferior de 5 px y sombra de
+// 5 px dentro de un contenedor con margin-bottom 10 px). Si el contenedor de botones tiene otro relleno o margen,
+// se ajusta con hintStyle.
 const Hint = styled.div`
     width: 100%;
-    margin: -12px 0 6px 0;
+    margin: -2px 0 6px 0;
     text-align: center;
     font-size: 12px;
     color: #8a8f96;

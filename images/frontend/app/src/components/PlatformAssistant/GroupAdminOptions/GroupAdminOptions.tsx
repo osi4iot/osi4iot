@@ -26,6 +26,7 @@ import { AssetS3FolderProvider } from "../../../contexts/assetS3FolderOptions";
 import AssetS3FolderContainer from "./AssetS3FolderContainer";
 import { Column } from '../Utils/platformTable';
 import KnowledgeContainer from "./KnowledgeContainer";
+import SkillsContainer from "../Utils/SkillsContainer";
 import { reloadTable, TableName, usePersistentState, useTable, useTablesPending } from "../../../state";
 
 const ContentContainer = styled.div`
@@ -217,6 +218,9 @@ const GroupAdminOptions: FC<{}> = () => {
                         )}
                         {optionToShow === GROUP_ADMIN_OPTIONS.KNOWLEDGE && (
                             <KnowledgeContainer groupsManaged={groupsManagedTable} />
+                        )}
+                        {optionToShow === GROUP_ADMIN_OPTIONS.SKILLS && (
+                            <SkillsContainer scope="group" groupsManaged={groupsManagedTable} />
                         )}
                         {optionToShow === GROUP_ADMIN_OPTIONS.ML_MODELS && (
                             <MlModelsProvider>

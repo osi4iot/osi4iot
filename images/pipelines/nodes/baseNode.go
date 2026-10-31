@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	"pipelines/common"
+	"pipelines/iotdb"
 	"pipelines/logger"
 	nats_pkg "pipelines/nats"
 
@@ -384,50 +385,62 @@ func (n *BaseNode) GetGroupKvStore(groupId int) (*nats_pkg.KVStore, error) {
 	return kvStore, nil
 }
 
-func (n *BaseNode) GetAssetStateKvStoreKey(assetUid string, groupUid string) string {
-	return n.Fm.GetAssetStateKvStoreKey(n.GetOrgHash(), groupUid, assetUid)
+// Asset states are kept in the IoT DB (patroni_metrics, iot_data.assetState):
+// the AssetState node writes them and the AssetState and TelegramListen
+// nodes read them. An asset whose state has never been set has none there;
+// it is returned with the "Unknown" status.
+
+// unknownAssetState is the state of an asset that has none stored.
+func unknownAssetState() map[string]any {
+	return map[string]any{
+		"status":            "Unknown",
+		"state_description": common.DefaultAssetStateDescription,
+	}
 }
 
-func (n *BaseNode) GetAssetStateFromGroupKvStore(assetUid string, groupUid string) (map[string]any, error) {
-	kvKey := n.GetAssetStateKvStoreKey(assetUid, groupUid)
-	kvStore, err := n.GetGroupKvStore(n.Pipeline.GetGroupId())
-	if err != nil {
-		return nil, fmt.Errorf("failed to get KV store: %w", err)
+// GetAssetState returns the state of an asset of the group (groupUid).
+func (n *BaseNode) GetAssetState(assetUid string, groupUid string) (map[string]any, error) {
+	pool := n.Fm.GetDbReadPool()
+	if pool == nil {
+		return nil, fmt.Errorf("the IoT DB is not available")
 	}
-
-	assetState, err := kvStore.GetObjectValue(n.GetNodeContext(), kvKey)
+	state, err := iotdb.GetStateFromAssetState(n.GetNodeContext(), pool, groupUid, assetUid)
 	if err != nil {
-		return nil, fmt.Errorf("error getting value from store for key %s: %w", kvKey, err)
+		return nil, err
 	}
-	return assetState, nil
+	if len(state) == 0 {
+		return unknownAssetState(), nil
+	}
+	return state, nil
 }
 
-func (n *BaseNode) GetAssetStatesInGroupFromGroupKvStore(groupUid string, log *logger.Logger) (map[string]map[string]any, error) {
-	assetStates := make(map[string]map[string]any)
-	kvStore, err := n.GetGroupKvStore(n.Pipeline.GetGroupId())
-	if err != nil {
-		return nil, fmt.Errorf("failed to get KV store: %w", err)
+// GetAssetStatesInGroup returns the states of all the assets of the node's
+// group (groupUid), by asset UID; the assets without a stored state have
+// the "Unknown" status.
+func (n *BaseNode) GetAssetStatesInGroup(groupUid string, log *logger.Logger) (map[string]map[string]any, error) {
+	pool := n.Fm.GetDbReadPool()
+	if pool == nil {
+		return nil, fmt.Errorf("the IoT DB is not available")
 	}
-
-	keys, err := kvStore.ListKeys(n.GetNodeContext(), fmt.Sprintf("org_%s-group_%s.asset_states.", n.GetOrgHash(), groupUid))
+	assetStates, err := iotdb.GetAssetStatesByGroup(n.GetNodeContext(), pool, groupUid)
 	if err != nil {
-		return nil, fmt.Errorf("error listing keys from store for group %s: %w", groupUid, err)
+		return nil, err
 	}
-
-	for _, key := range keys {
-		state, err := kvStore.GetObjectValue(n.GetNodeContext(), key)
-		if err != nil {
-			log.Errorf("Error getting value from store for key %s: %v", key, err)
+	if assetStates == nil {
+		assetStates = make(map[string]map[string]any)
+	}
+	for assetUid, state := range assetStates {
+		if state == nil {
+			assetStates[assetUid] = unknownAssetState()
+		}
+	}
+	for _, asset := range n.Fm.GetAssetsByGroupId(n.Pipeline.GetGroupId()) {
+		if asset == nil {
 			continue
 		}
-		// Extract asset UID from the key
-		var assetUid string
-		_, err = fmt.Sscanf(key, fmt.Sprintf("org_%s-group_%s.asset_states.asset_%%s", n.GetOrgHash(), groupUid), &assetUid)
-		if err != nil {
-			log.Errorf("Error extracting asset UID from key %s: %v", key, err)
-			continue
+		if _, ok := assetStates[asset.AssetUid]; !ok {
+			assetStates[asset.AssetUid] = unknownAssetState()
 		}
-		assetStates[assetUid] = state
 	}
 	return assetStates, nil
 }

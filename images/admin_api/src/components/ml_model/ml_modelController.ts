@@ -40,6 +40,7 @@ import UpdateMLModelDto from "./ml_modelUpdate.dto";
 import infoLogger from "../../utils/logger/infoLogger";
 import natsClient from "../../config/natsConfig";
 import asHandler from "../../utils/routeHelpers/asyncRequestHandler";
+import { validOnnxFileName } from "./ml_modelFormat";
 
 const uploadMLModelFile = multer({
 	storage: multerS3({
@@ -92,6 +93,7 @@ class MLModelController implements IController {
 				`${this.path}_upload_file/:groupId/:mlModelId/:fileName`,
 				asHandler(mlModelAndGroupExist),
 				groupAdminAuth,
+				validOnnxFileName,
 				uploadMLModelFile.single("file"),
 				asHandler(this.uploadMLModelFile)
 			)
@@ -205,10 +207,10 @@ class MLModelController implements IController {
 			const mlModel = {
 				...storedMlModel,
 				description: mlModelData.description,
-				mlLibrary: mlModelData.mlLibrary,
 			};
 			await updateMLModelByProp(propName, propValue, mlModel);
-			if (mlModelData.areMlModelFilesModified || storedMlModel.mlLibrary !== mlModelData.mlLibrary) {
+			// A new .onnx file replaces what the model's folder had.
+			if (mlModelData.areMlModelFilesModified) {
 				const bucketFolder = `org_data/org_${mlModel.orgId}/group_${mlModel.groupId}/ml_models/ml_model_${mlModel.id}`;
 				await removeFilesFromBucketFolder(bucketFolder);
 			}

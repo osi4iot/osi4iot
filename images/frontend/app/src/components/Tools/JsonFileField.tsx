@@ -364,7 +364,12 @@ const JsonFileField: FC<JsonFileFieldProps> = ({
                         </FileButton>
                     </ButtonsContainer>
                 )}
-                <FileDrop accept={[".json", ".yaml", ".yml"]} onFiles={(files) => void loadFiles(files)} />
+                <FileDrop
+                    accept={[".json", ".yaml", ".yml"]}
+                    onFiles={(files) => void loadFiles(files)}
+                    // ~8 px bajo la sombra de los botones (su contenedor: padding-bottom 18 px y margin-bottom 15 o 25 px)
+                    hintStyle={{ margin: clearValue !== undefined ? "-30px 0 6px 0" : "-20px 0 6px 0" }}
+                />
             </Container>
         </FormSection>
     );

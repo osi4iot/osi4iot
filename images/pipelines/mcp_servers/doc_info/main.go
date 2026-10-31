@@ -6,7 +6,11 @@
 //
 // Usage: doc_info --prefix org_data/org_1/group_1/knowledge/ --group_id 1 --digital_twin_id 5
 //
-//	--knowledge_url http://127.0.0.1:7071/v1/knowledge --knowledge_token …
+//	--knowledge_url http://127.0.0.1:7071/v1/knowledge
+//
+// and the token in OSI4IOT_KNOWLEDGE_TOKEN (in the environment, not the
+// arguments: those can be read by any process of the container and the
+// agents' SDK logs them in debug mode; --knowledge_token, by hand).
 //
 // pipelines starts it only when the group's knowledge base is enabled and
 // the digital twin may read some of its documents. Which ones, and their
@@ -91,13 +95,16 @@ func main() {
 	flag.IntVar(&kb.groupID, "group_id", 0, "Group of the digital twin")
 	flag.IntVar(&kb.digitalTwinID, "digital_twin_id", 0, "Digital twin whose documents are read")
 	flag.StringVar(&kb.url, "knowledge_url", "", "pipelines' knowledge endpoint (…/v1/knowledge)")
-	flag.StringVar(&kb.token, "knowledge_token", "", "Token for the digital twin's documents")
+	flag.StringVar(&kb.token, "knowledge_token", "", "Token for the digital twin's documents (default: $OSI4IOT_KNOWLEDGE_TOKEN)")
 	flag.Parse()
+	if kb.token == "" {
+		kb.token = os.Getenv("OSI4IOT_KNOWLEDGE_TOKEN")
+	}
 	if prefix == "" {
 		log.Fatal("--prefix is required")
 	}
 	if kb.url == "" || kb.token == "" || kb.groupID <= 0 || kb.digitalTwinID <= 0 {
-		log.Fatal("--group_id, --digital_twin_id, --knowledge_url and --knowledge_token are required")
+		log.Fatal("--group_id, --digital_twin_id, --knowledge_url and the token ($OSI4IOT_KNOWLEDGE_TOKEN) are required")
 	}
 	kb.url = strings.TrimSuffix(kb.url, "/")
 	if !strings.HasSuffix(prefix, "/") {

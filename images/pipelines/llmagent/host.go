@@ -1,8 +1,3 @@
-// Package llmagent runs the AI agent of an AiAgent node on agent-sdk-go
-// (github.com/Ingenimax/agent-sdk-go): the LLM, the tool-calling loop and
-// the node's MCP servers.
-//
-// The node sends prompts on Input and reads the answers on Output; the
 // conversation of each user is read and saved through the node's
 // callbacks (the digital twin's NATS KV store).
 //
@@ -14,6 +9,8 @@
 //     ends in an error instead of blocking the node.
 //   - Tools are named <server>__<tool> (fem_results__critical-value): the
 //     system prompts refer to them by these names.
+//   - Skills (SetSkills) add load_skill and read_skill_resource; they can
+//     change without restarting the MCP servers.
 package llmagent
 
 import (
@@ -111,8 +108,13 @@ type Host struct {
 	log    *sdkLogger
 
 	llm     interfaces.LLM
-	tools   []interfaces.Tool // set by Run, used only by Run
+	tools   []interfaces.Tool // the MCP servers' tools: set by Run, used only by Run
 	servers *serverSet        // created by New: Close may come before Run starts them
+
+	// load_skill and read_skill_resource (SetSkills): replaced while Run
+	// runs, so under skillsMu.
+	skillsMu   sync.Mutex
+	skillTools []interfaces.Tool
 
 	closeOnce sync.Once
 }
@@ -210,10 +212,15 @@ func (h *Host) answer(p Prompt) Answer {
 		interfaces.WithMemory(mem),
 	}
 
+	tools := h.tools
+	if skillTools := h.currentSkillTools(); len(skillTools) > 0 {
+		tools = append(append(make([]interfaces.Tool, 0, len(h.tools)+len(skillTools)), h.tools...), skillTools...)
+	}
+
 	var resp *interfaces.LLMResponse
 	var err error
-	if len(h.tools) > 0 {
-		resp, err = h.llm.GenerateWithToolsDetailed(ctx, p.Text, h.tools, opts...)
+	if len(tools) > 0 {
+		resp, err = h.llm.GenerateWithToolsDetailed(ctx, p.Text, tools, opts...)
 	} else {
 		resp, err = h.llm.GenerateDetailed(ctx, p.Text, opts...)
 	}

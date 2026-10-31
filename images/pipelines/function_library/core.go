@@ -43,7 +43,7 @@ func (g *Golang) KvStore() *KvStore {
 }
 
 func (g *Golang) Http() *Http {
-	return NewHttp(g.node, g.log)
+	return NewHttp(g.node, g.fm, g.log)
 }
 
 func (g *Golang) Image() *Image {
@@ -60,7 +60,7 @@ func (g *Golang) All() map[string]interface{} {
 	time := NewTime(g.node)
 	kvStore := NewKvStore(g.node, g.fm, g.log)
 	image := NewImage(g.node)
-	http := NewHttp(g.node, g.log)
+	http := NewHttp(g.node, g.fm, g.log)
 	dsp := NewDsp(g.node, g.log)
 	yolo := NewYolo(g.node, g.log)
 	instanceMap := map[string]interface{}{

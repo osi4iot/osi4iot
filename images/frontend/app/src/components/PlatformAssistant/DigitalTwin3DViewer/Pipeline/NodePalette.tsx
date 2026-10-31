@@ -474,6 +474,9 @@ const nodeTypes = [
             llmTemperature: 0.7,
             llmTopK: 40,
             llmTopP: 0.95,
+            // Tools tab (AiAgentToolsSelect). mcpServers absent: all of them.
+            // viewer-ui-options: a built-in skill (admin_api's builtinSkills.ts).
+            skills: ["platform:viewer-ui-options"],
         },
     },
     {
@@ -612,7 +615,7 @@ const nodeTypes = [
         numOutputs: 1,
         debug: "off",
         settings: {
-            storeType: "IoTDB",
+            // The states are kept in the IoT DB (there is no store to choose).
             action: "Set or update state of current asset",
             setStateMode: "custom_state",
             customState: '{\n    "status": "OK"\n}',

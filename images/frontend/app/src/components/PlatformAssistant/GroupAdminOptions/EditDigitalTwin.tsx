@@ -57,6 +57,9 @@ const ChatAssistantContainer = styled.div`
     margin-bottom: 20px;
 `;
 
+// "or drop a file here" ~8 px bajo la sombra de los botones (padding-bottom 18 px y margin-bottom 25 px)
+const fileDropHintStyle = { margin: "-30px 0 6px 0" };
+
 const SelectDataFilenButtonContainer = styled.div`
     display: flex;
     flex-direction: row;
@@ -846,6 +849,7 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
                                                     </FileButton>
                                                 </SelectDataFilenButtonContainer>
                                                 <FileDrop
+                                                    hintStyle={fileDropHintStyle}
                                                     accept={".yml, .yaml"}
                                                     onFiles={(files) => {
                                                         clearPipelineFile();
@@ -934,6 +938,7 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
                                                             </FileButton>
                                                         </SelectDataFilenButtonContainer>
                                                         <FileDrop
+                                                            hintStyle={fileDropHintStyle}
                                                             accept={digitalTwinType === "Gltf 3D model" ? ".gltf" : ".glb"}
                                                             onFiles={(files) => {
                                                                 clearGltfDataFile();
@@ -970,6 +975,7 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
                                                             </FileButton>
                                                         </SelectDataFilenButtonContainer>
                                                         <FileDrop
+                                                            hintStyle={fileDropHintStyle}
                                                             accept={".json"}
                                                             onFiles={(files) => {
                                                                 clearFemResFile();

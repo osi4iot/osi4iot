@@ -128,7 +128,7 @@ type Sensor struct {
 	SensorTypeId int    `json:"sensorTypeId"`
 	TopicId      int    `json:"topicId"`
 	TopicUid     string `json:"topicUid"`
-	TopicRef     int    `json:"topicRef"`
+	TopicRef     string `json:"topicRef"` // e.g. "dev2pdb_2"
 	Description  string `json:"description"`
 	DashboardId  int    `json:"dashboardId"`
 	DashboardUrl string `json:"dashboardUrl"`
@@ -183,8 +183,7 @@ type MLModel struct {
 	GroupId     int    `json:"groupId"`
 	MLModelUid  string `json:"mlModelUid"`
 	Description string `json:"description"`
-	MLLibrary   string `json:"mlLibrary"`
-	FileName    string `json:"fileName"`
+	FileName    string `json:"fileName"` // the model's .onnx file (ONNX Runtime)
 	Created     string `json:"created"`
 	Updated     string `json:"updated"`
 }
@@ -353,3 +352,4 @@ type S3FolderFileInfo struct {
 	LastModified string `json:"lastModified"`
 	Size         int64  `json:"size"`
 }
+

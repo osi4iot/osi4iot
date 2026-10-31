@@ -16,6 +16,7 @@ import { IMqttTopicData, INatsSubjectData } from "../Main/Model";
 import { json } from "@codemirror/lang-json";
 import { IDigitalTwin } from "../../TableColumns/digitalTwinsColumns";
 import LlmModelSelect from "./LlmModelSelect";
+import AiAgentToolsSelect from "./AiAgentToolsSelect";
 import { TimeSelector } from "./Utils/TimeSelector";
 import { timezoneOptions } from "./Utils/timezones";
 import {
@@ -987,6 +988,7 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
         const tabs = [
             { id: "settings", label: "Settings" },
             { id: "system_prompt", label: "System prompt" },
+            { id: "tools", label: "Tools" },
             { id: "help", label: "Help" },
         ];
 
@@ -1081,6 +1083,15 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                                     />
                                 </FormGroup>
                             </>
+                        )}
+                        {activeTab === "tools" && (
+                            <AiAgentToolsSelect
+                                groupId={digitalTwinSelected.groupId}
+                                mcpServers={Array.isArray(formData.mcpServers) ? formData.mcpServers : undefined}
+                                skills={Array.isArray(formData.skills) ? formData.skills : []}
+                                onChangeMcpServers={(servers) => handleInputChange("mcpServers", servers)}
+                                onChangeSkills={(skills) => handleInputChange("skills", skills)}
+                            />
                         )}
                         {activeTab === "help" && <HelpTab nodeType="AiAgent" />}
                     </TabContentFunction>
@@ -1380,18 +1391,6 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                                     />
                                 </FormGroup>
                                 {renderOutputSelector()}
-                                <FormGroup>
-                                    <Label>Store type</Label>
-                                    <Select
-                                        value={formData.storeType || "IoTDB"}
-                                        onChange={(e: { target: { value: any } }) => {
-                                            handleInputChange("storeType", e.target.value);
-                                        }}
-                                    >
-                                        <option value="IoTDB">IoT DB</option>
-                                        <option value="key_value_store">Key-Value Store</option>
-                                    </Select>
-                                </FormGroup>
                                 <FormGroup>
                                     <Label>Action</Label>
                                     <Select

@@ -280,6 +280,21 @@ func (a *Admin) GetSensors(ctx context.Context) []*common.Sensor {
 	return sensors
 }
 
+// GetSensorsInGroup returns the sensors of a group, with their
+// measurements (the agents' sensor_history MCP server lists them).
+func (a *Admin) GetSensorsInGroup(ctx context.Context, groupId int) ([]*common.Sensor, error) {
+	var sensors []*common.Sensor
+	url := fmt.Sprintf("%s/sensors_in_group/%d", a.baseUrl, groupId)
+	response, err := utils.HttpGetWithJwt(ctx, url, a.accessToken)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get the sensors of group %d: %w", groupId, err)
+	}
+	if err := utils.UnmarshalData(response, &sensors); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal the sensors of group %d: %w", groupId, err)
+	}
+	return sensors, nil
+}
+
 func (a *Admin) GetTopics(ctx context.Context) []*common.Topic {
 	var topics []*common.Topic
 	url := fmt.Sprintf("%s/topics/user_managed", a.baseUrl)

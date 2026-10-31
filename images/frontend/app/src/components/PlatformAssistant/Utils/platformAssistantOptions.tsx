@@ -26,6 +26,7 @@ export const PLATFORM_ADMIN_OPTIONS = {
     FLOORS: "Floors",
     GLOBAL_USERS: "Global users",
     REFRESH_TOKENS: "Refresh tokens",
+    SKILLS: "Skills",
     TOOLS: "Tools",
 }
 
@@ -107,6 +108,7 @@ export const GROUP_ADMIN_OPTIONS = {
     S3_STORAGE: "S3_Storage",
     DIGITAL_TWINS: "Digital twins",
     KNOWLEDGE: "Knowledge",
+    SKILLS: "Skills",
     ML_MODELS: "ML models"
 }
 

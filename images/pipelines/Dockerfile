@@ -40,6 +40,7 @@ WORKDIR /src
 COPY go.mod go.sum ./
 COPY main.go ./
 COPY admin/ ./admin/
+COPY agentdata/ ./agentdata/
 COPY common/ ./common/
 COPY config/ ./config/
 COPY duckdb/ ./duckdb/
@@ -55,8 +56,9 @@ COPY nodes/ ./nodes/
 COPY s3folder/ ./s3folder/
 COPY telegram/ ./telegram/
 COPY timeparser/ ./timeparser/
-COPY utils/ ./utils/
 COPY rag/ ./rag/
+COPY safehttp/ ./safehttp/
+COPY utils/ ./utils/
 RUN go mod download && go mod verify
 
 # libtokenizers.a (Hugging Face tokenizers, Rust) for the knowledge bases'
@@ -77,6 +79,15 @@ RUN CGO_ENABLED=1 CC=gcc CGO_LDFLAGS="-L/usr/local/lib/tokenizers" \
 # module, outside pipelines) cannot break the build.
 COPY mcp_servers/doc_info/main.go ./mcp_servers/doc_info/
 RUN CGO_ENABLED=0 go build -ldflags="-s -w" -o /usr/local/bin/doc_info ./mcp_servers/doc_info
+
+# sensor_history and asset_state (MCP servers: the sensors' history and the
+# assets' states of the digital twin's group, read through pipelines' agent
+# data endpoint, package agentdata). Part of the pipelines module, like
+# doc_info; they use only agentdata/client (standard library) and mcp-go.
+COPY mcp_servers/sensor_history/main.go ./mcp_servers/sensor_history/
+COPY mcp_servers/asset_state/main.go ./mcp_servers/asset_state/
+RUN CGO_ENABLED=0 go build -ldflags="-s -w" -o /usr/local/bin/sensor_history ./mcp_servers/sensor_history \
+    && CGO_ENABLED=0 go build -ldflags="-s -w" -o /usr/local/bin/asset_state ./mcp_servers/asset_state
 
 # current_date
 COPY mcp_servers/current_date/go.mod ./mcp_servers/current_date/
@@ -191,6 +202,8 @@ COPY --from=builder /usr/local/bin/pipelines     /usr/local/bin/pipelines
 COPY --from=builder /usr/local/bin/current_date  /usr/local/bin/current_date
 COPY --from=builder /usr/local/bin/fem_results   /usr/local/bin/fem_results
 COPY --from=builder /usr/local/bin/doc_info      /usr/local/bin/doc_info
+COPY --from=builder /usr/local/bin/sensor_history /usr/local/bin/sensor_history
+COPY --from=builder /usr/local/bin/asset_state   /usr/local/bin/asset_state
 
 # Venv Python
 COPY --from=python-builder --chown=pipelines:pipelines_group /opt/venv /opt/venv

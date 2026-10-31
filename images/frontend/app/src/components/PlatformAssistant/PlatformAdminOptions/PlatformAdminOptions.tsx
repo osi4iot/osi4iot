@@ -15,6 +15,7 @@ import FloorsContainer from './FloorsContainer';
 import { reloadTable, usePersistentState, useTable, useTablesPending } from '../../../state';
 import OrgsContainer from './OrgContainer';
 import { Column } from '../Utils/platformTable';
+import SkillsContainer from '../Utils/SkillsContainer';
 
 const ContentContainer = styled.div`
     flex: 1;
@@ -116,6 +117,7 @@ const PlatformAdminOptions: FC<{}> = () => {
                         </>
                     }
                     {optionToShow === "Tools" && <PlatformTools />}
+                    {optionToShow === PLATFORM_ADMIN_OPTIONS.SKILLS && <SkillsContainer scope="platform" />}
                 </>
             </ContentContainer>
         </>

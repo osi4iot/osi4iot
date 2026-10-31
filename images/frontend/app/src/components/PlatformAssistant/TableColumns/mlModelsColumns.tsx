@@ -18,13 +18,6 @@ export interface IMlModel {
     groupId: number;
     mlModelUid: string;
     description: string;
-    mlLibrary: string;
-    modelJsonFileName: string;
-    modelJsonFileLastModifDateString: string;
-    modelBinFileName: string;
-    modelBinFileLastModifDateString: string;
-    pickleFileName: string;
-    pickleFileLastModifDateString: string;
 }
 
 
@@ -142,10 +135,6 @@ export const Create_ML_MODELS_COLUMNS = (refreshMlModels: () => void): Column<IM
         {
             Header: "Description",
             accessor: "description"
-        },
-        {
-            Header: "ML library",
-            accessor: "mlLibrary"
         },
         {
             Header: "",

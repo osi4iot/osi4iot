@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"net/http"
 	"pipelines/logger"
 	nats_pkg "pipelines/nats"
 
@@ -83,7 +84,6 @@ type Manager interface {
 	DeleteGroup(ctx context.Context, groupId int) error
 	UpdateGroup(group *Group) error
 	GetGroupKvStore(groupId int) *nats_pkg.KVStore
-	GetAssetStateKvStoreKey(orgHash string, groupUid string, assetUid string) string
 
 	GetNotificationChannels() []*NotificationChannel
 	GetNotificationChannel(channelId int) *NotificationChannel
@@ -153,6 +153,13 @@ type Manager interface {
 	// KnowledgeDocumentsVersion changes when the documents a digital twin
 	// may read change; "" when it may read none.
 	KnowledgeDocumentsVersion(ctx context.Context, groupId, digitalTwinId int) (string, error)
+	// AgentDataAccess is what a digital twin's sensor_history and
+	// asset_state MCP servers need: pipelines' agent data endpoint and the
+	// digital twin's token. ok is false when it is not running.
+	AgentDataAccess(groupId, digitalTwinId int) (url string, token string, ok bool)
+	// GetFunctionHttpClient is the HTTP client of the Function nodes'
+	// scripts: no internal addresses (package safehttp).
+	GetFunctionHttpClient() *http.Client
 
 	GetLeaderKvStore() jetstream.KeyValue
 	SetPipelineStatusSubscription(ctx context.Context, digitalTwin *DigitalTwin) *nats.Subscription

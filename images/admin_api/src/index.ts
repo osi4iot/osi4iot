@@ -21,6 +21,8 @@ import natsClient from "./config/natsConfig";
 import S3FolderController from "./components/s3_folder/s3_folder.controller";
 import GroupKnowledgeController from "./components/group/groupKnowledge.controller";
 import LlmModelsController from "./components/organization/llmModels.controller";
+import SkillController from "./components/skill/skill.controller";
+import { seedBuiltinSkills } from "./components/skill/skillStorage";
 
 const main = async (): Promise<void> => {
 	try {
@@ -28,6 +30,8 @@ const main = async (): Promise<void> => {
 		// esquemas de mensaje calculados (sensores, simulación, fijos): por si ha cambiado algo de lo que dependen
 		await refreshAllComputedMessageSchemas();
 		await natsClient.connect();
+		// the platform's built-in skills, in the bucket (they do not stop the start if they fail)
+		await seedBuiltinSkills();
 
 		// prettier-ignore
 		const app = new App([
@@ -39,6 +43,7 @@ const main = async (): Promise<void> => {
 			new GroupController(),
 			new GroupKnowledgeController(),
 			new LlmModelsController(),
+			new SkillController(),
 			new AssetController(),
 			new S3FolderController(),
 			new SensorController(),

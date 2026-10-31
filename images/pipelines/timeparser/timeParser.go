@@ -23,6 +23,18 @@ func NewGrafanaTimeParser(tz *time.Location) *GrafanaTimeParser {
     }
 }
 
+// NewGrafanaTimeParserAt is NewGrafanaTimeParser with "now" set to
+// reference (one "now" for all the times of a request, and testable).
+func NewGrafanaTimeParserAt(reference time.Time, tz *time.Location) *GrafanaTimeParser {
+    if tz == nil {
+        tz = time.Local
+    }
+    return &GrafanaTimeParser{
+        referenceTime: reference.In(tz),
+        timezone:      tz,
+    }
+}
+
 func (gtp *GrafanaTimeParser) Parse(timeStr string) (time.Time, error) {
     timeStr = strings.TrimSpace(timeStr)
     

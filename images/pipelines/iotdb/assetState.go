@@ -3,9 +3,11 @@ package iotdb
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -41,7 +43,8 @@ func UpsertAssetState(ctx context.Context, pool *pgxpool.Pool, as AssetState) er
 	return nil
 }
 
-// GetStateFromAssetState retrieves the state of a specific asset.
+// GetStateFromAssetState retrieves the state of a specific asset: an
+// empty state (not an error) when none has been stored for it yet.
 func GetStateFromAssetState(ctx context.Context, pool *pgxpool.Pool, groupUid, assetUid string) (map[string]any, error) {
 	query := `
 		SELECT group_uid, asset_uid, state, last_updated
@@ -53,10 +56,15 @@ func GetStateFromAssetState(ctx context.Context, pool *pgxpool.Pool, groupUid, a
 
 	var as AssetState
 	err := row.Scan(&as.GroupUid, &as.AssetUid, &as.State, &as.LastUpdated)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return map[string]any{}, nil
+	}
 	if err != nil {
 		return nil, fmt.Errorf("GetStateFromAssetState: %w", err)
 	}
-
+	if as.State == nil {
+		as.State = map[string]any{}
+	}
 	return as.State, nil
 }
 

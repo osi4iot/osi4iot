@@ -149,6 +149,15 @@ export const dataBaseInitialization = async () => {
 				logger.log("error", `The marker columns of grafanadb.sensor_type could not be removed: %s`, message);
 			}
 
+			// An ML model is one .onnx file (the pipelines run ONNX Runtime): there
+			// is no library to record. The column of older platforms goes.
+			try {
+				await postgresClient.query(`ALTER TABLE IF EXISTS grafanadb.ml_model DROP COLUMN IF EXISTS ml_library;`);
+			} catch (err) {
+				const message = err instanceof Error ? err.message : String(err);
+				logger.log("error", `The ml_library column of grafanadb.ml_model could not be removed: %s`, message);
+			}
+
 			if (Number(result0.rows[0].count) !== 0) {
 				const queryStringAlterOrg = `ALTER TABLE grafanadb.org
 											ADD COLUMN acronym varchar(20) UNIQUE,
@@ -1196,7 +1205,6 @@ export const dataBaseInitialization = async () => {
 					group_id bigint,
 					ml_model_uid VARCHAR(40) UNIQUE,
 					description VARCHAR(190) UNIQUE,
-					ml_library VARCHAR(40),
 					created TIMESTAMPTZ,
 					updated TIMESTAMPTZ,
 					CONSTRAINT fk_group_id

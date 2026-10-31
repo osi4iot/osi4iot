@@ -239,7 +239,7 @@ func (n *TelegramListenNode) processListenMessage(log *logger.Logger) {
 						message := "<i>No assets found in the group</i>"
 						telegram.SendTelegramMessage(n.BotToken, n.ChatID, message, log, telegram.WithParseMode(telegram.ParseModeHTML))
 					} else {
-						assetStates, err := n.GetAssetStatesInGroupFromGroupKvStore(n.GroupUid, log)
+						assetStates, err := n.GetAssetStatesInGroup(n.GroupUid, log)
 						if err != nil {
 							log.Errorf("Error getting asset states for TelegramListenNode %s: %v", n.NodeUid, err)
 							continue
@@ -323,7 +323,7 @@ func (n *TelegramListenNode) chatUserName(chatId int64) string {
 }
 
 func (n *TelegramListenNode) CreateAssetStatesTable(log *logger.Logger) string {
-	assetStates, err := n.GetAssetStatesInGroupFromGroupKvStore(n.GroupUid, log)
+	assetStates, err := n.GetAssetStatesInGroup(n.GroupUid, log)
 	if err != nil {
 		log.Errorf("Error getting asset states for TelegramListenNode %s: %v", n.NodeUid, err)
 		return ""
@@ -343,7 +343,7 @@ func (n *TelegramListenNode) CreateAssetStatesTable(log *logger.Logger) string {
 }
 
 func (n *TelegramListenNode) CreateAssetStatesTableImage(log *logger.Logger) []byte {
-	assetStates, err := n.GetAssetStatesInGroupFromGroupKvStore(n.GroupUid, log)
+	assetStates, err := n.GetAssetStatesInGroup(n.GroupUid, log)
 	if err != nil {
 		log.Errorf("Error getting asset states for TelegramListenNode %s: %v", n.NodeUid, err)
 		return nil
@@ -377,7 +377,7 @@ func (n *TelegramListenNode) CreateAssetStatesTableImage(log *logger.Logger) []b
 }
 
 func (n *TelegramListenNode) CreateAssetCardImage(asset *common.Asset, log *logger.Logger) []byte {
-	assetState, err := n.GetAssetStateFromGroupKvStore(asset.AssetUid, n.GroupUid)
+	assetState, err := n.GetAssetState(asset.AssetUid, n.GroupUid)
 	if err != nil {
 		log.Errorf("Error getting asset state for asset %s in TelegramListenNode %s: %v", asset.AssetUid, n.NodeUid, err)
 		return nil

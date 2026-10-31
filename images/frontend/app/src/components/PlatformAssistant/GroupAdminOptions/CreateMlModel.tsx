@@ -111,20 +111,15 @@ const findGroupArray = (
     return groupArray;
 };
 
-const mlLibrariesOptions = [
-    {
-        label: "Tensorflow",
-        value: "Tensorflow",
-    },
-    {
-        label: "Scikit-learn",
-        value: "Scikit-learn",
-    },
-    {
-        label: "Onnx",
-        value: "Onnx",
-    }
-];
+const FormatNote = styled.div`
+    color: #c9c9c9;
+    font-size: 13px;
+    margin-bottom: 10px;
+`;
+
+// pipelines runs the models with ONNX Runtime (Mlm node): a model is one
+// .onnx file. Models trained with TensorFlow/Keras, scikit-learn or
+// PyTorch are exported to ONNX first (tf2onnx, skl2onnx, torch.onnx).
 
 const selectFile = (openFileSelector: () => void, clear: () => void) => {
     clear();
@@ -139,7 +134,6 @@ interface InitialMLModelData {
     groupAcronym: string;
     mlModelUid: string;
     description: string;
-    mlLibrary: string;
 }
 
 type FormikType = FormikProps<InitialMLModelData>;
@@ -161,21 +155,10 @@ const CreateMlModel: FC<CreateMlModelProps> = ({ backToTable, refreshMlModels, o
     const [groupOptions, setGroupOptions] = useState<IOption[]>([]);
     const initOrg = orgsOfGroupManaged[0];
     const initGroup = groupsManaged.filter((group) => group.orgId === initOrg.id)[0];
-    const [tensorflowLocalFilesLoaded, setTensorflowLocalFilesLoaded] = useState(false);
-    const [tensorflowJsonFile, setTensorflowJsonFile] = useState<File | null>(null);
-    const [tensorflowJsonFileName, setTensorflowJsonFileName] = useState("-");
-    const [tensorflowJsonFileLastModif, setTensorflowJsonFileLastModif] = useState("-");
-    const [tensorflowBinFiles, setTensorflowBinFiles] = useState<File[]>([]);
-    const [tensorflowBinFileNames, setTensorflowBinFileNames] = useState<string[]>([]);
-    const [scikitLearnLocalFilesLoaded, setScikitLearnLocalFilesLoaded] = useState(false);
-    const [scikitLearnPickleFile, setScikitLearnPickleFile] = useState<File | null>(null);
-    const [scikitLearnPickleFileName, setScikitLearnPickleFileName] = useState("-");
-    const [scikitLearnPickleFileLastModif, setScikitLearnPickleFileLastModif] = useState("-");
     const [onnxLocalFilesLoaded, setOnnxLocalFilesLoaded] = useState(false);
     const [onnxFile, setOnnxFile] = useState<File | null>(null);
     const [onnxFileName, setOnnxFileName] = useState("-");
     const [onnxFileLastModif, setOnnxFileLastModif] = useState("-");
-    const [mlLibrary, setMlLibrary] = useState("Onnx");
 
     useEffect(() => {
         const orgArray = orgsOfGroupManaged.map((org) => org.acronym);
@@ -195,152 +178,6 @@ const CreateMlModel: FC<CreateMlModelProps> = ({ backToTable, refreshMlModels, o
         const groupAcronym = groupsForOrgSelected[0];
         formik.setFieldValue("groupAcronym", groupAcronym);
     };
-
-    const onMlLibrarySelectChange = (e: { value: string }, formik: FormikType) => {
-        setMlLibrary(e.value);
-        formik.setFieldValue("mlLibrary", e.value);
-    };
-
-    const { openFilePicker: openTensorflowFilesSelector, ...tensorflowFilesParams } = useFilePicker({
-        readAs: "Text",
-        multiple: true,
-        accept: [".json", ".bin"],
-    });
-
-    const clearTensorflowDataFile = () => {
-        setTensorflowLocalFilesLoaded(false);
-        setTensorflowJsonFile(null);
-        setTensorflowJsonFileName("-");
-        setTensorflowJsonFileLastModif("-");
-        setTensorflowBinFiles([]);
-        setTensorflowBinFileNames([]);
-        tensorflowFilesParams.clear();
-    };
-
-    useEffect(() => {
-        if (
-            !tensorflowFilesParams.loading &&
-            tensorflowFilesParams.filesContent.length !== 0 &&
-            tensorflowFilesParams.plainFiles.length !== 0
-        ) {
-            try {
-                const filesContent = tensorflowFilesParams.filesContent;
-                const files = tensorflowFilesParams.plainFiles;
-                let binFilesNum = 0;
-                const modelBinFiles = [];
-                const modelBinFileNames: string[] = [];
-                for (let ifile = 0; ifile < files.length; ifile++) {
-                    const fileName = files[ifile].name;
-                    const fileNameLength = fileName.length;
-                    const fileExtension = fileName.slice(fileNameLength - 4);
-                    if (fileExtension === "json") {
-                        const fileObj = JSON.parse(filesContent[ifile].content);
-                        if (
-                            fileObj.weightsManifest !== undefined &&
-                            fileObj.weightsManifest.length !== 0 &&
-                            fileObj.weightsManifest[0].paths !== undefined &&
-                            fileObj.weightsManifest[0].paths.length !== 0
-                        ) {
-                            binFilesNum = fileObj.weightsManifest[0].paths.length;
-                        } else {
-                            throw new Error("The entered json file does not correspond to an ML model");
-                        }
-                        setTensorflowJsonFile(files[ifile]);
-                        setTensorflowJsonFileName(fileName);
-                        const dateString = formatDateString((files[ifile] as any).lastModified);
-                        setTensorflowJsonFileLastModif(dateString);
-                    } else {
-                        modelBinFiles.push(files[ifile]);
-                        modelBinFileNames.push(fileName);
-                    }
-                }
-                if (binFilesNum !== modelBinFiles.length) {
-                    throw new Error("Missing to introduce some bin shard file");
-                }
-                if (modelBinFiles.length !== 0 && modelBinFileNames.length !== 0) {
-                    setTensorflowBinFiles(modelBinFiles);
-                    modelBinFileNames.sort();
-                    setTensorflowBinFileNames(modelBinFileNames);
-                }
-                setTensorflowLocalFilesLoaded(true);
-                tensorflowFilesParams.clear();
-            } catch (error) {
-                if (error instanceof Error) {
-                    toast.error(`Invalid Tensorflow ML model files: ${error.message}`);
-                } else {
-                    toast.error("Invalid Tensorflow ML model files");
-                }
-                setTensorflowLocalFilesLoaded(false);
-                setTensorflowJsonFile(null);
-                setTensorflowJsonFileName("-");
-                setTensorflowJsonFileLastModif("-");
-                setTensorflowBinFiles([]);
-                setTensorflowBinFileNames([]);
-                tensorflowFilesParams.clear();
-            }
-        }
-    }, [
-        tensorflowFilesParams.loading,
-        tensorflowFilesParams.filesContent,
-        tensorflowFilesParams.plainFiles,
-        tensorflowFilesParams,
-    ]);
-
-    const tensorflowFileButtonHandler = () => {
-        if (!tensorflowLocalFilesLoaded) {
-            selectFile(openTensorflowFilesSelector, tensorflowFilesParams.clear);
-        }
-    };
-
-    const { openFilePicker: openScikitLearnFileSelector, ...scikitLearnFileParams } = useFilePicker({
-        readAs: "Text",
-        multiple: false,
-        accept: [".pkl"],
-    });
-
-    const clearScikitLearnDataFile = () => {
-        setScikitLearnLocalFilesLoaded(false);
-        setScikitLearnPickleFile(null);
-        setScikitLearnPickleFileName("-");
-        setScikitLearnPickleFileLastModif("-");
-        scikitLearnFileParams.clear();
-    };
-
-    const scikitLearnFileButtonHandler = () => {
-        if (!scikitLearnLocalFilesLoaded) {
-            selectFile(openScikitLearnFileSelector, scikitLearnFileParams.clear);
-        }
-    };
-
-    useEffect(() => {
-        if (
-            !scikitLearnFileParams.loading &&
-            scikitLearnFileParams.filesContent.length !== 0 &&
-            scikitLearnFileParams.plainFiles.length !== 0
-        ) {
-            try {
-                const files = scikitLearnFileParams.plainFiles;
-                const pickleFileName = files[0].name;
-                setScikitLearnPickleFileName(pickleFileName);
-                const dateString = formatDateString((files[0] as any).lastModified);
-                setScikitLearnPickleFileLastModif(dateString);
-                setScikitLearnPickleFile(files[0]);
-                setScikitLearnLocalFilesLoaded(true);
-                scikitLearnFileParams.clear();
-            } catch (error) {
-                if (error instanceof Error) {
-                    toast.error(`Invalid Scikit-Learn ML model files: ${error.message}`);
-                } else {
-                    toast.error("Invalid Scikit-Learn ML model files");
-                }
-                setScikitLearnLocalFilesLoaded(false);
-                setScikitLearnPickleFile(null);
-                setScikitLearnPickleFileName("-");
-                setScikitLearnPickleFileLastModif("-");
-                scikitLearnFileParams.clear();
-            }
-        }
-    }, [scikitLearnFileParams.loading, scikitLearnFileParams.plainFiles, scikitLearnFileParams]);
 
     const { openFilePicker: onnxFileSelector, ...onnxFileParams } = useFilePicker({
         readAs: "Text",
@@ -402,7 +239,6 @@ const CreateMlModel: FC<CreateMlModelProps> = ({ backToTable, refreshMlModels, o
         const mlModelData = {
             mlModelUid: values.mlModelUid,
             description: values.description,
-            mlLibrary: mlLibrary,
         };
 
         setIsSubmitting(true);
@@ -419,70 +255,19 @@ const CreateMlModel: FC<CreateMlModelProps> = ({ backToTable, refreshMlModels, o
                 const urlUploadMlModelBase0 = `${protocol}://${domainName}/admin_api/ml_model_upload_file`;
                 const urlUploadMlModelBase = `${urlUploadMlModelBase0}/${groupId}/${data.mlModelId}`;
 
-                if (mlLibrary === "Tensorflow") {
-                    if (tensorflowJsonFile && tensorflowBinFiles.length !== 0) {
-                        const tensorflowJsonFileData = new FormData();
-                        tensorflowJsonFileData.append("file", tensorflowJsonFile as File, tensorflowJsonFileName);
-                        const urlUploadTensorflowJsonFile = `${urlUploadMlModelBase}/${tensorflowJsonFileName}`;
-                        getAxiosInstance(refreshToken, authDispatch)
-                            .post(urlUploadTensorflowJsonFile, tensorflowJsonFileData, configMultipart)
-                            .then((response: AxiosResponse<any, any>) => {
-                                toast.success(response.data.message);
-                            })
-                            .catch((error: AxiosError) => {
-                                axiosErrorHandler(error, authDispatch);
-                                backToTable();
-                            });
-
-                        for (let ifile = 0; ifile < tensorflowBinFiles.length; ifile++) {
-                            const modelBinFileData = new FormData();
-                            modelBinFileData.append(
-                                "file",
-                                tensorflowBinFiles[ifile] as File,
-                                tensorflowBinFileNames[ifile]
-                            );
-                            const urlUploadModelBinFile = `${urlUploadMlModelBase}/${tensorflowBinFileNames[ifile]}`;
-                            getAxiosInstance(refreshToken, authDispatch)
-                                .post(urlUploadModelBinFile, modelBinFileData, configMultipart)
-                                .then((response: AxiosResponse<any, any>) => {
-                                    toast.success(response.data.message);
-                                })
-                                .catch((error: AxiosError) => {
-                                    axiosErrorHandler(error, authDispatch);
-                                    backToTable();
-                                });
-                        }
-                    }
-                } else if (mlLibrary === "Scikit-learn") {
-                    if (scikitLearnPickleFile) {
-                        const pickleFileData = new FormData();
-                        pickleFileData.append("file", scikitLearnPickleFile as File, scikitLearnPickleFileName);
-                        const urlUploadPickleFile = `${urlUploadMlModelBase}/${scikitLearnPickleFileName}`;
-                        getAxiosInstance(refreshToken, authDispatch)
-                            .post(urlUploadPickleFile, pickleFileData, configMultipart)
-                            .then((response: AxiosResponse<any, any>) => {
-                                toast.success(response.data.message);
-                            })
-                            .catch((error: AxiosError) => {
-                                axiosErrorHandler(error, authDispatch);
-                                backToTable();
-                            });
-                    }
-                } else if (mlLibrary === "Onnx") {
-                    if (onnxFile) {
-                        const onnxFileData = new FormData();
-                        onnxFileData.append("file", onnxFile as File, onnxFileName);
-                        const urlUploadOnnxFile = `${urlUploadMlModelBase}/${onnxFileName}`;
-                        getAxiosInstance(refreshToken, authDispatch)
-                            .post(urlUploadOnnxFile, onnxFileData, configMultipart)
-                            .then((response: AxiosResponse<any, any>) => {
-                                toast.success(response.data.message);
-                            })
-                            .catch((error: AxiosError) => {
-                                axiosErrorHandler(error, authDispatch);
-                                backToTable();
-                            });
-                    }
+                if (onnxFile) {
+                    const onnxFileData = new FormData();
+                    onnxFileData.append("file", onnxFile as File, onnxFileName);
+                    const urlUploadOnnxFile = `${urlUploadMlModelBase}/${onnxFileName}`;
+                    getAxiosInstance(refreshToken, authDispatch)
+                        .post(urlUploadOnnxFile, onnxFileData, configMultipart)
+                        .then((response: AxiosResponse<any, any>) => {
+                            toast.success(response.data.message);
+                        })
+                        .catch((error: AxiosError) => {
+                            axiosErrorHandler(error, authDispatch);
+                            backToTable();
+                        });
                 }
             })
             .catch((error: AxiosError) => {
@@ -511,7 +296,6 @@ const CreateMlModel: FC<CreateMlModelProps> = ({ backToTable, refreshMlModels, o
         groupAcronym: initGroup.acronym,
         mlModelUid: `MLM_${nanoid(20).replace(/-/g, "x").replace(/_/g, "X")}`,
         description: "",
-        mlLibrary: "Onnx",
     };
 
     return (
@@ -545,79 +329,11 @@ const CreateMlModel: FC<CreateMlModelProps> = ({ backToTable, refreshMlModels, o
                                     type="text"
                                 />
                                 <FormikControl control="input" label="Description" name="description" type="text" />
-                                <FormikControl
-                                    control="select"
-                                    label="Select ML library"
-                                    name="mlLibrary"
-                                    options={mlLibrariesOptions}
-                                    type="text"
-                                    onChange={(e) => onMlLibrarySelectChange(e, formik)}
-                                />
-                                <FormSection title="ML model files">
-                                {mlLibrary === "Tensorflow" && (
-                                    <DataFileContainer>
-                                        <MlModelFileName>
-                                            <label>Json file name:</label>
-                                            <div>{tensorflowJsonFileName}</div>
-                                        </MlModelFileName>
-                                        <MlModelFileName>
-                                            <label>Json file last modification date:</label>
-                                            <div>{tensorflowJsonFileLastModif}</div>
-                                        </MlModelFileName>
-                                        {tensorflowBinFileNames.map((fileName: any, index: number) => (
-                                            <MlModelFileName key={`${fileName}_${index}`}>
-                                                <label>
-                                                    Shard {index + 1} of {tensorflowBinFileNames.length}:
-                                                </label>
-                                                <div>{fileName}</div>
-                                            </MlModelFileName>
-                                        ))}
-                                        <SelectDataFilesButtonContainer>
-                                            <FileButton type="button" onClick={clearTensorflowDataFile}>
-                                                Clear
-                                            </FileButton>
-                                            <FileButton type="button" onClick={() => tensorflowFileButtonHandler()}>
-                                                Select local files
-                                            </FileButton>
-                                        </SelectDataFilesButtonContainer>
-                                        <FileDrop
-                                            multiple
-                                            accept={[".json", ".bin"]}
-                                            onFiles={(files) => {
-                                                clearTensorflowDataFile();
-                                                void tensorflowFilesParams.loadFiles(files);
-                                            }}
-                                        />
-                                    </DataFileContainer>
-                                )}
-                                {mlLibrary === "Scikit-learn" && (
-                                    <DataFileContainer>
-                                        <MlModelFileName>
-                                            <label>Pickle file name:</label>
-                                            <div>{scikitLearnPickleFileName}</div>
-                                        </MlModelFileName>
-                                        <MlModelFileName>
-                                            <label>Pickle file last modification date:</label>
-                                            <div>{scikitLearnPickleFileLastModif}</div>
-                                        </MlModelFileName>
-                                        <SelectDataFilesButtonContainer>
-                                            <FileButton type="button" onClick={clearScikitLearnDataFile}>
-                                                Clear
-                                            </FileButton>
-                                            <FileButton type="button" onClick={() => scikitLearnFileButtonHandler()}>
-                                                Select local file
-                                            </FileButton>
-                                        </SelectDataFilesButtonContainer>
-                                        <FileDrop
-                                            accept={[".pkl"]}
-                                            onFiles={(files) => {
-                                                clearScikitLearnDataFile();
-                                                void scikitLearnFileParams.loadFiles(files);
-                                            }}
-                                        />
-                                    </DataFileContainer>
-                                )}
-                                {mlLibrary === "Onnx" && (
+                                <FormSection title="ONNX model file (.onnx)">
+                                    <FormatNote>
+                                        Models are run with ONNX Runtime. Export models trained with TensorFlow/Keras,
+                                        scikit-learn or PyTorch to ONNX first (tf2onnx, skl2onnx, torch.onnx).
+                                    </FormatNote>
                                     <DataFileContainer>
                                         <MlModelFileName>
                                             <label>Onnx file name:</label>
@@ -643,7 +359,6 @@ const CreateMlModel: FC<CreateMlModelProps> = ({ backToTable, refreshMlModels, o
                                             }}
                                         />
                                     </DataFileContainer>
-                                )}
                                 </FormSection>
                             </ControlsContainer>
                             <FormButtonsProps
@@ -660,3 +375,4 @@ const CreateMlModel: FC<CreateMlModelProps> = ({ backToTable, refreshMlModels, o
 };
 
 export default CreateMlModel;
+
