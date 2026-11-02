@@ -1,10 +1,10 @@
-// Controles del inspector del visor (sustituyen a react-dat-gui): interruptor, deslizador con valor
+// Controles del panel del asistente del visor (sustituyen a react-dat-gui): interruptor, deslizador con valor
 // editable, desplegable, sección plegable, botón de icono y fila de colección.
 import { FC, KeyboardEvent, ReactNode, useEffect, useRef, useState } from "react";
 import styled from "styled-components";
 import { ChevronRight, Minus, Plus } from "lucide-react";
 
-export const inspectorColors = {
+export const panelColors = {
     surface: "rgba(20, 22, 26, 0.94)",
     surfaceSolid: "#14161a",
     raised: "#1a1e24",
@@ -30,7 +30,7 @@ export const inspectorColors = {
     danger: "#ff6b6b",
 };
 
-const c = inspectorColors;
+const c = panelColors;
 
 export const focusRing = `
     &:focus-visible {
@@ -533,10 +533,12 @@ interface SectionProps {
     // interruptor en la cabecera (p. ej. encender/apagar una luz): desactiva visualmente el contenido
     switchChecked?: boolean;
     onSwitchChange?: (checked: boolean) => void;
+    // botones a la derecha de la cabecera (p. ej. sacar el simulador a una ventana flotante)
+    actions?: ReactNode;
     children: ReactNode;
 }
 
-export const Section: FC<SectionProps> = ({ title, open, onToggle, switchChecked, onSwitchChange, children }) => {
+export const Section: FC<SectionProps> = ({ title, open, onToggle, switchChecked, onSwitchChange, actions, children }) => {
     const hasSwitch = onSwitchChange !== undefined;
     const enabled = !hasSwitch || !!switchChecked;
     return (
@@ -546,6 +548,7 @@ export const Section: FC<SectionProps> = ({ title, open, onToggle, switchChecked
                     <Chevron $open={open} aria-hidden="true" />
                     {title}
                 </HeaderButton>
+                {actions}
                 {hasSwitch && <Switch checked={!!switchChecked} onChange={onSwitchChange!} label={title} />}
             </SectionHeader>
             {open && (

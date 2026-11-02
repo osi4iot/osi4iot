@@ -1,4 +1,4 @@
-// Barra superior del visor del gemelo digital (diseño "inspector acoplado"): nombre del gemelo,
+// Barra superior del visor del gemelo digital (diseño "panel acoplado"): nombre del gemelo,
 // selector de vista, herramientas de la vista activa y estados (pipeline, gemelo digital, NATS).
 import { FC, ReactNode, useRef } from "react";
 import styled, { css, keyframes } from "styled-components";
@@ -9,19 +9,17 @@ import {
     CircleStop,
     Download,
     Logs,
-    MessageSquare,
     PanelRight,
     Play,
     RefreshCw,
-    SlidersHorizontal,
     Upload,
     Workflow,
     X,
 } from "lucide-react";
-import { INSPECTOR_GAP, INSPECTOR_WIDTH } from "../Inspector/Inspector";
+import { VIEWER_GAP } from "../AssistantPanel/AssistantPanel";
 import { useUiStore } from "../../../../state/uiStore";
 import { PALETTE_WIDTH, PALETTE_WIDTH_KEY } from "../Pipeline/usePipelineLayout";
-import { focusRing, inspectorColors as c } from "../Inspector/controls";
+import { focusRing, panelColors as c } from "../AssistantPanel/controls";
 
 const HiddenFileInput = styled.input`
     display: none;
@@ -29,10 +27,10 @@ const HiddenFileInput = styled.input`
 
 const Bar = styled.div<{ $left: string; $right: string }>`
     position: absolute;
-    top: ${INSPECTOR_GAP}px;
+    top: ${VIEWER_GAP}px;
     left: ${({ $left }) => $left};
     right: ${({ $right }) => $right};
-    max-width: calc(100% - ${2 * INSPECTOR_GAP}px);
+    max-width: calc(100% - ${2 * VIEWER_GAP}px);
     min-height: 52px;
     box-sizing: border-box;
     display: flex;
@@ -84,48 +82,6 @@ const Segmented = styled.div`
     border-radius: 9px;
 `;
 
-const Segment = styled.button<{ $selected: boolean }>`
-    height: 30px;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    padding: 0 12px;
-    border: 0;
-    border-radius: 6px;
-    background-color: ${({ $selected }) => ($selected ? "#2a3140" : "transparent")};
-    color: ${({ $selected }) => ($selected ? "#ffffff" : c.textMuted)};
-    font: 500 12px Roboto, "Helvetica Neue", Arial, sans-serif;
-    cursor: pointer;
-    ${focusRing}
-
-    &:hover {
-        color: #ffffff;
-    }
-
-    svg {
-        width: 14px;
-        height: 14px;
-    }
-`;
-
-const Spacer = styled.div`
-    flex: 1;
-`;
-
-const Group = styled.div`
-    display: flex;
-    align-items: center;
-    gap: 2px;
-`;
-
-const Divider = styled.div`
-    width: 1px;
-    height: 24px;
-    margin: 0 4px;
-    background-color: rgba(255, 255, 255, 0.1);
-`;
-
-// Tooltip debajo del botón (la barra está arriba del todo)
 const tooltip = css`
     &::after {
         content: attr(data-tooltip);
@@ -157,6 +113,78 @@ const tooltip = css`
         opacity: 1;
     }
 `;
+
+const Segment = styled.button<{ $selected: boolean }>`
+    position: relative;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0 12px;
+    border: 0;
+    border-radius: 6px;
+    background-color: ${({ $selected }) => ($selected ? "#2a3140" : "transparent")};
+    color: ${({ $selected }) => ($selected ? "#ffffff" : c.textMuted)};
+    font: 500 12px Roboto, "Helvetica Neue", Arial, sans-serif;
+    cursor: pointer;
+    ${focusRing}
+    ${tooltip}
+
+    &:not([data-tooltip])::after {
+        display: none;
+    }
+
+    &:hover {
+        color: #ffffff;
+    }
+
+    svg {
+        width: 14px;
+        height: 14px;
+    }
+`;
+
+const ErrorBadge = styled.span`
+    position: absolute;
+    top: 2px;
+    right: 1px;
+    min-width: 15px;
+    height: 15px;
+    padding: 0 4px;
+    box-sizing: border-box;
+    border-radius: 999px;
+    background: #ff6b6b;
+    color: #1a0f0f;
+    font: 700 9px/15px Roboto, Arial, sans-serif;
+    text-align: center;
+`;
+
+const ErrorDot = styled.span`
+    width: 7px;
+    height: 7px;
+    margin-left: 2px;
+    border-radius: 50%;
+    background: #ff6b6b;
+`;
+
+const Spacer = styled.div`
+    flex: 1;
+`;
+
+const Group = styled.div`
+    display: flex;
+    align-items: center;
+    gap: 2px;
+`;
+
+const Divider = styled.div`
+    width: 1px;
+    height: 24px;
+    margin: 0 4px;
+    background-color: rgba(255, 255, 255, 0.1);
+`;
+
+// Tooltip debajo del botón (la barra está arriba del todo)
 
 const ToolButton = styled.button<{ $active?: boolean; $attention?: boolean }>`
     position: relative;
@@ -249,17 +277,15 @@ const ChipButton = styled.button<{ $tone: ChipTone; $pulse?: boolean }>`
 `;
 
 interface HeaderProps {
-    isControlPanelOpen: boolean;
+    isAssistantPanelOpen: boolean;
     isNatsConnected: boolean;
     digitalTwinState: string;
     activeViewer: "3D" | "pipeline" | "image_frame";
     showOnlyPipelineViewer: boolean;
-    handleControlPanelOpenAndClose: () => void;
+    handleAssistantPanelOpenAndClose: () => void;
     handleToggleActiveViewer: () => void;
     handleSetActiveViewer: (viewer: "3D" | "pipeline" | "image_frame") => void;
-    handleChatAssistantOpen: () => void;
     handlePipelineLogsOpen: () => void;
-    handleOpenSimulator: () => void;
     handleOpenGrafanaDashboard: () => void;
     handleDigitalTwinStateShield: () => void;
     handleDeployPipeline: () => void;
@@ -274,7 +300,16 @@ interface HeaderProps {
     pipelineLeaderReplicaIndex: number;
     digitalTwinName?: string;
     digitalTwinType?: string;
-    isChatAssistantOpen?: boolean;
+    // el gemelo digital tiene chat (el panel lateral se puede abrir también en las vistas Imagen y Pipeline)
+    chatEnabled?: boolean;
+    // respuesta del asistente sin leer (punto en el botón del panel lateral)
+    chatUnread?: boolean;
+    // ancho del panel del asistente a la derecha (0 si no se ve): la barra ocupa el ancho libre a su izquierda
+    assistantPanelWidth?: number;
+    // width of the pipeline logs docked on the right (0 when hidden)
+    logsWidth?: number;
+    // pipeline errors not seen yet: badge on the logs button, dot on the Pipeline tab
+    pipelineErrors?: number;
     isPipelineLogsOpen?: boolean;
 }
 
@@ -315,16 +350,13 @@ const PipelineStatusChip: FC<{ status: string; leader: number }> = ({ status, le
 };
 
 export const Header: FC<HeaderProps> = ({
-    isControlPanelOpen,
     isNatsConnected,
     digitalTwinState,
     activeViewer,
     showOnlyPipelineViewer,
-    handleControlPanelOpenAndClose,
+    handleAssistantPanelOpenAndClose,
     handleSetActiveViewer,
-    handleChatAssistantOpen,
     handlePipelineLogsOpen,
-    handleOpenSimulator,
     handleOpenGrafanaDashboard,
     handleDigitalTwinStateShield,
     handleDeployPipeline,
@@ -339,43 +371,43 @@ export const Header: FC<HeaderProps> = ({
     pipelineLeaderReplicaIndex,
     digitalTwinName,
     digitalTwinType,
-    isChatAssistantOpen = false,
+    chatEnabled = false,
+    chatUnread = false,
+    assistantPanelWidth = 0,
+    logsWidth = 0,
+    pipelineErrors = 0,
     isPipelineLogsOpen = false,
 }) => {
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     // En la vista Pipeline la barra ocupa el ancho a la derecha de la paleta de nodos (el lienzo empieza
-    // debajo de ella); en la vista 3D ocupa el ancho libre a la izquierda del inspector.
+    // debajo de ella); en la vista 3D ocupa el ancho libre a la izquierda del panel del asistente.
     const paletteWidth = useUiStore((s) => (s.values[PALETTE_WIDTH_KEY] as number | undefined) ?? PALETTE_WIDTH);
-    const inspectorVisible = activeViewer === "3D" && isControlPanelOpen;
-    const left = activeViewer === "pipeline" ? `${paletteWidth + INSPECTOR_GAP}px` : `${INSPECTOR_GAP}px`;
-    const right = inspectorVisible ? `${INSPECTOR_WIDTH + 2 * INSPECTOR_GAP}px` : `${INSPECTOR_GAP}px`;
+    const left = activeViewer === "pipeline" ? `${paletteWidth + VIEWER_GAP}px` : `${VIEWER_GAP}px`;
+    const rightPanel = Math.max(assistantPanelWidth, logsWidth);
+    const right = rightPanel > 0 ? `${rightPanel + 2 * VIEWER_GAP}px` : `${VIEWER_GAP}px`;
 
     const dtOk = digitalTwinState === "OK";
     const viewerOptions = VIEWER_OPTIONS.filter((o) => o.value !== "image_frame" || assetWithCameraSelected);
 
-    const chatButton = (
-        <ToolButton
-            type="button"
-            aria-label="Chat with assistant"
-            data-tooltip="Chat with assistant"
-            aria-pressed={isChatAssistantOpen}
-            $active={isChatAssistantOpen}
-            onClick={handleChatAssistantOpen}
-        >
-            <MessageSquare aria-hidden="true" />
-        </ToolButton>
-    );
+    // Panel lateral: en la vista 3D siempre; en Imagen y Pipeline (gemelo sin modelo 3D) solo con el chat
+    const panelOpen = assistantPanelWidth > 0;
+    const showPanelButton =
+        activeViewer === "3D" || (chatEnabled && (activeViewer === "image_frame" || showOnlyPipelineViewer));
+    const panelLabel = panelOpen ? "Close assistant panel" : "Open assistant panel";
+    // The logs come from the pipeline nodes: their button is only in the pipeline view
+    const errorsText = `${pipelineErrors} new pipeline ${pipelineErrors === 1 ? "error" : "errors"}`;
     const logsButton = (
         <ToolButton
             type="button"
-            aria-label="Pipeline logs"
-            data-tooltip="Pipeline logs"
+            aria-label={pipelineErrors > 0 ? `Pipeline logs (${errorsText})` : "Pipeline logs"}
+            data-tooltip={pipelineErrors > 0 ? `Pipeline logs · ${errorsText}` : "Pipeline logs"}
             aria-pressed={isPipelineLogsOpen}
             $active={isPipelineLogsOpen}
             onClick={handlePipelineLogsOpen}
         >
             <Logs aria-hidden="true" />
+            {pipelineErrors > 0 && <ErrorBadge aria-hidden="true">{pipelineErrors > 99 ? "99+" : pipelineErrors}</ErrorBadge>}
         </ToolButton>
     );
     const dashboardButton = (
@@ -395,19 +427,26 @@ export const Header: FC<HeaderProps> = ({
 
             {!showOnlyPipelineViewer && (
                 <Segmented role="tablist" aria-label="Viewer">
-                    {viewerOptions.map((option) => (
-                        <Segment
-                            key={option.value}
-                            type="button"
-                            role="tab"
-                            aria-selected={activeViewer === option.value}
-                            $selected={activeViewer === option.value}
-                            onClick={() => handleSetActiveViewer(option.value)}
-                        >
-                            {option.icon}
-                            {option.label}
-                        </Segment>
-                    ))}
+                    {viewerOptions.map((option) => {
+                        // new pipeline errors while looking at another view: red dot on the Pipeline tab
+                        const flagErrors = option.value === "pipeline" && activeViewer !== "pipeline" && pipelineErrors > 0;
+                        return (
+                            <Segment
+                                key={option.value}
+                                type="button"
+                                role="tab"
+                                aria-selected={activeViewer === option.value}
+                                aria-label={flagErrors ? `${option.label} (${errorsText})` : undefined}
+                                data-tooltip={flagErrors ? `${errorsText} · see them in the pipeline logs` : undefined}
+                                $selected={activeViewer === option.value}
+                                onClick={() => handleSetActiveViewer(option.value)}
+                            >
+                                {option.icon}
+                                {option.label}
+                                {flagErrors && <ErrorDot aria-hidden="true" />}
+                            </Segment>
+                        );
+                    })}
                 </Segmented>
             )}
 
@@ -415,21 +454,7 @@ export const Header: FC<HeaderProps> = ({
 
             <Spacer />
 
-            {activeViewer === "3D" && (
-                <Group>
-                    {chatButton}
-                    <ToolButton
-                        type="button"
-                        aria-label="Digital twin simulator"
-                        data-tooltip="Digital twin simulator"
-                        onClick={handleOpenSimulator}
-                    >
-                        <SlidersHorizontal aria-hidden="true" />
-                    </ToolButton>
-                    {logsButton}
-                    {dashboardButton}
-                </Group>
-            )}
+            {activeViewer === "3D" && <Group>{dashboardButton}</Group>}
 
             {activeViewer === "pipeline" && (
                 <Group>
@@ -472,13 +497,7 @@ export const Header: FC<HeaderProps> = ({
                 </Group>
             )}
 
-            {activeViewer === "image_frame" && (
-                <Group>
-                    {chatButton}
-                    {logsButton}
-                    {dashboardButton}
-                </Group>
-            )}
+            {activeViewer === "image_frame" && <Group>{dashboardButton}</Group>}
 
             <Divider />
             <Group style={{ gap: 6 }}>
@@ -503,17 +522,18 @@ export const Header: FC<HeaderProps> = ({
                 </Chip>
             </Group>
 
-            {activeViewer === "3D" && (
+            {showPanelButton && (
                 <ToolButton
                     type="button"
-                    aria-label={isControlPanelOpen ? "Close inspector" : "Open inspector"}
-                    data-tooltip={isControlPanelOpen ? "Close inspector" : "Open inspector"}
+                    aria-label={panelLabel}
+                    data-tooltip={activeViewer === "3D" ? `${panelLabel} · chat & settings` : `${panelLabel} · chat`}
                     data-tooltip-align="end"
-                    aria-pressed={isControlPanelOpen}
-                    $active={isControlPanelOpen}
-                    onClick={handleControlPanelOpenAndClose}
+                    aria-pressed={panelOpen}
+                    $active={panelOpen}
+                    onClick={handleAssistantPanelOpenAndClose}
                 >
                     <PanelRight aria-hidden="true" />
+                    {chatUnread && <AttentionDot aria-label="New answer from the assistant" />}
                 </ToolButton>
             )}
             <ToolButton
@@ -529,3 +549,4 @@ export const Header: FC<HeaderProps> = ({
         </Bar>
     );
 };
+

@@ -1,5 +1,6 @@
-// Inspector acoplado del visor 3D: sustituye al panel de react-dat-gui con pestañas por categoría.
-import { FC, ReactNode, useEffect, useMemo, useState } from "react";
+// Panel del asistente (AssistantPanel), acoplado a la derecha del visor: chat con el asistente y ajustes del visor 3D
+// por pestañas (sustituye al panel de react-dat-gui).
+import { FC, ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 import styled from "styled-components";
 import {
     Cpu,
@@ -11,6 +12,8 @@ import {
     Lock,
     LockOpen,
     MapPin,
+    MessageSquare,
+    PictureInPicture2,
     Radio,
     RotateCcw,
     Search,
@@ -33,27 +36,38 @@ import {
     SliderField,
     SwitchRow,
     focusRing,
-    inspectorColors as c,
+    panelColors as c,
 } from "./controls";
 
-export const INSPECTOR_WIDTH = 360;
-export const INSPECTOR_GAP = 12;
+export const ASSISTANT_PANEL_WIDTH = 360;
+export const VIEWER_GAP = 12;
+// Con el chat el panel lateral es más ancho, para que quepan las fórmulas y tablas del asistente; el ancho no
+// cambia al pasar de una pestaña a otra
+export const ASSISTANT_PANEL_CHAT_WIDTH = 600;
+export const ASSISTANT_PANEL_MIN_WIDTH = 440;
 
-type TabId = "scene" | "sensors" | "assets" | "objects" | "fem" | "simulator" | "system";
+// Ancho del panel con el chat que deja el usuario, acotado a la ventana
+export const clampChatWidth = (width: number) =>
+    Math.round(Math.max(ASSISTANT_PANEL_MIN_WIDTH, Math.min(width, Math.max(ASSISTANT_PANEL_MIN_WIDTH, window.innerWidth - 80))));
 
-// Estado de la interfaz (pestaña, secciones y colecciones abiertas): se conserva al cerrar y volver a abrir
-const uiMemory: { tab: TabId; open: Record<string, boolean> } = {
+type TabId = "chat" | "scene" | "sensors" | "assets" | "objects" | "fem" | "simulator" | "system";
+type SettingsTabId = Exclude<TabId, "chat">;
+
+// Estado de la interfaz (última pestaña de ajustes, secciones y colecciones abiertas): se conserva al cerrar y
+// volver a abrir. Si la pestaña activa es la del chat lo decide el visor (isChatAssistantOpen).
+const uiMemory: { tab: SettingsTabId; open: Record<string, boolean> } = {
     tab: "scene",
     open: { environment: true, ambient: true, spot: false, point: false, femResults: true, workers: true, simulator: true },
 };
 
 const Panel = styled.aside`
     position: absolute;
-    top: ${INSPECTOR_GAP}px;
-    right: ${INSPECTOR_GAP}px;
-    bottom: ${INSPECTOR_GAP}px;
-    width: ${INSPECTOR_WIDTH}px;
-    max-width: calc(100% - ${2 * INSPECTOR_GAP}px);
+    top: ${VIEWER_GAP}px;
+    right: ${VIEWER_GAP}px;
+    bottom: ${VIEWER_GAP}px;
+    width: ${ASSISTANT_PANEL_WIDTH}px;
+    transition: width 160ms ease;
+    max-width: calc(100% - ${2 * VIEWER_GAP}px);
     display: flex;
     flex-direction: column;
     background-color: ${c.surface};
@@ -76,8 +90,11 @@ const Panel = styled.aside`
 const TabList = styled.div<{ $count: number }>`
     display: grid;
     grid-template-columns: repeat(${({ $count }) => $count}, minmax(0, 1fr));
-    gap: 2px;
-    padding: 6px;
+    gap: ${({ $count }) => ($count >= 8 ? 0 : 2)}px;
+    padding: ${({ $count }) => ($count >= 8 ? "6px 4px" : "6px")};
+
+    /* con la pestaña del chat caben ocho pestañas en 360 px: letra algo menor para que no se corten */
+    ${({ $count }) => ($count >= 8 ? "button { font-size: 10px; letter-spacing: -0.1px; }" : "")}
     border-bottom: 1px solid ${c.divider};
 `;
 
@@ -116,6 +133,84 @@ const Tab = styled.button<{ $selected: boolean }>`
         text-overflow: ellipsis;
         white-space: nowrap;
     }
+`;
+
+const ResizeEdge = styled.div<{ $active: boolean }>`
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 6px;
+    cursor: ew-resize;
+    z-index: 2;
+    background: ${({ $active }) => ($active ? "rgba(61, 130, 240, 0.55)" : "transparent")};
+
+    &:hover {
+        background: rgba(61, 130, 240, 0.35);
+    }
+`;
+
+const UnreadDot = styled.i`
+    position: absolute;
+    top: 8px;
+    right: calc(50% - 16px);
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: ${c.accent};
+    box-shadow: 0 0 0 2px ${c.surface};
+`;
+
+// El chat queda montado mientras el panel del asistente está abierto (se conservan el texto a medio escribir y el modo
+// voz) y solo se oculta al cambiar a otra pestaña
+const ChatPane = styled.div`
+    flex: 1;
+    min-height: 0;
+    flex-direction: column;
+    user-select: text;
+
+    textarea {
+        user-select: text;
+    }
+`;
+
+const HeaderAction = styled.button`
+    flex: none;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    height: 28px;
+    padding: 0 8px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 7px;
+    background: transparent;
+    color: ${c.textSecondary};
+    font: 500 12px Roboto, "Helvetica Neue", Arial, sans-serif;
+    cursor: pointer;
+    ${focusRing}
+
+    &:hover {
+        background-color: ${c.hover};
+        color: ${c.text};
+    }
+
+    svg {
+        width: 14px;
+        height: 14px;
+    }
+`;
+
+const FloatingNote = styled.div`
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin: 4px 12px 0 28px;
+    padding: 12px;
+    border: 1px dashed rgba(255, 255, 255, 0.16);
+    border-radius: 10px;
+    font-size: 12px;
+    line-height: 1.45;
+    color: ${c.textSecondary};
 `;
 
 const Body = styled.div`
@@ -222,7 +317,7 @@ const EmptyText = styled.p`
     color: ${c.textMuted};
 `;
 
-interface InspectorProps {
+interface AssistantPanelProps {
     opts: ViewerOptions;
     setOpts: (updater: (prevOpts: ViewerOptions) => ViewerOptions) => void;
     sensorObjects: any[];
@@ -240,6 +335,20 @@ interface InspectorProps {
     lockReadingButtomLabel: string;
     handleGetLastMeasurementsButton: () => void;
     handleLockReadMeasurementsButtonClick: () => void;
+    // Chat del asistente como una pestaña más (si el gemelo digital lo tiene habilitado)
+    chatContent?: ReactNode;
+    chatActive?: boolean;
+    onChatActiveChange?: (active: boolean) => void;
+    chatUnread?: boolean;
+    // solo la pestaña del chat (vistas Pipeline e Imagen, sin ajustes del modelo 3D)
+    chatOnly?: boolean;
+    // ancho del panel (el mismo en todas las pestañas) y cambio de ancho arrastrando el borde izquierdo
+    width?: number;
+    onResizeWidth?: (width: number) => void;
+    // Simulador en ventana flotante
+    simulatorFloating?: boolean;
+    onFloatSimulator?: () => void;
+    onDockSimulator?: () => void;
 }
 
 type CollectionKind = "sensors" | "assets" | "objects" | "fem";
@@ -283,7 +392,7 @@ const countByCollection = (objects: any[]) => {
     return counts;
 };
 
-export const Inspector: FC<InspectorProps> = ({
+export const AssistantPanel: FC<AssistantPanelProps> = ({
     opts,
     setOpts,
     sensorObjects,
@@ -301,8 +410,19 @@ export const Inspector: FC<InspectorProps> = ({
     lockReadingButtomLabel,
     handleGetLastMeasurementsButton,
     handleLockReadMeasurementsButtonClick,
+    chatContent,
+    chatActive = false,
+    onChatActiveChange,
+    chatUnread = false,
+    chatOnly = false,
+    width = ASSISTANT_PANEL_WIDTH,
+    onResizeWidth,
+    simulatorFloating = false,
+    onFloatSimulator,
+    onDockSimulator,
 }) => {
-    const [tab, setTab] = useState<TabId>(uiMemory.tab);
+    const [tab, setTab] = useState<SettingsTabId>(uiMemory.tab);
+    const [resizing, setResizing] = useState(false);
     const [open, setOpen] = useState<Record<string, boolean>>(uiMemory.open);
     const [filter, setFilter] = useState("");
 
@@ -313,9 +433,11 @@ export const Inspector: FC<InspectorProps> = ({
 
     const simulatorParams = Object.keys(digitalTwinSimulationFormat ?? {});
     const tabs = useMemo(() => {
-        const list: { id: TabId; label: string; title?: string; icon: ReactNode }[] = [
-            { id: "scene", label: "Scene", icon: <Sun /> },
-        ];
+        const list: { id: TabId; label: string; title?: string; icon: ReactNode }[] = [];
+        const hasChat = chatContent !== undefined && chatContent !== null;
+        if (hasChat) list.push({ id: "chat", label: "Chat", title: "Chat with assistant", icon: <MessageSquare /> });
+        if (chatOnly) return list;
+        list.push({ id: "scene", label: "Scene", icon: <Sun /> });
         if (sensorObjects.length) list.push({ id: "sensors", label: "Sensors", icon: <Radio /> });
         if (assetObjects.length) list.push({ id: "assets", label: "Assets", icon: <Wrench /> });
         if (genericObjects.length) list.push({ id: "objects", label: "Generic", title: "Generic objects", icon: <Layers /> });
@@ -323,9 +445,53 @@ export const Inspector: FC<InspectorProps> = ({
         if (simulatorParams.length) list.push({ id: "simulator", label: "Sim.", title: "Digital twin simulator", icon: <SlidersHorizontal /> });
         list.push({ id: "system", label: "System", icon: <Cpu /> });
         return list;
-    }, [sensorObjects.length, assetObjects.length, genericObjects.length, femSimulationObjects.length, simulatorParams.length]);
+    }, [
+        chatContent,
+        chatOnly,
+        sensorObjects.length,
+        assetObjects.length,
+        genericObjects.length,
+        femSimulationObjects.length,
+        simulatorParams.length,
+    ]);
 
-    const activeTab: TabId = tabs.some((t) => t.id === tab) ? tab : "scene";
+    const hasChatTab = tabs.some((t) => t.id === "chat");
+    const activeTab: TabId =
+        hasChatTab && (chatActive || chatOnly) ? "chat" : tabs.some((t) => t.id === tab) ? tab : "scene";
+
+    const selectTab = (id: TabId) => {
+        if (id === "chat") {
+            onChatActiveChange?.(true);
+            return;
+        }
+        setTab(id);
+        setFilter("");
+        if (chatActive) onChatActiveChange?.(false);
+    };
+
+    // Ancho del panel arrastrando su borde izquierdo
+    const startResize = useCallback(
+        (event: React.PointerEvent) => {
+            if (!onResizeWidth) return;
+            event.preventDefault();
+            const startX = event.clientX;
+            const startWidth = width;
+            setResizing(true);
+            const onMove = (e: PointerEvent) => onResizeWidth(clampChatWidth(startWidth + (startX - e.clientX)));
+            const onUp = () => {
+                setResizing(false);
+                document.removeEventListener("pointermove", onMove);
+                document.removeEventListener("pointerup", onUp);
+                document.body.style.cursor = "";
+                document.body.style.userSelect = "";
+            };
+            document.body.style.cursor = "ew-resize";
+            document.body.style.userSelect = "none";
+            document.addEventListener("pointermove", onMove);
+            document.addEventListener("pointerup", onUp);
+        },
+        [onResizeWidth, width],
+    );
 
     const set = (path: string[], value: unknown) => setOpts((prev) => withOptionAt(prev, path, value));
     const o = opts as unknown as Record<string, any>;
@@ -355,7 +521,7 @@ export const Inspector: FC<InspectorProps> = ({
         <>
             <Section title="Environment" open={isOpen("environment")} onToggle={() => toggle("environment")}>
                 <SelectField
-                    id="inspector-environment"
+                    id="assistant-panel-environment"
                     label="Preset"
                     value={opts.environment}
                     options={ENVIRONMENT_OPTIONS}
@@ -364,7 +530,7 @@ export const Inspector: FC<InspectorProps> = ({
                 <SwitchRow label="Shadows" checked={!!opts.showShadows} onChange={(v) => set(["showShadows"], v)} />
                 <SwitchRow label="Axes" checked={!!opts.showAxes} onChange={(v) => set(["showAxes"], v)} />
                 <SliderField
-                    id="inspector-axes-scale"
+                    id="assistant-panel-axes-scale"
                     label="Axes length"
                     unit="×"
                     value={opts.axesScale ?? 1}
@@ -383,7 +549,7 @@ export const Inspector: FC<InspectorProps> = ({
                 onSwitchChange={(v) => set(["ambientLight"], v)}
             >
                 <SliderField
-                    id="inspector-ambient-intensity"
+                    id="assistant-panel-ambient-intensity"
                     label="Intensity"
                     value={opts.ambientLightIntensity}
                     min={0}
@@ -401,7 +567,7 @@ export const Inspector: FC<InspectorProps> = ({
                 onSwitchChange={(v) => set(["spotLight"], v)}
             >
                 <SliderField
-                    id="inspector-spot-power"
+                    id="assistant-panel-spot-power"
                     label="Power"
                     unit="lm"
                     value={opts.spotLightPower}
@@ -426,7 +592,7 @@ export const Inspector: FC<InspectorProps> = ({
                 onSwitchChange={(v) => set(["pointLight"], v)}
             >
                 <SliderField
-                    id="inspector-point-power"
+                    id="assistant-panel-point-power"
                     label="Power"
                     unit="lm"
                     value={opts.pointLightPower}
@@ -532,7 +698,7 @@ export const Inspector: FC<InspectorProps> = ({
                 )}
             >
                 <SliderField
-                    id={`inspector-${kind}-opacity`}
+                    id={`assistant-panel-${kind}-opacity`}
                     label="Opacity"
                     value={o[keys.opacity]}
                     min={0}
@@ -558,14 +724,14 @@ export const Inspector: FC<InspectorProps> = ({
                 {kind === "fem" && (
                     <Section title="Results" open={isOpen("femResults")} onToggle={() => toggle("femResults")}>
                         <SelectField
-                            id="inspector-fem-date"
+                            id="assistant-panel-fem-date"
                             label="Date"
                             value={opts.femResultDate}
                             options={femResultDates}
                             onChange={(v) => set(["femResultDate"], v)}
                         />
                         <SelectField
-                            id="inspector-fem-result"
+                            id="assistant-panel-fem-result"
                             label="Result"
                             value={opts.femSimulationResult}
                             options={["None result", ...femResultNames]}
@@ -577,7 +743,7 @@ export const Inspector: FC<InspectorProps> = ({
                             onChange={(v) => set(["showFemSimulationDeformation"], v)}
                         />
                         <SliderField
-                            id="inspector-fem-scale"
+                            id="assistant-panel-fem-scale"
                             label="Log deformation scale"
                             value={opts.femSimulationDefScale}
                             min={-2}
@@ -591,7 +757,7 @@ export const Inspector: FC<InspectorProps> = ({
                             onChange={(v) => set(["showAllFemSimulationMeshes"], v)}
                         />
                         <SelectField
-                            id="inspector-fem-legend"
+                            id="assistant-panel-fem-legend"
                             label="Legend"
                             value={opts.legendToShow}
                             options={["None result", ...femResultNames]}
@@ -623,7 +789,7 @@ export const Inspector: FC<InspectorProps> = ({
                         const prefix = [keys.perCollection, name];
                         const state = (o[keys.perCollection]?.[name] ?? {}) as Record<string, any>;
                         const openKey = `${kind}:${name}`;
-                        const idBase = `inspector-${kind}-${name.replace(/[^A-Za-z0-9_-]/g, "_")}`;
+                        const idBase = `assistant-panel-${kind}-${name.replace(/[^A-Za-z0-9_-]/g, "_")}`;
                         return (
                             <CollectionRow
                                 key={name}
@@ -670,14 +836,43 @@ export const Inspector: FC<InspectorProps> = ({
     };
 
     const simulatorTab = () => (
-        <Section title="Digital twin simulator" open={isOpen("simulator", true)} onToggle={() => toggle("simulator", true)}>
+        <Section
+            title="Digital twin simulator"
+            open={isOpen("simulator", true)}
+            onToggle={() => toggle("simulator", true)}
+            actions={
+                onFloatSimulator && !simulatorFloating ? (
+                    <HeaderAction
+                        type="button"
+                        onClick={onFloatSimulator}
+                        title="Open the simulator in a floating window, to move the sliders while you watch the model or chat"
+                        aria-label="Open the simulator in a floating window"
+                    >
+                        <PictureInPicture2 aria-hidden="true" />
+                        Float
+                    </HeaderAction>
+                ) : undefined
+            }
+        >
+            {simulatorFloating ? (
+                <FloatingNote role="status">
+                    The simulator is open in its floating window. Its values are being sent to the digital twin.
+                    {onDockSimulator && (
+                        <SecondaryButton type="button" onClick={onDockSimulator}>
+                            <PictureInPicture2 aria-hidden="true" />
+                            Bring it back here
+                        </SecondaryButton>
+                    )}
+                </FloatingNote>
+            ) : (
+                <>
             {simulatorParams.map((paramName) => {
                 const format = digitalTwinSimulationFormat[paramName] ?? {};
                 const label = format.label !== undefined ? format.label : paramName;
                 return (
                     <SliderField
                         key={paramName}
-                        id={`inspector-sim-${paramName.replace(/[^A-Za-z0-9_-]/g, "_")}`}
+                        id={`assistant-panel-sim-${paramName.replace(/[^A-Za-z0-9_-]/g, "_")}`}
                         label={label}
                         unit={format.units}
                         value={opts.digitalTwinSimulatorState?.[paramName]}
@@ -697,6 +892,8 @@ export const Inspector: FC<InspectorProps> = ({
                     {sentenceCase(lockReadingButtomLabel)}
                 </SecondaryButton>
             </ButtonStack>
+                </>
+            )}
         </Section>
     );
 
@@ -709,7 +906,7 @@ export const Inspector: FC<InspectorProps> = ({
             onSwitchChange={(v) => set(["enableWebWorkes"], v)}
         >
             <SliderField
-                id="inspector-workers"
+                id="assistant-panel-workers"
                 label="Workers"
                 value={opts.numWebWorkers}
                 min={1}
@@ -736,13 +933,27 @@ export const Inspector: FC<InspectorProps> = ({
                 return simulatorTab();
             case "system":
                 return systemTab();
+            case "chat":
+                return null;
             default:
                 return sceneTab();
         }
     };
 
     return (
-        <Panel aria-label="Viewer settings" data-testid="viewer-inspector">
+        <Panel aria-label="Assistant panel" data-testid="assistant-panel"
+            style={{ width, transition: resizing ? "none" : undefined }}
+        >
+            {onResizeWidth && (
+                <ResizeEdge
+                    $active={resizing}
+                    onPointerDown={startResize}
+                    role="separator"
+                    aria-orientation="vertical"
+                    aria-label="Resize the assistant panel"
+                    title="Drag to resize"
+                />
+            )}
             <TabList role="tablist" aria-label="Settings" $count={tabs.length}>
                 {tabs.map((t) => (
                     <Tab
@@ -753,17 +964,23 @@ export const Inspector: FC<InspectorProps> = ({
                         $selected={t.id === activeTab}
                         title={t.title ?? t.label}
                         aria-label={t.title ?? t.label}
-                        onClick={() => {
-                            setTab(t.id);
-                            setFilter("");
-                        }}
+                        style={{ position: "relative" }}
+                        onClick={() => selectTab(t.id)}
                     >
                         {t.icon}
                         <span>{t.label}</span>
+                        {t.id === "chat" && chatUnread && activeTab !== "chat" && (
+                            <UnreadDot aria-label="New answer from the assistant" />
+                        )}
                     </Tab>
                 ))}
             </TabList>
-            <Body role="tabpanel">{content()}</Body>
+            {hasChatTab && (
+                <ChatPane role="tabpanel" aria-label="Chat with assistant" style={{ display: activeTab === "chat" ? "flex" : "none" }}>
+                    {chatContent}
+                </ChatPane>
+            )}
+            {activeTab !== "chat" && <Body role="tabpanel">{content()}</Body>}
             {activeTab === "scene" && (
                 <Footer>
                     <span>Changes apply live</span>
@@ -777,4 +994,4 @@ export const Inspector: FC<InspectorProps> = ({
     );
 };
 
-export default Inspector;
+export default AssistantPanel;

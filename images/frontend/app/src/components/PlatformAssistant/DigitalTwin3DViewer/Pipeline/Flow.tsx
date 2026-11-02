@@ -131,10 +131,11 @@ export default function Flow({
     setEdges,
     handlePipelineUiChanged,
     importPipelineRef,
+    focusNodeRef,
 }) {
     const reactFlowWrapper = useRef(null);
     const rootRef = useRef(null);
-    const { screenToFlowPosition } = useReactFlow();
+    const { screenToFlowPosition, getNode, setCenter, getZoom } = useReactFlow();
     const { paletteCollapsed, togglePalette, paletteWidth, barOffset } = usePipelineLayout(rootRef);
 
     // Lo que el usuario tenía en el editor al salir de él (pestaña 3D, otra capa): el desplazamiento y el
@@ -202,6 +203,39 @@ export default function Flow({
         validateNodes,
         onHistoryChange: closePanelNow,
     });
+
+    // "Show in flow" (pipeline logs): centres the canvas on a node and highlights it for a few seconds.
+    // The highlight is a CSS rule on the node's wrapper ([data-id]), so the nodes themselves are not
+    // changed and the pipeline is not marked as modified.
+    const [focused, setFocused] = useState(null);
+    const focusNode = useCallback(
+        (uid, tone = "info") => {
+            const node = getNode(uid);
+            if (!node) return false;
+            const width = node.measured?.width ?? node.width ?? 150;
+            const height = node.measured?.height ?? node.height ?? 40;
+            const position = node.positionAbsolute ?? node.internals?.positionAbsolute ?? node.position;
+            setCenter(position.x + width / 2, position.y + height / 2, {
+                zoom: Math.max(getZoom(), 1.2),
+                duration: 450,
+            });
+            setFocused({ uid, tone, at: Date.now() });
+            return true;
+        },
+        [getNode, setCenter, getZoom],
+    );
+    useEffect(() => {
+        if (!focused) return;
+        const timer = setTimeout(() => setFocused(null), 4000);
+        return () => clearTimeout(timer);
+    }, [focused]);
+    useEffect(() => {
+        if (!focusNodeRef) return;
+        focusNodeRef.current = focusNode;
+        return () => {
+            if (focusNodeRef.current === focusNode) focusNodeRef.current = null;
+        };
+    }, [focusNodeRef, focusNode]);
 
     useEffect(() => {
         if (!importPipelineRef) return;
@@ -327,6 +361,7 @@ export default function Flow({
     const onPaneClick = useCallback(() => {
         setSelectedNode(null);
         setIsPanelOpen(false);
+        setFocused(null);
     }, []);
 
     const onUpdateNode = useCallback(
@@ -509,6 +544,11 @@ export default function Flow({
             />
 
             <ReactFlowWrapper ref={reactFlowWrapper} className={isPlacing ? "placing" : undefined} {...wrapperHandlers}>
+                {focused && (
+                    <style>{`.react-flow__node[data-id="${CSS.escape(focused.uid)}"] { border-radius: 8px; box-shadow: 0 0 0 3px ${
+                        focused.tone === "error" ? "#ff6b6b" : "#3d82f0"
+                    }, 0 0 24px ${focused.tone === "error" ? "rgba(255, 107, 107, 0.55)" : "rgba(61, 130, 240, 0.6)"}; transition: box-shadow 0.2s; }`}</style>
+                )}
                 {isPlacing && <PlacementHint>Click to place the nodes · Esc to cancel</PlacementHint>}
                 <ReactFlow
                     nodes={nodes}

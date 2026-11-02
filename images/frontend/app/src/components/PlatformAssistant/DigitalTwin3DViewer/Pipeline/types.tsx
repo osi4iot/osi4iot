@@ -492,7 +492,38 @@ export const Select = styled.select`
     }
 `;
 
+// Barra de desplazamiento oscura de los paneles del pipeline, también dentro de los cuadros de texto (el
+// System prompt mostraba la del sistema, blanca). Sin scrollbar-color: en Chrome anula estos estilos.
+const textAreaScrollbar = css`
+
+    &::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+    }
+
+    /* el cuadro de texto es #374151: carril algo más oscuro y pulgar más claro para que se distinga */
+    &::-webkit-scrollbar-track {
+        background: #2f3743;
+        border-radius: 0 6px 6px 0;
+    }
+
+    &::-webkit-scrollbar-thumb {
+        background: #6b7280;
+        border-radius: 4px;
+    }
+
+    &::-webkit-scrollbar-thumb:hover {
+        background: #9ca3af;
+    }
+
+    &::-webkit-scrollbar-corner,
+    &::-webkit-resizer {
+        background: transparent;
+    }
+`;
+
 export const TextArea = styled.textarea`
+    ${textAreaScrollbar}
     width: 100%;
     padding: 10px 12px;
     background-color: #374151;
@@ -517,6 +548,7 @@ export const TextArea = styled.textarea`
 `;
 
 export const TextAreaSystemPrompt = styled.textarea`
+    ${textAreaScrollbar}
     width: 100%;
     padding: 10px 12px;
     background-color: #374151;

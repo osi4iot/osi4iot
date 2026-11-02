@@ -38,7 +38,7 @@ export interface Viewer3DProps {
 
 export interface ViewerState {
     // UI state
-    isControlPanelOpen: boolean;
+    isAssistantPanelOpen: boolean;
     isChatAssistantOpen: boolean;
     isPipelineLogsOpen: boolean;
     showDtSimulatorModal: boolean;

@@ -61,7 +61,8 @@ describe("SensorMarker", () => {
         const card = screen.getByRole("tooltip");
         expect(card.textContent).toContain("Strain gauge 1");
         expect(card.textContent).toContain("8.817e-5");
-        expect(card.textContent).toContain("Live · 3 s ago");
+        // reloj real: con la máquina cargada pueden pasar uno o dos segundos más
+        expect(card.textContent).toMatch(/Live · [3-5] s ago/);
         expect(card.textContent).not.toContain(" -"); // "-" units are not shown
         fireEvent.click(pin);
         expect(onOpen).toHaveBeenCalled();

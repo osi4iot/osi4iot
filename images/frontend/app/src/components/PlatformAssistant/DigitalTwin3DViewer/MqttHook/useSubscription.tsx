@@ -214,6 +214,7 @@ const updateObjectsState = (
                     payload: mqttMessage.payload || {},
                     state: mqttMessage.state || {},
                     date: formatDateString(new Date().toISOString()),
+                    receivedAt: Date.now(),
                 };
                 handleUpdateLogMessages(newLogMessage);
             }

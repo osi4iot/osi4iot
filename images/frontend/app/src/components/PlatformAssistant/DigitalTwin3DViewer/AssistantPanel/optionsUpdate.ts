@@ -1,4 +1,4 @@
-// Actualización de las opciones del visor desde el inspector.
+// Actualización de las opciones del visor desde el panel del asistente.
 //
 // react-dat-gui devolvía en cada cambio una copia profunda de todas las opciones, así que cualquier efecto
 // que dependiera de un objeto anidado (p. ej. opts.sensorsVisibilityState) se volvía a ejecutar con

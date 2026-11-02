@@ -19,10 +19,12 @@ import SetGltfObjects from "../Objects/SetGlftOjbects";
 import SimulationLegend from "../Utils/SimulationLegend";
 import ChatAssistant, { LlmMessage } from "../ChatAssitant/ChatAssistant";
 import { createPipelineVoiceService } from "../ChatAssitant/voiceService";
-import PipelineLogs, { PipelineLog } from "../Pipeline/PipelineLogs";
+import PipelineLogs, { PIPELINE_LOGS_WIDTH, PipelineLog, clampLogsWidth } from "../Pipeline/PipelineLogs";
+import { levelOf } from "../Pipeline/pipelineLogsModel";
 import DigitalTwinSimulatorModal from "../ViewerTools/DigitalTwinSimulatorModal";
 import { Header } from "../Utils/Headers";
-import Inspector, { INSPECTOR_GAP, INSPECTOR_WIDTH } from "../Inspector/Inspector";
+import AssistantPanel, { ASSISTANT_PANEL_CHAT_WIDTH, VIEWER_GAP, ASSISTANT_PANEL_WIDTH, clampChatWidth } from "../AssistantPanel/AssistantPanel";
+import { usePersistentState } from "../../../../state/uiStore";
 
 // Styled components
 import {
@@ -154,12 +156,38 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
     useEffect(() => {
         rememberViewer(dtUid, {
             panels: {
-                controlPanel: state.isControlPanelOpen,
+                assistantPanel: state.isAssistantPanelOpen,
                 chatAssistant: state.isChatAssistantOpen,
                 pipelineLogs: state.isPipelineLogsOpen,
             },
         });
-    }, [dtUid, state.isControlPanelOpen, state.isChatAssistantOpen, state.isPipelineLogsOpen]);
+    }, [dtUid, state.isAssistantPanelOpen, state.isChatAssistantOpen, state.isPipelineLogsOpen]);
+    // El chat es una pestaña del panel del asistente: isChatAssistantOpen indica que esa pestaña es la elegida, y el chat
+    // está a la vista cuando además el panel del asistente está abierto. En las vistas Imagen y Pipeline (gemelos sin
+    // modelo 3D) el panel del asistente solo tiene el chat.
+    const chatEnabled = !!digitalTwinSelected?.chatAssistantEnabled;
+    const showOnlyPipelineViewer = digitalTwinGltfData.gltfFile == null;
+    const chatTabSelected = chatEnabled && state.isChatAssistantOpen;
+    const assistantPanelShown =
+        state.isAssistantPanelOpen &&
+        (state.activeViewer === "3D" ||
+            (chatTabSelected && (state.activeViewer === "image_frame" || showOnlyPipelineViewer)));
+    const chatVisible = assistantPanelShown && chatTabSelected;
+    const chatVisibleRef = useRef(chatVisible);
+    chatVisibleRef.current = chatVisible;
+    // con chat el panel lateral es más ancho y tiene el mismo ancho en todas las pestañas (el usuario lo
+    // puede cambiar arrastrando su borde izquierdo y se conserva)
+    const [chatWidth, setChatWidth] = usePersistentState<number>("assistantPanel.width", ASSISTANT_PANEL_CHAT_WIDTH);
+    const assistantPanelWidth = chatEnabled ? clampChatWidth(chatWidth) : ASSISTANT_PANEL_WIDTH;
+    // respuesta del asistente que ha llegado sin estar el chat a la vista
+    const [chatUnread, setChatUnread] = useState(false);
+    useEffect(() => {
+        if (chatVisible) {
+            setChatUnread(false);
+            toast.dismiss("chat-answer-unread");
+        }
+    }, [chatVisible]);
+
     const handleClose3DViewer = useCallback(() => {
         forgetViewer(dtUid);
         close3DViewer();
@@ -300,8 +328,9 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
             getLastMeasurementsButtomLabel: state.getLastMeasurementsButtomLabel,
             initialDigitalTwinSimulatorState: state.initialDigitalTwinSimulatorState,
             generalTransparencyIndex: state.generalTransparencyIndex,
-            isControlPanelOpen: state.isControlPanelOpen,
-            isChatAssistantOpen: state.isChatAssistantOpen,
+            isAssistantPanelOpen: state.isAssistantPanelOpen,
+            isChatAssistantOpen: chatTabSelected,
+            isAssistantPanelShown: assistantPanelShown,
             isPipelineLogsOpen: state.isPipelineLogsOpen,
             isPipelineUiChanged: state.isPipelineUiChanged,
             openDashboardTab,
@@ -328,7 +357,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
             setInitialAssetsState: (state) => setState((prev) => ({ ...prev, initialAssetsState: state })),
             setInitialGenericObjectsState: (state) =>
                 setState((prev) => ({ ...prev, initialGenericObjectsState: state })),
-            setIsControlPanelOpen: (open) => setState((prev) => ({ ...prev, isControlPanelOpen: open })),
+            setIsAssistantPanelOpen: (open) => setState((prev) => ({ ...prev, isAssistantPanelOpen: open })),
             setChatAssistantOpen: (open) =>
                 setState((prev) => ({
                     ...prev,
@@ -604,7 +633,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
                     // Aviso solo cuando el usuario cambia un valor del simulador sin bloquear la lectura de los
                     // sensores. Se comparan solo los campos del simulador, en un orden fijo: el estado inicial
                     // (último mensaje) puede traer otros campos (timestamp) o en otro orden, y antes el aviso
-                    // salía cada vez que se volvía a evaluar este efecto, p. ej. al abrir el Inspector.
+                    // salía cada vez que se volvía a evaluar este efecto, p. ej. al abrir el panel del asistente.
                     const current = simulatorValuesKey(opts.digitalTwinSimulatorState);
                     const previous = lastSimulatorValuesRef.current;
                     if (
@@ -612,7 +641,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
                         current !== previous &&
                         current !== simulatorValuesKey(state.initialDigitalTwinSimulatorState) &&
                         current !== simulatorValuesKey(lastNatsMessageSent) &&
-                        !(state.isChatAssistantOpen || state.showDtSimulatorModal || state.activeViewer === "pipeline")
+                        !(chatVisible || state.showDtSimulatorModal || state.activeViewer === "pipeline")
                     ) {
                         toast.warning(
                             "Warning: To use the digital twin simulator, reading the measurements from the sensors must be locked.",
@@ -630,7 +659,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
         digitalTwinModelNatsTopic,
         lastNatsMessageSent,
         state.initialDigitalTwinSimulatorState,
-        state.isChatAssistantOpen,
+        chatVisible,
         state.showDtSimulatorModal,
         state.activeViewer,
     ]);
@@ -650,14 +679,27 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 
     // 2. Send chat assistant messages via NATS, on the user's own copy of the sim2llm topic: pipelines takes
     // from it who asks (the "userName" field is only informative) and sends the answer to the user's inbox
+    // Solo se envía la pregunta que el usuario acaba de añadir, una vez: no al cargar el historial ni al cambiar
+    // de pestaña en el panel del asistente (antes, al abrir y cerrar el chat se volvía a enviar la última pregunta)
     const promptUserName = useLoggedUserLogin();
+    const lastSentMessageRef = useRef<unknown>(null);
+    const prevChatLengthRef = useRef(chatMessages.length);
     useLayoutEffect(() => {
-        if (natsClient && state.isChatAssistantOpen && promptUserName) {
+        const prevLength = prevChatLengthRef.current;
+        prevChatLengthRef.current = chatMessages.length;
+        if (natsClient && promptUserName) {
             if (digitalTwinModelChatAssistantTopic) {
                 const natsSubject = natsUserChatSubject(promptUserName, digitalTwinModelChatAssistantTopic.natsSubject);
                 const lastMessage = chatMessages[chatMessages.length - 1];
+                const sentAt = lastMessage ? Date.parse(lastMessage.time) : NaN;
+                const isNewQuestion =
+                    !!lastMessage &&
+                    lastMessage !== lastSentMessageRef.current &&
+                    chatMessages.length === prevLength + 1 &&
+                    (Number.isNaN(sentAt) || Date.now() - sentAt < 60_000);
                 // las preguntas de voz transcritas en el pipeline ya las ha enviado él al AI Agent
-                if (lastMessage && lastMessage.sender === "user" && lastMessage.source !== "pipeline") {
+                if (isNewQuestion && lastMessage.sender === "user" && lastMessage.source !== "pipeline") {
+                    lastSentMessageRef.current = lastMessage;
                     // timeZone: the AI agent writes the times in the user's zone (the
                     // group's when the question comes without it, e.g. from Telegram)
                     // viewer: what the 3D viewer holds, so that the AI agent names it exactly in uiOpts
@@ -674,7 +716,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
                 }
             }
         }
-    }, [natsClient, state.isChatAssistantOpen, chatMessages, digitalTwinModelChatAssistantTopic, userTimeZone, promptUserName]);
+    }, [natsClient, chatMessages, digitalTwinModelChatAssistantTopic, userTimeZone, promptUserName]);
 
     // Pregunta de voz (sensor "Mobile audio", nota de voz de Telegram) transcrita por el pipeline: llega por
     // llm2sim con el campo "transcription" y el pipeline ya la ha enviado al AI Agent, así que aquí solo se
@@ -682,6 +724,24 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
     // enviaba cada visor y, con el gemelo abierto en dos pestañas o dispositivos, el AI Agent contestaba dos
     // veces. El chat se abre solo en el visor de quien la hizo. La suscripción NATS conserva el primer
     // manejador, por eso el usuario se lee de una ref.
+    // Abre el panel del asistente en la pestaña del chat (en una ref: la suscripción NATS conserva el primer manejador)
+    const openChatTabRef = useRef<() => void>(() => {});
+    openChatTabRef.current = () => {
+        if (!chatEnabled) return;
+        if (state.activeViewer === "pipeline" && !showOnlyPipelineViewer) return;
+        // in the pipeline view the assistant panel takes the place of the logs (both dock on the right)
+        const inPipeline = state.activeViewer === "pipeline";
+        setState((prev) =>
+            prev.isAssistantPanelOpen && prev.isChatAssistantOpen && !(inPipeline && prev.isPipelineLogsOpen)
+                ? prev
+                : {
+                      ...prev,
+                      isAssistantPanelOpen: true,
+                      isChatAssistantOpen: true,
+                      isPipelineLogsOpen: inPipeline ? false : prev.isPipelineLogsOpen,
+                  },
+        );
+    };
     const loggedUserName = useLoggedUserLogin();
     const loggedUserNameRef = useRef(loggedUserName);
     loggedUserNameRef.current = loggedUserName;
@@ -689,6 +749,37 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
         (newMessage: LlmMessage) => {
             if (newMessage.sender !== "user") {
                 handleUpdateChatAssistantMessages(newMessage);
+                // sin el chat a la vista: punto en la pestaña del chat y aviso con un botón para abrirlo
+                if (newMessage.sender === "assistant" && !chatVisibleRef.current && (newMessage.message ?? "").trim()) {
+                    setChatUnread(true);
+                    toast.info(
+                        ({ closeToast }) => (
+                            <span style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                                <span>OSI has answered in the chat</span>
+                                <button
+                                    type="button"
+                                    style={{
+                                        marginLeft: "auto",
+                                        padding: "4px 10px",
+                                        border: 0,
+                                        borderRadius: 6,
+                                        background: "#3d82f0",
+                                        color: "#fff",
+                                        cursor: "pointer",
+                                        font: "500 12px Roboto, Arial, sans-serif",
+                                    }}
+                                    onClick={() => {
+                                        openChatTabRef.current();
+                                        closeToast?.();
+                                    }}
+                                >
+                                    Open chat
+                                </button>
+                            </span>
+                        ),
+                        { toastId: "chat-answer-unread", autoClose: 6000 },
+                    );
+                }
                 return;
             }
             const text = (newMessage.message ?? "").trim();
@@ -705,9 +796,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
                     source: "pipeline",
                 },
             ]);
-            if (author === loggedUserNameRef.current) {
-                setState((prev) => (prev.isChatAssistantOpen ? prev : { ...prev, isChatAssistantOpen: true }));
-            }
+            if (author === loggedUserNameRef.current) openChatTabRef.current();
         },
         [handleUpdateChatAssistantMessages, setChatMessages, setState],
     );
@@ -801,6 +890,35 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 
     // El editor de pipelines (Flow) registra aquí la función que coloca con el ratón los nodos importados
     const pipelineImportRef = useRef<((nodes: any[], edges: any[]) => void) | null>(null);
+
+    // Pipeline logs: only in the pipeline view, docked on the right (width kept while the app is open)
+    const logsShown = !!digitalTwinSelected && state.isPipelineLogsOpen && state.activeViewer === "pipeline";
+    const [logsWidth, setLogsWidth] = usePersistentState<number>("pipelineLogs.width", PIPELINE_LOGS_WIDTH);
+    const pipelineLogsWidth = clampLogsWidth(logsWidth);
+    // "Show in flow": Flow registers here the function that centres the canvas on a node
+    const flowFocusRef = useRef<((uid: string, tone?: string) => boolean) | null>(null);
+    const canShowInFlow = useCallback((uid: string) => pipelineNodes.some((node: any) => node.id === uid), [pipelineNodes]);
+    const handleShowInFlow = useCallback(
+        (uid: string, isError: boolean) => flowFocusRef.current?.(uid, isError ? "error" : "info"),
+        [],
+    );
+    // Errors that arrived while the logs were not on screen: badge on the logs button and dot on the
+    // Pipeline tab of the viewer selector
+    const [unseenPipelineErrors, setUnseenPipelineErrors] = useState(0);
+    const lastSeenLogRef = useRef<PipelineLog | undefined>(logMessages[logMessages.length - 1]);
+    useEffect(() => {
+        const last = logMessages[logMessages.length - 1];
+        if (last === lastSeenLogRef.current) return;
+        let newErrors = 0;
+        for (let i = logMessages.length - 1; i >= 0 && logMessages[i] !== lastSeenLogRef.current; i--) {
+            if (levelOf(logMessages[i]) === "error") newErrors++;
+        }
+        lastSeenLogRef.current = last;
+        if (!logsShown && newErrors > 0) setUnseenPipelineErrors((n) => n + newErrors);
+    }, [logMessages, logsShown]);
+    useEffect(() => {
+        if (logsShown) setUnseenPipelineErrors(0);
+    }, [logsShown]);
     const handlePipelineImported = useCallback((importedNodes: any[], importedEdges: any[]) => {
         if (pipelineImportRef.current) {
             pipelineImportRef.current(importedNodes, importedEdges);
@@ -1045,6 +1163,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
                             setEdges={setPipelineEdges}
                             handlePipelineUiChanged={handlers.handlePipelineUiChanged}
                             importPipelineRef={pipelineImportRef}
+                            focusNodeRef={flowFocusRef}
                         />
                     </ReactFlowProvider>
                     </PipelineErrorBoundary>
@@ -1081,17 +1200,15 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 
                 {/* Header */}
                 <Header
-                    isControlPanelOpen={state.isControlPanelOpen}
+                    isAssistantPanelOpen={state.isAssistantPanelOpen}
                     isNatsConnected={connectionStatus === "Connected"}
                     digitalTwinState={state.digitalTwinState}
                     activeViewer={state.activeViewer}
-                    showOnlyPipelineViewer={digitalTwinGltfData.gltfFile == null}
-                    handleControlPanelOpenAndClose={handlers.handleControlPanelOpenAndClose}
+                    showOnlyPipelineViewer={showOnlyPipelineViewer}
+                    handleAssistantPanelOpenAndClose={handlers.handleAssistantPanelOpenAndClose}
                     handleToggleActiveViewer={handlers.handleToggleActiveViewer}
                     handleSetActiveViewer={handlers.handleSetActiveViewer}
-                    handleChatAssistantOpen={handlers.handleChatAssistantOpen}
                     handlePipelineLogsOpen={handlers.handlePipelineLogsOpen}
-                    handleOpenSimulator={handlers.handleOpenSimulator}
                     handleOpenGrafanaDashboard={handlers.handleOpenGrafanaDashboard}
                     handleDigitalTwinStateShield={handlers.handleDigitalTwinStateShield}
                     handleDeployPipeline={handleDeployPipeline}
@@ -1106,13 +1223,17 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
                     pipelineLeaderReplicaIndex={pipelineLeaderReplicaIndex}
                     digitalTwinName={digitalTwinSelected?.description || digitalTwinSelected?.digitalTwinUid}
                     digitalTwinType={digitalTwinSelected?.type}
-                    isChatAssistantOpen={state.isChatAssistantOpen}
-                    isPipelineLogsOpen={state.isPipelineLogsOpen}
+                    chatEnabled={chatEnabled}
+                    chatUnread={chatUnread}
+                    assistantPanelWidth={assistantPanelShown ? assistantPanelWidth : 0}
+                    logsWidth={logsShown ? pipelineLogsWidth : 0}
+                    pipelineErrors={unseenPipelineErrors}
+                    isPipelineLogsOpen={logsShown}
                 />
 
-                {/* Inspector (panel de control) */}
-                {state.isControlPanelOpen && state.activeViewer === "3D" && (
-                    <Inspector
+                {/* Panel del asistente (chat y ajustes del visor) */}
+                {assistantPanelShown && (
+                    <AssistantPanel
                         opts={opts}
                         setOpts={setOpts}
                         sensorObjects={state.sensorObjects}
@@ -1130,22 +1251,41 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
                         lockReadingButtomLabel={state.lockReadingButtomLabel}
                         handleGetLastMeasurementsButton={handlers.handleGetLastMeasurementsButton}
                         handleLockReadMeasurementsButtonClick={handlers.handleLockReadMeasurementsButtonClick}
+                        chatContent={
+                            digitalTwinSelected && chatEnabled ? (
+                                <ChatAssistant
+                                    embedded
+                                    visible={chatVisible}
+                                    chatMessages={chatMessages}
+                                    setChatMessages={setChatMessages}
+                                    chatAssistantLanguage={digitalTwinSelected.chatAssistantLanguage}
+                                    handleRemoveChatAssistantHistory={handleRemoveChatAssistantHistory}
+                                    voiceService={chatVoiceService}
+                                />
+                            ) : undefined
+                        }
+                        chatActive={chatTabSelected}
+                        onChatActiveChange={(active) => setState((prev) => ({ ...prev, isChatAssistantOpen: active }))}
+                        chatUnread={chatUnread}
+                        chatOnly={state.activeViewer !== "3D"}
+                        width={assistantPanelWidth}
+                        onResizeWidth={chatEnabled ? setChatWidth : undefined}
+                        simulatorFloating={state.showDtSimulatorModal}
+                        onFloatSimulator={handlers.handleOpenSimulator}
+                        onDockSimulator={handlers.handleDockSimulator}
                     />
                 )}
 
-                {/* Pipeline Manager */}
-                {digitalTwinSelected && state.isPipelineLogsOpen && (
-                    <PipelineLogs logMessages={logMessages} setLogMessages={setLogMessages} />
-                )}
-
-                {/* Chat Assistant */}
-                {digitalTwinSelected && state.isChatAssistantOpen && (
-                    <ChatAssistant
-                        chatMessages={chatMessages}
-                        setChatMessages={setChatMessages}
-                        chatAssistantLanguage={digitalTwinSelected.chatAssistantLanguage}
-                        handleRemoveChatAssistantHistory={handleRemoveChatAssistantHistory}
-                        voiceService={chatVoiceService}
+                {/* Pipeline logs (pipeline view only) */}
+                {logsShown && (
+                    <PipelineLogs
+                        logMessages={logMessages}
+                        setLogMessages={setLogMessages}
+                        width={pipelineLogsWidth}
+                        onResizeWidth={setLogsWidth}
+                        onClose={() => setState((prev) => ({ ...prev, isPipelineLogsOpen: false }))}
+                        canShowInFlow={canShowInFlow}
+                        onShowInFlow={handleShowInFlow}
                     />
                 )}
 
@@ -1153,32 +1293,17 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
                 {state.showDtSimulatorModal && (
                     <DigitalTwinSimulatorModal
                         digitalTwinSimulatorFormat={digitalTwinGltfData.digitalTwinSimulationFormat}
-                        setShowDigitalTwinSimulator={(show) =>
-                            setState((prev) => ({
-                                ...prev,
-                                showDtSimulatorModal:
-                                    typeof show === "function"
-                                        ? (show as (prev: boolean) => boolean)(prev.showDtSimulatorModal)
-                                        : show,
-                            }))
-                        }
+                        values={opts.digitalTwinSimulatorState}
                         updateDigitalTwinSimulatorState={handlers.updateDigitalTwinSimulatorState}
-                        setDigitalTwinSimulatorSendData={(send) =>
-                            setState((prev) => ({
-                                ...prev,
-                                digitalTwinSimulatorSendData: resolveSetStateAction(
-                                    send,
-                                    prev.digitalTwinSimulatorSendData,
-                                ),
-                            }))
-                        }
+                        onDock={handlers.handleDockSimulator}
+                        onStop={handlers.handleStopSimulator}
                     />
                 )}
 
                 {/* Selected Object Info */}
                 {state.activeViewer === "3D" && (
                     <SelectedObjectInfoContainer
-                        $right={state.isControlPanelOpen ? INSPECTOR_WIDTH + 2 * INSPECTOR_GAP : INSPECTOR_GAP}
+                        $right={assistantPanelShown ? assistantPanelWidth + 2 * VIEWER_GAP : VIEWER_GAP}
                     >
                         <ObjectInfoContainer>
                             <ObjectInfo ref={selectedObjNameRef}>Name: -</ObjectInfo>

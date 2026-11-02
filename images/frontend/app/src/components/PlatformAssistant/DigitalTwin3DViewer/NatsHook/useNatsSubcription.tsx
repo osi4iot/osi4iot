@@ -259,6 +259,7 @@ const updateObjectsState = (
                     payload: natsMessage.payload || {},
                     state: natsMessage.state || {},
                     date: formatDateString(new Date().toISOString()),
+                    receivedAt: Date.now(),
                 };
                 handleUpdateLogMessages(newLogMessage);
             }

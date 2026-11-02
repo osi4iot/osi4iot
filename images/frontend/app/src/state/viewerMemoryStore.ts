@@ -27,8 +27,8 @@ export interface ViewerMemory {
     pipeline?: { nodes: any[]; edges: any[]; changed: boolean };
     logMessages?: unknown[];
     camera?: CameraView;
-    // paneles abiertos del visor: Inspector, chat, logs del pipeline
-    panels?: { controlPanel: boolean; chatAssistant: boolean; pipelineLogs: boolean };
+    // paneles abiertos del visor: panel del asistente, chat, logs del pipeline
+    panels?: { assistantPanel: boolean; chatAssistant: boolean; pipelineLogs: boolean };
     // editor de pipelines: desplazamiento y zoom del lienzo, y el nodo abierto
     flowViewport?: { x: number; y: number; zoom: number };
     openNode?: OpenNodePanel | null;

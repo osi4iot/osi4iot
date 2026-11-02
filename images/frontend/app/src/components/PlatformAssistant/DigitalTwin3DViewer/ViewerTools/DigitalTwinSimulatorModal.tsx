@@ -1,9 +1,9 @@
-// Ventana flotante del simulador del gemelo digital, con el mismo diseño que el inspector del visor.
+// Ventana flotante del simulador del gemelo digital, con el mismo diseño que el panel del asistente del visor.
 // Se arrastra por la cabecera; al cerrarla se deja de enviar datos simulados.
 import React, { useEffect, useState, useRef, FC, KeyboardEvent as ReactKeyboardEvent } from "react";
 import styled, { keyframes } from "styled-components";
 import { GripVertical, RotateCcw, Square, X } from "lucide-react";
-import { SliderField, focusRing, inspectorColors as c } from "../Inspector/controls";
+import { SliderField, focusRing, panelColors as c } from "../AssistantPanel/controls";
 
 const ModalContainer = styled.div<{ $dragging: boolean }>`
     position: fixed;
@@ -196,9 +196,14 @@ export interface IDigitalTwinSimulator {
 
 interface DigitalTwinSimulatorModalProps {
     digitalTwinSimulatorFormat: Record<string, DigitalTwinSimulationParameter>;
-    setShowDigitalTwinSimulator: React.Dispatch<React.SetStateAction<boolean>>;
+    // valores que se están simulando (los de la pestaña Sim. del panel del asistente o los que pone el AI agent): la
+    // ventana flotante los muestra y los cambia, en lugar de empezar siempre por los valores por defecto
+    values?: Record<string, number>;
     updateDigitalTwinSimulatorState: (digitalTwinSimulatorState: Record<string, number>) => void;
-    setDigitalTwinSimulatorSendData: (value: React.SetStateAction<boolean>) => void;
+    // cerrar (X, Escape): vuelve a la pestaña Sim. del panel del asistente sin dejar de simular
+    onDock: () => void;
+    // "Stop simulation": cierra y vuelve a leer los sensores
+    onStop: () => void;
 }
 
 const defaultValues = (format: Record<string, DigitalTwinSimulationParameter>) => {
@@ -207,23 +212,42 @@ const defaultValues = (format: Record<string, DigitalTwinSimulationParameter>) =
     return values;
 };
 
+const currentValues = (format: Record<string, DigitalTwinSimulationParameter>, values?: Record<string, number>) => {
+    const result = defaultValues(format);
+    for (const paramName of Object.keys(result)) {
+        const value = Number(values?.[paramName]);
+        if (values?.[paramName] !== undefined && values?.[paramName] !== null && Number.isFinite(value)) result[paramName] = value;
+    }
+    return result;
+};
+
 const DigitalTwinSimulatorModal: FC<DigitalTwinSimulatorModalProps> = ({
     digitalTwinSimulatorFormat,
-    setShowDigitalTwinSimulator,
+    values,
     updateDigitalTwinSimulatorState,
-    setDigitalTwinSimulatorSendData,
+    onDock,
+    onStop,
 }) => {
-    const [paramValues, setParamValues] = useState<Record<string, number>>(() => defaultValues(digitalTwinSimulatorFormat));
+    // Sin "values" (uso independiente) la ventana guarda sus propios valores
+    const [localValues, setLocalValues] = useState<Record<string, number>>(() =>
+        currentValues(digitalTwinSimulatorFormat, values),
+    );
+    const paramValues = values ? currentValues(digitalTwinSimulatorFormat, values) : localValues;
+    const setParamValues = (next: Record<string, number>) => {
+        if (!values) setLocalValues(next);
+        updateDigitalTwinSimulatorState(next);
+    };
     const [position, setPosition] = useState<{ x: number; y: number } | null>(null);
     const [dragging, setDragging] = useState(false);
     const dragOffset = useRef({ x: 0, y: 0 });
     const modalRef = useRef<HTMLDivElement>(null);
     const paramNames = Object.keys(digitalTwinSimulatorFormat ?? {});
 
+    // Al abrirse se envían los valores con los que empieza (completa los campos que falten)
     useEffect(() => {
         if (Object.keys(paramValues).length > 0) updateDigitalTwinSimulatorState(paramValues);
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [paramValues]);
+    }, []);
 
     const clampToWindow = (x: number, y: number) => {
         const rect = modalRef.current?.getBoundingClientRect();
@@ -268,13 +292,8 @@ const DigitalTwinSimulatorModal: FC<DigitalTwinSimulatorModalProps> = ({
         event.preventDefault();
     };
 
-    const close = () => {
-        setShowDigitalTwinSimulator(false);
-        setDigitalTwinSimulatorSendData(false);
-    };
-
     const onKeyDown = (event: ReactKeyboardEvent) => {
-        if (event.key === "Escape") close();
+        if (event.key === "Escape") onDock();
     };
 
     return (
@@ -300,7 +319,12 @@ const DigitalTwinSimulatorModal: FC<DigitalTwinSimulatorModalProps> = ({
                 >
                     <RotateCcw aria-hidden="true" />
                 </IconButton>
-                <IconButton type="button" aria-label="Close simulator" title="Close" onClick={close}>
+                <IconButton
+                    type="button"
+                    aria-label="Back to the assistant panel"
+                    title="Back to the Sim. tab of the assistant panel (keeps simulating)"
+                    onClick={onDock}
+                >
                     <X aria-hidden="true" />
                 </IconButton>
             </Header>
@@ -322,7 +346,7 @@ const DigitalTwinSimulatorModal: FC<DigitalTwinSimulatorModalProps> = ({
                             inset={false}
                             stepButtons
                             showRange
-                            onChange={(value) => setParamValues((prev) => ({ ...prev, [paramName]: value }))}
+                            onChange={(value) => setParamValues({ ...paramValues, [paramName]: value })}
                         />
                     );
                 })}
@@ -330,7 +354,7 @@ const DigitalTwinSimulatorModal: FC<DigitalTwinSimulatorModalProps> = ({
 
             <Footer>
                 <span style={{ fontSize: 12, color: c.textMuted }}>Drag the header to move</span>
-                <FooterButton type="button" onClick={close}>
+                <FooterButton type="button" onClick={onStop}>
                     <Square aria-hidden="true" />
                     Stop simulation
                 </FooterButton>

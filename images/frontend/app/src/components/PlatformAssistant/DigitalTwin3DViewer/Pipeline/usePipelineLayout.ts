@@ -5,7 +5,7 @@
 //    líneas en pantallas estrechas), así ningún nodo queda tapado por ella.
 import { RefObject, useEffect, useLayoutEffect, useState } from "react";
 import { setUiValue, usePersistentState } from "../../../../state/uiStore";
-import { INSPECTOR_GAP } from "../Inspector/Inspector";
+import { VIEWER_GAP } from "../AssistantPanel/AssistantPanel";
 
 export const PALETTE_WIDTH = 190;
 export const PALETTE_COLLAPSED_WIDTH = 56;
@@ -32,7 +32,7 @@ export const usePipelineLayout = (rootRef: RefObject<HTMLElement | null>) => {
         const measure = () => {
             setIsNarrow(root.clientWidth < NARROW_EDITOR);
             bar = bar?.isConnected ? bar : findViewerBar(root);
-            setBarOffset(bar ? Math.ceil(bar.getBoundingClientRect().height) + 2 * INSPECTOR_GAP : 0);
+            setBarOffset(bar ? Math.ceil(bar.getBoundingClientRect().height) + 2 * VIEWER_GAP : 0);
         };
         measure();
         if (typeof ResizeObserver === "undefined") return;

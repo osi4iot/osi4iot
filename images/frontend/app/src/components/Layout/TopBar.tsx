@@ -1,5 +1,5 @@
 // Barra superior de la aplicación con el mismo lenguaje visual que la barra del visor del gemelo digital
-// y el inspector (superficie oscura, bordes finos, Roboto, acento azul). La usan el asistente de la
+// y el panel del asistente (superficie oscura, bordes finos, Roboto, acento azul). La usan el asistente de la
 // plataforma (con el botón del menú y la ruta de la sección) y el resto de páginas (Header).
 import { FC, ReactNode } from "react";
 import { useNavigate } from "react-router";

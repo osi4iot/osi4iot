@@ -8,6 +8,7 @@ import { normalizeForTTS } from "./ttsNormalizer";
 import { containsLatex, MathMessage } from "./MathMessage";
 import { ChatChart, ChatCharts } from "./chatCharts";
 import { asIcon } from "../../../../tools/icons";
+import { panelColors as ic } from "../AssistantPanel/controls";
 import { canRecordAudio, Recording, startRecording } from "../../../../tools/audioRecorder";
 import { hasSpeechSynthesisVoices, PipelineVoiceService, playAudioBlob } from "./voiceService";
 import {
@@ -71,6 +72,20 @@ export interface IChatVoice {
 }
 
 // Debajo de la barra superior del visor, dentro del área del visor
+// Integrado como pestaña del panel del asistente: ocupa todo el panel y toma sus colores. Solo cambia el contenedor y el
+// fondo de las burbujas: MathMessage (LaTeX, tablas Markdown) y las gráficas se muestran igual.
+const EmbeddedContainer = styled.div`
+    position: relative;
+    flex: 1;
+    min-height: 0;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    background: transparent;
+    font-family: Roboto, "Helvetica Neue", Arial, sans-serif;
+    color: ${ic.text};
+`;
+
 const ChatContainer = styled.div`
     position: absolute;
     top: 76px;
@@ -153,14 +168,26 @@ interface MessageBubbleProps {
     sender: "user" | "assistant" | "system";
 }
 
-const MessageBubble = styled.div<MessageBubbleProps>`
+const MessageBubble = styled.div<MessageBubbleProps & { $embedded?: boolean }>`
     padding: 8px 12px;
-    border-radius: 20px;
-    max-width: 90%;
+    border-radius: ${({ $embedded }) => ($embedded ? "14px" : "20px")};
+    max-width: ${({ $embedded }) => ($embedded ? "94%" : "90%")};
     word-wrap: break-word;
     align-self: ${({ sender }) => (sender === "user" ? "flex-end" : "flex-start")};
-    background-color: ${({ sender }) =>
-        sender === "user" ? "#3a3a3a" : sender === "assistant" ? "#555" : "#a54646ff"};
+    background-color: ${({ sender, $embedded }) =>
+        $embedded
+            ? sender === "user"
+                ? "rgba(61, 130, 240, 0.22)"
+                : sender === "assistant"
+                  ? ic.raised
+                  : "rgba(165, 70, 70, 0.85)"
+            : sender === "user"
+              ? "#3a3a3a"
+              : sender === "assistant"
+                ? "#555"
+                : "#a54646ff"};
+    border: ${({ $embedded, sender }) =>
+        $embedded ? `1px solid ${sender === "user" ? "rgba(61, 130, 240, 0.35)" : ic.border}` : "none"};
     color: #f1f1f1;
     position: relative;
     font-size: 0.9rem;
@@ -234,26 +261,46 @@ const MiniSpinner = styled.div`
 `;
 
 // El cuadro de texto ocupa toda la altura de la columna de botones: sus bordes quedan alineados
-const InputContainer = styled.div`
+const InputContainer = styled.div<{ $embedded?: boolean }>`
     display: flex;
-    border-top: 1px solid #444;
+    border-top: 1px solid ${({ $embedded }) => ($embedded ? ic.divider : "#444")};
     padding: 8px;
-    background-color: #1f1f1f;
+    background-color: ${({ $embedded }) => ($embedded ? "rgba(0, 0, 0, 0.18)" : "#1f1f1f")};
     font-size: 0.9rem;
     gap: 10px;
     align-items: stretch;
 `;
 
-const TextArea = styled.textarea`
+const TextArea = styled.textarea<{ $embedded?: boolean }>`
     flex: 1;
     align-self: stretch;
     min-width: 0;
     min-height: 80px;
     margin: 0;
     padding: 8px;
-    border: 1px solid #444;
-    border-radius: 4px;
-    background-color: #2c2c2c;
+    border: 1px solid ${({ $embedded }) => ($embedded ? ic.border : "#444")};
+    border-radius: ${({ $embedded }) => ($embedded ? "8px" : "4px")};
+    background-color: ${({ $embedded }) => ($embedded ? ic.field : "#2c2c2c")};
+
+    &:focus {
+        outline: none;
+        border-color: ${({ $embedded }) => ($embedded ? ic.accent : "#3274d9")};
+    }
+
+    /* barra de desplazamiento oscura, como el resto del panel (no la blanca del sistema) */
+    &::-webkit-scrollbar {
+        width: 8px;
+    }
+    &::-webkit-scrollbar-track {
+        background: transparent;
+    }
+    &::-webkit-scrollbar-thumb {
+        background: #3a3f47;
+        border-radius: 4px;
+    }
+    &::-webkit-scrollbar-thumb:hover {
+        background: #4b5563;
+    }
     color: #f1f1f1;
     resize: none;
     font-family: inherit;
@@ -500,6 +547,9 @@ interface ChatAssistantProps {
     handleRemoveChatAssistantHistory: () => void;
     // voz a texto y texto a voz con el pipeline del gemelo digital, cuando el navegador no los ofrece
     voiceService?: PipelineVoiceService | null;
+    // pestaña del panel del asistente en lugar de panel flotante; visible: si la pestaña está a la vista
+    embedded?: boolean;
+    visible?: boolean;
 }
 
 // texto en directo con el pipeline: cada cuánto se transcribe lo grabado mientras se habla, silencio a partir del
@@ -517,6 +567,8 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({
     chatAssistantLanguage,
     handleRemoveChatAssistantHistory,
     voiceService = null,
+    embedded = false,
+    visible = true,
 }) => {
     const isMounted = useRef(true);
     const userName = useLoggedUserLogin();
@@ -524,6 +576,7 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({
     const [showMcpTools, setShowMcpTools] = useState<boolean>(false);
     const [isLoading, setIsLoading] = useState<boolean>(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
+    const messagesRef = useRef<HTMLDivElement>(null);
     const { transcript, resetTranscript, browserSupportsSpeechRecognition } = useSpeechRecognition();
     const [isVoiceEnabled, setIsVoiceEnabled] = useState<boolean>(false);
     const [systemStatus, setSystemStatus] = useState<"idle" | "listening" | "processing" | "speaking">("idle");
@@ -920,6 +973,8 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({
 
     // Cargar voces disponibles
     useEffect(() => {
+        // navegadores sin síntesis de voz: el chat funciona igual, sin leer las respuestas
+        if (typeof window === "undefined" || !window.speechSynthesis) return;
         const loadVoices = () => {
             window.speechSynthesis.getVoices();
         };
@@ -1078,10 +1133,17 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({
         setInput(e.target.value);
     };
 
-    // Auto-scroll al final
+    // Auto-scroll al final (también al volver a la pestaña del chat). Se desplaza solo la lista de mensajes:
+    // scrollIntoView movería también el panel del asistente que la contiene.
     useEffect(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    }, [chatMessages, isLoading]);
+        if (!visible) return;
+        const list = messagesRef.current;
+        if (list && typeof list.scrollTo === "function") {
+            list.scrollTo({ top: list.scrollHeight, behavior: "smooth" });
+        } else if (list) {
+            list.scrollTop = list.scrollHeight;
+        }
+    }, [chatMessages, isLoading, visible]);
 
     useEffect(() => {
         const handleGlobalPointerDown = (e: MouseEvent) => {
@@ -1221,11 +1283,13 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({
     }, [handleRemoveChatAssistantHistory, setChatMessages]);
 
     // Componente para mostrar el spinner mientras se espera respuesta
+    const Container = embedded ? EmbeddedContainer : ChatContainer;
+
     const renderLoadingMessage = () => {
         if (!isLoading) return null;
 
         return (
-            <MessageBubble sender="assistant">
+            <MessageBubble sender="assistant" $embedded={embedded}>
                 <Label>OSI</Label>
                 <MessageSpinnerContainer>
                     <MiniSpinner />
@@ -1236,11 +1300,17 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({
     };
 
     return (
-        <ChatContainer ref={containerRef} style={{ width: `${containerWidth}px` }}>
-            <ResizeHandle onMouseDown={handleMouseDown} style={{ cursor: isResizing ? "ew-resize" : "ew-resize" }} />
-            <MessagesContainer>
+        <Container
+            ref={containerRef}
+            style={embedded ? undefined : { width: `${containerWidth}px` }}
+            data-testid={embedded ? "chat-assistant-embedded" : "chat-assistant"}
+        >
+            {!embedded && (
+                <ResizeHandle onMouseDown={handleMouseDown} style={{ cursor: isResizing ? "ew-resize" : "ew-resize" }} />
+            )}
+            <MessagesContainer ref={messagesRef}>
                 {chatMessages.map((msg, index) => (
-                    <MessageBubble key={index} sender={msg.sender}>
+                    <MessageBubble key={index} sender={msg.sender} $embedded={embedded}>
                         <Label>
                             {msg.sender === "assistant" || msg.sender === "system" ? "OSI" : msg.userName || userName}
                             {msg.sender === "assistant" && containsLatex(msg.message) && (
@@ -1290,8 +1360,9 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({
                     </label>
                 </VoiceSettingsPanel>
             )}
-            <InputContainer>
+            <InputContainer $embedded={embedded}>
                 <TextArea
+                    $embedded={embedded}
                     ref={textAreaRef}
                     value={input}
                     onChange={handleInputChange}
@@ -1363,7 +1434,7 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({
                     </ButtonRow>
                 </ButtonContainer>
             </InputContainer>
-        </ChatContainer>
+        </Container>
     );
 };
 

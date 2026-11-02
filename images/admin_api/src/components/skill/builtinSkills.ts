@@ -7,7 +7,7 @@
 // (DigitalTwin3DViewer/Types/types.ts) and the way the viewer merges an
 // answer's uiOpts (useChatMessages in Utils/customHooks.ts). Keep them in
 // step with that code.
-// The frontend test Inspector/viewerUiOptionsSkill.test.ts fails when an
+// The frontend test AssistantPanel/viewerUiOptionsSkill.test.ts fails when an
 // option of ViewerOptions is not in viewer-ui-options.
 //
 // They cannot be changed or deleted through the API; to adapt one,
@@ -25,7 +25,7 @@ export interface IBuiltinSkill {
 const VIEWER_UI_OPTIONS_SKILL_MD = `---
 name: viewer-ui-options
 description: "Change the digital twin's 3D viewer from the chat: show or hide objects, highlight them, change their opacity, show or hide the sensor markers, show FEM results, deformation, mesh, node or element labels, the legend, the lights and environment, or the values of the digital twin simulator. Use it whenever the user asks to show, display, visualize, hide, mark, locate, point out or highlight something, and whenever they ask where something is ('where are the sensors?', '¿dónde están los sensores?', 'márcalos'): the viewer shows it."
-version: "1.9"
+version: "1.11"
 tags: [viewer, output-format]
 ---
 
@@ -122,7 +122,7 @@ questions about values, counts, documents, explanations.
 
 ### Objects
 For each kind of object there are keys for all of them and a map with one
-entry per collection (the group of objects the Inspector lists, by its
+entry per collection (the group of objects the assistant panel lists, by its
 name in the system prompt), merged the same way (send only the
 collections and the fields that change).
 
@@ -196,7 +196,7 @@ measurements" button in the Sim tab does), shows the simulated inputs and
 sends them to the digital twin's pipeline, which usually recomputes what
 the model shows (FEM results, animations). Say so in the message: the
 viewer is now simulating, and to go back to the live measurements the
-user presses "Unlock read measurements" in the Sim tab of the Inspector.
+user presses "Unlock read measurements" in the Sim tab of the assistant panel.
 
 Send it:
 - when the user asks to change those inputs ("raise the wind to 25 m/s",

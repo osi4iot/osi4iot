@@ -31,8 +31,11 @@ interface HandlersParams {
     getLastMeasurementsButtomLabel: string;
     initialDigitalTwinSimulatorState: Record<string, number>;
     generalTransparencyIndex: number;
-    isControlPanelOpen: boolean;
+    isAssistantPanelOpen: boolean;
+    // pestaña del chat seleccionada en el panel del asistente (el chat está a la vista si además el panel del asistente está abierto)
     isChatAssistantOpen: boolean;
+    // el panel del asistente se ve (en la vista 3D, o solo con el chat en las vistas Imagen y Pipeline)
+    isAssistantPanelShown: boolean;
     isPipelineLogsOpen: boolean;
     isPipelineUiChanged: boolean;
     openDashboardTab: (url: string) => void;
@@ -49,7 +52,7 @@ export const createHandlers = (
         setInitialSensorsState: (state: any) => void;
         setInitialAssetsState: (state: any) => void;
         setInitialGenericObjectsState: (state: any) => void;
-        setIsControlPanelOpen: (open: boolean) => void;
+        setIsAssistantPanelOpen: (open: boolean) => void;
         setChatAssistantOpen: (open: boolean | ((prev: boolean) => boolean)) => void;
         setPipelineLogsOpen: (open: boolean | ((prev: boolean) => boolean)) => void;
         setShowDtSimulatorModal: (show: boolean) => void;
@@ -126,18 +129,26 @@ export const createHandlers = (
         handleGetLastMeasurementsButton();
     };
 
-    const handleControlPanelOpenAndClose = () => {
-        const { isControlPanelOpen, lockReadingButtomLabel } = params;
-
-        if (isControlPanelOpen) {
-            setters.setIsControlPanelOpen(false);
+    // Botón del panel lateral (chat del asistente + ajustes del visor): es el único que lo abre y lo cierra.
+    // En las vistas Imagen y Pipeline solo tiene el chat, así que se abre en esa pestaña.
+    const handleAssistantPanelOpenAndClose = () => {
+        const { isAssistantPanelShown, lockReadingButtomLabel, activeViewer, digitalTwinSelected } = params;
+        if (isAssistantPanelShown) {
+            setters.setIsAssistantPanelOpen(false);
+        } else if (activeViewer !== "3D") {
+            if (digitalTwinSelected?.chatAssistantEnabled) {
+                setters.setChatAssistantOpen(true);
+                setters.setIsAssistantPanelOpen(true);
+                // both panels dock on the right: in the pipeline view the assistant panel replaces the logs
+                if (activeViewer === "pipeline") setters.setPipelineLogsOpen(false);
+            }
         } else {
             // the simulator shows the last measurements, unless the reading is locked: then it keeps the
             // values being simulated (set in the Sim tab or by the AI agent)
             if (lockReadingButtomLabel !== BUTTON_LABELS.UNLOCK_READ_MEASUREMENTS) handleGetLastMeasurementsButton();
-            setters.setIsControlPanelOpen(true);
-            setters.setChatAssistantOpen(false);
-            setters.setPipelineLogsOpen(false);
+            // opens on the last tab it had (the chat included); the logs are only shown in the pipeline
+            // view, so they stay as they are
+            setters.setIsAssistantPanelOpen(true);
         }
     };
 
@@ -154,16 +165,13 @@ export const createHandlers = (
         }
     };
 
+    // The logs belong to the pipeline view (their button is only there). Both panels dock on the right,
+    // so opening the logs closes the assistant panel when it is shown there (digital twins without a 3D model).
     const handlePipelineLogsOpen = () => {
-        const { digitalTwinSelected, isControlPanelOpen, isChatAssistantOpen } = params;
-
-        if (digitalTwinSelected) {
-            if (isControlPanelOpen || isChatAssistantOpen) {
-                setters.setPipelineLogsOpen(false);
-            } else {
-                setters.setPipelineLogsOpen((prev) => !prev);
-            }
-        }
+        const { digitalTwinSelected, isAssistantPanelShown, isPipelineLogsOpen } = params;
+        if (!digitalTwinSelected) return;
+        if (!isPipelineLogsOpen && isAssistantPanelShown) setters.setIsAssistantPanelOpen(false);
+        setters.setPipelineLogsOpen(!isPipelineLogsOpen);
     };
 
     const handleSetPipelineLogsOpen = (open: boolean) => {
@@ -174,19 +182,7 @@ export const createHandlers = (
         setters.setIsPipelineUiChanged(isChanged);
     };
 
-    const handleChatAssistantOpen = () => {
-        const { digitalTwinSelected, isControlPanelOpen } = params;
 
-        if (digitalTwinSelected && digitalTwinSelected.chatAssistantEnabled) {
-            if (isControlPanelOpen) {
-                setters.setChatAssistantOpen(false);
-            } else {
-                setters.setChatAssistantOpen((prev) => !prev);
-            }
-        } else {
-            toast.warning("Chat assistant is not enabled for this digital twin.");
-        }
-    };
 
     const handleDigitalTwinStateShield = () => {
         const { digitalTwinSelected, generalTransparencyIndex } = params;
@@ -208,9 +204,26 @@ export const createHandlers = (
         }
     };
 
+    // Simulador en ventana flotante (botón "Float" de la pestaña Sim. del panel del asistente): se bloquea la lectura de
+    // los sensores para que lleguen al gemelo digital los valores simulados
     const handleOpenSimulator = () => {
         setters.setShowDtSimulatorModal(true);
+        setters.setLockReadingButtomLabel(BUTTON_LABELS.UNLOCK_READ_MEASUREMENTS);
         setters.setDigitalTwinSimulatorSendData(true);
+    };
+    // Vuelve a la pestaña Sim. del panel del asistente: se mantiene la simulación (la lectura sigue bloqueada)
+    const handleDockSimulator = () => {
+        setters.setShowDtSimulatorModal(false);
+    };
+    // "Stop simulation" de la ventana flotante: se cierra y se vuelven a leer los sensores
+    const handleStopSimulator = () => {
+        const { lockReadingButtomLabel } = params;
+        setters.setShowDtSimulatorModal(false);
+        if (lockReadingButtomLabel === BUTTON_LABELS.UNLOCK_READ_MEASUREMENTS) {
+            handleLockReadMeasurementsButtonClick();
+        } else {
+            setters.setDigitalTwinSimulatorSendData(false);
+        }
     };
 
     const updateDigitalTwinSimulatorState = (digitalTwinSimulatorState: Record<string, number>) => {
@@ -231,8 +244,8 @@ export const createHandlers = (
         const newViewer = viewerOptions[nextIndex] as "3D" | "pipeline" | "image_frame";
         setters.setActiveViewer(newViewer);
         if (newViewer === "pipeline") {
-            setters.setIsControlPanelOpen(false);
-            setters.setChatAssistantOpen(false);
+            // el panel del asistente se cierra pero recuerda su pestaña (la del chat incluida)
+            setters.setIsAssistantPanelOpen(false);
             setters.setShowDtSimulatorModal(false);
             //setters.setPipelineLogsOpen(false);
         }
@@ -241,8 +254,8 @@ export const createHandlers = (
     const handleSetActiveViewer = (newViewer: "3D" | "pipeline" | "image_frame") => {
         setters.setActiveViewer(newViewer);
         if (newViewer === "pipeline") {
-            setters.setIsControlPanelOpen(false);
-            setters.setChatAssistantOpen(false);
+            // el panel del asistente se cierra pero recuerda su pestaña (la del chat incluida)
+            setters.setIsAssistantPanelOpen(false);
             setters.setShowDtSimulatorModal(false);
         }
     };
@@ -250,14 +263,15 @@ export const createHandlers = (
     return {
         handleGetLastMeasurementsButton,
         handleLockReadMeasurementsButtonClick,
-        handleControlPanelOpenAndClose,
+        handleAssistantPanelOpenAndClose,
         handleOpenGrafanaDashboard,
         handlePipelineLogsOpen,
         handleSetPipelineLogsOpen,
         handlePipelineUiChanged,
-        handleChatAssistantOpen,
         handleDigitalTwinStateShield,
         handleOpenSimulator,
+        handleDockSimulator,
+        handleStopSimulator,
         updateDigitalTwinSimulatorState,
         handleToggleActiveViewer,
         handleSetActiveViewer,

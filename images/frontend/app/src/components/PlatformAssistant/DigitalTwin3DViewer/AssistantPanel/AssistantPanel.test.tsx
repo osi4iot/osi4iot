@@ -3,7 +3,7 @@ import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { DEFAULT_VIEWER_OPTIONS } from "../Utils/constants";
 import { ViewerOptions } from "../Types/types";
-import Inspector from "./Inspector";
+import AssistantPanel from "./AssistantPanel";
 import DigitalTwinSimulatorModal from "../ViewerTools/DigitalTwinSimulatorModal";
 import { withOptionAt } from "./optionsUpdate";
 
@@ -28,7 +28,7 @@ const Harness = ({ simulator = {} as Record<string, any> }) => {
     const [opts, setOpts] = useState<ViewerOptions>(baseOpts);
     latest = opts;
     return (
-        <Inspector
+        <AssistantPanel
             opts={opts}
             setOpts={(updater) => setOpts(updater)}
             sensorObjects={[{ collectionName: "Accelerometers" }, { collectionName: "Accelerometers" }, { collectionName: "Strain" }]}
@@ -51,26 +51,117 @@ const Harness = ({ simulator = {} as Record<string, any> }) => {
 };
 
 describe("DigitalTwinSimulatorModal", () => {
-    it("parte de los valores por defecto, los botones − / + avanzan un paso y Stop deja de enviar", () => {
+    const format = {
+        temp: { label: "Temperature", units: "ºC", minValue: 0, maxValue: 50, defaultValue: 20, step: 0.5, topicId: 1 },
+    } as any;
+
+    it("parte de los valores por defecto, los botones − / + avanzan un paso y Stop deja de simular", () => {
         const updates: Record<string, number>[] = [];
-        const show = vi.fn();
-        const send = vi.fn();
+        const dock = vi.fn();
+        const stop = vi.fn();
         render(
             <DigitalTwinSimulatorModal
-                digitalTwinSimulatorFormat={{
-                    temp: { label: "Temperature", units: "ºC", minValue: 0, maxValue: 50, defaultValue: 20, step: 0.5, topicId: 1 },
-                }}
-                setShowDigitalTwinSimulator={show}
+                digitalTwinSimulatorFormat={format}
                 updateDigitalTwinSimulatorState={(state) => updates.push(state)}
-                setDigitalTwinSimulatorSendData={send}
+                onDock={dock}
+                onStop={stop}
             />,
         );
         expect(updates.at(-1)).toEqual({ temp: 20 });
         fireEvent.click(screen.getByRole("button", { name: "Increase Temperature" }));
         expect(updates.at(-1)).toEqual({ temp: 20.5 });
         fireEvent.click(screen.getByRole("button", { name: "Stop simulation" }));
-        expect(show).toHaveBeenCalledWith(false);
-        expect(send).toHaveBeenCalledWith(false);
+        expect(stop).toHaveBeenCalledTimes(1);
+        expect(dock).not.toHaveBeenCalled();
+    });
+
+    it("muestra los valores que se están simulando y al cerrarla vuelve al panel del asistente sin parar", () => {
+        const updates: Record<string, number>[] = [];
+        const dock = vi.fn();
+        const stop = vi.fn();
+        render(
+            <DigitalTwinSimulatorModal
+                digitalTwinSimulatorFormat={format}
+                values={{ temp: 31 }}
+                updateDigitalTwinSimulatorState={(state) => updates.push(state)}
+                onDock={dock}
+                onStop={stop}
+            />,
+        );
+        expect(updates.at(-1)).toEqual({ temp: 31 });
+        fireEvent.click(screen.getByRole("button", { name: "Increase Temperature" }));
+        expect(updates.at(-1)).toEqual({ temp: 31.5 });
+        fireEvent.click(screen.getByRole("button", { name: "Back to the assistant panel" }));
+        expect(dock).toHaveBeenCalledTimes(1);
+        expect(stop).not.toHaveBeenCalled();
+    });
+});
+
+describe("AssistantPanel con el chat", () => {
+    const chatProps = (overrides: Record<string, unknown> = {}) => ({
+        opts: baseOpts(),
+        setOpts: () => {},
+        sensorObjects: [{ collectionName: "Accelerometers" }],
+        sensorCollectionNames: ["Accelerometers"],
+        assetObjects: [],
+        assetCollectionNames: [],
+        genericObjects: [],
+        genericObjectCollectionNames: [],
+        femSimulationObjects: [],
+        femSimObjectCollectionNames: [],
+        femResultDates: [],
+        femResultNames: [],
+        digitalTwinSimulationFormat: { temperature: { label: "Temperature", minValue: 0, maxValue: 50, step: 1 } },
+        getLastMeasurementsButtomLabel: "GET LAST MEASUREMENTS",
+        lockReadingButtomLabel: "LOCK READ MEASUREMENTS",
+        handleGetLastMeasurementsButton: () => {},
+        handleLockReadMeasurementsButtonClick: () => {},
+        chatContent: <div>chat body</div>,
+        ...overrides,
+    });
+
+    it("el chat es la primera pestaña y se elige desde el visor", () => {
+        const onChatActiveChange = vi.fn();
+        const { rerender } = render(<AssistantPanel {...(chatProps({ onChatActiveChange }) as any)} />);
+        const tabs = screen.getAllByRole("tab");
+        expect(tabs[0]).toHaveAttribute("aria-label", "Chat with assistant");
+        expect(screen.getByText("chat body")).not.toBeVisible();
+        fireEvent.click(tabs[0]);
+        expect(onChatActiveChange).toHaveBeenCalledWith(true);
+        rerender(<AssistantPanel {...(chatProps({ onChatActiveChange, chatActive: true }) as any)} />);
+        expect(screen.getByText("chat body")).toBeVisible();
+        fireEvent.click(screen.getByRole("tab", { name: "Sensors" }));
+        expect(onChatActiveChange).toHaveBeenLastCalledWith(false);
+    });
+
+    it("solo el chat en las vistas sin modelo 3D y punto de mensajes sin leer", () => {
+        render(<AssistantPanel {...(chatProps({ chatOnly: true }) as any)} />);
+        expect(screen.getAllByRole("tab")).toHaveLength(1);
+        expect(screen.getByText("chat body")).toBeVisible();
+    });
+
+    it("avisa de una respuesta sin leer en la pestaña del chat", () => {
+        render(<AssistantPanel {...(chatProps({ chatUnread: true }) as any)} />);
+        expect(screen.getByLabelText("New answer from the assistant")).toBeInTheDocument();
+    });
+
+    it("el simulador se saca a una ventana flotante y se vuelve a traer", () => {
+        const onFloat = vi.fn();
+        const onDock = vi.fn();
+        const { rerender } = render(
+            <AssistantPanel {...(chatProps({ onFloatSimulator: onFloat, onDockSimulator: onDock }) as any)} />,
+        );
+        fireEvent.click(screen.getByRole("tab", { name: "Digital twin simulator" }));
+        fireEvent.click(screen.getByRole("button", { name: "Open the simulator in a floating window" }));
+        expect(onFloat).toHaveBeenCalledTimes(1);
+        rerender(
+            <AssistantPanel
+                {...(chatProps({ onFloatSimulator: onFloat, onDockSimulator: onDock, simulatorFloating: true }) as any)}
+            />,
+        );
+        expect(screen.queryByRole("button", { name: "Open the simulator in a floating window" })).toBeNull();
+        fireEvent.click(screen.getByRole("button", { name: "Bring it back here" }));
+        expect(onDock).toHaveBeenCalledTimes(1);
     });
 });
 
@@ -85,7 +176,7 @@ describe("withOptionAt", () => {
     });
 });
 
-describe("Inspector", () => {
+describe("AssistantPanel", () => {
     it("muestra solo las pestañas con contenido", () => {
         render(<Harness />);
         const tabs = screen.getAllByRole("tab").map((t) => t.textContent);

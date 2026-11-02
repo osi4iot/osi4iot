@@ -20,6 +20,7 @@ import {
 import { DEFAULT_VIEWER_OPTIONS, BUTTON_LABELS, PROTOCOL, DOMAIN_NAME, NATS_SEED_SERVERS, LEGACY_COLOR_MANAGEMENT } from "../Utils/constants";
 import { useAuthDispatch, useAuthState, useLoggedUserLogin } from "../../../../contexts/authContext/authContext";
 import { PipelineLog } from "../Pipeline/PipelineLogs";
+import { appendCapped, capLogs } from "../Pipeline/pipelineLogsModel";
 import { axiosAuth, openWindowTab } from "../../../../tools/tools";
 import { existFemResFileLocallyStored, readFemResFile, writeFemResFile } from "../../../../tools/fileSystem";
 import { readFemSimulationInfo } from "../ViewerTools/ViewerUtils";
@@ -40,10 +41,10 @@ export const useViewerState = (
     initialActiveViewer?: "3D" | "pipeline" | "image_frame",
     initialPipelineUiChanged = false,
     // paneles que el usuario tenía abiertos (memoria del visor)
-    initialPanels?: { controlPanel: boolean; chatAssistant: boolean; pipelineLogs: boolean },
+    initialPanels?: { assistantPanel: boolean; chatAssistant: boolean; pipelineLogs: boolean },
 ) => {
     const [state, setState] = useState<ViewerState>({
-        isControlPanelOpen: initialPanels?.controlPanel ?? false,
+        isAssistantPanelOpen: initialPanels?.assistantPanel ?? false,
         isChatAssistantOpen: initialPanels?.chatAssistant ?? false,
         isPipelineLogsOpen: initialPanels?.pipelineLogs ?? false,
         activeViewer: initialActiveViewer ?? "3D", // Default to 3D viewer
@@ -639,15 +640,12 @@ export const usePipelineLogs = (
     setChatMessages: React.Dispatch<React.SetStateAction<ChatMessage[]>>,
     initialLogMessages: PipelineLog[] = [],
 ) => {
-    const [logMessages, setLogMessages] = useState<PipelineLog[]>(initialLogMessages);
+    // Only the newest MAX_PIPELINE_LOGS logs are kept
+    const [logMessages, setLogMessages] = useState<PipelineLog[]>(() => capLogs(initialLogMessages));
 
     const handleUpdateLogMessages = useCallback(
         (newLogMessage: PipelineLog) => {
-            setLogMessages((prevMessages: any) => {
-                const newMessages = [...prevMessages];
-                newMessages.push(newLogMessage);
-                return newMessages;
-            });
+            setLogMessages((prevMessages) => appendCapped(prevMessages, newLogMessage));
 
             // The AI agent stopped and its node is restarting: say so in
             // the chat. (A failed prompt is answered with its error.)
