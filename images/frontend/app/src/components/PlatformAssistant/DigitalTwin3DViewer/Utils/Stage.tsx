@@ -2,6 +2,7 @@ import React, { useState, useLayoutEffect, useRef, useMemo, useEffect } from "re
 import * as THREE from 'three';
 import { useThree, ThreeElements } from "@react-three/fiber";
 import { useHelper, Environment } from "@react-three/drei";
+import type { CameraView } from "../../../../state/viewerMemoryStore";
 
 
 const dirX = new THREE.Vector3(1, 0, 0);
@@ -31,6 +32,8 @@ type Props = ThreeElements["group"] & {
     controls?: React.MutableRefObject<ControlsProto>;
     shadowBias?: number;
     femResultLoaded: boolean;
+    // the camera the user left (viewer memory): used the first time instead of framing the model
+    initialView?: CameraView;
 };
 
 export function Stage({
@@ -50,6 +53,7 @@ export function Stage({
     axesScale = 1,
     shadowBias = 0,
     femResultLoaded,
+    initialView,
     ...props
 }: Props) {
     const camera = useThree((state) => state.camera);
@@ -91,6 +95,16 @@ export function Stage({
     );
     const [axisLength, setAxisLength] = useState(1);
 
+    // The model is framed once (and again when a FEM result is loaded). After that the user's zoom is
+    // kept: a resize of the canvas scales it, so the same part of the model stays in view, and a hidden
+    // canvas (the pipeline or image tab is shown, size 0) changes nothing. With initialView the first
+    // framing is the camera the user left.
+    const savedViewRef = useRef(initialView);
+    const zoomFramedRef = useRef(false);
+    const positionedRef = useRef(false);
+    const lastMinSizeRef = useRef(0);
+    const lastFemResultLoadedRef = useRef(femResultLoaded);
+
     useLayoutEffect(() => {
         const box3 = new THREE.Box3().setFromObject(childrenGroup.current);
         const center = new THREE.Vector3();
@@ -107,7 +121,21 @@ export function Stage({
         const zoom_fact_y = (0.6 * Math.min(sceneWidth, sceneHeigth)) / height;
         const zoom_fact_z = (1.25 * Math.min(sceneWidth, sceneHeigth)) / deep;
         const zoom_fact = Math.min(zoom_fact_x, zoom_fact_y, zoom_fact_z);
-        camera.zoom = zoom_fact;
+
+        const minSize = Math.min(sceneWidth, sceneHeigth);
+        if (minSize <= 0) return; // hidden canvas: keep the camera as it is
+        const femResultChanged = lastFemResultLoadedRef.current !== femResultLoaded;
+        lastFemResultLoadedRef.current = femResultLoaded;
+        const saved = savedViewRef.current;
+        if (!zoomFramedRef.current && saved && saved.viewSize > 0 && Number.isFinite(saved.zoom)) {
+            camera.zoom = (saved.zoom * minSize) / saved.viewSize;
+        } else if (!zoomFramedRef.current || femResultChanged) {
+            if (Number.isFinite(zoom_fact) && zoom_fact > 0) camera.zoom = zoom_fact;
+        } else if (lastMinSizeRef.current > 0 && minSize !== lastMinSizeRef.current) {
+            camera.zoom *= minSize / lastMinSizeRef.current;
+        }
+        zoomFramedRef.current = true;
+        lastMinSizeRef.current = minSize;
         camera.updateProjectionMatrix();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [femResultLoaded, sceneWidth, sceneHeigth]);
@@ -131,6 +159,24 @@ export function Stage({
     useEffect(() => () => axes.forEach((arrow) => arrow.dispose()), [axes]);
 
     useLayoutEffect(() => {
+        const saved = savedViewRef.current;
+        if (saved && !positionedRef.current && radius > 0) {
+            // the camera the user left, once the model is measured
+            positionedRef.current = true;
+            camera.position.set(...saved.position);
+            camera.near = 0.1;
+            camera.far = Math.max(5000, radius * 4);
+            const ctrl = defaultControls || controls?.current;
+            if (ctrl) {
+                ctrl.target.set(...saved.target);
+                ctrl.update();
+            } else {
+                camera.lookAt(new THREE.Vector3(...saved.target));
+            }
+            camera.updateProjectionMatrix();
+            return;
+        }
+        if (saved && positionedRef.current) return; // the model is the same: keep the user's camera
         camera.position.set(
             sceneCenter.x + radius * 1.0,
             sceneCenter.y + radius * 1.0,

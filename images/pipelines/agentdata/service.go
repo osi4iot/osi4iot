@@ -55,6 +55,9 @@ type Service struct {
 	// The group's sensors, asked to admin_api at most every sensorsTTL.
 	sensorsMu sync.Mutex
 	sensors   map[int]cachedSensors
+
+	// The charts drawn for the answers being written (chart.go).
+	charts chartStore
 }
 
 type cachedSensors struct {
@@ -102,6 +105,12 @@ func (s *Service) Handler() http.Handler {
 	mux.HandleFunc("POST /v1/agentdata/history", s.handleHistory)
 	mux.HandleFunc("POST /v1/agentdata/latest", s.handleLatest)
 	mux.HandleFunc("POST /v1/agentdata/asset_states", s.handleAssetStates)
+	mux.HandleFunc("POST /v1/agentdata/chart", s.handleChart)
+	mux.HandleFunc("POST /v1/agentdata/spectrum", s.handleSpectrum)
+	mux.HandleFunc("POST /v1/agentdata/distribution", s.handleDistribution)
+	mux.HandleFunc("POST /v1/agentdata/correlation", s.handleCorrelation)
+	mux.HandleFunc("POST /v1/agentdata/comparison", s.handleComparison)
+	mux.HandleFunc("POST /v1/agentdata/heatmap", s.handleHeatmap)
 	return mux
 }
 
@@ -150,6 +159,37 @@ type Request struct {
 	// Asset narrows the sensors (or names the asset whose state is
 	// asked): its uid, its description, or "current" (the digital twin's).
 	Asset string `json:"asset,omitempty"`
+
+	// The chart's fields (several components of a sensor), title and
+	// time zone (IANA name; default: the container's).
+	Fields   []string `json:"fields,omitempty"`
+	Title    string   `json:"title,omitempty"`
+	Timezone string   `json:"timezone,omitempty"`
+
+	// Time chart: limits to draw, and whether to mark the extremes
+	// (default: with a single field).
+	Thresholds   []Threshold `json:"thresholds,omitempty"`
+	MarkExtremes *bool       `json:"mark_extremes,omitempty"`
+
+	// Spectrum: band (Hz), resolution (Hz), logarithmic PSD axis.
+	FreqMin    float64 `json:"freq_min,omitempty"`
+	FreqMax    float64 `json:"freq_max,omitempty"`
+	Resolution float64 `json:"resolution,omitempty"`
+	LogScale   *bool   `json:"log_scale,omitempty"`
+
+	// Distribution (kind histogram | boxplot), comparison (kind periods |
+	// sensors) and heat map (layout weekday | day).
+	Kind      string   `json:"kind,omitempty"`
+	Bins      int      `json:"bins,omitempty"`
+	Period    string   `json:"period,omitempty"`
+	Statistic string   `json:"statistic,omitempty"` // avg, max, min, sum, count
+	Sensors   []string `json:"sensors,omitempty"`
+	Layout    string   `json:"layout,omitempty"`
+
+	// Correlation: the second variable (default: the same sensor).
+	YSensor string `json:"y_sensor,omitempty"`
+	YAsset  string `json:"y_asset,omitempty"`
+	YField  string `json:"y_field,omitempty"`
 }
 
 // call is a checked request: the group and the digital twin.
@@ -157,6 +197,8 @@ type call struct {
 	Request
 	groupUid  string
 	dtAssetID int
+	// the digital twin's name: users and models call its asset by it
+	dtDescription string
 }
 
 func writeJSON(w http.ResponseWriter, status int, v any) {
@@ -185,18 +227,34 @@ func (s *Service) readCall(w http.ResponseWriter, r *http.Request) (*call, bool)
 		writeError(w, http.StatusNotFound, "the digital twin is no longer in this group")
 		return nil, false
 	}
-	return &call{Request: req, groupUid: group.GroupUID, dtAssetID: dt.AssetId}, true
+	return &call{Request: req, groupUid: group.GroupUID, dtAssetID: dt.AssetId, dtDescription: dt.Description}, true
 }
 
 // groupAssets returns the assets of the call's group, the digital twin's
 // first.
 func (s *Service) groupAssets(c *call) []AssetInfo {
 	var out []AssetInfo
+	hasOwn := false
 	for _, a := range s.source.GetAssetsByGroupId(c.GroupID) {
 		if a == nil || a.GroupId != c.GroupID {
 			continue
 		}
-		out = append(out, AssetInfo{Uid: a.AssetUid, Description: a.Description, Type: a.AssetType, OfDigitalTwin: a.Id == c.dtAssetID})
+		own := a.Id == c.dtAssetID
+		hasOwn = hasOwn || own
+		out = append(out, AssetInfo{Uid: a.AssetUid, Description: a.Description, Type: a.AssetType, OfDigitalTwin: own})
+	}
+	// The digital twin's asset missing from the flows manager's assets: its
+	// sensors (asked to admin_api) still say which it is.
+	if !hasOwn && c.dtAssetID != 0 {
+		s.sensorsMu.Lock()
+		cached := s.sensors[c.GroupID].sensors
+		s.sensorsMu.Unlock()
+		for _, sn := range cached {
+			if sn != nil && sn.AssetId == c.dtAssetID && sn.AssetUid != "" {
+				out = append(out, AssetInfo{Uid: sn.AssetUid, Description: c.dtDescription, OfDigitalTwin: true})
+				break
+			}
+		}
 	}
 	sort.SliceStable(out, func(i, j int) bool {
 		if out[i].OfDigitalTwin != out[j].OfDigitalTwin {
@@ -272,7 +330,7 @@ func (s *Service) callSensor(ctx context.Context, c *call) (SensorInfo, error) {
 		return SensorInfo{}, err
 	}
 	if strings.TrimSpace(c.Asset) != "" {
-		asset, err := resolveAsset(s.groupAssets(c), c.Asset)
+		asset, err := resolveAsset(s.groupAssets(c), c.Asset, c.dtDescription)
 		if err != nil {
 			return SensorInfo{}, err
 		}
@@ -324,7 +382,7 @@ func (s *Service) handleStatistics(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	from, to, err := timeRange(c.From, c.To, s.now())
+	from, to, err := callRange(c, s.now())
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
@@ -349,9 +407,13 @@ func (s *Service) handleHistory(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	from, to, err := timeRange(c.From, c.To, s.now())
+	from, to, err := callRange(c, s.now())
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	if len(c.Fields) > 0 {
+		s.historyOfFields(w, r, c, from, to)
 		return
 	}
 	sn, f, err := s.sensorAndField(r.Context(), c)
@@ -398,6 +460,63 @@ func (s *Service) handleHistory(w http.ResponseWriter, r *http.Request) {
 	out["interval"] = HumanInterval(interval)
 	out["interval_adjusted"] = adjusted
 	out["buckets"] = buckets
+	out["truncated"] = truncated
+	writeJSON(w, http.StatusOK, out)
+}
+
+// historyOfFields is the history of several fields of a sensor in one
+// table: a row per message (raw) or per interval, a column per field. The
+// fields of a message share its time, so they line up exactly.
+func (s *Service) historyOfFields(w http.ResponseWriter, r *http.Request, c *call, from, to time.Time) {
+	sn, err := s.callSensor(r.Context(), c)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	fields, err := chartFields(sn, c)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	out := map[string]any{"sensor": sn, "fields": fields, "from": from, "to": to}
+
+	if strings.EqualFold(strings.TrimSpace(c.Interval), "raw") {
+		limit := c.Limit
+		if limit <= 0 {
+			limit = 200
+		}
+		if limit > MaxRawPoints {
+			limit = MaxRawPoints
+		}
+		rows, truncated, err := rawRows(r.Context(), s.db, c.groupUid, sn, fields, from, to, limit)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		out["interval"] = "raw"
+		out["rows"] = rows
+		out["truncated"] = truncated
+		writeJSON(w, http.StatusOK, out)
+		return
+	}
+
+	interval, adjusted, err := bucketInterval(c.Interval, from, to)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	rows, err := aggregatedRows(r.Context(), s.db, c.groupUid, sn, fields, from, to, interval)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	truncated := len(rows) > MaxBuckets
+	if truncated {
+		rows = rows[:MaxBuckets]
+	}
+	out["interval"] = HumanInterval(interval)
+	out["interval_adjusted"] = adjusted
+	out["bucket_rows"] = rows
 	out["truncated"] = truncated
 	writeJSON(w, http.StatusOK, out)
 }
@@ -450,7 +569,7 @@ func (s *Service) handleAssetStates(w http.ResponseWriter, r *http.Request) {
 	assets := s.groupAssets(c)
 	// One asset (uid, description or "current"); none: all of them.
 	if strings.TrimSpace(c.Asset) != "" {
-		a, err := resolveAsset(assets, c.Asset)
+		a, err := resolveAsset(assets, c.Asset, c.dtDescription)
 		if err != nil {
 			writeError(w, http.StatusBadRequest, err.Error())
 			return

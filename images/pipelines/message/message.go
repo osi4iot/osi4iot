@@ -21,6 +21,8 @@ type Message struct {
 	File          *common.File         `json:"file,omitempty"`
 	ReplySubject  string               `json:"reply_subject,omitempty"`
 	ReplyContext  *common.ReplyContext `json:"reply_context,omitempty"`
+	// Sender is who sent it (common.Sender): never from the payload.
+	Sender *common.Sender `json:"-"`
 }
 
 const (
@@ -244,6 +246,7 @@ func (m *Message) Clone() common.Message {
 		JsonStructure: m.JsonStructure,
 		File:          fileCopy,
 		ReplyContext:  m.ReplyContext,
+		Sender:        m.Sender,
 	}
 }
 
@@ -265,4 +268,12 @@ func (m *Message) GetReplyContext() *common.ReplyContext {
 
 func (m *Message) SetReplyContext(ctx *common.ReplyContext) {
 	m.ReplyContext = ctx
+}
+
+func (m *Message) GetSender() *common.Sender {
+	return m.Sender
+}
+
+func (m *Message) SetSender(sender *common.Sender) {
+	m.Sender = sender
 }

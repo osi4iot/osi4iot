@@ -573,7 +573,7 @@ Use this node whenever a pipeline must react to live data published on NATS or M
         description: "Sends a user message to an AI agent and forwards the agent response into the pipeline.",
 
         details:
-            "The AiAgent node connects the pipeline to a configured language model with tool support. For each incoming message, it reads the user name from 'payload.userName' and the prompt text from 'payload.message'. If either field is missing, fallback values are used. The node sends that request to the configured AI agent together with the selected model, system prompt, temperature, Top K, and Top P settings. The system prompt is mandatory and defines the agent's behavior. The agent can access the MCP tools chosen in the Tools tab (the documents of the group's knowledge base, the history of the group's sensors and the states of its assets, date and calculation tools, and FEM results tools when available) and the skills chosen there: instructions for specific tasks, which the agent loads only when it needs them. The agent response is transformed into a structured JSON payload containing the response message, optional UI metadata, and any tool calls performed during execution. The original message is replaced by the agent response.",
+            "The AiAgent node connects the pipeline to a configured language model with tool support. For each incoming message, it takes the prompt text from 'payload.message' and the user who asks from where the message came: the web chat publishes on the user's own copy of the sim2llm topic (only that user can publish there), and a Telegram chat is its own user. Each user has its own conversation, which the agent reads and keeps; a message without a known sender (published on the sim2llm topic itself, whose 'payload.userName' anyone could write) is answered without a conversation. The answer to a web chat user goes to that user's NATS inbox, where nobody else can read it. The node sends that request to the configured AI agent together with the selected model, system prompt, temperature, Top K, and Top P settings. The system prompt is mandatory and defines the agent's behavior. The agent can access the MCP tools chosen in the Tools tab (the documents of the group's knowledge base, the history of the group's sensors and the states of its assets, date and calculation tools, and FEM results tools when available) and the skills chosen there: instructions for specific tasks, which the agent loads only when it needs them. The agent response is transformed into a structured JSON payload containing the response message, optional UI metadata, and any tool calls performed during execution. The original message is replaced by the agent response.",
 
         params: [
             {
@@ -612,7 +612,7 @@ Use this node whenever a pipeline must react to live data published on NATS or M
             {
                 name: "Skills (Tools tab)",
                 description:
-                    "Skills of the platform and of the group (managed in Platform admin and Group admin → Skills). The agent always sees each chosen skill's name and description, and calls load_skill to read its instructions when a request needs them (and read_skill_resource for its other files). A skill can declare the MCP servers it needs (requires_mcp). Changes to a skill reach the agent at its next prompt, without restarting it. The platform's built-in skills (marked built-in) cannot be changed: viewer-ui-options, chosen in new nodes, tells the agent how to change the 3D viewer (uiOpts), and fem-results-analysis how to query the FEM results. The values specific to the digital twin (object and result names, simulator fields, reset-view values, load factor rule) go in the system prompt.",
+                    "Skills of the platform and of the group (managed in Platform admin and Group admin → Skills). The agent always sees each chosen skill's name and description, and calls load_skill to read its instructions when a request needs them (and read_skill_resource for its other files). A skill can declare the MCP servers it needs (requires_mcp). Changes to a skill reach the agent at its next prompt, without restarting it. The platform's built-in skills (marked built-in) cannot be changed: viewer-ui-options, chosen in new nodes, tells the agent how to change the 3D viewer (uiOpts); answer-format, also chosen in new nodes, how to present tables, matrices, equations and charts of sensor data in the chat; and fem-results-analysis how to query the FEM results. The values specific to the digital twin (object and result names, simulator fields, reset-view values, load factor rule) go in the system prompt.",
             },
         ],
 
@@ -691,7 +691,7 @@ Use this node whenever a pipeline must react to live data published on NATS or M
 
         notes: [
             "The input message should provide the prompt in 'payload.message'.",
-            "The input message can optionally include 'payload.userName'.",
+            "'payload.userName' is not used to know who asks: the user comes from the subject the message was published to (or the Telegram chat).",
             "The system prompt is required to define agent behavior.",
         ],
     },
@@ -883,6 +883,7 @@ Use this node whenever a pipeline must react to live data published on NATS or M
         notes: [
             "This node does not produce an output wire message.",
             "When 'Message Options' is set to 'Use subject and body from incoming message', the input payload must include both 'emailSubject' and 'emailBody'.",
+            "The charts of the message ('payload.charts', which an AiAgent node adds to its answer) are shown after the text, each with its title; they go inside the email, so they are seen without loading anything.",
         ],
     },
     TelegramListen: {
@@ -977,6 +978,7 @@ Use this node whenever a pipeline must react to live data published on NATS or M
         notes: [
             "This node does not produce an output wire message.",
             "When using dynamic messages, the payload should include a 'message' field.",
+            "The charts of the message ('payload.charts', which an AiAgent node adds to its answer) are sent after the text as photos (an album when there are several), each with its title as caption.",
         ],
     },
     Batch: {

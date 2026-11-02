@@ -43,3 +43,21 @@ func (fm *FlowsManager) AgentDataAccess(groupId, digitalTwinId int) (url string,
 	}
 	return fm.AgentData.BaseURL(), fm.AgentData.DigitalTwinToken(groupId, digitalTwinId), true
 }
+
+// PeekAgentChart is a chart drawn for the digital twin, which stays to be
+// taken (TakeAgentChart).
+func (fm *FlowsManager) PeekAgentChart(digitalTwinId int, chartId string) (common.ChatChart, bool) {
+	if fm.AgentData == nil {
+		return common.ChatChart{}, false
+	}
+	return fm.AgentData.PeekChart(digitalTwinId, chartId)
+}
+
+// TakeAgentChart gives an AiAgent node a chart drawn for its digital twin
+// by the sensor-chart tool, once.
+func (fm *FlowsManager) TakeAgentChart(digitalTwinId int, chartId string) (common.ChatChart, bool) {
+	if fm.AgentData == nil {
+		return common.ChatChart{}, false
+	}
+	return fm.AgentData.TakeChart(digitalTwinId, chartId)
+}

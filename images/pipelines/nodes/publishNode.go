@@ -136,6 +136,12 @@ func (n *PublishNode) processMessage(msg common.Message, log *logger.Logger) err
 		if subject == "" {
 			subject = msg.GetTopic()
 		}
+		// The answer to a user of the web chat (the AI agent's, on
+		// llm2sim) is only for that user: it goes to the user's inbox,
+		// where no one else can read it (utils.UserInboxSubject).
+		if sender := msg.GetSender(); sender.IsPlatformUser() && utils.IsUserPrivateTopic(subject) {
+			subject = utils.UserInboxSubject(sender.User, subject)
+		}
 	}
 
 	// Serialización — igual que antes

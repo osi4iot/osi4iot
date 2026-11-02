@@ -159,6 +159,18 @@ func TestAssetsAreUnambiguous(t *testing.T) {
 	if a, err := resolveAsset(assets, "portal FRAME"); err != nil || a.Uid != "a1" {
 		t.Fatalf("unique description: %+v %v", a, err)
 	}
+	// what a model may write for the digital twin's asset
+	for _, spec := range []string{"this", "Current asset", "Asset_a1", "a1 — Portal frame (Frame)", "a1 [this digital twin's]",
+		"  portal   frame ", "Eolic tower yellow"} {
+		if a, err := resolveAsset(assets, spec, "Eolic tower yellow"); err != nil || a.Uid != "a1" {
+			t.Errorf("%q: %+v %v", spec, a, err)
+		}
+	}
+	// an unknown asset: the error says which there are
+	if _, err := resolveAsset(assets, "Tower", "Eolic tower yellow"); err == nil ||
+		!strings.Contains(err.Error(), "'current' = a1 (Portal frame)") || !strings.Contains(err.Error(), "leave asset out") {
+		t.Errorf("unknown asset: %v", err)
+	}
 
 	ctx := context.Background()
 	// "load" is on a1 (the digital twin's) and a3: without asset, the digital twin's.
@@ -228,14 +240,14 @@ func TestResolveSensorAndField(t *testing.T) {
 
 func TestIntervalsAndRanges(t *testing.T) {
 	now := time.Date(2026, 10, 30, 12, 0, 0, 0, time.UTC)
-	from, to, err := timeRange("", "", now)
+	from, to, err := timeRange("", "", now, time.UTC)
 	if err != nil || to != now || from != now.Add(-24*time.Hour) {
 		t.Fatalf("default range: %v %v %v", from, to, err)
 	}
-	if _, _, err := timeRange("now", "now-1h", now); err == nil {
+	if _, _, err := timeRange("now", "now-1h", now, time.UTC); err == nil {
 		t.Fatal("from after to accepted")
 	}
-	if _, _, err := timeRange("yesterday-ish", "", now); err == nil {
+	if _, _, err := timeRange("yesterday-ish", "", now, time.UTC); err == nil {
 		t.Fatal("invalid time accepted")
 	}
 
@@ -377,3 +389,4 @@ func TestQueries(t *testing.T) {
 		t.Fatalf("current asset: %d %v", code, out)
 	}
 }
+

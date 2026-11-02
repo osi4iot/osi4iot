@@ -43,6 +43,7 @@ COPY admin/ ./admin/
 COPY agentdata/ ./agentdata/
 COPY common/ ./common/
 COPY config/ ./config/
+COPY dsp/ ./dsp/
 COPY duckdb/ ./duckdb/
 COPY flows_manager/ ./flows_manager/
 COPY function_library/ ./function_library/
@@ -54,11 +55,11 @@ COPY message/ ./message/
 COPY nats/ ./nats/
 COPY nodes/ ./nodes/
 COPY s3folder/ ./s3folder/
+COPY safehttp/ ./safehttp/
 COPY telegram/ ./telegram/
 COPY timeparser/ ./timeparser/
-COPY rag/ ./rag/
-COPY safehttp/ ./safehttp/
 COPY utils/ ./utils/
+COPY rag/ ./rag/
 RUN go mod download && go mod verify
 
 # libtokenizers.a (Hugging Face tokenizers, Rust) for the knowledge bases'
@@ -84,7 +85,8 @@ RUN CGO_ENABLED=0 go build -ldflags="-s -w" -o /usr/local/bin/doc_info ./mcp_ser
 # assets' states of the digital twin's group, read through pipelines' agent
 # data endpoint, package agentdata). Part of the pipelines module, like
 # doc_info; they use only agentdata/client (standard library) and mcp-go.
-COPY mcp_servers/sensor_history/main.go ./mcp_servers/sensor_history/
+# sensor_history has several files (main.go, charts.go): all its .go.
+COPY mcp_servers/sensor_history/*.go ./mcp_servers/sensor_history/
 COPY mcp_servers/asset_state/main.go ./mcp_servers/asset_state/
 RUN CGO_ENABLED=0 go build -ldflags="-s -w" -o /usr/local/bin/sensor_history ./mcp_servers/sensor_history \
     && CGO_ENABLED=0 go build -ldflags="-s -w" -o /usr/local/bin/asset_state ./mcp_servers/asset_state

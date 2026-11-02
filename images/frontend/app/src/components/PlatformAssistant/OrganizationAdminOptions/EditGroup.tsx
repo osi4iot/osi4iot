@@ -30,6 +30,11 @@ import { FieldContainer } from "../GroupAdminOptions/EditAsset";
 import { IFloor } from "../TableColumns/floorsColumns";
 import { AxiosResponse, AxiosError } from "axios";
 import { ControlsContainer, StaticFormContainer, FormSection } from "../../Tools/FormTools";
+import { timeZoneOptions } from "../../../tools/timeZones";
+
+// The AI agents show times in the user's time zone (the chat sends it);
+// the group's is for when it is not known (Telegram, voice notes).
+const timeZoneSelectOptions = timeZoneOptions();
 
 const GroupLocationContainer = styled.div`
     border: 2px solid #2c3235;
@@ -195,6 +200,7 @@ const EditGroup: FC<EditGroupProps> = ({
             // Not sent when the organization has it disabled: the group keeps
             // its setting, which counts only with the organization's.
             ...(ragEnabledInOrg ? { ragEnabled: values.ragEnabled === true } : {}),
+            timezone: values.timezone ?? "",
         };
         setIsSubmitting(true);
 
@@ -335,6 +341,13 @@ const EditGroup: FC<EditGroupProps> = ({
                                         type="text"
                                     />
                                 )}{" "}
+                                <FormikControl
+                                    control="select"
+                                    label="Time zone"
+                                    name="timezone"
+                                    options={timeZoneSelectOptions}
+                                    type="text"
+                                />
                                 <FormSection title="Group location">
                                 <GroupLocationContainer>
                                     <FormikControl

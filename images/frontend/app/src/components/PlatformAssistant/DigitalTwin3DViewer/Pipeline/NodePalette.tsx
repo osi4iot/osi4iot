@@ -476,7 +476,7 @@ const nodeTypes = [
             llmTopP: 0.95,
             // Tools tab (AiAgentToolsSelect). mcpServers absent: all of them.
             // viewer-ui-options: a built-in skill (admin_api's builtinSkills.ts).
-            skills: ["platform:viewer-ui-options"],
+            skills: ["platform:viewer-ui-options", "platform:answer-format"],
         },
     },
     {

@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useRef, useMemo } from "react";
+import { getViewerMemory, rememberViewer } from "../../../../state/viewerMemoryStore";
 import { useMlModelsInGroup } from "../../../../state";
 import { X, Save, RotateCcw, Bug } from "lucide-react";
 import { indentUnit, indentOnInput } from "@codemirror/language";
@@ -144,8 +145,9 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
     const [formData, setFormData] = useState<any>({});
     const [activeTab, setActiveTab] = useState<string>("settings");
     const [isDebugEnabled, setIsDebugEnabled] = useState(false);
-    const { hasChanges, setOriginalData, createInputChangeHandler, createDebugToggleHandler } =
+    const { hasChanges, setOriginalData, checkForChanges, createInputChangeHandler, createDebugToggleHandler } =
         useFormChanges(selectedNode);
+    const dtUid = digitalTwinSelected?.digitalTwinUid ?? "";
     const updateNodeInternals = useUpdateNodeInternals();
     const [listenTopicsRef, setListenTopicsRef] = useState<string[]>([]);
     const [publishTopicsRef, setPublishTopicsRef] = useState<string[]>([]);
@@ -304,18 +306,33 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                 ...selectedNode.data.settings,
             };
 
-            setFormData(initialData);
             setOriginalData(initialData, selectedNode.type);
-            setIsDebugEnabled(selectedNode.data.debug === "on");
+            const defaultTab = selectedNode.type === "Function" ? "onMessage" : "settings";
 
-            if (selectedNode.type === "Function") {
-                setActiveTab("onMessage");
+            // El mismo nodo que el usuario tenía abierto al salir del editor: lo que llevaba escrito sin
+            // aplicar, la pestaña y el ancho del panel
+            const draft = getViewerMemory(dtUid).openNode;
+            if (draft && draft.nodeId === selectedNode.id && draft.formData) {
+                const draftData = draft.formData as any;
+                setFormData(draftData);
+                setIsDebugEnabled(draftData.debug === "on");
+                setActiveTab(draft.activeTab ?? defaultTab);
+                if (draft.width && draft.width >= MIN_WIDTH && draft.width <= MAX_WIDTH) setWidth(draft.width);
+                setTimeout(() => checkForChanges(draftData, selectedNode.type), 0);
             } else {
-                setActiveTab("settings");
+                setFormData(initialData);
+                setIsDebugEnabled(selectedNode.data.debug === "on");
+                setActiveTab(defaultTab);
             }
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [selectedNode, setOriginalData]);
+
+    useEffect(() => {
+        if (isOpen && selectedNode) {
+            rememberViewer(dtUid, { openNode: { nodeId: selectedNode.id, activeTab, width, formData } });
+        }
+    }, [dtUid, isOpen, selectedNode, activeTab, width, formData]);
 
     const handleClose = useCallback(() => {
         setIsClosing(true);

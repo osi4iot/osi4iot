@@ -293,6 +293,7 @@ func (n *TelegramListenNode) processListenMessage(log *logger.Logger) {
 				"message":    msg.Text,
 				"userName":   n.chatUserName(msg.ChatID),
 			})
+			outputMsg.SetSender(n.chatSender(msg.ChatID))
 
 			n.sendToOutputs(outputMsg, log)
 		}
@@ -320,6 +321,12 @@ func (n *TelegramListenNode) Stop(log *logger.Logger) {
 
 func (n *TelegramListenNode) chatUserName(chatId int64) string {
 	return fmt.Sprintf("telegram_chat_%d", chatId)
+}
+
+// chatSender is who sends the messages of a Telegram chat (the AI Agent
+// node keeps its conversation under chatUserName).
+func (n *TelegramListenNode) chatSender(chatId int64) *common.Sender {
+	return &common.Sender{User: n.chatUserName(chatId), Source: common.SenderSourceTelegram}
 }
 
 func (n *TelegramListenNode) CreateAssetStatesTable(log *logger.Logger) string {
@@ -524,6 +531,7 @@ func (n *TelegramListenNode) buildAudioMessage(msg *telegram.TelegramMessage, lo
 			Data:        data,
 		},
 	)
+	outMsg.SetSender(n.chatSender(msg.ChatID))
 
 	return outMsg, nil
 }
@@ -563,6 +571,7 @@ func (n *TelegramListenNode) buildImageMessage(msg *telegram.TelegramMessage, lo
 			Data:        data,
 		},
 	)
+	outMsg.SetSender(n.chatSender(msg.ChatID))
 
 	return outMsg, nil
 }

@@ -1,5 +1,6 @@
 import { IsBoolean, IsEnum, IsNumber, IsOptional, IsString } from "class-validator";
 import { FolderPermissionOptions, FolderPermissionOption } from "./FolerPermissionsOptions";
+import { IsTimeZone } from "../../../utils/validators/isTimeZone";
 
 class UpdateGroupDto {
 	@IsString()
@@ -36,6 +37,12 @@ class UpdateGroupDto {
 	@IsOptional()
 	@IsBoolean()
 	public ragEnabled?: boolean;
+
+	// IANA time zone of the group ("": not set, UTC): the AI agents' times
+	// when the user's own is not known.
+	@IsOptional()
+	@IsTimeZone()
+	public timezone?: string;
 }
 
 export default UpdateGroupDto;

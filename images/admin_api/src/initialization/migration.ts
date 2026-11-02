@@ -158,6 +158,28 @@ export const dataBaseInitialization = async () => {
 				logger.log("error", `The ml_library column of grafanadb.ml_model could not be removed: %s`, message);
 			}
 
+			// The users' default time zone (IANA name; "" not set: the browser's).
+			// grafanadb.user already has the platform's columns (first_name…).
+			try {
+				await postgresClient.query(
+					`ALTER TABLE IF EXISTS grafanadb.user ADD COLUMN IF NOT EXISTS timezone VARCHAR(64) NOT NULL DEFAULT '';`
+				);
+			} catch (err) {
+				const message = err instanceof Error ? err.message : String(err);
+				logger.log("error", `The timezone column of grafanadb.user could not be added: %s`, message);
+			}
+
+			// The groups' time zone (IANA name; "" not set): the AI agents' times
+			// when the user's own is not known. Added to older platforms too.
+			try {
+				await postgresClient.query(
+					`ALTER TABLE IF EXISTS grafanadb.group ADD COLUMN IF NOT EXISTS timezone VARCHAR(64) NOT NULL DEFAULT '';`
+				);
+			} catch (err) {
+				const message = err instanceof Error ? err.message : String(err);
+				logger.log("error", `The timezone column of grafanadb.group could not be added: %s`, message);
+			}
+
 			if (Number(result0.rows[0].count) !== 0) {
 				const queryStringAlterOrg = `ALTER TABLE grafanadb.org
 											ADD COLUMN acronym varchar(20) UNIQUE,
@@ -503,6 +525,7 @@ export const dataBaseInitialization = async () => {
 					llm_enabled BOOLEAN DEFAULT false,
 					gpu_usage_enabled BOOLEAN DEFAULT false,
 					rag_enabled BOOLEAN NOT NULL DEFAULT false,
+					timezone VARCHAR(64) NOT NULL DEFAULT '',
 					created TIMESTAMPTZ,
 					updated TIMESTAMPTZ,
 					CONSTRAINT fk_org_id

@@ -22,6 +22,8 @@ import HomeOptionsLoader from "../../Tools/HomeOptionsLoader";
 import IAssetS3Folder from "../TableColumns/assetS3FolderColumns";
 import WebGLErrorBoundary from "./WebGLErrorBoundary";
 import { reloadTable, TableName, usePersistentState, useTable, useTableQuery, useTablesPending } from "../../../state";
+import { setUiValue } from "../../../state/uiStore";
+import { MAP_VIEW_KEY } from "../Geolocation/Map";
 
 const ContentContainer = styled.div`
     flex: 1;
@@ -341,6 +343,7 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
             if (assetType?.geolocationMode === "dynamic") {
                 resetBuildingSelection();
                 setOuterBounds(initialOuterBounds);
+                setUiValue(MAP_VIEW_KEY, null); // el mapa vuelve a encuadrarse, no a la vista anterior
             }
         }
         // se libera el modelo 3D (ya no hace falta conservarlo)

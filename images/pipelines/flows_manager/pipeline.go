@@ -329,11 +329,14 @@ func (p *Pipeline) ClearChatMessagesHistory(ctx context.Context, userName string
 	}
 
 	kvStore := p.Fm.GetDigitalTwinKvStore(p.GetDigitalTwinId())
-	key := utils.GetFullChatMessageKvStoreKey(userName, p.GetOrgHash(), p.GetDigitalTwinUid())
-	kvStore.DeleteEntry(ctx, key)
+	// the conversation and its charts
+	if err := utils.DeleteChatHistory(ctx, p.Fm.Log(), kvStore, userName, p.GetOrgHash(), p.GetDigitalTwinUid()); err != nil {
+		p.Fm.Log().Warnf("Chat history of %s in digital twin %d not deleted: %v", userName, p.GetDigitalTwinId(), err)
+	}
 
 	var chatMessages []utils.ChatMessage = []utils.ChatMessage{}
 	payload := ChatMessagesPayload{
+		UserName:     userName,
 		ChatMessages: chatMessages,
 	}
 	jsonData, err := json.Marshal(payload)
@@ -341,9 +344,9 @@ func (p *Pipeline) ClearChatMessagesHistory(ctx context.Context, userName string
 		p.Fm.Log().Errorf("failed to marshal message for digital twin %d: %w", p.GetDigitalTwinId(), err)
 		return
 	}
-	err = p.Fm.NatsPublish(state2simSubject, jsonData)
+	err = p.Fm.NatsPublish(utils.UserInboxSubject(userName, state2simSubject), jsonData)
 	if err != nil {
-		p.Fm.Log().Errorf("failed to publish message for digital twin %d: %w", p.GetDigitalTwinId(), err)
+		p.Fm.Log().Errorf("failed to publish message for digital twin %d: %v", p.GetDigitalTwinId(), err)
 		return
 	}
 }
@@ -697,8 +700,18 @@ func (p *Pipeline) PublishPipelineStatus(payload common.PipelineStatusMessage) {
 	}
 }
 
+// ChatMessagesPayload is a user's conversation. It goes to the user's
+// inbox (utils.UserInboxSubject of the state2sim topic): only that user
+// can read it.
 type ChatMessagesPayload struct {
+	UserName     string              `json:"userName"`
 	ChatMessages []utils.ChatMessage `json:"chatMessages"`
+}
+
+// ChatChartPayload is a chart of a user's conversation.
+type ChatChartPayload struct {
+	UserName  string           `json:"userName"`
+	ChatChart common.ChatChart `json:"chatChart"`
 }
 
 func (p *Pipeline) PublishChatMessages(ctx context.Context, userName string) {
@@ -709,11 +722,12 @@ func (p *Pipeline) PublishChatMessages(ctx context.Context, userName string) {
 		p.Fm.Log().Errorf("No state2sim subject is set for digital twin %d", p.DigitalTwinId)
 		return
 	}
+	userSubject := utils.UserInboxSubject(userName, state2simSubject)
 
 	kvStore := p.Fm.GetDigitalTwinKvStore(p.GetDigitalTwinId())
 	key := utils.GetFullChatMessageKvStoreKey(userName, p.GetOrgHash(), p.GetDigitalTwinUid())
 
-	storedMessages, mcpToolCallsArray, err := utils.GetCurrentChatMessages(ctx, p.Fm.Log(), kvStore, key, userName)
+	storedMessages, mcpToolCallsArray, chartsArray, err := utils.GetChatHistory(ctx, p.Fm.Log(), kvStore, key, userName)
 	if err != nil {
 		p.Fm.Log().Errorf("Failed to get current chat messages for user %s: %v", userName, err)
 		return
@@ -726,10 +740,12 @@ func (p *Pipeline) PublishChatMessages(ctx context.Context, userName string) {
 			UserName:     userName,
 			Sender:       string(msg.Role),
 			McpToolCalls: mcpToolCallsArray[index],
+			Charts:       chartsArray[index],
 		})
 	}
 
 	payload := ChatMessagesPayload{
+		UserName:     userName,
 		ChatMessages: chatMessages,
 	}
 	jsonData, err := json.Marshal(payload)
@@ -737,10 +753,36 @@ func (p *Pipeline) PublishChatMessages(ctx context.Context, userName string) {
 		p.Fm.Log().Errorf("failed to marshal message for digital twin %d: %w", p.GetDigitalTwinId(), err)
 		return
 	}
-	err = p.Fm.NatsPublish(state2simSubject, jsonData)
+	err = p.Fm.NatsPublish(userSubject, jsonData)
 	if err != nil {
-		p.Fm.Log().Errorf("failed to publish message for digital twin %d: %w", p.GetDigitalTwinId(), err)
+		p.Fm.Log().Errorf("failed to publish message for digital twin %d: %v", p.GetDigitalTwinId(), err)
 		return
+	}
+}
+
+// PublishChatChart sends a chart of a user's conversation to the user's
+// inbox (as PublishChatMessages), when it asks for it (queryChatChart).
+func (p *Pipeline) PublishChatChart(ctx context.Context, userName, chartId string) {
+	state2simTopic := p.Fm.GetTopicByTopicRef(p.GetAssetId(), p.GetDigitalTwinId(), "state2sim")
+	if state2simTopic == nil {
+		return
+	}
+	state2simSubject := utils.TopicToNatsSubject(state2simTopic.TopicType, state2simTopic.GroupUid, state2simTopic.TopicUid)
+	kvStore := p.Fm.GetDigitalTwinKvStore(p.GetDigitalTwinId())
+	if kvStore == nil || !utils.IsChartID(chartId) {
+		return
+	}
+	chart, err := utils.GetChatChart(ctx, kvStore, userName, p.GetOrgHash(), p.GetDigitalTwinUid(), chartId)
+	if err != nil {
+		p.Fm.Log().Warnf("Chart %s of %s in digital twin %d: %v", chartId, userName, p.GetDigitalTwinId(), err)
+		return
+	}
+	jsonData, err := json.Marshal(ChatChartPayload{UserName: userName, ChatChart: chart})
+	if err != nil {
+		return
+	}
+	if err := p.Fm.NatsPublish(utils.UserInboxSubject(userName, state2simSubject), jsonData); err != nil {
+		p.Fm.Log().Errorf("failed to publish chart %s for digital twin %d: %v", chartId, p.GetDigitalTwinId(), err)
 	}
 }
 

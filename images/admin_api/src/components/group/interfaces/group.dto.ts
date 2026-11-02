@@ -2,6 +2,7 @@ import { Type } from "class-transformer";
 import { IsBoolean, IsEnum, IsNumber, IsOptional, IsString, ValidateNested } from "class-validator";
 import { FolderPermissionOptions, FolderPermissionOption } from "./FolerPermissionsOptions";
 import CreateGroupAdminDto from "./groupAdmin.dto";
+import { IsTimeZone } from "../../../utils/validators/isTimeZone";
 
 class CreateGroupDto {
 	@IsString()
@@ -44,6 +45,12 @@ class CreateGroupDto {
 	@IsOptional()
 	@IsBoolean()
 	public ragEnabled?: boolean;
+
+	// IANA time zone of the group ("": not set, UTC): the AI agents' times
+	// when the user's own is not known.
+	@IsOptional()
+	@IsTimeZone()
+	public timezone?: string;
 
 	@ValidateNested({ each: true })
 	@Type(() => CreateGroupAdminDto)

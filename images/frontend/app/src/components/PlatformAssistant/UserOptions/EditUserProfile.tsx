@@ -13,6 +13,10 @@ import { getAxiosInstance } from '../../../tools/axiosIntance';
 import axiosErrorHandler from '../../../tools/axiosErrorHandler';
 import { AxiosResponse, AxiosError } from "axios";
 import { FormCard as FormContainer } from "../../Tools/FormTools";
+import { browserTimeZone, timeZoneOptions } from "../../../tools/timeZones";
+
+// The AI agents write their times in it; "not set": the browser's.
+const timeZoneSelectOptions = timeZoneOptions(`Browser's (${browserTimeZone() || "UTC"})`);
 
 interface EditUserProfileProps {
     userProfileToEdit: IUserProfile;
@@ -67,7 +71,7 @@ const EditUserProfile: FC<EditUserProfileProps> = ({  userProfileToEdit, refresh
         <>
             <FormTitle isSubmitting={isSubmitting}>Edit user profile</FormTitle>
             <FormContainer>
-                <Formik initialValues={userProfileToEdit} validationSchema={validationSchema} onSubmit={onSubmit} >
+                <Formik initialValues={{ ...userProfileToEdit, timezone: userProfileToEdit.timezone ?? "" }} validationSchema={validationSchema} onSubmit={onSubmit} >
                     {
                         formik => (
                             // @ts-ignore
@@ -95,6 +99,13 @@ const EditUserProfile: FC<EditUserProfileProps> = ({  userProfileToEdit, refresh
                                     label='Email'
                                     name='email'
                                     type='email'
+                                />
+                                <FormikControl
+                                    control='select'
+                                    label='Time zone'
+                                    name='timezone'
+                                    options={timeZoneSelectOptions}
+                                    type='text'
                                 />
                                 <FormButtonsProps onCancel={onCancel} isValid={formik.isValid} isSubmitting={formik.isSubmitting} />
                             </Form>

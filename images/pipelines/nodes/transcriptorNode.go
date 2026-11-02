@@ -146,6 +146,7 @@ func (n *TranscriptorNode) processMessage(msg common.Message, log *logger.Logger
 	outMsg.Payload["message"] = transcription
 	outMsg.Topic = msg.GetTopic()
 	outMsg.SetReplyContext(msg.GetReplyContext())
+	outMsg.SetSender(msg.GetSender())
 	n.sendToOutputs(outMsg, log)
 	return nil
 }

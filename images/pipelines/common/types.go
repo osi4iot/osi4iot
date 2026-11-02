@@ -4,8 +4,6 @@ import (
 	"context"
 	"time"
 
-	"github.com/nats-io/nats.go"
-
 	"pipelines/leader_election"
 	nats_pkg "pipelines/nats"
 	"pipelines/telegram"
@@ -60,6 +58,9 @@ type Group struct {
 	LlmEnabled                    bool   `json:"llmEnabled"`
 	GpuUsageEnabled               bool   `json:"gpuUsageEnabled"`
 	RagEnabled                    bool   `json:"ragEnabled"`
+	// Timezone is the group's IANA time zone ("" not set: UTC), for the
+	// AI agents' times when the user's own is not known.
+	Timezone string `json:"timezone"`
 
 	KvStore *nats_pkg.KVStore `json:"-"`
 }
@@ -163,7 +164,7 @@ type DigitalTwin struct {
 
 	KvStore                    *nats_pkg.KVStore
 	Pipeline                   Pipeline
-	PipelineStatusSubscription *nats.Subscription
+	PipelineStatusSubscription *SubscriptionGroup
 }
 
 type DigitalTwinTopic struct {
@@ -351,5 +352,14 @@ type S3FolderFileInfo struct {
 	FileName     string `json:"fileName"`
 	LastModified string `json:"lastModified"`
 	Size         int64  `json:"size"`
+}
+
+// ChatChart is an image sent with an AI agent's answer: a chart of a
+// sensor's history, drawn by pipelines (agentdata).
+type ChatChart struct {
+	ID       string `json:"id"`
+	Title    string `json:"title"`
+	MimeType string `json:"mimeType"`
+	Data     []byte `json:"data"` // base64 in JSON
 }
 

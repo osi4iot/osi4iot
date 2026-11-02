@@ -2,9 +2,10 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
-
 	"time"
+	_ "time/tzdata" // the users' time zones, whatever the container has
 
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
@@ -21,8 +22,10 @@ func main() {
 	currentDateTool := mcp.NewTool(
 		"current-date",
 		mcp.WithDescription(
-			"Get the current date and time in RFC 3339 format",
+			"Get the current date and time (RFC 3339) in the user's time zone, with the day of the week",
 		),
+		mcp.WithString("timezone", mcp.Description(
+			"IANA time zone (Europe/Madrid, UTC). Default: the user's (given by the platform)")),
 	)
 
 	mcpServer.AddTool(currentDateTool, handleCurrentDate)
@@ -38,5 +41,12 @@ func handleCurrentDate(
 	ctx context.Context,
 	request mcp.CallToolRequest,
 ) (*mcp.CallToolResult, error) {
-	return mcp.NewToolResultText(time.Now().Format(time.RFC3339)), nil
+	loc := time.UTC
+	if name, _ := request.GetArguments()["timezone"].(string); name != "" {
+		if l, err := time.LoadLocation(name); err == nil {
+			loc = l
+		}
+	}
+	now := time.Now().In(loc)
+	return mcp.NewToolResultText(fmt.Sprintf("%s (%s, time zone %s)", now.Format(time.RFC3339), now.Weekday(), loc)), nil
 }

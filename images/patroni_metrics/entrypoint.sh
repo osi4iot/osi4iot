@@ -181,8 +181,19 @@ chown -R postgres:postgres /data/patroni 2>/dev/null || true
 # Missing peers are collected and printed once per iteration instead of
 # one line per peer per iteration, which at N=3 turned a 60s wait into
 # 60 lines of log.
+#
+# The budget is wall-clock time, and each lookup is cut at
+# DNS_LOOKUP_TIMEOUT. A name Swarm has not registered yet is forwarded by
+# Docker's DNS to the host's resolvers; when those are slow or unreachable
+# (a laptop after a network change, WSL, no internet) every getent hung for
+# about 10 s, while the budget only counted the 2 s sleeps. 30 "seconds"
+# then took several minutes, longer than the healthcheck's start period
+# plus retries: Swarm killed every node before it started Patroni, and the
+# restarted nodes did the same, so the cluster never formed.
 DNS_WAIT_TIMEOUT=30
+DNS_LOOKUP_TIMEOUT=2
 if [ "$PATRONI_NUM_NODES" -gt 1 ]; then
+    dns_wait_start=$(date +%s)
     elapsed=0
     while :; do
         unresolved=()
@@ -191,7 +202,7 @@ if [ "$PATRONI_NUM_NODES" -gt 1 ]; then
             if [ "$PEER_NAME" = "$PATRONI_NAME" ]; then
                 continue
             fi
-            if ! getent hosts "$PEER_NAME" >/dev/null 2>&1; then
+            if ! timeout "$DNS_LOOKUP_TIMEOUT" getent hosts "$PEER_NAME" >/dev/null 2>&1; then
                 unresolved+=("$PEER_NAME")
             fi
         done
@@ -202,6 +213,7 @@ if [ "$PATRONI_NUM_NODES" -gt 1 ]; then
         # cannot be healthy while this loop keeps Patroni from starting —
         # so two new nodes each spent the whole budget waiting for the
         # other. pysyncobj resolves the rest on its own once they appear.
+        elapsed=$(( $(date +%s) - dns_wait_start ))
         resolved=$(( PATRONI_NUM_NODES - 1 - ${#unresolved[@]} ))
         if [ "$resolved" -gt 0 ]; then
             if [ ${#unresolved[@]} -eq 0 ]; then
@@ -217,7 +229,7 @@ if [ "$PATRONI_NUM_NODES" -gt 1 ]; then
         fi
         echo "Waiting for DNS (${elapsed}s): ${unresolved[*]}"
         sleep 2
-        elapsed=$((elapsed + 2))
+        elapsed=$(( $(date +%s) - dns_wait_start ))
     done
 fi
 

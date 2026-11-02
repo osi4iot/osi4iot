@@ -23,4 +23,5 @@ export default interface IGroup {
 	llmEnabled: boolean;
 	gpuUsageEnabled: boolean;
 	ragEnabled?: boolean;
+	timezone?: string; // IANA name; "" not set (UTC)
 }

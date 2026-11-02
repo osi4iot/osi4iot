@@ -121,7 +121,14 @@ func (n *EmailNode) processMessage(msg common.Message, log *logger.Logger) error
 		body = emailBody
 	}
 
-	err := utils.SendEmail(n.SMTPServer, n.From, n.To, subject, body, n.Username, n.Password)
+	// the charts of the message (an AI Agent answer, payload "charts"),
+	// shown after the text
+	var images []utils.EmailImage
+	for i, c := range common.ChartsFromPayload(msg.GetPayload()) {
+		images = append(images, utils.EmailImage{FileName: common.ChartFileName(c, i), Title: c.Title, Data: c.Data})
+	}
+
+	err := utils.SendEmailWithImages(n.SMTPServer, n.From, n.To, subject, body, n.Username, n.Password, images)
 	if err != nil {
 		return fmt.Errorf("failed to send email in EmailNode %s: %v", n.NodeUid, err)
 	}

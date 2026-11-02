@@ -6,6 +6,7 @@ import { useSpeechSynthesis } from "./useSpeechSynthesis";
 import { useLoggedUserLogin } from "../../../../contexts/authContext/authContext";
 import { normalizeForTTS } from "./ttsNormalizer";
 import { containsLatex, MathMessage } from "./MathMessage";
+import { ChatChart, ChatCharts } from "./chatCharts";
 import { asIcon } from "../../../../tools/icons";
 import { canRecordAudio, Recording, startRecording } from "../../../../tools/audioRecorder";
 import { hasSpeechSynthesisVoices, PipelineVoiceService, playAudioBlob } from "./voiceService";
@@ -38,10 +39,14 @@ export interface McpToolCall {
     args: string[];
 }
 
+export type { ChatChart } from "./chatCharts";
+
 export interface LlmMessage {
     message: string;
     uiOpts: Record<string, any>;
     mcpToolCalls: McpToolCall[];
+    // gráficas dibujadas por pipelines para la respuesta (sensor-chart)
+    charts?: ChatChart[];
     sender: "user" | "assistant" | "system";
     // pregunta de voz transcrita en el pipeline: quién la hizo
     userName?: string;
@@ -53,6 +58,7 @@ export interface ChatMessage {
     sender: "user" | "assistant" | "system";
     time: string;
     mcpToolCalls: McpToolCall[];
+    charts?: ChatChart[];
     // "pipeline": pregunta de voz (sensor "Mobile audio", nota de voz de Telegram) transcrita en el pipeline, que
     // ya la ha enviado al AI Agent: el visor solo la muestra
     source?: "pipeline";
@@ -1242,6 +1248,7 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({
                             )}
                         </Label>
                         <MathMessage html={msg.message} />
+                        <ChatCharts charts={msg.charts} />
                         {renderMcpToolCalls(msg.mcpToolCalls)}
                     </MessageBubble>
                 ))}

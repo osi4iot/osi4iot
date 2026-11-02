@@ -434,13 +434,19 @@ type ExtrapolationMode = "zero" | "constant" | "linear";
 
 /** Dsp instance */
 interface DSP {
-    /** Computes PSD */
+    /** Computes the PSD (unit^2/Hz) with Welch's method; the mean of each window is removed */
     WelchPSD(x: number[], cfg: DspWelchConfig): [number[], number[], number];
+
+    /** Welch PSD over the pieces of a signal (SplitToUniform): the windows of all pieces are averaged */
+    WelchPSDPieces(pieces: number[][], cfg: DspWelchConfig): [number[], number[], number];
+
+    /** Splits sorted samples at gaps longer than maxGap (s) and resamples each piece of at least minLen samples at fs */
+    SplitToUniform(times: number[], values: number[], fs: number, maxGap: number, minLen: number): number[][];
 
     /** Creates WelchConfig with defaults */
     GetDefaultWelchConfig(fs: number): DspWelchConfig;
 
-    /** Returns a WelchConfig */
+    /** Returns a WelchConfig (maxFreq 0: up to Nyquist); an invalid one reports all its problems */
     GetWelchConfig(
         fs: number,
         winLen: number,
@@ -471,10 +477,10 @@ interface DSP {
     /** Sorts time series data */
     SortTimeSeriesData(times: number[], values: number[]): [number[], number[]];
 
-    /** Removes linear trend */
-    DetrendInPlace(x: number[]): number;
+    /** Removes the linear trend and returns the result (the script gets a copy: use x = DetrendInPlace(x)) */
+    DetrendInPlace(x: number[]): number[];
 
-    /** Estimates uniform sampling rate */
+    /** Estimates the sampling rate: "min", "median" or "mean" of the intervals (repeated times ignored) */
     EstimateUniformSamplingRate(times: number[], method: string): number;
 }
 

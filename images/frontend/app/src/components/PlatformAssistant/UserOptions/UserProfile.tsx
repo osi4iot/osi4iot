@@ -3,6 +3,7 @@ import styled from "styled-components";
 import ChangePassword from './ChangePassword';
 import EditUserProfile from './EditUserProfile';
 import { USER_PROFILE_OPTIONS } from '../Utils/platformAssistantOptions';
+import { browserTimeZone } from "../../../tools/timeZones";
 
 
 const Button = styled.button`
@@ -81,6 +82,7 @@ export interface IUserProfile {
     surname: string;
     login: string;
     email: string;
+    timezone?: string; // IANA name; "" not set (the browser's)
 }
 
 
@@ -113,6 +115,10 @@ const UserProfile: FC<UserProfileProps> = ({ userProfile, refreshUserProfile }) 
                     </UserProfileItem>
                     <UserProfileItem>
                         <ItemType>Username: </ItemType><ItemValue>{userProfile.login}</ItemValue>
+                    </UserProfileItem>
+                    <UserProfileItem>
+                        <ItemType>Time zone: </ItemType>
+                        <ItemValue>{userProfile.timezone || `Browser's (${browserTimeZone() || "UTC"})`}</ItemValue>
                     </UserProfileItem>
                     <ButtonsContainer>
                         <Button onClick={() => changeUserProfileOptionToShow(USER_PROFILE_OPTIONS.EDIT_USER_PROFILE)}>

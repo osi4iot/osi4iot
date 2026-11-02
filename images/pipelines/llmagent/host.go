@@ -1,3 +1,8 @@
+// Package llmagent runs the AI agent of an AiAgent node on agent-sdk-go
+// (github.com/Ingenimax/agent-sdk-go): the LLM, the tool-calling loop and
+// the node's MCP servers.
+//
+// The node sends prompts on Input and reads the answers on Output; the
 // conversation of each user is read and saved through the node's
 // callbacks (the digital twin's NATS KV store).
 //
@@ -30,6 +35,12 @@ import (
 type Prompt struct {
 	UserName string
 	Text     string
+	// TimeZone is the user's IANA time zone (ResolveTimeZone); "" is UTC.
+	TimeZone string
+	// Context is more context for the model with this question (e.g.
+	// what the 3D viewer of the chat holds, ViewerContext); "" none. It
+	// goes before the question, not into the stored conversation.
+	Context string
 }
 
 // ToolCall is a tool the agent called while answering, as the chat shows
@@ -37,6 +48,9 @@ type Prompt struct {
 type ToolCall struct {
 	ToolName string `json:"tool_name"`
 	Args     string `json:"args"`
+	// Result is the text the tool returned ("" on an error): for the
+	// node (e.g. the ids of the charts drawn), not shown in the chat.
+	Result string `json:"-"`
 }
 
 // Answer is the agent's reply to a prompt.
@@ -196,12 +210,17 @@ func (h *Host) answer(p Prompt) Answer {
 	defer cancel()
 	recorder := &toolCallRecorder{}
 	ctx = withRecorder(ctx, recorder)
+	zone := ResolveTimeZone(p.TimeZone)
+	ctx = withTimezone(ctx, zone)
+	// The model gets the user's zone and local time with the question;
+	// the conversation keeps the question as the user wrote it.
+	text := timeContext(zone, time.Now()) + p.Context + p.Text
 
 	mem := newTurnMemory(h.cfg.GetHistory(p.UserName))
 	// The providers build the request from memory, which therefore has
 	// to hold the prompt already (they only add it themselves when there
 	// is no memory).
-	_ = mem.AddMessage(ctx, interfaces.Message{Role: interfaces.MessageRoleUser, Content: p.Text})
+	_ = mem.AddMessage(ctx, interfaces.Message{Role: interfaces.MessageRoleUser, Content: text})
 
 	opts := []interfaces.GenerateOption{
 		func(o *interfaces.GenerateOptions) {
@@ -220,9 +239,9 @@ func (h *Host) answer(p Prompt) Answer {
 	var resp *interfaces.LLMResponse
 	var err error
 	if len(tools) > 0 {
-		resp, err = h.llm.GenerateWithToolsDetailed(ctx, p.Text, tools, opts...)
+		resp, err = h.llm.GenerateWithToolsDetailed(ctx, text, tools, opts...)
 	} else {
-		resp, err = h.llm.GenerateDetailed(ctx, p.Text, opts...)
+		resp, err = h.llm.GenerateDetailed(ctx, text, opts...)
 	}
 	calls := recorder.calls()
 	if err != nil {

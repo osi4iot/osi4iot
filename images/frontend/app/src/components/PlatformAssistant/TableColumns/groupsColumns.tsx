@@ -40,6 +40,7 @@ export interface IGroup {
     llmEnabled: boolean;
     gpuUsageEnabled: boolean;
     ragEnabled?: boolean;
+    timezone?: string;
 }
 
 interface IGroupColumn extends IGroup {
@@ -263,6 +264,12 @@ export const Create_GROUPS_COLUMNS = (refreshGroups: () => void): Column<IGroupC
             Cell: (props: { value?: boolean }) => <span>{props.value ? "Enabled" : "Disabled"}</span>,
         },
         {
+            Header: "Time zone",
+            accessor: "timezone",
+            disableFilters: true,
+            Cell: (props: { value?: string }) => <span>{props.value || "UTC (not set)"}</span>,
+        },
+        {
             Header: "",
             accessor: "edit",
             disableFilters: true,
@@ -282,6 +289,7 @@ export const Create_GROUPS_COLUMNS = (refreshGroups: () => void): Column<IGroupC
                 const gpuUsageEnabled = row?.cells[12]?.value; 
                 const llmEnabled = row?.cells[13]?.value;
                 const ragEnabled = row?.original?.ragEnabled === true;
+                const timezone = row?.original?.timezone || "";
                 const groupInputData = {
                     name,
                     acronym,
@@ -294,6 +302,7 @@ export const Create_GROUPS_COLUMNS = (refreshGroups: () => void): Column<IGroupC
                     llmEnabled,
                     gpuUsageEnabled,
                     ragEnabled,
+                    timezone,
                 };
                 return <EditGroup groupId={groupId} rowIndex={rowIndex} groupInputData={groupInputData} />;
             },

@@ -157,12 +157,17 @@ type Manager interface {
 	// asset_state MCP servers need: pipelines' agent data endpoint and the
 	// digital twin's token. ok is false when it is not running.
 	AgentDataAccess(groupId, digitalTwinId int) (url string, token string, ok bool)
+	// TakeAgentChart is a chart a sensor_history tool drew for the digital
+	// twin's agent (by the id the tool returned), given once.
+	TakeAgentChart(digitalTwinId int, chartId string) (ChatChart, bool)
+	// PeekAgentChart is the same chart, left to be taken.
+	PeekAgentChart(digitalTwinId int, chartId string) (ChatChart, bool)
 	// GetFunctionHttpClient is the HTTP client of the Function nodes'
 	// scripts: no internal addresses (package safehttp).
 	GetFunctionHttpClient() *http.Client
 
 	GetLeaderKvStore() jetstream.KeyValue
-	SetPipelineStatusSubscription(ctx context.Context, digitalTwin *DigitalTwin) *nats.Subscription
+	SetPipelineStatusSubscription(ctx context.Context, digitalTwin *DigitalTwin) *SubscriptionGroup
 
 	GetDbPool() *pgxpool.Pool
 	GetDbReadPool() *pgxpool.Pool

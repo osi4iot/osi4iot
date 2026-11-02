@@ -200,7 +200,7 @@ func (fm *FlowsManager) skipPipelineOnThisReplica(ctx context.Context, dt *commo
 	fm.dropLocalPipeline(ctx, dt)
 	fm.log.Infof("Digital twin %d requires GPU; replica %d has none (%s): pipeline not created here",
 		dt.Id, fm.ReplicaIndex, fm.GpuReason)
-	dt.PipelineStatusSubscription = fm.setNoGpuStatusSubscription(ctx, dt)
+	dt.PipelineStatusSubscription = common.NewSubscriptionGroup(fm.setNoGpuStatusSubscription(ctx, dt))
 
 	// One replica says it, once per create/update, and only when the
 	// pipeline really has nowhere to run.

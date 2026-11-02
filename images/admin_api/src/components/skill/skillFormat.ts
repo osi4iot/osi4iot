@@ -58,7 +58,7 @@ export const AI_AGENT_MCP_SERVERS: IMcpServerInfo[] = [
 		name: "sensor_history",
 		label: "Sensor history",
 		description:
-			"Historical data of the sensors of the digital twin's group, from the IoT database: sensors and their fields, statistics, history by intervals or raw, latest values (sensor_history__*).",
+			"Historical data of the sensors of the digital twin's group, from the IoT database: sensors and their fields, statistics, history by intervals or raw, latest values, and charts shown with the answer: evolution with thresholds, frequency spectrum, histogram and box plots, correlation, comparison bars and heat maps (sensor_history__*).",
 		condition: "",
 	},
 	{

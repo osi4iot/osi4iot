@@ -17,6 +17,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	_ "time/tzdata" // the users' time zones, whatever the container has
 )
 
 // Client calls the endpoint for one digital twin.
@@ -107,6 +108,57 @@ func Time(t time.Time) string {
 		return "-"
 	}
 	return t.UTC().Format("2006-01-02 15:04:05Z")
+}
+
+// TimeMs writes a time with milliseconds (UTC): raw values, which may come
+// several per second.
+func TimeMs(t time.Time) string {
+	if t.IsZero() {
+		return "-"
+	}
+	return t.UTC().Format("2006-01-02 15:04:05.000Z")
+}
+
+// Zone is the time zone a tool writes its times in: the "timezone"
+// argument (pipelines passes the user's when the model does not), else UTC.
+type Zone struct {
+	loc *time.Location
+}
+
+// ZoneOf reads the "timezone" argument of a tool call.
+func ZoneOf(args map[string]any) Zone {
+	if name := String(args, "timezone"); name != "" {
+		if loc, err := time.LoadLocation(name); err == nil {
+			return Zone{loc: loc}
+		}
+	}
+	return Zone{loc: time.UTC}
+}
+
+// TimeZoneArg is the "timezone" argument of the tools that write times.
+const TimeZoneArg = "Time zone of the times: an IANA name (Europe/Madrid, America/Bogota, UTC). " +
+	"Default: the user's (given by the platform)"
+
+// Time writes a time in the zone, to the second, with its offset.
+func (z Zone) Time(t time.Time) string {
+	if t.IsZero() {
+		return "-"
+	}
+	return t.In(z.loc).Format("2006-01-02 15:04:05 -07:00")
+}
+
+// TimeMs writes a time in the zone with milliseconds (raw values, which may
+// come several per second).
+func (z Zone) TimeMs(t time.Time) string {
+	if t.IsZero() {
+		return "-"
+	}
+	return t.In(z.loc).Format("2006-01-02 15:04:05.000 -07:00")
+}
+
+// Note says in which zone the times are.
+func (z Zone) Note() string {
+	return "Times are in " + z.loc.String() + " (their offset from UTC is written with each one)."
 }
 
 // String reads a string argument of a tool call.

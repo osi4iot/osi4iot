@@ -152,6 +152,7 @@ func (n *TranslatorNode) processMessage(msg common.Message, log *logger.Logger) 
 	payload["message"] = translated
 
 	outMsg := message.NewMessageFromPayload(payload)
+	outMsg.SetSender(msg.GetSender())
 	n.sendToOutputs(outMsg, log)
 	return nil
 }

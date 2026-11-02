@@ -86,12 +86,14 @@ const chatMessageSchema: JsonSchema = {
 export const FIXED_MESSAGE_SCHEMAS: Record<string, JsonSchema> = {
 	sim2llm: {
 		type: "object",
-		description: "Question of a user of the chat of the digital twin to its AI agent",
+		description:
+			"Question of a user of the chat of the digital twin to its AI agent. The chat publishes it on the user's own copy of the topic, user.<login>.<topic>: the pipeline takes from that subject who asks",
 		properties: {
-			userName: { type: "string", description: "User who asks" },
+			userName: { type: "string", description: "User who asks (informative: the pipeline uses the subject's)" },
 			message: { type: "string", description: "Question" },
+			timeZone: { type: "string", description: "IANA time zone of the user, for the times of the answer" },
 		},
-		required: ["userName", "message"],
+		required: ["message"],
 		additionalProperties: false,
 	},
 	llm2sim: {
@@ -130,13 +132,14 @@ export const FIXED_MESSAGE_SCHEMAS: Record<string, JsonSchema> = {
 	},
 	sim2state: {
 		type: "object",
-		description: "Query of the viewer to the pipeline of the digital twin",
+		description:
+			"Query of the viewer to the pipeline of the digital twin. The chat queries (history, its charts, removing it) only on the user's own copy of the topic, user.<login>.<topic>, and their answer goes to the user's NATS inbox",
 		properties: {
 			action: {
 				type: "string",
-				enum: ["queryPipelineStatus", "queryChatMessages", "queryRemoveChatMessages"],
+				enum: ["queryPipelineStatus", "queryChatMessages", "queryChatChart", "queryRemoveChatMessages"],
 			},
-			userName: { type: "string", description: "User of the chat (chat queries)" },
+			chartId: { type: "string", description: "Chart of the history asked for (queryChatChart)" },
 		},
 		required: ["action"],
 	},

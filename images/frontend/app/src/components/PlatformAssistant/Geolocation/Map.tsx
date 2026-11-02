@@ -1,4 +1,4 @@
-import { FC, useCallback } from "react";
+import { FC, useCallback, useEffect } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { MapContainer, TileLayer, useMap, useMapEvents } from "react-leaflet";
@@ -24,6 +24,7 @@ import { IAsset } from "../TableColumns/assetsColumns";
 import { ISensor } from "../TableColumns/sensorsColumns";
 import { IAssetType } from "../TableColumns/assetTypesColumns";
 import { ISensorType } from "../TableColumns/sensorTypesColumns";
+import { getUiValue, setUiValue } from "../../../state/uiStore";
 
 const MapContainerStyled = styled(MapContainer)`
     background-color: #212121;
@@ -349,6 +350,46 @@ const MapEvents: FC<MapEventProps> = ({ setNewOuterBounds }) => {
     return null;
 };
 
+// Vista del mapa (centro y zoom) que se recupera al volver a él: al cambiar de capa o al cerrar el visor
+// 3D el mapa se desmonta y, al montarse, los elementos seleccionados (edificio, grupo, activo) vuelven a
+// encuadrarse. Este componente va el último dentro del mapa: sus efectos se ejecutan después de los de
+// los demás y deja el mapa donde lo tenía el usuario. HomeOptions la borra cuando vuelve a encuadrar
+// el mapa a propósito (al cerrar el visor de un activo con geolocalización dinámica).
+export const MAP_VIEW_KEY = "home.mapView";
+interface MapView {
+    center: [number, number];
+    zoom: number;
+}
+
+const MapViewMemory: FC = () => {
+    const map = useMap();
+    useEffect(() => {
+        const saved = getUiValue<MapView | null>(MAP_VIEW_KEY);
+        let timer: ReturnType<typeof setTimeout> | undefined;
+        const save = () => {
+            const center = map.getCenter();
+            setUiValue(MAP_VIEW_KEY, { center: [center.lat, center.lng], zoom: map.getZoom() });
+        };
+        if (saved) {
+            // después de los encuadres de los demás componentes al montarse (y de sus animaciones)
+            map.whenReady(() => {
+                timer = setTimeout(() => {
+                    map.stop();
+                    map.setView(saved.center, saved.zoom, { animate: false });
+                    map.on("moveend", save);
+                }, 0);
+            });
+        } else {
+            map.on("moveend", save);
+        }
+        return () => {
+            if (timer) clearTimeout(timer);
+            map.off("moveend", save);
+        };
+    }, [map]);
+    return null;
+};
+
 interface MapProps {
     buildings: IBuilding[];
     floors: IFloor[];
@@ -563,6 +604,7 @@ const Map: FC<MapProps> = ({
                     )}
                 </ComponentsControlContainer>
             </ControlsContainer>
+            <MapViewMemory />
         </MapContainerStyled>
     );
 };

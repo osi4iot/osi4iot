@@ -11,7 +11,7 @@ import passportInitialize from "../../config/passportHandler";
 import { userAuth, registerAuth, superAdminAuth } from "../../middleware/auth.middleware";
 import grafanaApi from '../../GrafanaApi';
 import UserRegisterDto from "./userRegister.dto";
-import { getUserLoginDatadByEmailOrLogin, isUserProfileDataCorrect, updateOrganizationUser, updateUserProfileById } from "../user/userDAL";
+import { getUserLoginDatadByEmailOrLogin, isUserProfileDataCorrect, updateOrganizationUser, updateUserProfileById, updateUserTimezoneById } from "../user/userDAL";
 import IUser from "../user/interfaces/User.interface";
 import RefreshTokenToDisableDto from "./refreshTokenToDisableDTO";
 import {
@@ -42,6 +42,7 @@ import { getNumSensors, getNumSensorsByGroupsIdArray } from "../sensor/sensorDAL
 import { getNumDigitalTwins, getNumDigitalTwinsByGroupsIdArray } from "../digitalTwin/digitalTwinDAL";
 import { getNumMLModelsByGroupsIdArray } from "../ml_model/ml_modelDAL";
 import infoLogger from "../../utils/logger/infoLogger";
+import { canonicalTimeZone } from "../../utils/validators/isTimeZone";
 
 interface IJwtPayload {
 	id: string;
@@ -222,7 +223,8 @@ class AuthenticationController implements IController {
 				firstName: user.firstName,
 				surname: user.surname,
 				email: user.email,
-				login: user.login
+				login: user.login,
+				timezone: user.timezone ?? "",
 			}
 			res.status(200).json(userData);
 		} catch (error) {
@@ -246,6 +248,10 @@ class AuthenticationController implements IController {
 				if (!isUpdateUserDataCorrect)
 					throw new HttpException(req, res, 400, "The entered values of name, login and email already exists for another user.")
 				await updateUserProfileById(userData as CreateUserDto);
+			}
+			if (userData.timezone !== undefined) {
+				const timezone = canonicalTimeZone(userData.timezone) ?? "";
+				if (timezone !== (user.timezone ?? "")) await updateUserTimezoneById(user.id, timezone);
 			}
 			const message = { message: `User profile with username: ${user.login} updated succesfully` };
 			infoLogger(req, res, 200, message.message);
@@ -427,4 +433,3 @@ class AuthenticationController implements IController {
 }
 
 export default AuthenticationController;
-

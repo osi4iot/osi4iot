@@ -19,7 +19,7 @@ import {
 } from "../ViewerTools/ViewerUtils";
 import Lut from "../Utils/Lut";
 import { IThreeMesh } from "../Types/threeInterfaces";
-import Sensors from "../Objects/Sensors";
+import Sensors, { SensorInfo } from "../Objects/Sensors";
 import GenericObjects from "../Objects/GenericObjects";
 import Assets from "../Objects/Assets";
 import FemSimulationObjects from "../Objects/FemSimulationObjects";
@@ -82,6 +82,8 @@ export interface INatsSubjectData {
 
 interface ModelProps {
     digitalTwinGltfData: IDigitalTwinGltfData;
+    // names and measurements of the digital twin's sensors, for their markers
+    sensorsInfo?: Record<string, SensorInfo>;
     femResultData: any;
     sensorObjects: ISensorObject[];
     initialSensorsState: Record<string, SensorState>;
@@ -105,6 +107,7 @@ interface ModelProps {
     sensorsOpacity: number;
     highlightAllSensors: boolean;
     showAllSensorsMarker: boolean;
+    showOccludedSensorMarkers?: boolean;
     hideAllSensors: boolean;
     assetsOpacity: number;
     highlightAllAssets: boolean;
@@ -158,6 +161,7 @@ interface ModelProps {
 
 const Model: FC<ModelProps> = ({
     digitalTwinGltfData,
+    sensorsInfo,
     femResultData,
     sensorObjects,
     sensorsVisibilityState,
@@ -173,6 +177,7 @@ const Model: FC<ModelProps> = ({
     sensorsOpacity,
     highlightAllSensors,
     showAllSensorsMarker,
+    showOccludedSensorMarkers,
     hideAllSensors,
     assetsOpacity,
     highlightAllAssets,
@@ -358,12 +363,14 @@ const Model: FC<ModelProps> = ({
                     sensorsOpacity={sensorsOpacity}
                     highlightAllSensors={highlightAllSensors}
                     showAllSensorsMarker={showAllSensorsMarker}
+                    showOccludedSensorMarkers={showOccludedSensorMarkers}
                     hideAllSensors={hideAllSensors}
                     sensorsState={sensorsState}
                     sensorsVisibilityState={sensorsVisibilityState}
                     updateSensorStateString={updateSensorStateString}
                     sensorsDashboards={digitalTwinGltfData.sensorsDashboards}
                     openDashboardTab={openDashboardTab}
+                    sensorsInfo={sensorsInfo}
                 />
             )}
             {assetObjects.length !== 0 && assetsState && (

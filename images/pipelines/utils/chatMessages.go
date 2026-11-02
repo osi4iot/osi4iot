@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"strings"
 
+	"pipelines/common"
 	"pipelines/logger"
 	nats_pkg "pipelines/nats"
 )
@@ -49,6 +50,16 @@ type ChatMessage struct {
 	Sender       string     `json:"sender"`
 	Time         string     `json:"time"`
 	McpToolCalls []ToolCall `json:"mcpToolCalls"`
+	// Charts of the answer: references; the frontend asks for each image
+	// (queryChatChart), which is kept apart (one NATS message is 1 MB).
+	Charts []ChartRef `json:"charts,omitempty"`
+}
+
+// ChartRef is a chart of an answer, as the conversation keeps it: the
+// image is in the digital twin's KV store, under its own key.
+type ChartRef struct {
+	ID    string `json:"id"`
+	Title string `json:"title"`
 }
 
 // StoredMessage is a message of a user's conversation with an AI agent,
@@ -81,8 +92,60 @@ func GetFullChatMessageKvStoreKey(userName string, orgHash string, digitalTwinUi
 	return fmt.Sprintf("org_%s.dt_%s.kvstore.chat_messages.%s", orgHash, digitalTwinUid, userName)
 }
 
-// SaveChatMessages appends messages, and the tool calls of each one, to
-// a user's conversation, keeping the last maxChatMessagesPerUser.
+// GetFullChatChartKvStoreKey is where a chart of a user's conversation is
+// kept: a key per image (about 100 KB each), not in the conversation's.
+func GetFullChatChartKvStoreKey(userName, orgHash, digitalTwinUid, chartId string) string {
+	return fmt.Sprintf("org_%s.dt_%s.kvstore.chat_charts.%s.%s", orgHash, digitalTwinUid, userName, chartId)
+}
+
+var chartIdRe = regexp.MustCompile(`^chart_[0-9a-f]{24}$`)
+
+// IsChartID tells whether s is a chart id (chart_ and 24 hex digits).
+func IsChartID(s string) bool { return chartIdRe.MatchString(s) }
+
+// SaveChatChart keeps a chart of a user's conversation.
+func SaveChatChart(ctx context.Context, kvStore *nats_pkg.KVStore, userName, orgHash, digitalTwinUid string, chart common.ChatChart) error {
+	if !IsChartID(chart.ID) {
+		return fmt.Errorf("invalid chart id %q", chart.ID)
+	}
+	return kvStore.SetValue(ctx, GetFullChatChartKvStoreKey(userName, orgHash, digitalTwinUid, chart.ID), chart)
+}
+
+// GetChatChart reads a chart of a user's conversation.
+func GetChatChart(ctx context.Context, kvStore *nats_pkg.KVStore, userName, orgHash, digitalTwinUid, chartId string) (common.ChatChart, error) {
+	var chart common.ChatChart
+	if !IsChartID(chartId) {
+		return chart, fmt.Errorf("invalid chart id %q", chartId)
+	}
+	err := kvStore.GetValue(ctx, GetFullChatChartKvStoreKey(userName, orgHash, digitalTwinUid, chartId), &chart)
+	return chart, err
+}
+
+func deleteChatCharts(ctx context.Context, log *logger.Logger, kvStore *nats_pkg.KVStore, userName, orgHash, digitalTwinUid string, charts [][]ChartRef) {
+	for _, refs := range charts {
+		for _, ref := range refs {
+			if !IsChartID(ref.ID) {
+				continue
+			}
+			if err := kvStore.DeleteEntry(ctx, GetFullChatChartKvStoreKey(userName, orgHash, digitalTwinUid, ref.ID)); err != nil {
+				log.Warnf("Chart %s of %s not deleted: %v", ref.ID, userName, err)
+			}
+		}
+	}
+}
+
+// DeleteChatHistory deletes a user's conversation and its charts.
+func DeleteChatHistory(ctx context.Context, log *logger.Logger, kvStore *nats_pkg.KVStore, userName, orgHash, digitalTwinUid string) error {
+	key := GetFullChatMessageKvStoreKey(userName, orgHash, digitalTwinUid)
+	if _, _, charts, err := GetChatHistory(ctx, log, kvStore, key, userName); err == nil {
+		deleteChatCharts(ctx, log, kvStore, userName, orgHash, digitalTwinUid, charts)
+	}
+	return kvStore.DeleteEntry(ctx, key)
+}
+
+// SaveChatMessages appends messages, and the tool calls and charts of each
+// one (chartsArray may be nil), to a user's conversation, keeping the last
+// maxChatMessagesPerUser; the charts of the messages that go are deleted.
 func SaveChatMessages(
 	ctx context.Context,
 	log *logger.Logger,
@@ -93,6 +156,7 @@ func SaveChatMessages(
 	maxChatMessagesPerUser int,
 	messages []StoredMessage,
 	toolCallsArray [][]ToolCall,
+	chartsArray [][]ChartRef,
 ) error {
 	if userName == "" {
 		return fmt.Errorf("userName cannot be empty")
@@ -102,25 +166,34 @@ func SaveChatMessages(
 	}
 
 	key := GetFullChatMessageKvStoreKey(userName, orgHash, digitalTwinUid)
-	currentMessages, currentToolCallsArray, err := GetCurrentChatMessages(ctx, log, kvStore, key, userName)
+	currentMessages, currentToolCallsArray, currentCharts, err := GetChatHistory(ctx, log, kvStore, key, userName)
 	if err != nil {
 		return fmt.Errorf("failed to retrieve current chat messages: %w", err)
 	}
+	for len(toolCallsArray) < len(messages) {
+		toolCallsArray = append(toolCallsArray, nil)
+	}
+	for len(chartsArray) < len(messages) {
+		chartsArray = append(chartsArray, nil)
+	}
 
 	updatedMessages := append(currentMessages, messages...)
-	if len(updatedMessages) > maxChatMessagesPerUser {
-		updatedMessages = updatedMessages[len(updatedMessages)-maxChatMessagesPerUser:]
-	}
-	updatedToolCallsArray := append(currentToolCallsArray, toolCallsArray...)
-	if len(updatedToolCallsArray) > maxChatMessagesPerUser {
-		updatedToolCallsArray = updatedToolCallsArray[len(updatedToolCallsArray)-maxChatMessagesPerUser:]
+	updatedToolCallsArray := append(currentToolCallsArray, toolCallsArray[:len(messages)]...)
+	updatedCharts := append(currentCharts, chartsArray[:len(messages)]...)
+	if drop := len(updatedMessages) - maxChatMessagesPerUser; maxChatMessagesPerUser > 0 && drop > 0 {
+		deleteChatCharts(ctx, log, kvStore, userName, orgHash, digitalTwinUid, updatedCharts[:drop])
+		updatedMessages = updatedMessages[drop:]
+		updatedToolCallsArray = updatedToolCallsArray[drop:]
+		updatedCharts = updatedCharts[drop:]
 	}
 
 	// The field names are the stored format's: the frontend and the
-	// conversations already stored use them.
+	// conversations already stored use them (ChartsArray is new: older
+	// conversations do not have it).
 	chatAssistantMessages := map[string]interface{}{
 		"ChatMessages":      updatedMessages,
 		"McpToolCallsArray": updatedToolCallsArray,
+		"ChartsArray":       updatedCharts,
 	}
 	if err := kvStore.SetValue(ctx, key, chatAssistantMessages); err != nil {
 		return fmt.Errorf("failed to save chat messages for user %s: %w", userName, err)
@@ -136,40 +209,61 @@ func GetCurrentChatMessages(
 	kvStore *nats_pkg.KVStore,
 	key, userName string,
 ) ([]StoredMessage, [][]ToolCall, error) {
+	messages, toolCalls, _, err := GetChatHistory(ctx, log, kvStore, key, userName)
+	return messages, toolCalls, err
+}
+
+// GetChatHistory reads a user's conversation with the tool calls and the
+// charts of each message (the three lists have the same length).
+func GetChatHistory(
+	ctx context.Context,
+	log *logger.Logger,
+	kvStore *nats_pkg.KVStore,
+	key, userName string,
+) ([]StoredMessage, [][]ToolCall, [][]ChartRef, error) {
 	stored, err := kvStore.GetObjectValue(ctx, key)
 	if err != nil {
 		if err.Error() == fmt.Sprintf("key %s not found", key) {
-			return []StoredMessage{}, [][]ToolCall{}, nil
+			return []StoredMessage{}, [][]ToolCall{}, [][]ChartRef{}, nil
 		}
 		log.Errorf("Failed to get chat messages for user %s: %v", userName, err)
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
 	// Through JSON: the KV store returns generic maps.
 	raw, err := json.Marshal(stored)
 	if err != nil {
-		return nil, nil, fmt.Errorf("invalid chat messages of user %s: %w", userName, err)
+		return nil, nil, nil, fmt.Errorf("invalid chat messages of user %s: %w", userName, err)
 	}
 	var data struct {
 		ChatMessages      *[]StoredMessage `json:"ChatMessages"`
 		McpToolCallsArray *[][]ToolCall    `json:"McpToolCallsArray"`
+		ChartsArray       [][]ChartRef     `json:"ChartsArray"`
 	}
 	if err := json.Unmarshal(raw, &data); err != nil {
-		return nil, nil, fmt.Errorf("invalid chat messages of user %s: %w", userName, err)
+		return nil, nil, nil, fmt.Errorf("invalid chat messages of user %s: %w", userName, err)
 	}
 	if data.ChatMessages == nil {
-		return nil, nil, fmt.Errorf("ChatMessages field not found in KV store data for user %s", userName)
+		return nil, nil, nil, fmt.Errorf("ChatMessages field not found in KV store data for user %s", userName)
 	}
 	if data.McpToolCallsArray == nil {
-		return nil, nil, fmt.Errorf("McpToolCallsArray field not found in KV store data for user %s", userName)
+		return nil, nil, nil, fmt.Errorf("McpToolCallsArray field not found in KV store data for user %s", userName)
 	}
 	messages := *data.ChatMessages
 	toolCalls := *data.McpToolCallsArray
-	// Keep them aligned (index i of one is index i of the other).
+	charts := data.ChartsArray
+	// Keep them aligned (index i of one is index i of the others); the
+	// conversations stored before the charts have none.
 	for len(toolCalls) < len(messages) {
 		toolCalls = append(toolCalls, nil)
 	}
-	return messages, toolCalls[len(toolCalls)-len(messages):], nil
+	if len(charts) > len(messages) {
+		charts = charts[len(charts)-len(messages):]
+	}
+	for len(charts) < len(messages) {
+		charts = append([][]ChartRef{nil}, charts...)
+	}
+	return messages, toolCalls[len(toolCalls)-len(messages):], charts, nil
 }
 
 func ParseMessage(messageStr string) ParsedMessage {

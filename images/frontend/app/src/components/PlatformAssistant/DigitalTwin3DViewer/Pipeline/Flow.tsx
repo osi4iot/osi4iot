@@ -1,6 +1,7 @@
 // @ts-nocheck
 import styled from "styled-components";
 import { useMlModelsInGroup } from "../../../../state";
+import { getViewerMemory, rememberViewer } from "../../../../state/viewerMemoryStore";
 import { nanoid } from "nanoid";
 import {
     Background,
@@ -136,8 +137,36 @@ export default function Flow({
     const { screenToFlowPosition } = useReactFlow();
     const { paletteCollapsed, togglePalette, paletteWidth, barOffset } = usePipelineLayout(rootRef);
 
+    // Lo que el usuario tenía en el editor al salir de él (pestaña 3D, otra capa): el desplazamiento y el
+    // zoom del lienzo y el nodo abierto en el panel de propiedades (el panel recupera lo escrito sin aplicar)
+    const dtUid = digitalTwinSelected?.digitalTwinUid ?? "";
+    const [memory] = useState(() => getViewerMemory(dtUid));
     const [selectedNode, setSelectedNode] = useState(null);
     const [isPanelOpen, setIsPanelOpen] = useState(false);
+    // El nodo abierto se vuelve a abrir cuando llegan los nodos: al montarse el visor otra vez (al volver
+    // de otra capa) el pipeline se carga después del primer render y los nodos llegan vacíos.
+    const pendingOpenNodeRef = useRef(memory.openNode?.nodeId ?? null);
+    useEffect(() => {
+        const nodeId = pendingOpenNodeRef.current;
+        if (!nodeId || nodes.length === 0) return;
+        pendingOpenNodeRef.current = null;
+        const node = nodes.find((n) => n.id === nodeId);
+        if (node && node.type !== "Comment") {
+            setSelectedNode(node);
+            setIsPanelOpen(true);
+        } else {
+            rememberViewer(dtUid, { openNode: null });
+        }
+    }, [dtUid, nodes]);
+    useEffect(() => {
+        if (!isPanelOpen && !pendingOpenNodeRef.current) rememberViewer(dtUid, { openNode: null });
+    }, [dtUid, isPanelOpen]);
+    const onMoveEnd = useCallback(
+        (_event, viewport) => {
+            if (viewport) rememberViewer(dtUid, { flowViewport: { x: viewport.x, y: viewport.y, zoom: viewport.zoom } });
+        },
+        [dtUid],
+    );
     const [nodeCounters, setNodeCounters] = useState({});
     const mlModelsTable = useMlModelsInGroup(digitalTwinSelected.groupId);
 
@@ -502,7 +531,8 @@ export default function Flow({
                     selectionKeyCode="Shift"
                     panOnDrag={true}
                     selectionOnDrag={false}
-                    defaultViewport={{ x: 0, y: 0, zoom: 1.5 }}
+                    defaultViewport={memory.flowViewport ?? { x: 0, y: 0, zoom: 1.5 }}
+                    onMoveEnd={onMoveEnd}
                     minZoom={0.3}
                     maxZoom={4}
                     fitView={false}

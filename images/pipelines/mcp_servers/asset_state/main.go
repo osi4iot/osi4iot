@@ -60,6 +60,7 @@ func main() {
 			"asset is the digital twin's own (it comes first); every asset is shown with its uid, which "+
 			"identifies it without doubt. Use it for an overview, or to find assets in a given status."),
 		mcp.WithString("status", mcp.Description("Only the assets with this status (any case); empty: all")),
+		mcp.WithString("timezone", mcp.Description(client.TimeZoneArg)),
 	), t.list)
 
 	s.AddTool(mcp.NewTool("get-asset-state",
@@ -68,6 +69,7 @@ func main() {
 		mcp.WithString("asset", mcp.Description(
 			"The asset: empty or 'current' for the digital twin's own; another asset's uid (unique), or its "+
 				"description when no other asset has it, as list-asset-states shows them")),
+		mcp.WithString("timezone", mcp.Description(client.TimeZoneArg)),
 	), t.get)
 
 	if err := server.ServeStdio(s); err != nil {
@@ -86,11 +88,11 @@ func (a assetState) title() string {
 	return t
 }
 
-func updated(t *time.Time) string {
+func updated(t *time.Time, z client.Zone) string {
 	if t == nil {
 		return "never set"
 	}
-	return client.Time(*t)
+	return z.Time(*t)
 }
 
 func (t *tools) states(ctx context.Context, asset string) ([]assetState, error) {
@@ -111,6 +113,7 @@ func (a assetState) whose() string {
 }
 
 func (t *tools) list(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	z := client.ZoneOf(req.GetArguments())
 	status := client.String(req.GetArguments(), "status")
 	assets, err := t.states(ctx, "")
 	if err != nil {
@@ -133,7 +136,7 @@ func (t *tools) list(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToo
 			fmt.Fprintf(&b, ", %s", a.StateDescription)
 		}
 		if a.LastUpdated != nil {
-			fmt.Fprintf(&b, " (updated %s)", updated(a.LastUpdated))
+			fmt.Fprintf(&b, " (updated %s)", updated(a.LastUpdated, z))
 		} else {
 			b.WriteString(" (never set)")
 		}
@@ -150,6 +153,7 @@ func (t *tools) list(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToo
 }
 
 func (t *tools) get(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	z := client.ZoneOf(req.GetArguments())
 	asset := client.String(req.GetArguments(), "asset")
 	if asset == "" {
 		asset = "current"
@@ -163,7 +167,7 @@ func (t *tools) get(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallTool
 		if i > 0 {
 			b.WriteString("\n")
 		}
-		fmt.Fprintf(&b, "%s [%s]\nStatus: %s\nDescription: %s\nLast update: %s\n", a.title(), a.whose(), a.Status, a.StateDescription, updated(a.LastUpdated))
+		fmt.Fprintf(&b, "%s [%s]\nStatus: %s\nDescription: %s\nLast update: %s\n", a.title(), a.whose(), a.Status, a.StateDescription, updated(a.LastUpdated, z))
 		keys := make([]string, 0, len(a.State))
 		for k := range a.State {
 			if k != "status" && k != "state_description" {

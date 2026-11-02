@@ -659,6 +659,7 @@ func (n *FuncNode) handleProcessedData(
 	} else if len(nodeOutputWires) == 1 {
 		if msg, ok := processedData.(common.Message); ok {
 			n.addEventTriggerTopicType(originalMessage.GetTopic(), msg)
+			common.InheritSender(originalMessage, msg)
 			for _, wire := range nodeOutputWires[0] {
 				if n.Debug == "on" {
 					n.HandleDebug(msg, 0)
@@ -677,6 +678,7 @@ func (n *FuncNode) handleProcessedData(
 					continue
 				}
 				n.addEventTriggerTopicType(originalMessage.GetTopic(), msg)
+				common.InheritSender(originalMessage, msg)
 			}
 			for idx, wireArray := range nodeOutputWires {
 				if idx < len(msgs) {
@@ -698,6 +700,7 @@ func (n *FuncNode) handleProcessedData(
 				}
 				if msg1, ok1 := msg.(common.Message); ok1 {
 					n.addEventTriggerTopicType(originalMessage.GetTopic(), msg1)
+					common.InheritSender(originalMessage, msg1)
 				}
 			}
 			for idx, wireArray := range nodeOutputWires {

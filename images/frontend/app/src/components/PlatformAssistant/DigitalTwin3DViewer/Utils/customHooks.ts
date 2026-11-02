@@ -32,13 +32,20 @@ import axiosErrorHandler from "../../../../tools/axiosErrorHandler";
 import { IMqttTopicData, INatsSubjectData } from "../Main/Model";
 import { base64ToJpg } from "../../../../tools/base64ToJpg";
 import { wsconnect, type NatsConnection } from "@nats-io/nats-core";
-import { natsInboxPrefix } from "../../../../tools/natsInbox";
+import { natsInboxPrefix, natsUserChatSubject } from "../../../../tools/natsInbox";
+import { ChatChart, sanitizeCharts } from "../ChatAssitant/chatCharts";
+import { isCollectionMapKey, resolveCollectionKeys, resolveSimulatorValues } from "./viewerContents";
 
-export const useViewerState = (initialActiveViewer?: "3D" | "pipeline" | "image_frame", initialPipelineUiChanged = false) => {
+export const useViewerState = (
+    initialActiveViewer?: "3D" | "pipeline" | "image_frame",
+    initialPipelineUiChanged = false,
+    // paneles que el usuario tenía abiertos (memoria del visor)
+    initialPanels?: { controlPanel: boolean; chatAssistant: boolean; pipelineLogs: boolean },
+) => {
     const [state, setState] = useState<ViewerState>({
-        isControlPanelOpen: false,
-        isChatAssistantOpen: false,
-        isPipelineLogsOpen: false,
+        isControlPanelOpen: initialPanels?.controlPanel ?? false,
+        isChatAssistantOpen: initialPanels?.chatAssistant ?? false,
+        isPipelineLogsOpen: initialPanels?.pipelineLogs ?? false,
         activeViewer: initialActiveViewer ?? "3D", // Default to 3D viewer
         showDtSimulatorModal: false,
         digitalTwinState: "OK",
@@ -381,7 +388,12 @@ export const useNatsConnection = () => {
 };
 
 export const useChatMessages = (
-    setOpts: (updater: ViewerOptions | ((prevOpts: ViewerOptions) => ViewerOptions)) => void
+    setOpts: (updater: ViewerOptions | ((prevOpts: ViewerOptions) => ViewerOptions)) => void,
+    // the inputs of the simulator (their names and ranges) and what to do when the agent changes them
+    simulatorRef?: React.MutableRefObject<{
+        format?: Record<string, { label?: string; units?: string; minValue?: number; maxValue?: number }>;
+        onChange?: () => void;
+    }>,
 ) => {
     const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
 
@@ -394,19 +406,26 @@ export const useChatMessages = (
                 sender: newLlmMessage.sender,
                 time: new Date().toLocaleTimeString(),
                 mcpToolCalls: newLlmMessage.mcpToolCalls,
+                charts: newLlmMessage.charts,
             };
             newMessages.push(newMessage);
             return newMessages;
         });
 
         if (newLlmMessage.sender === "assistant" && newLlmMessage.uiOpts != null) {
+            // merged key by key into copies (the previous options are not changed); the collections of the
+            // per-collection maps (sensorsVisibilityState...) are taken by their name, whatever its capitals
             const updateOpts = (opts: any, updates: any) => {
                 for (const [key, value] of Object.entries(updates)) {
                     if (typeof value === "object" && value !== null) {
                         if (Array.isArray(value)) {
                             opts[key] = [...value];
                         } else {
-                            opts[key] = updateOpts(opts[key] ?? {}, value);
+                            const current = opts[key] ?? {};
+                            const changes = isCollectionMapKey(key)
+                                ? resolveCollectionKeys(value as Record<string, unknown>, current)
+                                : value;
+                            opts[key] = updateOpts({ ...current }, changes);
                         }
                     } else {
                         opts[key] = value;
@@ -415,7 +434,17 @@ export const useChatMessages = (
                 return opts;
             };
 
-            setOpts((prevOpts) => updateOpts({ ...prevOpts }, newLlmMessage.uiOpts));
+            const uiOpts = { ...newLlmMessage.uiOpts };
+            const simulator = simulatorRef?.current;
+            let simulatorChanged = false;
+            if (uiOpts.digitalTwinSimulatorState && typeof uiOpts.digitalTwinSimulatorState === "object") {
+                const values = resolveSimulatorValues(uiOpts.digitalTwinSimulatorState, simulator?.format);
+                simulatorChanged = Object.keys(values).length !== 0;
+                if (simulatorChanged) uiOpts.digitalTwinSimulatorState = values;
+                else delete uiOpts.digitalTwinSimulatorState;
+            }
+            setOpts((prevOpts) => updateOpts({ ...prevOpts }, uiOpts));
+            if (simulatorChanged) simulator?.onChange?.();
         }
 
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -515,24 +544,40 @@ export const usePipelineState = (
             digitalTwinSelected.pipelineFileData !== "" &&
             natsClient &&
             sim2stateTopic !== "" &&
-            digitalTwinSelected.chatAssistantEnabled
+            digitalTwinSelected.chatAssistantEnabled &&
+            userName
         ) {
-            natsClient.publish(
-                sim2stateTopic,
-                JSON.stringify({
-                    action: "queryChatMessages",
-                    userName,
-                })
-            );
+            // en la copia del usuario de sim2state: pipelines toma de ella quién pregunta
+            natsClient.publish(natsUserChatSubject(userName, sim2stateTopic), JSON.stringify({ action: "queryChatMessages" }));
         }
     }, [digitalTwinSelected, natsClient, sim2stateTopic, userName]);
 
+    // The stored conversation of the user, and the images of its charts: the
+    // history brings only their references (one NATS message is 1 MB at
+    // most), and each image is asked for (queryChatChart) and comes alone.
+    // They come to the user's inbox, which only that user can read.
+    const requestedChartsRef = useRef<Set<string>>(new Set());
     const handleSetChatMessages = useCallback(
-        (storedMessages: ChatMessage[]) => {
+        (storedMessages: ChatMessage[] | undefined, owner?: string, chart?: ChatChart) => {
+            if (owner && userName && owner !== userName) return;
+            if (chart) {
+                const [image] = sanitizeCharts([chart]);
+                if (!image || !image.id || image.data === "") return;
+                setChatMessages((prev: ChatMessage[]) =>
+                    prev.map((m) =>
+                        m.charts?.some((c) => c.id === image.id)
+                            ? { ...m, charts: m.charts.map((c) => (c.id === image.id ? image : c)) }
+                            : m,
+                    ),
+                );
+                return;
+            }
+            if (storedMessages === undefined) return;
             const messages: ChatMessage[] = [];
             if (storedMessages == null) {
                 storedMessages = [];
             }
+            const missing: string[] = [];
             for (let i = 0; i < storedMessages.length; i++) {
                 const msg = storedMessages[i];
                 try {
@@ -541,21 +586,39 @@ export const usePipelineState = (
                         msg.message = msgObject.message;
                     }
                 } catch (e) {}
+                msg.charts = sanitizeCharts(msg.charts);
+                for (const c of msg.charts) {
+                    if (c.data === "" && c.id) missing.push(c.id);
+                }
                 messages.push(msg);
             }
             setChatMessages(messages);
+            if (natsClient && sim2stateTopic !== "" && userName) {
+                requestedChartsRef.current = new Set();
+                for (const id of missing) {
+                    if (requestedChartsRef.current.has(id)) continue;
+                    requestedChartsRef.current.add(id);
+                    natsClient.publish(
+                        natsUserChatSubject(userName, sim2stateTopic),
+                        JSON.stringify({ action: "queryChatChart", chartId: id }),
+                    );
+                }
+            }
         },
-        [setChatMessages]
+        [setChatMessages, natsClient, sim2stateTopic, userName]
     );
 
     const handleRemoveChatAssistantHistory = useCallback(() => {
-        if (digitalTwinSelected && digitalTwinSelected.pipelineFileData !== "" && natsClient && sim2stateTopic !== "") {
+        if (
+            digitalTwinSelected &&
+            digitalTwinSelected.pipelineFileData !== "" &&
+            natsClient &&
+            sim2stateTopic !== "" &&
+            userName
+        ) {
             natsClient.publish(
-                sim2stateTopic,
-                JSON.stringify({
-                    action: "queryRemoveChatMessages",
-                    userName,
-                })
+                natsUserChatSubject(userName, sim2stateTopic),
+                JSON.stringify({ action: "queryRemoveChatMessages" }),
             );
         }
     }, [digitalTwinSelected, natsClient, sim2stateTopic, userName]);

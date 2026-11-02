@@ -60,6 +60,9 @@ type Pipeline interface {
 	HasTelegramListenNodes() bool
 	HasTelegramListenNodesData() bool
 	PublishChatMessages(ctx context.Context, userName string)
+	// PublishChatChart sends a chart of a user's conversation (the history
+	// carries only references to them).
+	PublishChatChart(ctx context.Context, userName, chartId string)
 	PublishPipelineStatus(payload PipelineStatusMessage)
 	ResetNode(ctx context.Context, nodeUid string) error
 	RestartNode(ctx context.Context, nodeUid string) error

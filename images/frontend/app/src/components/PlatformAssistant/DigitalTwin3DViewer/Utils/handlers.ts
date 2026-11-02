@@ -127,12 +127,14 @@ export const createHandlers = (
     };
 
     const handleControlPanelOpenAndClose = () => {
-        const { isControlPanelOpen } = params;
+        const { isControlPanelOpen, lockReadingButtomLabel } = params;
 
         if (isControlPanelOpen) {
             setters.setIsControlPanelOpen(false);
         } else {
-            handleGetLastMeasurementsButton();
+            // the simulator shows the last measurements, unless the reading is locked: then it keeps the
+            // values being simulated (set in the Sim tab or by the AI agent)
+            if (lockReadingButtomLabel !== BUTTON_LABELS.UNLOCK_READ_MEASUREMENTS) handleGetLastMeasurementsButton();
             setters.setIsControlPanelOpen(true);
             setters.setChatAssistantOpen(false);
             setters.setPipelineLogsOpen(false);

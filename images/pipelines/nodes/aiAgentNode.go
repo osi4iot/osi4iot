@@ -12,6 +12,7 @@ import (
 	"pipelines/logger"
 	"pipelines/message"
 	"pipelines/utils"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -63,7 +64,10 @@ type AiAgentNode struct {
 	// stuck.
 	pendingMu   sync.Mutex
 	pendingUser string
-	pendingAt   time.Time // zero when no prompt is waiting for an answer
+	// pendingSender sent the prompt being answered: its answer goes back
+	// to it (to the user's inbox for the web chat, see PublishNode).
+	pendingSender *common.Sender
+	pendingAt     time.Time // zero when no prompt is waiting for an answer
 }
 
 // How long before the log says that an agent is still busy: accepting a
@@ -564,7 +568,7 @@ func (n *AiAgentNode) Start(ctx context.Context, log *logger.Logger, needReiniti
 // ready: after starting its MCP servers, and after answering the
 // previous prompt. Until then this waits, saying so in the log, and
 // gives up if the node stops.
-func (n *AiAgentNode) sendPrompt(prompt llmagent.Prompt, log *logger.Logger) error {
+func (n *AiAgentNode) sendPrompt(prompt llmagent.Prompt, sender *common.Sender, log *logger.Logger) error {
 	if n.GetStatus() != common.NodeStatusRunning {
 		log.Infof("AiAgentNode %s stopped during delay, discarding message", n.NodeUid)
 		return nil
@@ -580,7 +584,7 @@ func (n *AiAgentNode) sendPrompt(prompt llmagent.Prompt, log *logger.Logger) err
 		select {
 		case n.agentIn <- prompt:
 			n.pendingMu.Lock()
-			n.pendingUser, n.pendingAt = prompt.UserName, time.Now()
+			n.pendingUser, n.pendingAt, n.pendingSender = prompt.UserName, time.Now(), sender
 			n.pendingMu.Unlock()
 			if waited := time.Since(waitingSince); waited > time.Second {
 				log.Infof("AiAgentNode %s: prompt from %s accepted by the agent after %s", n.NodeUid, prompt.UserName, waited.Round(time.Second))
@@ -630,19 +634,26 @@ func (n *AiAgentNode) watchPendingPrompt(log *logger.Logger) {
 	}()
 }
 
-// answered clears the pending prompt and returns how long it took.
-func (n *AiAgentNode) answered() (string, time.Duration) {
+// answered clears the pending prompt and returns who sent it and how
+// long it took.
+func (n *AiAgentNode) answered() (string, *common.Sender, time.Duration) {
 	n.pendingMu.Lock()
 	defer n.pendingMu.Unlock()
-	user, since := n.pendingUser, n.pendingAt
-	n.pendingUser, n.pendingAt = "", time.Time{}
+	user, since, sender := n.pendingUser, n.pendingAt, n.pendingSender
+	n.pendingUser, n.pendingAt, n.pendingSender = "", time.Time{}, nil
 	if since.IsZero() {
-		return user, 0
+		return user, sender, 0
 	}
-	return user, time.Since(since)
+	return user, sender, time.Since(since)
 }
 
-func (n *AiAgentNode) handleInputWires(log *logger.Logger, processor func(llmagent.Prompt, *logger.Logger) error) {
+// anonymousChatUser asks the prompts that come without a sender (a
+// message published to the sim2llm topic itself, whose "userName" field
+// anyone could write): they are answered without a conversation, which
+// is neither read nor kept.
+const anonymousChatUser = "unknown"
+
+func (n *AiAgentNode) handleInputWires(log *logger.Logger, processor func(llmagent.Prompt, *common.Sender, *logger.Logger) error) {
 	nodeInputWires := n.GetNodeInputWires()
 	if len(nodeInputWires) == 0 {
 		return
@@ -672,16 +683,30 @@ func (n *AiAgentNode) handleInputWires(log *logger.Logger, processor func(llmage
 						continue
 					}
 
-					var userName, text string
-					userName, ok = msg.GetStringFromPayload("userName")
-					if !ok || userName == "" {
-						userName = "unknown"
+					// who asks: the sender pipelines knows (the user of the
+					// per-user sim2llm subject, the Telegram chat...), never
+					// the "userName" of the payload
+					var text string
+					userName := anonymousChatUser
+					sender := msg.GetSender()
+					if sender != nil && sender.User != "" {
+						userName = sender.User
+					} else {
+						sender = nil
+						log.Warnf("AiAgentNode %s: prompt without a known sender (not sent on the user's own %s.<user>.sim2llm... subject), answered without a conversation",
+							n.NodeUid, utils.UserChatSubjectPrefix)
 					}
 					text, ok = msg.GetStringFromPayload("message")
 					if !ok || text == "" {
 						text = "no prompt"
 					}
-					if err := processor(llmagent.Prompt{UserName: userName, Text: text}, log); err != nil {
+					// The user's time zone: the chat sends it; else the group's.
+					userZone, _ := msg.GetStringFromPayload("timeZone")
+					// what the chat's 3D viewer holds, so that uiOpts name it exactly
+					viewer, _ := msg.GetFieldFromPayload("viewer")
+					prompt := llmagent.Prompt{UserName: userName, Text: text, TimeZone: n.promptTimeZone(userZone),
+						Context: llmagent.ViewerContext(viewer)}
+					if err := processor(prompt, sender, log); err != nil {
 						n.HandleError(err)
 					}
 				}
@@ -717,7 +742,7 @@ func (n *AiAgentNode) handleAgentAnswers(log *logger.Logger) {
 // still working, so the user gets the error as the answer and the
 // pipeline log records it.
 func (n *AiAgentNode) handleAgentAnswer(answer llmagent.Answer, log *logger.Logger) {
-	user, took := n.answered()
+	user, sender, took := n.answered()
 	calls := toolCalls(answer.ToolCalls)
 	tools := make([]string, 0, len(calls))
 	for _, c := range calls {
@@ -739,7 +764,67 @@ func (n *AiAgentNode) handleAgentAnswer(answer llmagent.Answer, log *logger.Logg
 
 	parsed := utils.ParseMessage(text)
 	payload := utils.CreateCommonMessage(parsed, calls)
-	n.sendToOutputs(message.NewMessageFromPayload(payload), log)
+	if charts := n.answerCharts(answer.ToolCalls, log); len(charts) > 0 {
+		payload["charts"] = charts
+	}
+	outMsg := message.NewMessageFromPayload(payload)
+	outMsg.SetSender(sender)
+	n.sendToOutputs(outMsg, log)
+}
+
+// promptTimeZone is the time zone of a question: the user's (the chat
+// sends the browser's), else the group's, else UTC.
+func (n *AiAgentNode) promptTimeZone(userZone string) string {
+	groupZone := ""
+	if group := n.Fm.GetGroup(n.Pipeline.GetGroupId()); group != nil {
+		groupZone = group.Timezone
+	}
+	return llmagent.ResolveTimeZone(userZone, groupZone)
+}
+
+const (
+	// maxAnswerCharts and maxAnswerChartBytes bound the images of an
+	// answer: the chat gets it as one NATS message (1 MB at most).
+	maxAnswerCharts     = 4
+	maxAnswerChartBytes = 600 << 10
+)
+
+var chartIdRe = regexp.MustCompile(`chart_[0-9a-f]{24}`)
+
+// chartIDs are the charts the sensor_history tools (sensor-chart,
+// sensor-spectrum, sensor-distribution…) drew for an answer, in order.
+func chartIDs(calls []llmagent.ToolCall) []string {
+	var ids []string
+	for _, c := range calls {
+		if !strings.HasPrefix(c.ToolName, "sensor_history__") || c.Result == "" {
+			continue
+		}
+		if id := chartIdRe.FindString(c.Result); id != "" {
+			ids = append(ids, id)
+		}
+	}
+	return ids
+}
+
+// answerCharts takes the charts drawn for an answer, to send them with it.
+func (n *AiAgentNode) answerCharts(calls []llmagent.ToolCall, log *logger.Logger) []common.ChatChart {
+	var charts []common.ChatChart
+	total := 0
+	for _, id := range chartIDs(calls) {
+		chart, ok := n.Fm.TakeAgentChart(n.Pipeline.GetDigitalTwinId(), id)
+		if !ok {
+			log.Warnf("AiAgentNode %s: chart %s is no longer available", n.NodeUid, id)
+			continue
+		}
+		if len(charts) >= maxAnswerCharts || total+len(chart.Data) > maxAnswerChartBytes {
+			log.Warnf("AiAgentNode %s: chart %q not sent: an answer carries at most %d charts (%d KB)",
+				n.NodeUid, chart.Title, maxAnswerCharts, maxAnswerChartBytes>>10)
+			continue
+		}
+		total += len(chart.Data)
+		charts = append(charts, chart)
+	}
+	return charts
 }
 
 func toolCalls(calls []llmagent.ToolCall) []utils.ToolCall {
@@ -752,6 +837,9 @@ func toolCalls(calls []llmagent.ToolCall) []utils.ToolCall {
 
 // agentHistory gives the agent a user's stored conversation.
 func (n *AiAgentNode) agentHistory(userName string) []llmagent.HistoryMessage {
+	if userName == anonymousChatUser {
+		return nil
+	}
 	kvStore, _ := n.GetDigitalTwinKvStore(n.GetDigitalTwinId())
 	if kvStore == nil {
 		return nil
@@ -765,11 +853,30 @@ func (n *AiAgentNode) agentHistory(userName string) []llmagent.HistoryMessage {
 }
 
 // saveAgentTurn stores a prompt and its answer: the user message, the
-// assistant message, and the tool calls of the answer.
+// assistant message, the tool calls of the answer and its charts (each
+// image under its own key of the digital twin's KV store, so that the
+// conversation shows them again when it is opened).
 func (n *AiAgentNode) saveAgentTurn(userName, prompt, answer string, calls []llmagent.ToolCall) error {
+	if userName == anonymousChatUser {
+		return nil
+	}
 	kvStore, err := n.GetDigitalTwinKvStore(n.GetDigitalTwinId())
 	if err != nil {
 		return err
+	}
+	var refs []utils.ChartRef
+	total := 0
+	for _, id := range chartIDs(calls) {
+		chart, ok := n.Fm.PeekAgentChart(n.Pipeline.GetDigitalTwinId(), id)
+		if !ok || len(refs) >= maxAnswerCharts || total+len(chart.Data) > maxAnswerChartBytes {
+			continue // not sent with the answer either (answerCharts)
+		}
+		if err := utils.SaveChatChart(n.Ctx, kvStore, userName, n.GetOrgHash(), n.GetDigitalTwinUid(), chart); err != nil {
+			n.Fm.Log().Errorf("AiAgentNode %s: chart %s not kept with the conversation: %v", n.NodeUid, id, err)
+			continue
+		}
+		total += len(chart.Data)
+		refs = append(refs, utils.ChartRef{ID: chart.ID, Title: chart.Title})
 	}
 	messages := []utils.StoredMessage{
 		{Role: "user", Content: prompt},
@@ -785,6 +892,7 @@ func (n *AiAgentNode) saveAgentTurn(userName, prompt, answer string, calls []llm
 		n.Fm.GetMaxChatMessagesPerUser(),
 		messages,
 		[][]utils.ToolCall{nil, toolCalls(calls)},
+		[][]utils.ChartRef{nil, refs},
 	)
 	if err != nil {
 		n.Fm.Log().Errorf("Failed to save chat messages for user %s: %v", userName, err)

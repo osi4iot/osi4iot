@@ -4,10 +4,11 @@ import * as THREE from "three";
 import Paho from "paho-mqtt";
 import matches from "./matches";
 import { IAssetObject, IFemSimulationObject, IGenericObject, IMqttTopicData, ISensorObject } from "../Main/Model";
-import { AssetState, FemSimulationObjectState, GenericObjectState, SensorState } from "../ViewerTools/ViewerUtils";
+import { AssetState, FemSimulationObjectState, GenericObjectState, isSensorValue, SensorState } from "../ViewerTools/ViewerUtils";
 import { IThreeMesh } from "../Types/threeInterfaces";
 import formatDateString from "../../../../tools/formatDate";
-import { ChatMessage, LlmMessage } from "../ChatAssitant/ChatAssistant";
+import { ChatChart, ChatMessage, LlmMessage } from "../ChatAssitant/ChatAssistant";
+import { sanitizeCharts } from "../ChatAssitant/chatCharts";
 import { PipelineLog } from "../Pipeline/PipelineLogs";
 import { IMessage } from "./interfaces";
 
@@ -38,7 +39,7 @@ const useSubscription = (
     handleUpdateLogMessages: (newLogMessage: PipelineLog) => void,
     handlePipelineStatusChange: (pipelineStatus: string) => void,
     handlePipelineLeaderReplicaIndexChange: (index: number) => void,
-    handleSetChatMessages: (messages: ChatMessage[]) => void,
+    handleSetChatMessages: (messages: ChatMessage[] | undefined, owner?: string, chart?: ChatChart) => void,
     options: SubscribeOptions = {} as SubscribeOptions
 ) => {
     let femResultNames: string[] = [];
@@ -151,7 +152,7 @@ const updateObjectsState = (
     handleUpdateLogMessages: (newLogMessage: PipelineLog) => void,
     handlePipelineStatusChange: (pipelineStatus: string) => void,
     handlePipelineLeaderReplicaIndexChange: (index: number) => void,
-    handleSetChatMessages: (messages: ChatMessage[]) => void
+    handleSetChatMessages: (messages: ChatMessage[] | undefined, owner?: string, chart?: ChatChart) => void
 ) => {
     const mqttTopics = mqttTopicsData.map((topicData) => topicData.mqttTopic).filter((topic) => topic !== "");
     const sim2dtmTopicId = mqttTopicsData.filter((topic) => topic.topicRef === "sim2dtm")[0].topicId;
@@ -195,6 +196,7 @@ const updateObjectsState = (
                     message: mqttMessage.message,
                     uiOpts: mqttMessage.uiOpts,
                     mcpToolCalls: mqttMessage.mcpToolCalls,
+                    charts: sanitizeCharts(mqttMessage.charts),
                     sender: "assistant",
                 };
                 handleUpdateChatAssistantMessages(newMessage);
@@ -225,8 +227,9 @@ const updateObjectsState = (
                     handlePipelineLeaderReplicaIndexChange(mqttMessage.replicaIndexLeader);
                 }
 
-                if (mqttMessage.chatMessages !== undefined) {
-                    handleSetChatMessages(mqttMessage.chatMessages);
+                // the conversation of a user, or a chart of it: each viewer keeps its user's only
+                if (mqttMessage.chatMessages !== undefined || mqttMessage.chatChart !== undefined) {
+                    handleSetChatMessages(mqttMessage.chatMessages, mqttMessage.userName, mqttMessage.chatChart);
                 }
             }
 
@@ -249,14 +252,14 @@ const updateObjectsState = (
                             const value = mqttMessage[fieldName];
                             let stateString = sensorsNewState[objName].stateString;
                             if (
-                                typeof value === "number" ||
-                                (Array.isArray(value) && value.findIndex((elem: any) => elem === null) !== -1)
+                                isSensorValue(value)
                             ) {
                                 if (sensorTopicId === messageTopicId) stateString = "on";
                                 sensorsNewState[objName] = {
                                     ...sensorsNewState[objName],
                                     stateString,
                                     sensorValue: value,
+                                    valueTimestamp: Date.now(),
                                 };
                                 isSensorStateChanged = true;
                             }
@@ -399,8 +402,7 @@ const updateObjectsState = (
                         if (messagePayloadKeys.indexOf(fieldName) !== -1 || llmResponseValue !== null) {
                             const value = llmResponseValue === null ? mqttMessage[fieldName] : llmResponseValue;
                             if (
-                                typeof value === "number" ||
-                                (Array.isArray(value) && value.findIndex((elem: any) => elem === null) !== -1)
+                                isSensorValue(value)
                             ) {
                                 sensorsNewState[objName] = { ...sensorsNewState[objName], sensorValue: value };
                                 isSensorStateChanged = true;

@@ -27,6 +27,11 @@ import { getAxiosInstance } from "../../../tools/axiosIntance";
 import axiosErrorHandler from "../../../tools/axiosErrorHandler";
 import { AxiosError, AxiosResponse } from "axios";
 import { ControlsContainer, StaticFormContainer, FormSection } from "../../Tools/FormTools";
+import { browserTimeZone, timeZoneOptions } from "../../../tools/timeZones";
+
+// The AI agents show times in the user's time zone (the chat sends it);
+// the group's is for when it is not known (Telegram, voice notes).
+const timeZoneSelectOptions = timeZoneOptions();
 
 const GroupLocationContainer = styled.div`
     border: 2px solid #2c3235;
@@ -127,6 +132,7 @@ const initialCreateGroupInputData = {
     llmEnabled: false,
     gpuUsageEnabled: false,
     ragEnabled: false,
+    timezone: browserTimeZone(),
     groupAdminDataArray: [
         {
             firstName: "",
@@ -236,6 +242,7 @@ const CreateGroup: FC<CreateGroupProps> = ({
             gpuUsageEnabled: values.gpuUsageEnabled,
             // Only when enabled for the organization.
             ragEnabled: ragEnabledInOrg ? values.ragEnabled === true : false,
+            timezone: values.timezone ?? "",
         };
         setIsSubmitting(true);
         getAxiosInstance(refreshToken, authDispatch)
@@ -434,6 +441,13 @@ const CreateGroup: FC<CreateGroupProps> = ({
                                                 type="text"
                                             />
                                         )}
+                                        <FormikControl
+                                            control="select"
+                                            label="Time zone"
+                                            name="timezone"
+                                            options={timeZoneSelectOptions}
+                                            type="text"
+                                        />
                                         <FormSection title="Group location">
                                         <GroupLocationContainer>
                                             <FormikControl

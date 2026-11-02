@@ -1,6 +1,8 @@
 // DigitalTwin3DViewer.tsx
 import { FC, SetStateAction, useEffect, useLayoutEffect, useState, useRef, useCallback, useMemo } from "react";
 import { useTable } from "../../../../state";
+import { toMeasurements } from "../../../../tools/measurements";
+import type { SensorInfo } from "../Objects/Sensors";
 import { Canvas, useThree } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
 import { type NatsConnection, headers } from "@nats-io/nats-core";
@@ -8,7 +10,7 @@ import { StringCodec } from "../../../../tools/natsCodec";
 
 // Types and constants
 import { IPipelineEdge, IPipelineNode, Viewer3DProps, ViewerOptions } from "../Types/types";
-import { MOUSE_BUTTONS, LEGACY_COLOR_MANAGEMENT } from "../Utils/constants";
+import { MOUSE_BUTTONS, LEGACY_COLOR_MANAGEMENT, BUTTON_LABELS } from "../Utils/constants";
 
 // Components
 import { Stage } from "../Utils/Stage";
@@ -54,6 +56,8 @@ import {
 import { createHandlers } from "../Utils/handlers";
 import { useAuthDispatch, useAuthState } from "../../../../contexts/authContext";
 import { useLoggedUserLogin } from "../../../../contexts/authContext/authContext";
+import { natsUserChatSubject } from "../../../../tools/natsInbox";
+import { viewerContents } from "../Utils/viewerContents";
 import PipelineErrorBoundary from "../Pipeline/PipelineErrorBoundary";
 import { forgetViewer, getViewerMemory, rememberViewer } from "../../../../state/viewerMemoryStore";
 import {
@@ -70,6 +74,7 @@ import { ImageFrame } from "../PhotoFrame/PhotoFrame";
 import useNatsSubscription from "../NatsHook/useNatsSubcription";
 import { filterNatsSubject } from "../NatsHook/tools";
 import * as THREE from "three";
+import { browserTimeZone } from "../../../../tools/timeZones";
 
 const sc = StringCodec();
 
@@ -95,6 +100,34 @@ const mergeVisibilityState = <T,>(initial: Record<string, T>, previous: Record<s
     return merged;
 };
 
+// Guarda en la memoria del visor la cámara que deja el usuario (al terminar cada giro, desplazamiento o
+// zoom con los controles de órbita): al volver al visor, Stage la recupera en lugar de encuadrar el modelo.
+const CameraMemory: FC<{ dtUid: string; controlsRef: { current: any } }> = ({ dtUid, controlsRef }) => {
+    const camera = useThree((state) => state.camera);
+    const size = useThree((state) => state.size);
+    const sizeRef = useRef(size);
+    sizeRef.current = size;
+    useEffect(() => {
+        const ctrl = controlsRef.current;
+        if (!ctrl || !dtUid) return;
+        const save = () => {
+            const viewSize = Math.min(sizeRef.current.width, sizeRef.current.height);
+            if (viewSize <= 0) return;
+            rememberViewer(dtUid, {
+                camera: {
+                    position: camera.position.toArray() as [number, number, number],
+                    target: ctrl.target.toArray() as [number, number, number],
+                    zoom: camera.zoom,
+                    viewSize,
+                },
+            });
+        };
+        ctrl.addEventListener("end", save);
+        return () => ctrl.removeEventListener("end", save);
+    }, [camera, controlsRef, dtUid]);
+    return null;
+};
+
 const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
     digitalTwinSelected,
     digitalTwinGltfData,
@@ -114,10 +147,19 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
     // Memoria del visor de este gemelo digital (vista activa, opciones, pipeline sin desplegar, logs): si el
     // visor se vuelve a montar (cambio de capa, recarga de datos) se recupera lo que tenía el usuario.
     const memory = useMemo(() => getViewerMemory(dtUid), [dtUid]);
-    const [state, setState] = useViewerState(memory.activeViewer, !!memory.pipeline?.changed);
+    const [state, setState] = useViewerState(memory.activeViewer, !!memory.pipeline?.changed, memory.panels);
     useEffect(() => {
         rememberViewer(dtUid, { activeViewer: state.activeViewer });
     }, [dtUid, state.activeViewer]);
+    useEffect(() => {
+        rememberViewer(dtUid, {
+            panels: {
+                controlPanel: state.isControlPanelOpen,
+                chatAssistant: state.isChatAssistantOpen,
+                pipelineLogs: state.isPipelineLogsOpen,
+            },
+        });
+    }, [dtUid, state.isControlPanelOpen, state.isChatAssistantOpen, state.isPipelineLogsOpen]);
     const handleClose3DViewer = useCallback(() => {
         forgetViewer(dtUid);
         close3DViewer();
@@ -126,6 +168,24 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
     // Grupo y organización del gemelo digital: si no hay ninguno seleccionado en el mapa (o es otro),
     // se buscan en las tablas a partir del groupId del gemelo digital.
     const groupsManagedTable = useTable("groupsManaged");
+    // the user's default time zone (profile); "": the browser's
+    const userProfile = useTable("userProfile");
+    const userTimeZone = userProfile?.timezone || browserTimeZone();
+    // nombre y medidas de los sensores del activo del gemelo, para sus marcadores (por sensorRef)
+    const sensorsTable = useTable("sensors");
+    const sensorsInfo = useMemo(() => {
+        const info: Record<string, SensorInfo> = {};
+        const assetId = digitalTwinSelected?.assetId;
+        for (const sensor of sensorsTable) {
+            if (assetId !== undefined && sensor.assetId !== assetId) continue;
+            info[sensor.sensorRef] = {
+                description: sensor.description,
+                sensorType: sensor.sensorType,
+                measurements: toMeasurements(sensor.measurements),
+            };
+        }
+        return info;
+    }, [sensorsTable, digitalTwinSelected?.assetId]);
     const orgsOfGroupsManagedTable = useTable("orgsOfGroupsManaged");
     const dtGroup = useMemo(() => {
         const groupId = digitalTwinSelected?.groupId;
@@ -157,7 +217,24 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
     useEffect(() => {
         rememberViewer(dtUid, { opts });
     }, [dtUid, opts]);
-    const { chatMessages, setChatMessages, handleUpdateChatAssistantMessages } = useChatMessages(setOpts);
+    // Cuando el AI Agent cambia el simulador, el visor deja de leer las medidas reales (como "Lock read
+    // measurements", pero sin pedir las últimas medidas, que pisarían los valores): si no, la siguiente
+    // medida los sustituía y nunca llegaban al pipeline.
+    const simulatorRef = useRef<{ format?: any; onChange?: () => void }>({});
+    simulatorRef.current = {
+        format: digitalTwinGltfData.digitalTwinSimulationFormat,
+        onChange: () =>
+            setState((prev) =>
+                prev.digitalTwinSimulatorSendData
+                    ? prev
+                    : {
+                          ...prev,
+                          digitalTwinSimulatorSendData: true,
+                          lockReadingButtomLabel: BUTTON_LABELS.UNLOCK_READ_MEASUREMENTS,
+                      },
+            ),
+    };
+    const { chatMessages, setChatMessages, handleUpdateChatAssistantMessages } = useChatMessages(setOpts, simulatorRef);
     const { logMessages, setLogMessages, handleUpdateLogMessages } = usePipelineLogs(
         setChatMessages,
         memory.logMessages as PipelineLog[] | undefined,
@@ -487,6 +564,28 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
         if (state.initialFemSimObjectsState) setCurrentFemSimulationObjectsState(state.initialFemSimObjectsState);
     }, [state.initialFemSimObjectsState]);
 
+    // Valores del simulador como texto comparable: solo sus campos (los del formato del gemelo), en orden fijo
+    const simulatorFields = useMemo(
+        () => Object.keys(digitalTwinGltfData.digitalTwinSimulationFormat ?? {}).sort(),
+        [digitalTwinGltfData.digitalTwinSimulationFormat],
+    );
+    const simulatorValuesKey = useCallback(
+        (values: unknown) => {
+            let record = values as Record<string, unknown> | null | undefined;
+            if (typeof values === "string") {
+                try {
+                    record = values ? JSON.parse(values) : null;
+                } catch {
+                    record = null;
+                }
+            }
+            if (!record || typeof record !== "object") return "";
+            return JSON.stringify(simulatorFields.map((field) => record?.[field] ?? null));
+        },
+        [simulatorFields],
+    );
+    const lastSimulatorValuesRef = useRef<string | null>(null);
+
     // 1. Send digital twin simulator state via NATS
     useLayoutEffect(() => {
         if (natsClient && opts.digitalTwinSimulatorState !== undefined) {
@@ -502,18 +601,26 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
                         setLastNatsMessageSent(messageToSend);
                     }
                 } else {
-                    const dtSimStateString = JSON.stringify(opts.digitalTwinSimulatorState);
-                    const initialDTSimStateString = JSON.stringify(state.initialDigitalTwinSimulatorState);
+                    // Aviso solo cuando el usuario cambia un valor del simulador sin bloquear la lectura de los
+                    // sensores. Se comparan solo los campos del simulador, en un orden fijo: el estado inicial
+                    // (último mensaje) puede traer otros campos (timestamp) o en otro orden, y antes el aviso
+                    // salía cada vez que se volvía a evaluar este efecto, p. ej. al abrir el Inspector.
+                    const current = simulatorValuesKey(opts.digitalTwinSimulatorState);
+                    const previous = lastSimulatorValuesRef.current;
                     if (
-                        dtSimStateString !== lastNatsMessageSent &&
-                        dtSimStateString !== initialDTSimStateString &&
+                        previous !== null &&
+                        current !== previous &&
+                        current !== simulatorValuesKey(state.initialDigitalTwinSimulatorState) &&
+                        current !== simulatorValuesKey(lastNatsMessageSent) &&
                         !(state.isChatAssistantOpen || state.showDtSimulatorModal || state.activeViewer === "pipeline")
                     ) {
                         toast.warning(
                             "Warning: To use the digital twin simulator, reading the measurements from the sensors must be locked.",
+                            { toastId: "simulator-locked-warning" },
                         );
                     }
                 }
+                lastSimulatorValuesRef.current = simulatorValuesKey(opts.digitalTwinSimulatorState);
             }
         }
     }, [
@@ -528,17 +635,37 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
         state.activeViewer,
     ]);
 
-    // 2. Send chat assistant messages via NATS
+    // Lo que contiene el visor, para el AI Agent (en una ref: si cambia no se reenvía la última pregunta)
+    const viewerContentsRef = useRef(viewerContents({}));
+    viewerContentsRef.current = viewerContents({
+        sensorCollectionNames: state.sensorCollectionNames,
+        assetCollectionNames: state.assetCollectionNames,
+        animatedObjectNames: Object.keys(opts.animatedObjectsVisibilityState ?? {}),
+        genericObjectCollectionNames: state.genericObjectCollectionNames,
+        femSimObjectCollectionNames: state.femSimObjectCollectionNames,
+        femResultNames: state.femResultNames,
+        simulationFormat: digitalTwinGltfData.digitalTwinSimulationFormat,
+        simulatorState: opts.digitalTwinSimulatorState,
+    });
+
+    // 2. Send chat assistant messages via NATS, on the user's own copy of the sim2llm topic: pipelines takes
+    // from it who asks (the "userName" field is only informative) and sends the answer to the user's inbox
+    const promptUserName = useLoggedUserLogin();
     useLayoutEffect(() => {
-        if (natsClient && state.isChatAssistantOpen) {
+        if (natsClient && state.isChatAssistantOpen && promptUserName) {
             if (digitalTwinModelChatAssistantTopic) {
-                const natsSubject = digitalTwinModelChatAssistantTopic.natsSubject;
+                const natsSubject = natsUserChatSubject(promptUserName, digitalTwinModelChatAssistantTopic.natsSubject);
                 const lastMessage = chatMessages[chatMessages.length - 1];
                 // las preguntas de voz transcritas en el pipeline ya las ha enviado él al AI Agent
                 if (lastMessage && lastMessage.sender === "user" && lastMessage.source !== "pipeline") {
+                    // timeZone: the AI agent writes the times in the user's zone (the
+                    // group's when the question comes without it, e.g. from Telegram)
+                    // viewer: what the 3D viewer holds, so that the AI agent names it exactly in uiOpts
                     const messageToSend = JSON.stringify({
                         userName: chatMessages[chatMessages.length - 1].userName,
                         message: chatMessages[chatMessages.length - 1].message,
+                        timeZone: userTimeZone,
+                        viewer: viewerContentsRef.current,
                     });
                     const h = headers();
                     h.set("Content-Type", "application/json");
@@ -547,7 +674,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
                 }
             }
         }
-    }, [natsClient, state.isChatAssistantOpen, chatMessages, digitalTwinModelChatAssistantTopic]);
+    }, [natsClient, state.isChatAssistantOpen, chatMessages, digitalTwinModelChatAssistantTopic, userTimeZone, promptUserName]);
 
     // Pregunta de voz (sensor "Mobile audio", nota de voz de Telegram) transcrita por el pipeline: llega por
     // llm2sim con el campo "transcription" y el pipeline ya la ha enviado al AI Agent, así que aquí solo se
@@ -617,6 +744,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
         handlePipelineStatusChange,
         handlePipelineLeaderReplicaIndexChange,
         handleSetChatMessages,
+        loggedUserName,
     );
 
     const [pipelineNodes, setPipelineNodes] = useState([] as IPipelineNode[]);
@@ -798,9 +926,11 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
                             showAxes={opts.showAxes}
                             axesScale={opts.axesScale}
                             femResultLoaded={state.femResultLoaded}
+                            initialView={memory.camera}
                         >
                             <Model
                                 digitalTwinGltfData={digitalTwinGltfData}
+                                sensorsInfo={sensorsInfo}
                                 femResultData={state.femResultData}
                                 sensorObjects={state.sensorObjects}
                                 initialSensorsState={state.initialSensorsState ?? {}}
@@ -824,6 +954,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
                                 sensorsOpacity={opts.sensorsOpacity}
                                 highlightAllSensors={opts.highlightAllSensors}
                                 showAllSensorsMarker={opts.showAllSensorsMarker}
+                                showOccludedSensorMarkers={opts.showOccludedSensorMarkers !== false}
                                 hideAllSensors={opts.hideAllSensors}
                                 assetsOpacity={opts.assetsOpacity}
                                 highlightAllAssets={opts.highlightAllAssets}
@@ -894,6 +1025,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
                             />
                         </Stage>
                         <OrbitControls ref={controlsRef} mouseButtons={MOUSE_BUTTONS} />
+                        <CameraMemory dtUid={dtUid} controlsRef={controlsRef} />
                     </Canvas>
                 </div>
                 {state.activeViewer === "pipeline" && (

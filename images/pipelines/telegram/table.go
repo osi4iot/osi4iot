@@ -37,7 +37,7 @@ func (t *Table) RenderTable() string {
                 sb.WriteString(mid)
             }
         }
-        sb.WriteString(right + "\n")
+        sb.WriteString(right);sb.WriteString("\n")
         return sb.String()
     }
 

@@ -151,55 +151,76 @@ func (fm *FlowsManager) UpdatePipelineInDigitalTwin(ctx context.Context, digital
 	digitalTwin.Pipeline.StartStatusPublisher(ctx)
 }
 
-func (fm *FlowsManager) SetPipelineStatusSubscription(ctx context.Context, digitalTwin *common.DigitalTwin) *nats.Subscription {
+// SetPipelineStatusSubscription answers what the viewers of the digital
+// twin ask on its sim2state topic. The pipeline status, to anyone who may
+// publish there. The chat history and its charts, only on the user's own
+// copy of the topic (utils.UserChatSubject): the user is the one in the
+// subject, never a field of the message, and the answer goes to that
+// user's inbox.
+func (fm *FlowsManager) SetPipelineStatusSubscription(ctx context.Context, digitalTwin *common.DigitalTwin) *common.SubscriptionGroup {
 	p := digitalTwin.Pipeline
 	sim2stateTopic := fm.GetTopicByTopicRef(p.GetAssetId(), p.GetDigitalTwinId(), "sim2state")
+	if sim2stateTopic == nil {
+		fm.log.Errorf("No sim2state topic is set for digital twin %d", digitalTwin.Id)
+		return nil
+	}
 	sim2stateSubject := utils.TopicToNatsSubject(sim2stateTopic.TopicType, sim2stateTopic.GroupUid, sim2stateTopic.TopicUid)
 
-	if sim2stateSubject == "" {
-		fm.log.Errorf("No sim2state subject is set for digital twin %d", digitalTwin.Id)
-		return nil
+	handle := func(msg *nats.Msg, userName string) {
+		var rawMessage map[string]interface{}
+		if err := json.Unmarshal(msg.Data, &rawMessage); err != nil {
+			fm.log.Errorf("failed to unmarshal message for digital twin %d: %v", digitalTwin.Id, err)
+			return
+		}
+		action, _ := rawMessage["action"].(string)
+		switch action {
+		case "queryPipelineStatus":
+			pipelineStatus := p.GetStatus().String()
+			replicaIndexLeader := p.GetReplicaIndexLeader(ctx)
+			payload := common.PipelineStatusMessage{
+				PipelineStatus:     pipelineStatus,
+				ReplicaIndexLeader: replicaIndexLeader,
+			}
+			p.PublishPipelineStatus(payload)
+		case "queryChatMessages", "queryChatChart", "queryRemoveChatMessages":
+			if userName == "" {
+				fm.log.Warnf("Digital twin %d: %s ignored, it came on %s and not on the user's subject (%s)",
+					digitalTwin.Id, action, msg.Subject, utils.AllUsersChatSubject(sim2stateSubject))
+				return
+			}
+			switch action {
+			case "queryChatMessages":
+				p.PublishChatMessages(ctx, userName)
+			case "queryChatChart":
+				if chartId, _ := rawMessage["chartId"].(string); chartId != "" {
+					p.PublishChatChart(ctx, userName, chartId)
+				}
+			case "queryRemoveChatMessages":
+				p.ClearChatMessagesHistory(ctx, userName)
+			}
+		}
 	}
 
 	queueName := fmt.Sprintf("pipeline_status_%s", digitalTwin.DigitalTwinUid)
 	sub, err := fm.NatsQueueSubscribe(sim2stateSubject, queueName, func(msg *nats.Msg) {
-		var rawMessage map[string]interface{}
-		if err := json.Unmarshal(msg.Data, &rawMessage); err != nil {
-			fm.log.Errorf("failed to unmarshal message for digital twin %d: %w", digitalTwin.Id, err)
-			return
-		}
-
-		if action, ok := rawMessage["action"].(string); ok {
-			switch action {
-			case "queryPipelineStatus":
-				pipelineStatus := p.GetStatus().String()
-				replicaIndexLeader := p.GetReplicaIndexLeader(ctx)
-				payload := common.PipelineStatusMessage{
-					PipelineStatus:     pipelineStatus,
-					ReplicaIndexLeader: replicaIndexLeader,
-				}
-				p.PublishPipelineStatus(payload)
-			case "queryChatMessages":
-				if userName, ok := rawMessage["userName"].(string); ok {
-					p.PublishChatMessages(ctx, userName)
-				} else {
-					fm.log.Errorf("userName not found in message for digital twin %d", digitalTwin.Id)
-				}
-			case "queryRemoveChatMessages":
-				if userName, ok := rawMessage["userName"].(string); ok {
-					p.ClearChatMessagesHistory(ctx, userName)
-				} else {
-					fm.log.Errorf("userName not found in message for digital twin %d", digitalTwin.Id)
-				}
-			}
-		}
-
+		handle(msg, "")
 	})
 	if err != nil {
 		fm.log.Errorf("Failed to subscribe to status subject for digital twin %d: %v", digitalTwin.Id, err)
 		return nil
 	}
-	return sub
+	userSub, err := fm.NatsQueueSubscribe(utils.AllUsersChatSubject(sim2stateSubject), queueName, func(msg *nats.Msg) {
+		userName, ok := utils.UserOfChatSubject(msg.Subject, sim2stateSubject)
+		if !ok {
+			fm.log.Warnf("Digital twin %d: message on %s without a valid user", digitalTwin.Id, msg.Subject)
+			return
+		}
+		handle(msg, userName)
+	})
+	if err != nil {
+		fm.log.Errorf("Failed to subscribe to the users' status subject for digital twin %d: %v", digitalTwin.Id, err)
+	}
+	return common.NewSubscriptionGroup(sub, userSub)
 }
 
 func (fm *FlowsManager) DeleteDigitalTwin(ctx context.Context, digitalTwinId int) error {

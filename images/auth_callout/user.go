@@ -47,7 +47,7 @@ func (u *User) GetPermissions(authModel *AuthModel, group *Group, svc *Service) 
 		}
 		return jwt.Permissions{
 			Pub: jwt.Permission{
-				Deny : []string{">"},
+				Deny: []string{">"},
 			},
 			Sub: jwt.Permission{
 				Allow: subjectArrray,
@@ -82,6 +82,11 @@ func (u *User) GetPermissions(authModel *AuthModel, group *Group, svc *Service) 
 			denyPub = append(denyPub, groupPermissions.Pub.Deny...)
 			denySub = append(denySub, groupPermissions.Sub.Deny...)
 		}
+
+		// its own copies of the chat topics of its groups (inbox.go), with
+		// the same restrictions as the topics
+		pubSubjetArray = append(pubSubjetArray, UserChatSubjects(u.Username, pubSubjetArray)...)
+		denyPub = append(denyPub, UserChatSubjects(u.Username, denyPub)...)
 
 		if len(pubSubjetArray) == 0 {
 			denyPub = append(denyPub, ">")

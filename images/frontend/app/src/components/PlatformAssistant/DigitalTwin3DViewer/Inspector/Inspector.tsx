@@ -543,6 +543,13 @@ export const Inspector: FC<InspectorProps> = ({
                 {keys.deep && (
                     <SwitchRow label="Show deep objects" checked={!!o[keys.deep]} onChange={(v) => set([keys.deep!], v)} />
                 )}
+                {kind === "sensors" && (
+                    <SwitchRow
+                        label="Markers behind objects"
+                        checked={opts.showOccludedSensorMarkers !== false}
+                        onChange={(v) => set(["showOccludedSensorMarkers"], v)}
+                    />
+                )}
             </CollectionRow>
         );
 

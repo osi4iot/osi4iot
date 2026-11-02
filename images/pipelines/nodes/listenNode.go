@@ -134,7 +134,31 @@ func (n *ListenNode) Start(ctx context.Context, log *logger.Logger, needReinitia
 		log.Infof("Subscribing to topic: %s", topic)
 		n.wg.Add(1)
 		go n.handleNatsSubscription(log, topic, n.processNatsMessage)
+		// the chat topics (sim2llm) also come from each user's own copy,
+		// which says who sends them (utils.UserChatSubject)
+		if n.ListenTo == "Topic reference" && utils.HasUserChatCopy(topic) {
+			n.wg.Add(1)
+			go n.handleNatsSubscription(log, utils.AllUsersChatSubject(topic), n.processNatsMessage)
+		}
 	}
+}
+
+// chatSender says who sent a message of a chat topic: the user of its
+// per-user subject, else nobody. It returns the topic subject, without
+// the user part.
+func (n *ListenNode) chatSender(subject string) (string, *common.Sender) {
+	if n.ListenTo != "Topic reference" {
+		return subject, nil
+	}
+	for _, topic := range n.Topics {
+		if !utils.HasUserChatCopy(topic) {
+			continue
+		}
+		if user, ok := utils.UserOfChatSubject(subject, topic); ok {
+			return topic, &common.Sender{User: user, Source: common.SenderSourceNats}
+		}
+	}
+	return subject, nil
 }
 
 func (n *ListenNode) processNatsMessage(msg *nats.Msg, log *logger.Logger) error {
@@ -153,6 +177,22 @@ func (n *ListenNode) processNatsMessage(msg *nats.Msg, log *logger.Logger) error
 	outMsg, err := n.buildMessageFromNats(msg, contentType, jsonStructure)
 	if err != nil {
 		return fmt.Errorf("failed to build message for node %s: %w", n.NodeUid, err)
+	}
+	// Who asks in a chat topic: the "userName" of the payload is only
+	// what the publisher wrote, so it is the user of the subject or none.
+	if topic, sender := n.chatSender(msg.Subject); sender != nil || utils.HasUserChatCopy(msg.Subject) ||
+		strings.HasPrefix(msg.Subject, utils.UserChatSubjectPrefix+".") {
+		if m, ok := outMsg.(*message.Message); ok {
+			m.Topic = topic
+		}
+		outMsg.SetSender(sender)
+		if payload := outMsg.GetPayload(); payload != nil {
+			if sender != nil {
+				payload["userName"] = sender.User
+			} else {
+				delete(payload, "userName")
+			}
+		}
 	}
 	addMissingTimestamp(outMsg, messageTimestamp(msg.Header, time.Now()))
 

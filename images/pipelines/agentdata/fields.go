@@ -57,28 +57,51 @@ func (a AssetInfo) name() string {
 	return n
 }
 
-// resolveAsset finds the asset a tool call names: "current" (or nothing)
-// is the digital twin's own; else its uid or, when no other asset has it,
-// its description (any case). An ambiguous description is an error that
-// lists the uids.
-func resolveAsset(assets []AssetInfo, spec string) (AssetInfo, error) {
-	spec = strings.TrimSpace(spec)
-	if spec == "" || strings.EqualFold(spec, "current") {
+// resolveAsset finds the asset a tool call names: "current" (or nothing,
+// "this", "own"...) is the digital twin's own, and so is any of
+// ownAliases (the digital twin's name). Else its uid or, when no other
+// asset has it, its description (any case). The model may also copy what
+// list-sensors shows ("Asset_<uid>", "<uid> — <description> (<type>)").
+// An unknown or ambiguous asset is an error that lists the group's assets,
+// so that the next call can name one of them.
+func resolveAsset(assets []AssetInfo, spec string, ownAliases ...string) (AssetInfo, error) {
+	own := func() (AssetInfo, error) {
 		for _, a := range assets {
 			if a.OfDigitalTwin {
 				return a, nil
 			}
 		}
-		return AssetInfo{}, fmt.Errorf("the digital twin has no asset in the group")
+		return AssetInfo{}, fmt.Errorf("the digital twin has no asset in the group; leave asset out and name the sensor")
 	}
-	for _, a := range assets {
-		if strings.EqualFold(a.Uid, spec) {
-			return a, nil
+	spec = normalizeName(spec)
+	if spec == "" || isOwnAssetWord(spec) {
+		return own()
+	}
+	candidates := []string{spec}
+	if before, _, ok := strings.Cut(spec, " — "); ok {
+		candidates = append(candidates, normalizeName(before))
+	}
+	if after, ok := cutPrefixFold(spec, "asset_"); ok {
+		candidates = append(candidates, normalizeName(after))
+	}
+	if after, ok := cutPrefixFold(spec, "asset "); ok {
+		candidates = append(candidates, normalizeName(after))
+	}
+	for _, cand := range candidates {
+		for _, a := range assets {
+			if strings.EqualFold(a.Uid, cand) {
+				return a, nil
+			}
+		}
+	}
+	for _, alias := range ownAliases {
+		if alias = normalizeName(alias); alias != "" && strings.EqualFold(alias, spec) {
+			return own()
 		}
 	}
 	var matches []AssetInfo
 	for _, a := range assets {
-		if strings.EqualFold(a.Description, spec) {
+		if a.Description != "" && strings.EqualFold(normalizeName(a.Description), spec) {
 			matches = append(matches, a)
 		}
 	}
@@ -86,13 +109,56 @@ func resolveAsset(assets []AssetInfo, spec string) (AssetInfo, error) {
 	case 1:
 		return matches[0], nil
 	case 0:
-		return AssetInfo{}, fmt.Errorf("no asset %q in the group (use its uid, or 'current' for the digital twin's own)", spec)
+		return AssetInfo{}, fmt.Errorf("no asset %q in the group. %s", spec, assetsHint(assets))
 	}
 	names := make([]string, 0, len(matches))
 	for _, a := range matches {
 		names = append(names, a.name())
 	}
 	return AssetInfo{}, fmt.Errorf("several assets are described as %q: %s; use the uid", spec, strings.Join(names, ", "))
+}
+
+// normalizeName trims a name, drops a note in brackets at its end ("[this
+// digital twin's]") and collapses its spaces.
+func normalizeName(s string) string {
+	s = strings.TrimSpace(s)
+	if i := strings.LastIndex(s, "["); i > 0 && strings.HasSuffix(s, "]") {
+		s = strings.TrimSpace(s[:i])
+	}
+	return strings.Join(strings.Fields(s), " ")
+}
+
+func isOwnAssetWord(s string) bool {
+	switch strings.ToLower(s) {
+	case "current", "this", "own", "self", "this asset", "own asset", "current asset",
+		"this digital twin", "digital twin", "this digital twin's", "the digital twin's asset":
+		return true
+	}
+	return false
+}
+
+func cutPrefixFold(s, prefix string) (string, bool) {
+	if len(s) > len(prefix) && strings.EqualFold(s[:len(prefix)], prefix) {
+		return s[len(prefix):], true
+	}
+	return "", false
+}
+
+// assetsHint lists the group's assets for an error message.
+func assetsHint(assets []AssetInfo) string {
+	if len(assets) == 0 {
+		return "Leave asset out and name the sensor."
+	}
+	names := make([]string, 0, len(assets))
+	for _, a := range assets {
+		n := a.name()
+		if a.OfDigitalTwin {
+			n = "'current' = " + n
+		}
+		names = append(names, n)
+	}
+	return "Use 'current' for this digital twin's asset, or leave asset out and name the sensor. The group's assets: " +
+		strings.Join(names, "; ") + "."
 }
 
 func sensorFields(s *common.Sensor) []Field {
@@ -263,15 +329,19 @@ func fieldNames(fields []Field) string {
 }
 
 // timeRange reads the from/to of a call: Grafana-like relative times
-// ("now-24h", "now/d"), dates and times, or Unix timestamps. Defaults: the
-// last 24 hours.
-func timeRange(from, to string, now time.Time) (time.Time, time.Time, error) {
+// ("now-24h", "now/d"), dates and times, or Unix timestamps, in the user's
+// time zone (now/d is their midnight, a date without offset their time).
+// Defaults: the last 24 hours.
+func timeRange(from, to string, now time.Time, loc *time.Location) (time.Time, time.Time, error) {
+	if loc == nil {
+		loc = time.UTC
+	}
 	parse := func(s string, def time.Time) (time.Time, error) {
 		s = strings.TrimSpace(s)
 		if s == "" {
 			return def, nil
 		}
-		p := timeparser.NewGrafanaTimeParserAt(now, time.UTC)
+		p := timeparser.NewGrafanaTimeParserAt(now, loc)
 		t, err := p.Parse(s)
 		if err != nil {
 			return time.Time{}, fmt.Errorf("invalid time %q: use e.g. now-24h, now-7d, now/d or 2026-10-30T08:00:00Z", s)
@@ -307,7 +377,7 @@ var niceIntervals = []time.Duration{
 	24 * time.Hour, 7 * 24 * time.Hour, 30 * 24 * time.Hour,
 }
 
-var intervalRe = regexp.MustCompile(`^(\d+)\s*(s|m|h|d|w)$`)
+var intervalRe = regexp.MustCompile(`^(\d+)\s*(ms|s|m|h|d|w)$`)
 
 // bucketInterval reads the interval of an aggregated history ("15m",
 // "1h", "1d", "auto"), enlarged when the range would have more than
@@ -325,13 +395,13 @@ func bucketInterval(spec string, from, to time.Time) (d time.Duration, adjusted 
 	}
 	m := intervalRe.FindStringSubmatch(spec)
 	if m == nil {
-		return 0, false, fmt.Errorf("invalid interval %q: use e.g. 5m, 1h, 1d, 1w or auto", spec)
+		return 0, false, fmt.Errorf("invalid interval %q: use e.g. 100ms, 10s, 5m, 1h, 1d, 1w or auto", spec)
 	}
 	n, _ := strconv.Atoi(m[1])
-	unit := map[string]time.Duration{"s": time.Second, "m": time.Minute, "h": time.Hour, "d": 24 * time.Hour, "w": 7 * 24 * time.Hour}[m[2]]
+	unit := map[string]time.Duration{"ms": time.Millisecond, "s": time.Second, "m": time.Minute, "h": time.Hour, "d": 24 * time.Hour, "w": 7 * 24 * time.Hour}[m[2]]
 	d = time.Duration(n) * unit
-	if d < time.Second {
-		return 0, false, fmt.Errorf("the interval must be at least 1s")
+	if d < time.Millisecond {
+		return 0, false, fmt.Errorf("the interval must be at least 1ms")
 	}
 	if span/d > MaxBuckets {
 		for _, n := range niceIntervals {
@@ -355,7 +425,20 @@ func HumanInterval(d time.Duration) string {
 		return fmt.Sprintf("%dh", d/time.Hour)
 	case d%time.Minute == 0:
 		return fmt.Sprintf("%dm", d/time.Minute)
-	default:
+	case d%time.Second == 0:
 		return fmt.Sprintf("%ds", d/time.Second)
+	default:
+		return fmt.Sprintf("%dms", d/time.Millisecond)
 	}
+}
+
+// callRange is the range of a call, in its time zone ("timezone", the
+// user's; UTC when invalid or absent: the non-chart answers carry UTC
+// times, which the MCP servers write in the user's zone).
+func callRange(c *call, now time.Time) (time.Time, time.Time, error) {
+	loc, err := chartLocation(c.Timezone)
+	if err != nil {
+		loc = time.UTC
+	}
+	return timeRange(c.From, c.To, now, loc)
 }

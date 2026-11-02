@@ -4,12 +4,14 @@ import { StringCodec } from "../../../../tools/natsCodec";
 import * as THREE from "three";
 import { matches, mqttTopicToNatsSubject } from "./tools";
 import { IAssetObject, IFemSimulationObject, IGenericObject, IMqttTopicData, INatsSubjectData, ISensorObject } from "../Main/Model";
-import { AssetState, FemSimulationObjectState, GenericObjectState, SensorState } from "../ViewerTools/ViewerUtils";
+import { AssetState, FemSimulationObjectState, GenericObjectState, isSensorValue, SensorState } from "../ViewerTools/ViewerUtils";
 import { IThreeMesh } from "../Types/threeInterfaces";
 import formatDateString from "../../../../tools/formatDate";
-import { ChatMessage, LlmMessage } from "../ChatAssitant/ChatAssistant";
+import { ChatChart, ChatMessage, LlmMessage } from "../ChatAssitant/ChatAssistant";
+import { sanitizeCharts } from "../ChatAssitant/chatCharts";
 import { PipelineLog } from "../Pipeline/PipelineLogs";
 import { IMessage } from "./interfaces";
+import { natsInboxPrefix, natsUserInboxSubject, USER_PRIVATE_TOPIC_REFS } from "../../../../tools/natsInbox";
 
 const sc = StringCodec();
 
@@ -40,7 +42,9 @@ const useNatsSubscription = (
     handleUpdateLogMessages: (newLogMessage: PipelineLog) => void,
     handlePipelineStatusChange: (pipelineStatus: string) => void,
     handlePipelineLeaderReplicaIndexChange: (index: number) => void,
-    handleSetChatMessages: (messages: ChatMessage[]) => void,
+    handleSetChatMessages: (messages: ChatMessage[] | undefined, owner?: string, chart?: ChatChart) => void,
+    // usuario conectado: las respuestas del AI Agent y su historial llegan a su buzón (natsUserInboxSubject)
+    userName?: string,
 ) => {
     let femResultNames: string[] = [];
     if (femSimulationObjects.length && femResultData && Object.keys(femResultData).length !== 0) {
@@ -72,6 +76,14 @@ const useNatsSubscription = (
     useEffect(() => {
         if (!natsClient) return;
         const subjects = [natsSubjects].flat().map(mqttTopicToNatsSubject);
+        const inboxPrefix = userName ? `${natsInboxPrefix(userName)}.` : "";
+        if (userName) {
+            for (const data of natsSubjectsData) {
+                if (data.natsSubject && USER_PRIVATE_TOPIC_REFS.includes(data.topicRef)) {
+                    subjects.push(natsUserInboxSubject(userName, data.natsSubject));
+                }
+            }
+        }
         const subscriptions = subjects.map((subject) => natsClient.subscribe(subject));
         const abortController = new AbortController();
 
@@ -80,8 +92,10 @@ const useNatsSubscription = (
                 for await (const msg of sub) {
                     if (abortController.signal.aborted) break;
 
-                    const subject = mqttTopicToNatsSubject(msg.subject);
+                    let subject = mqttTopicToNatsSubject(msg.subject);
                     if (!subjects.some((pattern) => matches(pattern, subject))) continue;
+                    // lo que llega al buzón del usuario se trata como del tópico (llm2sim, state2sim)
+                    if (inboxPrefix && subject.startsWith(inboxPrefix)) subject = subject.slice(inboxPrefix.length);
 
                     // Check Content-Type header to decide how to process the payload
                     const contentType = msg.headers?.get("Content-Type") ?? "";
@@ -169,7 +183,7 @@ const updateObjectsState = (
     handleUpdateLogMessages: (newLogMessage: PipelineLog) => void,
     handlePipelineStatusChange: (pipelineStatus: string) => void,
     handlePipelineLeaderReplicaIndexChange: (index: number) => void,
-    handleSetChatMessages: (messages: ChatMessage[]) => void,
+    handleSetChatMessages: (messages: ChatMessage[] | undefined, owner?: string, chart?: ChatChart) => void,
 ) => {
     const natsSubjects = natsSubjectsData
         .map((subjectData) => subjectData.natsSubject)
@@ -227,6 +241,7 @@ const updateObjectsState = (
                     message: natsMessage.message,
                     uiOpts: natsMessage.uiOpts,
                     mcpToolCalls: natsMessage.mcpToolCalls,
+                    charts: sanitizeCharts(natsMessage.charts),
                     sender: "assistant",
                 };
                 handleUpdateChatAssistantMessages(newMessage);
@@ -255,8 +270,9 @@ const updateObjectsState = (
                 if (natsMessage.replicaIndexLeader !== undefined) {
                     handlePipelineLeaderReplicaIndexChange(natsMessage.replicaIndexLeader);
                 }
-                if (natsMessage.chatMessages !== undefined) {
-                    handleSetChatMessages(natsMessage.chatMessages);
+                // the conversation of a user, or a chart of it: each viewer keeps its user's only
+                if (natsMessage.chatMessages !== undefined || natsMessage.chatChart !== undefined) {
+                    handleSetChatMessages(natsMessage.chatMessages, natsMessage.userName, natsMessage.chatChart);
                 }
             }
 
@@ -279,14 +295,14 @@ const updateObjectsState = (
                             const value = natsMessage[fieldName];
                             let stateString = sensorsNewState[objName].stateString;
                             if (
-                                typeof value === "number" ||
-                                (Array.isArray(value) && value.findIndex((elem: any) => elem === null) !== -1)
+                                isSensorValue(value)
                             ) {
                                 if (sensorTopicId === messageTopicId) stateString = "on";
                                 sensorsNewState[objName] = {
                                     ...sensorsNewState[objName],
                                     stateString,
                                     sensorValue: value,
+                                    valueTimestamp: Date.now(),
                                 };
                                 isSensorStateChanged = true;
                             }
@@ -423,8 +439,7 @@ const updateObjectsState = (
                         if (messagePayloadKeys.indexOf(fieldName) !== -1 || llmResponseValue !== null) {
                             const value = llmResponseValue === null ? natsMessage[fieldName] : llmResponseValue;
                             if (
-                                typeof value === "number" ||
-                                (Array.isArray(value) && value.findIndex((elem: any) => elem === null) !== -1)
+                                isSensorValue(value)
                             ) {
                                 sensorsNewState[objName] = { ...sensorsNewState[objName], sensorValue: value };
                                 isSensorStateChanged = true;

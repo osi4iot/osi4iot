@@ -1,4 +1,5 @@
 import { GroupsContextProps, GroupsAction } from "./interfaces";
+import { browserTimeZone } from "../../tools/timeZones";
 import {
     GROUPS_OPTIONS,
     GROUPS_PREVIOUS_OPTIONS
@@ -24,6 +25,7 @@ export const initialState = {
         mqttAccessControl: "Pub & Sub",
         llmEnabled: false,
         gpuUsageEnabled: false,
+        timezone: browserTimeZone(),
         groupAdminDataArray: [
             {
                 firstName: "",

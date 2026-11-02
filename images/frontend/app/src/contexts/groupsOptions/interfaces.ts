@@ -21,6 +21,9 @@ export interface IGroupInputData {
 	mqttAccessControl: string;
 	llmEnabled: boolean;
 	gpuUsageEnabled: boolean;
+	ragEnabled?: boolean;
+	// IANA time zone of the group ("": not set, UTC)
+	timezone?: string;
     groupAdminDataArray?: IGroupAdminData[];
 }
 
@@ -71,7 +74,3 @@ export interface IGroupRowToEdit {
 export interface IGroupBuildingId {
 	groupBuildingId: number;
 }
-
-
-
-

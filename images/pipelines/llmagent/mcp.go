@@ -187,7 +187,8 @@ func (t *serverTool) Run(ctx context.Context, input string) (string, error) {
 }
 
 func (t *serverTool) Execute(ctx context.Context, args string) (string, error) {
-	recorderFrom(ctx).add(ToolCall{ToolName: t.name, Args: args})
+	recorder := recorderFrom(ctx)
+	call := recorder.add(ToolCall{ToolName: t.name, Args: args})
 
 	var parsed map[string]interface{}
 	if strings.TrimSpace(args) != "" {
@@ -197,6 +198,15 @@ func (t *serverTool) Execute(ctx context.Context, args string) (string, error) {
 	}
 	if parsed == nil {
 		parsed = map[string]interface{}{}
+	}
+	// The user's time zone, for the tools that take one, when the model
+	// did not give it.
+	if zone := timezoneFrom(ctx); zone != "" {
+		if _, takesZone := t.Parameters()["timezone"]; takesZone {
+			if v, _ := parsed["timezone"].(string); strings.TrimSpace(v) == "" {
+				parsed["timezone"] = zone
+			}
+		}
 	}
 
 	resp, err := t.server.CallTool(ctx, t.tool, parsed)
@@ -210,6 +220,7 @@ func (t *serverTool) Execute(ctx context.Context, args string) (string, error) {
 		}
 		return "", errors.New(text)
 	}
+	recorder.setResult(call, text)
 	return text, nil
 }
 
@@ -253,13 +264,26 @@ type toolCallRecorder struct {
 	list []ToolCall
 }
 
-func (r *toolCallRecorder) add(c ToolCall) {
+// add records a call and returns its index (for setResult).
+func (r *toolCallRecorder) add(c ToolCall) int {
 	if r == nil {
+		return -1
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.list = append(r.list, c)
+	return len(r.list) - 1
+}
+
+func (r *toolCallRecorder) setResult(i int, result string) {
+	if r == nil || i < 0 {
 		return
 	}
 	r.mu.Lock()
-	r.list = append(r.list, c)
-	r.mu.Unlock()
+	defer r.mu.Unlock()
+	if i < len(r.list) {
+		r.list[i].Result = result
+	}
 }
 
 func (r *toolCallRecorder) calls() []ToolCall {

@@ -9,5 +9,6 @@ export default interface IUser {
 	isDisabled: boolean;
 	lastSeenAt: string;
 	lastSeenAtAge: string;
+	timezone?: string; // IANA name; "" not set (the browser's)
 	accesTokenExpirationDate?: number;
 }

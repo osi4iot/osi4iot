@@ -46,6 +46,7 @@ export const DEFAULT_VIEWER_OPTIONS = {
     sensorsOpacity: 1,
     highlightAllSensors: false,
     showAllSensorsMarker: false,
+    showOccludedSensorMarkers: true,
     hideAllSensors: false,
     assetsOpacity: 1,
     highlightAllAssets: false,

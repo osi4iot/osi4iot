@@ -2,7 +2,8 @@
 // the historical data of the sensors of its group, stored in the IoT DB
 // (patroni_metrics): which sensors there are and what they measure,
 // statistics over a time range, the history (aggregated by intervals, or
-// the raw values) and the last messages.
+// the raw values), the last messages and charts of the history (drawn by
+// pipelines and sent with the agent's answer).
 //
 // Usage: OSI4IOT_AGENTDATA_TOKEN=… sensor_history
 //
@@ -71,8 +72,6 @@ type tools struct {
 	c *client.Client
 }
 
-const timesNote = "Times are UTC."
-
 func main() {
 	t := &tools{c: client.FromFlags()}
 
@@ -96,8 +95,9 @@ func main() {
 		"The measured field: its name (temperature, accelerations[1]) or label (Ay), as list-sensors shows them. "+
 			"May be left out when the sensor measures only one"))
 	fromArg := mcp.WithString("from", mcp.Description(
-		"Start of the range: relative (now-24h, now-7d, now/d = today 00:00 UTC) or absolute (2026-10-30T08:00:00Z). Default now-24h"))
+		"Start of the range: relative (now-24h, now-7d, now/d = today 00:00 in the user's time zone) or absolute (2026-10-30T08:00:00, the user's time; or with an offset, 2026-10-30T08:00:00Z). Default now-24h"))
 	toArg := mcp.WithString("to", mcp.Description("End of the range, same formats. Default now"))
+	tzArg := mcp.WithString("timezone", mcp.Description(client.TimeZoneArg))
 
 	s.AddTool(mcp.NewTool("list-sensors",
 		mcp.WithDescription("List the sensors of the digital twin's group: ref, uid, description, type, asset, and "+
@@ -110,24 +110,34 @@ func main() {
 		mcp.WithDescription("Statistics of a sensor's field over a time range: number of values, minimum and "+
 			"maximum (with when they happened), average, first and last value. Use it for questions like "+
 			"'what was the maximum temperature yesterday' or 'the average load this week'."),
-		sensorArg, assetArg, fieldArg, fromArg, toArg,
+		sensorArg, assetArg, fieldArg, fromArg, toArg, tzArg,
 	), t.statistics)
 
 	s.AddTool(mcp.NewTool("sensor-history",
-		mcp.WithDescription("The evolution of a sensor's field over a time range, aggregated by intervals "+
-			"(average, minimum, maximum and count per interval) or as raw values. Use it to describe trends, "+
-			"find when something happened or compare periods. Prefer sensor-statistics for a single number."),
-		sensorArg, assetArg, fieldArg, fromArg, toArg,
+		mcp.WithDescription("The evolution of a sensor's field, or of several of its fields together, over a "+
+			"time range, aggregated by intervals (average, minimum, maximum and count per interval) or as raw "+
+			"values. Use it to describe trends, find when something happened, compare periods or make a table "+
+			"of values. For several fields of the same sensor (e.g. Ax, Ay, Az) pass them all in 'fields': you "+
+			"get one table with a column per field, its rows at the exact times of the messages. Prefer "+
+			"sensor-statistics for a single number."),
+		sensorArg, assetArg, fieldArg,
+		mcp.WithArray("fields", mcp.WithStringItems(), mcp.Description(
+			"Several fields of the sensor at once (names or labels, at most 6), instead of 'field'")),
+		fromArg, toArg,
 		mcp.WithString("interval", mcp.Description(
 			"Aggregation interval: auto (default, about 120 intervals), or e.g. 1m, 15m, 1h, 1d, 1w; "+
 				"'raw' for the values as they were measured (the last ones of the range)")),
 		mcp.WithNumber("limit", mcp.Description("With interval=raw, how many values (default 200, at most 1000)")),
+		tzArg,
 	), t.history)
+
+	registerChartTools(s, t, sensorArg, assetArg, fieldArg, fromArg, toArg)
 
 	s.AddTool(mcp.NewTool("latest-values",
 		mcp.WithDescription("The last messages of a sensor, with all their fields: its current or most recent values."),
 		sensorArg, assetArg,
 		mcp.WithNumber("count", mcp.Description("How many messages (default 1, at most 50)")),
+		tzArg,
 	), t.latest)
 
 	if err := server.ServeStdio(s); err != nil {
@@ -200,7 +210,8 @@ func (t *tools) listSensors(ctx context.Context, req mcp.CallToolRequest) (*mcp.
 			}
 			b.WriteString(f.title())
 			if f.Units != "" {
-				b.WriteString(", " + f.Units)
+				b.WriteString(", ")
+				b.WriteString(f.Units)
 			}
 		}
 		b.WriteString("\n")
@@ -215,6 +226,8 @@ func rangeArgs(args map[string]any) map[string]any {
 		"field":  client.String(args, "field"),
 		"from":   client.String(args, "from"),
 		"to":     client.String(args, "to"),
+		// the user's zone: "now/d" is their midnight
+		"timezone": client.String(args, "timezone"),
 	}
 }
 
@@ -225,11 +238,12 @@ func (s sensor) assetNote() string {
 	return "asset " + s.AssetUid + " (another asset of the group)"
 }
 
-func header(b *strings.Builder, s sensor, f field, from, to time.Time) {
-	fmt.Fprintf(b, "%s [uid %s], field %s, %s\nRange: %s to %s. %s\n", s.title(), s.Uid, f.title(), s.assetNote(), client.Time(from), client.Time(to), timesNote)
+func header(b *strings.Builder, s sensor, f field, from, to time.Time, z client.Zone) {
+	fmt.Fprintf(b, "%s [uid %s], field %s, %s\nRange: %s to %s. %s\n", s.title(), s.Uid, f.title(), s.assetNote(), z.Time(from), z.Time(to), z.Note())
 }
 
 func (t *tools) statistics(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	z := client.ZoneOf(req.GetArguments())
 	var out struct {
 		Sensor     sensor    `json:"sensor"`
 		Field      field     `json:"field"`
@@ -248,7 +262,7 @@ func (t *tools) statistics(ctx context.Context, req mcp.CallToolRequest) (*mcp.C
 		return mcp.NewToolResultError(err.Error()), nil
 	}
 	var b strings.Builder
-	header(&b, out.Sensor, out.Field, out.From, out.To)
+	header(&b, out.Sensor, out.Field, out.From, out.To, z)
 	st := out.Statistics
 	if st.Count == 0 {
 		b.WriteString("No values in this range.\n")
@@ -257,28 +271,33 @@ func (t *tools) statistics(ctx context.Context, req mcp.CallToolRequest) (*mcp.C
 	u := out.Field.unit()
 	fmt.Fprintf(&b, "Values: %d\n", st.Count)
 	if st.Min != nil {
-		fmt.Fprintf(&b, "Minimum: %s%s at %s\n", client.Num(st.Min.Value), u, client.Time(st.Min.Time))
+		fmt.Fprintf(&b, "Minimum: %s%s at %s\n", client.Num(st.Min.Value), u, z.Time(st.Min.Time))
 	}
 	if st.Max != nil {
-		fmt.Fprintf(&b, "Maximum: %s%s at %s\n", client.Num(st.Max.Value), u, client.Time(st.Max.Time))
+		fmt.Fprintf(&b, "Maximum: %s%s at %s\n", client.Num(st.Max.Value), u, z.Time(st.Max.Time))
 	}
 	if st.Avg != nil {
 		fmt.Fprintf(&b, "Average: %s%s\n", client.Num(*st.Avg), u)
 	}
 	if st.First != nil {
-		fmt.Fprintf(&b, "First: %s%s at %s\n", client.Num(st.First.Value), u, client.Time(st.First.Time))
+		fmt.Fprintf(&b, "First: %s%s at %s\n", client.Num(st.First.Value), u, z.Time(st.First.Time))
 	}
 	if st.Last != nil {
-		fmt.Fprintf(&b, "Last: %s%s at %s\n", client.Num(st.Last.Value), u, client.Time(st.Last.Time))
+		fmt.Fprintf(&b, "Last: %s%s at %s\n", client.Num(st.Last.Value), u, z.Time(st.Last.Time))
 	}
 	return mcp.NewToolResultText(b.String()), nil
 }
 
 func (t *tools) history(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	z := client.ZoneOf(req.GetArguments())
 	args := req.GetArguments()
 	call := rangeArgs(args)
 	call["interval"] = client.String(args, "interval")
 	call["limit"] = client.Int(args, "limit")
+	if fields := req.GetStringSlice("fields", nil); len(fields) > 0 {
+		call["fields"] = fields
+		return t.historyOfFields(ctx, call, z)
+	}
 
 	var out struct {
 		Sensor           sensor    `json:"sensor"`
@@ -301,7 +320,7 @@ func (t *tools) history(ctx context.Context, req mcp.CallToolRequest) (*mcp.Call
 		return mcp.NewToolResultError(err.Error()), nil
 	}
 	var b strings.Builder
-	header(&b, out.Sensor, out.Field, out.From, out.To)
+	header(&b, out.Sensor, out.Field, out.From, out.To, z)
 	units := ""
 	if out.Field.Units != "" {
 		units = " (" + out.Field.Units + ")"
@@ -317,7 +336,7 @@ func (t *tools) history(ctx context.Context, req mcp.CallToolRequest) (*mcp.Call
 		}
 		fmt.Fprintf(&b, "time | value%s\n", units)
 		for _, p := range out.Points {
-			fmt.Fprintf(&b, "%s | %s\n", client.Time(p.Time), client.Num(p.Value))
+			fmt.Fprintf(&b, "%s | %s\n", z.TimeMs(p.Time), client.Num(p.Value))
 		}
 		return mcp.NewToolResultText(b.String()), nil
 	}
@@ -336,12 +355,13 @@ func (t *tools) history(ctx context.Context, req mcp.CallToolRequest) (*mcp.Call
 	}
 	fmt.Fprintf(&b, "interval start | avg | min | max%s | count\n", units)
 	for _, k := range out.Buckets {
-		fmt.Fprintf(&b, "%s | %s | %s | %s | %d\n", client.Time(k.Time), client.Num(k.Avg), client.Num(k.Min), client.Num(k.Max), k.Count)
+		fmt.Fprintf(&b, "%s | %s | %s | %s | %d\n", z.Time(k.Time), client.Num(k.Avg), client.Num(k.Min), client.Num(k.Max), k.Count)
 	}
 	return mcp.NewToolResultText(b.String()), nil
 }
 
 func (t *tools) latest(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	z := client.ZoneOf(req.GetArguments())
 	args := req.GetArguments()
 	var out struct {
 		Sensor   sensor `json:"sensor"`
@@ -355,7 +375,7 @@ func (t *tools) latest(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallT
 		return mcp.NewToolResultError(err.Error()), nil
 	}
 	var b strings.Builder
-	fmt.Fprintf(&b, "%s [uid %s], %s. %s\n", out.Sensor.title(), out.Sensor.Uid, out.Sensor.assetNote(), timesNote)
+	fmt.Fprintf(&b, "%s [uid %s], %s. %s\n", out.Sensor.title(), out.Sensor.Uid, out.Sensor.assetNote(), z.Note())
 	if len(out.Messages) == 0 {
 		b.WriteString("It has no messages.\n")
 		return mcp.NewToolResultText(b.String()), nil
@@ -365,7 +385,7 @@ func (t *tools) latest(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallT
 		described[f.Name] = f
 	}
 	for _, m := range out.Messages {
-		fmt.Fprintf(&b, "%s:", client.Time(m.Time))
+		fmt.Fprintf(&b, "%s:", z.TimeMs(m.Time))
 		keys := make([]string, 0, len(m.Payload))
 		for k := range m.Payload {
 			keys = append(keys, k)
@@ -403,4 +423,99 @@ func formatValue(key string, v any, described map[string]field) string {
 		return strings.Join(parts, ", ")
 	}
 	return one(key, v)
+}
+
+// historyOfFields writes the history of several fields of a sensor as one
+// table, a column per field.
+func (t *tools) historyOfFields(ctx context.Context, call map[string]any, z client.Zone) (*mcp.CallToolResult, error) {
+	var out struct {
+		Sensor           sensor    `json:"sensor"`
+		Fields           []field   `json:"fields"`
+		From             time.Time `json:"from"`
+		To               time.Time `json:"to"`
+		Interval         string    `json:"interval"`
+		IntervalAdjusted bool      `json:"interval_adjusted"`
+		Truncated        bool      `json:"truncated"`
+		Rows             []struct {
+			Time   time.Time  `json:"time"`
+			Values []*float64 `json:"values"`
+		} `json:"rows"`
+		BucketRows []struct {
+			Time  time.Time  `json:"time"`
+			Avg   []*float64 `json:"avg"`
+			Min   []*float64 `json:"min"`
+			Max   []*float64 `json:"max"`
+			Count []int64    `json:"count"`
+		} `json:"bucket_rows"`
+	}
+	if err := t.c.Call(ctx, "history", call, &out); err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+	num := func(v *float64) string {
+		if v == nil {
+			return "-"
+		}
+		return client.Num(*v)
+	}
+	names := make([]string, len(out.Fields))
+	for i, f := range out.Fields {
+		names[i] = f.title() + f.unit()
+	}
+	var b strings.Builder
+	fmt.Fprintf(&b, "%s [uid %s], fields %s, %s\nRange: %s to %s. %s\n", out.Sensor.title(), out.Sensor.Uid,
+		strings.Join(names, ", "), out.Sensor.assetNote(), z.Time(out.From), z.Time(out.To), z.Note())
+
+	if out.Interval == "raw" {
+		if len(out.Rows) == 0 {
+			b.WriteString("No values in this range.\n")
+			return mcp.NewToolResultText(b.String()), nil
+		}
+		if out.Truncated {
+			fmt.Fprintf(&b, "Only the last %d messages of the range (raise 'limit', or use an interval).\n", len(out.Rows))
+		}
+		b.WriteString("One row per message; '-' when a message lacks the field.\n")
+		fmt.Fprintf(&b, "time | %s\n", strings.Join(names, " | "))
+		for _, r := range out.Rows {
+			cells := make([]string, len(r.Values))
+			for i, v := range r.Values {
+				cells[i] = num(v)
+			}
+			fmt.Fprintf(&b, "%s | %s\n", z.TimeMs(r.Time), strings.Join(cells, " | "))
+		}
+		return mcp.NewToolResultText(b.String()), nil
+	}
+
+	if len(out.BucketRows) == 0 {
+		b.WriteString("No values in this range.\n")
+		return mcp.NewToolResultText(b.String()), nil
+	}
+	fmt.Fprintf(&b, "Interval: %s", out.Interval)
+	if out.IntervalAdjusted {
+		b.WriteString(" (enlarged: the range had too many intervals)")
+	}
+	b.WriteString(". Intervals without values are not listed.\n")
+	if out.Truncated {
+		fmt.Fprintf(&b, "Only the first %d intervals: use a larger interval or a shorter range.\n", len(out.BucketRows))
+	}
+	head := make([]string, 0, 3*len(out.Fields))
+	for _, f := range out.Fields {
+		l := f.Label
+		if l == "" {
+			l = f.Name
+		}
+		head = append(head, l+" avg", l+" min", l+" max")
+	}
+	fmt.Fprintf(&b, "interval start | %s | count\n", strings.Join(head, " | "))
+	for _, k := range out.BucketRows {
+		cells := make([]string, 0, 3*len(k.Avg))
+		var count int64
+		for i := range k.Avg {
+			cells = append(cells, num(k.Avg[i]), num(k.Min[i]), num(k.Max[i]))
+			if i < len(k.Count) && k.Count[i] > count {
+				count = k.Count[i]
+			}
+		}
+		fmt.Fprintf(&b, "%s | %s | %d\n", z.Time(k.Time), strings.Join(cells, " | "), count)
+	}
+	return mcp.NewToolResultText(b.String()), nil
 }

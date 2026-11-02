@@ -110,6 +110,8 @@ export interface ViewerOptions {
     sensorsOpacity: number;
     highlightAllSensors: boolean;
     showAllSensorsMarker: boolean;
+    // markers of the sensors that other objects hide from the camera: shown (true) or hidden
+    showOccludedSensorMarkers?: boolean;
     hideAllSensors: boolean;
     sensorsVisibilityState: Record<string, ObjectVisibilityState>;
     assetsOpacity: number;
@@ -165,6 +167,8 @@ export interface ChatMessage {
     sender: "user" | "assistant" | "system";
     mcpToolCalls: McpToolCall[];
     time: string;
+    // gráficas dibujadas por pipelines para la respuesta (sensor-chart)
+    charts?: { id?: string; title: string; mimeType: string; data: string }[];
     // "pipeline": pregunta de voz (sensor "Mobile audio", nota de voz de Telegram) transcrita en el pipeline, que
     // ya la ha enviado al AI Agent: el visor solo la muestra
     source?: "pipeline";

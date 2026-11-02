@@ -58,7 +58,12 @@ func (fm *FlowsManager) AddGroups(ctx context.Context, groups []*common.Group) {
 
 func (fm *FlowsManager) UpdateGroup(group *common.Group) error {
 	groupIdStr := strconv.Itoa(group.Id)
-	if _, ok := fm.Groups.Load(groupIdStr); ok {
+	if value, ok := fm.Groups.Load(groupIdStr); ok {
+		// The group comes from admin_api without its KV store (json:"-"):
+		// it keeps the one it had, or the group's nodes would lose it.
+		if current, ok := value.(*common.Group); ok && current != nil && group.KvStore == nil {
+			group.KvStore = current.KvStore
+		}
 		fm.Groups.Store(groupIdStr, group)
 		return nil
 	} else {

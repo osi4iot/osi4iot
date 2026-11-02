@@ -63,7 +63,7 @@ export const getUserdByEmailOrLogin = async (
 		`SELECT id, first_name as "firstName", surname, login, email,
 		is_admin as "isGrafanaAdmin",
 		is_disabled as "isDisabled", last_seen_at as "lastSeenAt",
-		AGE(NOW(),last_seen_at) as "lastSeenAtAge"
+		AGE(NOW(),last_seen_at) as "lastSeenAtAge", timezone
 		FROM grafanadb.user WHERE email = $1 OR login = $1`,
 		[emailOrLogin]
 	);
@@ -306,6 +306,11 @@ export const updateGlobalUser = async (userData: IUser) => {
 		userData.isGrafanaAdmin,
 		userData.id,
 	]);
+};
+
+// The user's default time zone (IANA name; "": the browser's).
+export const updateUserTimezoneById = async (userId: number, timezone: string): Promise<void> => {
+	await pool.query(`UPDATE grafanadb.user SET timezone = $1 WHERE id = $2`, [timezone, userId]);
 };
 
 export const updateUserProfileById = async (userData: CreateUserDto) => {

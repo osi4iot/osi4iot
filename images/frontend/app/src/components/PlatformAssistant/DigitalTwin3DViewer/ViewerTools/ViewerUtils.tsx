@@ -20,7 +20,19 @@ export interface SensorState {
 	showSensorMarker: boolean;
 	sensorValue: (number | number[] | null);
 	clipValue: (number | null);
+	// when sensorValue arrived (ms since 1970): the sensor marker shows how old it is
+	valueTimestamp?: number;
 }
+
+// A value a sensor object can show: a number, or an array of numbers (with nulls for the components a message
+// does not change). Before, an array was taken only when it had a null, so the arrays of the sensors (e.g.
+// accelerations [Ax, Ay, Az]) were never shown.
+export const isSensorValue = (value: unknown): value is number | number[] =>
+	typeof value === "number" ||
+	(Array.isArray(value) &&
+		value.length !== 0 &&
+		value.every((elem) => elem === null || typeof elem === "number") &&
+		value.some((elem) => typeof elem === "number"));
 
 export interface AssetState {
 	stateString: string;
@@ -193,10 +205,12 @@ export const generateInitialSensorsState = (
 				if (timeoutAction === "keepLastValue") {
 					if (payloadKeys.indexOf(fieldName) !== -1) {
 						const value = payloadObject[fieldName];
-						if (typeof value === 'number' || (Array.isArray(value) && value.findIndex((elem: any) => elem === null) !== -1)) {
+						if (isSensorValue(value)) {
 							sensorsState.stateString = "on";
 							sensorsState.highlight = false;
 							sensorsState.sensorValue = value;
+							const at = new Date(lastMeasurement.timestamp).getTime();
+							if (Number.isFinite(at)) sensorsState.valueTimestamp = at;
 						};
 					}
 				} else if (timeoutAction === "defaultValue") {
@@ -1338,5 +1352,3 @@ export const setAnimationMixerRecursively = (
 		setAnimationMixerRecursively(node_child as any, meshRef, mixer, setMixer, clipsDuration, setClipsDuration)
 	}
 }
-
-

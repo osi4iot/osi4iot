@@ -334,6 +334,7 @@ func (n *Text2SpeechNode) processMessage(msg common.Message, log *logger.Logger)
 	// for a NATS request, a Publish node with "Reply" sends the audio back to the sender
 	outMsg.Topic = msg.GetTopic()
 	outMsg.SetReplyContext(msg.GetReplyContext())
+	outMsg.SetSender(msg.GetSender())
 	if err := outMsg.AttachAudio(audioData, filename, contentType); err != nil {
 		log.Errorf("Text2SpeechNode %s: failed to attach audio to message: %v", n.NodeUid, err)
 		return fmt.Errorf("failed to attach audio: %w", err)

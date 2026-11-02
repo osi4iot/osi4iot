@@ -97,8 +97,17 @@ func (n *TelegramSendNode) Start(ctx context.Context, log *logger.Logger, needRe
 }
 
 // processSendMessage dispatches to the appropriate sender based on the file
-// attached to the message (image, audio) or falls back to plain text.
+// attached to the message (image, audio) or falls back to plain text. The
+// charts of the message (an AI Agent answer, payload "charts") follow it,
+// as photos.
 func (n *TelegramSendNode) processSendMessage(msg common.Message, log *logger.Logger) error {
+	if err := n.sendMessage(msg, log); err != nil {
+		return err
+	}
+	return n.sendCharts(common.ChartsFromPayload(msg.GetPayload()), log)
+}
+
+func (n *TelegramSendNode) sendMessage(msg common.Message, log *logger.Logger) error {
 	if msg.HasFile() {
 		if msg.IsImage() {
 			return n.sendImage(msg, log)
@@ -112,6 +121,23 @@ func (n *TelegramSendNode) processSendMessage(msg common.Message, log *logger.Lo
 	}
 
 	return n.sendText(msg, log)
+}
+
+// sendCharts sends charts as photos (an album when there are several),
+// each with its title as caption.
+func (n *TelegramSendNode) sendCharts(charts []common.ChatChart, log *logger.Logger) error {
+	if len(charts) == 0 {
+		return nil
+	}
+	photos := make([]telegram.PhotoUpload, 0, len(charts))
+	for i, c := range charts {
+		photos = append(photos, telegram.PhotoUpload{Data: c.Data, FileName: common.ChartFileName(c, i), Caption: c.Title})
+	}
+	log.Infof("TelegramSendNode %s: sending %d chart(s)", n.NodeUid, len(photos))
+	if err := telegram.SendTelegramPhotos(n.BotToken, n.ChatID, photos, log); err != nil {
+		return fmt.Errorf("TelegramSendNode %s: charts not sent: %w", n.NodeUid, err)
+	}
+	return nil
 }
 
 // sendText sends a plain or formatted text message to Telegram.

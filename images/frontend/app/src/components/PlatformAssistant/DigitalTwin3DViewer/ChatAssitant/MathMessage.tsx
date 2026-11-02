@@ -6,23 +6,132 @@ function escapeHTML(s: string) {
     return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
-function processMarkdown(text: string): string {
-    let result = text;
+// Inline markdown on text that is ALREADY HTML-escaped: code, bold, italics.
+// Inline code is set aside first, so that nothing inside it is formatted.
+function processInlineMarkdown(text: string): string {
+    const codes: string[] = [];
+    let result = text.replace(/`([^`]+)`/g, (_m, code) => {
+        const i = codes.push(`<code>${code}</code>`) - 1;
+        return `\u0002${i}\u0002`;
+    });
 
-    // Procesar texto en negrita: **texto** o *texto*
-    // Primero ** (doble asterisco) para evitar conflictos
-    result = result.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
-
-    // Luego * (asterisco simple) - solo si no está ya procesado
+    // Negrita: **texto**, luego *texto*
+    result = result.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
     result = result.replace(/(?<!\*)\*([^*\n]+?)\*(?!\*)/g, "<strong>$1</strong>");
 
-    // Procesar texto en cursiva: _texto_
-    result = result.replace(/(?<!_)_([^_\n]+?)_(?!_)/g, "<em>$1</em>");
+    // Cursiva: _texto_, sin tocar nombres como mobile_accelerations o Disp_X
+    result = result.replace(/(?<![\w])_([^_\n]+?)_(?![\w])/g, "<em>$1</em>");
 
-    // Procesar código inline: `código`
-    result = result.replace(/`([^`]+)`/g, "<code>$1</code>");
+    return result.replace(/\u0002(\d+)\u0002/g, (_m, i) => codes[Number(i)]);
+}
 
-    return result;
+// ---- Markdown de bloque: tablas, títulos y listas ----
+
+const TABLE_SEPARATOR_RE = /^\s*\|?\s*:?-+:?\s*(\|\s*:?-+:?\s*)*\|?\s*$/;
+
+function splitTableRow(line: string): string[] {
+    let row = line.trim();
+    if (row.startsWith("|")) row = row.slice(1);
+    if (row.endsWith("|") && !row.endsWith("\\|")) row = row.slice(0, -1);
+    return row.split(/(?<!\\)\|/).map((cell) => cell.trim().replace(/\\\|/g, "|"));
+}
+
+function isTableStart(lines: string[], i: number): boolean {
+    return (
+        i + 1 < lines.length &&
+        lines[i].includes("|") &&
+        TABLE_SEPARATOR_RE.test(lines[i + 1]) &&
+        lines[i + 1].includes("|") && // "---" solo es una línea, no una tabla
+        lines[i + 1].includes("-")
+    );
+}
+
+function renderTable(lines: string[], start: number): { html: string; next: number } {
+    const header = splitTableRow(lines[start]);
+    const aligns = splitTableRow(lines[start + 1]).map((cell) => {
+        const left = cell.startsWith(":");
+        const right = cell.endsWith(":");
+        if (left && right) return "center";
+        if (right) return "right";
+        return "left";
+    });
+    const cellHtml = (tag: "th" | "td", text: string, col: number) =>
+        `<${tag} style="text-align:${aligns[col] ?? "left"}">${processInlineMarkdown(text)}</${tag}>`;
+
+    let html = `<div class="md-table"><table><thead><tr>${header.map((c, k) => cellHtml("th", c, k)).join("")}</tr></thead><tbody>`;
+    let i = start + 2;
+    for (; i < lines.length && lines[i].includes("|") && lines[i].trim() !== ""; i++) {
+        const cells = splitTableRow(lines[i]);
+        html += `<tr>${header.map((_h, k) => cellHtml("td", cells[k] ?? "", k)).join("")}</tr>`;
+    }
+    html += "</tbody></table></div>";
+    return { html, next: i };
+}
+
+const BULLET_RE = /^\s*[-*+]\s+(.*)$/;
+const ORDERED_RE = /^\s*\d+[.)]\s+(.*)$/;
+const HEADING_RE = /^\s*(#{1,6})\s+(.*?)\s*#*\s*$/;
+
+// Converts the lines (already escaped) to HTML. Blocks (tables, titles,
+// lists) are joined without line breaks; plain lines are separated by <br/>.
+function processBlockMarkdown(text: string): string {
+    const lines = text.split(/\r?\n/);
+    const out: string[] = [];
+    let pendingBreak = false; // a <br/> before the next plain line
+    const pushText = (html: string) => {
+        if (pendingBreak) out.push("<br/>");
+        out.push(html);
+        pendingBreak = true;
+    };
+    const pushBlock = (html: string) => {
+        out.push(html);
+        pendingBreak = false;
+    };
+
+    let i = 0;
+    while (i < lines.length) {
+        const line = lines[i];
+
+        if (isTableStart(lines, i)) {
+            const { html, next } = renderTable(lines, i);
+            pushBlock(html);
+            i = next;
+            continue;
+        }
+
+        const heading = HEADING_RE.exec(line);
+        if (heading) {
+            const level = Math.min(heading[1].length + 2, 6); // títulos discretos en el chat
+            pushBlock(`<h${level} class="md-heading">${processInlineMarkdown(heading[2])}</h${level}>`);
+            i++;
+            continue;
+        }
+
+        const listMatch = BULLET_RE.exec(line) ?? ORDERED_RE.exec(line);
+        if (listMatch) {
+            const ordered = !BULLET_RE.test(line);
+            const itemRE = ordered ? ORDERED_RE : BULLET_RE;
+            const items: string[] = [];
+            while (i < lines.length) {
+                const m = itemRE.exec(lines[i]);
+                if (!m) break;
+                items.push(`<li>${processInlineMarkdown(m[1])}</li>`);
+                i++;
+            }
+            const tag = ordered ? "ol" : "ul";
+            pushBlock(`<${tag} class="md-list">${items.join("")}</${tag}>`);
+            continue;
+        }
+
+        if (line.trim() === "" && !pendingBreak) {
+            // una línea vacía tras un bloque no añade más espacio
+            i++;
+            continue;
+        }
+        pushText(processInlineMarkdown(line));
+        i++;
+    }
+    return out.join("");
 }
 
 // 4) Render de bloques: ```math ...``` / ```latex ...``` y $$...$$ en líneas propias
@@ -33,7 +142,7 @@ export function renderExplicitMathBlocks(input: string): string {
     const chunks: string[] = [];
     const makeMarker = (html: string) => {
         const i = chunks.push(html) - 1;
-        return `__KXCHUNK_${i}__`;
+        return `\u0001${i}\u0001`;
     };
 
     // 1) Fences ```math ...``` / ```latex ...```  (bloque display)
@@ -51,6 +160,18 @@ export function renderExplicitMathBlocks(input: string): string {
         }
     });
 
+    // 1b) Otros bloques de código (```text, ```python, ```…): se muestran
+    //     tal cual, sin markdown ni LaTeX dentro
+    const codeFenceRE = /```[\w+-]*[^\S\r\n]*\r?\n([\s\S]*?)\r?\n?```/g;
+    src = src.replace(codeFenceRE, (_m, body) =>
+        makeMarker(`<pre class="md-code"><code>${escapeHTML(body).replace(/"/g, "&quot;")}</code></pre>`)
+    );
+
+    // 1c) Código en línea: `…` (tampoco se interpreta lo de dentro)
+    src = src.replace(/`([^`\n]+)`/g, (_m, code) =>
+        makeMarker(`<code>${escapeHTML(code).replace(/"/g, "&quot;")}</code>`)
+    );
+
     // 2) Bloques $$…$$ en líneas propias (bloque display)
     // $$ en una línea, contenido, $$ en otra línea
     const blockDollarRE = /(^|\n)\s*\$\$\s*\r?\n([\s\S]*?)\r?\n\s*\$\$\s*(?=\n|$)/g;
@@ -64,6 +185,29 @@ export function renderExplicitMathBlocks(input: string): string {
             return `${lead}${makeMarker(html)}`;
         } catch {
             return `${lead}${makeMarker(`<pre class="latex-error">${escapeHTML(body)}</pre>`)}`;
+        }
+    });
+
+    // 2b) $$…$$ dentro de una línea (display)
+    src = src.replace(/\$\$([^$\n]+?)\$\$/g, (_m, body) => {
+        try {
+            return makeMarker(
+                katex.renderToString(body, { displayMode: true, throwOnError: false, strict: "ignore" })
+            );
+        } catch {
+            return makeMarker(`<span class="latex-error">${escapeHTML(body)}</span>`);
+        }
+    });
+
+    // 2c) $…$ en línea. Sin espacio justo dentro de los $ y sin letra o
+    //     cifra justo fuera, para no confundir importes ("de $5 a $10").
+    src = src.replace(/(?<![\\$\w])\$(?=\S)([^$\n]+?)(?<=\S)\$(?![\w$])/g, (_m, body) => {
+        try {
+            return makeMarker(
+                katex.renderToString(body, { displayMode: false, throwOnError: false, strict: "ignore" })
+            );
+        } catch {
+            return makeMarker(`<span class="latex-error">${escapeHTML(body)}</span>`);
         }
     });
 
@@ -105,7 +249,7 @@ export function renderExplicitMathBlocks(input: string): string {
         .split(/\r?\n/)
         .map((line) => {
             // Si ya hay delimitadores o marcadores KaTeX, no tocar
-            if (hasAnyDelims(line) || /__KXCHUNK_\d+__/.test(line)) return line;
+            if (hasAnyDelims(line) || /\u0001\d+\u0001/.test(line)) return line;
 
             // Si la línea empieza con un comando LaTeX claro, la renderizamos como display
             if (/^\s*\\[a-zA-Z]+(?:\*?)\b/.test(line)) {
@@ -124,37 +268,24 @@ export function renderExplicitMathBlocks(input: string): string {
         })
         .join("\n");
 
-    // 6) Procesar markdown ANTES del escape HTML
-    let safe = src;
+    // 6) Todo el texto del modelo se escapa: el mensaje se pinta con
+    //    dangerouslySetInnerHTML y su contenido puede venir de documentos, de
+    //    sensores o de un usuario, así que no puede llevar HTML propio
+    //    (<img onerror=…>). Solo se conservan las etiquetas de formato
+    //    sencillas, SIN atributos.
+    const allowedTags: string[] = [];
+    let safe = src.replace(/<(\/?)(strong|em|code|b|i|br)\s*(\/?)>/gi, (_m, close, tag, selfClose) => {
+        const i = allowedTags.push(`<${close}${tag.toLowerCase()}${selfClose ? "/" : ""}>`) - 1;
+        return `\u0003${i}\u0003`;
+    });
+    safe = escapeHTML(safe).replace(/"/g, "&quot;");
+    safe = safe.replace(/\u0003(\d+)\u0003/g, (_m, i) => allowedTags[Number(i)]);
 
-    // Verificar si ya contiene etiquetas HTML
-    const hasHTML = /<\/?(?:strong|em|code|b|i|span|div|p|br)\b[^>]*>/i.test(src);
+    // 7) Markdown: tablas, títulos, listas, negrita, cursiva, código
+    safe = processBlockMarkdown(safe);
 
-    if (hasHTML) {
-        // Ya tiene HTML - proteger las etiquetas existentes
-        const htmlTagProtection: string[] = [];
-        const protectHTML = (match: string) => {
-            const index = htmlTagProtection.push(match) - 1;
-            return `__HTMLTAG_${index}__`;
-        };
-
-        // Proteger etiquetas HTML válidas
-        safe = safe.replace(/<\/?(?:strong|em|code|b|i|span|div|p|br|ul|ol|li)\b[^>]*>/gi, protectHTML);
-
-        // Escapar el resto del contenido
-        safe = escapeHTML(safe);
-
-        // Restaurar las etiquetas HTML protegidas
-        safe = safe.replace(/__HTMLTAG_(\d+)__/g, (_m, i) => htmlTagProtection[Number(i)]);
-    } else {
-        safe = processMarkdown(safe);
-    }
-
-    // Convertir saltos de línea
-    safe = safe.replace(/\r?\n/g, "<br/>");
-
-    // 7) Reinyectar los fragmentos de KaTeX
-    safe = safe.replace(/__KXCHUNK_(\d+)__/g, (_m, i) => chunks[Number(i)]);
+    // 8) Reinyectar los fragmentos de KaTeX
+    safe = safe.replace(/\u0001(\d+)\u0001/g, (_m, i) => chunks[Number(i)]);
 
     return safe;
 }
@@ -194,6 +325,77 @@ const MessageContent = styled.div`
         font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, "Liberation Mono", monospace;
         font-size: 0.9em;
         color: #ff6b6b;
+    }
+
+    /* ===== Tablas, títulos y listas (markdown) ===== */
+    .md-table {
+        max-width: 100%;
+        overflow-x: auto;
+        margin: 0.4em 0;
+        white-space: normal;
+    }
+
+    .md-table table {
+        border-collapse: collapse;
+        font-size: 0.85em;
+        line-height: 1.35;
+        font-variant-numeric: tabular-nums;
+    }
+
+    .md-table th,
+    .md-table td {
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        padding: 2px 8px;
+        white-space: nowrap;
+    }
+
+    .md-table th {
+        background-color: rgba(255, 255, 255, 0.08);
+        font-weight: bold;
+    }
+
+    .md-table tbody tr:nth-child(even) {
+        background-color: rgba(255, 255, 255, 0.03);
+    }
+
+    pre.md-code {
+        margin: 0.4em 0;
+        padding: 0.5em 0.8em;
+        overflow-x: auto;
+        white-space: pre;
+        background-color: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: 6px;
+        line-height: 1.35;
+    }
+
+    pre.md-code code {
+        background: none;
+        border: none;
+        padding: 0;
+        color: inherit;
+    }
+
+    .md-heading {
+        margin: 0.5em 0 0.2em;
+        font-weight: bold;
+        line-height: 1.3;
+    }
+
+    h3.md-heading {
+        font-size: 1.1em;
+    }
+
+    h4.md-heading,
+    h5.md-heading,
+    h6.md-heading {
+        font-size: 1em;
+    }
+
+    .md-list {
+        margin: 0.2em 0;
+        padding-left: 1.4em;
+        white-space: normal;
     }
 
     /* ===== KaTeX: estilos seguros ===== */

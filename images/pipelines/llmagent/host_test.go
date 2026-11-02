@@ -142,15 +142,18 @@ func TestAnswerWithToolAndHistory(t *testing.T) {
 	var saved []string
 	h := newTestHost(t, llm, srv, &saved)
 
-	a := h.answer(Prompt{UserName: "ana", Text: "critical stress?"})
+	a := h.answer(Prompt{UserName: "ana", Text: "critical stress?", TimeZone: "Europe/Madrid"})
 	if !a.OK {
 		t.Fatalf("answer failed: %s", a.Message)
 	}
 	if a.Message != `{"message":"ok"}` {
 		t.Errorf("fence not removed: %q", a.Message)
 	}
-	if got := strings.Join(llm.sawUser, ";"); got != "earlier question;critical stress?" {
-		t.Errorf("the LLM saw users %q", got)
+	// The question goes with the user's time zone and local time; the
+	// stored conversation keeps it as the user wrote it.
+	if len(llm.sawUser) != 2 || llm.sawUser[0] != "earlier question" ||
+		!strings.HasSuffix(llm.sawUser[1], "critical stress?") || !strings.Contains(llm.sawUser[1], "time zone is Europe/Madrid") {
+		t.Errorf("the LLM saw users %q", llm.sawUser)
 	}
 	if srv.gotName != "critical-value" {
 		t.Errorf("server got tool %q (want its own name, without prefix)", srv.gotName)
@@ -256,5 +259,24 @@ func TestExpectedCloseError(t *testing.T) {
 		if got := expectedCloseError(c.msg, map[string]interface{}{"error": c.err}); got != c.want {
 			t.Errorf("%q / %q: got %v, want %v", c.msg, c.err, got, c.want)
 		}
+	}
+}
+
+func TestResolveTimeZone(t *testing.T) {
+	for _, c := range []struct {
+		in   []string
+		want string
+	}{
+		{[]string{"Europe/Madrid", "America/Bogota"}, "Europe/Madrid"},
+		{[]string{"", "America/Bogota"}, "America/Bogota"},
+		{[]string{"Mars/Base", ""}, "UTC"},
+		{nil, "UTC"},
+	} {
+		if got := ResolveTimeZone(c.in...); got != c.want {
+			t.Errorf("%v: %q, want %q", c.in, got, c.want)
+		}
+	}
+	if ctx := timeContext("Europe/Madrid", time.Date(2026, 10, 31, 12, 0, 0, 0, time.UTC)); !strings.Contains(ctx, "2026-10-31 13:00") {
+		t.Errorf("local time: %s", ctx)
 	}
 }
