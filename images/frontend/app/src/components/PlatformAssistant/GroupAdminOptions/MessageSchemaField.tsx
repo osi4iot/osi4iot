@@ -1,6 +1,6 @@
 // "Message schema" of the Create topic and Edit topic forms (JSON schema of the messages of the topic).
 //
-// Only the types written by the user (dev2dtm, dtm2dev, dtm2pdb, inject_N...) have an editor. For the others the
+// Only the types written by the user (dev2dtm, dtm2dev, dtm2pdb, inject...) have an editor. For the others the
 // platform computes it (from the measurements of the sensors, the simulation format of the digital twin, or a fixed
 // one): Edit topic shows it read-only and Create topic only says where it will come from.
 //

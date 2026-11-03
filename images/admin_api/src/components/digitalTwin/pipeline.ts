@@ -1,7 +1,11 @@
 import natsClient from "../../config/natsConfig";
 import { nanoid } from "nanoid";
 import PipelineDto from "./pipeline.dto";
-import { getDigitalTwinByProp, updateDigitalTwinPipelineFileDataById } from "./digitalTwinDAL";
+import {
+	ensureDigitalTwinPipelineTopics,
+	getDigitalTwinByProp,
+	updateDigitalTwinPipelineFileDataById,
+} from "./digitalTwinDAL";
 import PipelineFileDataDto from "./pipelineFileData.dto";
 import { areCyclesInPipeline, areThereInjectTopicsInPublish } from "./pipeline_cycles_detection";
 import IDigitalTwin from "./digitalTwin.interface";
@@ -27,7 +31,7 @@ export const createDigitalTwinPipeline = async (
 
 	const hasInjectNodesInPublish = areThereInjectTopicsInPublish(pipelineNodes);
 	if (hasInjectNodesInPublish) {
-		throw new Error("The pipeline contains 'inject' topics in 'Publish' nodes, which is not allowed.");
+		throw new Error("The pipeline contains 'inject' or 'approval' topics in 'Publish' nodes, which is not allowed.");
 	}
 
 	const hasCycles = await areCyclesInPipeline(digitalTwin, pipelineNodes, group);
@@ -65,6 +69,9 @@ export const createDigitalTwinPipeline = async (
 	await updateDigitalTwinPipelineFileDataById(digitalTwinId, groupId, updatePipelineDto, isDefault);
 
 	if (!isDefault) {
+		// Digital twins from older versions get their pipeline topics here; their admin events
+		// go before the pipeline's on the same subject, so the pipeline finds them.
+		await ensureDigitalTwinPipelineTopics(groupId, digitalTwinId, digitalTwin.digitalTwinUid);
 		const context = {
 			digitalTwinId,
 			groupId,
@@ -83,7 +90,7 @@ export const updateDigitalTwinPipeline = async (
 	const digitalTwin = await getDigitalTwinByProp("id", digitalTwinId);
 	const hasInjectNodesInPublish = areThereInjectTopicsInPublish(pipelineData.nodes);
 	if (hasInjectNodesInPublish) {
-		throw new Error("The pipeline contains 'inject' topics in 'Publish' nodes, which is not allowed.");
+		throw new Error("The pipeline contains 'inject' or 'approval' topics in 'Publish' nodes, which is not allowed.");
 	}
 
 	const hasCycles = await areCyclesInPipeline(digitalTwin, pipelineData.nodes, group);
@@ -118,6 +125,10 @@ export const updateDigitalTwinPipeline = async (
 		pipelineFileData: JSON.stringify(pipelineData.nodes),
 	};
 	await updateDigitalTwinPipelineFileDataById(digitalTwinId, groupId, updatePipelineDto);
+
+	// Digital twins from older versions get their pipeline topics here; their admin events
+	// go before the pipeline's on the same subject, so the pipeline finds them.
+	await ensureDigitalTwinPipelineTopics(groupId, digitalTwinId, digitalTwin.digitalTwinUid);
 
 	const reinitialize = pipelineData.reinitialize || false;
 	const context = {

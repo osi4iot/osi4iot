@@ -39,11 +39,8 @@ var topicTypeArray = []string{
 	"dtmlog",
 	"sim2state",
 	"state2sim",
-	"inject_1",
-	"inject_2",
-	"inject_3",
-	"inject_4",
-	"inject_5",
+	"inject",
+	"approval",
 }
 
 type AuthEntity interface {
@@ -54,3 +51,4 @@ type AuthEntity interface {
 func GiveEntityUserName(ae AuthEntity) string {
 	return ae.GiveUserName()
 }
+

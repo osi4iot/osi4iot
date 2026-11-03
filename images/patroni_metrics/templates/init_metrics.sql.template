@@ -80,6 +80,104 @@ CREATE TABLE IF NOT EXISTS iot_data.assetState (
 );
 
 -- =============================================================================
+-- IOT DATA — llm_usage hypertable (LLM usage of the organizations)
+--
+-- One row per operation that called an organization's LLM provider (an AI
+-- agent prompt with all its tool iterations, a translation, a
+-- transcription, a speech synthesis). Written by admin_api with the
+-- batches pipelines sends; read by the org admin "AI usage" page.
+-- Kept 400 days (13 months and a bit, so a month can be compared with the
+-- same month of the previous year): LLM_USAGE_RETENTION_DAYS in
+-- admin_api/src/components/llmUsage/llmUsageDAL.ts must say the same.
+-- =============================================================================
+
+CREATE TABLE IF NOT EXISTS iot_data.llm_usage (
+    created_at        TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+    org_id            BIGINT       NOT NULL,
+    group_id          BIGINT,
+    digital_twin_id   BIGINT,
+    digital_twin_uid  VARCHAR(40)  NOT NULL DEFAULT '',
+    node_uid          VARCHAR(40)  NOT NULL DEFAULT '',
+    node_name         VARCHAR(190) NOT NULL DEFAULT '',
+    node_type         VARCHAR(40)  NOT NULL DEFAULT '',
+    user_name         VARCHAR(190) NOT NULL DEFAULT '',
+    source            VARCHAR(20)  NOT NULL,
+    provider_type     VARCHAR(30)  NOT NULL DEFAULT '',
+    provider_host     VARCHAR(255) NOT NULL DEFAULT '',
+    model             VARCHAR(255) NOT NULL DEFAULT '',
+    requests          INTEGER      NOT NULL DEFAULT 1,
+    input_tokens      BIGINT       NOT NULL DEFAULT 0,
+    output_tokens     BIGINT       NOT NULL DEFAULT 0,
+    cache_read_tokens BIGINT       NOT NULL DEFAULT 0,
+    reasoning_tokens  BIGINT       NOT NULL DEFAULT 0,
+    audio_seconds     REAL         NOT NULL DEFAULT 0,
+    characters        INTEGER      NOT NULL DEFAULT 0
+);
+
+-- Chunks of a week: the retention policy drops whole chunks
+SELECT create_hypertable(
+    'iot_data.llm_usage', 'created_at',
+    chunk_time_interval => INTERVAL '7 days',
+    if_not_exists       => TRUE
+);
+
+CREATE INDEX IF NOT EXISTS idx_llm_usage_org_created
+    ON iot_data.llm_usage (org_id, created_at DESC);
+
+SELECT add_retention_policy(
+    'iot_data.llm_usage',
+    drop_after    => INTERVAL '400 days',
+    if_not_exists => TRUE
+);
+
+-- =============================================================================
+-- IOT DATA — llm_usage_monthly continuous aggregate (long-term trend)
+--
+-- Monthly totals (UTC months) by organization, source, provider and model:
+-- a few rows per organization and month, kept 5 years
+-- (LLM_USAGE_TREND_RETENTION_YEARS in llmUsageDAL.ts). Recent months are
+-- completed with the rows not yet materialized (materialized_only = false).
+-- The policy materializes the last 3 months every hour, always within the
+-- rows' retention, so what is already aggregated is never recomputed from
+-- deleted rows. Created WITH NO DATA: there is nothing to aggregate yet.
+-- =============================================================================
+
+CREATE MATERIALIZED VIEW IF NOT EXISTS iot_data.llm_usage_monthly
+WITH (timescaledb.continuous, timescaledb.materialized_only = false) AS
+SELECT
+    time_bucket(INTERVAL '1 month', created_at) AS month,
+    org_id,
+    source,
+    provider_type,
+    provider_host,
+    model,
+    COUNT(*)               AS operations,
+    SUM(requests)          AS requests,
+    SUM(input_tokens)      AS input_tokens,
+    SUM(output_tokens)     AS output_tokens,
+    SUM(cache_read_tokens) AS cache_read_tokens,
+    SUM(reasoning_tokens)  AS reasoning_tokens,
+    SUM(audio_seconds)     AS audio_seconds,
+    SUM(characters)        AS characters
+FROM iot_data.llm_usage
+GROUP BY 1, 2, 3, 4, 5, 6
+WITH NO DATA;
+
+SELECT add_continuous_aggregate_policy(
+    'iot_data.llm_usage_monthly',
+    start_offset      => INTERVAL '3 months',
+    end_offset        => INTERVAL '1 hour',
+    schedule_interval => INTERVAL '1 hour',
+    if_not_exists     => TRUE
+);
+
+SELECT add_retention_policy(
+    'iot_data.llm_usage_monthly',
+    drop_after    => INTERVAL '5 years',
+    if_not_exists => TRUE
+);
+
+-- =============================================================================
 -- OBSERVABILITY — log_entries hypertable
 -- =============================================================================
 

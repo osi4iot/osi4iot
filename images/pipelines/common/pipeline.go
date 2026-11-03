@@ -49,6 +49,8 @@ type Pipeline interface {
 	GetLeaderElector() LeaderElector
 	GetNode(nodeUid string) Node
 	GetNodeData(nodeUid string) *NodeData
+	// GetNodes returns the pipeline's nodes (a copy of the list)
+	GetNodes() []Node
 	GetNodeInputWires(nodeUid string) []*Wire
 	GetNodeOutputIndex(nodeUid string, outputIndex int) []*Wire
 	GetNodeOutputWires(nodeUid string) [][]*Wire

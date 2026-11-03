@@ -14,6 +14,8 @@ import { CheckboxInput, Label } from "./types";
 //   - "skills": ["platform:<name>", "group:<name>"], none by default.
 //     The agent knows a skill by its name, so two with the same name
 //     cannot both be chosen.
+//   - "flowTools": the tool names of the AI Tool nodes of the pipeline it may call (flow__<name>). A node
+//     without the setting may call all of them; the first change stores the list.
 
 const Section = styled.div`
     margin-bottom: 18px;
@@ -75,7 +77,7 @@ const ItemDescription = styled.span`
 const Hint = styled.div`
     color: #9a9a9a;
     font-size: 11px;
-    margin: 2px 0 2px;
+    margin-top: 2px;
 `;
 
 const Warning = styled.div`
@@ -117,6 +119,10 @@ interface AiAgentToolsSelectProps {
     skills: string[];
     onChangeMcpServers: (servers: string[]) => void;
     onChangeSkills: (skills: string[]) => void;
+    // the AI Tool nodes of the pipeline, and the ones chosen (undefined: all)
+    flowTools?: { nodeId: string; label: string; toolName: string; description: string }[];
+    flowToolsSelected?: string[];
+    onChangeFlowTools?: (tools: string[]) => void;
 }
 
 const AiAgentToolsSelect: FC<AiAgentToolsSelectProps> = ({
@@ -125,6 +131,9 @@ const AiAgentToolsSelect: FC<AiAgentToolsSelectProps> = ({
     skills,
     onChangeMcpServers,
     onChangeSkills,
+    flowTools = [],
+    flowToolsSelected,
+    onChangeFlowTools,
 }) => {
     const { accessToken, refreshToken } = useAuthState();
     const authDispatch = useAuthDispatch();
@@ -200,6 +209,13 @@ const AiAgentToolsSelect: FC<AiAgentToolsSelectProps> = ({
         );
     };
 
+    const flowToolNames = Array.from(new Set(flowTools.map((t) => t.toolName).filter(Boolean)));
+    const chosenFlowTools = flowToolsSelected ?? flowToolNames;
+    const toggleFlowTool = (name: string, checked: boolean) => {
+        const next = checked ? [...chosenFlowTools, name] : chosenFlowTools.filter((t) => t !== name);
+        onChangeFlowTools?.(flowToolNames.filter((t) => next.includes(t)));
+    };
+
     const platformSkills = (available?.skills || []).filter((s) => s.scope === "platform");
     const groupSkills = (available?.skills || []).filter((s) => s.scope === "group");
 
@@ -232,6 +248,31 @@ const AiAgentToolsSelect: FC<AiAgentToolsSelectProps> = ({
                             </ItemName>
                             <ItemDescription>{server.description}</ItemDescription>
                             {server.condition && <Hint>{server.condition}</Hint>}
+                        </ItemText>
+                    </Item>
+                ))}
+            </Section>
+            <Section>
+                <Label>Flow tools</Label>
+                <Hint>
+                    The AI Tool nodes of this pipeline: flows the agent calls as tools (flow__&lt;name&gt;), which reply
+                    through a Publish node set to Reply.
+                    {flowToolsSelected === undefined && flowToolNames.length > 0 && " All of them (the default)."}
+                </Hint>
+                {flowTools.length === 0 && <Hint>No AI Tool nodes in this pipeline.</Hint>}
+                {flowTools.map((tool) => (
+                    <Item key={tool.nodeId} disabled={!tool.toolName}>
+                        <CheckboxInput
+                            type="checkbox"
+                            checked={!!tool.toolName && chosenFlowTools.includes(tool.toolName)}
+                            disabled={!tool.toolName}
+                            onChange={(e: { target: { checked: boolean } }) => toggleFlowTool(tool.toolName, e.target.checked)}
+                        />
+                        <ItemText>
+                            <ItemName>
+                                flow__{tool.toolName || "?"} ({tool.label})
+                            </ItemName>
+                            <ItemDescription>{tool.description || "No description yet."}</ItemDescription>
                         </ItemText>
                     </Item>
                 ))}

@@ -3,8 +3,6 @@ import { nanoid } from "nanoid";
 
 // Utilidades puras para copiar/pegar e importar grupos de nodos del pipeline.
 
-export const MAX_INJECT_NODES = 5;
-
 export const newNodeUid = () => nanoid(20).replace(/-/g, "x").replace(/_/g, "X");
 
 export const edgeOutputIndex = (edge: { sourceHandle?: string | null }) =>
@@ -30,13 +28,28 @@ export const parsePipelineYaml = (text: string | null | undefined): any[] | null
 export const pipelineYamlText = (yamlNodes: any[]) => YAML.stringify({ nodes: yamlNodes });
 
 // "Function 1" -> "Function 2", "Function 3"... hasta encontrar uno libre
+// A free name for a copied node. A counter separated by a space ("Delay 1") or in brackets ("Listen
+// dev2pdb_2 (2)") is increased; a number that is part of the name ("Listen dev2pdb_2") is kept, and
+// "(2)" is added, so that the name does not suggest another topic.
 export const uniqueLabel = (label: string, usedLabels: Set<string>) => {
     if (!usedLabels.has(label)) return label;
-    const match = /^(.*?)\s*(\d+)$/.exec(label);
-    const base = match ? match[1] : label;
-    let n = match ? parseInt(match[2], 10) + 1 : 2;
-    while (usedLabels.has(`${base} ${n}`)) n++;
-    return `${base} ${n}`;
+    let base = label;
+    let n = 2;
+    let format = (k: number) => `${base} ${k}`;
+    const bracketed = /^(.*\S) \((\d+)\)$/.exec(label);
+    const spaced = /^(.*\S)\s+(\d+)$/.exec(label);
+    if (bracketed) {
+        base = bracketed[1];
+        n = parseInt(bracketed[2], 10) + 1;
+        format = (k) => `${base} (${k})`;
+    } else if (spaced) {
+        base = spaced[1];
+        n = parseInt(spaced[2], 10) + 1;
+    } else if (/\d$/.test(label)) {
+        format = (k) => `${base} (${k})`;
+    }
+    while (usedLabels.has(format(n))) n++;
+    return format(n);
 };
 
 interface PrepareOptions {
@@ -46,41 +59,26 @@ interface PrepareOptions {
 
 export type PrepareResult = { nodes: any[]; edges: any[]; error?: undefined } | { error: string; nodes?: undefined; edges?: undefined };
 
-// Prepara nodos/conexiones para insertarlos junto a los existentes: uids nuevos, nombres únicos,
-// injectRef libres y conexiones sólo entre los nodos del grupo.
+// Prepara nodos/conexiones para insertarlos junto a los existentes: uids nuevos, nombres únicos
+// y conexiones sólo entre los nodos del grupo.
 export const prepareNodesForInsertion = (
     groupNodes: any[],
     groupEdges: any[],
     existingNodes: any[],
     { regenerateIds }: PrepareOptions,
 ): PrepareResult => {
-    const existingInjects = existingNodes.filter((node) => node.type === "Inject");
-    const groupInjects = groupNodes.filter((node) => node.type === "Inject");
-    if (existingInjects.length + groupInjects.length > MAX_INJECT_NODES) {
-        return { error: `You can only have ${MAX_INJECT_NODES} Inject nodes in the pipeline.` };
-    }
-
     const idMap = new Map<string, string>();
     for (const node of groupNodes) idMap.set(node.id, regenerateIds ? newNodeUid() : node.id);
 
     const usedLabels = new Set<string>(existingNodes.map((node) => node.data?.label));
-    const usedInjectRefs = new Set<string>(existingInjects.map((node) => node.data?.settings?.injectRef).filter(Boolean));
 
     const nodes = groupNodes.map((node) => {
         const id = idMap.get(node.id)!;
         const label = uniqueLabel(node.data?.label ?? node.type, usedLabels);
         usedLabels.add(label);
         const settings = node.data?.settings ? JSON.parse(JSON.stringify(node.data.settings)) : {};
-        if (node.type === "Inject") {
-            let injectRef = settings.injectRef;
-            if (!injectRef || usedInjectRefs.has(injectRef)) {
-                let n = 1;
-                while (usedInjectRefs.has(`inject_${n}`)) n++;
-                injectRef = `inject_${n}`;
-            }
-            settings.injectRef = injectRef;
-            usedInjectRefs.add(injectRef);
-        }
+        // Inject nodes are told apart by their uid: the injectRef of older pipelines is not used
+        if (node.type === "Inject") delete settings.injectRef;
         return {
             id,
             type: node.type,

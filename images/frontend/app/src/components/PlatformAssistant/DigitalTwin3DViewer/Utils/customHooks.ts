@@ -45,7 +45,9 @@ export const useViewerState = (
 ) => {
     const [state, setState] = useState<ViewerState>({
         isAssistantPanelOpen: initialPanels?.assistantPanel ?? false,
-        isChatAssistantOpen: initialPanels?.chatAssistant ?? false,
+        // the chat is the first tab of the assistant panel: it is the one that opens unless the user chose
+        // another (only shown when the digital twin has the chat enabled; else the panel opens on Scene)
+        isChatAssistantOpen: initialPanels?.chatAssistant ?? true,
         isPipelineLogsOpen: initialPanels?.pipelineLogs ?? false,
         activeViewer: initialActiveViewer ?? "3D", // Default to 3D viewer
         showDtSimulatorModal: false,
@@ -647,9 +649,10 @@ export const usePipelineLogs = (
         (newLogMessage: PipelineLog) => {
             setLogMessages((prevMessages) => appendCapped(prevMessages, newLogMessage));
 
-            // The AI agent stopped and its node is restarting: say so in
-            // the chat. (A failed prompt is answered with its error.)
-            if (newLogMessage.description === "AI agent failure") {
+            // The AI agent stopped and its node is restarting, or the organization crossed its monthly
+            // LLM token limit (or its warning percentage): say so in the chat. (A failed prompt is
+            // answered with its error.)
+            if (newLogMessage.description === "AI agent failure" || newLogMessage.description === "LLM token limit") {
                 setChatMessages((prevMessages: any) => {
                     const newChatMessages = [...prevMessages];
                     const newMessage = {
@@ -900,7 +903,6 @@ const normalizeFormData = (data: any, nodeType: string) => {
     const stringFields = [
         "label",
         "topic",
-        "injectRef",
         "to",
         "subject",
         "body",
@@ -1408,7 +1410,7 @@ export const createNodesAndEdges = (
             y: yPosition,
         };
 
-        if (nodeItem.type === "Inject") {
+        if (nodeItem.type === "Inject" || nodeItem.type === "Approval") {
             (nodeData as any).natsSubjectsData = natsSubjectsData;
             (nodeData as any).natsClient = natsClient;
         }

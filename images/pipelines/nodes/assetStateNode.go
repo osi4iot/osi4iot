@@ -157,15 +157,63 @@ func (n *AssetStateNode) processUpsertQuery(msg common.Message, log *logger.Logg
 		log.Errorf("AssetStateNode %s: the IoT DB is not available", n.NodeUid)
 		return fmt.Errorf("the IoT DB is not available")
 	}
+
+	// The status before, to say when it changes (only read if someone listens)
+	previousStatus := ""
+	listening := len(n.GetNodeOutputWires()) > 0
+	if listening {
+		if previous, err := n.GetAssetState(n.AssetUid, n.GroupUid); err == nil {
+			previousStatus = statusOf(previous)
+		} else {
+			log.Warnf("AssetStateNode %s: reading the previous state: %v", n.NodeUid, err)
+		}
+	}
+
 	if err := iotdb.UpsertAssetState(n.Ctx, pool, assetState); err != nil {
 		log.Errorf("AssetStateNode %s: failed to upsert asset state: %v", n.NodeUid, err)
 		return fmt.Errorf("failed to upsert asset state: %w", err)
 	}
-	payload := map[string]any{
-		"message": fmt.Sprintf("State for asset %s upserted successfully in IoT DB", n.AssetUid),
+
+	// Output: only when the status changed, so that Email or Telegram nodes
+	// can be told of it whoever sets the state.
+	status := statusOf(state)
+	if !listening || previousStatus == "" || status == previousStatus {
+		return nil
 	}
-	n.sendToOutputs(message.NewMessageFromPayload(payload), log)
+	description, _ := state["state_description"].(string)
+	text := fmt.Sprintf("%s: %s → %s", n.assetName(), previousStatus, status)
+	if description != "" {
+		text += " (" + description + ")"
+	}
+	payload := map[string]any{
+		"assetUid":          n.AssetUid,
+		"status":            status,
+		"previousStatus":    previousStatus,
+		"state_description": description,
+		"state":             state,
+		"message":           text,
+	}
+	out := message.NewMessage(msg.GetTopic(), payload, msg.GetState(), "", nil)
+	out.SetReplyContext(msg.GetReplyContext())
+	common.InheritSender(msg, out)
+	n.sendToOutputs(out, log)
 	return nil
+}
+
+// statusOf is the status of a state ("Unknown" without one).
+func statusOf(state map[string]any) string {
+	if s, ok := state["status"].(string); ok && s != "" {
+		return s
+	}
+	return "Unknown"
+}
+
+// assetName is how the asset is called in the messages.
+func (n *AssetStateNode) assetName() string {
+	if asset := n.Fm.GetAssetById(n.Pipeline.GetAssetId()); asset != nil && asset.Description != "" {
+		return asset.Description
+	}
+	return "Asset " + n.AssetUid
 }
 
 func (n *AssetStateNode) processGetStateQuery(msg common.Message, log *logger.Logger) error {

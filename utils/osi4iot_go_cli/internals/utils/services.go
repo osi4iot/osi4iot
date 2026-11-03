@@ -736,7 +736,7 @@ func GetDefaultServicesDataMap(pd *osi_types.PlatformData) map[string]osi_types.
 		},
 		"nats": {
 			ServiceName: "nats",
-			Image:       "ghcr.io/osi4iot/nats:2.11.1-alpine",
+			Image:       "ghcr.io/osi4iot/nats:2.15.2-alpine",
 			Replicas:    defaultNumNatsReplicas,
 			Cpu:         messagingSvcCpus,
 			Memory:      messagingSvcMem,

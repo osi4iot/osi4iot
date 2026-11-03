@@ -70,7 +70,8 @@ export const ORG_ADMIN_OPTIONS = {
     ORG_USERS: "Orgs users",
     GROUPS: "Groups",
     SENSOR_TYPES: "Sensor types",
-    ASSET_TYPES: "Asset types"
+    ASSET_TYPES: "Asset types",
+    AI_USAGE: "AI usage"
 }
 
 export const ORGS_MANAGED_OPTIONS = {

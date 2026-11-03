@@ -137,6 +137,10 @@ func (n *TelegramListenNode) processListenMessage(log *logger.Logger) {
 
 			switch msg.Type {
 			case telegram.MessageTypeCallback:
+				// the buttons of the Approval nodes' requests are theirs
+				if strings.HasPrefix(msg.CallbackData, approvalCallbackPrefix) {
+					continue
+				}
 				// Siempre responder el callback para quitar el loading del botón
 				telegram.AnswerCallbackQuery(n.BotToken, msg.CallbackQueryID, "")
 

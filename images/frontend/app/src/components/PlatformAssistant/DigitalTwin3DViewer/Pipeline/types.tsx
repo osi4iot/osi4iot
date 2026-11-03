@@ -228,6 +228,7 @@ export const NodeTypeIndicator = styled.span<{ nodeType: string }>`
             case "MlModel":
                 return "#bd5f25ff";
             case "AiAgent":
+            case "AiTool":
                 return "#B8B1FB";
             case "Email":
                 return "#4a90e2";
@@ -237,6 +238,25 @@ export const NodeTypeIndicator = styled.span<{ nodeType: string }>`
                 return "#4a90e2";
             case "Batch":
                 return "#b8ac2fff";
+            case "Switch":
+            case "Deadband":
+            case "Window":
+            case "Join":
+                return "#4f8f8b";
+            case "Watchdog":
+            case "Alarm":
+            case "MachineState":
+                return "#a0605a";
+            case "Rainflow":
+            case "Vibration":
+            case "Anomaly":
+                return "#5f6fa3";
+            case "Totalizer":
+            case "OEE":
+            case "Degradation":
+                return "#6f8a4e";
+            case "Approval":
+                return "#8a6d3b";
             case "IoTDb":
                 return "#5B85A7";
             case "S3Storage":

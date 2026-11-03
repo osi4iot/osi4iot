@@ -17,6 +17,13 @@ import (
 	"github.com/nats-io/nats.go"
 )
 
+// injectTopicRef is the digital twin topic shared by all its Inject nodes.
+const injectTopicRef = "inject"
+
+// injectNodeHeader carries the UID of the Inject node a message on the
+// shared inject topic is meant for; each node only takes its own.
+const injectNodeHeader = "Inject-Node"
+
 type InjectNode struct {
 	BaseNode
 	TopicIn              string
@@ -37,27 +44,11 @@ type InjectNode struct {
 }
 
 func CreateInjectNode(node common.NodeData, fm common.Manager, p common.Pipeline) (*InjectNode, error) {
-	injectRef, ok := node.Settings["injectRef"].(string)
-	if !ok || injectRef == "" {
-		fm.Log().Errorf("InjectNode %s: 'injectRef' setting is required", node.NodeUid)
-		return nil, fmt.Errorf("injectRef setting is required")
-	}
-
-	if !strings.HasPrefix(injectRef, "inject_") {
-		fm.Log().Errorf("InjectNode %s: 'injectRef' must start with 'inject_'", node.NodeUid)
-		return nil, fmt.Errorf("invalid injectRef: %s", injectRef)
-	}
-
-	injectRefNum, err := strconv.Atoi(injectRef[len("inject_"):])
-	if err != nil || injectRefNum > 5 || injectRefNum < 1 {
-		fm.Log().Errorf("InjectNode %s: invalid injectRef: %s. It must be between inject_1 and inject_5", node.NodeUid, injectRef)
-		return nil, fmt.Errorf("invalid injectRef: %s. It must be between inject_1 and inject_5", injectRef)
-	}
-
-	topic := fm.GetTopicByTopicRef(p.GetAssetId(), p.GetDigitalTwinId(), injectRef)
+	// All Inject nodes listen on the digital twin's single inject topic
+	topic := fm.GetTopicByTopicRef(p.GetAssetId(), p.GetDigitalTwinId(), injectTopicRef)
 	if topic == nil {
-		fm.Log().Errorf("InjectNode %s: topic %s not found", node.NodeUid, injectRef)
-		return nil, fmt.Errorf("topic %s not found", injectRef)
+		fm.Log().Errorf("InjectNode %s: topic %s not found", node.NodeUid, injectTopicRef)
+		return nil, fmt.Errorf("topic %s not found", injectTopicRef)
 	}
 	topicIn := utils.TopicToNatsSubject(topic.TopicType, topic.GroupUid, topic.TopicUid)
 
@@ -117,6 +108,7 @@ func CreateInjectNode(node common.NodeData, fm common.Manager, p common.Pipeline
 				return nil, fmt.Errorf("endTime must be after startTime")
 			}
 
+			var err error
 			daysOfWeek, err = readDaysOfWeek(node)
 			if err != nil {
 				fm.Log().Errorf("InjectNode %s: %s", node.NodeUid, err)
@@ -154,7 +146,7 @@ func CreateInjectNode(node common.NodeData, fm common.Manager, p common.Pipeline
 	jsonMessage := map[string]interface{}{}
 	if injectionType == "JSON" {
 		if err := json.Unmarshal([]byte(node.Settings["json"].(string)), &jsonMessage); err != nil {
-			fm.Log().Errorf("InjectNode %s: failed to unmarshal json: %w", node.NodeUid, err)
+			fm.Log().Errorf("InjectNode %s: failed to unmarshal json: %v", node.NodeUid, err)
 			return nil, fmt.Errorf("failed to unmarshal jsonSchema: %w", err)
 		}
 	}
@@ -228,7 +220,16 @@ func (n *InjectNode) Start(ctx context.Context, log *logger.Logger, needReinitia
 	}
 }
 
+// forThisNode says whether a message on the shared inject topic is addressed
+// to this node through the Inject-Node header.
+func (n *InjectNode) forThisNode(msg *nats.Msg) bool {
+	return msg.Header != nil && msg.Header.Get(injectNodeHeader) == n.NodeUid
+}
+
 func (n *InjectNode) processNatsMessage(msg *nats.Msg, log *logger.Logger) error {
+	if !n.forThisNode(msg) {
+		return nil
+	}
 	var rawMessage map[string]interface{}
 	if err := json.Unmarshal(msg.Data, &rawMessage); err != nil {
 		return fmt.Errorf("failed to unmarshal message for node %s: %w", n.NodeUid, err)
@@ -292,10 +293,10 @@ func (n *InjectNode) Stop(log *logger.Logger) {
 	}
 
 	n.stopPeriodicTasks()
-	
-    n.wg.Wait()
-    n.SetStatus(common.NodeStatusStopped)
-    log.Infof("Node %s stopped successfully", n.NodeUid)
+
+	n.wg.Wait()
+	n.SetStatus(common.NodeStatusStopped)
+	log.Infof("Node %s stopped successfully", n.NodeUid)
 }
 
 func (n *InjectNode) isValidDay(now time.Time) bool {

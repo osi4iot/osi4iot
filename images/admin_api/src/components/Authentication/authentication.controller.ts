@@ -43,6 +43,7 @@ import { getNumDigitalTwins, getNumDigitalTwinsByGroupsIdArray } from "../digita
 import { getNumMLModelsByGroupsIdArray } from "../ml_model/ml_modelDAL";
 import infoLogger from "../../utils/logger/infoLogger";
 import { canonicalTimeZone } from "../../utils/validators/isTimeZone";
+import { createTelegramLinkCode, getTelegramLink, unlinkTelegramUser } from "../user/telegramLinkDAL";
 
 interface IJwtPayload {
 	id: string;
@@ -90,6 +91,9 @@ class AuthenticationController implements IController {
 		this.router.delete(`${this.path}/disable_refresh_token_by_id/:refreshTokenId`, superAdminAuth, this.disableRefreshTokenById);
 		this.router.delete(`${this.path}/disable_user_refresh_tokens/:userId`, superAdminAuth, this.disableUsersRefreshToken);
 		this.router.get(`${this.path}/user_managed_components`, userAuth, this.numComponentsManagedByUser);
+		// Link of the user's Telegram account (for the Approval nodes): a one-time code to send to the bot
+		this.router.post(`${this.path}/telegram_link_code`, userAuth, this.createTelegramLinkCode);
+		this.router.delete(`${this.path}/telegram_link`, userAuth, this.unlinkTelegram);
 	}
 
 	private generateNewRefreshToken = (user: IUser) => {
@@ -215,9 +219,10 @@ class AuthenticationController implements IController {
 		}
 	};
 
-	private getUserProfile = (req: IRequestWithUser, res: Response, next: NextFunction) => {
+	private getUserProfile = async (req: IRequestWithUser, res: Response, next: NextFunction): Promise<void> => {
 		try {
 			const { user } = req;
+			const telegramLink = await getTelegramLink(user.id);
 			const userData = {
 				userId: user.id,
 				firstName: user.firstName,
@@ -225,6 +230,7 @@ class AuthenticationController implements IController {
 				email: user.email,
 				login: user.login,
 				timezone: user.timezone ?? "",
+				...telegramLink,
 			}
 			res.status(200).json(userData);
 		} catch (error) {
@@ -254,6 +260,26 @@ class AuthenticationController implements IController {
 				if (timezone !== (user.timezone ?? "")) await updateUserTimezoneById(user.id, timezone);
 			}
 			const message = { message: `User profile with username: ${user.login} updated succesfully` };
+			infoLogger(req, res, 200, message.message);
+			res.status(200).json(message);
+		} catch (error) {
+			return next(error);
+		}
+	};
+
+	private createTelegramLinkCode = async (req: IRequestWithUser, res: Response, next: NextFunction): Promise<void> => {
+		try {
+			const linkCode = await createTelegramLinkCode(req.user.id);
+			res.status(200).json(linkCode);
+		} catch (error) {
+			return next(error);
+		}
+	};
+
+	private unlinkTelegram = async (req: IRequestWithUser, res: Response, next: NextFunction): Promise<void> => {
+		try {
+			await unlinkTelegramUser(req.user.id);
+			const message = { message: "The Telegram account has been unlinked" };
 			infoLogger(req, res, 200, message.message);
 			res.status(200).json(message);
 		} catch (error) {
@@ -433,3 +459,4 @@ class AuthenticationController implements IController {
 }
 
 export default AuthenticationController;
+

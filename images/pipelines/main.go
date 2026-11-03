@@ -128,6 +128,9 @@ func main() {
 		admin,
 		log)
 
+	// usage of the organizations' LLM providers, sent to admin_api
+	manager.StartLlmUsageMeter(ctx)
+
 	utils.HealthCheck(cfg)
 
 	sigChan := make(chan os.Signal, 1)

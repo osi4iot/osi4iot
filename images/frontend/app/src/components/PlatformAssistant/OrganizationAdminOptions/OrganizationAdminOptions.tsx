@@ -14,6 +14,7 @@ import { AssetTypesProvider } from '../../../contexts/assetTypesOptions';
 import AssetTypesContainer from './AssetTypesContainer';
 import { SensorTypesProvider } from '../../../contexts/sensorTypesOptions';
 import SensorTypesContainer from './SensorTypesContainer';
+import LlmUsageContainer from './LlmUsageContainer';
 import { reloadTable, reloadTables, usePersistentState, useTable, useTablesPending } from '../../../state';
 
 
@@ -129,6 +130,9 @@ loading ?
                                     />
                                 </SensorTypesProvider>
                             }
+                            {optionToShow === ORG_ADMIN_OPTIONS.AI_USAGE &&
+                                <LlmUsageContainer orgsManaged={orgsManagedTable} />
+                            }
                             {optionToShow === ORG_ADMIN_OPTIONS.ASSET_TYPES &&
                                 <AssetTypesProvider>
                                     <AssetTypesContainer
@@ -145,4 +149,3 @@ loading ?
 }
 
 export default OrganizationAdminOptions;
-

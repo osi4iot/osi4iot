@@ -18,6 +18,10 @@ import { json } from "@codemirror/lang-json";
 import { IDigitalTwin } from "../../TableColumns/digitalTwinsColumns";
 import LlmModelSelect from "./LlmModelSelect";
 import AiAgentToolsSelect from "./AiAgentToolsSelect";
+import AiToolParametersEditor from "./AiToolParametersEditor";
+import { SignalNodeSettings } from "./SignalNodesSettings";
+import { isSignalNode } from "./signalNodes";
+import { AI_TOOL_MAX_TIMEOUT, AI_TOOL_PREFIX, aiToolProblems, pipelineAiTools } from "./aiTool";
 import { TimeSelector } from "./Utils/TimeSelector";
 import { timezoneOptions } from "./Utils/timezones";
 import {
@@ -123,6 +127,8 @@ interface NodePropertiesPanelProps {
     handlePipelineUiChanged: (isPipelineUiChanged: any) => void;
     natsSubjectsData: INatsSubjectData[];
     assetS3Folders: IAssetS3Folder[];
+    // the nodes of the pipeline (the AI Tool nodes an AI Agent may call)
+    pipelineNodes?: { id: string; type?: string; data?: any }[];
 }
 
 interface SysMonitoringTopic {
@@ -140,6 +146,7 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
     handlePipelineUiChanged,
     natsSubjectsData,
     assetS3Folders,
+    pipelineNodes = [],
 }) => {
     const [isClosing, setIsClosing] = useState(false);
     const [formData, setFormData] = useState<any>({});
@@ -393,7 +400,8 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
     // Función para determinar si un nodo debe mostrar el selector de outputs
     const shouldShowOutputSelector = (nodeType: string) => {
         const excludedTypes = ["Publish", "Email", "Splitter"];
-        return !excludedTypes.includes(nodeType);
+        // the signal nodes set their outputs from their settings (rules, blocked output) or have one
+        return !excludedTypes.includes(nodeType) && !isSignalNode(nodeType);
     };
 
     const codeMirrorSqlExtensions = useMemo(
@@ -1108,10 +1116,125 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                                 skills={Array.isArray(formData.skills) ? formData.skills : []}
                                 onChangeMcpServers={(servers) => handleInputChange("mcpServers", servers)}
                                 onChangeSkills={(skills) => handleInputChange("skills", skills)}
+                                flowTools={pipelineAiTools(pipelineNodes)}
+                                flowToolsSelected={Array.isArray(formData.flowTools) ? formData.flowTools : undefined}
+                                onChangeFlowTools={(tools) => handleInputChange("flowTools", tools)}
                             />
                         )}
                         {activeTab === "help" && <HelpTab nodeType="AiAgent" />}
                     </TabContentFunction>
+                </PanelContent>
+            </>
+        );
+    };
+
+    // AI Tool: the tool's declaration (name, description, timeout) and its parameters
+    const renderAiToolTabs = () => {
+        const tabs = [
+            { id: "settings", label: "Settings" },
+            { id: "parameters", label: "Parameters" },
+            { id: "help", label: "Help" },
+        ];
+        const otherNames = pipelineAiTools(pipelineNodes)
+            .filter((tool) => tool.nodeId !== selectedNode?.id)
+            .map((tool) => tool.toolName);
+        const problems = aiToolProblems(formData, otherNames);
+        return (
+            <>
+                <TabsContainer>
+                    {tabs.map((tab) => (
+                        <Tab key={tab.id} isActive={activeTab === tab.id} onClick={() => setActiveTab(tab.id)}>
+                            {tab.label}
+                        </Tab>
+                    ))}
+                </TabsContainer>
+                <PanelContent>
+                    <TabContent>
+                        {problems.length > 0 && activeTab !== "help" && (
+                            <div
+                                role="alert"
+                                style={{ marginBottom: 14, padding: "8px 10px", borderRadius: 6, border: "1px solid #f2495c", color: "#ffb3b3", fontSize: 12, lineHeight: 1.5 }}
+                            >
+                                {problems.map((problem) => (
+                                    <div key={problem}>{problem}</div>
+                                ))}
+                            </div>
+                        )}
+                        {activeTab === "settings" && (
+                            <>
+                                <FormGroup>
+                                    <Label>Node Name</Label>
+                                    <Input
+                                        type="text"
+                                        value={formData.label || ""}
+                                        onChange={(e: { target: { value: any } }) => handleInputChange("label", e.target.value)}
+                                        placeholder="Node name"
+                                    />
+                                </FormGroup>
+                                <FormGroup>
+                                    <Label>
+                                        Tool name{" "}
+                                        <span style={{ color: "#9ca3af", fontWeight: 400 }}>
+                                            (the model sees {AI_TOOL_PREFIX}
+                                            {formData.toolName || "<name>"})
+                                        </span>
+                                    </Label>
+                                    <Input
+                                        type="text"
+                                        value={formData.toolName || ""}
+                                        onChange={(e: { target: { value: any } }) =>
+                                            handleInputChange("toolName", e.target.value.trim())
+                                        }
+                                        placeholder="e.g. wind_load"
+                                    />
+                                </FormGroup>
+                                <FormGroup>
+                                    <Label>
+                                        Description{" "}
+                                        <span style={{ color: "#9ca3af", fontWeight: 400 }}>
+                                            (what it does and when to use it: the model chooses the tool by it)
+                                        </span>
+                                    </Label>
+                                    <TextArea
+                                        rows={6}
+                                        value={formData.description || ""}
+                                        onChange={(e: { target: { value: any } }) =>
+                                            handleInputChange("description", e.target.value)
+                                        }
+                                        placeholder="Computes the load factor and the safety factor of the tower for a wind speed. Use it when the user asks what would happen with a given wind."
+                                    />
+                                </FormGroup>
+                                <FormGroup>
+                                    <Label>
+                                        Timeout (s){" "}
+                                        <span style={{ color: "#9ca3af", fontWeight: 400 }}>
+                                            (the model gets an error if the flow has not replied by then)
+                                        </span>
+                                    </Label>
+                                    <Input
+                                        type="number"
+                                        min="1"
+                                        max={AI_TOOL_MAX_TIMEOUT}
+                                        step="1"
+                                        value={formData.timeoutSeconds ?? 30}
+                                        onChange={(e: { target: { value: string } }) =>
+                                            handleInputChange(
+                                                "timeoutSeconds",
+                                                Math.min(AI_TOOL_MAX_TIMEOUT, Math.max(1, parseInt(e.target.value) || 30)),
+                                            )
+                                        }
+                                    />
+                                </FormGroup>
+                            </>
+                        )}
+                        {activeTab === "parameters" && (
+                            <AiToolParametersEditor
+                                value={Array.isArray(formData.parameters) ? formData.parameters : []}
+                                onChange={(parameters) => handleInputChange("parameters", parameters)}
+                            />
+                        )}
+                        {activeTab === "help" && <HelpTab nodeType="AiTool" />}
+                    </TabContent>
                 </PanelContent>
             </>
         );
@@ -1437,6 +1560,10 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                                             <option value="custom_state">Custom state</option>
                                             <option value="state_from_payload">State from msg.payload.state</option>
                                         </Select>
+                                        <div style={{ color: "#9a9a9a", fontSize: 12, marginTop: 6, lineHeight: 1.45 }}>
+                                            The output sends a message only when the status changes (with status,
+                                            previousStatus and a text in message), e.g. to an Email or Telegram node.
+                                        </div>
                                     </FormGroup>
                                 )}
                             </>
@@ -1495,6 +1622,8 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
             return renderTriggerProperties();
         } else if (nodeType === "AiAgent") {
             return renderAiAgentTabs();
+        } else if (nodeType === "AiTool") {
+            return renderAiToolTabs();
         } else if (nodeType === "IoTDb") {
             return renderIotDBTabs();
         } else if (nodeType === "S3Storage") {
@@ -1544,6 +1673,17 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
         if (!selectedNode) return null;
 
         const nodeType = selectedNode.type;
+
+        if (isSignalNode(nodeType)) {
+            return (
+                <SignalNodeSettings
+                    type={nodeType}
+                    formData={formData}
+                    onChange={handleInputChange}
+                    topicRefs={Array.from(new Set([...dev2pdbTopicsRef, ...listenTopicsRef]))}
+                />
+            );
+        }
 
         switch (nodeType) {
             case "Listen":
@@ -2126,3 +2266,4 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
 };
 
 export default NodePropertiesPanel;
+

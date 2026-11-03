@@ -9,6 +9,7 @@ import (
 	"mime/multipart"
 	"net/http"
 	"pipelines/common"
+	"pipelines/llmusage"
 	"pipelines/logger"
 	"pipelines/message"
 	"pipelines/utils"
@@ -79,7 +80,8 @@ func CreateTranscriptorNode(node common.NodeData, fm common.Manager, p common.Pi
 		},
 		Language:   language,
 		APIKey:     providerApiKey,
-		httpClient: &http.Client{},
+		// metered: the audio seconds (and tokens) of each transcription are recorded (llmusage)
+		httpClient: llmusage.Client(0),
 	}, nil
 }
 
@@ -130,7 +132,9 @@ func (n *TranscriptorNode) processMessage(msg common.Message, log *logger.Logger
 		language = requested
 	}
 
-	transcription, err := n.callWhisperAPI(n.Ctx, file.Data, file.Name, file.ContentType, language, log)
+	usageCtx, counter := llmusage.WithCounter(n.Ctx)
+	transcription, err := n.callWhisperAPI(usageCtx, file.Data, file.Name, file.ContentType, language, log)
+	n.recordLlmUsage(llmusage.SourceTranscriptor, messageUserName(msg), "openai", whisperModel, counter.Usage())
 	if err != nil {
 		log.Errorf("TranscriptorNode %s: failed to transcribe audio: %v", n.NodeUid, err)
 		return fmt.Errorf("failed to transcribe audio: %w", err)

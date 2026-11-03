@@ -221,7 +221,8 @@ export const areThereInjectTopicsInPublish = (nodes: PipelineNodeDto[]): boolean
 			if (node.settings === "") continue;
 			const settings = JSON.parse(node.settings) as Record<string, any>;
 			if (typeof settings !== "object" || typeof settings.topic !== "string" || settings.topic === "") continue;
-			if (settings.topic.slice(0, 6) === "inject") {
+			// the inject and approval topics are only for their nodes
+			if (settings.topic.startsWith("inject") || settings.topic.startsWith("approval")) {
 				return true;
 			}
 		}

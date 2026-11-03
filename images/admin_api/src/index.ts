@@ -18,9 +18,12 @@ import MLModelController from "./components/ml_model/ml_modelController";
 import AssetController from "./components/asset/asset.controller";
 import SensorController from "./components/sensor/sensor.controller";
 import natsClient from "./config/natsConfig";
+import process_env from "./config/api_config";
+import { migrateDigitalTwinsPipelineTopics } from "./components/digitalTwin/digitalTwinDAL";
 import S3FolderController from "./components/s3_folder/s3_folder.controller";
 import GroupKnowledgeController from "./components/group/groupKnowledge.controller";
 import LlmModelsController from "./components/organization/llmModels.controller";
+import LlmUsageController from "./components/llmUsage/llmUsage.controller";
 import SkillController from "./components/skill/skill.controller";
 import { seedBuiltinSkills } from "./components/skill/skillStorage";
 
@@ -30,6 +33,16 @@ const main = async (): Promise<void> => {
 		// esquemas de mensaje calculados (sensores, simulación, fijos): por si ha cambiado algo de lo que dependen
 		await refreshAllComputedMessageSchemas();
 		await natsClient.connect();
+		// digital twins of older versions: the single "inject" topic instead of inject_1..inject_5,
+		// and the "approval" topic
+		if (process_env.REPLICA === "1") {
+			try {
+				await migrateDigitalTwinsPipelineTopics();
+			} catch (err) {
+				const message = err instanceof Error ? err.message : String(err);
+				logger.log("error", "The pipeline topics of the digital twins could not be migrated: %s", message);
+			}
+		}
 		// the platform's built-in skills, in the bucket (they do not stop the start if they fail)
 		await seedBuiltinSkills();
 
@@ -43,6 +56,7 @@ const main = async (): Promise<void> => {
 			new GroupController(),
 			new GroupKnowledgeController(),
 			new LlmModelsController(),
+			new LlmUsageController(),
 			new SkillController(),
 			new AssetController(),
 			new S3FolderController(),

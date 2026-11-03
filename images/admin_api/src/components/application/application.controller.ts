@@ -18,6 +18,8 @@ import generateLastSeenAtAgeString from "../../utils/helpers/generateLastSeenAtA
 import InvalidPropNameExeception from "../../exceptions/InvalidPropNameExeception";
 import { cleanEmailNotificationChannelForGroupsArray, getGroupsWhereUserIdIsMember } from "../group/groupDAL";
 import CreateGlobalUsersArrayDto from "../user/interfaces/GlobalUsersArray.dto";
+import TelegramLinkDto from "../user/interfaces/TelegramLink.dto";
+import { getTelegramApprover, linkTelegramUser } from "../user/telegramLinkDAL";
 import HttpException from "../../exceptions/HttpException";
 import infoLogger from "../../utils/logger/infoLogger";
 
@@ -72,7 +74,48 @@ class ApplicationController implements IController {
 				validationMiddleware<CreateGlobalUsersArrayDto>(CreateGlobalUsersArrayDto),
 				this.createGlobalUsers
 			)
+			// For pipelines (it reads the organizations' Telegram bots): the "/link <code>"
+			// of a user, and who may decide an Approval node's request from Telegram
+			.post(
+				`${this.path}/telegram_link/`,
+				superAdminAuth,
+				validationMiddleware<TelegramLinkDto>(TelegramLinkDto),
+				this.linkTelegramUser
+			)
+			.get(
+				`${this.path}/telegram_approver/:groupId/:telegramUserId`,
+				superAdminAuth,
+				this.getTelegramApprover
+			)
 	}
+
+	private linkTelegramUser = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+		try {
+			const linkData: TelegramLinkDto = req.body;
+			const userName = await linkTelegramUser(linkData.code, linkData.telegramUserId, linkData.telegramUsername ?? "");
+			if (userName === null) {
+				throw new HttpException(req, res, 404, "The link code is not valid or has expired");
+			}
+			infoLogger(req, res, 200, `Telegram account linked to user ${userName}`);
+			res.status(200).send({ userName });
+		} catch (error) {
+			next(error);
+		}
+	};
+
+	private getTelegramApprover = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+		try {
+			const groupId = Number(req.params.groupId);
+			const telegramUserId = Number(req.params.telegramUserId);
+			if (!Number.isSafeInteger(groupId) || !Number.isSafeInteger(telegramUserId) || telegramUserId <= 0) {
+				throw new HttpException(req, res, 400, "Invalid group or Telegram user id");
+			}
+			const userName = await getTelegramApprover(groupId, telegramUserId);
+			res.status(200).send({ userName });
+		} catch (error) {
+			next(error);
+		}
+	};
 
 	private getPlatformStatistics = async (
 		req: Request,

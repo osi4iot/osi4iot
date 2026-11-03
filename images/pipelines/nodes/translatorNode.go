@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"pipelines/common"
+	"pipelines/llmusage"
 	"pipelines/logger"
 	"pipelines/utils"
 	"strings"
@@ -92,7 +93,8 @@ func CreateTranslatorNode(node common.NodeData, fm common.Manager, p common.Pipe
 		ProviderURL:    strings.TrimRight(providerUrl, "/"),
 		Model:          llmModel,
 		APIKey:         providerApiKey,
-		httpClient:     &http.Client{},
+		// metered: the tokens of each translation are recorded (llmusage)
+		httpClient: llmusage.Client(0),
 	}, nil
 }
 
@@ -138,7 +140,10 @@ func (n *TranslatorNode) processMessage(msg common.Message, log *logger.Logger) 
 
 	log.Infof("TranslatorNode %s: translating message to %s", n.NodeUid, n.TargetLanguage)
 
-	translated, err := n.translateText(n.Ctx, msgToTranslate, log)
+	usageCtx, counter := llmusage.WithCounter(n.Ctx)
+	translated, err := n.translateText(usageCtx, msgToTranslate, log)
+	n.recordLlmUsage(llmusage.SourceTranslator, messageUserName(msg), n.Fm.GetOrgLlmProviderType(n.Pipeline.GetOrgId()),
+		n.Model, counter.Usage())
 	if err != nil {
 		log.Errorf("TranslatorNode %s: failed to translate: %v", n.NodeUid, err)
 		return fmt.Errorf("failed to translate: %w", err)

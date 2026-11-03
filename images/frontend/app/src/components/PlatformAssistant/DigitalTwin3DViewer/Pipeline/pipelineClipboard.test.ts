@@ -47,18 +47,24 @@ describe("pipelineClipboard", () => {
         expect(fn.data.settings).not.toBe(group[0].data.settings);
     });
 
-    it("respeta el límite de nodos Inject y asigna injectRef libres", () => {
-        const existing = [1, 2, 3].map((n) => node(`i${n}`, "Inject", `Inject ${n}`, { injectRef: `inject_${n}` }));
-        const ok = prepareNodesForInsertion([existing[0]], [], existing, { regenerateIds: true });
-        if (ok.error !== undefined) throw new Error(ok.error);
-        expect(ok.nodes[0].data.settings.injectRef).toBe("inject_4");
-        const tooMany = prepareNodesForInsertion(existing, [], existing, { regenerateIds: true });
-        expect(tooMany.error).toMatch(/5 Inject/);
+    it("allows any number of Inject nodes and drops the old injectRef", () => {
+        const existing = [1, 2, 3, 4, 5].map((n) => node(`i${n}`, "Inject", `Inject ${n}`, { injectRef: `inject_${n}` }));
+        const result = prepareNodesForInsertion(existing, [], existing, { regenerateIds: true });
+        if (result.error !== undefined) throw new Error(result.error);
+        expect(result.nodes).toHaveLength(5);
+        expect(result.nodes.every((n) => n.data.settings.injectRef === undefined)).toBe(true);
+        expect(new Set(result.nodes.map((n) => n.data.nodeUid)).size).toBe(5);
     });
 
     it("uniqueLabel", () => {
         expect(uniqueLabel("Delay 1", new Set(["Delay 1", "Delay 2"]))).toBe("Delay 3");
         expect(uniqueLabel("My node", new Set(["My node"]))).toBe("My node 2");
         expect(uniqueLabel("Free", new Set())).toBe("Free");
+        // a number that is part of the name (a topic) is not a counter
+        expect(uniqueLabel("Listen dev2pdb_2", new Set(["Listen dev2pdb_2"]))).toBe("Listen dev2pdb_2 (2)");
+        expect(uniqueLabel("Listen dev2pdb_2 (2)", new Set(["Listen dev2pdb_2 (2)"]))).toBe("Listen dev2pdb_2 (3)");
+        expect(
+            uniqueLabel("Listen dev2pdb_2", new Set(["Listen dev2pdb_2", "Listen dev2pdb_2 (2)"])),
+        ).toBe("Listen dev2pdb_2 (3)");
     });
 });

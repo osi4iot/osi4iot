@@ -482,6 +482,160 @@ interface DSP {
 
     /** Estimates the sampling rate: "min", "median" or "mean" of the intervals (repeated times ignored) */
     EstimateUniformSamplingRate(times: number[], method: string): number;
+
+    /** n, mean, std (n-1), rms, min, max, skewness and kurtosis (3 for a normal distribution) */
+    Moments(x: number[]): DspMoments;
+
+    /** Percentile of x (p in 0..100, linear interpolation; x is not modified) */
+    Percentile(x: number[], p: number): number;
+
+    /** Rainflow cycles of a record (ASTM E1049; the residue as half cycles); gate: smaller reversals ignored */
+    Rainflow(x: number[], gate: number): DspCycle[];
+
+    /** DNV-RP-C203 S-N curve: B1, B2, C, C1, C2, D, E, F, F1, F3, G, W1, W2, W3; "air" or "seawater_cp" */
+    GetDNVCurve(category: string, environment: "air" | "seawater_cp"): DspSNCurve;
+
+    /** Custom S-N curve: lines [m1, logA1, m2, logA2, ...] (log N = logA - m log S); cutoff 0: none */
+    GetSNCurve(lines: number[], cutoff: number): DspSNCurve;
+
+    /** The curve with SCF, thickness correction ((t/tRef)^k, tRef 0: 25 mm; k 0: the curve's) and DFF (0: 1) */
+    WithSNCorrections(curve: DspSNCurve, scf: number, t: number, tRef: number, k: number, dff: number): DspSNCurve;
+
+    /** Palmgren-Miner damage of the cycles */
+    MinerDamage(cycles: DspCycle[], curve: DspSNCurve): number;
+
+    /** Cycles to failure of a stress range (Infinity below the cutoff) */
+    CyclesToFailure(stressRange: number, curve: DspSNCurve): number;
+
+    /** Cycles counted in bins of the given width */
+    RangeHistogram(cycles: DspCycle[], width: number): { From: number; To: number; Count: number }[];
+
+    /** Vibration features of a block sampled at fs (null if it has fewer than 16 samples) */
+    VibrationFeatures(x: number[], fs: number): DspVibrationFeatures | null;
+
+    /** As VibrationFeatures, with the Welch window (0: auto), bands [from1, to1, ...] Hz (named "from-to") and the
+     * velocity RMS (mm/s) of an acceleration over [velFrom, velTo] Hz (accelToMS2: 1 m/s², 9.80665 g) */
+    VibrationFeaturesWithOptions(
+        x: number[],
+        fs: number,
+        segmentLength: number,
+        bands: number[],
+        velFrom: number,
+        velTo: number,
+        accelToMS2: number,
+    ): DspVibrationFeatures | null;
+
+    /** Judges every sample: "zscore", "ewma" or "iqr"; 0: the default window (100), threshold (3; IQR 1.5),
+     * lambda (0.2) and warm-up (30) */
+    DetectAnomalies(
+        x: number[],
+        method: "zscore" | "ewma" | "iqr",
+        window: number,
+        threshold: number,
+        lambda: number,
+        warmup: number,
+    ): DspAnomalyResult[];
+
+    /** Least-squares line y = Intercept + Slope·x (at least 3 points) */
+    FitLinear(x: number[], y: number[]): DspLinearFit | null;
+
+    /** Time from xNow until the trend ("linear" or "exponential") reaches the threshold (rising: the indicator
+     * grows towards it), with a band from the slope's uncertainty (about 95 %); in the units of x */
+    EstimateRUL(
+        x: number[],
+        y: number[],
+        model: "linear" | "exponential",
+        threshold: number,
+        rising: boolean,
+        xNow: number,
+    ): DspRULEstimate | null;
+}
+
+interface DspLinearFit {
+    N: number;
+    Intercept: number;
+    Slope: number;
+    SlopeSE: number;
+    ResidualSD: number;
+    R2: number;
+    XMean: number;
+    YMean: number;
+}
+
+/** Status "degrading", "stable" or "exceeded"; RUL and RULLow NaN when not degrading, RULHigh Infinity when the
+ * slope may be flat */
+interface DspRULEstimate {
+    Model: string;
+    Fit: DspLinearFit;
+    Current: number;
+    Rate: number;
+    Status: "degrading" | "stable" | "exceeded";
+    RUL: number;
+    RULLow: number;
+    RULHigh: number;
+    Rising: boolean;
+    Threshold: number;
+}
+
+interface DspMoments {
+    N: number;
+    Mean: number;
+    Std: number;
+    RMS: number;
+    Min: number;
+    Max: number;
+    Skewness: number;
+    Kurtosis: number;
+}
+
+/** A rainflow cycle: Count 1 (full) or 0.5 (half) */
+interface DspCycle {
+    Range: number;
+    Mean: number;
+    Count: number;
+}
+
+interface DspSNCurve {
+    Name: string;
+    Lines: { M: number; LogA: number }[];
+    Cutoff: number;
+    SCF: number;
+    T: number;
+    TRef: number;
+    K: number;
+    DFF: number;
+}
+
+interface DspVibrationFeatures {
+    Samples: number;
+    DurationS: number;
+    Mean: number;
+    Std: number;
+    RMS: number;
+    Peak: number;
+    PeakToPeak: number;
+    CrestFactor: number;
+    Kurtosis: number;
+    Skewness: number;
+    ShapeFactor: number;
+    Impulse: number;
+    Bands: Record<string, number> | null;
+    Dominant: DspPeak | null;
+    Peaks: DspPeak[] | null;
+    VelocityRMS: number | null;
+    ResolutionHz: number;
+}
+
+interface DspAnomalyResult {
+    Method: string;
+    Ready: boolean;
+    IsAnomaly: boolean;
+    Score: number | null;
+    Lower: number | null;
+    Upper: number | null;
+    Baseline: number | null;
+    EWMA: number | null;
+    Reason: string;
 }
 
 /** DspWelchConfig instance */

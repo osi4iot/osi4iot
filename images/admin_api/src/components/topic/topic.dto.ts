@@ -8,7 +8,7 @@ class CreateTopicDto {
 	public description: string;
 
 	// JSON schema of its messages (JSON string). Only used for the types written by the user (dev2dtm, dtm2dev,
-	// dtm2pdb, inject_N...): the platform computes the others (see topic/messageSchema.ts)
+	// dtm2pdb, inject...): the platform computes the others (see topic/messageSchema.ts)
 	@IsOptional()
 	@IsString()
 	public messageSchema?: string;

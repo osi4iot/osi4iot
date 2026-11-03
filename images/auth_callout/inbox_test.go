@@ -24,11 +24,14 @@ func TestUserChatSubjects(t *testing.T) {
 		"dev2pdb.Group_g1.*",
 		"sim2llmx.Group_g1.*",
 		"sim2state.Group_g1.Topic_t1",
+		"approval.Group_g1.*",
+		"approvals.Group_g1.*",
 	})
 	want := []string{
 		"user.rafael_2epacheco.sim2llm.Group_g1.*",
 		"user.rafael_2epacheco.sim2state.Group_g1.*",
 		"user.rafael_2epacheco.sim2state.Group_g1.Topic_t1",
+		"user.rafael_2epacheco.approval.Group_g1.*",
 	}
 	if len(got) != len(want) {
 		t.Fatalf("got %v, want %v", got, want)

@@ -2,10 +2,12 @@ package flows_manager
 
 import (
 	"context"
+	"fmt"
 	"pipelines/common"
 	leader_election "pipelines/leader_election"
 	"pipelines/telegram"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -208,9 +210,41 @@ func (fm *FlowsManager) CreateOrgTelegramListerner(
 		telegram.WithOrgErrorHandler(func(err error) {
 			fm.log.Errorf("Error: %v", err)
 		}),
+		telegram.WithLinkHandler(func(msg *telegram.TelegramMessage) {
+			fm.linkTelegramAccount(org.TelegramBotToken, msg)
+		}),
 	)
 
 	return orgListener
+}
+
+// linkTelegramAccount handles "/link <code>": the code a platform user got
+// in its profile links the sender's Telegram account to that user (for the
+// Approval nodes). The answer goes to the chat where it was sent.
+func (fm *FlowsManager) linkTelegramAccount(botToken string, msg *telegram.TelegramMessage) {
+	reply := func(text string) {
+		if err := telegram.SendTelegramMessage(botToken, msg.ChatID, text, fm.log); err != nil {
+			fm.log.Errorf("Telegram link: answering in chat %d: %v", msg.ChatID, err)
+		}
+	}
+	fields := strings.Fields(msg.Text)
+	if len(fields) != 2 || msg.UserID == 0 {
+		reply("Send /link followed by the code shown in your profile of the platform, e.g. /link K7PX2MQA")
+		return
+	}
+	if fm.Admin == nil {
+		reply("The account could not be linked now: try again later")
+		return
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+	userName, err := fm.Admin.LinkTelegramUser(ctx, fields[1], msg.UserID, msg.Username)
+	if err != nil {
+		fm.log.Warnf("Telegram link of user %d: %v", msg.UserID, err)
+		reply("The code is not valid or has expired: ask for a new one in your profile")
+		return
+	}
+	reply(fmt.Sprintf("Your Telegram account is now linked to the platform user %s", userName))
 }
 
 func (fm *FlowsManager) StopTelegramBots(ctx context.Context) {

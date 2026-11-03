@@ -19,6 +19,7 @@ import {
     ListenNode,
     PublishNode,
     InjectNode,
+    AiToolNode,
     TriggerNode,
     DelayNode,
     SplitterNode,
@@ -31,6 +32,20 @@ import {
     TranslatorNode,
     Text2SpeechNode,
     BatchNode,
+    SwitchNode,
+    DeadbandNode,
+    WindowNode,
+    JoinNode,
+    WatchdogNode,
+    AlarmNode,
+    MachineStateNode,
+    RainflowNode,
+    VibrationNode,
+    AnomalyNode,
+    TotalizerNode,
+    OeeNode,
+    DegradationNode,
+    ApprovalNode,
     IoTDbNode,
     S3StorageNode,
     AssetStateNode,
@@ -42,6 +57,7 @@ import { usePipelineLayout } from "./usePipelineLayout";
 import { createNodesAndEdges } from "../Utils/customHooks";
 import { toast } from "react-toastify";
 import { usePipelineEditing } from "./usePipelineEditing";
+import { uniqueToolName } from "./aiTool";
 
 export const processInitialPipelineData = (digitalTwinSelected, natsClient, natsSubjectsData) => {
     if (!digitalTwinSelected.pipelineFileData || digitalTwinSelected.pipelineFileData === "") {
@@ -262,32 +278,37 @@ export default function Flow({
             Delay: 0,
             Splitter: 0,
             AiAgent: 0,
+            AiTool: 0,
             Transcriptor: 0,
             Translator: 0,
             Text2Speech: 0,
             MlModel: 0,
             Batch: 0,
+            Switch: 0,
+            Deadband: 0,
+            Window: 0,
+            Join: 0,
+            Watchdog: 0,
+            Alarm: 0,
+            MachineState: 0,
+            Rainflow: 0,
+            Vibration: 0,
+            Anomaly: 0,
+            Totalizer: 0,
+            OEE: 0,
+            Degradation: 0,
+            Approval: 0,
             IoTDb: 0,
             S3Storage: 0,
             AssetState: 0,
             Comment: 0,
         };
 
-        let maxInject = 0;
         for (const node of nodes) {
             if (node.type in newCounters) {
-                if (node.type === "Inject") {
-                    const injectRef = node.data.settings.injectRef;
-                    if (injectRef) {
-                        const injectNumber = parseInt(injectRef.split("_")[1]);
-                        maxInject = Math.max(maxInject, injectNumber);
-                    }
-                } else {
-                    newCounters[node.type] += 1;
-                }
+                newCounters[node.type] += 1;
             }
         }
-        newCounters.Inject = maxInject;
 
         setNodeCounters((prevCounters) => {
             const hasChanged = Object.keys(newCounters).some((key) => newCounters[key] !== prevCounters[key]);
@@ -451,12 +472,18 @@ export default function Flow({
 
             const nodeUid = nanoid(20).replace(/-/g, "x").replace(/_/g, "X");
 
-            if (nodeType === "Inject" && nodeCounters[nodeType] === 5) {
-                toast.error("You can only have 5 Inject nodes in the pipeline.");
-                return;
-            }
-
             const nodeNumber = nodeCounters[nodeType] + 1;
+            // an AI Tool gets a tool name that is free in the pipeline
+            const toolSettings =
+                nodeType === "AiTool"
+                    ? {
+                          ...settings,
+                          toolName: uniqueToolName(
+                              nodes.filter((n) => n.type === "AiTool").map((n) => n.data?.settings?.toolName),
+                              nodeNumber,
+                          ),
+                      }
+                    : settings;
             setNodeCounters((prevCounters) => ({
                 ...prevCounters,
                 [nodeType]: nodeNumber,
@@ -471,12 +498,11 @@ export default function Flow({
                     nodeUid,
                     numOutputs,
                     debug,
-                    settings,
+                    settings: toolSettings,
                 },
             };
 
-            if (nodeType === "Inject") {
-                newNode.data.settings.injectRef = `inject_${nodeNumber}`;
+            if (nodeType === "Inject" || nodeType === "Approval") {
                 newNode.data.natsClient = natsClient;
                 newNode.data.natsSubjectsData = natsSubjectsData;
             }
@@ -486,7 +512,7 @@ export default function Flow({
             handlePipelineUiChanged(true);
         },
         // eslint-disable-next-line react-hooks/exhaustive-deps
-        [screenToFlowPosition, natsClient, natsSubjectsData, nodeCounters, takeSnapshot],
+        [screenToFlowPosition, natsClient, natsSubjectsData, nodeCounters, takeSnapshot, nodes],
     );
 
     const nodeTypes = useMemo(
@@ -504,10 +530,25 @@ export default function Flow({
             Comment: ({ data, id, selected }) => CommentNode(data, id, selected, onUpdateNode, handlePipelineUiChanged),
             MlModel: MlModelNode,
             AiAgent: AiAgentNode,
+            AiTool: AiToolNode,
             Transcriptor: TranscriptorNode,
             Translator: TranslatorNode,
             Text2Speech: Text2SpeechNode,
             Batch: BatchNode,
+            Switch: SwitchNode,
+            Deadband: DeadbandNode,
+            Window: WindowNode,
+            Join: JoinNode,
+            Watchdog: WatchdogNode,
+            Alarm: AlarmNode,
+            MachineState: MachineStateNode,
+            Rainflow: RainflowNode,
+            Vibration: VibrationNode,
+            Anomaly: AnomalyNode,
+            Totalizer: TotalizerNode,
+            OEE: OeeNode,
+            Degradation: DegradationNode,
+            Approval: ApprovalNode,
             IoTDb: IoTDbNode,
             S3Storage: S3StorageNode,
             AssetState: AssetStateNode,
@@ -541,6 +582,7 @@ export default function Flow({
                 handlePipelineUiChanged={handlePipelineUiChanged}
                 natsSubjectsData={natsSubjectsData}
                 assetS3Folders={assetS3Folders}
+                pipelineNodes={nodes}
             />
 
             <ReactFlowWrapper ref={reactFlowWrapper} className={isPlacing ? "placing" : undefined} {...wrapperHandlers}>

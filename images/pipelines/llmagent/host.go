@@ -28,6 +28,7 @@ import (
 
 	"github.com/Ingenimax/agent-sdk-go/pkg/interfaces"
 
+	"pipelines/llmusage"
 	"pipelines/logger"
 )
 
@@ -60,6 +61,9 @@ type Answer struct {
 	Message   string
 	ToolCalls []ToolCall
 	Usage     *interfaces.TokenUsage // nil when the provider does not report it
+	// Metered is what the prompt consumed of the provider, all its requests included (tool iterations,
+	// also those of a prompt that failed); see llmusage.
+	Metered llmusage.Usage
 }
 
 // HistoryMessage is a message of a stored conversation.
@@ -92,6 +96,10 @@ type Config struct {
 	MaxIterations     int           // tool-calling rounds per prompt (default 50)
 	PromptTimeout     time.Duration // per prompt (default 10 min)
 	ServerInitTimeout time.Duration // per MCP server (default 30 s)
+
+	// LocalTools gives, at each prompt, tools of this process to add to the MCP servers' and the
+	// skills' (the AI Tool nodes of the pipeline). nil: none.
+	LocalTools func() []interfaces.Tool
 
 	// Debug logs the SDK's messages (tool calls, arguments, results).
 	// They include the MCP servers' arguments, tokens among them.
@@ -210,6 +218,7 @@ func (h *Host) answer(p Prompt) Answer {
 	defer cancel()
 	recorder := &toolCallRecorder{}
 	ctx = withRecorder(ctx, recorder)
+	ctx, counter := llmusage.WithCounter(ctx)
 	zone := ResolveTimeZone(p.TimeZone)
 	ctx = withTimezone(ctx, zone)
 	// The model gets the user's zone and local time with the question;
@@ -232,8 +241,18 @@ func (h *Host) answer(p Prompt) Answer {
 	}
 
 	tools := h.tools
-	if skillTools := h.currentSkillTools(); len(skillTools) > 0 {
-		tools = append(append(make([]interfaces.Tool, 0, len(h.tools)+len(skillTools)), h.tools...), skillTools...)
+	skillTools := h.currentSkillTools()
+	var localTools []interfaces.Tool
+	if h.cfg.LocalTools != nil {
+		localTools = h.cfg.LocalTools()
+	}
+	if len(skillTools) > 0 || len(localTools) > 0 {
+		tools = make([]interfaces.Tool, 0, len(h.tools)+len(skillTools)+len(localTools))
+		tools = append(append(tools, h.tools...), skillTools...)
+		for _, t := range localTools {
+			// recorded for the chat like the MCP tools' calls (Answer.ToolCalls)
+			tools = append(tools, &recordedTool{Tool: t})
+		}
 	}
 
 	var resp *interfaces.LLMResponse
@@ -244,18 +263,30 @@ func (h *Host) answer(p Prompt) Answer {
 		resp, err = h.llm.GenerateDetailed(ctx, text, opts...)
 	}
 	calls := recorder.calls()
+	metered := counter.Usage()
 	if err != nil {
 		if errors.Is(ctx.Err(), context.DeadlineExceeded) {
 			err = fmt.Errorf("no answer after %s (the LLM or a tool did not reply): %w", h.cfg.PromptTimeout, err)
 		}
-		return Answer{UserName: p.UserName, OK: false, Message: err.Error(), ToolCalls: calls}
+		return Answer{UserName: p.UserName, OK: false, Message: err.Error(), ToolCalls: calls, Metered: metered}
+	}
+	// A provider whose HTTP client could not be metered (Azure): the usage the SDK reports
+	if metered.Requests == 0 && resp.Usage != nil {
+		metered = llmusage.Usage{
+			Requests:        1,
+			InputTokens:     int64(resp.Usage.InputTokens),
+			OutputTokens:    int64(resp.Usage.OutputTokens),
+			CacheReadTokens: int64(resp.Usage.CacheReadInputTokens),
+			ReasoningTokens: int64(resp.Usage.ReasoningTokens),
+			Model:           resp.Model,
+		}
 	}
 
 	content := cleanJSONFence(resp.Content)
 	if err := h.cfg.SaveTurn(p.UserName, p.Text, content, calls); err != nil {
 		h.cfg.Log.Errorf("AI agent: could not save the conversation of %s: %v", p.UserName, err)
 	}
-	return Answer{UserName: p.UserName, OK: true, Message: content, ToolCalls: calls, Usage: resp.Usage}
+	return Answer{UserName: p.UserName, OK: true, Message: content, ToolCalls: calls, Usage: resp.Usage, Metered: metered}
 }
 
 // cleanJSONFence removes a ```json … ``` fence around the whole answer:

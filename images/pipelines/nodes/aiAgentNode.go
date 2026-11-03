@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"pipelines/common"
 	"pipelines/llmagent"
+	"pipelines/llmusage"
 	"pipelines/logger"
 	"pipelines/message"
 	"pipelines/utils"
@@ -68,6 +69,9 @@ type AiAgentNode struct {
 	// to it (to the user's inbox for the web chat, see PublishNode).
 	pendingSender *common.Sender
 	pendingAt     time.Time // zero when no prompt is waiting for an answer
+
+	// flowToolsSelected: the "flowTools" setting, the AI Tool nodes of the pipeline it may call; nil: all
+	flowToolsSelected map[string]bool
 }
 
 // How long before the log says that an agent is still busy: accepting a
@@ -322,12 +326,21 @@ func CreateAiAgentNode(ctx context.Context, node common.NodeData, fm common.Mana
 			Ctx:        nil,
 			status:     common.NodeStatusCreated,
 		},
-		agentConfig:      agentConfig, // the configuration; channels and callbacks are set in Start
-		femResultsServer: femResultsServer,
-		documentsServer:  documentsServer,
-		mcpSelected:      mcpSelected,
-		skillRefs:        skillRefs,
+		agentConfig:       agentConfig, // the configuration; channels and callbacks are set in Start
+		femResultsServer:  femResultsServer,
+		documentsServer:   documentsServer,
+		mcpSelected:       mcpSelected,
+		skillRefs:         skillRefs,
+		flowToolsSelected: parseAiAgentFlowTools(node.Settings),
 	}, nil
+}
+
+// currentPromptUser is who asked the prompt being answered: the user name and verified sender, for the
+// flows that the agent calls as tools (AI Tool nodes).
+func (n *AiAgentNode) currentPromptUser() (string, *common.Sender) {
+	n.pendingMu.Lock()
+	defer n.pendingMu.Unlock()
+	return n.pendingUser, n.pendingSender
 }
 
 func (s aiAgentServer) config() llmagent.ServerConfig {
@@ -383,6 +396,8 @@ func (n *AiAgentNode) startHost(log *logger.Logger, tools agentTools) ([]string,
 	cfg.Output = n.agentOut
 	cfg.GetHistory = n.agentHistory
 	cfg.SaveTurn = n.saveAgentTurn
+	// the AI Tool nodes of the pipeline, read at each prompt
+	cfg.LocalTools = n.flowTools
 	cfg.MCPServers = make(map[string]llmagent.ServerConfig, len(n.agentConfig.MCPServers)+1)
 	for name, srv := range n.agentConfig.MCPServers {
 		cfg.MCPServers[name] = srv
@@ -743,6 +758,8 @@ func (n *AiAgentNode) handleAgentAnswers(log *logger.Logger) {
 // pipeline log records it.
 func (n *AiAgentNode) handleAgentAnswer(answer llmagent.Answer, log *logger.Logger) {
 	user, sender, took := n.answered()
+	providerType, modelID := splitAgentModel(n.agentConfig.Model)
+	n.recordLlmUsage(llmusage.SourceAIAgent, user, providerType, modelID, answer.Metered)
 	calls := toolCalls(answer.ToolCalls)
 	tools := make([]string, 0, len(calls))
 	for _, c := range calls {
@@ -755,9 +772,12 @@ func (n *AiAgentNode) handleAgentAnswer(answer llmagent.Answer, log *logger.Logg
 		n.publishAgentLog("error", "AI agent error", "The AI agent could not answer: "+answer.Message)
 		text = "Error: " + answer.Message
 	} else {
+		// what was measured of all the prompt's requests to the provider (see llmusage)
 		usage := ""
-		if answer.Usage != nil {
-			usage = fmt.Sprintf(", tokens in/out %d/%d", answer.Usage.InputTokens, answer.Usage.OutputTokens)
+		if m := answer.Metered; !m.Empty() {
+			usage = fmt.Sprintf(", %d requests, tokens in/out %d/%d", m.Requests, m.InputTokens, m.OutputTokens)
+		} else {
+			usage = ", no usage measured"
 		}
 		log.Infof("AiAgentNode %s: answered %s in %s (tools: %s%s)", n.NodeUid, user, took.Round(time.Millisecond), strings.Join(tools, ", "), usage)
 	}

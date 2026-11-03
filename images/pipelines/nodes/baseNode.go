@@ -57,6 +57,8 @@ func CreateNode(
 		newNode, err = CreateEmailNode(node, fm, p)
 	case "AiAgent":
 		newNode, err = CreateAiAgentNode(ctx, node, fm, p)
+	case "AiTool":
+		newNode, err = CreateAiToolNode(node, fm, p)
 	case "MlModel":
 		newNode, err = CreateMlmNode(node, fm, p)
 	case "Publish":
@@ -71,6 +73,34 @@ func CreateNode(
 		newNode, err = CreateAssetStateNode(node, fm, p)
 	case "Comment":
 		newNode, err = CreateCommentNode(node, fm, p)
+	case "Switch":
+		newNode, err = CreateSwitchNode(node, fm, p)
+	case "Deadband":
+		newNode, err = CreateDeadbandNode(node, fm, p)
+	case "Window":
+		newNode, err = CreateWindowNode(node, fm, p)
+	case "Join":
+		newNode, err = CreateJoinNode(node, fm, p)
+	case "Watchdog":
+		newNode, err = CreateWatchdogNode(node, fm, p)
+	case "Alarm":
+		newNode, err = CreateAlarmNode(node, fm, p)
+	case "MachineState":
+		newNode, err = CreateMachineStateNode(node, fm, p)
+	case "Rainflow":
+		newNode, err = CreateRainflowNode(node, fm, p)
+	case "Vibration":
+		newNode, err = CreateVibrationNode(node, fm, p)
+	case "Anomaly":
+		newNode, err = CreateAnomalyNode(node, fm, p)
+	case "Totalizer":
+		newNode, err = CreateTotalizerNode(node, fm, p)
+	case "OEE":
+		newNode, err = CreateOEENode(node, fm, p)
+	case "Degradation":
+		newNode, err = CreateDegradationNode(node, fm, p)
+	case "Approval":
+		newNode, err = CreateApprovalNode(node, fm, p)
 	default:
 		log.Errorf("Unknown node type: %s", node.Type)
 		newNode, err = nil, fmt.Errorf("unknown node type: %s", node.Type)

@@ -1,4 +1,4 @@
-FROM nats:2.11.1-alpine
+FROM nats:2.15.2-alpine
 
 RUN apk add --no-cache wget grep
 

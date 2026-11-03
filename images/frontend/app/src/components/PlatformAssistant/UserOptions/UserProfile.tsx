@@ -4,6 +4,7 @@ import ChangePassword from './ChangePassword';
 import EditUserProfile from './EditUserProfile';
 import { USER_PROFILE_OPTIONS } from '../Utils/platformAssistantOptions';
 import { browserTimeZone } from "../../../tools/timeZones";
+import TelegramLink from './TelegramLink';
 
 
 const Button = styled.button`
@@ -83,6 +84,8 @@ export interface IUserProfile {
     login: string;
     email: string;
     timezone?: string; // IANA name; "" not set (the browser's)
+    telegramLinked?: boolean; // linked Telegram account (Approval nodes)
+    telegramUsername?: string;
 }
 
 
@@ -120,6 +123,11 @@ const UserProfile: FC<UserProfileProps> = ({ userProfile, refreshUserProfile }) 
                         <ItemType>Time zone: </ItemType>
                         <ItemValue>{userProfile.timezone || `Browser's (${browserTimeZone() || "UTC"})`}</ItemValue>
                     </UserProfileItem>
+                    <TelegramLink
+                        telegramLinked={userProfile.telegramLinked}
+                        telegramUsername={userProfile.telegramUsername}
+                        refreshUserProfile={refreshUserProfile}
+                    />
                     <ButtonsContainer>
                         <Button onClick={() => changeUserProfileOptionToShow(USER_PROFILE_OPTIONS.EDIT_USER_PROFILE)}>
                             Edit profile

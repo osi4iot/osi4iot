@@ -530,6 +530,13 @@ func (fm *FlowsManager) GetDbReadPool() *pgxpool.Pool {
 	return fm.DBReadPool
 }
 
+func (fm *FlowsManager) GetTelegramApprover(ctx context.Context, groupId int, telegramUserId int64) (string, error) {
+	if fm.Admin == nil {
+		return "", fmt.Errorf("the platform administration is not available")
+	}
+	return fm.Admin.GetTelegramApprover(ctx, groupId, telegramUserId)
+}
+
 func (fm *FlowsManager) GetS3Client() *s3.Client {
 	return fm.S3Client
 }

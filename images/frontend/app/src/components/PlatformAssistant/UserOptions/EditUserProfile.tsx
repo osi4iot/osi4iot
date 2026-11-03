@@ -43,12 +43,14 @@ const EditUserProfile: FC<EditUserProfileProps> = ({  userProfileToEdit, refresh
         if(userProfileUpdated) refreshUserProfile();
     }, [userProfileUpdated, refreshUserProfile]);
     
-    const onSubmit = (values: {}, actions: any) => {
+    const onSubmit = (values: Partial<IUserProfile>, actions: any) => {
         const url = `${protocol}://${domainName}/admin_api/auth/user_profile`;
         const config = axiosAuth(accessToken);
+        // the Telegram link is not edited here (TelegramLink), and admin_api rejects unknown fields
+        const { telegramLinked, telegramUsername, ...profile } = values;
         setIsSubmitting(true);
         getAxiosInstance(refreshToken, authDispatch)
-            .patch(url, values, config)
+            .patch(url, profile, config)
             .then((response: AxiosResponse<any, any>) => {
                 const data = response.data;
                 toast.success(data.message);

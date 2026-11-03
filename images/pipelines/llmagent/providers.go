@@ -3,7 +3,9 @@ package llmagent
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"strings"
+	"time"
 
 	"github.com/Ingenimax/agent-sdk-go/pkg/interfaces"
 	"github.com/Ingenimax/agent-sdk-go/pkg/llm/anthropic"
@@ -14,7 +16,16 @@ import (
 	"github.com/Ingenimax/agent-sdk-go/pkg/llm/openai"
 	openaiapi "github.com/openai/openai-go/v2"
 	"github.com/openai/openai-go/v2/option"
+	"google.golang.org/genai"
+
+	"pipelines/llmusage"
 )
+
+// meteredClient is an HTTP client whose requests are counted (tokens included) in the llmusage.Counter of
+// their context: every request of a prompt counts, also the tool-calling iterations. timeout 0: none.
+func meteredClient(timeout time.Duration) *http.Client {
+	return llmusage.Client(timeout)
+}
 
 // newLLM creates the client of a "provider:model" string, with the
 // organization's provider URL and API key (the provider is the
@@ -44,12 +55,15 @@ func newLLM(ctx context.Context, modelString, providerURL, apiKey string, log *s
 		client.ChatService = openaiapi.NewChatService(
 			option.WithAPIKey(apiKey),
 			option.WithBaseURL(base),
+			option.WithHTTPClient(meteredClient(0)),
 			option.WithMiddleware(newParamFixer(log.log).middleware()),
 		)
 		return client, nil
 
 	case "anthropic":
-		opts := []anthropic.Option{anthropic.WithModel(model), anthropic.WithLogger(log)}
+		// the SDK's own timeout (long streaming operations with retries)
+		opts := []anthropic.Option{anthropic.WithModel(model), anthropic.WithLogger(log),
+			anthropic.WithHTTPClient(meteredClient(30 * time.Minute))}
 		if url != "" {
 			// The client adds /v1/messages itself.
 			opts = append(opts, anthropic.WithBaseURL(strings.TrimSuffix(url, "/v1")))
@@ -57,11 +71,21 @@ func newLLM(ctx context.Context, modelString, providerURL, apiKey string, log *s
 		return anthropic.NewClient(apiKey, opts...), nil
 
 	case "google", "gemini":
-		// The Gemini API's own endpoint: the provider URL is not used.
+		// The Gemini API's own endpoint: the provider URL is not used. The genai client is made here to give
+		// it the metered HTTP client (it still sends the API key itself).
+		genaiClient, err := genai.NewClient(ctx, &genai.ClientConfig{
+			APIKey:     apiKey,
+			Backend:    genai.BackendGeminiAPI,
+			HTTPClient: meteredClient(0),
+		})
+		if err != nil {
+			return nil, fmt.Errorf("creating the Gemini client: %w", err)
+		}
 		client, err := gemini.NewClient(ctx,
 			gemini.WithAPIKey(apiKey),
 			gemini.WithModel(model),
 			gemini.WithLogger(log),
+			gemini.WithClient(genaiClient),
 		)
 		if err != nil {
 			return nil, fmt.Errorf("creating the Gemini client: %w", err)
@@ -69,7 +93,8 @@ func newLLM(ctx context.Context, modelString, providerURL, apiKey string, log *s
 		return client, nil
 
 	case "ollama":
-		opts := []ollama.Option{ollama.WithModel(model), ollama.WithLogger(log)}
+		// the SDK's own timeout
+		opts := []ollama.Option{ollama.WithModel(model), ollama.WithLogger(log), ollama.WithHTTPClient(meteredClient(60 * time.Second))}
 		if url != "" {
 			// Ollama's native API (/api/chat), not its OpenAI-compatible /v1.
 			url = strings.TrimSuffix(strings.TrimSuffix(url, "/v1"), "/api")
@@ -81,11 +106,13 @@ func newLLM(ctx context.Context, modelString, providerURL, apiKey string, log *s
 		if url == "" {
 			return nil, fmt.Errorf("azure: the provider URL (the Azure OpenAI endpoint) is required")
 		}
-		// model is the deployment name.
+		// model is the deployment name. Its HTTP client cannot be replaced: the usage is the one the SDK
+		// reports (see Host.answer).
 		return azureopenai.NewClient(apiKey, url, model, azureopenai.WithLogger(log)), nil
 
 	case "deepseek":
-		opts := []deepseek.Option{deepseek.WithModel(model), deepseek.WithLogger(log)}
+		// the SDK's own timeout
+		opts := []deepseek.Option{deepseek.WithModel(model), deepseek.WithLogger(log), deepseek.WithHTTPClient(meteredClient(120 * time.Second))}
 		if url != "" {
 			opts = append(opts, deepseek.WithBaseURL(url))
 		}

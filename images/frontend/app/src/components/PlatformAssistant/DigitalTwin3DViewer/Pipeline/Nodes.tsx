@@ -1,5 +1,29 @@
 // @ts-nocheck
-import { SquareFunction, SatelliteDish, RadioTower, ArrowBigRight, Mail, ClockFading, BrainCog, Layers, Zap } from "lucide-react";
+import {
+    SquareFunction,
+    SatelliteDish,
+    RadioTower,
+    ArrowBigRight,
+    Mail,
+    ClockFading,
+    BrainCog,
+    Layers,
+    Zap,
+    Wrench,
+    Route,
+    Filter,
+    Sigma,
+    Merge,
+    TimerOff,
+    Siren,
+    Gauge,
+    Repeat,
+    AudioWaveform,
+    ScanSearch,
+    Calculator,
+    Factory,
+    TrendingDown,
+} from "lucide-react";
 import { Handle, Position } from "@xyflow/react";
 import styled from "styled-components";
 import { toast } from "react-toastify";
@@ -334,10 +358,9 @@ export function InjectNode({ data, selected }) {
             const natClient = data.natsClient;
             const natsSubjectsData = data.natsSubjectsData || [];
             if (natClient) {
-                const topicRef = data.settings.injectRef;
-                const natsSubject = natsSubjectsData.find(
-                    (natSubject) => natSubject.topicRef === topicRef,
-                )?.natsSubject;
+                // All the Inject nodes share the digital twin's "inject" topic; the Inject-Node
+                // header says which node is pressed (pipelines' injectNode.go)
+                const natsSubject = natsSubjectsData.find((natSubject) => natSubject.topicRef === "inject")?.natsSubject;
                 if (natsSubject) {
                     let messageToSend: string;
                     if (data.settings.injectionType === "JSON") {
@@ -351,12 +374,15 @@ export function InjectNode({ data, selected }) {
                         const h = headers();
                         h.set("Content-Type", "application/json");
                         h.set("Json-Structure", "object");
+                        h.set("Inject-Node", data.nodeUid);
                         natClient.publish(natsSubject, sc.encode(messageToSend), { headers: h });
-                        toast.success(`Message sent to topicRef: ${topicRef} successfully`);
+                        toast.success(`${data?.label || "Inject"}: message injected`);
                     } catch (error) {
                         console.error("Error sending NATS message:", error);
-                        toast.error(`Failed to send message to topicRef: ${topicRef}`);
+                        toast.error(`${data?.label || "Inject"}: the message could not be injected`);
                     }
+                } else {
+                    toast.error("The digital twin has no inject topic yet: save the pipeline and reload the viewer");
                 }
             }
             if (data?.onInject) {
@@ -509,6 +535,28 @@ export function AiAgentNode({ data, selected }) {
     );
 }
 
+// AI Tool: the start of a flow the AI agents of the pipeline call as a tool. No input: the agent sends the
+// arguments; the flow replies through a Publish node set to Reply.
+export function AiToolNode({ data, selected }) {
+    const toolName = data?.settings?.toolName;
+    return (
+        <NodeContainer bgColor="#B8B1FB" hoverColor="#cdc8fcff" selected={selected}>
+            <NodeContent numOutputs={1}>
+                <IconContainer size="20px" title={toolName ? `Tool flow__${toolName}` : "AI Tool"}>
+                    <Wrench size={18} color="#e7e3dfff" />
+                </IconContainer>
+                <NodeLabel>{data?.label || "AI Tool"}</NodeLabel>
+            </NodeContent>
+            <StyledHandle
+                type="source"
+                position={Position.Right}
+                id={`${data.nodeUid}-0`}
+                style={getHandleStyle(0, 1)}
+            />
+        </NodeContainer>
+    );
+}
+
 export function TranscriptorNode({ data, selected }) {
     const numOutputs = data?.numOutputs ?? 0;
     return (
@@ -644,6 +692,48 @@ export function EmailNode({ data, selected }) {
         </NodeContainer>
     );
 }
+
+// Signal nodes (Switch, Deadband, Window, Join): one input, numOutputs outputs
+function makeSignalNode(Icon: typeof Route, fallbackLabel: string, bgColor = "#4f8f8b", hoverColor = "#62a39f") {
+    return function SignalNode({ data, selected }) {
+        const numOutputs = data?.numOutputs ?? 0;
+        return (
+            <NodeContainer bgColor={bgColor} hoverColor={hoverColor} selected={selected}>
+                <StyledHandle type="target" position={Position.Left} style={{ top: "50%", left: "-1px" }} />
+                <NodeContent numOutputs={numOutputs}>
+                    <IconContainer>
+                        <Icon size={20} color="#e7e3dfff" />
+                    </IconContainer>
+                    <NodeLabel>{data?.label || fallbackLabel}</NodeLabel>
+                </NodeContent>
+                {Array.from({ length: numOutputs }, (_, index) => (
+                    <StyledHandle
+                        key={index}
+                        type="source"
+                        position={Position.Right}
+                        id={`${data.nodeUid}-${index}`}
+                        style={getHandleStyle(index, numOutputs)}
+                    />
+                ))}
+            </NodeContainer>
+        );
+    };
+}
+
+export const SwitchNode = makeSignalNode(Route, "Switch");
+export const DeadbandNode = makeSignalNode(Filter, "Deadband");
+export const WindowNode = makeSignalNode(Sigma, "Window");
+export const JoinNode = makeSignalNode(Merge, "Join");
+export const WatchdogNode = makeSignalNode(TimerOff, "Watchdog", "#a0605a", "#b8766f");
+export const AlarmNode = makeSignalNode(Siren, "Alarm", "#a0605a", "#b8766f");
+export const MachineStateNode = makeSignalNode(Gauge, "Machine state", "#a0605a", "#b8766f");
+export const RainflowNode = makeSignalNode(Repeat, "Rainflow", "#5f6fa3", "#7686bb");
+export const VibrationNode = makeSignalNode(AudioWaveform, "Vibration", "#5f6fa3", "#7686bb");
+export const AnomalyNode = makeSignalNode(ScanSearch, "Anomaly", "#5f6fa3", "#7686bb");
+export const TotalizerNode = makeSignalNode(Calculator, "Totalizer", "#6f8a4e", "#86a263");
+export const OeeNode = makeSignalNode(Factory, "OEE", "#6f8a4e", "#86a263");
+export const DegradationNode = makeSignalNode(TrendingDown, "Degradation", "#6f8a4e", "#86a263");
+export { ApprovalNode } from "./ApprovalNodeView";
 
 export function BatchNode({ data, selected }) {
     const numOutputs = data?.numOutputs ?? 0;

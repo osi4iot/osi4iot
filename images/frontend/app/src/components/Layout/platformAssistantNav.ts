@@ -9,6 +9,7 @@ import {
     Building,
     ChartLine,
     Cpu,
+    Gauge,
     Globe,
     HardDrive,
     House,
@@ -123,6 +124,7 @@ export const NAV_LAYERS: NavLayer[] = [
             { option: ORG_ADMIN_OPTIONS.GROUPS, label: "Groups", icon: UsersRound },
             { option: ORG_ADMIN_OPTIONS.SENSOR_TYPES, label: "Sensor types", icon: Tags },
             { option: ORG_ADMIN_OPTIONS.ASSET_TYPES, label: "Asset types", icon: Shapes },
+            { option: ORG_ADMIN_OPTIONS.AI_USAGE, label: "AI usage", icon: Gauge },
         ],
     },
     {

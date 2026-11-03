@@ -3,6 +3,7 @@ package telegram
 import (
 	"context"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -36,6 +37,10 @@ type OrgListener struct {
 	onError func(error)
 	debug   bool
 
+	// linkHandler takes the "/link <code>" commands, from any chat (also
+	// private chats with the bot, which nobody subscribes to)
+	linkHandler func(*TelegramMessage)
+
 	log *logger.Logger
 }
 
@@ -54,6 +59,27 @@ func WithOrgDebug(debug bool) OrgListenerOption {
 	return func(g *OrgListener) {
 		g.debug = debug
 	}
+}
+
+// WithLinkHandler sets who handles the "/link <code>" commands with which a
+// platform user links its Telegram account (they are not routed to the
+// chat's subscribers).
+func WithLinkHandler(handler func(*TelegramMessage)) OrgListenerOption {
+	return func(g *OrgListener) {
+		g.linkHandler = handler
+	}
+}
+
+// IsLinkCommand says whether a message is a "/link" command (also
+// "/link@<bot>").
+func IsLinkCommand(msg *TelegramMessage) bool {
+	if msg == nil || msg.Type != MessageTypeText {
+		return false
+	}
+	text := strings.TrimSpace(msg.Text)
+	command, _, _ := strings.Cut(text, " ")
+	command, _, _ = strings.Cut(command, "@")
+	return command == "/link"
 }
 
 // WithPollerOptions configura opciones adicionales para el Poller interno
@@ -264,6 +290,10 @@ func (g *OrgListener) distributeMessages(ctx context.Context, messages <-chan *T
 }
 
 func (g *OrgListener) routeMessage(msg *TelegramMessage) {
+	if g.linkHandler != nil && IsLinkCommand(msg) {
+		go g.linkHandler(msg)
+		return
+	}
 	g.mu.RLock()
 	subs := g.subscriptions[msg.ChatID]
 	g.mu.RUnlock()

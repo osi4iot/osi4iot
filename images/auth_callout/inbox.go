@@ -47,8 +47,11 @@ func UserSubjectToken(username string) string {
 // (UserInboxPrefix), where only that user can subscribe.
 const UserChatSubjectPrefix = "user"
 
-// userChatTopicTypes are the topics with a per-user copy.
-var userChatTopicTypes = []string{"sim2llm", "sim2state"}
+// userChatTopicTypes are the topics with a per-user copy. "approval" too:
+// the decisions on the requests of the Approval nodes, which pipelines takes
+// from administrators of the group only (the users get NATS permissions only
+// for the groups they administer, see GetGroupsManagedByUser).
+var userChatTopicTypes = []string{"sim2llm", "sim2state", "approval"}
 
 // UserChatSubjects are the per-user copies of the chat subjects among
 // subjects (the publish permissions of the user's groups, allowed or

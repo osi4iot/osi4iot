@@ -124,6 +124,15 @@ func main() {
 			return
 		}
 
+		// A local deployment runs on this computer, whatever NODES_DATA of
+		// the state file says: refreshed before the Docker clients map,
+		// which is keyed by the nodes' IPs, is built.
+		if action == "init" {
+			if err := cmd.PrepareInitLocalNode(pd); err != nil {
+				exitWithError(utils.StyleErrMsg.Render(err.Error()))
+			}
+		}
+
 		if slices.Contains(cmd.SwarmActions, action) {
 			DCMap, dcMapErr := docker.SetDockerClientsMap(pd, action)
 			// `status` reports whatever it can reach — an unreachable

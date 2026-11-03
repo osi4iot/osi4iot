@@ -1,5 +1,4 @@
-# syntax=docker/dockerfile:1
-########################################
+#######################################
 # 0) Python builder: crea venv con uv
 ########################################
 FROM python:3.12-slim AS python-builder
@@ -49,6 +48,7 @@ COPY flows_manager/ ./flows_manager/
 COPY function_library/ ./function_library/
 COPY leader_election/ ./leader_election/
 COPY llmagent/ ./llmagent/
+COPY llmusage/ ./llmusage/
 COPY iotdb/ ./iotdb/
 COPY logger/ ./logger/
 COPY message/ ./message/

@@ -33,11 +33,11 @@ func InitPlatform(pd *pt.PlatformData, excluded ...string) error {
 
 	deployLocation := pd.PlatformInfo.DeploymentLocation
 	if deployLocation == "Local deployment" {
-		localNodeData, err := utils.GetLocalNodeData()
-		if err != nil {
+		// Normally already done by main.go (cmd.PrepareInitLocalNode);
+		// kept the label and the Garage instances' IP.
+		if _, err := utils.RefreshLocalNodeData(&pd.PlatformInfo); err != nil {
 			return fmt.Errorf("error: getting local node data: %v", err)
 		}
-		pd.PlatformInfo.NodesData = []pt.NodeData{localNodeData}
 	}
 
 	err1 := utils.NatsCredentials(pd)

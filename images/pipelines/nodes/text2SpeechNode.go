@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"pipelines/common"
+	"pipelines/llmusage"
 	"pipelines/logger"
 	"pipelines/message"
 	"pipelines/utils"
@@ -249,7 +250,7 @@ func CreateText2SpeechNode(node common.NodeData, fm common.Manager, p common.Pip
 		Model:      model,
 		Format:     ttsDefaultFormat,
 		APIKey:     providerApiKey,
-		httpClient: &http.Client{},
+		httpClient: llmusage.Client(0),
 	}, nil
 }
 
@@ -304,7 +305,14 @@ func (n *Text2SpeechNode) processMessage(msg common.Message, log *logger.Logger)
 
 	switch n.Mode {
 	case ttsModeOpenAI:
-		audioData, err = n.synthesizeOpenAI(n.Ctx, text)
+		// OpenAI's speech is billed by characters (tts-1) or tokens (gpt-4o-mini-tts, not reported in
+		// the audio answer): the characters sent are recorded with the request (llmusage)
+		usageCtx, counter := llmusage.WithCounter(n.Ctx)
+		audioData, err = n.synthesizeOpenAI(usageCtx, text)
+		if usage := counter.Usage(); usage.Requests > 0 {
+			usage.Characters = len([]rune(text))
+			n.recordLlmUsage(llmusage.SourceText2Speech, messageUserName(msg), "openai", n.Model, usage)
+		}
 	case ttsModeEdgeTTS:
 		voice := n.Voice
 		// a message can ask for another language: payload["voiceLanguage"] ("es", "en"...)

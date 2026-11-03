@@ -134,13 +134,8 @@ Use this node whenever a pipeline must react to live data published on NATS or M
     Inject: {
         description: "Injects a JSON message into the pipeline manually or on a schedule.",
         details:
-            "The Inject node is a source node that introduces messages into the pipeline without requiring an input wire. It can inject messages in two ways: on demand through a dedicated inject topic reference, or automatically according to a configured schedule. The inject topic must be a registered topic reference between 'inject_1' and 'inject_5'. Scheduled execution is controlled by the 'Repeat' setting: 'none' disables automatic injection, 'interval' injects a message every configured number of seconds, 'interval_between_times' injects at a fixed interval only within a daily time window, and 'interval_at_specific_time' injects once at a specific time of day. Time-based schedules use the configured timezone and can optionally be limited to selected days of the week. The injected payload is always a JSON object, either generated as a timestamp object or taken from the custom JSON configured in the node. In replicated deployments, only the leader replica runs scheduled injections to avoid duplicates.",
+            "The Inject node is a source node that introduces messages into the pipeline without requiring an input wire. It can inject messages in two ways: on demand with its 'Execute' button, or automatically according to a configured schedule. All the Inject nodes of a digital twin share its 'inject' topic: the button publishes on it with an 'Inject-Node' header carrying the node's UID, and each node only takes the messages addressed to it. Scheduled execution is controlled by the 'Repeat' setting: 'none' disables automatic injection, 'interval' injects a message every configured number of seconds, 'interval_between_times' injects at a fixed interval only within a daily time window, and 'interval_at_specific_time' injects once at a specific time of day. Time-based schedules use the configured timezone and can optionally be limited to selected days of the week. The injected payload is always a JSON object, either generated as a timestamp object or taken from the custom JSON configured in the node. In replicated deployments, only the leader replica runs scheduled injections to avoid duplicates.",
         params: [
-            {
-                name: "Inject Reference",
-                description:
-                    "Selects the registered inject topic used by this node. It must be a topic reference between 'inject_1' and 'inject_5'.",
-            },
             {
                 name: "Repeat",
                 description:
@@ -190,7 +185,7 @@ Use this node whenever a pipeline must react to live data published on NATS or M
                 label: "Timestamp injection",
                 code: JSON.stringify(
                     {
-                        topic: "inject_1.Group_e12220f1_e21c_4c1d_b073_6c63fdc8e7cd.Topic_KYKuxTPes5PKt9sS4Ycx",
+                        topic: "inject.Group_e12220f1_e21c_4c1d_b073_6c63fdc8e7cd.Topic_KYKuxTPes5PKt9sS4Ycx",
                         payload: {
                             timestamp: 1776334530000,
                         },
@@ -203,7 +198,7 @@ Use this node whenever a pipeline must react to live data published on NATS or M
                 label: "Custom JSON injection",
                 code: JSON.stringify(
                     {
-                        topic: "inject_1.Group_e12220f1_e21c_4c1d_b073_6c63fdc8e7cd.Topic_KYKuxTPes5PKt9sS4Ycx",
+                        topic: "inject.Group_e12220f1_e21c_4c1d_b073_6c63fdc8e7cd.Topic_KYKuxTPes5PKt9sS4Ycx",
                         payload: {
                             deviceId: "sensor-001",
                             command: "poll",
@@ -216,7 +211,7 @@ Use this node whenever a pipeline must react to live data published on NATS or M
             },
         ],
         notes: [
-            "Maximum 5 Inject nodes per pipeline.",
+            "There is no limit of Inject nodes per pipeline. They are meant to be fired from their button or by their schedule, never from outside the pipeline: a message on the 'inject' topic without the 'Inject-Node' header of a node is ignored.",
             "Only JSON objects are supported.",
             "Only the leader replica runs scheduled injections in replicated deployments.",
         ],
@@ -614,6 +609,11 @@ Use this node whenever a pipeline must react to live data published on NATS or M
                 description:
                     "Skills of the platform and of the group (managed in Platform admin and Group admin → Skills). The agent always sees each chosen skill's name and description, and calls load_skill to read its instructions when a request needs them (and read_skill_resource for its other files). A skill can declare the MCP servers it needs (requires_mcp). Changes to a skill reach the agent at its next prompt, without restarting it. The platform's built-in skills (marked built-in) cannot be changed: viewer-ui-options, chosen in new nodes, tells the agent how to change the 3D viewer (uiOpts); answer-format, also chosen in new nodes, how to present tables, matrices, equations and charts of sensor data in the chat; and fem-results-analysis how to query the FEM results. The values specific to the digital twin (object and result names, simulator fields, reset-view values, load factor rule) go in the system prompt.",
             },
+            {
+                name: "Flow tools (Tools tab)",
+                description:
+                    "The AI Tool nodes of this pipeline the agent may call, each as the tool flow__<tool name>. A node that never changed this setting may call all of them. Calling one sends the arguments into that flow and waits for the reply of its Publish node set to Reply, so a flow (Function nodes, IoT database, AssetState...) becomes a tool of the agent.",
+            },
         ],
 
         inputExamples: [
@@ -695,6 +695,689 @@ Use this node whenever a pipeline must react to live data published on NATS or M
             "The system prompt is required to define agent behavior.",
         ],
     },
+    AiTool: {
+        description: "Turns the flow that starts at this node into a tool that the AI Agent nodes of the pipeline can call.",
+
+        details:
+            "The AI Tool node declares a tool: its name, a description that tells the model what it does and when to use it, and its parameters. The AI Agent nodes of the same pipeline offer it to their model as flow__<tool name> (in the Flow tools of their Tools tab). When the model calls the tool, the agent checks the arguments against the parameters (required, type, allowed values) and this node sends a message with them into its flow; the flow does whatever it needs (Function nodes, IoT database, AssetState, other nodes) and ends in a Publish node set to Reply, whose payload is the result the model receives. If no reply arrives within the timeout, the model gets an error that says so. The node has no input: only the agents start it.",
+
+        params: [
+            {
+                name: "Tool name",
+                description:
+                    "The name of the tool, with letters, digits and '_' (starting with a letter, up to 48 characters). The model sees it as flow__<tool name>, and it must be unique in the pipeline.",
+            },
+            {
+                name: "Description",
+                description:
+                    "What the tool does, what it returns and when to use it. The model decides whether to call the tool by this text, so it is required and should be specific (units, ranges, meaning of the result).",
+            },
+            {
+                name: "Timeout (s)",
+                description: "How long the agent waits for the reply of the flow (1 to 300 seconds, 30 by default).",
+            },
+            {
+                name: "Parameters",
+                description:
+                    "The arguments of the tool: name, type (text, number, integer, boolean or list), description, whether it is required and, for text, the allowed values. Up to 20; 'userName' and 'toolName' are reserved.",
+            },
+        ],
+
+        outputExamples: [
+            {
+                label: "Message sent into the flow",
+                code: JSON.stringify(
+                    {
+                        payload: {
+                            windSpeed: 32.5,
+                            designWind: 42,
+                            toolName: "wind_load",
+                            userName: "operator-01",
+                        },
+                    },
+                    null,
+                    2,
+                ),
+            },
+            {
+                label: "Function node that answers (before a Publish node set to Reply)",
+                code: [
+                    "function process(msg) {",
+                    "    const v = msg.payload.windSpeed;",
+                    "    const vd = msg.payload.designWind || 42;",
+                    "    const lf = (v / vd) ** 2;",
+                    "    msg.payload = { loadFactor: lf, safetyFactor: 1 / lf };",
+                    "    return msg;",
+                    "}",
+                ].join("\n"),
+            },
+        ],
+
+        notes: [
+            "The flow must end in a Publish node set to Reply; its payload is what the model receives (as JSON, up to 32 KB).",
+            "Function nodes must return the incoming msg (changing msg.payload), not a new object, so that the reply address is kept.",
+            "Each call sends its own message, so several calls (from one or several users) can run at the same time.",
+            "Errors of the flow show up in the pipeline logs; the model only learns that no reply arrived in time.",
+        ],
+    },
+    Switch: {
+        description: "Routes each message to the outputs whose rule holds for one of its fields.",
+
+        details:
+            "The Switch node reads one field of the message (the property: a path such as payload.temperature, or topic) and checks it against its rules, in order. Each rule has its own output (→ 0, → 1...). It can stop at the first rule that matches or send the message to every rule that matches, and an optional last output receives the messages no rule matched. The message goes on unchanged (also its reply address, so the node works inside the flow of an AI Tool). Numbers given as text are compared as numbers.",
+
+        params: [
+            { name: "Property", description: "Path of the field to check: payload.a.b (or just a.b), payload, or topic. Numeric segments index arrays (payload.values.0)." },
+            {
+                name: "Rules",
+                description:
+                    "==, != (numbers or text), <, <=, >, >=, between (inclusive), contains (text, or an element of a list), matches regex, is true, is false, exists, does not exist, is a number, is a text.",
+            },
+            { name: "When several rules match", description: "Stop at the first one, or send a copy to each." },
+            { name: "Otherwise output", description: "One more output, after the rules', for the messages no rule matched." },
+        ],
+
+        inputExamples: [
+            {
+                label: "Rules > 80 (→ 0), between 50 and 80 (→ 1), otherwise (→ 2)",
+                code: JSON.stringify({ payload: { temperature: 85.2 } }, null, 2),
+            },
+        ],
+
+        notes: ["The number of outputs follows the rules: it is not set by hand."],
+    },
+    Deadband: {
+        description: "Report by exception: lets a message through only when its fields changed enough.",
+
+        details:
+            "The Deadband node compares the fields of each message with the values of the last message it let through (not the previous one, so slow drifts are not lost). The message passes when any field changed by the band or more: an absolute amount, or a percentage of the last value. Text fields pass whenever they change, and the first message always passes. With a maximum interval, a message passes after that long even if nothing changed (a heartbeat). The key keeps one state per value (per sensor with 'topic'). It reduces what reaches IoT database, alarm or notification nodes. Optionally, a second output receives the blocked messages.",
+
+        params: [
+            { name: "Fields", description: "Paths of the fields to watch, comma separated. 'payload' watches the whole payload (any change)." },
+            { name: "Band", description: "The minimum change that lets a message through: absolute, or % of the last value sent. 0: any change." },
+            { name: "Maximum interval (s)", description: "Let one through after this long even if unchanged (0: never)." },
+            { name: "Key", description: "Path whose value separates the states, 'topic' by default. Empty: one state for all messages." },
+            { name: "Timestamp field", description: "Path of the message's time (ISO 8601 or epoch ms/s) for the maximum interval; empty: the arrival time." },
+            { name: "Second output", description: "Sends the blocked messages to output 1." },
+        ],
+
+        inputExamples: [
+            {
+                label: "Band 0.5 on payload.value: 10 passes, 10.3 and 10.4 are blocked, 10.5 passes",
+                code: JSON.stringify({ topic: "dev2pdb_1", payload: { value: 10.5 } }, null, 2),
+            },
+        ],
+
+        notes: [
+            "The state is kept in the digital twin's key-value store and updated atomically, so the node behaves the same with several pipelines replicas.",
+            "A message with payload.reset = true clears the node's state; payload.reset = \"<key>\" clears only that key's.",
+        ],
+    },
+    Window: {
+        description: "Statistics of numeric fields over windows of messages or of time.",
+
+        details:
+            "The Window node computes statistics of one or several numeric fields over a window: of N messages, or of a duration. Fixed (tumbling) windows send their statistics when they end and then start again; time windows start on multiples of the duration (every minute, every 10 minutes...) and are sent when their end passes, even if no more messages arrive. Sliding windows send the statistics of the last N messages or seconds with every message. The key keeps one window per value (per sensor with 'topic'). Messages with a time older than a window already sent are ignored.",
+
+        params: [
+            { name: "Numeric fields", description: "Paths of the fields, comma separated. In the output each one is named by its last segment." },
+            { name: "Window", description: "Of N messages or of time (seconds); fixed or sliding." },
+            {
+                name: "Statistics",
+                description:
+                    "count, sum, mean, min, max, first, last, range, RMS, std. dev. (sample, n-1) and the percentiles p50, p90, p95, p99 (linear interpolation).",
+            },
+            { name: "Key", description: "Path whose value separates the windows, 'topic' by default. Empty: one window for all." },
+            { name: "Timestamp field", description: "Path of the message's time (ISO 8601 or epoch ms/s); empty: the arrival time." },
+        ],
+
+        outputExamples: [
+            {
+                label: "Window of 60 s on Eps_1 and windSpeed",
+                code: JSON.stringify(
+                    {
+                        payload: {
+                            key: "dev2pdb_1",
+                            windowStart: "2026-11-03T10:00:00.000Z",
+                            windowEnd: "2026-11-03T10:01:00.000Z",
+                            count: 60,
+                            Eps_1: { count: 60, mean: 0.00021, min: 0.00018, max: 0.00025, p95: 0.00024 },
+                            windSpeed: { count: 60, mean: 12.4, min: 10.1, max: 15.8, p95: 15.2 },
+                        },
+                    },
+                    null,
+                    2,
+                ),
+            },
+        ],
+
+        notes: [
+            "Sliding windows and percentiles keep the samples: at most 5000 per key. Beyond that the oldest are dropped and the output has \"truncated\": true.",
+            "The state is kept in the digital twin's key-value store and updated atomically, so the node behaves the same with several pipelines replicas.",
+            "A message with payload.reset = true clears the node's state; payload.reset = \"<key>\" clears only that key's.",
+        ],
+    },
+    Join: {
+        description: "Combines the latest value of several sources into one message.",
+
+        details:
+            "The Join node keeps the latest value (the payload, by default) of each source and sends them together. A source is a topic of the digital twin, or any value of the key path. Each source gets a name in the output. It can send on every message (with whatever it has, or only once all sources have a value), or once per complete set and then start again; in that mode a timeout sends the incomplete set with the list of the missing sources. A maximum age drops values too old to be combined. The output is nested by name, or flat (the payloads merged, the newest wins on repeated fields), with the time of each value in _timestamps.",
+
+        params: [
+            { name: "Sources", description: "Topics of the digital twin (or other values of the key path), each with its name in the output." },
+            { name: "Send", description: "On every message with the latest values; on every message once all have a value; or once per complete set." },
+            { name: "Timeout (s)", description: "Per complete set only: send what there is after this long, with _missing (0: wait)." },
+            { name: "Maximum age (s)", description: "Values older than this are dropped (0: kept)." },
+            { name: "Output", description: "Nested by name, or flat." },
+            { name: "Key", description: "What identifies the source: 'topic' (needed for the topic sources)." },
+            { name: "Value", description: "What is kept of each message: 'payload' by default, or a field of it." },
+        ],
+
+        outputExamples: [
+            {
+                label: "Nested (strain = dev2pdb_1, wind = dev2pdb_2)",
+                code: JSON.stringify(
+                    {
+                        payload: {
+                            strain: { Eps_1: 0.00021, Eps_2: -0.00012 },
+                            wind: { windSpeed: 12.4, windDirection: 270 },
+                            _timestamps: { strain: "2026-11-03T10:00:01.120Z", wind: "2026-11-03T10:00:00.010Z" },
+                        },
+                    },
+                    null,
+                    2,
+                ),
+            },
+        ],
+
+        notes: [
+            "Without sources, every value of the key is a source, named by itself (only with 'on every message, with the latest values').",
+            "The state is kept in the digital twin's key-value store and updated atomically, so the node behaves the same with several pipelines replicas.",
+            "A message with payload.reset = true clears the node's state; payload.reset = \"<key>\" clears only that key's.",
+        ],
+    },
+    Watchdog: {
+        description: "Says when a source stops sending data, and when it comes back.",
+
+        details:
+            "The Watchdog node watches the arrival of messages. Each source (each value of the key: each topic by default) that stays silent for the timeout produces a 'lost' event on output 0, once (or again every 'repeat' seconds while it stays silent); its next message produces a 'restored' event on output 1, with how long it was silent. Expected sources (topics of the digital twin or other key values) are watched from the deployment even if they never send anything. The time a node was stopped (redeployment) is not counted as silence. Optionally, a third output lets the messages through unchanged, so the node can sit in the middle of a flow.",
+
+        params: [
+            { name: "Timeout (s)", description: "Silence that counts as lost: a few times the source's usual interval." },
+            { name: "Repeat (s)", description: "Warn again every this long while the source stays silent (0: once)." },
+            { name: "Key", description: "What separates the sources: 'topic' by default. Empty: the input as a whole." },
+            { name: "Expected sources", description: "Sources watched even before their first message, each with a name for the events." },
+            { name: "Third output", description: "Lets the messages through unchanged (output 2)." },
+        ],
+
+        outputExamples: [
+            {
+                label: "Output 0: a source lost",
+                code: JSON.stringify(
+                    {
+                        payload: {
+                            event: "lost",
+                            key: "dev2pdb_1",
+                            source: "Strains",
+                            lastSeen: "2026-11-03T10:00:00.000Z",
+                            silentForSeconds: 10,
+                            message: "No data from Strains for 10 s",
+                        },
+                    },
+                    null,
+                    2,
+                ),
+            },
+            {
+                label: "Output 1: back",
+                code: JSON.stringify(
+                    { payload: { event: "restored", key: "dev2pdb_1", source: "Strains", downtimeSeconds: 312.5, message: "Data from Strains again after 5 min without data" } },
+                    null,
+                    2,
+                ),
+            },
+        ],
+
+        notes: [
+            "The state is kept in the digital twin's key-value store and updated atomically, so the node behaves the same with several pipelines replicas; the clock (timeouts, delays, periods) runs in one replica only.",
+            "A message with payload.reset = true clears the node's state; payload.reset = \"<key>\" clears only that key's.",
+        ],
+    },
+    Alarm: {
+        description: "An alarm on one field, with Warning and Alarm levels, acknowledgement and shelving.",
+
+        details:
+            "The Alarm node watches one field and keeps the state of an alarm, in the spirit of ISA-18.2. The condition can be high (the value reaches or exceeds a level), low (reaches or falls below) or equals (a code, true...), with two levels, Warning and Alarm (either or both). The hysteresis keeps a level until the value is clearly back (an alarm at 25 with hysteresis 1 clears below 24), and the delays require the condition to hold a while before activating or clearing. Events are sent only on transitions: raised, escalated (Warning → Alarm), deescalated, cleared (with its duration and the highest level reached), acknowledged, shelved, unshelved. An active alarm stays unacknowledged until a message with payload.ack arrives; an alarm that clears without acknowledgement stays 'back to normal, unacknowledged'. Shelving silences an alarm for some minutes: its events are not sent and it does not count for the asset status. Each event has a text in 'message', ready for an Email or Telegram node.",
+
+        params: [
+            { name: "Property", description: "Path of the field watched." },
+            { name: "Condition", description: "high, low or equals." },
+            { name: "Levels", description: "Warning and Alarm (either or both), and the units for the texts. For high, Alarm above Warning; for low, below." },
+            { name: "Hysteresis", description: "How far back the value must go to leave a level (high and low)." },
+            { name: "Delays (s)", description: "On: the condition must hold this long to activate or escalate. Off: to deescalate or clear." },
+            { name: "Key", description: "One alarm per value (e.g. per sensor); empty: one alarm." },
+            { name: "Status output", description: "Output 1: payload.state = {status, state_description} when the node's status (the worst of its keys) changes, for an Asset state node." },
+            {
+                name: "Update the asset status directly",
+                description:
+                    "The node writes the status of the digital twin's asset itself: the worst of the active alarms of all the Alarm nodes that have this option, keeping the other fields of the state. Nothing else should write the status then.",
+            },
+        ],
+
+        inputExamples: [
+            { label: "A reading", code: JSON.stringify({ payload: { windSpeed: 26.3 } }, null, 2) },
+            { label: "Acknowledge (all keys, or payload.ack = \"<key>\")", code: JSON.stringify({ payload: { ack: true, user: "operator-01" } }, null, 2) },
+            { label: "Shelve for 30 minutes (0: unshelve; payload.key: one key)", code: JSON.stringify({ payload: { shelveMinutes: 30 } }, null, 2) },
+        ],
+
+        outputExamples: [
+            {
+                label: "Output 0: raised",
+                code: JSON.stringify(
+                    {
+                        payload: {
+                            event: "raised",
+                            alarm: "Wind cut-out",
+                            level: "Alarm",
+                            state: "active_unack",
+                            value: 26.3,
+                            threshold: "25",
+                            raisedAt: "2026-11-03T10:00:00.000Z",
+                            message: "ALARM: Wind cut-out, 26.3 m/s ≥ 25 m/s",
+                        },
+                    },
+                    null,
+                    2,
+                ),
+            },
+            {
+                label: "Output 1: the status for an Asset state node",
+                code: JSON.stringify({ payload: { state: { status: "Alarm", state_description: "Wind cut-out ≥ 25 m/s" } } }, null, 2),
+            },
+        ],
+
+        notes: [
+            "The user who acknowledges is the sender of the message (web chat, Telegram) or payload.user.",
+            "The asset status changes when an alarm changes level, not with every reading.",
+            "An alarm of a node deleted from the pipeline stops counting for the asset status at the next deployment.",
+            "The state is kept in the digital twin's key-value store and updated atomically, so the node behaves the same with several pipelines replicas; the clock (timeouts, delays, periods) runs in one replica only.",
+            "A message with payload.reset = true clears the node's state; payload.reset = \"<key>\" clears only that key's.",
+        ],
+    },
+    MachineState: {
+        description: "The operating state of a machine, and its time in each state per day or shift.",
+
+        details:
+            "The Machine state node classifies each message with ordered rules (the first that holds sets the state, e.g. Fault, Cut-out, Producing; otherwise the default state, e.g. Stopped). A new state must hold for the minimum duration before it counts, so that signals near a threshold do not make it flicker; once accepted, it counts from when it was first seen. Without messages for the 'unknown after' time, the state becomes Unknown. The node adds up the time in each state and the number of changes per period: the calendar day, or the shifts if their start times are given, in the node's time zone or the group's. Output 0 sends each change of state; output 1 the summary of each period when it ends (and every N minutes if set), the basis of availability and OEE.",
+
+        params: [
+            { name: "States", description: "Ordered rules: a state name, a field and an operator (as in the Switch node)." },
+            { name: "Otherwise", description: "The state when no rule holds." },
+            { name: "Minimum duration (s)", description: "A new state must hold this long to count (against flicker)." },
+            { name: "Unknown after (s)", description: "Without data this long, the state is Unknown (0: never)." },
+            { name: "Shifts", description: "Start times HH:MM (e.g. 06:00, 14:00, 22:00); empty: the calendar day." },
+            { name: "Summary every (min)", description: "A partial summary of the current period every N minutes (0: only at its end)." },
+            { name: "Time zone", description: "Of the days and shifts (IANA name); empty: the group's (or UTC)." },
+            { name: "Key", description: "One machine per value; empty: a single machine." },
+        ],
+
+        outputExamples: [
+            {
+                label: "Output 0: a change",
+                code: JSON.stringify(
+                    { payload: { event: "change", state: "Cut-out", previousState: "Producing", since: "2026-11-03T10:02:00.000Z", previousDurationSeconds: 5400, message: "Producing → Cut-out (after 1 h 30 min)" } },
+                    null,
+                    2,
+                ),
+            },
+            {
+                label: "Output 1: the summary of a day",
+                code: JSON.stringify(
+                    {
+                        payload: {
+                            event: "summary",
+                            period: "2026-11-03",
+                            final: true,
+                            durations: { Producing: 61200, Stopped: 21600, "Cut-out": 3600 },
+                            percent: { Producing: 70.83, Stopped: 25, "Cut-out": 4.17 },
+                            transitions: 6,
+                            currentState: "Producing",
+                        },
+                    },
+                    null,
+                    2,
+                ),
+            },
+        ],
+
+        notes: [
+            "To keep the state in the asset, connect output 0 to a Function that writes it into payload.state and then to an Asset state node.",
+            "The state is kept in the digital twin's key-value store and updated atomically, so the node behaves the same with several pipelines replicas; the clock (timeouts, delays, periods) runs in one replica only.",
+            "A message with payload.reset = true clears the node's state; payload.reset = \"<key>\" clears only that key's.",
+        ],
+    },
+    Rainflow: {
+        description: "Counts the stress cycles of a signal (rainflow) and their fatigue damage (Miner's rule).",
+
+        details:
+            "The Rainflow node counts the cycles of a stress signal as it arrives (ASTM E1049 rainflow counting, kept between messages: no cycle is lost at the edges of a message) and adds up their Palmgren-Miner damage with an S-N curve: a DNV-RP-C203 category in air or in seawater with cathodic protection, or a custom curve of one or more lines. The field can be a number or an array of samples per message; the scale turns it into stress (e.g. 210000 MPa for a strain of steel). Each day it sends the cycles, their histogram by range and the damage of the day, with the totals since the start: total damage, life consumed, damage rate per year and remaining life at that rate. The same algorithms are available to the Function nodes as go.dsp (Rainflow, GetDNVCurve, MinerDamage...).",
+
+        params: [
+            { name: "Field", description: "Path of a number or of an array of samples." },
+            { name: "Scale and units", description: "The field times the scale is the stress range unit of the S-N curve (MPa for DNV)." },
+            { name: "Gate", description: "Reversals smaller than this (in stress) are ignored as noise." },
+            {
+                name: "S-N curve",
+                description:
+                    "DNV-RP-C203 (B1 to W3; in air: knee at 1e7 cycles; in seawater with cathodic protection: knee at 1e6), or custom lines log N = log a − m log S (each range takes the line that gives most cycles). 'Copy to a custom curve' starts from a DNV one.",
+            },
+            { name: "Corrections", description: "SCF (stress concentration), thickness t over t_ref with exponent k (the DNV one if empty), cutoff (ranges below it do no damage) and DFF (design fatigue factor)." },
+            { name: "Histogram bin", description: "Width of the range bins of the histogram." },
+            { name: "Design life (years)", description: "Optional: the output compares the damage rate with it (rateToDesign: 1 means on design)." },
+            {
+                name: "Timestamp field",
+                description:
+                    "Places each message in its day: by default payload.timestamp, which the Listen node always adds, so delayed or replayed data is counted in the day it belongs to. Timestamps ahead of the clock are taken as now; empty: the arrival time. The clock closes a day on its own only after the signal has been 2 minutes without messages.",
+            },
+        ],
+
+        outputExamples: [
+            {
+                label: "Summary of a day",
+                code: JSON.stringify(
+                    {
+                        payload: {
+                            event: "summary",
+                            period: "2026-11-03",
+                            final: true,
+                            cycles: 4321.5,
+                            damage: 2.1e-6,
+                            maxRange: 38.4,
+                            histogram: [{ from: 0, to: 10, count: 4100 }, { from: 10, to: 20, count: 200 }],
+                            curve: "DNV-RP-C203 D (seawater_cp)",
+                            damageTotal: 3.4e-4,
+                            lifeConsumedPercent: 0.034,
+                            damageRatePerYear: 7.7e-4,
+                            remainingLifeYears: 1298,
+                        },
+                    },
+                    null,
+                    2,
+                ),
+            },
+        ],
+
+        notes: [
+            "The counting only sees the samples it gets: sample well above the structure's frequencies, or the peaks (and the damage) are underestimated.",
+            "The damage rate is given after a day of data, so that one storm is not extrapolated to years.",
+            "The state is kept in the digital twin's key-value store and updated atomically, so the node behaves the same with several pipelines replicas.",
+            "A message with payload.reset = true clears the node's state; payload.reset = \"<key>\" clears only that key's.",
+        ],
+    },
+    Vibration: {
+        description: "Vibration features of blocks of samples: levels, impulsiveness, bands and the dominant frequency.",
+
+        details:
+            "The Vibration node computes, for each block of samples, the indicators of condition monitoring: RMS, peak, peak-to-peak, crest factor and impulse factor (impacts, e.g. early bearing damage), kurtosis (3 for random vibration, higher when the signal becomes impulsive) and skewness; from the Welch spectrum, the RMS in each band, the dominant frequency with its damping ratio (from the half-power bandwidth) and, for an acceleration, the velocity RMS of ISO 10816/20816. A block is an array of samples in one message (a burst of a vibration sensor), or a window of single values gathered by the node, every N samples (or with overlap, with a smaller step). A drift of a structure's natural frequency, followed with the dominant frequency, may point to a loss of stiffness. The same computation is available to the Function nodes as go.dsp.VibrationFeatures.",
+
+        params: [
+            { name: "Input", description: "Single values gathered into windows, or a block (array) per message." },
+            { name: "Sampling rate", description: "Hz. For blocks, it can come from a field of the message." },
+            { name: "Window / Step", description: "Stream: samples per window and between windows (step 0: the window, no overlap)." },
+            { name: "Bands", description: "Frequency bands (Hz) whose RMS is given, by name." },
+            { name: "Dominant frequency search", description: "The band where the dominant peak is searched (0: all)." },
+            { name: "Velocity RMS", description: "Of an acceleration in m/s² or g, over a band (10–1000 Hz in ISO 10816), in mm/s." },
+        ],
+
+        outputExamples: [
+            {
+                label: "A window",
+                code: JSON.stringify(
+                    {
+                        payload: {
+                            samples: 256,
+                            fs: 1,
+                            rms: 0.71,
+                            peak: 1.02,
+                            crestFactor: 1.44,
+                            kurtosis: 1.6,
+                            dominantFrequency: 0.1,
+                            dominantDamping: 0.012,
+                            bands: { mode1: 0.69 },
+                            resolutionHz: 0.0078,
+                        },
+                    },
+                    null,
+                    2,
+                ),
+            },
+        ],
+
+        notes: [
+            "The frequencies seen go up to half the sampling rate (Nyquist): 1 Hz sampling shows up to 0.5 Hz.",
+            "Streams keep at most 32768 samples per key.",
+            "The state is kept in the digital twin's key-value store and updated atomically, so the node behaves the same with several pipelines replicas.",
+            "A message with payload.reset = true clears the node's state; payload.reset = \"<key>\" clears only that key's.",
+        ],
+    },
+    Anomaly: {
+        description: "Flags the values that leave their recent behaviour, without a trained model.",
+
+        details:
+            "The Anomaly node judges one field of every message against a baseline learnt from the data itself, with one of three methods: Z-score (distance to the mean of the latest normal samples, in standard deviations: for spikes), EWMA control chart (an exponentially weighted mean compared with limits around the baseline learnt in the warm-up: for small persistent shifts such as drift or a lost calibration) or IQR (Tukey fences around the quartiles of the latest samples: robust with skewed data). Until the warm-up is over, nothing is judged. By default the anomalous samples do not enter the baseline, so that a fault does not become normal. Every message goes on with the verdict in payload.anomaly (isAnomaly, score, limits, baseline and, for anomalies, a text in message); an optional second output gets only the anomalies. With a key, each sensor has its own detector. The same detectors are available to the Function nodes as go.dsp.DetectAnomalies.",
+
+        params: [
+            { name: "Method", description: "Z-score, EWMA or IQR." },
+            { name: "Window", description: "Z-score and IQR: the baseline, the latest normal samples (up to 5000)." },
+            { name: "Threshold / L / k", description: "Z-score: |z| (3); EWMA: L sigmas of the chart (3); IQR: k (1.5, or 3 for extreme values)." },
+            { name: "Lambda", description: "EWMA: weight of the newest sample; smaller values detect smaller shifts, later." },
+            { name: "Baseline adaptation", description: "EWMA: how fast the baseline follows the normal samples (0: frozen after the warm-up)." },
+            { name: "Warm-up", description: "Samples learnt before judging." },
+        ],
+
+        outputExamples: [
+            {
+                label: "An anomaly",
+                code: JSON.stringify(
+                    {
+                        payload: {
+                            Eps_1: 0.00042,
+                            anomaly: {
+                                method: "zscore",
+                                ready: true,
+                                isAnomaly: true,
+                                value: 0.00042,
+                                score: 7.3,
+                                lower: 0.000012,
+                                upper: 0.000098,
+                                baseline: 0.000055,
+                                message: "Anomaly in Eps_1: 0.00042, score 7.30, expected 1.2e-05..9.8e-05 (zscore)",
+                            },
+                        },
+                    },
+                    null,
+                    2,
+                ),
+            },
+        ],
+
+        notes: [
+            "An Alarm node with condition equals 'true' on payload.anomaly.isAnomaly makes an alarm of it.",
+            "The state is kept in the digital twin's key-value store and updated atomically, so the node behaves the same with several pipelines replicas.",
+            "A message with payload.reset = true clears the node's state; payload.reset = \"<key>\" clears only that key's.",
+        ],
+    },
+    Totalizer: {
+        description: "Daily amounts and totals since the start of counters, rates and events.",
+        details:
+            "The Totalizer node turns signals into amounts per day and totals since the start. Each item reads one field in one of three modes. Counter: a cumulative reading (energy meter, piece counter of a PLC, hour meter); the amount is the increase between readings. A decrease is a rollover (when 'rollover at' is set: e.g. 4294967295 for a 32-bit counter) or a counter that restarted from zero, and an increase larger than 'max step' is taken as a meter change or a spike and not counted (the reading becomes the new reference). Rate: a rate (power, flow, speed) integrated over time with the trapezoidal rule, per second, minute, hour or day of the rate (kW per hour gives kWh); gaps longer than 'max gap' are not integrated, so no amount is made up. Events: each message adds the field's number, or 1 when the field is empty (pieces, starts, cycles). Every amount is multiplied by the item's factor. The messages are placed in their day by their timestamp (payload.timestamp by default), so delayed or replayed data goes to its own day.",
+        params: [
+            { name: "Items", description: "Name, unit, mode, field and factor of each amount; the counter's rollover and maximum step, and the rate's time unit and maximum gap." },
+            { name: "Summary every (min)", description: "Optional partial summaries during the day, besides the final one at its end." },
+            { name: "Timestamp field", description: "Places each message in its day; empty: the arrival time. The clock closes a day on its own only after 2 minutes without messages." },
+            { name: "Key", description: "One total per value (e.g. per meter); empty: one for all the messages." },
+        ],
+        outputExamples: [
+            {
+                label: "End of a day",
+                code: JSON.stringify(
+                    {
+                        payload: {
+                            event: "summary",
+                            period: "2026-11-03",
+                            final: true,
+                            since: "2026-10-01T00:00:00.000Z",
+                            values: {
+                                energy: { amount: 1834.5, total: 51230.2, unit: "kWh", mode: "counter", readings: 1440, lastReading: 984211.7 },
+                                starts: { amount: 3, total: 87, unit: "", mode: "events", readings: 3 },
+                            },
+                        },
+                    },
+                    null,
+                    2,
+                ),
+            },
+        ],
+        notes: [
+            "A segment of a rate, or the increase of a counter, goes to the day of the message that closes it.",
+            "The state is kept in the digital twin's key-value store and updated atomically, so the node behaves the same with several pipelines replicas.",
+            "A message with payload.reset = true clears the node's state; payload.reset = \"<key>\" clears only that key's.",
+        ],
+    },
+
+    OEE: {
+        description: "Overall Equipment Effectiveness per shift or day: availability × performance × quality.",
+        details:
+            "The OEE node computes the OEE of a machine from its states and its pieces. The states come in messages with a state field: by default the change events of a Machine state node (payload.state, at the time in payload.since), so it is wired after its first output. Production states make run time; planned stop states (changeover, cleaning...) are left out of the planned production time; any other state is downtime, Unknown too unless it is set to be left out. The calendar's planned stops (daily breaks, non-working weekdays and holidays) are not a loss when the machine is stopped; if it produces, that time counts as run time. The pieces come in count fields (total, good and/or rejected; the missing one is derived), as increments or as cumulative counters, and may come in other messages than the states (e.g. from a Listen node). Availability = run / (run + downtime); Performance = ideal cycle time × total pieces / run; Quality = good / total. The times are accounted with the clock: a state lasts until it changes.",
+        params: [
+            { name: "Machine state", description: "Field of the state and of the time it began (payload.state and payload.since of a Machine state node)." },
+            { name: "Production / planned stop states", description: "Comma separated state names; the rest are downtime." },
+            { name: "Pieces", description: "Fields of the total, good and rejected pieces, and whether they are increments or cumulative counters." },
+            { name: "Ideal cycle time (s)", description: "Seconds per piece at nominal speed: the reference of the performance." },
+            { name: "Shifts", description: "Start times of the shifts (as in the Machine state node); empty: the calendar day." },
+            { name: "Breaks, non-working days, holidays", description: "The planned stops of the calendar." },
+        ],
+        outputExamples: [
+            {
+                label: "End of a shift",
+                code: JSON.stringify(
+                    {
+                        payload: {
+                            event: "summary",
+                            period: "2026-11-03 06:00",
+                            final: true,
+                            oee: 67.86,
+                            availability: 78.57,
+                            performance: 90.91,
+                            quality: 95,
+                            times: { run: 19800, downtime: 5400, plannedStop: 1800, calendarStop: 1800, excluded: 0, plannedProductionTime: 25200 },
+                            downtimeByState: { Stopped: 5400 },
+                            counts: { total: 600, good: 570, reject: 30 },
+                            losses: { availabilitySeconds: 5400, performanceSeconds: 1800, qualityPieces: 30 },
+                            currentState: "Running",
+                        },
+                    },
+                    null,
+                    2,
+                ),
+            },
+        ],
+        notes: [
+            "The ratios are percentages; a ratio without data (e.g. no run time) is left out, and then so is the OEE.",
+            "A performance above 100 % means the ideal cycle time is too long.",
+            "A message with payload.reset = true clears the node's state; payload.reset = \"<key>\" clears only that key's.",
+        ],
+    },
+
+    Degradation: {
+        description: "Trend of a health indicator and its remaining useful life (RUL) to a failure threshold.",
+        details:
+            "The Degradation node follows a health indicator over weeks or months (the RMS of a Vibration node, a bearing temperature over ambient, the efficiency of a pump, the damage of a Rainflow node...) and estimates the time until its trend reaches a failure threshold. The samples are averaged per hour or per day (up to 5000 buckets per key are kept, so the history can be longer than the IoT database's retention). Each time a bucket closes, a linear or exponential trend is fitted on the buckets of the trend window and an estimate is sent: the remaining useful life in days with a band from the uncertainty of the slope (about 95 %), the date it is reached and a health index from 100 % at the healthy value to 0 % at the threshold. A flat or improving trend gives the status 'stable'. At start, it can load the history of the indicator from the IoT database: the stored messages of a topic of the asset (dev2pdb) or of the digital twin (dtm2pdb), over the trend window but never beyond the data retention, once. The same fit is available to the Function nodes as go.dsp.EstimateRUL.",
+        params: [
+            { name: "Health indicator", description: "Path of the number that gets worse with wear." },
+            { name: "Failure threshold", description: "The value at which the part is due, and whether the indicator rises or falls towards it." },
+            { name: "Healthy value", description: "100 % of the health index; empty: the oldest value kept." },
+            { name: "Trend", description: "Linear, or exponential (all the values must be > 0), on the means per hour or per day." },
+            { name: "Trend window (days)", description: "The latest days the trend is fitted on." },
+            { name: "Minimum points", description: "Buckets needed for an estimate; before that the status is 'insufficient'." },
+            { name: "History at start", description: "Topic and field of the stored messages loaded once at start. After a reset (e.g. the part was replaced) it is not loaded again." },
+        ],
+        outputExamples: [
+            {
+                label: "Estimate",
+                code: JSON.stringify(
+                    {
+                        payload: {
+                            event: "estimate",
+                            at: "2026-11-04T00:00:00.000Z",
+                            value: 3.95,
+                            fitted: 3.93,
+                            model: "linear",
+                            status: "degrading",
+                            slopePerDay: 0.05,
+                            r2: 0.98,
+                            points: 30,
+                            rulDays: 63.4,
+                            rulLowDays: 58.2,
+                            rulHighDays: 69.6,
+                            failureDate: "2027-01-06T09:36:00.000Z",
+                            healthPercent: 62.2,
+                            threshold: 7.1,
+                            message: "Remaining useful life 63.4 days (58.2 to 69.6)",
+                        },
+                    },
+                    null,
+                    2,
+                ),
+            },
+        ],
+        notes: [
+            "An Alarm node on payload.rulDays (e.g. below 30) gives an early warning by Email or Telegram.",
+            "It is a trend extrapolation, not a trained model: for that, use the ML model node.",
+            "A message with payload.reset = true clears the node's state (e.g. after replacing the part); payload.reset = \"<key>\" clears only that key's.",
+        ],
+    },
+
+    Approval: {
+        description: "Holds a message until a group administrator approves or rejects it, from the viewer or from Telegram.",
+        details:
+            "The Approval node puts a person in the loop before an action, such as a command to a PLC or a device (dtm2dev), a change of setpoint or an action proposed by an AI agent. Each message becomes a pending request and waits until it is approved or rejected, or until it expires. Only the administrators of the digital twin's group (and those of its organization and the platform) can decide. In the viewer, the node's bell button lists the pending requests, with Approve and Reject and an optional comment: the decision goes on the user's own NATS subject, so pipelines knows who decided. In Telegram, each request is sent to the chat with Approve and Reject buttons; only administrators who have linked their Telegram account in their profile (a code sent to the organization's bot as /link <code>) can decide, and the message then shows the decision. The pending requests are kept in the digital twin's key-value store: any pipelines replica can take a decision and only the first one counts.",
+        params: [
+            { name: "Decided from", description: "The node's button in the viewer, Telegram, or both." },
+            { name: "Telegram chat id", description: "Where the requests are sent (negative for groups); the organization must have Telegram enabled." },
+            { name: "Title and detail field", description: "What is asked, and a field of the message shown with it (e.g. the command)." },
+            { name: "Expires after (min)", description: "A request not decided by then goes to output 2; 0: never." },
+        ],
+        outputExamples: [
+            {
+                label: "Approved (output 0)",
+                code: JSON.stringify(
+                    {
+                        payload: {
+                            setpoint: 42,
+                            approval: {
+                                requestId: "K7PX2MQA9R",
+                                decision: "approved",
+                                title: "New setpoint",
+                                requested: "2026-11-03T10:00:00.000Z",
+                                decided: "2026-11-03T10:04:12.000Z",
+                                by: "ana",
+                                via: "telegram",
+                            },
+                        },
+                    },
+                    null,
+                    2,
+                ),
+            },
+        ],
+        notes: [
+            "Outputs: 0 approved, 1 rejected, 2 expired (the original message with payload.approval), 3 a notice of each new request, to wire to an Email or Telegram node.",
+            "At most 100 requests wait at a time; more are rejected at once.",
+            "A Telegram account is linked from the user's profile in the platform.",
+        ],
+    },
+
     Transcriptor: {
         description: "Transcribes incoming audio files into text using the OpenAI Whisper API.",
         details:
@@ -1328,7 +2011,7 @@ Use this node whenever a pipeline must react to live data published on NATS or M
         description: "Sets, updates, or retrieves the state of the current asset or the assets in the current group.",
 
         details:
-            "The AssetState node manages asset state information in the IoT DB (the asset state table of the platform's time-series database), where the TelegramListen node reads it too. It supports three actions. 'Set or update state of current asset' stores the current asset state. In that mode, the state can come from a custom JSON object configured in the node or from 'msg.payload.state'. 'Get state of current asset' reads the current asset state and adds it to the outgoing payload under 'state', together with 'state_description'. 'Get states of assets in current group' reads the states of all assets in the current group and adds them to the outgoing payload under 'assetStates'. An asset whose state has never been set has the status 'Unknown'. When reading state data, the node ensures that 'status' is always present, defaulting to 'Unknown' if missing. It also ensures that 'state_description' is present when returning state information.",
+            "The AssetState node manages asset state information in the IoT DB (the asset state table of the platform's time-series database), where the TelegramListen node reads it too. It supports three actions. 'Set or update state of current asset' stores the current asset state, and sends a message on its output only when the status changes (with status, previousStatus, the state and a text in 'message'), so that any change of status can be notified by an Email or Telegram node, whoever sets it. In that mode, the state can come from a custom JSON object configured in the node or from 'msg.payload.state'. 'Get state of current asset' reads the current asset state and adds it to the outgoing payload under 'state', together with 'state_description'. 'Get states of assets in current group' reads the states of all assets in the current group and adds them to the outgoing payload under 'assetStates'. An asset whose state has never been set has the status 'Unknown'. When reading state data, the node ensures that 'status' is always present, defaulting to 'Unknown' if missing. It also ensures that 'state_description' is present when returning state information.",
 
         params: [
             {

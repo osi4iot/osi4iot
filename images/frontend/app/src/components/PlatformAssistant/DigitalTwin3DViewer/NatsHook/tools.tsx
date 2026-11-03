@@ -35,7 +35,7 @@ export const mqttTopicToNatsSubject = (mqttTopic: string): string => {
     return mqttTopic.replaceAll("/", ".");
 };
 
-const NOT_ALLOWED_PREFIXES = ["dev2dtm", "dtm2pdb", "dtm2dev", "sim2llm", "sim2state", "inject"];
+const NOT_ALLOWED_PREFIXES = ["dev2dtm", "dtm2pdb", "dtm2dev", "sim2llm", "sim2state", "inject", "approval"];
 
 export const filterNatsSubject = (subject: string) => {
     if(subject !== "" && !NOT_ALLOWED_PREFIXES.some(prefix => subject.startsWith(prefix))) {

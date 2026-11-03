@@ -7,7 +7,7 @@
 //    of its digital twin). dev2pdb_wt also carries "timestamp"; dev2pdb_ma messages are arrays of them.
 //  - "simulation" (sim2dtm, dtm2sim): the simulation format of its digital twin.
 //  - "fixed" (sim2llm, llm2sim, dtmlog, sim2state, state2sim): set by the platform.
-//  - "user" (dev2dtm, dtm2dev, dtm2pdb, inject_N and any other): written by the user.
+//  - "user" (dev2dtm, dtm2dev, dtm2pdb, inject and any other): written by the user.
 // Only the "user" ones are edited; the others are computed here again whenever what they depend on changes (sensors,
 // sensor types, digital twins) and on every start of admin_api.
 import pool from "../../config/dbconfig";

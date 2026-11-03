@@ -124,7 +124,7 @@ func NatsService(
 		Order:           updateOrder,
 	}
 
-	image := utils.GetServiceImage(pd, "nats", "ghcr.io/osi4iot/nats:2.11.1-alpine")
+	image := utils.GetServiceImage(pd, "nats", "ghcr.io/osi4iot/nats:2.15.2-alpine")
 	return NewService(serviceName, pd, sd).
 		WithImage(image).
 		WithHostname(serviceName).

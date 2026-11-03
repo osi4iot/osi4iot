@@ -176,6 +176,11 @@ type Manager interface {
 	GetS3BucketName() string
 
 	SendToIotDataChannel(data ThingData)
+
+	// GetTelegramApprover is the login of the platform user linked to the
+	// Telegram account (user id) when it administers the group: group,
+	// organization or platform administrator. "" otherwise (Approval nodes).
+	GetTelegramApprover(ctx context.Context, groupId int, telegramUserId int64) (string, error)
 }
 
 func SchemasAreEqual(a, b map[string]any) bool {

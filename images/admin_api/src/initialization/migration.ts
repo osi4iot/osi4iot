@@ -137,49 +137,6 @@ export const dataBaseInitialization = async () => {
 				process.exit(1);
 			}
 
-			// Sensor types have no marker (only asset types do: a sensor is
-			// drawn around its asset, never as a marker of its own). The
-			// columns of older platforms go.
-			try {
-				await postgresClient.query(`ALTER TABLE IF EXISTS grafanadb.sensor_type
-					DROP COLUMN IF EXISTS marker_svg_file_name,
-					DROP COLUMN IF EXISTS marker_svg_string;`);
-			} catch (err) {
-				const message = err instanceof Error ? err.message : String(err);
-				logger.log("error", `The marker columns of grafanadb.sensor_type could not be removed: %s`, message);
-			}
-
-			// An ML model is one .onnx file (the pipelines run ONNX Runtime): there
-			// is no library to record. The column of older platforms goes.
-			try {
-				await postgresClient.query(`ALTER TABLE IF EXISTS grafanadb.ml_model DROP COLUMN IF EXISTS ml_library;`);
-			} catch (err) {
-				const message = err instanceof Error ? err.message : String(err);
-				logger.log("error", `The ml_library column of grafanadb.ml_model could not be removed: %s`, message);
-			}
-
-			// The users' default time zone (IANA name; "" not set: the browser's).
-			// grafanadb.user already has the platform's columns (first_name…).
-			try {
-				await postgresClient.query(
-					`ALTER TABLE IF EXISTS grafanadb.user ADD COLUMN IF NOT EXISTS timezone VARCHAR(64) NOT NULL DEFAULT '';`
-				);
-			} catch (err) {
-				const message = err instanceof Error ? err.message : String(err);
-				logger.log("error", `The timezone column of grafanadb.user could not be added: %s`, message);
-			}
-
-			// The groups' time zone (IANA name; "" not set): the AI agents' times
-			// when the user's own is not known. Added to older platforms too.
-			try {
-				await postgresClient.query(
-					`ALTER TABLE IF EXISTS grafanadb.group ADD COLUMN IF NOT EXISTS timezone VARCHAR(64) NOT NULL DEFAULT '';`
-				);
-			} catch (err) {
-				const message = err instanceof Error ? err.message : String(err);
-				logger.log("error", `The timezone column of grafanadb.group could not be added: %s`, message);
-			}
-
 			if (Number(result0.rows[0].count) !== 0) {
 				const queryStringAlterOrg = `ALTER TABLE grafanadb.org
 											ADD COLUMN acronym varchar(20) UNIQUE,
@@ -196,7 +153,10 @@ export const dataBaseInitialization = async () => {
 											ADD COLUMN hashed_telegram_webhook_secret_token TEXT DEFAULT '',
 											ADD COLUMN IF NOT EXISTS llm_provider_type VARCHAR(20) NOT NULL DEFAULT 'openai',
 											ADD COLUMN IF NOT EXISTS llm_allowed_models TEXT[] NOT NULL DEFAULT '{}',
-											ADD COLUMN IF NOT EXISTS rag_enabled BOOLEAN NOT NULL DEFAULT false;`;
+											ADD COLUMN IF NOT EXISTS rag_enabled BOOLEAN NOT NULL DEFAULT false,
+											ADD COLUMN IF NOT EXISTS llm_monthly_token_limit BIGINT NOT NULL DEFAULT 0,
+											ADD COLUMN IF NOT EXISTS llm_token_warning_percent SMALLINT NOT NULL DEFAULT 80,
+											ADD COLUMN IF NOT EXISTS llm_token_notified VARCHAR(20) NOT NULL DEFAULT '';`;
 				try {
 					await postgresClient.query(queryStringAlterOrg);
 					logger.log("info", `Column acronym has been added sucessfully to Table ${tableOrg}`);
@@ -388,12 +348,15 @@ export const dataBaseInitialization = async () => {
 				const queryStringAlterUser = `ALTER TABLE grafanadb.user
 									ADD COLUMN first_name varchar(127) NOT NULL DEFAULT 'unknown',
 									ADD COLUMN surname varchar(127) NOT NULL DEFAULT 'unknown',
-									ADD COLUMN nats_nkey varchar(60) NOT NULL DEFAULT 'undefined';`;
+									ADD COLUMN nats_nkey varchar(60) NOT NULL DEFAULT 'undefined',
+									ADD COLUMN timezone VARCHAR(64) NOT NULL DEFAULT '',
+									ADD COLUMN telegram_user_id BIGINT UNIQUE,
+									ADD COLUMN telegram_username VARCHAR(64) NOT NULL DEFAULT '';`;
 				try {
 					await postgresClient.query(queryStringAlterUser);
 					logger.log(
 						"info",
-						`Columns first_name, surname, and nats_nkey have been added sucessfully to Table ${tableUser}`
+						`Columns first_name, surname, nats_nkey, timezone and telegram user have been added sucessfully to Table ${tableUser}`
 					);
 				} catch (err) {
 					const message = err instanceof Error ? err.message : String(err);
@@ -1551,6 +1514,29 @@ export const dataBaseInitialization = async () => {
 				} catch (err) {
 					const message = err instanceof Error ? err.message : String(err);
 					logger.log("error", `Table ${tableRefreshToken} can not be created: %s`, message);
+				}
+
+				// One-time codes with which a user links its Telegram account (sent to the
+				// organization's bot as "/link <code>"): Approval nodes only take Telegram
+				// decisions from linked group administrators.
+				const tableTelegramLinkCode = "grafanadb.telegram_link_code";
+				const queryStringTelegramLinkCode = `
+				CREATE TABLE IF NOT EXISTS ${tableTelegramLinkCode}(
+					code VARCHAR(16) PRIMARY KEY,
+					user_id bigint NOT NULL,
+					expires_at TIMESTAMPTZ NOT NULL,
+					CONSTRAINT fk_user_id
+						FOREIGN KEY(user_id)
+							REFERENCES grafanadb.user(id)
+							ON DELETE CASCADE
+				);`;
+
+				try {
+					await postgresClient.query(queryStringTelegramLinkCode);
+					logger.log("info", `Table ${tableTelegramLinkCode} has been created sucessfully`);
+				} catch (err) {
+					const message = err instanceof Error ? err.message : String(err);
+					logger.log("error", `Table ${tableTelegramLinkCode} can not be created: %s`, message);
 				}
 
 				const tableAlertNotification = "grafanadb.alert_notification";

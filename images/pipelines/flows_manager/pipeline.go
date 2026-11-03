@@ -464,6 +464,17 @@ func (p *Pipeline) GetNode(nodeUid string) common.Node {
 	return nil
 }
 
+// GetNodes returns the pipeline's nodes (a copy of the list: the pipeline may change meanwhile)
+func (p *Pipeline) GetNodes() []common.Node {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+	nodes := make([]common.Node, 0, len(p.Nodes))
+	for _, node := range p.Nodes {
+		nodes = append(nodes, node)
+	}
+	return nodes
+}
+
 func (p *Pipeline) GetNodeData(nodeUid string) *common.NodeData {
 	p.mu.RLock()
 	defer p.mu.RUnlock()

@@ -176,6 +176,10 @@ var cmdInit = &cobra.Command{
 			exitWithError(fmt.Sprintf("Error in PIPELINES_GPU_MODE of the state file: %v", err))
 		}
 
+		// The CLI's images, not the state file's (see init_defaults.go)
+		keepImages, _ := cmd.Flags().GetBool(keepImagesFlag)
+		applyInitDefaultImages(pd, keepImages)
+
 		// Three modes, differing in exactly two places: which services
 		// the first deployment leaves out, and what happens once it is
 		// up. Both restoring modes hold admin_api, grafana and
@@ -1005,6 +1009,7 @@ func init() {
 	cmdInit.Flags().String(statePrefixFlag, "", "Key prefix of the state file backups")
 	cmdInit.Flags().String(bucketRegionFlg, "", "Bucket region")
 	cmdInit.Flags().BoolP(assumeYesFlag, "y", false, "Do not ask for confirmation")
+	cmdInit.Flags().Bool(keepImagesFlag, false, "Deploy the images of the state file instead of this CLI's defaults")
 	cmdInit.Flags().Bool(resetPasswordsFlag, false,
 		"Replace every generated secret (new empty platform from an old state file; "+
 			"not with --snapshot-file or --from-bucket)")

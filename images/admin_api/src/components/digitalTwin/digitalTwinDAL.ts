@@ -5,7 +5,13 @@ import CreateDigitalTwinDto from "./digitalTwin.dto";
 import IDigitalTwin from "./digitalTwin.interface";
 import IDigitalTwinState from "./digitalTwinState.interface";
 import { getDashboardsInfoFromIdArray, markInexistentDashboards } from "../dashboard/dashboardDAL";
-import { createTopic, getMqttTopicsInfoFromIdArray, getTopicByProp, markInexistentTopics } from "../topic/topicDAL";
+import {
+	createTopic,
+	deleteTopicById,
+	getMqttTopicsInfoFromIdArray,
+	getTopicByProp,
+	markInexistentTopics,
+} from "../topic/topicDAL";
 import IMqttTopicInfo from "../topic/mqttTopicInfo.interface";
 import getDomainUrl from "../../utils/helpers/getDomainUrl";
 import IDashboardInfo from "../dashboard/dashboardInfo.interfase";
@@ -576,6 +582,71 @@ export const checkExistentSensorsRef = async (assetId: number, sensorsRef: strin
 	return isSensorsRefOK;
 };
 
+// Topics of a digital twin that only its pipeline nodes use, one per digital twin:
+//  - "inject": all its Inject nodes are pressed on it; each message names the node it is
+//    meant for in its "Inject-Node" header.
+//  - "approval": the viewer's decisions on the requests of its Approval nodes, published
+//    on each user's own copy of it (auth_callout), with an "Approval-Node" header.
+export const PIPELINE_TOPIC_REFS = ["inject", "approval"];
+
+const PIPELINE_TOPIC_DESCRIPTIONS: Record<string, string> = { inject: "Inject", approval: "Approval" };
+
+// Topic refs of the former per-node inject topics (inject_1..inject_5).
+const isLegacyInjectTopicRef = (topicRef: string): boolean => /^inject_\d+$/.test(topicRef);
+
+const createDigitalTwinPipelineTopic = async (
+	topicRef: string,
+	groupId: number,
+	digitalTwinId: number,
+	digitalTwinUid: string,
+	isDefault = false
+): Promise<void> => {
+	const topicData = {
+		topicType: topicRef,
+		topicName: `${digitalTwinUid}_${topicRef}`,
+		description: `${PIPELINE_TOPIC_DESCRIPTIONS[topicRef] ?? topicRef} for DT_${digitalTwinUid}`,
+		mqttAccessControl: "Pub & Sub",
+		messageSchema: "{}",
+	};
+	const topic = await createTopic(groupId, topicData, isDefault);
+	await createDigitalTwinTopic(digitalTwinId, topic.id, topicRef, isDefault);
+};
+
+// Deletes the former inject_1..inject_5 topics; their digital_twin_topic rows go with them.
+const deleteLegacyInjectTopics = async (groupId: number, storedDTTopics: IDigitalTwinTopic[]): Promise<void> => {
+	for (const dtTopic of storedDTTopics) {
+		if (isLegacyInjectTopicRef(dtTopic.topicRef)) {
+			await deleteTopicById(groupId, dtTopic.topicId);
+		}
+	}
+};
+
+// Makes sure the digital twin has its pipeline topics and none of the former per-node
+// inject ones. Idempotent: it does nothing once the digital twin is up to date.
+export const ensureDigitalTwinPipelineTopics = async (
+	groupId: number,
+	digitalTwinId: number,
+	digitalTwinUid: string
+): Promise<void> => {
+	const storedDTTopics = await getDTTopicsByDigitalTwinId(digitalTwinId);
+	for (const topicRef of PIPELINE_TOPIC_REFS) {
+		if (!storedDTTopics.some((dtTopic) => dtTopic.topicRef === topicRef)) {
+			await createDigitalTwinPipelineTopic(topicRef, groupId, digitalTwinId, digitalTwinUid);
+		}
+	}
+	await deleteLegacyInjectTopics(groupId, storedDTTopics);
+};
+
+// Brings every digital twin up to date with its pipeline topics (upgrade from
+// inject_1..inject_5, and the "approval" topic). It needs the NATS connection, because
+// the pipelines service learns the changes through the admin events.
+export const migrateDigitalTwinsPipelineTopics = async (): Promise<void> => {
+	const digitalTwins = await getAllDigitalTwins();
+	for (const digitalTwin of digitalTwins) {
+		await ensureDigitalTwinPipelineTopics(digitalTwin.groupId, digitalTwin.id, digitalTwin.digitalTwinUid);
+	}
+};
+
 // Corregir
 export const verifyAndCorrectDigitalTwinReferences = async (
 	group: IGroup,
@@ -596,11 +667,7 @@ export const verifyAndCorrectDigitalTwinReferences = async (
 		"dtmlog",
 		"state2sim",
 		"sim2state",
-		"inject_1",
-		"inject_2",
-		"inject_3",
-		"inject_4",
-		"inject_5",
+		...PIPELINE_TOPIC_REFS,
 	];
 	const topicTypesToAdd: string[] = [];
 	digitalTwinTopicList.forEach((topicType) => {
@@ -737,66 +804,13 @@ export const verifyAndCorrectDigitalTwinReferences = async (
 			await createDigitalTwinTopic(digitalTwinId, sim2stateTopic.id, "sim2state");
 		}
 
-		if (topicTypesToAdd.indexOf("inject_1") !== -1) {
-			const inject_1_TopicData = {
-				topicType: "inject_1",
-				topicName: `${digitalTwinUid}_inject_1`,
-				description: `Inject_1 for DT_${digitalTwinUid}`,
-				mqttAccessControl: "Pub & Sub",
-				messageSchema: "{}",
-			};
-			const inject_1_Topic = await createTopic(0, inject_1_TopicData);
-			await createDigitalTwinTopic(digitalTwinId, inject_1_Topic.id, "inject_1");
-		}
-
-		if (topicTypesToAdd.indexOf("inject_2") !== -1) {
-			const inject_2_TopicData = {
-				topicType: "inject_2",
-				topicName: `${digitalTwinUid}_inject_2`,
-				description: `Inject_2 for DT_${digitalTwinUid}`,
-				mqttAccessControl: "Pub & Sub",
-				messageSchema: "{}",
-			};
-			const inject_2_Topic = await createTopic(0, inject_2_TopicData);
-			await createDigitalTwinTopic(digitalTwinId, inject_2_Topic.id, "inject_2");
-		}
-
-		if (topicTypesToAdd.indexOf("inject_3") !== -1) {
-			const inject_3_TopicData = {
-				topicType: "inject_3",
-				topicName: `${digitalTwinUid}_inject_3`,
-				description: `Inject_3 for DT_${digitalTwinUid}`,
-				mqttAccessControl: "Pub & Sub",
-				messageSchema: "{}",
-			};
-			const inject_3_Topic = await createTopic(0, inject_3_TopicData);
-			await createDigitalTwinTopic(digitalTwinId, inject_3_Topic.id, "inject_3");
-		}
-
-		if (topicTypesToAdd.indexOf("inject_4") !== -1) {
-			const inject_4_TopicData = {
-				topicType: "inject_4",
-				topicName: `${digitalTwinUid}_inject_4`,
-				description: `Inject_4 for DT_${digitalTwinUid}`,
-				mqttAccessControl: "Pub & Sub",
-				messageSchema: "{}",
-			};
-			const inject_4_Topic = await createTopic(0, inject_4_TopicData);
-			await createDigitalTwinTopic(digitalTwinId, inject_4_Topic.id, "inject_4");
-		}
-
-		if (topicTypesToAdd.indexOf("inject_5") !== -1) {
-			const inject_5_TopicData = {
-				topicType: "inject_5",
-				topicName: `${digitalTwinUid}_inject_5`,
-				description: `Inject_5 for DT_${digitalTwinUid}`,
-				mqttAccessControl: "Pub & Sub",
-				messageSchema: "{}",
-			};
-			const inject_5_Topic = await createTopic(0, inject_5_TopicData);
-			await createDigitalTwinTopic(digitalTwinId, inject_5_Topic.id, "inject_5");
+		for (const topicRef of PIPELINE_TOPIC_REFS) {
+			if (topicTypesToAdd.indexOf(topicRef) !== -1) {
+				await createDigitalTwinPipelineTopic(topicRef, groupId, digitalTwinId, digitalTwinUid);
+			}
 		}
 	}
+	await deleteLegacyInjectTopics(groupId, storedDTTopics);
 };
 
 const SystemMonitoringTopicMap = new Map();
@@ -1077,20 +1091,9 @@ export const createDigitalTwin = async (
 	const state2simTopic = await createTopic(groupId, state2simTopicData, isDefault);
 	await createDigitalTwinTopic(digitalTwin.id, state2simTopic.id, "state2sim", isDefault);
 
-	await Promise.all(
-		Array.from({ length: 5 }, async (_, i) => {
-			const topicType = `inject_${i + 1}`;
-			const topicData = {
-				topicType,
-				topicName: `${digitalTwinUid}_${topicType}`,
-				description: `Inject_${i + 1} for DT_${digitalTwinUid}`,
-				mqttAccessControl: "Pub & Sub",
-				messageSchema: "{}",
-			};
-			const topic = await createTopic(groupId, topicData, isDefault);
-			await createDigitalTwinTopic(digitalTwin.id, topic.id, topicType, isDefault);
-		})
-	);
+	for (const topicRef of PIPELINE_TOPIC_REFS) {
+		await createDigitalTwinPipelineTopic(topicRef, groupId, digitalTwin.id, digitalTwinUid, isDefault);
+	}
 
 	const sensorsRef = digitalTwinInput.sensorsRef;
 	const sensorsInAsset = await getSensorsByAssetId(assetId);
