@@ -54,6 +54,7 @@ type Node interface {
 	HandleError(err error)
 	HandleDebug(msg Message, outputIndex int)
 	HandleInfo(msg string)
+	HandleWarn(msg string)
 	GetNodeInputWires() []*Wire
 	GetNodeOutputWires() [][]*Wire
 }

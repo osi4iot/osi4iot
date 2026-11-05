@@ -861,16 +861,35 @@ Use this node whenever a pipeline must react to live data published on NATS or M
         description: "Combines the latest value of several sources into one message.",
 
         details:
-            "The Join node keeps the latest value (the payload, by default) of each source and sends them together. A source is a topic of the digital twin, or any value of the key path. Each source gets a name in the output. It can send on every message (with whatever it has, or only once all sources have a value), or once per complete set and then start again; in that mode a timeout sends the incomplete set with the list of the missing sources. A maximum age drops values too old to be combined. The output is nested by name, or flat (the payloads merged, the newest wins on repeated fields), with the time of each value in _timestamps.",
+            "The Join node keeps the latest value (the payload, by default) of each source and sends them together. All the sources can be wired to its single input: the node does not tell them apart by the wire but by a value carried in each message, read at the key path ('topic' by default). A source is either a topic of the digital twin, which matches the messages that arrive on that topic, or a source id, which matches the messages whose key path holds that value (e.g. key path payload.sensorId and source ids S1 and S2). A message that matches no source is ignored (the logs say so). Each source is named as it appears in the output.\n\nWhen it sends: 'on every message, with the latest value of each source' sends on every message, at first with only the sources that have arrived; 'on every message, once all sources have a value' is silent until every source has a value and then sends on every message, reusing the latest value of the slower sources; 'once per complete set' sends when every source has a value and then empties, so each combination is sent once (a source that arrives again before the others keeps only its latest value). In that mode a timeout, counted from the first message of the set, sends the incomplete set with the list of the missing sources in _missing. A maximum age drops values too old to be combined, in every mode. The output is nested by name, or flat (the payloads merged, the newest wins on repeated fields), with the time of each value in _timestamps.",
 
         params: [
-            { name: "Sources", description: "Topics of the digital twin (or other values of the key path), each with its name in the output." },
-            { name: "Send", description: "On every message with the latest values; on every message once all have a value; or once per complete set." },
-            { name: "Timeout (s)", description: "Per complete set only: send what there is after this long, with _missing (0: wait)." },
-            { name: "Maximum age (s)", description: "Values older than this are dropped (0: kept)." },
+            {
+                name: "Sources",
+                description:
+                    "Where each source comes from, and its name. 'topic dev2pdb_1': the messages of that topic of the digital twin. 'other source id…': the messages whose key path holds the id written. 'named': the name of the source in the output (empty: the topic reference or the source id).",
+            },
+            {
+                name: "Key path",
+                description:
+                    "Where each message carries its source id: 'topic' (required, and set automatically, when the sources are topics) or a field such as payload.sensorId. Empty: topic.",
+            },
+            {
+                name: "Send",
+                description:
+                    "'On every message, with the latest value of each source' (latest): every message, also before all the sources have arrived. 'On every message, once all sources have a value' (all): every message, but only once all have a value. 'Once per complete set' (set): once per combination, then it starts again.",
+            },
+            { name: "Timeout (s)", description: "Per complete set only: from the first message of a set, send what there is after this long, with _missing (0: wait)." },
+            { name: "Maximum age (s)", description: "Values older than this are dropped, so they are not combined with new ones (0: kept)." },
             { name: "Output", description: "Nested by name, or flat." },
-            { name: "Key", description: "What identifies the source: 'topic' (needed for the topic sources)." },
             { name: "Value", description: "What is kept of each message: 'payload' by default, or a field of it." },
+        ],
+
+        inputExamples: [
+            {
+                label: "Two sensors on one topic, told apart by payload.sensorId (key path payload.sensorId, sources S1 named left, S2 named right)",
+                code: JSON.stringify([{ payload: { sensorId: "S1", strain: 0.00021 } }, { payload: { sensorId: "S2", strain: -0.00012 } }], null, 2),
+            },
         ],
 
         outputExamples: [
@@ -888,10 +907,25 @@ Use this node whenever a pipeline must react to live data published on NATS or M
                     2,
                 ),
             },
+            {
+                label: "Messages A1, A2, B1, A3, A4, B2 (A every second, B every 3 s): what each mode sends",
+                code: [
+                    "arrives  latest    all       set",
+                    "A1       {A1}      -         -",
+                    "A2       {A2}      -         -",
+                    "B1       {A2,B1}   {A2,B1}   {A2,B1}, then empties",
+                    "A3       {A3,B1}   {A3,B1}   -   (has A3, waits for B)",
+                    "A4       {A4,B1}   {A4,B1}   -   (A4 replaces A3)",
+                    "B2       {A4,B2}   {A4,B2}   {A4,B2}, then empties",
+                ].join("\n"),
+            },
         ],
 
         notes: [
-            "Without sources, every value of the key is a source, named by itself (only with 'on every message, with the latest values').",
+            "The sources are recognised by the value at the key path, not by the wire they come through.",
+            "A node between the Listen and the Join must keep the topic: a Function that returns msg keeps it; one that returns a new object should set topic: msg.topic.",
+            "Two branches that come from the same topic have the same topic: give each one a field (e.g. payload.branch) and use it as the key path.",
+            "Without sources, every value of the key path is a source, named by itself (only with 'on every message, with the latest value of each source').",
             "The state is kept in the digital twin's key-value store and updated atomically, so the node behaves the same with several pipelines replicas.",
             "A message with payload.reset = true clears the node's state; payload.reset = \"<key>\" clears only that key's.",
         ],
@@ -997,7 +1031,8 @@ Use this node whenever a pipeline must react to live data published on NATS or M
         ],
 
         notes: [
-            "The user who acknowledges is the sender of the message (web chat, Telegram) or payload.user.",
+            "In the pipeline editor, the bell button of the node lists its alarms that are not normal (the badge counts the ones waiting for acknowledgement), to acknowledge or shelve them one by one or all at once. Only the group's administrators can, with the pipeline running; who pressed is recorded in the event (ackBy).",
+            "The user who acknowledges with a message is its sender (web chat, Telegram) or payload.user.",
             "The asset status changes when an alarm changes level, not with every reading.",
             "An alarm of a node deleted from the pipeline stops counting for the asset status at the next deployment.",
             "The state is kept in the digital twin's key-value store and updated atomically, so the node behaves the same with several pipelines replicas; the clock (timeouts, delays, periods) runs in one replica only.",
@@ -1339,11 +1374,11 @@ Use this node whenever a pipeline must react to live data published on NATS or M
     },
 
     Approval: {
-        description: "Holds a message until a group administrator approves or rejects it, from the viewer or from Telegram.",
+        description: "Holds a message until a group administrator approves or rejects it, on the Approvals page or in Telegram.",
         details:
-            "The Approval node puts a person in the loop before an action, such as a command to a PLC or a device (dtm2dev), a change of setpoint or an action proposed by an AI agent. Each message becomes a pending request and waits until it is approved or rejected, or until it expires. Only the administrators of the digital twin's group (and those of its organization and the platform) can decide. In the viewer, the node's bell button lists the pending requests, with Approve and Reject and an optional comment: the decision goes on the user's own NATS subject, so pipelines knows who decided. In Telegram, each request is sent to the chat with Approve and Reject buttons; only administrators who have linked their Telegram account in their profile (a code sent to the organization's bot as /link <code>) can decide, and the message then shows the decision. The pending requests are kept in the digital twin's key-value store: any pipelines replica can take a decision and only the first one counts.",
+            "The Approval node puts a person in the loop before an action, such as a command to a PLC or a device (dtm2dev), a change of setpoint or an action proposed by an AI agent. Each message becomes a pending request and waits until it is approved or rejected, or until it expires. Only the administrators of the digital twin's group (and those of its organization and the platform) can decide. On the Approvals page (from the home page), the group's administrators see the pending requests of all the digital twins of their groups, by asset, with Approve and Reject and an optional comment: the decision goes on the user's own NATS subject, so pipelines knows who decided. In Telegram, each request is sent to the chat with Approve and Reject buttons; only administrators who have linked their Telegram account in their profile (a code sent to the organization's bot as /link <code>) can decide, and the message then shows the decision. The pending requests are kept in the digital twin's key-value store: any pipelines replica can take a decision and only the first one counts.",
         params: [
-            { name: "Decided from", description: "The node's button in the viewer, Telegram, or both." },
+            { name: "Decided from", description: "The Approvals page (home page), Telegram, or both." },
             { name: "Telegram chat id", description: "Where the requests are sent (negative for groups); the organization must have Telegram enabled." },
             { name: "Title and detail field", description: "What is asked, and a field of the message shown with it (e.g. the command)." },
             { name: "Expires after (min)", description: "A request not decided by then goes to output 2; 0: never." },

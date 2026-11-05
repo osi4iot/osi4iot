@@ -237,7 +237,8 @@ func (n *BaseNode) runLeaderClock(period time.Duration, tick func(now time.Time)
 	}()
 }
 
-// onceWarner logs a warning once per text, not on every message.
+// onceWarner sends a warning to the pipeline logs once per text, not on
+// every message.
 type onceWarner struct {
 	mu   sync.Mutex
 	seen map[string]bool
@@ -253,7 +254,7 @@ func (w *onceWarner) warn(n *BaseNode, text string) {
 		return
 	}
 	w.seen[text] = true
-	n.HandleInfo(text)
+	n.HandleWarn(text)
 }
 
 // nodeLocation is the time zone of a node's periods: its "timezone"

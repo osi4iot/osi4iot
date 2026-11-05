@@ -2,6 +2,7 @@ package nodes
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"reflect"
 	"strings"
@@ -9,12 +10,17 @@ import (
 
 	"pipelines/common"
 	"pipelines/logger"
+	"pipelines/utils"
+
+	"github.com/nats-io/nats.go"
 )
 
 // AlarmNode raises, escalates and clears an alarm with two levels
 // (alarmLogic.go). Commands on its input: payload.ack (true or a key),
 // payload.shelveMinutes (0: unshelve; payload.key: only that key) and
-// payload.reset.
+// payload.reset. The same acknowledgement and shelving come from the
+// viewer's buttons, as NATS requests on the users' copies of the digital
+// twin's approval topic with an "Alarm-Node" header (processViewerMessage).
 //
 // Output 0: the alarm's events (only on transitions; none while shelved).
 // Output 1 (optional, statusOutput): {state: {status, state_description}}
@@ -29,6 +35,7 @@ type AlarmNode struct {
 	statusOutput bool
 	updateAsset  bool
 	warn         onceWarner
+	subject      string // the digital twin's approval topic: the viewer's buttons ("" none)
 }
 
 func CreateAlarmNode(node common.NodeData, fm common.Manager, p common.Pipeline) (*AlarmNode, error) {
@@ -44,6 +51,13 @@ func CreateAlarmNode(node common.NodeData, fm common.Manager, p common.Pipeline)
 		updateAsset:  settingBool(node.Settings, "updateAssetStatus", false),
 	}
 	n.state = newSignalState(&n.BaseNode)
+	// the viewer's buttons: without the topic (a digital twin saved before
+	// it existed) the alarms are still acknowledged and shelved by messages
+	if topic := fm.GetTopicByTopicRef(p.GetAssetId(), p.GetDigitalTwinId(), approvalTopicRef); topic != nil {
+		n.subject = utils.TopicToNatsSubject(topic.TopicType, topic.GroupUid, topic.TopicUid)
+	} else {
+		fm.Log().Warnf("AlarmNode %s: the digital twin has no %q topic: no buttons in the viewer (saving the pipeline creates it)", node.NodeUid, approvalTopicRef)
+	}
 	return n, nil
 }
 
@@ -53,6 +67,11 @@ func (n *AlarmNode) Start(ctx context.Context, log *logger.Logger, needReinitial
 	}
 	if n.updateAsset {
 		n.pruneAssetRegistry(log)
+	}
+	if n.subject != "" {
+		// the copies of the approval topic of all the users: the subject says who presses
+		n.wg.Add(1)
+		go n.handleNatsSubscription(log, utils.AllUsersChatSubject(n.subject), n.processViewerMessage)
 	}
 	n.runLeaderClock(time.Second, func(now time.Time) { n.tick(now, log) })
 }
@@ -350,4 +369,91 @@ func (n *AlarmNode) pruneAssetRegistry(log *logger.Logger) {
 			n.HandleError(fmt.Errorf("updating the asset status: %w", err))
 		}
 	}
+}
+
+// ---- the viewer's buttons ----
+
+// processViewerMessage takes a press of the viewer's alarm buttons: the user
+// is in the subject (its own copy of the approval topic), and only the
+// presses addressed to this node count. The answer goes to the request's
+// reply.
+func (n *AlarmNode) processViewerMessage(msg *nats.Msg, log *logger.Logger) error {
+	if msg.Header == nil || msg.Header.Get(alarmNodeHeader) != n.NodeUid {
+		return nil
+	}
+	reply := func(answer map[string]any) {
+		if msg.Reply == "" {
+			return
+		}
+		b, _ := json.Marshal(answer)
+		if err := msg.Respond(b); err != nil {
+			log.Warnf("AlarmNode %s: answering the viewer: %v", n.NodeUid, err)
+		}
+	}
+	user, ok := utils.UserOfChatSubject(msg.Subject, n.subject)
+	if !ok {
+		return nil
+	}
+	req, all, key, d, err := parseAlarmViewerRequest(msg.Data)
+	if err != nil {
+		reply(map[string]any{"ok": false, "error": err.Error()})
+		return nil
+	}
+	now := time.Now()
+	switch req.Action {
+	case "list":
+		alarms, err := n.viewerAlarms(now)
+		if err != nil {
+			reply(map[string]any{"ok": false, "error": err.Error()})
+			return err
+		}
+		reply(map[string]any{"ok": true, "alarms": alarms})
+		return nil
+	case "ack":
+		err = n.command(nil, all, key, log, func(s *alarmState, k string) alarmStepResult {
+			return n.cfg.acknowledge(s, k, user, now)
+		})
+	case "shelve":
+		err = n.command(nil, all, key, log, func(s *alarmState, k string) alarmStepResult {
+			return n.cfg.shelve(s, k, d, user, now)
+		})
+	}
+	if err != nil {
+		reply(map[string]any{"ok": false, "error": err.Error()})
+		return err
+	}
+	n.HandleInfo(fmt.Sprintf("Alarm %s by %s from the viewer", map[string]string{"ack": "acknowledged", "shelve": "shelving changed"}[req.Action], user))
+	reply(map[string]any{"ok": true})
+	return nil
+}
+
+// viewerAlarms lists the alarms that are not normal, for the viewer.
+func (n *AlarmNode) viewerAlarms(now time.Time) ([]map[string]any, error) {
+	keys, err := n.state.keys(n.Ctx)
+	if err != nil {
+		return nil, fmt.Errorf("listing the alarms: %w", err)
+	}
+	kv, err := n.GetDigitalTwinKvStore(n.GetDigitalTwinId())
+	if err != nil {
+		return nil, err
+	}
+	list := make([]map[string]any, 0, len(keys))
+	for _, kvKey := range keys {
+		raw, err := kv.GetRawValue(n.Ctx, kvKey)
+		if err != nil {
+			if ignoreNotFound(err) == nil {
+				continue // removed meanwhile
+			}
+			return nil, fmt.Errorf("reading an alarm: %w", err)
+		}
+		var s alarmState
+		if err := json.Unmarshal(raw, &s); err != nil {
+			continue // unreadable (another version): the next message rewrites it
+		}
+		if summary := n.cfg.viewerSummary(&s, n.state.partition(kvKey), now); summary != nil {
+			list = append(list, summary)
+		}
+	}
+	sortViewerAlarms(list)
+	return list, nil
 }

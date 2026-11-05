@@ -337,7 +337,7 @@ type PipelineData struct {
 }
 
 type PipelineLog struct {
-	Level       string         `json:"level"`     // debug, error, info
+	Level       string         `json:"level"`     // debug, error, warning, info
 	Component   string         `json:"component"` // node, pipeline, digitalTwin
 	Name        string         `json:"name"`
 	Uid         string         `json:"uid"`
@@ -362,4 +362,3 @@ type ChatChart struct {
 	MimeType string `json:"mimeType"`
 	Data     []byte `json:"data"` // base64 in JSON
 }
-

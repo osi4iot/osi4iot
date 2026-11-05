@@ -36,6 +36,13 @@ func (l *NodeLogger) Infof(format string, args ...interface{}) {
 	l.node.HandleInfo(msg)
 }
 
+// Warnf sends a warning to the pipeline logs (level "warning"): the
+// script goes on.
+func (l *NodeLogger) Warnf(format string, args ...interface{}) {
+	msg := fmt.Sprintf(format, args...)
+	l.node.HandleWarn(msg)
+}
+
 func (l *NodeLogger) Errorf(format string, args ...interface{}) {
 	msg := fmt.Sprintf(format, args...)
 	msgErr := fmt.Errorf("%s", msg)

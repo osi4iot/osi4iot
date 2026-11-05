@@ -220,6 +220,10 @@ func (c *machineConfig) observe(state *machineState, key, topic string, payload 
 	s := cloneMachineState(state)
 	s.LastSeen, s.Topic = now.UnixMilli(), topic
 	c.account(s, key, now, &out)
+	// a candidate that held until this message for the minimum duration
+	// is a state, even if the clock has not confirmed it yet (sources that
+	// send only on change)
+	c.confirmCandidate(s, key, now, &out)
 	c.moveTo(s, key, wanted, now, &out)
 	out.Next = s
 	return out
@@ -259,6 +263,15 @@ func (c *machineConfig) moveTo(s *machineState, key, wanted string, now time.Tim
 	out.Changes = append(out.Changes, c.change(s, key, previous, previousDuration, now))
 }
 
+// confirmCandidate changes to the candidate state once it has held for the
+// minimum duration up to now (accounted up to now).
+func (c *machineConfig) confirmCandidate(s *machineState, key string, now time.Time, out *machineOutcome) {
+	if s.Candidate == "" || now.Sub(time.UnixMilli(s.CandidateSince)) < c.MinDuration {
+		return
+	}
+	c.moveTo(s, key, s.Candidate, now, out)
+}
+
 // tick is the clock: periods that end, the periodic summary, and Unknown
 // when the machine stops sending.
 func (c *machineConfig) tick(state *machineState, key string, now time.Time) machineOutcome {
@@ -290,6 +303,9 @@ func (c *machineConfig) tick(state *machineState, key string, now time.Time) mac
 		out.Changes = append(out.Changes, c.change(s, key, previous, previousDuration, now))
 	}
 	c.account(s, key, now, &out)
+	// a candidate that has held for the minimum duration without new
+	// messages
+	c.confirmCandidate(s, key, now, &out)
 	if c.SummaryEvery > 0 && now.Sub(time.UnixMilli(maxInt64(s.LastSummary, s.PeriodStart))) >= c.SummaryEvery {
 		out.Summaries = append(out.Summaries, c.summary(s, key, now, false))
 		s.LastSummary = now.UnixMilli()

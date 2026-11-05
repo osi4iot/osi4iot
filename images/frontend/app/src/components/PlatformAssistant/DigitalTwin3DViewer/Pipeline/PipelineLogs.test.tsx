@@ -2,7 +2,7 @@ import { fireEvent, render, screen, within } from "@testing-library/react";
 import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 import PipelineLogs, { PipelineLog } from "./PipelineLogs";
-import { MAX_PIPELINE_LOGS, appendCapped, capLogs, groupLogs, summaryOf } from "./pipelineLogsModel";
+import { MAX_PIPELINE_LOGS, appendCapped, capLogs, countByLevel, groupLogs, levelOf, summaryOf } from "./pipelineLogsModel";
 
 const log = (overrides: Partial<PipelineLog> = {}): PipelineLog => ({
     level: "debug",
@@ -39,6 +39,14 @@ describe("pipelineLogsModel", () => {
             "dial tcp: no such host",
         );
         expect(summaryOf(log({ level: "info", message: '{"a":1}', description: "Started" }))).toBe("Started");
+    });
+
+    it("knows the warnings of the nodes and of the scripts (go.logger.Warnf)", () => {
+        const warning = log({ level: "warning", message: "Message without a number in payload.rms", description: "Warning from node" });
+        expect(levelOf(warning)).toBe("warning");
+        expect(levelOf(log({ level: "WARN" }))).toBe("warning");
+        expect(summaryOf(warning)).toBe("Message without a number in payload.rms");
+        expect(countByLevel([warning, log(), warning])).toMatchObject({ all: 3, warning: 2, debug: 1 });
     });
 });
 

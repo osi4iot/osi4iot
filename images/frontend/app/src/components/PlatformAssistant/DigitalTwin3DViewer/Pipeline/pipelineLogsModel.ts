@@ -5,12 +5,13 @@ import type { PipelineLog } from "./PipelineLogs";
 // Only the newest logs are kept (in the viewer state and in the viewer memory)
 export const MAX_PIPELINE_LOGS = 500;
 
-export type LogLevel = "error" | "info" | "debug";
+export type LogLevel = "error" | "warning" | "info" | "debug";
 export type LevelFilter = "all" | LogLevel;
 
 export const levelOf = (log: PipelineLog): LogLevel => {
     const level = (log.level ?? "").toLowerCase();
-    return level === "error" || level === "debug" ? level : "info";
+    if (level === "warn") return "warning";
+    return level === "error" || level === "warning" || level === "debug" ? level : "info";
 };
 
 // Appends a log and drops the oldest ones beyond the cap
@@ -128,7 +129,7 @@ export const filterLogs = (logs: PipelineLog[], { level, text, node }: LogFilter
 };
 
 export const countByLevel = (logs: PipelineLog[]) => {
-    const counts = { all: logs.length, error: 0, info: 0, debug: 0 };
+    const counts = { all: logs.length, error: 0, warning: 0, info: 0, debug: 0 };
     for (const log of logs) counts[levelOf(log)] += 1;
     return counts;
 };

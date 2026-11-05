@@ -21,7 +21,7 @@ import {
 } from "./pipelineLogsModel";
 
 export interface PipelineLog {
-    level: string; // debug, error, info
+    level: string; // debug, error, warning, info
     component: string;
     name: string;
     uid: string;
@@ -45,6 +45,7 @@ export const clampLogsWidth = (width: number) =>
 
 const LEVEL_STYLE = {
     error: { label: "ERR", fg: "#ff8a8a", bg: "rgba(255, 107, 107, 0.16)", dot: "#ff6b6b" },
+    warning: { label: "WRN", fg: "#ffd27a", bg: "rgba(245, 184, 61, 0.16)", dot: "#f5b83d" },
     info: { label: "INF", fg: "#8fb8ff", bg: "rgba(110, 168, 255, 0.16)", dot: "#6ea8ff" },
     debug: { label: "DBG", fg: "#a3acb7", bg: "rgba(139, 149, 161, 0.16)", dot: "#8b95a1" },
 } as const;
@@ -728,6 +729,7 @@ interface PipelineLogsProps {
 const LEVELS: { id: LevelFilter; label: string; dot?: string }[] = [
     { id: "all", label: "All" },
     { id: "error", label: "Errors", dot: LEVEL_STYLE.error.dot },
+    { id: "warning", label: "Warnings", dot: LEVEL_STYLE.warning.dot },
     { id: "info", label: "Info", dot: LEVEL_STYLE.info.dot },
     { id: "debug", label: "Debug", dot: LEVEL_STYLE.debug.dot },
 ];

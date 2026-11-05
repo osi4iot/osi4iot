@@ -13,7 +13,9 @@ package nodes
 //                  does not count for the asset status
 
 import (
+	"encoding/json"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 )
@@ -477,4 +479,114 @@ func (c *alarmConfig) registryText(s *alarmState, key string) string {
 		return text + " ≤ " + t
 	}
 	return text + " = " + t
+}
+
+// ---- the viewer's buttons ----
+
+// The viewer acknowledges and shelves the alarms of a node with NATS
+// requests on the user's own copy of the digital twin's "approval" topic
+// (the one of the Approval nodes, which only the group's administrators can
+// publish on), naming the node in this header.
+const alarmNodeHeader = "Alarm-Node"
+
+// alarmViewerRequest is a press of the viewer's alarm buttons.
+type alarmViewerRequest struct {
+	Action  string   `json:"action"`            // "list", "ack" or "shelve"
+	Key     *string  `json:"key,omitempty"`     // one alarm; none: all of them
+	Minutes *float64 `json:"minutes,omitempty"` // shelve: for how long (0: unshelve)
+}
+
+// parseAlarmViewerRequest checks a request of the viewer: the shelving time
+// and whether it applies to all the alarms or to one key.
+func parseAlarmViewerRequest(data []byte) (req alarmViewerRequest, all bool, key string, d time.Duration, err error) {
+	if err = json.Unmarshal(data, &req); err != nil {
+		return req, false, "", 0, fmt.Errorf("invalid request")
+	}
+	if req.Key == nil {
+		all = true
+	} else {
+		key = *req.Key
+	}
+	switch req.Action {
+	case "list", "ack":
+	case "shelve":
+		if req.Minutes == nil || *req.Minutes < 0 || *req.Minutes > alarmMaxShelveMinutes {
+			return req, all, key, 0, fmt.Errorf("the shelving time must be between 0 and %d minutes", alarmMaxShelveMinutes)
+		}
+		d = time.Duration(*req.Minutes * float64(time.Minute))
+	default:
+		return req, all, key, 0, fmt.Errorf("unknown action")
+	}
+	return req, all, key, d, nil
+}
+
+// alarmMaxShelveMinutes: one week.
+const alarmMaxShelveMinutes = 7 * 24 * 60
+
+// viewerSummary describes an alarm for the viewer's list; nil when there is
+// nothing to show (normal and not shelved).
+func (c *alarmConfig) viewerSummary(s *alarmState, key string, now time.Time) map[string]any {
+	state := s.stateName(now)
+	if state == "normal" {
+		return nil
+	}
+	who := c.Name
+	if key != "" {
+		who += " (" + key + ")"
+	}
+	out := map[string]any{
+		"key":      key,
+		"name":     who,
+		"level":    alarmLevelNames[s.Level],
+		"state":    state,
+		"value":    c.valueText(s.Value),
+		"canAck":   s.Level > alarmNone && !s.Acked || s.RtnUnack,
+		"shelved":  s.shelved(now),
+		"maxLevel": alarmLevelNames[s.MaxLevel],
+	}
+	if t, set := c.levelText(s.Level); set {
+		if c.Units != "" {
+			t += " " + c.Units
+		}
+		out["threshold"] = t
+	}
+	if s.RaisedAt > 0 {
+		out["raisedAt"] = isoTime(time.UnixMilli(s.RaisedAt))
+	}
+	if s.AckBy != "" {
+		out["ackBy"] = s.AckBy
+		out["ackAt"] = isoTime(time.UnixMilli(s.AckAt))
+	}
+	if s.shelved(now) {
+		out["shelvedUntil"] = isoTime(time.UnixMilli(s.ShelvedUntil))
+	}
+	return out
+}
+
+// sortViewerAlarms: the ones that need attention first (unacknowledged,
+// higher level), the shelved ones last.
+func sortViewerAlarms(list []map[string]any) {
+	rank := func(a map[string]any) int {
+		r := 0
+		if a["shelved"] == true {
+			r += 100
+		}
+		if a["canAck"] != true {
+			r += 10
+		}
+		switch a["level"] {
+		case "Warning":
+			r += 1
+		case "Normal":
+			r += 2
+		}
+		return r
+	}
+	sort.SliceStable(list, func(i, j int) bool {
+		ri, rj := rank(list[i]), rank(list[j])
+		if ri != rj {
+			return ri < rj
+		}
+		return fmt.Sprint(list[i]["key"]) < fmt.Sprint(list[j]["key"])
+	})
 }

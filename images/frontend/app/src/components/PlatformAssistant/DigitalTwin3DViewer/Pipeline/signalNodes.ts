@@ -203,7 +203,7 @@ export const joinProblems = (s: JoinSettings): string[] => {
     sources.forEach((src, i) => {
         const id = src.topicRef ? `topic:${src.topicRef}` : (src.key ?? "").trim();
         if (!id) {
-            problems.push(`Source ${i + 1}: choose a topic or write a key.`);
+            problems.push(`Source ${i + 1}: choose a topic or write a source id.`);
             return;
         }
         if (keys.has(id)) problems.push(`Source ${i + 1}: repeated.`);
@@ -212,7 +212,8 @@ export const joinProblems = (s: JoinSettings): string[] => {
         if (aliases.has(alias)) problems.push(`Source ${i + 1}: the name "${alias}" is repeated.`);
         aliases.add(alias);
     });
-    if (sources.some((src) => src.topicRef) && (s.keyPath ?? "topic") !== "topic")
+    // pipelines takes an empty key path as "topic"
+    if (sources.some((src) => src.topicRef) && ((s.keyPath ?? "").trim() || "topic") !== "topic")
         problems.push('Sources given by topic need the key path "topic".');
     if ((s.mode === "all" || s.mode === "set") && sources.length === 0)
         problems.push("This mode needs the list of sources.");

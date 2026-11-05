@@ -108,7 +108,7 @@ describe("signal node editors", () => {
         fireEvent.change(screen.getByLabelText("Source 1 name"), { target: { value: "strain" } });
         fireEvent.change(screen.getByLabelText("Source 1"), { target: { value: "__custom" } });
         expect(data.sources[0].topicRef).toBeUndefined();
-        fireEvent.change(screen.getByLabelText("Source 1 key"), { target: { value: "sensor-7" } });
+        fireEvent.change(screen.getByLabelText("Source 1 id"), { target: { value: "sensor-7" } });
         expect(data.sources[0]).toMatchObject({ key: "sensor-7", alias: "strain" });
         fireEvent.change(screen.getByLabelText("Join mode"), { target: { value: "set" } });
         expect(screen.getByLabelText("Timeout")).toBeTruthy();
@@ -216,3 +216,41 @@ describe("lote 3 model and editors", () => {
         expect(data.numOutputs).toBe(2);
     });
 });
+
+describe("Join and Watchdog sources and key path", () => {
+    it("topic sources set the key path to topic; source ids warn when the key path is topic", () => {
+        let data: any = {};
+        render(<Host type="Join" initial={{ ...SIGNAL_DEFAULT_SETTINGS.Join, keyPath: "payload.sensorId" }} onData={(d) => (data = d)} />);
+        fireEvent.click(screen.getByText("+ Add source"));
+        expect(data.keyPath).toBe("topic");
+        fireEvent.change(screen.getByLabelText("Source 1"), { target: { value: "__custom" } });
+        fireEvent.change(screen.getByLabelText("Source 1 id"), { target: { value: "S1" } });
+        expect(screen.getByText(/compared with the topic of each message/)).toBeTruthy();
+        fireEvent.change(screen.getByLabelText("Key path"), { target: { value: "payload.sensorId" } });
+        expect(screen.queryByText(/compared with the topic of each message/)).toBeNull();
+        expect(data).toMatchObject({ keyPath: "payload.sensorId", sources: [{ key: "S1" }] });
+    });
+
+    it("explains each Join mode", () => {
+        render(<Host type="Join" initial={{ ...SIGNAL_DEFAULT_SETTINGS.Join }} onData={() => {}} />);
+        expect(screen.getByText(/at first, with the sources that have arrived/)).toBeTruthy();
+        fireEvent.change(screen.getByLabelText("Join mode"), { target: { value: "all" } });
+        expect(screen.getByText(/reusing the latest value of the slower sources/)).toBeTruthy();
+        fireEvent.change(screen.getByLabelText("Join mode"), { target: { value: "set" } });
+        expect(screen.getByText(/each combination is sent once/)).toBeTruthy();
+    });
+
+    it("an empty key path is topic for the Join, as in pipelines", () => {
+        expect(joinProblems({ keyPath: "", sources: [{ topicRef: "dev2pdb_1" }] })).toEqual([]);
+        expect(joinProblems({ keyPath: "payload.id", sources: [{ topicRef: "dev2pdb_1" }] })[0]).toMatch(/key path "topic"/);
+    });
+
+    it("Watchdog: an expected topic sets its key path to topic", () => {
+        let data: any = {};
+        render(<Host type="Watchdog" initial={{ ...SIGNAL_DEFAULT_SETTINGS.Watchdog, keyPath: "" }} onData={(d) => (data = d)} />);
+        fireEvent.click(screen.getByText("+ Add source"));
+        expect(data.keyPath).toBe("topic");
+        expect(signalProblems("Watchdog", data)).toEqual([]);
+    });
+});
+

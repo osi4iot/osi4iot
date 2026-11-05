@@ -9,6 +9,13 @@ import { getDomainName, getProtocol } from "../tools/tools";
 import { useMediaQuery } from "../tools/useMediaQuery";
 import { scrollbarStyle } from "../components/Tools/FormTools";
 import { Concept, CONCEPTS, useHeroStore } from "../components/HomeHero/heroState";
+import { useIsUserAuth } from "../contexts/authContext";
+import { useUserRole } from "../state/sessionStore";
+import { useEnsureUserRole } from "../tools/useEnsureUserRole";
+import { usePendingApprovalsCount } from "../components/Approvals/useApprovals";
+
+// Approvals: only for the administrators of a group (or of an organization or the platform)
+const ADMIN_ROLES = ["GroupAdmin", "OrgAdmin", "PlatformAdmin"];
 
 // La escena 3D (three.js, postprocesado) se descarga aparte para no retrasar el resto de la aplicación
 const HeroScene = lazy(() => import("../components/HomeHero/HeroScene"));
@@ -189,6 +196,17 @@ const SecondaryLink = styled(NavLink)`
     ${secondary}
 `;
 
+// pending requests on the Approvals button
+const PendingBadge = styled.span`
+    min-width: 20px;
+    padding: 0 6px;
+    border-radius: 10px;
+    background-color: #f2495c;
+    color: #ffffff;
+    font: 600 12px/20px ${text};
+    text-align: center;
+`;
+
 const SecondaryButton = styled.button`
     ${secondary}
 `;
@@ -359,6 +377,12 @@ const HomePage: FC<{}> = () => {
     const showMobileOptions =
         (window._env_ && window._env_.PROTOCOL === "https") || window.location.href.split("/")[2] === "localhost:3000";
 
+    const isUserAuth = useIsUserAuth();
+    const userRole = useUserRole();
+    useEnsureUserRole();
+    const showApprovals = isUserAuth && ADMIN_ROLES.includes(userRole);
+    const pendingApprovals = usePendingApprovalsCount(showApprovals);
+
     const openDashboards = () => window.open(`${protocol}://${domainName}/grafana/`, "_blank");
     const focused = CONCEPTS.find((c) => c.key === focus);
 
@@ -391,6 +415,18 @@ const HomePage: FC<{}> = () => {
                         <SecondaryButton type="button" onClick={openDashboards}>
                             Dashboards
                         </SecondaryButton>
+                        {showApprovals && (
+                            <SecondaryLink
+                                end
+                                to="/approvals"
+                                aria-label={pendingApprovals ? `Approvals, ${pendingApprovals} pending` : "Approvals"}
+                            >
+                                Approvals
+                                {!!pendingApprovals && (
+                                    <PendingBadge aria-hidden="true">{pendingApprovals > 99 ? "99+" : pendingApprovals}</PendingBadge>
+                                )}
+                            </SecondaryLink>
+                        )}
                         {showMobileOptions && (
                             <>
                                 <SecondaryLink end to="/digital_twin_simulator_mobile">

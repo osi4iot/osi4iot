@@ -295,6 +295,30 @@ func (n *BaseNode) HandleInfo(msg string) {
 	}
 }
 
+// HandleWarn sends a warning to the pipeline logs: something to look at
+// that did not stop the node (level "warning").
+func (n *BaseNode) HandleWarn(msg string) {
+	if n.LogSubject == "" {
+		n.Fm.Log().Errorf("Node %s has no log subject set", n.NodeUid)
+		return
+	}
+
+	logData := common.PipelineLog{
+		Level:       "warning",
+		Component:   "node",
+		Name:        n.Name,
+		Uid:         n.NodeUid,
+		Description: "Warning from node",
+		Message:     msg,
+	}
+
+	if logJSON, marshallErr := json.Marshal(logData); marshallErr == nil {
+		n.Fm.NatsPublish(n.LogSubject, logJSON)
+	} else {
+		n.Fm.Log().Errorf("Failed to marshal warning log data for node %s: %v", n.NodeUid, marshallErr)
+	}
+}
+
 func (n *BaseNode) GetNumOutputs() int {
 	return n.NumOutputs
 }

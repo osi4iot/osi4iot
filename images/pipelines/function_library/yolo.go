@@ -362,9 +362,10 @@ func (yolo *Yolo) Postprocess(output []float32, originalWidth, originalHeight in
 		})
 	}
 
-	// Sort the bounding boxes by probability
+	// Sort the bounding boxes by probability, the best first: the NMS
+	// below keeps the first box of each group of overlapping boxes.
 	sort.Slice(boundingBoxes, func(i, j int) bool {
-		return boundingBoxes[i].Confidence < boundingBoxes[j].Confidence
+		return boundingBoxes[i].Confidence > boundingBoxes[j].Confidence
 	})
 
 	// Define a slice to hold the final result

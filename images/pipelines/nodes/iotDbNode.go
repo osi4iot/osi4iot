@@ -271,7 +271,8 @@ func (n *IoTDbNode) processReadQuery(msg common.Message, params IotDbParams, log
 
 	payload := msg.GetPayload()
 	payload["rows"] = sqlResults
-	n.sendToOutputs(message.NewMessageFromPayload(payload), log)
+	// the same message with its rows: an AI Tool flow still has where to reply
+	n.sendToOutputs(emitMessage(msg, msg.GetTopic(), payload), log)
 
 	return nil
 }
@@ -325,5 +326,5 @@ func (n *IoTDbNode) CreateAndSendRow(msg common.Message, params IotDbParams, log
 func (n *IoTDbNode) handleSuccessfullyInsertedQuery(msg common.Message, log *logger.Logger) {
 	payload := msg.GetPayload()
 	payload["message"] = "Data inserted successfully into IoT DB"
-	n.sendToOutputs(message.NewMessageFromPayload(payload), log)
+	n.sendToOutputs(emitMessage(msg, msg.GetTopic(), payload), log)
 }

@@ -15,7 +15,6 @@ import {
     Sigma,
     Merge,
     TimerOff,
-    Siren,
     Gauge,
     Repeat,
     AudioWaveform,
@@ -725,7 +724,6 @@ export const DeadbandNode = makeSignalNode(Filter, "Deadband");
 export const WindowNode = makeSignalNode(Sigma, "Window");
 export const JoinNode = makeSignalNode(Merge, "Join");
 export const WatchdogNode = makeSignalNode(TimerOff, "Watchdog", "#a0605a", "#b8766f");
-export const AlarmNode = makeSignalNode(Siren, "Alarm", "#a0605a", "#b8766f");
 export const MachineStateNode = makeSignalNode(Gauge, "Machine state", "#a0605a", "#b8766f");
 export const RainflowNode = makeSignalNode(Repeat, "Rainflow", "#5f6fa3", "#7686bb");
 export const VibrationNode = makeSignalNode(AudioWaveform, "Vibration", "#5f6fa3", "#7686bb");
@@ -734,6 +732,8 @@ export const TotalizerNode = makeSignalNode(Calculator, "Totalizer", "#6f8a4e", 
 export const OeeNode = makeSignalNode(Factory, "OEE", "#6f8a4e", "#86a263");
 export const DegradationNode = makeSignalNode(TrendingDown, "Degradation", "#6f8a4e", "#86a263");
 export { ApprovalNode } from "./ApprovalNodeView";
+// the Alarm node has its own view: a button to acknowledge and shelve its alarms
+export { AlarmNode } from "./AlarmNodeView";
 
 export function BatchNode({ data, selected }) {
     const numOutputs = data?.numOutputs ?? 0;
@@ -874,3 +874,4 @@ export function AssetStateNode({ data, selected }) {
         </NodeContainer>
     );
 }
+

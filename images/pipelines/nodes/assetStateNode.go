@@ -238,7 +238,8 @@ func (n *AssetStateNode) processGetStateQuery(msg common.Message, log *logger.Lo
 	payload["state"] = assetState
 	payload["state_description"] = assetStateDescription
 
-	resultMsg := message.NewMessageFromPayload(payload)
+	// the same message with the state: an AI Tool flow still has where to reply
+	resultMsg := emitMessage(msg, msg.GetTopic(), payload)
 
 	n.sendToOutputs(resultMsg, log)
 
@@ -268,7 +269,8 @@ func (n *AssetStateNode) processGetStatesInGroupQuery(msg common.Message, log *l
 
 	payload := msg.GetPayload()
 	payload["assetStates"] = assetStates
-	resultMsg := message.NewMessageFromPayload(payload)
+	// the same message with the state: an AI Tool flow still has where to reply
+	resultMsg := emitMessage(msg, msg.GetTopic(), payload)
 
 	n.sendToOutputs(resultMsg, log)
 

@@ -84,6 +84,9 @@ interface Logger {
     /** Logs a formatted info message. */
     Infof(format: string, ...args: any[]): void;
 
+    /** Logs a formatted warning (level "warning"): the script goes on. */
+    Warnf(format: string, ...args: any[]): void;
+
     /** Logs a formatted error message. */
     Errorf(format: string, ...args: any[]): void;
 }
@@ -410,6 +413,87 @@ interface Yolo {
 
     /** Creates a bounding box */
     NewBoundingBox(x1: number, y1: number, x2: number, y2: number, confidence: number): YoloBoundingBox;
+
+    /** Letterboxes a frame into a size x size YOLO input (aspect ratio kept, gray 114 padding, as Ultralytics).
+     * Put data in payload.mlmInput and pass scale, padX, padY, width and height to PostprocessPose. */
+    PreprocessLetterbox(pic: MutableImage, size: number): YoloLetterboxInput;
+
+    /** Decodes the output of a YOLO pose model ([1, 4 + classes + keypoints x 3, anchors]) with per-class NMS.
+     * Boxes and keypoints come back in pixels of the original frame. */
+    PostprocessPose(output: number[], opts: YoloPoseOptions): YoloPoseDetection[];
+
+    /** Draws the boxes and the keypoints (visibility >= minKptConf), numbered from 0 */
+    DrawPoseDetections(
+        pic: MutableImage,
+        dets: YoloPoseDetection[],
+        fontSize: number,
+        opacity: number,
+        minKptConf: number,
+    ): MutableImage;
+
+    /** Writes text in white on a dark band whose top-left corner is (x, y) */
+    DrawLabel(pic: MutableImage, x: number, y: number, text: string, fontSize: number): MutableImage;
+}
+
+interface YoloLetterboxInput {
+    /** 1x3xSizexSize tensor (RGB, planar, 0..1) for the MlModel node */
+    data: number[];
+    size: number;
+    /** The frame was scaled by scale and placed at (padX, padY) */
+    scale: number;
+    padX: number;
+    padY: number;
+    /** Size of the original frame */
+    width: number;
+    height: number;
+}
+
+interface YoloPoseOptions {
+    /** Size of the original frame (required) */
+    width: number;
+    height: number;
+    /** From PreprocessLetterbox; without scale the frame is taken as stretched (Preprocess) */
+    scale?: number;
+    padX?: number;
+    padY?: number;
+    /** Model input size (640) */
+    inputSize?: number;
+    /** Class names in the order of the model */
+    classNames?: string[];
+    /** Number of classes (default: classNames.length, or deduced from the output size) */
+    numClasses?: number;
+    /** Keypoints per detection (required) */
+    numKeypoints: number;
+    /** 2 (x, y) or 3 (x, y, visibility); 3 by default */
+    kptDims?: number;
+    /** Minimum class score (0.25) */
+    confThreshold?: number;
+    /** IoU of the NMS (0.7) */
+    iouThreshold?: number;
+    /** Maximum detections (300) */
+    maxDetections?: number;
+    /** NMS over all classes together (false) */
+    classAgnostic?: boolean;
+    /** Keep only the best detection of each class (false) */
+    bestPerClass?: boolean;
+}
+
+interface YoloPoseKeypoint {
+    X: number;
+    Y: number;
+    /** Visibility score 0..1 */
+    Conf: number;
+}
+
+interface YoloPoseDetection {
+    Label: string;
+    ClassId: number;
+    Confidence: number;
+    X1: number;
+    Y1: number;
+    X2: number;
+    Y2: number;
+    Keypoints: YoloPoseKeypoint[];
 }
 
 /** YoloBoundingBox instance */

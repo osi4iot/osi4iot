@@ -1410,7 +1410,7 @@ export const createNodesAndEdges = (
             y: yPosition,
         };
 
-        if (nodeItem.type === "Inject" || nodeItem.type === "Approval") {
+        if (nodeItem.type === "Inject" || nodeItem.type === "Approval" || nodeItem.type === "Alarm") {
             (nodeData as any).natsSubjectsData = natsSubjectsData;
             (nodeData as any).natsClient = natsClient;
         }

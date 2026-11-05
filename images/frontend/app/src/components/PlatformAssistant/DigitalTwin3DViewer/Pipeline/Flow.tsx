@@ -502,7 +502,8 @@ export default function Flow({
                 },
             };
 
-            if (nodeType === "Inject" || nodeType === "Approval") {
+            // the nodes that talk to the pipeline from the editor (Inject, Approval and Alarm buttons)
+            if (nodeType === "Inject" || nodeType === "Approval" || nodeType === "Alarm") {
                 newNode.data.natsClient = natsClient;
                 newNode.data.natsSubjectsData = natsSubjectsData;
             }

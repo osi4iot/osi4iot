@@ -8,7 +8,6 @@ import (
 	"pipelines/common"
 	"pipelines/duckdb"
 	"pipelines/logger"
-	"pipelines/message"
 	"pipelines/s3folder"
 	"pipelines/utils"
 	"slices"
@@ -397,7 +396,7 @@ func (n *S3StorageNode) processReadQuery(msg common.Message, params S3StoragePar
 
 	payload := msg.GetPayload()
 	payload["rows"] = sqlResults
-	n.sendToOutputs(message.NewMessageFromPayload(payload), log)
+	n.sendToOutputs(emitMessage(msg, msg.GetTopic(), payload), log)
 
 	return nil
 }
@@ -405,5 +404,5 @@ func (n *S3StorageNode) processReadQuery(msg common.Message, params S3StoragePar
 func (n *S3StorageNode) handleSuccessfullyInsertedQuery(msg common.Message, log *logger.Logger) {
 	payload := msg.GetPayload()
 	payload["message"] = "Data inserted successfully into S3 Storage"
-	n.sendToOutputs(message.NewMessageFromPayload(payload), log)
+	n.sendToOutputs(emitMessage(msg, msg.GetTopic(), payload), log)
 }

@@ -468,14 +468,17 @@ export const WindowSettingsEditor: FC<{ settings: WindowSettings; onChange: OnCh
     );
 };
 
-// A list of sources: topics of the digital twin or other key values, each with a name (Join, Watchdog)
-const SourcesEditor: FC<{ sources: JoinSource[]; onChange: (s: JoinSource[]) => void; topicRefs: string[]; label: string; hint: string }> = ({
-    sources,
-    onChange,
-    topicRefs,
-    label,
-    hint,
-}) => {
+// A list of sources: topics of the digital twin or other source ids, each with a name (Join, Watchdog).
+// A topic source matches the messages that arrive on that topic; a source id matches the messages whose
+// key path (a field such as payload.sensorId) holds that value.
+const SourcesEditor: FC<{
+    sources: JoinSource[];
+    onChange: (s: JoinSource[]) => void;
+    topicRefs: string[];
+    label: string;
+    hint: string;
+    nameHint: string;
+}> = ({ sources, onChange, topicRefs, label, hint, nameHint }) => {
     const setSources = onChange;
     const update = (i: number, change: Partial<JoinSource>) => setSources(sources.map((s, j) => (j === i ? { ...s, ...change } : s)));
     return (
@@ -500,24 +503,26 @@ const SourcesEditor: FC<{ sources: JoinSource[]; onChange: (s: JoinSource[]) => 
                                 >
                                     {topicRefs.map((ref) => (
                                         <option key={ref} value={ref}>
-                                            {ref}
+                                            topic {ref}
                                         </option>
                                     ))}
-                                    <option value="__custom">other key…</option>
+                                    <option value="__custom">other source id…</option>
                                 </Select>
                                 {custom && (
                                     <Input
                                         type="text"
-                                        aria-label={`Source ${i + 1} key`}
+                                        aria-label={`Source ${i + 1} id`}
+                                        title="The value the key path holds in this source's messages"
                                         value={src.key ?? ""}
-                                        placeholder="key"
+                                        placeholder="source id, e.g. S1"
                                         onChange={(e: { target: { value: string } }) => update(i, { key: e.target.value })}
                                     />
                                 )}
-                                <Small>as</Small>
+                                <Small title={nameHint}>named</Small>
                                 <Input
                                     type="text"
                                     aria-label={`Source ${i + 1} name`}
+                                    title={nameHint}
                                     value={src.alias ?? ""}
                                     placeholder={src.topicRef || src.key || "name"}
                                     onChange={(e: { target: { value: string } }) => update(i, { alias: e.target.value.trim() })}
@@ -546,6 +551,49 @@ const SourcesEditor: FC<{ sources: JoinSource[]; onChange: (s: JoinSource[]) => 
     );
 };
 
+// Sources given by topic are matched against the topic of the messages, so when all the sources are
+// topics the key path is set to "topic" (pipelines rejects topic sources with another key path).
+const changeSources = (sources: JoinSource[], keyPath: string | undefined, onChange: OnChange) => {
+    onChange("sources", sources);
+    if (sources.length > 0 && sources.every((s) => s.topicRef) && (keyPath ?? "") !== "topic") onChange("keyPath", "topic");
+};
+
+// The key path of Join and Watchdog: where each message carries the id of its source.
+const SourceKeyPath: FC<{ settings: { keyPath?: string; sources?: JoinSource[] }; onChange: OnChange; emptyMeans: string }> = ({
+    settings,
+    onChange,
+    emptyMeans,
+}) => {
+    const sources = settings.sources ?? [];
+    const keyPath = (settings.keyPath ?? "").trim();
+    const ids = sources.filter((s) => !s.topicRef && (s.key ?? "").trim());
+    return (
+        <>
+            <PathField
+                label="Key path"
+                hint={`where each message carries its source id: topic, or a field such as payload.sensorId; empty: ${emptyMeans}`}
+                value={settings.keyPath}
+                placeholder="topic"
+                onChange={(v) => onChange("keyPath", v)}
+            />
+            {ids.length > 0 && (keyPath === "topic" || (keyPath === "" && emptyMeans === "topic")) && (
+                <Note>
+                    The source ids ({ids.map((s) => `"${s.key}"`).join(", ")}) are compared with the topic of each message, its
+                    full NATS subject. If they are values of a field, write that field here (e.g. payload.sensorId).
+                </Note>
+            )}
+        </>
+    );
+};
+
+const JOIN_MODE_NOTES: Record<string, string> = {
+    latest: "Sends on every message, with the latest value of each source; at first, with the sources that have arrived.",
+    all: "Silent until every source has a value; then sends on every message, reusing the latest value of the slower sources.",
+    set:
+        "Sends once every source has a value, then empties: each combination is sent once. A source that arrives again " +
+        "before the others keeps only its latest value.",
+};
+
 // ---- Join ----
 
 export const JoinSettingsEditor: FC<{ settings: JoinSettings; onChange: OnChange; topicRefs: string[] }> = ({
@@ -557,8 +605,16 @@ export const JoinSettingsEditor: FC<{ settings: JoinSettings; onChange: OnChange
     const mode = settings.mode ?? "latest";
     return (
         <>
-            <SourcesEditor sources={sources} onChange={(next) => onChange("sources", next)} topicRefs={topicRefs} label="Sources" hint="each with the name it gets in the output" />
-            {sources.length === 0 && <Note>Without sources, every value of the key is a source (by its own name).</Note>}
+            <SourcesEditor
+                sources={sources}
+                onChange={(next) => changeSources(next, settings.keyPath, onChange)}
+                topicRefs={topicRefs}
+                label="Sources"
+                hint="a topic, or a source id read at the key path; each named as it appears in the output"
+                nameHint="Its name in the output: { name: value, ... }. Empty: the topic reference or the source id."
+            />
+            {sources.length === 0 && <Note>Without sources, every value of the key path is a source (by its own name).</Note>}
+            <SourceKeyPath settings={settings} onChange={onChange} emptyMeans="topic" />
             <FormGroup>
                 <Label>Send</Label>
                 <Select aria-label="Join mode" value={mode} onChange={(e: { target: { value: string } }) => onChange("mode", e.target.value)}>
@@ -567,10 +623,11 @@ export const JoinSettingsEditor: FC<{ settings: JoinSettings; onChange: OnChange
                     <option value="set">once per complete set, then start again</option>
                 </Select>
             </FormGroup>
+            <Note>{JOIN_MODE_NOTES[mode]}</Note>
             {mode === "set" && (
                 <FormGroup>
                     <Label>
-                        Timeout (s) <Hint>(send an incomplete set after this long, with "_missing"; 0: wait)</Hint>
+                        Timeout (s) <Hint>(from the first message of a set: send it incomplete, with "_missing"; 0: wait)</Hint>
                     </Label>
                     <Input
                         type="number"
@@ -584,7 +641,7 @@ export const JoinSettingsEditor: FC<{ settings: JoinSettings; onChange: OnChange
             )}
             <FormGroup>
                 <Label>
-                    Maximum age (s) <Hint>(older values are dropped; 0: kept)</Hint>
+                    Maximum age (s) <Hint>(older values are dropped, so they are not combined with new ones; 0: kept)</Hint>
                 </Label>
                 <Input
                     type="number"
@@ -606,13 +663,6 @@ export const JoinSettingsEditor: FC<{ settings: JoinSettings; onChange: OnChange
                     <option value="flat">flat: the payloads merged (the newest wins)</option>
                 </Select>
             </FormGroup>
-            <PathField
-                label="Key"
-                hint='what identifies the source; "topic" for the topics above'
-                value={settings.keyPath}
-                placeholder="topic"
-                onChange={(v) => onChange("keyPath", v)}
-            />
             <PathField
                 label="Value"
                 hint="what is kept of each message"
@@ -667,20 +717,15 @@ export const WatchdogSettingsEditor: FC<{ settings: WatchdogSettings; onChange: 
                 onChange={(e: { target: { value: string } }) => onChange("repeatSeconds", Math.max(0, num(e.target.value)))}
             />
         </FormGroup>
-        <PathField
-            label="Key"
-            hint="one watch per value, e.g. per topic; empty: the input as a whole"
-            value={settings.keyPath}
-            placeholder="topic"
-            onChange={(v) => onChange("keyPath", v)}
-        />
         <SourcesEditor
             sources={settings.sources ?? []}
-            onChange={(next) => onChange("sources", next)}
+            onChange={(next) => changeSources(next, settings.keyPath, onChange)}
             topicRefs={topicRefs}
             label="Expected sources"
             hint="optional: also watched before their first message"
+            nameHint="Its name in the lost and restored events. Empty: the topic reference or the source id."
         />
+        <SourceKeyPath settings={settings} onChange={onChange} emptyMeans="the input as a whole (one watch)" />
         <CheckLabel>
             <CheckboxInput
                 type="checkbox"
@@ -830,7 +875,9 @@ export const AlarmSettingsEditor: FC<{ settings: AlarmSettings; onChange: OnChan
             )}
             <Note style={{ marginTop: 10 }}>
                 Output 0: the events (raised, escalated, deescalated, cleared, acknowledged, shelved), each with a text in
-                message. Commands on the input: payload.ack = true (or a key), payload.shelveMinutes = N (0: unshelve).
+                message. To acknowledge and shelve: the bell button of the node in the editor (group administrators, with
+                the pipeline running), or commands on the input: payload.ack = true (or a key), payload.shelveMinutes = N
+                (0: unshelve).
             </Note>
         </>
     );
@@ -1737,7 +1784,7 @@ export const ApprovalSettingsEditor: FC<{ settings: ApprovalSettings; onChange: 
                     Decided from <Hint>(only by the group's administrators)</Hint>
                 </Label>
                 <Select aria-label="Channel" value={channel} onChange={(e: { target: { value: string } }) => onChange("channel", e.target.value)}>
-                    <option value="viewer">the node's button in the viewer</option>
+                    <option value="viewer">the Approvals page (home page)</option>
                     <option value="telegram">Telegram (Approve / Reject buttons)</option>
                     <option value="both">both</option>
                 </Select>
