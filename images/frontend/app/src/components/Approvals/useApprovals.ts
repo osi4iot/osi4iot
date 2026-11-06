@@ -1,5 +1,5 @@
-// Hooks of the Approvals page and of the home page's "Approvals" button: the Approval nodes to ask (admin_api),
-// the NATS connection, and the number of pending requests.
+// Hooks of the Approvals and Alarms pages and of the home page's buttons: the Approval and Alarm nodes to ask
+// (admin_api), the NATS connection, and the numbers of pending requests and of alarms.
 import { useEffect, useState } from "react";
 import { type NatsConnection } from "@nats-io/nats-core";
 import { AxiosError } from "axios";
@@ -10,7 +10,10 @@ import axiosErrorHandler from "../../tools/axiosErrorHandler";
 import NatsConnect from "../../tools/Natsconnection";
 import { axiosAuth, getDomainName, getProtocol } from "../../tools/tools";
 import { listApprovalRequests } from "../PlatformAssistant/DigitalTwin3DViewer/Pipeline/approvalRequests";
+import { AlarmSummary, alarmsToAttend, listAlarms } from "../PlatformAssistant/DigitalTwin3DViewer/Pipeline/alarmCommands";
 import {
+    alarmNodesOfPipeline,
+    approvalNodesOfPipeline,
     ApprovalTarget,
     ApprovalsAsset,
     ApprovalsDigitalTwin,
@@ -25,11 +28,16 @@ const protocol = getProtocol();
 
 export const PENDING_COUNT_POLL_MS = 30_000;
 
-// The Approval nodes of the user's digital twins (null while loading). quiet: without error toasts (home page).
-export const useApprovalTargets = (enabled = true, quiet = false): ApprovalTarget[] | null => {
+export interface PlatformTargets {
+    approvals: ApprovalTarget[] | null; // null while loading
+    alarms: ApprovalTarget[] | null;
+}
+
+// The Approval and Alarm nodes of the user's digital twins. quiet: without error toasts (home page).
+export const usePlatformTargets = (enabled = true, quiet = false): PlatformTargets => {
     const { accessToken, refreshToken } = useAuthState();
     const authDispatch = useAuthDispatch();
-    const [targets, setTargets] = useState<ApprovalTarget[] | null>(null);
+    const [targets, setTargets] = useState<PlatformTargets>({ approvals: null, alarms: null });
 
     useEffect(() => {
         if (!enabled) return;
@@ -46,14 +54,18 @@ export const useApprovalTargets = (enabled = true, quiet = false): ApprovalTarge
                 ])) as [ApprovalsDigitalTwin[], ApprovalsGroup[], ApprovalsAsset[]];
                 const topicsByGroup: Record<number, DigitalTwinMqttTopics> = {};
                 await Promise.all(
-                    groupsWithApprovalNodes(digitalTwins).map(async (groupId) => {
+                    groupsWithApprovalNodes(digitalTwins, [approvalNodesOfPipeline, alarmNodesOfPipeline]).map(async (groupId) => {
                         topicsByGroup[groupId] = await get(`digital_twin_mqtt_topics_in_group/${groupId}`);
                     }),
                 );
-                if (!cancelled) setTargets(buildApprovalTargets(digitalTwins, groups, assets, topicsByGroup));
+                if (!cancelled)
+                    setTargets({
+                        approvals: buildApprovalTargets(digitalTwins, groups, assets, topicsByGroup, approvalNodesOfPipeline),
+                        alarms: buildApprovalTargets(digitalTwins, groups, assets, topicsByGroup, alarmNodesOfPipeline),
+                    });
             } catch (error) {
                 if (cancelled) return;
-                setTargets([]);
+                setTargets({ approvals: [], alarms: [] });
                 if (!quiet) axiosErrorHandler(error as AxiosError, authDispatch);
             }
         })();
@@ -64,6 +76,12 @@ export const useApprovalTargets = (enabled = true, quiet = false): ApprovalTarge
 
     return targets;
 };
+
+// The Approval nodes of the user's digital twins (null while loading)
+export const useApprovalTargets = (enabled = true, quiet = false): ApprovalTarget[] | null => usePlatformTargets(enabled, quiet).approvals;
+
+// The Alarm nodes of the user's digital twins (null while loading)
+export const useAlarmTargets = (enabled = true, quiet = false): ApprovalTarget[] | null => usePlatformTargets(enabled, quiet).alarms;
 
 // A NATS connection of the logged user while enabled (closed when no longer needed)
 export const useNatsClient = (enabled = true): { natsClient: NatsConnection | null; isNatsConnected: boolean } => {
@@ -112,30 +130,54 @@ export const countPendingApprovals = async (
     return ok.reduce((n, a) => n + a.value.length, 0);
 };
 
-// For the home page: the number of pending requests, every 30 s (null: unknown or nothing to ask)
-export const usePendingApprovalsCount = (enabled: boolean): number | null => {
+export interface AlarmCounts {
+    toAttend: number; // unacknowledged (active or back to normal), not shelved
+    active: number; // active or latched, already acknowledged, not shelved
+}
+
+// The alarms of all the targets; null when none of their pipelines answers
+export const countAlarms = async (natsClient: NatsConnection, userName: string, targets: ApprovalTarget[]): Promise<AlarmCounts | null> => {
+    const answers = await Promise.allSettled(targets.map((t) => listAlarms(natsClient, userName, t.subject, t.nodeUid)));
+    const lists = answers.filter((a): a is PromiseFulfilledResult<AlarmSummary[]> => a.status === "fulfilled").map((a) => a.value);
+    if (lists.length === 0) return null;
+    const all = lists.flat();
+    const toAttend = alarmsToAttend(all);
+    return { toAttend, active: all.filter((a) => !a.shelved).length - toAttend };
+};
+
+export interface PlatformCounts {
+    approvals: number | null;
+    alarms: AlarmCounts | null;
+}
+
+// For the home page: pending requests and alarms, every 30 s (null: unknown or nothing to ask)
+export const usePlatformCounts = (enabled: boolean): PlatformCounts => {
     const userName = useLoggedUserLogin();
-    const targets = useApprovalTargets(enabled, true);
-    const hasTargets = enabled && !!targets && targets.length > 0;
+    const { approvals, alarms } = usePlatformTargets(enabled, true);
+    const hasTargets = enabled && ((approvals?.length ?? 0) > 0 || (alarms?.length ?? 0) > 0);
     const { natsClient, isNatsConnected } = useNatsClient(hasTargets);
-    const [count, setCount] = useState<number | null>(null);
+    const [counts, setCounts] = useState<PlatformCounts>({ approvals: null, alarms: null });
 
     useEffect(() => {
-        if (!hasTargets || !natsClient || !isNatsConnected || !targets) return;
+        if (!hasTargets || !natsClient || !isNatsConnected) return;
         let cancelled = false;
-        const update = () =>
-            countPendingApprovals(natsClient, userName, targets)
-                .then((n) => {
-                    if (!cancelled) setCount(n);
-                })
-                .catch(() => undefined);
+        const update = async () => {
+            const [a, b] = await Promise.all([
+                approvals && approvals.length > 0 ? countPendingApprovals(natsClient, userName, approvals) : Promise.resolve(null),
+                alarms && alarms.length > 0 ? countAlarms(natsClient, userName, alarms) : Promise.resolve(null),
+            ]).catch(() => [null, null] as const);
+            if (!cancelled) setCounts({ approvals: a, alarms: b });
+        };
         update();
         const timer = setInterval(update, PENDING_COUNT_POLL_MS);
         return () => {
             cancelled = true;
             clearInterval(timer);
         };
-    }, [hasTargets, natsClient, isNatsConnected, userName, targets]);
+    }, [hasTargets, natsClient, isNatsConnected, userName, approvals, alarms]);
 
-    return hasTargets ? count : null;
+    return hasTargets ? counts : { approvals: null, alarms: null };
 };
+
+// The number of pending approval requests (see usePlatformCounts)
+export const usePendingApprovalsCount = (enabled: boolean): number | null => usePlatformCounts(enabled).approvals;

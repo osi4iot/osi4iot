@@ -2,7 +2,7 @@ import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { ReactFlowProvider } from "@xyflow/react";
 import { describe, expect, it, vi } from "vitest";
 import { StringCodec } from "../../../../tools/natsCodec";
-import { acknowledgeAlarms, AlarmSummary, alarmsToAttend, describeAlarmError, listAlarms, shelveAlarms, shelveLabel } from "./alarmCommands";
+import { acknowledgeAlarms, AlarmSummary, alarmsAcknowledgedActive, alarmsToAttend, describeAlarmError, listAlarms, resetAlarms, shelveAlarms, shelveLabel } from "./alarmCommands";
 import { AlarmNode, alarmStateText } from "./AlarmNodeView";
 
 vi.mock("../../../../contexts/authContext/authContext", () => ({ useLoggedUserLogin: () => "ana.p" }));
@@ -43,11 +43,13 @@ describe("alarm commands from the viewer", () => {
         await acknowledgeAlarms(client, "ana", "s", "N", "");
         await shelveAlarms(client, "ana", "s", "N", 60, "S1");
         await shelveAlarms(client, "ana", "s", "N", 0);
+        await resetAlarms(client, "ana", "s", "N", "S1");
         expect(bodies(request)).toEqual([
             { action: "ack" },
             { action: "ack", key: "" },
             { action: "shelve", minutes: 60, key: "S1" },
             { action: "shelve", minutes: 0 },
+            { action: "reset", key: "S1" },
         ]);
     });
 
@@ -103,6 +105,23 @@ describe("the Alarm node view", () => {
             { action: "shelve", minutes: 0, key: "S3" },
             { action: "shelve", minutes: 240 },
         ]);
+    });
+
+    it("resets a latched alarm and shows a grey badge with the acknowledged ones still active", async () => {
+        const latched: AlarmSummary = {
+            key: "", name: "Trip", level: "Alarm", state: "latched", value: "12 A", canAck: false, canReset: true,
+            latched: true, acked: true, shelved: false, ackBy: "ana",
+        };
+        const { client, request } = fakeNats([latched, ALARMS[1]]);
+        renderNode(client);
+        // nothing to acknowledge, two still active: grey badge
+        await waitFor(() => expect(screen.getByTitle("Active alarms, already acknowledged").textContent).toBe("2"));
+        await act(async () => fireEvent.click(screen.getByLabelText("Alarms")));
+        expect(await screen.findByText(/waiting for a reset \(acknowledged by ana\)/)).toBeTruthy();
+        await act(async () => fireEvent.click(screen.getByText("Reset")));
+        expect(bodies(request).filter((b: any) => b.action !== "list")).toEqual([{ action: "reset", key: "" }]);
+        expect(alarmsAcknowledgedActive([latched, ALARMS[1], ALARMS[0]])).toBe(2);
+        expect(alarmStateText({ ...latched, acked: false })).toBe("back to normal, waiting for a reset, unacknowledged");
     });
 
     it("is disabled without the approval topic", () => {

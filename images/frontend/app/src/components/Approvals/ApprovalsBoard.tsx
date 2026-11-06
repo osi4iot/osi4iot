@@ -12,162 +12,25 @@ import {
     describeApprovalError,
     listApprovalRequests,
 } from "../PlatformAssistant/DigitalTwin3DViewer/Pipeline/approvalRequests";
-import { scrollbarStyle } from "../Tools/FormTools";
+import {
+    AssetCard,
+    AssetHead,
+    Count,
+    Empty,
+    Head,
+    IconButton,
+    Meta,
+    Notice,
+    Page,
+    Requests,
+    Select,
+    Title,
+    Tools,
+    Unreachable,
+} from "./boardStyles";
 import { ApprovalTarget, relativeTime } from "./approvalsData";
 
 export const APPROVALS_POLL_MS = 10_000;
-
-const Page = styled.div`
-    box-sizing: border-box;
-    width: min(1080px, 100%);
-    margin: 0 auto;
-    padding: 18px 16px 32px;
-    display: flex;
-    flex-direction: column;
-    gap: 14px;
-
-    @media (max-width: 600px) {
-        padding: 8px 8px 24px;
-    }
-`;
-
-const Head = styled.div`
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 10px 16px;
-`;
-
-const Title = styled.h2`
-    margin: 0;
-    font-weight: 500;
-    font-size: 18px;
-    color: white;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-`;
-
-const Count = styled.span<{ $zero: boolean }>`
-    min-width: 22px;
-    padding: 0 7px;
-    border-radius: 11px;
-    font-size: 12px;
-    line-height: 22px;
-    text-align: center;
-    color: white;
-    background: ${({ $zero }) => ($zero ? "#2a2d33" : "#f2495c")};
-`;
-
-const Tools = styled.div`
-    margin-left: auto;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    color: #9ca3af;
-    font-size: 12px;
-
-    @media (max-width: 600px) {
-        margin-left: 0;
-        width: 100%;
-    }
-`;
-
-const Select = styled.select`
-    height: 32px;
-    padding: 0 8px;
-    border-radius: 8px;
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    background: #202226;
-    color: #e5e7eb;
-    font-size: 13px;
-
-    @media (max-width: 600px) {
-        flex: 1;
-        min-width: 0;
-    }
-`;
-
-const IconButton = styled.button`
-    display: inline-grid;
-    place-items: center;
-    width: 32px;
-    height: 32px;
-    border-radius: 8px;
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    background: #202226;
-    color: #e5e7eb;
-    cursor: pointer;
-
-    &:hover {
-        background: #2a2d33;
-    }
-
-    &:focus-visible {
-        outline: 2px solid #3d82f0;
-        outline-offset: 2px;
-    }
-`;
-
-const Notice = styled.div<{ $error?: boolean }>`
-    padding: 10px 14px;
-    border-radius: 10px;
-    font-size: 13px;
-    color: ${({ $error }) => ($error ? "#ffb3b3" : "#c3c9d1")};
-    background: ${({ $error }) => ($error ? "rgba(242, 73, 92, 0.12)" : "#202226")};
-    border: 1px solid ${({ $error }) => ($error ? "rgba(242, 73, 92, 0.35)" : "rgba(255, 255, 255, 0.08)")};
-`;
-
-const Empty = styled.div`
-    padding: 48px 20px;
-    border-radius: 14px;
-    border: 1px dashed rgba(255, 255, 255, 0.14);
-    text-align: center;
-    color: #9ca3af;
-    font-size: 14px;
-
-    strong {
-        display: block;
-        margin: 10px 0 4px;
-        color: #e5e7eb;
-        font-weight: 500;
-        font-size: 16px;
-    }
-`;
-
-const AssetCard = styled.section`
-    background-color: #202226;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 14px;
-    overflow: hidden;
-`;
-
-const AssetHead = styled.header`
-    display: flex;
-    flex-wrap: wrap;
-    align-items: baseline;
-    gap: 4px 12px;
-    padding: 12px 18px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-
-    h3 {
-        margin: 0;
-        font-size: 15px;
-        font-weight: 500;
-        color: white;
-    }
-
-    span {
-        color: #9ca3af;
-        font-size: 12px;
-    }
-`;
-
-const Requests = styled.div`
-    max-height: 70vh;
-    overflow-y: auto;
-    ${scrollbarStyle}
-`;
 
 const Request = styled.article`
     display: grid;
@@ -197,17 +60,6 @@ const Detail = styled.div`
     font-size: 13px;
     white-space: pre-wrap;
     word-break: break-word;
-`;
-
-const Meta = styled.div`
-    margin-top: 6px;
-    color: #8b94a1;
-    font-size: 12px;
-
-    b {
-        font-weight: 500;
-        color: #a7b1be;
-    }
 `;
 
 const Expiry = styled.span<{ $soon: boolean }>`
@@ -264,7 +116,10 @@ const Act = styled.button<{ $kind: "approve" | "reject" }>`
     color: white;
     font-size: 14px;
     cursor: pointer;
-    ${({ $kind }) => ($kind === "approve" ? decisionButton("#2f855a", "#276749", "#1c4532") : decisionButton("#c53030", "#9b2c2c", "#63171b"))}
+    ${({ $kind }) =>
+        $kind === "approve"
+            ? decisionButton("#2f855a", "#276749", "#1c4532")
+            : decisionButton("#c53030", "#9b2c2c", "#63171b")}
 
     &:disabled {
         cursor: not-allowed;
@@ -282,12 +137,6 @@ const Act = styled.button<{ $kind: "approve" | "reject" }>`
         flex: 1;
         justify-content: center;
     }
-`;
-
-const Unreachable = styled.div`
-    padding: 8px 18px 12px;
-    color: #ffb3b3;
-    font-size: 12px;
 `;
 
 interface TargetResult {
@@ -325,7 +174,10 @@ const ApprovalsBoard: FC<ApprovalsBoardProps> = ({ natsClient, isNatsConnected, 
         const answers = await Promise.all(
             targets.map(async (t): Promise<[string, TargetResult]> => {
                 try {
-                    return [t.key, { requests: await listApprovalRequests(natsClient, userName, t.subject, t.nodeUid) }];
+                    return [
+                        t.key,
+                        { requests: await listApprovalRequests(natsClient, userName, t.subject, t.nodeUid) },
+                    ];
                 } catch (e) {
                     return [t.key, { requests: [], error: describeApprovalError(e) }];
                 }
@@ -354,7 +206,15 @@ const ApprovalsBoard: FC<ApprovalsBoardProps> = ({ natsClient, isNatsConnected, 
 
     // by asset: the requests of all its digital twins and nodes, oldest first
     const assets = useMemo(() => {
-        const byAsset = new Map<string, { label: string; group: string; items: { t: ApprovalTarget; r: ApprovalRequestSummary }[]; errors: ApprovalTarget[] }>();
+        const byAsset = new Map<
+            string,
+            {
+                label: string;
+                group: string;
+                items: { t: ApprovalTarget; r: ApprovalRequestSummary }[];
+                errors: ApprovalTarget[];
+            }
+        >();
         for (const t of visible) {
             const id = `${t.groupId}/${t.assetId}`;
             if (!byAsset.has(id)) byAsset.set(id, { label: t.assetLabel, group: t.groupLabel, items: [], errors: [] });
@@ -377,7 +237,15 @@ const ApprovalsBoard: FC<ApprovalsBoardProps> = ({ natsClient, isNatsConnected, 
         const id = `${t.key}/${r.requestId}`;
         setBusy(id);
         try {
-            await decideApprovalRequest(natsClient as NatsConnection, userName, t.subject, t.nodeUid, r.requestId, approve, comments[id] ?? "");
+            await decideApprovalRequest(
+                natsClient as NatsConnection,
+                userName,
+                t.subject,
+                t.nodeUid,
+                r.requestId,
+                approve,
+                comments[id] ?? "",
+            );
             toast.success(approve ? "Request approved" : "Request rejected");
             setComments((c) => {
                 const next = { ...c };
@@ -471,10 +339,20 @@ const ApprovalsBoard: FC<ApprovalsBoardProps> = ({ natsClient, isNatsConnected, 
                                             value={comments[rid] ?? ""}
                                             onChange={(e) => setComments({ ...comments, [rid]: e.target.value })}
                                         />
-                                        <Act type="button" $kind="approve" disabled={busy !== ""} onClick={() => decide(t, r, true)}>
+                                        <Act
+                                            type="button"
+                                            $kind="approve"
+                                            disabled={busy !== ""}
+                                            onClick={() => decide(t, r, true)}
+                                        >
                                             <Check size={15} /> Approve
                                         </Act>
-                                        <Act type="button" $kind="reject" disabled={busy !== ""} onClick={() => decide(t, r, false)}>
+                                        <Act
+                                            type="button"
+                                            $kind="reject"
+                                            disabled={busy !== ""}
+                                            onClick={() => decide(t, r, false)}
+                                        >
                                             <X size={15} /> Reject
                                         </Act>
                                     </Decision>

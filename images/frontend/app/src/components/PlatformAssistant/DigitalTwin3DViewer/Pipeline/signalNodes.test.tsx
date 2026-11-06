@@ -152,6 +152,9 @@ describe("lote 2 model and editors", () => {
         fireEvent.click(screen.getByText("Update the asset status directly"));
         expect(data.updateAssetStatus).toBe(true);
         expect(screen.getByText(/worst of the active alarms/)).toBeTruthy();
+        fireEvent.click(screen.getByText(/Latched: back to normal only with a reset/));
+        expect(data.latched).toBe(true);
+        expect(screen.getByText(/waiting for a reset/)).toBeTruthy();
         fireEvent.change(screen.getByLabelText("Condition"), { target: { value: "equals" } });
         expect(screen.queryByLabelText("Hysteresis")).toBeNull();
     });
@@ -168,6 +171,9 @@ describe("lote 2 model and editors", () => {
         fireEvent.change(shifts, { target: { value: "06:00, 14:00, 22:00" } });
         fireEvent.blur(shifts);
         expect(data.shifts).toEqual(["06:00", "14:00", "22:00"]);
+        fireEvent.click(screen.getByLabelText("Show the state in the asset state"));
+        expect(data.updateAssetState).toBe(true);
+        expect(screen.getByText(/asset state's machines/)).toBeTruthy();
     });
 });
 
@@ -253,4 +259,3 @@ describe("Join and Watchdog sources and key path", () => {
         expect(signalProblems("Watchdog", data)).toEqual([]);
     });
 });
-

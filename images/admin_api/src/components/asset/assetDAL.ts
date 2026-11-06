@@ -21,6 +21,8 @@ import IAssetTopic from "./assetTopic.interface";
 import IMqttDigitalTwinTopicInfo from "../digitalTwin/mqttDigitalTwinTopicInfo.interface";
 import IDigitalTwinTopic from "../digitalTwin/digitalTwinTopic.interface";
 import natsClient from "../../config/natsConfig";
+import { logger } from "../../config/winston";
+import { createAssetStateRowOfAsset, deleteAssetStateRowOfAsset } from "./assetStateDAL";
 import { hasMeasurements } from "../../utils/measurements/measurements";
 
 export const insertAssetType = async (assetTypeData: IAssetType): Promise<IAssetType> => {
@@ -255,7 +257,22 @@ export const insertAsset = async (assetData: IAsset): Promise<IAsset> => {
 		assetData.iconRadio,
 		assetData.iconSizeFactor,
 	]);
-	return result.rows[0] as IAsset;
+	const newAsset = result.rows[0] as IAsset;
+	// its row in the IoT DB's asset states, with the default state (OK, no alarms)
+	await createAssetStateRowOfAsset(newAsset.groupId, newAsset.assetUid);
+	// pipelines keeps the assets in memory: without this, a new asset is unknown to it until it restarts
+	await announceAssetToPipelines("create", newAsset);
+	return newAsset;
+};
+
+// Tells pipelines that an asset was created or changed (it reads it from this API). A failure is logged
+// and does not undo the change: pipelines also asks for an asset it does not know when it needs it.
+const announceAssetToPipelines = async (action: "create" | "update", asset: IAsset): Promise<void> => {
+	try {
+		await natsClient.jsPublish("asset", action, asset.id, { groupId: asset.groupId });
+	} catch (error) {
+		logger.log("error", `Pipelines was not told of the ${action} of asset ${asset.id}: %O`, error);
+	}
 };
 
 export const checkSensorReferences = async (group: IGroup, assetData: CreateAssetDto) => {
@@ -373,14 +390,16 @@ export const updateAssetByPropName = async (
 		asset.assetTypeId,
 		propValue,
 	]);
+	await announceAssetToPipelines("update", asset);
 };
 
 export const deleteAssetByPropName = async (propName: string, propValue: string | number): Promise<void> => {
-	const result = await pool.query(`DELETE FROM grafanadb.asset WHERE ${propName} = $1 RETURNING id`, [propValue]);
+	const result = await pool.query(`DELETE FROM grafanadb.asset WHERE ${propName} = $1 RETURNING id, group_id AS "groupId", asset_uid AS "assetUid"`, [propValue]);
 	const context = {
 		groupId: result.rows[0].groupId,
 	};
 	await natsClient.jsPublish("asset", "delete", result.rows[0].id, context);
+	await deleteAssetStateRowOfAsset(result.rows[0].groupId, result.rows[0].assetUid);
 };
 
 export const checkInitialAssetGeolocation = async (group: IGroup, assetData: CreateAssetDto) => {

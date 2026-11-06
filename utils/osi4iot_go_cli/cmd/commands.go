@@ -937,7 +937,8 @@ var subCmdStreamsList = &cobra.Command{
 	Use:     "ls",
 	Aliases: []string{"list"},
 	Short:   "List the NATS JetStream streams currently in the cluster",
-	Long:    "Lists every JetStream stream with its replica count, leader, message count and sync status.",
+	Long: "Lists every JetStream stream with its storage, replica count, leader, message count and sync status.\n" +
+		"The streams in memory are not part of the nats_streams backups.",
 	Run: func(cmd *cobra.Command, args []string) {
 		pd := data.GetData()
 
@@ -957,7 +958,7 @@ var subCmdStreamsList = &cobra.Command{
 		}
 
 		w := tabwriter.NewWriter(os.Stdout, 0, 2, 2, ' ', 0)
-		fmt.Fprintln(w, "NAME\tREPLICAS\tLEADER\tMESSAGES\tSTATUS")
+		fmt.Fprintln(w, "NAME\tSTORAGE\tREPLICAS\tLEADER\tMESSAGES\tSTATUS")
 		for _, s := range streams {
 			leader := s.Leader
 			if leader == "" {
@@ -974,7 +975,7 @@ var subCmdStreamsList = &cobra.Command{
 				status = "under-replicated"
 			}
 
-			fmt.Fprintf(w, "%s\t%d\t%s\t%d\t%s\n", s.Name, s.Replicas, leader, s.Messages, status)
+			fmt.Fprintf(w, "%s\t%s\t%d\t%s\t%d\t%s\n", s.Name, s.Storage(), s.Replicas, leader, s.Messages, status)
 		}
 		w.Flush()
 	},

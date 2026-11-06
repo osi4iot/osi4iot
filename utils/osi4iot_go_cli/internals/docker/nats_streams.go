@@ -5,6 +5,7 @@ import (
 	"sort"
 
 	"github.com/nats-io/jsm.go"
+	"github.com/nats-io/jsm.go/api"
 	pt "github.com/osi4iot/osi4iot/utils/osi4iot/internals/types"
 )
 
@@ -23,6 +24,30 @@ type NatsStreamInfo struct {
 	Bytes      uint64
 	Peers      int  // total members (leader + replicas)
 	AllCurrent bool // every non-leader peer is caught up
+	InMemory   bool // kept in memory: not backed up (see BackedUpStreams)
+}
+
+// Storage is how ls shows where the stream is kept.
+func (s NatsStreamInfo) Storage() string {
+	if s.InMemory {
+		return "memory"
+	}
+	return "file"
+}
+
+// BackedUpStreams returns the streams a nats_streams backup holds: those
+// kept in disk. system_manager skips the ones in memory — NATS cannot
+// snapshot them, and they only hold what is rebuilt by itself, such as
+// pipelines' leases (KV pipelines_shard_N_leader_mem) — so they are not
+// counted when checking that a run holds every stream.
+func BackedUpStreams(streams []NatsStreamInfo) []NatsStreamInfo {
+	out := make([]NatsStreamInfo, 0, len(streams))
+	for _, s := range streams {
+		if !s.InMemory {
+			out = append(out, s)
+		}
+	}
+	return out
 }
 
 // ListNatsStreams returns the streams currently present in NATS, with
@@ -59,7 +84,7 @@ func ListNatsStreams(pd *pt.PlatformData, dc *pt.DockerClient) ([]NatsStreamInfo
 			if replicas < 1 {
 				replicas = 1
 			}
-			out = append(out, NatsStreamInfo{Name: s.Name(), Replicas: replicas})
+			out = append(out, NatsStreamInfo{Name: s.Name(), Replicas: replicas, InMemory: s.Storage() == api.MemoryStorage})
 			continue
 		}
 
@@ -75,6 +100,7 @@ func ListNatsStreams(pd *pt.PlatformData, dc *pt.DockerClient) ([]NatsStreamInfo
 			Bytes:      nfo.State.Bytes,
 			Peers:      1,
 			AllCurrent: true,
+			InMemory:   nfo.Config.Storage == api.MemoryStorage,
 		}
 		if nfo.Cluster != nil {
 			si.Leader = nfo.Cluster.Leader

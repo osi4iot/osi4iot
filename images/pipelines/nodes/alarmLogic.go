@@ -9,6 +9,9 @@ package nodes
 //   active_unack   active (Warning or Alarm), not acknowledged
 //   active_ack     active, acknowledged
 //   rtn_unack      back to normal but not acknowledged yet
+//   latched        (latched alarms) the value is back to normal but the
+//                  alarm stays until a user resets it; it still counts for
+//                  the asset status, with the level it reached
 //   shelved        silenced for a while: its events are not sent and it
 //                  does not count for the asset status
 
@@ -40,6 +43,7 @@ type alarmConfig struct {
 	KeyPath     string
 	Units       string
 	Description string
+	Latched     bool    // back to normal only when a user resets it
 	warn, alarm float64 // numeric thresholds (high, low)
 }
 
@@ -57,6 +61,11 @@ type alarmState struct {
 	AckBy        string `json:"ackBy,omitempty"`
 	AckAt        int64  `json:"ackAt,omitempty"`
 	Topic        string `json:"topic,omitempty"`
+	// Latched: the value is back to normal, waiting for a reset (Level is
+	// alarmNone; LatchedLevel is the worst level reached).
+	Latched      bool  `json:"latched,omitempty"`
+	LatchedLevel int   `json:"latchedLevel,omitempty"`
+	LatchedAt    int64 `json:"latchedAt,omitempty"`
 }
 
 func parseAlarmConfig(name string, settings map[string]any) (*alarmConfig, error) {
@@ -72,6 +81,7 @@ func parseAlarmConfig(name string, settings map[string]any) (*alarmConfig, error
 		KeyPath:     settingString(settings, "keyPath", ""),
 		Units:       settingString(settings, "units", ""),
 		Description: settingString(settings, "description", ""),
+		Latched:     settingBool(settings, "latched", false),
 	}
 	if cfg.Name == "" {
 		cfg.Name = "Alarm"
@@ -190,6 +200,8 @@ func (s *alarmState) stateName(now time.Time) string {
 		return "active_ack"
 	case s.Level > alarmNone:
 		return "active_unack"
+	case s.Latched:
+		return "latched"
 	case s.RtnUnack:
 		return "rtn_unack"
 	}
@@ -201,7 +213,30 @@ func (s *alarmState) effectiveLevel(now time.Time) int {
 	if s == nil || s.shelved(now) {
 		return alarmNone
 	}
+	return s.shownLevel()
+}
+
+// shownLevel is the level of an alarm: the active one, or the one reached
+// by a latched alarm waiting for a reset.
+func (s *alarmState) shownLevel() int {
+	if s == nil {
+		return alarmNone
+	}
+	if s.Level == alarmNone && s.Latched {
+		return s.LatchedLevel
+	}
 	return s.Level
+}
+
+// canAck: active and not acknowledged, latched and not acknowledged, or
+// back to normal without an acknowledgement.
+func (s *alarmState) canAck() bool {
+	return s != nil && ((s.Level > alarmNone || s.Latched) && !s.Acked || s.RtnUnack)
+}
+
+// canReset: latched and the value already back to normal.
+func (s *alarmState) canReset() bool {
+	return s != nil && s.Latched && s.Level == alarmNone
 }
 
 func cloneAlarmState(s *alarmState) *alarmState {
@@ -266,6 +301,15 @@ func (c *alarmConfig) advance(next *alarmState, key string, target int, now time
 	next.Pending, next.PendingSince = target, 0
 	var e map[string]any
 	switch {
+	case from == alarmNone && next.Latched:
+		// active again while waiting for its reset: the same alarm
+		next.Latched, next.LatchedAt = false, 0
+		if target > next.MaxLevel {
+			next.MaxLevel, next.Acked = target, false
+			e = c.event("escalated", next, key, now, "")
+		} else {
+			e = c.event("reactivated", next, key, now, "")
+		}
 	case from == alarmNone:
 		next.Acked, next.RtnUnack, next.RaisedAt, next.MaxLevel, next.AckBy, next.AckAt = false, false, t, target, "", 0
 		e = c.event("raised", next, key, now, "")
@@ -277,6 +321,10 @@ func (c *alarmConfig) advance(next *alarmState, key string, target int, now time
 		e = c.event("escalated", next, key, now, "")
 	case target > alarmNone:
 		e = c.event("deescalated", next, key, now, "")
+	case c.Latched:
+		// back to normal, but it stays until a user resets it
+		next.Latched, next.LatchedLevel, next.LatchedAt = true, next.MaxLevel, t
+		e = c.event("latched", next, key, now, "")
 	default:
 		next.RtnUnack = !next.Acked
 		e = c.event("cleared", next, key, now, "")
@@ -288,16 +336,41 @@ func (c *alarmConfig) advance(next *alarmState, key string, target int, now time
 
 // acknowledge an alarm (by a user).
 func (c *alarmConfig) acknowledge(state *alarmState, key, user string, now time.Time) alarmStepResult {
-	if state == nil || (state.Level == alarmNone || state.Acked) && !state.RtnUnack {
+	if !state.canAck() {
 		return alarmStepResult{Next: state}
 	}
 	next := cloneAlarmState(state)
 	next.AckBy, next.AckAt = user, now.UnixMilli()
-	if next.Level > alarmNone {
+	if next.Level > alarmNone || next.Latched {
 		next.Acked = true
 	}
 	next.RtnUnack = false
 	return alarmStepResult{Events: []map[string]any{c.event("acknowledged", next, key, now, "")}, Next: next}
+}
+
+// rearm resets a latched alarm whose value is back to normal (it also
+// acknowledges it): the alarm goes back to normal.
+func (c *alarmConfig) rearm(state *alarmState, key, user string, now time.Time) alarmStepResult {
+	if !state.canReset() {
+		return alarmStepResult{Next: state}
+	}
+	next := cloneAlarmState(state)
+	e := c.event("reset", next, key, now, "")
+	if user != "" {
+		e["resetBy"] = user
+		e["message"] = e["message"].(string) + " by " + user
+	}
+	if next.RaisedAt > 0 {
+		e["durationSeconds"] = roundTo(now.Sub(time.UnixMilli(next.RaisedAt)).Seconds(), 1)
+	}
+	e["maxLevel"] = alarmLevelNames[next.MaxLevel]
+	next.Latched, next.LatchedLevel, next.LatchedAt = false, alarmNone, 0
+	next.Acked, next.RtnUnack = false, false
+	if next.AckBy == "" {
+		next.AckBy, next.AckAt = user, now.UnixMilli()
+	}
+	e["state"] = next.stateName(now)
+	return alarmStepResult{Events: []map[string]any{e}, Next: next}
 }
 
 // shelve silences an alarm for a while (0: unshelve).
@@ -322,7 +395,7 @@ func (c *alarmConfig) shelve(state *alarmState, key string, d time.Duration, use
 
 // event builds an alarm event.
 func (c *alarmConfig) event(kind string, s *alarmState, key string, now time.Time, text string) map[string]any {
-	level := alarmLevelNames[s.Level]
+	level := alarmLevelNames[s.shownLevel()]
 	e := map[string]any{
 		"event": kind,
 		"alarm": c.Name,
@@ -340,8 +413,11 @@ func (c *alarmConfig) event(kind string, s *alarmState, key string, now time.Tim
 	if s.AckBy != "" {
 		e["ackBy"] = s.AckBy
 	}
-	if t, set := c.levelText(s.Level); set {
+	if t, set := c.levelText(s.shownLevel()); set {
 		e["threshold"] = t
+	}
+	if s.Latched {
+		e["latchedAt"] = isoTime(time.UnixMilli(s.LatchedAt))
 	}
 	if c.Description != "" {
 		e["description"] = c.Description
@@ -376,6 +452,12 @@ func (c *alarmConfig) describe(kind string, s *alarmState, key string) string {
 		return fmt.Sprintf("%s%s: %s", prefix, strings.ToUpper(alarmLevelNames[s.Level]), who) + c.comparison(s.Level, value)
 	case "cleared":
 		return fmt.Sprintf("Cleared: %s, value %s", who, value)
+	case "latched":
+		return fmt.Sprintf("Back to normal, waiting for a reset: %s, value %s (reached %s)", who, value, strings.ToUpper(alarmLevelNames[s.LatchedLevel]))
+	case "reactivated":
+		return fmt.Sprintf("Active again, still waiting for a reset: %s", who) + c.comparison(s.Level, value)
+	case "reset":
+		return fmt.Sprintf("Reset: %s", who)
 	case "acknowledged":
 		text := fmt.Sprintf("Acknowledged: %s", who)
 		if s.AckBy != "" {
@@ -465,12 +547,15 @@ func (c *alarmConfig) registryText(s *alarmState, key string) string {
 	if key != "" {
 		text += " (" + key + ")"
 	}
-	t, set := c.levelText(s.Level)
+	t, set := c.levelText(s.shownLevel())
 	if !set {
 		return text
 	}
 	if c.Units != "" {
 		t += " " + c.Units
+	}
+	if s.Level == alarmNone && s.Latched {
+		text += " (latched)"
 	}
 	switch c.Condition {
 	case "high":
@@ -491,7 +576,7 @@ const alarmNodeHeader = "Alarm-Node"
 
 // alarmViewerRequest is a press of the viewer's alarm buttons.
 type alarmViewerRequest struct {
-	Action  string   `json:"action"`            // "list", "ack" or "shelve"
+	Action  string   `json:"action"`            // "list", "ack", "shelve" or "reset"
 	Key     *string  `json:"key,omitempty"`     // one alarm; none: all of them
 	Minutes *float64 `json:"minutes,omitempty"` // shelve: for how long (0: unshelve)
 }
@@ -508,7 +593,7 @@ func parseAlarmViewerRequest(data []byte) (req alarmViewerRequest, all bool, key
 		key = *req.Key
 	}
 	switch req.Action {
-	case "list", "ack":
+	case "list", "ack", "reset":
 	case "shelve":
 		if req.Minutes == nil || *req.Minutes < 0 || *req.Minutes > alarmMaxShelveMinutes {
 			return req, all, key, 0, fmt.Errorf("the shelving time must be between 0 and %d minutes", alarmMaxShelveMinutes)
@@ -537,14 +622,21 @@ func (c *alarmConfig) viewerSummary(s *alarmState, key string, now time.Time) ma
 	out := map[string]any{
 		"key":      key,
 		"name":     who,
-		"level":    alarmLevelNames[s.Level],
+		"level":    alarmLevelNames[s.shownLevel()],
 		"state":    state,
 		"value":    c.valueText(s.Value),
-		"canAck":   s.Level > alarmNone && !s.Acked || s.RtnUnack,
+		"canAck":   s.canAck(),
+		"canReset": s.canReset(),
+		"latched":  s.Latched,
+		"active":   s.Level > alarmNone,
+		"acked":    s.Acked,
 		"shelved":  s.shelved(now),
 		"maxLevel": alarmLevelNames[s.MaxLevel],
 	}
-	if t, set := c.levelText(s.Level); set {
+	if s.Latched {
+		out["latchedAt"] = isoTime(time.UnixMilli(s.LatchedAt))
+	}
+	if t, set := c.levelText(s.shownLevel()); set {
 		if c.Units != "" {
 			t += " " + c.Units
 		}

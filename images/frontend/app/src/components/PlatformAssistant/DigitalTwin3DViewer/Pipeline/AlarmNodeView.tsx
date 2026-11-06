@@ -11,9 +11,11 @@ import { approvalSubject } from "./approvalRequests";
 import {
     acknowledgeAlarms,
     AlarmSummary,
+    alarmsAcknowledgedActive,
     alarmsToAttend,
     describeAlarmError,
     listAlarms,
+    resetAlarms,
     SHELVE_OPTIONS_MINUTES,
     shelveAlarms,
     shelveLabel,
@@ -23,6 +25,8 @@ const POLL_OPEN_MS = 3_000;
 const POLL_CLOSED_MS = 15_000;
 
 const LEVEL_COLORS = { Alarm: "#f2495c", Warning: "#ff9830", Normal: "#73bf69" };
+// the badge when nothing waits for someone but alarms are still active (acknowledged)
+const ACKED_COLOR = "#6b7280";
 
 const Wrapper = styled.div`
     position: relative;
@@ -149,7 +153,7 @@ const Actions = styled.div`
     margin-top: 6px;
 `;
 
-const Act = styled.button<{ $kind: "ack" | "shelve" | "unshelve" }>`
+const Act = styled.button<{ $kind: "ack" | "shelve" | "unshelve" | "reset" }>`
     flex: none;
     padding: 3px 8px;
     border: none;
@@ -157,7 +161,7 @@ const Act = styled.button<{ $kind: "ack" | "shelve" | "unshelve" }>`
     color: #fff;
     font-size: 11px;
     cursor: pointer;
-    background: ${(p) => ({ ack: "#2f855a", shelve: "#4a5568", unshelve: "#2b6cb0" })[p.$kind]};
+    background: ${(p) => ({ ack: "#2f855a", shelve: "#4a5568", unshelve: "#2b6cb0", reset: "#b7791f" })[p.$kind]};
 
     &:disabled {
         opacity: 0.5;
@@ -195,6 +199,10 @@ export const alarmStateText = (a: AlarmSummary): string => {
             return a.ackBy ? `active, acknowledged by ${a.ackBy}` : "active, acknowledged";
         case "rtn_unack":
             return "back to normal, unacknowledged";
+        case "latched":
+            return a.acked
+                ? `back to normal, waiting for a reset (acknowledged${a.ackBy ? ` by ${a.ackBy}` : ""})`
+                : "back to normal, waiting for a reset, unacknowledged";
         case "shelved":
             return `shelved until ${when(a.shelvedUntil)}`;
     }
@@ -255,6 +263,8 @@ export function AlarmNode({ data, selected }) {
     };
     const ack = (key?: string) =>
         act(() => acknowledgeAlarms(natsClient, userName, subject, data.nodeUid, key), key === undefined ? "Alarms acknowledged" : "Alarm acknowledged");
+    const reset = (key?: string) =>
+        act(() => resetAlarms(natsClient, userName, subject, data.nodeUid, key), "Alarm reset");
     const shelve = (m: number, key?: string) =>
         act(
             () => shelveAlarms(natsClient, userName, subject, data.nodeUid, m, key),
@@ -263,6 +273,7 @@ export function AlarmNode({ data, selected }) {
 
     const list = alarms ?? [];
     const toAttend = alarmsToAttend(alarms);
+    const ackedActive = alarmsAcknowledgedActive(alarms);
     let title = "Alarms: acknowledge and shelve";
     if (!subject) title = "The digital twin has no approval topic yet: save the pipeline and reload the viewer";
     else if (!natsClient) title = "Not connected";
@@ -284,6 +295,11 @@ export function AlarmNode({ data, selected }) {
                 >
                     {usable ? <Bell size={14} color="#e7e3df" /> : <Siren size={14} color="#e7e3df" />}
                     {toAttend > 0 && <Badge $color={worstToAttend(list)}>{toAttend > 99 ? "99+" : toAttend}</Badge>}
+                    {toAttend === 0 && ackedActive > 0 && (
+                        <Badge $color={ACKED_COLOR} title="Active alarms, already acknowledged">
+                            {ackedActive > 99 ? "99+" : ackedActive}
+                        </Badge>
+                    )}
                 </AlarmsButton>
                 <Label>{data?.label || "Alarm"}</Label>
                 {Array.from({ length: numOutputs }, (_, index) => (
@@ -337,6 +353,11 @@ export function AlarmNode({ data, selected }) {
                                 {a.canAck && (
                                     <Act $kind="ack" disabled={busy} onClick={() => ack(a.key)}>
                                         Acknowledge
+                                    </Act>
+                                )}
+                                {a.canReset && (
+                                    <Act $kind="reset" disabled={busy} onClick={() => reset(a.key)}>
+                                        Reset
                                     </Act>
                                 )}
                                 {a.shelved ? (

@@ -18,13 +18,18 @@ export interface AlarmSummary {
     key: string;
     name: string;
     level: "Normal" | "Warning" | "Alarm";
-    state: "active_unack" | "active_ack" | "rtn_unack" | "shelved";
+    state: "active_unack" | "active_ack" | "rtn_unack" | "latched" | "shelved";
     value: string;
     threshold?: string;
     raisedAt?: string;
     ackBy?: string;
     ackAt?: string;
     canAck: boolean;
+    canReset?: boolean; // latched and its value already back to normal
+    latched?: boolean;
+    latchedAt?: string;
+    active?: boolean; // its value is beyond the level now
+    acked?: boolean;
     shelved: boolean;
     shelvedUntil?: string;
     maxLevel?: string;
@@ -99,6 +104,23 @@ export const shelveAlarms = async (
     if (key !== undefined) body.key = key;
     check(await ask(natsClient, userName, subject, nodeUid, body), "the shelving");
 };
+
+// key undefined: all the latched alarms of the node whose value is back to normal
+export const resetAlarms = async (
+    natsClient: NatsConnection,
+    userName: string,
+    subject: string,
+    nodeUid: string,
+    key?: string,
+): Promise<void> => {
+    const body: Record<string, unknown> = { action: "reset" };
+    if (key !== undefined) body.key = key;
+    check(await ask(natsClient, userName, subject, nodeUid, body), "the reset");
+};
+
+// The alarms that are still active (or latched) but already acknowledged, not shelved
+export const alarmsAcknowledgedActive = (alarms: AlarmSummary[] | null): number =>
+    (alarms ?? []).filter((a) => !a.shelved && !a.canAck).length;
 
 // What the badge counts: the alarms waiting for someone (unacknowledged and not shelved)
 export const alarmsToAttend = (alarms: AlarmSummary[] | null): number => (alarms ?? []).filter((a) => a.canAck && !a.shelved).length;

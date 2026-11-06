@@ -17,6 +17,7 @@ import PlatformAssistantPageUser from "../pages/PlatformAssistantPageUser";
 import { PrivateRouteWithUserRole } from "./PrivateRouteWithUserRole";
 import DigitalTwinSimulatorMobilePage from "../pages/DigitalTwinSimulatorMobilePage";
 import ApprovalsPage from "../pages/ApprovalsPage";
+import AlarmsPage from "../pages/AlarmsPage";
 
 // react-toastify v11 inyecta su CSS automáticamente y usa el tema "light" por defecto.
 // Se usa el tema "colored" (success verde, error rojo, warning amarillo, info azul) y sin iconos.
@@ -51,6 +52,15 @@ const AppRouter: FC<{}> = () => {
                         element={
                             <PrivateRouteWithUserRole roleRequired="GroupAdmin">
                                 <ApprovalsPage />
+                            </PrivateRouteWithUserRole>
+                        }
+                    />
+
+                    <Route
+                        path="/alarms"
+                        element={
+                            <PrivateRouteWithUserRole roleRequired="GroupAdmin">
+                                <AlarmsPage />
                             </PrivateRouteWithUserRole>
                         }
                     />

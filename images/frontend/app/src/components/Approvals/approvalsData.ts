@@ -1,6 +1,7 @@
-// What the Approvals page asks: the Approval nodes of the pipelines of the digital twins the user manages that are
-// decided from the platform (channel "viewer" or "both"), each with the digital twin's "approval" NATS subject
-// and the names of its group and asset. The requests themselves are asked to pipelines (approvalRequests.ts).
+// What the Approvals and Alarms pages ask: the Approval nodes (decided from the platform: channel "viewer" or
+// "both") and the Alarm nodes of the pipelines of the digital twins the user manages, each with the digital twin's
+// "approval" NATS subject (both kinds of node answer on it) and the names of its group and asset. The requests
+// and the alarms themselves are asked to pipelines (approvalRequests.ts, alarmCommands.ts).
 import { mqttTopicToNatsSubject } from "../PlatformAssistant/DigitalTwin3DViewer/NatsHook/tools";
 import { APPROVAL_TOPIC_REF } from "../PlatformAssistant/DigitalTwin3DViewer/Pipeline/approvalRequests";
 
@@ -48,24 +49,37 @@ export interface ApprovalsAsset {
 // { "DT_<uid>": { "approval": "approval/Group_<uid>/Topic_<uid>", ... } }
 export type DigitalTwinMqttTopics = Record<string, Record<string, string>>;
 
-// The Approval nodes of a stored pipeline that are decided from the platform
-export const approvalNodesOfPipeline = (pipelineFileData: string | null | undefined): ApprovalNodeRef[] => {
+export type NodesOfPipeline = (pipelineFileData: string | null | undefined) => ApprovalNodeRef[];
+
+const pipelineNodes = (pipelineFileData: string | null | undefined): any[] => {
     if (!pipelineFileData) return [];
-    let nodes: unknown;
     try {
-        nodes = JSON.parse(pipelineFileData);
+        const nodes = JSON.parse(pipelineFileData);
+        return Array.isArray(nodes) ? nodes.filter((n) => n && n.nodeUid) : [];
     } catch {
         return [];
     }
-    if (!Array.isArray(nodes)) return [];
-    return nodes
-        .filter((n) => n && n.type === "Approval" && (n.settings?.channel ?? "viewer") !== "telegram" && n.nodeUid)
+};
+
+// The Approval nodes of a stored pipeline that are decided from the platform
+export const approvalNodesOfPipeline: NodesOfPipeline = (pipelineFileData) =>
+    pipelineNodes(pipelineFileData)
+        .filter((n) => n.type === "Approval" && (n.settings?.channel ?? "viewer") !== "telegram")
         .map((n) => ({
             nodeUid: String(n.nodeUid),
             name: String(n.name || "Approval"),
             title: String(n.settings?.title || "Approval request"),
         }));
-};
+
+// The Alarm nodes of a stored pipeline
+export const alarmNodesOfPipeline: NodesOfPipeline = (pipelineFileData) =>
+    pipelineNodes(pipelineFileData)
+        .filter((n) => n.type === "Alarm")
+        .map((n) => ({
+            nodeUid: String(n.nodeUid),
+            name: String(n.name || "Alarm"),
+            title: String(n.settings?.description || n.name || "Alarm"),
+        }));
 
 const assetName = (asset: ApprovalsAsset | undefined, assetId: number) =>
     asset ? asset.description || `Asset_${asset.assetUid}` : `Asset ${assetId}`;
@@ -80,12 +94,13 @@ export const buildApprovalTargets = (
     groups: ApprovalsGroup[],
     assets: ApprovalsAsset[],
     topicsByGroup: Record<number, DigitalTwinMqttTopics>,
+    nodesOf: NodesOfPipeline = approvalNodesOfPipeline,
 ): ApprovalTarget[] => {
     const groupById = new Map(groups.map((g) => [g.id, g]));
     const assetById = new Map(assets.map((a) => [a.id, a]));
     const targets: ApprovalTarget[] = [];
     for (const dt of digitalTwins) {
-        const nodes = approvalNodesOfPipeline(dt.pipelineFileData);
+        const nodes = nodesOf(dt.pipelineFileData);
         if (nodes.length === 0) continue;
         const mqttTopic = topicsByGroup[dt.groupId]?.[`DT_${dt.digitalTwinUid}`]?.[APPROVAL_TOPIC_REF];
         if (!mqttTopic) continue;
@@ -114,9 +129,20 @@ export const buildApprovalTargets = (
     );
 };
 
-// The groups that have digital twins with Approval nodes (for the page to ask their topics)
-export const groupsWithApprovalNodes = (digitalTwins: ApprovalsDigitalTwin[]): number[] =>
-    Array.from(new Set(digitalTwins.filter((dt) => approvalNodesOfPipeline(dt.pipelineFileData).length > 0).map((dt) => dt.groupId)));
+// The groups that have digital twins with such nodes (for the page to ask their topics)
+export const groupsWithApprovalNodes = (
+    digitalTwins: ApprovalsDigitalTwin[],
+    nodesOf: NodesOfPipeline | NodesOfPipeline[] = approvalNodesOfPipeline,
+): number[] => {
+    const kinds = Array.isArray(nodesOf) ? nodesOf : [nodesOf];
+    return Array.from(
+        new Set(
+            digitalTwins
+                .filter((dt) => kinds.some((nodes) => nodes(dt.pipelineFileData).length > 0))
+                .map((dt) => dt.groupId),
+        ),
+    );
+};
 
 // "in 25 min", "3 h ago"...
 export const relativeTime = (iso: string | undefined, now: number): string => {

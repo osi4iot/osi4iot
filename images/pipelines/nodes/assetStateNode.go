@@ -59,9 +59,17 @@ func CreateAssetStateNode(node common.NodeData, fm common.Manager, p common.Pipe
 	}
 
 	group := fm.GetGroup(p.GetGroupId())
+	if group == nil {
+		fm.Log().Errorf("AssetStateNode %s: the digital twin's group %d was not found", node.NodeUid, p.GetGroupId())
+		return nil, fmt.Errorf("the digital twin's group was not found")
+	}
 	groupUid := group.GroupUID
 	assetId := p.GetAssetId()
-	asset := fm.GetAssetById(assetId)
+	asset := fm.GetOrLoadAsset(context.Background(), p.GetGroupId(), assetId)
+	if asset == nil {
+		fm.Log().Errorf("AssetStateNode %s: the digital twin's asset %d was not found", node.NodeUid, assetId)
+		return nil, fmt.Errorf("the digital twin's asset was not found")
+	}
 	assetUid := asset.AssetUid
 	var customState map[string]any = make(map[string]any)
 

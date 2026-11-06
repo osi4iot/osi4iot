@@ -851,6 +851,21 @@ export const AlarmSettingsEditor: FC<{ settings: AlarmSettings; onChange: OnChan
             <CheckLabel>
                 <CheckboxInput
                     type="checkbox"
+                    checked={!!settings.latched}
+                    onChange={(e: { target: { checked: boolean } }) => onChange("latched", e.target.checked)}
+                />
+                Latched: back to normal only with a reset
+            </CheckLabel>
+            {settings.latched && (
+                <Note style={{ marginTop: 6, marginBottom: 8 }}>
+                    When the value is back to normal the alarm stays ("waiting for a reset") and keeps the asset status, until an
+                    administrator of the group resets it on the Alarms page or with the node's button. If the value goes beyond the
+                    level again before the reset, it is the same alarm (event reactivated).
+                </Note>
+            )}
+            <CheckLabel>
+                <CheckboxInput
+                    type="checkbox"
                     checked={!!settings.statusOutput}
                     onChange={(e: { target: { checked: boolean } }) => {
                         onChange("statusOutput", e.target.checked);
@@ -871,6 +886,8 @@ export const AlarmSettingsEditor: FC<{ settings: AlarmSettings; onChange: OnChan
                 <Note style={{ marginTop: 6 }}>
                     The asset's status becomes the worst of the active alarms of all the Alarm nodes that do this (other
                     fields of its state are kept). Nothing else should write the status, or they will overwrite each other.
+                    Each alarm that is not normal is also listed in the state's alarms (level, state, acknowledgement),
+                    written when it changes, not with each value.
                 </Note>
             )}
             <Note style={{ marginTop: 10 }}>
@@ -1027,6 +1044,20 @@ export const MachineStateSettingsEditor: FC<{ settings: MachineStateSettings; on
                 placeholder=""
                 onChange={(v) => onChange("keyPath", v)}
             />
+            <CheckLabel style={{ marginTop: 8 }}>
+                <CheckboxInput
+                    type="checkbox"
+                    checked={!!settings.updateAssetState}
+                    onChange={(e: { target: { checked: boolean } }) => onChange("updateAssetState", e.target.checked)}
+                />
+                Show the state in the asset state
+            </CheckLabel>
+            {settings.updateAssetState && (
+                <Note style={{ marginTop: 6 }}>
+                    Each change of state is written in the asset state's machines (state, since, previous state), where the
+                    Asset state node, Telegram and the AI agents read it. The status of the asset is not changed.
+                </Note>
+            )}
             <Note style={{ marginTop: 10 }}>
                 Output 0: each change of state. Output 1: the time in each state and the number of changes, per period.
             </Note>

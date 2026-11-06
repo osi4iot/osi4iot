@@ -981,7 +981,7 @@ Use this node whenever a pipeline must react to live data published on NATS or M
         description: "An alarm on one field, with Warning and Alarm levels, acknowledgement and shelving.",
 
         details:
-            "The Alarm node watches one field and keeps the state of an alarm, in the spirit of ISA-18.2. The condition can be high (the value reaches or exceeds a level), low (reaches or falls below) or equals (a code, true...), with two levels, Warning and Alarm (either or both). The hysteresis keeps a level until the value is clearly back (an alarm at 25 with hysteresis 1 clears below 24), and the delays require the condition to hold a while before activating or clearing. Events are sent only on transitions: raised, escalated (Warning → Alarm), deescalated, cleared (with its duration and the highest level reached), acknowledged, shelved, unshelved. An active alarm stays unacknowledged until a message with payload.ack arrives; an alarm that clears without acknowledgement stays 'back to normal, unacknowledged'. Shelving silences an alarm for some minutes: its events are not sent and it does not count for the asset status. Each event has a text in 'message', ready for an Email or Telegram node.",
+            "The Alarm node watches one field and keeps the state of an alarm, in the spirit of ISA-18.2. The condition can be high (the value reaches or exceeds a level), low (reaches or falls below) or equals (a code, true...), with two levels, Warning and Alarm (either or both). The hysteresis keeps a level until the value is clearly back (an alarm at 25 with hysteresis 1 clears below 24), and the delays require the condition to hold a while before activating or clearing. Events are sent only on transitions: raised, escalated (Warning → Alarm), deescalated, cleared (with its duration and the highest level reached), acknowledged, shelved, unshelved. An active alarm stays unacknowledged until a message with payload.ack arrives; an alarm that clears without acknowledgement stays 'back to normal, unacknowledged'. Shelving silences an alarm for some minutes: its events are not sent and it does not count for the asset status. A latched alarm does not clear by itself: when the value is back to normal it stays 'waiting for a reset' (event latched) and keeps counting for the asset status until a user resets it (event reset, which also acknowledges it), on the Alarms page, with the node's button or with payload.rearm (true: all; a text: one key); if the value goes beyond the level again before, it is the same alarm (event reactivated). The Alarms page (home page) lists the alarms that are not normal of all the digital twins of the user's groups. Each event has a text in 'message', ready for an Email or Telegram node.",
 
         params: [
             { name: "Property", description: "Path of the field watched." },
@@ -990,11 +990,12 @@ Use this node whenever a pipeline must react to live data published on NATS or M
             { name: "Hysteresis", description: "How far back the value must go to leave a level (high and low)." },
             { name: "Delays (s)", description: "On: the condition must hold this long to activate or escalate. Off: to deescalate or clear." },
             { name: "Key", description: "One alarm per value (e.g. per sensor); empty: one alarm." },
+            { name: "Latched", description: "Back to normal only with a reset by a user (for trips and protections)." },
             { name: "Status output", description: "Output 1: payload.state = {status, state_description} when the node's status (the worst of its keys) changes, for an Asset state node." },
             {
                 name: "Update the asset status directly",
                 description:
-                    "The node writes the status of the digital twin's asset itself: the worst of the active alarms of all the Alarm nodes that have this option, keeping the other fields of the state. Nothing else should write the status then.",
+                    "The node writes the status of the digital twin's asset itself: the worst of the active alarms of all the Alarm nodes that have this option, keeping the other fields of the state. Nothing else should write the status then. Each alarm that is not normal is also listed in the state's 'alarms' (name, level, state, threshold, acknowledgement, shelving), updated when they change and not with each value, and removed when it is back to normal.",
             },
         ],
 
@@ -1054,6 +1055,11 @@ Use this node whenever a pipeline must react to live data published on NATS or M
             { name: "Summary every (min)", description: "A partial summary of the current period every N minutes (0: only at its end)." },
             { name: "Time zone", description: "Of the days and shifts (IANA name); empty: the group's (or UTC)." },
             { name: "Key", description: "One machine per value; empty: a single machine." },
+            {
+                name: "Show the state in the asset state",
+                description:
+                    "Each change of state is written in the asset state's 'machines' (state, since, previous state), where the Asset state node, Telegram and the AI agents read it, without a Function and an Asset state node. The asset's status is not changed.",
+            },
         ],
 
         outputExamples: [
@@ -2046,7 +2052,7 @@ Use this node whenever a pipeline must react to live data published on NATS or M
         description: "Sets, updates, or retrieves the state of the current asset or the assets in the current group.",
 
         details:
-            "The AssetState node manages asset state information in the IoT DB (the asset state table of the platform's time-series database), where the TelegramListen node reads it too. It supports three actions. 'Set or update state of current asset' stores the current asset state, and sends a message on its output only when the status changes (with status, previousStatus, the state and a text in 'message'), so that any change of status can be notified by an Email or Telegram node, whoever sets it. In that mode, the state can come from a custom JSON object configured in the node or from 'msg.payload.state'. 'Get state of current asset' reads the current asset state and adds it to the outgoing payload under 'state', together with 'state_description'. 'Get states of assets in current group' reads the states of all assets in the current group and adds them to the outgoing payload under 'assetStates'. An asset whose state has never been set has the status 'Unknown'. When reading state data, the node ensures that 'status' is always present, defaulting to 'Unknown' if missing. It also ensures that 'state_description' is present when returning state information.",
+            "The AssetState node manages asset state information in the IoT DB (the asset state table of the platform's time-series database), where the TelegramListen node reads it too. It supports three actions. 'Set or update state of current asset' stores the current asset state, and sends a message on its output only when the status changes (with status, previousStatus, the state and a text in 'message'), so that any change of status can be notified by an Email or Telegram node, whoever sets it. In that mode, the state can come from a custom JSON object configured in the node or from 'msg.payload.state', and it replaces the stored one except its 'alarms' and 'machines', which the Alarm and Machine state nodes write. 'Get state of current asset' reads the current asset state and adds it to the outgoing payload under 'state', together with 'state_description'. 'Get states of assets in current group' reads the states of all assets in the current group and adds them to the outgoing payload under 'assetStates'. An asset whose state has never been set has the status 'Unknown'. When reading state data, the node ensures that 'status' is always present, defaulting to 'Unknown' if missing. It also ensures that 'state_description' is present when returning state information.",
 
         params: [
             {

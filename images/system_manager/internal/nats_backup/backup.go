@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/nats-io/jsm.go"
+	"github.com/nats-io/jsm.go/api"
 
 	"system_manager/internal/schedule"
 	"system_manager/internal/task"
@@ -19,7 +20,8 @@ import (
 // DR-backup use case.
 const snapshotTimeout = 5 * time.Minute
 
-// Backup snapshots every JetStream stream (data + consumer state) and
+// Backup snapshots every JetStream stream kept in disk (data + consumer
+// state) and
 // uploads each one, tarred and gzipped, to a fresh timestamped "run" in
 // S3, then prunes old runs down to cfg.retain. Implements
 // task.Scheduled, so it's reachable both on its own daily timer (see
@@ -65,12 +67,17 @@ func (b Backup) Run(ctx context.Context, params map[string]any) (string, error) 
 		return "", fmt.Errorf("creating JetStream manager: %w", err)
 	}
 
-	streams, _, _, err := mgr.Streams(nil)
+	all, _, _, err := mgr.Streams(nil)
 	if err != nil {
 		return "", fmt.Errorf("listing streams: %w", err)
 	}
-	if len(streams) == 0 {
+	if len(all) == 0 {
 		return "no NATS streams found; nothing to back up", nil
+	}
+	streams, inMemory := streamsToBackUp(all)
+	if len(streams) == 0 {
+		return fmt.Sprintf("no NATS streams in disk; nothing to back up (%d in memory skipped: %v)",
+			len(inMemory), inMemory), nil
 	}
 
 	s3c, err := newS3Client(ctx, b.cfg)
@@ -120,6 +127,10 @@ func (b Backup) Run(ctx context.Context, params map[string]any) (string, error) 
 	}
 
 	deleted, retainErr := applyRetention(ctx, s3c, b.cfg.retain)
+	skipped := ""
+	if len(inMemory) > 0 {
+		skipped = fmt.Sprintf("; skipped %d stream(s) in memory", len(inMemory))
+	}
 	if retainErr != nil {
 		// The backup itself already succeeded and is safe in S3 — a
 		// retention hiccup is worth surfacing but shouldn't turn a
@@ -128,8 +139,8 @@ func (b Backup) Run(ctx context.Context, params map[string]any) (string, error) 
 		// runDeleteRetain's caller in patroni_sidecar/main.go: "Success
 		// is defined by backup-push alone").
 		return fmt.Sprintf(
-			"Backed up %d NATS stream(s) to s3://%s/%s (run %s); retention cleanup failed: %v",
-			len(uploaded), b.cfg.s3Bucket, b.cfg.s3Prefix, run, retainErr), nil
+			"Backed up %d NATS stream(s) to s3://%s/%s (run %s)%s; retention cleanup failed: %v",
+			len(uploaded), b.cfg.s3Bucket, b.cfg.s3Prefix, run, skipped, retainErr), nil
 	}
 
 	msg := fmt.Sprintf("Backed up %d NATS stream(s) to s3://%s/%s (run %s):\n",
@@ -137,8 +148,30 @@ func (b Backup) Run(ctx context.Context, params map[string]any) (string, error) 
 	for _, name := range uploaded {
 		msg += fmt.Sprintf("  - %s\n", name)
 	}
+	if len(inMemory) > 0 {
+		msg += fmt.Sprintf("Skipped %d stream(s) in memory (not backed up): %v\n", len(inMemory), inMemory)
+	}
 	if len(deleted) > 0 {
 		msg += fmt.Sprintf("Pruned %d old run(s): %v\n", len(deleted), deleted)
 	}
 	return msg, nil
+}
+
+// streamsToBackUp splits the streams into those kept in disk, which are
+// backed up, and the names of those kept in memory, which are skipped:
+// NATS cannot snapshot a memory stream ("memory streams do not support
+// snapshots"), and one would make the whole run fail. A memory stream holds
+// nothing meant to outlive the NATS servers anyway — pipelines keeps its
+// leases there (KV pipelines_shard_N_leader_mem, keys with a TTL), which are
+// taken again by itself — so a restore does not need it, and Restore,
+// which only touches the streams of the run, leaves it alone.
+func streamsToBackUp(streams []*jsm.Stream) (inDisk []*jsm.Stream, inMemory []string) {
+	for _, s := range streams {
+		if s.Storage() == api.MemoryStorage {
+			inMemory = append(inMemory, s.Name())
+			continue
+		}
+		inDisk = append(inDisk, s)
+	}
+	return inDisk, inMemory
 }

@@ -26,6 +26,7 @@ import LlmModelsController from "./components/organization/llmModels.controller"
 import LlmUsageController from "./components/llmUsage/llmUsage.controller";
 import SkillController from "./components/skill/skill.controller";
 import { seedBuiltinSkills } from "./components/skill/skillStorage";
+import { createMissingAssetStateRows } from "./components/asset/assetStateDAL";
 
 const main = async (): Promise<void> => {
 	try {
@@ -41,6 +42,16 @@ const main = async (): Promise<void> => {
 			} catch (err) {
 				const message = err instanceof Error ? err.message : String(err);
 				logger.log("error", "The pipeline topics of the digital twins could not be migrated: %s", message);
+			}
+		}
+		// the row of each asset in the IoT DB's asset states (assets of older versions)
+		if (process_env.REPLICA === "1") {
+			try {
+				const created = await createMissingAssetStateRows();
+				if (created > 0) logger.log("info", `Asset states created for ${created} assets`);
+			} catch (err) {
+				const message = err instanceof Error ? err.message : String(err);
+				logger.log("error", "The missing asset states could not be created: %s", message);
 			}
 		}
 		// the platform's built-in skills, in the bucket (they do not stop the start if they fail)

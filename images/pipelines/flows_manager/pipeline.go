@@ -892,6 +892,7 @@ func (p *Pipeline) Start(ctx context.Context, needReinitialization bool) {
 	}
 
 	p.LeaderElector.Start(ctx)
+	p.pruneAssetStateProjections(ctx)
 	for _, node := range nodes {
 		node.Start(ctx, p.Fm.log, needReinitialization)
 	}
@@ -922,6 +923,12 @@ func (p *Pipeline) Start(ctx context.Context, needReinitialization bool) {
 			return
 		}
 	}
+}
+
+// pruneAssetStateProjections removes the entries of the asset state written
+// by nodes of the digital twin that no longer write them.
+func (p *Pipeline) pruneAssetStateProjections(ctx context.Context) {
+	nodes.PruneAssetStateProjections(ctx, p.Fm, p, p.GetNodes())
 }
 
 func (p *Pipeline) StartStatusPublisher(ctx context.Context) {

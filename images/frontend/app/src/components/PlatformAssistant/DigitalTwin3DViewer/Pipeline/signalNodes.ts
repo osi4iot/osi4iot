@@ -258,6 +258,7 @@ export interface AlarmSettings {
     keyPath?: string;
     statusOutput?: boolean;
     updateAssetStatus?: boolean;
+    latched?: boolean;
 }
 
 export const alarmNumOutputs = (s: AlarmSettings) => (s.statusOutput ? 2 : 1);
@@ -301,6 +302,7 @@ export interface MachineStateSettings {
     timezone?: string;
     shifts?: string[];
     summaryEveryMinutes?: number;
+    updateAssetState?: boolean;
 }
 
 export const machineStateProblems = (s: MachineStateSettings): string[] => {
@@ -696,6 +698,7 @@ export const SIGNAL_DEFAULT_SETTINGS: Record<SignalNodeType, Record<string, unkn
         keyPath: "",
         statusOutput: false,
         updateAssetStatus: false,
+        latched: false,
     },
     Rainflow: {
         field: "payload.value",
@@ -812,6 +815,7 @@ export const SIGNAL_DEFAULT_SETTINGS: Record<SignalNodeType, Record<string, unkn
         timezone: "",
         shifts: [],
         summaryEveryMinutes: 0,
+        updateAssetState: false,
     },
     Switch: {
         property: "payload.value",

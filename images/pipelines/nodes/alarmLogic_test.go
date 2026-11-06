@@ -198,3 +198,79 @@ func TestAlarmViewerSummaryAndOrder(t *testing.T) {
 		t.Fatalf("shelved summary: %v", list[3])
 	}
 }
+
+// A latched alarm: back to normal, it stays (and keeps the asset status)
+// until it is reset; active again before the reset, it is the same alarm.
+func TestAlarmLatched(t *testing.T) {
+	cfg := mustAlarmConfig(t, map[string]any{"condition": "high", "warning": 70, "alarm": 85, "units": "°C", "latched": true})
+	r := &alarmRun{t: t, cfg: cfg, t0: time.Date(2026, 11, 6, 10, 0, 0, 0, time.UTC)}
+	reset := func(seconds float64, user string) []string {
+		res := cfg.rearm(r.state, "", user, r.at(seconds))
+		r.state = res.Next
+		return kinds(res)
+	}
+
+	expectEvents(t, "raise", r.value(0, 90.0), "raised")
+	expectEvents(t, "reset while active does nothing", reset(1, "ana"))
+	expectEvents(t, "ack", r.ack(5*60, "ana"), "acknowledged")
+
+	res, _ := cfg.evaluate(r.state, "", "t", 60.0, r.at(20*60))
+	expectEvents(t, "back to normal", kinds(res), "latched")
+	r.state = res.Next
+	if res.Events[0]["level"] != "Alarm" || r.state.stateName(r.at(20*60)) != "latched" {
+		t.Fatalf("latched event: %v", res.Events[0])
+	}
+	if r.state.effectiveLevel(r.at(20*60)) != alarmAlarm {
+		t.Fatal("a latched alarm keeps the asset status")
+	}
+	s := cfg.viewerSummary(r.state, "", r.at(20*60))
+	if s["canReset"] != true || s["canAck"] != false || s["level"] != "Alarm" || s["active"] != false || s["acked"] != true {
+		t.Fatalf("summary: %v", s)
+	}
+
+	// active again before the reset: the same alarm, still acknowledged
+	expectEvents(t, "again", r.value(30*60, 88.0), "reactivated")
+	if !r.state.Acked || r.state.RaisedAt != r.at(0).UnixMilli() {
+		t.Fatalf("reactivated: %+v", r.state)
+	}
+	expectEvents(t, "normal again", r.value(35*60, 50.0), "latched")
+
+	res = cfg.rearm(r.state, "", "luis", r.at(60*60))
+	expectEvents(t, "reset", kinds(res), "reset")
+	r.state = res.Next
+	e := res.Events[0]
+	if e["resetBy"] != "luis" || e["state"] != "normal" || e["durationSeconds"] != 3600.0 || e["maxLevel"] != "Alarm" {
+		t.Fatalf("reset event: %v", e)
+	}
+	if cfg.viewerSummary(r.state, "", r.at(60*60)) != nil || r.state.effectiveLevel(r.at(60*60)) != alarmNone {
+		t.Fatal("after the reset the alarm is normal")
+	}
+	// a new occurrence is a new alarm
+	expectEvents(t, "new", r.value(61*60, 80.0), "raised")
+}
+
+func TestAlarmLatchedUnacknowledgedAndEscalation(t *testing.T) {
+	cfg := mustAlarmConfig(t, map[string]any{"condition": "high", "warning": 70, "alarm": 85, "latched": true})
+	r := &alarmRun{t: t, cfg: cfg, t0: time.Now()}
+	r.value(0, 75.0)
+	expectEvents(t, "normal", r.value(1, 10.0), "latched")
+	s := cfg.viewerSummary(r.state, "", r.at(1))
+	if s["canAck"] != true || s["canReset"] != true || s["level"] != "Warning" {
+		t.Fatalf("unacknowledged latched: %v", s)
+	}
+	// reactivated above the level it reached: escalated, a new acknowledgement is needed
+	r.ack(2, "ana")
+	expectEvents(t, "escalate", r.value(3, 90.0), "escalated")
+	if r.state.Acked {
+		t.Fatal("an escalation removes the acknowledgement")
+	}
+	// the reset also acknowledges
+	r.value(4, 10.0)
+	res := cfg.rearm(r.state, "", "ana", r.at(5))
+	if r.state = res.Next; r.state.stateName(r.at(5)) != "normal" {
+		t.Fatalf("after reset: %s", r.state.stateName(r.at(5)))
+	}
+	if _, _, _, _, err := parseAlarmViewerRequest([]byte(`{"action":"reset","key":"S1"}`)); err != nil {
+		t.Fatal(err)
+	}
+}

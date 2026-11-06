@@ -86,15 +86,25 @@ func ModifyKV(ctx context.Context, kv jetstream.KeyValue, key string, fn ModifyF
 	return nil, fmt.Errorf("%s: %w", key, ErrModifyConflict)
 }
 
+// jsErrCodeStreamWrongLastSequenceConstant is the "wrong last sequence"
+// (without the sequence) that a clustered stream (replicas > 1) answers
+// when the expected revision is not the last one; nats.go has no constant
+// for it.
+const jsErrCodeStreamWrongLastSequenceConstant jetstream.ErrorCode = 10164
+
 // isRevisionConflict says whether a write failed because the key changed
-// (wrong last sequence) or was created meanwhile.
+// (wrong last sequence, also in its clustered form) or was created
+// meanwhile.
 func isRevisionConflict(err error) bool {
 	if errors.Is(err, jetstream.ErrKeyExists) {
 		return true
 	}
 	var apiErr *jetstream.APIError
-	if errors.As(err, &apiErr) && apiErr.ErrorCode == jetstream.JSErrCodeStreamWrongLastSequence {
-		return true
+	if errors.As(err, &apiErr) {
+		switch apiErr.ErrorCode {
+		case jetstream.JSErrCodeStreamWrongLastSequence, jsErrCodeStreamWrongLastSequenceConstant:
+			return true
+		}
 	}
 	return false
 }

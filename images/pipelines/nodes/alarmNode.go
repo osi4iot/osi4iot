@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"pipelines/common"
+	"pipelines/iotdb"
 	"pipelines/logger"
 	"pipelines/utils"
 
@@ -27,7 +28,9 @@ import (
 // when the node's status changes (the worst of its keys), for an AssetState
 // node. With updateAssetStatus, the node also writes the asset's status
 // itself: the worst of the active alarms of all the Alarm nodes of the
-// digital twin that do so, kept in a registry in the KV.
+// digital twin that do so, kept in a registry in the KV; and each of its
+// alarms that is not normal in the asset state's "alarms" (when its level,
+// state, acknowledgement or shelving changes, not with each value).
 type AlarmNode struct {
 	BaseNode
 	cfg          *alarmConfig
@@ -117,6 +120,21 @@ func (n *AlarmNode) processMessage(msg common.Message, log *logger.Logger) error
 		if all || target != "" {
 			return n.command(msg, all, target, log, func(s *alarmState, key string) alarmStepResult {
 				return n.cfg.acknowledge(s, key, user, now)
+			})
+		}
+	}
+	// rearm (latched alarms): true resets all of them, a text one key
+	if rearm, ok := payload["rearm"]; ok {
+		target, all := "", false
+		switch v := rearm.(type) {
+		case bool:
+			all = v
+		case string:
+			target = v
+		}
+		if all || target != "" {
+			return n.command(msg, all, target, log, func(s *alarmState, key string) alarmStepResult {
+				return n.cfg.rearm(s, key, user, now)
 			})
 		}
 	}
@@ -213,10 +231,60 @@ func (n *AlarmNode) tick(now time.Time, log *logger.Logger) {
 	}
 }
 
+// AssetStateSection: the section of the asset state the node writes.
+func (n *AlarmNode) AssetStateSection() string {
+	if n.updateAsset {
+		return iotdb.AssetStateAlarms
+	}
+	return ""
+}
+
+// assetEntry is what the asset state shows of an alarm (nil when normal):
+// the viewer's summary, with the value of its last change.
+func (n *AlarmNode) assetEntry(s *alarmState, key string, now time.Time) map[string]any {
+	if s == nil {
+		return nil
+	}
+	return n.cfg.viewerSummary(s, key, now)
+}
+
+// sameAssetEntry: two entries that differ only in the value (it changes with
+// each message while the alarm is active: it is not written for that).
+func sameAssetEntry(a, b map[string]any) bool {
+	if (a == nil) != (b == nil) {
+		return false
+	}
+	strip := func(m map[string]any) map[string]any {
+		out := make(map[string]any, len(m))
+		for k, v := range m {
+			if k != "value" {
+				out[k] = v
+			}
+		}
+		return out
+	}
+	return reflect.DeepEqual(strip(a), strip(b))
+}
+
+// projectAlarm writes the alarm's entry in the asset state when it changed.
+func (n *AlarmNode) projectAlarm(key string, before, after *alarmState, now time.Time) {
+	if !n.updateAsset {
+		return
+	}
+	old, next := n.assetEntry(before, key, now), n.assetEntry(after, key, now)
+	if sameAssetEntry(old, next) {
+		return
+	}
+	if err := n.projectEntry(iotdb.AssetStateAlarms, key, next); err != nil {
+		n.HandleError(fmt.Errorf("updating the alarms of the asset state: %w", err))
+	}
+}
+
 // publish sends the events (not while shelved, except the shelving ones)
 // and updates the status summaries when the alarm's weight changed.
 func (n *AlarmNode) publish(from common.Message, key string, before *alarmState, result alarmStepResult, now time.Time, log *logger.Logger) {
 	after := result.Next
+	n.projectAlarm(key, before, after, now)
 	for _, e := range result.Events {
 		kind, _ := e["event"].(string)
 		if after.shelved(now) && kind != "shelved" {
@@ -323,6 +391,9 @@ func (n *AlarmNode) reset(key string, all bool, log *logger.Logger) error {
 				n.HandleError(fmt.Errorf("updating the asset status: %w", err))
 			}
 		})
+		if err := n.removeProjection(iotdb.AssetStateAlarms, all, key); err != nil {
+			n.HandleError(fmt.Errorf("updating the alarms of the asset state: %w", err))
+		}
 	}
 	n.HandleInfo("Alarm state reset")
 	return nil
@@ -417,12 +488,27 @@ func (n *AlarmNode) processViewerMessage(msg *nats.Msg, log *logger.Logger) erro
 		err = n.command(nil, all, key, log, func(s *alarmState, k string) alarmStepResult {
 			return n.cfg.shelve(s, k, d, user, now)
 		})
+	case "reset":
+		if !n.cfg.Latched {
+			reply(map[string]any{"ok": false, "error": "this alarm is not latched: it goes back to normal by itself"})
+			return nil
+		}
+		reset := 0
+		err = n.command(nil, all, key, log, func(s *alarmState, k string) alarmStepResult {
+			r := n.cfg.rearm(s, k, user, now)
+			reset += len(r.Events)
+			return r
+		})
+		if err == nil && reset == 0 {
+			reply(map[string]any{"ok": false, "error": "nothing to reset: the value is still beyond the level"})
+			return nil
+		}
 	}
 	if err != nil {
 		reply(map[string]any{"ok": false, "error": err.Error()})
 		return err
 	}
-	n.HandleInfo(fmt.Sprintf("Alarm %s by %s from the viewer", map[string]string{"ack": "acknowledged", "shelve": "shelving changed"}[req.Action], user))
+	n.HandleInfo(fmt.Sprintf("Alarm %s by %s from the viewer", map[string]string{"ack": "acknowledged", "shelve": "shelving changed", "reset": "reset"}[req.Action], user))
 	reply(map[string]any{"ok": true})
 	return nil
 }

@@ -6,17 +6,20 @@ import (
 	"time"
 
 	"pipelines/common"
+	"pipelines/iotdb"
 	"pipelines/logger"
 )
 
 // MachineStateNode derives the operating state of a machine and its times
 // per day or shift (machineStateLogic.go). Output 0: the state changes;
 // output 1: the summaries (at the end of each period, and every N minutes
-// if set).
+// if set). With updateAssetState, each state change is also written in the
+// asset state's "machines" (state, since, previous state).
 type MachineStateNode struct {
 	BaseNode
-	cfg   *machineConfig
-	state *signalState
+	cfg         *machineConfig
+	state       *signalState
+	updateAsset bool
 }
 
 func CreateMachineStateNode(node common.NodeData, fm common.Manager, p common.Pipeline) (*MachineStateNode, error) {
@@ -30,7 +33,11 @@ func CreateMachineStateNode(node common.NodeData, fm common.Manager, p common.Pi
 		fm.Log().Errorf("MachineStateNode %s: %v", node.NodeUid, err)
 		return nil, fmt.Errorf("machine state node: %w", err)
 	}
-	n := &MachineStateNode{BaseNode: newSignalBase(node, fm, p, "MachineState"), cfg: cfg}
+	n := &MachineStateNode{
+		BaseNode:    newSignalBase(node, fm, p, "MachineState"),
+		cfg:         cfg,
+		updateAsset: settingBool(node.Settings, "updateAssetState", false),
+	}
 	n.state = newSignalState(&n.BaseNode)
 	return n, nil
 }
@@ -44,6 +51,12 @@ func (n *MachineStateNode) Start(ctx context.Context, log *logger.Logger, needRe
 
 func (n *MachineStateNode) processMessage(msg common.Message, log *logger.Logger) error {
 	if n.state.handleReset(msg, log) {
+		if n.updateAsset {
+			_, partition := resetRequest(msg.GetPayload())
+			if err := n.removeProjection(iotdb.AssetStateMachines, partition == "", partition); err != nil {
+				n.HandleError(fmt.Errorf("updating the machines of the asset state: %w", err))
+			}
+		}
 		return nil
 	}
 	topic, payload := msg.GetTopic(), msg.GetPayload()
@@ -95,4 +108,35 @@ func (n *MachineStateNode) emit(from common.Message, topic string, out machineOu
 	for _, c := range out.Changes {
 		n.sendToOutput(emitMessage(from, topic, c), 0, log)
 	}
+	if n.updateAsset && len(out.Changes) > 0 {
+		last := out.Changes[len(out.Changes)-1]
+		key, _ := last["key"].(string)
+		if err := n.projectEntry(iotdb.AssetStateMachines, key, machineAssetEntry(n.Name, key, last)); err != nil {
+			n.HandleError(fmt.Errorf("updating the machines of the asset state: %w", err))
+		}
+	}
+}
+
+// AssetStateSection: the section of the asset state the node writes.
+func (n *MachineStateNode) AssetStateSection() string {
+	if n.updateAsset {
+		return iotdb.AssetStateMachines
+	}
+	return ""
+}
+
+// machineAssetEntry is what the asset state shows of a machine: its last
+// change of state.
+func machineAssetEntry(name, key string, change map[string]any) map[string]any {
+	who := name
+	if key != "" {
+		who += " (" + key + ")"
+	}
+	entry := map[string]any{"name": who, "key": key}
+	for _, field := range []string{"state", "since", "previousState", "message"} {
+		if v, ok := change[field]; ok {
+			entry[field] = v
+		}
+	}
+	return entry
 }

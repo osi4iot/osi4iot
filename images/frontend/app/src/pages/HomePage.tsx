@@ -12,9 +12,9 @@ import { Concept, CONCEPTS, useHeroStore } from "../components/HomeHero/heroStat
 import { useIsUserAuth } from "../contexts/authContext";
 import { useUserRole } from "../state/sessionStore";
 import { useEnsureUserRole } from "../tools/useEnsureUserRole";
-import { usePendingApprovalsCount } from "../components/Approvals/useApprovals";
+import { usePlatformCounts } from "../components/Approvals/useApprovals";
 
-// Approvals: only for the administrators of a group (or of an organization or the platform)
+// Approvals and Alarms: only for the administrators of a group (or of an organization or the platform)
 const ADMIN_ROLES = ["GroupAdmin", "OrgAdmin", "PlatformAdmin"];
 
 // La escena 3D (three.js, postprocesado) se descarga aparte para no retrasar el resto de la aplicación
@@ -196,12 +196,12 @@ const SecondaryLink = styled(NavLink)`
     ${secondary}
 `;
 
-// pending requests on the Approvals button
-const PendingBadge = styled.span`
+// pending requests on the Approvals button, alarms on the Alarms button
+const PendingBadge = styled.span<{ $muted?: boolean }>`
     min-width: 20px;
     padding: 0 6px;
     border-radius: 10px;
-    background-color: #f2495c;
+    background-color: ${({ $muted }) => ($muted ? "#4b5563" : "#f2495c")};
     color: #ffffff;
     font: 600 12px/20px ${text};
     text-align: center;
@@ -381,7 +381,13 @@ const HomePage: FC<{}> = () => {
     const userRole = useUserRole();
     useEnsureUserRole();
     const showApprovals = isUserAuth && ADMIN_ROLES.includes(userRole);
-    const pendingApprovals = usePendingApprovalsCount(showApprovals);
+    const counts = usePlatformCounts(showApprovals);
+    const pendingApprovals = counts.approvals;
+    const alarmsToAttend = counts.alarms?.toAttend ?? 0;
+    const alarmsAcked = counts.alarms?.active ?? 0;
+    const alarmsLabel = ["Alarms", alarmsToAttend ? `${alarmsToAttend} to acknowledge` : "", alarmsAcked ? `${alarmsAcked} active, acknowledged` : ""]
+        .filter(Boolean)
+        .join(", ");
 
     const openDashboards = () => window.open(`${protocol}://${domainName}/grafana/`, "_blank");
     const focused = CONCEPTS.find((c) => c.key === focus);
@@ -424,6 +430,21 @@ const HomePage: FC<{}> = () => {
                                 Approvals
                                 {!!pendingApprovals && (
                                     <PendingBadge aria-hidden="true">{pendingApprovals > 99 ? "99+" : pendingApprovals}</PendingBadge>
+                                )}
+                            </SecondaryLink>
+                        )}
+                        {showApprovals && (
+                            <SecondaryLink end to="/alarms" aria-label={alarmsLabel}>
+                                Alarms
+                                {alarmsToAttend > 0 && (
+                                    <PendingBadge aria-hidden="true" title="To acknowledge">
+                                        {alarmsToAttend > 99 ? "99+" : alarmsToAttend}
+                                    </PendingBadge>
+                                )}
+                                {alarmsAcked > 0 && (
+                                    <PendingBadge aria-hidden="true" $muted title="Active, acknowledged">
+                                        {alarmsAcked > 99 ? "99+" : alarmsAcked}
+                                    </PendingBadge>
                                 )}
                             </SecondaryLink>
                         )}

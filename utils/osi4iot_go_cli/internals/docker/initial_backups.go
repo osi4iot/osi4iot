@@ -171,8 +171,9 @@ func takeNatsBackup(pd *pt.PlatformData, dc *pt.DockerClient, logger *log.Logger
 	reportInitialBackup(logger, target, output)
 }
 
-// waitForNatsStreams polls until at least one JetStream stream exists or
-// the wait is over, and returns how many there are. An error means the
+// waitForNatsStreams polls until at least one JetStream stream to back up
+// (in disk, see BackedUpStreams) exists or the wait is over, and returns
+// how many there are. An error means the
 // streams could not be listed at all.
 func waitForNatsStreams(pd *pt.PlatformData, dc *pt.DockerClient, wait time.Duration) (int, error) {
 	// Counted in polls rather than against the clock, so the tests'
@@ -180,8 +181,8 @@ func waitForNatsStreams(pd *pt.PlatformData, dc *pt.DockerClient, wait time.Dura
 	const poll = 5 * time.Second
 	for waited := time.Duration(0); ; waited += poll {
 		streams, err := initialListNatsStreams(pd, dc)
-		if err == nil && len(streams) > 0 {
-			return len(streams), nil
+		if n := len(BackedUpStreams(streams)); err == nil && n > 0 {
+			return n, nil
 		}
 		if waited >= wait {
 			if err != nil {

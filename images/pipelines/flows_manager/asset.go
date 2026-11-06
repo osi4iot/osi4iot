@@ -24,6 +24,25 @@ func (fm *FlowsManager) GetAssetById(assetId int) *common.Asset {
 	return nil
 }
 
+// GetOrLoadAsset is GetAssetById, asking admin_api for an asset that is not
+// known yet (one created after the service started, if the admin message
+// that announces it was missed).
+func (fm *FlowsManager) GetOrLoadAsset(ctx context.Context, groupId, assetId int) *common.Asset {
+	if asset := fm.GetAssetById(assetId); asset != nil {
+		return asset
+	}
+	if fm.Admin == nil || groupId == 0 || assetId == 0 {
+		return nil
+	}
+	asset := fm.Admin.GetAsset(ctx, groupId, assetId)
+	if asset == nil || asset.Id != assetId {
+		return nil
+	}
+	fm.log.Infof("Asset %d (%s) loaded from admin_api", asset.Id, asset.AssetUid)
+	fm.AddAsset(ctx, asset)
+	return fm.GetAssetById(assetId)
+}
+
 func (fm *FlowsManager) GetAssetByUid(assetUid string) *common.Asset {
 	var foundAsset *common.Asset
 	fm.Assets.Range(func(key, value interface{}) bool {
@@ -69,12 +88,10 @@ func (fm *FlowsManager) AddAssets(ctx context.Context, assets []*common.Asset) {
 
 func (fm *FlowsManager) UpdateAsset(asset *common.Asset) error {
 	assetIdStr := strconv.Itoa(asset.Id)
-	if _, ok := fm.Assets.Load(assetIdStr); ok {
-		fm.Assets.Store(assetIdStr, asset)
-	} else {
-		fm.log.Warnf("Asset with ID %d does not exist for update", asset.Id)
-		return common.ErrNotFound
+	if _, ok := fm.Assets.Load(assetIdStr); !ok {
+		fm.log.Infof("Asset with ID %d was not known: added", asset.Id)
 	}
+	fm.Assets.Store(assetIdStr, asset)
 	return nil
 }
 

@@ -1,4 +1,5 @@
 import { v4 as uuidv4 } from "uuid";
+import { deleteAssetStatesOfGroup, moveAssetStatesOfGroup } from "../asset/assetStateDAL";
 import { canonicalTimeZone } from "../../utils/validators/isTimeZone";
 import { logger } from "../../config/winston";
 import crypto from "crypto";
@@ -730,6 +731,7 @@ export const changeGroupUidByUid = async (group: IGroup): Promise<string> => {
 	const oldGroupUid = group.groupUid;
 	const newGroupUid = uuidv4().replace(/-/g, "_");
 	await pool.query("UPDATE grafanadb.group SET group_uid = $1 WHERE group_uid = $2", [newGroupUid, oldGroupUid]);
+	await moveAssetStatesOfGroup(oldGroupUid, newGroupUid);
 	await deleteView(oldGroupUid);
 	await createView(group);
 	return newGroupUid;
@@ -737,6 +739,7 @@ export const changeGroupUidByUid = async (group: IGroup): Promise<string> => {
 
 export const deleteGroup = async (group: IGroup, orgKey: string): Promise<string> => {
 	const response = await pool.query("DELETE FROM grafanadb.group WHERE id = $1 RETURNING *", [group.id]);
+	await deleteAssetStatesOfGroup(group.groupUid);
 	await grafanaApi.deleteFolderByUid(group.orgId, group.folderUid, orgKey);
 	await grafanaApi.deleteTeamById(group.orgId, group.teamId);
 	await deleteView(group.groupUid);

@@ -31,14 +31,16 @@ var (
 	natsScaleRestore       = RestoreNatsBackupFromS3
 )
 
-// backupNatsStreamsForScale backs every JetStream stream up to S3 and
-// returns the name of the run holding them, or "" if there are no
-// streams to carry over.
+// backupNatsStreamsForScale backs every JetStream stream in disk up to S3
+// and returns the name of the run holding them, or "" if there are no
+// streams to carry over. The streams in memory are not backed up (see
+// BackedUpStreams): their owners create them again on the new cluster.
 func backupNatsStreamsForScale(pd *pt.PlatformData, dc *pt.DockerClient) (string, error) {
-	streams, err := natsScaleListStreams(pd, dc)
+	all, err := natsScaleListStreams(pd, dc)
 	if err != nil {
 		return "", fmt.Errorf("error listing the NATS streams: %w", err)
 	}
+	streams := BackedUpStreams(all)
 	if len(streams) == 0 {
 		fmt.Println("No JetStream streams to carry over to the cluster.")
 		return "", nil

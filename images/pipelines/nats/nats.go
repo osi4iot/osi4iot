@@ -167,6 +167,21 @@ func CreateAdminConsumer(
 	return consumer, nil
 }
 
+// CreateLeaderKeyValueStore creates the shard's KV of leases (the leaders of
+// the pipelines and the locks of GPU, knowledge bases and FEM results). Its
+// keys expire by themselves (ttl), so it is kept in memory: nothing of it
+// has to survive a restart of NATS (the replicas just elect again).
+//
+// NATS cannot snapshot memory streams, so system_manager's nats_streams
+// backups skip it (system_manager >= the version that skips memory streams:
+// an older one fails the whole backup with "memory streams do not support
+// snapshots").
+//
+// The storage of a bucket cannot change, so the memory one has a new name;
+// the former bucket in disk is deleted, which also takes the leadership away
+// from replicas of a previous version still running during an update (their
+// renewals fail and they stop leading), instead of having two leaders. It is
+// also deleted if a restore of an old backup brings it back.
 func CreateLeaderKeyValueStore(
 	ctx context.Context,
 	shardIndex int,
@@ -178,11 +193,12 @@ func CreateLeaderKeyValueStore(
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 
-	kvName := fmt.Sprintf("pipelines_shard_%d_leader", shardIndex)
+	kvName := LeaderKeyValueStoreName(shardIndex)
 	kv, err := js.CreateOrUpdateKeyValue(ctx, jetstream.KeyValueConfig{
 		Bucket:   kvName,
 		TTL:      ttl,
 		Replicas: numStreamReplicas,
+		Storage:  jetstream.MemoryStorage,
 	})
 
 	if err != nil {
@@ -194,10 +210,22 @@ func CreateLeaderKeyValueStore(
 		}
 	}
 
+	legacyName := fmt.Sprintf("pipelines_shard_%d_leader", shardIndex)
+	if err := js.DeleteKeyValue(ctx, legacyName); err == nil {
+		log.Infof("KV store '%s' (in disk, replaced by '%s') deleted", legacyName, kvName)
+	} else if !errors.Is(err, jetstream.ErrBucketNotFound) && !errors.Is(err, jetstream.ErrStreamNotFound) {
+		log.Warnf("Could not delete the former KV store '%s': %v", legacyName, err)
+	}
+
 	newKvStore := NewKVStore(kv, log)
 
-	log.Infof("KV store '%s' created successfully", kvName)
+	log.Infof("KV store '%s' (in memory) created successfully", kvName)
 	return newKvStore, nil
+}
+
+// LeaderKeyValueStoreName is the name of the shard's KV of leases.
+func LeaderKeyValueStoreName(shardIndex int) string {
+	return fmt.Sprintf("pipelines_shard_%d_leader_mem", shardIndex)
 }
 
 func CreateGroupKeyValueStore(

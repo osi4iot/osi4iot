@@ -17,6 +17,9 @@ import (
 type Manager interface {
 	GetAssets() []*Asset
 	GetAssetById(assetId int) *Asset
+	// GetOrLoadAsset is GetAssetById, asking admin_api for an asset not
+	// known yet (created after the service started).
+	GetOrLoadAsset(ctx context.Context, groupId, assetId int) *Asset
 	GetAssetByUid(assetUid string) *Asset
 	GetAssetsByGroupId(groupId int) []*Asset
 	GetAssetByShortUidAndGroupId(shortUid string, groupId int) *Asset
