@@ -19,6 +19,8 @@ import { AxiosResponse, AxiosError } from "axios";
 import NatsConnect from "../tools/Natsconnection";
 import MobileVideoForm from "../components/Tools/MobileVideoForm";
 import MobileAudioForm from "../components/Tools/MobileAudioForm";
+import MobileGeolocationForm from "../components/Tools/MobileGeolocationForm";
+import { findMobileTopic, isMobileSensorType } from "../tools/mobileSensors";
 
 const LoadingItem = styled.div`
     background-color: #202226;
@@ -76,8 +78,9 @@ const MobileSensorsPage: FC<ChildrenProp> = ({ children }) => {
             .then((response: AxiosResponse<any, any>) => {
                 if (cancelled) return;
 
+                // every asset with at least one mobile sensor (admin_api already lists only those)
                 const mobileTopicsData: IMobileTopic[] = response.data;
-                const mobileTopics = mobileTopicsData.filter((mobileTopic) => mobileTopic.sensorType !== "geolocation");
+                const mobileTopics = mobileTopicsData.filter((mobileTopic) => isMobileSensorType(mobileTopic.sensorType));
                 if (mobileTopics.length !== 0) {
                     setMobileTopicsManaged(mobileTopics);
                     setMobileTopicSelected(mobileTopics[0]);
@@ -126,9 +129,14 @@ const MobileSensorsPage: FC<ChildrenProp> = ({ children }) => {
         };
     }, [userName, accessToken]);
 
+    // The form opens by the sensor's type, not its description: a sensor of
+    // type "Mobile accelerations" described "Front axle phone" opens the
+    // accelerations form.
     const handleMobileSensorSelection = (values: any, actions: any) => {
-        const mobileSensorSelected = values.mobileSensorDescription;
-        setMobileSensorSelected(mobileSensorSelected);
+        const topic = findMobileTopic(mobileTopicsManaged, values.assetName, values.mobileSensorDescription);
+        if (!topic) return;
+        setMobileTopicSelected(topic);
+        setMobileSensorSelected(topic.sensorType);
     };
 
     return (
@@ -145,6 +153,14 @@ const MobileSensorsPage: FC<ChildrenProp> = ({ children }) => {
                             initialMobileSensorData={initialMobileSensorData as InitialMobileSensorData}
                             setInitialMobileSensorData={setInitialMobileSensorData}
                             setMobileTopicSelected={setMobileTopicSelected}
+                        />
+                    )}
+                    {mobileSensorSelected === "Mobile geolocation" && (
+                        <MobileGeolocationForm
+                            natsClient={natsClientRef.current as NatsConnection}
+                            isNatsConnected={isNatsConnected}
+                            setMobileSensorSelected={setMobileSensorSelected}
+                            mobileTopicSelected={mobileTopicSelected as IMobileTopic}
                         />
                     )}
                     {mobileSensorSelected === "Mobile accelerations" && (

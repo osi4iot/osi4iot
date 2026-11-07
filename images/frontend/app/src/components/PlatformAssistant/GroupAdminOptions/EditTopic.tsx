@@ -21,16 +21,9 @@ import axiosErrorHandler from "../../../tools/axiosErrorHandler";
 import { FieldContainer } from "./EditAsset";
 import { AxiosResponse, AxiosError } from "axios";
 
-// CodeMirror imports
-import CodeMirror, { keymap } from "@uiw/react-codemirror";
-import { indentUnit, indentOnInput } from "@codemirror/language";
-import { completionKeymap } from "@codemirror/autocomplete";
-import { indentWithTab } from "@codemirror/commands";
-import { json } from "@codemirror/lang-json";
-import { oneDark } from "@codemirror/theme-one-dark";
-import { CodeMirrorWrapper } from "../../Tools/CodeMirrorWrapper";
-import { ControlsContainer, DraggableFormContainer, FieldErrorScroller } from "../../Tools/FormTools";
-import { ReIndentCommand } from "../DigitalTwin3DViewer/Pipeline/types";
+import { ControlsContainer, DraggableFormContainer } from "../../Tools/FormTools";
+import MessageSchemaField from "./MessageSchemaField";
+import { isMessageSchemaEditable, messageSchemaText, messageSchemaTextError } from "../../../tools/messageSchema";
 
 const topicTypeOptions = [
     {
@@ -106,7 +99,7 @@ interface IFormikValues {
     topicType: string;
     description: string;
     mqttAccessControl: string;
-    payloadJsonSchema: string;
+    messageSchema: string;
 }
 
 type FormikType = FormikProps<IFormikValues>;
@@ -145,7 +138,8 @@ const EditTopic: FC<EdiTopicProps> = ({ topics, backToTable, refreshTopics }) =>
             topicType: values.topicType,
             description: values.description,
             mqttAccessControl: values.mqttAccessControl,
-            payloadJsonSchema: values.payloadJsonSchema,
+            // only the schemas written by the user are sent: the platform computes the others
+            ...(isMessageSchemaEditable(values.topicType) ? { messageSchema: values.messageSchema } : {}),
         };
 
         getAxiosInstance(refreshToken, authDispatch)
@@ -170,13 +164,21 @@ const EditTopic: FC<EdiTopicProps> = ({ topics, backToTable, refreshTopics }) =>
         topicType: topics[topicRowIndex].topicType,
         description: topics[topicRowIndex].description,
         mqttAccessControl: topics[topicRowIndex].mqttAccessControl,
-        payloadJsonSchema: JSON.stringify(JSON.parse(topics[topicRowIndex].payloadJsonSchema), null, 4),
+        // the API gives the schema as a JSON object (older versions, as a string)
+        messageSchema: messageSchemaText(topics[topicRowIndex].messageSchema),
     };
 
     const validationSchema = Yup.object().shape({
         topicType: Yup.string().max(40, "The maximum number of characters allowed is 40").required("Required"),
         description: Yup.string().max(190, "The maximum number of characters allowed is 190").required("Required"),
-        payloadJsonSchema: Yup.string().required("Required"),
+        messageSchema: Yup.string().when("topicType", {
+            is: (topicType: string) => isMessageSchemaEditable(topicType),
+            then: (schema) =>
+                schema.required("Required").test("messageSchema", (value, context) => {
+                    const error = messageSchemaTextError(value);
+                    return error ? context.createError({ message: error }) : true;
+                }),
+        }),
     });
 
     const onCancel = (e: SyntheticEvent) => {
@@ -216,40 +218,16 @@ const EditTopic: FC<EdiTopicProps> = ({ topics, backToTable, refreshTopics }) =>
                                     options={mqttAccessControlOptions}
                                     type="text"
                                 />
-                                <CodeMirrorWrapper fontSize="14px">
-                                    <label>Payload json schema</label>
-                                    <div className="cm-wrapper">
-                                        <CodeMirror
-                                            value={formik.values.payloadJsonSchema}
-                                            height="300px"
-                                            theme={oneDark}
-                                            extensions={[
-                                                json(),
-                                                indentUnit.of("    "),
-                                                indentOnInput(),
-                                                keymap.of([...completionKeymap, indentWithTab, ReIndentCommand]),
-                                            ]}
-
-                                            onChange={(value) => {
-                                                formik.setFieldValue("payloadJsonSchema", value);
-                                            }}
-                                            onBlur={() => {
-                                                formik.setFieldTouched("payloadJsonSchema", true);
-                                            }}
-                                            basicSetup={{
-                                                lineNumbers: true,
-                                                foldGutter: true,
-                                                bracketMatching: true,
-                                                closeBrackets: true,
-                                                syntaxHighlighting: true,
-                                                autocompletion: true,
-                                                tabSize: 4,
-                                                searchKeymap: true,
-                                            }}
-                                        />
-                                    </div>
-                                    <FieldErrorScroller name="payloadJsonSchema" />
-                                </CodeMirrorWrapper>
+                                <MessageSchemaField
+                                    formik={formik}
+                                    storedTopic={{
+                                        groupId,
+                                        topicId,
+                                        topicType: topics[topicRowIndex].topicType,
+                                        messageSchema: topics[topicRowIndex].messageSchema,
+                                        messageSchemaVersion: topics[topicRowIndex].messageSchemaVersion,
+                                    }}
+                                />
                             </ControlsContainer>
                             <FormButtonsProps
                                 onCancel={onCancel}

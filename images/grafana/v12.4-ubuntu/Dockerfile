@@ -11,6 +11,13 @@ COPY grafana.ini /etc/grafana/grafana.ini
 COPY data/default_datasource.yml /etc/grafana/provisioning/datasources/default.yml
 COPY entry_script.sh /src/scripts/entry_script.sh
 
+# The home dashboard Grafana shows when the organization's own one (a
+# preference set by admin_api) cannot be read by the user — e.g. a user who
+# is not a member of the organization. Without this file, Grafana answers
+# "Failed to load home dashboard". Grafana has no volume, so it lives in the
+# image, at grafana.ini's default_home_dashboard_path.
+COPY --chown=472:0 data/home_dashboard.json /var/lib/grafana/data/home_dashboard.json
+
 RUN chmod +x /src/scripts/entry_script.sh
 
 # Grafana 12 has no AngularJS: only React panel plugins load. Clock (>= 1.1),
@@ -29,4 +36,3 @@ HEALTHCHECK --interval=10s --timeout=5s --start-period=180s --retries=5 \
   CMD curl -f localhost:5000/api/health || exit 1
 
 ENTRYPOINT ["/src/scripts/entry_script.sh"]
-

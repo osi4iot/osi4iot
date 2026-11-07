@@ -704,7 +704,10 @@ export const findMaterial = (obj: any, materials: Record<string, THREE.MeshStand
 				objMaterial = materials[materialName].clone();
 				objMaterial.transparent = true;
 				objMaterial.opacity = 1;
-				objMaterial.side = 2;
+				// Both faces, except for the glass and liquids of glTF (KHR_materials_transmission): with
+				// both faces their back walls are refracted too, and they look milky. They keep the
+				// side of the model (doubleSided).
+				if (!((objMaterial as THREE.MeshPhysicalMaterial).transmission > 0)) objMaterial.side = 2;
 				if (objMaterial.name === "") {
 					objMaterial.name = `${obj.name}_material`;
 				}

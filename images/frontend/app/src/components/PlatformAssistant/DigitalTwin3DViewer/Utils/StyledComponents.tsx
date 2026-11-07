@@ -16,8 +16,11 @@ import { BsChatDotsFill } from "react-icons/bs";
 import { SlidersHorizontal, Logs, Box, RotateCcw, RefreshCw, Download, CircleX, Upload, Play, Camera } from "lucide-react";
 
 // Layout components
+// background of the 3D viewer: the container and the scene (see the <color> of the Canvas)
+export const VIEWER_BACKGROUND_COLOR = "#212121";
+
 export const CanvasContainer = styled.div`
-    background-color: #212121;
+    background-color: ${VIEWER_BACKGROUND_COLOR};
     height: 100%;
     color: white;
     width: 100%;

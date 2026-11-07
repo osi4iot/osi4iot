@@ -27,6 +27,14 @@ interface Placement {
 // Último texto copiado, por si el navegador no deja leer el portapapeles en el evento "paste"
 let internalClipboard: string | null = null;
 
+type ClipboardKey = "c" | "x" | "v";
+// time the browser's clipboard event has to arrive after Ctrl/Cmd+C, X or V
+// before the editor does it itself (Firefox delays "paste" while it reads
+// the system clipboard)
+export const FALLBACK_DELAY_MS = 300;
+// a clipboard event later than this is not taken as caused by the press
+const PRESS_WINDOW_MS = 2000;
+
 const isEditableTarget = (target: EventTarget | null) =>
     target instanceof Element &&
     !!target.closest('input, textarea, select, [contenteditable]:not([contenteditable="false"]), .cm-editor');
@@ -75,6 +83,8 @@ export const usePipelineEditing = ({
     const [isPlacing, setIsPlacing] = useState(false);
     const lastPointer = useRef<{ x: number; y: number } | null>(null);
     const swallowClick = useRef(false);
+    // the last Ctrl/Cmd+C, X or V on the canvas (a ref: it outlives a re-run of the keyboard effect)
+    const pressRef = useRef<{ key: ClipboardKey; at: number; done: boolean } | null>(null);
 
     const takeSnapshot = useCallback(() => {
         const last = past.current[past.current.length - 1];
@@ -251,24 +261,45 @@ export const usePipelineEditing = ({
             return { selectedNodes, groupEdges, ids };
         };
 
-        const copySelection = (event: ClipboardEvent) => {
+        // Firefox does not always fire "copy", "cut" and "paste" with the
+        // nodes of the canvas selected (no text selection, no editable
+        // focus), and when it does, "paste" may come late (it waits for the
+        // system clipboard). Chrome fires them at once. So Ctrl/Cmd+C, X and V
+        // are also watched in keydown, and each press is done once, by
+        // whichever comes first: the clipboard event, or the editor itself
+        // (Clipboard API and internalClipboard) a moment later.
+
+        // whether the caller does the action of a press of key: an event not
+        // caused by a recent press (the browser's Edit menu) always does it
+        const claim = (key: ClipboardKey) => {
+            const press = pressRef.current;
+            if (!press || press.key !== key || Date.now() - press.at > PRESS_WINDOW_MS) return true;
+            if (press.done) return false;
+            press.done = true;
+            return true;
+        };
+
+        // without an event (Firefox), the text goes to the system clipboard through the Clipboard API
+        const copySelection = (event?: ClipboardEvent) => {
             const { selectedNodes, groupEdges } = selectedGroup();
             if (selectedNodes.length === 0) return 0;
             const text = pipelineYamlText(pipelineToYamlNodes(selectedNodes, groupEdges));
             internalClipboard = text;
-            event.clipboardData?.setData("text/plain", text);
-            event.preventDefault();
+            if (event) {
+                event.clipboardData?.setData("text/plain", text);
+                event.preventDefault();
+            } else {
+                navigator.clipboard?.writeText(text).catch(() => undefined);
+            }
             return selectedNodes.length;
         };
 
-        const onCopy = (event: ClipboardEvent) => {
-            if (!inScope(event.target) || placementRef.current) return;
+        const copy = (event?: ClipboardEvent) => {
             const count = copySelection(event);
             if (count) toast.info(`${count} node(s) copied`, { autoClose: 1500 });
         };
 
-        const onCut = (event: ClipboardEvent) => {
-            if (!inScope(event.target) || placementRef.current) return;
+        const cut = (event?: ClipboardEvent) => {
             const { ids } = selectedGroup();
             const count = copySelection(event);
             if (!count) return;
@@ -280,12 +311,22 @@ export const usePipelineEditing = ({
             toast.info(`${count} node(s) cut`, { autoClose: 1500 });
         };
 
-        const onPaste = (event: ClipboardEvent) => {
-            if (!inScope(event.target)) return;
-            const systemText = event.clipboardData?.getData("text/plain") ?? "";
-            const yamlNodes = parsePipelineYaml(systemText || internalClipboard);
-            if (!yamlNodes) return;
-            event.preventDefault();
+        const onCopy = (event: ClipboardEvent) => {
+            if (!inScope(event.target) || placementRef.current) return;
+            if (claim("c")) copy(event);
+            else if (selectedGroup().selectedNodes.length > 0) event.preventDefault();
+        };
+
+        const onCut = (event: ClipboardEvent) => {
+            if (!inScope(event.target) || placementRef.current) return;
+            if (claim("x")) cut(event);
+            else if (selectedGroup().selectedNodes.length > 0) event.preventDefault();
+        };
+
+        // returns whether the text held nodes of a pipeline
+        const paste = (text: string | null): boolean => {
+            const yamlNodes = parsePipelineYaml(text);
+            if (!yamlNodes) return false;
             const { nodes: groupNodes, edges: groupEdges } = createNodesAndEdges(
                 [],
                 [],
@@ -294,6 +335,41 @@ export const usePipelineEditing = ({
                 latest.current.natsSubjectsData,
             );
             startPlacement(groupNodes, groupEdges, true);
+            return true;
+        };
+
+        const onPaste = (event: ClipboardEvent) => {
+            if (!inScope(event.target)) return;
+            const systemText = event.clipboardData?.getData("text/plain") ?? "";
+            const text = systemText || internalClipboard;
+            if (!claim("v")) {
+                // already pasted by the editor: only keep the browser from doing anything else
+                if (parsePipelineYaml(text)) event.preventDefault();
+                return;
+            }
+            if (paste(text)) event.preventDefault();
+        };
+
+        // what the clipboard event would have done, if it did not come
+        const runPress = async (key: ClipboardKey) => {
+            if (!claim(key)) return;
+            if (key === "c") {
+                if (!placementRef.current) copy();
+                return;
+            }
+            if (key === "x") {
+                if (!placementRef.current) cut();
+                return;
+            }
+            // the system clipboard if the browser lets read it (Firefox >= 125
+            // asks with a "Paste" button), else the nodes copied here
+            let systemText = "";
+            try {
+                systemText = (await navigator.clipboard?.readText?.()) ?? "";
+            } catch {
+                systemText = "";
+            }
+            if (!paste(systemText) && systemText !== internalClipboard) paste(internalClipboard);
         };
 
         const onKeyDown = (event: KeyboardEvent) => {
@@ -307,6 +383,12 @@ export const usePipelineEditing = ({
             const key = /^[a-z]$/i.test(event.key) ? event.key.toLowerCase() : event.code.replace(/^Key/, "").toLowerCase();
             if (placementRef.current && (key === "z" || key === "y")) {
                 event.preventDefault();
+                return;
+            }
+            if ((key === "c" || key === "x" || key === "v") && !event.shiftKey) {
+                // the browser's clipboard event, if any, comes right after this keydown
+                pressRef.current = { key, at: Date.now(), done: false };
+                window.setTimeout(() => void runPress(key), FALLBACK_DELAY_MS);
                 return;
             }
             if (key === "z" && !event.shiftKey) {

@@ -29,6 +29,7 @@ import { usePersistentState } from "../../../../state/uiStore";
 // Styled components
 import {
     CanvasContainer,
+    VIEWER_BACKGROUND_COLOR,
     SelectedObjectInfoContainer,
     ObjectInfoContainer,
     ObjectInfo,
@@ -1028,6 +1029,10 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
                         }}
                         camera={{ position: [4, 4, 0], zoom: 300 }}
                     >
+                        {/* Opaque background, the colour of CanvasContainer. With the transparent canvas of R3F
+                            (clear alpha 0), three.js fills what glass and liquids (KHR_materials_transmission)
+                            see behind them with white at 50%, and they look milky. */}
+                        <color attach="background" args={[VIEWER_BACKGROUND_COLOR]} />
                         <ShaderPrewarm gltfData={digitalTwinGltfData} />
                         <Stage
                             controls={controlsRef}

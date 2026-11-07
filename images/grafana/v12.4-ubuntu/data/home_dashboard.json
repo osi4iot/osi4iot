@@ -1,0 +1,34 @@
+{
+  "title": "Home",
+  "uid": "osi4iot-fallback-home",
+  "editable": false,
+  "schemaVersion": 41,
+  "version": 1,
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "timepicker": {
+    "hidden": true
+  },
+  "tags": [],
+  "links": [],
+  "panels": [
+    {
+      "id": 1,
+      "type": "text",
+      "title": "",
+      "transparent": true,
+      "gridPos": {
+        "h": 12,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "options": {
+        "mode": "markdown",
+        "content": "## Welcome to the OSI4IOT platform\n\nYour organization's home dashboard could not be shown to your user.\n\nThis usually means that **your user is not a member of this organization** (or of the group whose folder holds its home dashboard), so it has no permission to see it.\n\n- If you belong to several organizations, switch to yours with the organization selector (your profile menu, top right).\n- Otherwise, ask the platform or organization administrator to add your user to the organization and to its groups.\n\nOnce you are a member, your organization's home dashboard and the dashboards of your groups appear here."
+      }
+    }
+  ]
+}

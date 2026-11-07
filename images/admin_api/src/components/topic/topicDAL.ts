@@ -129,6 +129,21 @@ export const getAllTopics = async (): Promise<ITopic[]> => {
 	return response.rows as ITopic[];
 };
 
+// The sensors the "Mobile sensors" page can feed from a phone, each with the
+// topic type its form publishes to. Any asset with at least one of them is
+// listed, whatever its asset type (not only "Mobile" or "Assembly with
+// mobile"): a sensor on a topic of another type is left out, because the
+// page could not publish to it.
+export const MOBILE_SENSOR_TYPES_BY_TOPIC_TYPE: Record<string, string[]> = {
+	dev2pdb_wt: ["Mobile geolocation", "Mobile accelerations", "Mobile orientation", "Mobile motion"],
+	dev2dtm: ["Mobile photo", "Mobile video", "Mobile audio"],
+};
+
+const MOBILE_SENSOR_CONDITION = `((grafanadb.topic.topic_type = 'dev2pdb_wt' AND grafanadb.sensor_type.type = ANY($1::text[]))
+		OR (grafanadb.topic.topic_type = 'dev2dtm' AND grafanadb.sensor_type.type = ANY($2::text[])))`;
+
+const MOBILE_SENSOR_PARAMS = [MOBILE_SENSOR_TYPES_BY_TOPIC_TYPE.dev2pdb_wt, MOBILE_SENSOR_TYPES_BY_TOPIC_TYPE.dev2dtm];
+
 export const getAllMobileTopics = async (): Promise<IMobileTopic[]> => {
 	const response = await readQuery(
 		`SELECT grafanadb.topic.id, 
@@ -146,14 +161,13 @@ export const getAllMobileTopics = async (): Promise<IMobileTopic[]> => {
 		INNER JOIN grafanadb.org ON grafanadb.group.org_id = grafanadb.org.id
 		INNER JOIN grafanadb.asset_topic ON grafanadb.topic.id = grafanadb.asset_topic.topic_id
 		INNER JOIN grafanadb.asset ON grafanadb.asset_topic.asset_id = grafanadb.asset.id
-		INNER JOIN grafanadb.asset_type ON grafanadb.asset.asset_type_id = grafanadb.asset_type.id
 		INNER JOIN grafanadb.sensor ON grafanadb.sensor.asset_id = grafanadb.asset.id
 		INNER JOIN grafanadb.sensor_type ON grafanadb.sensor_type.id = grafanadb.sensor.sensor_type_id
-		WHERE ((grafanadb.asset_type.type = 'Mobile' OR grafanadb.asset_type.type = 'Assembly with mobile') AND
-		(grafanadb.sensor.topic_id = grafanadb.topic.id))
+		WHERE grafanadb.sensor.topic_id = grafanadb.topic.id AND ${MOBILE_SENSOR_CONDITION}
 		ORDER BY grafanadb.org.acronym ASC,
 				grafanadb.group.acronym ASC,
-				grafanadb.topic.id  ASC;`
+				grafanadb.topic.id  ASC;`,
+		MOBILE_SENSOR_PARAMS
 	);
 	return response.rows as IMobileTopic[];
 };
@@ -226,16 +240,14 @@ export const getMobileTopicsByGroupsIdArray = async (groupsIdArray: number[]): P
 		INNER JOIN grafanadb.org ON grafanadb.group.org_id = grafanadb.org.id
 		INNER JOIN grafanadb.asset_topic ON grafanadb.topic.id = grafanadb.asset_topic.topic_id
 		INNER JOIN grafanadb.asset ON grafanadb.asset_topic.asset_id = grafanadb.asset.id
-		INNER JOIN grafanadb.asset_type ON grafanadb.asset.asset_type_id = grafanadb.asset_type.id
 		INNER JOIN grafanadb.sensor ON grafanadb.sensor.asset_id = grafanadb.asset.id
 		INNER JOIN grafanadb.sensor_type ON grafanadb.sensor_type.id = grafanadb.sensor.sensor_type_id
-		WHERE ((grafanadb.topic.group_id = ANY($1::bigint[])) AND
-			(grafanadb.asset_type.type = 'Mobile' OR grafanadb.asset_type.type = 'Assembly with mobile') AND
-			(grafanadb.sensor.topic_id = grafanadb.topic.id))
+		WHERE grafanadb.sensor.topic_id = grafanadb.topic.id AND ${MOBILE_SENSOR_CONDITION} AND
+			grafanadb.topic.group_id = ANY($3::bigint[])
 		ORDER BY grafanadb.org.acronym ASC,
 			grafanadb.group.acronym ASC,
 			grafanadb.topic.id  ASC;`,
-		[groupsIdArray]
+		[...MOBILE_SENSOR_PARAMS, groupsIdArray]
 	);
 	return response.rows as IMobileTopic[];
 };
