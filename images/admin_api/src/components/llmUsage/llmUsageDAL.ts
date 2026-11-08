@@ -8,11 +8,12 @@
 import pool, { readQuery } from "../../config/dbconfig";
 import timescaledb_pool, { timescaledbReadQuery } from "../../config/timescaledb_config";
 
-// How long the usage rows are kept: 13 months and a bit, so that a month can be compared with the same
-// month of the previous year. The table, its retention policy and the monthly continuous aggregate are
-// created when the metrics cluster is bootstrapped (patroni_metrics/templates/init_metrics.sql.template):
-// these two values must match the intervals set there.
-export const LLM_USAGE_RETENTION_DAYS = 400;
+// How long the usage rows are kept: 2 years, so that a month can be compared with the same month of the
+// previous year. The table, its retention policy and the monthly continuous aggregate are created when the
+// metrics cluster is bootstrapped (patroni_metrics/templates/init_metrics.sql.template): these two values
+// must match the intervals set there. The clusters created with another retention get this one at
+// admin_api's start (ensureEventHistoryTables).
+export const LLM_USAGE_RETENTION_DAYS = 730;
 
 // The long-term trend: monthly totals by organization, node type, provider and model (a continuous
 // aggregate of the rows, a few rows per organization and month), kept for this many years.

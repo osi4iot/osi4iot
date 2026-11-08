@@ -381,7 +381,11 @@ func (c *alarmConfig) shelve(state *alarmState, key string, d time.Duration, use
 			return alarmStepResult{Next: state}
 		}
 		next.ShelvedUntil = 0
-		return alarmStepResult{Events: []map[string]any{c.event("unshelved", next, key, now, fmt.Sprintf("%s is no longer shelved", c.Name))}, Next: next}
+		e := c.event("unshelved", next, key, now, fmt.Sprintf("%s is no longer shelved", c.Name))
+		if user != "" {
+			e["shelvedBy"] = user
+		}
+		return alarmStepResult{Events: []map[string]any{e}, Next: next}
 	}
 	next.ShelvedUntil = now.Add(d).UnixMilli()
 	text := fmt.Sprintf("%s shelved for %s", c.Name, humanDuration(d))
@@ -390,6 +394,9 @@ func (c *alarmConfig) shelve(state *alarmState, key string, d time.Duration, use
 	}
 	e := c.event("shelved", next, key, now, text)
 	e["shelvedUntil"] = isoTime(time.UnixMilli(next.ShelvedUntil))
+	if user != "" {
+		e["shelvedBy"] = user
+	}
 	return alarmStepResult{Events: []map[string]any{e}, Next: next}
 }
 

@@ -20,9 +20,14 @@ import SensorController from "./components/sensor/sensor.controller";
 import natsClient from "./config/natsConfig";
 import process_env from "./config/api_config";
 import { migrateDigitalTwinsPipelineTopics } from "./components/digitalTwin/digitalTwinDAL";
+import { migrateAssetDeviceTopicRefs } from "./components/asset/assetTopicRefs";
 import S3FolderController from "./components/s3_folder/s3_folder.controller";
 import GroupKnowledgeController from "./components/group/groupKnowledge.controller";
 import LlmModelsController from "./components/organization/llmModels.controller";
+import AlarmHistoryController from "./components/alarmHistory/alarmHistory.controller";
+import ApprovalHistoryController from "./components/approvalHistory/approvalHistory.controller";
+import { ensureEventHistoryTables } from "./utils/eventHistory/eventHistory";
+import { LLM_USAGE_RETENTION_DAYS } from "./components/llmUsage/llmUsageDAL";
 import LlmUsageController from "./components/llmUsage/llmUsage.controller";
 import SkillController from "./components/skill/skill.controller";
 import { seedBuiltinSkills } from "./components/skill/skillStorage";
@@ -52,6 +57,15 @@ const main = async (): Promise<void> => {
 				logger.log("error", "The pipeline topics of the digital twins could not be migrated: %s", message);
 			}
 		}
+		// device topics of the assets named by their type (dev2dtm_n, dtm2dev_n; the mobile asset had dev2pdb_5..7)
+		if (process_env.REPLICA === "1") {
+			try {
+				await migrateAssetDeviceTopicRefs();
+			} catch (err) {
+				const message = err instanceof Error ? err.message : String(err);
+				logger.log("error", "The device topics of the assets could not be renamed: %s", message);
+			}
+		}
 		// the row of each asset in the IoT DB's asset states (assets of older versions)
 		if (process_env.REPLICA === "1") {
 			try {
@@ -60,6 +74,16 @@ const main = async (): Promise<void> => {
 			} catch (err) {
 				const message = err instanceof Error ? err.message : String(err);
 				logger.log("error", "The missing asset states could not be created: %s", message);
+			}
+		}
+		// the history of alarms and approvals in the IoT database (clusters created before it), and the
+		// retention of the LLM usage (2 years)
+		if (process_env.REPLICA === "1") {
+			try {
+				await ensureEventHistoryTables(LLM_USAGE_RETENTION_DAYS);
+			} catch (err) {
+				const message = err instanceof Error ? err.message : String(err);
+				logger.log("error", "The history tables of alarms and approvals could not be created: %s", message);
 			}
 		}
 		// the platform's built-in skills, in the bucket (they do not stop the start if they fail)
@@ -76,6 +100,8 @@ const main = async (): Promise<void> => {
 			new GroupKnowledgeController(),
 			new LlmModelsController(),
 			new LlmUsageController(),
+			new AlarmHistoryController(),
+			new ApprovalHistoryController(),
 			new SkillController(),
 			new AssetController(),
 			new S3FolderController(),

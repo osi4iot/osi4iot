@@ -2,9 +2,18 @@ package flows_manager
 
 import (
 	"pipelines/common"
+	"regexp"
 	"strconv"
-	"strings"
 )
+
+// References of the topics of an asset (assetTopicsRef.json): dev2pdb_n (measurements), dev2dtm_n (device -> digital
+// twin) and dtm2dev_n (digital twin -> device). The digital twin's own topics are "dev2dtm", "dtm2dev", "sim2dtm"...
+var assetTopicRefPattern = regexp.MustCompile(`^(dev2pdb|dev2dtm|dtm2dev)_\d+$`)
+
+// IsAssetTopicRef says whether a topic reference names a topic of the asset (and not of the digital twin)
+func IsAssetTopicRef(topicRef string) bool {
+	return assetTopicRefPattern.MatchString(topicRef)
+}
 
 func (fm *FlowsManager) GetTopics() []*common.Topic {
 	var topics []*common.Topic
@@ -63,7 +72,7 @@ func (fm *FlowsManager) UpdateTopic(topic *common.Topic) error {
 func (fm *FlowsManager) GetTopicByTopicRef(assetId int, digitalTwinId int, topicRef string) *common.Topic {
 	var topic *common.Topic
 
-	if strings.Contains(topicRef, "dev2pdb") {
+	if IsAssetTopicRef(topicRef) {
 		topic = fm.GetTopicByAssetId(assetId, topicRef)
 	} else {
 		topic = fm.GetTopicByADigitalTwinId(digitalTwinId, topicRef)

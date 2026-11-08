@@ -86,8 +86,8 @@ CREATE TABLE IF NOT EXISTS iot_data.assetState (
 -- agent prompt with all its tool iterations, a translation, a
 -- transcription, a speech synthesis). Written by admin_api with the
 -- batches pipelines sends; read by the org admin "AI usage" page.
--- Kept 400 days (13 months and a bit, so a month can be compared with the
--- same month of the previous year): LLM_USAGE_RETENTION_DAYS in
+-- Kept 730 days (2 years, so a month can be compared with the same month
+-- of the previous year): LLM_USAGE_RETENTION_DAYS in
 -- admin_api/src/components/llmUsage/llmUsageDAL.ts must say the same.
 -- =============================================================================
 
@@ -126,7 +126,7 @@ CREATE INDEX IF NOT EXISTS idx_llm_usage_org_created
 
 SELECT add_retention_policy(
     'iot_data.llm_usage',
-    drop_after    => INTERVAL '400 days',
+    drop_after    => INTERVAL '730 days',
     if_not_exists => TRUE
 );
 
@@ -174,6 +174,130 @@ SELECT add_continuous_aggregate_policy(
 SELECT add_retention_policy(
     'iot_data.llm_usage_monthly',
     drop_after    => INTERVAL '5 years',
+    if_not_exists => TRUE
+);
+
+-- =============================================================================
+-- IOT DATA — alarm hypertable (history of the Alarm nodes)
+--
+-- One row per event of an Alarm node of any digital twin (raised,
+-- escalated, deescalated, reactivated, cleared, latched, acknowledged,
+-- reset, shelved, unshelved), also those not sent on while shelved
+-- (shelved = true). Written by pipelines (iotdb/history.go), never updated;
+-- read by admin_api (group "Alarm history"). An occurrence of an alarm is
+-- node_uid + alarm_key + raised_at. trigger_payload is a copy of the message
+-- that caused the event (at most 16 kB): the measurements of thingData may
+-- be deleted sooner. Kept 2 years.
+-- =============================================================================
+
+CREATE TABLE IF NOT EXISTS iot_data.alarm (
+    time                     TIMESTAMPTZ   NOT NULL,
+    event_id                 UUID          NOT NULL,
+    org_id                   BIGINT        NOT NULL,
+    group_id                 BIGINT        NOT NULL,
+    group_uid                VARCHAR(42)   NOT NULL DEFAULT '',
+    asset_id                 BIGINT,
+    asset_uid                VARCHAR(42)   NOT NULL DEFAULT '',
+    asset_description        VARCHAR(190)  NOT NULL DEFAULT '',
+    digital_twin_id          BIGINT,
+    digital_twin_uid         VARCHAR(40)   NOT NULL DEFAULT '',
+    digital_twin_description VARCHAR(190)  NOT NULL DEFAULT '',
+    node_uid                 VARCHAR(40)   NOT NULL,
+    node_name                VARCHAR(190)  NOT NULL DEFAULT '',
+    alarm_name               VARCHAR(190)  NOT NULL DEFAULT '',
+    alarm_key                VARCHAR(255)  NOT NULL DEFAULT '',
+    event                    VARCHAR(20)   NOT NULL,
+    level                    VARCHAR(10)   NOT NULL DEFAULT '',
+    state                    VARCHAR(20)   NOT NULL DEFAULT '',
+    shelved                  BOOLEAN       NOT NULL DEFAULT FALSE,
+    raised_at                TIMESTAMPTZ,
+    value                    JSONB,
+    threshold                VARCHAR(255)  NOT NULL DEFAULT '',
+    property                 VARCHAR(255)  NOT NULL DEFAULT '',
+    condition                VARCHAR(10)   NOT NULL DEFAULT '',
+    units                    VARCHAR(40)   NOT NULL DEFAULT '',
+    description              TEXT          NOT NULL DEFAULT '',
+    ack_by                   VARCHAR(190)  NOT NULL DEFAULT '',
+    ack_at                   TIMESTAMPTZ,
+    user_name                VARCHAR(190)  NOT NULL DEFAULT '',
+    message                  TEXT          NOT NULL DEFAULT '',
+    config                   JSONB,
+    event_data               JSONB,
+    trigger_topic            VARCHAR(1024) NOT NULL DEFAULT '',
+    trigger_payload          JSONB
+);
+
+-- Chunks of a month: few rows (only the changes of the alarms)
+SELECT create_hypertable(
+    'iot_data.alarm', 'time',
+    chunk_time_interval => INTERVAL '30 days',
+    if_not_exists       => TRUE
+);
+
+-- A retried batch does not insert an event twice
+CREATE UNIQUE INDEX IF NOT EXISTS idx_alarm_event_id ON iot_data.alarm (event_id, time);
+CREATE INDEX IF NOT EXISTS idx_alarm_group_time ON iot_data.alarm (group_id, time DESC);
+CREATE INDEX IF NOT EXISTS idx_alarm_occurrence ON iot_data.alarm (node_uid, alarm_key, raised_at);
+
+SELECT add_retention_policy(
+    'iot_data.alarm',
+    drop_after    => INTERVAL '730 days',
+    if_not_exists => TRUE
+);
+
+-- =============================================================================
+-- IOT DATA — approval hypertable (history of the Approval nodes)
+--
+-- One row per event of an Approval node: "requested" (with the message
+-- that waits, in trigger_payload) and its end: "approved", "rejected" or
+-- "expired" (decided_by, via, comment, wait_seconds). request_id joins
+-- them. Written by pipelines, never updated; read by admin_api (group
+-- "Approval history"). Kept 2 years.
+-- =============================================================================
+
+CREATE TABLE IF NOT EXISTS iot_data.approval (
+    time                     TIMESTAMPTZ   NOT NULL,
+    event_id                 UUID          NOT NULL,
+    org_id                   BIGINT        NOT NULL,
+    group_id                 BIGINT        NOT NULL,
+    group_uid                VARCHAR(42)   NOT NULL DEFAULT '',
+    asset_id                 BIGINT,
+    asset_uid                VARCHAR(42)   NOT NULL DEFAULT '',
+    asset_description        VARCHAR(190)  NOT NULL DEFAULT '',
+    digital_twin_id          BIGINT,
+    digital_twin_uid         VARCHAR(40)   NOT NULL DEFAULT '',
+    digital_twin_description VARCHAR(190)  NOT NULL DEFAULT '',
+    node_uid                 VARCHAR(40)   NOT NULL,
+    node_name                VARCHAR(190)  NOT NULL DEFAULT '',
+    request_id               VARCHAR(40)   NOT NULL,
+    event                    VARCHAR(20)   NOT NULL,
+    title                    TEXT          NOT NULL DEFAULT '',
+    detail                   TEXT          NOT NULL DEFAULT '',
+    channel                  VARCHAR(20)   NOT NULL DEFAULT '',
+    requested_at             TIMESTAMPTZ   NOT NULL,
+    expires_at               TIMESTAMPTZ,
+    decided_at               TIMESTAMPTZ,
+    decided_by               VARCHAR(190)  NOT NULL DEFAULT '',
+    via                      VARCHAR(20)   NOT NULL DEFAULT '',
+    comment                  TEXT          NOT NULL DEFAULT '',
+    wait_seconds             DOUBLE PRECISION,
+    trigger_topic            VARCHAR(1024) NOT NULL DEFAULT '',
+    trigger_payload          JSONB
+);
+
+SELECT create_hypertable(
+    'iot_data.approval', 'time',
+    chunk_time_interval => INTERVAL '30 days',
+    if_not_exists       => TRUE
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_approval_event_id ON iot_data.approval (event_id, time);
+CREATE INDEX IF NOT EXISTS idx_approval_group_time ON iot_data.approval (group_id, time DESC);
+CREATE INDEX IF NOT EXISTS idx_approval_request ON iot_data.approval (request_id);
+
+SELECT add_retention_policy(
+    'iot_data.approval',
+    drop_after    => INTERVAL '730 days',
     if_not_exists => TRUE
 );
 

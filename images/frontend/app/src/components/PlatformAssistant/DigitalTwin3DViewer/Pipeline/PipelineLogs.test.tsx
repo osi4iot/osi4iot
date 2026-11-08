@@ -1,7 +1,7 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
-import PipelineLogs, { PipelineLog } from "./PipelineLogs";
+import PipelineLogs, { COPIED_MS, PipelineLog } from "./PipelineLogs";
 import { MAX_PIPELINE_LOGS, appendCapped, capLogs, countByLevel, groupLogs, levelOf, summaryOf } from "./pipelineLogsModel";
 
 const log = (overrides: Partial<PipelineLog> = {}): PipelineLog => ({
@@ -94,6 +94,37 @@ describe("PipelineLogs", () => {
         fireEvent.click(screen.getAllByText('out 0 · {windSpeed: 3.6, status: "OK"}')[0]);
         expect(screen.getByRole("button", { name: "Show in flow" })).toBeDisabled();
         expect(screen.getByText("PAYLOAD")).toBeInTheDocument();
+    });
+
+    it("shows a check for a while after copying the JSON of a log", async () => {
+        vi.useFakeTimers();
+        const writeText = vi.fn().mockResolvedValue(undefined);
+        Object.defineProperty(navigator, "clipboard", { value: { writeText }, configurable: true });
+        try {
+            render(<Harness initial={logs} />);
+            fireEvent.click(screen.getAllByText('out 0 · {windSpeed: 3.6, status: "OK"}')[0]);
+            await act(async () => {
+                fireEvent.click(screen.getByRole("button", { name: "Copy JSON" }));
+            });
+            expect(writeText).toHaveBeenCalledWith(JSON.stringify({ payload: { windSpeed: 3.6, status: "OK" }, state: {} }, null, 2));
+            expect(screen.getByRole("button", { name: "Copy JSON: copied" })).toHaveTextContent("Copied");
+            act(() => {
+                vi.advanceTimersByTime(COPIED_MS);
+            });
+            expect(screen.getByRole("button", { name: "Copy JSON" })).toHaveTextContent("Copy JSON");
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
+    it("shows no check when the copy fails", async () => {
+        Object.defineProperty(navigator, "clipboard", { value: { writeText: vi.fn().mockRejectedValue(new Error("denied")) }, configurable: true });
+        render(<Harness initial={logs} />);
+        fireEvent.click(screen.getByText("dial tcp: lookup api: no such host"));
+        await act(async () => {
+            fireEvent.click(screen.getByRole("button", { name: "Copy error" }));
+        });
+        expect(screen.queryByText("Copied")).toBeNull();
     });
 
     it("clears the logs", () => {

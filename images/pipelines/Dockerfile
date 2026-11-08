@@ -46,6 +46,7 @@ COPY dsp/ ./dsp/
 COPY duckdb/ ./duckdb/
 COPY flows_manager/ ./flows_manager/
 COPY function_library/ ./function_library/
+COPY geometry/ ./geometry/
 COPY leader_election/ ./leader_election/
 COPY llmagent/ ./llmagent/
 COPY llmusage/ ./llmusage/
@@ -60,16 +61,38 @@ COPY telegram/ ./telegram/
 COPY timeparser/ ./timeparser/
 COPY utils/ ./utils/
 COPY rag/ ./rag/
-COPY geometry/ ./geometry/
 RUN go mod download && go mod verify
 
 # libtokenizers.a (Hugging Face tokenizers, Rust) for the knowledge bases'
 # embedding model: the prebuilt static library of the version in go.mod.
-RUN TOKENIZERS_VERSION=$(awk '$1 == "github.com/daulet/tokenizers" {print $2}' go.mod) \
+# Taken from assets/tokenizers_linux_<arch>/ (libtokenizers.a and a VERSION
+# file with that version; fetch_build_libs.sh leaves them there) when it is
+# there, like the ONNX Runtime libraries; otherwise downloaded from GitHub,
+# with retries (it answers 502/504 now and then).
+# --build-arg OFFLINE=1: fail instead of downloading.
+ARG OFFLINE=0
+RUN --mount=type=bind,source=assets,target=/tmp/assets \
+    TOKENIZERS_VERSION=$(awk '$1 == "github.com/daulet/tokenizers" {print $2}' go.mod) \
     && test -n "$TOKENIZERS_VERSION" \
+    && L="/tmp/assets/tokenizers_linux_${TARGETARCH}" \
     && mkdir -p /usr/local/lib/tokenizers \
-    && curl -fsSL "https://github.com/daulet/tokenizers/releases/download/${TOKENIZERS_VERSION}/libtokenizers.linux-${TARGETARCH}.tar.gz" \
-       | tar -xz -C /usr/local/lib/tokenizers
+    && if [ -f "$L/libtokenizers.a" ] && [ "$(cat "$L/VERSION" 2>/dev/null)" = "$TOKENIZERS_VERSION" ]; then \
+         echo "tokenizers ${TOKENIZERS_VERSION}: assets/tokenizers_linux_${TARGETARCH}" \
+         && cp "$L/libtokenizers.a" /usr/local/lib/tokenizers/; \
+       elif [ "$OFFLINE" = "1" ]; then \
+         echo "OFFLINE=1 and assets/tokenizers_linux_${TARGETARCH} has no libtokenizers.a ${TOKENIZERS_VERSION}" \
+              "(VERSION: $(cat "$L/VERSION" 2>/dev/null || echo none)): run fetch_build_libs.sh" && exit 1; \
+       else \
+         if [ -f "$L/libtokenizers.a" ]; then \
+           echo "assets/tokenizers_linux_${TARGETARCH} is not ${TOKENIZERS_VERSION} (VERSION file): downloading it"; \
+         fi \
+         && curl -fsSL --retry 6 --retry-delay 5 --retry-all-errors \
+              "https://github.com/daulet/tokenizers/releases/download/${TOKENIZERS_VERSION}/libtokenizers.linux-${TARGETARCH}.tar.gz" \
+              -o /tmp/libtokenizers.tar.gz \
+         && tar -xzf /tmp/libtokenizers.tar.gz -C /usr/local/lib/tokenizers \
+         && rm /tmp/libtokenizers.tar.gz; \
+       fi \
+    && test -f /usr/local/lib/tokenizers/libtokenizers.a
 
 # pipelines
 RUN CGO_ENABLED=1 CC=gcc CGO_LDFLAGS="-L/usr/local/lib/tokenizers" \
@@ -141,13 +164,31 @@ ARG ORT_VERSION_ARM64=1.31.0
 RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates unzip \
     && rm -rf /var/lib/apt/lists/*
 
-RUN mkdir -p /out/ort /opt/nvidia \
+# ONNX Runtime GPU for amd64: from assets/onnx_runtime_linux_amd64_gpu/
+# (libonnxruntime.so.<version> and its libonnxruntime_providers_*.so) when it
+# has the version of ORT_VERSION_AMD64, otherwise from GitHub (with retries),
+# like libtokenizers.
+ARG OFFLINE=0
+RUN --mount=type=bind,source=assets,target=/tmp/assets \
+    mkdir -p /out/ort /opt/nvidia \
     && if [ "$ORT_FLAVOR" = "gpu" ] && [ "$TARGETARCH" = "amd64" ]; then \
          V=${ORT_VERSION_AMD64} \
-         && curl -fsSL "https://github.com/microsoft/onnxruntime/releases/download/v${V}/onnxruntime-linux-x64-gpu-${V}.tgz" \
-           | tar xz -C /tmp \
-         && cp "/tmp/onnxruntime-linux-x64-gpu-${V}/lib/libonnxruntime.so.${V}" /out/ort/onnxruntime.so \
-         && cp /tmp/onnxruntime-linux-x64-gpu-${V}/lib/libonnxruntime_providers_*.so /out/ort/ \
+         && L=/tmp/assets/onnx_runtime_linux_amd64_gpu \
+         && if [ -f "$L/libonnxruntime.so.${V}" ]; then \
+              echo "onnxruntime ${V}: assets/onnx_runtime_linux_amd64_gpu" \
+              && cp "$L/libonnxruntime.so.${V}" /out/ort/onnxruntime.so \
+              && cp "$L"/libonnxruntime_providers_*.so /out/ort/; \
+            elif [ "$OFFLINE" = "1" ]; then \
+              echo "OFFLINE=1 and assets/onnx_runtime_linux_amd64_gpu has no libonnxruntime.so.${V}: run fetch_build_libs.sh gpu" && exit 1; \
+            else \
+              curl -fsSL --retry 6 --retry-delay 5 --retry-all-errors \
+                "https://github.com/microsoft/onnxruntime/releases/download/v${V}/onnxruntime-linux-x64-gpu-${V}.tgz" \
+                -o /tmp/onnxruntime.tgz \
+              && tar xzf /tmp/onnxruntime.tgz -C /tmp \
+              && cp "/tmp/onnxruntime-linux-x64-gpu-${V}/lib/libonnxruntime.so.${V}" /out/ort/onnxruntime.so \
+              && cp /tmp/onnxruntime-linux-x64-gpu-${V}/lib/libonnxruntime_providers_*.so /out/ort/ \
+              && rm -rf /tmp/onnxruntime-linux-x64-gpu-* /tmp/onnxruntime.tgz; \
+            fi \
          && pip install --no-cache-dir --no-deps --target /opt/nvidia \
               --only-binary=:all: --python-version 3.12 --implementation cp \
               --platform manylinux2014_x86_64 --platform manylinux_2_17_x86_64 \
@@ -156,8 +197,7 @@ RUN mkdir -p /out/ort /opt/nvidia \
               "nvidia-cublas-cu12==12.8.4.1" \
               "nvidia-cufft-cu12==11.3.3.83" \
               "nvidia-curand-cu12==10.3.9.90" \
-              "nvidia-cudnn-cu12==9.10.2.21" \
-         && rm -rf /tmp/onnxruntime-linux-x64-gpu-*; \
+              "nvidia-cudnn-cu12==9.10.2.21"; \
        elif [ "$ORT_FLAVOR" = "gpu" ] && [ "$TARGETARCH" = "arm64" ]; then \
          V=${ORT_VERSION_ARM64} \
          && pip download --no-cache-dir --no-deps -d /tmp/ortwhl \
@@ -222,12 +262,12 @@ RUN mkdir -p ${DUCKDB_EXT_DIR} \
          arm64) DUCKDB_ARCH="linux_arm64" ;; \
          *) echo "Architecture not supported: ${TARGETARCH}" && exit 1 ;; \
        esac \
-    && curl -fsSL "https://extensions.duckdb.org/${DUCKDB_VERSION}/${DUCKDB_ARCH}/httpfs.duckdb_extension.gz" \
+    && curl -fsSL --retry 6 --retry-delay 5 --retry-all-errors "https://extensions.duckdb.org/${DUCKDB_VERSION}/${DUCKDB_ARCH}/httpfs.duckdb_extension.gz" \
          -o /tmp/httpfs.duckdb_extension.gz \
     && gunzip /tmp/httpfs.duckdb_extension.gz \
     && mv /tmp/httpfs.duckdb_extension ${DUCKDB_EXT_DIR}/httpfs.duckdb_extension \
     \
-    && curl -fsSL "https://extensions.duckdb.org/${DUCKDB_VERSION}/${DUCKDB_ARCH}/postgres_scanner.duckdb_extension.gz" \
+    && curl -fsSL --retry 6 --retry-delay 5 --retry-all-errors "https://extensions.duckdb.org/${DUCKDB_VERSION}/${DUCKDB_ARCH}/postgres_scanner.duckdb_extension.gz" \
          -o /tmp/postgres_scanner.duckdb_extension.gz \
     && gunzip /tmp/postgres_scanner.duckdb_extension.gz \
     && mv /tmp/postgres_scanner.duckdb_extension ${DUCKDB_EXT_DIR}/postgres_scanner.duckdb_extension \
@@ -277,12 +317,12 @@ ENV NVIDIA_DRIVER_CAPABILITIES="compute,utility"
 # config: rag.modelDir.
 ARG E5_MODEL_REPO=https://huggingface.co/Xenova/multilingual-e5-small/resolve/main
 RUN mkdir -p ./assets/embeddings/multilingual-e5-small \
-    && curl -fsSL "${E5_MODEL_REPO}/onnx/model_quantized.onnx" \
+    && curl -fsSL --retry 6 --retry-delay 5 --retry-all-errors "${E5_MODEL_REPO}/onnx/model_quantized.onnx" \
          -o ./assets/embeddings/multilingual-e5-small/model_quantized.onnx \
-    && curl -fsSL "${E5_MODEL_REPO}/tokenizer.json" \
+    && curl -fsSL --retry 6 --retry-delay 5 --retry-all-errors "${E5_MODEL_REPO}/tokenizer.json" \
          -o ./assets/embeddings/multilingual-e5-small/tokenizer.json \
     && if [ "$ORT_FLAVOR" = "gpu" ]; then \
-         curl -fsSL "${E5_MODEL_REPO}/onnx/model.onnx" \
+         curl -fsSL --retry 6 --retry-delay 5 --retry-all-errors "${E5_MODEL_REPO}/onnx/model.onnx" \
            -o ./assets/embeddings/multilingual-e5-small/model.onnx; \
        fi
 

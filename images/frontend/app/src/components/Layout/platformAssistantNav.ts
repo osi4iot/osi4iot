@@ -2,12 +2,14 @@
 // Platform admin) con sus secciones. La sección abierta de cada capa vive en el almacén de la interfaz
 // ("<capa>.optionToShow"), el mismo valor que lee cada capa; así el menú y la capa siempre coinciden.
 import {
+    BellRing,
     BookOpen,
     BookOpenText,
     Box,
     BrainCircuit,
     Building,
     ChartLine,
+    ClipboardCheck,
     Cpu,
     Gauge,
     Globe,
@@ -109,6 +111,8 @@ export const NAV_LAYERS: NavLayer[] = [
             { option: GROUP_ADMIN_OPTIONS.KNOWLEDGE, label: "Knowledge", icon: BookOpenText },
             { option: GROUP_ADMIN_OPTIONS.SKILLS, label: "Skills", icon: Sparkles },
             { option: GROUP_ADMIN_OPTIONS.ML_MODELS, label: "ML models", icon: BrainCircuit },
+            { option: GROUP_ADMIN_OPTIONS.ALARM_HISTORY, label: "Alarm history", icon: BellRing },
+            { option: GROUP_ADMIN_OPTIONS.APPROVAL_HISTORY, label: "Approval history", icon: ClipboardCheck },
         ],
     },
     {

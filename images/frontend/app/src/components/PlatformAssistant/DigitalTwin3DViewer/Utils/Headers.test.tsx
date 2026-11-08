@@ -51,11 +51,32 @@ describe("Header: un solo botón para el panel lateral (chat y ajustes)", () => 
         expect(screen.getByRole("button", { name: "Close assistant panel" })).toHaveAttribute("aria-pressed", "true");
     });
 
-    it("en la vista Imagen solo aparece si el gemelo tiene chat, con aviso de respuesta sin leer", () => {
-        const { rerender } = render(<Header {...(props({ activeViewer: "image_frame" }) as any)} />);
+    it("en el Viewer sin modelo 3D (solo la imagen) solo aparece si el gemelo tiene chat, con aviso de respuesta sin leer", () => {
+        const { rerender } = render(<Header {...(props({ viewerHasModel: false }) as any)} />);
         expect(screen.queryByRole("button", { name: "Open assistant panel" })).toBeNull();
-        rerender(<Header {...(props({ activeViewer: "image_frame", chatEnabled: true, chatUnread: true }) as any)} />);
+        rerender(<Header {...(props({ viewerHasModel: false, chatEnabled: true, chatUnread: true }) as any)} />);
         expect(screen.getByRole("button", { name: "Open assistant panel" })).toBeInTheDocument();
         expect(screen.getByLabelText("New answer from the assistant")).toBeInTheDocument();
+    });
+});
+
+describe("Header: the Viewer page", () => {
+    it("has two views, Viewer and Pipeline", () => {
+        render(<Header {...(props() as any)} />);
+        expect(screen.getAllByRole("tab").map((t) => t.textContent)).toEqual(["Viewer", "Pipeline"]);
+        expect(screen.getByRole("tab", { name: "Viewer" })).toHaveAttribute("aria-selected", "true");
+    });
+
+    it("offers the Viewer to a twin without 3D model but with a camera", () => {
+        const { rerender } = render(<Header {...(props({ showOnlyPipelineViewer: true, activeViewer: "pipeline" }) as any)} />);
+        expect(screen.queryByRole("tab")).toBeNull();
+        rerender(<Header {...(props({ showOnlyPipelineViewer: true, viewerAvailable: true, activeViewer: "pipeline" }) as any)} />);
+        expect(screen.getByRole("tab", { name: "Viewer" })).toBeInTheDocument();
+    });
+
+    it("reports its height, so that the panels start below it", () => {
+        const onHeight = vi.fn();
+        render(<Header {...(props({ onHeightChange: onHeight }) as any)} />);
+        expect(onHeight).toHaveBeenCalled();
     });
 });

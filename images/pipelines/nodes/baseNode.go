@@ -265,11 +265,14 @@ func (n *BaseNode) HandleDebug(message common.Message, outputIndex int) {
 		Uid:         n.NodeUid,
 		Message:     "Debug message sent to output",
 		OutputIndex: outputIndex,
-		Payload:     message.GetPayload(),
+		// big lists (a model's input tensor) summarised: the log must fit in a NATS message
+		Payload: debugPayload(message.GetPayload()),
 	}
 
 	if logJSON, marshallErr := json.Marshal(logData); marshallErr == nil {
-		n.Fm.NatsPublish(n.LogSubject, logJSON)
+		if err := n.Fm.NatsPublish(n.LogSubject, logJSON); err != nil {
+			n.Fm.Log().Warnf("Node %s: debug log not published (%d bytes): %v", n.NodeUid, len(logJSON), err)
+		}
 	} else {
 		n.Fm.Log().Errorf("Failed to marshal log data for node %s: %v", n.NodeUid, marshallErr)
 	}

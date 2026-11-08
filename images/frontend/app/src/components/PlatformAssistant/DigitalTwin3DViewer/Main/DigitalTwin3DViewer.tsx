@@ -1,5 +1,5 @@
 // DigitalTwin3DViewer.tsx
-import { FC, SetStateAction, useEffect, useLayoutEffect, useState, useRef, useCallback, useMemo } from "react";
+import { CSSProperties, FC, SetStateAction, useEffect, useLayoutEffect, useState, useRef, useCallback, useMemo } from "react";
 import { useTable } from "../../../../state";
 import { toMeasurements } from "../../../../tools/measurements";
 import type { SensorInfo } from "../Objects/Sensors";
@@ -86,6 +86,8 @@ import { ReactFlowProvider } from "@xyflow/react";
 import { toast } from "react-toastify";
 import { Video } from "lucide-react";
 import { ImageFrame } from "../PhotoFrame/PhotoFrame";
+import { BACK_TO_SPLIT_HEIGHT, BackToSplit, PanelHeader, ViewerPanel, Splitter } from "./ViewerPanels";
+import { DEFAULT_MODEL_SHARE, PANEL_HEADER_HEIGHT, ViewerLayout, clampShare, shareAt, viewerRects } from "./viewerLayout";
 import useNatsSubscription from "../NatsHook/useNatsSubcription";
 import { filterNatsSubject } from "../NatsHook/tools";
 import * as THREE from "three";
@@ -180,11 +182,24 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
     // modelo 3D) el panel del asistente solo tiene el chat.
     const chatEnabled = !!digitalTwinSelected?.chatAssistantEnabled;
     const showOnlyPipelineViewer = digitalTwinGltfData.gltfFile == null;
+    // The Viewer page ("3D"): the 3D model and the Image (frames of the asset's camera, or of a pipeline) as
+    // panels side by side, or one of them full page (Main/viewerLayout.ts). Without a camera only the model;
+    // without a model only the image; with neither, only the pipeline.
+    const viewerHasModel = !showOnlyPipelineViewer && !!digitalTwinGltfData?.digitalTwinGltfUrl;
+    const viewerHasImage = !!assetWithCameraSelected;
+    const viewerAvailable = viewerHasModel || viewerHasImage;
+    const [viewerLayout, setViewerLayout] = useState<ViewerLayout>(memory.viewerLayout ?? "split");
+    useEffect(() => {
+        rememberViewer(dtUid, { viewerLayout });
+    }, [dtUid, viewerLayout]);
+    const [modelShare, setModelShare] = usePersistentState<number>("viewer.modelShare", DEFAULT_MODEL_SHARE);
     const chatTabSelected = chatEnabled && state.isChatAssistantOpen;
+    // the assistant panel: in the Viewer with the 3D model always; in the Viewer with only the image and in the
+    // pipeline of a twin without viewer, only with the chat
     const assistantPanelShown =
         state.isAssistantPanelOpen &&
-        (state.activeViewer === "3D" ||
-            (chatTabSelected && (state.activeViewer === "image_frame" || showOnlyPipelineViewer)));
+        ((state.activeViewer === "3D" && viewerHasModel) ||
+            (chatTabSelected && (state.activeViewer === "3D" || showOnlyPipelineViewer)));
     const chatVisible = assistantPanelShown && chatTabSelected;
     const chatVisibleRef = useRef(chatVisible);
     chatVisibleRef.current = chatVisible;
@@ -349,6 +364,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
             digitalTwinGltfData,
             activeViewer: state.activeViewer,
             assetWithCameraSelected,
+            viewerHasModel,
             accessToken,
             refreshToken,
             authDispatch: authDispatch,
@@ -910,11 +926,11 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
     useEffect(() => {
         if (digitalTwinSelected) {
             if (sensorWithCameraSelected) {
-                handlers.handleSetActiveViewer("image_frame");
-            } else {
-                if (!digitalTwinGltfData.digitalTwinGltfUrl) {
-                    handlers.handleSetActiveViewer("pipeline");
-                }
+                // opened from a camera: its image full page (the 3D model one click away)
+                handlers.handleSetActiveViewer("3D");
+                setViewerLayout("image");
+            } else if (!viewerAvailable) {
+                handlers.handleSetActiveViewer("pipeline");
             }
         }
     }, [digitalTwinSelected, sensorWithCameraSelected]);
@@ -924,6 +940,49 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 
     // Pipeline logs: only in the pipeline view, docked on the right (width kept while the app is open)
     const logsShown = !!digitalTwinSelected && state.isPipelineLogsOpen && state.activeViewer === "pipeline";
+
+    // The panels of the Viewer page: the size of the page and of the top bar (it wraps on narrow pages)
+    const [pageSize, setPageSize] = useState({ width: 0, height: 0 });
+    useEffect(() => {
+        const el = canvasContainerRef.current;
+        if (!el) return;
+        const report = () => {
+            const box = el.getBoundingClientRect();
+            setPageSize((prev) =>
+                prev.width === Math.round(box.width) && prev.height === Math.round(box.height)
+                    ? prev
+                    : { width: Math.round(box.width), height: Math.round(box.height) },
+            );
+        };
+        report();
+        if (typeof ResizeObserver === "undefined") return;
+        const observer = new ResizeObserver(report);
+        observer.observe(el);
+        return () => observer.disconnect();
+    }, [canvasContainerRef]);
+    const [topBarHeight, setTopBarHeight] = useState(52);
+    const viewerRightInset = assistantPanelShown ? assistantPanelWidth + 2 * VIEWER_GAP : VIEWER_GAP;
+    const panelsTop = VIEWER_GAP + Math.round(topBarHeight) + VIEWER_GAP;
+    const rects = viewerRects({
+        width: pageSize.width,
+        height: pageSize.height,
+        top: panelsTop,
+        right: viewerRightInset,
+        gap: VIEWER_GAP,
+        layout: viewerLayout,
+        hasModel: viewerHasModel,
+        hasImage: viewerHasImage,
+        modelShare,
+    });
+    const inViewer = state.activeViewer === "3D";
+    const splitView = inViewer && rects.layout === "split";
+    // a panel: its rectangle (with a frame in the split view), or hidden
+    const panelStyle = (rect: typeof rects.model): CSSProperties =>
+        inViewer && rect
+            ? { position: "absolute", left: rect.left, top: rect.top, width: rect.width, height: rect.height }
+            : { display: "none" };
+    // the 3D model's corner for its overlays (object under the mouse) in the split view
+    const modelRect = splitView ? rects.model : null;
     const [logsWidth, setLogsWidth] = usePersistentState<number>("pipelineLogs.width", PIPELINE_LOGS_WIDTH);
     const pipelineLogsWidth = clampLogsWidth(logsWidth);
     // "Show in flow": Flow registers here the function that centres the canvas on a node
@@ -1039,14 +1098,17 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
             )}
 
             <CanvasContainer ref={canvasContainerRef}>
-                <div
-                    style={{
-                        display:
-                            state.activeViewer === "3D" && digitalTwinGltfData?.digitalTwinGltfUrl ? "block" : "none",
-                        width: "100%",
-                        height: "100%",
-                    }}
-                >
+                <ViewerPanel style={panelStyle(rects.model)} $framed={splitView} data-testid="viewer-model-panel">
+                    {splitView && <PanelHeader kind="model" onFullPage={() => setViewerLayout("3d")} />}
+                    <div
+                        style={{
+                            position: "absolute",
+                            left: 0,
+                            right: 0,
+                            bottom: 0,
+                            top: splitView ? PANEL_HEADER_HEIGHT : 0,
+                        }}
+                    >
                     <Canvas
                         ref={canvasRef}
                         dpr={window.devicePixelRatio}
@@ -1223,6 +1285,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
                         <OrbitControls ref={controlsRef} mouseButtons={MOUSE_BUTTONS} />
                         <CameraMemory dtUid={dtUid} controlsRef={controlsRef} />
                     </Canvas>
+                    </div>
                     {followStatus.active && (
                         <FollowCameraBar role="status" aria-live="polite">
                             <Video aria-hidden="true" />
@@ -1232,7 +1295,51 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
                             </button>
                         </FollowCameraBar>
                     )}
-                </div>
+                </ViewerPanel>
+
+                {/* The Image panel of the Viewer page: mounted while the asset has a camera, so that it keeps
+                    painting the frames that arrive while it is hidden */}
+                {viewerHasImage && (
+                    <ViewerPanel style={panelStyle(rects.image)} $framed={splitView} data-testid="viewer-image-panel">
+                        {splitView && <PanelHeader kind="image" onFullPage={() => setViewerLayout("image")} />}
+                        <div
+                            style={{
+                                position: "absolute",
+                                left: 0,
+                                right: 0,
+                                bottom: 0,
+                                // full page: below the top bar and the "Back to split view" bar
+                                top: splitView
+                                    ? PANEL_HEADER_HEIGHT
+                                    : rects.layout === "image"
+                                      ? panelsTop + (rects.canSplit ? BACK_TO_SPLIT_HEIGHT + VIEWER_GAP : 0)
+                                      : 0,
+                            }}
+                        >
+                            <ImageFrame frameStore={frameStore} />
+                        </div>
+                    </ViewerPanel>
+                )}
+
+                {splitView && rects.splitter && (
+                    <Splitter
+                        rect={rects.splitter}
+                        stacked={rects.stacked}
+                        share={clampShare(modelShare)}
+                        shareAtPoint={(x, y) => shareAt(rects, x, y)}
+                        onShare={setModelShare}
+                        originRef={canvasContainerRef}
+                    />
+                )}
+
+                {inViewer && rects.canSplit && rects.layout !== "split" && rects.layout !== null && (
+                    <BackToSplit
+                        kind={rects.layout === "3d" ? "model" : "image"}
+                        top={panelsTop}
+                        left={VIEWER_GAP}
+                        onBack={() => setViewerLayout("split")}
+                    />
+                )}
                 {state.activeViewer === "pipeline" && (
                     <PipelineErrorBoundary resetKey={dtUid}>
                     <ReactFlowProvider>
@@ -1256,7 +1363,6 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
                     </PipelineErrorBoundary>
                 )}
 
-                {assetWithCameraSelected && state.activeViewer === "image_frame" && <ImageFrame frameStore={frameStore} />}
 
                 {/* FEM Simulation Legend */}
                 {state.activeViewer === "3D" &&
@@ -1317,6 +1423,9 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
                     logsWidth={logsShown ? pipelineLogsWidth : 0}
                     pipelineErrors={unseenPipelineErrors}
                     isPipelineLogsOpen={logsShown}
+                    viewerAvailable={viewerAvailable}
+                    viewerHasModel={viewerHasModel}
+                    onHeightChange={setTopBarHeight}
                 />
 
                 {/* Panel del asistente (chat y ajustes del visor) */}
@@ -1355,7 +1464,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
                         chatActive={chatTabSelected}
                         onChatActiveChange={(active) => setState((prev) => ({ ...prev, isChatAssistantOpen: active }))}
                         chatUnread={chatUnread}
-                        chatOnly={state.activeViewer !== "3D"}
+                        chatOnly={state.activeViewer !== "3D" || !viewerHasModel}
                         width={assistantPanelWidth}
                         onResizeWidth={chatEnabled ? setChatWidth : undefined}
                         simulatorFloating={state.showDtSimulatorModal}
@@ -1392,9 +1501,16 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
                 )}
 
                 {/* Selected Object Info */}
-                {state.activeViewer === "3D" && (
+                {inViewer && viewerHasModel && rects.model && (
                     <SelectedObjectInfoContainer
-                        $right={assistantPanelShown ? assistantPanelWidth + 2 * VIEWER_GAP : VIEWER_GAP}
+                        $right={
+                            modelRect
+                                ? pageSize.width - (modelRect.left + modelRect.width) + VIEWER_GAP
+                                : assistantPanelShown
+                                  ? assistantPanelWidth + 2 * VIEWER_GAP
+                                  : VIEWER_GAP
+                        }
+                        $bottom={modelRect ? pageSize.height - (modelRect.top + modelRect.height) + VIEWER_GAP : undefined}
                     >
                         <ObjectInfoContainer>
                             <ObjectInfo ref={selectedObjNameRef}>Name: -</ObjectInfo>
@@ -1409,3 +1525,4 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 };
 
 export default DigitalTwin3DViewer;
+

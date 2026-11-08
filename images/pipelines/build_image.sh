@@ -1,5 +1,10 @@
 VERSION=1.3.0
 
+# Libraries that the build would otherwise download from GitHub, into assets/
+# (once, and again when go.mod or ORT_VERSION_AMD64 change version):
+#   sh fetch_build_libs.sh gpu
+# --build-arg OFFLINE=1 makes the build fail instead of downloading them.
+
 # CPU image (as before)
 docker buildx build --platform linux/amd64,linux/arm64 \
   -t ghcr.io/osi4iot/pipelines:${VERSION} \
@@ -15,4 +20,3 @@ docker buildx build --platform linux/amd64,linux/arm64 \
   -t ghcr.io/osi4iot/pipelines:${VERSION}-gpu \
   -t ghcr.io/osi4iot/pipelines:latest-gpu \
   --push .
-

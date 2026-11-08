@@ -60,6 +60,7 @@ import { buildEditorExtensions, disposeEditor, restartEditor } from "./editor";
 import { NODE_FUNCTION_SCRIPTS } from "./NodePalette";
 import { HelpTab } from "./HelpTab";
 import { InjectFileSettingsEditor } from "./InjectFileSettings";
+import { assetTopicsRef } from "./assetTopics";
 import { IGroup } from "../../TableColumns/groupsColumns";
 
 const CODEMIRROR_SETUP = {
@@ -160,6 +161,10 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
     const [listenTopicsRef, setListenTopicsRef] = useState<string[]>([]);
     const [publishTopicsRef, setPublishTopicsRef] = useState<string[]>([]);
     const [dev2pdbTopicsRef, setDev2pdbTopicsRef] = useState<string[]>([]);
+    // Device topics of the asset (dev2dtm_n, dtm2dev_n) and the digital twin's own topics to publish to
+    const [dev2dtmTopicsRef, setDev2dtmTopicsRef] = useState<string[]>([]);
+    const [dtm2devTopicsRef, setDtm2devTopicsRef] = useState<string[]>([]);
+    const [dtPublishTopicsRef, setDtPublishTopicsRef] = useState<string[]>([]);
     const [systemMonitoringTopicsRef, setSystemMonitoringTopicsRef] = useState<SysMonitoringTopic[]>([]);
 
     // Estados para el redimensionamiento - Enfoque híbrido optimizado
@@ -255,15 +260,11 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
 
     useEffect(() => {
         const listenTopics: string[] = [];
-        const publishTopics: string[] = [];
-        const dev2pdbTopics: string[] = [];
+        const dtPublishTopics: string[] = [];
+        const assetTopics = assetTopicsRef(natsSubjectsData);
         const systemMonitoringTopics: SysMonitoringTopic[] = [];
 
         (natsSubjectsData ?? []).forEach((subjectData) => {
-            if (subjectData.topicRef.slice(0, 7) === "dev2pdb") {
-                publishTopics.push(subjectData.topicRef);
-                dev2pdbTopics.push(subjectData.topicRef);
-            }
             if (
                 groupSelected?.isAdminGroup &&
                 digitalTwinSelected.description === "System monitoring" &&
@@ -277,10 +278,10 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
         });
 
         if (groupSelected?.isAdminGroup && digitalTwinSelected?.description === "System monitoring") {
-            publishTopics.push("System alert");
+            dtPublishTopics.push("System alert");
         } else {
             listenTopics.push("sim2dtm", "dev2dtm", "sim2llm", "sim2state");
-            publishTopics.push(
+            dtPublishTopics.push(
                 "dtm2sim",
                 "sim2dtm",
                 "dtm2pdb",
@@ -295,8 +296,11 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
         }
 
         setListenTopicsRef(listenTopics);
-        setPublishTopicsRef(publishTopics);
-        setDev2pdbTopicsRef(dev2pdbTopics);
+        setPublishTopicsRef([...assetTopics.dev2pdb, ...assetTopics.dev2dtm, ...assetTopics.dtm2dev, ...dtPublishTopics]);
+        setDev2pdbTopicsRef(assetTopics.dev2pdb);
+        setDev2dtmTopicsRef(assetTopics.dev2dtm);
+        setDtm2devTopicsRef(assetTopics.dtm2dev);
+        setDtPublishTopicsRef(dtPublishTopics);
         setSystemMonitoringTopicsRef(systemMonitoringTopics);
     }, [natsSubjectsData, groupSelected?.isAdminGroup, digitalTwinSelected?.description]);
 
@@ -1693,7 +1697,7 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                     type={nodeType}
                     formData={formData}
                     onChange={handleInputChange}
-                    topicRefs={Array.from(new Set([...dev2pdbTopicsRef, ...listenTopicsRef]))}
+                    topicRefs={Array.from(new Set([...dev2pdbTopicsRef, ...dev2dtmTopicsRef, ...dtm2devTopicsRef, ...listenTopicsRef]))}
                 />
             );
         }
@@ -1739,6 +1743,24 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                                                 ))}
                                             </optgroup>
                                         </>
+                                    )}
+                                    {dev2dtmTopicsRef.length > 0 && (
+                                        <optgroup label="Select single dev2dtm topic">
+                                            {dev2dtmTopicsRef.map((topic) => (
+                                                <option key={topic} value={topic}>
+                                                    {topic}
+                                                </option>
+                                            ))}
+                                        </optgroup>
+                                    )}
+                                    {dtm2devTopicsRef.length > 0 && (
+                                        <optgroup label="Select single dtm2dev topic">
+                                            {dtm2devTopicsRef.map((topic) => (
+                                                <option key={topic} value={topic}>
+                                                    {topic}
+                                                </option>
+                                            ))}
+                                        </optgroup>
                                     )}
                                     {listenTopicsRef.length > 0 && (
                                         <optgroup label="Select custom listen topics">
@@ -1804,11 +1826,22 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                                         handleInputChange("topic", e.target.value)
                                     }
                                 >
-                                    {publishTopicsRef.map((topic) => (
-                                        <option key={topic} value={topic}>
-                                            {topic}
-                                        </option>
-                                    ))}
+                                    {[
+                                        { label: "dev2pdb topics of the asset", topics: dev2pdbTopicsRef },
+                                        { label: "dev2dtm topics of the asset", topics: dev2dtmTopicsRef },
+                                        { label: "dtm2dev topics of the asset", topics: dtm2devTopicsRef },
+                                        { label: "Digital twin topics", topics: dtPublishTopicsRef },
+                                    ]
+                                        .filter((group) => group.topics.length > 0)
+                                        .map((group) => (
+                                            <optgroup key={group.label} label={group.label}>
+                                                {group.topics.map((topic) => (
+                                                    <option key={topic} value={topic}>
+                                                        {topic}
+                                                    </option>
+                                                ))}
+                                            </optgroup>
+                                        ))}
                                 </Select>
                             </FormGroup>
                         )}
@@ -2279,3 +2312,4 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
 };
 
 export default NodePropertiesPanel;
+

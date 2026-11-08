@@ -28,6 +28,7 @@ import SvgComponent from "../../Tools/SvgComponent";
 import { AxiosError, AxiosResponse } from "axios";
 
 import JsonFileField, { mustBeArray } from "../../Tools/JsonFileField";
+import { checkAssetTopicsRef } from "../DigitalTwin3DViewer/Pipeline/assetTopics";
 import { ControlsContainer, DraggableFormContainer, FormSection } from "../../Tools/FormTools";
 import { toMeasurements } from "../../../tools/measurements";
 
@@ -484,7 +485,7 @@ const CreateAsset: FC<CreateAssetProps> = ({
                                     initialSourceLabel="Default"
                                     resetValue={JSON.stringify(defaultTopicsRef, null, 4)}
                                     downloadFileName="topic_references.json"
-                                    check={mustBeArray}
+                                    check={checkAssetTopicsRef}
                                 />
                                 <JsonFileField
                                     name="sensorsRef"

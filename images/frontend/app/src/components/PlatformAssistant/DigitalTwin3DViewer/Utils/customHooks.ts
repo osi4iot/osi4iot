@@ -40,7 +40,7 @@ import { ChatChart, sanitizeCharts } from "../ChatAssitant/chatCharts";
 import { isCollectionMapKey, resolveCollectionKeys, resolveSimulatorValues } from "./viewerContents";
 
 export const useViewerState = (
-    initialActiveViewer?: "3D" | "pipeline" | "image_frame",
+    initialActiveViewer?: "3D" | "pipeline",
     initialPipelineUiChanged = false,
     // paneles que el usuario tenía abiertos (memoria del visor)
     initialPanels?: { assistantPanel: boolean; chatAssistant: boolean; pipelineLogs: boolean },
@@ -136,7 +136,7 @@ export const useMqttOptions = () => {
 };
 
 export const useRefs = () => {
-    const canvasContainerRef = useRef(null);
+    const canvasContainerRef = useRef<HTMLDivElement>(null);
     const canvasRef = useRef(null);
     const controlsRef = useRef(null) as any;
     const selectedObjTypeRef = useRef(null);

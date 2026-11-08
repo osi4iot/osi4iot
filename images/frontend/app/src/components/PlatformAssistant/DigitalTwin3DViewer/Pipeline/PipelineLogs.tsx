@@ -4,7 +4,7 @@
 // with the payload, the state or the message and a "Show in flow" button that finds the node.
 import { FC, memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import styled from "styled-components";
-import { ArrowDown, ChevronRight, Copy, Crosshair, List, Pause, Play, Search, Trash2, X } from "lucide-react";
+import { ArrowDown, Check, ChevronRight, Copy, Crosshair, List, Pause, Play, Search, Trash2, X } from "lucide-react";
 
 import { focusRing, panelColors as c } from "../AssistantPanel/controls";
 import {
@@ -587,12 +587,71 @@ const JsonTree: FC<{ value: unknown; name?: string; depth?: number; last?: boole
     );
 };
 
-const copyText = (text: string) => {
+// Copies a text; answers whether it did. Without the clipboard API (a page served over plain http) it
+// falls back to a hidden textarea and execCommand("copy").
+export const copyText = async (text: string): Promise<boolean> => {
     try {
-        void navigator.clipboard?.writeText(text);
+        if (navigator.clipboard?.writeText) {
+            await navigator.clipboard.writeText(text);
+            return true;
+        }
     } catch {
-        // clipboard not available (insecure context): nothing to do
+        // denied or not available: try the old way
     }
+    try {
+        const area = document.createElement("textarea");
+        area.value = text;
+        area.setAttribute("readonly", "");
+        area.style.position = "fixed";
+        area.style.opacity = "0";
+        document.body.appendChild(area);
+        area.select();
+        const ok = document.execCommand?.("copy") ?? false;
+        area.remove();
+        return ok;
+    } catch {
+        return false;
+    }
+};
+
+// How long the copy button shows "Copied" with a check
+export const COPIED_MS = 2000;
+
+const CopiedButton = styled(SmallButton)<{ $copied: boolean }>`
+    ${({ $copied }) =>
+        $copied
+            ? `
+        color: #8fdc9f;
+        border-color: rgba(86, 194, 113, 0.55);
+        background: rgba(86, 194, 113, 0.12);
+        &:hover:not(:disabled) { color: #8fdc9f; background: rgba(86, 194, 113, 0.18); }
+    `
+            : ""}
+`;
+
+// The copy button of a log: a check and "Copied" for COPIED_MS after a copy that worked
+const CopyButton: FC<{ text: string; label: string }> = ({ text, label }) => {
+    const [copied, setCopied] = useState(false);
+    const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+    useEffect(
+        () => () => {
+            if (timer.current) clearTimeout(timer.current);
+        },
+        [],
+    );
+    const onClick = async () => {
+        const ok = await copyText(text);
+        if (!ok) return;
+        if (timer.current) clearTimeout(timer.current);
+        setCopied(true);
+        timer.current = setTimeout(() => setCopied(false), COPIED_MS);
+    };
+    return (
+        <CopiedButton type="button" $copied={copied} aria-label={copied ? `${label}: copied` : label} onClick={onClick}>
+            {copied ? <Check aria-hidden="true" /> : <Copy aria-hidden="true" />}
+            <span aria-live="polite">{copied ? "Copied" : label}</span>
+        </CopiedButton>
+    );
 };
 
 // ---------------------------------------------------------------- one log
@@ -701,10 +760,10 @@ const LogRow: FC<LogRowProps> = memo(({ group, expanded, onToggle, canShowInFlow
                                 Show in flow
                             </SmallButton>
                         )}
-                        <SmallButton type="button" onClick={() => copyText(copyValue)}>
-                            <Copy aria-hidden="true" />
-                            {isError ? "Copy error" : level === "debug" ? "Copy JSON" : "Copy message"}
-                        </SmallButton>
+                        <CopyButton
+                            text={copyValue}
+                            label={isError ? "Copy error" : level === "debug" ? "Copy JSON" : "Copy message"}
+                        />
                     </Actions>
                 </Detail>
             )}

@@ -1,11 +1,10 @@
 // Barra superior del visor del gemelo digital (diseño "panel acoplado"): nombre del gemelo,
 // selector de vista, herramientas de la vista activa y estados (pipeline, gemelo digital, NATS).
-import { FC, ReactNode, useRef } from "react";
+import { FC, ReactNode, useEffect, useRef } from "react";
 import styled, { css, keyframes } from "styled-components";
 import {
-    Box,
-    Camera,
     ChartLine,
+    Columns2,
     CircleStop,
     Download,
     Logs,
@@ -280,11 +279,11 @@ interface HeaderProps {
     isAssistantPanelOpen: boolean;
     isNatsConnected: boolean;
     digitalTwinState: string;
-    activeViewer: "3D" | "pipeline" | "image_frame";
+    activeViewer: "3D" | "pipeline";
     showOnlyPipelineViewer: boolean;
     handleAssistantPanelOpenAndClose: () => void;
     handleToggleActiveViewer: () => void;
-    handleSetActiveViewer: (viewer: "3D" | "pipeline" | "image_frame") => void;
+    handleSetActiveViewer: (viewer: "3D" | "pipeline") => void;
     handlePipelineLogsOpen: () => void;
     handleOpenGrafanaDashboard: () => void;
     handleDigitalTwinStateShield: () => void;
@@ -297,6 +296,7 @@ interface HeaderProps {
     handleReinitiatePipeline: () => void;
     isPipelineUiChanged: boolean;
     close3DViewer: () => void;
+    // the asset has a camera: the Viewer page has the Image panel (the parent decides what it shows)
     assetWithCameraSelected: boolean;
     pipelineStatus: string;
     pipelineLeaderReplicaIndex: number;
@@ -313,12 +313,18 @@ interface HeaderProps {
     // pipeline errors not seen yet: badge on the logs button, dot on the Pipeline tab
     pipelineErrors?: number;
     isPipelineLogsOpen?: boolean;
+    // the Viewer page (3D model and/or Image) has something to show: else only the pipeline
+    viewerAvailable?: boolean;
+    // the Viewer page has the 3D model (else only the Image): the scene settings of the assistant panel
+    viewerHasModel?: boolean;
+    // the height of the bar (it wraps on narrow pages): the panels of the Viewer page start below it
+    onHeightChange?: (height: number) => void;
 }
 
-const VIEWER_OPTIONS: { value: "3D" | "pipeline" | "image_frame"; label: string; icon: ReactNode }[] = [
-    { value: "3D", label: "3D model", icon: <Box aria-hidden="true" /> },
+// "3D" is the Viewer page: the 3D model and the Image as panels (Main/viewerLayout.ts)
+const VIEWER_OPTIONS: { value: "3D" | "pipeline"; label: string; icon: ReactNode }[] = [
+    { value: "3D", label: "Viewer", icon: <Columns2 aria-hidden="true" /> },
     { value: "pipeline", label: "Pipeline", icon: <Workflow aria-hidden="true" /> },
-    { value: "image_frame", label: "Image", icon: <Camera aria-hidden="true" /> },
 ];
 
 const PipelineStatusChip: FC<{ status: string; leader: number }> = ({ status, leader }) => {
@@ -369,7 +375,6 @@ export const Header: FC<HeaderProps> = ({
     handleReinitiatePipeline,
     isPipelineUiChanged,
     close3DViewer,
-    assetWithCameraSelected,
     pipelineStatus,
     pipelineLeaderReplicaIndex,
     digitalTwinName,
@@ -380,8 +385,24 @@ export const Header: FC<HeaderProps> = ({
     logsWidth = 0,
     pipelineErrors = 0,
     isPipelineLogsOpen = false,
+    viewerAvailable = !showOnlyPipelineViewer,
+    viewerHasModel = true,
+    onHeightChange,
 }) => {
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const barRef = useRef<HTMLDivElement>(null);
+    const onHeightRef = useRef(onHeightChange);
+    onHeightRef.current = onHeightChange;
+    useEffect(() => {
+        const bar = barRef.current;
+        if (!bar) return;
+        const report = () => onHeightRef.current?.(bar.getBoundingClientRect().height);
+        report();
+        if (typeof ResizeObserver === "undefined") return;
+        const observer = new ResizeObserver(report);
+        observer.observe(bar);
+        return () => observer.disconnect();
+    }, []);
 
     // En la vista Pipeline la barra ocupa el ancho a la derecha de la paleta de nodos (el lienzo empieza
     // debajo de ella); en la vista 3D ocupa el ancho libre a la izquierda del panel del asistente.
@@ -391,12 +412,14 @@ export const Header: FC<HeaderProps> = ({
     const right = rightPanel > 0 ? `${rightPanel + 2 * VIEWER_GAP}px` : `${VIEWER_GAP}px`;
 
     const dtOk = digitalTwinState === "OK";
-    const viewerOptions = VIEWER_OPTIONS.filter((o) => o.value !== "image_frame" || assetWithCameraSelected);
+    const viewerOptions = VIEWER_OPTIONS;
 
-    // Panel lateral: en la vista 3D siempre; en Imagen y Pipeline (gemelo sin modelo 3D) solo con el chat
+    // Panel lateral: en el Viewer con modelo 3D siempre; en el Viewer sin modelo 3D (solo la imagen) y en
+    // Pipeline (gemelo sin visor), solo con el chat
     const panelOpen = assistantPanelWidth > 0;
     const showPanelButton =
-        activeViewer === "3D" || (chatEnabled && (activeViewer === "image_frame" || showOnlyPipelineViewer));
+        (activeViewer === "3D" && viewerHasModel) ||
+        (chatEnabled && (activeViewer === "3D" || showOnlyPipelineViewer));
     const panelLabel = panelOpen ? "Close assistant panel" : "Open assistant panel";
     // The logs come from the pipeline nodes: their button is only in the pipeline view
     const errorsText = `${pipelineErrors} new pipeline ${pipelineErrors === 1 ? "error" : "errors"}`;
@@ -420,7 +443,7 @@ export const Header: FC<HeaderProps> = ({
     );
 
     return (
-        <Bar $left={left} $right={right} data-testid="viewer-top-bar">
+        <Bar ref={barRef} $left={left} $right={right} data-testid="viewer-top-bar">
             {activeViewer !== "pipeline" && digitalTwinName && (
                 <Title>
                     <TitleMain title={digitalTwinName}>{digitalTwinName}</TitleMain>
@@ -428,8 +451,8 @@ export const Header: FC<HeaderProps> = ({
                 </Title>
             )}
 
-            {!showOnlyPipelineViewer && (
-                <Segmented role="tablist" aria-label="Viewer">
+            {viewerAvailable && (
+                <Segmented role="tablist" aria-label="Views">
                     {viewerOptions.map((option) => {
                         // new pipeline errors while looking at another view: red dot on the Pipeline tab
                         const flagErrors = option.value === "pipeline" && activeViewer !== "pipeline" && pipelineErrors > 0;
@@ -509,7 +532,6 @@ export const Header: FC<HeaderProps> = ({
                 </Group>
             )}
 
-            {activeViewer === "image_frame" && <Group>{dashboardButton}</Group>}
 
             <Divider />
             <Group style={{ gap: 6 }}>

@@ -42,7 +42,7 @@ export interface ViewerState {
     isChatAssistantOpen: boolean;
     isPipelineLogsOpen: boolean;
     showDtSimulatorModal: boolean;
-    activeViewer: "3D" | "pipeline" | "image_frame";
+    activeViewer: "3D" | "pipeline"; // "3D": the Viewer page (3D model and/or Image)
 
     // Digital Twin state
     digitalTwinState: string;

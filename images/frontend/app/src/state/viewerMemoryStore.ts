@@ -22,7 +22,9 @@ export interface OpenNodePanel {
 }
 
 export interface ViewerMemory {
-    activeViewer?: "3D" | "pipeline" | "image_frame";
+    activeViewer?: "3D" | "pipeline";
+    // the Viewer page: both panels, or one of them full page
+    viewerLayout?: "split" | "3d" | "image";
     opts?: unknown;
     pipeline?: { nodes: any[]; edges: any[]; changed: boolean };
     logMessages?: unknown[];

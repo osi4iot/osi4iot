@@ -42,6 +42,7 @@ import { deleteDashboard, deleteDashboardsByIdArray } from "../group/dashboardDA
 import CreateAssetTypeDto from "./assetType.dto";
 import IAssetType from "./assetType.interface";
 import HttpException from "../../exceptions/HttpException";
+import { assetTopicsRefProblems } from "./assetTopicRefs";
 import IAssetTopic from "./assetTopic.interface";
 import { deleteTopicsOfDT, getDigitalTwinByProp } from "../digitalTwin/digitalTwinDAL";
 
@@ -376,6 +377,11 @@ class AssetController implements IController {
 			assetData.description = (assetData.description || "").trim();
 			await this.checkAssetDescription(req, res, req.group.id, assetData.description);
 			await checkInitialAssetGeolocation(req.group, assetData);
+			// the name of each topic reference says its type (dev2pdb_n, dev2dtm_n, dtm2dev_n): pipelines find them by it
+			const topicProblems = assetTopicsRefProblems(assetData.topicsRef ?? [], assetData.sensorsRef ?? []);
+			if (topicProblems.length !== 0) {
+				throw new HttpException(req, res, 400, topicProblems.join(". "));
+			}
 			const areSensorTypesOk = await checkSensorReferences(req.group, assetData);
 			if (!areSensorTypesOk) {
 				const errorMessage = "At least one sensor type is not correct";

@@ -110,7 +110,9 @@ export const GROUP_ADMIN_OPTIONS = {
     DIGITAL_TWINS: "Digital twins",
     KNOWLEDGE: "Knowledge",
     SKILLS: "Skills",
-    ML_MODELS: "ML models"
+    ML_MODELS: "ML models",
+    ALARM_HISTORY: "Alarm history",
+    APPROVAL_HISTORY: "Approval history",
 }
 
 export const GROUPS_MANAGED_OPTIONS = {

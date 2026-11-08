@@ -36,9 +36,9 @@ export const HeaderOptionsContainer = styled.div`
 
 // Info containers
 // Datos del objeto bajo el ratón (Name, Type, Collection), abajo a la derecha junto al panel del asistente
-export const SelectedObjectInfoContainer = styled.div<{ $right?: number }>`
+export const SelectedObjectInfoContainer = styled.div<{ $right?: number; $bottom?: number }>`
     position: absolute;
-    bottom: 12px;
+    bottom: ${({ $bottom }) => $bottom ?? 12}px;
     right: ${({ $right }) => $right ?? 12}px;
     max-width: 600px;
     padding: 8px 6px;

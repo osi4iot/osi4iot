@@ -35,7 +35,7 @@ import {
 } from "./llmUsageDAL";
 
 const MAX_RECORDS_PER_POST = 2000;
-const MAX_RANGE_DAYS = 400;
+const MAX_RANGE_DAYS = LLM_USAGE_RETENTION_DAYS + 1;
 
 const parseDay = (value: unknown): Date | null => {
 	if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;

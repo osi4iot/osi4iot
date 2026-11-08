@@ -20,6 +20,7 @@ import ISensor from "../sensor/sensor.interface";
 import IAssetTopic from "./assetTopic.interface";
 import IMqttDigitalTwinTopicInfo from "../digitalTwin/mqttDigitalTwinTopicInfo.interface";
 import IDigitalTwinTopic from "../digitalTwin/digitalTwinTopic.interface";
+import { assetTopicDescription } from "./assetTopicRefs";
 import natsClient from "../../config/natsConfig";
 import { logger } from "../../config/winston";
 import { createAssetStateRowOfAsset, deleteAssetStateRowOfAsset } from "./assetStateDAL";
@@ -299,6 +300,13 @@ export const createNewAsset = async (group: IGroup, assetData: CreateAssetDto, i
 	const topics: ITopic[] = [];
 	const assetTopics: IAssetTopic[] = [];
 	for (let i = 0; i < topicsRef.length; i++) {
+		// device topics, traceable in the topic lists: "Mobile video · dev2dtm_2 for Asset_<uid>"
+		topicsRef[i].description = assetTopicDescription(
+			topicsRef[i].topicType,
+			topicsRef[i].topicRef,
+			topicsRef[i].description,
+			assetUid
+		);
 		topics[i] = await createTopic(group.id, topicsRef[i], isDefault);
 		const assetTopic = await createAssetTopic(newAsset.id, topics[i].id, topicsRef[i].topicRef, isDefault);
 		assetTopics.push(assetTopic);
@@ -346,6 +354,13 @@ export const createSystemMonitoringAsset = async (
 	const topics: ITopic[] = [];
 	const assetTopics: IAssetTopic[] = [];
 	for (let i = 0; i < topicsRef.length; i++) {
+		// device topics, traceable in the topic lists: "Mobile video · dev2dtm_2 for Asset_<uid>"
+		topicsRef[i].description = assetTopicDescription(
+			topicsRef[i].topicType,
+			topicsRef[i].topicRef,
+			topicsRef[i].description,
+			assetUid
+		);
 		topics[i] = await createTopic(group.id, topicsRef[i], isDefault);
 		const assetTopic = await createAssetTopic(newAsset.id, topics[i].id, topicsRef[i].topicRef, isDefault);
 		assetTopics.push(assetTopic);

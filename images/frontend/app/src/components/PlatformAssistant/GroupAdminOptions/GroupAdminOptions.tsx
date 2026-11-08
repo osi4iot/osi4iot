@@ -26,6 +26,8 @@ import { AssetS3FolderProvider } from "../../../contexts/assetS3FolderOptions";
 import AssetS3FolderContainer from "./AssetS3FolderContainer";
 import { Column } from '../Utils/platformTable';
 import KnowledgeContainer from "./KnowledgeContainer";
+import AlarmHistoryContainer from "./AlarmHistoryContainer";
+import ApprovalHistoryContainer from "./ApprovalHistoryContainer";
 import SkillsContainer from "../Utils/SkillsContainer";
 import { reloadTable, TableName, usePersistentState, useTable, useTablesPending } from "../../../state";
 
@@ -231,6 +233,12 @@ const GroupAdminOptions: FC<{}> = () => {
                                     refreshMlModels={refreshMlModels}
                                 />
                             </MlModelsProvider>
+                        )}
+                        {optionToShow === GROUP_ADMIN_OPTIONS.ALARM_HISTORY && (
+                            <AlarmHistoryContainer groupsManaged={groupsManagedTable} digitalTwins={digitalTwinsTable} />
+                        )}
+                        {optionToShow === GROUP_ADMIN_OPTIONS.APPROVAL_HISTORY && (
+                            <ApprovalHistoryContainer groupsManaged={groupsManagedTable} digitalTwins={digitalTwinsTable} />
                         )}
                     </>
                 )}

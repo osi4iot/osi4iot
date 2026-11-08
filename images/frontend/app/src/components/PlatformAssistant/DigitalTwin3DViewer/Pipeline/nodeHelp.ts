@@ -23,6 +23,8 @@ Generic mqtt: accepts an MQTT-style topic and converts / separators into . befor
 
 When Topic reference is used, the node can resolve a single registered topic or, in some cases, expand to multiple subjects. For example, the special reference all_dev2pdb subscribes to all registered topics whose type starts with dev2pdb.
 
+The topics of the asset are named by their type in its topic references (assetTopicsRef.json): dev2pdb_1, dev2pdb_2... for measurements stored in the IoT database; dev2dtm_1, dev2dtm_2... for what a device sends to the digital twin (photos, video, audio: the default mobile asset has dev2dtm_1 photo, dev2dtm_2 video and dev2dtm_3 audio); dtm2dev_1, dtm2dev_2... for what the digital twin sends to a device. Their description ends with the asset they belong to, e.g. "Mobile video · dev2dtm_2 for Asset_<uid>". The digital twin keeps its own dev2dtm and dtm2dev (without number) as general channels.
+
 Incoming NATS messages may include three optional headers that control how payloads are interpreted:
 
 Content-Type: defines the payload format. If not provided, the node assumes application/json.
@@ -89,6 +91,7 @@ Use this node whenever a pipeline must react to live data published on NATS or M
         ],
         notes: [
             "When using 'Topic reference', the special value 'all dev2pdb' expands to multiple subscriptions, one for each dev2pdb topic in the digital twin.",
+            "The Topic list groups the asset's topics by type: 'Select single dev2pdb topic', 'Select single dev2dtm topic' and 'Select single dtm2dev topic'; the digital twin's own topics are under 'Select custom listen topics'.",
         ],
     },
     Publish: {
@@ -102,7 +105,7 @@ Use this node whenever a pipeline must react to live data published on NATS or M
             {
                 name: "Publish To",
                 description:
-                    "Defines how the destination topic is resolved. 'Topic reference' uses a registered topic from the digital twin. 'Generic nats' publishes to a raw NATS subject. 'Generic mqtt' accepts an MQTT-style topic and converts '/' into '.'. 'Reply' responds to the originating NATS request using the reply subject carried in the message — no topic configuration is required in this mode.",
+                    "Defines how the destination topic is resolved. 'Topic reference' uses a registered topic: the asset's dev2pdb_n, dev2dtm_n and dtm2dev_n, or the digital twin's own topics. 'Generic nats' publishes to a raw NATS subject. 'Generic mqtt' accepts an MQTT-style topic and converts '/' into '.'. 'Reply' responds to the originating NATS request using the reply subject carried in the message — no topic configuration is required in this mode.",
             },
             {
                 name: "Topic",
@@ -1053,6 +1056,7 @@ Use this node whenever a pipeline must react to live data published on NATS or M
             "The user who acknowledges with a message is its sender (web chat, Telegram) or payload.user.",
             "The asset status changes when an alarm changes level, not with every reading.",
             "An alarm of a node deleted from the pipeline stops counting for the asset status at the next deployment.",
+            "Every event is also kept 2 years in the history of alarms (IoT database, table iot_data.alarm), with who acknowledged, shelved or reset it and a copy of the message that caused it, also the events not sent while shelved: Group admin → Alarm history shows them and downloads them as CSV or JSON.",
             "The state is kept in the digital twin's key-value store and updated atomically, so the node behaves the same with several pipelines replicas; the clock (timeouts, delays, periods) runs in one replica only.",
             "A message with payload.reset = true clears the node's state; payload.reset = \"<key>\" clears only that key's.",
         ],
@@ -1493,6 +1497,7 @@ Use this node whenever a pipeline must react to live data published on NATS or M
         notes: [
             "Outputs: 0 approved, 1 rejected, 2 expired (the original message with payload.approval), 3 a notice of each new request, to wire to an Email or Telegram node.",
             "At most 100 requests wait at a time; more are rejected at once.",
+            "Every request and its end (approved, rejected, expired) is kept 2 years in the history of approvals (IoT database, table iot_data.approval), with who decided, how, the comment, how long it waited and a copy of the message: Group admin → Approval history shows them and downloads them as CSV or JSON.",
             "A Telegram account is linked from the user's profile in the platform.",
         ],
     },

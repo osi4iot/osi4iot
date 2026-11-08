@@ -285,6 +285,7 @@ func (n *AlarmNode) projectAlarm(key string, before, after *alarmState, now time
 func (n *AlarmNode) publish(from common.Message, key string, before *alarmState, result alarmStepResult, now time.Time, log *logger.Logger) {
 	after := result.Next
 	n.projectAlarm(key, before, after, now)
+	n.recordHistory(from, key, before, after, result.Events, now)
 	for _, e := range result.Events {
 		kind, _ := e["event"].(string)
 		if after.shelved(now) && kind != "shelved" {
@@ -320,6 +321,25 @@ func (n *AlarmNode) publish(from common.Message, key string, before *alarmState,
 				n.HandleError(fmt.Errorf("updating the asset status: %w", err))
 			}
 		}, log)
+	}
+}
+
+// recordHistory writes the events in the history of alarms (all of them,
+// also those not sent on while shelved, marked as such).
+func (n *AlarmNode) recordHistory(from common.Message, key string, before, after *alarmState, events []map[string]any, now time.Time) {
+	if len(events) == 0 || !iotdb.HistoryEnabled() {
+		return
+	}
+	s := after
+	if s == nil {
+		s = before
+	}
+	hc := n.historyContext()
+	topic, payload := messageCopy(from)
+	for _, e := range events {
+		kind, _ := e["event"].(string)
+		shelved := after.shelved(now) && kind != "shelved"
+		iotdb.RecordAlarm(n.cfg.alarmHistoryRecord(hc, e, s, key, now, shelved, topic, payload))
 	}
 }
 

@@ -123,6 +123,9 @@ func CreateFlowsManager(
 	)
 	go b.Start()
 
+	// history of the alarms and approvals (iot_data.alarm, iot_data.approval)
+	iotdb.StartHistoryRecorder(iotDataCtx, dbpool, log)
+
 	leaderKvStore, err := nats_pkg.CreateLeaderKeyValueStore(
 		ctx,
 		config.ShardIndex,

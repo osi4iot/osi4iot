@@ -1,6 +1,8 @@
 ./mcp_servers/mcp_calculate_server/.venv/
 ./mcp_servers/mcp_calculate_server/mcp_calcualte_server.egg-info/
-# Local GPU build of ONNX Runtime for debugging outside Docker (see
-# ONNXRUNTIME_SHARED_LIB). The -gpu image downloads its own.
-assets/onnx_runtime_linux_amd64_gpu/
+# assets/onnx_runtime_linux_amd64_gpu/ (ONNX Runtime GPU, also for debugging
+# outside Docker: ONNXRUNTIME_SHARED_LIB) and assets/tokenizers_linux_<arch>/
+# do go to the build: the image takes them from there instead of downloading
+# them (fetch_build_libs.sh). Download leftovers do not.
+assets/**/*.part
 assets/embeddings/

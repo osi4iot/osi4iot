@@ -106,7 +106,9 @@ func (n *ApprovalNode) processMessage(msg common.Message, log *logger.Logger) er
 		return fmt.Errorf("approval requests: %w", err)
 	}
 	if len(keys) >= approvalMaxPending {
-		payload := req.decisionPayload("rejected", "", "", fmt.Sprintf("more than %d requests pending", approvalMaxPending), now)
+		comment := fmt.Sprintf("more than %d requests pending", approvalMaxPending)
+		payload := req.decisionPayload("rejected", "", "", comment, now)
+		n.recordApproval(req, "rejected", "", "node", comment, now)
 		n.sendToOutput(emitMessage(msg, msg.GetTopic(), payload), approvalOutputRejected, log)
 		n.HandleInfo(fmt.Sprintf("Request rejected: %d requests are pending", len(keys)))
 		return nil
@@ -129,6 +131,7 @@ func (n *ApprovalNode) processMessage(msg common.Message, log *logger.Logger) er
 	if err != nil {
 		return fmt.Errorf("storing the approval request: %w", err)
 	}
+	n.recordApproval(req, "requested", "", "", "", now)
 	n.sendToOutput(emitMessage(msg, msg.GetTopic(), req.notification(n.cfg.Channel)), approvalOutputRequests, log)
 	return nil
 }
@@ -171,6 +174,7 @@ func (n *ApprovalNode) decide(id string, approve bool, by, via, comment string, 
 // shows it in Telegram.
 func (n *ApprovalNode) finish(req *approvalRequest, decision, by, via, comment string, at time.Time, log *logger.Logger) {
 	output := map[string]int{"approved": approvalOutputApproved, "rejected": approvalOutputRejected, "expired": approvalOutputExpired}[decision]
+	n.recordApproval(req, decision, by, via, comment, at)
 	out := message.NewMessage(req.Topic, req.decisionPayload(decision, by, via, comment, at), req.State, "", nil)
 	n.sendToOutput(out, output, log)
 	if req.TelegramMessageId != 0 && n.botToken != "" {

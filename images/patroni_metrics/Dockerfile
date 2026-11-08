@@ -6,6 +6,10 @@
 #   Releases (wal-g-pg-24.04-<arch>.tar.gz) — nothing is compiled from
 #   source, so no Go toolchain or libsodium build dependencies are needed
 #   in this image for WAL-G itself.
+#   WAL-G and the pgvector source are taken from assets/ when they are there
+#   (sh fetch_build_libs.sh downloads them once), so the build does not
+#   depend on GitHub; --build-arg OFFLINE=1 makes it fail instead of
+#   downloading them.
 #   patroni_sidecar (both archs) → pure stdlib Go, cross-compiled with
 #   CGO_ENABLED=0 from BUILDPLATFORM — no QEMU needed either way.
 #
@@ -34,7 +38,55 @@ COPY patroni_sidecar/go.mod ./
 COPY patroni_sidecar/main.go ./
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=${TARGETARCH} go build -o /usr/local/bin/patroni_sidecar .
 
-# ── Stage 1: final image ─────────────────────────────────────────────────────
+# ── Stage 1: pgvector source and WAL-G binary (native, no QEMU) ──────────────
+# From assets/ when they are there (fetch_build_libs.sh leaves them),
+# otherwise from GitHub with retries. Done on the build platform: GNU tar
+# under QEMU (the arm64 image built on amd64) fails on the pgvector archive
+# ("Cannot mkdir: Invalid argument"), and nothing here depends on the target.
+# --build-arg OFFLINE=1: fail instead of downloading.
+FROM --platform=$BUILDPLATFORM golang:1.25-bookworm AS downloads
+ARG TARGETARCH
+ARG WALG_VERSION
+ARG PGVECTOR_VERSION
+ARG OFFLINE=0
+RUN --mount=type=bind,source=assets,target=/tmp/assets \
+    mkdir -p /out \
+    && L="/tmp/assets/pgvector/pgvector-${PGVECTOR_VERSION}.tar.gz" \
+    && if [ -f "$L" ]; then \
+         echo "pgvector ${PGVECTOR_VERSION}: assets/pgvector" \
+         && mkdir -p /out/pgvector \
+         && tar -xzf "$L" -C /out/pgvector --strip-components=1; \
+       elif [ "$OFFLINE" = "1" ]; then \
+         echo "OFFLINE=1 and assets/pgvector/pgvector-${PGVECTOR_VERSION}.tar.gz is missing: run fetch_build_libs.sh" && exit 1; \
+       else \
+         for i in 1 2 3 4 5; do \
+           git clone --depth 1 --branch ${PGVECTOR_VERSION} https://github.com/pgvector/pgvector.git /out/pgvector && break; \
+           rm -rf /out/pgvector; echo "git clone failed, retrying in 5 s"; sleep 5; \
+         done \
+         && test -d /out/pgvector; \
+       fi \
+    && case "$TARGETARCH" in \
+         amd64) WALG_ARCH=amd64 ;; \
+         arm64) WALG_ARCH=aarch64 ;; \
+         *) echo "unsupported arch: $TARGETARCH" >&2; exit 1 ;; \
+       esac \
+    && W="/tmp/assets/walg_linux_${TARGETARCH}" \
+    && if [ -f "$W/wal-g" ] && [ "$(cat "$W/VERSION" 2>/dev/null)" = "${WALG_VERSION}" ]; then \
+         echo "wal-g ${WALG_VERSION}: assets/walg_linux_${TARGETARCH}" \
+         && cp "$W/wal-g" /out/wal-g; \
+       elif [ "$OFFLINE" = "1" ]; then \
+         echo "OFFLINE=1 and assets/walg_linux_${TARGETARCH} has no wal-g ${WALG_VERSION}" \
+              "(VERSION: $(cat "$W/VERSION" 2>/dev/null || echo none)): run fetch_build_libs.sh" && exit 1; \
+       else \
+         curl -fsSL --retry 6 --retry-delay 5 --retry-all-errors \
+           "https://github.com/wal-g/wal-g/releases/download/${WALG_VERSION}/wal-g-pg-24.04-${WALG_ARCH}.tar.gz" \
+           -o /tmp/wal-g.tar.gz \
+         && tar -xzf /tmp/wal-g.tar.gz -C /tmp \
+         && mv "/tmp/wal-g-pg-24.04-${WALG_ARCH}" /out/wal-g; \
+       fi \
+    && chmod +x /out/wal-g
+
+# ── Stage 2: final image ─────────────────────────────────────────────────────
 FROM ubuntu:24.04
 
 ARG PG_MAJOR
@@ -66,7 +118,7 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 # ── PostgreSQL 18 (from PGDG) ─────────────────────────────────────────────────
-RUN curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc \
+RUN curl -fsSL --retry 6 --retry-delay 5 --retry-all-errors https://www.postgresql.org/media/keys/ACCC4CF8.asc \
         | gpg --dearmor -o /usr/share/keyrings/postgresql.gpg \
     && echo "deb [signed-by=/usr/share/keyrings/postgresql.gpg] \
         https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" \
@@ -80,7 +132,7 @@ RUN curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc \
 # ── TimescaleDB (from packagecloud) ──────────────────────────────────────────
 # No version pin — always installs the latest available version.
 # TIMESCALE_VERSION ARG documents the expected version for reference.
-RUN curl -fsSL https://packagecloud.io/timescale/timescaledb/gpgkey \
+RUN curl -fsSL --retry 6 --retry-delay 5 --retry-all-errors https://packagecloud.io/timescale/timescaledb/gpgkey \
         | gpg --dearmor -o /usr/share/keyrings/timescaledb.gpg \
     && echo "deb [signed-by=/usr/share/keyrings/timescaledb.gpg] \
         https://packagecloud.io/timescale/timescaledb/ubuntu/ $(lsb_release -cs) main" \
@@ -93,12 +145,12 @@ RUN curl -fsSL https://packagecloud.io/timescale/timescaledb/gpgkey \
 # ── pgvector — compiled from source ──────────────────────────────────────────
 # v0.8.6+ required for PostgreSQL 18 (vacuum_delay_point signature change).
 # pgvector does NOT need shared_preload_libraries — use CREATE EXTENSION vector;
-RUN git clone --depth 1 --branch ${PGVECTOR_VERSION} \
-        https://github.com/pgvector/pgvector.git /tmp/pgvector \
-    && cd /tmp/pgvector \
+# The source comes from the downloads stage (assets/ or GitHub), bound
+# read-write: what make writes there is discarded with the mount.
+RUN --mount=type=bind,from=downloads,source=/out/pgvector,target=/tmp/pgvector,rw \
+    cd /tmp/pgvector \
     && make PG_CONFIG=/usr/lib/postgresql/${PG_MAJOR}/bin/pg_config \
-    && make install PG_CONFIG=/usr/lib/postgresql/${PG_MAJOR}/bin/pg_config \
-    && rm -rf /tmp/pgvector
+    && make install PG_CONFIG=/usr/lib/postgresql/${PG_MAJOR}/bin/pg_config
 
 # ── Patroni ───────────────────────────────────────────────────────────────────
 RUN python3 -m venv /opt/patroni \
@@ -110,17 +162,8 @@ RUN python3 -m venv /opt/patroni \
     && ln -s /opt/patroni/bin/patroni_raft_controller    /usr/local/bin/patroni_raft_controller
 
 # ── WAL-G ─────────────────────────────────────────────────────────────────────
-RUN ARCH=$(dpkg --print-architecture) \
-    && case "$ARCH" in \
-         amd64)   WALG_ARCH=amd64   ;; \
-         arm64)   WALG_ARCH=aarch64 ;; \
-         *) echo "unsupported arch: $ARCH" >&2; exit 1 ;; \
-       esac \
-    && curl -fsSL \
-        "https://github.com/wal-g/wal-g/releases/download/${WALG_VERSION}/wal-g-pg-24.04-${WALG_ARCH}.tar.gz" \
-        | tar -xz -C /usr/local/bin/ \
-    && mv "/usr/local/bin/wal-g-pg-24.04-${WALG_ARCH}" /usr/local/bin/wal-g \
-    && chmod +x /usr/local/bin/wal-g
+# From the downloads stage (assets/walg_linux_<arch>/ or GitHub).
+COPY --from=downloads /out/wal-g /usr/local/bin/wal-g
 
 # ── patroni_sidecar sidecar ───────────────────────────────────────────────────
 COPY --from=patroni-sidecar-builder /usr/local/bin/patroni_sidecar /usr/local/bin/patroni_sidecar

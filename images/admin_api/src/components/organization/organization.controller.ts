@@ -1,4 +1,5 @@
 import { Router, NextFunction, Request, Response } from "express";
+import { deleteHistoryOfOrg } from "../../utils/eventHistory/eventHistory";
 import { point, polygon } from "@turf/helpers";
 import IController from "../../interfaces/controller.interface";
 import validationMiddleware from "../../middleware/validation.middleware";
@@ -521,21 +522,21 @@ class OrganizationController implements IController {
 							messageSchema: "{}",
 						},
 						{
-							topicRef: "dev2pdb_5",
+							topicRef: "dev2dtm_1",
 							topicType: "dev2dtm",
 							description: `Mobile photo topic`,
 							mqttAccessControl: "Pub & Sub",
 							messageSchema: "{}",
 						},
 						{
-							topicRef: "dev2pdb_6",
+							topicRef: "dev2dtm_2",
 							topicType: "dev2dtm",
 							description: `Mobile video topic`,
 							mqttAccessControl: "Pub & Sub",
 							messageSchema: "{}",
 						},
 						{
-							topicRef: "dev2pdb_7",
+							topicRef: "dev2dtm_3",
 							topicType: "dev2dtm",
 							description: `Mobile audio topic`,
 							mqttAccessControl: "Pub & Sub",
@@ -574,21 +575,21 @@ class OrganizationController implements IController {
 						{
 							sensorRef: "sensor_5",
 							sensorType: "Mobile photo",
-							topicRef: "dev2pdb_5",
+							topicRef: "dev2dtm_1",
 							description: `Mobile photo`,
 							measurements: JSON.stringify(predefinedSensorTypes[4].defaultMeasurements),
 						},
 						{
 							sensorRef: "sensor_6",
 							sensorType: "Mobile video",
-							topicRef: "dev2pdb_6",
+							topicRef: "dev2dtm_2",
 							description: `Mobile video`,
 							measurements: JSON.stringify(predefinedSensorTypes[5].defaultMeasurements),
 						},
 						{
 							sensorRef: "sensor_7",
 							sensorType: "Mobile audio",
-							topicRef: "dev2pdb_7",
+							topicRef: "dev2dtm_3",
 							description: `Mobile audio`,
 							measurements: JSON.stringify(predefinedSensorTypes[6].defaultMeasurements),
 						},
@@ -956,6 +957,8 @@ class OrganizationController implements IController {
 			await grafanaApi.deleteOrgApiAdminUser(organization.id);
 			const deleteOrgMessage = await grafanaApi.deleteOrganizationById(organization.id);
 			await natsClient.jsPublish("org", "delete", organization.id);
+			// the history of alarms and approvals of its groups (deleted with it)
+			await deleteHistoryOfOrg(organization.id);
 			const bucketFolder = `org_data/org_${organization.id}`;
 			await removeFilesFromBucketFolder(bucketFolder);
 			if (deleteOrgMessage.message === "Organization deleted") {
@@ -985,4 +988,3 @@ class OrganizationController implements IController {
 }
 
 export default OrganizationController;
-

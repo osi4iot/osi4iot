@@ -38,10 +38,19 @@ const ZoomContainer = styled.div.attrs<ZoomContainerProps>((props) => ({
     transition: transform 0.1s ease-out;
     transform-origin: center center;
     position: relative;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 `;
 
+// fits the frame in its panel (the Viewer page's panels can be small), keeping its proportions
 const FramedCanvas = styled.canvas`
     display: block;
+    box-sizing: border-box;
+    max-width: 100%;
+    max-height: 100%;
     border: 8px solid #868585ff;
     border-radius: 2px;
     box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 10px 10px -5px rgba(0, 0, 0, 0.2),
@@ -255,7 +264,7 @@ export const ImageFrame: React.FC<ImageFrameProps> = ({
             {!hasFirstFrame && <Camera size={100} color="#595858" />}
 
             {/* Always mounted, so frames can be drawn before the first one is shown */}
-            <div style={{ display: hasFirstFrame ? "block" : "none" }}>
+            <div style={{ display: hasFirstFrame ? "block" : "none", width: "100%", height: "100%", padding: 12, boxSizing: "border-box" }}>
                 <ZoomContainer scale={scale} translateX={translateX} translateY={translateY}>
                     <FramedCanvas ref={canvasRef} />
                 </ZoomContainer>

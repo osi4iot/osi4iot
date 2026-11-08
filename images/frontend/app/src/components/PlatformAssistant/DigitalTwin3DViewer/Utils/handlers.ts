@@ -19,8 +19,10 @@ import axiosErrorHandler from "../../../../tools/axiosErrorHandler";
 interface HandlersParams {
     digitalTwinSelected: IDigitalTwin | null;
     digitalTwinGltfData: IDigitalTwinGltfData;
-    activeViewer: "3D" | "pipeline" | "image_frame";
+    activeViewer: "3D" | "pipeline";
     assetWithCameraSelected: boolean;
+    // the Viewer page has the 3D model (without it the assistant panel only has the chat)
+    viewerHasModel?: boolean;
     accessToken: string;
     refreshToken: string;
     authDispatch: any;
@@ -44,7 +46,7 @@ interface HandlersParams {
 export const createHandlers = (
     params: HandlersParams,
     setters: {
-        setActiveViewer: (viewer: "3D" | "pipeline" | "image_frame") => void;
+        setActiveViewer: (viewer: "3D" | "pipeline") => void;
         setGetLastMeasurementsButtomLabel: (label: string) => void;
         setInitialDigitalTwinSimulatorState: (state: Record<string, number>) => void;
         setLockReadingButtomLabel: (label: string) => void;
@@ -135,7 +137,7 @@ export const createHandlers = (
         const { isAssistantPanelShown, lockReadingButtomLabel, activeViewer, digitalTwinSelected } = params;
         if (isAssistantPanelShown) {
             setters.setIsAssistantPanelOpen(false);
-        } else if (activeViewer !== "3D") {
+        } else if (activeViewer !== "3D" || params.viewerHasModel === false) {
             if (digitalTwinSelected?.chatAssistantEnabled) {
                 setters.setChatAssistantOpen(true);
                 setters.setIsAssistantPanelOpen(true);
@@ -235,13 +237,7 @@ export const createHandlers = (
 
     const handleToggleActiveViewer = () => {
         const { activeViewer } = params;
-        const viewerOptions = ["3D", "pipeline"];
-        if (params.assetWithCameraSelected) {
-            viewerOptions.push("image_frame");
-        }
-        const currentIndex = viewerOptions.indexOf(activeViewer);
-        const nextIndex = (currentIndex + 1) % viewerOptions.length;
-        const newViewer = viewerOptions[nextIndex] as "3D" | "pipeline" | "image_frame";
+        const newViewer = activeViewer === "3D" ? "pipeline" : "3D";
         setters.setActiveViewer(newViewer);
         if (newViewer === "pipeline") {
             // el panel del asistente se cierra pero recuerda su pestaña (la del chat incluida)
@@ -251,7 +247,7 @@ export const createHandlers = (
         }
     };
 
-    const handleSetActiveViewer = (newViewer: "3D" | "pipeline" | "image_frame") => {
+    const handleSetActiveViewer = (newViewer: "3D" | "pipeline") => {
         setters.setActiveViewer(newViewer);
         if (newViewer === "pipeline") {
             // el panel del asistente se cierra pero recuerda su pestaña (la del chat incluida)
