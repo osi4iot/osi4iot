@@ -12,6 +12,7 @@ import { sanitizeCharts } from "../ChatAssitant/chatCharts";
 import { PipelineLog } from "../Pipeline/PipelineLogs";
 import { IMessage } from "./interfaces";
 import { natsInboxPrefix, natsUserInboxSubject, USER_PRIVATE_TOPIC_REFS } from "../../../../tools/natsInbox";
+import { sendCameraCommand } from "../Utils/cameraControl";
 
 const sc = StringCodec();
 
@@ -414,6 +415,11 @@ const updateObjectsState = (
                 });
             }
 
+            // the camera driven by a pipeline (e.g. the pose of a phone camera): {camera: {position, quaternion,
+            // fov, follow...}} (Utils/cameraControl.ts)
+            if (messageTopicRef === "dtm2sim" && natsMessage.camera !== undefined) {
+                sendCameraCommand(natsMessage.camera);
+            }
             if (messageTopicRef === "dtm2sim" || messageTopicRef === "llm2sim") {
                 let eventTriggerTopicType = "dev2pdb";
                 if (messagePayloadKeys.includes("eventTriggerTopicType")) {
@@ -459,11 +465,9 @@ const updateObjectsState = (
                             sensorsNewState[objName] = { ...sensorsNewState[objName], clipValue };
                         }
 
-                        if (obj.node.customAnimationObjectNames.length !== 0) {
-                            const fieldName = "customAnimation";
-                            if (messagePayloadKeys.includes(fieldName)) {
-                                updateCustomAnimationState(obj.node, natsMessage);
-                            }
+                        // any node of the model named in customAnimation (animationType "custom" is not needed)
+                        if (messagePayloadKeys.includes("customAnimation")) {
+                            updateCustomAnimationState(obj.node, natsMessage);
                         }
 
                         if (obj.node.onOffObjectNames.length !== 0) {
@@ -489,11 +493,9 @@ const updateObjectsState = (
                             assestsNewState[objName] = { ...assestsNewState[objName], clipValue };
                         }
 
-                        if (obj.node.customAnimationObjectNames.length !== 0) {
-                            const fieldName = "customAnimation";
-                            if (messagePayloadKeys.includes(fieldName)) {
-                                updateCustomAnimationState(obj.node, natsMessage);
-                            }
+                        // any node of the model named in customAnimation (animationType "custom" is not needed)
+                        if (messagePayloadKeys.includes("customAnimation")) {
+                            updateCustomAnimationState(obj.node, natsMessage);
                         }
 
                         if (obj.node.onOffObjectNames.length !== 0) {
@@ -531,11 +533,9 @@ const updateObjectsState = (
                             genericObjectNewState[objName] = { ...genericObjectNewState[objName], clipValue };
                         }
 
-                        if (obj.node.customAnimationObjectNames.length !== 0) {
-                            const fieldName = "customAnimation";
-                            if (messagePayloadKeys.includes(fieldName)) {
-                                updateCustomAnimationState(obj.node, natsMessage);
-                            }
+                        // any node of the model named in customAnimation (animationType "custom" is not needed)
+                        if (messagePayloadKeys.includes("customAnimation")) {
+                            updateCustomAnimationState(obj.node, natsMessage);
                         }
 
                         if (obj.node.onOffObjectNames.length !== 0) {
@@ -622,11 +622,14 @@ const updateObjectsState = (
     }
 };
 
-const updateCustomAnimationState = (node: IThreeMesh, natsMessage: any) => {
-    if (natsMessage.customAnimation !== undefined) {
-        const msgObjNames = Object.keys(natsMessage.customAnimation);
-        const objNamesFiltered = node.customAnimationObjectNames.filter((objName) => msgObjNames.includes(objName));
-        for (const objName of objNamesFiltered) {
+// The nodes named in customAnimation that are in this object (the object itself or a descendant). Before, only the
+// nodes with the property animationType = "custom" in the glb were moved; a model exported without it (OC4.glb, the
+// rotor "rotate") could not be animated. The message names the node, which is enough.
+export const updateCustomAnimationState = (node: IThreeMesh, natsMessage: any) => {
+    const animation = natsMessage.customAnimation;
+    if (animation !== undefined && animation !== null && typeof animation === "object") {
+        for (const objName of Object.keys(animation)) {
+            if (!animation[objName] || typeof animation[objName] !== "object") continue;
             const messagePayloadKeys = Object.keys(natsMessage.customAnimation[objName]);
             const msgData = natsMessage.customAnimation[objName];
             findObjectAndSetCustomProperties(node, objName, messagePayloadKeys, msgData);
@@ -657,6 +660,9 @@ const findObjectAndSetCustomProperties = (
             const values = msgData["quaternion"];
             if (Array.isArray(values) && values.length === 4) {
                 const qr = new THREE.Quaternion(values[0], values[1], values[2], values[3]);
+                // the orientation of the node in the glb, kept the first time it is moved (nodes without animationType
+                // "custom" do not have it from the loading)
+                if (!node.quaternionIni) node.quaternionIni = new THREE.Quaternion().copy(node.quaternion);
                 const qres = new THREE.Quaternion().multiplyQuaternions(qr, node.quaternionIni);
                 node.quaternion.set(qres.x, qres.y, qres.z, qres.w);
             }

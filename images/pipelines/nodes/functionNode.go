@@ -619,6 +619,17 @@ func (n *FuncNode) convertArrayToMessagesDirect(array []interface{}) interface{}
 			continue
 		}
 
+		// the message the function received (msg), returned in one of the outputs: the same
+		// message, as with a single output, so that it keeps its reply context (an AiTool's
+		// call, answered by Publish Reply) and its file
+		if mapData, ok := item.(map[string]interface{}); ok {
+			if goMsg, isOriginal := mapData["__goMsg"].(common.Message); isOriginal {
+				msg := n.mapToMessageFromOriginal(mapData, goMsg)
+				messages = append(messages, msg)
+				mixedArray = append(mixedArray, msg)
+				continue
+			}
+		}
 		if mapData, ok := item.(map[string]interface{}); ok && n.isMessageLike(mapData) {
 			msg := n.mapToMessageDirect(mapData)
 			messages = append(messages, msg)

@@ -27,10 +27,18 @@ import LlmUsageController from "./components/llmUsage/llmUsage.controller";
 import SkillController from "./components/skill/skill.controller";
 import { seedBuiltinSkills } from "./components/skill/skillStorage";
 import { createMissingAssetStateRows } from "./components/asset/assetStateDAL";
+import { ensureDigitalTwinViewerSettingsColumn } from "./components/digitalTwin/digitalTwinDAL";
 
 const main = async (): Promise<void> => {
 	try {
 		await dataBaseInitialization();
+		// digital twins of older versions: the viewer_settings column (every replica, before serving)
+		try {
+			await ensureDigitalTwinViewerSettingsColumn();
+		} catch (err) {
+			const message = err instanceof Error ? err.message : String(err);
+			logger.log("error", "The viewer_settings column of the digital twins could not be added: %s", message);
+		}
 		// esquemas de mensaje calculados (sensores, simulación, fijos): por si ha cambiado algo de lo que dependen
 		await refreshAllComputedMessageSchemas();
 		await natsClient.connect();

@@ -14,6 +14,16 @@ import { MOUSE_BUTTONS, LEGACY_COLOR_MANAGEMENT, BUTTON_LABELS } from "../Utils/
 
 // Components
 import { Stage } from "../Utils/Stage";
+import { GlassTweaks, RendererLighting } from "../Utils/SceneLighting";
+import { CameraController, FollowStatus, SceneBounds } from "../Utils/CameraController";
+import {
+    backgroundUnderToneMapping,
+    environmentShowsAsBackground,
+    lightingOf,
+    toneMappingOf,
+    twinLighting,
+} from "../Utils/lighting";
+import { saveTwinLighting } from "../Utils/twinViewerSettings";
 import Model from "./Model";
 import SetGltfObjects from "../Objects/SetGlftOjbects";
 import SimulationLegend from "../Utils/SimulationLegend";
@@ -29,6 +39,7 @@ import { usePersistentState } from "../../../../state/uiStore";
 // Styled components
 import {
     CanvasContainer,
+    FollowCameraBar,
     VIEWER_BACKGROUND_COLOR,
     SelectedObjectInfoContainer,
     ObjectInfoContainer,
@@ -73,6 +84,7 @@ import {
 import Flow, { processInitialPipelineData } from "../Pipeline/Flow";
 import { ReactFlowProvider } from "@xyflow/react";
 import { toast } from "react-toastify";
+import { Video } from "lucide-react";
 import { ImageFrame } from "../PhotoFrame/PhotoFrame";
 import useNatsSubscription from "../NatsHook/useNatsSubcription";
 import { filterNatsSubject } from "../NatsHook/tools";
@@ -242,7 +254,25 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
         selectedObjCollectionNameRef,
     } = useRefs();
 
-    const [opts, setOpts] = useViewerOptions([], memory.opts as ViewerOptions | undefined);
+    // the first time in the session, the twin's own lighting (saved by a group administrator) over the defaults
+    const [savedTwinLighting, setSavedTwinLighting] = useState(() => twinLighting(digitalTwinSelected?.viewerSettings));
+    const [savingLighting, setSavingLighting] = useState(false);
+    const [opts, setOpts] = useViewerOptions([], memory.opts as ViewerOptions | undefined, savedTwinLighting);
+    // the camera driven from outside (pipeline poses, AI agent, view buttons): Utils/CameraController
+    const sceneBoundsRef = useRef<SceneBounds | null>(null);
+    const handleSceneBounds = useCallback((center: THREE.Vector3, radius: number) => {
+        sceneBoundsRef.current = { center, radius };
+    }, []);
+    const [followStatus, setFollowStatus] = useState<FollowStatus>({ active: false, released: false });
+    const [followReleased, setFollowReleased] = useState(false);
+    const handleSaveLighting = useCallback(async () => {
+        if (!digitalTwinSelected) return;
+        setSavingLighting(true);
+        const lighting = lightingOf(opts);
+        const saved = await saveTwinLighting(digitalTwinSelected, lighting, accessToken, refreshToken, authDispatch);
+        if (saved) setSavedTwinLighting(lighting);
+        setSavingLighting(false);
+    }, [digitalTwinSelected, opts, accessToken, refreshToken, authDispatch]);
     useEffect(() => {
         rememberViewer(dtUid, { opts });
     }, [dtUid, opts]);
@@ -898,6 +928,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
     const pipelineLogsWidth = clampLogsWidth(logsWidth);
     // "Show in flow": Flow registers here the function that centres the canvas on a node
     const flowFocusRef = useRef<((uid: string, tone?: string) => boolean) | null>(null);
+    const selectedNodesCount = useMemo(() => pipelineNodes.filter((node: any) => node.selected).length, [pipelineNodes]);
     const canShowInFlow = useCallback((uid: string) => pipelineNodes.some((node: any) => node.id === uid), [pipelineNodes]);
     const handleShowInFlow = useCallback(
         (uid: string, isError: boolean) => flowFocusRef.current?.(uid, isError ? "error" : "info"),
@@ -1023,8 +1054,8 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
                         shadows="percentage"
                         legacy={LEGACY_COLOR_MANAGEMENT}
                         gl={{
-                            toneMapping: THREE.ACESFilmicToneMapping,
-                            toneMappingExposure: 1.5,
+                            toneMapping: toneMappingOf(opts.toneMapping).three,
+                            toneMappingExposure: opts.exposure,
                             outputColorSpace: THREE.SRGBColorSpace,
                         }}
                         camera={{ position: [4, 4, 0], zoom: 300 }}
@@ -1032,11 +1063,40 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
                         {/* Opaque background, the colour of CanvasContainer. With the transparent canvas of R3F
                             (clear alpha 0), three.js fills what glass and liquids (KHR_materials_transmission)
                             see behind them with white at 50%, and they look milky. */}
-                        <color attach="background" args={[VIEWER_BACKGROUND_COLOR]} />
+                        {!environmentShowsAsBackground(opts) && (
+                            <color
+                                attach="background"
+                                args={[
+                                    // with post-processing the background is tone mapped too: the colour that
+                                    // ends up as the container's
+                                    opts.ambientOcclusion || opts.bloom
+                                        ? backgroundUnderToneMapping(VIEWER_BACKGROUND_COLOR, opts.toneMapping, opts.exposure)
+                                        : VIEWER_BACKGROUND_COLOR,
+                                ]}
+                            />
+                        )}
+                        <RendererLighting
+                            toneMapping={opts.toneMapping}
+                            exposure={opts.exposure}
+                            effectsActive={!!(opts.ambientOcclusion || opts.bloom)}
+                        />
+                        <GlassTweaks thinGlass={!!opts.thinGlass} />
                         <ShaderPrewarm gltfData={digitalTwinGltfData} />
                         <Stage
                             controls={controlsRef}
                             environment={opts.environment}
+                            environmentIntensity={opts.environmentIntensity}
+                            environmentRotation={opts.environmentRotation}
+                            environmentBackground={opts.environmentBackground}
+                            backgroundBlur={opts.backgroundBlur}
+                            keyLight={opts.keyLight}
+                            keyLightIntensity={opts.keyLightIntensity}
+                            keyLightFollowsCamera={opts.keyLightFollowsCamera}
+                            contactShadows={opts.contactShadows}
+                            ambientOcclusion={opts.ambientOcclusion}
+                            bloom={opts.bloom}
+                            bloomIntensity={opts.bloomIntensity}
+                            toneMapping={opts.toneMapping}
                             ambientLight={opts.ambientLight}
                             ambientLightIntensity={opts.ambientLightIntensity}
                             spotLight={opts.spotLight}
@@ -1050,6 +1110,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
                             axesScale={opts.axesScale}
                             femResultLoaded={state.femResultLoaded}
                             initialView={memory.camera}
+                            onBounds={handleSceneBounds}
                         >
                             <Model
                                 digitalTwinGltfData={digitalTwinGltfData}
@@ -1147,9 +1208,30 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
                                 setCurrentFemSimulationObjectsState={setCurrentFemSimulationObjectsState}
                             />
                         </Stage>
+                        <CameraController
+                            projection={opts.cameraProjection ?? "orthographic"}
+                            fov={opts.cameraFov ?? 45}
+                            controlsRef={controlsRef}
+                            boundsRef={sceneBoundsRef}
+                            followReleased={followReleased}
+                            onFollowStatus={setFollowStatus}
+                            onProjectionRequest={(projection) =>
+                                setOpts((prev) => ({ ...prev, cameraProjection: projection }))
+                            }
+                            onFovRequest={(fov) => setOpts((prev) => ({ ...prev, cameraFov: fov }))}
+                        />
                         <OrbitControls ref={controlsRef} mouseButtons={MOUSE_BUTTONS} />
                         <CameraMemory dtUid={dtUid} controlsRef={controlsRef} />
                     </Canvas>
+                    {followStatus.active && (
+                        <FollowCameraBar role="status" aria-live="polite">
+                            <Video aria-hidden="true" />
+                            <span>{followReleased ? "External camera (not followed)" : "Following the external camera"}</span>
+                            <button type="button" onClick={() => setFollowReleased((r) => !r)}>
+                                {followReleased ? "Follow" : "Release"}
+                            </button>
+                        </FollowCameraBar>
+                    )}
                 </div>
                 {state.activeViewer === "pipeline" && (
                     <PipelineErrorBoundary resetKey={dtUid}>
@@ -1220,6 +1302,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
                     handleStopPipeline={handleStopPipeline}
                     handleFileUpload={handleFileUpload}
                     handleDownloadYamlFile={handleDownloadYamlFile}
+                    selectedNodesCount={selectedNodesCount}
                     handleReinitiatePipeline={handleReinitiatePipeline}
                     isPipelineUiChanged={state.isPipelineUiChanged}
                     close3DViewer={handleClose3DViewer}
@@ -1278,6 +1361,9 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
                         simulatorFloating={state.showDtSimulatorModal}
                         onFloatSimulator={handlers.handleOpenSimulator}
                         onDockSimulator={handlers.handleDockSimulator}
+                        twinLighting={savedTwinLighting}
+                        onSaveLighting={digitalTwinSelected ? handleSaveLighting : undefined}
+                        savingLighting={savingLighting}
                     />
                 )}
 

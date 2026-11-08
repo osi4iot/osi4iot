@@ -12,6 +12,8 @@ export default interface IDigitalTwin {
 	chatAssistantEnabled: boolean;
 	chatAssistantLanguage: string;
 	digitalTwinSimulationFormat: string;
+	// the twin's own viewer settings ({lighting: {...}}), saved from the 3D viewer
+	viewerSettings?: Record<string, unknown>;
 	// The file the simulation format was loaded from ("-": none)
 	digitalTwinSimulationFormatFileName?: string;
 	digitalTwinSimulationFormatLastModifDate?: string;

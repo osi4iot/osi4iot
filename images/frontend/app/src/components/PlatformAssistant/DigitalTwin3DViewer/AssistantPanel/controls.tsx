@@ -457,19 +457,22 @@ interface SelectFieldProps {
     value: string;
     options: string[];
     onChange: (value: string) => void;
+    // text shown for each option (the option's value when not given)
+    optionLabel?: (option: string) => string;
+    disabled?: boolean;
 }
 
-export const SelectField: FC<SelectFieldProps> = ({ id, label, value, options, onChange }) => {
+export const SelectField: FC<SelectFieldProps> = ({ id, label, value, options, onChange, optionLabel, disabled }) => {
     const list = options.includes(value) || value === undefined ? options : [value, ...options];
     return (
-        <Row style={{ minHeight: 44 }}>
+        <Row style={{ minHeight: 44, opacity: disabled ? 0.45 : 1 }}>
             <RowLabel as="label" htmlFor={id}>
                 {label}
             </RowLabel>
-            <Select id={id} value={value} onChange={(event) => onChange(event.target.value)}>
+            <Select id={id} value={value} disabled={disabled} onChange={(event) => onChange(event.target.value)}>
                 {list.map((option) => (
                     <option key={option} value={option}>
-                        {option}
+                        {optionLabel ? optionLabel(option) : option}
                     </option>
                 ))}
             </Select>

@@ -26,6 +26,7 @@ import {
     Repeat,
     AudioWaveform,
     ScanSearch,
+    ScanEye,
     Calculator,
     Factory,
     TrendingDown,
@@ -225,6 +226,8 @@ const NODE_DESCRIPTIONS: Record<string, string> = {
         "The operating state of a machine from its signals (ordered rules), with the time in each state per day or shift.",
     Rainflow: "Rainflow cycle counting of a stress signal and its fatigue damage (Miner) with S-N curves, e.g. DNV-RP-C203.",
     Vibration: "Vibration features of blocks of samples: RMS, crest factor, kurtosis, bands, dominant frequency and damping.",
+    PoseEstimation:
+        "Pose of a camera with respect to a known object from named keypoints (YOLO-pose, markers): drives the viewer's camera, and the angle of moving parts such as a rotor.",
     Anomaly: "Flags values that leave their recent behaviour: Z-score, EWMA control chart or IQR fences, without a trained model.",
     Totalizer: "Daily amounts and totals of counters (with rollovers), rates integrated over time (kW → kWh) and events.",
     OEE: "OEE per shift or day (availability × performance × quality) from machine states and pieces, with a calendar.",
@@ -721,6 +724,16 @@ const nodeTypes = [
         numOutputs: 1,
         debug: "off",
         settings: SIGNAL_DEFAULT_SETTINGS.Anomaly,
+    },
+    {
+        type: "PoseEstimation",
+        label: "Pose estimation",
+        bgColor: "#5f6fa3",
+        hoverColor: "#7686bb",
+        icon: <ScanEye size="30px" color="#e7e3df" />,
+        numOutputs: 2,
+        debug: "off",
+        settings: SIGNAL_DEFAULT_SETTINGS.PoseEstimation,
     },
     {
         type: "Totalizer",

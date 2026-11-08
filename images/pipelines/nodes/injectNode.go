@@ -138,9 +138,15 @@ func CreateInjectNode(node common.NodeData, fm common.Manager, p common.Pipeline
 		return nil, fmt.Errorf("injectionType setting is required")
 	}
 
-	if injectionType != "Timestamp" && injectionType != "JSON" {
-		fm.Log().Errorf("InjectNode %s: 'injectionType' must be 'Timestamp' or 'JSON'", node.NodeUid)
-		return nil, fmt.Errorf("invalid injectionType: %s. It must be 'Timestamp' or 'JSON'", injectionType)
+	if injectionType != "Timestamp" && injectionType != "JSON" && injectionType != "File" {
+		fm.Log().Errorf("InjectNode %s: 'injectionType' must be 'Timestamp', 'JSON' or 'File'", node.NodeUid)
+		return nil, fmt.Errorf("invalid injectionType: %s. It must be 'Timestamp', 'JSON' or 'File'", injectionType)
+	}
+	// A file (an image, the frames of a video, an audio clip) is sent by the
+	// browser from the node's button: there is nothing to repeat here.
+	if injectionType == "File" && repeat != "none" {
+		fm.Log().Errorf("InjectNode %s: a File injection is sent from the button, 'repeat' must be 'none'", node.NodeUid)
+		return nil, fmt.Errorf("a File injection is sent from the node's button: repeat must be 'none'")
 	}
 
 	jsonMessage := map[string]interface{}{}
@@ -230,12 +236,10 @@ func (n *InjectNode) processNatsMessage(msg *nats.Msg, log *logger.Logger) error
 	if !n.forThisNode(msg) {
 		return nil
 	}
-	var rawMessage map[string]interface{}
-	if err := json.Unmarshal(msg.Data, &rawMessage); err != nil {
-		return fmt.Errorf("failed to unmarshal message for node %s: %w", n.NodeUid, err)
+	message, err := injectedMessage(msg)
+	if err != nil {
+		return fmt.Errorf("message for node %s: %w", n.NodeUid, err)
 	}
-
-	message := message.NewMessage(msg.Subject, rawMessage, nil, "", nil)
 
 	topic := message.GetTopic()
 	if topic != "" && topic != n.TopicIn {
@@ -606,4 +610,40 @@ func readDaysOfWeek(node common.NodeData) ([]int, error) {
 	}
 
 	return daysOfWeek, nil
+}
+
+// injectedMessage builds the message of a press of the node's button. JSON
+// (Timestamp and JSON injections) gives a payload; any other Content-Type is
+// a file the browser sends as the mobile sensors do (an image, each frame of
+// a video as image/jpeg, an audio clip): a file message like those of a
+// Listen node, with the Payload-* headers as payload fields and the time of
+// X-Capture-Ts as its timestamp.
+func injectedMessage(msg *nats.Msg) (*message.Message, error) {
+	contentType := "application/json"
+	if msg.Header != nil {
+		if ct := msg.Header.Get("Content-Type"); ct != "" {
+			contentType = ct
+		}
+	}
+	if contentType == "application/json" {
+		var rawMessage map[string]interface{}
+		if err := json.Unmarshal(msg.Data, &rawMessage); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal message: %w", err)
+		}
+		return message.NewMessage(msg.Subject, rawMessage, nil, "", nil), nil
+	}
+	if len(msg.Data) == 0 {
+		return nil, fmt.Errorf("empty %s file", contentType)
+	}
+	name := msg.Subject
+	if msg.Header != nil && msg.Header.Get("Payload-FileName") != "" {
+		name = msg.Header.Get("Payload-FileName")
+	}
+	out := message.NewMessage(msg.Subject, payloadFromHeaders(msg.Header), nil, contentType, &common.File{
+		Name:        name,
+		ContentType: contentType,
+		Data:        msg.Data,
+	})
+	addMissingTimestamp(out, messageTimestamp(msg.Header, time.Now()))
+	return out, nil
 }

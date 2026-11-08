@@ -59,6 +59,7 @@ import { CodeMirrorWrapper } from "../../../Tools/CodeMirrorWrapper";
 import { buildEditorExtensions, disposeEditor, restartEditor } from "./editor";
 import { NODE_FUNCTION_SCRIPTS } from "./NodePalette";
 import { HelpTab } from "./HelpTab";
+import { InjectFileSettingsEditor } from "./InjectFileSettings";
 import { IGroup } from "../../TableColumns/groupsColumns";
 
 const CODEMIRROR_SETUP = {
@@ -545,7 +546,9 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                                 <FormGroup>
                                     <Label>Repeat</Label>
                                     <Select
-                                        value={formData.repeat || "none"}
+                                        value={formData.injectionType === "File" ? "none" : formData.repeat || "none"}
+                                        disabled={formData.injectionType === "File"}
+                                        title={formData.injectionType === "File" ? "A file is sent from the node's button" : undefined}
                                         onChange={(e: { target: { value: any } }) =>
                                             handleInputChange("repeat", e.target.value)
                                         }
@@ -644,14 +647,24 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                                     <Label>Injection type</Label>
                                     <Select
                                         value={formData.injectionType || "Timestamp"}
-                                        onChange={(e: { target: { value: any } }) =>
-                                            handleInputChange("injectionType", e.target.value)
-                                        }
+                                        onChange={(e: { target: { value: any } }) => {
+                                            handleInputChange("injectionType", e.target.value);
+                                            // a file is sent from the button: nothing to repeat
+                                            if (e.target.value === "File") handleInputChange("repeat", "none");
+                                        }}
                                     >
                                         <option value="Timestamp">Timestamp</option>
                                         <option value="JSON">JSON</option>
+                                        <option value="File">File (image, video, audio)</option>
                                     </Select>
                                 </FormGroup>
+                                {formData.injectionType === "File" && selectedNode && (
+                                    <InjectFileSettingsEditor
+                                        nodeUid={selectedNode.data.nodeUid}
+                                        settings={formData}
+                                        onChange={handleInputChange}
+                                    />
+                                )}
                                 {formData.injectionType === "JSON" && (
                                     <FormGroup>
                                         <Label>JSON</Label>
@@ -2266,4 +2279,3 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
 };
 
 export default NodePropertiesPanel;
-

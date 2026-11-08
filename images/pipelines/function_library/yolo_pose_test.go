@@ -4,6 +4,7 @@ import (
 	"image"
 	"image/color"
 	"math"
+	"strings"
 	"testing"
 )
 
@@ -141,4 +142,77 @@ func TestLetterboxImage(t *testing.T) {
 	if lb.Data[mid] != 1 || lb.Data[ch+mid] != 0 || lb.Data[2*ch+mid] != 0 {
 		t.Fatalf("frame pixel = %v %v %v", lb.Data[mid], lb.Data[ch+mid], lb.Data[2*ch+mid])
 	}
+}
+
+// An Ultralytics export with nms=True (the OC4 models): [1, 300, 6 + 11 x 3],
+// rows [x1, y1, x2, y2, conf, class, keypoints], empty rows at confidence 0.
+func TestDecodePoseEndToEnd(t *testing.T) {
+	const rows, kpts = 300, 11
+	rowLen := 6 + kpts*3
+	out := make([]float32, rows*rowLen)
+	set := func(r int, box [4]float32, conf, cls float32, kx, ky float32) {
+		row := out[r*rowLen : (r+1)*rowLen]
+		copy(row, box[:])
+		row[4], row[5] = conf, cls
+		for k := 0; k < kpts; k++ {
+			row[6+3*k], row[6+3*k+1], row[6+3*k+2] = kx+float32(k), ky, 0.9
+		}
+	}
+	// a 1280x720 frame letterboxed to 640: scale 0.5, padY 140
+	set(0, [4]float32{100, 200, 300, 400}, 0.92, 0, 150, 300) // WindTurbine
+	set(1, [4]float32{180, 190, 260, 260}, 0.81, 1, 200, 220) // Rotor
+	set(2, [4]float32{10, 150, 20, 160}, 0.1, 1, 0, 0)        // under the threshold
+	opts := map[string]interface{}{
+		"width": 1280, "height": 720, "scale": 0.5, "padX": 0.0, "padY": 140.0,
+		"classNames": []interface{}{"WindTurbine", "Rotor"}, "numKeypoints": 11,
+		"confThreshold": 0.5, "bestPerClass": true,
+	}
+	o, err := parsePoseOptions(opts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !isEndToEnd(out, o) {
+		t.Fatal("not taken as end-to-end")
+	}
+	dets, err := decodePose(out, o)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(dets) != 2 || dets[0].Label != "WindTurbine" || dets[1].Label != "Rotor" {
+		t.Fatalf("%+v", dets)
+	}
+	d := dets[0]
+	if !near(d.X1, 200) || !near(d.Y1, 120) || !near(d.X2, 600) || !near(d.Y2, 520) || !near(d.Confidence, 0.92) {
+		t.Fatalf("box %+v", d)
+	}
+	if k := d.Keypoints[2]; !near(k.X, 304) || !near(k.Y, 320) || !near(k.Conf, 0.9) {
+		t.Fatalf("keypoint %+v", k)
+	}
+	// a raw export of the same model is not taken as end-to-end
+	raw := make([]float32, 8400*(4+2+33))
+	if isEndToEnd(raw, o) {
+		t.Fatal("raw taken as end-to-end")
+	}
+	// forced
+	o.endToEnd = "no"
+	if isEndToEnd(out, o) {
+		t.Fatal("endToEnd false ignored")
+	}
+}
+
+// The error when the MlModel node runs another model: 705600 = 8400 x 84, a
+// COCO detection model (4 + 80 classes), instead of the OC4 pose model.
+func TestDecodePoseWrongModelMessage(t *testing.T) {
+	o, err := parsePoseOptions(map[string]interface{}{
+		"width": 360, "height": 640, "scale": 1.0, "classNames": []interface{}{"WindTurbine", "Rotor"},
+		"numKeypoints": 11, "inputSize": 640, "endToEnd": true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = decodePose(make([]float32, 705600), o)
+	if err == nil || !strings.Contains(err.Error(), "COCO detection model") || !strings.Contains(err.Error(), "300 x 39") {
+		t.Fatal(err)
+	}
+	t.Log(err)
 }

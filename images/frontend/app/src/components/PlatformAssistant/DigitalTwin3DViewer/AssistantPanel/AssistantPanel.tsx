@@ -16,6 +16,7 @@ import {
     PictureInPicture2,
     Radio,
     RotateCcw,
+    Save,
     Search,
     SlidersHorizontal,
     Sun,
@@ -24,6 +25,18 @@ import {
 
 import { ViewerOptions } from "../Types/types";
 import { DEFAULT_VIEWER_OPTIONS, ENVIRONMENT_OPTIONS } from "../Utils/constants";
+import {
+    ENVIRONMENTS,
+    LIGHTING_KEYS,
+    LIGHTING_PRESET_OPTIONS,
+    LightingOptions,
+    TONE_MAPPINGS,
+    environmentCanBeBackground,
+    lightingPresetLabel,
+    presetOptions,
+    withLightingChange,
+} from "../Utils/lighting";
+import { sendCameraCommand } from "../Utils/cameraControl";
 import { clonePlain, withOptionAt } from "./optionsUpdate";
 import {
     CollectionRow,
@@ -57,7 +70,18 @@ type SettingsTabId = Exclude<TabId, "chat">;
 // volver a abrir. Si la pestaña activa es la del chat lo decide el visor (isChatAssistantOpen).
 const uiMemory: { tab: SettingsTabId; open: Record<string, boolean> } = {
     tab: "scene",
-    open: { environment: true, ambient: true, spot: false, point: false, femResults: true, workers: true, simulator: true },
+    open: {
+        lighting: true,
+        keyLight: false,
+        ambient: false,
+        spot: false,
+        point: false,
+        effects: true,
+        view: false,
+        femResults: true,
+        workers: true,
+        simulator: true,
+    },
 };
 
 const Panel = styled.aside`
@@ -239,6 +263,34 @@ const Footer = styled.div`
     color: ${c.textMuted};
 `;
 
+// the camera views of the View section (Utils/cameraControl.ts)
+const CAMERA_VIEW_BUTTONS: [string, string][] = [
+    ["front", "Front"],
+    ["right", "Right"],
+    ["top", "Top"],
+    ["iso", "Iso"],
+    ["fit", "Fit"],
+    ["reset", "Home"],
+];
+
+const ViewButtons = styled.div`
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+    padding: 4px 6px 8px 28px;
+
+    button {
+        height: 30px;
+        font-size: 12px;
+    }
+`;
+
+const FooterActions = styled.div`
+    display: flex;
+    align-items: center;
+    gap: 8px;
+`;
+
 const SmallButton = styled.button`
     display: flex;
     align-items: center;
@@ -256,6 +308,11 @@ const SmallButton = styled.button`
     &:hover {
         background-color: ${c.hover};
         color: ${c.text};
+    }
+
+    &:disabled {
+        opacity: 0.5;
+        cursor: default;
     }
 
     svg {
@@ -349,6 +406,11 @@ interface AssistantPanelProps {
     simulatorFloating?: boolean;
     onFloatSimulator?: () => void;
     onDockSimulator?: () => void;
+    // The twin's own lighting (Reset goes back to it) and saving the current lighting as the twin's own
+    // (group administrators; without onSaveLighting the button is not shown)
+    twinLighting?: LightingOptions;
+    onSaveLighting?: () => void;
+    savingLighting?: boolean;
 }
 
 type CollectionKind = "sensors" | "assets" | "objects" | "fem";
@@ -420,6 +482,9 @@ export const AssistantPanel: FC<AssistantPanelProps> = ({
     simulatorFloating = false,
     onFloatSimulator,
     onDockSimulator,
+    twinLighting,
+    onSaveLighting,
+    savingLighting = false,
 }) => {
     const [tab, setTab] = useState<SettingsTabId>(uiMemory.tab);
     const [resizing, setResizing] = useState(false);
@@ -493,52 +558,132 @@ export const AssistantPanel: FC<AssistantPanelProps> = ({
         [onResizeWidth, width],
     );
 
-    const set = (path: string[], value: unknown) => setOpts((prev) => withOptionAt(prev, path, value));
+    // a lighting option changed by hand makes the lighting preset "custom"
+    const set = (path: string[], value: unknown) =>
+        setOpts((prev) => withLightingChange(withOptionAt(prev, path, value), path[0]));
+    const choosePreset = (preset: string) =>
+        setOpts((prev) => ({ ...clonePlain(prev), ...presetOptions(preset) }) as ViewerOptions);
     const o = opts as unknown as Record<string, any>;
     const isOpen = (key: string, fallback = false) => open[key] ?? fallback;
     const toggle = (key: string, fallback = false) => setOpen((prev) => ({ ...prev, [key]: !(prev[key] ?? fallback) }));
 
+    // Back to the twin's own lighting (or the default one), with the axes and helpers as they come by default
     const resetScene = () =>
-        setOpts((prev) => ({
-            ...clonePlain(prev),
-            environment: DEFAULT_VIEWER_OPTIONS.environment,
-            ambientLight: DEFAULT_VIEWER_OPTIONS.ambientLight,
-            ambientLightIntensity: DEFAULT_VIEWER_OPTIONS.ambientLightIntensity,
-            spotLight: DEFAULT_VIEWER_OPTIONS.spotLight,
-            spotLightPower: DEFAULT_VIEWER_OPTIONS.spotLightPower,
-            showSpotLightHelper: DEFAULT_VIEWER_OPTIONS.showSpotLightHelper,
-            pointLight: DEFAULT_VIEWER_OPTIONS.pointLight,
-            pointLightPower: DEFAULT_VIEWER_OPTIONS.pointLightPower,
-            showPointLightHelper: DEFAULT_VIEWER_OPTIONS.showPointLightHelper,
-            showShadows: DEFAULT_VIEWER_OPTIONS.showShadows,
-            showAxes: DEFAULT_VIEWER_OPTIONS.showAxes,
-            axesScale: DEFAULT_VIEWER_OPTIONS.axesScale,
-        }));
+        setOpts((prev) => {
+            const lighting = (twinLighting ?? DEFAULT_VIEWER_OPTIONS) as unknown as Record<string, unknown>;
+            const next = { ...clonePlain(prev) } as unknown as Record<string, unknown>;
+            for (const key of LIGHTING_KEYS) next[key] = lighting[key];
+            next.showSpotLightHelper = DEFAULT_VIEWER_OPTIONS.showSpotLightHelper;
+            next.showPointLightHelper = DEFAULT_VIEWER_OPTIONS.showPointLightHelper;
+            next.showAxes = DEFAULT_VIEWER_OPTIONS.showAxes;
+            next.axesScale = DEFAULT_VIEWER_OPTIONS.axesScale;
+            return next as unknown as ViewerOptions;
+        });
 
     // ---------------------------------------------------------------- pestañas
 
+    const envLabel = (value: string) => ENVIRONMENTS.find((e) => e.value === value)?.label ?? value;
+    const toneLabel = (value: string) => TONE_MAPPINGS.find((t) => t.value === value)?.label ?? value;
+    const hasEnvironment = opts.environment !== "none";
+    const backgroundAvailable = environmentCanBeBackground(opts.environment);
+
     const sceneTab = () => (
         <>
-            <Section title="Environment" open={isOpen("environment")} onToggle={() => toggle("environment")}>
+            <Section title="Lighting" open={isOpen("lighting")} onToggle={() => toggle("lighting")}>
+                <SelectField
+                    id="assistant-panel-lighting-preset"
+                    label="Preset"
+                    value={opts.lightingPreset ?? "custom"}
+                    options={LIGHTING_PRESET_OPTIONS}
+                    optionLabel={lightingPresetLabel}
+                    onChange={choosePreset}
+                />
                 <SelectField
                     id="assistant-panel-environment"
-                    label="Preset"
+                    label="Environment"
                     value={opts.environment}
                     options={ENVIRONMENT_OPTIONS}
+                    optionLabel={envLabel}
                     onChange={(value) => set(["environment"], value)}
                 />
-                <SwitchRow label="Shadows" checked={!!opts.showShadows} onChange={(v) => set(["showShadows"], v)} />
-                <SwitchRow label="Axes" checked={!!opts.showAxes} onChange={(v) => set(["showAxes"], v)} />
                 <SliderField
-                    id="assistant-panel-axes-scale"
-                    label="Axes length"
+                    id="assistant-panel-environment-intensity"
+                    label="Environment intensity"
+                    value={opts.environmentIntensity ?? 1}
+                    min={0}
+                    max={3}
+                    step={0.05}
+                    disabled={!hasEnvironment}
+                    onChange={(v) => set(["environmentIntensity"], v)}
+                />
+                <SliderField
+                    id="assistant-panel-environment-rotation"
+                    label="Environment rotation"
+                    unit="°"
+                    value={opts.environmentRotation ?? 0}
+                    min={0}
+                    max={360}
+                    step={5}
+                    disabled={!hasEnvironment}
+                    onChange={(v) => set(["environmentRotation"], v)}
+                />
+                <SwitchRow
+                    label="Environment as background"
+                    checked={!!opts.environmentBackground}
+                    disabled={!backgroundAvailable}
+                    onChange={(v) => set(["environmentBackground"], v)}
+                />
+                <SliderField
+                    id="assistant-panel-background-blur"
+                    label="Background blur"
+                    value={opts.backgroundBlur ?? 0.5}
+                    min={0}
+                    max={1}
+                    step={0.05}
+                    disabled={!backgroundAvailable || !opts.environmentBackground}
+                    onChange={(v) => set(["backgroundBlur"], v)}
+                />
+                <SelectField
+                    id="assistant-panel-tone-mapping"
+                    label="Tone mapping"
+                    value={opts.toneMapping ?? "neutral"}
+                    options={TONE_MAPPINGS.map((t) => t.value)}
+                    optionLabel={toneLabel}
+                    onChange={(value) => set(["toneMapping"], value)}
+                />
+                <SliderField
+                    id="assistant-panel-exposure"
+                    label="Exposure"
                     unit="×"
-                    value={opts.axesScale ?? 1}
+                    value={opts.exposure ?? 1}
                     min={0.1}
+                    max={3}
+                    step={0.05}
+                    onChange={(v) => set(["exposure"], v)}
+                />
+            </Section>
+            <Section
+                title="Key light"
+                open={isOpen("keyLight")}
+                onToggle={() => toggle("keyLight")}
+                switchChecked={!!opts.keyLight}
+                onSwitchChange={(v) => set(["keyLight"], v)}
+            >
+                <SliderField
+                    id="assistant-panel-key-intensity"
+                    label="Intensity"
+                    value={opts.keyLightIntensity ?? 2}
+                    min={0}
                     max={10}
                     step={0.1}
-                    disabled={!opts.showAxes}
-                    onChange={(v) => set(["axesScale"], v)}
+                    disabled={!opts.keyLight}
+                    onChange={(v) => set(["keyLightIntensity"], v)}
+                />
+                <SwitchRow
+                    label="Follow the camera"
+                    checked={!!opts.keyLightFollowsCamera}
+                    disabled={!opts.keyLight}
+                    onChange={(v) => set(["keyLightFollowsCamera"], v)}
                 />
             </Section>
             <Section
@@ -607,6 +752,77 @@ export const AssistantPanel: FC<AssistantPanelProps> = ({
                     checked={!!opts.showPointLightHelper}
                     disabled={!opts.pointLight}
                     onChange={(v) => set(["showPointLightHelper"], v)}
+                />
+            </Section>
+            <Section title="Shadows and effects" open={isOpen("effects")} onToggle={() => toggle("effects")}>
+                <SwitchRow
+                    label="Light shadows"
+                    checked={!!opts.showShadows}
+                    disabled={!opts.keyLight && !opts.spotLight}
+                    onChange={(v) => set(["showShadows"], v)}
+                />
+                <SwitchRow label="Contact shadow" checked={!!opts.contactShadows} onChange={(v) => set(["contactShadows"], v)} />
+                <SwitchRow
+                    label="Ambient occlusion"
+                    checked={!!opts.ambientOcclusion}
+                    onChange={(v) => set(["ambientOcclusion"], v)}
+                />
+                <SwitchRow label="Glow (bloom)" checked={!!opts.bloom} onChange={(v) => set(["bloom"], v)} />
+                <SliderField
+                    id="assistant-panel-bloom-intensity"
+                    label="Glow intensity"
+                    value={opts.bloomIntensity ?? 0.6}
+                    min={0}
+                    max={3}
+                    step={0.05}
+                    disabled={!opts.bloom}
+                    onChange={(v) => set(["bloomIntensity"], v)}
+                />
+                <SwitchRow label="Thin glass" checked={!!opts.thinGlass} onChange={(v) => set(["thinGlass"], v)} />
+            </Section>
+            <Section title="View" open={isOpen("view")} onToggle={() => toggle("view")}>
+                <SelectField
+                    id="assistant-panel-camera-projection"
+                    label="Camera"
+                    value={opts.cameraProjection ?? "orthographic"}
+                    options={["orthographic", "perspective"]}
+                    optionLabel={(v) => (v === "perspective" ? "Perspective" : "Orthographic")}
+                    onChange={(value) => set(["cameraProjection"], value)}
+                />
+                <SliderField
+                    id="assistant-panel-camera-fov"
+                    label="Field of view"
+                    unit="°"
+                    value={opts.cameraFov ?? 45}
+                    min={10}
+                    max={100}
+                    step={1}
+                    disabled={opts.cameraProjection !== "perspective"}
+                    onChange={(v) => set(["cameraFov"], v)}
+                />
+                <ViewButtons role="group" aria-label="Camera views">
+                    {CAMERA_VIEW_BUTTONS.map(([view, label]) => (
+                        <SecondaryButton
+                            key={view}
+                            type="button"
+                            title={`View: ${label.toLowerCase()}`}
+                            onClick={() => sendCameraCommand({ view })}
+                        >
+                            {label}
+                        </SecondaryButton>
+                    ))}
+                </ViewButtons>
+                <SwitchRow label="Axes" checked={!!opts.showAxes} onChange={(v) => set(["showAxes"], v)} />
+                <SliderField
+                    id="assistant-panel-axes-scale"
+                    label="Axes length"
+                    unit="×"
+                    value={opts.axesScale ?? 1}
+                    min={0.1}
+                    max={10}
+                    step={0.1}
+                    disabled={!opts.showAxes}
+                    onChange={(v) => set(["axesScale"], v)}
                 />
             </Section>
         </>
@@ -984,10 +1200,27 @@ export const AssistantPanel: FC<AssistantPanelProps> = ({
             {activeTab === "scene" && (
                 <Footer>
                     <span>Changes apply live</span>
-                    <SmallButton type="button" onClick={resetScene}>
-                        <RotateCcw aria-hidden="true" />
-                        Reset scene
-                    </SmallButton>
+                    <FooterActions>
+                        {onSaveLighting && (
+                            <SmallButton
+                                type="button"
+                                onClick={onSaveLighting}
+                                disabled={savingLighting}
+                                title="Save this lighting as the digital twin's own: everyone opening it sees it"
+                            >
+                                <Save aria-hidden="true" />
+                                {savingLighting ? "Saving…" : "Save for twin"}
+                            </SmallButton>
+                        )}
+                        <SmallButton
+                            type="button"
+                            onClick={resetScene}
+                            title="Back to the digital twin's own lighting"
+                        >
+                            <RotateCcw aria-hidden="true" />
+                            Reset
+                        </SmallButton>
+                    </FooterActions>
                 </Footer>
             )}
         </Panel>

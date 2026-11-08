@@ -6,6 +6,8 @@ import { ViewerOptions } from "../Types/types";
 import AssistantPanel from "./AssistantPanel";
 import DigitalTwinSimulatorModal from "../ViewerTools/DigitalTwinSimulatorModal";
 import { withOptionAt } from "./optionsUpdate";
+import { LightingOptions, lightingOf, presetOptions } from "../Utils/lighting";
+import { subscribeCameraCommands } from "../Utils/cameraControl";
 
 const baseOpts = (): ViewerOptions =>
     ({
@@ -24,7 +26,15 @@ const baseOpts = (): ViewerOptions =>
 
 let latest: ViewerOptions;
 
-const Harness = ({ simulator = {} as Record<string, any> }) => {
+const Harness = ({
+    simulator = {} as Record<string, any>,
+    twinLighting,
+    onSaveLighting,
+}: {
+    simulator?: Record<string, any>;
+    twinLighting?: LightingOptions;
+    onSaveLighting?: () => void;
+}) => {
     const [opts, setOpts] = useState<ViewerOptions>(baseOpts);
     latest = opts;
     return (
@@ -46,6 +56,8 @@ const Harness = ({ simulator = {} as Record<string, any> }) => {
             lockReadingButtomLabel="LOCK READ MEASUREMENTS"
             handleGetLastMeasurementsButton={() => {}}
             handleLockReadMeasurementsButtonClick={() => {}}
+            twinLighting={twinLighting}
+            onSaveLighting={onSaveLighting}
         />
     );
 };
@@ -187,15 +199,19 @@ describe("AssistantPanel", () => {
     it("el interruptor de la luz ambiente cambia ambientLight (antes escribía 'ambientLigth')", () => {
         render(<Harness />);
         const sw = screen.getByRole("switch", { name: "Ambient light" });
-        expect(sw).toHaveAttribute("aria-checked", "true");
+        // el preset por defecto (Studio) no usa luz ambiente
+        expect(sw).toHaveAttribute("aria-checked", "false");
         fireEvent.click(sw);
-        expect(latest.ambientLight).toBe(false);
+        expect(latest.ambientLight).toBe(true);
         expect((latest as any).ambientLigth).toBeUndefined();
     });
 
     it("el valor del deslizador se puede escribir y se ajusta al rango y al paso", () => {
         render(<Harness />);
-        fireEvent.click(screen.getByRole("button", { name: /Intensity: 1.00/ }));
+        const ambientHeader = screen.getByRole("button", { name: "Ambient light" });
+        if (ambientHeader.getAttribute("aria-expanded") !== "true") fireEvent.click(ambientHeader);
+        fireEvent.click(screen.getByRole("switch", { name: "Ambient light" }));
+        fireEvent.click(screen.getByRole("button", { name: /^Intensity: 1.00/ }));
         const input = screen.getByRole("textbox", { name: "Intensity value" });
         fireEvent.change(input, { target: { value: "3,333" } });
         fireEvent.keyDown(input, { key: "Enter" });
@@ -205,6 +221,87 @@ describe("AssistantPanel", () => {
         fireEvent.change(again, { target: { value: "99" } });
         fireEvent.keyDown(again, { key: "Enter" });
         expect(latest.ambientLightIntensity).toBe(10);
+    });
+
+    it("iluminación: un preset aplica sus opciones y cambiar algo a mano lo deja en Custom", () => {
+        render(<Harness />);
+        const preset = screen.getByRole("combobox", { name: "Preset" }) as HTMLSelectElement;
+        expect(preset.value).toBe("studio");
+        expect(within(preset).getByRole("option", { name: "Studio" })).toBeInTheDocument();
+        fireEvent.change(preset, { target: { value: "industrial" } });
+        expect(latest.lightingPreset).toBe("industrial");
+        expect(latest.environment).toBe("warehouse");
+        expect(latest.ambientOcclusion).toBe(true);
+        fireEvent.change(preset, { target: { value: "classic" } });
+        expect(latest.environment).toBe("sunset");
+        expect(latest.toneMapping).toBe("aces");
+        expect(latest.exposure).toBe(1.5);
+        expect(latest.ambientLight && latest.spotLight && latest.pointLight).toBe(true);
+        // un cambio a mano
+        fireEvent.change(screen.getByRole("combobox", { name: "Tone mapping" }), { target: { value: "agx" } });
+        expect(latest.toneMapping).toBe("agx");
+        expect(latest.lightingPreset).toBe("custom");
+        // los ajustes que no son de iluminación no tocan el preset
+        fireEvent.change(preset, { target: { value: "studio" } });
+        const viewHeader = screen.getByRole("button", { name: "View" });
+        if (viewHeader.getAttribute("aria-expanded") !== "true") fireEvent.click(viewHeader);
+        fireEvent.click(screen.getByRole("switch", { name: "Axes" }));
+        expect(latest.showAxes).toBe(true);
+        expect(latest.lightingPreset).toBe("studio");
+    });
+
+    it("iluminación: el entorno como fondo con cualquier entorno salvo None, y las etiquetas legibles", () => {
+        render(<Harness />);
+        const env = screen.getByRole("combobox", { name: "Environment" }) as HTMLSelectElement;
+        expect(within(env).getByRole("option", { name: "Industrial warehouse" })).toBeInTheDocument();
+        const switchOf = () => screen.getByRole("switch", { name: "Environment as background" });
+        const blur = () => screen.getByRole("button", { name: /^Background blur/ });
+        // neutral (el entorno por defecto, generado) también puede ser el fondo
+        expect(switchOf()).not.toBeDisabled();
+        expect(blur()).toBeDisabled(); // el desenfoque, solo con el fondo activado
+        fireEvent.click(switchOf());
+        expect(latest.environmentBackground).toBe(true);
+        expect(blur()).not.toBeDisabled();
+        fireEvent.change(env, { target: { value: "outdoor" } });
+        expect(switchOf()).not.toBeDisabled();
+        // sin entorno no hay nada que mostrar
+        fireEvent.change(env, { target: { value: "none" } });
+        expect(switchOf()).toBeDisabled();
+    });
+
+    it("iluminación del gemelo: Reset vuelve a la suya y Save for twin la guarda", () => {
+        const twin = lightingOf(presetOptions("industrial"));
+        const save = vi.fn();
+        render(<Harness twinLighting={twin} onSaveLighting={save} />);
+        fireEvent.change(screen.getByRole("combobox", { name: "Environment" }), { target: { value: "night" } });
+        expect(latest.environment).toBe("night");
+        fireEvent.click(screen.getByRole("button", { name: /Reset/ }));
+        expect(latest.environment).toBe("warehouse");
+        expect(latest.lightingPreset).toBe("industrial");
+        fireEvent.click(screen.getByRole("button", { name: /Save for twin/ }));
+        expect(save).toHaveBeenCalledTimes(1);
+    });
+
+    it("cámara: proyección, campo de visión y vistas rápidas", () => {
+        render(<Harness />);
+        const viewHeader = screen.getByRole("button", { name: "View" });
+        if (viewHeader.getAttribute("aria-expanded") !== "true") fireEvent.click(viewHeader);
+        expect(screen.getByRole("button", { name: /^Field of view/ })).toBeDisabled();
+        fireEvent.change(screen.getByRole("combobox", { name: "Camera" }), { target: { value: "perspective" } });
+        expect(latest.cameraProjection).toBe("perspective");
+        expect(latest.lightingPreset).toBe("studio"); // la cámara no es iluminación
+        expect(screen.getByRole("button", { name: /^Field of view/ })).not.toBeDisabled();
+        const received: unknown[] = [];
+        const off = subscribeCameraCommands((c) => received.push(c));
+        fireEvent.click(within(screen.getByRole("group", { name: "Camera views" })).getByRole("button", { name: "Top" }));
+        off();
+        expect(received).toEqual([{ view: "top" }]);
+    });
+
+    it("sin permiso para guardar no aparece Save for twin", () => {
+        render(<Harness />);
+        expect(screen.queryByRole("button", { name: /Save for twin/ })).toBeNull();
+        expect(screen.getByRole("button", { name: /Reset/ })).toBeInTheDocument();
     });
 
     it("colecciones: 'All collections' usa las opciones globales y cada colección las suyas", () => {

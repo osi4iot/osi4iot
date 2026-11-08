@@ -250,6 +250,7 @@ export const NodeTypeIndicator = styled.span<{ nodeType: string }>`
             case "Rainflow":
             case "Vibration":
             case "Anomaly":
+            case "PoseEstimation":
                 return "#5f6fa3";
             case "Totalizer":
             case "OEE":

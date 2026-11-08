@@ -96,6 +96,7 @@ type poseOptions struct {
 	classAgnostic  bool
 	bestPerClass   bool
 	kptConfDefault float64
+	endToEnd       string // "auto", "yes" or "no"
 }
 
 // PreprocessLetterbox turns a frame into a YOLO input of size x size
@@ -196,6 +197,9 @@ func letterboxImage(pic image.Image, size int) LetterboxInput {
 //	maxDetections     maximum detections kept (300)
 //	classAgnostic     NMS over all classes together (false)
 //	bestPerClass      keep only the best detection of each class (false)
+//	endToEnd          the export has the NMS inside the graph (Ultralytics
+//	                  nms=True or end2end): rows [x1, y1, x2, y2, conf, class,
+//	                  keypoints...]; true / false, or deduced from the size
 func (yolo *Yolo) PostprocessPose(output []float32, opts map[string]interface{}) []PoseDetection {
 	o, err := parsePoseOptions(opts)
 	if err == nil {
@@ -219,6 +223,7 @@ func parsePoseOptions(opts map[string]interface{}) (poseOptions, error) {
 		iouThreshold:   0.7,
 		maxDetections:  300,
 		kptConfDefault: 1,
+		endToEnd:       "auto",
 	}
 	num := func(key string) (float64, bool) {
 		v, ok := opts[key]
@@ -300,10 +305,109 @@ func parsePoseOptions(opts map[string]interface{}) (poseOptions, error) {
 	}
 	o.classAgnostic = boolean("classAgnostic")
 	o.bestPerClass = boolean("bestPerClass")
+	if v, ok := opts["endToEnd"].(bool); ok {
+		if v {
+			o.endToEnd = "yes"
+		} else {
+			o.endToEnd = "no"
+		}
+	}
 	return o, nil
 }
 
 func decodePose(output []float32, o poseOptions) ([]PoseDetection, error) {
+	var candidates []PoseDetection
+	var err error
+	if isEndToEnd(output, o) {
+		candidates, err = endToEndPoseCandidates(output, o)
+	} else {
+		candidates, err = rawPoseCandidates(output, o)
+	}
+	if err != nil {
+		return nil, err
+	}
+	return poseNMS(candidates, o), nil
+}
+
+// isEndToEnd says whether the output has the NMS inside the graph: at most
+// 1000 rows of 6 + keypoint columns, and not the size of a raw export.
+func isEndToEnd(output []float32, o poseOptions) bool {
+	switch o.endToEnd {
+	case "yes":
+		return true
+	case "no":
+		return false
+	}
+	rowLen := 6 + o.numKeypoints*o.kptDims
+	if len(output) == 0 || len(output)%rowLen != 0 {
+		return false
+	}
+	rows := len(output) / rowLen
+	s := o.inputSize
+	anchors := (s/8)*(s/8) + (s/16)*(s/16) + (s/32)*(s/32)
+	return rows <= 1000 && rows != anchors
+}
+
+// frameMapper turns model input pixels into pixels of the original frame.
+func frameMapper(o poseOptions) (func(x, y float64) (float64, float64), func(v, hi float64) float64) {
+	toFrame := func(x, y float64) (float64, float64) {
+		if o.scale > 0 {
+			return (x - o.padX) / o.scale, (y - o.padY) / o.scale
+		}
+		return x * float64(o.width) / float64(o.inputSize), y * float64(o.height) / float64(o.inputSize)
+	}
+	clamp := func(v, hi float64) float64 {
+		return math.Max(0, math.Min(v, hi))
+	}
+	return toFrame, clamp
+}
+
+// endToEndPoseCandidates reads the rows [x1, y1, x2, y2, conf, class, kpts...]
+// (input pixels) of an export with the NMS inside the graph; the empty rows
+// have a confidence of 0.
+func endToEndPoseCandidates(output []float32, o poseOptions) ([]PoseDetection, error) {
+	rowLen := 6 + o.numKeypoints*o.kptDims
+	if len(output) == 0 || len(output)%rowLen != 0 {
+		return nil, fmt.Errorf("output size %d is not rows of %d (x1, y1, x2, y2, conf, class + %d keypoints x %d): %s",
+			len(output), rowLen, o.numKeypoints, o.kptDims, describeYoloOutput(len(output), o))
+	}
+	toFrame, clamp := frameMapper(o)
+	candidates := make([]PoseDetection, 0, 16)
+	for r := 0; r < len(output)/rowLen; r++ {
+		row := output[r*rowLen : (r+1)*rowLen]
+		conf := float64(row[4])
+		if conf < o.confThreshold || math.IsNaN(conf) {
+			continue
+		}
+		cls := int(math.Round(float64(row[5])))
+		x1, y1 := toFrame(float64(row[0]), float64(row[1]))
+		x2, y2 := toFrame(float64(row[2]), float64(row[3]))
+		det := PoseDetection{
+			ClassId:    cls,
+			Label:      className(o.classNames, cls),
+			Confidence: conf,
+			X1:         clamp(x1, float64(o.width)),
+			Y1:         clamp(y1, float64(o.height)),
+			X2:         clamp(x2, float64(o.width)),
+			Y2:         clamp(y2, float64(o.height)),
+			Keypoints:  make([]PoseKeypoint, o.numKeypoints),
+		}
+		for k := 0; k < o.numKeypoints; k++ {
+			base := 6 + k*o.kptDims
+			kx, ky := toFrame(float64(row[base]), float64(row[base+1]))
+			kc := o.kptConfDefault
+			if o.kptDims == 3 {
+				kc = float64(row[base+2])
+			}
+			det.Keypoints[k] = PoseKeypoint{X: kx, Y: ky, Conf: kc}
+		}
+		candidates = append(candidates, det)
+	}
+	return candidates, nil
+}
+
+// rawPoseCandidates reads a raw export: [4 + classes + keypoints] x anchors.
+func rawPoseCandidates(output []float32, o poseOptions) ([]PoseDetection, error) {
 	kptCols := o.numKeypoints * o.kptDims
 	numClasses := o.numClasses
 	// The anchors of a square input of inputSize with strides 8, 16 and 32
@@ -315,8 +419,8 @@ func decodePose(output []float32, o poseOptions) ([]PoseDetection, error) {
 	if numClasses > 0 {
 		channels = 4 + numClasses + kptCols
 		if len(output) == 0 || len(output)%channels != 0 || len(output)/channels != expectedAnchors {
-			return nil, fmt.Errorf("output size %d is not %d anchors x %d channels (4 + %d classes + %d keypoints x %d): check classNames/numClasses, numKeypoints, kptDims and inputSize",
-				len(output), expectedAnchors, channels, numClasses, o.numKeypoints, o.kptDims)
+			return nil, fmt.Errorf("output size %d is not %d anchors x %d channels (4 + %d classes + %d keypoints x %d): %s",
+				len(output), expectedAnchors, channels, numClasses, o.numKeypoints, o.kptDims, describeYoloOutput(len(output), o))
 		}
 		anchors = expectedAnchors
 	} else {
@@ -332,15 +436,7 @@ func decodePose(output []float32, o poseOptions) ([]PoseDetection, error) {
 	}
 
 	// From model input pixels to pixels of the original frame.
-	toFrame := func(x, y float64) (float64, float64) {
-		if o.scale > 0 {
-			return (x - o.padX) / o.scale, (y - o.padY) / o.scale
-		}
-		return x * float64(o.width) / float64(o.inputSize), y * float64(o.height) / float64(o.inputSize)
-	}
-	clamp := func(v, hi float64) float64 {
-		return math.Max(0, math.Min(v, hi))
-	}
+	toFrame, clamp := frameMapper(o)
 	at := func(row, col int) float64 { return float64(output[row*anchors+col]) }
 
 	candidates := make([]PoseDetection, 0, 64)
@@ -378,7 +474,12 @@ func decodePose(output []float32, o poseOptions) ([]PoseDetection, error) {
 		}
 		candidates = append(candidates, det)
 	}
+	return candidates, nil
+}
 
+// poseNMS keeps the best detections: per class (or all together), the best
+// of each class with bestPerClass, at most maxDetections.
+func poseNMS(candidates []PoseDetection, o poseOptions) []PoseDetection {
 	// NMS: the best detections first.
 	sort.SliceStable(candidates, func(i, j int) bool {
 		return candidates[i].Confidence > candidates[j].Confidence
@@ -408,7 +509,7 @@ func decodePose(output []float32, o poseOptions) ([]PoseDetection, error) {
 			break
 		}
 	}
-	return kept, nil
+	return kept
 }
 
 func className(names []string, id int) string {
@@ -507,4 +608,44 @@ func fillCircle(img *image.RGBA, cx, cy, r int, c color.RGBA) {
 			img.SetRGBA(x, y, c)
 		}
 	}
+}
+
+// describeYoloOutput says what model an output of n values looks like, for
+// the errors: the usual mistake is the MlModel node running another model.
+func describeYoloOutput(n int, o poseOptions) string {
+	kptCols := o.numKeypoints * o.kptDims
+	nc := len(o.classNames)
+	if o.numClasses > 0 {
+		nc = o.numClasses
+	}
+	for _, size := range []int{o.inputSize, 640, 320, 224} {
+		a := (size/8)*(size/8) + (size/16)*(size/16) + (size/32)*(size/32)
+		if a == 0 || n%a != 0 {
+			continue
+		}
+		ch := n / a
+		guess := fmt.Sprintf("it looks like a raw export at %d px: %d anchors x %d channels", size, a, ch)
+		switch rest := ch - 4; {
+		case rest == 80:
+			guess += " (4 + 80 classes: a COCO detection model, without keypoints)"
+		case rest == 1+17*3:
+			guess += " (4 + 1 class + 17 keypoints x 3: the COCO person pose model)"
+		case nc > 0 && rest-nc > 0 && (rest-nc)%3 == 0:
+			guess += fmt.Sprintf(" (4 + %d classes + %d keypoints x 3)", nc, (rest-nc)/3)
+		case kptCols > 0 && rest-kptCols > 0:
+			guess += fmt.Sprintf(" (4 + %d classes + %d keypoints x %d)", rest-kptCols, o.numKeypoints, o.kptDims)
+		}
+		if nc > 0 {
+			guess += fmt.Sprintf("; this model, with %d classes and %d keypoints, would give %d anchors x %d (raw) or 300 x %d (NMS inside)",
+				nc, o.numKeypoints, a, 4+nc+kptCols, 6+kptCols)
+		}
+		return guess + ". Check that the MlModel node runs the right model, and numKeypoints, classNames, inputSize and endToEnd"
+	}
+	for _, rows := range []int{300, 100, 1000} {
+		if n%rows == 0 && n/rows > 6 {
+			cols := n / rows
+			return fmt.Sprintf("it looks like an export with the NMS inside: %d rows of %d (6 + %d keypoints x 3). Check numKeypoints and kptDims", rows, cols, (cols-6)/3)
+		}
+	}
+	return "check that the MlModel node runs the right model, and numKeypoints, kptDims, classNames, inputSize and endToEnd"
 }

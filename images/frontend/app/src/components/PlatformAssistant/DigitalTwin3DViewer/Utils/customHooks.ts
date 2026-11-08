@@ -18,6 +18,8 @@ import {
     INatsClientOptions,
 } from "../Types/types";
 import { DEFAULT_VIEWER_OPTIONS, BUTTON_LABELS, PROTOCOL, DOMAIN_NAME, NATS_SEED_SERVERS, LEGACY_COLOR_MANAGEMENT } from "../Utils/constants";
+import { expandLightingUpdate } from "./lighting";
+import { sendCameraCommand } from "./cameraControl";
 import { useAuthDispatch, useAuthState, useLoggedUserLogin } from "../../../../contexts/authContext/authContext";
 import { PipelineLog } from "../Pipeline/PipelineLogs";
 import { appendCapped, capLogs } from "../Pipeline/pipelineLogsModel";
@@ -89,9 +91,15 @@ export const useViewerState = (
     return [state, setState] as const;
 };
 
-export const useViewerOptions = (femResultDates: string[], initialOptions?: ViewerOptions) => {
+export const useViewerOptions = (
+    femResultDates: string[],
+    initialOptions?: ViewerOptions,
+    // options over the defaults when there are no initial options (the digital twin's own lighting)
+    defaultsOverride?: Partial<ViewerOptions>,
+) => {
     const [opts, setOptsState] = useState<ViewerOptions>(() => initialOptions ?? {
         ...DEFAULT_VIEWER_OPTIONS,
+        ...defaultsOverride,
         femResultDate: femResultDates[0] || "-",
         sensorsVisibilityState: {} as any,
         assetsVisibilityState: {} as any,
@@ -437,7 +445,14 @@ export const useChatMessages = (
                 return opts;
             };
 
-            const uiOpts = { ...newLlmMessage.uiOpts };
+            const rawUiOpts = { ...(newLlmMessage.uiOpts as Record<string, unknown>) };
+            // a camera move is an action, not an option: it goes to the camera controller (Utils/cameraControl.ts)
+            if (rawUiOpts.camera !== undefined) {
+                sendCameraCommand(rawUiOpts.camera);
+                delete rawUiOpts.camera;
+            }
+            // a lighting preset brings all its options (Utils/lighting.ts)
+            const uiOpts: Record<string, any> = expandLightingUpdate(rawUiOpts);
             const simulator = simulatorRef?.current;
             let simulatorChanged = false;
             if (uiOpts.digitalTwinSimulatorState && typeof uiOpts.digitalTwinSimulatorState === "object") {
@@ -1484,6 +1499,18 @@ export const pipelineToYamlNodes = (pipelineNodes: IPipelineNode[], pipelineEdge
     return nodes;
 };
 
+// The nodes "Download YAML" saves: the selected ones (and the wires between them) when some are selected, else all
+export const yamlDownloadSelection = (pipelineNodes: IPipelineNode[], pipelineEdges: IPipelineEdge[]) => {
+    const selected = pipelineNodes.filter((node: any) => node.selected);
+    if (selected.length === 0) return { nodes: pipelineNodes, edges: pipelineEdges, partial: false };
+    const ids = new Set(selected.map((node) => node.id));
+    return {
+        nodes: selected,
+        edges: pipelineEdges.filter((edge) => ids.has(edge.source) && ids.has(edge.target)),
+        partial: true,
+    };
+};
+
 const downloadYamlFile = (
     digitalTwinSelected: IDigitalTwin | null,
     pipelineNodes: IPipelineNode[],
@@ -1494,7 +1521,9 @@ const downloadYamlFile = (
         return;
     }
 
-    const nodes = pipelineToYamlNodes(pipelineNodes, pipelineEdges);
+    // with nodes selected, only those, and only the wires between them (the format of copy and paste)
+    const { nodes: chosenNodes, edges: chosenEdges, partial } = yamlDownloadSelection(pipelineNodes, pipelineEdges);
+    const nodes = pipelineToYamlNodes(chosenNodes, chosenEdges);
     const pipelineData = {
         nodes,
     };
@@ -1504,7 +1533,9 @@ const downloadYamlFile = (
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `pipeline_${digitalTwinSelected.digitalTwinUid}.yml`;
+    a.download = partial
+        ? `pipeline_${digitalTwinSelected.digitalTwinUid}_${nodes.length}_nodes.yml`
+        : `pipeline_${digitalTwinSelected.digitalTwinUid}.yml`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);

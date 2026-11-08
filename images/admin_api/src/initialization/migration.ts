@@ -1056,6 +1056,7 @@ export const dataBaseInitialization = async () => {
 					pipeline_file_last_modif_date VARCHAR(100) NOT NULL DEFAULT '-',
 					pipeline_file_data TEXT NOT NULL DEFAULT '',
 					pipeline_requires_gpu BOOLEAN NOT NULL DEFAULT FALSE,
+					viewer_settings jsonb NOT NULL DEFAULT '{}'::jsonb,
 					created TIMESTAMPTZ,
 					updated TIMESTAMPTZ,
 					UNIQUE (group_id, asset_id, scope),

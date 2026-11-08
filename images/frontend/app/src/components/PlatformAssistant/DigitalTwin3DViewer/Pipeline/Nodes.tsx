@@ -4,6 +4,7 @@ import {
     SatelliteDish,
     RadioTower,
     ArrowBigRight,
+    Square,
     Mail,
     ClockFading,
     BrainCog,
@@ -19,14 +20,16 @@ import {
     Repeat,
     AudioWaveform,
     ScanSearch,
+    ScanEye,
     Calculator,
     Factory,
     TrendingDown,
 } from "lucide-react";
-import { Handle, Position } from "@xyflow/react";
+import { Handle, NodeResizeControl, Position } from "@xyflow/react";
 import styled from "styled-components";
 import { toast } from "react-toastify";
-import { useCallback, useState, useEffect } from "react";
+import { useCallback, useState, useEffect, useSyncExternalStore } from "react";
+import { getInjectFile, getInjectStatus, injectFile, stopInjecting, subscribeInject } from "./injectFile";
 import {
     TelegramIcon,
     AssetStateIcon,
@@ -296,19 +299,99 @@ export function PublishNode({ data, selected }) {
     );
 }
 
+const COMMENT_PLACEHOLDER = "Insert your comment here ";
+// without a width set by hand, a comment grows up to this and then wraps
+const COMMENT_AUTO_MAX_WIDTH = 320;
+
+const CommentContent = styled.div`
+    display: flex;
+    align-items: flex-start;
+    gap: 4px;
+    padding: 2px 2px;
+    min-height: 20px;
+`;
+
+// The text area sizes itself from a hidden copy of the text (::after): the same width and height, wrapped
+const CommentWrapper = styled.div<{ $fixedWidth: boolean }>`
+    position: relative;
+    display: grid;
+    flex: ${(p) => (p.$fixedWidth ? "1" : "0 1 auto")};
+    min-width: 48px;
+    max-width: ${(p) => (p.$fixedWidth ? "none" : `${COMMENT_AUTO_MAX_WIDTH}px`)};
+
+    &::after {
+        content: attr(data-value) " ";
+        visibility: hidden;
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+        font-size: 10px;
+        line-height: 1.35;
+        font-family: Helvetica, Arial, sans-serif;
+        padding: 2px 4px;
+        border: 1px solid transparent;
+        box-sizing: border-box;
+        grid-area: 1 / 1;
+    }
+`;
+
+const CommentText = styled.textarea<{ $isPlaceholder: boolean; $shiftHeld?: boolean }>`
+    grid-area: 1 / 1;
+    width: 100%;
+    min-width: 0;
+    height: 100%;
+    resize: none;
+    overflow: hidden;
+    padding: 2px 4px;
+    font-size: 10px;
+    line-height: 1.35;
+    font-family: Helvetica, Arial, sans-serif !important;
+    font-style: ${(p) => (p.$isPlaceholder ? "italic" : "normal")};
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    color: #111827;
+    border: 1px solid #a09c98ff;
+    border-radius: 3px;
+    background-color: #9c9c9b;
+    box-sizing: border-box;
+    cursor: ${(p) => (p.$shiftHeld ? "pointer" : "text")};
+
+    &:focus {
+        outline: none;
+    }
+
+    &:hover {
+        background-color: #b4b4b3;
+    }
+`;
+
+const CommentResizeLine = styled(NodeResizeControl)`
+    border-color: transparent !important;
+    border-right-width: 4px !important;
+
+    &:hover {
+        border-color: #3b82f6 !important;
+    }
+`;
+
 export function CommentNode(data, id, selected, onUpdateNode, handlePipelineUiChanged) {
-    const [localLabel, setLocalLabel] = useState(data?.settings.comment || "Insert your comment here ");
+    const [localLabel, setLocalLabel] = useState(data?.settings.comment || COMMENT_PLACEHOLDER);
+    const savedWidth = Number(data?.settings?.commentWidth) > 0 ? Number(data.settings.commentWidth) : null;
+    const [width, setWidth] = useState<number | null>(savedWidth);
 
     // Sincroniza si el valor externo cambia (ej: undo/redo)
     useEffect(() => {
-        setLocalLabel(data?.settings.comment || "Insert your comment here ");
+        setLocalLabel(data?.settings.comment || COMMENT_PLACEHOLDER);
     }, [data?.settings.comment]);
+    useEffect(() => {
+        setWidth(savedWidth);
+    }, [savedWidth]);
 
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
         setLocalLabel(e.target.value);
     };
 
     const handleBlur = () => {
+        if (localLabel === (data?.settings.comment || COMMENT_PLACEHOLDER)) return;
         onUpdateNode(id, { ...data, settings: { ...data.settings, comment: localLabel } });
         handlePipelineUiChanged(true);
     };
@@ -327,29 +410,56 @@ export function CommentNode(data, id, selected, onUpdateNode, handlePipelineUiCh
     }, []);
 
     return (
-        <NodeContainer bgColor="#9c9c9b" hoverColor="#b4b4b3" selected={selected}>
-            <NodeContent>
+        <NodeContainer bgColor="#9c9c9b" hoverColor="#b4b4b3" selected={selected} style={width ? { width, boxSizing: "border-box" } : undefined}>
+            {/* drag the right edge to set the width; the text wraps in it */}
+            <CommentResizeLine
+                variant="line"
+                position="right"
+                minWidth={100}
+                maxWidth={1600}
+                onResize={(_e, params) => setWidth(Math.round(params.width))}
+                onResizeEnd={(_e, params) => {
+                    const w = Math.round(params.width);
+                    setWidth(w);
+                    onUpdateNode(id, { ...data, settings: { ...data.settings, comment: localLabel, commentWidth: w } });
+                    handlePipelineUiChanged(true);
+                }}
+            />
+            <CommentContent>
                 <IconContainer size="20px">
                     <CommentIcon size={20} color="#e7e3dfff" />
                 </IconContainer>
-                <InputWrapper data-value={localLabel}>
-                    <InputLabel
+                <CommentWrapper data-value={localLabel} $fixedWidth={!!width}>
+                    <CommentText
+                        aria-label="Comment"
+                        rows={1}
+                        cols={1}
                         value={localLabel}
-                        shiftHeld={shiftHeld}
-                        bgColor="#9c9c9b"
-                        hoverColor="#b4b4b3"
+                        $isPlaceholder={localLabel === COMMENT_PLACEHOLDER}
+                        $shiftHeld={shiftHeld}
                         onChange={handleChange}
                         onBlur={handleBlur}
-                        className={shiftHeld ? "" : "nodrag"}
+                        className={shiftHeld ? "" : "nodrag nowheel"}
                     />
-                </InputWrapper>
-            </NodeContent>
+                </CommentWrapper>
+            </CommentContent>
         </NodeContainer>
     );
 }
 
+const InjectProgress = styled.div`
+    font-size: 9px;
+    color: #1f2937;
+    opacity: 0.8;
+    white-space: nowrap;
+`;
+
 export function InjectNode({ data, selected }) {
     const numOutputs = data?.numOutputs ?? 0;
+    const status = useSyncExternalStore(
+        useCallback((listener) => subscribeInject(data.nodeUid, listener), [data.nodeUid]),
+        () => getInjectStatus(data.nodeUid),
+    );
 
     const handleButtonClick = useCallback(
         (e) => {
@@ -360,7 +470,32 @@ export function InjectNode({ data, selected }) {
                 // All the Inject nodes share the digital twin's "inject" topic; the Inject-Node
                 // header says which node is pressed (pipelines' injectNode.go)
                 const natsSubject = natsSubjectsData.find((natSubject) => natSubject.topicRef === "inject")?.natsSubject;
-                if (natsSubject) {
+                if (natsSubject && data.settings.injectionType === "File") {
+                    // a file from this browser (injectFile.ts): pressing again stops a video or an audio being sent
+                    if (getInjectStatus(data.nodeUid).running) {
+                        stopInjecting(data.nodeUid);
+                        return;
+                    }
+                    const label = data?.label || "Inject";
+                    getInjectFile(data.nodeUid).then((file) => {
+                        if (!file) {
+                            toast.error(`${label}: choose the file in the node's Injection tab (it stays in this browser)`);
+                            return;
+                        }
+                        injectFile(data.nodeUid, file, data.settings, (bytes, hdrs) => {
+                            const h = headers();
+                            Object.entries(hdrs).forEach(([k, v]) => h.set(k, v));
+                            natClient.publish(natsSubject, bytes, { headers: h });
+                        })
+                            .then(({ sent, stopped }) =>
+                                stopped ? toast.info(`${label}: stopped after ${sent} messages`) : toast.success(`${label}: ${file.name} injected (${sent} ${sent === 1 ? "message" : "messages"})`),
+                            )
+                            .catch((error) => {
+                                console.error("Error injecting the file:", error);
+                                toast.error(`${label}: ${error?.message || "the file could not be injected"}`);
+                            });
+                    });
+                } else if (natsSubject) {
                     let messageToSend: string;
                     if (data.settings.injectionType === "JSON") {
                         messageToSend = data.settings.json;
@@ -394,13 +529,14 @@ export function InjectNode({ data, selected }) {
     return (
         <InjectNodeWrapper>
             <NodeInjectContainer selected={selected} numOutputs={numOutputs}>
-                <InjectButtonIntegrated onClick={handleButtonClick} title="Execute Inject" numOutputs={numOutputs}>
-                    <ArrowBigRight size={20} color="#e7e3dfff" />
+                <InjectButtonIntegrated onClick={handleButtonClick} title={status.running ? "Stop" : "Execute Inject"} numOutputs={numOutputs}>
+                    {status.running ? <Square size={16} color="#e7e3dfff" fill="#e7e3dfff" /> : <ArrowBigRight size={20} color="#e7e3dfff" />}
                 </InjectButtonIntegrated>
 
                 <NodeContentContainer bgColor="#a6bbcf" hoverColor="#b0c8d1" numOutputs={numOutputs}>
                     <NodeInjectContent>
                         <NodeLabel>{data?.label || "Inject"}</NodeLabel>
+                        {status.running && status.text && <InjectProgress>{status.text}</InjectProgress>}
                     </NodeInjectContent>
                 </NodeContentContainer>
 
@@ -728,6 +864,7 @@ export const MachineStateNode = makeSignalNode(Gauge, "Machine state", "#a0605a"
 export const RainflowNode = makeSignalNode(Repeat, "Rainflow", "#5f6fa3", "#7686bb");
 export const VibrationNode = makeSignalNode(AudioWaveform, "Vibration", "#5f6fa3", "#7686bb");
 export const AnomalyNode = makeSignalNode(ScanSearch, "Anomaly", "#5f6fa3", "#7686bb");
+export const PoseEstimationNode = makeSignalNode(ScanEye, "Pose estimation", "#5f6fa3", "#7686bb");
 export const TotalizerNode = makeSignalNode(Calculator, "Totalizer", "#6f8a4e", "#86a263");
 export const OeeNode = makeSignalNode(Factory, "OEE", "#6f8a4e", "#86a263");
 export const DegradationNode = makeSignalNode(TrendingDown, "Degradation", "#6f8a4e", "#86a263");
@@ -874,4 +1011,3 @@ export function AssetStateNode({ data, selected }) {
         </NodeContainer>
     );
 }
-

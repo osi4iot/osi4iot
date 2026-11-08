@@ -1,7 +1,8 @@
 import React, { useState, useLayoutEffect, useRef, useMemo, useEffect } from "react";
 import * as THREE from 'three';
-import { useThree, ThreeElements } from "@react-three/fiber";
-import { useHelper, Environment } from "@react-three/drei";
+import { useThree, useFrame, ThreeElements } from "@react-three/fiber";
+import { useHelper, ContactShadows } from "@react-three/drei";
+import { SceneEffects, SceneEnvironment } from "./SceneLighting";
 import type { CameraView } from "../../../../state/viewerMemoryStore";
 
 
@@ -17,6 +18,18 @@ type ControlsProto = { update(): void; target: THREE.Vector3 };
 
 type Props = ThreeElements["group"] & {
     environment?: string;
+    environmentIntensity?: number;
+    environmentRotation?: number;
+    environmentBackground?: boolean;
+    backgroundBlur?: number;
+    keyLight?: boolean;
+    keyLightIntensity?: number;
+    keyLightFollowsCamera?: boolean;
+    contactShadows?: boolean;
+    ambientOcclusion?: boolean;
+    bloom?: boolean;
+    bloomIntensity?: number;
+    toneMapping?: string;
     shadows?: boolean;
     ambientLight?: boolean;
     ambientLightIntensity?: number;
@@ -34,12 +47,26 @@ type Props = ThreeElements["group"] & {
     femResultLoaded: boolean;
     // the camera the user left (viewer memory): used the first time instead of framing the model
     initialView?: CameraView;
+    // the model's centre and bounding radius, each time they are measured (camera views)
+    onBounds?: (center: THREE.Vector3, radius: number) => void;
 };
 
 export function Stage({
     children,
     controls,
-    environment = "sunset",
+    environment = "neutral",
+    environmentIntensity = 1,
+    environmentRotation = 0,
+    environmentBackground = false,
+    backgroundBlur = 0.5,
+    keyLight = false,
+    keyLightIntensity = 2,
+    keyLightFollowsCamera = false,
+    contactShadows = false,
+    ambientOcclusion = false,
+    bloom = false,
+    bloomIntensity = 0.6,
+    toneMapping = "neutral",
     shadows = true,
     ambientLight = true,
     ambientLightIntensity = 1.0,
@@ -54,6 +81,7 @@ export function Stage({
     shadowBias = 0,
     femResultLoaded,
     initialView,
+    onBounds,
     ...props
 }: Props) {
     const camera = useThree((state) => state.camera);
@@ -63,11 +91,12 @@ export function Stage({
         (state) => state.controls
     ) as unknown as ControlsProto | null;
     const childrenGroup = React.useRef<THREE.Group>(null!);
-    const [{ radius, width, height }, set] = useState({
+    const [{ radius, width, height, minY }, set] = useState({
         radius: 0,
         width: 0,
         height: 0,
         deep: 0,
+        minY: 0,
     });
     const [sceneCenter, setSceneCenter] = useState(
         new THREE.Vector3(0.0, 0.0, 0.0)
@@ -114,8 +143,12 @@ export function Stage({
         const deep = box3.max.z - box3.min.z;
         box3.getCenter(center);
         box3.getBoundingSphere(sphere);
-        set({ radius: sphere.radius, width, height, deep });
+        set({ radius: sphere.radius, width, height, deep, minY: box3.min.y });
         setSceneCenter(sphere.center);
+        onBounds?.(sphere.center.clone(), sphere.radius);
+        // the zoom frames the model only with the orthographic camera (with the perspective one, the zoom
+        // would narrow the field of view): the camera controller frames the perspective camera
+        if (!(camera as THREE.OrthographicCamera).isOrthographicCamera) return;
 
         const zoom_fact_x = (0.6 * Math.min(sceneWidth, sceneHeigth)) / width;
         const zoom_fact_y = (0.6 * Math.min(sceneWidth, sceneHeigth)) / height;
@@ -164,8 +197,10 @@ export function Stage({
             // the camera the user left, once the model is measured
             positionedRef.current = true;
             camera.position.set(...saved.position);
-            camera.near = 0.1;
-            camera.far = Math.max(5000, radius * 4);
+            if ((camera as THREE.OrthographicCamera).isOrthographicCamera) {
+                camera.near = 0.1;
+                camera.far = Math.max(5000, radius * 4);
+            }
             const ctrl = defaultControls || controls?.current;
             if (ctrl) {
                 ctrl.target.set(...saved.target);
@@ -182,8 +217,10 @@ export function Stage({
             sceneCenter.y + radius * 1.0,
             sceneCenter.z + radius * 2.5
         );
-        camera.near = 0.1;
-        camera.far = Math.max(5000, radius * 4);
+        if ((camera as THREE.OrthographicCamera).isOrthographicCamera) {
+            camera.near = 0.1;
+            camera.far = Math.max(5000, radius * 4);
+        }
         // camera.lookAt(center_x, center_y, 0);
         camera.lookAt(sceneCenter);
         const ctrl = defaultControls || controls?.current;
@@ -199,16 +236,13 @@ export function Stage({
 
     return (
         <group {...props}>
-            {/* {environment !== "none" && <Environment preset={environment as any}/>} */}
-            {environment === "sunset" && (
-                <Environment files={"venice_sunset_1k.hdr"} />
-            )}
-            {environment === "dawn" && (
-                <Environment files={"kiara_1_dawn_1k.hdr"} />
-            )}
-            {environment === "night" && (
-                <Environment files={"dikhololo_night_1k.hdr"} />
-            )}
+            <SceneEnvironment
+                environment={environment}
+                intensity={environmentIntensity}
+                rotation={environmentRotation}
+                background={environmentBackground}
+                backgroundBlur={backgroundBlur}
+            />
             <group ref={childrenGroup}>{children}</group>
             {ambientLight && <ambientLight intensity={ambientLightIntensity} />}
             {spotLight && (
@@ -223,7 +257,12 @@ export function Stage({
                         ]}
                         power={spotLightPower}
                         castShadow={shadows}
-                        shadow-bias={shadowBias}
+                        // the shadow camera fits the model (three's default, 0.5-500, leaves a model of a few
+                        // centimetres almost without depth precision: rings of shadow acne)
+                        shadow-camera-near={Math.max(radius * 0.5, 1e-3)}
+                        shadow-camera-far={Math.max(radius * 6, 1)}
+                        shadow-bias={shadowBias || -0.0005}
+                        shadow-normalBias={radius * 0.01}
                         shadow-mapSize-height={2048}
                         shadow-mapSize-width={2048}
                     />
@@ -242,7 +281,97 @@ export function Stage({
                     power={pointLightPower}
                 />
             )}
+            {keyLight && radius > 0 && (
+                <KeyLight
+                    intensity={keyLightIntensity}
+                    followsCamera={keyLightFollowsCamera}
+                    castShadow={shadows}
+                    center={sceneCenter}
+                    radius={radius}
+                />
+            )}
+            {contactShadows && radius > 0 && (
+                <ContactShadows
+                    position={[sceneCenter.x, minY + radius * 0.002, sceneCenter.z]}
+                    scale={radius * 4}
+                    far={radius * 1.2}
+                    blur={2.5}
+                    opacity={0.55}
+                    resolution={512}
+                    color="#000000"
+                />
+            )}
+            <SceneEffects
+                ambientOcclusion={ambientOcclusion}
+                bloom={bloom}
+                bloomIntensity={bloomIntensity}
+                toneMapping={toneMapping}
+                radius={radius}
+            />
             {showAxes && axes.map((arrow, index) => <primitive key={index} object={arrow} />)}
         </group>
     );
 }
+
+// Main (key) light: a directional light that lights the model from above, in front and a little to the side.
+// With followsCamera it keeps that place with respect to the camera, so the side the user looks at is always
+// lit (as in product viewers); otherwise it stays fixed in the scene. Its shadow camera fits the model.
+const KeyLight = ({
+    intensity,
+    followsCamera,
+    castShadow,
+    center,
+    radius,
+}: {
+    intensity: number;
+    followsCamera: boolean;
+    castShadow: boolean;
+    center: THREE.Vector3;
+    radius: number;
+}) => {
+    const lightRef = useRef<THREE.DirectionalLight>(null);
+    const target = useMemo(() => new THREE.Object3D(), []);
+    const offset = useMemo(() => new THREE.Vector3(), []);
+    const right = useMemo(() => new THREE.Vector3(), []);
+    const up = useMemo(() => new THREE.Vector3(), []);
+    const back = useMemo(() => new THREE.Vector3(), []);
+    const distance = radius * 4;
+
+    useLayoutEffect(() => {
+        target.position.copy(center);
+        target.updateMatrixWorld();
+        const light = lightRef.current;
+        if (!light) return;
+        light.position.copy(center).add(new THREE.Vector3(0.6, 1.3, 0.9).normalize().multiplyScalar(distance));
+        const cam = light.shadow.camera as THREE.OrthographicCamera;
+        cam.left = cam.bottom = -radius * 1.2;
+        cam.right = cam.top = radius * 1.2;
+        cam.near = Math.max(radius * 0.5, 1e-3);
+        cam.far = distance + radius * 2;
+        cam.updateProjectionMatrix();
+    }, [center, radius, distance, target]);
+
+    useFrame(({ camera }) => {
+        const light = lightRef.current;
+        if (!light || !followsCamera) return;
+        camera.matrixWorld.extractBasis(right, up, back);
+        offset.set(0, 0, 0).addScaledVector(right, 0.45).addScaledVector(up, 0.75).addScaledVector(back, 0.9);
+        light.position.copy(center).addScaledVector(offset.normalize(), distance);
+    });
+
+    return (
+        <>
+            <primitive object={target} />
+            <directionalLight
+                ref={lightRef}
+                target={target}
+                intensity={intensity}
+                castShadow={castShadow}
+                shadow-bias={-0.0005}
+                shadow-normalBias={radius * 0.01}
+                shadow-mapSize-width={2048}
+                shadow-mapSize-height={2048}
+            />
+        </>
+    );
+};

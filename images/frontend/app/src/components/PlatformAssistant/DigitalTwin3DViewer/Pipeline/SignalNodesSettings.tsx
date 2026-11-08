@@ -3,7 +3,7 @@
 import { FC, useEffect, useState } from "react";
 import styled from "styled-components";
 import { Trash2 } from "lucide-react";
-import { Button, CheckboxInput, FormGroup, Input, Label, Select } from "./types";
+import { Button, CheckboxInput, FormGroup, Input, Label, Select, TextArea } from "./types";
 import {
     ApprovalSettings,
     DegradationSettings,
@@ -12,6 +12,8 @@ import {
     TotalizerSettings,
     ANOMALY_MAX_WINDOW,
     AnomalySettings,
+    POSE_PARTS_EXAMPLE,
+    PoseEstimationSettings,
     DNV_CATEGORIES,
     RainflowSettings,
     SNLineSetting,
@@ -1416,6 +1418,182 @@ export const AnomalySettingsEditor: FC<{ settings: AnomalySettings; onChange: On
     );
 };
 
+// ---- Pose estimation ----
+
+// A JSON setting edited as text: kept as typed (the node reads JSON text); a value imported as an object is shown formatted
+const JsonField: FC<{ label: string; hint: string; value: unknown; placeholder: string; rows?: number; onChange: (v: string) => void }> = ({
+    label,
+    hint,
+    value,
+    placeholder,
+    rows = 6,
+    onChange,
+}) => (
+    <FormGroup>
+        <Label>
+            {label} <Hint>({hint})</Hint>
+        </Label>
+        <TextArea
+            aria-label={label}
+            rows={rows}
+            spellCheck={false}
+            value={typeof value === "string" ? value : value === undefined || value === null ? "" : JSON.stringify(value, null, 2)}
+            placeholder={placeholder}
+            onChange={(e: { target: { value: string } }) => onChange(e.target.value)}
+        />
+    </FormGroup>
+);
+
+export const PoseEstimationSettingsEditor: FC<{ settings: PoseEstimationSettings; onChange: OnChange }> = ({ settings, onChange }) => {
+    const mode = settings.mode ?? "camera";
+    const smoothing = settings.smoothing ?? true;
+    const viewer = settings.viewerOutput ?? true;
+    const calibrated = typeof settings.calibration === "string" ? settings.calibration.trim() !== "" : !!settings.calibration;
+    return (
+        <>
+            <FormGroup>
+                <Label>Mode</Label>
+                <Select aria-label="Pose mode" value={mode} onChange={(e: { target: { value: string } }) => onChange("mode", e.target.value)}>
+                    <option value="camera">Camera: the camera moves around a still object (a phone)</option>
+                    <option value="object">Object: a still camera films a moving object</option>
+                </Select>
+            </FormGroup>
+
+            <PathField label="Keypoints" hint="detections of YOLO-pose, or named keypoints" value={settings.inputPath} placeholder="payload.detections" onChange={(v) => onChange("inputPath", v)} />
+            <FormGroup>
+                <Label>
+                    Keypoint names <Hint>(in the model's order, for detections without names)</Hint>
+                </Label>
+                <ListInput label="Keypoint names" value={settings.keypointNames} placeholder="Blade_1, Blade_2, Blade_3, Hub, ..." onChange={(v) => onChange("keypointNames", v)} />
+            </FormGroup>
+            <JsonField
+                label="Keypoint names by class"
+                hint="optional: an object detected as several classes"
+                value={settings.keypointNamesByClass}
+                placeholder={'{\n  "WindTurbine": ["pontoon_right_3", "pontoon_left_3", ...],\n  "Rotor": ["blade_red_1", "blade_red_2", ...]\n}'}
+                rows={4}
+                onChange={(v) => onChange("keypointNamesByClass", v)}
+            />
+            <Row>
+                <PathField label="Class" hint="empty: any" value={settings.className} placeholder="" onChange={(v) => onChange("className", v)} />
+                <NumberField label="Minimum confidence" value={settings.minConfidence} fallback={0.5} onChange={(v) => onChange("minConfidence", Math.min(1, v))} />
+            </Row>
+
+            <JsonField
+                label="3D points"
+                hint="{name: [x, y, z]} in metres"
+                value={settings.points}
+                placeholder={'{\n  "Hub": [0.001, 0.306, 1.145],\n  "pilar_center": [0.001, 0.194, 0.788],\n  ...\n}'}
+                rows={8}
+                onChange={(v) => onChange("points", v)}
+            />
+            <Row>
+                <FormGroup style={{ flex: 1 }}>
+                    <Label>Coordinates</Label>
+                    <Select aria-label="Points frame" value={settings.pointsFrame ?? "gltf"} onChange={(e: { target: { value: string } }) => onChange("pointsFrame", e.target.value)}>
+                        <option value="gltf">glb / viewer (Y up)</option>
+                        <option value="blender">Blender (Z up)</option>
+                    </Select>
+                </FormGroup>
+                <NumberField label="Scale" hint="to metres" value={settings.pointsScale} fallback={1} onChange={(v) => onChange("pointsScale", v)} />
+            </Row>
+
+            <JsonField
+                label="Calibration"
+                hint="OpenCV's calibration.json: camera_matrix, dist_coeffs, image size"
+                value={settings.calibration}
+                placeholder={'{\n  "camera_matrix": [[1000, 0, 640], [0, 1000, 360], [0, 0, 1]],\n  "dist_coeffs": [0.08, -0.15, 0, 0, 0.05],\n  "image_width": 1280,\n  "image_height": 720\n}'}
+                onChange={(v) => onChange("calibration", v)}
+            />
+            {!calibrated && (
+                <Row>
+                    <NumberField label="Field of view (°)" hint="without calibration: rough" value={settings.fovDeg} fallback={60} onChange={(v) => onChange("fovDeg", v)} />
+                    <FormGroup style={{ flex: 1 }}>
+                        <Label>Measured on</Label>
+                        <Select aria-label="Field of view side" value={settings.fovSide ?? "vertical"} onChange={(e: { target: { value: string } }) => onChange("fovSide", e.target.value)}>
+                            <option value="vertical">the vertical side</option>
+                            <option value="horizontal">the horizontal side</option>
+                            <option value="long">the longer side (portrait or landscape)</option>
+                        </Select>
+                    </FormGroup>
+                </Row>
+            )}
+            <Row>
+                <PathField label="Image width" hint="path" value={settings.imageWidthPath} placeholder="payload.width" onChange={(v) => onChange("imageWidthPath", v)} />
+                <PathField label="Image height" hint="path" value={settings.imageHeightPath} placeholder="payload.height" onChange={(v) => onChange("imageHeightPath", v)} />
+            </Row>
+
+            <JsonField
+                label="Moving parts"
+                hint="optional: rotors, sliding parts"
+                value={settings.parts}
+                placeholder={POSE_PARTS_EXAMPLE}
+                rows={8}
+                onChange={(v) => onChange("parts", v)}
+            />
+            <Note>
+                A rotor of n alike blades must turn less than 180°/n between frames (60° for 3 blades); with its direction or expected speed (rad/s),
+                less than 360°/n. At 2π rad/s and 3 blades: at least 6 frames per second, or 3 with the direction.
+            </Note>
+
+            <Row>
+                <NumberField label="Inlier threshold (px)" value={settings.inlierThreshold} fallback={8} onChange={(v) => onChange("inlierThreshold", v)} />
+                <NumberField label="Minimum points" value={settings.minPoints} fallback={6} min={4} onChange={(v) => onChange("minPoints", Math.round(v))} />
+            </Row>
+
+            <CheckLabel>
+                <CheckboxInput type="checkbox" checked={smoothing} onChange={(e: { target: { checked: boolean } }) => onChange("smoothing", e.target.checked)} />
+                Smooth the pose (Kalman filter)
+            </CheckLabel>
+            {smoothing && (
+                <>
+                    <Row>
+                        <NumberField label="Position noise (m)" value={settings.positionNoise} fallback={0.01} onChange={(v) => onChange("positionNoise", v)} />
+                        <NumberField label="+ × distance" hint="depth is less sure far away" value={settings.positionNoiseRelative} fallback={0.05} onChange={(v) => onChange("positionNoiseRelative", v)} />
+                        <NumberField label="Angle noise (°)" value={settings.angleNoiseDeg} fallback={1} onChange={(v) => onChange("angleNoiseDeg", v)} />
+                    </Row>
+                    <Row>
+                        <NumberField label="Max acceleration (m/s²)" value={settings.maxAcceleration} fallback={2} onChange={(v) => onChange("maxAcceleration", v)} />
+                        <NumberField label="Max angular accel. (°/s²)" value={settings.maxAngularAccelerationDeg} fallback={180} onChange={(v) => onChange("maxAngularAccelerationDeg", v)} />
+                    </Row>
+                </>
+            )}
+            <NumberField label="Reset after (s)" hint="a longer gap without a pose starts the filters again" value={settings.resetAfter} fallback={2} onChange={(v) => onChange("resetAfter", v)} />
+            <Row>
+                <NumberField label="Max jump (°)" hint="0: no check" value={settings.maxJumpDeg} fallback={30} onChange={(v) => onChange("maxJumpDeg", v)} />
+                <NumberField label="Max jump (× distance)" value={settings.maxJump} fallback={0.3} onChange={(v) => onChange("maxJump", v)} />
+                <NumberField label="Frames to confirm" value={settings.confirmFrames} fallback={3} min={1} onChange={(v) => onChange("confirmFrames", Math.round(v))} />
+            </Row>
+            <Note>
+                A pose further than that from the previous one is left out (output 1) until as many frames agree: a flipped pose (keypoints nearly on a
+                plane have two) or a close-up where the detector bunches the keypoints up lasts a frame or a few. After a gap, the first pose waits for a
+                second that agrees.
+            </Note>
+
+            <CheckLabel>
+                <CheckboxInput type="checkbox" checked={viewer} onChange={(e: { target: { checked: boolean } }) => onChange("viewerOutput", e.target.checked)} />
+                Outputs for the 3D viewer (payload.camera, payload.customAnimation)
+            </CheckLabel>
+            {viewer && mode === "camera" && (
+                <CheckLabel>
+                    <CheckboxInput type="checkbox" checked={settings.follow ?? true} onChange={(e: { target: { checked: boolean } }) => onChange("follow", e.target.checked)} />
+                    The viewer's camera follows (the user's orbit controls are off meanwhile)
+                </CheckLabel>
+            )}
+            {viewer && mode === "object" && (
+                <PathField label="Object node" hint="name of the glb node moved like the object" value={settings.objectNodeName} placeholder="" onChange={(v) => onChange("objectNodeName", v)} />
+            )}
+
+            <PathField label="Result field" hint="where the pose goes in the payload" value={settings.resultField} placeholder="pose" onChange={(v) => onChange("resultField", v)} />
+            <KeyAndTime settings={settings} onChange={onChange} keyHint="one pose per value, e.g. per camera; empty: one" />
+            <Note style={{ marginTop: 10 }}>
+                Output 0: the frames with a pose, payload.{settings.resultField || "pose"} = {"{ camera | object, parts, inliers, reprojectionError }"}; publish it to
+                dtm2sim to move the viewer. Output 1: the frames without a pose, with the reason.
+            </Note>
+        </>
+    );
+};
+
 // ---- message time (by default the timestamp that the Listen node adds) ----
 
 const TimestampField: FC<{ value: string | undefined; onChange: OnChange; hint: string }> = ({ value, onChange, hint }) => (
@@ -1880,6 +2058,7 @@ export const SignalNodeSettings: FC<{
             {type === "Rainflow" && <RainflowSettingsEditor settings={formData} onChange={onChange} />}
             {type === "Vibration" && <VibrationSettingsEditor settings={formData} onChange={onChange} />}
             {type === "Anomaly" && <AnomalySettingsEditor settings={formData} onChange={onChange} />}
+            {type === "PoseEstimation" && <PoseEstimationSettingsEditor settings={formData} onChange={onChange} />}
             {type === "Totalizer" && <TotalizerSettingsEditor settings={formData} onChange={onChange} />}
             {type === "OEE" && <OeeSettingsEditor settings={formData} onChange={onChange} />}
             {type === "Degradation" && <DegradationSettingsEditor settings={formData} onChange={onChange} topicRefs={topicRefs} />}

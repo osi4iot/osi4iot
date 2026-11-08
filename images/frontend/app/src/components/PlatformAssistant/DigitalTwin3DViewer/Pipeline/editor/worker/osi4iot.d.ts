@@ -418,7 +418,8 @@ interface Yolo {
      * Put data in payload.mlmInput and pass scale, padX, padY, width and height to PostprocessPose. */
     PreprocessLetterbox(pic: MutableImage, size: number): YoloLetterboxInput;
 
-    /** Decodes the output of a YOLO pose model ([1, 4 + classes + keypoints x 3, anchors]) with per-class NMS.
+    /** Decodes the output of a YOLO pose model with per-class NMS: a raw export ([1, 4 + classes + keypoints x 3, anchors])
+     * or one with the NMS inside the graph ([1, 300, 6 + keypoints x 3], see endToEnd).
      * Boxes and keypoints come back in pixels of the original frame. */
     PostprocessPose(output: number[], opts: YoloPoseOptions): YoloPoseDetection[];
 
@@ -476,6 +477,9 @@ interface YoloPoseOptions {
     classAgnostic?: boolean;
     /** Keep only the best detection of each class (false) */
     bestPerClass?: boolean;
+    /** The export has the NMS inside the graph (Ultralytics nms=True or end2end): rows [x1, y1, x2, y2, conf, class,
+     * keypoints...]. Deduced from the output size when not given */
+    endToEnd?: boolean;
 }
 
 interface YoloPoseKeypoint {

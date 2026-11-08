@@ -60,6 +60,7 @@ export const insertDigitalTwin = async (digitalTwinData: Partial<IDigitalTwin>):
 		chat_assistant_enabled AS "chatAssistantEnabled",
 		chat_assistant_language AS "chatAssistantLanguage",
 		digital_twin_simulation_format AS "digitalTwinSimulationFormat",
+		viewer_settings AS "viewerSettings",
 		digital_twin_simulation_format_file_name AS "digitalTwinSimulationFormatFileName",
 		digital_twin_simulation_format_last_modif_date AS "digitalTwinSimulationFormatLastModifDate",
 		pipeline_file_name AS "pipelineFileName",
@@ -97,6 +98,7 @@ export const getAllDigitalTwins = async (): Promise<IDigitalTwin[]> => {
 		grafanadb.digital_twin.chat_assistant_enabled AS "chatAssistantEnabled",
 		grafanadb.digital_twin.chat_assistant_language AS "chatAssistantLanguage",
 		grafanadb.digital_twin.digital_twin_simulation_format AS "digitalTwinSimulationFormat",
+		grafanadb.digital_twin.viewer_settings AS "viewerSettings",
 		grafanadb.digital_twin.digital_twin_simulation_format_file_name AS "digitalTwinSimulationFormatFileName",
 		grafanadb.digital_twin.digital_twin_simulation_format_last_modif_date AS "digitalTwinSimulationFormatLastModifDate",
 		grafanadb.digital_twin.pipeline_file_name AS "pipelineFileName",
@@ -149,6 +151,7 @@ export const getDigitalTwinsByOrgId = async (orgId: number): Promise<IDigitalTwi
 		grafanadb.digital_twin.chat_assistant_enabled AS "chatAssistantEnabled",
 		grafanadb.digital_twin.chat_assistant_language AS "chatAssistantLanguage",
 		grafanadb.digital_twin.digital_twin_simulation_format AS "digitalTwinSimulationFormat",
+		grafanadb.digital_twin.viewer_settings AS "viewerSettings",
 		grafanadb.digital_twin.digital_twin_simulation_format_file_name AS "digitalTwinSimulationFormatFileName",
 		grafanadb.digital_twin.digital_twin_simulation_format_last_modif_date AS "digitalTwinSimulationFormatLastModifDate",
 		grafanadb.digital_twin.pipeline_file_name AS "pipelineFileName",
@@ -181,6 +184,7 @@ export const getDigitalTwinsByGroupId = async (groupId: number): Promise<IDigita
 		grafanadb.digital_twin.chat_assistant_enabled AS "chatAssistantEnabled",
 		grafanadb.digital_twin.chat_assistant_language AS "chatAssistantLanguage",
 		grafanadb.digital_twin.digital_twin_simulation_format AS "digitalTwinSimulationFormat",
+		grafanadb.digital_twin.viewer_settings AS "viewerSettings",
 		grafanadb.digital_twin.digital_twin_simulation_format_file_name AS "digitalTwinSimulationFormatFileName",
 		grafanadb.digital_twin.digital_twin_simulation_format_last_modif_date AS "digitalTwinSimulationFormatLastModifDate",
 		grafanadb.digital_twin.pipeline_file_name AS "pipelineFileName",
@@ -213,6 +217,7 @@ export const getDigitalTwinsByGroupsIdArray = async (groupsIdArray: number[]): P
 		grafanadb.digital_twin.chat_assistant_enabled AS "chatAssistantEnabled",
 		grafanadb.digital_twin.chat_assistant_language AS "chatAssistantLanguage",
 		grafanadb.digital_twin.digital_twin_simulation_format AS "digitalTwinSimulationFormat",
+		grafanadb.digital_twin.viewer_settings AS "viewerSettings",
 		grafanadb.digital_twin.digital_twin_simulation_format_file_name AS "digitalTwinSimulationFormatFileName",
 		grafanadb.digital_twin.digital_twin_simulation_format_last_modif_date AS "digitalTwinSimulationFormatLastModifDate",
 		grafanadb.digital_twin.pipeline_file_name AS "pipelineFileName",
@@ -247,6 +252,7 @@ export const getDigitalTwinByProp = async (propName: string, propValue: string |
 		grafanadb.digital_twin.chat_assistant_enabled AS "chatAssistantEnabled",
 		grafanadb.digital_twin.chat_assistant_language AS "chatAssistantLanguage",
 		grafanadb.digital_twin.digital_twin_simulation_format AS "digitalTwinSimulationFormat",
+		grafanadb.digital_twin.viewer_settings AS "viewerSettings",
 		grafanadb.digital_twin.digital_twin_simulation_format_file_name AS "digitalTwinSimulationFormatFileName",
 		grafanadb.digital_twin.digital_twin_simulation_format_last_modif_date AS "digitalTwinSimulationFormatLastModifDate",
 		grafanadb.digital_twin.pipeline_file_name AS "pipelineFileName",
@@ -1451,4 +1457,23 @@ export const removeFilesFromBucketFolder = async (folderPath: string) => {
 	for (let i = 0; i < filesToRemove.length; i += 1000) {
 		await deleteBucketFiles(filesToRemove.slice(i, i + 1000));
 	}
+};
+// The digital twin's own viewer settings ({lighting: {...}}): the frontend checks every key, admin_api only
+// keeps them as a JSON object.
+export const updateDigitalTwinViewerSettings = async (
+	digitalTwinId: number,
+	viewerSettings: Record<string, unknown>
+): Promise<void> => {
+	await pool.query(
+		"UPDATE grafanadb.digital_twin SET viewer_settings = $1::jsonb, updated = NOW() WHERE id = $2",
+		[JSON.stringify(viewerSettings), digitalTwinId]
+	);
+};
+
+// Digital twins of older versions: the viewer_settings column. Run by every replica at start, before
+// serving (IF NOT EXISTS: the first one adds it, the others find it).
+export const ensureDigitalTwinViewerSettingsColumn = async (): Promise<void> => {
+	await pool.query(
+		"ALTER TABLE grafanadb.digital_twin ADD COLUMN IF NOT EXISTS viewer_settings jsonb NOT NULL DEFAULT '{}'::jsonb"
+	);
 };

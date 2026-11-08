@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { getDomainName, getNatsSeedServers, getProtocol, giveDefaultNumWebWorkers } from "../../../../tools/tools";
+import { DEFAULT_LIGHTING, ENVIRONMENTS } from "./lighting";
 
 // three.js >= r152 gestiona el color de forma "lineal" (ColorManagement activado): los colores
 // hexadecimales/CSS definidos en el código se interpretan como sRGB y se muestran tal cual.
@@ -10,12 +11,7 @@ export const LEGACY_COLOR_MANAGEMENT = false;
 // creados fuera del <Canvas> usen el mismo modo que el visor.
 THREE.ColorManagement.enabled = !LEGACY_COLOR_MANAGEMENT;
 
-export const ENVIRONMENT_OPTIONS = [
-    "none",
-    "sunset", 
-    "dawn",
-    "night"
-];
+export const ENVIRONMENT_OPTIONS = ENVIRONMENTS.map((e) => e.value);
 
 export const OPACITY_SERIE = [1, 0.15, 0.1, 0.05, 0.0];
 
@@ -30,19 +26,15 @@ export const PROTOCOL = getProtocol();
 export const NATS_SEED_SERVERS = getNatsSeedServers();
 
 export const DEFAULT_VIEWER_OPTIONS = {
-    environment: "sunset",
-    ambientLight: true,
-    ambientLightIntensity: 1,
-    spotLight: true,
-    spotLightPower: 5,
+    // iluminación (Utils/lighting.ts): la del preset por defecto; cada gemelo puede guardar la suya
+    ...DEFAULT_LIGHTING,
     showSpotLightHelper: false,
-    pointLight: true,
-    pointLightPower: 5,
     showPointLightHelper: false,
+    cameraProjection: "orthographic",
+    cameraFov: 45,
     showAxes: false,
     // longitud de las líneas de los ejes respecto a la automática (las puntas de flecha no cambian)
     axesScale: 1,
-    showShadows: true,
     sensorsOpacity: 1,
     highlightAllSensors: false,
     showAllSensorsMarker: false,

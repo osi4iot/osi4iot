@@ -292,6 +292,8 @@ interface HeaderProps {
     handleStopPipeline: () => void;
     handleFileUpload: (event: React.ChangeEvent<HTMLInputElement>) => void;
     handleDownloadYamlFile: () => void;
+    // nodes selected in the editor: "Download YAML" saves only those
+    selectedNodesCount?: number;
     handleReinitiatePipeline: () => void;
     isPipelineUiChanged: boolean;
     close3DViewer: () => void;
@@ -363,6 +365,7 @@ export const Header: FC<HeaderProps> = ({
     handleStopPipeline,
     handleFileUpload,
     handleDownloadYamlFile,
+    selectedNodesCount = 0,
     handleReinitiatePipeline,
     isPipelineUiChanged,
     close3DViewer,
@@ -480,7 +483,16 @@ export const Header: FC<HeaderProps> = ({
                         <RefreshCw aria-hidden="true" />
                     </ToolButton>
                     <Divider />
-                    <ToolButton type="button" aria-label="Download YAML" data-tooltip="Download YAML" onClick={handleDownloadYamlFile}>
+                    <ToolButton
+                        type="button"
+                        aria-label="Download YAML"
+                        data-tooltip={
+                            selectedNodesCount > 0
+                                ? `Download YAML (${selectedNodesCount} selected ${selectedNodesCount === 1 ? "node" : "nodes"})`
+                                : "Download YAML"
+                        }
+                        onClick={handleDownloadYamlFile}
+                    >
                         <Download aria-hidden="true" />
                     </ToolButton>
                     <ToolButton
@@ -549,4 +561,3 @@ export const Header: FC<HeaderProps> = ({
         </Bar>
     );
 };
-

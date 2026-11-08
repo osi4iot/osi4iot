@@ -25,7 +25,7 @@ export interface IBuiltinSkill {
 const VIEWER_UI_OPTIONS_SKILL_MD = `---
 name: viewer-ui-options
 description: "Change the digital twin's 3D viewer from the chat: show or hide objects, highlight them, change their opacity, show or hide the sensor markers, show FEM results, deformation, mesh, node or element labels, the legend, the lights and environment, or the values of the digital twin simulator. Use it whenever the user asks to show, display, visualize, hide, mark, locate, point out or highlight something, and whenever they ask where something is ('where are the sensors?', '¿dónde están los sensores?', 'márcalos'): the viewer shows it."
-version: "1.11"
+version: "1.14"
 tags: [viewer, output-format]
 ---
 
@@ -162,12 +162,43 @@ not change which sensors are visible: hideAllSensors / hide do that.
 ### Scene
 | key | type | meaning |
 |---|---|---|
-| environment | string | "none", "sunset", "dawn" or "night" |
+| lightingPreset | string | one-click lighting: "studio" (soft, neutral: the default), "industrial" (warehouse), "outdoor" (daylight), "night" (dark, glowing displays) or "classic" (the former look). Choosing a preset sets all the lighting keys of this table: send ONLY lightingPreset, not the keys it sets. Changing any other lighting key yourself makes it "custom" |
+| environment | string | the light around the model: "none", "neutral" (soft studio room), "studio" (photo studio), "warehouse" (industrial warehouse), "outdoor" (park in daylight), "sunset", "dawn" or "night" |
+| environmentIntensity | number | strength of the environment (0-3) |
+| environmentRotation | number | turns the environment around the vertical axis, in degrees (0-360): moves where the light comes from |
+| environmentBackground | boolean | show the environment as the background (not with "none" or "neutral"); backgroundBlur (number 0-1) blurs it |
+| toneMapping | string | how light is turned into colours: "neutral", "agx", "aces" or "linear" |
+| exposure | number | overall brightness (0.1-3; 1 is neutral) |
+| keyLight | boolean | the main directional light; keyLightIntensity (number 0-10) its strength; keyLightFollowsCamera (boolean) keeps it on the side the user looks at |
 | ambientLight / spotLight / pointLight | boolean | lights on or off |
 | ambientLightIntensity / spotLightPower / pointLightPower | number | light strength (ambient 0-10; spot and point lights 0-5000, in lumens) |
 | showSpotLightHelper / showPointLightHelper | boolean | draw where the spot / point light is and where it points (only with that light on) |
 | showAxes | boolean | draw the axes; axesScale (number) their length |
-| showShadows | boolean | shadows |
+| showShadows | boolean | shadows of the key and spot lights |
+| contactShadows | boolean | a soft shadow under the model |
+| ambientOcclusion | boolean | darken corners and joints (depth) |
+| bloom | boolean | glow of displays, LEDs and very bright surfaces; bloomIntensity (number 0-3) its strength |
+| thinGlass | boolean | glass and liquids as thin sheets: what is behind them is not shifted (models whose glass is too thick) |
+
+"Brighter / darker" is exposure; "more realistic" or "like a photo" is
+lightingPreset "studio"; "like a factory" is "industrial".
+
+### Camera
+| key | type | meaning |
+|---|---|---|
+| cameraProjection | string | "orthographic" (the default: no perspective, sizes do not change with the distance) or "perspective" (as a real camera sees it) |
+| cameraFov | number | field of view of the perspective camera, in degrees (5-150; 45 by default) |
+| camera | object | moves the camera once (it is not kept as an option): {"view": "front" / "back" / "left" / "right" / "top" / "bottom" / "iso" / "fit" / "reset"} frames the whole model from that side ("fit" keeps the direction; "reset" is the first view); or {"position": [x, y, z], "target": [x, y, z]} to look at a point (metres of the model, Y up); "transitionMs" (number) is how long the move takes |
+
+"Look at it from above" is camera view "top"; "show me the whole model" is
+"fit"; "like a photo" or "with perspective" is cameraProjection
+"perspective". To look at one object, use its position (the system prompt
+or list-sensors may give it) as the target.
+
+A pipeline may drive the camera with a stream of poses (a phone that films
+the model): a camera move ends that following in the viewer, but the next
+pose starts it again. If the pipeline gives a tool to stop following
+(its description says so), call it before moving the camera.
 
 ### Performance (only when the user asks)
 | key | type | meaning |
@@ -488,3 +519,4 @@ export const BUILTIN_SKILLS: IBuiltinSkill[] = [
 export const BUILTIN_SKILL_NAMES = BUILTIN_SKILLS.map((s) => s.name);
 
 export const isBuiltinSkill = (name: string): boolean => BUILTIN_SKILL_NAMES.includes(name);
+

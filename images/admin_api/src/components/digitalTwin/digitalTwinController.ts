@@ -45,6 +45,7 @@ import {
 	getAllDTTopics,
 	getDTTopicsByGroupsIdArray,
 	getDTTopicsByDigitalTwinId,
+	updateDigitalTwinViewerSettings,
 } from "./digitalTwinDAL";
 import IDigitalTwin from "./digitalTwin.interface";
 import IDigitalTwinState from "./digitalTwinState.interface";
@@ -69,6 +70,7 @@ import {
 	updateDigitalTwinPipeline,
 } from "./pipeline";
 import CreatePipelineActionDto from "./pipeline_action.dto";
+import UpdateViewerSettingsDto from "./viewerSettings.dto";
 import IDigitalTwinTopic from "./digitalTwinTopic.interface";
 import PipelineDto from "./pipeline.dto";
 import natsClient from "../../config/natsConfig";
@@ -201,6 +203,13 @@ class DigitalTwinController implements IController {
 				groupAdminAuth,
 				validationMiddleware<PipelineDto>(PipelineDto, true),
 				this.deletePipeline
+			)
+			.put(
+				`${this.path}_viewer_settings/:groupId/:digitalTwinId`,
+				digitalTwinAndGroupExist,
+				groupAdminAuth,
+				validationMiddleware<UpdateViewerSettingsDto>(UpdateViewerSettingsDto),
+				this.updateViewerSettings
 			)
 			.post(
 				`${this.path}_pipeline_action/:groupId/:digitalTwinId`,
@@ -724,6 +733,26 @@ class DigitalTwinController implements IController {
 			};
 
 			res.status(200).send(response);
+		} catch (error) {
+			next(error);
+		}
+	};
+
+	// The twin's own viewer settings (its lighting): everyone opening the twin starts from them
+	private updateViewerSettings = async (
+		req: IRequestWithDigitalTwinAndGroup,
+		res: Response,
+		next: NextFunction
+	): Promise<void> => {
+		try {
+			const { viewerSettings } = req.body as UpdateViewerSettingsDto;
+			if (Array.isArray(viewerSettings) || JSON.stringify(viewerSettings).length > 20000) {
+				throw new HttpException(req, res, 400, "The viewer settings must be a JSON object of at most 20 kB");
+			}
+			await updateDigitalTwinViewerSettings(req.digitalTwin.id, viewerSettings);
+			res.status(200).send({
+				message: `The viewer settings of the digital twin ${req.digitalTwin.digitalTwinUid} have been saved`,
+			});
 		} catch (error) {
 			next(error);
 		}

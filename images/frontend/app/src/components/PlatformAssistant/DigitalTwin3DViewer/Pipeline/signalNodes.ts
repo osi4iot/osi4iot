@@ -12,6 +12,7 @@ export const SIGNAL_NODE_TYPES = [
     "Rainflow",
     "Vibration",
     "Anomaly",
+    "PoseEstimation",
     "Totalizer",
     "OEE",
     "Degradation",
@@ -675,6 +676,128 @@ export const anomalyProblems = (s: AnomalySettings): string[] => {
     return problems;
 };
 
+// ---- Pose estimation ----
+
+export interface PoseEstimationSettings {
+    mode?: "camera" | "object";
+    inputPath?: string;
+    keypointNames?: string[];
+    // JSON: {class: [names in the model's order]}, for objects detected as several classes
+    keypointNamesByClass?: string | Record<string, unknown>;
+    className?: string;
+    minConfidence?: number;
+    // JSON texts (or values): {name: [x, y, z]}, OpenCV's calibration, the moving parts
+    points?: string | Record<string, unknown> | unknown[];
+    pointsFrame?: "gltf" | "blender";
+    pointsScale?: number;
+    calibration?: string | Record<string, unknown>;
+    fovDeg?: number;
+    // side the field of view is measured on: vertical, horizontal or long (the longer side, the same in portrait and landscape)
+    fovSide?: "vertical" | "horizontal" | "long";
+    imageWidthPath?: string;
+    imageHeightPath?: string;
+    parts?: string | unknown[];
+    inlierThreshold?: number;
+    minPoints?: number;
+    smoothing?: boolean;
+    positionNoise?: number;
+    // added to positionNoise as a fraction of the camera distance (a far camera is less sure of its depth)
+    positionNoiseRelative?: number;
+    angleNoiseDeg?: number;
+    maxAcceleration?: number;
+    maxAngularAccelerationDeg?: number;
+    resetAfter?: number;
+    // a pose further than this from the previous one (degrees, fraction of the distance) is left out until
+    // confirmFrames frames agree; maxJumpDeg 0: no check
+    maxJumpDeg?: number;
+    maxJump?: number;
+    confirmFrames?: number;
+    viewerOutput?: boolean;
+    follow?: boolean;
+    objectNodeName?: string;
+    resultField?: string;
+    keyPath?: string;
+    timePath?: string;
+}
+
+// A JSON setting: its value, or why it is not valid ("" when empty)
+export const parseJsonSetting = (v: unknown): { value?: unknown; error?: string } => {
+    if (v === undefined || v === null) return {};
+    if (typeof v !== "string") return { value: v };
+    if (!v.trim()) return {};
+    try {
+        return { value: JSON.parse(v) };
+    } catch (e) {
+        return { error: (e as Error).message };
+    }
+};
+
+export const POSE_PARTS_EXAMPLE = `[
+  {
+    "name": "rotor",
+    "type": "rotation",
+    "keypoints": ["Blade_1", "Blade_2", "Blade_3"],
+    "axisOrigin": "Hub",
+    "axisDirection": [0, 1, 0],
+    "symmetry": 3,
+    "direction": "positive",
+    "expectedSpeed": 6.283,
+    "nodeName": "Rotor"
+  }
+]`;
+
+export const poseEstimationProblems = (s: PoseEstimationSettings): string[] => {
+    const problems: string[] = [];
+    const points = parseJsonSetting(s.points);
+    let names: string[] = [];
+    if (points.error) problems.push(`The 3D points are not valid JSON: ${points.error}`);
+    else if (points.value === undefined) problems.push("The 3D points of the object are required.");
+    else if (Array.isArray(points.value)) names = points.value.map((p) => String((p as { name?: unknown })?.name ?? ""));
+    else if (typeof points.value === "object") names = Object.keys(points.value as object);
+    else problems.push("The 3D points must be an object {name: [x, y, z]} or a list of {name, x, y, z}.");
+    const parts = parseJsonSetting(s.parts);
+    const moving = new Set<string>();
+    if (parts.error) problems.push(`The moving parts are not valid JSON: ${parts.error}`);
+    else if (parts.value !== undefined && !Array.isArray(parts.value)) problems.push("The moving parts must be a list.");
+    else if (Array.isArray(parts.value)) {
+        parts.value.forEach((p, i) => {
+            const part = p as { name?: unknown; keypoints?: unknown; axisDirection?: unknown; type?: unknown; restAngles?: unknown; zeroDirection?: unknown };
+            if (!part || typeof part !== "object") return problems.push(`Part ${i + 1} is not an object.`);
+            if (typeof part.name !== "string" || !part.name) problems.push(`Part ${i + 1} needs a name.`);
+            if (!Array.isArray(part.keypoints) || part.keypoints.length === 0) problems.push(`Part ${i + 1} needs keypoints.`);
+            else part.keypoints.forEach((k) => moving.add(String(k)));
+            if (!Array.isArray(part.axisDirection)) problems.push(`Part ${i + 1} needs an axisDirection [x, y, z].`);
+            if (part.type !== undefined && part.type !== "rotation" && part.type !== "translation")
+                problems.push(`Part ${i + 1}: type must be rotation or translation.`);
+            if (part.restAngles !== undefined && !Array.isArray(part.zeroDirection))
+                problems.push(`Part ${i + 1}: restAngles need zeroDirection (where 0° is).`);
+            return undefined;
+        });
+    }
+    const rigid = names.filter((n) => !moving.has(n)).length;
+    if (points.value !== undefined && !points.error && rigid < 4) problems.push("The rigid body needs at least 4 points (not in a moving part).");
+    const byClass = parseJsonSetting(s.keypointNamesByClass);
+    if (byClass.error) problems.push(`The keypoint names by class are not valid JSON: ${byClass.error}`);
+    else if (byClass.value !== undefined && (typeof byClass.value !== "object" || Array.isArray(byClass.value)))
+        problems.push("The keypoint names by class must be an object {class: [names in the model's order]}.");
+    const calibration = parseJsonSetting(s.calibration);
+    if (calibration.error) problems.push(`The calibration is not valid JSON: ${calibration.error}`);
+    else if (calibration.value !== undefined && (typeof calibration.value !== "object" || Array.isArray(calibration.value)))
+        problems.push("The calibration must be a JSON object (camera_matrix, dist_coeffs...).");
+    const fov = s.fovDeg ?? 60;
+    if (!(fov > 1 && fov < 170)) problems.push("The field of view must be between 1° and 170°.");
+    if (s.fovSide !== undefined && !["vertical", "horizontal", "long"].includes(s.fovSide))
+        problems.push("The field of view side must be vertical, horizontal or long.");
+    const conf = s.minConfidence ?? 0.5;
+    if (conf < 0 || conf > 1) problems.push("The minimum confidence must be between 0 and 1.");
+    if ((s.inlierThreshold ?? 8) <= 0) problems.push("The inlier threshold must be positive.");
+    if ((s.maxJumpDeg ?? 30) < 0 || (s.maxJump ?? 0.3) < 0) problems.push("The jump limits cannot be negative.");
+    if ((s.positionNoiseRelative ?? 0.05) < 0) problems.push("The relative position noise cannot be negative.");
+    if (rigid > 0 && (s.minPoints ?? 6) > rigid) problems.push("Minimum points is more than the rigid body has.");
+    if (!(s.resultField ?? "pose").trim()) problems.push("The result field is required.");
+    return problems;
+};
+
 // ---- defaults (palette) ----
 
 export const SIGNAL_DEFAULT_SETTINGS: Record<SignalNodeType, Record<string, unknown>> = {
@@ -793,6 +916,41 @@ export const SIGNAL_DEFAULT_SETTINGS: Record<SignalNodeType, Record<string, unkn
         chatId: "",
         timezone: "",
     },
+    PoseEstimation: {
+        mode: "camera",
+        inputPath: "payload.detections",
+        keypointNames: [],
+        keypointNamesByClass: "",
+        className: "",
+        minConfidence: 0.5,
+        points: "",
+        pointsFrame: "gltf",
+        pointsScale: 1,
+        calibration: "",
+        fovDeg: 60,
+        fovSide: "vertical",
+        imageWidthPath: "payload.width",
+        imageHeightPath: "payload.height",
+        parts: "",
+        inlierThreshold: 8,
+        minPoints: 6,
+        smoothing: true,
+        positionNoise: 0.01,
+        positionNoiseRelative: 0.05,
+        angleNoiseDeg: 1,
+        maxAcceleration: 2,
+        maxAngularAccelerationDeg: 180,
+        resetAfter: 2,
+        maxJumpDeg: 30,
+        maxJump: 0.3,
+        confirmFrames: 3,
+        viewerOutput: true,
+        follow: true,
+        objectNodeName: "",
+        resultField: "pose",
+        keyPath: "",
+        timePath: "payload.timestamp",
+    },
     Anomaly: {
         field: "payload.value",
         method: "zscore",
@@ -876,6 +1034,8 @@ export const signalProblems = (type: SignalNodeType, settings: Record<string, an
             return vibrationProblems(settings);
         case "Anomaly":
             return anomalyProblems(settings);
+        case "PoseEstimation":
+            return poseEstimationProblems(settings);
         case "Totalizer":
             return totalizerProblems(settings);
         case "OEE":

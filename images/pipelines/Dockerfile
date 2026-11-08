@@ -60,6 +60,7 @@ COPY telegram/ ./telegram/
 COPY timeparser/ ./timeparser/
 COPY utils/ ./utils/
 COPY rag/ ./rag/
+COPY geometry/ ./geometry/
 RUN go mod download && go mod verify
 
 # libtokenizers.a (Hugging Face tokenizers, Rust) for the knowledge bases'

@@ -50,6 +50,8 @@ export interface IDigitalTwin {
 	pipelineFileLastModifDate: string;
     pipelineFileData: string;
     pipelineRequiresGpu: boolean;
+    // the twin's own viewer settings ({lighting: {...}}), saved from the viewer by a group administrator
+    viewerSettings?: Record<string, unknown>;
     // The knowledge base documents (file names) its AI agents may read.
     knowledgeDocuments?: string[];
 }

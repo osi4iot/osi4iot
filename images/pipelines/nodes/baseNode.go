@@ -93,6 +93,8 @@ func CreateNode(
 		newNode, err = CreateVibrationNode(node, fm, p)
 	case "Anomaly":
 		newNode, err = CreateAnomalyNode(node, fm, p)
+	case "PoseEstimation":
+		newNode, err = CreatePoseEstimationNode(node, fm, p)
 	case "Totalizer":
 		newNode, err = CreateTotalizerNode(node, fm, p)
 	case "OEE":

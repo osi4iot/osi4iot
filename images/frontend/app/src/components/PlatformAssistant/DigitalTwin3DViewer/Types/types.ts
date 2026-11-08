@@ -95,7 +95,35 @@ export interface ViewerState {
 }
 
 export interface ViewerOptions {
+    // one-click lighting (Utils/lighting.ts LIGHTING_PRESETS) or "custom" once a lighting option is changed
+    lightingPreset: string;
     environment: string;
+    environmentIntensity: number;
+    // degrees around the vertical axis
+    environmentRotation: number;
+    // the environment as the background, blurred by backgroundBlur (0-1)
+    environmentBackground: boolean;
+    backgroundBlur: number;
+    // neutral, agx, aces or linear
+    toneMapping: string;
+    exposure: number;
+    // directional light; it can follow the camera (lit from the viewer's side)
+    keyLight: boolean;
+    keyLightIntensity: number;
+    keyLightFollowsCamera: boolean;
+    // soft shadow under the model
+    contactShadows: boolean;
+    // screen-space ambient occlusion (N8AO)
+    ambientOcclusion: boolean;
+    // glow of emissive and very bright surfaces
+    bloom: boolean;
+    bloomIntensity: number;
+    // glass and liquids (KHR_materials_transmission) as thin sheets: their model thickness is ignored
+    thinGlass: boolean;
+    // the camera: "orthographic" (no perspective: sizes do not change with the distance) or "perspective"
+    cameraProjection: string;
+    // vertical field of view of the perspective camera, degrees
+    cameraFov: number;
     ambientLight: boolean;
     ambientLightIntensity: number;
     spotLight: boolean;

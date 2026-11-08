@@ -315,3 +315,48 @@ export const NoWifiIcon = styled(RiWifiOffLine as any)`
     margin: 10px 5px;
     transform: rotate(90deg);
 `;
+
+// While a pipeline drives the camera (a followed phone camera): what is happening and a button to take the
+// camera back (or follow again)
+export const FollowCameraBar = styled.div`
+    position: absolute;
+    left: 12px;
+    bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 6px 6px 12px;
+    background-color: rgba(20, 22, 26, 0.88);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    color: #e6e8eb;
+    font-size: 12px;
+    z-index: 900;
+
+    svg {
+        width: 15px;
+        height: 15px;
+        color: #3d82f0;
+    }
+
+    button {
+        height: 28px;
+        padding: 0 10px;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 7px;
+        background: transparent;
+        color: #c7cbd1;
+        font: 500 12px Roboto, "Helvetica Neue", Arial, sans-serif;
+        cursor: pointer;
+
+        &:hover {
+            background-color: rgba(255, 255, 255, 0.06);
+            color: #ffffff;
+        }
+
+        &:focus-visible {
+            outline: 2px solid #3d82f0;
+            outline-offset: 2px;
+        }
+    }
+`;
