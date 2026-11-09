@@ -722,14 +722,14 @@ func GetDefaultServicesDataMap(pd *osi_types.PlatformData) map[string]osi_types.
 	defaultServicesDataMap := map[string]osi_types.ServiceData{
 		"admin_api": {
 			ServiceName: "admin_api",
-			Image:       "ghcr.io/osi4iot/admin_api_nats:1.3.0",
+			Image:       "ghcr.io/osi4iot/admin_api_nats:1.4.0",
 			Replicas:    1,
 			Cpu:         uiSvcCpus,
 			Memory:      uiSvcMem,
 		},
 		"frontend": {
 			ServiceName: "frontend",
-			Image:       "ghcr.io/osi4iot/frontend_nats:1.3.0",
+			Image:       "ghcr.io/osi4iot/frontend_nats:1.4.0",
 			Replicas:    1,
 			Cpu:         uiSvcCpus,
 			Memory:      uiSvcMem,
@@ -743,7 +743,7 @@ func GetDefaultServicesDataMap(pd *osi_types.PlatformData) map[string]osi_types.
 		},
 		"auth_callout": {
 			ServiceName: "auth_callout",
-			Image:       "ghcr.io/osi4iot/auth_callout:1.3.0",
+			Image:       "ghcr.io/osi4iot/auth_callout:1.4.0",
 			Replicas:    1,
 			Cpu:         messagingSvcCpus_025,
 			Memory:      messagingSvcMem_025,
@@ -757,7 +757,7 @@ func GetDefaultServicesDataMap(pd *osi_types.PlatformData) map[string]osi_types.
 		},
 		"pipelines": {
 			ServiceName: "pipelines",
-			Image:       "ghcr.io/osi4iot/pipelines:1.3.0",
+			Image:       "ghcr.io/osi4iot/pipelines:1.4.0",
 			Replicas:    pi.DefaultNumPipelinesInstances,
 			Cpu:         pipelinesSvcCpus,
 			Memory:      pipelinesSvcMem,

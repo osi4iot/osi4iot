@@ -95,7 +95,7 @@ func AdminApiService(
 		}
 	}
 
-	image := utils.GetServiceImage(pd, "admin_api", "ghcr.io/osi4iot/admin_api_nats:1.3.0")
+	image := utils.GetServiceImage(pd, "admin_api", "ghcr.io/osi4iot/admin_api_nats:1.4.0")
 
 	return NewService("admin_api", pd, sd).
 		WithImage(image).

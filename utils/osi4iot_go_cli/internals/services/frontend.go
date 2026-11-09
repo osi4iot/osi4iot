@@ -55,7 +55,7 @@ func FrontendService(
 		}
 	}
 
-	image := utils.GetServiceImage(pd, "frontend", "ghcr.io/osi4iot/frontend_nats:1.3.0")
+	image := utils.GetServiceImage(pd, "frontend", "ghcr.io/osi4iot/frontend_nats:1.4.0")
 	return NewService("frontend", pd, sd).
 		WithImage(image).
 		WithAnnotationsLabels(annotationsLabels).

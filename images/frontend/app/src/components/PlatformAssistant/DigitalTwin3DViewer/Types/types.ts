@@ -34,6 +34,10 @@ export interface Viewer3DProps {
     refreshDigitalTwins: () => void;
     assetWithCameraSelected: boolean;
     sensorWithCameraSelected: boolean;
+    // asset of the twin (its name is shown on the asset switcher button)
+    assetName?: string;
+    // opens the asset switcher (Ctrl K)
+    onOpenAssetSwitcher?: () => void;
 }
 
 export interface ViewerState {

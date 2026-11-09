@@ -52,7 +52,7 @@ func AuthCalloutService(
 	}
 
 	numNatsReplicas := utils.GetServiceReplicas(pd, "nats")
-	image := utils.GetServiceImage(pd, "auth_callout", "ghcr.io/osi4iot/auth_callout:1.3.0")
+	image := utils.GetServiceImage(pd, "auth_callout", "ghcr.io/osi4iot/auth_callout:1.4.0")
 
 	return NewService("auth_callout", pd, sd).
 		WithImage(image).

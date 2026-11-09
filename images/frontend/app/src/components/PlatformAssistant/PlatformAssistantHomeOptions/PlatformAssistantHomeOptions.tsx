@@ -24,8 +24,22 @@ import WebGLErrorBoundary from "./WebGLErrorBoundary";
 import { reloadTable, TableName, usePersistentState, useTable, useTableQuery, useTablesPending } from "../../../state";
 import { setUiValue } from "../../../state/uiStore";
 import { MAP_VIEW_KEY } from "../Geolocation/Map";
+import { Search } from "lucide-react";
+import { useAuthDispatch, useAuthState } from "../../../contexts/authContext";
+import AssetSwitcher from "../AssetSwitcher/AssetSwitcher";
+import {
+    buildSwitcherEntries,
+    isSwitcherShortcut,
+    readRecentTwins,
+    rememberTwin,
+    RecentTwins,
+    SwitcherEntry,
+    SwitcherTwin,
+} from "../AssetSwitcher/assetSwitcherData";
+import openDigitalTwin from "../Geolocation/openDigitalTwin";
 
 const ContentContainer = styled.div`
+    position: relative;
     flex: 1;
     min-height: 0;
     width: 100%;
@@ -63,6 +77,63 @@ const ContentContainer = styled.div`
     &::-webkit-scrollbar-corner {
         /* background-color: #0c0d0f; */
         background: #202226;
+    }
+`;
+
+// Opens the asset switcher from the map (on the Viewer it is the button in the top bar)
+const MapSearchPill = styled.button`
+    position: absolute;
+    top: 12px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 1001;
+    width: min(420px, calc(100% - 140px));
+    height: 40px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 0 12px;
+    background: rgba(23, 25, 28, 0.92);
+    backdrop-filter: blur(6px);
+    border: 1px solid #2f343a;
+    border-radius: 20px;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+    color: #9aa1aa;
+    font: 400 14px Roboto, "Helvetica Neue", Arial, sans-serif;
+    text-align: left;
+    cursor: pointer;
+
+    &:hover {
+        border-color: #4a515a;
+        color: #c7cbd1;
+    }
+
+    &:focus-visible {
+        outline: 2px solid #3d82f0;
+        outline-offset: 2px;
+    }
+
+    span {
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    kbd {
+        flex: none;
+        font: 400 11px Roboto, "Helvetica Neue", Arial, sans-serif;
+        border: 1px solid #3a4048;
+        border-radius: 4px;
+        padding: 1px 6px;
+    }
+
+    @media (max-width: 640px) {
+        width: calc(100% - 120px);
+        kbd {
+            display: none;
+        }
     }
 `;
 
@@ -248,6 +319,11 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
     const [glftDataLoading, setGlftDataLoading] = useState(false);
     const [gltfFileDownloadProgress, setGltfFileDownloadProgress] = useState(0);
     const fetchFemResFileWorker = useMemo(() => getFetchFemResFileWorker(), []);
+    // asset switcher (Ctrl K)
+    const { accessToken, refreshToken } = useAuthState();
+    const authDispatch = useAuthDispatch();
+    const [switcherOpen, setSwitcherOpen] = useState(false);
+    const [recentTwins, setRecentTwins] = useState<RecentTwins>(() => readRecentTwins());
 
     // Límites del mapa: al llegar datos nuevos se actualizan los iniciales y, si el usuario no ha movido
     // el mapa a otro sitio, también los actuales
@@ -281,6 +357,84 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
         setDigitalTwinGltfData(digitalTwinGltfData);
         setOptionToShow(PLATFORM_ASSISTANT_HOME_OPTIONS.DIGITAL_TWINS);
     }, [setDigitalTwinGltfData, setOptionToShow]);
+
+    const switcherEntries = useMemo(
+        () =>
+            switcherOpen
+                ? buildSwitcherEntries(
+                      {
+                          assets: assetsTable,
+                          digitalTwins: digitalTwinsTable,
+                          groups: groupsManagedTable,
+                          orgs: orgsOfGroupsManagedTable,
+                          buildings: buildingsFiltered,
+                          floors: floorsFiltered,
+                          digitalTwinsState,
+                          sensorsState,
+                      },
+                      recentTwins,
+                  )
+                : [],
+        [
+            switcherOpen,
+            assetsTable,
+            digitalTwinsTable,
+            groupsManagedTable,
+            orgsOfGroupsManagedTable,
+            buildingsFiltered,
+            floorsFiltered,
+            digitalTwinsState,
+            sensorsState,
+            recentTwins,
+        ],
+    );
+
+    // the twin opened from the map also counts as recent
+    useEffect(() => {
+        if (!isDigitalTwinViewerOpen || !digitalTwinSelected) return;
+        setRecentTwins((recent) => rememberTwin(recent, digitalTwinSelected.id, Date.now()));
+    }, [isDigitalTwinViewerOpen, digitalTwinSelected?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    // Ctrl K (or "/") opens the switcher on the map and on the Viewer, unless the user is typing
+    const switcherAvailable =
+        !loading &&
+        !glftDataLoading &&
+        (optionToShow === PLATFORM_ASSISTANT_HOME_OPTIONS.GEOLOCATION || isDigitalTwinViewerOpen);
+    useEffect(() => {
+        if (!switcherAvailable) return;
+        const onKey = (e: KeyboardEvent) => {
+            if (e.defaultPrevented || !isSwitcherShortcut(e)) return;
+            e.preventDefault();
+            setSwitcherOpen((open) => !open);
+        };
+        window.addEventListener("keydown", onKey);
+        return () => window.removeEventListener("keydown", onKey);
+    }, [switcherAvailable]);
+
+    const openFromSwitcher = (entry: SwitcherEntry, twin: SwitcherTwin) => {
+        setSwitcherOpen(false);
+        const digitalTwin = twin.digitalTwin;
+        if (isDigitalTwinViewerOpen && digitalTwinSelected?.id === digitalTwin.id) return;
+        // the map keeps the place of the asset: building, floor, org, group and asset
+        if (entry.building) setBuildingSelected(entry.building);
+        if (entry.floor) setFloorSelected(entry.floor);
+        if (entry.org) setOrgSelected(entry.org);
+        if (entry.group) setGroupSelected(entry.group);
+        setAssetSelected(entry.asset);
+        setSensorSelected(null);
+        setSensorWithCameraSelected(false);
+        selectDigitalTwin(digitalTwin);
+        setRecentTwins((recent) => rememberTwin(recent, digitalTwin.id, Date.now()));
+        openDigitalTwin(digitalTwin, entry.asset, sensorsTable, {
+            accessToken,
+            refreshToken,
+            authDispatch,
+            setGlftDataLoading,
+            setGltfFileDownloadProgress,
+            openDigitalTwin3DViewer,
+            setAssetWithCameraSelected,
+        });
+    };
 
     const setNewOuterBounds = (outerBounds: number[][]) => {
         setOuterBounds(outerBounds);
@@ -368,6 +522,18 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
                     ) : (
                         <>
                             {optionToShow === PLATFORM_ASSISTANT_HOME_OPTIONS.GEOLOCATION && (
+                                <MapSearchPill
+                                    type="button"
+                                    aria-haspopup="dialog"
+                                    aria-keyshortcuts="Control+K"
+                                    onClick={() => setSwitcherOpen(true)}
+                                >
+                                    <Search size={16} aria-hidden="true" />
+                                    <span>Go to an asset or digital twin…</span>
+                                    <kbd aria-hidden="true">Ctrl K</kbd>
+                                </MapSearchPill>
+                            )}
+                            {optionToShow === PLATFORM_ASSISTANT_HOME_OPTIONS.GEOLOCATION && (
                                 <GeolocationContainer
                                     buildings={buildingsFiltered}
                                     floors={floorsFiltered}
@@ -436,6 +602,8 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
                                             refreshDigitalTwins={refreshDigitalTwins}
                                             assetWithCameraSelected={assetWithCameraSelected}
                                             sensorWithCameraSelected={sensorWithCameraSelected}
+                                            assetName={assetSelected?.description || assetSelected?.assetUid}
+                                            onOpenAssetSwitcher={() => setSwitcherOpen(true)}
                                         />
                                     </Suspense>
                                 </WebGLErrorBoundary>
@@ -445,6 +613,13 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
                     )}
                 </>
             </ContentContainer>
+            <AssetSwitcher
+                open={switcherOpen && switcherAvailable}
+                entries={switcherEntries}
+                currentDigitalTwinId={isDigitalTwinViewerOpen ? digitalTwinSelected?.id ?? null : null}
+                onClose={() => setSwitcherOpen(false)}
+                onOpenTwin={openFromSwitcher}
+            />
         </>
     );
 };

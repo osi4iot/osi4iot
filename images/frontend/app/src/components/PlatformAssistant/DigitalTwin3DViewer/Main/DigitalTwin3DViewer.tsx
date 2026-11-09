@@ -156,6 +156,8 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
     refreshDigitalTwins,
     assetWithCameraSelected,
     sensorWithCameraSelected,
+    assetName,
+    onOpenAssetSwitcher,
 }) => {
     // Hooks
     const { accessToken, refreshToken } = useAuthState();
@@ -1417,6 +1419,8 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
                     pipelineLeaderReplicaIndex={pipelineLeaderReplicaIndex}
                     digitalTwinName={digitalTwinSelected?.description || digitalTwinSelected?.digitalTwinUid}
                     digitalTwinType={digitalTwinSelected?.type}
+                    assetName={assetName}
+                    onOpenAssetSwitcher={onOpenAssetSwitcher}
                     chatEnabled={chatEnabled}
                     chatUnread={chatUnread}
                     assistantPanelWidth={assistantPanelShown ? assistantPanelWidth : 0}

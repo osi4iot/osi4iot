@@ -11,7 +11,7 @@ import (
 	"github.com/osi4iot/osi4iot/utils/osi4iot/internals/utils"
 )
 
-const pipelinesCPUImage = "ghcr.io/osi4iot/pipelines:1.3.0"
+const pipelinesCPUImage = "ghcr.io/osi4iot/pipelines:1.4.0"
 
 func PipelinesService(
 	pd *pt.PlatformData,
@@ -213,7 +213,7 @@ func PipelinesGPUSpecFor(pd *pt.PlatformData, nodeRoleNumMaps map[string]int) Pi
 
 // PipelinesImageFlavor turns a pipelines image into its GPU or CPU
 // flavor, keeping repository and version: the GPU image is the CPU tag
-// plus "-gpu" (pipelines:1.3.0 <-> pipelines:1.3.0-gpu). Images pinned by
+// plus "-gpu" (pipelines:1.4.0 <-> pipelines:1.4.0-gpu). Images pinned by
 // digest are returned unchanged: there is no tag to derive the other one
 // from.
 func PipelinesImageFlavor(image string, gpu bool) string {

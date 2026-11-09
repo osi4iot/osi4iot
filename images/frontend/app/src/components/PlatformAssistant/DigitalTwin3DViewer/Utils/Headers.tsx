@@ -4,6 +4,7 @@ import { FC, ReactNode, useEffect, useRef } from "react";
 import styled, { css, keyframes } from "styled-components";
 import {
     ChartLine,
+    ChevronDown,
     Columns2,
     CircleStop,
     Download,
@@ -70,6 +71,71 @@ const TitleMain = styled.span`
 const TitleSub = styled.span`
     font-size: 11px;
     color: ${c.textMuted};
+`;
+
+// Opens the asset switcher (Ctrl K): the asset and twin being viewed, with its status
+const SwitcherButton = styled.button`
+    height: 36px;
+    min-width: 0;
+    max-width: 340px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 8px 0 10px;
+    margin-right: 4px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 8px;
+    background-color: ${c.field};
+    color: ${c.text};
+    font: 500 13px Roboto, "Helvetica Neue", Arial, sans-serif;
+    text-align: left;
+    cursor: pointer;
+    ${focusRing}
+
+    &:hover {
+        border-color: rgba(255, 255, 255, 0.2);
+    }
+
+    > svg {
+        width: 15px;
+        height: 15px;
+        flex: none;
+        color: ${c.textMuted};
+    }
+`;
+
+const SwitcherLed = styled.span<{ $ok: boolean }>`
+    width: 8px;
+    height: 8px;
+    flex: none;
+    border-radius: 50%;
+    background-color: ${({ $ok }) => ($ok ? "#56c271" : "#f2495c")};
+`;
+
+const SwitcherText = styled.span`
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+
+    small {
+        font-size: 12px;
+        font-weight: 400;
+        color: ${c.textMuted};
+    }
+`;
+
+const SwitcherKbd = styled.kbd`
+    flex: none;
+    font: 400 11px Roboto, "Helvetica Neue", Arial, sans-serif;
+    color: ${c.textMuted};
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 4px;
+    padding: 1px 5px;
+
+    @media (max-width: 900px) {
+        display: none;
+    }
 `;
 
 const Segmented = styled.div`
@@ -302,6 +368,10 @@ interface HeaderProps {
     pipelineLeaderReplicaIndex: number;
     digitalTwinName?: string;
     digitalTwinType?: string;
+    // asset of the twin being viewed (shown on the asset switcher button)
+    assetName?: string;
+    // opens the asset switcher (Ctrl K); without it the bar shows the twin's name only
+    onOpenAssetSwitcher?: () => void;
     // el gemelo digital tiene chat (el panel lateral se puede abrir también en las vistas Imagen y Pipeline)
     chatEnabled?: boolean;
     // respuesta del asistente sin leer (punto en el botón del panel lateral)
@@ -379,6 +449,8 @@ export const Header: FC<HeaderProps> = ({
     pipelineLeaderReplicaIndex,
     digitalTwinName,
     digitalTwinType,
+    assetName,
+    onOpenAssetSwitcher,
     chatEnabled = false,
     chatUnread = false,
     assistantPanelWidth = 0,
@@ -444,7 +516,30 @@ export const Header: FC<HeaderProps> = ({
 
     return (
         <Bar ref={barRef} $left={left} $right={right} data-testid="viewer-top-bar">
-            {activeViewer !== "pipeline" && digitalTwinName && (
+            {onOpenAssetSwitcher && digitalTwinName && (
+                <SwitcherButton
+                    type="button"
+                    aria-haspopup="dialog"
+                    aria-keyshortcuts="Control+K"
+                    aria-label={`${assetName ? `${assetName}, ` : ""}${digitalTwinName}. Go to another asset`}
+                    title="Go to another asset or digital twin (Ctrl K)"
+                    onClick={onOpenAssetSwitcher}
+                >
+                    <SwitcherLed $ok={dtOk} aria-hidden="true" />
+                    <SwitcherText>
+                        {assetName ? (
+                            <>
+                                {assetName} <small>· {digitalTwinName}</small>
+                            </>
+                        ) : (
+                            digitalTwinName
+                        )}
+                    </SwitcherText>
+                    <ChevronDown aria-hidden="true" />
+                    <SwitcherKbd aria-hidden="true">Ctrl K</SwitcherKbd>
+                </SwitcherButton>
+            )}
+            {!onOpenAssetSwitcher && activeViewer !== "pipeline" && digitalTwinName && (
                 <Title>
                     <TitleMain title={digitalTwinName}>{digitalTwinName}</TitleMain>
                     {digitalTwinType && <TitleSub>{digitalTwinType}</TitleSub>}
@@ -583,3 +678,4 @@ export const Header: FC<HeaderProps> = ({
         </Bar>
     );
 };
+
