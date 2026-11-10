@@ -1,3 +1,4 @@
+import { createFrameStore } from "../Workspace/frameStore";
 // hooks.ts
 import { useState, useEffect, useCallback, useRef } from "react";
 import { reloadTable } from "../../../../state";
@@ -1039,44 +1040,18 @@ export const useFormChanges = (selectedNode: any) => {
 // before, but its identity is now stable: before, it changed on every
 // render, and any effect depending on it ran again on every frame.
 
-export type FrameListener = (frame: Blob) => void;
-export type FramePublisher = (frame: Blob) => void;
-
-export interface FrameStore {
-    /** Registers a listener; it immediately gets the last frame, if any. Returns the unsubscribe function. */
-    subscribe: (listener: FrameListener) => () => void;
-}
-
-const createFrameStore = (): { store: FrameStore; publish: FramePublisher } => {
-    const listeners = new Set<FrameListener>();
-    let latest: Blob | null = null;
-
-    return {
-        store: {
-            subscribe: (listener) => {
-                listeners.add(listener);
-                if (latest) listener(latest);
-                return () => {
-                    listeners.delete(listener);
-                };
-            },
-        },
-        publish: (frame) => {
-            latest = frame;
-            listeners.forEach((listener) => listener(frame));
-        },
-    };
-};
+export type { FrameStore } from "../Workspace/frameStore";
 
 export const useImageFrame = () => {
     // Lazy init: the store is created once and is never null, so no `!` is needed.
     const [{ store, publish }] = useState(createFrameStore);
 
+    // topicRef: the topic the frame arrived on (each Image panel shows one topic, or all of them)
     const handleImageUrlChange = useCallback(
-        (imageBytes: Uint8Array, mimeType: string) => {
+        (imageBytes: Uint8Array, mimeType: string, topicRef?: string) => {
             // Copy: the NATS client may reuse the buffer behind msg.data.
             const blob = new Blob([imageBytes.slice()], { type: mimeType });
-            publish(blob);
+            publish(blob, topicRef);
         },
         [publish],
     );

@@ -1,7 +1,13 @@
 // The history of the Approval nodes of a group: the table iot_data.approval of the IoT database (one row per event,
 // see utils/eventHistory/eventHistory.ts).
 import { timescaledbReadQuery } from "../../config/timescaledb_config";
-import { historyWhere, IHistoryFilter } from "../../utils/eventHistory/eventHistory";
+import {
+	historyWhere,
+	IHistoryFilter,
+	IPanelFilter,
+	PANEL_MAX_ROWS,
+	panelWhere,
+} from "../../utils/eventHistory/eventHistory";
 
 // What the table shows: no copy of the message, no settings (they are in the detail and the export)
 const LIST_COLUMNS = `time, event_id AS "eventId", digital_twin_id AS "digitalTwinId",
@@ -45,6 +51,24 @@ export const exportApprovalHistory = async (f: IHistoryFilter, limit: number): P
 	const w = historyWhere(f);
 	const result = await timescaledbReadQuery(
 		`SELECT ${APPROVAL_EXPORT_COLUMNS.join(", ")} FROM iot_data.approval WHERE ${w.sql} ORDER BY time LIMIT ${limit}`,
+		w.params
+	);
+	return result.rows;
+};
+
+// The requests still waiting: the latest event of each request of the period is "requested" and it has not
+// expired (a pipeline that stopped leaves requests without a decision: they expire with their time)
+export const getPendingApprovals = async (f: IPanelFilter): Promise<any[]> => {
+	const w = panelWhere(f);
+	const result = await timescaledbReadQuery(
+		`SELECT * FROM (
+			SELECT DISTINCT ON (request_id) ${LIST_COLUMNS}
+			FROM iot_data.approval WHERE ${w.sql}
+			ORDER BY request_id, time DESC
+		) AS latest
+		WHERE event = 'requested' AND ("expiresAt" IS NULL OR "expiresAt" > NOW())
+		ORDER BY "requestedAt" DESC
+		LIMIT ${PANEL_MAX_ROWS}`,
 		w.params
 	);
 	return result.rows;

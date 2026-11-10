@@ -1,7 +1,13 @@
 // The history of the Alarm nodes of a group: the table iot_data.alarm of the IoT database (one row per event,
 // see utils/eventHistory/eventHistory.ts).
 import { timescaledbReadQuery } from "../../config/timescaledb_config";
-import { historyWhere, IHistoryFilter } from "../../utils/eventHistory/eventHistory";
+import {
+	historyWhere,
+	IHistoryFilter,
+	IPanelFilter,
+	PANEL_MAX_ROWS,
+	panelWhere,
+} from "../../utils/eventHistory/eventHistory";
 
 // What the table shows: no copy of the message, no settings (they are in the detail and the export)
 const LIST_COLUMNS = `time, event_id AS "eventId", digital_twin_id AS "digitalTwinId",
@@ -46,6 +52,24 @@ export const exportAlarmHistory = async (f: IHistoryFilter, limit: number): Prom
 	const w = historyWhere(f);
 	const result = await timescaledbReadQuery(
 		`SELECT ${ALARM_EXPORT_COLUMNS.join(", ")} FROM iot_data.alarm WHERE ${w.sql} ORDER BY time LIMIT ${limit}`,
+		w.params
+	);
+	return result.rows;
+};
+
+// The alarms that are not normal now: the latest event of each alarm (node and key) of the period, when its
+// state is not "normal"; unacknowledged first, then acknowledged, then the others (shelved…); alarms before warnings; newest first
+export const getActiveAlarms = async (f: IPanelFilter): Promise<any[]> => {
+	const w = panelWhere(f);
+	const result = await timescaledbReadQuery(
+		`SELECT * FROM (
+			SELECT DISTINCT ON (node_uid, alarm_key) ${LIST_COLUMNS}
+			FROM iot_data.alarm WHERE ${w.sql}
+			ORDER BY node_uid, alarm_key, time DESC
+		) AS latest
+		WHERE state <> 'normal'
+		ORDER BY (state = 'active_unack') DESC, (state = 'rtn_unack') DESC, (state = 'active_ack') DESC, (level = 'Alarm') DESC, time DESC
+		LIMIT ${PANEL_MAX_ROWS}`,
 		w.params
 	);
 	return result.rows;

@@ -1,4 +1,5 @@
 import { FC, useState, SyntheticEvent, useEffect } from 'react';
+import { mobileSensorSettings, rememberMobileSensorSettings } from "../../tools/mobileSensors";
 import { type NatsConnection } from "@nats-io/nats-core";
 import styled from "styled-components";
 import { Formik, Form } from 'formik';
@@ -125,6 +126,7 @@ const MobileMotionForm: FC<MobileMotionFormProps> = (
     };
 
     const handleSubmit = async (values: any, actions: any) => {
+        rememberMobileSensorSettings(mobileTopicSelected, values);
         if (natsClient && !isSensorReading && mobileTopicSelected != null) {
             const totalReadingTime = values.totalReadingTime;
             const samplingFrequency = values.samplingFrequency;
@@ -151,7 +153,7 @@ const MobileMotionForm: FC<MobileMotionFormProps> = (
                 Mobile motion <ConnectionLed isNatsConnected={isNatsConnected} />
             </Title>
             <FormContainer>
-                <Formik initialValues={initialMobileMotionFormValues} validationSchema={validationSchema} onSubmit={handleSubmit} >
+                <Formik initialValues={mobileSensorSettings(mobileTopicSelected, initialMobileMotionFormValues)} validationSchema={validationSchema} onSubmit={handleSubmit} >
                     {
                         formik => (
                             // @ts-ignore

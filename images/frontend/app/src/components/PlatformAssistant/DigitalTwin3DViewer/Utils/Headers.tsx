@@ -372,6 +372,8 @@ interface HeaderProps {
     assetName?: string;
     // opens the asset switcher (Ctrl K); without it the bar shows the twin's name only
     onOpenAssetSwitcher?: () => void;
+    // the Viewer page's buttons for its layout (Edit layout…)
+    workspaceControls?: ReactNode;
     // el gemelo digital tiene chat (el panel lateral se puede abrir también en las vistas Imagen y Pipeline)
     chatEnabled?: boolean;
     // respuesta del asistente sin leer (punto en el botón del panel lateral)
@@ -391,7 +393,7 @@ interface HeaderProps {
     onHeightChange?: (height: number) => void;
 }
 
-// "3D" is the Viewer page: the 3D model and the Image as panels (Main/viewerLayout.ts)
+// "3D" is the Viewer page: the 3D model, images… as panels on a grid (Workspace/)
 const VIEWER_OPTIONS: { value: "3D" | "pipeline"; label: string; icon: ReactNode }[] = [
     { value: "3D", label: "Viewer", icon: <Columns2 aria-hidden="true" /> },
     { value: "pipeline", label: "Pipeline", icon: <Workflow aria-hidden="true" /> },
@@ -451,6 +453,7 @@ export const Header: FC<HeaderProps> = ({
     digitalTwinType,
     assetName,
     onOpenAssetSwitcher,
+    workspaceControls,
     chatEnabled = false,
     chatUnread = false,
     assistantPanelWidth = 0,
@@ -575,6 +578,7 @@ export const Header: FC<HeaderProps> = ({
 
             <Spacer />
 
+            {activeViewer === "3D" && workspaceControls}
             {activeViewer === "3D" && <Group>{dashboardButton}</Group>}
 
             {activeViewer === "pipeline" && (
@@ -678,4 +682,3 @@ export const Header: FC<HeaderProps> = ({
         </Bar>
     );
 };
-

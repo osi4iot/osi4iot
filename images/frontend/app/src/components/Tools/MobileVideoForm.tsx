@@ -1,4 +1,5 @@
 import { FC, useState, useRef, SyntheticEvent, useEffect, useCallback } from "react";
+import { mobileSensorSettings, rememberMobileSensorSettings } from "../../tools/mobileSensors";
 import { type NatsConnection, headers } from "@nats-io/nats-core";
 import styled from "styled-components";
 import { Formik, Form } from "formik";
@@ -171,6 +172,7 @@ const MobileVideoForm: FC<MobileVideoFormProps> = ({
     };
 
     const handleSubmit = async (values: typeof initialValues) => {
+        rememberMobileSensorSettings(mobileTopicSelected, values);
         if (!natsClient || isStreaming || !mobileTopicSelected) return;
 
         // Request camera access
@@ -253,7 +255,7 @@ const MobileVideoForm: FC<MobileVideoFormProps> = ({
                 Mobile video <ConnectionLed isNatsConnected={isNatsConnected} />
             </Title>
             <FormContainer>
-                <Formik initialValues={initialValues} validationSchema={validationSchema} onSubmit={handleSubmit}>
+                <Formik initialValues={mobileSensorSettings(mobileTopicSelected, initialValues)} validationSchema={validationSchema} onSubmit={handleSubmit}>
                     {(formik: { isValid: any; }) => (
                         // @ts-ignore
                         <Form>

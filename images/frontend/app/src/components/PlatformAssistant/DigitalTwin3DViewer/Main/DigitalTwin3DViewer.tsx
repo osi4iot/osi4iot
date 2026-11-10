@@ -1,5 +1,6 @@
 // DigitalTwin3DViewer.tsx
-import { CSSProperties, FC, SetStateAction, useEffect, useLayoutEffect, useState, useRef, useCallback, useMemo } from "react";
+import { FC, ReactNode, SetStateAction, useEffect, useLayoutEffect, useState, useRef, useCallback, useMemo, useSyncExternalStore } from "react";
+import { createPortal } from "react-dom";
 import { useTable } from "../../../../state";
 import { toMeasurements } from "../../../../tools/measurements";
 import type { SensorInfo } from "../Objects/Sensors";
@@ -19,6 +20,7 @@ import { CameraController, FollowStatus, SceneBounds } from "../Utils/CameraCont
 import {
     backgroundUnderToneMapping,
     environmentShowsAsBackground,
+    LightingOptions,
     lightingOf,
     toneMappingOf,
     twinLighting,
@@ -86,14 +88,70 @@ import { ReactFlowProvider } from "@xyflow/react";
 import { toast } from "react-toastify";
 import { Video } from "lucide-react";
 import { ImageFrame } from "../PhotoFrame/PhotoFrame";
-import { BACK_TO_SPLIT_HEIGHT, BackToSplit, PanelHeader, ViewerPanel, Splitter } from "./ViewerPanels";
-import { DEFAULT_MODEL_SHARE, PANEL_HEADER_HEIGHT, ViewerLayout, clampShare, shareAt, viewerRects } from "./viewerLayout";
+import ViewerWorkspace from "../Workspace/ViewerWorkspace";
+import ChartPanel from "../Workspace/ChartPanel";
+import PanelEditor from "../Workspace/PanelEditor";
+import TimePicker from "../Workspace/charts/TimePicker";
+import { DEFAULT_PAGE_TIME, PageTime, RefreshClock, TimeRange, createRefreshClock, isLive, refreshMs, resolveRange } from "../Workspace/charts/timeRange";
+import HistoryPanel from "../Workspace/HistoryPanel";
+import { historyPanelApi } from "../Workspace/historyPanelsApi";
+import { chartSeriesOptions } from "../Workspace/chartSeries";
+import { fetchTimeSeries, TimeSeriesQuery } from "../Workspace/timeSeriesApi";
+import WorkspaceControls from "../Workspace/WorkspaceControls";
+import {
+    ANY_IMAGE_SOURCE,
+    WorkspaceLayout,
+    WorkspacePanel,
+    effectiveWorkspaceLayout,
+    imageSourceOptions,
+    deviceImageSources,
+    DEVICE_IMAGE_SOURCE,
+    sameLayout,
+    replacePanel,
+    setLayoutTime,
+    addSlide,
+    currentSlideOf,
+    duplicateSlide,
+    moveSlide,
+    removeSlide,
+    replaceSlide,
+    reorderSlide,
+    setSlidesHidden,
+    slideTags,
+    stepSlide,
+    updateSlide,
+    visibleSlides,
+} from "../Workspace/workspaceLayout";
+import SlideBar from "../Workspace/SlideBar";
+import AllSlides from "../Workspace/AllSlides";
+import ViewerConfigDialog from "../Workspace/ViewerConfigDialog";
+import {
+    ParsedViewerConfig,
+    buildViewerConfig,
+    checkViewerConfigRefs,
+    downloadViewerConfig,
+    parseViewerConfig,
+    viewerConfigFileName,
+} from "../Workspace/viewerConfig";
+import ModelSlot, { createModelHost } from "../Workspace/ModelSlot";
+import {
+    SavedViewerLayout,
+    deleteViewerLayout,
+    fetchViewerLayout,
+    saveViewerLayout,
+} from "../Workspace/viewerLayoutApi";
 import useNatsSubscription from "../NatsHook/useNatsSubcription";
 import { filterNatsSubject } from "../NatsHook/tools";
+import useDeviceImages from "../NatsHook/useDeviceImages";
 import * as THREE from "three";
 import { browserTimeZone } from "../../../../tools/timeZones";
 
 const sc = StringCodec();
+
+// the topics whose images an Image panel of the Viewer page can show (any other topic that sends images is
+// offered too, once it has sent one)
+// the topics with images an Image panel can show: the pipeline's and the asset's device topics (dev2dtm_n)
+const isImageTopicRef = (ref: string) => ref === "dtm2sim" || DEVICE_IMAGE_SOURCE.test(ref);
 
 const resolveSetStateAction = <T extends unknown>(action: SetStateAction<T>, prevValue: T): T => {
     return typeof action === "function" ? (action as (prev: T) => T)(prevValue) : action;
@@ -145,6 +203,18 @@ const CameraMemory: FC<{ dtUid: string; controlsRef: { current: any } }> = ({ dt
     return null;
 };
 
+// The range of the page at the last refresh, for the components that need it (they alone draw again at
+// every tick of the clock)
+const PageClock: FC<{ clock: RefreshClock; time: PageTime; children: (range: TimeRange, tick: number) => ReactNode }> = ({ clock, time, children }) => {
+    const tick = useSyncExternalStore(clock.subscribe, clock.get);
+    const range = useMemo(
+        () => resolveRange(time, Date.now()) ?? resolveRange(DEFAULT_PAGE_TIME, Date.now())!,
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        [time.from, time.to, tick],
+    );
+    return <>{children(range, tick)}</>;
+};
+
 const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
     digitalTwinSelected,
     digitalTwinGltfData,
@@ -190,11 +260,31 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
     const viewerHasModel = !showOnlyPipelineViewer && !!digitalTwinGltfData?.digitalTwinGltfUrl;
     const viewerHasImage = !!assetWithCameraSelected;
     const viewerAvailable = viewerHasModel || viewerHasImage;
-    const [viewerLayout, setViewerLayout] = useState<ViewerLayout>(memory.viewerLayout ?? "split");
+    // the panel shown full page (by everybody, without editing the layout)
+    const [maximizedPanel, setMaximizedPanel] = useState<string | null>(memory.workspaceMaximized ?? null);
+    // the user's own changes to the layout (not saved: they last while the viewer is open)
+    const [localLayout, setLocalLayout] = useState<WorkspaceLayout | null>(
+        (memory.workspaceLayout as WorkspaceLayout | undefined) ?? null,
+    );
+    // the slide shown and the slides the user hid from the slide bar: remembered while the viewer is open
+    const [slideId, setSlideId] = useState<string | null>(memory.workspaceSlide ?? null);
+    const [hiddenSlides, setHiddenSlides] = useState<string[]>(memory.workspaceHiddenSlides ?? []);
     useEffect(() => {
-        rememberViewer(dtUid, { viewerLayout });
-    }, [dtUid, viewerLayout]);
-    const [modelShare, setModelShare] = usePersistentState<number>("viewer.modelShare", DEFAULT_MODEL_SHARE);
+        rememberViewer(dtUid, {
+            workspaceLayout: localLayout ?? undefined,
+            workspaceMaximized: maximizedPanel,
+            workspaceSlide: slideId,
+            workspaceHiddenSlides: hiddenSlides,
+        });
+    }, [dtUid, localLayout, maximizedPanel, slideId, hiddenSlides]);
+    // the element the 3D model is rendered in (see ModelSlot)
+    const modelHost = useMemo(createModelHost, []);
+    // the range of time and refresh chosen on the page (not saved: as in a Grafana dashboard, until the layout
+    // is saved with them)
+    const [localTime, setLocalTime] = useState<PageTime | null>((memory.workspaceTime as PageTime | undefined) ?? null);
+    useEffect(() => {
+        rememberViewer(dtUid, { workspaceTime: localTime ?? undefined });
+    }, [dtUid, localTime]);
     const chatTabSelected = chatEnabled && state.isChatAssistantOpen;
     // the assistant panel: in the Viewer with the 3D model always; in the Viewer with only the image and in the
     // pipeline of a twin without viewer, only with the chat
@@ -231,6 +321,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
     const userTimeZone = userProfile?.timezone || browserTimeZone();
     // nombre y medidas de los sensores del activo del gemelo, para sus marcadores (por sensorRef)
     const sensorsTable = useTable("sensors");
+    const sensorTypesTable = useTable("sensorTypes");
     const sensorsInfo = useMemo(() => {
         const info: Record<string, SensorInfo> = {};
         const assetId = digitalTwinSelected?.assetId;
@@ -930,7 +1021,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
             if (sensorWithCameraSelected) {
                 // opened from a camera: its image full page (the 3D model one click away)
                 handlers.handleSetActiveViewer("3D");
-                setViewerLayout("image");
+                setMaximizeFirstImage(true);
             } else if (!viewerAvailable) {
                 handlers.handleSetActiveViewer("pipeline");
             }
@@ -943,48 +1034,212 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
     // Pipeline logs: only in the pipeline view, docked on the right (width kept while the app is open)
     const logsShown = !!digitalTwinSelected && state.isPipelineLogsOpen && state.activeViewer === "pipeline";
 
-    // The panels of the Viewer page: the size of the page and of the top bar (it wraps on narrow pages)
-    const [pageSize, setPageSize] = useState({ width: 0, height: 0 });
-    useEffect(() => {
-        const el = canvasContainerRef.current;
-        if (!el) return;
-        const report = () => {
-            const box = el.getBoundingClientRect();
-            setPageSize((prev) =>
-                prev.width === Math.round(box.width) && prev.height === Math.round(box.height)
-                    ? prev
-                    : { width: Math.round(box.width), height: Math.round(box.height) },
-            );
-        };
-        report();
-        if (typeof ResizeObserver === "undefined") return;
-        const observer = new ResizeObserver(report);
-        observer.observe(el);
-        return () => observer.disconnect();
-    }, [canvasContainerRef]);
+    // The Viewer page: panels on a grid (Workspace/), below the top bar (it wraps on narrow pages) and left of
+    // the assistant panel. The layout: the user's temporary one, else the group's (admin_api), else automatic.
     const [topBarHeight, setTopBarHeight] = useState(52);
     const viewerRightInset = assistantPanelShown ? assistantPanelWidth + 2 * VIEWER_GAP : VIEWER_GAP;
     const panelsTop = VIEWER_GAP + Math.round(topBarHeight) + VIEWER_GAP;
-    const rects = viewerRects({
-        width: pageSize.width,
-        height: pageSize.height,
-        top: panelsTop,
-        right: viewerRightInset,
-        gap: VIEWER_GAP,
-        layout: viewerLayout,
-        hasModel: viewerHasModel,
-        hasImage: viewerHasImage,
-        modelShare,
-    });
     const inViewer = state.activeViewer === "3D";
-    const splitView = inViewer && rects.layout === "split";
-    // a panel: its rectangle (with a frame in the split view), or hidden
-    const panelStyle = (rect: typeof rects.model): CSSProperties =>
-        inViewer && rect
-            ? { position: "absolute", left: rect.left, top: rect.top, width: rect.width, height: rect.height }
-            : { display: "none" };
-    // the 3D model's corner for its overlays (object under the mouse) in the split view
-    const modelRect = splitView ? rects.model : null;
+    const [savedLayout, setSavedLayout] = useState<SavedViewerLayout | null>(null);
+    const [draftLayout, setDraftLayout] = useState<WorkspaceLayout | null>(null);
+    const [layoutSaving, setLayoutSaving] = useState(false);
+    // a viewer configuration file being loaded (its dialog), and the lighting it brought while the layout is
+    // edited: "Save for the group" saves it for the twin, Cancel puts back the one before
+    const [configLoad, setConfigLoad] = useState<{ fileName: string; result: ParsedViewerConfig | { error: string } } | null>(null);
+    const [configLighting, setConfigLighting] = useState<{ before: LightingOptions } | null>(null);
+    const [workspacePhone, setWorkspacePhone] = useState(false);
+    const [maximizeFirstImage, setMaximizeFirstImage] = useState(false);
+    // group administrators save the layout for the whole group; the others change it only for themselves
+    const canSaveLayout =
+        !!digitalTwinSelected && groupsManagedTable.some((group) => group.id === digitalTwinSelected.groupId);
+    const layoutAuth = useMemo(
+        () => ({ accessToken, refreshToken, authDispatch }),
+        [accessToken, refreshToken, authDispatch],
+    );
+    useEffect(() => {
+        if (!digitalTwinSelected) return;
+        let cancelled = false;
+        fetchViewerLayout(digitalTwinSelected.groupId, digitalTwinSelected.id, layoutAuth).then((saved) => {
+            if (!cancelled) setSavedLayout(saved);
+        });
+        return () => {
+            cancelled = true;
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [digitalTwinSelected?.id]);
+    const workspaceContext = useMemo(
+        () => ({ hasModel: viewerHasModel, hasCamera: viewerHasImage }),
+        [viewerHasModel, viewerHasImage],
+    );
+    const { layout: shownLayout, origin: layoutOrigin } = useMemo(
+        () => effectiveWorkspaceLayout(localLayout, savedLayout?.layout, workspaceContext),
+        [localLayout, savedLayout, workspaceContext],
+    );
+    const editingLayout = draftLayout !== null;
+    const workspaceLayout = draftLayout ?? shownLayout;
+    const currentSlide = currentSlideOf(workspaceLayout, slideId, hiddenSlides);
+    // the scene is loaded when some slide shows the model
+    const layoutHasModel = workspaceLayout.slides.some((slide) => slide.panels.some((panel) => panel.type === "model"));
+    const goToSlide = useCallback((id: string) => {
+        setSlideId(id);
+        setMaximizedPanel(null);
+    }, []);
+    // all the slides as thumbnails (search, order)
+    const [slidesOverview, setSlidesOverview] = useState(false);
+    // opened from a camera: its image full page (the other panels one click away)
+    useEffect(() => {
+        if (!maximizeFirstImage) return;
+        const slide = shownLayout.slides.find((sl) => sl.panels.some((panel) => panel.type === "image"));
+        const image = slide?.panels.find((panel) => panel.type === "image");
+        if (slide && image) {
+            setHiddenSlides((ids) => ids.filter((id) => id !== slide.id));
+            setSlideId(slide.id);
+            setMaximizedPanel(image.id);
+        }
+        setMaximizeFirstImage(false);
+    }, [maximizeFirstImage, shownLayout]);
+    // the topics an Image panel can show, and those that have sent images
+    const [liveImageSources, setLiveImageSources] = useState<string[]>([]);
+    useEffect(() => frameStore.subscribeSources(setLiveImageSources), [frameStore]);
+    const imageSources = useMemo(() => {
+        const refs = (digitalTwinGltfData?.natsSubjectsData ?? [])
+            .filter((data) => data.natsSubject && isImageTopicRef(data.topicRef))
+            .map((data) => data.topicRef);
+        return imageSourceOptions(refs, liveImageSources);
+    }, [digitalTwinGltfData?.natsSubjectsData, liveImageSources]);
+    // the device topics shown by some Image panel: the viewer listens to them only then
+    const shownDeviceImages = useMemo(() => deviceImageSources(workspaceLayout), [workspaceLayout]);
+    useDeviceImages(natsClient, digitalTwinGltfData?.natsSubjectsData ?? [], shownDeviceImages, handleImageUrlChange);
+
+    // the fields of the asset's sensors a chart panel can show, and how it reads them
+    const chartOptions = useMemo(
+        () => chartSeriesOptions(sensorsTable as any, (sensorTypesTable ?? []) as any, digitalTwinSelected?.assetId),
+        [sensorsTable, sensorTypesTable, digitalTwinSelected?.assetId],
+    );
+    const historyApi = useMemo(() => historyPanelApi(layoutAuth), [layoutAuth]);
+    // the viewer configuration (.json): the layout shown (the one being edited, if any) and the lighting shown
+    const downloadConfig = () => {
+        const now = new Date();
+        const config = buildViewerConfig({
+            layout: workspaceLayout,
+            lighting: lightingOf(opts),
+            digitalTwinUid: digitalTwinSelected?.digitalTwinUid,
+            description: digitalTwinSelected?.description,
+            now,
+        });
+        downloadViewerConfig(config, viewerConfigFileName(digitalTwinSelected?.digitalTwinUid, now));
+    };
+    const loadConfig = () => {
+        if (!configLoad || "error" in configLoad.result) return;
+        const { layout, lighting } = configLoad.result;
+        setMaximizedPanel(null);
+        setDraftLayout(layout ?? shownLayout);
+        if (layout) setSlideId(layout.slides[0]?.id ?? null);
+        if (lighting) {
+            setConfigLighting((pending) => pending ?? { before: lightingOf(opts) });
+            setOpts((prev) => ({ ...prev, ...lighting }));
+        }
+        setConfigLoad(null);
+    };
+    const cancelLayoutEdit = () => {
+        if (configLighting) {
+            const { before } = configLighting;
+            setOpts((prev) => ({ ...prev, ...before }));
+            setConfigLighting(null);
+        }
+        setDraftLayout(null);
+    };
+    const fetchChartSeries = useCallback(
+        (query: TimeSeriesQuery, signal: AbortSignal) => fetchTimeSeries(query, layoutAuth, signal),
+        [layoutAuth],
+    );
+
+    // The time of the page: while editing the layout it is the layout's (saved with it); otherwise the one
+    // chosen now, else the layout's, else the last hour refreshed every 10 s
+    const pageTime: PageTime = editingLayout ? (draftLayout?.time ?? localTime ?? DEFAULT_PAGE_TIME) : (localTime ?? shownLayout.time ?? DEFAULT_PAGE_TIME);
+    const changePageTime = (time: PageTime) => {
+        if (draftLayout) setDraftLayout(setLayoutTime(draftLayout, time));
+        else setLocalTime(time);
+    };
+    // the refresh tick lives in a clock, not in this component's state: at every refresh only the chart
+    // panels and the panel editor draw again (see PageClock)
+    const refreshClock = useMemo(createRefreshClock, []);
+    const refreshNow = refreshClock.bump;
+    useEffect(() => {
+        const every = refreshMs(pageTime.refresh);
+        if (!every || !isLive(pageTime) || !inViewer) return;
+        const timer = window.setInterval(() => {
+            if (typeof document === "undefined" || !document.hidden) refreshClock.bump();
+        }, every);
+        return () => window.clearInterval(timer);
+    }, [pageTime.refresh, pageTime.from, pageTime.to, inViewer]); // eslint-disable-line react-hooks/exhaustive-deps
+    const hasCharts = workspaceLayout.slides.some((slide) => slide.panels.some((panel) => panel.type === "chart"));
+    // the chart panel open in the editor (full page)
+    const [editingPanelId, setEditingPanelId] = useState<string | null>(null);
+    const editingPanel = editingPanelId ? currentSlide.panels.find((panel) => panel.id === editingPanelId) ?? null : null;
+
+    const startLayoutEdit = useCallback(() => {
+        setMaximizedPanel(null);
+        setDraftLayout(shownLayout);
+    }, [shownLayout]);
+    // a chart opens in the editor; its changes go to the layout being edited
+    const editPanel = (id: string) => {
+        if (!draftLayout) startLayoutEdit();
+        setEditingPanelId(id);
+    };
+    const applyPanel = (panel: WorkspacePanel) => {
+        setDraftLayout((draft) => {
+            const deck = draft ?? shownLayout;
+            const slide = deck.slides.find((sl) => sl.id === currentSlide.id);
+            return slide ? replaceSlide(deck, replacePanel(slide, panel)) : deck;
+        });
+        setEditingPanelId(null);
+    };
+    const saveLayoutForGroup = async () => {
+        if (!digitalTwinSelected || !draftLayout) return;
+        setLayoutSaving(true);
+        const saved = await saveViewerLayout(digitalTwinSelected.groupId, digitalTwinSelected.id, draftLayout, layoutAuth);
+        // the lighting of a configuration file loaded, with the layout
+        if (saved && configLighting) {
+            const lighting = lightingOf(opts);
+            if (await saveTwinLighting(digitalTwinSelected, lighting, accessToken, refreshToken, authDispatch)) {
+                setSavedTwinLighting(lighting);
+                setConfigLighting(null);
+            }
+        }
+        setLayoutSaving(false);
+        if (!saved) return;
+        setSavedLayout(saved);
+        setLocalLayout(null);
+        setLocalTime(null);
+        setDraftLayout(null);
+    };
+    // the others: their changes stay while the viewer is open (none when they are the group's layout again)
+    const finishLayoutEdit = () => {
+        if (draftLayout) {
+            const groupLayout = effectiveWorkspaceLayout(null, savedLayout?.layout, workspaceContext).layout;
+            setLocalLayout(sameLayout(draftLayout, groupLayout) ? null : draftLayout);
+        }
+        setDraftLayout(null);
+    };
+    // administrators: back to the automatic layout for the group; the others: back to the group's layout
+    const restoreLayout = async () => {
+        // the lighting of a configuration file not saved goes back too
+        if (configLighting) {
+            const { before } = configLighting;
+            setOpts((prev) => ({ ...prev, ...before }));
+            setConfigLighting(null);
+        }
+        if (canSaveLayout && digitalTwinSelected) {
+            setLayoutSaving(true);
+            const deleted = await deleteViewerLayout(digitalTwinSelected.groupId, digitalTwinSelected.id, layoutAuth);
+            setLayoutSaving(false);
+            if (!deleted) return;
+            setSavedLayout({ layout: null });
+        }
+        setLocalLayout(null);
+        setDraftLayout(null);
+    };
     const [logsWidth, setLogsWidth] = usePersistentState<number>("pipelineLogs.width", PIPELINE_LOGS_WIDTH);
     const pipelineLogsWidth = clampLogsWidth(logsWidth);
     // "Show in flow": Flow registers here the function that centres the canvas on a node
@@ -1049,68 +1304,11 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
         handlePipelineImported,
     );
 
-    return (
-        <>
-            {digitalTwinSelected && digitalTwinGltfData && digitalTwinGltfData.digitalTwinGltfUrl && (
-                <SetGltfObjects
-                    digitalTwinGltfData={digitalTwinGltfData}
-                    setSensorObjects={(objects) => setState((prev) => ({ ...prev, sensorObjects: objects }))}
-                    setSensorCollectionNames={(names) =>
-                        setState((prev) => ({ ...prev, sensorCollectionNames: names }))
-                    }
-                    setAssetObjects={(objects) => setState((prev) => ({ ...prev, assetObjects: objects }))}
-                    setAssetCollectionNames={(names) => setState((prev) => ({ ...prev, assetCollectionNames: names }))}
-                    setGenericObjects={(objects) => setState((prev) => ({ ...prev, genericObjects: objects }))}
-                    setGenericObjectCollectionNames={(names) =>
-                        setState((prev) => ({ ...prev, genericObjectCollectionNames: names }))
-                    }
-                    setFemSimulationObjects={(objects) =>
-                        setState((prev) => ({ ...prev, femSimulationObjects: objects }))
-                    }
-                    setFemSimObjectCollectionNames={(names) =>
-                        setState((prev) => ({ ...prev, femSimObjectCollectionNames: names }))
-                    }
-                    setInitialSensorsState={(state) => setState((prev) => ({ ...prev, initialSensorsState: state }))}
-                    setInitialAssetsState={(state) => setState((prev) => ({ ...prev, initialAssetsState: state }))}
-                    setInitialGenericObjectsState={(state) =>
-                        setState((prev) => ({ ...prev, initialGenericObjectsState: state }))
-                    }
-                    setInitialGenericObjectsVisibilityState={(state) =>
-                        setState((prev) => ({ ...prev, initialGenericObjectsVisibilityState: state }))
-                    }
-                    setInitialSensorsVisibilityState={(state) =>
-                        setState((prev) => ({ ...prev, initialSensorsVisibilityState: state }))
-                    }
-                    setInitialAssetsVisibilityState={(state) =>
-                        setState((prev) => ({ ...prev, initialAssetsVisibilityState: state }))
-                    }
-                    setInitialFemSimObjectsVisibilityState={(state) =>
-                        setState((prev) => ({ ...prev, initialFemSimObjectsVisibilityState: state }))
-                    }
-                    setInitialDigitalTwinSimulatorState={(state) =>
-                        setState((prev) => ({
-                            ...prev,
-                            initialDigitalTwinSimulatorState: resolveSetStateAction(
-                                state,
-                                prev.initialDigitalTwinSimulatorState,
-                            ),
-                        }))
-                    }
-                />
-            )}
-
-            <CanvasContainer ref={canvasContainerRef}>
-                <ViewerPanel style={panelStyle(rects.model)} $framed={splitView} data-testid="viewer-model-panel">
-                    {splitView && <PanelHeader kind="model" onFullPage={() => setViewerLayout("3d")} />}
-                    <div
-                        style={{
-                            position: "absolute",
-                            left: 0,
-                            right: 0,
-                            bottom: 0,
-                            top: splitView ? PANEL_HEADER_HEIGHT : 0,
-                        }}
-                    >
+    // The 3D model, rendered once and moved into the model panel of the slide shown (ModelSlot): changing the
+    // slide does not reload the scene, and several slides can show the model.
+    const modelView = viewerHasModel ? (
+                    <>
+                    <div style={{ position: "absolute", inset: 0 }} data-testid="viewer-model-canvas">
                     <Canvas
                         ref={canvasRef}
                         dpr={window.devicePixelRatio}
@@ -1297,51 +1495,203 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
                             </button>
                         </FollowCameraBar>
                     )}
-                </ViewerPanel>
+                    {/* the object under the mouse */}
+                    <SelectedObjectInfoContainer $right={12} $bottom={12}>
+                        <ObjectInfoContainer>
+                            <ObjectInfo ref={selectedObjNameRef}>Name: -</ObjectInfo>
+                            <ObjectInfo ref={selectedObjTypeRef}>Type: -</ObjectInfo>
+                            <ObjectInfo ref={selectedObjCollectionNameRef}>Collection: -</ObjectInfo>
+                        </ObjectInfoContainer>
+                    </SelectedObjectInfoContainer>
+                    {/* FEM results legend and min / max: over the 3D model, inside its panel (a maximized panel
+                        covered them when they were outside) */}
+                    {state.activeViewer === "3D" &&
+                        state.femSimulationObjects.length !== 0 &&
+                        state.femSimulationGeneralInfo &&
+                        ((state.femResultData && opts.femSimulationResult !== "None result") ||
+                            opts.legendToShow !== "None result") &&
+                        !opts.hideFemSimulationLegend && (
+                            <>
+                                <SimulationLegend
+                                    resultRenderInfo={
+                                        state.femSimulationGeneralInfo[
+                                            opts.femSimulationResult === "None result"
+                                                ? opts.legendToShow
+                                                : opts.femSimulationResult
+                                        ]
+                                    }
+                                    canvasContainerRef={canvasContainerRef}
+                                />
+                                <MaxMinValuesContainer>
+                                    <MaxMinFlexContainer>
+                                        <FemMinValue ref={femMinValueRef}>Min value: 0</FemMinValue>
+                                        <FemMaxValue ref={femMaxValueRef}>Max value: 0</FemMaxValue>
+                                    </MaxMinFlexContainer>
+                                </MaxMinValuesContainer>
+                            </>
+                        )}
+                    </>
+    ) : null;
 
-                {/* The Image panel of the Viewer page: mounted while the asset has a camera, so that it keeps
-                    painting the frames that arrive while it is hidden */}
-                {viewerHasImage && (
-                    <ViewerPanel style={panelStyle(rects.image)} $framed={splitView} data-testid="viewer-image-panel">
-                        {splitView && <PanelHeader kind="image" onFullPage={() => setViewerLayout("image")} />}
-                        <div
-                            style={{
-                                position: "absolute",
-                                left: 0,
-                                right: 0,
-                                bottom: 0,
-                                // full page: below the top bar and the "Back to split view" bar
-                                top: splitView
-                                    ? PANEL_HEADER_HEIGHT
-                                    : rects.layout === "image"
-                                      ? panelsTop + (rects.canSplit ? BACK_TO_SPLIT_HEIGHT + VIEWER_GAP : 0)
-                                      : 0,
-                            }}
-                        >
-                            <ImageFrame frameStore={frameStore} />
-                        </div>
-                    </ViewerPanel>
-                )}
+    return (
+        <>
+            {modelView && layoutHasModel && createPortal(modelView, modelHost)}
+            {digitalTwinSelected && digitalTwinGltfData && digitalTwinGltfData.digitalTwinGltfUrl && (
+                <SetGltfObjects
+                    digitalTwinGltfData={digitalTwinGltfData}
+                    setSensorObjects={(objects) => setState((prev) => ({ ...prev, sensorObjects: objects }))}
+                    setSensorCollectionNames={(names) =>
+                        setState((prev) => ({ ...prev, sensorCollectionNames: names }))
+                    }
+                    setAssetObjects={(objects) => setState((prev) => ({ ...prev, assetObjects: objects }))}
+                    setAssetCollectionNames={(names) => setState((prev) => ({ ...prev, assetCollectionNames: names }))}
+                    setGenericObjects={(objects) => setState((prev) => ({ ...prev, genericObjects: objects }))}
+                    setGenericObjectCollectionNames={(names) =>
+                        setState((prev) => ({ ...prev, genericObjectCollectionNames: names }))
+                    }
+                    setFemSimulationObjects={(objects) =>
+                        setState((prev) => ({ ...prev, femSimulationObjects: objects }))
+                    }
+                    setFemSimObjectCollectionNames={(names) =>
+                        setState((prev) => ({ ...prev, femSimObjectCollectionNames: names }))
+                    }
+                    setInitialSensorsState={(state) => setState((prev) => ({ ...prev, initialSensorsState: state }))}
+                    setInitialAssetsState={(state) => setState((prev) => ({ ...prev, initialAssetsState: state }))}
+                    setInitialGenericObjectsState={(state) =>
+                        setState((prev) => ({ ...prev, initialGenericObjectsState: state }))
+                    }
+                    setInitialGenericObjectsVisibilityState={(state) =>
+                        setState((prev) => ({ ...prev, initialGenericObjectsVisibilityState: state }))
+                    }
+                    setInitialSensorsVisibilityState={(state) =>
+                        setState((prev) => ({ ...prev, initialSensorsVisibilityState: state }))
+                    }
+                    setInitialAssetsVisibilityState={(state) =>
+                        setState((prev) => ({ ...prev, initialAssetsVisibilityState: state }))
+                    }
+                    setInitialFemSimObjectsVisibilityState={(state) =>
+                        setState((prev) => ({ ...prev, initialFemSimObjectsVisibilityState: state }))
+                    }
+                    setInitialDigitalTwinSimulatorState={(state) =>
+                        setState((prev) => ({
+                            ...prev,
+                            initialDigitalTwinSimulatorState: resolveSetStateAction(
+                                state,
+                                prev.initialDigitalTwinSimulatorState,
+                            ),
+                        }))
+                    }
+                />
+            )}
 
-                {splitView && rects.splitter && (
-                    <Splitter
-                        rect={rects.splitter}
-                        stacked={rects.stacked}
-                        share={clampShare(modelShare)}
-                        shareAtPoint={(x, y) => shareAt(rects, x, y)}
-                        onShare={setModelShare}
-                        originRef={canvasContainerRef}
-                    />
-                )}
-
-                {inViewer && rects.canSplit && rects.layout !== "split" && rects.layout !== null && (
-                    <BackToSplit
-                        kind={rects.layout === "3d" ? "model" : "image"}
-                        top={panelsTop}
-                        left={VIEWER_GAP}
-                        onBack={() => setViewerLayout("split")}
-                    />
-                )}
+            <CanvasContainer ref={canvasContainerRef}>
+                <ViewerWorkspace
+                    layout={currentSlide}
+                    origin={layoutOrigin}
+                    editing={editingLayout}
+                    canSave={canSaveLayout}
+                    saving={layoutSaving}
+                    hasModel={viewerHasModel}
+                    imageSources={imageSources}
+                    chartOptions={chartOptions}
+                    maximizedId={maximizedPanel}
+                    hidden={!inViewer}
+                    style={{ left: VIEWER_GAP, top: panelsTop, right: viewerRightInset, bottom: VIEWER_GAP }}
+                    onLayoutChange={(slide) => setDraftLayout(replaceSlide(draftLayout ?? shownLayout, slide))}
+                    slideBar={
+                        (workspaceLayout.slides.length > 1 || editingLayout) && (
+                            <SlideBar
+                                slides={visibleSlides(workspaceLayout, hiddenSlides)}
+                                allSlides={workspaceLayout.slides}
+                                current={currentSlide}
+                                tags={slideTags(workspaceLayout)}
+                                editing={editingLayout}
+                                phone={workspacePhone}
+                                onGo={goToSlide}
+                                onStep={(delta) => goToSlide(stepSlide(workspaceLayout, currentSlide.id, delta, hiddenSlides))}
+                                onAdd={() => {
+                                    const added = addSlide(draftLayout ?? shownLayout, currentSlide.id);
+                                    setDraftLayout(added.layout);
+                                    goToSlide(added.id);
+                                }}
+                                onDuplicate={() => {
+                                    const copy = duplicateSlide(draftLayout ?? shownLayout, currentSlide.id);
+                                    setDraftLayout(copy.layout);
+                                    goToSlide(copy.id);
+                                }}
+                                onRemove={() => {
+                                    const rest = removeSlide(draftLayout ?? shownLayout, currentSlide.id);
+                                    setDraftLayout(rest.layout);
+                                    goToSlide(rest.id);
+                                }}
+                                onMove={(delta) => setDraftLayout(moveSlide(draftLayout ?? shownLayout, currentSlide.id, delta))}
+                                onUpdate={(patch) => setDraftLayout(updateSlide(draftLayout ?? shownLayout, currentSlide.id, patch))}
+                                onOverview={() => setSlidesOverview(true)}
+                            />
+                        )
+                    }
+                    overlay={
+                        slidesOverview &&
+                        (workspaceLayout.slides.length > 1 || editingLayout) && (
+                            <AllSlides
+                                slides={workspaceLayout.slides}
+                                currentId={currentSlide.id}
+                                hiddenIds={hiddenSlides}
+                                onOpen={(id) => {
+                                    // a hidden slide opened is shown again in the slide bar
+                                    setHiddenSlides((ids) => ids.filter((i) => i !== id));
+                                    goToSlide(id);
+                                    setSlidesOverview(false);
+                                }}
+                                // changing the order starts editing the layout, as adding a panel does
+                                onReorder={(id, to) => setDraftLayout(reorderSlide(draftLayout ?? shownLayout, id, to))}
+                                onSetHidden={(ids, hide) => setHiddenSlides((hidden) => setSlidesHidden(workspaceLayout, hidden, ids, hide))}
+                                onClose={() => setSlidesOverview(false)}
+                            />
+                        )
+                    }
+                    onMaximize={setMaximizedPanel}
+                    onStartEdit={startLayoutEdit}
+                    onCancelEdit={cancelLayoutEdit}
+                    onSave={saveLayoutForGroup}
+                    onDone={finishLayoutEdit}
+                    onRestore={restoreLayout}
+                    onPhoneChange={setWorkspacePhone}
+                    onEditPanel={editPanel}
+                    renderPanel={(panel: WorkspacePanel) =>
+                        panel.type === "alarms" || panel.type === "approvals" ? (
+                            digitalTwinSelected ? (
+                                <HistoryPanel
+                                    kind={panel.type}
+                                    groupId={digitalTwinSelected.groupId}
+                                    digitalTwinId={digitalTwinSelected.id}
+                                    api={historyApi}
+                                    paused={!inViewer}
+                                />
+                            ) : null
+                        ) : panel.type === "chart" ? (
+                            digitalTwinSelected ? (
+                                <PageClock clock={refreshClock} time={pageTime}>
+                                    {(pageRange, refreshTick) => (
+                                        <ChartPanel
+                                            panel={panel}
+                                            groupId={digitalTwinSelected.groupId}
+                                            options={chartOptions}
+                                            fetchSeries={fetchChartSeries}
+                                            pageRange={pageRange}
+                                            refreshTick={refreshTick}
+                                            paused={!inViewer || editingPanelId !== null}
+                                        />
+                                    )}
+                                </PageClock>
+                            ) : null
+                        ) : panel.type === "image" ? (
+                            <ImageFrame frameStore={frameStore} source={panel.source ?? ANY_IMAGE_SOURCE} />
+                        ) : viewerHasModel ? (
+                            <ModelSlot host={modelHost} />
+                        ) : null
+                    }
+                />
                 {state.activeViewer === "pipeline" && (
                     <PipelineErrorBoundary resetKey={dtUid}>
                     <ReactFlowProvider>
@@ -1365,33 +1715,6 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
                     </PipelineErrorBoundary>
                 )}
 
-
-                {/* FEM Simulation Legend */}
-                {state.activeViewer === "3D" &&
-                    state.femSimulationObjects.length !== 0 &&
-                    state.femSimulationGeneralInfo &&
-                    ((state.femResultData && opts.femSimulationResult !== "None result") ||
-                        opts.legendToShow !== "None result") &&
-                    !opts.hideFemSimulationLegend && (
-                        <>
-                            <SimulationLegend
-                                resultRenderInfo={
-                                    state.femSimulationGeneralInfo[
-                                        opts.femSimulationResult === "None result"
-                                            ? opts.legendToShow
-                                            : opts.femSimulationResult
-                                    ]
-                                }
-                                canvasContainerRef={canvasContainerRef}
-                            />
-                            <MaxMinValuesContainer>
-                                <MaxMinFlexContainer>
-                                    <FemMinValue ref={femMinValueRef}>Min value: 0</FemMinValue>
-                                    <FemMaxValue ref={femMaxValueRef}>Max value: 0</FemMaxValue>
-                                </MaxMinFlexContainer>
-                            </MaxMinValuesContainer>
-                        </>
-                    )}
 
                 {/* Header */}
                 <Header
@@ -1421,6 +1744,22 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
                     digitalTwinType={digitalTwinSelected?.type}
                     assetName={assetName}
                     onOpenAssetSwitcher={onOpenAssetSwitcher}
+                    workspaceControls={
+                        <>
+                        {state.activeViewer === "3D" && hasCharts && (
+                            <TimePicker time={pageTime} onChange={changePageTime} onRefresh={refreshNow} compact={workspacePhone} />
+                        )}
+                        <WorkspaceControls
+                            visible={state.activeViewer === "3D" && !editingLayout && !workspacePhone}
+                            canSave={canSaveLayout}
+                            origin={layoutOrigin}
+                            onEdit={startLayoutEdit}
+                            onRestore={restoreLayout}
+                            onDownloadConfig={downloadConfig}
+                            onLoadConfig={(fileName, text) => setConfigLoad({ fileName, result: parseViewerConfig(text) })}
+                        />
+                        </>
+                    }
                     chatEnabled={chatEnabled}
                     chatUnread={chatUnread}
                     assistantPanelWidth={assistantPanelShown ? assistantPanelWidth : 0}
@@ -1431,6 +1770,25 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
                     viewerHasModel={viewerHasModel}
                     onHeightChange={setTopBarHeight}
                 />
+
+                {configLoad && (
+                    <ViewerConfigDialog
+                        fileName={configLoad.fileName}
+                        result={configLoad.result}
+                        refWarnings={
+                            "error" in configLoad.result || !configLoad.result.layout
+                                ? []
+                                : checkViewerConfigRefs(configLoad.result.layout, {
+                                      series: chartOptions,
+                                      imageSources: (digitalTwinGltfData?.natsSubjectsData ?? [])
+                                          .map((data) => data.topicRef)
+                                          .filter((ref) => DEVICE_IMAGE_SOURCE.test(ref)),
+                                  })
+                        }
+                        onLoad={loadConfig}
+                        onClose={() => setConfigLoad(null)}
+                    />
+                )}
 
                 {/* Panel del asistente (chat y ajustes del visor) */}
                 {assistantPanelShown && (
@@ -1504,24 +1862,22 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
                     />
                 )}
 
-                {/* Selected Object Info */}
-                {inViewer && viewerHasModel && rects.model && (
-                    <SelectedObjectInfoContainer
-                        $right={
-                            modelRect
-                                ? pageSize.width - (modelRect.left + modelRect.width) + VIEWER_GAP
-                                : assistantPanelShown
-                                  ? assistantPanelWidth + 2 * VIEWER_GAP
-                                  : VIEWER_GAP
-                        }
-                        $bottom={modelRect ? pageSize.height - (modelRect.top + modelRect.height) + VIEWER_GAP : undefined}
-                    >
-                        <ObjectInfoContainer>
-                            <ObjectInfo ref={selectedObjNameRef}>Name: -</ObjectInfo>
-                            <ObjectInfo ref={selectedObjTypeRef}>Type: -</ObjectInfo>
-                            <ObjectInfo ref={selectedObjCollectionNameRef}>Collection: -</ObjectInfo>
-                        </ObjectInfoContainer>
-                    </SelectedObjectInfoContainer>
+                {editingPanel && digitalTwinSelected && (
+                    <PageClock clock={refreshClock} time={pageTime}>
+                        {(pageRange, refreshTick) => (
+                            <PanelEditor
+                                panel={editingPanel}
+                                groupId={digitalTwinSelected.groupId}
+                                chartOptions={chartOptions}
+                                fetchSeries={fetchChartSeries}
+                                pageRange={pageRange}
+                                refreshTick={refreshTick}
+                                timeControls={<TimePicker time={pageTime} onChange={changePageTime} onRefresh={refreshNow} compact />}
+                                onApply={applyPanel}
+                                onDiscard={() => setEditingPanelId(null)}
+                            />
+                        )}
+                    </PageClock>
                 )}
             </CanvasContainer>
         </>
@@ -1529,4 +1885,3 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 };
 
 export default DigitalTwin3DViewer;
-

@@ -1,6 +1,6 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { NatsConnection } from "@nats-io/nats-core";
-import { findMobileTopic, isMobileSensorType, MOBILE_SENSOR_TOPIC_TYPE } from "./mobileSensors";
+import { findMobileTopic, isMobileSensorType, MOBILE_SENSOR_TOPIC_TYPE, mobileSensorSettings, recallMobileSelection, rememberMobileSelection, rememberMobileSensorSettings } from "./mobileSensors";
 import ReadMobileGeolocation from "./ReadingMobileGeolocation";
 import { IMobileTopic } from "../components/PlatformAssistant/TableColumns/topicsColumns";
 
@@ -140,5 +140,32 @@ describe("ReadMobileGeolocation", () => {
         const onError = vi.fn();
         ReadMobileGeolocation(fakeNats().nc, "s", 60, 5, { setIsSensorReadings: vi.fn(), setReadingProgress: vi.fn(), onError }, undefined);
         expect(onError).toHaveBeenCalledWith(expect.stringContaining("cannot give"));
+    });
+});
+
+describe("what the mobile sensors page remembers", () => {
+    const topic = (topicUid: string, sensorType = "Mobile video", sensorDescription = "Mobile video sensor"): any => ({
+        id: 1, orgAcronym: "EEBE", groupAcronym: "EEBE_GRAL", assetDescription: "Portico", sensorType, sensorDescription,
+        groupUid: "g", assetUid: "a" + topicUid, topicUid,
+    });
+    beforeEach(() => window.localStorage.clear());
+
+    it("recalls the sensor chosen last time, if the user still has it", () => {
+        const topics = [topic("t1", "Mobile geolocation", "Mobile geolocation"), topic("t2")];
+        expect(recallMobileSelection(topics)).toBeUndefined();
+        rememberMobileSelection(topics[1]);
+        expect(recallMobileSelection(topics)).toBe(topics[1]);
+        expect(recallMobileSelection([topics[0]])).toBeUndefined();
+    });
+
+    it("keeps each sensor's settings over its defaults, with the defaults' types", () => {
+        const defaults = { fps: 10, jpegQuality: 0.5, facingMode: "environment" };
+        expect(mobileSensorSettings(topic("t2"), defaults)).toEqual(defaults);
+        rememberMobileSensorSettings(topic("t2"), { fps: 4, jpegQuality: "0.7", facingMode: "user", extra: 1 });
+        expect(mobileSensorSettings(topic("t2"), defaults)).toEqual({ fps: 4, jpegQuality: 0.7, facingMode: "user" });
+        // another sensor keeps its own
+        expect(mobileSensorSettings(topic("t3"), defaults)).toEqual(defaults);
+        window.localStorage.setItem("osi4iot.mobileSensors", "not json");
+        expect(mobileSensorSettings(topic("t2"), defaults)).toEqual(defaults);
     });
 });

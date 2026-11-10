@@ -1,9 +1,11 @@
 // Recuadros de archivo de los formularios de crear y editar gemelo digital, para cargarlos todos de una vez
 // (MultiFileLoader): pipeline (.yml), modelo 3D (.gltf/.glb), resultados FEM (.json con "metadata") y formato de
-// simulación (.json/.yaml con campos label, units, minValue...).
+// simulación (.json/.yaml con campos label, units, minValue...) y configuración del Viewer (.json con "format":
+// "osi4iot-viewer-config").
 import YAML from "yaml";
 import { FileTarget } from "../../Tools/MultiFileLoader";
 import { digitalTwinFormatValidation } from "../../../tools/tools";
+import { VIEWER_CONFIG_FORMAT } from "../DigitalTwin3DViewer/Workspace/viewerConfig";
 
 interface FilePickerTarget {
     clear: () => void;
@@ -31,10 +33,22 @@ export const isFemResultsDocument = (text: string) => {
     return isObject(value) && isObject(value.metadata);
 };
 
+// configuración del Viewer: objeto con "format": "osi4iot-viewer-config"
+export const isViewerConfigDocument = (text: string) => {
+    const value = parseDocument(text);
+    return isObject(value) && value.format === VIEWER_CONFIG_FORMAT;
+};
+
 // formato de simulación: objeto cuyos campos tienen label, units, minValue, maxValue...
 export const isSimulationFormatDocument = (text: string) => {
     const value = parseDocument(text);
-    return isObject(value) && Object.keys(value).length > 0 && !("metadata" in value) && digitalTwinFormatValidation(value);
+    return (
+        isObject(value) &&
+        Object.keys(value).length > 0 &&
+        !("metadata" in value) &&
+        value.format !== VIEWER_CONFIG_FORMAT &&
+        digitalTwinFormatValidation(value)
+    );
 };
 
 // pipeline: YAML con una lista "nodes"
@@ -52,6 +66,7 @@ export const digitalTwinFileTargets = ({
     femResults,
     clearFemResults,
     loadSimulationFormat,
+    loadViewerConfig,
 }: {
     digitalTwinType: string;
     pipeline: FilePickerTarget;
@@ -61,6 +76,8 @@ export const digitalTwinFileTargets = ({
     femResults: FilePickerTarget;
     clearFemResults: () => void;
     loadSimulationFormat: (file: File) => void;
+    // the viewer configuration (layout and lighting), when the form has it
+    loadViewerConfig?: (file: File) => void;
 }): FileTarget[] => {
     const is3D = digitalTwinType === "Gltf 3D model" || digitalTwinType === "Glb 3D model";
     const need3D = 'Choose the type "Gltf 3D model" or "Glb 3D model" first';
@@ -107,5 +124,16 @@ export const digitalTwinFileTargets = ({
             test: isSimulationFormatDocument,
             load: loadSimulationFormat,
         },
+        ...(loadViewerConfig
+            ? [
+                  {
+                      key: "viewerConfig",
+                      label: "Viewer configuration",
+                      accept: [".json"],
+                      test: isViewerConfigDocument,
+                      load: loadViewerConfig,
+                  },
+              ]
+            : []),
     ];
 };

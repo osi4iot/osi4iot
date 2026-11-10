@@ -38,6 +38,8 @@ import { AxiosResponse, AxiosError } from "axios";
 import JsonFileField, { loadJsonDocument, mustBeObject } from "../../Tools/JsonFileField";
 import MultiFileLoader from "../../Tools/MultiFileLoader";
 import { digitalTwinFileTargets } from "./digitalTwinFileTargets";
+import ViewerConfigFileField, { ViewerConfigFile, readViewerConfigFile } from "./ViewerConfigFileField";
+import { applyViewerConfig } from "../DigitalTwin3DViewer/Workspace/viewerConfigApi";
 import { ControlsContainer, DraggableFormContainer, FormSection } from "../../Tools/FormTools";
 import KnowledgeDocumentsSelector from "./KnowledgeDocumentsSelector";
 
@@ -261,6 +263,8 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
     const [femResFileNames, setFemResFileNames] = useState<string[]>([]);
     const [femResFilesLastModif, setFemResFilesLastModif] = useState<string[]>([]);
     const [femResFileName, setFemResFileName] = useState("-");
+    // the viewer configuration (layout and lighting): saved after the twin
+    const [viewerConfigFile, setViewerConfigFile] = useState<ViewerConfigFile | null>(null);
     const [femResFileLastModifDateString, setFemResFileLastModifDateString] = useState("-");
     const storedPipelineFileData = digitalTwins[digitalTwinRowIndex].pipelineFileData;
     const storedPipelineFileName = digitalTwins[digitalTwinRowIndex].pipelineFileName || "-";
@@ -493,6 +497,18 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
         const urlUploadGltfBase = `${urlUploadGltfBase0}/${groupId}/${digitalTwinId}`;
         let isGltfFileModified = false;
         const maxNumResFemFiles = parseInt(values.maxNumResFemFiles, 10);
+
+        // the viewer configuration file replaces the group's layout and the twin's lighting
+        if (viewerConfigFile) {
+            const saved = await applyViewerConfig(
+                groupId,
+                digitalTwinId,
+                viewerConfigFile.config,
+                digitalTwins[digitalTwinRowIndex].viewerSettings,
+                { accessToken, refreshToken, authDispatch },
+            );
+            if (saved) setViewerConfigFile(null);
+        }
 
         if (values.type === "Gltf 3D model" || values.type === "Glb 3D model") {
             if (
@@ -911,6 +927,8 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
                                                             void formik.setFieldValue("digitalTwinSimulationFormatFileName", doc.fileName, false);
                                                             void formik.setFieldValue("digitalTwinSimulationFormatLastModifDate", doc.lastModified, false);
                                                         }),
+                                                    loadViewerConfig: (file) =>
+                                                        void readViewerConfigFile(file).then((read) => read && setViewerConfigFile(read)),
                                                 })}
                                             />
                                             {(digitalTwinType === "Gltf 3D model" ||
@@ -1034,6 +1052,7 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
                                                     />
                                                 </>
                                             )}
+                                            <ViewerConfigFileField value={viewerConfigFile} onChange={setViewerConfigFile} replaces />
                                         </ControlsContainer>
                                         <FormButtonsProps
                                             onCancel={onCancel}

@@ -19,9 +19,10 @@ import {
 	HISTORY_RETENTION_DAYS,
 	historyFilterOf,
 	historyLimitOf,
+	panelFilterOf,
 	toCsv,
 } from "../../utils/eventHistory/eventHistory";
-import { APPROVAL_EXPORT_COLUMNS, exportApprovalHistory, getApprovalEvent, getApprovalHistory } from "./approvalHistoryDAL";
+import { APPROVAL_EXPORT_COLUMNS, exportApprovalHistory, getApprovalEvent, getApprovalHistory, getPendingApprovals } from "./approvalHistoryDAL";
 
 class ApprovalHistoryController implements IController {
 	public path = "/approval_history";
@@ -36,7 +37,9 @@ class ApprovalHistoryController implements IController {
 		this.router
 			.get(`${this.path}/:groupId`, groupExists, groupAdminAuth, this.getHistory)
 			.get(`${this.path}_event/:groupId/:eventId`, groupExists, groupAdminAuth, this.getEvent)
-			.get(`${this.path}_export/:groupId`, groupExists, groupAdminAuth, this.exportHistory);
+			.get(`${this.path}_export/:groupId`, groupExists, groupAdminAuth, this.exportHistory)
+			// the panel of the Viewer page: ?digitalTwinId=n&days=30
+			.get(`${this.path}_pending/:groupId`, groupExists, groupAdminAuth, this.getPanel);
 	}
 
 	private getHistory = async (req: IRequestWithUserAndGroup, res: Response, next: NextFunction): Promise<void> => {
@@ -45,6 +48,17 @@ class ApprovalHistoryController implements IController {
 			if (typeof filter === "string") throw new HttpException(req, res, 400, filter);
 			const { rows, truncated } = await getApprovalHistory(filter, historyLimitOf(req.query.limit));
 			res.status(200).send({ events: rows, truncated, retentionDays: HISTORY_RETENTION_DAYS });
+		} catch (error) {
+			next(error);
+		}
+	};
+
+	private getPanel = async (req: IRequestWithUserAndGroup, res: Response, next: NextFunction): Promise<void> => {
+		try {
+			const filter = panelFilterOf(Number(req.group.id), req.query);
+			if (typeof filter === "string") throw new HttpException(req, res, 400, filter);
+			const rows = await getPendingApprovals(filter);
+			res.status(200).send({ requests: rows, days: filter.days });
 		} catch (error) {
 			next(error);
 		}

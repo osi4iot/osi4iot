@@ -1,4 +1,5 @@
 import { FC, useState, SyntheticEvent, useEffect } from 'react';
+import { mobileSensorSettings, rememberMobileSensorSettings } from "../../tools/mobileSensors";
 import { type NatsConnection } from "@nats-io/nats-core";
 import styled from "styled-components";
 import { Formik, Form } from 'formik';
@@ -128,6 +129,7 @@ const MobileGeolocationForm: FC<MobileGeolocationFormProps> = (
     };
 
     const handleSubmit = async (values: any, actions: any) => {
+        rememberMobileSensorSettings(mobileTopicSelected, values);
         if (natsClient && !isSensorReading && mobileTopicSelected != null) {
             setError("");
             const groupHash = mobileTopicSelected.groupUid;
@@ -150,7 +152,7 @@ const MobileGeolocationForm: FC<MobileGeolocationFormProps> = (
                 Mobile geolocation <ConnectionLed isNatsConnected={isNatsConnected} />
             </Title>
             <FormContainer>
-                <Formik initialValues={initialMobileGeolocationFormValues} validationSchema={validationSchema} onSubmit={handleSubmit} >
+                <Formik initialValues={mobileSensorSettings(mobileTopicSelected, initialMobileGeolocationFormValues)} validationSchema={validationSchema} onSubmit={handleSubmit} >
                     {
                         formik => (
                             // @ts-ignore

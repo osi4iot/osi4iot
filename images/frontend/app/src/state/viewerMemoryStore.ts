@@ -23,8 +23,15 @@ export interface OpenNodePanel {
 
 export interface ViewerMemory {
     activeViewer?: "3D" | "pipeline";
-    // the Viewer page: both panels, or one of them full page
-    viewerLayout?: "split" | "3d" | "image";
+    // the Viewer page: the user's own changes to the layout (not saved), and the panel shown full page
+    workspaceLayout?: unknown;
+    workspaceMaximized?: string | null;
+    // the slide shown and the tags of the slides the filters hide
+    workspaceSlide?: string | null;
+    // the slides hidden from the slide bar
+    workspaceHiddenSlides?: string[];
+    // the range of time and refresh chosen on the page (not saved)
+    workspaceTime?: unknown;
     opts?: unknown;
     pipeline?: { nodes: any[]; edges: any[]; changed: boolean };
     logMessages?: unknown[];
@@ -63,3 +70,4 @@ export const rememberViewer = (dtUid: string, patch: Partial<ViewerMemory>) => {
     if (dtUid) useViewerMemoryStore.getState().remember(dtUid, patch);
 };
 export const forgetViewer = (dtUid: string) => useViewerMemoryStore.getState().forget(dtUid);
+

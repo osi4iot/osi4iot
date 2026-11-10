@@ -37,6 +37,8 @@ import KnowledgeDocumentsSelector from "./KnowledgeDocumentsSelector";
 import JsonFileField, { loadJsonDocument, mustBeObject } from "../../Tools/JsonFileField";
 import MultiFileLoader from "../../Tools/MultiFileLoader";
 import { digitalTwinFileTargets } from "./digitalTwinFileTargets";
+import ViewerConfigFileField, { ViewerConfigFile, readViewerConfigFile } from "./ViewerConfigFileField";
+import { applyViewerConfig } from "../DigitalTwin3DViewer/Workspace/viewerConfigApi";
 import { ControlsContainer, DraggableFormContainer, FormSection } from "../../Tools/FormTools";
 import { assetOptions, sortAssetNamesByDescription } from "../../../tools/tools";
 
@@ -387,6 +389,8 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
     const [digitalTwinPipelineData, setDigitalTwinPipelineData] = useState({});
     const [femResFile, setFemResFile] = useState<File>();
     const [femResFileName, setFemResFileName] = useState("-");
+    // the viewer configuration (layout and lighting): saved after the twin
+    const [viewerConfigFile, setViewerConfigFile] = useState<ViewerConfigFile | null>(null);
     const [femResFileLastModifDateString, setFemResFileLastModifDateString] = useState("-");
     const [pipelineFileName, setPipelineFileName] = useState("-");
     const [pipelineFileLastModifDateString, setPipelineFileLastModifDateString] = useState("-");
@@ -705,6 +709,14 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
                         });
                 }
 
+                if (viewerConfigFile) {
+                    void applyViewerConfig(groupId, data.digitalTwinId, viewerConfigFile.config, null, {
+                        accessToken,
+                        refreshToken,
+                        authDispatch,
+                    });
+                }
+
                 if (Object.keys(digitalTwinPipelineData).length !== 0) {
                     // submitPipeline(configMultipart, groupId, data.digitalTwinId);
                     submitPipeline(config, groupId, data.digitalTwinId);
@@ -944,6 +956,8 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
                                                     void formik.setFieldValue("digitalTwinSimulationFormatFileName", doc.fileName, false);
                                                     void formik.setFieldValue("digitalTwinSimulationFormatLastModifDate", doc.lastModified, false);
                                                 }),
+                                            loadViewerConfig: (file) =>
+                                                void readViewerConfigFile(file).then((read) => read && setViewerConfigFile(read)),
                                         })}
                                     />
                                     {(digitalTwinType === "Gltf 3D model" || digitalTwinType === "Glb 3D model") && (
@@ -1072,6 +1086,7 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
                                             />
                                         </>
                                     )}
+                                    <ViewerConfigFileField value={viewerConfigFile} onChange={setViewerConfigFile} />
                                 </ControlsContainer>
                                 <FormButtonsProps
                                     onCancel={onCancel}

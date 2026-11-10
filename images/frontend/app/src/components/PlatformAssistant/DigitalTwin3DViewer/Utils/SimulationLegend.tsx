@@ -25,6 +25,7 @@ const SimulationLegendDiv = styled.div`
   top: 50%;
   transform: translateY(-50%);
   left: 20px;
+  z-index: 900;
 `;
 
 const SimulationLegend: FC<SimulationLegendProps> = ({

@@ -333,6 +333,16 @@ const BUILTIN_NOISE = new Set([
 
 // ─── Diagnostics ──────────────────────────────────────────────────────────────
 
+// The scripts are JavaScript, checked as TypeScript: "const state = {}; state.x = 1" is valid JavaScript, but
+// TypeScript types the literal as {} and reports every property added later (2339 "Property 'x' does not
+// exist on type '{}'"). Those are not errors when the script runs, so they are not shown.
+const EXPANDO_CODES = new Set([2339]);
+function isJavaScriptExpando(d: ts.Diagnostic): boolean {
+    if (!EXPANDO_CODES.has(d.code)) return false;
+    const text = typeof d.messageText === "string" ? d.messageText : d.messageText.messageText;
+    return /on type '\{\}'/.test(text);
+}
+
 export function getDiagnostics(doc: string): LSDiagnostic[] {
     const { offsets } = getTransformed(doc);
     updateUserFile(doc);
@@ -342,6 +352,7 @@ export function getDiagnostics(doc: string): LSDiagnostic[] {
 
     return [...syntactic, ...semantic]
         .filter((d) => d.start !== undefined && d.length !== undefined)
+        .filter((d) => !isJavaScriptExpando(d))
         .map((d) => {
             const msg =
                 typeof d.messageText === "string"

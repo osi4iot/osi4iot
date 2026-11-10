@@ -208,6 +208,45 @@ export const historyLimitOf = (value: unknown): number => {
 	return Number.isInteger(n) && n > 0 ? Math.min(n, HISTORY_LIST_MAX_ROWS) : HISTORY_LIST_MAX_ROWS;
 };
 
+// The panels of the Viewer page (active alarms, pending approvals): the latest event of each alarm or request
+// of the last `days` days (by default PANEL_DAYS), of a digital twin or of the whole group
+export const PANEL_DAYS = 30;
+export const PANEL_MAX_ROWS = 200;
+
+export interface IPanelFilter {
+	groupId: number;
+	days: number;
+	digitalTwinId?: number;
+}
+
+export const panelFilterOf = (groupId: number, query: Record<string, unknown>): IPanelFilter | string => {
+	const filter: IPanelFilter = { groupId, days: PANEL_DAYS };
+	if (query.days !== undefined && query.days !== "") {
+		const days = Number(query.days);
+		if (!Number.isInteger(days) || days < 1 || days > HISTORY_RETENTION_DAYS) {
+			return `days must be a whole number from 1 to ${HISTORY_RETENTION_DAYS}`;
+		}
+		filter.days = days;
+	}
+	if (query.digitalTwinId !== undefined && query.digitalTwinId !== "") {
+		const id = Number(query.digitalTwinId);
+		if (!Number.isInteger(id) || id <= 0) return "digitalTwinId must be a digital twin id";
+		filter.digitalTwinId = id;
+	}
+	return filter;
+};
+
+// The WHERE of a panel filter, with its parameters
+export const panelWhere = (f: IPanelFilter): { sql: string; params: unknown[] } => {
+	const params: unknown[] = [f.groupId, f.days];
+	let sql = "group_id = $1 AND time >= NOW() - make_interval(days => $2)";
+	if (f.digitalTwinId) {
+		params.push(f.digitalTwinId);
+		sql += ` AND digital_twin_id = $${params.length}`;
+	}
+	return { sql, params };
+};
+
 export const EVENT_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 // The history of a group goes with it (deleted group), and that of all the groups of a deleted organization.

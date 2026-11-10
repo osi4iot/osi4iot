@@ -23,6 +23,18 @@ export const scrollbarStyle = css`
     &::-webkit-scrollbar-thumb:hover {
         background-color: #343840;
     }
+
+    /* where the two bars meet (a table that scrolls both ways): not the default white square */
+    &::-webkit-scrollbar-corner {
+        background: transparent;
+    }
+
+    /* Firefox (no ::-webkit-scrollbar): the same colours. Only there: in Chrome, scrollbar-color would
+       replace the ::-webkit-scrollbar styles above */
+    @supports not selector(::-webkit-scrollbar) {
+        scrollbar-width: thin;
+        scrollbar-color: #2c3235 #202226;
+    }
 `;
 
 // Tarjeta de los formularios de crear / editar: ocupa todo el ancho y el alto disponibles del área de

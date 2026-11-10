@@ -33,6 +33,9 @@ import SkillController from "./components/skill/skill.controller";
 import { seedBuiltinSkills } from "./components/skill/skillStorage";
 import { createMissingAssetStateRows } from "./components/asset/assetStateDAL";
 import { ensureDigitalTwinViewerSettingsColumn } from "./components/digitalTwin/digitalTwinDAL";
+import ViewerLayoutController from "./components/viewerLayout/viewerLayout.controller";
+import TimeSeriesController from "./components/timeSeries/timeSeries.controller";
+import { ensureViewerLayoutTable } from "./components/viewerLayout/viewerLayoutDAL";
 
 const main = async (): Promise<void> => {
 	try {
@@ -43,6 +46,13 @@ const main = async (): Promise<void> => {
 		} catch (err) {
 			const message = err instanceof Error ? err.message : String(err);
 			logger.log("error", "The viewer_settings column of the digital twins could not be added: %s", message);
+		}
+		// the layouts of the Viewer page (one per digital twin, saved by group administrators)
+		try {
+			await ensureViewerLayoutTable();
+		} catch (err) {
+			const message = err instanceof Error ? err.message : String(err);
+			logger.log("error", "The viewer_layout table could not be created: %s", message);
 		}
 		// esquemas de mensaje calculados (sensores, simulación, fijos): por si ha cambiado algo de lo que dependen
 		await refreshAllComputedMessageSchemas();
@@ -102,6 +112,8 @@ const main = async (): Promise<void> => {
 			new LlmUsageController(),
 			new AlarmHistoryController(),
 			new ApprovalHistoryController(),
+			new ViewerLayoutController(),
+			new TimeSeriesController(),
 			new SkillController(),
 			new AssetController(),
 			new S3FolderController(),

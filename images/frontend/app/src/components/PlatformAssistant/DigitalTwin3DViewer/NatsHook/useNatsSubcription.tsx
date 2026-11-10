@@ -38,7 +38,7 @@ const useNatsSubscription = (
     setFemResFilesLastUpdate: (femResFilesLastUpdate: Date) => void,
     isGroupDTDemo: boolean,
     setDigitalTwinState: React.Dispatch<React.SetStateAction<string>>,
-    handleImageUrlChange: (imageBytes: Uint8Array, mimeType: string) => void,
+    handleImageUrlChange: (imageBytes: Uint8Array, mimeType: string, topicRef?: string) => void,
     handleUpdateChatAssistantMessages: (newMessage: LlmMessage) => void,
     handleUpdateLogMessages: (newLogMessage: PipelineLog) => void,
     handlePipelineStatusChange: (pipelineStatus: string) => void,
@@ -104,7 +104,11 @@ const useNatsSubscription = (
                     if (contentType.startsWith("image/")) {
                         // Binary image payload — pass bytes and mime type directly,
                         // no JSON parsing needed
-                        handleImageUrlChange(msg.data, contentType);
+                        // the topic it came on, for the Image panels that show only one topic
+                        const source = natsSubjectsData.find(
+                            (data) => data.natsSubject && matches(mqttTopicToNatsSubject(data.natsSubject), subject),
+                        );
+                        handleImageUrlChange(msg.data, contentType, source?.topicRef);
                         continue;
                     }
 

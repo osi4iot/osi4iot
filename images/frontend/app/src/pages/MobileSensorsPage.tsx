@@ -20,7 +20,7 @@ import NatsConnect from "../tools/Natsconnection";
 import MobileVideoForm from "../components/Tools/MobileVideoForm";
 import MobileAudioForm from "../components/Tools/MobileAudioForm";
 import MobileGeolocationForm from "../components/Tools/MobileGeolocationForm";
-import { findMobileTopic, isMobileSensorType } from "../tools/mobileSensors";
+import { findMobileTopic, isMobileSensorType, recallMobileSelection, rememberMobileSelection } from "../tools/mobileSensors";
 
 const LoadingItem = styled.div`
     background-color: #202226;
@@ -39,6 +39,15 @@ export interface InitialMobileSensorData {
     assetDescription: string;
     mobileSensorDescription: string;
 }
+
+// the values of the selection form for a sensor's topic
+const selectionOf = (topic: IMobileTopic): InitialMobileSensorData => ({
+    orgAcronym: topic.orgAcronym,
+    groupAcronym: topic.groupAcronym,
+    assetName: `Asset_${topic.assetUid}`,
+    assetDescription: topic.assetDescription,
+    mobileSensorDescription: topic.sensorDescription,
+});
 
 const domainName = getDomainName();
 const protocol = getProtocol();
@@ -83,16 +92,10 @@ const MobileSensorsPage: FC<ChildrenProp> = ({ children }) => {
                 const mobileTopics = mobileTopicsData.filter((mobileTopic) => isMobileSensorType(mobileTopic.sensorType));
                 if (mobileTopics.length !== 0) {
                     setMobileTopicsManaged(mobileTopics);
-                    setMobileTopicSelected(mobileTopics[0]);
-                    const initialMobileSensorData = {
-                        orgAcronym: mobileTopics[0].orgAcronym,
-                        groupAcronym: mobileTopics[0].groupAcronym,
-                        assetName: `Asset_${mobileTopics[0].assetUid}`,
-                        assetDescription: mobileTopics[0].assetDescription,
-                        mobileSensor: mobileTopics[0].sensorType,
-                        mobileSensorDescription: mobileTopics[0].sensorDescription,
-                    };
-                    setInitialMobileSensorData(initialMobileSensorData);
+                    // the sensor chosen last time on this device, else the first one
+                    const topic = recallMobileSelection(mobileTopics) ?? mobileTopics[0];
+                    setMobileTopicSelected(topic);
+                    setInitialMobileSensorData(selectionOf(topic));
                 } else {
                     setLoadingLabel("No mobile sensor found");
                 }
@@ -135,6 +138,9 @@ const MobileSensorsPage: FC<ChildrenProp> = ({ children }) => {
     const handleMobileSensorSelection = (values: any, actions: any) => {
         const topic = findMobileTopic(mobileTopicsManaged, values.assetName, values.mobileSensorDescription);
         if (!topic) return;
+        // back from the sensor's form (Cancel) or on the next visit, the selection form opens with this sensor
+        rememberMobileSelection(topic);
+        setInitialMobileSensorData(selectionOf(topic));
         setMobileTopicSelected(topic);
         setMobileSensorSelected(topic.sensorType);
     };

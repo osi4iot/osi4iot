@@ -109,6 +109,8 @@ const ZoomIndicator = styled.div`
 
 interface ImageFrameProps {
     frameStore: FrameStore;
+    // the topicRef whose frames it shows ("any" or none: all)
+    source?: string;
     className?: string;
     minZoom?: number;
     maxZoom?: number;
@@ -118,6 +120,7 @@ interface ImageFrameProps {
 
 export const ImageFrame: React.FC<ImageFrameProps> = ({
     frameStore,
+    source,
     className = "",
     minZoom = 0.5,
     maxZoom = 5,
@@ -175,12 +178,13 @@ export const ImageFrame: React.FC<ImageFrameProps> = ({
             }
         };
 
-        const unsubscribe = frameStore.subscribe(draw);
+        setHasFirstFrame(false);
+        const unsubscribe = frameStore.subscribe(draw, source);
         return () => {
             cancelled = true;
             unsubscribe();
         };
-    }, [frameStore]);
+    }, [frameStore, source]);
 
     // Wheel zoom
     useEffect(() => {
