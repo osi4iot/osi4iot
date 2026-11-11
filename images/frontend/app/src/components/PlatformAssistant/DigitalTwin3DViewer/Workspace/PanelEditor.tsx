@@ -714,4 +714,3 @@ const PanelEditor: FC<PanelEditorProps> = ({ panel, groupId, chartOptions, fetch
 };
 
 export default PanelEditor;
-

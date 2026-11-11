@@ -10,7 +10,7 @@ import styled, { css } from "styled-components";
 import { scrollbarStyle } from "../../../Tools/FormTools";
 import GridLayout from "react-grid-layout";
 import "react-grid-layout/css/styles.css";
-import { BellRing, Box, Camera, ChartBar, ChartColumn, ChartColumnBig, ChartGantt, ChartLine, ChartPie, ClipboardCheck, Gauge, Hash, Table2, GripVertical, Info, Maximize2, Minimize2, Pencil, Plus, X } from "lucide-react";
+import { BellRing, Box, ChartBar, FileImage, FileText, Image as ImageIcon, Video, ChartColumn, ChartColumnBig, ChartGantt, ChartLine, ChartPie, ClipboardCheck, Gauge, Hash, Table2, GripVertical, Info, Maximize2, Minimize2, Pencil, Plus, X } from "lucide-react";
 import { ChartSeriesOption, defaultChartTitle } from "./chartSeries";
 import { PanelLinks } from "./charts/Links";
 import ImageSourceField from "./ImageSourceField";
@@ -34,6 +34,8 @@ import {
     removePanel,
     renamePanel,
     setPanelSource,
+    setPanelDisplay,
+    imageDisplayOf,
     rowHeightFor,
     toGridItems,
 } from "./workspaceLayout";
@@ -202,6 +204,27 @@ const PanelBody = styled.div`
     position: relative;
     flex: 1;
     min-height: 0;
+`;
+
+const SourceRow = styled.div`
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+
+    > select {
+        flex: none;
+        height: 30px;
+        padding: 0 8px;
+        background: #0e1013;
+        border: 1px solid #2c3137;
+        border-radius: 8px;
+        color: #e6e8eb;
+        font-size: 13px;
+    }
+    > div {
+        flex: 1;
+        min-width: 0;
+    }
 `;
 
 const SourceStrip = styled.div`
@@ -500,7 +523,8 @@ const Hint = styled.p`
     font-size: 12px;
 `;
 
-type DialogType = "model" | "image" | "chart" | "alarms" | "approvals";
+// the Image panels are two choices: video (live, with pause) and photo (the last one)
+type DialogType = "model" | "video" | "photo" | "picture" | "chart" | "markdown" | "alarms" | "approvals";
 
 export const AddPanelDialog: FC<AddPanelDialogProps> = ({
     canAddModel,
@@ -511,7 +535,7 @@ export const AddPanelDialog: FC<AddPanelDialogProps> = ({
     onAdd,
     onClose,
 }) => {
-    const firstType: DialogType = canAddModel ? "model" : "image";
+    const firstType: DialogType = canAddModel ? "model" : "video";
     const [type, setType] = useState<DialogType>(firstType);
     const [source, setSource] = useState(sources.find((s) => s.live && s.value !== "any")?.value ?? "any");
     // what is typed as the source is valid
@@ -526,7 +550,8 @@ export const AddPanelDialog: FC<AddPanelDialogProps> = ({
     const chosenOptions = chartOptions.filter((o) => chosen.includes(o.key));
     const types = [
         { value: "model" as const, label: "3D model", hint: canAddModel ? "The digital twin's model" : "Already on the page", icon: <Box />, disabled: !canAddModel },
-        { value: "image" as const, label: "Image", hint: "Frames of a camera or a pipeline", icon: <Camera />, disabled: false },
+        { value: "video" as const, label: "Video", hint: "Live frames of a camera or a pipeline, with pause", icon: <Video />, disabled: false },
+        { value: "photo" as const, label: "Photo", hint: "The last photo of a device and when it arrived", icon: <ImageIcon />, disabled: false },
         {
             value: "chart" as const,
             label: "Chart",
@@ -534,6 +559,8 @@ export const AddPanelDialog: FC<AddPanelDialogProps> = ({
             icon: <ChartLine />,
             disabled: chartOptions.length === 0,
         },
+        { value: "picture" as const, label: "Picture", hint: "An image of the twin; an SVG can move with live values", icon: <FileImage />, disabled: false },
+        { value: "markdown" as const, label: "Text", hint: "Markdown, LaTeX formulas and live values", icon: <FileText />, disabled: false },
         {
             value: "alarms" as const,
             label: "Alarms",
@@ -554,7 +581,9 @@ export const AddPanelDialog: FC<AddPanelDialogProps> = ({
             ? canAddModel
             : type === "chart"
               ? chosen.length > 0
-              : type === "alarms"
+              : type === "markdown" || type === "picture"
+                ? true
+                : type === "alarms"
                 ? canAddAlarms
                 : type === "approvals"
                   ? canAddApprovals
@@ -566,11 +595,15 @@ export const AddPanelDialog: FC<AddPanelDialogProps> = ({
     const placeholder =
         type === "model"
             ? "3D model"
-            : type === "image"
-              ? imageSourceLabel(source)
+            : type === "video" || type === "photo"
+              ? `${type === "photo" ? "Photo" : "Video"}${source === "any" ? "" : ` · ${imageSourceLabel(source)}`}`
               : type === "chart"
                 ? defaultChartTitle(chosenOptions)
-                : type === "alarms"
+                : type === "markdown"
+                  ? "Text"
+                  : type === "picture"
+                  ? "Picture"
+                  : type === "alarms"
                   ? "Alarms"
                   : "Approvals";
     return (
@@ -592,7 +625,7 @@ export const AddPanelDialog: FC<AddPanelDialogProps> = ({
                 onSubmit={(e) => {
                     e.preventDefault();
                     if (!canSubmit) return;
-                    if (type === "image") onAdd({ type, source, title });
+                    if (type === "video" || type === "photo") onAdd({ type: "image", display: type, source, title });
                     else if (type === "chart") {
                         onAdd({
                             type,
@@ -627,7 +660,7 @@ export const AddPanelDialog: FC<AddPanelDialogProps> = ({
                         </TypeCard>
                     ))}
                 </fieldset>
-                {type === "image" && (
+                {(type === "video" || type === "photo") && (
                     <div role="group" aria-labelledby={`${titleId}-source`}>
                         <span id={`${titleId}-source`} style={{ display: "block", marginBottom: 6, color: "#9aa1aa", fontSize: 12, fontWeight: 600 }}>
                             Source
@@ -642,6 +675,8 @@ export const AddPanelDialog: FC<AddPanelDialogProps> = ({
                         />
                     </div>
                 )}
+                {type === "picture" && <Hint>The picture opens in its editor: choose or upload an image (JPEG, PNG, WebP, GIF or SVG) and, for an SVG, animate its elements with the values of the NATS messages.</Hint>}
+                {type === "markdown" && <Hint>The text opens in its editor: markdown, LaTeX formulas ($…$) and values of the NATS messages as they arrive ({"{{dtm2sim.rotorRpm}}"}).</Hint>}
                 {(type === "alarms" || type === "approvals") && (
                     <Hint>
                         {type === "alarms"
@@ -749,6 +784,10 @@ const panelIcon = (panel: WorkspacePanel) =>
         <BellRing aria-hidden="true" />
     ) : panel.type === "approvals" ? (
         <ClipboardCheck aria-hidden="true" />
+    ) : panel.type === "markdown" ? (
+        <FileText aria-hidden="true" />
+    ) : panel.type === "picture" ? (
+        <FileImage aria-hidden="true" />
     ) : panel.type === "chart" ? (
         panel.viz === "stat" ? (
             <Hash aria-hidden="true" />
@@ -769,8 +808,10 @@ const panelIcon = (panel: WorkspacePanel) =>
         ) : (
             <ChartLine aria-hidden="true" />
         )
+    ) : panel.display === "photo" ? (
+        <ImageIcon aria-hidden="true" />
     ) : (
-        <Camera aria-hidden="true" />
+        <Video aria-hidden="true" />
     );
 
 const ViewerWorkspace: FC<ViewerWorkspaceProps> = ({
@@ -841,7 +882,7 @@ const ViewerWorkspace: FC<ViewerWorkspaceProps> = ({
         const next = addPanel(layout, spec);
         onLayoutChange(next);
         // a new chart goes straight to the panel editor
-        if (spec.type === "chart" && next !== layout) onEditPanel?.(next.panels[next.panels.length - 1].id);
+        if ((spec.type === "chart" || spec.type === "markdown" || spec.type === "picture") && next !== layout) onEditPanel?.(next.panels[next.panels.length - 1].id);
     };
 
     const openAdd = () => {
@@ -959,9 +1000,18 @@ const ViewerWorkspace: FC<ViewerWorkspaceProps> = ({
                                         onMaximize={() => onMaximize(isFull ? null : panel.id)}
                                         onRemove={() => onLayoutChange(removePanel(layout, panel.id))}
                                         onRename={(title) => onLayoutChange(renamePanel(layout, panel.id, title))}
-                                        onEdit={panel.type === "chart" && onEditPanel && !phone ? () => onEditPanel(panel.id) : undefined}
+                                        onEdit={(panel.type === "chart" || panel.type === "markdown" || panel.type === "picture") && onEditPanel && !phone ? () => onEditPanel(panel.id) : undefined}
                                         source={
                                             editable && panel.type === "image" ? (
+                                                <SourceRow>
+                                                <select
+                                                    aria-label={`Show the panel ${panelTitle(panel)} as`}
+                                                    value={imageDisplayOf(panel)}
+                                                    onChange={(e) => onLayoutChange(setPanelDisplay(layout, panel.id, e.target.value === "photo" ? "photo" : "video"))}
+                                                >
+                                                    <option value="video">Video</option>
+                                                    <option value="photo">Photo</option>
+                                                </select>
                                                 <ImageSourceField
                                                     compact
                                                     label={`Source of the panel ${panelTitle(panel)}`}
@@ -971,6 +1021,7 @@ const ViewerWorkspace: FC<ViewerWorkspaceProps> = ({
                                                         if (next !== null && next !== panel.source) onLayoutChange(setPanelSource(layout, panel.id, next));
                                                     }}
                                                 />
+                                                </SourceRow>
                                             ) : undefined
                                         }
                                     >

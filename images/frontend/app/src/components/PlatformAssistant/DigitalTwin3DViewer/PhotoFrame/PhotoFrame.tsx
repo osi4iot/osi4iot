@@ -1,6 +1,6 @@
 import React, { useState, useRef, useCallback, useEffect } from "react";
 import styled from "styled-components";
-import { Camera } from "lucide-react";
+import { Camera, Pause, Play } from "lucide-react";
 import type { FrameStore } from "../Utils/customHooks";
 
 // ---------------------------------------------------------------------------
@@ -107,6 +107,90 @@ const ZoomIndicator = styled.div`
     z-index: 10;
 `;
 
+// the bar over a Video or Photo panel: what is shown (fps, paused, when the photo arrived) and the pause button
+const InfoBar = styled.div`
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    right: 8px;
+    z-index: 11;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    pointer-events: none;
+    font-family: Roboto, "Helvetica Neue", Arial, sans-serif;
+`;
+
+const Badge = styled.span<{ $tone?: "live" | "paused" | "plain" }>`
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 9px;
+    border-radius: 12px;
+    background: rgba(11, 12, 14, 0.78);
+    color: #e6e8eb;
+    font-size: 12px;
+    white-space: nowrap;
+
+    &::before {
+        content: "";
+        display: ${({ $tone }) => ($tone === "plain" ? "none" : "block")};
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: ${({ $tone }) => ($tone === "paused" ? "#f2cc0c" : "#f2495c")};
+    }
+`;
+
+const PauseButton = styled.button`
+    margin-left: auto;
+    pointer-events: auto;
+    height: 30px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0 12px;
+    background: rgba(11, 12, 14, 0.82);
+    border: 1px solid #3a4048;
+    border-radius: 15px;
+    color: #e6e8eb;
+    font: 500 12px Roboto, "Helvetica Neue", Arial, sans-serif;
+    cursor: pointer;
+
+    &:hover,
+    &:focus-visible {
+        border-color: #3d82f0;
+    }
+    svg {
+        width: 14px;
+        height: 14px;
+    }
+`;
+
+// "12:03:41 · 3 min ago"
+export const photoAge = (receivedAt: number, now: number): string => {
+    const seconds = Math.max(0, Math.round((now - receivedAt) / 1000));
+    const time = new Date(receivedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+    const ago =
+        seconds < 10
+            ? "just now"
+            : seconds < 60
+              ? `${seconds} s ago`
+              : seconds < 3600
+                ? `${Math.floor(seconds / 60)} min ago`
+                : seconds < 86400
+                  ? `${Math.floor(seconds / 3600)} h ago`
+                  : `${Math.floor(seconds / 86400)} d ago`;
+    return `${time} · ${ago}`;
+};
+
+// frames per second of the last few seconds
+export const framesPerSecond = (times: number[], now: number, windowMs = 3000): number => {
+    const recent = times.filter((t) => now - t <= windowMs);
+    if (recent.length < 2) return recent.length === 1 && now - recent[0] < 1500 ? 1 : 0;
+    return ((recent.length - 1) * 1000) / Math.max(1, recent[recent.length - 1] - recent[0]);
+};
+
 interface ImageFrameProps {
     frameStore: FrameStore;
     // the topicRef whose frames it shows ("any" or none: all)
@@ -116,6 +200,8 @@ interface ImageFrameProps {
     maxZoom?: number;
     zoomStep?: number;
     showControls?: boolean;
+    // the Image panels: a video (fps, pause and continue) or a photo (when it arrived); none: only the picture
+    mode?: "video" | "photo";
 }
 
 export const ImageFrame: React.FC<ImageFrameProps> = ({
@@ -126,9 +212,19 @@ export const ImageFrame: React.FC<ImageFrameProps> = ({
     maxZoom = 5,
     zoomStep = 0.1,
     showControls = true,
+    mode,
 }) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const [hasFirstFrame, setHasFirstFrame] = useState(false);
+    // video: paused (the frames that arrive meanwhile are not drawn; the last one is drawn on continue)
+    const [paused, setPaused] = useState(false);
+    const pausedRef = useRef(false);
+    const heldRef = useRef<{ frame: Blob; at: number } | null>(null);
+    const drawRef = useRef<((frame: Blob, at: number) => void) | null>(null);
+    const timesRef = useRef<number[]>([]);
+    const [fps, setFps] = useState(0);
+    const [shownAt, setShownAt] = useState<number | null>(null);
+    const [now, setNow] = useState(() => Date.now());
 
     const [scale, setScale] = useState(1);
     const [translateX, setTranslateX] = useState(0);
@@ -148,9 +244,11 @@ export const ImageFrame: React.FC<ImageFrameProps> = ({
         let pending: Blob | null = null;
         let cancelled = false;
 
-        const draw = async (frame: Blob) => {
+        let pendingAt = 0;
+        const draw = async (frame: Blob, at: number = Date.now()) => {
             if (decoding) {
                 pending = frame;
+                pendingAt = at;
                 return;
             }
             decoding = true;
@@ -164,6 +262,7 @@ export const ImageFrame: React.FC<ImageFrameProps> = ({
                     }
                     canvas.getContext("2d")?.drawImage(bitmap, 0, 0);
                     setHasFirstFrame(true); // only re-renders the first time
+                    if (mode === "photo") setShownAt(at);
                 }
                 bitmap.close();
             } catch (err) {
@@ -173,18 +272,57 @@ export const ImageFrame: React.FC<ImageFrameProps> = ({
                 if (pending && !cancelled) {
                     const next = pending;
                     pending = null;
-                    draw(next);
+                    draw(next, pendingAt);
                 }
             }
         };
 
         setHasFirstFrame(false);
-        const unsubscribe = frameStore.subscribe(draw, source);
+        setShownAt(null);
+        timesRef.current = [];
+        heldRef.current = null;
+        drawRef.current = draw;
+        const unsubscribe = frameStore.subscribe((frame, at) => {
+            timesRef.current.push(at);
+            if (timesRef.current.length > 120) timesRef.current.splice(0, timesRef.current.length - 120);
+            if (pausedRef.current) {
+                heldRef.current = { frame, at };
+                return;
+            }
+            draw(frame, at);
+        }, source);
         return () => {
             cancelled = true;
             unsubscribe();
         };
-    }, [frameStore, source]);
+    }, [frameStore, source, mode]);
+
+    // the fps of the video and the age of the photo, once a second
+    useEffect(() => {
+        if (!mode) return;
+        const tick = () => {
+            const t = Date.now();
+            if (mode === "video") {
+                const value = Math.round(framesPerSecond(timesRef.current, t) * 10) / 10;
+                setFps((old) => (old === value ? old : value));
+            } else setNow(t);
+        };
+        tick();
+        const timer = setInterval(tick, 1000);
+        return () => clearInterval(timer);
+    }, [mode]);
+
+    const togglePause = useCallback(() => {
+        const next = !pausedRef.current;
+        pausedRef.current = next;
+        setPaused(next);
+        // continue: the newest frame at once
+        if (!next && heldRef.current && drawRef.current) {
+            const { frame, at } = heldRef.current;
+            heldRef.current = null;
+            drawRef.current(frame, at);
+        }
+    }, []);
 
     // Wheel zoom
     useEffect(() => {
@@ -273,6 +411,37 @@ export const ImageFrame: React.FC<ImageFrameProps> = ({
                     <FramedCanvas ref={canvasRef} />
                 </ZoomContainer>
             </div>
+
+            {mode === "video" && (
+                <InfoBar>
+                    {paused ? (
+                        <Badge $tone="paused">Paused</Badge>
+                    ) : hasFirstFrame ? (
+                        <Badge $tone="live" aria-label={`Live, ${fps} frames per second`}>
+                            Live · {fps.toLocaleString(undefined, { maximumFractionDigits: 1 })} fps
+                        </Badge>
+                    ) : (
+                        <Badge $tone="plain">Waiting for frames</Badge>
+                    )}
+                    {hasFirstFrame && (
+                        <PauseButton
+                            type="button"
+                            className="ws-no-drag"
+                            aria-pressed={paused}
+                            onMouseDown={(e) => e.stopPropagation()}
+                            onClick={togglePause}
+                        >
+                            {paused ? <Play aria-hidden="true" /> : <Pause aria-hidden="true" />}
+                            {paused ? "Continue" : "Pause"}
+                        </PauseButton>
+                    )}
+                </InfoBar>
+            )}
+            {mode === "photo" && (
+                <InfoBar>
+                    <Badge $tone="plain">{shownAt !== null ? photoAge(shownAt, now) : "No photo yet"}</Badge>
+                </InfoBar>
+            )}
 
             {showControls && hasFirstFrame && (
                 <ZoomControls>

@@ -5,6 +5,7 @@ import * as echarts from "echarts/core";
 import { BarChart, GaugeChart, LineChart, PieChart, ScatterChart } from "echarts/charts";
 import { GridComponent, MarkAreaComponent, MarkLineComponent, TooltipComponent } from "echarts/components";
 import { CanvasRenderer } from "echarts/renderers";
+import { ChartPointer } from "./echartsOptions";
 
 echarts.use([LineChart, BarChart, ScatterChart, GaugeChart, PieChart, GridComponent, TooltipComponent, MarkLineComponent, MarkAreaComponent, CanvasRenderer]);
 
@@ -14,9 +15,11 @@ export interface EchartsViewProps {
     onSize?: (width: number, height: number) => void;
     // a click on a point, bar, slice or gauge: its series, its value and where
     onClick?: (params: { seriesIndex?: number; dataIndex?: number; value?: unknown; name?: string }, clientX: number, clientY: number) => void;
+    // filled with where the pointer is over the chart (the tooltip of the time series)
+    pointer?: ChartPointer;
 }
 
-const EchartsView: FC<EchartsViewProps> = ({ option, label, onSize, onClick }) => {
+const EchartsView: FC<EchartsViewProps> = ({ option, label, onSize, onClick, pointer }) => {
     const ref = useRef<HTMLDivElement>(null);
     const chartRef = useRef<echarts.ECharts | null>(null);
     const sizeRef = useRef(onSize);
@@ -38,6 +41,24 @@ const EchartsView: FC<EchartsViewProps> = ({ option, label, onSize, onClick }) =
             const e = params?.event?.event as MouseEvent | undefined;
             clickRef.current?.(params, e?.clientX ?? 0, e?.clientY ?? 0);
         });
+        // the pointer over the chart, and how a value of a y axis is drawn (pixels)
+        if (pointer && chart && typeof chart.getZr === "function") {
+            const drawn = chart;
+            pointer.toPixelY = (value, yAxisIndex) => {
+                try {
+                    const py = drawn.convertToPixel({ yAxisIndex }, value);
+                    return typeof py === "number" ? py : null;
+                } catch {
+                    return null;
+                }
+            };
+            drawn.getZr().on("mousemove", (e: { offsetY: number }) => {
+                pointer.y = e.offsetY;
+            });
+            drawn.getZr().on("globalout", () => {
+                pointer.y = null;
+            });
+        }
         const report = () => {
             chart?.resize();
             sizeRef.current?.(el.clientWidth, el.clientHeight);
@@ -52,6 +73,10 @@ const EchartsView: FC<EchartsViewProps> = ({ option, label, onSize, onClick }) =
             observer?.disconnect();
             chart?.dispose();
             chartRef.current = null;
+            if (pointer) {
+                pointer.y = null;
+                pointer.toPixelY = null;
+            }
         };
     }, []);
 

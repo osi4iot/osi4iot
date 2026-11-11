@@ -16,7 +16,9 @@
 // scroll). Types: "model" (the 3D model, at most one), "image" (frames of a topic, "any" = all of them) and
 // "chart" (fields of sensors of the asset, drawn as a Grafana panel: viz, series, options, fieldConfig, and
 // the panel's own time: timeFrom, timeShift, interval, maxDataPoints),
-// "alarms" and "approvals" (the twin's alarms and approval requests, from the history tables; one of each).
+// "alarms" and "approvals" (the twin's alarms and approval requests, from the history tables; one of each) and
+// "markdown" (a Text panel: text with markdown, LaTeX and values of the NATS messages) and "picture" (an image of
+// the twin's files, viewerImages; an SVG with animations of its elements: bindings).
 
 export const VIEWER_LAYOUT_VERSION = 2;
 export const VIEWER_LAYOUT_MAX_SLIDES = 20;
@@ -32,7 +34,75 @@ export const CHART_VIZ = ["timeseries", "barchart", "stat", "gauge", "bargauge",
 const SAFE_URL = /^(https?:\/\/|\/(?!\/))/i;
 export const SERIES_AGGREGATIONS = ["mean", "min", "max", "last", "first", "sum", "count"] as const;
 export const REFRESH_INTERVALS = ["", "200ms", "1s", "5s", "10s", "30s", "1m", "5m", "15m", "30m", "1h", "2h", "1d"] as const;
-export const VIEWER_PANEL_TYPES = ["model", "image", "chart", "alarms", "approvals"] as const;
+export const VIEWER_PANEL_TYPES = ["model", "image", "chart", "alarms", "approvals", "markdown", "picture"] as const;
+// a Picture panel: an image of the twin (folder viewerImages of its files) and, for an SVG, animations of its
+// elements with values of the NATS messages
+export const VIEWER_PICTURE_FILE = /^[A-Za-z0-9_][A-Za-z0-9_.-]{0,79}\.(png|jpe?g|webp|gif|svg)$/i;
+export const VIEWER_PICTURE_FITS = ["contain", "cover", "fill"] as const;
+export const VIEWER_PICTURE_ACTIONS = ["text", "color", "rotate", "translateX", "translateY", "scale", "opacity", "visible"] as const;
+export const VIEWER_PICTURE_MAX_BINDINGS = 100;
+const PICTURE_ELEMENT = /^[A-Za-z_][A-Za-z0-9_.:-]{0,79}$/;
+const PICTURE_PATH = /^[A-Za-z0-9_-]+(\.[A-Za-z0-9_-]+){0,15}$/;
+const PICTURE_COLOR = /^(#[0-9a-fA-F]{3,8}|[a-zA-Z]{3,20}|rgba?\([\d\s.,%]+\))$/;
+const PICTURE_COMPARE = [">", ">=", "<", "<=", "==", "!="];
+
+export interface IPictureBinding {
+	element: string;
+	topicRef: string;
+	path: string;
+	action: (typeof VIEWER_PICTURE_ACTIONS)[number];
+	[key: string]: unknown;
+}
+
+const isNum = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v);
+
+const validatePictureBindings = (raw: unknown): IPictureBinding[] | string => {
+	if (raw === undefined) return [];
+	if (!Array.isArray(raw)) return "bindings must be an array";
+	if (raw.length > VIEWER_PICTURE_MAX_BINDINGS) return `at most ${VIEWER_PICTURE_MAX_BINDINGS} animations`;
+	const out: IPictureBinding[] = [];
+	for (const [i, item] of raw.entries()) {
+		const where = `animation ${i + 1}`;
+		if (!item || typeof item !== "object" || Array.isArray(item)) return `${where}: must be an object`;
+		const b = item as Record<string, unknown>;
+		if (typeof b.element !== "string" || !PICTURE_ELEMENT.test(b.element)) return `${where}: invalid element id`;
+		if (typeof b.topicRef !== "string" || !SOURCE.test(b.topicRef)) return `${where}: invalid topic`;
+		if (typeof b.path !== "string" || !PICTURE_PATH.test(b.path)) return `${where}: invalid field`;
+		if (!VIEWER_PICTURE_ACTIONS.includes(b.action as IPictureBinding["action"])) return `${where}: invalid action`;
+		const binding: IPictureBinding = { element: b.element, topicRef: b.topicRef, path: b.path, action: b.action as IPictureBinding["action"] };
+		for (const key of ["inMin", "inMax", "outMin", "outMax", "cx", "cy", "value", "decimals"]) {
+			if (b[key] === undefined) continue;
+			if (!isNum(b[key])) return `${where}: ${key} must be a number`;
+			binding[key] = b[key];
+		}
+		for (const key of ["prefix", "suffix"]) {
+			if (b[key] === undefined) continue;
+			if (typeof b[key] !== "string" || (b[key] ).length > 20) return `${where}: ${key} must be a text of at most 20 characters`;
+			binding[key] = b[key];
+		}
+		if (b.target !== undefined) {
+			if (b.target !== "fill" && b.target !== "stroke") return `${where}: target must be "fill" or "stroke"`;
+			binding.target = b.target;
+		}
+		if (b.op !== undefined) {
+			if (!PICTURE_COMPARE.includes(b.op as string)) return `${where}: invalid comparison`;
+			binding.op = b.op;
+		}
+		if (b.thresholds !== undefined) {
+			if (!Array.isArray(b.thresholds) || b.thresholds.length > 20) return `${where}: thresholds must be a list of at most 20`;
+			for (const t of b.thresholds) {
+				if (!t || typeof t !== "object" || typeof t.color !== "string" || !PICTURE_COLOR.test(t.color) || !(t.value === null || isNum(t.value))) {
+					return `${where}: each threshold has a value (or null) and a colour`;
+				}
+			}
+			binding.thresholds = b.thresholds.map((t: { value: number | null; color: string }) => ({ value: t.value, color: t.color }));
+		}
+		out.push(binding);
+	}
+	return out;
+};
+// the text of a Text panel (markdown, LaTeX and {{topicRef.path}} values of the NATS messages)
+export const VIEWER_MARKDOWN_MAX_LENGTH = 20000;
 export const CHART_RANGES = ["15m", "1h", "6h", "24h", "7d", "30d"] as const;
 export const CHART_MAX_SERIES = 8;
 
@@ -60,6 +130,12 @@ export interface IViewerPanel {
 	type: ViewerPanelType;
 	title?: string;
 	source?: string;
+	// image: shown as a video (live, with pause) or as a photo (the last one); video when not said
+	display?: "video" | "photo";
+	text?: string;
+	file?: string;
+	fit?: (typeof VIEWER_PICTURE_FITS)[number];
+	bindings?: IPictureBinding[];
 	series?: IChartSeries[];
 	range?: (typeof CHART_RANGES)[number];
 	viz?: (typeof CHART_VIZ)[number];
@@ -212,6 +288,29 @@ const validatePanels = (panels: unknown, prefix: string): IViewerPanel[] | strin
 		if (p.type === "image") {
 			if (typeof p.source !== "string" || !SOURCE.test(p.source)) return `${where}: invalid image source`;
 			panel.source = p.source;
+			if (p.display !== undefined) {
+				if (p.display !== "video" && p.display !== "photo") return `${where}: display must be "video" or "photo"`;
+				panel.display = p.display;
+			}
+		}
+		if (p.type === "markdown") {
+			if (p.text !== undefined && typeof p.text !== "string") return `${where}: the text must be a string`;
+			const text = (p.text as string | undefined) ?? "";
+			if (text.length > VIEWER_MARKDOWN_MAX_LENGTH) return `${where}: the text must have at most ${VIEWER_MARKDOWN_MAX_LENGTH} characters`;
+			panel.text = text;
+		}
+		if (p.type === "picture") {
+			if (p.file !== undefined) {
+				if (typeof p.file !== "string" || !VIEWER_PICTURE_FILE.test(p.file)) return `${where}: invalid picture file`;
+				panel.file = p.file;
+			}
+			if (p.fit !== undefined) {
+				if (!VIEWER_PICTURE_FITS.includes(p.fit as IViewerPanel["fit"])) return `${where}: fit must be contain, cover or fill`;
+				panel.fit = p.fit as IViewerPanel["fit"];
+			}
+			const bindings = validatePictureBindings(p.bindings);
+			if (typeof bindings === "string") return `${where}: ${bindings}`;
+			if (bindings.length) panel.bindings = bindings;
 		}
 		if (p.type === "chart") {
 			const series = validateChartSeries(p.series);

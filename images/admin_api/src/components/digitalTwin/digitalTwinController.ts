@@ -95,13 +95,29 @@ const uploadDigitalTwinFile = multer({
 // The folders a digital twin's files can be uploaded to. The documents
 // the AI agents read are no longer per digital twin (docInfoFiles): they
 // are the group's knowledge base (group_knowledge_upload_file).
-const DIGITAL_TWIN_UPLOAD_FOLDERS = ["gltfFile", "femResJson"];
+// viewerImages: the pictures of the Picture panels of the Viewer page (JPEG, PNG, WebP, GIF and SVG).
+const DIGITAL_TWIN_UPLOAD_FOLDERS = ["gltfFile", "femResJson", "viewerImages"];
+
+export const VIEWER_IMAGE_NAME = /^[A-Za-z0-9_][A-Za-z0-9_.-]{0,79}\.(png|jpe?g|webp|gif|svg)$/i;
+export const VIEWER_IMAGE_MAX_BYTES = 10 * 1024 * 1024;
+export const VIEWER_IMAGES_MAX_FILES = 100;
+export const viewerImageContentType = (fileName: string): string => {
+	const ext = fileName.split(".").pop()?.toLowerCase();
+	if (ext === "svg") return "image/svg+xml";
+	if (ext === "jpg" || ext === "jpeg") return "image/jpeg";
+	return `image/${ext}`;
+};
 
 const validDigitalTwinUploadFolder = (req: IRequestWithDigitalTwinAndGroup, res: Response, next: NextFunction): void => {
 	const { folder } = req.params;
 	if (!DIGITAL_TWIN_UPLOAD_FOLDERS.includes(folder)) {
 		const hint = folder === "docInfoFiles" ? " Documents for the AI agents go to the group's knowledge base." : "";
 		return next(new HttpException(req, res, 400, `Invalid digital twin folder: ${folder}.${hint}`));
+	}
+	if (folder === "viewerImages" && !VIEWER_IMAGE_NAME.test(req.params.fileName)) {
+		return next(
+			new HttpException(req, res, 400, "The name of a viewer image must end in .png, .jpg, .jpeg, .webp, .gif or .svg (letters, digits, _ . -; at most 80 characters).")
+		);
 	}
 	next();
 };
@@ -533,6 +549,23 @@ class DigitalTwinController implements IController {
 				await natsClient.jsPublish("femResults", "create", req.digitalTwin.id, context);
 			} else if (folder === "gltfFile") {
 				await checkNumberOfGltfFiles(req.digitalTwin);
+			} else if (folder === "viewerImages") {
+				// too big, or too many: the file uploaded is removed again
+				const file = (req as unknown as { file?: { size?: number; key?: string } }).file;
+				const keyBase = `org_data/org_${req.group.orgId}/group_${req.params.groupId}/digitalTwin_${req.params.digitalTwinId}`;
+				const images = await getBucketFolderInfoFileList(`${keyBase}/viewerImages`);
+				const tooBig = (file?.size ?? 0) > VIEWER_IMAGE_MAX_BYTES;
+				if (tooBig || images.length > VIEWER_IMAGES_MAX_FILES) {
+					await deleteBucketFile(`${keyBase}/viewerImages/${fileName}`);
+					throw new HttpException(
+						req,
+						res,
+						400,
+						tooBig
+							? `A viewer image must have at most ${VIEWER_IMAGE_MAX_BYTES / 1024 / 1024} MB.`
+							: `A digital twin can have at most ${VIEWER_IMAGES_MAX_FILES} viewer images.`
+					);
+				}
 			}
 			infoLogger(req, res, 200, message.message);
 			res.status(200).send(message);
@@ -558,6 +591,12 @@ class DigitalTwinController implements IController {
 
 		try {
 			const data = await s3Client.send(new GetObjectCommand(bucketParams));
+			// the images of the viewer with their type (the browser shows them as images, SVG included)
+			if (folder === "viewerImages") {
+				res.setHeader("Content-Type", viewerImageContentType(fileName));
+				res.setHeader("X-Content-Type-Options", "nosniff");
+				res.setHeader("Content-Security-Policy", "script-src 'none'; sandbox");
+			}
 			const stream = data.Body as unknown as ReadStream;
 			stream.pipe(res);
 		} catch (error) {

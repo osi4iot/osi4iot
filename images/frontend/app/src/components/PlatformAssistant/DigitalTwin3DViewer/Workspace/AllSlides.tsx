@@ -5,7 +5,7 @@
 // for the user) as every other change of the layout. While searching, the order cannot be changed.
 import { DragEvent, FC, KeyboardEvent, useEffect, useRef, useState } from "react";
 import styled from "styled-components";
-import { BellRing, Box, Camera, ChartLine, ClipboardCheck, Eye, EyeOff, GripVertical, Search, X } from "lucide-react";
+import { BellRing, Box, ChartLine, FileImage, FileText, Image as ImageIcon, Video, ClipboardCheck, Eye, EyeOff, GripVertical, Search, X } from "lucide-react";
 import { scrollbarStyle } from "../../../Tools/FormTools";
 import { GRID_COLS, PAGE_ROWS, PanelType, WorkspaceSlide, panelTitle, searchSlides } from "./workspaceLayout";
 
@@ -312,13 +312,19 @@ const BLOCK_COLOR: Record<PanelType, string> = {
     chart: "#1f3348",
     alarms: "#47262b",
     approvals: "#262f48",
+    markdown: "#2f3540",
+    picture: "#2d3a2f",
 };
 
-const blockIcon = (type: PanelType) =>
+const blockIcon = (type: PanelType, photo = false) =>
     type === "model" ? (
         <Box aria-hidden="true" />
     ) : type === "image" ? (
-        <Camera aria-hidden="true" />
+        photo ? <ImageIcon aria-hidden="true" /> : <Video aria-hidden="true" />
+    ) : type === "markdown" ? (
+        <FileText aria-hidden="true" />
+    ) : type === "picture" ? (
+        <FileImage aria-hidden="true" />
     ) : type === "alarms" ? (
         <BellRing aria-hidden="true" />
     ) : type === "approvals" ? (
@@ -337,7 +343,7 @@ const Thumbnail: FC<{ slide: WorkspaceSlide }> = ({ slide }) => {
                     key={p.id}
                     style={{ gridColumn: `${p.x + 1} / span ${p.w}`, gridRow: `${p.y + 1} / span ${p.h}`, background: BLOCK_COLOR[p.type] }}
                 >
-                    {blockIcon(p.type)}
+                    {blockIcon(p.type, p.display === "photo")}
                     {p.w >= 3 && p.h >= 2 && <span>{panelTitle(p)}</span>}
                 </Block>
             ))}

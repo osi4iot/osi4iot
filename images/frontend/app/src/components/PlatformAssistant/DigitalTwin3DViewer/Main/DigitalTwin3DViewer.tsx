@@ -125,6 +125,10 @@ import {
 import SlideBar from "../Workspace/SlideBar";
 import AllSlides from "../Workspace/AllSlides";
 import ViewerConfigDialog from "../Workspace/ViewerConfigDialog";
+import { MarkdownEditor, MarkdownView } from "../Workspace/MarkdownPanel";
+import { PictureEditor, PictureFiles, PictureView } from "../Workspace/PicturePanel";
+import { deleteViewerImage, listViewerImages, loadViewerImage, uploadViewerImage } from "../Workspace/viewerImagesApi";
+import { createLiveValueStore, liveTopicRefs, liveTopicsOf, topicRefsOf, useLiveValues } from "../Workspace/liveValues";
 import {
     ParsedViewerConfig,
     buildViewerConfig,
@@ -1177,6 +1181,35 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
     // the chart panel open in the editor (full page)
     const [editingPanelId, setEditingPanelId] = useState<string | null>(null);
     const editingPanel = editingPanelId ? currentSlide.panels.find((panel) => panel.id === editingPanelId) ?? null : null;
+    // the values of the NATS messages for the Text panels: the topics they name (all of them while one is edited,
+    // so that its editor offers their fields)
+    const liveStore = useMemo(createLiveValueStore, []);
+    const twinLiveTopics = useMemo(() => liveTopicRefs(digitalTwinGltfData?.natsSubjectsData ?? []), [digitalTwinGltfData?.natsSubjectsData]);
+    // the same topics with what is known of them: the fields of the sensors of each dev2pdb topic
+    const liveTopics = useMemo(() => {
+        const topicOfSensor: Record<string, string> = {};
+        for (const sensor of (sensorsTable ?? []) as { sensorRef: string; topicRef: string }[]) topicOfSensor[sensor.sensorRef] = sensor.topicRef;
+        return liveTopicsOf(digitalTwinGltfData?.natsSubjectsData ?? [], chartOptions, topicOfSensor);
+    }, [digitalTwinGltfData?.natsSubjectsData, chartOptions, sensorsTable]);
+    const shownLiveTopics = useMemo(() => {
+        if (editingPanel?.type === "markdown" || editingPanel?.type === "picture") return twinLiveTopics;
+        const panels = workspaceLayout.slides.flatMap((slide) => slide.panels);
+        const texts = panels.filter((p) => p.type === "markdown").map((p) => p.text ?? "");
+        const animated = panels.flatMap((p) => (p.type === "picture" ? (p.bindings ?? []).map((b) => b.topicRef) : []));
+        return Array.from(new Set([...topicRefsOf(texts), ...animated])).sort();
+    }, [editingPanel?.type, twinLiveTopics, workspaceLayout]);
+    // the images of the Picture panels: files of the twin
+    const pictureFiles = useMemo<PictureFiles | undefined>(() => {
+        if (!digitalTwinSelected) return undefined;
+        const { groupId, id } = digitalTwinSelected;
+        return {
+            load: (fileName) => loadViewerImage(groupId, id, fileName, layoutAuth),
+            list: () => listViewerImages(groupId, id, layoutAuth),
+            upload: (file, fileName) => uploadViewerImage(groupId, id, file, fileName, layoutAuth),
+            remove: (fileName) => deleteViewerImage(groupId, id, fileName, layoutAuth),
+        };
+    }, [digitalTwinSelected, layoutAuth]);
+    useLiveValues(natsClient, digitalTwinGltfData?.natsSubjectsData ?? [], shownLiveTopics, liveStore);
 
     const startLayoutEdit = useCallback(() => {
         setMaximizedPanel(null);
@@ -1685,8 +1718,12 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
                                     )}
                                 </PageClock>
                             ) : null
+                        ) : panel.type === "picture" ? (
+                            <PictureView file={panel.file} fit={panel.fit} bindings={panel.bindings} store={liveStore} load={pictureFiles?.load} />
+                        ) : panel.type === "markdown" ? (
+                            <MarkdownView text={panel.text ?? ""} store={liveStore} />
                         ) : panel.type === "image" ? (
-                            <ImageFrame frameStore={frameStore} source={panel.source ?? ANY_IMAGE_SOURCE} />
+                            <ImageFrame frameStore={frameStore} source={panel.source ?? ANY_IMAGE_SOURCE} mode={panel.display === "photo" ? "photo" : "video"} />
                         ) : viewerHasModel ? (
                             <ModelSlot host={modelHost} />
                         ) : null
@@ -1862,7 +1899,26 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
                     />
                 )}
 
-                {editingPanel && digitalTwinSelected && (
+                {editingPanel?.type === "picture" && pictureFiles && (
+                    <PictureEditor
+                        panel={editingPanel}
+                        store={liveStore}
+                        topics={liveTopics}
+                        files={pictureFiles}
+                        onApply={applyPanel}
+                        onDiscard={() => setEditingPanelId(null)}
+                    />
+                )}
+                {editingPanel?.type === "markdown" && (
+                    <MarkdownEditor
+                        panel={editingPanel}
+                        store={liveStore}
+                        topics={liveTopics}
+                        onApply={applyPanel}
+                        onDiscard={() => setEditingPanelId(null)}
+                    />
+                )}
+                {editingPanel && editingPanel.type === "chart" && digitalTwinSelected && (
                     <PageClock clock={refreshClock} time={pageTime}>
                         {(pageRange, refreshTick) => (
                             <PanelEditor

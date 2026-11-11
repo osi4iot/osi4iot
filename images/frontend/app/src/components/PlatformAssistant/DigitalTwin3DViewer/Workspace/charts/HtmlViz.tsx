@@ -565,4 +565,3 @@ export const StateTimelineViz: FC<{ series: DrawSeries[]; settings: ChartSetting
 };
 
 export const StatTimelineFallback: FC = () => <Empty>This visualization is not available</Empty>;
-

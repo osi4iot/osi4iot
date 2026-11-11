@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
     reorderSlide,
+    imageDisplayOf,
+    setPanelDisplay,
     searchSlides,
     ANY_IMAGE_SOURCE,
     GRID_COLS,
@@ -107,8 +109,8 @@ describe("workspace layout", () => {
         const layout = defaultWorkspaceLayout({ hasModel: true, hasCamera: true }).slides[0];
         const renamed = renamePanel(layout, "image", " Phone ");
         expect(panelTitle(renamed.panels[1])).toBe("Phone");
-        expect(panelTitle(renamePanel(renamed, "image", "  ").panels[1])).toBe("Image");
-        expect(panelTitle({ id: "x", type: "image", source: "dtm2sim", x: 0, y: 0, w: 1, h: 1 })).toBe("Pipeline images");
+        expect(panelTitle(renamePanel(renamed, "image", "  ").panels[1])).toBe("Video");
+        expect(panelTitle({ id: "x", type: "image", source: "dtm2sim", x: 0, y: 0, w: 1, h: 1 })).toBe("Video · Pipeline images");
         const same = applyGridItems(layout, layout.panels.map((p) => ({ i: p.id, x: p.x, y: p.y, w: p.w, h: p.h })));
         expect(same).toBe(layout);
         const moved = applyGridItems(layout, [{ i: "image", x: 0, y: 12, w: 12, h: 4 }]);
@@ -323,5 +325,21 @@ describe("workspace layout", () => {
         expect(setPanelSource(page, "i2", "dev2dtm_3").panels[0].source).toBe("dev2dtm_3");
         expect(setPanelSource(page, "i2", "bad source!").panels[0].source).toBe("dtm2sim");
         expect(imageSourceLabel("dev2dtm_3")).toBe("Device (dev2dtm_3)");
+    });
+});
+
+describe("video and photo panels", () => {
+    it("adds, reads and changes how an Image panel shows its frames", () => {
+        const page = addPanel(addPanel({ panels: [] as WorkspacePanel[] }, { type: "image", source: "dev2dtm_1", display: "photo" }), { type: "image" });
+        expect(page.panels.map((p) => [p.display, panelTitle(p)])).toEqual([
+            ["photo", "Photo · Device (dev2dtm_1)"],
+            ["video", "Video"],
+        ]);
+        // the panels saved before: video
+        const old = sanitizeWorkspaceLayout({ version: 2, slides: [{ id: "s", title: "S", tag: "S", panels: [{ id: "i", type: "image", source: "dtm2sim", x: 0, y: 0, w: 4, h: 4 }] }] }, { hasModel: false })!;
+        expect(imageDisplayOf(old.slides[0].panels[0])).toBe("video");
+        const kept = sanitizeWorkspaceLayout({ version: 2, slides: [{ id: "s", title: "S", tag: "S", panels: [{ id: "i", type: "image", display: "photo", x: 0, y: 0, w: 4, h: 4 }] }] }, { hasModel: false })!;
+        expect(kept.slides[0].panels[0].display).toBe("photo");
+        expect(setPanelDisplay(page, page.panels[1].id, "photo").panels[1].display).toBe("photo");
     });
 });

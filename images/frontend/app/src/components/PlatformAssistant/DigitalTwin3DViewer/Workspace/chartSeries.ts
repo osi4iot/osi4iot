@@ -241,4 +241,3 @@ export const buildChartOption = (data: TimeSeriesResponse, now = Date.now()) => 
 };
 
 export const hasPoints = (data: TimeSeriesResponse | null) => !!data && data.series.some((s) => s.points.length > 0);
-

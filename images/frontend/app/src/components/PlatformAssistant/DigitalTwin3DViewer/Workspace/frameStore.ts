@@ -7,7 +7,8 @@
 
 export const ANY_SOURCE = "any";
 
-export type FrameListener = (frame: Blob) => void;
+// the frame and when it reached the viewer (ms since 1970)
+export type FrameListener = (frame: Blob, receivedAt: number) => void;
 export type SourcesListener = (sources: string[]) => void;
 
 export interface FrameStore {
@@ -19,13 +20,15 @@ export interface FrameStore {
 
 export interface FrameStoreHandle {
     store: FrameStore;
-    publish: (frame: Blob, source?: string) => void;
+    publish: (frame: Blob, source?: string, receivedAt?: number) => void;
 }
 
 export const createFrameStore = (): FrameStoreHandle => {
     const listeners = new Map<string, Set<FrameListener>>();
     const latest = new Map<string, Blob>();
+    const latestAt = new Map<string, number>();
     let latestAny: Blob | null = null;
+    let latestAnyAt = 0;
     const sourceListeners = new Set<SourcesListener>();
     const sources = (): string[] => Array.from(latest.keys()).sort();
 
@@ -43,7 +46,7 @@ export const createFrameStore = (): FrameStoreHandle => {
             subscribe: (listener, source = ANY_SOURCE) => {
                 listenersOf(source).add(listener);
                 const last = source === ANY_SOURCE ? latestAny : latest.get(source);
-                if (last) listener(last);
+                if (last) listener(last, source === ANY_SOURCE ? latestAnyAt : latestAt.get(source) ?? 0);
                 return () => {
                     listeners.get(source)?.delete(listener);
                 };
@@ -56,14 +59,16 @@ export const createFrameStore = (): FrameStoreHandle => {
                 };
             },
         },
-        publish: (frame, source = "") => {
+        publish: (frame, source = "", receivedAt = Date.now()) => {
             latestAny = frame;
+            latestAnyAt = receivedAt;
             const isNewSource = source !== "" && !latest.has(source);
             if (source !== "") {
                 latest.set(source, frame);
-                listeners.get(source)?.forEach((listener) => listener(frame));
+                latestAt.set(source, receivedAt);
+                listeners.get(source)?.forEach((listener) => listener(frame, receivedAt));
             }
-            listeners.get(ANY_SOURCE)?.forEach((listener) => listener(frame));
+            listeners.get(ANY_SOURCE)?.forEach((listener) => listener(frame, receivedAt));
             if (isNewSource) {
                 const list = sources();
                 sourceListeners.forEach((listener) => listener(list));

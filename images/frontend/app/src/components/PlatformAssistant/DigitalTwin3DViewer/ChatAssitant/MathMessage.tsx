@@ -6,14 +6,31 @@ function escapeHTML(s: string) {
     return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
-// Inline markdown on text that is ALREADY HTML-escaped: code, bold, italics.
-// Inline code is set aside first, so that nothing inside it is formatted.
-function processInlineMarkdown(text: string): string {
+// Options of the renderer: the chat (by default) or a document (the Text panels of the Viewer page), which
+// also has links, images, rules and quotes, and headings of their real size
+export interface MarkdownOptions {
+    document?: boolean;
+}
+
+// the address of a link or an image ALREADY HTML-escaped: only web addresses (and mail for links, and data
+// images that are not SVG for images), nothing that can run (javascript:)
+const LINK_URL = /^(https?:\/\/|mailto:)[^\s]+$/i;
+const IMAGE_URL = /^(https?:\/\/[^\s]+|data:image\/(png|jpeg|jpg|gif|webp);base64,[A-Za-z0-9+/=]+)$/i;
+
+// Inline markdown on text that is ALREADY HTML-escaped: code, bold, italics (and in documents images and links).
+// Inline code, images and links are set aside first, so that nothing inside them is formatted.
+function processInlineMarkdown(text: string, options: MarkdownOptions = {}): string {
     const codes: string[] = [];
-    let result = text.replace(/`([^`]+)`/g, (_m, code) => {
-        const i = codes.push(`<code>${code}</code>`) - 1;
-        return `\u0002${i}\u0002`;
-    });
+    const setAside = (html: string) => `\u0002${codes.push(html) - 1}\u0002`;
+    let result = text.replace(/`([^`]+)`/g, (_m, code) => setAside(`<code>${code}</code>`));
+    if (options.document) {
+        result = result.replace(/!\[([^\]]*)\]\(([^)\s]+)\)/g, (m, alt, url) =>
+            IMAGE_URL.test(url) ? setAside(`<img class="md-image" src="${url}" alt="${alt}" loading="lazy"/>`) : m,
+        );
+        result = result.replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, (m, label, url) =>
+            LINK_URL.test(url) ? setAside(`<a class="md-link" href="${url}" target="_blank" rel="noopener noreferrer">${label}</a>`) : m,
+        );
+    }
 
     // Negrita: **texto**, luego *texto*
     result = result.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
@@ -46,7 +63,7 @@ function isTableStart(lines: string[], i: number): boolean {
     );
 }
 
-function renderTable(lines: string[], start: number): { html: string; next: number } {
+function renderTable(lines: string[], start: number, options: MarkdownOptions = {}): { html: string; next: number } {
     const header = splitTableRow(lines[start]);
     const aligns = splitTableRow(lines[start + 1]).map((cell) => {
         const left = cell.startsWith(":");
@@ -56,7 +73,7 @@ function renderTable(lines: string[], start: number): { html: string; next: numb
         return "left";
     });
     const cellHtml = (tag: "th" | "td", text: string, col: number) =>
-        `<${tag} style="text-align:${aligns[col] ?? "left"}">${processInlineMarkdown(text)}</${tag}>`;
+        `<${tag} style="text-align:${aligns[col] ?? "left"}">${processInlineMarkdown(text, options)}</${tag}>`;
 
     let html = `<div class="md-table"><table><thead><tr>${header.map((c, k) => cellHtml("th", c, k)).join("")}</tr></thead><tbody>`;
     let i = start + 2;
@@ -74,7 +91,9 @@ const HEADING_RE = /^\s*(#{1,6})\s+(.*?)\s*#*\s*$/;
 
 // Converts the lines (already escaped) to HTML. Blocks (tables, titles,
 // lists) are joined without line breaks; plain lines are separated by <br/>.
-function processBlockMarkdown(text: string): string {
+function processBlockMarkdown(text: string, options: MarkdownOptions = {}): string {
+    const inline = (t: string) => processInlineMarkdown(t, options);
+    const doc = options.document === true;
     const lines = text.split(/\r?\n/);
     const out: string[] = [];
     let pendingBreak = false; // a <br/> before the next plain line
@@ -93,7 +112,7 @@ function processBlockMarkdown(text: string): string {
         const line = lines[i];
 
         if (isTableStart(lines, i)) {
-            const { html, next } = renderTable(lines, i);
+            const { html, next } = renderTable(lines, i, options);
             pushBlock(html);
             i = next;
             continue;
@@ -101,9 +120,25 @@ function processBlockMarkdown(text: string): string {
 
         const heading = HEADING_RE.exec(line);
         if (heading) {
-            const level = Math.min(heading[1].length + 2, 6); // títulos discretos en el chat
-            pushBlock(`<h${level} class="md-heading">${processInlineMarkdown(heading[2])}</h${level}>`);
+            const level = doc ? heading[1].length : Math.min(heading[1].length + 2, 6); // títulos discretos en el chat
+            pushBlock(`<h${level} class="md-heading">${inline(heading[2])}</h${level}>`);
             i++;
+            continue;
+        }
+
+        // documents: a rule (---) and quotes (> …)
+        if (doc && /^\s*(-{3,}|\*{3,}|_{3,})\s*$/.test(line)) {
+            pushBlock('<hr class="md-rule"/>');
+            i++;
+            continue;
+        }
+        if (doc && /^\s*&gt;\s?/.test(line)) {
+            const quoted: string[] = [];
+            while (i < lines.length && /^\s*&gt;\s?/.test(lines[i])) {
+                quoted.push(inline(lines[i].replace(/^\s*&gt;\s?/, "")));
+                i++;
+            }
+            pushBlock(`<blockquote class="md-quote">${quoted.join("<br/>")}</blockquote>`);
             continue;
         }
 
@@ -115,7 +150,7 @@ function processBlockMarkdown(text: string): string {
             while (i < lines.length) {
                 const m = itemRE.exec(lines[i]);
                 if (!m) break;
-                items.push(`<li>${processInlineMarkdown(m[1])}</li>`);
+                items.push(`<li>${inline(m[1])}</li>`);
                 i++;
             }
             const tag = ordered ? "ol" : "ul";
@@ -128,14 +163,14 @@ function processBlockMarkdown(text: string): string {
             i++;
             continue;
         }
-        pushText(processInlineMarkdown(line));
+        pushText(inline(line));
         i++;
     }
     return out.join("");
 }
 
 // 4) Render de bloques: ```math ...``` / ```latex ...``` y $$...$$ en líneas propias
-export function renderExplicitMathBlocks(input: string): string {
+export function renderExplicitMathBlocks(input: string, options: MarkdownOptions = {}): string {
     let src = input;
 
     // Marcadores para reinsertar el HTML de KaTeX sin ser escapado
@@ -282,7 +317,7 @@ export function renderExplicitMathBlocks(input: string): string {
     safe = safe.replace(/\u0003(\d+)\u0003/g, (_m, i) => allowedTags[Number(i)]);
 
     // 7) Markdown: tablas, títulos, listas, negrita, cursiva, código
-    safe = processBlockMarkdown(safe);
+    safe = processBlockMarkdown(safe, options);
 
     // 8) Reinyectar los fragmentos de KaTeX
     safe = safe.replace(/\u0001(\d+)\u0001/g, (_m, i) => chunks[Number(i)]);
@@ -296,7 +331,8 @@ export const MathMessage: React.FC<{ html: string }> = ({ html }) => {
     return <MessageContent dangerouslySetInnerHTML={{ __html }} />;
 };
 
-const MessageContent = styled.div`
+// the content of the messages, and of the Text panels (with the styles of documents: links, images...)
+export const MessageContent = styled.div`
     /* Contenedor principal */
     overflow: hidden;
     max-width: 100%;
@@ -485,6 +521,37 @@ const MessageContent = styled.div`
         font-size: 0.85em;
         margin: 0 2px;
         cursor: help;
+    }
+
+    /* ===== Documentos (paneles Text del Viewer) ===== */
+    a.md-link {
+        color: #8ab4ff;
+        text-decoration: underline;
+    }
+    img.md-image {
+        display: block;
+        max-width: 100%;
+        height: auto;
+        margin: 0.4em 0;
+        border-radius: 6px;
+    }
+    hr.md-rule {
+        border: none;
+        border-top: 1px solid rgba(255, 255, 255, 0.18);
+        margin: 0.6em 0;
+    }
+    blockquote.md-quote {
+        margin: 0.4em 0;
+        padding: 0.2em 0.8em;
+        border-left: 3px solid #3d82f0;
+        color: #c7cbd1;
+        white-space: normal;
+    }
+    h1.md-heading {
+        font-size: 1.6em;
+    }
+    h2.md-heading {
+        font-size: 1.35em;
     }
 
     /* Modo responsive */

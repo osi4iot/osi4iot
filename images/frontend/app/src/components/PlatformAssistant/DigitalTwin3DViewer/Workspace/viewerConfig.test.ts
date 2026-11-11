@@ -52,7 +52,7 @@ describe("viewer configuration file", () => {
         const warnings = checkViewerConfigRefs(layout, { series: [{ sensor: "rotor", field: "rpm" }], imageSources: ["dev2dtm_1"] });
         expect(warnings).toEqual([
             "The twin has no sensor temp (Overview › Rotor).",
-            "The asset has no dev2dtm_3 (Vision › Device (dev2dtm_3)): the panel shows its images when they arrive.",
+            "The asset has no dev2dtm_3 (Vision › Video · Device (dev2dtm_3)): the panel shows its images when they arrive.",
         ]);
         expect(checkViewerConfigRefs(layout, {})).toEqual([]);
     });

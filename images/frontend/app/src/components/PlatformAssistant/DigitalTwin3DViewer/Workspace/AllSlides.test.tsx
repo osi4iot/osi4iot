@@ -9,9 +9,9 @@ const slides: WorkspaceSlide[] = [
     { id: "c", title: "Trends", tag: "Monitoring", panels: [] },
 ] as WorkspaceSlide[];
 
-const setup = (hiddenTags: string[] = []) => {
-    const handlers = { onOpen: vi.fn(), onReorder: vi.fn(), onClose: vi.fn() };
-    render(<AllSlides slides={slides} currentId="b" hiddenTags={hiddenTags} {...handlers} />);
+const setup = (hiddenIds: string[] = []) => {
+    const handlers = { onOpen: vi.fn(), onSetHidden: vi.fn(), onReorder: vi.fn(), onClose: vi.fn() };
+    render(<AllSlides slides={slides} currentId="b" hiddenIds={hiddenIds} {...handlers} />);
     return handlers;
 };
 
@@ -19,10 +19,10 @@ const dataTransfer = () => ({ setData: vi.fn(), getData: vi.fn(), effectAllowed:
 
 describe("all slides", () => {
     it("shows every slide, opens one and closes with Escape", () => {
-        const { onOpen, onClose } = setup(["Vision"]);
+        const { onOpen, onClose } = setup(["b"]);
         const list = screen.getByRole("list", { name: "Slides" });
         expect(within(list).getAllByRole("listitem")).toHaveLength(3);
-        const vision = screen.getByRole("button", { name: "Open slide 2: Visión (hidden by the filters)" });
+        const vision = screen.getByRole("button", { name: "Open slide 2: Visión (hidden)" });
         expect(vision).toHaveAttribute("aria-current", "true");
         fireEvent.click(screen.getByRole("button", { name: "Open slide 3: Trends" }));
         expect(onOpen).toHaveBeenCalledWith("c");
@@ -43,6 +43,33 @@ describe("all slides", () => {
         expect(screen.getAllByRole("listitem")[0]).toHaveAttribute("draggable", "false");
         fireEvent.change(search, { target: { value: "nothing" } });
         expect(screen.getByText(/No slide has/)).toBeInTheDocument();
+    });
+
+    it("shows or hides each slide, or all those found, in the slide bar", () => {
+        const { onSetHidden } = setup(["b"]);
+        expect(screen.getByText(/3 slides, 1 hidden/)).toBeInTheDocument();
+        const eye2 = screen.getByRole("button", { name: "Show slide 2 in the slide bar" });
+        expect(eye2).toHaveAttribute("aria-pressed", "false");
+        fireEvent.click(eye2);
+        expect(onSetHidden).toHaveBeenLastCalledWith(["b"], false);
+        fireEvent.click(screen.getByRole("button", { name: "Show slide 1 in the slide bar" }));
+        expect(onSetHidden).toHaveBeenLastCalledWith(["a"], true);
+        fireEvent.click(screen.getByRole("button", { name: "Show all" }));
+        expect(onSetHidden).toHaveBeenLastCalledWith(["a", "b", "c"], false);
+        fireEvent.change(screen.getByRole("searchbox"), { target: { value: "trends" } });
+        fireEvent.click(screen.getByRole("button", { name: /Hide these 1/ }));
+        expect(onSetHidden).toHaveBeenLastCalledWith(["c"], true);
+        expect(screen.getByRole("button", { name: /Show these 1/ })).toBeDisabled();
+        // hiding every slide shown is not possible
+        fireEvent.change(screen.getByRole("searchbox"), { target: { value: "monitoring" } });
+        expect(screen.getByRole("button", { name: /Hide these 2/ })).toBeDisabled();
+    });
+
+    it("never hides the last slide shown", () => {
+        setup(["a", "b"]);
+        expect(screen.getByRole("button", { name: "Show slide 3 in the slide bar" })).toBeDisabled();
+        fireEvent.change(screen.getByRole("searchbox"), { target: { value: "trends" } });
+        expect(screen.getByRole("button", { name: /Hide these 1/ })).toBeDisabled();
     });
 
     it("reorders by dragging and with Alt + arrows", () => {

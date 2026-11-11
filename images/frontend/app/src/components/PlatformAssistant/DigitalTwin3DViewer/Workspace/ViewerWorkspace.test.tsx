@@ -44,7 +44,7 @@ describe("Viewer workspace", () => {
         const { onMaximize } = setup();
         expect(screen.getByRole("region", { name: "3D model" })).toBeInTheDocument();
         expect(screen.getByTestId("content-image")).toBeInTheDocument();
-        fireEvent.click(screen.getByRole("button", { name: "Show Image full page" }));
+        fireEvent.click(screen.getByRole("button", { name: "Show Video full page" }));
         expect(onMaximize).toHaveBeenCalledWith("image");
         expect(screen.queryByRole("button", { name: /Remove the panel/ })).toBeNull();
     });
@@ -62,7 +62,7 @@ describe("Viewer workspace", () => {
         width = 1200;
         const { onLayoutChange, onSave } = setup({ editing: true });
         expect(screen.getByRole("region", { name: "Edit layout" })).toHaveTextContent("Editing the layout of the group");
-        fireEvent.click(screen.getByRole("button", { name: "Remove the panel Image" }));
+        fireEvent.click(screen.getByRole("button", { name: "Remove the panel Video" }));
         expect(onLayoutChange.mock.calls[0][0].panels.map((p: any) => p.id)).toEqual(["model"]);
 
         fireEvent.click(screen.getByRole("button", { name: "Add panel" }));
@@ -133,7 +133,7 @@ describe("Viewer workspace", () => {
         expect(onPhoneChange).toHaveBeenLastCalledWith(true);
         const tabs = screen.getByRole("navigation", { name: "Panels" });
         expect(container.querySelector(".ws-max")).toContainElement(screen.getByTestId("content-model"));
-        fireEvent.click(within(tabs).getByRole("button", { name: "Image" }));
+        fireEvent.click(within(tabs).getByRole("button", { name: "Video" }));
         expect(container.querySelector(".ws-max")).toContainElement(screen.getByTestId("content-image"));
     });
 

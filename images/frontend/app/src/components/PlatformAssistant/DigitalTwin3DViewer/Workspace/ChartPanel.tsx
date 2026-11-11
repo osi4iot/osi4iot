@@ -256,4 +256,3 @@ export const ChartBody: FC<{ state: ChartDataState; label: string }> = ({ state,
 export const intervalSeconds = (text?: string) => (spanMs(text) ?? 0) / 1000;
 
 export default ChartPanel;
-

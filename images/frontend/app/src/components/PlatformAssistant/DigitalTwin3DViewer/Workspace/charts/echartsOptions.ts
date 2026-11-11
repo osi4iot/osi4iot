@@ -21,6 +21,29 @@ const GRID_LINE = "#22272d";
 const escapeHtml = (text: string) =>
     text.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
 
+// a colour with its hue turned `degrees` and its lightness raised `lighten` (0-1); the same colour if it is not #rgb
+export const shiftHue = (hex: string, degrees: number, lighten = 0): string => {
+    const h = hex.replace("#", "");
+    const full = h.length === 3 ? h.split("").map((c) => c + c).join("") : h.slice(0, 6);
+    const n = parseInt(full, 16);
+    if (full.length !== 6 || Number.isNaN(n)) return hex;
+    const r = ((n >> 16) & 255) / 255, g = ((n >> 8) & 255) / 255, b = (n & 255) / 255;
+    const max = Math.max(r, g, b), min = Math.min(r, g, b);
+    let hue = 0;
+    const l = (max + min) / 2;
+    const d = max - min;
+    const sat = d === 0 ? 0 : d / (1 - Math.abs(2 * l - 1));
+    if (d !== 0) hue = max === r ? ((g - b) / d) % 6 : max === g ? (b - r) / d + 2 : (r - g) / d + 4;
+    hue = (((hue * 60 + degrees) % 360) + 360) % 360;
+    const light = Math.min(1, l + lighten);
+    const c = (1 - Math.abs(2 * light - 1)) * sat;
+    const x = c * (1 - Math.abs(((hue / 60) % 2) - 1));
+    const m = light - c / 2;
+    const [r1, g1, b1] = hue < 60 ? [c, x, 0] : hue < 120 ? [x, c, 0] : hue < 180 ? [0, c, x] : hue < 240 ? [0, x, c] : hue < 300 ? [x, 0, c] : [c, 0, x];
+    const to = (v: number) => Math.round((v + m) * 255).toString(16).padStart(2, "0");
+    return `#${to(r1)}${to(g1)}${to(b1)}`;
+};
+
 const hexToRgba = (hex: string, alpha: number) => {
     const h = hex.replace("#", "");
     const full = h.length === 3 ? h.split("").map((c) => c + c).join("") : h.slice(0, 6);
@@ -29,10 +52,23 @@ const hexToRgba = (hex: string, alpha: number) => {
     return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${alpha})`;
 };
 
-// [t, value] with a null after a gap of more than 3 buckets, so the line breaks there (unless spanNulls)
+// the usual time between two values of a series (the median of the steps, the lower one if even), in ms; null with fewer than 3 values
+export const typicalStep = (values: [number, number | null][]): number | null => {
+    const times = values.filter(([, v]) => v !== null).map(([t]) => t);
+    if (times.length < 3) return null;
+    const steps = times
+        .slice(1)
+        .map((t, i) => t - times[i])
+        .sort((a, b) => a - b);
+    return steps[Math.floor((steps.length - 1) / 2)];
+};
+
+// [t, value] with a null after a gap, so the line breaks there (unless spanNulls). A gap is more than 3 buckets
+// and more than 3 times the usual step of the series: a sensor that sends a value every minute, drawn with
+// buckets of 2 s, is a line and not loose points (that a line does not draw).
 export const withGaps = (values: [number, number | null][], bucketSeconds: number, spanNulls: boolean): [number, number | null][] => {
     const result: [number, number | null][] = [];
-    const gap = bucketSeconds * 1000 * 3;
+    const gap = Math.max(bucketSeconds * 1000 * 3, (typicalStep(values) ?? 0) * 3);
     let previous: number | null = null;
     for (const [t, v] of values) {
         if (spanNulls && v === null) continue;
@@ -76,14 +112,49 @@ const thresholdMarks = (settings: ChartSettings, mode: string, extent: [number, 
     return marks;
 };
 
-const timeTooltip = (settings: ChartSettings, series: DrawSeries[]) => {
+// Where the pointer is over a chart, in pixels, and how to turn a value of a y axis into pixels: EchartsView
+// fills it (from the chart drawn) for the tooltip of the time series in "Single" mode, which shows the series
+// nearest to the pointer, as Grafana does.
+export interface ChartPointer {
+    y: number | null;
+    toPixelY: ((value: number, yAxisIndex: number) => number | null) | null;
+}
+
+export const createChartPointer = (): ChartPointer => ({ y: null, toPixelY: null });
+
+// the item of `list` nearest to the pointer (the first one when the pointer is not known)
+export const nearestToPointer = <T extends { value: [number | string, number | null] }>(
+    list: T[],
+    axisOf: (item: T) => number,
+    pointer: ChartPointer | undefined,
+): T[] => {
+    if (list.length <= 1 || !pointer || pointer.y === null || !pointer.toPixelY) return list.slice(0, 1);
+    let best = list[0];
+    let bestDistance = Infinity;
+    for (const item of list) {
+        const py = pointer.toPixelY(item.value[1] as number, axisOf(item));
+        if (py === null || !Number.isFinite(py)) continue;
+        const distance = Math.abs(py - pointer.y);
+        if (distance < bestDistance) {
+            bestDistance = distance;
+            best = item;
+        }
+    }
+    return [best];
+};
+
+// The tooltip of the charts over time. It is always triggered by the axis: the lines draw no points (an "item"
+// tooltip only appears over a point), so the tooltip follows the pointer along the time axis; in "Single" mode it
+// shows the series nearest to the pointer (`pointer`), in "All" mode every series.
+const timeTooltip = (settings: ChartSettings, series: DrawSeries[], pointer?: ChartPointer) => {
     const mode = String(getPath(settings.options, "tooltip.mode") ?? "single");
     const sort = String(getPath(settings.options, "tooltip.sort") ?? "none");
     const decimals = settings.fieldConfig.defaults.decimals;
     if (mode === "none" || mode === "hidden") return { show: false };
+    const axisOf = (name: string) => (series.find((x) => x.name === name)?.axis === "right" && series.some((x) => x.axis === "right" && !x.hidden) ? 1 : 0);
     return {
         show: true,
-        trigger: mode === "multi" ? ("axis" as const) : ("item" as const),
+        trigger: "axis" as const,
         axisPointer: { type: "line" as const, lineStyle: { color: "#5c636b" } },
         backgroundColor: "#1b1e22",
         borderColor: "#2c3137",
@@ -92,6 +163,7 @@ const timeTooltip = (settings: ChartSettings, series: DrawSeries[]) => {
             let list = (Array.isArray(params) ? params : [params]) as { seriesName: string; color: string; value: [number | string, number | null]; seriesIndex: number }[];
             list = list.filter((p) => p.value && p.value[1] !== null && p.value[1] !== undefined && !series.find((x) => x.name === p.seriesName)?.hideFromTooltip);
             if (!list.length) return "";
+            if (mode !== "multi") list = nearestToPointer(list, (p) => axisOf(p.seriesName), pointer);
             if (sort === "asc") list.sort((a, b) => (a.value[1] as number) - (b.value[1] as number));
             if (sort === "desc") list.sort((a, b) => (b.value[1] as number) - (a.value[1] as number));
             const t = list[0].value[0];
@@ -155,9 +227,11 @@ export interface TimeseriesInput {
     bucketSeconds: number;
     // series hidden from the legend (click on its name)
     hidden?: Set<string>;
+    // where the pointer is ("Single" tooltip)
+    pointer?: ChartPointer;
 }
 
-export const timeseriesOption = ({ series, settings, from, to, bucketSeconds, hidden }: TimeseriesInput) => {
+export const timeseriesOption = ({ series, settings, from, to, bucketSeconds, hidden, pointer }: TimeseriesInput) => {
     const c = settings.fieldConfig.defaults.custom ?? {};
     const stacking = String(getPath(c, "stacking.mode") ?? "none");
     const thrMode = String(getPath(c, "thresholdsStyle.mode") ?? "off");
@@ -179,12 +253,27 @@ export const timeseriesOption = ({ series, settings, from, to, bucketSeconds, hi
         const lineStyle = String(getPath(sc, "lineStyle.fill") ?? "solid");
         let data = withGaps(s.values, bucketSeconds, spanNulls);
         if (totals) data = data.map(([t, v]) => [t, v === null ? null : (100 * v) / (totals.get(t) || 1)]);
+        // Hue (as Grafana): the colour of the series turns its hue and lightens towards the high values, in the line
+        // and in the fill; like Opacity, it fills even with Fill opacity at 0
+        const hueTop = shiftHue(s.color, 40, 0.15);
         const areaColor =
             gradient === "opacity"
                 ? { type: "linear", x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: hexToRgba(s.color, Math.max(fillOpacity, 0.25)) }, { offset: 1, color: hexToRgba(s.color, 0) }] }
                 : gradient === "hue"
-                  ? { type: "linear", x: 0, y: 0, x2: 1, y2: 0, colorStops: [{ offset: 0, color: hexToRgba(s.color, fillOpacity * 0.4) }, { offset: 1, color: hexToRgba(s.color, fillOpacity) }] }
+                  ? {
+                        type: "linear",
+                        x: 0,
+                        y: 0,
+                        x2: 0,
+                        y2: 1,
+                        colorStops: [
+                            { offset: 0, color: hexToRgba(hueTop, Math.max(fillOpacity, 0.35)) },
+                            { offset: 1, color: hexToRgba(s.color, Math.max(fillOpacity, 0.35) * 0.3) },
+                        ],
+                    }
                   : hexToRgba(s.color, fillOpacity);
+        const lineColor =
+            gradient === "hue" ? { type: "linear", x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: hueTop }, { offset: 1, color: s.color }] } : undefined;
         const base = {
             name: s.name,
             yAxisIndex: s.axis === "right" ? rightIndex : 0,
@@ -208,7 +297,7 @@ export const timeseriesOption = ({ series, settings, from, to, bucketSeconds, hi
             symbol: "circle",
             symbolSize: drawStyle === "points" ? pointSize + 1 : pointSize,
             sampling: "lttb" as const,
-            lineStyle: { width: lineWidth, type: lineStyle === "dash" ? "dashed" : lineStyle === "dot" ? "dotted" : "solid" },
+            lineStyle: { width: lineWidth, type: lineStyle === "dash" ? "dashed" : lineStyle === "dot" ? "dotted" : "solid", ...(lineColor ? { color: lineColor } : {}) },
             areaStyle: fillOpacity > 0 || gradient !== "none" ? { color: areaColor } : undefined,
         };
     });
@@ -217,7 +306,7 @@ export const timeseriesOption = ({ series, settings, from, to, bucketSeconds, hi
         backgroundColor: "transparent",
         animation: false,
         grid: { left: 8, right: 12, top: 10, bottom: 6, containLabel: true },
-        tooltip: timeTooltip(settings, series),
+        tooltip: timeTooltip(settings, series, pointer),
         xAxis: {
             type: "time" as const,
             min: from,

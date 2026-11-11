@@ -8,6 +8,7 @@
 // slide is "Slide N" with the tag "Slide_N"; administrators give the same tag to the slides that go together.
 //
 // Pure functions, so they are easy to test. admin_api checks the same shape (viewerLayoutValidation.ts).
+import { PICTURE_FITS, PictureBinding, PictureFit, sanitizeBindings } from "./pictureBindings";
 import { REFRESH_INTERVALS } from "./charts/timeRange";
 
 export const WORKSPACE_LAYOUT_VERSION = 2;
@@ -27,7 +28,13 @@ export const WORKSPACE_PHONE_BELOW = 640;
 
 export const ANY_IMAGE_SOURCE = "any";
 
-export type PanelType = "model" | "image" | "chart" | "alarms" | "approvals";
+export type PanelType = "model" | "image" | "chart" | "alarms" | "approvals" | "markdown" | "picture";
+// the text of a Text panel (markdown, LaTeX and {{topicRef.path}} values): at most these characters
+export const MARKDOWN_MAX_LENGTH = 20000;
+// how an Image panel shows the frames of its source: as a video (live, with pause) or as a photo (the last
+// one and when it arrived)
+export type ImageDisplay = "video" | "photo";
+export const imageDisplayOf = (panel: { display?: ImageDisplay }): ImageDisplay => (panel.display === "photo" ? "photo" : "video");
 // at most one panel of these types on a page
 export const SINGLE_PANEL_TYPES: PanelType[] = ["model", "alarms", "approvals"];
 
@@ -60,8 +67,16 @@ export interface WorkspacePanel {
     id: string;
     type: PanelType;
     title?: string;
-    // image: the topicRef of its frames, or "any"
+    // image: the topicRef of its frames, or "any", and how they are shown (video when not said)
     source?: string;
+    display?: ImageDisplay;
+    // markdown: its text
+    text?: string;
+    // picture: the image (a file of the twin, folder viewerImages), how it fits the panel and, for an SVG, the
+    // animations of its elements with the values of the NATS messages
+    file?: string;
+    fit?: PictureFit;
+    bindings?: PictureBinding[];
     // chart: its series, its visualization and settings (Grafana's options and fieldConfig) and its own time
     series?: ChartSeriesRef[];
     // the panels of 1.4.0 before the editor: now timeFrom
@@ -108,6 +123,8 @@ const NEW_PANEL_SIZE: Record<PanelType, { w: number; h: number }> = {
     chart: { w: 6, h: 5 },
     alarms: { w: 5, h: 6 },
     approvals: { w: 5, h: 6 },
+    markdown: { w: 4, h: 4 },
+    picture: { w: 5, h: 6 },
 };
 const MIN_SIZE: Record<PanelType, { w: number; h: number }> = {
     model: { w: 3, h: 3 },
@@ -115,11 +132,14 @@ const MIN_SIZE: Record<PanelType, { w: number; h: number }> = {
     chart: { w: 3, h: 3 },
     alarms: { w: 3, h: 3 },
     approvals: { w: 3, h: 3 },
+    markdown: { w: 2, h: 1 },
+    picture: { w: 2, h: 2 },
 };
 
 export const minSizeOf = (type: PanelType) => MIN_SIZE[type];
 
-const PANEL_TYPES: PanelType[] = ["model", "image", "chart", "alarms", "approvals"];
+const PANEL_TYPES: PanelType[] = ["model", "image", "chart", "alarms", "approvals", "markdown", "picture"];
+export const PICTURE_FILE = /^[A-Za-z0-9_][A-Za-z0-9_.-]{0,79}\.(png|jpe?g|webp|gif|svg)$/i;
 const PANEL_ID = /^[A-Za-z0-9_-]{1,40}$/;
 const SOURCE = /^[A-Za-z0-9_.-]{1,60}$/;
 const SENSOR_REF = /^[A-Za-z0-9_.-]{1,60}$/;
@@ -245,6 +265,14 @@ const sanitizePanels = (panels: unknown, hasModel: boolean): WorkspacePanel[] =>
         if (typeof p.title === "string" && p.title.trim()) panel.title = p.title.trim().slice(0, 80);
         if (p.type === "image") {
             panel.source = typeof p.source === "string" && SOURCE.test(p.source) ? p.source : ANY_IMAGE_SOURCE;
+            if (p.display === "photo" || p.display === "video") panel.display = p.display;
+        }
+        if (p.type === "markdown") panel.text = typeof p.text === "string" ? p.text.slice(0, MARKDOWN_MAX_LENGTH) : "";
+        if (p.type === "picture") {
+            if (typeof p.file === "string" && PICTURE_FILE.test(p.file)) panel.file = p.file;
+            if (PICTURE_FITS.includes(p.fit as PictureFit)) panel.fit = p.fit as PictureFit;
+            const bindings = sanitizeBindings(p.bindings);
+            if (bindings.length) panel.bindings = bindings;
         }
         if (p.type === "chart") {
             const series = sanitizeChartSeries(p.series);
@@ -305,6 +333,9 @@ export const newPanelId = (panels: WorkspacePanel[], type: PanelType): string =>
 export interface NewPanel {
     type: PanelType;
     source?: string;
+    display?: ImageDisplay;
+    text?: string;
+    file?: string;
     title?: string;
     series?: ChartSeriesRef[];
     viz?: string;
@@ -325,7 +356,12 @@ export const addPanel = <T extends WorkspacePage>(layout: T, spec: NewPanel): T 
     const { w, h } = NEW_PANEL_SIZE[spec.type];
     const { x, y } = freePlace(layout.panels, w, h);
     const panel: WorkspacePanel = { id: newPanelId(layout.panels, spec.type), type: spec.type, x, y, w, h };
-    if (spec.type === "image") panel.source = spec.source || ANY_IMAGE_SOURCE;
+    if (spec.type === "image") {
+        panel.source = spec.source || ANY_IMAGE_SOURCE;
+        panel.display = spec.display === "photo" ? "photo" : "video";
+    }
+    if (spec.type === "markdown") panel.text = (spec.text ?? "").slice(0, MARKDOWN_MAX_LENGTH);
+    if (spec.type === "picture" && spec.file && PICTURE_FILE.test(spec.file)) panel.file = spec.file;
     if (spec.type === "chart") {
         const series = sanitizeChartSeries(spec.series);
         if (series.length === 0) return layout;
@@ -575,6 +611,12 @@ export const deviceImageSources = (layout: WorkspaceLayout): string[] =>
         ),
     ).sort((a, b) => Number(a.split("_")[1]) - Number(b.split("_")[1]));
 
+// An Image panel shown as a video or as a photo
+export const setPanelDisplay = <T extends WorkspacePage>(layout: T, id: string, display: ImageDisplay): T => ({
+    ...layout,
+    panels: layout.panels.map((p) => (p.id === id && p.type === "image" ? { ...p, display } : p)),
+});
+
 // The source of an Image panel changed
 export const setPanelSource = <T extends WorkspacePage>(layout: T, id: string, source: string): T => ({
     ...layout,
@@ -587,7 +629,10 @@ export const panelTitle = (panel: WorkspacePanel): string => {
     if (panel.type === "chart") return "Chart";
     if (panel.type === "alarms") return "Alarms";
     if (panel.type === "approvals") return "Approvals";
-    return panel.source && panel.source !== ANY_IMAGE_SOURCE ? imageSourceLabel(panel.source) : "Image";
+    if (panel.type === "markdown") return "Text";
+    if (panel.type === "picture") return panel.file ? panel.file.replace(/\.[^.]+$/, "") : "Picture";
+    const kind = imageDisplayOf(panel) === "photo" ? "Photo" : "Video";
+    return panel.source && panel.source !== ANY_IMAGE_SOURCE ? `${kind} · ${imageSourceLabel(panel.source)}` : kind;
 };
 
 export interface ImageSourceOption {
@@ -622,4 +667,3 @@ export const imageSourceOptions = (topicRefs: string[], liveSources: string[]): 
 // Height of a row so that PAGE_ROWS rows fill the page
 export const rowHeightFor = (height: number, margin = GRID_MARGIN) =>
     Math.max(MIN_ROW_HEIGHT, Math.floor((height - margin * (PAGE_ROWS - 1)) / PAGE_ROWS));
-

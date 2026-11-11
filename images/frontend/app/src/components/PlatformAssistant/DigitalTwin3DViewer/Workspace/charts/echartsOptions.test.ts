@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { chartSettingsOf, drawSeries, setPath } from "./chartConfig";
-import { barchartOption, gaugeOption, gaugeRange, timeseriesOption, withGaps } from "./echartsOptions";
+import { barchartOption, createChartPointer, shiftHue, gaugeOption, gaugeRange, nearestToPointer, timeseriesOption, withGaps } from "./echartsOptions";
 
 const buckets = [
     [0, 10, 5, 15, 2, 20, 15, 5],
@@ -24,6 +24,15 @@ describe("echarts options", () => {
     it("breaks lines at gaps unless nulls are connected", () => {
         expect(withGaps([[0, 1], [10_000, 2], [100_000, 3]], 10, false)).toEqual([[0, 1], [10_000, 2], [20_000, null], [100_000, 3]]);
         expect(withGaps([[0, 1], [10_000, null], [100_000, 3]], 10, true)).toEqual([[0, 1], [100_000, 3]]);
+    });
+
+    it("draws as a line a sensor that sends seldom, and breaks it where it stopped", () => {
+        // a value every ~30-60 s (the wind speed), "Last 5 minutes": buckets of 2 s
+        const sparse: [number, number][] = [[0, 11.8], [29_000, 11.8], [60_000, 11.9], [120_000, 11.8], [180_000, 11.7]];
+        expect(withGaps(sparse, 2, false).filter(([, v]) => v === null)).toHaveLength(0);
+        // the same sensor, silent for 10 minutes
+        const stopped: [number, number][] = [...sparse, [780_000, 11.6], [810_000, 11.5]];
+        expect(withGaps(stopped, 2, false).filter(([, v]) => v === null)).toHaveLength(1);
     });
 
     it("draws time series with Grafana's graph styles", () => {
@@ -65,5 +74,44 @@ describe("echarts options", () => {
         expect(o.series[0].data[0].value).toBe(30);
         expect(o.series[0].axisLine.lineStyle.color.length).toBe(2);
         expect(o.series[0].center[0]).toBe("25%");
+    });
+
+    it("shows the tooltip along the time axis: the series nearest to the pointer, or all of them", () => {
+        const pointer = createChartPointer();
+        const single: any = timeseriesOption({ series: series(), settings: settings(), from: 0, to: 120_000, bucketSeconds: 10, pointer });
+        // the lines draw no points: an "item" tooltip would never appear
+        expect(single.tooltip).toMatchObject({ show: true, trigger: "axis" });
+        const params = [
+            { seriesName: "X", color: "#5794f2", value: [10_000, 20], seriesIndex: 0 },
+            { seriesName: "Y", color: "#ff9830", value: [10_000, 80], seriesIndex: 1 },
+        ];
+        // without the pointer: the first series
+        expect(single.tooltip.formatter(params)).toContain("X");
+        expect(single.tooltip.formatter(params)).not.toContain("Y:");
+        // the pointer near the drawing of Y (its axis is the right one, 1)
+        pointer.y = 40;
+        pointer.toPixelY = (value, axis) => (axis === 1 ? 300 - value * 3 : 300 - value * 10);
+        const text = single.tooltip.formatter(params);
+        expect(text).toContain("Y:");
+        expect(text).not.toContain("X:");
+        const multi: any = timeseriesOption({ series: series(), settings: settings("options.tooltip.mode", "multi"), from: 0, to: 120_000, bucketSeconds: 10, pointer });
+        expect(multi.tooltip.trigger).toBe("axis");
+        expect(multi.tooltip.formatter(params)).toContain("X:");
+        expect(multi.tooltip.formatter(params)).toContain("Y:");
+        expect(nearestToPointer([], () => 0, pointer)).toEqual([]);
+    });
+
+    it("fills with a gradient of hue even with Fill opacity at 0", () => {
+        const s = settings("fieldConfig.defaults.custom.gradientMode", "hue");
+        const o: any = timeseriesOption({ series: series(s), settings: s, from: 0, to: 120_000, bucketSeconds: 10 });
+        const stops = o.series[0].areaStyle.color.colorStops;
+        expect(o.series[0].areaStyle.color).toMatchObject({ x: 0, y: 0, x2: 0, y2: 1 });
+        // visible: not transparent at the top, and a different hue from the bottom
+        expect(stops[0].color).toMatch(/rgba\(\d+, \d+, \d+, 0\.35\)/);
+        expect(stops[0].color).not.toBe(stops[1].color);
+        expect(o.series[0].lineStyle.color.colorStops).toHaveLength(2);
+        expect(shiftHue("#ff0000", 120)).toBe("#00ff00");
+        expect(shiftHue("#5794f2", 0)).toBe("#5794f2");
+        expect(shiftHue("red", 40)).toBe("red");
     });
 });

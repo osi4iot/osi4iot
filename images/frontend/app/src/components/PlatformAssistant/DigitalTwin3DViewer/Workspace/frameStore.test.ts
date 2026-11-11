@@ -14,8 +14,8 @@ describe("frame store", () => {
         const off = store.subscribe(device, "dev2sim");
         const a = blob("a");
         publish(a, "dtm2sim");
-        expect(any).toHaveBeenCalledWith(a);
-        expect(pipeline).toHaveBeenCalledWith(a);
+        expect(any).toHaveBeenCalledWith(a, expect.any(Number));
+        expect(pipeline).toHaveBeenCalledWith(a, expect.any(Number));
         expect(device).not.toHaveBeenCalled();
         off();
         publish(blob("b"), "dev2sim");
@@ -31,10 +31,10 @@ describe("frame store", () => {
         publish(b, "dev2sim");
         const late = vi.fn();
         store.subscribe(late, "dtm2sim");
-        expect(late).toHaveBeenCalledWith(a);
+        expect(late).toHaveBeenCalledWith(a, expect.any(Number));
         const lateAny = vi.fn();
         store.subscribe(lateAny);
-        expect(lateAny).toHaveBeenCalledWith(b);
+        expect(lateAny).toHaveBeenCalledWith(b, expect.any(Number));
     });
 
     it("reports the sources that have sent frames", () => {

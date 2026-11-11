@@ -3,7 +3,7 @@
 // Used by the panels and by the panel editor.
 import { FC, useCallback, useMemo, useState } from "react";
 import { ChartSettings, DrawSeries, SeriesSource, displayValue, drawSeries, getPath, reduceBuckets } from "./chartConfig";
-import { barchartOption, gaugeOption, histogramOption, pieOption, timeseriesOption } from "./echartsOptions";
+import { barchartOption, createChartPointer, gaugeOption, histogramOption, pieOption, timeseriesOption } from "./echartsOptions";
 import EchartsView from "./EchartsView";
 import Legend, { legendSettings } from "./Legend";
 import { BarGaugeViz, StatTimelineFallback, StatViz, StateTimelineViz, TableViz, ValueClick } from "./HtmlViz";
@@ -43,14 +43,16 @@ const ChartView: FC<ChartViewProps> = ({ settings, sources, from, to, bucketSeco
         const shown = displayValue(value, s.unit, settings, s.field);
         links.open(s.field.links, { value, text: shown.text, time, seriesName: s.name, from, to }, event.clientX, event.clientY);
     };
+    // where the pointer is: the "Single" tooltip shows the series nearest to it
+    const pointer = useMemo(createChartPointer, []);
     const option = useMemo(() => {
-        if (settings.viz === "timeseries") return timeseriesOption({ series, settings, from, to, bucketSeconds, hidden });
+        if (settings.viz === "timeseries") return timeseriesOption({ series, settings, from, to, bucketSeconds, hidden, pointer });
         if (settings.viz === "barchart") return barchartOption({ series, settings, from, to, bucketSeconds, hidden });
         if (settings.viz === "gauge") return box.width ? gaugeOption({ series, settings, width: box.width, height: box.height }) : null;
         if (settings.viz === "piechart") return pieOption({ series, settings, hidden });
         if (settings.viz === "histogram") return histogramOption({ series, settings, size: binSize ?? 1, hidden });
         return null;
-    }, [series, settings, from, to, bucketSeconds, hidden, box, binSize]);
+    }, [series, settings, from, to, bucketSeconds, hidden, box, binSize, pointer]);
 
     // the series behind a click of ECharts (the visible ones, in order)
     const onChartClick = (params: { seriesIndex?: number; dataIndex?: number; value?: unknown }, x: number, y: number) => {
@@ -94,7 +96,7 @@ const ChartView: FC<ChartViewProps> = ({ settings, sources, from, to, bucketSeco
         body = (
             <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: right ? "row" : "column", gap: 6 }}>
                 <div style={{ position: "relative", flex: 1, minWidth: 0, minHeight: 0 }}>
-                    <EchartsView option={option} label={label} onSize={onSize} onClick={onChartClick} />
+                    <EchartsView option={option} label={label} onSize={onSize} onClick={onChartClick} pointer={pointer} />
                 </div>
                 {withLegend && <Legend series={series} settings={legendSettingsForViz} hidden={hidden} onToggle={toggle} percentOf={settings.viz === "piechart" ? pieTotal(series, settings) : undefined} />}
             </div>
