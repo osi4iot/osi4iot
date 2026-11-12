@@ -6,7 +6,10 @@ import { nanoid } from "nanoid";
 import {
     Background,
     Controls,
+    PanOnScrollMode,
     ReactFlow,
+    SelectionMode,
+    getNodesBounds,
     addEdge,
     applyEdgeChanges,
     applyNodeChanges,
@@ -53,6 +56,7 @@ import {
     CommentNode,
 } from "./Nodes";
 import NodePalette from "./NodePalette";
+import FlowScrollbars, { topLeftViewport } from "./FlowScrollbars";
 import NodePropertiesPanel from "./NodePropertiesPanel";
 import { usePipelineLayout } from "./usePipelineLayout";
 import { createNodesAndEdges } from "../Utils/customHooks";
@@ -152,7 +156,7 @@ export default function Flow({
 }) {
     const reactFlowWrapper = useRef(null);
     const rootRef = useRef(null);
-    const { screenToFlowPosition, getNode, setCenter, getZoom } = useReactFlow();
+    const { screenToFlowPosition, getNode, setCenter, getZoom, setViewport } = useReactFlow();
     const { paletteCollapsed, togglePalette, paletteWidth, barOffset } = usePipelineLayout(rootRef);
 
     // Lo que el usuario tenía en el editor al salir de él (pestaña 3D, otra capa): el desplazamiento y el
@@ -179,6 +183,15 @@ export default function Flow({
     useEffect(() => {
         if (!isPanelOpen && !pendingOpenNodeRef.current) rememberViewer(dtUid, { openNode: null });
     }, [dtUid, isPanelOpen]);
+    // the first time the pipeline of a twin is opened (in this session): at zoom 1, its top left corner at the
+    // top left of the canvas with a margin (the scrollbars reach the rest)
+    const fittedRef = useRef(!!memory.flowViewport);
+    useEffect(() => {
+        if (fittedRef.current || nodes.length === 0) return;
+        fittedRef.current = true;
+        requestAnimationFrame(() => void setViewport(topLeftViewport(getNodesBounds(nodes))));
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [nodes.length, setViewport]);
     const onMoveEnd = useCallback(
         (_event, viewport) => {
             if (viewport) rememberViewer(dtUid, { flowViewport: { x: viewport.x, y: viewport.y, zoom: viewport.zoom } });
@@ -615,9 +628,19 @@ export default function Flow({
                     deleteKeyCode={["Backspace", "Delete"]}
                     multiSelectionKeyCode={["Control", "Meta"]}
                     selectionKeyCode="Shift"
-                    panOnDrag={true}
-                    selectionOnDrag={false}
-                    defaultViewport={memory.flowViewport ?? { x: 0, y: 0, zoom: 1.5 }}
+                    // as Node-RED: a node is dragged with the mouse, the empty canvas draws a selection box,
+                    // the wheel scrolls (Shift + wheel: sideways), Ctrl + wheel (or a pinch) zooms, the
+                    // scrollbars move the view, and Space + drag or the middle button drag the whole canvas
+                    panOnDrag={[1]}
+                    panActivationKeyCode="Space"
+                    selectionOnDrag={true}
+                    selectionMode={SelectionMode.Partial}
+                    panOnScroll={true}
+                    panOnScrollMode={PanOnScrollMode.Free}
+                    zoomOnScroll={false}
+                    zoomOnPinch={true}
+                    zoomOnDoubleClick={false}
+                    defaultViewport={memory.flowViewport ?? { x: 0, y: 0, zoom: 1 }}
                     onMoveEnd={onMoveEnd}
                     minZoom={0.3}
                     maxZoom={4}
@@ -628,7 +651,9 @@ export default function Flow({
                     nodesConnectable={true}
                     elementsSelectable={true}
                 >
-                    <Controls style={{ color: "black" }} />
+                    {/* without the lock: locked, the nodes could not be dragged and dragging one moved everything */}
+                    <Controls style={{ color: "black" }} showInteractive={false} position="bottom-left" />
+                    <FlowScrollbars />
                     <Background variant="dots" gap={12} size={1} />
                 </ReactFlow>
             </ReactFlowWrapper>

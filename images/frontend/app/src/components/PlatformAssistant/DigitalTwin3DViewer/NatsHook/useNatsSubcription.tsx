@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { sanitizeTranslation } from "../ChatAssitant/chatLanguages";
 import { type NatsConnection } from "@nats-io/nats-core";
 import { StringCodec } from "../../../../tools/natsCodec";
 import * as THREE from "three";
@@ -237,6 +238,7 @@ const updateObjectsState = (
                 handleUpdateChatAssistantMessages({
                     message: natsMessage.transcription,
                     userName: typeof natsMessage.userName === "string" ? natsMessage.userName : undefined,
+                    via: typeof natsMessage.via === "string" ? natsMessage.via : undefined,
                     uiOpts: {},
                     mcpToolCalls: [],
                     sender: "user",
@@ -248,6 +250,9 @@ const updateObjectsState = (
                     mcpToolCalls: natsMessage.mcpToolCalls,
                     charts: sanitizeCharts(natsMessage.charts),
                     sender: "assistant",
+                    // chat bilingüe: la respuesta y la pregunta en el otro idioma
+                    translation: sanitizeTranslation(natsMessage.translation),
+                    questionTranslation: sanitizeTranslation(natsMessage.questionTranslation),
                 };
                 handleUpdateChatAssistantMessages(newMessage);
             }

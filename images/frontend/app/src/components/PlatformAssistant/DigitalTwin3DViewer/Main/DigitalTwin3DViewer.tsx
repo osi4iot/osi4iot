@@ -93,7 +93,7 @@ import ChartPanel from "../Workspace/ChartPanel";
 import PanelEditor from "../Workspace/PanelEditor";
 import TimePicker from "../Workspace/charts/TimePicker";
 import { DEFAULT_PAGE_TIME, PageTime, RefreshClock, TimeRange, createRefreshClock, isLive, refreshMs, resolveRange } from "../Workspace/charts/timeRange";
-import HistoryPanel from "../Workspace/HistoryPanel";
+import HistoryPanel, { HistoryActions } from "../Workspace/HistoryPanel";
 import { historyPanelApi } from "../Workspace/historyPanelsApi";
 import { chartSeriesOptions } from "../Workspace/chartSeries";
 import { fetchTimeSeries, TimeSeriesQuery } from "../Workspace/timeSeriesApi";
@@ -125,6 +125,8 @@ import {
 import SlideBar from "../Workspace/SlideBar";
 import AllSlides from "../Workspace/AllSlides";
 import ViewerConfigDialog from "../Workspace/ViewerConfigDialog";
+import { acknowledgeAlarms, describeAlarmError, resetAlarms, shelveAlarms } from "../Pipeline/alarmCommands";
+import { approvalSubject, decideApprovalRequest, describeApprovalError } from "../Pipeline/approvalRequests";
 import { MarkdownEditor, MarkdownView } from "../Workspace/MarkdownPanel";
 import { PictureEditor, PictureFiles, PictureView } from "../Workspace/PicturePanel";
 import { deleteViewerImage, listViewerImages, loadViewerImage, uploadViewerImage } from "../Workspace/viewerImagesApi";
@@ -455,6 +457,8 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
     }, [queryPipelineStatus, digitalTwinSelected, queryChatMessages, natsClient]);
 
     // Create handlers
+    // el panel del asistente estaba abierto al pasar del visor al pipeline (se vuelve a abrir al volver)
+    const reopenAssistantPanelRef = useRef(false);
     const handlers = createHandlers(
         {
             digitalTwinSelected,
@@ -478,6 +482,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
             isPipelineLogsOpen: state.isPipelineLogsOpen,
             isPipelineUiChanged: state.isPipelineUiChanged,
             openDashboardTab,
+            reopenAssistantPanelRef,
         },
         {
             setActiveViewer: (viewer) => setState((prev) => ({ ...prev, activeViewer: viewer })),
@@ -715,9 +720,16 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
     // navegador no tiene reconocimiento de voz o voces para leer las respuestas
     const voiceTopicSubject =
         digitalTwinGltfData?.natsSubjectsData?.find((subject) => subject.topicRef === "dev2dtm")?.natsSubject ?? null;
+    // primero el servicio de voz de pipelines (sin nodos: en la copia del usuario del tópico sim2state); si no
+    // responde, los nodos de voz del pipeline en dev2dtm
+    const voiceUserName = useLoggedUserLogin();
+    const voiceBuiltInSubject = sim2stateTopic && voiceUserName ? natsUserChatSubject(voiceUserName, sim2stateTopic) : null;
     const chatVoiceService = useMemo(
-        () => (natsClient && voiceTopicSubject ? createPipelineVoiceService(natsClient, voiceTopicSubject) : null),
-        [natsClient, voiceTopicSubject],
+        () =>
+            natsClient && (voiceTopicSubject || voiceBuiltInSubject)
+                ? createPipelineVoiceService(natsClient, voiceTopicSubject, voiceBuiltInSubject)
+                : null,
+        [natsClient, voiceTopicSubject, voiceBuiltInSubject],
     );
 
     // Sync initial states with current states when they change
@@ -938,6 +950,8 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
                     time: new Date().toISOString(),
                     mcpToolCalls: [],
                     source: "pipeline",
+                    // canal por el que llegó (móvil, Telegram)
+                    ...(newMessage.via ? { via: newMessage.via } : {}),
                 },
             ]);
             if (author === loggedUserNameRef.current) openChatTabRef.current();
@@ -1121,6 +1135,26 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
         [sensorsTable, sensorTypesTable, digitalTwinSelected?.assetId],
     );
     const historyApi = useMemo(() => historyPanelApi(layoutAuth), [layoutAuth]);
+    // the group's administrators manage the alarms and requests from their panels, by the pipeline (as the
+    // Alarms and Approvals pages: on the twin's approval subject, as the user)
+    const historyActions = useMemo<HistoryActions | undefined>(() => {
+        const subject = approvalSubject(digitalTwinGltfData?.natsSubjectsData);
+        if (!canSaveLayout || !natsClient || !subject || !loggedUserName) return undefined;
+        const run = async (what: () => Promise<void>, describe: (e: unknown) => string) => {
+            try {
+                await what();
+            } catch (e) {
+                throw new Error(describe(e));
+            }
+        };
+        return {
+            acknowledge: (nodeUid, key) => run(() => acknowledgeAlarms(natsClient, loggedUserName, subject, nodeUid, key), describeAlarmError),
+            shelve: (nodeUid, key, minutes) => run(() => shelveAlarms(natsClient, loggedUserName, subject, nodeUid, minutes, key), describeAlarmError),
+            reset: (nodeUid, key) => run(() => resetAlarms(natsClient, loggedUserName, subject, nodeUid, key), describeAlarmError),
+            decide: (nodeUid, requestId, approve, comment) =>
+                run(() => decideApprovalRequest(natsClient, loggedUserName, subject, nodeUid, requestId, approve, comment), describeApprovalError),
+        };
+    }, [canSaveLayout, natsClient, loggedUserName, digitalTwinGltfData?.natsSubjectsData]);
     // the viewer configuration (.json): the layout shown (the one being edited, if any) and the lighting shown
     const downloadConfig = () => {
         const now = new Date();
@@ -1700,6 +1734,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
                                     digitalTwinId={digitalTwinSelected.id}
                                     api={historyApi}
                                     paused={!inViewer}
+                                    actions={historyActions}
                                 />
                             ) : null
                         ) : panel.type === "chart" ? (
@@ -1855,6 +1890,8 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
                                     chatMessages={chatMessages}
                                     setChatMessages={setChatMessages}
                                     chatAssistantLanguage={digitalTwinSelected.chatAssistantLanguage}
+                                    chatAssistantSecondLanguage={digitalTwinSelected.chatAssistantSecondLanguage}
+                                    chatAssistantVoiceLanguage={digitalTwinSelected.chatAssistantVoiceLanguage}
                                     handleRemoveChatAssistantHistory={handleRemoveChatAssistantHistory}
                                     voiceService={chatVoiceService}
                                 />

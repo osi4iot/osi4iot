@@ -72,6 +72,11 @@ type AiAgentNode struct {
 
 	// flowToolsSelected: the "flowTools" setting, the AI Tool nodes of the pipeline it may call; nil: all
 	flowToolsSelected map[string]bool
+
+	// bilingual chat: the translation of the turn being answered (aiAgentBilingual.go)
+	translationMu   sync.Mutex
+	translationUser string
+	translation     *chatTurnTranslation
 }
 
 // How long before the log says that an agent is still busy: accepting a
@@ -787,6 +792,14 @@ func (n *AiAgentNode) handleAgentAnswer(answer llmagent.Answer, log *logger.Logg
 	if charts := n.answerCharts(answer.ToolCalls, log); len(charts) > 0 {
 		payload["charts"] = charts
 	}
+	if tr, ok := n.takeTranslation(user); ok && answer.OK {
+		if tr.Answer != nil {
+			payload["translation"] = tr.Answer
+		}
+		if tr.Question != nil {
+			payload["questionTranslation"] = tr.Question
+		}
+	}
 	outMsg := message.NewMessageFromPayload(payload)
 	outMsg.SetSender(sender)
 	n.sendToOutputs(outMsg, log)
@@ -877,6 +890,11 @@ func (n *AiAgentNode) agentHistory(userName string) []llmagent.HistoryMessage {
 // image under its own key of the digital twin's KV store, so that the
 // conversation shows them again when it is opened).
 func (n *AiAgentNode) saveAgentTurn(userName, prompt, answer string, calls []llmagent.ToolCall) error {
+	// bilingual chat: the turn in the other language, kept with it and sent with the answer
+	tr, translated := n.translateTurn(userName, prompt, answer)
+	if translated {
+		n.keepTranslation(userName, tr)
+	}
 	if userName == anonymousChatUser {
 		return nil
 	}
@@ -899,8 +917,8 @@ func (n *AiAgentNode) saveAgentTurn(userName, prompt, answer string, calls []llm
 		refs = append(refs, utils.ChartRef{ID: chart.ID, Title: chart.Title})
 	}
 	messages := []utils.StoredMessage{
-		{Role: "user", Content: prompt},
-		{Role: "assistant", Content: answer},
+		{Role: "user", Content: prompt, Translation: tr.Question},
+		{Role: "assistant", Content: answer, Translation: tr.Answer},
 	}
 	err = utils.SaveChatMessages(
 		n.Ctx,

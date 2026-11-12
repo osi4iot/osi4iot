@@ -1,4 +1,4 @@
-import { IsArray, IsBoolean, IsNumber, IsOptional, IsString } from "class-validator";
+import { IsArray, IsBoolean, IsIn, IsNumber, IsOptional, IsString, Matches, MaxLength } from "class-validator";
 
 class UpdateDigitalTwinDto {
 	@IsString()
@@ -21,6 +21,28 @@ class UpdateDigitalTwinDto {
 
 	@IsString()
 	public chatAssistantLanguage: string;
+
+	// Bilingual chat: the second language ("none": not bilingual, "zh-CN", "en-GB"...)
+	@IsOptional()
+	@IsString()
+	@MaxLength(20)
+	@Matches(/^(none|[A-Za-z]{2,3}([-_][A-Za-z0-9]{2,8})*)$/)
+	public chatAssistantSecondLanguage?: string;
+
+	// The language of the spoken answers: that of the question, the first or the second
+	@IsOptional()
+	@IsIn(["question", "primary", "secondary"])
+	public chatAssistantVoiceLanguage?: string;
+
+	// Chat channels: voice messages of the phone ("Mobile audio" sensor) and a Telegram chat ("": none)
+	@IsOptional()
+	@IsBoolean()
+	public chatMobileVoiceEnabled?: boolean;
+
+	@IsOptional()
+	@IsString()
+	@Matches(/^(-?\d{1,20})?$/)
+	public chatTelegramChatId?: string;
 
 	@IsString()
 	public digitalTwinSimulationFormat: string;

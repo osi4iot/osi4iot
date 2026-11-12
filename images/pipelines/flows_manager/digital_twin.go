@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"pipelines/common"
 	nats_pkg "pipelines/nats"
+	"pipelines/nodes"
 	"pipelines/utils"
 	"strconv"
 	"strings"
@@ -70,6 +71,8 @@ func (fm *FlowsManager) AddDigitalTwin(ctx context.Context, digitalTwin *common.
 			digitalTwin.Pipeline = nil
 		}
 		fm.DigitalTwins.Store(digitalTwinIdStr, digitalTwin)
+		// the Telegram channel of its chat (chat_telegram.go)
+		fm.SyncChatTelegramChannel(ctx, digitalTwin)
 	} else {
 		fm.log.Error("Digital Twin with ID %d already exists", digitalTwin.Id)
 	}
@@ -167,6 +170,17 @@ func (fm *FlowsManager) SetPipelineStatusSubscription(ctx context.Context, digit
 	sim2stateSubject := utils.TopicToNatsSubject(sim2stateTopic.TopicType, sim2stateTopic.GroupUid, sim2stateTopic.TopicUid)
 
 	handle := func(msg *nats.Msg, userName string) {
+		// the voice of the chat (nodes/chatVoice.go): only on the user's own subject, answered apart (an
+		// audio takes seconds to transcribe or to synthesize)
+		if msg.Header != nil && msg.Header.Get(nodes.ChatVoiceRequestHeader) != "" {
+			if userName == "" {
+				fm.log.Warnf("Digital twin %d: voice request ignored, it came on %s and not on the user's subject",
+					digitalTwin.Id, msg.Subject)
+				return
+			}
+			go nodes.HandleChatVoiceRequest(ctx, fm, digitalTwin.Id, msg, userName)
+			return
+		}
 		var rawMessage map[string]interface{}
 		if err := json.Unmarshal(msg.Data, &rawMessage); err != nil {
 			fm.log.Errorf("failed to unmarshal message for digital twin %d: %v", digitalTwin.Id, err)
@@ -227,6 +241,7 @@ func (fm *FlowsManager) DeleteDigitalTwin(ctx context.Context, digitalTwinId int
 	digitalTwinIdStr := strconv.Itoa(digitalTwinId)
 	if entry, ok := fm.DigitalTwins.Load(digitalTwinIdStr); ok {
 		digitalTwin := entry.(*common.DigitalTwin)
+		fm.StopChatTelegramChannel(digitalTwinId)
 		if digitalTwin.PipelineStatusSubscription != nil {
 			digitalTwin.PipelineStatusSubscription.Unsubscribe()
 		}
@@ -258,6 +273,10 @@ func (fm *FlowsManager) UpdateDigitalTwin(updatedDigitalTwin *common.DigitalTwin
 		digitalTwin.MaxNumResFemFiles = updatedDigitalTwin.MaxNumResFemFiles
 		digitalTwin.ChatAssistantEnabled = updatedDigitalTwin.ChatAssistantEnabled
 		digitalTwin.ChatAssistantLanguage = updatedDigitalTwin.ChatAssistantLanguage
+		digitalTwin.ChatAssistantSecondLanguage = updatedDigitalTwin.ChatAssistantSecondLanguage
+		digitalTwin.ChatAssistantVoiceLanguage = updatedDigitalTwin.ChatAssistantVoiceLanguage
+		digitalTwin.ChatMobileVoiceEnabled = updatedDigitalTwin.ChatMobileVoiceEnabled
+		digitalTwin.ChatTelegramChatId = updatedDigitalTwin.ChatTelegramChatId
 		digitalTwin.DigitalTwinSimulationFormat = updatedDigitalTwin.DigitalTwinSimulationFormat
 		digitalTwin.DashboardURL = updatedDigitalTwin.DashboardURL
 		digitalTwin.SensorsRef = updatedDigitalTwin.SensorsRef
@@ -267,6 +286,8 @@ func (fm *FlowsManager) UpdateDigitalTwin(updatedDigitalTwin *common.DigitalTwin
 		digitalTwin.PipelineRequiresGpu = updatedDigitalTwin.PipelineRequiresGpu
 
 		fm.DigitalTwins.Store(digitalTwinIdStr, digitalTwin)
+		// its chat may have got, changed or lost its Telegram chat
+		fm.SyncChatTelegramChannel(context.Background(), digitalTwin)
 		return nil
 	}
 	return common.ErrNotFound

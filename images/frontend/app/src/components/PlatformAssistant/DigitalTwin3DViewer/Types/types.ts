@@ -204,6 +204,10 @@ export interface ChatMessage {
     // "pipeline": pregunta de voz (sensor "Mobile audio", nota de voz de Telegram) transcrita en el pipeline, que
     // ya la ha enviado al AI Agent: el visor solo la muestra
     source?: "pipeline";
+    // chat bilingüe: el mensaje en el otro idioma (ChatAssitant/chatLanguages.ts)
+    translation?: { language: string; translatedLanguage: string; message: string };
+    // pregunta llegada por un canal del chat: "mobile", "telegram"
+    via?: string;
 }
 
 export interface IPipelineNode {

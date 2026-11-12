@@ -11,6 +11,13 @@ export default interface IDigitalTwin {
 	maxNumResFemFiles: number;
 	chatAssistantEnabled: boolean;
 	chatAssistantLanguage: string;
+	// bilingual chat: the second language ("none") and the language of the spoken answers
+	// ("question" | "primary" | "secondary")
+	chatAssistantSecondLanguage?: string;
+	chatAssistantVoiceLanguage?: string;
+	// chat channels: voice messages from the "Mobile sensors" page and a Telegram chat ("": none)
+	chatMobileVoiceEnabled?: boolean;
+	chatTelegramChatId?: string;
 	digitalTwinSimulationFormat: string;
 	// the twin's own viewer settings ({lighting: {...}}), saved from the 3D viewer
 	viewerSettings?: Record<string, unknown>;

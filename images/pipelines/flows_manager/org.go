@@ -127,6 +127,10 @@ func (fm *FlowsManager) UpdateOrg(ctx context.Context, org *common.Org) error {
 
 	if telegramChanged {
 		digitalTwinsInOrg := fm.GetDigitalTwinsInOrg(org.Id)
+		// the Telegram channels of the chats were on the old bot: started again below
+		for _, dt := range digitalTwinsInOrg {
+			fm.StopChatTelegramChannel(dt.Id)
+		}
 
 		if existentOrg.TelegramListener != nil {
 			existentOrg.TelegramListener.Stop()
@@ -173,6 +177,11 @@ func (fm *FlowsManager) UpdateOrg(ctx context.Context, org *common.Org) error {
 	}
 
 	fm.Orgs.Store(orgIdStr, org)
+	if telegramChanged {
+		for _, dt := range fm.GetDigitalTwinsInOrg(org.Id) {
+			fm.SyncChatTelegramChannel(ctx, dt)
+		}
+	}
 	return nil
 }
 

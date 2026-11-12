@@ -9,12 +9,12 @@ require (
 	github.com/aws/aws-sdk-go-v2/config v1.33.5
 	github.com/aws/aws-sdk-go-v2/credentials v1.20.5
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.97.3
-	github.com/bytectlgo/edge-tts v1.0.5
 	github.com/cenkalti/backoff/v4 v4.3.0
 	github.com/daulet/tokenizers v1.27.0
 	github.com/dop251/goja v0.0.0-20250630131328-58d95d85e994
 	github.com/duckdb/duckdb-go/v2 v2.10502.0
 	github.com/golang-jwt/jwt/v5 v5.3.1
+	github.com/gorilla/websocket v1.5.3
 	github.com/jackc/pgx/v5 v5.8.0
 	github.com/mark3labs/mcp-go v0.39.1
 	github.com/nats-io/nats.go v1.45.0
@@ -95,7 +95,6 @@ require (
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.3.20 // indirect
 	github.com/googleapis/gax-go/v2 v2.24.0 // indirect
-	github.com/gorilla/websocket v1.5.3 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.30.0 // indirect
 	github.com/invopop/jsonschema v0.13.0 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect

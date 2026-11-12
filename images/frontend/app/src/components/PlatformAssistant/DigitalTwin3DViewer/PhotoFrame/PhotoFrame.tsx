@@ -1,6 +1,6 @@
 import React, { useState, useRef, useCallback, useEffect } from "react";
 import styled from "styled-components";
-import { Camera, Pause, Play } from "lucide-react";
+import { Camera, Pause, Play, Video } from "lucide-react";
 import type { FrameStore } from "../Utils/customHooks";
 
 // ---------------------------------------------------------------------------
@@ -403,7 +403,8 @@ export const ImageFrame: React.FC<ImageFrameProps> = ({
             onMouseUp={handleMouseUp}
             onMouseLeave={handleMouseUp}
         >
-            {!hasFirstFrame && <Camera size={100} color="#595858" />}
+            {/* while there is nothing to show: a video camera for a video, a camera for the rest */}
+            {!hasFirstFrame && (mode === "video" ? <Video size={100} color="#595858" aria-hidden="true" /> : <Camera size={100} color="#595858" aria-hidden="true" />)}
 
             {/* Always mounted, so frames can be drawn before the first one is shown */}
             <div style={{ display: hasFirstFrame ? "block" : "none", width: "100%", height: "100%", padding: 12, boxSizing: "border-box" }}>

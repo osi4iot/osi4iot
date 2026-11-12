@@ -155,7 +155,18 @@ export const getAllMobileTopics = async (): Promise<IMobileTopic[]> => {
 		grafanadb.asset.description AS "assetDescription",
 		grafanadb.group.group_uid AS "groupUid",
 		grafanadb.asset.asset_uid AS "assetUid",
-		grafanadb.topic.topic_uid AS "topicUid"
+		grafanadb.topic.topic_uid AS "topicUid",
+		-- Mobile audio: the sim2state topic of the asset's digital twin when its chat takes voice messages from
+		-- the phone (the page publishes the audio on the user's own copy of it: pipelines knows who asks)
+		CASE WHEN grafanadb.sensor_type.type = 'Mobile audio' THEN (
+			SELECT st.topic_type || '/Group_' || sg.group_uid || '/Topic_' || st.topic_uid
+			FROM grafanadb.digital_twin dt
+			INNER JOIN grafanadb.digital_twin_topic dtt ON dtt.digital_twin_id = dt.id AND dtt.topic_ref = 'sim2state'
+			INNER JOIN grafanadb.topic st ON st.id = dtt.topic_id
+			INNER JOIN grafanadb.group sg ON st.group_id = sg.id
+			WHERE dt.asset_id = grafanadb.asset.id AND dt.chat_assistant_enabled AND dt.chat_mobile_voice_enabled
+			ORDER BY dt.id LIMIT 1
+		) END AS "chatMqttTopic"
 		FROM grafanadb.topic
 		INNER JOIN grafanadb.group ON grafanadb.topic.group_id = grafanadb.group.id
 		INNER JOIN grafanadb.org ON grafanadb.group.org_id = grafanadb.org.id
@@ -234,7 +245,18 @@ export const getMobileTopicsByGroupsIdArray = async (groupsIdArray: number[]): P
 		grafanadb.asset.description AS "assetDescription",
 		grafanadb.group.group_uid AS "groupUid",
 		grafanadb.asset.asset_uid AS "assetUid",
-		grafanadb.topic.topic_uid AS "topicUid"
+		grafanadb.topic.topic_uid AS "topicUid",
+		-- Mobile audio: the sim2state topic of the asset's digital twin when its chat takes voice messages from
+		-- the phone (the page publishes the audio on the user's own copy of it: pipelines knows who asks)
+		CASE WHEN grafanadb.sensor_type.type = 'Mobile audio' THEN (
+			SELECT st.topic_type || '/Group_' || sg.group_uid || '/Topic_' || st.topic_uid
+			FROM grafanadb.digital_twin dt
+			INNER JOIN grafanadb.digital_twin_topic dtt ON dtt.digital_twin_id = dt.id AND dtt.topic_ref = 'sim2state'
+			INNER JOIN grafanadb.topic st ON st.id = dtt.topic_id
+			INNER JOIN grafanadb.group sg ON st.group_id = sg.id
+			WHERE dt.asset_id = grafanadb.asset.id AND dt.chat_assistant_enabled AND dt.chat_mobile_voice_enabled
+			ORDER BY dt.id LIMIT 1
+		) END AS "chatMqttTopic"
 		FROM grafanadb.topic
 		INNER JOIN grafanadb.group ON grafanadb.topic.group_id = grafanadb.group.id
 		INNER JOIN grafanadb.org ON grafanadb.group.org_id = grafanadb.org.id

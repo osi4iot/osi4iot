@@ -17,6 +17,8 @@ import { type NatsConnection, headers } from "@nats-io/nats-core";
 import styled, { css, keyframes } from "styled-components";
 import { FaMicrophone, FaCheck } from "react-icons/fa";
 import { IMobileTopic } from "../PlatformAssistant/TableColumns/topicsColumns";
+import { natsUserChatSubject } from "../../tools/natsInbox";
+import { mqttTopicToNatsSubject } from "../PlatformAssistant/DigitalTwin3DViewer/NatsHook/tools";
 import { canRecordAudio, openMicrophone, Recording, startRecording } from "../../tools/audioRecorder";
 import { useLoggedUserLogin } from "../../contexts/authContext/authContext";
 import { asIcon } from "../../tools/icons";
@@ -283,18 +285,64 @@ const MobileAudioForm: FC<MobileAudioFormProps> = ({
         }
         setPhase("sending");
         const natsSubject = `dev2dtm.Group_${mobileTopicSelected.groupUid}.Topic_${mobileTopicSelected.topicUid}`;
+        const contentType = blob.type.split(";")[0] || "audio/webm";
+        // por el tópico del activo, como siempre (para los pipelines que lo escuchan con nodos)
+        const publishToTopic = (buffer: ArrayBuffer) => {
+            const h = headers();
+            // sin parámetros: "audio/webm;codecs=opus" -> "audio/webm"
+            h.set("Content-Type", contentType);
+            h.set("X-Capture-Ts", String(Date.now()));
+            // quién lo grabó (el nodo Listen lo pasa al payload como "userName")
+            if (userName) h.set("Payload-UserName", userName);
+            natsClient.publish(natsSubject, new Uint8Array(buffer), { headers: h });
+        };
+        // El chat del gemelo digital del activo toma las notas de voz (canal del chat, admin_api da su tópico): se
+        // envían a pipelines por la copia del usuario del tópico sim2state, en la que solo él publica; pipelines
+        // la transcribe y la pregunta al AI Agent como si se hubiera escrito en el visor (nodes/chatChannels.go)
+        const askChat = async (buffer: ArrayBuffer): Promise<string | null> => {
+            const chatTopic = mobileTopicSelected.chatMqttTopic;
+            if (!chatTopic || !userName) return null;
+            const h = headers();
+            h.set("Content-Type", contentType);
+            h.set("Voice-Request", "question");
+            h.set("Reply-Timeout-Ms", "60000");
+            const reply = await natsClient.request(
+                natsUserChatSubject(userName, mqttTopicToNatsSubject(chatTopic)),
+                new Uint8Array(buffer),
+                { timeout: 60_000, headers: h },
+            );
+            const answer = JSON.parse(new TextDecoder().decode(reply.data)) as { message?: unknown; error?: unknown };
+            if (reply.headers?.get("Voice-Error")) {
+                throw new Error(typeof answer.error === "string" ? answer.error : "the chat did not take it");
+            }
+            return typeof answer.message === "string" ? answer.message : "";
+        };
         blob.arrayBuffer()
-            .then((buffer) => {
-                const h = headers();
-                // sin parámetros: "audio/webm;codecs=opus" -> "audio/webm"
-                h.set("Content-Type", blob.type.split(";")[0] || "audio/webm");
-                h.set("X-Capture-Ts", String(Date.now()));
-                // quién lo grabó (el nodo Listen lo pasa al payload como "userName"): el chat del gemelo digital
-                // muestra la transcripción solo a este usuario
-                if (userName) h.set("Payload-UserName", userName);
-                natsClient.publish(natsSubject, new Uint8Array(buffer), { headers: h });
+            .then(async (buffer) => {
                 setSent({ blob, seconds: durationSeconds });
-                setMessage(null);
+                if (!mobileTopicSelected.chatMqttTopic) {
+                    publishToTopic(buffer);
+                    setMessage(null);
+                    return;
+                }
+                try {
+                    const text = await askChat(buffer);
+                    setMessage(
+                        text
+                            ? { text: `Sent to the chat: “${text}”` }
+                            : { text: "The voice message was not understood.", warning: true },
+                    );
+                } catch (error) {
+                    const reason = error instanceof Error ? error.message : String(error);
+                    if (/no responders|503/i.test(reason)) {
+                        // pipelines sin el canal del chat (versiones anteriores): por el tópico del activo
+                        publishToTopic(buffer);
+                        setMessage(null);
+                    } else {
+                        console.error(error);
+                        setMessage({ text: `The voice message could not be sent to the chat: ${reason}`, warning: true });
+                    }
+                }
             })
             .catch((error) => {
                 console.error(error);

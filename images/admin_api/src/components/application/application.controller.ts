@@ -19,7 +19,7 @@ import InvalidPropNameExeception from "../../exceptions/InvalidPropNameExeceptio
 import { cleanEmailNotificationChannelForGroupsArray, getGroupsWhereUserIdIsMember } from "../group/groupDAL";
 import CreateGlobalUsersArrayDto from "../user/interfaces/GlobalUsersArray.dto";
 import TelegramLinkDto from "../user/interfaces/TelegramLink.dto";
-import { getTelegramApprover, linkTelegramUser } from "../user/telegramLinkDAL";
+import { getTelegramApprover, getTelegramGroupMember, linkTelegramUser } from "../user/telegramLinkDAL";
 import HttpException from "../../exceptions/HttpException";
 import infoLogger from "../../utils/logger/infoLogger";
 
@@ -87,6 +87,12 @@ class ApplicationController implements IController {
 				superAdminAuth,
 				this.getTelegramApprover
 			)
+			// who writes to the chat of a group's digital twin from Telegram (the chat channels of pipelines)
+			.get(
+				`${this.path}/telegram_member/:groupId/:telegramUserId`,
+				superAdminAuth,
+				this.getTelegramGroupMember
+			)
 	}
 
 	private linkTelegramUser = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -111,6 +117,20 @@ class ApplicationController implements IController {
 				throw new HttpException(req, res, 400, "Invalid group or Telegram user id");
 			}
 			const userName = await getTelegramApprover(groupId, telegramUserId);
+			res.status(200).send({ userName });
+		} catch (error) {
+			next(error);
+		}
+	};
+
+	private getTelegramGroupMember = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+		try {
+			const groupId = Number(req.params.groupId);
+			const telegramUserId = Number(req.params.telegramUserId);
+			if (!Number.isSafeInteger(groupId) || !Number.isSafeInteger(telegramUserId) || telegramUserId <= 0) {
+				throw new HttpException(req, res, 400, "Invalid group or Telegram user id");
+			}
+			const userName = await getTelegramGroupMember(groupId, telegramUserId);
 			res.status(200).send({ userName });
 		} catch (error) {
 			next(error);

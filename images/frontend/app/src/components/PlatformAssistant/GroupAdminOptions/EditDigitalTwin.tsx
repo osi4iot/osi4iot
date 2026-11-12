@@ -40,6 +40,12 @@ import MultiFileLoader from "../../Tools/MultiFileLoader";
 import { digitalTwinFileTargets } from "./digitalTwinFileTargets";
 import ViewerConfigFileField, { ViewerConfigFile, readViewerConfigFile } from "./ViewerConfigFileField";
 import { applyViewerConfig } from "../DigitalTwin3DViewer/Workspace/viewerConfigApi";
+import {
+    CHAT_PRIMARY_LANGUAGE_OPTIONS,
+    CHAT_SECOND_LANGUAGE_OPTIONS,
+    CHAT_VOICE_LANGUAGE_OPTIONS,
+    isBilingualChat,
+} from "../DigitalTwin3DViewer/ChatAssitant/chatLanguages";
 import { ControlsContainer, DraggableFormContainer, FormSection } from "../../Tools/FormTools";
 import KnowledgeDocumentsSelector from "./KnowledgeDocumentsSelector";
 
@@ -163,39 +169,12 @@ const chatAssistantEnabledOptions = [
     },
 ];
 
-const chatAssistantLanguageOptions = [
-    {
-        label: "None",
-        value: "none",
-    },
-    {
-        label: "UK English Male",
-        value: "en-UK-male",
-    },
-    {
-        label: "UK English Female",
-        value: "en-UK-female",
-    },
-    {
-        label: "Spanish",
-        value: "es-ES",
-    },
-    {
-        label: "French",
-        value: "fr-FR",
-    },
-    {
-        label: "Italian",
-        value: "it-IT",
-    },
-    {
-        label: "German",
-        value: "de-DE",
-    },
-    {
-        label: "Catalan",
-        value: "ca",
-    },
+const chatAssistantLanguageOptions = CHAT_PRIMARY_LANGUAGE_OPTIONS;
+
+// canales del chat: notas de voz del móvil
+const chatChannelYesNoOptions = [
+    { label: "Yes: they go to the chat of the user who records them", value: true },
+    { label: "No", value: false },
 ];
 
 const pipelineRequiresGpuOptions = [
@@ -221,6 +200,10 @@ type FormikType = FormikProps<{
     maxNumResFemFiles: string;
     chatAssistantEnabled: boolean;
     chatAssistantLanguage: string;
+    chatAssistantSecondLanguage: string;
+    chatAssistantVoiceLanguage: string;
+    chatMobileVoiceEnabled: boolean;
+    chatTelegramChatId: string;
     digitalTwinSimulationFormat: string;
     digitalTwinSimulationFormatFileName: string;
     digitalTwinSimulationFormatLastModifDate: string;
@@ -658,6 +641,12 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
             isGltfFileModified,
             chatAssistantEnabled: values.chatAssistantEnabled,
             chatAssistantLanguage,
+            // chat bilingüe: segundo idioma y en qué idioma se leen las respuestas
+            chatAssistantSecondLanguage: values.chatAssistantEnabled ? values.chatAssistantSecondLanguage || "none" : "none",
+            chatAssistantVoiceLanguage: values.chatAssistantVoiceLanguage || "question",
+            // canales del chat: notas de voz del móvil y un chat de Telegram ("": ninguno)
+            chatMobileVoiceEnabled: values.chatAssistantEnabled ? values.chatMobileVoiceEnabled === true : false,
+            chatTelegramChatId: values.chatAssistantEnabled ? String(values.chatTelegramChatId ?? "").trim() : "",
             pipelineRequiresGpu: values.pipelineRequiresGpu,
             digitalTwinSimulationFormat: JSON.stringify(JSON.parse(values.digitalTwinSimulationFormat)),
             // "Current" solo se muestra (gemelo sin nombre de archivo guardado): no se guarda
@@ -698,6 +687,10 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
         maxNumResFemFiles: digitalTwins[digitalTwinRowIndex].maxNumResFemFiles as unknown as string,
         chatAssistantEnabled: digitalTwins[digitalTwinRowIndex].chatAssistantEnabled,
         chatAssistantLanguage: digitalTwins[digitalTwinRowIndex].chatAssistantLanguage,
+        chatAssistantSecondLanguage: digitalTwins[digitalTwinRowIndex].chatAssistantSecondLanguage || "none",
+        chatAssistantVoiceLanguage: digitalTwins[digitalTwinRowIndex].chatAssistantVoiceLanguage || "question",
+        chatMobileVoiceEnabled: digitalTwins[digitalTwinRowIndex].chatMobileVoiceEnabled === true,
+        chatTelegramChatId: digitalTwins[digitalTwinRowIndex].chatTelegramChatId || "",
         digitalTwinSimulationFormat: JSON.stringify(
             digitalTwins[digitalTwinRowIndex].digitalTwinSimulationFormat,
             null,
@@ -719,6 +712,7 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
     };
 
     const validationSchema = Yup.object().shape({
+        chatTelegramChatId: Yup.string().matches(/^\s*(-?\d{1,20})?\s*$/, "A Telegram chat id is a number (negative for groups)"),
         description: Yup.string().required("Required"),
         type: Yup.string().max(20, "The maximum number of characters allowed is 20").required("Required"),
         maxNumResFemFiles: Yup.number().when("type", {
@@ -1034,6 +1028,45 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
                                                                         onChange={(e) =>
                                                                             onchatAssistantLanguageOptions(e, formik)
                                                                         }
+                                                                    />
+                                                                )}
+                                                                {isChatAssistantEnabled && (
+                                                                    <FormikControl
+                                                                        control="select"
+                                                                        label="Second language (bilingual chat)"
+                                                                        name="chatAssistantSecondLanguage"
+                                                                        options={CHAT_SECOND_LANGUAGE_OPTIONS}
+                                                                        type="text"
+                                                                        onChange={(e: { value: string }) => formik.setFieldValue("chatAssistantSecondLanguage", e.value)}
+                                                                    />
+                                                                )}
+                                                                {isChatAssistantEnabled &&
+                                                                    isBilingualChat(formik.values.chatAssistantLanguage, formik.values.chatAssistantSecondLanguage) && (
+                                                                        <FormikControl
+                                                                            control="select"
+                                                                            label="Read the answers aloud in"
+                                                                            name="chatAssistantVoiceLanguage"
+                                                                            options={CHAT_VOICE_LANGUAGE_OPTIONS}
+                                                                            type="text"
+                                                                            onChange={(e: { value: string }) => formik.setFieldValue("chatAssistantVoiceLanguage", e.value)}
+                                                                        />
+                                                                    )}
+                                                                {isChatAssistantEnabled && (
+                                                                    <FormikControl
+                                                                        control="select"
+                                                                        label="Voice messages from the phone (Mobile audio)"
+                                                                        name="chatMobileVoiceEnabled"
+                                                                        options={chatChannelYesNoOptions}
+                                                                        type="text"
+                                                                        onChange={(e: { value: boolean }) => formik.setFieldValue("chatMobileVoiceEnabled", e.value)}
+                                                                    />
+                                                                )}
+                                                                {isChatAssistantEnabled && (
+                                                                    <FormikControl
+                                                                        control="input"
+                                                                        label="Telegram chat ID (empty: none)"
+                                                                        name="chatTelegramChatId"
+                                                                        type="text"
                                                                     />
                                                                 )}
                                                             </ChatAssistantContainer>

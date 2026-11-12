@@ -27,11 +27,14 @@ export const useSpeechSynthesis = ({ onEnd }: { onEnd: () => void }) => {
         
         utterance.lang = voiceLang;
         
+        // la voz del idioma: la de su región ("zh-CN") o, si no hay, otra del idioma ("zh-TW"); sin ninguna, la
+        // del navegador para utterance.lang (antes, a falta de una, se tomaba una española aunque fuera otro idioma)
         const voices = window.speechSynthesis.getVoices();
-        const appropriateVoice = voices.find(voice => 
-            voice.lang.startsWith(voiceLang.split('-')[0]) || 
-            voice.lang.includes('es')
-        );
+        const wanted = voiceLang.toLowerCase().replace("_", "-");
+        const base = wanted.split("-")[0];
+        const appropriateVoice =
+            voices.find((voice) => voice.lang.toLowerCase().replace("_", "-") === wanted) ??
+            voices.find((voice) => voice.lang.toLowerCase().split(/[-_]/)[0] === base);
         
         if (appropriateVoice) {
             utterance.voice = appropriateVoice;

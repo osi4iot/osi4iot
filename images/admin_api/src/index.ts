@@ -32,7 +32,10 @@ import LlmUsageController from "./components/llmUsage/llmUsage.controller";
 import SkillController from "./components/skill/skill.controller";
 import { seedBuiltinSkills } from "./components/skill/skillStorage";
 import { createMissingAssetStateRows } from "./components/asset/assetStateDAL";
-import { ensureDigitalTwinViewerSettingsColumn } from "./components/digitalTwin/digitalTwinDAL";
+import {
+	ensureDigitalTwinChatLanguageColumns,
+	ensureDigitalTwinViewerSettingsColumn,
+} from "./components/digitalTwin/digitalTwinDAL";
 import ViewerLayoutController from "./components/viewerLayout/viewerLayout.controller";
 import TimeSeriesController from "./components/timeSeries/timeSeries.controller";
 import { ensureViewerLayoutTable } from "./components/viewerLayout/viewerLayoutDAL";
@@ -46,6 +49,13 @@ const main = async (): Promise<void> => {
 		} catch (err) {
 			const message = err instanceof Error ? err.message : String(err);
 			logger.log("error", "The viewer_settings column of the digital twins could not be added: %s", message);
+		}
+		// digital twins of older versions: the columns of the bilingual chat
+		try {
+			await ensureDigitalTwinChatLanguageColumns();
+		} catch (err) {
+			const message = err instanceof Error ? err.message : String(err);
+			logger.log("error", "The bilingual chat columns of the digital twins could not be added: %s", message);
 		}
 		// the layouts of the Viewer page (one per digital twin, saved by group administrators)
 		try {

@@ -1,11 +1,14 @@
 // The Alarms and Approvals panels of the Viewer page: what is happening now (alarms that are not normal,
 // requests waiting for a decision) and the latest events of the digital twin, from the history tables. A row
-// opens its detail, with the copy of the message that caused the event. Read only: alarms are acknowledged and
-// requests decided where they were before (pipeline, chat, notifications).
+// opens its detail, with the copy of the message that caused the event. For the group's administrators
+// (`actions`) the rows of "now" also manage them, as the Alarms and Approvals pages: acknowledge, shelve and reset
+// an alarm (or acknowledge all), approve or reject a request with a comment. The pipeline does it (and checks
+// who asks); the panel reads the history again after each action.
 import { FC, useCallback, useEffect, useState } from "react";
 import styled from "styled-components";
 import { scrollbarStyle } from "../../../Tools/FormTools";
-import { ChevronDown, ChevronRight } from "lucide-react";
+import { Check, ChevronDown, ChevronRight, RotateCcw, ThumbsDown, ThumbsUp, VolumeX } from "lucide-react";
+import { toast } from "react-toastify";
 import {
     AlarmRow,
     ApprovalRow,
@@ -252,6 +255,75 @@ const Empty = styled.p<{ $error?: boolean }>`
     color: ${({ $error }) => ($error ? "#ff7383" : "#9aa1aa")};
 `;
 
+// What the group's administrators can do from the panels (by the pipeline of the twin, on NATS)
+export interface HistoryActions {
+    // key undefined: all the alarms of the node
+    acknowledge: (nodeUid: string, key?: string) => Promise<void>;
+    // minutes 0: unshelve
+    shelve: (nodeUid: string, key: string, minutes: number) => Promise<void>;
+    reset: (nodeUid: string, key: string) => Promise<void>;
+    decide: (nodeUid: string, requestId: string, approve: boolean, comment: string) => Promise<void>;
+}
+
+export const SHELVE_MINUTES = [15, 60, 240, 480, 1440];
+const shelveText = (minutes: number) => (minutes % 60 === 0 ? `${minutes / 60} h` : `${minutes} min`);
+
+// what can be done with an alarm of "now", from its state in the history
+export const alarmActionsOf = (a: AlarmRow) => ({
+    acknowledge: !a.shelved && (a.state === "active_unack" || a.state === "rtn_unack" || (a.state === "latched" && !a.ackBy)),
+    reset: a.state === "latched",
+    unshelve: a.shelved || a.state === "shelved",
+});
+
+const ActionBar = styled.div`
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 10px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #262a2f;
+
+    select,
+    input {
+        height: 28px;
+        box-sizing: border-box;
+        padding: 0 8px;
+        background: #16181c;
+        border: 1px solid #2c3137;
+        border-radius: 7px;
+        color: #e6e8eb;
+        font: 400 12px ${font};
+    }
+    input {
+        flex: 1 1 160px;
+        min-width: 0;
+    }
+`;
+
+const ActionButton = styled.button<{ $tone?: "primary" | "danger" | "plain" }>`
+    height: 28px;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 0 10px;
+    border-radius: 7px;
+    font: 500 12px ${font};
+    cursor: pointer;
+    background: ${({ $tone }) => ($tone === "primary" ? "#3d82f0" : $tone === "danger" ? "rgba(242, 73, 92, 0.16)" : "#1b1e22")};
+    border: 1px solid ${({ $tone }) => ($tone === "primary" ? "#3d82f0" : $tone === "danger" ? "rgba(242, 73, 92, 0.5)" : "#2c3137")};
+    color: ${({ $tone }) => ($tone === "primary" ? "#fff" : $tone === "danger" ? "#ff8a95" : "#d5d9de")};
+
+    &:disabled {
+        opacity: 0.5;
+        cursor: default;
+    }
+    svg {
+        width: 13px;
+        height: 13px;
+    }
+`;
+
 export interface HistoryPanelProps {
     kind: HistoryPanelKind;
     groupId: number;
@@ -260,17 +332,24 @@ export interface HistoryPanelProps {
     // the page is not shown (the Pipeline view): no requests
     paused?: boolean;
     now?: () => number;
+    // the group's administrators: manage the alarms and requests of "now"
+    actions?: HistoryActions;
 }
 
 type View = "now" | "events";
 
-const HistoryPanel: FC<HistoryPanelProps> = ({ kind, groupId, digitalTwinId, api, paused = false, now = Date.now }) => {
+const HistoryPanel: FC<HistoryPanelProps> = ({ kind, groupId, digitalTwinId, api, paused = false, now = Date.now, actions }) => {
     const [view, setView] = useState<View>("now");
     const [data, setData] = useState<HistoryPanelData | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [loadedAt, setLoadedAt] = useState<number | null>(null);
     const [open, setOpen] = useState<string | null>(null);
     const [details, setDetails] = useState<Record<string, Record<string, unknown> | "loading" | "error">>({});
+    // a new reading after an action
+    const [reloads, setReloads] = useState(0);
+    const [busy, setBusy] = useState<string | null>(null);
+    const [minutes, setMinutes] = useState(60);
+    const [comments, setComments] = useState<Record<string, string>>({});
     const clock = now();
 
     useEffect(() => {
@@ -305,7 +384,21 @@ const HistoryPanel: FC<HistoryPanelProps> = ({ kind, groupId, digitalTwinId, api
             document.removeEventListener("visibilitychange", onVisible);
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [kind, groupId, digitalTwinId, api, paused]);
+    }, [kind, groupId, digitalTwinId, api, paused, reloads]);
+
+    // an action of the panel: one at a time, its error told, and the history read again (the pipeline writes it)
+    const act = useCallback(async (id: string, run: () => Promise<void>, done: string) => {
+        setBusy(id);
+        try {
+            await run();
+            toast.success(done);
+        } catch (err: any) {
+            toast.error(err?.message || "The action could not be done");
+        } finally {
+            setBusy(null);
+            window.setTimeout(() => setReloads((n) => n + 1), 400);
+        }
+    }, []);
 
     const toggle = useCallback(
         async (eventId: string) => {
@@ -332,6 +425,76 @@ const HistoryPanel: FC<HistoryPanelProps> = ({ kind, groupId, digitalTwinId, api
     const nowLabel = alarms ? "Active" : "Pending";
     const eventsLabel = alarms ? "Events" : "Decisions";
     const nowTone: Tone = alarms ? (counts && counts.unacked > 0 ? "danger" : "warning") : "info";
+
+    const renderActions = (row: AlarmRow | ApprovalRow) => {
+        if (!actions) return null;
+        const working = busy !== null;
+        if (alarms) {
+            const a = row as AlarmRow;
+            const can = alarmActionsOf(a);
+            const name = alarmTitle(a);
+            return (
+                <ActionBar aria-label={`Manage the alarm ${name}`}>
+                    {can.acknowledge && (
+                        <ActionButton type="button" $tone="primary" disabled={working} onClick={() => act(a.eventId, () => actions.acknowledge(a.nodeUid, a.alarmKey), `${name}: acknowledged`)}>
+                            <Check aria-hidden="true" />
+                            Acknowledge
+                        </ActionButton>
+                    )}
+                    {can.reset && (
+                        <ActionButton type="button" disabled={working} title="Only when its value is back to normal" onClick={() => act(a.eventId, () => actions.reset(a.nodeUid, a.alarmKey), `${name}: reset`)}>
+                            <RotateCcw aria-hidden="true" />
+                            Reset
+                        </ActionButton>
+                    )}
+                    {can.unshelve ? (
+                        <ActionButton type="button" disabled={working} onClick={() => act(a.eventId, () => actions.shelve(a.nodeUid, a.alarmKey, 0), `${name}: unshelved`)}>
+                            <VolumeX aria-hidden="true" />
+                            Unshelve
+                        </ActionButton>
+                    ) : (
+                        <>
+                            <ActionButton type="button" disabled={working} onClick={() => act(a.eventId, () => actions.shelve(a.nodeUid, a.alarmKey, minutes), `${name}: shelved for ${shelveText(minutes)}`)}>
+                                <VolumeX aria-hidden="true" />
+                                Shelve for
+                            </ActionButton>
+                            <select aria-label="Shelve for" value={minutes} onChange={(e) => setMinutes(Number(e.target.value))}>
+                                {SHELVE_MINUTES.map((m) => (
+                                    <option key={m} value={m}>
+                                        {shelveText(m)}
+                                    </option>
+                                ))}
+                            </select>
+                        </>
+                    )}
+                    {busy === a.eventId && <span style={{ color: "#9aa1aa" }}>Working…</span>}
+                </ActionBar>
+            );
+        }
+        const r = row as ApprovalRow;
+        const comment = comments[r.eventId] ?? "";
+        const what = r.title || r.nodeName || "The request";
+        return (
+            <ActionBar aria-label={`Decide the request ${what}`}>
+                <input
+                    aria-label="Comment"
+                    placeholder="Comment (optional)"
+                    value={comment}
+                    maxLength={500}
+                    onChange={(e) => setComments((c) => ({ ...c, [r.eventId]: e.target.value }))}
+                />
+                <ActionButton type="button" $tone="primary" disabled={working} onClick={() => act(r.eventId, () => actions.decide(r.nodeUid, r.requestId, true, comment), `${what}: approved`)}>
+                    <ThumbsUp aria-hidden="true" />
+                    Approve
+                </ActionButton>
+                <ActionButton type="button" $tone="danger" disabled={working} onClick={() => act(r.eventId, () => actions.decide(r.nodeUid, r.requestId, false, comment), `${what}: rejected`)}>
+                    <ThumbsDown aria-hidden="true" />
+                    Reject
+                </ActionButton>
+                {busy === r.eventId && <span style={{ color: "#9aa1aa" }}>Working…</span>}
+            </ActionBar>
+        );
+    };
 
     const renderRow = (row: AlarmRow | ApprovalRow) => {
         let dotTone: Tone;
@@ -382,6 +545,7 @@ const HistoryPanel: FC<HistoryPanelProps> = ({ kind, groupId, digitalTwinId, api
                 </RowButton>
                 {expanded && (
                     <Detail>
+                        {actions && view === "now" && renderActions(row)}
                         {detail === "loading" || detail === undefined ? (
                             "Loading…"
                         ) : detail === "error" ? (
@@ -444,6 +608,24 @@ const HistoryPanel: FC<HistoryPanelProps> = ({ kind, groupId, digitalTwinId, api
                             .filter(Boolean)
                             .join(" · ")}
                     </Summary>
+                )}
+                {actions && alarms && view === "now" && data && counts && counts.unacked > 0 && (
+                    <ActionButton
+                        type="button"
+                        className="ws-no-drag"
+                        $tone="primary"
+                        disabled={busy !== null}
+                        title="Acknowledge every unacknowledged alarm of the twin"
+                        onClick={() => {
+                            const nodes = Array.from(new Set((data.now as AlarmRow[]).filter((a) => alarmActionsOf(a).acknowledge).map((a) => a.nodeUid)));
+                            act("all", async () => {
+                                for (const node of nodes) await actions.acknowledge(node);
+                            }, "Alarms acknowledged");
+                        }}
+                    >
+                        <Check aria-hidden="true" />
+                        Acknowledge all
+                    </ActionButton>
                 )}
                 <Status $error={!!error && !!data} title={error ?? undefined}>
                     {error && data ? "Not updated" : loadedAt ? `Updated ${clockTime(new Date(loadedAt).toISOString(), clock)}` : ""}

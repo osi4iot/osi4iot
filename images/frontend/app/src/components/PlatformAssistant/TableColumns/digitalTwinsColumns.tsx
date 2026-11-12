@@ -37,6 +37,12 @@ export interface IDigitalTwin {
     maxNumResFemFiles: number;
     chatAssistantEnabled: boolean;
     chatAssistantLanguage: string;
+    // chat bilingüe: segundo idioma ("none") y en qué idioma se leen las respuestas ("question" | "primary" | "secondary")
+    chatAssistantSecondLanguage?: string;
+    chatAssistantVoiceLanguage?: string;
+    // canales del chat: notas de voz del móvil y un chat de Telegram ("": ninguno)
+    chatMobileVoiceEnabled?: boolean;
+    chatTelegramChatId?: string;
     digitalTwinSimulationFormat: string;
     // archivo del que se cargó el formato de simulación ("-": ninguno)
     digitalTwinSimulationFormatFileName?: string;

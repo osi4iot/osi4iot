@@ -42,6 +42,8 @@ export interface IMobileTopic {
 	groupUid: string;
 	assetUid: string;
 	topicUid: string;
+	// Mobile audio: el tópico (MQTT, sim2state) del chat del gemelo digital del activo, si toma notas de voz
+	chatMqttTopic?: string | null;
 }
 
 

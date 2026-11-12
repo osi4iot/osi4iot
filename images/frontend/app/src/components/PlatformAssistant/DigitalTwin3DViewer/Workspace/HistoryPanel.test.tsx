@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import HistoryPanel from "./HistoryPanel";
+import HistoryPanel, { HistoryActions, alarmActionsOf } from "./HistoryPanel";
 import { HistoryPanelApi } from "./historyPanelsApi";
 
 const NOW = Date.parse("2026-11-09T12:00:00Z");
@@ -69,5 +69,83 @@ describe("History panel", () => {
         const failing = api({ load: vi.fn().mockRejectedValue({ response: { data: { message: "You are not a group administrator" } } }) });
         render(<HistoryPanel kind="alarms" groupId={3} digitalTwinId={9} api={failing} />);
         await waitFor(() => expect(screen.getByText("You are not a group administrator")).toBeInTheDocument());
+    });
+
+    describe("managed from the panel (group administrators)", () => {
+        const actions = (): HistoryActions => ({
+            acknowledge: vi.fn().mockResolvedValue(undefined),
+            shelve: vi.fn().mockResolvedValue(undefined),
+            reset: vi.fn().mockResolvedValue(undefined),
+            decide: vi.fn().mockResolvedValue(undefined),
+        });
+
+        it("acknowledges, shelves and resets an alarm, and reads the history again", async () => {
+            const a = api({
+                load: vi.fn().mockResolvedValue({
+                    now: [alarm({ alarmKey: "acc" }), alarm({ eventId: "e2", nodeUid: "n2", alarmName: "Rotor speed", alarmKey: "rpm", state: "latched", ackBy: "ana" })],
+                    events: [],
+                }),
+            });
+            const act$ = actions();
+            render(<HistoryPanel kind="alarms" groupId={3} digitalTwinId={9} api={a} now={() => NOW} actions={act$} />);
+            await screen.findByText("Tower acceleration");
+            fireEvent.click(screen.getByText("Tower acceleration"));
+            const bar = screen.getByLabelText("Manage the alarm Tower acceleration");
+            fireEvent.change(within(bar).getByRole("combobox", { name: "Shelve for" }), { target: { value: "240" } });
+            await act(async () => {
+                fireEvent.click(within(bar).getByRole("button", { name: "Acknowledge" }));
+            });
+            expect(act$.acknowledge).toHaveBeenCalledWith("n1", "acc");
+            await waitFor(() => expect(a.load).toHaveBeenCalledTimes(2));
+            await act(async () => {
+                fireEvent.click(within(bar).getByRole("button", { name: "Shelve for" }));
+            });
+            expect(act$.shelve).toHaveBeenCalledWith("n1", "acc", 240);
+            // the latched one, already acknowledged: reset, no acknowledge
+            fireEvent.click(screen.getByText("Rotor speed · rpm"));
+            const latched = screen.getByLabelText("Manage the alarm Rotor speed · rpm");
+            expect(within(latched).queryByRole("button", { name: "Acknowledge" })).not.toBeInTheDocument();
+            await act(async () => {
+                fireEvent.click(within(latched).getByRole("button", { name: "Reset" }));
+            });
+            expect(act$.reset).toHaveBeenCalledWith("n2", "rpm");
+        });
+
+        it("acknowledges all the alarms of the twin", async () => {
+            const act$ = actions();
+            render(<HistoryPanel kind="alarms" groupId={3} digitalTwinId={9} api={api()} now={() => NOW} actions={act$} />);
+            await screen.findByText("Tower acceleration");
+            await act(async () => {
+                fireEvent.click(screen.getByRole("button", { name: "Acknowledge all" }));
+            });
+            expect(act$.acknowledge).toHaveBeenCalledWith("n1");
+            expect(act$.acknowledge).toHaveBeenCalledTimes(1);
+        });
+
+        it("approves or rejects a request with a comment", async () => {
+            const a = api({
+                load: vi.fn().mockResolvedValue({
+                    now: [{ eventId: "r1", nodeUid: "n7", requestId: "q1", event: "requested", title: "Stop the turbine?", channel: "web", requestedAt: "2026-11-09T11:55:00Z", expiresAt: null, time: "2026-11-09T11:55:00Z" }],
+                    events: [],
+                }),
+            });
+            const act$ = actions();
+            render(<HistoryPanel kind="approvals" groupId={3} digitalTwinId={9} api={a} now={() => NOW} actions={act$} />);
+            fireEvent.click(await screen.findByText("Stop the turbine?"));
+            const bar = screen.getByLabelText("Decide the request Stop the turbine?");
+            fireEvent.change(within(bar).getByRole("textbox", { name: "Comment" }), { target: { value: "Wind above 25 m/s" } });
+            await act(async () => {
+                fireEvent.click(within(bar).getByRole("button", { name: "Reject" }));
+            });
+            expect(act$.decide).toHaveBeenCalledWith("n7", "q1", false, "Wind above 25 m/s");
+        });
+
+        it("shows no actions to those who are not administrators, nor in the events", async () => {
+            render(<HistoryPanel kind="alarms" groupId={3} digitalTwinId={9} api={api()} now={() => NOW} />);
+            fireEvent.click(await screen.findByText("Tower acceleration"));
+            expect(screen.queryByRole("button", { name: "Acknowledge" })).not.toBeInTheDocument();
+            expect(screen.queryByRole("button", { name: "Acknowledge all" })).not.toBeInTheDocument();
+            expect(alarmActionsOf(alarm({ state: "shelved", shelved: true }))).toEqual({ acknowledge: false, reset: false, unshelve: true });
+        });
     });
 });

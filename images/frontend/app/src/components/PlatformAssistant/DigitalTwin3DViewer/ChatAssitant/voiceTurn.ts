@@ -7,6 +7,7 @@
 //
 // En "pulsar para hablar" no hay envío automático: se envía al volver a tocar el micrófono.
 import { useCallback, useState } from "react";
+import { isVoiceSource, type VoiceSource } from "./voiceSource";
 
 export interface VoiceTurnSettings {
     // pausa tras la última palabra antes de enviar (ms)
@@ -15,9 +16,18 @@ export interface VoiceTurnSettings {
     adaptivePause: boolean;
     // sin envío automático: se toca el micrófono para empezar y otra vez para enviar
     pushToTalk: boolean;
+    // quién hace la voz a texto y el texto a voz (voiceSource.ts)
+    speechToText: VoiceSource;
+    textToSpeech: VoiceSource;
 }
 
-export const DEFAULT_VOICE_TURN_SETTINGS: VoiceTurnSettings = { pauseMs: 1500, adaptivePause: true, pushToTalk: false };
+export const DEFAULT_VOICE_TURN_SETTINGS: VoiceTurnSettings = {
+    pauseMs: 1500,
+    adaptivePause: true,
+    pushToTalk: false,
+    speechToText: "auto",
+    textToSpeech: "auto",
+};
 export const MIN_PAUSE_MS = 800;
 export const MAX_PAUSE_MS = 5000;
 
@@ -87,6 +97,8 @@ const readSettings = (): VoiceTurnSettings => {
             adaptivePause:
                 typeof stored.adaptivePause === "boolean" ? stored.adaptivePause : DEFAULT_VOICE_TURN_SETTINGS.adaptivePause,
             pushToTalk: typeof stored.pushToTalk === "boolean" ? stored.pushToTalk : DEFAULT_VOICE_TURN_SETTINGS.pushToTalk,
+            speechToText: isVoiceSource(stored.speechToText) ? stored.speechToText : DEFAULT_VOICE_TURN_SETTINGS.speechToText,
+            textToSpeech: isVoiceSource(stored.textToSpeech) ? stored.textToSpeech : DEFAULT_VOICE_TURN_SETTINGS.textToSpeech,
         };
     } catch {
         return DEFAULT_VOICE_TURN_SETTINGS;

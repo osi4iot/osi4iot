@@ -50,15 +50,21 @@ import { refreshTopicsMessageSchema, topicIdsOfDigitalTwin } from "../topic/mess
 export const insertDigitalTwin = async (digitalTwinData: Partial<IDigitalTwin>): Promise<IDigitalTwin> => {
 	const queryString = `INSERT INTO grafanadb.digital_twin (group_id, asset_id,
 		digital_twin_uid, description, type, dashboard_id, max_num_resfem_files,
-		chat_assistant_enabled, chat_assistant_language, 
+		chat_assistant_enabled, chat_assistant_language,
+		chat_assistant_second_language, chat_assistant_voice_language,
+		chat_mobile_voice_enabled, chat_telegram_chat_id,
 		digital_twin_simulation_format, digital_twin_simulation_format_file_name,
 		digital_twin_simulation_format_last_modif_date, created, updated)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, NOW(), NOW())
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, NOW(), NOW())
 		RETURNING  id, group_id AS "groupId", asset_id AS "assetId",
 		scope, digital_twin_uid AS "digitalTwinUid", description,
 		type, dashboard_id AS "dashboardId",
 		chat_assistant_enabled AS "chatAssistantEnabled",
 		chat_assistant_language AS "chatAssistantLanguage",
+		chat_assistant_second_language AS "chatAssistantSecondLanguage",
+		chat_assistant_voice_language AS "chatAssistantVoiceLanguage",
+		chat_mobile_voice_enabled AS "chatMobileVoiceEnabled",
+		chat_telegram_chat_id AS "chatTelegramChatId",
 		digital_twin_simulation_format AS "digitalTwinSimulationFormat",
 		viewer_settings AS "viewerSettings",
 		digital_twin_simulation_format_file_name AS "digitalTwinSimulationFormatFileName",
@@ -80,6 +86,10 @@ export const insertDigitalTwin = async (digitalTwinData: Partial<IDigitalTwin>):
 		digitalTwinData.maxNumResFemFiles,
 		digitalTwinData.chatAssistantEnabled,
 		digitalTwinData.chatAssistantLanguage,
+		chatSecondLanguageOf(digitalTwinData.chatAssistantSecondLanguage),
+		chatVoiceLanguageOf(digitalTwinData.chatAssistantVoiceLanguage),
+		digitalTwinData.chatMobileVoiceEnabled === true,
+		chatTelegramChatIdOf(digitalTwinData.chatTelegramChatId),
 		digitalTwinData.digitalTwinSimulationFormat,
 		digitalTwinData.digitalTwinSimulationFormatFileName || "-",
 		digitalTwinData.digitalTwinSimulationFormatLastModifDate || "-",
@@ -97,6 +107,10 @@ export const getAllDigitalTwins = async (): Promise<IDigitalTwin[]> => {
 		grafanadb.digital_twin.dashboard_id AS "dashboardId",
 		grafanadb.digital_twin.chat_assistant_enabled AS "chatAssistantEnabled",
 		grafanadb.digital_twin.chat_assistant_language AS "chatAssistantLanguage",
+		grafanadb.digital_twin.chat_assistant_second_language AS "chatAssistantSecondLanguage",
+		grafanadb.digital_twin.chat_assistant_voice_language AS "chatAssistantVoiceLanguage",
+		grafanadb.digital_twin.chat_mobile_voice_enabled AS "chatMobileVoiceEnabled",
+		grafanadb.digital_twin.chat_telegram_chat_id AS "chatTelegramChatId",
 		grafanadb.digital_twin.digital_twin_simulation_format AS "digitalTwinSimulationFormat",
 		grafanadb.digital_twin.viewer_settings AS "viewerSettings",
 		grafanadb.digital_twin.digital_twin_simulation_format_file_name AS "digitalTwinSimulationFormatFileName",
@@ -150,6 +164,10 @@ export const getDigitalTwinsByOrgId = async (orgId: number): Promise<IDigitalTwi
 		grafanadb.digital_twin.dashboard_id AS "dashboardId",
 		grafanadb.digital_twin.chat_assistant_enabled AS "chatAssistantEnabled",
 		grafanadb.digital_twin.chat_assistant_language AS "chatAssistantLanguage",
+		grafanadb.digital_twin.chat_assistant_second_language AS "chatAssistantSecondLanguage",
+		grafanadb.digital_twin.chat_assistant_voice_language AS "chatAssistantVoiceLanguage",
+		grafanadb.digital_twin.chat_mobile_voice_enabled AS "chatMobileVoiceEnabled",
+		grafanadb.digital_twin.chat_telegram_chat_id AS "chatTelegramChatId",
 		grafanadb.digital_twin.digital_twin_simulation_format AS "digitalTwinSimulationFormat",
 		grafanadb.digital_twin.viewer_settings AS "viewerSettings",
 		grafanadb.digital_twin.digital_twin_simulation_format_file_name AS "digitalTwinSimulationFormatFileName",
@@ -183,6 +201,10 @@ export const getDigitalTwinsByGroupId = async (groupId: number): Promise<IDigita
 		grafanadb.digital_twin.dashboard_id AS "dashboardId",
 		grafanadb.digital_twin.chat_assistant_enabled AS "chatAssistantEnabled",
 		grafanadb.digital_twin.chat_assistant_language AS "chatAssistantLanguage",
+		grafanadb.digital_twin.chat_assistant_second_language AS "chatAssistantSecondLanguage",
+		grafanadb.digital_twin.chat_assistant_voice_language AS "chatAssistantVoiceLanguage",
+		grafanadb.digital_twin.chat_mobile_voice_enabled AS "chatMobileVoiceEnabled",
+		grafanadb.digital_twin.chat_telegram_chat_id AS "chatTelegramChatId",
 		grafanadb.digital_twin.digital_twin_simulation_format AS "digitalTwinSimulationFormat",
 		grafanadb.digital_twin.viewer_settings AS "viewerSettings",
 		grafanadb.digital_twin.digital_twin_simulation_format_file_name AS "digitalTwinSimulationFormatFileName",
@@ -216,6 +238,10 @@ export const getDigitalTwinsByGroupsIdArray = async (groupsIdArray: number[]): P
 		grafanadb.digital_twin.dashboard_id AS "dashboardId",
 		grafanadb.digital_twin.chat_assistant_enabled AS "chatAssistantEnabled",
 		grafanadb.digital_twin.chat_assistant_language AS "chatAssistantLanguage",
+		grafanadb.digital_twin.chat_assistant_second_language AS "chatAssistantSecondLanguage",
+		grafanadb.digital_twin.chat_assistant_voice_language AS "chatAssistantVoiceLanguage",
+		grafanadb.digital_twin.chat_mobile_voice_enabled AS "chatMobileVoiceEnabled",
+		grafanadb.digital_twin.chat_telegram_chat_id AS "chatTelegramChatId",
 		grafanadb.digital_twin.digital_twin_simulation_format AS "digitalTwinSimulationFormat",
 		grafanadb.digital_twin.viewer_settings AS "viewerSettings",
 		grafanadb.digital_twin.digital_twin_simulation_format_file_name AS "digitalTwinSimulationFormatFileName",
@@ -251,6 +277,10 @@ export const getDigitalTwinByProp = async (propName: string, propValue: string |
 		grafanadb.digital_twin.dashboard_id AS "dashboardId",
 		grafanadb.digital_twin.chat_assistant_enabled AS "chatAssistantEnabled",
 		grafanadb.digital_twin.chat_assistant_language AS "chatAssistantLanguage",
+		grafanadb.digital_twin.chat_assistant_second_language AS "chatAssistantSecondLanguage",
+		grafanadb.digital_twin.chat_assistant_voice_language AS "chatAssistantVoiceLanguage",
+		grafanadb.digital_twin.chat_mobile_voice_enabled AS "chatMobileVoiceEnabled",
+		grafanadb.digital_twin.chat_telegram_chat_id AS "chatTelegramChatId",
 		grafanadb.digital_twin.digital_twin_simulation_format AS "digitalTwinSimulationFormat",
 		grafanadb.digital_twin.viewer_settings AS "viewerSettings",
 		grafanadb.digital_twin.digital_twin_simulation_format_file_name AS "digitalTwinSimulationFormatFileName",
@@ -293,6 +323,10 @@ export const updateDigitalTwinById = async (
 					digital_twin_simulation_format = $8,
 					digital_twin_simulation_format_file_name = $9,
 					digital_twin_simulation_format_last_modif_date = $10,
+					chat_assistant_second_language = $12,
+					chat_assistant_voice_language = $13,
+					chat_mobile_voice_enabled = $14,
+					chat_telegram_chat_id = $15,
 					updated = NOW()
 					WHERE grafanadb.digital_twin.id = $11;`;
 	await pool.query(query, [
@@ -307,6 +341,10 @@ export const updateDigitalTwinById = async (
 		digitalTwinData.digitalTwinSimulationFormatFileName || "-",
 		digitalTwinData.digitalTwinSimulationFormatLastModifDate || "-",
 		digitalTwinId,
+		chatSecondLanguageOf(digitalTwinData.chatAssistantSecondLanguage),
+		chatVoiceLanguageOf(digitalTwinData.chatAssistantVoiceLanguage),
+		digitalTwinData.chatMobileVoiceEnabled === true,
+		chatTelegramChatIdOf(digitalTwinData.chatTelegramChatId),
 	]);
 	await refreshTopicsMessageSchema(await topicIdsOfDigitalTwin(digitalTwinId));
 	if (Array.isArray(digitalTwinData.knowledgeDocuments)) {
@@ -976,6 +1014,10 @@ export const createDigitalTwin = async (
 		maxNumResFemFiles: digitalTwinInput.maxNumResFemFiles,
 		chatAssistantEnabled: digitalTwinInput.chatAssistantEnabled,
 		chatAssistantLanguage: digitalTwinInput.chatAssistantLanguage,
+		chatAssistantSecondLanguage: digitalTwinInput.chatAssistantSecondLanguage,
+		chatAssistantVoiceLanguage: digitalTwinInput.chatAssistantVoiceLanguage,
+		chatMobileVoiceEnabled: digitalTwinInput.chatMobileVoiceEnabled,
+		chatTelegramChatId: digitalTwinInput.chatTelegramChatId,
 		digitalTwinSimulationFormat: digitalTwinInput.digitalTwinSimulationFormat,
 		digitalTwinSimulationFormatFileName: digitalTwinInput.digitalTwinSimulationFormatFileName,
 		digitalTwinSimulationFormatLastModifDate: digitalTwinInput.digitalTwinSimulationFormatLastModifDate,
@@ -1467,6 +1509,33 @@ export const updateDigitalTwinViewerSettings = async (
 	await pool.query(
 		"UPDATE grafanadb.digital_twin SET viewer_settings = $1::jsonb, updated = NOW() WHERE id = $2",
 		[JSON.stringify(viewerSettings), digitalTwinId]
+	);
+};
+
+// Bilingual chat: the second language ("none": not bilingual) and the language of the spoken answers
+export const CHAT_VOICE_LANGUAGES = ["question", "primary", "secondary"];
+export const chatSecondLanguageOf = (value: unknown): string =>
+	typeof value === "string" && /^[A-Za-z]{2,3}([-_][A-Za-z0-9]{2,8})*$/.test(value) && value.length <= 20 ? value : "none";
+export const chatVoiceLanguageOf = (value: unknown): string =>
+	typeof value === "string" && CHAT_VOICE_LANGUAGES.includes(value) ? value : "question";
+// Chat channels: the Telegram chat whose messages go to the chat ("": none), a chat id (negative for groups)
+export const chatTelegramChatIdOf = (value: unknown): string =>
+	typeof value === "string" && /^-?\d{1,20}$/.test(value.trim()) ? value.trim() : "";
+
+// Digital twins of older versions: the columns of the bilingual chat (as viewer_settings below)
+export const ensureDigitalTwinChatLanguageColumns = async (): Promise<void> => {
+	await pool.query(
+		"ALTER TABLE grafanadb.digital_twin ADD COLUMN IF NOT EXISTS chat_assistant_second_language VARCHAR(20) NOT NULL DEFAULT 'none'"
+	);
+	await pool.query(
+		"ALTER TABLE grafanadb.digital_twin ADD COLUMN IF NOT EXISTS chat_assistant_voice_language VARCHAR(20) NOT NULL DEFAULT 'question'"
+	);
+	// the chat channels: voice messages of the phone and a Telegram chat
+	await pool.query(
+		"ALTER TABLE grafanadb.digital_twin ADD COLUMN IF NOT EXISTS chat_mobile_voice_enabled BOOLEAN NOT NULL DEFAULT FALSE"
+	);
+	await pool.query(
+		"ALTER TABLE grafanadb.digital_twin ADD COLUMN IF NOT EXISTS chat_telegram_chat_id VARCHAR(32) NOT NULL DEFAULT ''"
 	);
 };
 

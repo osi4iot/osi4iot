@@ -51,3 +51,24 @@ func (a *Admin) GetTelegramApprover(ctx context.Context, groupId int, telegramUs
 	}
 	return *answer.UserName, nil
 }
+
+// GetTelegramGroupMember is the login of the platform user linked to the
+// Telegram account when it may use the chat of the group's digital twins
+// ("" when it may not, or it is not linked).
+func (a *Admin) GetTelegramGroupMember(ctx context.Context, groupId int, telegramUserId int64) (string, error) {
+	url := fmt.Sprintf("%s/application/telegram_member/%d/%d", a.baseUrl, groupId, telegramUserId)
+	response, err := utils.HttpGetWithJwt(ctx, url, a.accessToken)
+	if err != nil {
+		return "", err
+	}
+	var answer struct {
+		UserName *string `json:"userName"`
+	}
+	if err := utils.UnmarshalData(response, &answer); err != nil {
+		return "", err
+	}
+	if answer.UserName == nil {
+		return "", nil
+	}
+	return *answer.UserName, nil
+}

@@ -106,6 +106,23 @@ export const getTelegramLink = async (userId: number): Promise<ITelegramLink> =>
 // administers the group: group administrator (team permission 4, as for its
 // NATS permissions in auth_callout), administrator of the group's
 // organization, or platform administrator. null otherwise.
+// The login of the enabled user linked to the Telegram account when it may use the chat of the group's
+// digital twins: member of the group's team (any permission, as for its NATS chat subjects), administrator of
+// the group's organization, or platform administrator. null otherwise (not linked, or no access).
+export const getTelegramGroupMember = async (groupId: number, telegramUserId: number): Promise<string | null> => {
+	const result = await readQuery<{ login: string }>(
+		`SELECT u.login FROM grafanadb.user u, grafanadb.group g
+		WHERE u.telegram_user_id = $1 AND g.id = $2 AND NOT u.is_disabled AND (
+			u.is_admin
+			OR EXISTS (SELECT 1 FROM grafanadb.team_member tm WHERE tm.team_id = g.team_id AND tm.user_id = u.id)
+			OR EXISTS (SELECT 1 FROM grafanadb.org_user ou
+				WHERE ou.org_id = g.org_id AND ou.user_id = u.id AND ou.role = 'Admin')
+		)`,
+		[telegramUserId, groupId]
+	);
+	return result.rows.length !== 0 ? result.rows[0].login : null;
+};
+
 export const getTelegramApprover = async (groupId: number, telegramUserId: number): Promise<string | null> => {
 	const result = await readQuery<{ login: string }>(
 		`SELECT u.login FROM grafanadb.user u, grafanadb.group g

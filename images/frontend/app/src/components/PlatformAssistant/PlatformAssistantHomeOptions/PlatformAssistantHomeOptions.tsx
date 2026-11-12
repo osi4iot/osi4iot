@@ -353,6 +353,16 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
     const refreshDigitalTwins = useCallback(() => reloadTable("digitalTwins"), []);
     const refreshAssetS3Folders = useCallback(() => reloadTable("assetS3Folders"), []);
 
+    // El gemelo seleccionado es una copia de su fila tomada al elegirlo: al recargarse la tabla (por ejemplo tras
+    // editarlo: activar el chat, cambiar su idioma...) se sustituye por la fila nueva, para que el visor abierto
+    // lo vea sin refrescar el navegador
+    useEffect(() => {
+        if (!digitalTwinSelected) return;
+        const fresh = digitalTwinsTable.find((dt) => dt.id === digitalTwinSelected.id);
+        if (fresh && JSON.stringify(fresh) !== JSON.stringify(digitalTwinSelected)) setDigitalTwinSelected(fresh);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [digitalTwinsTable]);
+
     const openDigitalTwin3DViewer = useCallback((digitalTwinGltfData: IDigitalTwinGltfData) => {
         setDigitalTwinGltfData(digitalTwinGltfData);
         setOptionToShow(PLATFORM_ASSISTANT_HOME_OPTIONS.DIGITAL_TWINS);

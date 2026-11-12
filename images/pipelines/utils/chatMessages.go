@@ -53,6 +53,17 @@ type ChatMessage struct {
 	// Charts of the answer: references; the frontend asks for each image
 	// (queryChatChart), which is kept apart (one NATS message is 1 MB).
 	Charts []ChartRef `json:"charts,omitempty"`
+	// Bilingual chat: the message in the other language of the conversation
+	Translation *MessageTranslation `json:"translation,omitempty"`
+}
+
+// MessageTranslation is a message of a bilingual chat in its other language: Language is the language the
+// message was written in and TranslatedLanguage the one of Message (codes of the digital twin's settings:
+// "es-ES", "zh-CN"...)
+type MessageTranslation struct {
+	Language           string `json:"language"`
+	TranslatedLanguage string `json:"translatedLanguage"`
+	Message            string `json:"message"`
 }
 
 // ChartRef is a chart of an answer, as the conversation keeps it: the
@@ -69,6 +80,8 @@ type ChartRef struct {
 type StoredMessage struct {
 	Role    string `json:"role"`
 	Content string `json:"content"`
+	// bilingual chat: the message in the other language (only shown; the AI agent gets Content)
+	Translation *MessageTranslation `json:"translation,omitempty"`
 }
 
 func GetChatMessages(

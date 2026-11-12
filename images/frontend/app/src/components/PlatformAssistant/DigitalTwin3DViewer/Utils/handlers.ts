@@ -41,6 +41,8 @@ interface HandlersParams {
     isPipelineLogsOpen: boolean;
     isPipelineUiChanged: boolean;
     openDashboardTab: (url: string) => void;
+    // el panel del asistente estaba abierto en el visor al pasar al pipeline: se vuelve a abrir al volver
+    reopenAssistantPanelRef?: { current: boolean };
 }
 
 export const createHandlers = (
@@ -235,25 +237,23 @@ export const createHandlers = (
         }));
     };
 
-    const handleToggleActiveViewer = () => {
-        const { activeViewer } = params;
-        const newViewer = activeViewer === "3D" ? "pipeline" : "3D";
+    // Al pasar al pipeline el panel del asistente se cierra (recordando su pestaña, la del chat incluida); al volver
+    // al visor se vuelve a abrir si estaba abierto
+    const handleSetActiveViewer = (newViewer: "3D" | "pipeline") => {
+        const { activeViewer, isAssistantPanelOpen, reopenAssistantPanelRef } = params;
         setters.setActiveViewer(newViewer);
         if (newViewer === "pipeline") {
-            // el panel del asistente se cierra pero recuerda su pestaña (la del chat incluida)
+            if (activeViewer === "3D" && reopenAssistantPanelRef) reopenAssistantPanelRef.current = isAssistantPanelOpen;
             setters.setIsAssistantPanelOpen(false);
             setters.setShowDtSimulatorModal(false);
-            //setters.setPipelineLogsOpen(false);
+        } else if (activeViewer === "pipeline" && reopenAssistantPanelRef?.current) {
+            reopenAssistantPanelRef.current = false;
+            setters.setIsAssistantPanelOpen(true);
         }
     };
 
-    const handleSetActiveViewer = (newViewer: "3D" | "pipeline") => {
-        setters.setActiveViewer(newViewer);
-        if (newViewer === "pipeline") {
-            // el panel del asistente se cierra pero recuerda su pestaña (la del chat incluida)
-            setters.setIsAssistantPanelOpen(false);
-            setters.setShowDtSimulatorModal(false);
-        }
+    const handleToggleActiveViewer = () => {
+        handleSetActiveViewer(params.activeViewer === "3D" ? "pipeline" : "3D");
     };
 
     return {

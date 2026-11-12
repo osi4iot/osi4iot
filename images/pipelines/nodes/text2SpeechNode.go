@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -14,8 +15,6 @@ import (
 	"pipelines/utils"
 	"strings"
 	"time"
-
-	"github.com/bytectlgo/edge-tts/pkg/edge_tts"
 )
 
 const (
@@ -56,11 +55,11 @@ var edgeTTSVoices = map[string]map[string][]string{
 	},
 	"es": {
 		"female": {
-			"es-ES-ElviraNeural",   // Spain
-			"es-MX-DaliaNeural",    // Mexico
-			"es-AR-ElenaNeural",    // Argentina
-			"es-CO-SalomeNeural",   // Colombia
-			"es-US-PalomaNeural",   // US Spanish
+			"es-ES-ElviraNeural", // Spain
+			"es-MX-DaliaNeural",  // Mexico
+			"es-AR-ElenaNeural",  // Argentina
+			"es-CO-SalomeNeural", // Colombia
+			"es-US-PalomaNeural", // US Spanish
 		},
 		"male": {
 			"es-ES-AlvaroNeural",  // Spain
@@ -72,11 +71,11 @@ var edgeTTSVoices = map[string]map[string][]string{
 	},
 	"fr": {
 		"female": {
-			"fr-FR-DeniseNeural",    // France
-			"fr-FR-EloiseNeural",    // France
-			"fr-CA-SylvieNeural",    // Canada
-			"fr-BE-CharlineNeural",  // Belgium
-			"fr-CH-ArianeNeural",    // Switzerland
+			"fr-FR-DeniseNeural",   // France
+			"fr-FR-EloiseNeural",   // France
+			"fr-CA-SylvieNeural",   // Canada
+			"fr-BE-CharlineNeural", // Belgium
+			"fr-CH-ArianeNeural",   // Switzerland
 		},
 		"male": {
 			"fr-FR-HenriNeural",   // France
@@ -94,16 +93,16 @@ var edgeTTSVoices = map[string]map[string][]string{
 			"de-CH-LeniNeural",   // Switzerland
 		},
 		"male": {
-			"de-DE-ConradNeural", // Germany
+			"de-DE-ConradNeural",  // Germany
 			"de-DE-KillianNeural", // Germany
-			"de-AT-JonasNeural",  // Austria
-			"de-CH-JanNeural",    // Switzerland
+			"de-AT-JonasNeural",   // Austria
+			"de-CH-JanNeural",     // Switzerland
 		},
 	},
 	"it": {
 		"female": {
-			"it-IT-ElsaNeural",      // Italy
-			"it-IT-IsabellaNeural",  // Italy
+			"it-IT-ElsaNeural",     // Italy
+			"it-IT-IsabellaNeural", // Italy
 		},
 		"male": {
 			"it-IT-DiegoNeural", // Italy
@@ -127,6 +126,17 @@ var edgeTTSVoices = map[string]map[string][]string{
 			"ca-ES-EnricNeural", // Catalonia (Spain)
 		},
 	},
+	// more languages for the bilingual chat of the viewer
+	"zh": {"female": {"zh-CN-XiaoxiaoNeural"}, "male": {"zh-CN-YunxiNeural"}}, // Mandarin (mainland China)
+	"ja": {"female": {"ja-JP-NanamiNeural"}, "male": {"ja-JP-KeitaNeural"}},
+	"ko": {"female": {"ko-KR-SunHiNeural"}, "male": {"ko-KR-InJoonNeural"}},
+	"ru": {"female": {"ru-RU-SvetlanaNeural"}, "male": {"ru-RU-DmitryNeural"}},
+	"ar": {"female": {"ar-SA-ZariyahNeural"}, "male": {"ar-SA-HamedNeural"}},
+	"nl": {"female": {"nl-NL-ColetteNeural"}, "male": {"nl-NL-MaartenNeural"}},
+	"pl": {"female": {"pl-PL-ZofiaNeural"}, "male": {"pl-PL-MarekNeural"}},
+	"tr": {"female": {"tr-TR-EmelNeural"}, "male": {"tr-TR-AhmetNeural"}},
+	"hi": {"female": {"hi-IN-SwaraNeural"}, "male": {"hi-IN-MadhurNeural"}},
+	"sv": {"female": {"sv-SE-SofieNeural"}, "male": {"sv-SE-MattiasNeural"}},
 }
 
 // resolveEdgeTTSVoice resolves the voice ShortName for edge-tts mode.
@@ -328,6 +338,16 @@ func (n *Text2SpeechNode) processMessage(msg common.Message, log *logger.Logger)
 			voice = resolveEdgeTTSVoice(settings)
 		}
 		audioData, err = n.synthesizeEdgeTTSWithVoice(n.Ctx, text, voice)
+		if err != nil {
+			// Microsoft's service is not an official API (it stopped accepting the old token in October 2026):
+			// OpenAI's voice as a fallback, when the organization has it ("openaiFallback": false turns it off)
+			if fallback, fbErr := n.openAIFallback(msg, text); fbErr == nil {
+				log.Warnf("Text2SpeechNode %s: edge-tts failed (%v): read with OpenAI's voice", n.NodeUid, err)
+				audioData, err = fallback, nil
+			} else if !errors.Is(fbErr, errNoOpenAIFallback) {
+				err = fmt.Errorf("%v; OpenAI fallback: %w", err, fbErr)
+			}
+		}
 	}
 
 	if err != nil {
@@ -350,6 +370,32 @@ func (n *Text2SpeechNode) processMessage(msg common.Message, log *logger.Logger)
 
 	n.sendToOutputs(outMsg, log)
 	return nil
+}
+
+var errNoOpenAIFallback = errors.New("no OpenAI fallback")
+
+// openAIFallback reads the text with OpenAI's voice when edge-tts failed: only when the organization's LLM
+// provider is OpenAI with its API key and LLM is enabled in the organization and the group (read now: they can
+// change without restarting the pipeline)
+func (n *Text2SpeechNode) openAIFallback(msg common.Message, text string) ([]byte, error) {
+	if off, ok := n.Settings["openaiFallback"].(bool); ok && !off {
+		return nil, errNoOpenAIFallback
+	}
+	orgId := n.Pipeline.GetOrgId()
+	apiKey := n.Fm.GetOrgLlmProviderApiKey(orgId)
+	if apiKey == "" || !strings.Contains(n.Fm.GetOrgLlmProviderUrl(orgId), "api.openai.com") ||
+		!(n.Fm.GetOrgLlmEnabled(orgId) && n.Fm.GetGroupLlmEnabled(n.Pipeline.GetGroupId())) {
+		return nil, errNoOpenAIFallback
+	}
+	ctx, cancel := context.WithTimeout(n.Ctx, chatVoiceTTSTimeout)
+	defer cancel()
+	usageCtx, counter := llmusage.WithCounter(ctx)
+	audio, err := chatVoiceOpenAITTS(usageCtx, llmusage.Client(0), apiKey, text)
+	if usage := counter.Usage(); usage.Requests > 0 {
+		usage.Characters = len([]rune(text))
+		n.recordLlmUsage(llmusage.SourceText2Speech, messageUserName(msg), "openai", ttsDefaultModel, usage)
+	}
+	return audio, err
 }
 
 // ─── Backends ───────────────────────────────────────────────────────────────
@@ -392,40 +438,12 @@ func (n *Text2SpeechNode) synthesizeOpenAI(ctx context.Context, text string) ([]
 	return respBody, nil
 }
 
-// synthesizeEdgeTTSWithVoice is synthesizeEdgeTTS with a given voice (ShortName).
+// synthesizeEdgeTTSWithVoice is synthesizeEdgeTTS with a given voice (ShortName): the client of
+// edgeTtsClient.go (Sec-MS-GEC v2 token).
 func (n *Text2SpeechNode) synthesizeEdgeTTSWithVoice(ctx context.Context, text, voice string) ([]byte, error) {
 	ctx, cancel := context.WithTimeout(ctx, edgeTTSTimeout)
 	defer cancel()
-
-	comm := edge_tts.NewCommunicate(
-		text,
-		voice,
-		edge_tts.WithRate("+0%"),
-		edge_tts.WithVolume("+0%"),
-		edge_tts.WithPitch("+0Hz"),
-	)
-
-	ch, err := comm.Stream(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("edge-tts stream error: %w", err)
-	}
-
-	var buf bytes.Buffer
-	for chunk := range ch {
-		switch chunk.Type {
-		case "audio":
-			buf.Write(chunk.Data)
-		case "error":
-			return nil, fmt.Errorf("edge-tts error chunk: %s", string(chunk.Data))
-		// "WordBoundary" chunks carry subtitle metadata — ignored here.
-		}
-	}
-
-	if buf.Len() == 0 {
-		return nil, fmt.Errorf("edge-tts returned empty audio")
-	}
-
-	return buf.Bytes(), nil
+	return edgeTTSSynthesize(ctx, text, voice)
 }
 
 // ─── Helpers ────────────────────────────────────────────────────────────────

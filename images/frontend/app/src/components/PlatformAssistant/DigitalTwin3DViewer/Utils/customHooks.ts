@@ -1,5 +1,6 @@
 import { createFrameStore } from "../Workspace/frameStore";
 // hooks.ts
+import { sanitizeTranslation } from "../ChatAssitant/chatLanguages";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { reloadTable } from "../../../../state";
 import YAML from "yaml";
@@ -419,7 +420,17 @@ export const useChatMessages = (
                 time: new Date().toLocaleTimeString(),
                 mcpToolCalls: newLlmMessage.mcpToolCalls,
                 charts: newLlmMessage.charts,
+                ...(newLlmMessage.translation ? { translation: newLlmMessage.translation } : {}),
             };
+            // chat bilingüe: la pregunta en el otro idioma llega con la respuesta, y va a la última pregunta
+            if (newLlmMessage.questionTranslation) {
+                for (let i = newMessages.length - 1; i >= 0; i--) {
+                    if (newMessages[i]?.sender === "user") {
+                        newMessages[i] = { ...newMessages[i], translation: newLlmMessage.questionTranslation };
+                        break;
+                    }
+                }
+            }
             newMessages.push(newMessage);
             return newMessages;
         });
@@ -606,6 +617,7 @@ export const usePipelineState = (
                     }
                 } catch (e) {}
                 msg.charts = sanitizeCharts(msg.charts);
+                msg.translation = sanitizeTranslation(msg.translation);
                 for (const c of msg.charts) {
                     if (c.data === "" && c.id) missing.push(c.id);
                 }

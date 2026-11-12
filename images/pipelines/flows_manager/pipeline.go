@@ -752,6 +752,7 @@ func (p *Pipeline) PublishChatMessages(ctx context.Context, userName string) {
 			Sender:       string(msg.Role),
 			McpToolCalls: mcpToolCallsArray[index],
 			Charts:       chartsArray[index],
+			Translation:  msg.Translation,
 		})
 	}
 

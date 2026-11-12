@@ -140,18 +140,25 @@ type Sensor struct {
 }
 
 type DigitalTwin struct {
-	Id                          int            `json:"id"`
-	GroupId                     int            `json:"groupId"`
-	AssetId                     int            `json:"assetId"`
-	OrgId                       int            `json:"orgId"`
-	Scope                       string         `json:"scope"`
-	DigitalTwinUid              string         `json:"digitalTwinUid"`
-	Description                 string         `json:"description"`
-	Type                        string         `json:"type"`
-	DashboardID                 int            `json:"dashboardId"`
-	MaxNumResFemFiles           int            `json:"maxNumResFemFiles"`
-	ChatAssistantEnabled        bool           `json:"chatAssistantEnabled"`
-	ChatAssistantLanguage       string         `json:"chatAssistantLanguage"`
+	Id                    int    `json:"id"`
+	GroupId               int    `json:"groupId"`
+	AssetId               int    `json:"assetId"`
+	OrgId                 int    `json:"orgId"`
+	Scope                 string `json:"scope"`
+	DigitalTwinUid        string `json:"digitalTwinUid"`
+	Description           string `json:"description"`
+	Type                  string `json:"type"`
+	DashboardID           int    `json:"dashboardId"`
+	MaxNumResFemFiles     int    `json:"maxNumResFemFiles"`
+	ChatAssistantEnabled  bool   `json:"chatAssistantEnabled"`
+	ChatAssistantLanguage string `json:"chatAssistantLanguage"`
+	// Bilingual chat: the second language of the conversation ("none": not bilingual) and the language of the
+	// spoken answers ("question": the language the question was asked in, "primary" or "secondary")
+	ChatAssistantSecondLanguage string `json:"chatAssistantSecondLanguage"`
+	ChatAssistantVoiceLanguage  string `json:"chatAssistantVoiceLanguage"`
+	// chat channels: voice messages of the phone ("Mobile audio") and a Telegram chat ("": none)
+	ChatMobileVoiceEnabled      bool           `json:"chatMobileVoiceEnabled"`
+	ChatTelegramChatId          string         `json:"chatTelegramChatId"`
 	DigitalTwinSimulationFormat map[string]any `json:"digitalTwinSimulationFormat"`
 	DashboardURL                string         `json:"dashboardUrl"`
 	SensorsRef                  []string       `json:"sensorsRef"`
