@@ -40,7 +40,8 @@ export const updateOrganizationByProp = async (
 	llm_provider_url = $7, hashed_llm_provider_api_key = $8,
 	gpu_usage_enabled = $9, telegram_enabled = $10,
 	hashed_telegram_bot_token = $11, hashed_telegram_webhook_secret_token = $12,
-	llm_provider_type = $13, llm_allowed_models = $14, rag_enabled = $15
+	llm_provider_type = $13, llm_allowed_models = $14, rag_enabled = $15,
+	org_hash = COALESCE($17, org_hash)
 	WHERE grafanadb.org.${propName} = $16 RETURNING *;`;
 	const queryArray = [
 		orgData.name,
@@ -59,6 +60,9 @@ export const updateOrganizationByProp = async (
 		normalizeLlmAllowedModels(orgData.llmAllowedModels),
 		orgData.ragEnabled === true,
 		propValue,
+		// the hash of the organization (names of its NATS KV stores and queues, auth_callout): written when it is
+		// created, never changed by an update (a client cannot send another one)
+		action === "create" && orgData.orgHash ? orgData.orgHash : null,
 	];
 	const result = await pool.query(query, queryArray);
 	const orgId = result.rows[0].id as number;

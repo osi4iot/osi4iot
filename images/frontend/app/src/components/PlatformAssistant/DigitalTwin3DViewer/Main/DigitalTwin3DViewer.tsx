@@ -97,7 +97,9 @@ import HistoryPanel, { HistoryActions } from "../Workspace/HistoryPanel";
 import { historyPanelApi } from "../Workspace/historyPanelsApi";
 import { chartSeriesOptions } from "../Workspace/chartSeries";
 import { fetchTimeSeries, TimeSeriesQuery } from "../Workspace/timeSeriesApi";
-import WorkspaceControls from "../Workspace/WorkspaceControls";
+import WorkspaceControls, { SoundToggle } from "../Workspace/WorkspaceControls";
+import NatsPermissionNotice from "../Workspace/NatsPermissionNotice";
+import { soundTopics, SOUND_TOPIC, useViewerSounds } from "../Workspace/viewerSounds";
 import {
     ANY_IMAGE_SOURCE,
     WorkspaceLayout,
@@ -1225,13 +1227,16 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
         for (const sensor of (sensorsTable ?? []) as { sensorRef: string; topicRef: string }[]) topicOfSensor[sensor.sensorRef] = sensor.topicRef;
         return liveTopicsOf(digitalTwinGltfData?.natsSubjectsData ?? [], chartOptions, topicOfSensor);
     }, [digitalTwinGltfData?.natsSubjectsData, chartOptions, sensorsTable]);
+    // the sounds the pipeline asks for (dtm2sim "sound"), while the user has the sound on
+    const viewerSound = useViewerSounds(liveStore, twinLiveTopics.includes(SOUND_TOPIC));
     const shownLiveTopics = useMemo(() => {
+        const sounds = soundTopics(viewerSound.enabled, twinLiveTopics);
         if (editingPanel?.type === "markdown" || editingPanel?.type === "picture") return twinLiveTopics;
         const panels = workspaceLayout.slides.flatMap((slide) => slide.panels);
         const texts = panels.filter((p) => p.type === "markdown").map((p) => p.text ?? "");
         const animated = panels.flatMap((p) => (p.type === "picture" ? (p.bindings ?? []).map((b) => b.topicRef) : []));
-        return Array.from(new Set([...topicRefsOf(texts), ...animated])).sort();
-    }, [editingPanel?.type, twinLiveTopics, workspaceLayout]);
+        return Array.from(new Set([...topicRefsOf(texts), ...animated, ...sounds])).sort();
+    }, [editingPanel?.type, twinLiveTopics, workspaceLayout, viewerSound.enabled]);
     // the images of the Picture panels: files of the twin
     const pictureFiles = useMemo<PictureFiles | undefined>(() => {
         if (!digitalTwinSelected) return undefined;
@@ -1789,6 +1794,8 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
                 )}
 
 
+                {/* the subjects of the twin the NATS server refuses to the user */}
+                <NatsPermissionNotice top={panelsTop} />
                 {/* Header */}
                 <Header
                     isAssistantPanelOpen={state.isAssistantPanelOpen}
@@ -1822,6 +1829,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
                         {state.activeViewer === "3D" && hasCharts && (
                             <TimePicker time={pageTime} onChange={changePageTime} onRefresh={refreshNow} compact={workspacePhone} />
                         )}
+                        <SoundToggle visible={state.activeViewer === "3D" && twinLiveTopics.includes(SOUND_TOPIC)} enabled={viewerSound.enabled} onToggle={viewerSound.toggle} />
                         <WorkspaceControls
                             visible={state.activeViewer === "3D" && !editingLayout && !workspacePhone}
                             canSave={canSaveLayout}

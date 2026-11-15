@@ -3,7 +3,7 @@
 // group administrators load one.
 import { FC, useEffect, useRef, useState } from "react";
 import styled from "styled-components";
-import { Download, FileJson, LayoutDashboard, RotateCcw, Upload } from "lucide-react";
+import { Download, FileJson, LayoutDashboard, RotateCcw, Upload, Volume2, VolumeX } from "lucide-react";
 
 const Wrap = styled.div`
     display: flex;
@@ -218,6 +218,29 @@ const WorkspaceControls: FC<WorkspaceControlsProps> = ({
                 <span>Edit layout</span>
             </Button>
         </Wrap>
+    );
+};
+
+// The sound of the viewer (sounds the pipeline asks for, e.g. access granted or denied): on or muted, always in
+// sight while the twin can send sounds.
+const SoundButton = styled(Button)<{ $on: boolean }>`
+    ${({ $on }) => ($on ? "border-color: #3d82f0; color: #ffffff; background: rgba(61, 130, 240, 0.18);" : "")}
+`;
+
+export const SoundToggle: FC<{ visible: boolean; enabled: boolean; onToggle: () => void }> = ({ visible, enabled, onToggle }) => {
+    if (!visible) return null;
+    return (
+        <SoundButton
+            type="button"
+            $on={enabled}
+            aria-pressed={enabled}
+            aria-label={enabled ? "Sound on: mute the viewer" : "Sound muted: turn it on"}
+            title={enabled ? "Sound on · click to mute" : "Sound muted · click to hear the sounds of the twin"}
+            onClick={onToggle}
+        >
+            {enabled ? <Volume2 aria-hidden="true" /> : <VolumeX aria-hidden="true" />}
+            <span>{enabled ? "Sound on" : "Muted"}</span>
+        </SoundButton>
     );
 };
 

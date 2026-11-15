@@ -25,6 +25,15 @@ type User struct {
 	UpdatedAt      time.Time `json:"updated"`
 }
 
+// userSelectColumns are the columns of a user, in the order of the Scans of this file; NULL (a user without
+// first name, NKey...) becomes the zero value, which pgx can scan (see groupSelectColumns).
+const userSelectColumns = `grafanadb.user.id, COALESCE(grafanadb.user.login, ''),
+	COALESCE(grafanadb.user.first_name, ''), COALESCE(grafanadb.user.surname, ''),
+	COALESCE(grafanadb.user.password, ''), COALESCE(grafanadb.user.salt, ''),
+	COALESCE(grafanadb.user.nats_nkey, ''), COALESCE(grafanadb.user.is_admin, false),
+	COALESCE(grafanadb.user.is_disabled, false),
+	COALESCE(grafanadb.user.created, to_timestamp(0)), COALESCE(grafanadb.user.updated, to_timestamp(0))`
+
 func (u *User) GetPermissions(authModel *AuthModel, group *Group, svc *Service) jwt.Permissions {
 	if u.IsGrafanaAdmin {
 		return jwt.Permissions{
@@ -57,13 +66,24 @@ func (u *User) GetPermissions(authModel *AuthModel, group *Group, svc *Service) 
 			},
 		}
 	} else if len(u.Username) >= 6 && u.Username[:6] == "group_" {
+		// the group is resolved only for the password and NKey logins: a "group_" login that arrives another way
+		// (e.g. a JWT of the web) gets nothing, instead of a nil pointer that would stop the service
+		if group == nil {
+			slog.Error("Group login without its group: no permissions", "username", u.Username)
+			return defaultPermissions
+		}
 		return group.GroupPermissions(authModel)
 	} else if len(u.Username) >= 4 && u.Username[:4] == "svc_" {
+		if svc == nil {
+			slog.Error("Service login without its service: no permissions", "username", u.Username)
+			return defaultPermissions
+		}
 		return svc.ServicePermissions(authModel)
 	} else {
 		groupsManaged, err := authModel.GetGroupsManagedByUser(u)
 		if err != nil {
-			slog.Error("Error getting groups managed by user", "error", err)
+			// fail closed: no permissions; the log says for whom
+			slog.Error("Error getting groups managed by user: no permissions", "username", u.Username, "error", err)
 			return defaultPermissions
 		}
 
@@ -125,10 +145,7 @@ type SimulatedAuthorizationRequest struct {
 
 func (m *AuthModel) GetUserByUsernameOrEmail(username string) (*User, error) {
 	var user User
-	query := `SELECT grafanadb.user.id, grafanadb.user.login, grafanadb.user.first_name, 
-	grafanadb.user.surname, grafanadb.user.password, grafanadb.user.salt, 
-	grafanadb.user.nats_nkey, grafanadb.user.is_admin, grafanadb.user.is_disabled, 
-	grafanadb.user.created, grafanadb.user.updated 
+	query := `SELECT ` + userSelectColumns + `
 	FROM grafanadb.user WHERE grafanadb.user.login = $1 OR grafanadb.user.email = $1`
 	err := m.db.QueryRow(context.Background(), query, username).
 		Scan(&user.ID,
@@ -147,10 +164,7 @@ func (m *AuthModel) GetUserByUsernameOrEmail(username string) (*User, error) {
 
 func (m *AuthModel) GetUserByNatsNKey(natsNKey string) (*User, error) {
 	var user User
-	query := `SELECT grafanadb.user.id, grafanadb.user.login, grafanadb.user.first_name, 
-	grafanadb.user.surname, grafanadb.user.password, grafanadb.user.salt, 
-	grafanadb.user.nats_nkey, grafanadb.user.is_admin, grafanadb.user.is_disabled, 
-	grafanadb.user.created, grafanadb.user.updated 
+	query := `SELECT ` + userSelectColumns + `
 	FROM grafanadb.user WHERE grafanadb.user.nats_nkey = $1`
 	err := m.db.QueryRow(context.Background(), query, natsNKey).
 		Scan(&user.ID,

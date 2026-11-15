@@ -148,7 +148,7 @@ const useNatsSubscription = (
                         handleSetChatMessages,
                     );
                 }
-            })();
+            })().catch(() => undefined); // a refused subject ends its subscription: noted by the connection
         }
 
         return () => {

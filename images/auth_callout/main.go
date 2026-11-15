@@ -114,7 +114,16 @@ func run() error {
 
 	// Define the message handler for the authorization request.
 	msgHandler := func(req micro.Request) {
+		// a panic while handling one request must not stop the service (nobody could log in to NATS): the
+		// request is answered with an error and the service goes on
+		defer func() {
+			if r := recover(); r != nil {
+				slog.Error("panic handling an authorization request", slog.Any("panic", r))
+				req.Error("500", "internal error", nil)
+			}
+		}()
 		var token []byte
+		var err error
 
 		// Check for Xkey header and decrypt
 		xkey := req.Headers().Get("Nats-Server-Xkey")
@@ -171,6 +180,10 @@ func run() error {
 					respondMsg(req, userName, userNkey, serverId, "", "Username does not match with jwt payload")
 					return
 				}
+				if user.IsDisabled {
+					respondMsg(req, userName, userNkey, serverId, "", "user disabled")
+					return
+				}
 
 			} else {
 				if len(userName) >= 6 && userName[:6] == "group_" {
@@ -190,13 +203,17 @@ func run() error {
 				}
 				user, err = authModel.GetUserByUsernameOrEmail(userName)
 				if err != nil || user == nil {
-					fmt.Println("user not found error=", err)
+					slog.Warn("user not found", slog.String("username", userName), slog.Any("error", err))
 					respondMsg(req, userName, userNkey, serverId, "", "user not found")
 					return
 				}
 
 				if !VerifyPassword(password, user.PasswordHash, user.Salt) {
 					respondMsg(req, user.Username, userNkey, serverId, "", "invalid credentials")
+					return
+				}
+				if user.IsDisabled {
+					respondMsg(req, user.Username, userNkey, serverId, "", "user disabled")
 					return
 				}
 			}
@@ -226,7 +243,12 @@ func run() error {
 
 			user, err = authModel.GetUserByNatsNKey(rc.ConnectOptions.Nkey)
 			if err != nil || user == nil {
-				respondMsg(req, "", "", "", "", "error getting user by NKey")
+				// answered as a refused authorization (with the user's nkey and the server), not as a service error
+				respondMsg(req, "", userNkey, serverId, "", "error getting user by NKey")
+				return
+			}
+			if user.IsDisabled {
+				respondMsg(req, user.Username, userNkey, serverId, "", "user disabled")
 				return
 			}
 
@@ -245,7 +267,7 @@ func run() error {
 				groupUid := userName[6:]
 				group, err = authModel.GetGroupByUID(groupUid)
 				if err != nil || group == nil {
-					fmt.Println("group not found error=", err)
+					slog.Warn("group not found", slog.String("username", userName), slog.Any("error", err))
 					respondMsg(req, userName, userNkey, serverId, "", "group not found")
 					return
 				}
@@ -253,7 +275,7 @@ func run() error {
 				svciHash := userName[4:]
 				svc, err = authModel.GetServiceByHash(svciHash)
 				if err != nil || svc == nil {
-					fmt.Println("service not found error=", err)
+					slog.Warn("service not found", slog.String("username", userName), slog.Any("error", err))
 					respondMsg(req, userName, userNkey, serverId, "", "service not found")
 					return
 				}
@@ -343,5 +365,7 @@ func HealthCheck(dbpool *pgxpool.Pool) {
 		}
 		io.WriteString(rw, "Healthy")
 	})
-	http.ListenAndServe(":3300", mux)
+	if err := http.ListenAndServe(":3300", mux); err != nil {
+		slog.Error("health check server stopped", slog.String("error", err.Error()))
+	}
 }

@@ -31,6 +31,24 @@ type Group struct {
 	Updated                       time.Time   `json:"updated"`
 }
 
+// groupSelectColumns are the columns of a group, in the order of the Scans of this file. Most columns of
+// grafanadb.group may be NULL (the Telegram fields and notification channels, the folder, the access control,
+// the dates...), and pgx cannot scan NULL into a string, an int64, a bool or a time.Time: one group with a NULL
+// made the whole query fail, and the user got no permissions. COALESCE gives the zero value instead.
+const groupSelectColumns = `grafanadb.group.id,
+	COALESCE(grafanadb.group.org_id, 0), COALESCE(grafanadb.group.team_id, 0), COALESCE(grafanadb.group.folder_id, 0),
+	COALESCE(grafanadb.group.folder_uid, ''), COALESCE(grafanadb.group.name, ''), COALESCE(grafanadb.group.acronym, ''),
+	COALESCE(grafanadb.group.group_uid, ''),
+	COALESCE(grafanadb.group.telegram_invitation_link, ''), COALESCE(grafanadb.group.telegram_chatid, ''),
+	COALESCE(grafanadb.group.email_notification_channel_id, 0),
+	COALESCE(grafanadb.group.telegram_notification_channel_id, 0),
+	COALESCE(grafanadb.group.is_org_default_group, false),
+	COALESCE(grafanadb.group.floor_number, 0), COALESCE(grafanadb.group.feature_index, 0),
+	grafanadb.group.outer_bounds,
+	COALESCE(grafanadb.group.mqtt_access_control, 'None'),
+	COALESCE(grafanadb.org.mqtt_access_control, 'None') AS org_mqtt_access_control,
+	COALESCE(grafanadb.group.created, to_timestamp(0)), COALESCE(grafanadb.group.updated, to_timestamp(0))`
+
 func (g *Group) GroupPermissions(authModel *AuthModel) jwt.Permissions {
 	groupHash := "Group_" + g.GroupUID
 	defaultSubjectArray := []string{}
@@ -106,13 +124,7 @@ func (g *Group) GroupPermissions(authModel *AuthModel) jwt.Permissions {
 
 func (m *AuthModel) GetGroupByID(id int64) (*Group, error) {
 	var group Group
-	queryString := `SELECT grafanadb.group.id, grafanadb.group.org_id, grafanadb.group.team_id, grafanadb.group.folder_id, 
-	grafanadb.group.folder_uid, grafanadb.group.name, grafanadb.group.acronym, grafanadb.group.group_uid, 
-	grafanadb.group.telegram_invitation_link, grafanadb.group.telegram_chatid, grafanadb.group.email_notification_channel_id, 
-	grafanadb.group.telegram_notification_channel_id, grafanadb.group.is_org_default_group, grafanadb.group.floor_number, 
-	grafanadb.group.feature_index, grafanadb.group.outer_bounds, grafanadb.group.mqtt_access_control, 
-	grafanadb.org.mqtt_access_control AS org_mqtt_access_control, 
-	grafanadb.group.created, grafanadb.group.updated
+	queryString := `SELECT ` + groupSelectColumns + `
 	FROM grafanadb.group
 	INNER JOIN grafanadb.org ON grafanadb.group.org_id = grafanadb.org.id
 	WHERE grafanadb.group.id = $1`
@@ -146,13 +158,7 @@ func (m *AuthModel) GetGroupByID(id int64) (*Group, error) {
 
 func (m *AuthModel) GetGroupByUID(groupUid string) (*Group, error) {
 	var group Group
-	queryString := `SELECT grafanadb.group.id, grafanadb.group.org_id, grafanadb.group.team_id, grafanadb.group.folder_id, 
-	grafanadb.group.folder_uid, grafanadb.group.name, grafanadb.group.acronym, grafanadb.group.group_uid, 
-	grafanadb.group.telegram_invitation_link, grafanadb.group.telegram_chatid, grafanadb.group.email_notification_channel_id, 
-	grafanadb.group.telegram_notification_channel_id, grafanadb.group.is_org_default_group, grafanadb.group.floor_number, 
-	grafanadb.group.feature_index, grafanadb.group.outer_bounds, grafanadb.group.mqtt_access_control, 
-	grafanadb.org.mqtt_access_control AS org_mqtt_access_control, 
-	grafanadb.group.created, grafanadb.group.updated
+	queryString := `SELECT ` + groupSelectColumns + `
 	FROM grafanadb.group
 	INNER JOIN grafanadb.org ON grafanadb.group.org_id = grafanadb.org.id
 	WHERE grafanadb.group.group_uid = $1`
@@ -186,13 +192,7 @@ func (m *AuthModel) GetGroupByUID(groupUid string) (*Group, error) {
 
 func (m *AuthModel) GetAllGroups() ([]Group, error) {
 	var groups []Group
-	queryString := `SELECT grafanadb.group.id, grafanadb.group.org_id, grafanadb.group.team_id, grafanadb.group.folder_id, 
-	grafanadb.group.folder_uid, grafanadb.group.name, grafanadb.group.acronym, grafanadb.group.group_uid, 
-	grafanadb.group.telegram_invitation_link, grafanadb.group.telegram_chatid, grafanadb.group.email_notification_channel_id, 
-	grafanadb.group.telegram_notification_channel_id, grafanadb.group.is_org_default_group, grafanadb.group.floor_number, 
-	grafanadb.group.feature_index, grafanadb.group.outer_bounds, grafanadb.group.mqtt_access_control, 
-	grafanadb.org.mqtt_access_control AS org_mqtt_access_control,
-	grafanadb.group.created, grafanadb.group.updated
+	queryString := `SELECT ` + groupSelectColumns + `
 	FROM grafanadb.group
 	INNER JOIN grafanadb.org ON grafanadb.group.org_id = grafanadb.org.id`
 	rows, err := m.db.Query(context.Background(), queryString)
@@ -236,13 +236,7 @@ func (m *AuthModel) GetAllGroups() ([]Group, error) {
 
 func (m *AuthModel) GetGroupByNatsNKey(natsNKey string) (*Group, error) {
 	var group Group
-	queryString := `SELECT grafanadb.group.id, grafanadb.group.org_id, grafanadb.group.team_id, grafanadb.group.folder_id, 
-	grafanadb.group.folder_uid, grafanadb.group.name, grafanadb.group.acronym, grafanadb.group.group_uid, 
-	grafanadb.group.telegram_invitation_link, grafanadb.group.telegram_chatid, grafanadb.group.email_notification_channel_id, 
-	grafanadb.group.telegram_notification_channel_id, grafanadb.group.is_org_default_group, grafanadb.group.floor_number, 
-	grafanadb.group.feature_index, grafanadb.group.outer_bounds, grafanadb.group.mqtt_access_control, 
-	grafanadb.org.mqtt_access_control AS org_mqtt_access_control, 
-	grafanadb.group.created, grafanadb.group.updated
+	queryString := `SELECT ` + groupSelectColumns + `
 	FROM grafanadb.group
 	INNER JOIN grafanadb.org ON grafanadb.group.org_id = grafanadb.org.id
 	WHERE grafanadb.group.nats_nkey = $1`
@@ -276,13 +270,7 @@ func (m *AuthModel) GetGroupByNatsNKey(natsNKey string) (*Group, error) {
 
 func (m *AuthModel) GetGroupsByOrgId(orgId int64) ([]Group, error) {
 	var groups []Group
-	queryString := `SELECT grafanadb.group.id, grafanadb.group.org_id, grafanadb.group.team_id, grafanadb.group.folder_id, 
-	grafanadb.group.folder_uid, grafanadb.group.name, grafanadb.group.acronym, grafanadb.group.group_uid, 
-	grafanadb.group.telegram_invitation_link, grafanadb.group.telegram_chatid, grafanadb.group.email_notification_channel_id, 
-	grafanadb.group.telegram_notification_channel_id, grafanadb.group.is_org_default_group, grafanadb.group.floor_number, 
-	grafanadb.group.feature_index, grafanadb.group.outer_bounds, grafanadb.group.mqtt_access_control, 
-	grafanadb.org.mqtt_access_control AS org_mqtt_access_control,
-	grafanadb.group.created, grafanadb.group.updated
+	queryString := `SELECT ` + groupSelectColumns + `
 	FROM grafanadb.group
 	INNER JOIN grafanadb.org ON grafanadb.group.org_id = grafanadb.org.id
 	WHERE grafanadb.team_member.user_id = $1 AND grafanadb.team_member.permission = $2`
@@ -327,13 +315,7 @@ func (m *AuthModel) GetGroupsByOrgId(orgId int64) ([]Group, error) {
 
 func (m *AuthModel) GetSQLGroupsManagedByUser(user *User) ([]Group, error) {
 	var groups []Group
-	queryString := `SELECT grafanadb.group.id, grafanadb.group.org_id, grafanadb.group.team_id, grafanadb.group.folder_id, 
-	grafanadb.group.folder_uid, grafanadb.group.name, grafanadb.group.acronym, grafanadb.group.group_uid, 
-	grafanadb.group.telegram_invitation_link, grafanadb.group.telegram_chatid, grafanadb.group.email_notification_channel_id, 
-	grafanadb.group.telegram_notification_channel_id, grafanadb.group.is_org_default_group, grafanadb.group.floor_number, 
-	grafanadb.group.feature_index, grafanadb.group.outer_bounds, grafanadb.group.mqtt_access_control,
-	grafanadb.org.mqtt_access_control AS org_mqtt_access_control,
-	grafanadb.group.created, grafanadb.group.updated
+	queryString := `SELECT ` + groupSelectColumns + `
 	FROM grafanadb.group
 	INNER JOIN grafanadb.org ON grafanadb.group.org_id = grafanadb.org.id
 	INNER JOIN grafanadb.team_member ON grafanadb.team_member.team_id = grafanadb.group.team_id
@@ -405,5 +387,20 @@ func (m *AuthModel) GetGroupsManagedByUser(user *User) ([]Group, error) {
 		groups = append(groups, groupsManaged...)
 	}
 
-	return groups, nil
+	return uniqueGroups(groups), nil
+}
+
+// uniqueGroups drops the repeated groups (a user can administer a group and its organization): the same
+// subjects twice only make the user JWT bigger.
+func uniqueGroups(groups []Group) []Group {
+	seen := make(map[int64]bool, len(groups))
+	out := groups[:0]
+	for _, g := range groups {
+		if seen[g.ID] {
+			continue
+		}
+		seen[g.ID] = true
+		out = append(out, g)
+	}
+	return out
 }

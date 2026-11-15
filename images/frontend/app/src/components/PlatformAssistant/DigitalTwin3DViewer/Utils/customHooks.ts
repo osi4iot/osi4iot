@@ -1,3 +1,8 @@
+import {
+    clearPermissionViolations,
+    isPermissionViolation,
+    reportPermissionViolation,
+} from "../../../../tools/natsPermissions";
 import { createFrameStore } from "../Workspace/frameStore";
 // hooks.ts
 import { sanitizeTranslation } from "../ChatAssitant/chatLanguages";
@@ -19,7 +24,14 @@ import {
     NodeWireData,
     INatsClientOptions,
 } from "../Types/types";
-import { DEFAULT_VIEWER_OPTIONS, BUTTON_LABELS, PROTOCOL, DOMAIN_NAME, NATS_SEED_SERVERS, LEGACY_COLOR_MANAGEMENT } from "../Utils/constants";
+import {
+    DEFAULT_VIEWER_OPTIONS,
+    BUTTON_LABELS,
+    PROTOCOL,
+    DOMAIN_NAME,
+    NATS_SEED_SERVERS,
+    LEGACY_COLOR_MANAGEMENT,
+} from "../Utils/constants";
 import { expandLightingUpdate } from "./lighting";
 import { sendCameraCommand } from "./cameraControl";
 import { useAuthDispatch, useAuthState, useLoggedUserLogin } from "../../../../contexts/authContext/authContext";
@@ -99,17 +111,20 @@ export const useViewerOptions = (
     // options over the defaults when there are no initial options (the digital twin's own lighting)
     defaultsOverride?: Partial<ViewerOptions>,
 ) => {
-    const [opts, setOptsState] = useState<ViewerOptions>(() => initialOptions ?? {
-        ...DEFAULT_VIEWER_OPTIONS,
-        ...defaultsOverride,
-        femResultDate: femResultDates[0] || "-",
-        sensorsVisibilityState: {} as any,
-        assetsVisibilityState: {} as any,
-        animatedObjectsVisibilityState: {} as any,
-        genericObjectsVisibilityState: {} as any,
-        femSimulationObjectsVisibilityState: {} as any,
-        digitalTwinSimulatorState: {} as any,
-    });
+    const [opts, setOptsState] = useState<ViewerOptions>(
+        () =>
+            initialOptions ?? {
+                ...DEFAULT_VIEWER_OPTIONS,
+                ...defaultsOverride,
+                femResultDate: femResultDates[0] || "-",
+                sensorsVisibilityState: {} as any,
+                assetsVisibilityState: {} as any,
+                animatedObjectsVisibilityState: {} as any,
+                genericObjectsVisibilityState: {} as any,
+                femSimulationObjectsVisibilityState: {} as any,
+                digitalTwinSimulatorState: {} as any,
+            },
+    );
 
     const setOpts = useCallback((updater: ((prevOpts: ViewerOptions) => ViewerOptions) | ViewerOptions) => {
         if (typeof updater === "function") {
@@ -174,10 +189,7 @@ export const useMqttConnection = () => {
 
     const calculateReconnectDelay = (attempt: number) => {
         //Exponential backoff with maximum limit
-        const delay = Math.min(
-            INITIAL_RECONNECT_DELAY * Math.pow(2, attempt),
-            MAX_RECONNECT_DELAY
-        );
+        const delay = Math.min(INITIAL_RECONNECT_DELAY * Math.pow(2, attempt), MAX_RECONNECT_DELAY);
         return delay;
     };
 
@@ -208,7 +220,7 @@ export const useMqttConnection = () => {
                 if (reconnectAttemptsRef.current < MAX_RECONNECT_ATTEMPTS) {
                     const delay = calculateReconnectDelay(reconnectAttemptsRef.current);
                     setStatus(`Reconnecting in ${Math.round(delay / 1000)}s...`);
-                    
+
                     reconnectTimeoutRef.current = setTimeout(() => {
                         reconnectAttemptsRef.current++;
                         connect();
@@ -228,7 +240,7 @@ export const useMqttConnection = () => {
             if (reconnectAttemptsRef.current < MAX_RECONNECT_ATTEMPTS) {
                 const delay = calculateReconnectDelay(reconnectAttemptsRef.current);
                 setStatus(`Reconnecting in ${Math.round(delay / 1000)}s...`);
-                
+
                 reconnectTimeoutRef.current = setTimeout(() => {
                     reconnectAttemptsRef.current++;
                     connect();
@@ -263,18 +275,16 @@ export const useMqttConnection = () => {
             if (mqttClient && mqttClient.isConnected()) {
                 mqttClient.disconnect();
             }
-            
+
             setMqttClient(null);
             clientValid.current = false;
             reconnectAttemptsRef.current = 0;
         };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [connect]);
 
     return { connectionStatus, mqttClient };
 };
-
-
 
 export const useNatsOptions = () => {
     const userName = useLoggedUserLogin();
@@ -290,32 +300,39 @@ export const useNatsOptions = () => {
     return natsOptions;
 };
 
+// a status "error" that is a permission violation: noted; true when it was one
+const reportPermissionViolationStatus = (s: unknown): boolean => {
+    const error = (s as { error?: unknown }).error;
+    if (!isPermissionViolation(error)) return false;
+    reportPermissionViolation(error);
+    return true;
+};
 
 const MAX_RECONNECT_ATTEMPTS = 10;
-const INITIAL_RECONNECT_DELAY = 1000;  // 1 second
-const MAX_RECONNECT_DELAY = 30000;     // 30 seconds
- 
+const INITIAL_RECONNECT_DELAY = 1000; // 1 second
+const MAX_RECONNECT_DELAY = 30000; // 30 seconds
+
 const calculateReconnectDelay = (attempt: number): number => {
     return Math.min(INITIAL_RECONNECT_DELAY * Math.pow(2, attempt), MAX_RECONNECT_DELAY);
 };
- 
+
 export const useNatsConnection = () => {
     const [connectionStatus, setStatus] = useState("Offline");
     const [natsClient, setNatsClient] = useState<NatsConnection | null>(null);
     const options = useNatsOptions(); // replaces useMqttOptions — same shape: { username, accessToken }
- 
+
     const isConnectingRef = useRef(false);
     const reconnectAttemptsRef = useRef(0);
     const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     // Keep a ref to the active connection so the cleanup effect can close it
     const natsClientRef = useRef<NatsConnection | null>(null);
- 
+
     const connectNats = useCallback(async () => {
         if (isConnectingRef.current) return;
- 
+
         isConnectingRef.current = true;
         setStatus("Connecting");
- 
+
         try {
             const nc = await wsconnect({
                 servers: NATS_SEED_SERVERS.split(",").map((s: string) => s.trim()),
@@ -324,16 +341,20 @@ export const useNatsConnection = () => {
                 // buzón propio para request/reply (auth_callout solo le permite este)
                 inboxPrefix: natsInboxPrefix(options.username.replace(/^jwt_/, "")),
             });
- 
+
             isConnectingRef.current = false;
             reconnectAttemptsRef.current = 0;
             natsClientRef.current = nc;
             setNatsClient(nc);
             setStatus("Connected");
- 
+
             // Monitor connection status in background
+            clearPermissionViolations();
             (async () => {
                 for await (const s of nc.status()) {
+                    // a subject the user may not use is not a lost connection: note it (the viewer shows a notice)
+                    // and keep the connection, or every refusal would tear it down and reconnect
+                    if (s.type === "error" && reportPermissionViolationStatus(s)) continue;
                     if (s.type === "disconnect" || s.type === "error") {
                         setStatus("Offline");
                         setNatsClient(null);
@@ -346,42 +367,41 @@ export const useNatsConnection = () => {
                         natsClientRef.current = nc;
                     }
                 }
-            })();
- 
+            })().catch(() => undefined);
+
             // Handle clean close
             nc.closed().then(() => {
                 setStatus("Offline");
                 setNatsClient(null);
                 natsClientRef.current = null;
             });
- 
         } catch (err: any) {
             isConnectingRef.current = false;
             console.log(`NATS connection error: ${err?.message ?? err}`);
             setStatus("Connection failed");
             scheduleReconnect();
         }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [options.username, options.accessToken]);
- 
+
     const scheduleReconnect = useCallback(() => {
         if (reconnectAttemptsRef.current >= MAX_RECONNECT_ATTEMPTS) {
             setStatus("Connection failed - Max attempts reached");
             return;
         }
- 
+
         const delay = calculateReconnectDelay(reconnectAttemptsRef.current);
         setStatus(`Reconnecting in ${Math.round(delay / 1000)}s...`);
- 
+
         reconnectTimeoutRef.current = setTimeout(() => {
             reconnectAttemptsRef.current++;
             connectNats();
         }, delay);
     }, [connectNats]);
- 
+
     useEffect(() => {
         connectNats();
- 
+
         return () => {
             if (reconnectTimeoutRef.current) {
                 clearTimeout(reconnectTimeoutRef.current);
@@ -394,9 +414,9 @@ export const useNatsConnection = () => {
             isConnectingRef.current = false;
             reconnectAttemptsRef.current = 0;
         };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [connectNats]);
- 
+
     return { connectionStatus, natsClient };
 };
 
@@ -495,7 +515,7 @@ export const usePipelineState = (
     digitalTwinSelected: IDigitalTwin | null,
     natsClient: NatsConnection | null,
     sim2stateTopic: string,
-    setChatMessages: React.Dispatch<React.SetStateAction<ChatMessage[]>>
+    setChatMessages: React.Dispatch<React.SetStateAction<ChatMessage[]>>,
 ) => {
     const [pipelineStatus, setPipelineStatus] = useState("unknown");
     const [pipelineLeaderReplicaIndex, setPipelineLeaderReplicaIndex] = useState<number>(-1);
@@ -542,7 +562,7 @@ export const usePipelineState = (
                 setPipelineStatus("unknown");
             }, PIPELINE_UNKNOWN_DELAY_MS);
         },
-        [digitalTwinSelected]
+        [digitalTwinSelected],
     );
 
     const handlePipelineLeaderReplicaIndexChange = useCallback(
@@ -559,7 +579,7 @@ export const usePipelineState = (
                 setPipelineLeaderReplicaIndex(-1);
             }
         },
-        [digitalTwinSelected]
+        [digitalTwinSelected],
     );
 
     const queryPipelineStatus = useCallback(() => {
@@ -578,7 +598,10 @@ export const usePipelineState = (
             userName
         ) {
             // en la copia del usuario de sim2state: pipelines toma de ella quién pregunta
-            natsClient.publish(natsUserChatSubject(userName, sim2stateTopic), JSON.stringify({ action: "queryChatMessages" }));
+            natsClient.publish(
+                natsUserChatSubject(userName, sim2stateTopic),
+                JSON.stringify({ action: "queryChatMessages" }),
+            );
         }
     }, [digitalTwinSelected, natsClient, sim2stateTopic, userName]);
 
@@ -636,7 +659,7 @@ export const usePipelineState = (
                 }
             }
         },
-        [setChatMessages, natsClient, sim2stateTopic, userName]
+        [setChatMessages, natsClient, sim2stateTopic, userName],
     );
 
     const handleRemoveChatAssistantHistory = useCallback(() => {
@@ -695,7 +718,7 @@ export const usePipelineLogs = (
                 });
             }
         },
-        [setChatMessages]
+        [setChatMessages],
     );
 
     return {
@@ -742,7 +765,7 @@ export const useFemResults = (
     digitalTwinSelected: Viewer3DProps["digitalTwinSelected"],
     legendRenderer: THREE.WebGLRenderer | null,
     opts: ViewerOptions,
-    fetchFemResFileWorker: Worker
+    fetchFemResFileWorker: Worker,
 ) => {
     const { accessToken, refreshToken } = useAuthState();
     const authDispatch = useAuthDispatch();
@@ -812,7 +835,7 @@ export const useFemResults = (
                         readFemSimulationInfo(
                             legendRenderer as THREE.WebGLRenderer,
                             femResData,
-                            setFemSimulationGeneralInfo
+                            setFemSimulationGeneralInfo,
                         );
                     } else {
                         if (window.Worker) {
@@ -828,7 +851,7 @@ export const useFemResults = (
                                 readFemSimulationInfo(
                                     legendRenderer as THREE.WebGLRenderer,
                                     femResData,
-                                    setFemSimulationGeneralInfo
+                                    setFemSimulationGeneralInfo,
                                 );
                                 writeFemResFile(digitalTwinUid, femResultFileName, femResData, femResultDate);
                                 reloadTable("digitalTwins");
@@ -846,7 +869,7 @@ export const useFemResults = (
                                     readFemSimulationInfo(
                                         legendRenderer as THREE.WebGLRenderer,
                                         femResData,
-                                        setFemSimulationGeneralInfo
+                                        setFemSimulationGeneralInfo,
                                     );
                                     writeFemResFile(digitalTwinUid, femResultFileName, femResData, femResultDate);
                                 })
@@ -856,7 +879,7 @@ export const useFemResults = (
                                 });
                         }
                     }
-                }
+                },
             );
         }
     }, [
@@ -928,16 +951,7 @@ const normalizeFormData = (data: any, nodeType: string) => {
         }
     }
 
-    const stringFields = [
-        "label",
-        "topic",
-        "to",
-        "subject",
-        "body",
-        "chatId",
-        "telegramBotToken",
-        "message",
-    ];
+    const stringFields = ["label", "topic", "to", "subject", "body", "chatId", "telegramBotToken", "message"];
     stringFields.forEach((field) => {
         if (normalized[field] === undefined || normalized[field] === null) {
             normalized[field] = "";
@@ -963,7 +977,7 @@ export const useFormChanges = (selectedNode: any) => {
             setHasChanges(hasChanged);
             return hasChanged;
         },
-        [selectedNode]
+        [selectedNode],
     );
 
     const setOriginalData = useCallback((data: any, nodeType: string) => {
@@ -993,11 +1007,15 @@ export const useFormChanges = (selectedNode: any) => {
                 });
             };
         },
-        [selectedNode, checkForChangesInternal]
+        [selectedNode, checkForChangesInternal],
     );
 
     const createDebugToggleHandler = useCallback(
-        (setFormData: (arg0: (prev: any) => any) => void, isDebugEnabled: any, setIsDebugEnabled: (arg0: boolean) => void) => {
+        (
+            setFormData: (arg0: (prev: any) => any) => void,
+            isDebugEnabled: any,
+            setIsDebugEnabled: (arg0: boolean) => void,
+        ) => {
             return () => {
                 const newDebugState = !isDebugEnabled;
                 setIsDebugEnabled(newDebugState);
@@ -1017,7 +1035,7 @@ export const useFormChanges = (selectedNode: any) => {
                 });
             };
         },
-        [selectedNode, checkForChangesInternal]
+        [selectedNode, checkForChangesInternal],
     );
 
     // Función pública para verificar cambios (mantener compatibilidad)
@@ -1025,7 +1043,7 @@ export const useFormChanges = (selectedNode: any) => {
         (currentData: any, nodeType: string) => {
             return checkForChangesInternal(currentData, nodeType);
         },
-        [checkForChangesInternal]
+        [checkForChangesInternal],
     );
 
     return {
@@ -1037,7 +1055,7 @@ export const useFormChanges = (selectedNode: any) => {
     };
 };
 
- // useImageFrame — replaces the previous version in hooks.ts.
+// useImageFrame — replaces the previous version in hooks.ts.
 //
 // Frames no longer go through React state. With `imageUrl` as state of
 // DigitalTwin3DViewer, every frame (10 per second) re-rendered the whole
@@ -1073,7 +1091,7 @@ export const useImageFrame = () => {
         handleImageUrlChange,
     };
 };
- 
+
 const createPipelineData = (pipelineNodes: IPipelineNode[], pipelineEdges: IPipelineEdge[]): any => {
     const nodes = [] as any[];
     const wiresData = new Map<string, NodeWireData>();
@@ -1158,7 +1176,7 @@ const deployPipeline = (
     handleSetPipelineLogsOpen: (open: boolean) => void,
     refreshDigitalTwins: () => void,
     params: UsePipelineActionsParamsProps,
-    onPipelineImported?: (nodes: any[], edges: any[]) => void
+    onPipelineImported?: (nodes: any[], edges: any[]) => void,
 ) => {
     const { digitalTwinSelected, accessToken, refreshToken, authDispatch } = params;
     if (!digitalTwinSelected) {
@@ -1287,7 +1305,7 @@ const stopPipeline = (handleSetPipelineLogsOpen: (open: boolean) => void, params
 
 const reinitializePipeline = (
     handleSetPipelineLogsOpen: (open: boolean) => void,
-    params: UsePipelineActionsParamsProps
+    params: UsePipelineActionsParamsProps,
 ) => {
     if (!params.digitalTwinSelected) {
         toast.error("No digital twin selected.");
@@ -1321,7 +1339,7 @@ export const createNodesAndEdges = (
     existingEdges: any[],
     pipelineNodesData: any,
     natsClient: NatsConnection | null,
-    natsSubjectsData: INatsSubjectData[]
+    natsSubjectsData: INatsSubjectData[],
 ) => {
     const nodes = [];
     const edges = [];
@@ -1501,7 +1519,7 @@ export const yamlDownloadSelection = (pipelineNodes: IPipelineNode[], pipelineEd
 const downloadYamlFile = (
     digitalTwinSelected: IDigitalTwin | null,
     pipelineNodes: IPipelineNode[],
-    pipelineEdges: IPipelineEdge[]
+    pipelineEdges: IPipelineEdge[],
 ) => {
     if (!digitalTwinSelected) {
         toast.error("No digital twin selected.");
@@ -1547,7 +1565,7 @@ export const usePipelineActions = (
     natsSubjectsData: INatsSubjectData[],
     refreshDigitalTwins: () => void,
     params: UsePipelineActionsParamsProps,
-    onPipelineImported?: (nodes: any[], edges: any[]) => void
+    onPipelineImported?: (nodes: any[], edges: any[]) => void,
 ) => {
     const handleDeployPipeline = useCallback(() => {
         deployPipeline(
@@ -1556,7 +1574,7 @@ export const usePipelineActions = (
             handlePipelineUiChanged,
             handleSetPipelineLogsOpen,
             refreshDigitalTwins,
-            params
+            params,
         );
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [pipelineNodes, pipelineEdges, refreshDigitalTwins, params]);
@@ -1576,7 +1594,7 @@ export const usePipelineActions = (
                             pipelineEdges,
                             newPipelineNodes,
                             natsClient,
-                            natsSubjectsData
+                            natsSubjectsData,
                         );
                         if (onPipelineImported) {
                             // El editor coloca los nodos nuevos siguiendo al ratón hasta que se hace clic
@@ -1608,7 +1626,7 @@ export const usePipelineActions = (
             event.target.value = "";
         },
         // eslint-disable-next-line react-hooks/exhaustive-deps
-        [pipelineNodes, pipelineEdges, natsClient, natsSubjectsData, onPipelineImported]
+        [pipelineNodes, pipelineEdges, natsClient, natsSubjectsData, onPipelineImported],
     );
 
     const handleDownloadYamlFile = useCallback(() => {

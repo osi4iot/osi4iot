@@ -27,14 +27,20 @@ type Org struct {
 
 func (m *AuthModel) GetOrgsManagedByUserId(userId int) ([]Org, error) {
 	var orgs []Org
-	queryString := `SELECT grafanadb.org.id, grafanadb.org.name, 
-	grafanadb.org.acronym, grafanadb.org.role,
-	building_id AS "buildingId", org_hash AS "orgHash",
-	mqtt_access_control AS "mqttAccessControl"
+	// city and country are those of the organization's building (as admin_api reads them); without them the
+	// query returned 7 columns for the 9 destinations of the Scan, and every organization administrator got no
+	// permissions ("number of field descriptions must equal number of destinations, got 7 and 9")
+	queryString := `SELECT grafanadb.org.id, COALESCE(grafanadb.org.name, ''),
+	COALESCE(grafanadb.org.acronym, ''), COALESCE(grafanadb.org.role, ''),
+	COALESCE(grafanadb.building.city, '') AS city,
+	COALESCE(grafanadb.building.country, '') AS country,
+	COALESCE(grafanadb.org.building_id, 0) AS "buildingId", COALESCE(grafanadb.org.org_hash, '') AS "orgHash",
+	COALESCE(grafanadb.org.mqtt_access_control, 'None') AS "mqttAccessControl"
 	FROM grafanadb.org
-	INNER JOIN grafanadb.org_user ON grafanadb.org.id = grafanadb.org_user.org_id					
+	INNER JOIN grafanadb.org_user ON grafanadb.org.id = grafanadb.org_user.org_id
+	LEFT JOIN grafanadb.building ON grafanadb.building.id = grafanadb.org.building_id
 	WHERE grafanadb.org_user.user_id = $1 AND grafanadb.org_user.role = $2
-	ORDER BY id ASC`
+	ORDER BY grafanadb.org.id ASC`
 	rows, err := m.db.Query(context.Background(), queryString, userId, "Admin")
 	if err != nil {
 		return nil, err

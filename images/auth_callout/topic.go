@@ -36,5 +36,8 @@ func (m *AuthModel) GetDenyTopicsByGroupId(groupIdArray []int64) ([]*Topic, erro
 		}
 		topics = append(topics, &topic)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
 	return topics, nil
 }

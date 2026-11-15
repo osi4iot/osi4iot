@@ -20,7 +20,8 @@ type Service struct {
 
 func (m *AuthModel) GetServiceByHash(svcHash string) (*Service, error) {
 	svc := &Service{}
-	queryString := `SELECT id, svc_hash, group_id, name, description, created, updated 
+	queryString := `SELECT id, COALESCE(svc_hash, ''), COALESCE(group_id, 0), COALESCE(name, ''), COALESCE(description, ''),
+	COALESCE(created, to_timestamp(0)), COALESCE(updated, to_timestamp(0))
 	FROM grafanadb.nats_service 
 	WHERE svc_hash = $1`
 	err := m.db.QueryRow(context.Background(), queryString, svcHash).
@@ -41,7 +42,8 @@ func (m *AuthModel) GetServiceByHash(svcHash string) (*Service, error) {
 
 func (m *AuthModel) GetServicesByGroupID(groupId int64) ([]*Service, error) {
 	svcs := []*Service{}
-	queryString := `SELECT id, svc_hash, group_id, name, description, created, updated 
+	queryString := `SELECT id, COALESCE(svc_hash, ''), COALESCE(group_id, 0), COALESCE(name, ''), COALESCE(description, ''),
+	COALESCE(created, to_timestamp(0)), COALESCE(updated, to_timestamp(0))
 	FROM grafanadb.nats_service 
 	WHERE group_id = $1`
 	rows, err := m.db.Query(context.Background(), queryString, groupId)
@@ -64,6 +66,9 @@ func (m *AuthModel) GetServicesByGroupID(groupId int64) ([]*Service, error) {
 			return nil, err
 		}
 		svcs = append(svcs, svc)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
 	}
 	return svcs, nil
 }

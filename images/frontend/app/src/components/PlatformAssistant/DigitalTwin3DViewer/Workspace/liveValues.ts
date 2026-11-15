@@ -13,6 +13,9 @@ import { mqttTopicToNatsSubject } from "../NatsHook/tools";
 export interface LiveMessage {
     payload: unknown;
     receivedAt: number;
+    // the payload of the message that has just arrived, as it came (payload keeps the last value of every field
+    // seen): for what happens once, as a sound
+    last?: unknown;
 }
 
 export type LiveListener = (message: LiveMessage) => void;
@@ -45,10 +48,11 @@ export const createLiveValueStore = (): LiveValueStore => {
             // different kinds) leaves its previous value
             const message = { payload: mergeLatest(latest.get(topicRef)?.payload, payload), receivedAt };
             latest.set(topicRef, message);
+            const event = { ...message, last: payload };
             if (!seen.has(topicRef)) seen.set(topicRef, new Set());
             const known = seen.get(topicRef)!;
             if (known.size < 500) fieldPaths(payload).forEach((path) => known.add(path));
-            listeners.get(topicRef)?.forEach((listener) => listener(message));
+            listeners.get(topicRef)?.forEach((listener) => listener(event));
         },
     };
 };
