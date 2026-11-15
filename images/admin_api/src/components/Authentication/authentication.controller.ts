@@ -140,7 +140,10 @@ class AuthenticationController implements IController {
 			if (refreshTokenExpirationDate > nextRefreshDate) refreshToken = existentRefreshToken.token;
 			else {
 				refreshToken = this.generateNewRefreshToken(user);
-				await updateRefreshToken(existentRefreshToken.token, refreshToken);
+				// two devices renewing at the same time: the second one gets the token the first one stored
+				if (!(await updateRefreshToken(existentRefreshToken.token, refreshToken))) {
+					refreshToken = (await getRefreshTokenByUserId(user.id))?.token ?? refreshToken;
+				}
 			}
 		} else {
 			refreshToken = this.generateNewRefreshToken(user);
@@ -459,4 +462,3 @@ class AuthenticationController implements IController {
 }
 
 export default AuthenticationController;
-

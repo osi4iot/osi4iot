@@ -39,10 +39,18 @@ import {
 import ViewerLayoutController from "./components/viewerLayout/viewerLayout.controller";
 import TimeSeriesController from "./components/timeSeries/timeSeries.controller";
 import { ensureViewerLayoutTable } from "./components/viewerLayout/viewerLayoutDAL";
+import { ensureRefreshTokenPreviousColumn } from "./components/Authentication/authenticationDAL";
 
 const main = async (): Promise<void> => {
 	try {
 		await dataBaseInitialization();
+		// refresh tokens of older versions: the column with the replaced one (every replica, before serving)
+		try {
+			await ensureRefreshTokenPreviousColumn();
+		} catch (err) {
+			const message = err instanceof Error ? err.message : String(err);
+			logger.log("error", "The previous_token column of the refresh tokens could not be added: %s", message);
+		}
 		// digital twins of older versions: the viewer_settings column (every replica, before serving)
 		try {
 			await ensureDigitalTwinViewerSettingsColumn();

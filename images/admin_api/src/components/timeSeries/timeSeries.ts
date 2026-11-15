@@ -15,8 +15,9 @@ export const MIN_POINTS = 10;
 export const MAX_POINTS = 2000;
 
 // the buckets used, in seconds (round values that read well on an axis)
+// seconds; below 1 s for the fast sensors (the phone's accelerations, 25-50 Hz), as Grafana
 export const BUCKET_STEPS = [
-	1, 2, 5, 10, 15, 30, 60, 120, 300, 600, 900, 1800, 3600, 7200, 10800, 21600, 43200, 86400, 172800, 604800,
+	0.1, 0.2, 0.5, 1, 2, 5, 10, 15, 30, 60, 120, 300, 600, 900, 1800, 3600, 7200, 10800, 21600, 43200, 86400, 172800, 604800,
 ];
 
 export interface SeriesRequest {
@@ -84,13 +85,15 @@ export const parseRange = (fromRaw: unknown, toRaw: unknown, now = new Date()): 
 	return { from: start, to: end };
 };
 
-// A minimum bucket (Grafana's "Min interval"): 30s, 5m, 1h… (none: automatic)
+// A minimum bucket (Grafana's "Min interval"): 200ms, 30s, 5m, 1h… (none: automatic); at least 100 ms
 export const parseInterval = (raw: unknown): number | null | string => {
 	if (raw === undefined || raw === "" || raw === "auto") return null;
 	if (typeof raw !== "string") return "Invalid interval";
-	const m = /^(\d{1,6})(s|m|h|d|w)$/.exec(raw);
-	if (!m) return "The interval must be like 30s, 5m, 1h, 1d or 1w";
-	const seconds = Number(m[1]) * { s: 1, m: 60, h: 3600, d: 86400, w: 604800 }[m[2] as "s" | "m" | "h" | "d" | "w"];
+	const m = /^(\d{1,6})(ms|s|m|h|d|w)$/.exec(raw);
+	if (!m) return "The interval must be like 200ms, 30s, 5m, 1h, 1d or 1w";
+	const unit = m[2] as "ms" | "s" | "m" | "h" | "d" | "w";
+	const seconds = Number(m[1]) * { ms: 0.001, s: 1, m: 60, h: 3600, d: 86400, w: 604800 }[unit];
+	if (seconds > 0 && seconds < 0.1) return "The interval must be at least 100ms";
 	return seconds > 0 ? seconds : "Invalid interval";
 };
 
@@ -132,6 +135,49 @@ FROM (
 WHERE v IS NOT NULL AND v <> 'NaN'::double precision AND v <> 'Infinity'::double precision AND v <> '-Infinity'::double precision
 GROUP BY 1
 ORDER BY 1`;
+
+// Raw samples (Min interval "raw", as Grafana's raw SQL): every value in the range, without intervals, the
+// last RAW_MAX_SAMPLES of them (a phone's accelerations at 50 Hz: 1250 in 25 s)
+export const RAW_INTERVAL = "raw";
+export const RAW_MAX_SAMPLES = 10000;
+
+export const RAW_SQL = `
+SELECT * FROM (
+	SELECT (extract(epoch FROM timestamp) * 1000)::bigint AS "t",
+		v AS "avg", v AS "min", v AS "max", 1 AS "count", v AS "sum", v AS "last", v AS "first"
+	FROM (
+		SELECT timestamp,
+			CASE
+				WHEN jsonb_typeof(x) = 'number' THEN (x #>> '{}')::double precision
+				WHEN jsonb_typeof(x) = 'string' AND (x #>> '{}') ~ '^\\s*[-+]?(\\d+\\.?\\d*|\\.\\d+)([eE][-+]?\\d+)?\\s*$'
+					THEN (x #>> '{}')::double precision
+			END AS v
+		FROM (
+			SELECT timestamp, payload #> $1::text[] AS x
+			FROM iot_data.thingData
+			WHERE group_uid = $2 AND topic = $3 AND timestamp >= $4 AND timestamp < $5
+		) AS raw
+	) AS vals
+	WHERE v IS NOT NULL AND v <> 'NaN'::double precision AND v <> 'Infinity'::double precision AND v <> '-Infinity'::double precision
+	ORDER BY 1 DESC
+	LIMIT $6
+) AS latest
+ORDER BY 1`;
+
+// the step of raw samples (seconds), for the gaps the chart leaves (it breaks the line after 3 steps): a long
+// one (90th percentile) so that the jitter of a phone's timer does not break it; 1 s without samples
+export const rawStepSeconds = (seriesPoints: (number | null)[][][]): number => {
+	const steps: number[] = [];
+	for (const points of seriesPoints) {
+		for (let i = 1; i < points.length; i++) {
+			const step = Number(points[i][0]) - Number(points[i - 1][0]);
+			if (step > 0) steps.push(step);
+		}
+	}
+	if (!steps.length) return 1;
+	steps.sort((a, b) => a - b);
+	return Math.max(0.001, steps[Math.floor(steps.length * 0.9)] / 1000);
+};
 
 export const seriesPath = (series: SeriesRequest): string[] =>
 	series.index === undefined ? [series.field] : [series.field, String(series.index)];

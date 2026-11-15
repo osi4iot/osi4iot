@@ -129,7 +129,7 @@ import { acknowledgeAlarms, describeAlarmError, resetAlarms, shelveAlarms } from
 import { approvalSubject, decideApprovalRequest, describeApprovalError } from "../Pipeline/approvalRequests";
 import { MarkdownEditor, MarkdownView } from "../Workspace/MarkdownPanel";
 import { PictureEditor, PictureFiles, PictureView } from "../Workspace/PicturePanel";
-import { deleteViewerImage, listViewerImages, loadViewerImage, uploadViewerImage } from "../Workspace/viewerImagesApi";
+import { deleteViewerImage, listViewerImages, loadViewerImage, onViewerImageChange, uploadViewerImage } from "../Workspace/viewerImagesApi";
 import { createLiveValueStore, liveTopicRefs, liveTopicsOf, topicRefsOf, useLiveValues } from "../Workspace/liveValues";
 import {
     ParsedViewerConfig,
@@ -1241,6 +1241,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
             list: () => listViewerImages(groupId, id, layoutAuth),
             upload: (file, fileName) => uploadViewerImage(groupId, id, file, fileName, layoutAuth),
             remove: (fileName) => deleteViewerImage(groupId, id, fileName, layoutAuth),
+            subscribe: (listener) => onViewerImageChange((g, dt, fileName) => g === groupId && dt === id && listener(fileName)),
         };
     }, [digitalTwinSelected, layoutAuth]);
     useLiveValues(natsClient, digitalTwinGltfData?.natsSubjectsData ?? [], shownLiveTopics, liveStore);
@@ -1754,7 +1755,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
                                 </PageClock>
                             ) : null
                         ) : panel.type === "picture" ? (
-                            <PictureView file={panel.file} fit={panel.fit} bindings={panel.bindings} store={liveStore} load={pictureFiles?.load} />
+                            <PictureView file={panel.file} fit={panel.fit} bindings={panel.bindings} store={liveStore} load={pictureFiles?.load} subscribe={pictureFiles?.subscribe} />
                         ) : panel.type === "markdown" ? (
                             <MarkdownView text={panel.text ?? ""} store={liveStore} />
                         ) : panel.type === "image" ? (
@@ -1978,3 +1979,4 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 };
 
 export default DigitalTwin3DViewer;
+

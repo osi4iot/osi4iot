@@ -10,14 +10,27 @@ export const insertRefreshToken = async (userId: number, refreshToken: string): 
 	]);
 };
 
+// One refresh token per user (one session per identity). When it is renewed (near its expiry), the one it
+// replaces stays valid (previous_token) until its own expiry, which the JWT strategy checks: the other
+// devices of the user that still have it are not logged out, they get the new one on their next renewal.
+export const ensureRefreshTokenPreviousColumn = async (): Promise<void> => {
+	await pool.query("ALTER TABLE grafanadb.refresh_token ADD COLUMN IF NOT EXISTS previous_token TEXT");
+	await pool.query(
+		"CREATE INDEX IF NOT EXISTS idx_refresh_token_previous ON grafanadb.refresh_token(previous_token)"
+	);
+};
+
+// the user's refresh token, or the one it replaced
 export const exitsRefreshToken = async (refreshToken: string): Promise<boolean> => {
-	const result = await readQuery('SELECT COUNT(*) FROM grafanadb.refresh_token WHERE token = $1',
-		[refreshToken]);
-	return result.rows[0].count !== 0;
+	const result = await readQuery(
+		"SELECT COUNT(*) FROM grafanadb.refresh_token WHERE token = $1 OR previous_token = $1",
+		[refreshToken]
+	);
+	return Number(result.rows[0].count) !== 0;
 };
 
 export const deleteRefreshToken = async (refreshToken: string): Promise<string> => {
-	const result = await pool.query(`DELETE FROM grafanadb.refresh_token WHERE token = $1
+	const result = await pool.query(`DELETE FROM grafanadb.refresh_token WHERE token = $1 OR previous_token = $1
 							RETURNING *`,
 	[refreshToken]);
 	const deletedRefreshToken = result.rows[0];
@@ -42,9 +55,14 @@ export const deleteUserRefreshTokens = async (userId: number): Promise<string> =
 	else return "None user refresh tokens are been disabled";
 };
 
-export const updateRefreshToken = async (oldRefreshToken: string, newRefreshToken: string): Promise<void> => {
-	await pool.query('UPDATE grafanadb.refresh_token SET token = $1, updated = NOW() WHERE token = $2 RETURNING *',
-		[newRefreshToken, oldRefreshToken]);
+// the new refresh token; the old one is kept as previous_token (see ensureRefreshTokenPreviousColumn)
+// false when another request renewed it first (the old one is no longer the current one)
+export const updateRefreshToken = async (oldRefreshToken: string, newRefreshToken: string): Promise<boolean> => {
+	const result = await pool.query(
+		"UPDATE grafanadb.refresh_token SET previous_token = token, token = $1, updated = NOW() WHERE token = $2 RETURNING *",
+		[newRefreshToken, oldRefreshToken]
+	);
+	return result.rows.length !== 0;
 };
 
 export const getRefreshTokenByUserId = async (userId: number): Promise<IRefreshToken> => {
@@ -63,5 +81,3 @@ export const getAllRefreshTokens = async (): Promise<IRefreshToken[]> => {
 									ORDER BY id ASC, user_id ASC`);
 	return result.rows as IRefreshToken[];
 }
-
-

@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { ColorField, PictureEditor } from "./PicturePanel";
+import { ColorField, PictureEditor, PictureView } from "./PicturePanel";
 import { LiveTopic, createLiveValueStore, liveTopicsOf } from "./liveValues";
 
 const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><g id="needle"><line x2="10"/></g><text id="rpmText"><tspan>0</tspan></text></svg>`;
@@ -65,5 +65,38 @@ describe("picture editor", () => {
         expect(onChange).not.toHaveBeenCalled();
         fireEvent.change(text, { target: { value: "#FF8800" } });
         expect(onChange).toHaveBeenCalledWith("#ff8800");
+    });
+});
+
+describe("picture uploaded again with the same name", () => {
+    it("is read again by the editor's preview and by the panel, without reloading the page", async () => {
+        // the configuration names water.svg before it is uploaded: the first read fails
+        let stored: string | null = null;
+        const listeners = new Set<(name: string) => void>();
+        const store = {
+            load: vi.fn(async () => (stored ? { url: "", svg: stored } : null)),
+            list: vi.fn(async () => (stored ? [{ fileName: "water.svg", lastModified: "", size: 10 }] : [])),
+            upload: vi.fn(async () => {
+                stored = svg;
+                listeners.forEach((l) => l("water.svg"));
+                return true;
+            }),
+            remove: vi.fn(),
+            subscribe: (l: (name: string) => void) => {
+                listeners.add(l);
+                return () => listeners.delete(l);
+            },
+        };
+        render(<PictureView file="water.svg" load={store.load} subscribe={store.subscribe} />);
+        render(<PictureEditor panel={{ id: "p", type: "picture", file: "water.svg", x: 0, y: 0, w: 4, h: 4 }} store={createLiveValueStore()} topics={topics} files={store as any} onApply={vi.fn()} onDiscard={vi.fn()} />);
+        await waitFor(() => expect(screen.getAllByText(/could not be read/)).toHaveLength(2));
+
+        const input = screen.getByLabelText("Image file") as HTMLInputElement;
+        fireEvent.change(input, { target: { files: [new File([svg], "water.svg", { type: "image/svg+xml" })] } });
+        await waitFor(() => expect(store.upload).toHaveBeenCalled());
+        await waitFor(() => expect(screen.queryAllByText(/could not be read/)).toHaveLength(0));
+        expect(document.querySelectorAll("#needle").length).toBe(2);
+        // the editor reads the SVG's elements again: animations can be added
+        await waitFor(() => expect(screen.getByRole("button", { name: "Add an animation" })).toBeEnabled());
     });
 });

@@ -102,6 +102,8 @@ export interface TimeSeriesResponse {
     from: string;
     to: string;
     bucketSeconds?: number;
+    // Min interval "raw": every sample (bucketSeconds is then the typical step between samples)
+    raw?: boolean;
     // a point per interval: [t, mean, min, max, count, sum, last, first]
     series: {
         sensorId: number;
@@ -122,6 +124,7 @@ export interface TimeSeriesResponse {
 export const SERIES_COLORS = ["#5794f2", "#ff9830", "#73bf69", "#f2cc0c", "#b877d9", "#ff7383", "#8ab8ff", "#56a64b"];
 
 export const formatBucket = (seconds: number): string => {
+    if (seconds < 1) return `${Math.round(seconds * 1000)} ms`;
     if (seconds < 60) return `${seconds} s`;
     if (seconds < 3600) return `${seconds / 60} min`;
     if (seconds < 86400) return `${seconds / 3600} h`;
@@ -241,3 +244,4 @@ export const buildChartOption = (data: TimeSeriesResponse, now = Date.now()) => 
 };
 
 export const hasPoints = (data: TimeSeriesResponse | null) => !!data && data.series.some((s) => s.points.length > 0);
+

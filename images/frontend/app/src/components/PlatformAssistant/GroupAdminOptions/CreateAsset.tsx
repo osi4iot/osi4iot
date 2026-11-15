@@ -117,6 +117,12 @@ const defaultSensorsRef = [
 ];
 
 const domainName = getDomainName();
+
+// a text kept in the stored form data (fields the context's type does not list)
+const storedText = (stored: object, key: string): string | undefined => {
+    const value = (stored as Record<string, unknown>)[key];
+    return typeof value === "string" && value !== "" ? value : undefined;
+};
 const protocol = getProtocol();
 
 const findGroupArray = (
@@ -165,6 +171,10 @@ interface InitialAssetData {
     iconSizeFactor: number;
     topicsRef: string;
     sensorsRef: string;
+    topicsRefFileName: string;
+    topicsRefLastModified: string;
+    sensorsRefFileName: string;
+    sensorsRefLastModified: string;
 }
 
 type FormikType = FormikProps<InitialAssetData>;
@@ -216,8 +226,13 @@ const CreateAsset: FC<CreateAssetProps> = ({
         latitude: storedAssetData.latitude,
         iconRadio: storedAssetData.iconRadio,
         iconSizeFactor: storedAssetData.iconSizeFactor,
-        topicsRef: JSON.stringify(defaultTopicsRef, null, 4),
-        sensorsRef: JSON.stringify(defaultSensorsRef, null, 4),
+        // the files chosen before going to "Select location" are kept (with their names)
+        topicsRef: storedText(storedAssetData, "topicsRef") ?? JSON.stringify(defaultTopicsRef, null, 4),
+        sensorsRef: storedText(storedAssetData, "sensorsRef") ?? JSON.stringify(defaultSensorsRef, null, 4),
+        topicsRefFileName: storedText(storedAssetData, "topicsRefFileName") ?? "Default",
+        topicsRefLastModified: storedText(storedAssetData, "topicsRefLastModified") ?? "-",
+        sensorsRefFileName: storedText(storedAssetData, "sensorsRefFileName") ?? "Default",
+        sensorsRefLastModified: storedText(storedAssetData, "sensorsRefLastModified") ?? "-",
     };
 
     useEffect(() => {
@@ -226,15 +241,18 @@ const CreateAsset: FC<CreateAssetProps> = ({
             setOrgOptions(convertArrayToOptions(orgArray));
             const groupArray = findGroupArray(orgsOfGroupManaged, groupsManaged);
             setGroupArray(groupArray);
-            const orgAcronym = orgsOfGroupManaged[0].acronym;
-            const groupsForOrgSelected = groupArray[orgAcronym];
+            // the organization of the form: the one chosen before "Select location", if any (with the first
+            // organization's lists, its group and asset type were not among the options and showed empty)
+            const orgAcronym =
+                storedOrgAcronym !== "" && groupArray[storedOrgAcronym] ? storedOrgAcronym : orgsOfGroupManaged[0].acronym;
+            const groupsForOrgSelected = groupArray[orgAcronym] ?? [];
             setGroupOptions(convertArrayToOptions(groupsForOrgSelected));
             const assetTypeArray = findAssetTypeArray(orgsOfGroupManaged, assetTypes);
             setAssetTypeArray(assetTypeArray);
-            const assetTypesForOrgSelected = assetTypeArray[orgAcronym];
+            const assetTypesForOrgSelected = assetTypeArray[orgAcronym] ?? [];
             setAssetTypeOptions(convertArrayToOptions(assetTypesForOrgSelected));
         }
-    }, [assetTypes, groupsManaged, orgsOfGroupManaged]);
+    }, [assetTypes, groupsManaged, orgsOfGroupManaged, storedOrgAcronym]);
 
     const handleChangeOrg = (e: { value: string }, formik: FormikType) => {
         const orgAcronym = e.value;
@@ -395,6 +413,10 @@ const CreateAsset: FC<CreateAssetProps> = ({
                 iconSvgString,
                 topicsRef: initialAssetData.topicsRef,
                 sensorsRef: initialAssetData.sensorsRef,
+                topicsRefFileName: initialAssetData.topicsRefFileName,
+                topicsRefLastModified: initialAssetData.topicsRefLastModified,
+                sensorsRefFileName: initialAssetData.sensorsRefFileName,
+                sensorsRefLastModified: initialAssetData.sensorsRefLastModified,
             };
             if (group.featureIndex === 0) {
                 const warningMessage = "The group containing the asset does not have a defined space.";
@@ -486,6 +508,8 @@ const CreateAsset: FC<CreateAssetProps> = ({
                                     resetValue={JSON.stringify(defaultTopicsRef, null, 4)}
                                     downloadFileName="topic_references.json"
                                     check={checkAssetTopicsRef}
+                                    fileNameField="topicsRefFileName"
+                                    lastModifiedField="topicsRefLastModified"
                                 />
                                 <JsonFileField
                                     name="sensorsRef"
@@ -494,6 +518,8 @@ const CreateAsset: FC<CreateAssetProps> = ({
                                     resetValue={JSON.stringify(defaultSensorsRef, null, 4)}
                                     downloadFileName="sensor_references.json"
                                     check={mustBeArray}
+                                    fileNameField="sensorsRefFileName"
+                                    lastModifiedField="sensorsRefLastModified"
                                 />
                             </ControlsContainer>
                             <FormButtonsProps

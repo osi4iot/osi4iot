@@ -172,6 +172,8 @@ const isTimeText = (value: unknown): value is string =>
 	(RELATIVE_TIME.test(value) || /^\d{10,14}$/.test(value) || (/^\d{4}-\d{2}-\d{2}/.test(value) && !Number.isNaN(Date.parse(value))));
 // a span of time: 30s, 5m, 1h, 7d…
 const SPAN = /^\d{1,6}[smhdwMy]$/;
+// the minimum interval of a chart can also be in milliseconds (200ms, 500ms)
+const INTERVAL = /^(\d{1,6}(ms|[smhdwMy])|raw)$/;
 
 const validateTime = (raw: unknown): IViewerTime | string => {
 	if (!raw || typeof raw !== "object" || Array.isArray(raw)) return "time must be an object";
@@ -333,7 +335,8 @@ const validatePanels = (panels: unknown, prefix: string): IViewerPanel[] | strin
 			}
 			for (const key of ["timeFrom", "timeShift", "interval"] as const) {
 				if (p[key] === undefined || p[key] === "") continue;
-				if (typeof p[key] !== "string" || !SPAN.test(p[key] )) return `${where}: invalid ${key}`;
+				const valid = key === "interval" ? INTERVAL : SPAN;
+				if (typeof p[key] !== "string" || !valid.test(p[key] )) return `${where}: invalid ${key}`;
 				panel[key] = p[key] ;
 			}
 			if (p.maxDataPoints !== undefined) {

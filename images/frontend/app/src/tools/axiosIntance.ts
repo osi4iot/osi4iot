@@ -6,9 +6,37 @@ import refreshTokenRequest from "./refreshTokenRequest";
 let latestRefreshToken = "";
 let latestAuthDispatch: any = null;
 let interceptorRegistered = false;
+// La renovación en curso: las peticiones que reciben un 401 a la vez esperan a la misma renovación.
+// Antes cada una pedía la suya con el mismo refresh token; si la primera lo cambiaba (cerca de su
+// caducidad, el servidor emite uno nuevo y borra el anterior), las demás recibían "The refresh token
+// supplied does not exist" y la sesión se cerraba.
+let refreshing: Promise<any> | null = null;
+// refresh tokens que el servidor ya ha sustituido: un componente que aún no se ha vuelto a pintar puede
+// pasar uno de ellos, y no debe volver a usarse
+const replacedRefreshTokens = new Set<string>();
+
+const renewToken = () => {
+    if (!refreshing) {
+        const used = latestRefreshToken;
+        refreshing = refreshTokenRequest(used, latestAuthDispatch)
+            .then((res) => {
+                // el refresh token que vale desde ahora, aunque el estado de React aún no se haya actualizado
+                const next = res.data?.refreshToken;
+                if (next && next !== used) {
+                    replacedRefreshTokens.add(used);
+                    latestRefreshToken = next;
+                }
+                return res;
+            })
+            .finally(() => {
+                refreshing = null;
+            });
+    }
+    return refreshing;
+};
 
 export const getAxiosInstance = (refreshToken: string, authDispatch: any): AxiosInstance => {
-    latestRefreshToken = refreshToken;
+    if (!refreshing && !replacedRefreshTokens.has(refreshToken)) latestRefreshToken = refreshToken;
     latestAuthDispatch = authDispatch;
     if (interceptorRegistered) return axios;
     interceptorRegistered = true;
@@ -21,7 +49,7 @@ export const getAxiosInstance = (refreshToken: string, authDispatch: any): Axios
         if (error.response && error.response.status === 401 && config!== undefined && !config._retry) {
             config._retry = true;
             try {
-                const res = await refreshTokenRequest(latestRefreshToken, latestAuthDispatch);
+                const res = await renewToken();
                 config.headers['Authorization'] = `Bearer ${res.data.accessToken}`;
                 return axios(config);
             } catch (err) {

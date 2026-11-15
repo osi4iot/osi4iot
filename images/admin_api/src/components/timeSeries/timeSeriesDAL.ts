@@ -1,6 +1,17 @@
 import { readQuery } from "../../config/dbconfig";
 import { timescaledbReadQuery } from "../../config/timescaledb_config";
-import { EXTENT_SQL, HISTOGRAM_SQL, SERIES_SQL, SeriesRequest, SeriesRow, TimeRange, seriesPath, toPoint } from "./timeSeries";
+import {
+	EXTENT_SQL,
+	HISTOGRAM_SQL,
+	RAW_MAX_SAMPLES,
+	RAW_SQL,
+	SERIES_SQL,
+	SeriesRequest,
+	SeriesRow,
+	TimeRange,
+	seriesPath,
+	toPoint,
+} from "./timeSeries";
 
 export interface ISeriesSensor {
 	id: number;
@@ -46,6 +57,24 @@ export const getSeriesPoints = async (
 	return result.rows.map((row) => toPoint(row as SeriesRow));
 };
 
+// every sample of the range (the last RAW_MAX_SAMPLES), as points of one sample each
+export const getRawSeriesPoints = async (
+	groupUid: string,
+	topicUid: string,
+	series: SeriesRequest,
+	range: TimeRange
+): Promise<(number | null)[][]> => {
+	const result = await timescaledbReadQuery(RAW_SQL, [
+		seriesPath(series),
+		groupUid,
+		`Topic_${topicUid}`,
+		range.from.toISOString(),
+		range.to.toISOString(),
+		RAW_MAX_SAMPLES,
+	]);
+	return result.rows.map((row) => toPoint(row as SeriesRow));
+};
+
 const valuesParams = (groupUid: string, topicUid: string, series: SeriesRequest, range: TimeRange) => [
 	seriesPath(series),
 	groupUid,
@@ -78,6 +107,10 @@ export const getSeriesHistogram = async (
 	size: number,
 	offset: number
 ): Promise<[number, number][]> => {
-	const result = await timescaledbReadQuery(HISTOGRAM_SQL, [...valuesParams(groupUid, topicUid, series, range), offset, size]);
+	const result = await timescaledbReadQuery(HISTOGRAM_SQL, [
+		...valuesParams(groupUid, topicUid, series, range),
+		offset,
+		size,
+	]);
 	return result.rows.map((row) => [Number((offset + Number(row.bin) * size).toPrecision(12)), Number(row.count)]);
 };

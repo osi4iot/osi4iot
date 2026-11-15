@@ -1502,6 +1502,7 @@ export const dataBaseInitialization = async () => {
 					id serial PRIMARY KEY,
 					user_id bigint,
 					token TEXT UNIQUE,
+					previous_token TEXT,
 					created TIMESTAMPTZ,
 					updated TIMESTAMPTZ,
 					CONSTRAINT fk_user_id

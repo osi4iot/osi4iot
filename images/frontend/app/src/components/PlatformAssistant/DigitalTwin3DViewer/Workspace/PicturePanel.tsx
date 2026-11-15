@@ -27,6 +27,8 @@ export interface PictureFiles {
     list: () => Promise<ViewerImageInfo[]>;
     upload: (file: File, fileName: string) => Promise<boolean>;
     remove: (fileName: string) => Promise<boolean>;
+    // called with the name of an image uploaded again or removed (returns the unsubscribe)
+    subscribe?: (listener: (fileName: string) => void) => () => void;
 }
 
 const Frame = styled.div`
@@ -69,8 +71,21 @@ const Note = styled.div`
 
 const PRESERVE: Record<PictureFit, string> = { contain: "xMidYMid meet", cover: "xMidYMid slice", fill: "none" };
 
-const useImage = (file: string | undefined, load: PictureFiles["load"] | undefined) => {
+// a number that changes each time the image is uploaded again or removed: its readers read it again
+export const useImageRevision = (file: string | undefined, subscribe: PictureFiles["subscribe"] | undefined) => {
+    const [revision, setRevision] = useState(0);
+    useEffect(() => {
+        if (!file || !subscribe) return;
+        return subscribe((changed) => {
+            if (changed === file) setRevision((r) => r + 1);
+        });
+    }, [file, subscribe]);
+    return revision;
+};
+
+const useImage = (file: string | undefined, load: PictureFiles["load"] | undefined, subscribe?: PictureFiles["subscribe"]) => {
     const [state, setState] = useState<{ file?: string; image: LoadedViewerImage | null | undefined }>({ image: undefined });
+    const revision = useImageRevision(file, subscribe);
     useEffect(() => {
         if (!file || !load) return;
         let alive = true;
@@ -79,7 +94,7 @@ const useImage = (file: string | undefined, load: PictureFiles["load"] | undefin
         return () => {
             alive = false;
         };
-    }, [file, load]);
+    }, [file, load, revision]);
     return file && state.file === file ? state.image : file ? undefined : null;
 };
 
@@ -89,13 +104,14 @@ export interface PictureViewProps {
     bindings?: PictureBinding[];
     store?: LiveValueStore;
     load?: PictureFiles["load"];
+    subscribe?: PictureFiles["subscribe"];
     // the editor: the element under the pointer is marked, and a click on an element chooses it
     highlight?: string | null;
     onPickElement?: (id: string) => void;
 }
 
-export const PictureView: FC<PictureViewProps> = ({ file, fit = "contain", bindings = [], store, load, highlight, onPickElement }) => {
-    const image = useImage(file, load);
+export const PictureView: FC<PictureViewProps> = ({ file, fit = "contain", bindings = [], store, load, subscribe, highlight, onPickElement }) => {
+    const image = useImage(file, load, subscribe);
     const svg = useMemo(() => (image?.svg ? sanitizeSvg(image.svg) : null), [image]);
     const hostRef = useRef<HTMLDivElement>(null);
     const refs = useMemo(() => Array.from(new Set(bindings.map((b) => b.topicRef))), [bindings]);
@@ -397,6 +413,7 @@ export const PictureEditor: FC<PictureEditorProps> = ({ panel, store, topics, fi
         void refresh();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
+    const revision = useImageRevision(file, files.subscribe);
     useEffect(() => {
         setSvgText(null);
         if (!file || !isSvgName(file)) return;
@@ -405,7 +422,7 @@ export const PictureEditor: FC<PictureEditorProps> = ({ panel, store, topics, fi
         return () => {
             alive = false;
         };
-    }, [file, files]);
+    }, [file, files, revision]);
     const ids = useMemo(() => (svgText ? svgElementIds(svgText) : []), [svgText]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
     const fieldsOf = useMemo(() => new Map(topicRefs.map((ref) => [ref, store ? store.fields(ref) : []])), [topicRefs, store, tick]);
@@ -534,6 +551,7 @@ export const PictureEditor: FC<PictureEditorProps> = ({ panel, store, topics, fi
                             bindings={bindings}
                             store={store}
                             load={files.load}
+                            subscribe={files.subscribe}
                             highlight={hover}
                             onPickElement={isSvg ? (id) => addBinding(id) : undefined}
                         />

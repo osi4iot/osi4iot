@@ -31,7 +31,7 @@ import { ChartSeriesOption, formatBucket } from "./chartSeries";
 import { ChartSettings, SERIES_AGGS, VIZ_TYPES, VizType, changeViz, chartSettingsOf, drawSeries, getPath, newChartSettings, setPath, withChartSettings } from "./charts/chartConfig";
 import { OPTION_SECTIONS, searchSections } from "./charts/optionsSchema";
 import { ColorSelect, Input, OptionControl, Select } from "./charts/OptionControls";
-import { TimeRange, isSpan } from "./charts/timeRange";
+import { TimeRange, isInterval, isSpan } from "./charts/timeRange";
 import { ChartBody, FetchSeries, useChartData } from "./ChartPanel";
 
 const font = `Roboto, "Helvetica Neue", Arial, sans-serif`;
@@ -442,13 +442,14 @@ const PanelEditor: FC<PanelEditorProps> = ({ panel, groupId, chartOptions, fetch
 
     const spanField = (label: string, key: "interval" | "timeFrom" | "timeShift", placeholder: string, help: string) => {
         const value = draft[key] ?? "";
-        const bad = value !== "" && !isSpan(value);
+        const bad = value !== "" && !(key === "interval" ? isInterval(value) : isSpan(value));
         return (
             <label title={help}>
                 {label}
                 <Input
                     value={value}
                     placeholder={placeholder}
+                    list={key === "interval" ? "chart-interval-choices" : undefined}
                     aria-invalid={bad}
                     style={{ width: 110, borderColor: bad ? "#f2495c" : undefined }}
                     onChange={(e) => {
@@ -461,10 +462,19 @@ const PanelEditor: FC<PanelEditorProps> = ({ panel, groupId, chartOptions, fetch
                         });
                     }}
                 />
+                {key === "interval" && (
+                    <datalist id="chart-interval-choices">
+                        {["raw", "100ms", "200ms", "500ms", "1s", "10s", "1m"].map((v) => (
+                            <option key={v} value={v} />
+                        ))}
+                    </datalist>
+                )}
             </label>
         );
     };
-    const spansValid = (["interval", "timeFrom", "timeShift"] as const).every((k) => !draft[k] || isSpan(draft[k] as string));
+    const spansValid = (["interval", "timeFrom", "timeShift"] as const).every(
+        (k) => !draft[k] || (k === "interval" ? isInterval(draft[k] as string) : isSpan(draft[k] as string)),
+    );
 
     return (
         <Page role="dialog" aria-modal="true" aria-label={`Edit panel ${title}`} onKeyDown={(e) => e.key === "Escape" && !pickerOpen && onDiscard()}>
@@ -488,7 +498,11 @@ const PanelEditor: FC<PanelEditorProps> = ({ panel, groupId, chartOptions, fetch
                 <Main aria-label="Preview and data">
                     <PreviewBar>
                         <span>Preview</span>
-                        {state.data?.bucketSeconds && <span>· {formatBucket(state.data.bucketSeconds)} intervals</span>}
+                        {state.data?.raw ? (
+                            <span>· raw samples</span>
+                        ) : (
+                            state.data?.bucketSeconds && <span>· {formatBucket(state.data.bucketSeconds)} intervals</span>
+                        )}
                         {state.data?.histogram && <span>· bins of {state.data.histogram.size}</span>}
                         <span style={{ flex: 1 }} />
                         <Button type="button" aria-pressed={tableView} onClick={() => setTableView((v) => !v)} style={tableView ? { background: "#23324a", borderColor: "#3d82f0", color: "#e6efff" } : undefined}>
@@ -515,7 +529,12 @@ const PanelEditor: FC<PanelEditorProps> = ({ panel, groupId, chartOptions, fetch
                                 <span style={{ fontSize: 12, color: "#9aa1aa", alignSelf: "center" }}>
                                     Source: <b style={{ color: "#e6e8eb" }}>sensors of the asset</b>
                                 </span>
-                                {spanField("Min interval", "interval", "auto", "The smallest interval of time each point summarizes (e.g. 1m)")}
+                                {spanField(
+                                    "Min interval",
+                                    "interval",
+                                    "auto",
+                                    "The smallest interval of time each point summarizes (e.g. 200ms, 1s, 1m), or raw: every sample, as Grafana's raw queries (the fast sensors, as the phone's accelerations)",
+                                )}
                                 <label title="How many points a series may have at most">
                                     Max data points
                                     <Input

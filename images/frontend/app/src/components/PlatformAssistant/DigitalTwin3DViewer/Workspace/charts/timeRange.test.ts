@@ -44,3 +44,19 @@ describe("time range", () => {
         expect(panelTimeRange(page, NOW, undefined, "1d")).toEqual({ range: { from: page.from - 86400_000, to: NOW - 86400_000 }, info: "shifted 1d" });
     });
 });
+
+import { isInterval } from "./timeRange";
+import { formatBucket } from "../chartSeries";
+
+describe("chart min interval below one second", () => {
+    it("takes milliseconds from 100ms", () => {
+        expect(isInterval("200ms")).toBe(true);
+        expect(isInterval("500ms")).toBe(true);
+        expect(isInterval("1s")).toBe(true);
+        expect(isInterval("50ms")).toBe(false);
+        expect(isInterval("0.2s")).toBe(false);
+        expect(isInterval("raw")).toBe(true);
+        expect(formatBucket(0.2)).toBe("200 ms");
+        expect(formatBucket(5)).toBe("5 s");
+    });
+});

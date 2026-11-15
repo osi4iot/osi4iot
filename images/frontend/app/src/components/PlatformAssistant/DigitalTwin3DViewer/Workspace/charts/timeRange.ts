@@ -50,6 +50,17 @@ export const spanMs = (text: string | undefined | null): number | null => {
 
 export const isSpan = (text: string) => SPAN.test(text.trim());
 
+// the minimum interval of a chart: a span or milliseconds (200ms, 500ms: the fast sensors), at least 100 ms, or
+// "raw": every sample, without intervals (as Grafana's raw SQL)
+const INTERVAL = /^(\d{1,6})(ms|[smhdwMy])$/;
+export const RAW_INTERVAL = "raw";
+export const isInterval = (text: string): boolean => {
+    if (text.trim() === RAW_INTERVAL) return true;
+    const m = INTERVAL.exec(text.trim());
+    if (!m) return false;
+    return m[2] !== "ms" || Number(m[1]) >= 100;
+};
+
 // The start (or, with roundUp, the end) of the unit that holds t, in local time
 const roundTo = (t: number, unit: string, roundUp: boolean): number => {
     const d = new Date(t);

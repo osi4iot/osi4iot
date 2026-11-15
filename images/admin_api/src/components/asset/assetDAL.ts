@@ -276,17 +276,14 @@ const announceAssetToPipelines = async (action: "create" | "update", asset: IAss
 	}
 };
 
-export const checkSensorReferences = async (group: IGroup, assetData: CreateAssetDto) => {
-	let areSensorTypesOk = true;
-	const sensorsRef = assetData.sensorsRef;
-	for (const sensorRef of sensorsRef) {
+// the sensors whose type the organization of the group does not have: "sensor_1 (Mobile motion)"
+export const checkSensorReferences = async (group: IGroup, assetData: CreateAssetDto): Promise<string[]> => {
+	const wrong: string[] = [];
+	for (const sensorRef of assetData.sensorsRef ?? []) {
 		const sensorType = await getSensorTypeByPropName(group.orgId, "type", sensorRef.sensorType);
-		if (!sensorType) {
-			areSensorTypesOk = false;
-			break;
-		}
+		if (!sensorType) wrong.push(`${sensorRef.sensorRef} ("${sensorRef.sensorType}")`);
 	}
-	return areSensorTypesOk;
+	return wrong;
 };
 
 export const createNewAsset = async (group: IGroup, assetData: CreateAssetDto, isDefault = false): Promise<IAsset> => {

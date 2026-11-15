@@ -27,10 +27,12 @@ import {
 	parsePoints,
 	parseRange,
 	parseSeries,
+	RAW_INTERVAL,
+	rawStepSeconds,
 	sensorMeasurements,
 	seriesLabel,
 } from "./timeSeries";
-import { getSeriesExtent, getSeriesHistogram, getSeriesPoints, getSeriesSensors } from "./timeSeriesDAL";
+import { getRawSeriesPoints, getSeriesExtent, getSeriesHistogram, getSeriesPoints, getSeriesSensors } from "./timeSeriesDAL";
 
 class TimeSeriesController implements IController {
 	public path = "/time_series";
@@ -47,7 +49,9 @@ class TimeSeriesController implements IController {
 			if (typeof series === "string") throw new HttpException(req, res, 400, series);
 			const range = parseRange(req.query.from, req.query.to);
 			if (typeof range === "string") throw new HttpException(req, res, 400, range);
-			const interval = parseInterval(req.query.interval);
+			// "raw": every sample, without intervals (as Grafana's raw SQL)
+			const raw = req.query.interval === RAW_INTERVAL;
+			const interval = raw ? null : parseInterval(req.query.interval);
 			if (typeof interval === "string") throw new HttpException(req, res, 400, interval);
 			const bucket = bucketSeconds(range, parsePoints(req.query.points), interval);
 			const group = req.group;
@@ -91,14 +95,18 @@ class TimeSeriesController implements IController {
 				series.map(async (s) => {
 					const sensor = byId.get(s.sensorId);
 					const { label, units } = seriesLabel(s, sensorMeasurements(sensor.measurements, sensor.defaultMeasurements));
-					const points = await getSeriesPoints(group.groupUid, sensor.topicUid, s, range, bucket);
+					const points = raw
+						? await getRawSeriesPoints(group.groupUid, sensor.topicUid, s, range)
+						: await getSeriesPoints(group.groupUid, sensor.topicUid, s, range, bucket);
 					return { ...s, label, units, sensor: sensor.description, points };
 				})
 			);
 			res.status(200).send({
 				from: range.from.toISOString(),
 				to: range.to.toISOString(),
-				bucketSeconds: bucket,
+				// raw: the typical step between samples (the chart breaks the line where they are missing)
+				bucketSeconds: raw ? rawStepSeconds(result.map((r) => r.points)) : bucket,
+				...(raw ? { raw: true } : {}),
 				series: result,
 			});
 		} catch (error) {

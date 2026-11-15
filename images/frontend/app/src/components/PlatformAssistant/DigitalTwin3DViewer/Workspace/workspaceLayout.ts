@@ -1,3 +1,4 @@
+
 // The layout of the Viewer page: slides, one screen each, and in each slide panels on a grid of GRID_COLS
 // columns (react-grid-layout). One layout per digital twin, saved by a group administrator for the whole group
 // (admin_api /viewer_layout); the others can change it for themselves while the viewer is open, without saving.
@@ -177,6 +178,8 @@ export const sanitizeChartSeries = (raw: unknown): ChartSeriesRef[] => {
 
 const SERIES_AGG_IDS = ["mean", "min", "max", "last", "first", "sum", "count"];
 const SPAN_TEXT = /^\d{1,6}[smhdwMy]$/;
+// the minimum interval of a chart can also be in milliseconds (200ms, 500ms)
+const INTERVAL_TEXT = /^(\d{1,6}(ms|[smhdwMy])|raw)$/;
 const CHART_VIZ_IDS = ["timeseries", "barchart", "stat", "gauge", "bargauge", "table", "piechart", "statetimeline", "histogram"];
 const TIME_TEXT = /^(now(-\d{1,6}[smhdwMy])?(\/[smhdwMy])?|\d{10,14}|\d{4}-\d{2}-\d{2}.{0,30})$/;
 
@@ -282,7 +285,8 @@ const sanitizePanels = (panels: unknown, hasModel: boolean): WorkspacePanel[] =>
             if (plainObject(p.options)) panel.options = p.options;
             if (plainObject(p.fieldConfig)) panel.fieldConfig = p.fieldConfig;
             for (const key of ["timeFrom", "timeShift", "interval"] as const) {
-                if (typeof p[key] === "string" && SPAN_TEXT.test(p[key] as string)) panel[key] = p[key] as string;
+                const valid = key === "interval" ? INTERVAL_TEXT : SPAN_TEXT;
+                if (typeof p[key] === "string" && valid.test(p[key] as string)) panel[key] = p[key] as string;
             }
             // the charts of 1.4.0 before the editor had a range of their own: their relative time now
             if (!panel.timeFrom && isChartRange(p.range)) panel.timeFrom = p.range;

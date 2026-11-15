@@ -244,7 +244,11 @@ export const ChartBody: FC<{ state: ChartDataState; label: string }> = ({ state,
                         to={range.to}
                         bucketSeconds={bucket}
                         binSize={data.histogram?.size}
-                        label={data.histogram ? `${label} (histogram)` : `${label} (${settings.viz}, ${formatBucket(bucket)} intervals)`}
+                        label={
+                            data.histogram
+                                ? `${label} (histogram)`
+                                : `${label} (${settings.viz}, ${data.raw ? "raw samples" : `${formatBucket(bucket)} intervals`})`
+                        }
                     />
                 )}
                 {message && <Message $error={message.error}>{message.text}</Message>}

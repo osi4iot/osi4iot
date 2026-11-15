@@ -382,10 +382,11 @@ class AssetController implements IController {
 			if (topicProblems.length !== 0) {
 				throw new HttpException(req, res, 400, topicProblems.join(". "));
 			}
-			const areSensorTypesOk = await checkSensorReferences(req.group, assetData);
-			if (!areSensorTypesOk) {
-				const errorMessage = "At least one sensor type is not correct";
-				throw new HttpException(req, res, 401, errorMessage);
+			// 400, not 401: a 401 makes the browser renew its session (and retry) as if the token had expired
+			const wrongSensorTypes = await checkSensorReferences(req.group, assetData);
+			if (wrongSensorTypes.length !== 0) {
+				const errorMessage = `The organization of the group has no sensor type for: ${wrongSensorTypes.join(", ")}`;
+				throw new HttpException(req, res, 400, errorMessage);
 			}
 			await createNewAsset(req.group, assetData);
 			const message = { message: `A new asset has been created` };

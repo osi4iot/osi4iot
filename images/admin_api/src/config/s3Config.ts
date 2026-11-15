@@ -62,6 +62,13 @@ const s3Client = new S3Client({
 // one. Recent SDK versions send a CRC32 checksum instead; AWS and Garage
 // v2 accept either, and Content-MD5 is what every S3 implementation
 // accepts, so the request stays portable across object stores.
+//
+// The header must be added BEFORE the request is signed (the "build"
+// step, after the SDK's own checksum): the signing middleware sits right
+// after retryMiddleware in "finalizeRequest", so a middleware added there
+// runs after the signature and its header is not signed — Garage then
+// rejects the request ("There were headers present in the request which
+// were not signed"), e.g. when a digital twin and its files are deleted.
 s3Client.middlewareStack.add(
 	(next) => async (args: any) => {
 		const { request } = args;
@@ -85,9 +92,9 @@ s3Client.middlewareStack.add(
 		return next(args);
 	},
 	{
-		step: "finalizeRequest",
+		step: "build",
 		name: "addContentMD5ForDeleteObjects",
-		priority: "high",
+		priority: "low",
 	}
 );
 

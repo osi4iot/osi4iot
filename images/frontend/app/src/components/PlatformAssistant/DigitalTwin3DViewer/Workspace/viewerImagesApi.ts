@@ -65,7 +65,7 @@ export const uploadViewerImage = async (groupId: number, digitalTwinId: number, 
             data,
             axiosAuth(accessToken, "multipart/form-data") as any,
         );
-        loaded.delete(cacheKey(groupId, digitalTwinId, fileName));
+        imageChanged(groupId, digitalTwinId, fileName);
         return true;
     } catch (error) {
         axiosErrorHandler(error as AxiosError, authDispatch);
@@ -79,7 +79,7 @@ export const deleteViewerImage = async (groupId: number, digitalTwinId: number, 
             `${base("delete_file", groupId, digitalTwinId)}/${VIEWER_IMAGES_FOLDER}/${encodeURIComponent(fileName)}`,
             axiosAuth(accessToken) as any,
         );
-        loaded.delete(cacheKey(groupId, digitalTwinId, fileName));
+        imageChanged(groupId, digitalTwinId, fileName);
         return true;
     } catch (error) {
         axiosErrorHandler(error as AxiosError, authDispatch);
@@ -90,6 +90,24 @@ export const deleteViewerImage = async (groupId: number, digitalTwinId: number, 
 // the images read, by twin and name
 const loaded = new Map<string, Promise<LoadedViewerImage | null>>();
 const cacheKey = (groupId: number, digitalTwinId: number, fileName: string) => `${groupId}/${digitalTwinId}/${fileName}`;
+
+// An image uploaded again (or removed) under the same name: the panels that show it read it again. Their
+// file name does not change, so without this they would keep what they had (e.g. "could not be read" for
+// the image a configuration names before it is uploaded) until the page is reloaded.
+type ViewerImageListener = (groupId: number, digitalTwinId: number, fileName: string) => void;
+const listeners = new Set<ViewerImageListener>();
+
+export const onViewerImageChange = (listener: ViewerImageListener): (() => void) => {
+    listeners.add(listener);
+    return () => {
+        listeners.delete(listener);
+    };
+};
+
+const imageChanged = (groupId: number, digitalTwinId: number, fileName: string) => {
+    loaded.delete(cacheKey(groupId, digitalTwinId, fileName));
+    listeners.forEach((listener) => listener(groupId, digitalTwinId, fileName));
+};
 
 const IMAGE_TYPES: Record<string, string> = { png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", webp: "image/webp", gif: "image/gif", svg: "image/svg+xml" };
 
