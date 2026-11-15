@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { clipWeight } from "../Utils/clipWeight";
 import React, { FC, useRef, useState, useLayoutEffect, useEffect, useMemo } from "react";
 import { useThree, useFrame } from "@react-three/fiber";
 import { Html } from "@react-three/drei";
@@ -230,7 +231,7 @@ const SensorBase: FC<SensorProps> = ({
         ) {
             const maxValue = obj.userData.clipMaxValue;
             const minValue = obj.userData.clipMinValue;
-            let weigth = (sensorState.clipValue - minValue) / (maxValue - minValue);
+            const weigth = clipWeight(sensorState.clipValue, minValue, maxValue);
             const clipsDuration = obj.animations[0].duration - 0.00001;
             mixer.setTime(weigth * clipsDuration);
         }

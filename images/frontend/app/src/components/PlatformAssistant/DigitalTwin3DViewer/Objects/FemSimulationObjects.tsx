@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { clipWeight } from "../Utils/clipWeight";
 import React, { FC, useCallback, useEffect, useRef, useState } from "react";
 import { useFrame } from "@react-three/fiber";
 import { toast } from "react-toastify";
@@ -251,7 +252,7 @@ const FemSimulationObjectBase: FC<FemSimulationObjectProps> = ({
         ) {
             const maxValue = femSimulationObject.node.userData.clipMaxValue;
             const minValue = femSimulationObject.node.userData.clipMinValue;
-            const weigth = (femSimulationObjectState.clipValue - minValue) / (maxValue - minValue);
+            const weigth = clipWeight(femSimulationObjectState.clipValue, minValue, maxValue);
             const clipsDuration = femSimulationObject.node.animations[0].duration - 0.00001;
             mixer.setTime(weigth * clipsDuration);
         }
@@ -689,3 +690,4 @@ const FemSimulationObjects: FC<FemSimulationObjectsProps> = ({
 };
 
 export default FemSimulationObjects;
+

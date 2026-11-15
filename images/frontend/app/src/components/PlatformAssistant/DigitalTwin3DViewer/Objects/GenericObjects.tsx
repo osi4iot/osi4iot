@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { clipWeight } from "../Utils/clipWeight";
 import React, { FC, useEffect, useMemo, useRef, useState } from "react";
 import { useFrame } from "@react-three/fiber";
 import { toast } from "react-toastify";
@@ -100,7 +101,7 @@ const GenericObjectBase: FC<GenericObjectProps> = ({
         ) {
             const maxValue = obj.userData.clipMaxValue;
             const minValue = obj.userData.clipMinValue;
-            let weigth = (genericObjectState.clipValue - minValue) / (maxValue - minValue);
+            const weigth = clipWeight(genericObjectState.clipValue, minValue, maxValue);
             const clipsDuration = obj.animations[0].duration - 0.00001;
             mixer.setTime(weigth * clipsDuration);
         }

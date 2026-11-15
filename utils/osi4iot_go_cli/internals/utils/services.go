@@ -743,7 +743,7 @@ func GetDefaultServicesDataMap(pd *osi_types.PlatformData) map[string]osi_types.
 		},
 		"auth_callout": {
 			ServiceName: "auth_callout",
-			Image:       "ghcr.io/osi4iot/auth_callout:1.4.2",
+			Image:       "ghcr.io/osi4iot/auth_callout:1.4.3",
 			Replicas:    1,
 			Cpu:         messagingSvcCpus_025,
 			Memory:      messagingSvcMem_025,

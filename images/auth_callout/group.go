@@ -273,7 +273,7 @@ func (m *AuthModel) GetGroupsByOrgId(orgId int64) ([]Group, error) {
 	queryString := `SELECT ` + groupSelectColumns + `
 	FROM grafanadb.group
 	INNER JOIN grafanadb.org ON grafanadb.group.org_id = grafanadb.org.id
-	WHERE grafanadb.team_member.user_id = $1 AND grafanadb.team_member.permission = $2`
+	WHERE grafanadb.group.org_id = $1`
 	rows, err := m.db.Query(context.Background(), queryString, orgId)
 	if err != nil {
 		return nil, err

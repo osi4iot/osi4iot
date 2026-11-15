@@ -653,7 +653,7 @@ func (n *FuncNode) handleProcessedData(
 	log *logger.Logger,
 ) error {
 	if processedData == nil {
-		log.Infof("FuncNode %s: process function returned null, skipping downstream nodes", n.NodeUid)
+		log.Debugf("FuncNode %s: process function returned null, skipping downstream nodes", n.NodeUid)
 		return nil
 	}
 

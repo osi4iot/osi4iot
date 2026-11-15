@@ -56,6 +56,10 @@ func (l *Logger) Infof(template string, args ...interface{}) {
 	l.baseLogger.Infof(template, args...)
 }
 
+func (l *Logger) Debugf(template string, args ...interface{}) {
+	l.baseLogger.Debugf(template, args...)
+}
+
 func (l *Logger) Warnf(template string, args ...interface{}) {
 	l.baseLogger.Warnf(template, args...)
 }

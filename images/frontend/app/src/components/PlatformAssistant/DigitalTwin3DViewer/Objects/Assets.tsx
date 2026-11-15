@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { clipWeight } from "../Utils/clipWeight";
 import React, { FC, useRef, useLayoutEffect, useEffect } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import { IAssetObject } from "../Main/Model";
@@ -68,7 +69,7 @@ const AssetBase: FC<AssetProps> = ({ obj, blinking, opacity = 1, assetState, vis
         ) {
             const maxValue = obj.userData.clipMaxValue;
             const minValue = obj.userData.clipMinValue;
-            const weight = (assetState.clipValue - minValue) / (maxValue - minValue);
+            const weight = clipWeight(assetState.clipValue, minValue, maxValue);
             const clipsDuration = obj.animations[0].duration - 0.00001;
             mixerRef.current.setTime(weight * clipsDuration);
         }
