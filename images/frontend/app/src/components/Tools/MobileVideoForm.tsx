@@ -82,6 +82,12 @@ const ControlsContainer = styled.div`
     }
 `;
 
+const StreamStats = styled.div<{ $warn: boolean }>`
+    margin: 6px 0 4px;
+    font-size: 12px;
+    color: ${(p) => (p.$warn ? "#fbd38d" : "#9aa1aa")};
+`;
+
 const VideoPreview = styled.video`
     width: 100%;
     max-height: 180px;
@@ -112,6 +118,18 @@ interface MobileVideoFormProps {
     mobileTopicSelected: IMobileTopic;
 }
 
+// The frames are made smaller on the phone, before the JPEG: at most MAX_FRAME_SIDE pixels on their longest
+// side. The camera often ignores the 640x480 asked for (an "ideal", not a must) and gives 1280x720, 1920x1080
+// or more: such frames take long to encode on the phone, weigh several times more on the mobile uplink and
+// cost the pipeline much more, while the YOLO models work at 640 anyway (no precision is lost).
+export const MAX_FRAME_SIDE = 640;
+
+// the size a frame is sent at: the camera's, scaled down to maxSide on its longest side (never up)
+export const frameSize = (width: number, height: number, maxSide = MAX_FRAME_SIDE) => {
+    const scale = Math.min(1, maxSide / Math.max(width, height));
+    return { width: Math.max(1, Math.round(width * scale)), height: Math.max(1, Math.round(height * scale)) };
+};
+
 const initialValues = {
     fps: 10,
     jpegQuality: 0.5,
@@ -138,6 +156,10 @@ const MobileVideoForm: FC<MobileVideoFormProps> = ({
     mobileTopicSelected,
 }) => {
     const [isStreaming, setIsStreaming] = useState(false);
+    // what really leaves the phone, measured every second: the frames per second sent, the size of a frame
+    // and the time NATS takes to confirm it (a slow uplink shows up here, not as a delay in the pipeline)
+    const [stats, setStats] = useState<{ fps: number; target: number; kb: number; rttMs: number; size: string } | null>(null);
+    const statsTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
     const videoRef = useRef<HTMLVideoElement>(null);
     const streamRef = useRef<MediaStream | null>(null);
     const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -155,6 +177,11 @@ const MobileVideoForm: FC<MobileVideoFormProps> = ({
             clearInterval(intervalRef.current);
             intervalRef.current = null;
         }
+        if (statsTimerRef.current) {
+            clearInterval(statsTimerRef.current);
+            statsTimerRef.current = null;
+        }
+        setStats(null);
         if (streamRef.current) {
             streamRef.current.getTracks().forEach((track: { stop: () => any; }) => track.stop());
             streamRef.current = null;
@@ -202,7 +229,8 @@ const MobileVideoForm: FC<MobileVideoFormProps> = ({
         const topicHash = mobileTopicSelected.topicUid;
         const natsSubject = `dev2dtm.Group_${groupHash}.Topic_${topicHash}`;
 
-        const { fps, jpegQuality } = values;
+        const fps = Number(values.fps);
+        const jpegQuality = Number(values.jpegQuality);
         const intervalMs = Math.round(1000 / fps);
 
         setIsStreaming(true);
@@ -210,6 +238,27 @@ const MobileVideoForm: FC<MobileVideoFormProps> = ({
         let busy = false;
         let seq = 0;
         const ctx = offscreenCanvas.getContext("2d");
+        // frames sent, bytes and confirmation times since the last stats update
+        let sent = 0;
+        let bytes = 0;
+        let rttSum = 0;
+        let size = "";
+        let lastStats = Date.now();
+        statsTimerRef.current = setInterval(() => {
+            const now = Date.now();
+            const seconds = (now - lastStats) / 1000;
+            lastStats = now;
+            setStats({
+                fps: sent / seconds,
+                target: fps,
+                kb: sent ? bytes / sent / 1024 : 0,
+                rttMs: sent ? rttSum / sent : 0,
+                size,
+            });
+            sent = 0;
+            bytes = 0;
+            rttSum = 0;
+        }, 1000);
 
         intervalRef.current = setInterval(() => {
             const video = videoRef.current;
@@ -219,11 +268,14 @@ const MobileVideoForm: FC<MobileVideoFormProps> = ({
             const h = video.videoHeight;
             if (w === 0 || h === 0) return;
 
-            if (offscreenCanvas.width !== w || offscreenCanvas.height !== h) {
-                offscreenCanvas.width = w;
-                offscreenCanvas.height = h;
+            // the frame, scaled down on the phone (MAX_FRAME_SIDE)
+            const out = frameSize(w, h);
+            if (offscreenCanvas.width !== out.width || offscreenCanvas.height !== out.height) {
+                offscreenCanvas.width = out.width;
+                offscreenCanvas.height = out.height;
             }
-            ctx.drawImage(video, 0, 0, w, h);
+            ctx.drawImage(video, 0, 0, out.width, out.height);
+            size = out.width === w && out.height === h ? `${w}×${h}` : `camera ${w}×${h} → sent ${out.width}×${out.height}`;
 
             busy = true;
             const capturedAt = Date.now();
@@ -238,7 +290,18 @@ const MobileVideoForm: FC<MobileVideoFormProps> = ({
                         hdrs.set("X-Frame-Seq", String(seq++));
                         hdrs.set("X-Capture-Ts", String(capturedAt));
 
+                        const sentAt = performance.now();
                         natsClient.publish(natsSubject, imageBytes, { headers: hdrs });
+                        // Wait for NATS to confirm it before taking the next frame. Without it, with an uplink slower
+                        // than the video, the frames pile up in the phone's connection and reach the pipeline later and
+                        // later (seconds behind); now the frames that do not fit are not taken, and each one that
+                        // arrives is recent.
+                        await natsClient.flush();
+                        sent += 1;
+                        bytes += imageBytes.length;
+                        rttSum += performance.now() - sentAt;
+                    } catch (err) {
+                        console.warn("Video frame not sent:", err);
                     } finally {
                         busy = false;
                     }
@@ -267,6 +330,16 @@ const MobileVideoForm: FC<MobileVideoFormProps> = ({
                                     playsInline
                                     style={{ display: isStreaming ? "block" : "none" }}
                                 />
+                                {isStreaming && stats && (
+                                    <StreamStats role="status" $warn={stats.fps < stats.target * 0.7}>
+                                        Sending {stats.fps.toFixed(1)} of {stats.target} fps · {stats.kb.toFixed(0)} KB per frame ·
+                                        confirmed in {stats.rttMs.toFixed(0)} ms{stats.size ? ` · ${stats.size}` : ""}
+                                        {stats.fps < stats.target * 0.7 &&
+                                            (stats.rttMs > 1000 / stats.target
+                                                ? " — the connection does not keep up: lower the JPEG quality or the fps"
+                                                : " — keep this page on screen: the browser slows the camera down in the background")}
+                                    </StreamStats>
+                                )}
                                 <FormikControl
                                     control="select"
                                     label="Camera"
