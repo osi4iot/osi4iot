@@ -133,7 +133,7 @@ export const StatViz: FC<{ series: DrawSeries[]; settings: ChartSettings; onValu
                             </span>
                         )}
                         {change !== null && Number.isFinite(change) && (
-                            <span style={{ fontSize: Math.max(11, size * 0.28), color: onColor ? "#fff" : change >= 0 ? "#73BF69" : "#F2495C", zIndex: 1 }}>
+                            <span style={{ fontSize: Math.max(11, size * 0.28), color: onColor ? "#fff" : change >= 0 ? "#4CC38A" : "#EF5B6B", zIndex: 1 }}>
                                 {change >= 0 ? "↑" : "↓"} {Math.abs(change * 100).toFixed(1)}%
                             </span>
                         )}

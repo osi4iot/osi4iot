@@ -11,7 +11,7 @@ import {
 import { MdError } from "react-icons/md";
 import { HiShieldCheck, HiShieldExclamation } from "react-icons/hi";
 import { RiWifiLine, RiWifiOffLine } from "react-icons/ri";
-import { TiFlowMerge } from "react-icons/ti";
+import { TbArrowMerge } from "react-icons/tb";
 import { BsChatDotsFill } from "react-icons/bs";
 import { SlidersHorizontal, Logs, Box, RotateCcw, RefreshCw, Download, CircleX, Upload, Play, Camera } from "lucide-react";
 
@@ -134,7 +134,7 @@ export const CloseFolderIcon = styled(FaFolderMinus as any)`
     ${IconBaseStyles}
 `;
 
-export const TiFlowMergeIcon = styled(TiFlowMerge as any)`
+export const TiFlowMergeIcon = styled(TbArrowMerge as any)`
     ${IconBaseStyles}
     rotate: -90deg;
 `;

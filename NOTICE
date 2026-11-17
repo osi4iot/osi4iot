@@ -1,0 +1,125 @@
+OSI4IOT
+Copyright 2021-2026 CIMNE / Universitat Politècnica de Catalunya (UPC)
+
+This product is licensed under the Apache License, Version 2.0 (see LICENSE).
+
+OSI4IOT includes, uses or deploys third-party software. Each component keeps
+its own license; the licenses below are those of the versions referenced by
+this release. This file is informative: the license texts of each component
+are in its source code or container image.
+
+
+1. Services deployed by OSI4IOT in their own containers
+--------------------------------------------------------
+These programs run as separate services and communicate with OSI4IOT over the
+network (HTTP, S3, SQL, NATS). OSI4IOT does not modify their source code; the
+images ghcr.io/osi4iot/* add configuration, scripts or plugins on top of the
+official images.
+
+* Grafana 12.4.13 - GNU AGPL v3.0 - Copyright Grafana Labs
+  Source: https://github.com/grafana/grafana (tag v12.4.13)
+  Plugins installed in the image: grafana-clock-panel, briangann-gauge-panel,
+  vonage-status-panel (each under its own license).
+* Garage 2.4.1 - GNU AGPL v3.0 - Copyright Deuxfleurs
+  Source: https://git.deuxfleurs.fr/Deuxfleurs/garage
+* Garage Web UI 1.1.0 - MIT - https://github.com/khairul169/garage-webui
+* NATS Server 2.15.2 - Apache License 2.0 - Copyright The NATS Authors
+* PostgreSQL 14 and 18 - PostgreSQL License - Copyright The PostgreSQL
+  Global Development Group
+* TimescaleDB 2.27.0, Community Edition - Apache License 2.0 and Timescale
+  License (TSL) - Copyright Timescale, Inc. (Tiger Data)
+  OSI4IOT uses features of the Community Edition (retention policies,
+  continuous aggregates). The TSL allows its use inside a product or service
+  such as OSI4IOT, but not offering TimescaleDB itself as a hosted database
+  service. See https://www.tigerdata.com/legal/licenses
+* Patroni - MIT - Copyright Zalando SE
+* WAL-G - Apache License 2.0
+* pgvector - PostgreSQL License
+* pgAdmin 4 9.18.0 - PostgreSQL License - Copyright The pgAdmin Development
+  Team
+* HAProxy 2.8 - GNU GPL v2.0
+* keepalived (image lolhens/keepalived-swarm) - GNU GPL v2.0 (keepalived)
+* Traefik 3.6 - MIT - Copyright Traefik Labs
+* Vector 0.46.1 - Mozilla Public License 2.0 - Copyright Datadog, Inc.
+* Base images: Alpine Linux, Debian, Ubuntu and Python, with the licenses of
+  their packages.
+
+
+2. Components included in the pipelines image
+---------------------------------------------
+* ONNX Runtime (CPU and GPU builds) - MIT - Copyright Microsoft Corporation
+* NVIDIA CUDA runtime and cuDNN libraries (GPU image) - NVIDIA Software
+  License Agreement / CUDA Toolkit EULA; redistributed under NVIDIA's terms.
+* multilingual-e5-small (ONNX export by Xenova of intfloat/multilingual-e5-
+  small) - MIT
+* Hugging Face Tokenizers - Apache License 2.0, through the Go bindings
+  github.com/daulet/tokenizers - MIT
+* DuckDB - MIT - Copyright DuckDB Foundation
+* Poppler utilities (poppler-utils) - GNU GPL v2.0; run as separate programs.
+* Python 3.12 - Python Software Foundation License
+* mcp_calculate_server - MIT - Copyright (c) 2025 611711Dark
+  (images/pipelines/mcp_servers/mcp_calculate_server, with its LICENSE)
+
+
+3. Main libraries of the OSI4IOT services (Go)
+----------------------------------------------
+* Apache Arrow for Go - Apache License 2.0 - Copyright The Apache Software
+  Foundation. This product includes software developed at The Apache
+  Software Foundation (https://www.apache.org/).
+* NATS clients (nats.go, nkeys, jwt, jsm.go) - Apache License 2.0
+* AWS SDK for Go v2 - Apache License 2.0
+* goja - MIT; onnxruntime_go - MIT; duckdb-go - MIT; pgx - MIT;
+  mcp-go - MIT; agent-sdk-go (Ingenimax) - MIT; openai-go - Apache 2.0;
+  Google Gen AI SDK - Apache 2.0; parquet-go - Apache 2.0; zap - MIT;
+  viper - MIT; cobra - Apache 2.0; Bubble Tea and Lip Gloss - MIT;
+  lego - MIT; Docker/Moby client - Apache 2.0; gopsutil - BSD-3-Clause;
+  go-keyring - MIT; gonum and gonum/plot - BSD-3-Clause; fpdf - MIT
+* pg_query_go - BSD-3-Clause; it includes the PostgreSQL parser (PostgreSQL
+  License).
+* github.com/golang/freetype - FreeType License (chosen from its dual
+  FreeType / GPL v2 license):
+  Portions of this software are copyright (c) The FreeType Project
+  (www.freetype.org). All rights reserved.
+
+
+4. Main libraries of the web interface and the admin API (JavaScript)
+---------------------------------------------------------------------
+* Apache ECharts - Apache License 2.0
+  Apache ECharts
+  Copyright 2017-2026 The Apache Software Foundation
+  This product includes software developed at
+  The Apache Software Foundation (https://www.apache.org/).
+* React, React DOM, React Router - MIT
+* three.js, React Three Fiber, drei - MIT; postprocessing - Zlib
+* Leaflet - BSD-2-Clause; map data (c) OpenStreetMap contributors, ODbL
+  (attribution shown on the map)
+* PDF.js (pdfjs-dist) - Apache License 2.0
+* KaTeX - MIT (fonts: SIL Open Font License 1.1)
+* CodeMirror - MIT; React Flow (@xyflow/react) - MIT
+* Eclipse Paho JavaScript client (paho-mqtt) - Eclipse Public License 1.0 /
+  Eclipse Distribution License 1.0
+* Archivo font (@fontsource-variable/archivo) - SIL Open Font License 1.1
+* Icons (react-icons):
+  - Font Awesome Free - CC BY 4.0 - by Fonticons, Inc. (https://fontawesome.com)
+  - IcoMoon Free - CC BY 4.0 - by Keyamoon (https://icomoon.io)
+  - Material Design icons and Remix Icon - Apache License 2.0
+  - Ant Design Icons, Bootstrap Icons, Heroicons, Phosphor Icons and
+    Tabler Icons - MIT
+  - lucide-react - ISC
+* Express, Passport, node-postgres (pg), Winston, Multer, Nodemailer and the
+  AWS SDK for JavaScript - MIT or Apache License 2.0
+
+
+5. Charts of the 3D digital twin viewer
+---------------------------------------
+The chart panels of the OSI4IOT viewer are an independent implementation,
+written for OSI4IOT on top of Apache ECharts. They do not contain source code
+from Grafana.
+
+
+6. Trademarks
+-------------
+"Grafana" is a trademark of Raintank, Inc. dba Grafana Labs. "TimescaleDB" is
+a trademark of Timescale, Inc. "NATS" is a trademark of The Linux Foundation.
+Other names may be trademarks of their respective owners. OSI4IOT is not
+affiliated with, sponsored or endorsed by any of them.

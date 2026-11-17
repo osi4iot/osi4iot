@@ -72,7 +72,7 @@ describe("Chart panel", () => {
             />,
         );
         const tile = await screen.findByLabelText("Rotor speed: 88 rpm");
-        expect(tile).toHaveAttribute("data-color", "#F2495C");
+        expect(tile).toHaveAttribute("data-color", "#EF5B6B");
     });
 
     it("says when its sensors no longer exist, and asks for nothing while paused", () => {

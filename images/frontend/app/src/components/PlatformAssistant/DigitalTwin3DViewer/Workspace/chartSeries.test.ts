@@ -60,7 +60,7 @@ describe("chart series", () => {
         expect(option.yAxis.map((a: any) => a.name)).toEqual(["°C", "m/s^2"]);
         expect(option.xAxis.max).toBe(Date.parse("2026-11-09T11:00:00Z"));
         const html = option.tooltip.formatter([
-            { seriesName: "Temperature · Thermo A", color: "#5794f2", value: [Date.parse("2026-11-09T10:00:00Z"), 21.5] },
+            { seriesName: "Temperature · Thermo A", color: "#4c9af0", value: [Date.parse("2026-11-09T10:00:00Z"), 21.5] },
             { seriesName: "<Ax>", color: "#f00", value: [Date.parse("2026-11-09T10:00:00Z"), null] },
         ]);
         expect(html).toContain("<b>21.5</b> °C");

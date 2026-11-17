@@ -46,10 +46,10 @@ describe("chart settings", () => {
 
     it("colours by thresholds and value mappings", () => {
         const thr = { mode: "absolute" as const, steps: [{ value: null, color: "green" }, { value: 50, color: "orange" }, { value: 80, color: "red" }] };
-        expect(thresholdColor(10, thr)).toBe("#73BF69");
-        expect(thresholdColor(60, thr)).toBe("#FF9830");
-        expect(thresholdColor(95, thr)).toBe("#F2495C");
-        expect(thresholdColor(0.6, { mode: "percentage", steps: thr.steps }, 0, 1)).toBe("#FF9830");
+        expect(thresholdColor(10, thr)).toBe("#4CC38A");
+        expect(thresholdColor(60, thr)).toBe("#F58B3C");
+        expect(thresholdColor(95, thr)).toBe("#EF5B6B");
+        expect(thresholdColor(0.6, { mode: "percentage", steps: thr.steps }, 0, 1)).toBe("#F58B3C");
         const maps = [{ type: "value" as const, value: "1", text: "On", color: "green" }, { type: "range" as const, from: 2, to: 5, text: "Busy" }];
         expect(applyMappings(1, maps)).toEqual({ text: "On", color: "green" });
         expect(applyMappings(3, maps)).toEqual({ text: "Busy", color: undefined });
@@ -91,8 +91,8 @@ describe("chart settings", () => {
         ];
         const out = drawSeries(sources, s);
         expect(out.map((x) => [x.name, x.color, x.axis, x.unit])).toEqual([
-            ["Temp · North", "#73BF69", "left", "celsius"],
-            ["Temp · South", "#B877D9", "right", "celsius"],
+            ["Temp · North", "#4CC38A", "left", "celsius"],
+            ["Temp · South", "#A97BE0", "right", "celsius"],
         ]);
         expect(out[1].values.slice(0, 2)).toEqual([[0, 15], [10, 22]]);
     });

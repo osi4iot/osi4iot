@@ -533,7 +533,7 @@ const PanelEditor: FC<PanelEditorProps> = ({ panel, groupId, chartOptions, fetch
                                     "Min interval",
                                     "interval",
                                     "auto",
-                                    "The smallest interval of time each point summarizes (e.g. 200ms, 1s, 1m), or raw: every sample, as Grafana's raw queries (the fast sensors, as the phone's accelerations)",
+                                    "The smallest interval of time each point summarizes (e.g. 200ms, 1s, 1m), or raw: every sample, without intervals (for fast sensors, such as the phone's accelerations)",
                                 )}
                                 <label title="How many points a series may have at most">
                                     Max data points

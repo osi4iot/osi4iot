@@ -40,7 +40,7 @@ const Message = styled.p<{ $error?: boolean }>`
     padding: 12px;
     text-align: center;
     font-size: 13px;
-    color: ${({ $error }) => ($error ? "#ff7383" : "#9aa1aa")};
+    color: ${({ $error }) => ($error ? "#f7949f" : "#9aa1aa")};
     pointer-events: none;
 `;
 
@@ -227,9 +227,9 @@ export const ChartBody: FC<{ state: ChartDataState; label: string }> = ({ state,
             {notes && (
                 <Notes>
                     {info && <span style={{ color: "#9cc2ff" }}>{info}</span>}
-                    {missing > 0 && hasSeries && <span style={{ color: "#f2cc0c" }}>{missing === 1 ? "1 series no longer exists" : `${missing} series no longer exist`}</span>}
+                    {missing > 0 && hasSeries && <span style={{ color: "#e0b232" }}>{missing === 1 ? "1 series no longer exists" : `${missing} series no longer exist`}</span>}
                     {error && data && (
-                        <span style={{ color: "#ff7383" }} title={error}>
+                        <span style={{ color: "#f7949f" }} title={error}>
                             Not updated
                         </span>
                     )}

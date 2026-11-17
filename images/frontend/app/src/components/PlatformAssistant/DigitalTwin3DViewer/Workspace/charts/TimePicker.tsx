@@ -124,7 +124,7 @@ const Column = styled.div`
     }
 
     input[aria-invalid="true"] {
-        border-color: #f2495c;
+        border-color: #ef5b6b;
     }
 
     @media (max-width: 640px) {
@@ -291,7 +291,7 @@ const TimePicker: FC<TimePickerProps> = ({ time, onChange, onRefresh, now = Date
                             To
                             <input id={`${id}-to`} value={to} aria-invalid={!toValid} onChange={(e) => setTo(e.target.value)} placeholder="now" />
                         </label>
-                        <span style={{ fontSize: 11, color: "#8b929b" }}>Relative times as in Grafana: now-6h, now-1d/d, now/w; or dates (2026-11-09 10:00).</span>
+                        <span style={{ fontSize: 11, color: "#8b929b" }}>Relative times: now-6h, now-1d/d, now/w; or dates (2026-11-09 10:00).</span>
                         <Apply
                             type="button"
                             disabled={!rangeValid}

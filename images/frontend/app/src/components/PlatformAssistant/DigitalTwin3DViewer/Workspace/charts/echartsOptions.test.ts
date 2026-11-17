@@ -43,7 +43,7 @@ describe("echarts options", () => {
         const o: any = timeseriesOption({ series: series(s), settings: s, from: 0, to: 120_000, bucketSeconds: 10 });
         expect(o.series).toHaveLength(2);
         expect(o.series[0]).toMatchObject({ type: "line", step: "end", yAxisIndex: 0 });
-        expect(o.series[0].areaStyle.color).toBe("rgba(115, 191, 105, 0.3)");
+        expect(o.series[0].areaStyle.color).toBe("rgba(76, 195, 138, 0.3)");
         expect(o.series[1].yAxisIndex).toBe(1);
         expect(o.yAxis).toHaveLength(2);
         expect(o.series[0].markLine.data[0].yAxis).toBe(20);
@@ -82,8 +82,8 @@ describe("echarts options", () => {
         // the lines draw no points: an "item" tooltip would never appear
         expect(single.tooltip).toMatchObject({ show: true, trigger: "axis" });
         const params = [
-            { seriesName: "X", color: "#5794f2", value: [10_000, 20], seriesIndex: 0 },
-            { seriesName: "Y", color: "#ff9830", value: [10_000, 80], seriesIndex: 1 },
+            { seriesName: "X", color: "#4c9af0", value: [10_000, 20], seriesIndex: 0 },
+            { seriesName: "Y", color: "#f58b3c", value: [10_000, 80], seriesIndex: 1 },
         ];
         // without the pointer: the first series
         expect(single.tooltip.formatter(params)).toContain("X");
@@ -111,7 +111,7 @@ describe("echarts options", () => {
         expect(stops[0].color).not.toBe(stops[1].color);
         expect(o.series[0].lineStyle.color.colorStops).toHaveLength(2);
         expect(shiftHue("#ff0000", 120)).toBe("#00ff00");
-        expect(shiftHue("#5794f2", 0)).toBe("#5794f2");
+        expect(shiftHue("#4c9af0", 0)).toBe("#4c9af0");
         expect(shiftHue("red", 40)).toBe("red");
     });
 });

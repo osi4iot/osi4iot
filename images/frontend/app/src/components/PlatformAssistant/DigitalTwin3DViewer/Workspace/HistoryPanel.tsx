@@ -106,7 +106,7 @@ const Summary = styled.span`
 const Status = styled.span<{ $error?: boolean }>`
     margin-left: auto;
     font-size: 12px;
-    color: ${({ $error }) => ($error ? "#ff7383" : "#7d848d")};
+    color: ${({ $error }) => ($error ? "#f7949f" : "#7d848d")};
     white-space: nowrap;
 `;
 
@@ -252,7 +252,7 @@ const Empty = styled.p<{ $error?: boolean }>`
     margin: 0;
     padding: 24px 12px;
     text-align: center;
-    color: ${({ $error }) => ($error ? "#ff7383" : "#9aa1aa")};
+    color: ${({ $error }) => ($error ? "#f7949f" : "#9aa1aa")};
 `;
 
 // What the group's administrators can do from the panels (by the pipeline of the twin, on NATS)
@@ -549,7 +549,7 @@ const HistoryPanel: FC<HistoryPanelProps> = ({ kind, groupId, digitalTwinId, api
                         {detail === "loading" || detail === undefined ? (
                             "Loading…"
                         ) : detail === "error" ? (
-                            <span style={{ color: "#ff7383" }}>The detail could not be read.</span>
+                            <span style={{ color: "#f7949f" }}>The detail could not be read.</span>
                         ) : (
                             <>
                                 <dl>

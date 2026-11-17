@@ -220,7 +220,7 @@ const NumberField: FC<{ id: string; value: unknown; placeholder?: string; min?: 
 export const ColorSelect: FC<{ id?: string; value: string | undefined; onChange: (v: string) => void; label: string; allowNone?: boolean }> = ({ id, value, onChange, label, allowNone }) => (
     <Row>
         <Swatch $color={resolveColor(value, "transparent")} aria-hidden="true" />
-        <Select id={id} aria-label={label} value={value && !NAMED_COLORS[value] && !COLOR_CHOICES.includes(value) ? "custom" : value ?? ""} onChange={(e) => onChange(e.target.value === "custom" ? "#5794F2" : e.target.value)}>
+        <Select id={id} aria-label={label} value={value && !NAMED_COLORS[value] && !COLOR_CHOICES.includes(value) ? "custom" : value ?? ""} onChange={(e) => onChange(e.target.value === "custom" ? "#4C9AF0" : e.target.value)}>
             {allowNone && <option value="">Automatic</option>}
             {COLOR_CHOICES.map((c) => (
                 <option key={c} value={c}>
@@ -354,10 +354,10 @@ const LinksEditor: FC<{ value: DataLink[] | undefined; onChange: (v: DataLink[])
                             aria-invalid={bad}
                             placeholder="https://… or /grafana/…"
                             value={l.url}
-                            style={bad ? { borderColor: "#f2495c" } : undefined}
+                            style={bad ? { borderColor: "#ef5b6b" } : undefined}
                             onChange={(e) => update(i, { url: e.target.value })}
                         />
-                        {bad && <small style={{ color: "#ff7383", fontSize: 11 }}>Only web addresses (http://, https://) or paths of the platform (/…)</small>}
+                        {bad && <small style={{ color: "#f7949f", fontSize: 11 }}>Only web addresses (http://, https://) or paths of the platform (/…)</small>}
                         <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: "#c7cbd1" }}>
                             <input type="checkbox" checked={!!l.targetBlank} onChange={(e) => update(i, { targetBlank: e.target.checked })} style={{ accentColor: "#3d82f0" }} />
                             Open in a new tab

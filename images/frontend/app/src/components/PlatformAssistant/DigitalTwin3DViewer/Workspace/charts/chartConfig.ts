@@ -293,42 +293,42 @@ const diff = (value: Record<string, unknown>, base: Record<string, unknown>): Re
 
 // --- colours ------------------------------------------------------------------------------------------------
 
-// Grafana's named colours (the ones its colour picker offers first)
+// The named colours of the colour picker (the OSI4IOT palette: four shades of six hues, readable on the dark panels)
 export const NAMED_COLORS: Record<string, string> = {
-    green: "#73BF69",
-    "dark-green": "#37872D",
-    "semi-dark-green": "#56A64B",
-    "light-green": "#96D98D",
-    yellow: "#FADE2A",
-    "dark-yellow": "#E0B400",
-    "semi-dark-yellow": "#F2CC0C",
-    "light-yellow": "#FFEE52",
-    red: "#F2495C",
-    "dark-red": "#C4162A",
-    "semi-dark-red": "#E02F44",
-    "light-red": "#FF7383",
-    blue: "#5794F2",
-    "dark-blue": "#1F60C4",
-    "semi-dark-blue": "#3274D9",
-    "light-blue": "#8AB8FF",
-    orange: "#FF9830",
-    "dark-orange": "#FA6400",
-    "semi-dark-orange": "#FF780A",
-    "light-orange": "#FFB357",
-    purple: "#B877D9",
-    "dark-purple": "#8F3BB8",
-    "semi-dark-purple": "#A352CC",
-    "light-purple": "#CA95E5",
-    text: "#CCCCDC",
+    green: "#4CC38A",
+    "dark-green": "#2E8B5E",
+    "semi-dark-green": "#3DA874",
+    "light-green": "#8FDDB4",
+    yellow: "#F5C84C",
+    "dark-yellow": "#C99A1A",
+    "semi-dark-yellow": "#E0B232",
+    "light-yellow": "#FADF8C",
+    red: "#EF5B6B",
+    "dark-red": "#B8303F",
+    "semi-dark-red": "#D94455",
+    "light-red": "#F7949F",
+    blue: "#4C9AF0",
+    "dark-blue": "#1E63B8",
+    "semi-dark-blue": "#3480D6",
+    "light-blue": "#8EC0F7",
+    orange: "#F58B3C",
+    "dark-orange": "#C45E12",
+    "semi-dark-orange": "#E07428",
+    "light-orange": "#F9B47D",
+    purple: "#A97BE0",
+    "dark-purple": "#7140AE",
+    "semi-dark-purple": "#8C5CC8",
+    "light-purple": "#C9A9EE",
+    text: "#D3D7DE",
     transparent: "transparent",
 };
 
 export const COLOR_CHOICES = ["green", "yellow", "orange", "red", "blue", "purple", "dark-green", "dark-yellow", "dark-orange", "dark-red", "dark-blue", "dark-purple", "light-green", "light-yellow", "light-orange", "light-red", "light-blue", "light-purple"];
 
-// Grafana's classic palette, in its order
-export const CLASSIC_PALETTE = ["#73BF69", "#F2CC0C", "#8AB8FF", "#FF780A", "#F2495C", "#5794F2", "#B877D9", "#705DA0", "#37872D", "#FADE2A", "#447EBC", "#C15C17"];
+// The palette of the series, in order (OSI4IOT's own)
+export const CLASSIC_PALETTE = ["#4CC38A", "#E0B232", "#8EC0F7", "#E07428", "#EF5B6B", "#4C9AF0", "#A97BE0", "#6B63C4", "#2E8B5E", "#F5C84C", "#3F78C2", "#B5652A"];
 
-export const resolveColor = (color: string | undefined, fallback = "#CCCCDC"): string => {
+export const resolveColor = (color: string | undefined, fallback = "#D3D7DE"): string => {
     if (!color) return fallback;
     return NAMED_COLORS[color] ?? (/^#[0-9a-fA-F]{3,8}$/.test(color) ? color : fallback);
 };

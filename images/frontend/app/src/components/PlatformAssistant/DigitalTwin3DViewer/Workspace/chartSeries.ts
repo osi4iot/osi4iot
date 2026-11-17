@@ -120,8 +120,8 @@ export interface TimeSeriesResponse {
     histogram?: { min: number; max: number; size: number; offset: number };
 }
 
-// colours of the series (the same order as Grafana's classic palette, readable on the dark panels)
-export const SERIES_COLORS = ["#5794f2", "#ff9830", "#73bf69", "#f2cc0c", "#b877d9", "#ff7383", "#8ab8ff", "#56a64b"];
+// colours of the series (the OSI4IOT palette, readable on the dark panels)
+export const SERIES_COLORS = ["#4c9af0", "#f58b3c", "#4cc38a", "#e0b232", "#a97be0", "#f7949f", "#8ec0f7", "#3da874"];
 
 export const formatBucket = (seconds: number): string => {
     if (seconds < 1) return `${Math.round(seconds * 1000)} ms`;
@@ -244,4 +244,3 @@ export const buildChartOption = (data: TimeSeriesResponse, now = Date.now()) => 
 };
 
 export const hasPoints = (data: TimeSeriesResponse | null) => !!data && data.series.some((s) => s.points.length > 0);
-

@@ -32,8 +32,8 @@ describe("overrides", () => {
         expect(fieldFor(s, "Ax").unit).toBe("accG");
         const out = drawSeries(sources, s);
         expect(out.map((x) => [x.name, x.color, x.unit, x.hideFromLegend])).toEqual([
-            ["Ax", "#73BF69", "accG", true],
-            ["Side-side", "#B877D9", "accG", true],
+            ["Ax", "#4CC38A", "accG", true],
+            ["Side-side", "#A97BE0", "accG", true],
         ]);
         const o: any = timeseriesOption({ series: out, settings: s, from: 0, to: 40_000, bucketSeconds: 10 });
         expect(o.series[1].lineStyle.width).toBe(4);
@@ -101,8 +101,8 @@ describe("new visualizations", () => {
         const [series] = drawSeries(sources, s);
         const segs = stateSegments(series, s, 0, 40_000, 10, true);
         expect(segs.map((x) => [x.from, x.to, x.text, x.color])).toEqual([
-            [0, 20_000, "Off", "#F2495C"],
-            [20_000, 40_000, "On", "#73BF69"],
+            [0, 20_000, "Off", "#EF5B6B"],
+            [20_000, 40_000, "On", "#4CC38A"],
         ]);
         expect(stateSegments(series, s, 0, 40_000, 10, false)).toHaveLength(4);
     });
