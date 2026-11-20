@@ -254,7 +254,12 @@ func CreateSwarmVolumes(pd *pt.PlatformData, volumesMap map[string]pt.Volume) (m
 	errors := []error{}
 	for node, dc := range pt.DCMap {
 		if dc == nil || dc.Cli == nil {
-			errors = append(errors, fmt.Errorf("node %s is unreachable, so its volumes cannot be created", node))
+			// A node switched off (to save money, say) still has the volumes
+			// it was given when it was up: Docker keeps local volumes. Its
+			// services stay pending until it comes back, and the next run with
+			// it up checks its volumes. (init refuses before getting here
+			// when a node is unreachable: a new platform needs every node.)
+			fmt.Printf("Warning: node %s is unreachable: its volumes are not checked now\n", node)
 			continue
 		}
 		// Ranging over volumesMap, never over a list of names: a name with

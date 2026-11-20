@@ -648,6 +648,11 @@ func waitUntilAllContainersAreHealthy(pd *pt.PlatformData, serviceType string) e
 	}
 	utils.Spinner(spinnerMsg, endMsg, done)
 
+	// With nodes switched off, the services that can only run on them wait
+	// for them ("no suitable node"): not waited for here, and named at the end.
+	nodesDown := len(UnreachableNodes(pd)) > 0
+	waitingForNodes := map[string]bool{}
+
 	for {
 		if time.Now().After(deadline) {
 			done <- false
@@ -655,6 +660,7 @@ func waitUntilAllContainersAreHealthy(pd *pt.PlatformData, serviceType string) e
 		}
 
 		allHealthy := true
+		waitingForNodes = map[string]bool{}
 
 		for _, service := range filteredServices {
 			serviceFilter := filters.NewArgs()
@@ -664,6 +670,10 @@ func waitUntilAllContainersAreHealthy(pd *pt.PlatformData, serviceType string) e
 			})
 			if err != nil {
 				allHealthy = false
+				continue
+			}
+			if nodesDown && waitsForMissingNode(tasks) {
+				waitingForNodes[service.Spec.Name] = true
 				continue
 			}
 
@@ -712,8 +722,38 @@ func waitUntilAllContainersAreHealthy(pd *pt.PlatformData, serviceType string) e
 	}
 
 	done <- true
+	if len(waitingForNodes) > 0 {
+		names := make([]string, 0, len(waitingForNodes))
+		for name := range waitingForNodes {
+			names = append(names, name)
+		}
+		slices.Sort(names)
+		fmt.Println(utils.StyleWarningMsg.Render(fmt.Sprintf(
+			"Warning: these services wait for the node(s) %s, which are unreachable, and start when they come back: %s",
+			strings.Join(UnreachableNodes(pd), ", "), strings.Join(names, ", "))))
+	}
 
 	return nil
+}
+
+// waitsForMissingNode: no task of the service runs, and the scheduler has
+// none for it because no node it may run on is available — its node is
+// switched off.
+func waitsForMissingNode(tasks []swarm.Task) bool {
+	waiting := false
+	for _, task := range tasks {
+		if task.DesiredState != swarm.TaskStateRunning {
+			continue
+		}
+		if task.Status.State != swarm.TaskStatePending {
+			return false
+		}
+		if !strings.Contains(task.Status.Err, "no suitable node") {
+			return false
+		}
+		waiting = true
+	}
+	return waiting
 }
 
 // waitUntilServicesAreHealthy waits until every named service has a task

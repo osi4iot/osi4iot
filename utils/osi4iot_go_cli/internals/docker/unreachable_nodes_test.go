@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/docker/docker/api/types/swarm"
 	pt "github.com/osi4iot/osi4iot/utils/osi4iot/internals/types"
 )
 
@@ -62,6 +63,33 @@ func TestUnreachableNodesAndCheck(t *testing.T) {
 	for _, action := range []string{"init", "delete"} {
 		if err := CheckDockerClientsMap(pt.DCMap, action); err == nil {
 			t.Fatalf("%s accepted with a node down", action)
+		}
+	}
+}
+
+// A service whose node is switched off has only pending tasks that the
+// scheduler cannot place: `run` does not wait for it.
+func TestWaitsForMissingNode(t *testing.T) {
+	pending := func(err string) swarm.Task {
+		return swarm.Task{DesiredState: swarm.TaskStateRunning, Status: swarm.TaskStatus{State: swarm.TaskStatePending, Err: err}}
+	}
+	running := swarm.Task{DesiredState: swarm.TaskStateRunning, Status: swarm.TaskStatus{State: swarm.TaskStateRunning}}
+	shutdown := swarm.Task{DesiredState: swarm.TaskStateShutdown, Status: swarm.TaskStatus{State: swarm.TaskStateShutdown}}
+
+	cases := []struct {
+		name  string
+		tasks []swarm.Task
+		want  bool
+	}{
+		{"no suitable node", []swarm.Task{pending("no suitable node (scheduling constraints not satisfied on 2 nodes)"), shutdown}, true},
+		{"running", []swarm.Task{running}, false},
+		{"pending for another reason", []swarm.Task{pending("")}, false},
+		{"one runs, one waits", []swarm.Task{running, pending("no suitable node")}, false},
+		{"no tasks yet", nil, false},
+	}
+	for _, c := range cases {
+		if got := waitsForMissingNode(c.tasks); got != c.want {
+			t.Errorf("%s: got %v", c.name, got)
 		}
 	}
 }
