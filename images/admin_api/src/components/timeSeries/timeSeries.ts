@@ -3,7 +3,7 @@
 // of each bucket. The bucket grows with the range, so a chart never gets more than about `points` points.
 //
 // Pure functions (parsing, bucket, SQL), so they are easy to test.
-import { Measurements, toMeasurements } from "../../utils/measurements/measurements";
+import { Measurements, itemPath, toMeasurements } from "../../utils/measurements/measurements";
 
 export const MAX_SERIES = 8;
 export const MAX_FIELD_LENGTH = 100;
@@ -25,6 +25,8 @@ export interface SeriesRequest {
 	field: string;
 	// item of an array field (accelerations[1]…)
 	index?: number;
+	// where the value is in the message, from the measurements of the sensor (resolvedSeries)
+	path?: string[];
 }
 
 export interface TimeRange {
@@ -112,8 +114,8 @@ export const bucketSeconds = ({ from, to }: TimeRange, points: number, minInterv
 	return minInterval;
 };
 
-// The values of a field: numbers, and texts that are numbers ("21.5", as Grafana's CAST accepts); anything
-// else (null, objects, words) is left out instead of failing the query.
+// The values of a field: numbers, booleans (1 / 0) and texts that are numbers ("21.5", as Grafana's CAST
+// accepts); anything else (null, objects, words) is left out instead of failing the query.
 export const SERIES_SQL = `
 SELECT
 	(extract(epoch FROM time_bucket($1::interval, timestamp)) * 1000)::bigint AS "t",
@@ -123,6 +125,7 @@ FROM (
 	SELECT timestamp,
 		CASE
 			WHEN jsonb_typeof(x) = 'number' THEN (x #>> '{}')::double precision
+			WHEN jsonb_typeof(x) = 'boolean' THEN CASE WHEN (x #>> '{}') = 'true' THEN 1.0 ELSE 0.0 END
 			WHEN jsonb_typeof(x) = 'string' AND (x #>> '{}') ~ '^\\s*[-+]?(\\d+\\.?\\d*|\\.\\d+)([eE][-+]?\\d+)?\\s*$'
 				THEN (x #>> '{}')::double precision
 		END AS v
@@ -149,6 +152,7 @@ SELECT * FROM (
 		SELECT timestamp,
 			CASE
 				WHEN jsonb_typeof(x) = 'number' THEN (x #>> '{}')::double precision
+			WHEN jsonb_typeof(x) = 'boolean' THEN CASE WHEN (x #>> '{}') = 'true' THEN 1.0 ELSE 0.0 END
 				WHEN jsonb_typeof(x) = 'string' AND (x #>> '{}') ~ '^\\s*[-+]?(\\d+\\.?\\d*|\\.\\d+)([eE][-+]?\\d+)?\\s*$'
 					THEN (x #>> '{}')::double precision
 			END AS v
@@ -179,8 +183,14 @@ export const rawStepSeconds = (seriesPoints: (number | null)[][][]): number => {
 	return Math.max(0.001, steps[Math.floor(steps.length * 0.9)] / 1000);
 };
 
-export const seriesPath = (series: SeriesRequest): string[] =>
-	series.index === undefined ? [series.field] : [series.field, String(series.index)];
+// The path of the value of a series in the message: as the measurements of its sensor say (a dotted key, a JSON
+// Pointer, an item of an array); a field the measurements do not describe, as a dotted key
+export const seriesPath = (series: SeriesRequest): string[] => series.path ?? itemPath(series.field, undefined, series.index);
+
+export const resolvedSeries = (series: SeriesRequest, measurements: Measurements): SeriesRequest => ({
+	...series,
+	path: itemPath(series.field, measurements[series.field], series.index),
+});
 
 // label and units of a field from the measurements of the sensor (or of its type)
 export const seriesLabel = (
@@ -238,6 +248,7 @@ export const valuesSql = (first: number) => `(
 	SELECT timestamp,
 		CASE
 			WHEN jsonb_typeof(x) = 'number' THEN (x #>> '{}')::double precision
+			WHEN jsonb_typeof(x) = 'boolean' THEN CASE WHEN (x #>> '{}') = 'true' THEN 1.0 ELSE 0.0 END
 			WHEN jsonb_typeof(x) = 'string' AND (x #>> '{}') ~ '^\\s*[-+]?(\\d+\\.?\\d*|\\.\\d+)([eE][-+]?\\d+)?\\s*$'
 				THEN (x #>> '{}')::double precision
 		END AS v

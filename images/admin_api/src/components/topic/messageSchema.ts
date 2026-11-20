@@ -7,12 +7,13 @@
 //    of its digital twin). dev2pdb_wt also carries "timestamp"; dev2pdb_ma messages are arrays of them.
 //  - "simulation" (sim2dtm, dtm2sim): the simulation format of its digital twin.
 //  - "fixed" (sim2llm, llm2sim, dtmlog, sim2state, state2sim): set by the platform.
-//  - "user" (dev2dtm, dtm2dev, dtm2pdb, inject and any other): written by the user.
+//  - "user" (dev2dtm, dtm2dev, dtm2pdb, inject and any other): written by the user. A dtm2pdb topic with sensors (the
+//    dtm2pdb_n topics of an asset, with its computed sensors) takes the measurements of its sensors instead.
 // Only the "user" ones are edited; the others are computed here again whenever what they depend on changes (sensors,
 // sensor types, digital twins) and on every start of admin_api.
 import pool from "../../config/dbconfig";
 import { logger } from "../../config/winston";
-import { toMeasurements, Measurements } from "../../utils/measurements/measurements";
+import { ANY_ITEM, measurementPath, toMeasurements, Measurements } from "../../utils/measurements/measurements";
 
 export type MessageSchemaSource = "sensors" | "simulation" | "fixed" | "user";
 
@@ -169,24 +170,57 @@ export const FIXED_MESSAGE_SCHEMAS: Record<string, JsonSchema> = {
 
 // ── Computed schemas ───────────────────────────────────────────────────────────────────────────────────────────────
 
-const measurementSchema = (measurement: Measurements[string]): JsonSchema => {
+const measurementSchema = (measurement: Measurements[string], itemOfArray: boolean): JsonSchema => {
 	const base = { title: measurement.label, units: measurement.units };
-	if (measurement.type === "array") {
-		return { type: "array", ...base, items: { type: "number" } };
-	}
+	if (measurement.type === "array" && !itemOfArray) return { type: "array", ...base, items: { type: "number" } };
+	if (measurement.type === "boolean" || measurement.type === "string") return { type: measurement.type, ...base };
 	return { type: "number", ...base };
+};
+
+// puts the schema of a value at its path: objects for the names, arrays for the indexes and "*"
+const placeSchema = (node: JsonSchema, path: string[], leaf: JsonSchema): void => {
+	const [head, ...rest] = path;
+	const isItem = head === ANY_ITEM || /^\d+$/.test(head);
+	if (isItem) {
+		if (node.type !== undefined && node.type !== "array") return; // ya es otra cosa: se deja
+		node.type = "array";
+		if (rest.length === 0) {
+			node.items = leaf;
+			return;
+		}
+		const items = (node.items as JsonSchema) ?? {};
+		node.items = items;
+		placeSchema(items, rest, leaf);
+		return;
+	}
+	if (node.type !== undefined && node.type !== "object") return;
+	node.type = "object";
+	const properties = (node.properties as Record<string, JsonSchema>) ?? {};
+	node.properties = properties;
+	if (rest.length === 0) {
+		if (properties[head] === undefined) properties[head] = leaf;
+		return;
+	}
+	const child = properties[head] ?? {};
+	properties[head] = child;
+	placeSchema(child, rest, leaf);
 };
 
 export const sensorsMessageSchema = (topicType: string, measurements: Measurements): JsonSchema => {
 	const fields = Object.keys(measurements);
 	if (fields.length === 0) return {};
-	const properties: Record<string, JsonSchema> = {};
-	for (const field of fields) properties[field] = measurementSchema(measurements[field]);
 	const message: JsonSchema = {
 		type: "object",
 		description: "Measurements of the sensors of the topic",
-		properties,
+		properties: {},
 	};
+	for (const field of fields) {
+		const measurement = measurements[field];
+		const path = measurementPath(field, measurement);
+		const itemOfArray = path.includes(ANY_ITEM);
+		placeSchema(message, path, measurementSchema(measurement, itemOfArray));
+	}
+	const properties = message.properties as Record<string, JsonSchema>;
 	if (topicType === "dev2pdb_wt") {
 		properties.timestamp = { type: "string", format: "date-time", description: "Time of the measurement" };
 		message.required = ["timestamp"];
@@ -289,6 +323,12 @@ const topicSimulationFormat = async (topicId: number): Promise<unknown> => {
 // created yet (it has no sensors nor digital twin yet).
 export const computeMessageSchema = async (topicType: string, topicId?: number): Promise<JsonSchema | null> => {
 	const source = messageSchemaSource(topicType);
+	// a dtm2pdb topic of an asset with computed sensors (dtm2pdb_n): the measurements of its sensors; without
+	// sensors (the digital twin's own dtm2pdb), the schema written by the user
+	if (topicType === "dtm2pdb" && topicId !== undefined) {
+		const measurements = await topicMeasurements(topicId, topicType);
+		if (Object.keys(measurements).length > 0) return sensorsMessageSchema(topicType, measurements);
+	}
 	if (source === "user") return null;
 	if (source === "fixed") return FIXED_MESSAGE_SCHEMAS[topicType];
 	if (topicId === undefined) return {};
@@ -348,7 +388,7 @@ export const refreshAllComputedMessageSchemas = async (): Promise<void> => {
 	try {
 		const result = await pool.query(`SELECT id, topic_type AS "topicType" FROM grafanadb.topic`);
 		const ids = (result.rows as { id: number; topicType: string }[])
-			.filter((topic) => !isMessageSchemaEditable(topic.topicType))
+			.filter((topic) => !isMessageSchemaEditable(topic.topicType) || topic.topicType === "dtm2pdb")
 			.map((topic) => topic.id);
 		await refreshTopicsMessageSchema(ids);
 	} catch (err) {

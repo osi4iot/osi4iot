@@ -3,6 +3,7 @@
 import { FC, ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 import styled from "styled-components";
 import {
+    ArrowLeft,
     Cpu,
     Eye,
     EyeOff,
@@ -120,6 +121,35 @@ const TabList = styled.div<{ $count: number }>`
     /* con la pestaña del chat caben ocho pestañas en 360 px: letra algo menor para que no se corten */
     ${({ $count }) => ($count >= 8 ? "button { font-size: 10px; letter-spacing: -0.1px; }" : "")}
     border-bottom: 1px solid ${c.divider};
+`;
+
+// en el móvil: cierra el panel y deja el visor a la vista
+const BackToViewerButton = styled.button`
+    flex: none;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    height: 40px;
+    padding: 0 14px;
+    border: none;
+    border-bottom: 1px solid ${c.divider};
+    background: transparent;
+    color: ${c.text};
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    text-align: left;
+
+    &:hover,
+    &:focus-visible {
+        background: rgba(255, 255, 255, 0.06);
+    }
+
+    svg {
+        width: 18px;
+        height: 18px;
+        color: ${c.accent};
+    }
 `;
 
 const Tab = styled.button<{ $selected: boolean }>`
@@ -402,6 +432,8 @@ interface AssistantPanelProps {
     // ancho del panel (el mismo en todas las pestañas) y cambio de ancho arrastrando el borde izquierdo
     width?: number;
     onResizeWidth?: (width: number) => void;
+    // en el móvil el panel tapa el visor: botón para cerrarlo y volver al visor (sin él, no se muestra)
+    onBackToViewer?: () => void;
     // Simulador en ventana flotante
     simulatorFloating?: boolean;
     onFloatSimulator?: () => void;
@@ -479,6 +511,7 @@ export const AssistantPanel: FC<AssistantPanelProps> = ({
     chatOnly = false,
     width = ASSISTANT_PANEL_WIDTH,
     onResizeWidth,
+    onBackToViewer,
     simulatorFloating = false,
     onFloatSimulator,
     onDockSimulator,
@@ -1169,6 +1202,12 @@ export const AssistantPanel: FC<AssistantPanelProps> = ({
                     aria-label="Resize the assistant panel"
                     title="Drag to resize"
                 />
+            )}
+            {onBackToViewer && (
+                <BackToViewerButton type="button" onClick={onBackToViewer} data-testid="assistant-back-to-viewer">
+                    <ArrowLeft aria-hidden="true" />
+                    Back to viewer
+                </BackToViewerButton>
             )}
             <TabList role="tablist" aria-label="Settings" $count={tabs.length}>
                 {tabs.map((t) => (

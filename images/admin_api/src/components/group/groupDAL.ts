@@ -180,6 +180,7 @@ export const createGroup = async (
 	const llmEnabled = groupInput.llmEnabled;
 	const gpuUsageEnabled = groupInput.gpuUsageEnabled;
 	const ragEnabled = groupInput.ragEnabled === true;
+	const chatAttachmentsEnabled = groupInput.chatAttachmentsEnabled === true;
 	const timezone = canonicalTimeZone(groupInput.timezone ?? "") ?? "";
 	const isAdminGroup = isMainOrgDefaultGroup;
 
@@ -206,6 +207,7 @@ export const createGroup = async (
 		llmEnabled,
 		gpuUsageEnabled,
 		ragEnabled,
+		chatAttachmentsEnabled,
 		timezone,
 	};
 
@@ -305,6 +307,7 @@ export const getAllGroups = async (): Promise<IGroup[]> => {
 				llm_enabled AS "llmEnabled",
 				gpu_usage_enabled AS "gpuUsageEnabled",
 				rag_enabled AS "ragEnabled",
+				chat_attachments_enabled AS "chatAttachmentsEnabled",
 				timezone,
 				grafanadb.group.created, grafanadb.group.updated
 				FROM grafanadb.group
@@ -322,6 +325,7 @@ export const getNumGroups = async (): Promise<number> => {
 	return parseInt(result.rows[0].count, 10);
 };
 
+// The groups of which the user is a member with a role (Viewer, Editor or Admin)
 export const getGroupsThatCanBeEditatedAndAdministratedByUserId = async (userId: number): Promise<IGroup[]> => {
 	const query = `SELECT grafanadb.group.id, grafanadb.group.org_id AS "orgId",
 				grafanadb.group.team_id AS "teamId",
@@ -341,24 +345,35 @@ export const getGroupsThatCanBeEditatedAndAdministratedByUserId = async (userId:
 				llm_enabled AS "llmEnabled",
 				gpu_usage_enabled AS "gpuUsageEnabled",
 				rag_enabled AS "ragEnabled",
+				chat_attachments_enabled AS "chatAttachmentsEnabled",
 				timezone,
 				grafanadb.group.created, grafanadb.group.updated
 				FROM grafanadb.group
 				INNER JOIN grafanadb.dashboard_acl ON grafanadb.group.team_id = grafanadb.dashboard_acl.team_id
 				INNER JOIN grafanadb.team_member ON grafanadb.team_member.team_id = grafanadb.group.team_id
-				WHERE grafanadb.team_member.user_id = $1 AND (grafanadb.team_member.permission = $2 OR grafanadb.team_member.permission = $3)
+				WHERE grafanadb.team_member.user_id = $1 AND grafanadb.team_member.permission = ANY($2::int[])
 				ORDER BY id ASC;`;
-	const result = await readQuery(query, [userId, 2, 4]);
+	// every role (Viewer 1, Editor 2, Admin 4): these lists feed the map and the viewer, which every member of a
+	// group may open; what each one may change is checked route by route (groupRoleAuth)
+	const result = await readQuery(query, [userId, [0, 1, 2, 4]]);
 	const permissionCodes = ["None", "Viewer", "Editor"];
 	result.rows.forEach((row) => (row.folderPermission = permissionCodes[row.folderPermission]));
 	return result.rows as IGroup[];
 };
 
-export const getGroupsManagedByUserId = async (userId: number): Promise<IGroup[]> => {
+// The groups the user administers or edits, with its role in each (roleInGroup: "Admin" or "Editor")
+export const getGroupsManagedByUserId = async (userId: number): Promise<IGroup[]> => groupsOfUserWithRole(userId, [2, 4]);
+
+// The groups the user is a member of, whatever its role (roleInGroup: "Admin", "Editor" or "Viewer"): what the map
+// and the viewer show it
+export const getGroupsOfMemberByUserId = async (userId: number): Promise<IGroup[]> => groupsOfUserWithRole(userId, [0, 1, 2, 4]);
+
+const groupsOfUserWithRole = async (userId: number, permissions: number[]): Promise<IGroup[]> => {
 	const query = `SELECT grafanadb.group.id, grafanadb.group.org_id AS "orgId",
 				grafanadb.group.team_id AS "teamId",
 				grafanadb.group.folder_id AS  "folderId", folder_uid AS  "folderUid",
 				grafanadb.dashboard_acl.permission AS "folderPermission",
+				grafanadb.team_member.permission AS "roleInGroup",
 				name, acronym, group_uid AS  "groupUid",
 				telegram_invitation_link AS "telegramInvitationLink",
 				telegram_chatid AS "telegramChatId",
@@ -373,16 +388,22 @@ export const getGroupsManagedByUserId = async (userId: number): Promise<IGroup[]
 				llm_enabled AS "llmEnabled",
 				gpu_usage_enabled AS "gpuUsageEnabled",
 				rag_enabled AS "ragEnabled",
+				chat_attachments_enabled AS "chatAttachmentsEnabled",
 				timezone,
 				grafanadb.group.created, grafanadb.group.updated
 				FROM grafanadb.group
 				INNER JOIN grafanadb.dashboard_acl ON grafanadb.group.team_id = grafanadb.dashboard_acl.team_id
 				INNER JOIN grafanadb.team_member ON grafanadb.team_member.team_id = grafanadb.group.team_id
-				WHERE grafanadb.team_member.user_id = $1 AND grafanadb.team_member.permission = $2
+				WHERE grafanadb.team_member.user_id = $1 AND grafanadb.team_member.permission = ANY($2::int[])
 				ORDER BY id ASC;`;
-	const result = await readQuery(query, [userId, 4]);
+	// team permission: 4 Admin, 2 Editor, 1 (or 0, a member without a role) Viewer (README, "Permissions")
+	const result = await readQuery(query, [userId, permissions]);
 	const permissionCodes = ["None", "Viewer", "Editor"];
-	result.rows.forEach((row) => (row.folderPermission = permissionCodes[row.folderPermission]));
+	result.rows.forEach((row) => {
+		row.folderPermission = permissionCodes[row.folderPermission];
+		const permission = Number(row.roleInGroup);
+		row.roleInGroup = permission >= 4 ? "Admin" : permission === 2 ? "Editor" : "Viewer";
+	});
 	return result.rows as IGroup[];
 };
 
@@ -488,6 +509,7 @@ export const getAllGroupsInOrganization = async (orgId: number): Promise<IGroup[
 				llm_enabled AS "llmEnabled",
 				gpu_usage_enabled AS "gpuUsageEnabled",
 				rag_enabled AS "ragEnabled",
+				chat_attachments_enabled AS "chatAttachmentsEnabled",
 				timezone,
 				grafanadb.group.created, grafanadb.group.updated
 				FROM grafanadb.group
@@ -519,6 +541,7 @@ export const getAllGroupsInOrgArray = async (orgIdsArray: number[]): Promise<IGr
 				llm_enabled AS "llmEnabled",
 				gpu_usage_enabled AS "gpuUsageEnabled",
 				rag_enabled AS "ragEnabled",
+				chat_attachments_enabled AS "chatAttachmentsEnabled",
 				timezone,
 				grafanadb.group.created, grafanadb.group.updated
 				FROM grafanadb.group
@@ -552,6 +575,7 @@ export const getGroupByWithFolderPermissionProp = async (
 				llm_enabled AS "llmEnabled",
 				gpu_usage_enabled AS "gpuUsageEnabled",
 				rag_enabled AS "ragEnabled",
+				chat_attachments_enabled AS "chatAttachmentsEnabled",
 				timezone,
 				grafanadb.group.created, grafanadb.group.updated
 				FROM grafanadb.group
@@ -580,6 +604,7 @@ export const getGroupByProp = async (propName: string, propValue: string | numbe
 				llm_enabled AS "llmEnabled",
 				gpu_usage_enabled AS "gpuUsageEnabled",
 				rag_enabled AS "ragEnabled",
+				chat_attachments_enabled AS "chatAttachmentsEnabled",
 				timezone,
 				grafanadb.group.created, grafanadb.group.updated
 				FROM grafanadb.group
@@ -607,6 +632,7 @@ export const getFullGroupDataById = async (groupId: number): Promise<IGroup> => 
 				llm_enabled AS "llmEnabled",
 				gpu_usage_enabled AS "gpuUsageEnabled",
 				rag_enabled AS "ragEnabled",
+				chat_attachments_enabled AS "chatAttachmentsEnabled",
 				timezone,
 				grafanadb.group.created, grafanadb.group.updated
 				FROM grafanadb.group
@@ -631,6 +657,7 @@ export const getDefaultOrgGroup = async (orgId: number): Promise<IGroup> => {
 				llm_enabled AS "llmEnabled",
 				gpu_usage_enabled AS "gpuUsageEnabled",
 				rag_enabled AS "ragEnabled",
+				chat_attachments_enabled AS "chatAttachmentsEnabled",
 				timezone,
 				is_admin_group AS "isAdminGroup",
 				grafanadb.group.created, grafanadb.group.updated
@@ -649,9 +676,9 @@ export const insertGroup = async (group: IGroup): Promise<IGroup> => {
 					telegram_notification_channel_id, is_org_default_group, is_admin_group,
 					floor_number, feature_index, outer_bounds,  mqtt_access_control,
 					mqtt_password, mqtt_salt, llm_enabled, gpu_usage_enabled, rag_enabled,
-					timezone, created, updated)
+					timezone, chat_attachments_enabled, created, updated)
 					VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13,
-						    $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, NOW(), NOW())
+						    $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, NOW(), NOW())
 					RETURNING *`,
 		[
 			group.orgId,
@@ -677,6 +704,7 @@ export const insertGroup = async (group: IGroup): Promise<IGroup> => {
 			group.gpuUsageEnabled,
 			group.ragEnabled === true,
 			canonicalTimeZone(group.timezone ?? "") ?? "",
+			group.chatAttachmentsEnabled === true,
 		]
 	);
 	return response.rows[0] as IGroup;
@@ -694,8 +722,9 @@ export const updateGroupById = async (group: IGroup): Promise<void> => {
 				gpu_usage_enabled = $10,
 				rag_enabled = $11,
 				timezone = $12,
+				chat_attachments_enabled = $13,
 				updated = NOW()
-				WHERE grafanadb.group.id = $13;`;
+				WHERE grafanadb.group.id = $14;`;
 	await pool.query(query, [
 		group.name,
 		group.acronym,
@@ -709,6 +738,7 @@ export const updateGroupById = async (group: IGroup): Promise<void> => {
 		group.gpuUsageEnabled,
 		group.ragEnabled === true,
 		canonicalTimeZone(group.timezone ?? "") ?? "",
+		group.chatAttachmentsEnabled === true,
 		group.id,
 	]);
 };
@@ -1053,6 +1083,15 @@ export const haveThisUserGroupAdminPermissions = async (
 	return havePermissions;
 };
 
+// A member of the group's team, with any role (viewer, editor or administrator)
+export const isThisUserGroupMember = async (userId: number, teamId: number): Promise<boolean> => {
+	const result = await readQuery("SELECT COUNT(*) FROM grafanadb.team_member WHERE team_id = $1 AND user_id = $2", [
+		teamId,
+		userId,
+	]);
+	return Number(result.rows[0].count) > 0;
+};
+
 export const isThisUserGroupAdmin = async (userId: number, teamId: number): Promise<boolean> => {
 	const result = await readQuery(
 		"SELECT COUNT(*) FROM grafanadb.team_member WHERE team_id = $1 AND user_id = $2 AND permission = $3",
@@ -1328,4 +1367,18 @@ export const updateMqttPasswordOfGroupById = async (groupId: number, newMqttPass
 	const query = `UPDATE grafanadb.group SET mqtt_password = $1, updated = NOW()
 				WHERE grafanadb.group.id = $2;`;
 	await pool.query(query, [mqttPasswordHashed, groupId]);
+};
+
+// The role of a user in a group (its Grafana team): "Viewer", "Editor", "Admin", or null when not a member.
+// grafanadb.team_member.permission: 1 Viewer, 2 Editor, 4 Admin (0 is a member without a role: Viewer).
+export const userRoleInGroup = async (userId: number, teamId: number): Promise<"Viewer" | "Editor" | "Admin" | null> => {
+	const result = await readQuery(
+		"SELECT MAX(permission) AS permission FROM grafanadb.team_member WHERE team_id = $1 AND user_id = $2",
+		[teamId, userId]
+	);
+	const permission = result.rows[0]?.permission as number | null | undefined;
+	if (permission === null || permission === undefined) return null;
+	if (Number(permission) >= 4) return "Admin";
+	if (Number(permission) >= 2) return "Editor";
+	return "Viewer";
 };

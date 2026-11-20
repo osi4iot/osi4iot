@@ -62,6 +62,10 @@ func (n *BaseNode) sendToOutput(msg common.Message, outputIndex int, log *logger
 	if outputIndex < 0 || outputIndex >= len(outputs) {
 		return
 	}
+	// the debug log before sending: once sent, the next node may be changing the message
+	if n.Debug == "on" && len(outputs[outputIndex]) > 0 {
+		n.HandleDebug(msg, outputIndex)
+	}
 	for idx, wire := range outputs[outputIndex] {
 		out := msg
 		if idx > 0 {
@@ -69,9 +73,6 @@ func (n *BaseNode) sendToOutput(msg common.Message, outputIndex int, log *logger
 		}
 		select {
 		case wire.Channel <- out:
-			if n.Debug == "on" && idx == 0 {
-				n.HandleDebug(out, outputIndex)
-			}
 		case <-n.Ctx.Done():
 			return
 		default:

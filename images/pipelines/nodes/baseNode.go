@@ -378,6 +378,10 @@ func (n *BaseNode) handleInputWires(log *logger.Logger, processor func(common.Me
 func (n *BaseNode) sendToOutputs(msg common.Message, log *logger.Logger) {
 	nodeOutputWires := n.GetNodeOutputWires()
 	for outputIndex, wireArray := range nodeOutputWires {
+		// the debug log before sending: once sent, the next node may be changing the message
+		if n.Debug == "on" && len(wireArray) > 0 {
+			n.HandleDebug(msg, outputIndex)
+		}
 		for idx, wire := range wireArray {
 			var outMsg common.Message
 			if idx > 0 || outputIndex > 0 {
@@ -387,9 +391,6 @@ func (n *BaseNode) sendToOutputs(msg common.Message, log *logger.Logger) {
 			}
 			select {
 			case wire.Channel <- outMsg:
-				if n.Debug == "on" && idx == 0 {
-					n.HandleDebug(outMsg, outputIndex)
-				}
 			case <-n.Ctx.Done():
 				log.Infof("Context cancelled while sending message from node %s", n.NodeUid)
 				return

@@ -2,10 +2,11 @@
 //   dev2pdb_n  measurements stored in the IoT database (types dev2pdb, dev2pdb_wt, dev2pdb_ma)
 //   dev2dtm_n  device -> digital twin (photos, video, audio...)
 //   dtm2dev_n  digital twin -> device (commands)
-// The digital twin's own topics have no number: "dev2dtm", "dtm2dev", "sim2dtm"...
-export type AssetTopicKind = "dev2pdb" | "dev2dtm" | "dtm2dev";
+//   dtm2pdb_n  computed measurements: what a pipeline computes and stores (IoTDB node), the topics of the computed sensors
+// The digital twin's own topics have no number: "dev2dtm", "dtm2dev", "dtm2pdb", "sim2dtm"...
+export type AssetTopicKind = "dev2pdb" | "dev2dtm" | "dtm2dev" | "dtm2pdb";
 
-const ASSET_TOPIC_REF = /^(dev2pdb|dev2dtm|dtm2dev)_(\d+)$/;
+const ASSET_TOPIC_REF = /^(dev2pdb|dev2dtm|dtm2dev|dtm2pdb)_(\d+)$/;
 
 export const assetTopicKind = (topicRef: string): AssetTopicKind | null => {
     const m = ASSET_TOPIC_REF.exec(topicRef ?? "");
@@ -16,13 +17,14 @@ export interface AssetTopicsRef {
     dev2pdb: string[];
     dev2dtm: string[];
     dtm2dev: string[];
+    dtm2pdb: string[];
 }
 
 // dev2pdb_2 before dev2pdb_10
 const byNumber = (a: string, b: string) => Number(a.split("_").pop()) - Number(b.split("_").pop());
 
 export const assetTopicsRef = (subjects: { topicRef: string }[] | undefined): AssetTopicsRef => {
-    const out: AssetTopicsRef = { dev2pdb: [], dev2dtm: [], dtm2dev: [] };
+    const out: AssetTopicsRef = { dev2pdb: [], dev2dtm: [], dtm2dev: [], dtm2pdb: [] };
     for (const s of subjects ?? []) {
         const kind = assetTopicKind(s.topicRef);
         if (kind && !out[kind].includes(s.topicRef)) out[kind].push(s.topicRef);
@@ -30,13 +32,14 @@ export const assetTopicsRef = (subjects: { topicRef: string }[] | undefined): As
     out.dev2pdb.sort(byNumber);
     out.dev2dtm.sort(byNumber);
     out.dtm2dev.sort(byNumber);
+    out.dtm2pdb.sort(byNumber);
     return out;
 };
 
 // Prefix that the reference of each topic type must have in assetTopicsRef.json (null: free name)
 export const assetTopicRefPrefix = (topicType: string): AssetTopicKind | null => {
     if (topicType === "dev2pdb" || topicType === "dev2pdb_wt" || topicType === "dev2pdb_ma") return "dev2pdb";
-    if (topicType === "dev2dtm" || topicType === "dtm2dev") return topicType;
+    if (topicType === "dev2dtm" || topicType === "dtm2dev" || topicType === "dtm2pdb") return topicType;
     return null;
 };
 

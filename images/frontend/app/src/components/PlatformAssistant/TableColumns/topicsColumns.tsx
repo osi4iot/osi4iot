@@ -1,4 +1,5 @@
 import { FC, useState, useEffect } from 'react';
+import { deleteConfirmingDataLoss } from "../../../tools/deleteConfirmingDataLoss";
 import { Column } from '../Utils/platformTable';
 import { toast } from 'react-toastify';
 import { axiosAuth, getDomainName, getProtocol } from '../../../tools/tools';
@@ -85,8 +86,7 @@ const DeleteTopicModal: FC<DeleteTopicModalProps> = ({ rowIndex, groupId, topicI
     const action = (hideModal: () => void) => {
         const url = `${protocol}://${domainName}/admin_api/topic/${groupId}/${topicId}`;
         const config = axiosAuth(accessToken);
-        getAxiosInstance(refreshToken, authDispatch)
-            .delete(url, config)
+        deleteConfirmingDataLoss(getAxiosInstance(refreshToken, authDispatch), url, config)
             .then((response: AxiosResponse<any, any>) => {
                 setIsTopicDeleted(true);
                 setIsSubmitting(false);

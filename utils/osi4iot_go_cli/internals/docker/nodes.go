@@ -88,11 +88,14 @@ func joinAllNodesToSwarm(managerClient *pt.DockerClient) error {
 	}
 
 	for ip, dc := range pt.DCMap {
-		node := dc.Node
 		_, ok := swarmNodesMap[ip]
 		if ok {
 			continue
 		}
+		if dc == nil || dc.Cli == nil {
+			return fmt.Errorf("node %s is unreachable, so it cannot join the swarm: start it and run the command again", ip)
+		}
+		node := dc.Node
 
 		token := tokenWorker
 		if node.NodeRole == "Manager" {
@@ -165,9 +168,12 @@ func nodesLeaveSwarm() error {
 	}
 
 	for ip, dc := range pt.DCMap {
-		node := dc.Node
 		_, ok := swarmNodesMap[ip]
 		if ok {
+			if dc == nil || dc.Cli == nil {
+				return fmt.Errorf("node %s is unreachable, so it cannot leave the swarm: start it and run the command again", ip)
+			}
+			node := dc.Node
 			err := nodeLeaveSwarm(dc)
 			if err != nil {
 				return fmt.Errorf("error leaving swarm in node %s: %v", node.NodeIP, err)

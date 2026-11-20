@@ -35,6 +35,8 @@ type IoTDbNode struct {
 	BaseNode
 	QueryMode string
 	Params    IotDbParams
+	// the fields with a dot in their name already warned about (payloadKeys.go)
+	dottedKeys dottedKeysWarner
 }
 
 var posibleQueryModesForIotDbNode = []string{
@@ -303,6 +305,15 @@ func (n *IoTDbNode) CreateAndSendRow(msg common.Message, params IotDbParams, log
         if _, excluded := internalPayloadKeys[k]; !excluded {
             filtered[k] = v
         }
+    }
+
+    // a field with a dot in its name ("v.1") can never be named by the measurements of a sensor: warn once
+    if keys := n.dottedKeys.fresh(dottedKeys(filtered)); len(keys) > 0 {
+        warning := fmt.Sprintf("IoTDbNode %s: fields with a dot in their name are stored but can never be charted or "+
+            "read by the agents (the measurements of the sensors use dots between levels): %s. Rename them "+
+            "(e.g. v_1, or an object: {\"v\": {\"1\": …}})", n.NodeUid, strings.Join(keys, ", "))
+        log.Warnf("%s", warning)
+        n.HandleWarn(warning)
     }
 
     payloadBytes, err := json.Marshal(filtered)

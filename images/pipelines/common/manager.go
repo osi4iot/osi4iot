@@ -184,6 +184,11 @@ type Manager interface {
 	// Telegram account (user id) when it administers the group: group,
 	// organization or platform administrator. "" otherwise (Approval nodes).
 	GetTelegramApprover(ctx context.Context, groupId int, telegramUserId int64) (string, error)
+
+	// CanOperateGroup says whether a platform user (its login) may act on the
+	// alarms and requests of a group from the viewer: an Editor or an Admin
+	// of the group (README, "Permissions"). Cached for a minute.
+	CanOperateGroup(ctx context.Context, groupId int, login string) (bool, error)
 }
 
 func SchemasAreEqual(a, b map[string]any) bool {

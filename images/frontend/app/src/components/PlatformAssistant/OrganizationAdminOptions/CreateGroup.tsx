@@ -132,6 +132,7 @@ const initialCreateGroupInputData = {
     llmEnabled: false,
     gpuUsageEnabled: false,
     ragEnabled: false,
+    chatAttachmentsEnabled: false,
     timezone: browserTimeZone(),
     groupAdminDataArray: [
         {
@@ -242,6 +243,8 @@ const CreateGroup: FC<CreateGroupProps> = ({
             gpuUsageEnabled: values.gpuUsageEnabled,
             // Only when enabled for the organization.
             ragEnabled: ragEnabledInOrg ? values.ragEnabled === true : false,
+            // images attached to the chat (they go to the LLM): off by default
+            chatAttachmentsEnabled: llmEnabledInOrg ? (values.chatAttachmentsEnabled === true || values.chatAttachmentsEnabled === "true") : false,
             timezone: values.timezone ?? "",
         };
         setIsSubmitting(true);
@@ -428,6 +431,15 @@ const CreateGroup: FC<CreateGroupProps> = ({
                                                 control="select"
                                                 label="Large Language Model (LLM)"
                                                 name="llmEnabled"
+                                                options={enableDisableOptions}
+                                                type="text"
+                                            />
+                                        )}
+                                        {llmEnabledInOrg && (
+                                            <FormikControl
+                                                control="select"
+                                                label="Chat attachments (photos, documents and tables)"
+                                                name="chatAttachmentsEnabled"
                                                 options={enableDisableOptions}
                                                 type="text"
                                             />

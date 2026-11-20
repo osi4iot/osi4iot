@@ -99,3 +99,38 @@ export const createMissingAssetStateRows = async (): Promise<number> => {
 	);
 	return result.rowCount ?? 0;
 };
+
+// The state of an asset as the Viewer's "Asset state" panel shows it: the stored state (status, state_description,
+// the alarms and machines that nodes project into it and any field a pipeline sets) and when it was last written.
+// Without a row (the asset is new and pipelines has not written it yet): the default state, never written.
+export interface IAssetStateView {
+	assetUid: string;
+	description: string;
+	state: Record<string, unknown>;
+	lastUpdated: string | null;
+}
+
+interface AssetStateRow {
+	state: Record<string, unknown> | null;
+	lastUpdated: Date | string | null;
+}
+
+export const getAssetStateView = async (
+	groupUid: string,
+	assetUid: string,
+	description: string
+): Promise<IAssetStateView> => {
+	const result = await timescaledb_pool.query<AssetStateRow>(
+		`SELECT state, last_updated AS "lastUpdated" FROM iot_data.assetState WHERE group_uid = $1 AND asset_uid = $2`,
+		[groupUid, assetUid]
+	);
+	const row = result.rows[0];
+	const state = row?.state && typeof row.state === "object" && !Array.isArray(row.state) ? row.state : { ...DEFAULT_ASSET_STATE };
+	const when = row?.lastUpdated ?? null;
+	return {
+		assetUid,
+		description,
+		state,
+		lastUpdated: when === null ? null : new Date(when).toISOString(),
+	};
+};

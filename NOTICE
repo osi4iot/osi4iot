@@ -91,11 +91,15 @@ official images.
   The Apache Software Foundation (https://www.apache.org/).
 * React, React DOM, React Router - MIT
 * three.js, React Three Fiber, drei - MIT; postprocessing - Zlib
+* ECharts GL (3D Surface panels) - BSD-3-Clause (its package declares MIT)
+  Copyright (c) 2017, Baidu Inc.; with ClayGL - BSD-2-Clause,
+  Copyright (c) 2014, Yi Shen
 * Leaflet - BSD-2-Clause; map data (c) OpenStreetMap contributors, ODbL
   (attribution shown on the map)
 * PDF.js (pdfjs-dist) - Apache License 2.0
 * KaTeX - MIT (fonts: SIL Open Font License 1.1)
 * CodeMirror - MIT; React Flow (@xyflow/react) - MIT
+* fflate (zip files of the viewer configuration) - MIT
 * Eclipse Paho JavaScript client (paho-mqtt) - Eclipse Public License 1.0 /
   Eclipse Distribution License 1.0
 * Archivo font (@fontsource-variable/archivo) - SIL Open Font License 1.1

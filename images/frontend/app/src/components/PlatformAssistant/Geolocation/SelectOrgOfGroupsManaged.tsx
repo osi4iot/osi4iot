@@ -132,7 +132,7 @@ const SelectOrgOfGroupsManaged: FC<SelectOrgOfGroupsManagedProps> = (
     }
 ) => {
     const [selectedOrgOfGroupsManaged, setSelectedOrgOfGroupsManaged] = useState<ISelectOrgOfGroupsManaged | null>(null);
-    const orgsOfGroupsManagedTable = useTable("orgsOfGroupsManaged");
+    const orgsOfGroupsManagedTable = useTable("orgsOfGroupsViewable");
     const orgsOfGroupsManagedTableWithStatus = orgsOfGroupsManagedTable.map(org => {
         const digitalTwinsStateFiltered = digitalTwinsState.filter(digitalTwin => digitalTwin.orgId === org.id);
         const sensorsStateFiltered = sensorsState.filter(sensorState => sensorState.orgId === org.id);

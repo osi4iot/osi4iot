@@ -48,9 +48,11 @@ export interface TableTypes {
     refreshTokens: IRefreshToken[];
     orgsManaged: IOrgManaged[];
     orgsOfGroupsManaged: IOrgOfGroupsManaged[];
+    orgsOfGroupsViewable: IOrgOfGroupsManaged[];
     orgUsers: IOrgUser[];
     groups: IGroup[];
     groupsManaged: IGroupManaged[];
+    groupsViewable: IGroupManaged[];
     groupMembers: IGroupMember[];
     assetTypes: IAssetType[];
     assets: IAsset[];
@@ -166,9 +168,12 @@ export const TABLE_RESOURCES: { [K in TableName]: TableResource<TableTypes[K]> }
     refreshTokens: { path: "auth/refresh_tokens", transform: formatCreatedUpdated },
     orgsManaged: { path: "organizations/user_managed/" },
     orgsOfGroupsManaged: { path: "organizations/user_groups_managed/" },
+    // the map and the viewer: the organizations and groups of every group the user is a member of (any role)
+    orgsOfGroupsViewable: { path: "organizations/user_groups_viewable/" },
     orgUsers: { path: "organization_users/user_orgs_managed/", transform: orgUsersTransform },
     groups: { path: "groups/user_managed", transform: defaultGroupString },
     groupsManaged: { path: "groups/user_managed", transform: defaultGroupString },
+    groupsViewable: { path: "groups/user_viewable", transform: defaultGroupString },
     groupMembers: { path: "group_members/user_managed" },
     assetTypes: { path: "asset_types/user_managed", transform: predefinedString },
     assets: { path: "assets/user_managed" },

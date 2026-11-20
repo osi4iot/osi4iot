@@ -4,7 +4,7 @@ import multerS3 from "multer-s3";
 import { ReadStream } from "fs";
 import IController from "../../interfaces/controller.interface";
 import validationMiddleware from "../../middleware/validation.middleware";
-import { groupAdminAuth, organizationAdminAuth, userAuth } from "../../middleware/auth.middleware";
+import { groupAdminAuth, organizationAdminAuth, userAuth, groupViewerAuth } from "../../middleware/auth.middleware";
 import ItemNotFoundException from "../../exceptions/ItemNotFoundException";
 import InvalidPropNameExeception from "../../exceptions/InvalidPropNameExeception";
 import groupExists from "../../middleware/groupExists.middleware";
@@ -72,8 +72,8 @@ class MLModelController implements IController {
 		this.router
 			.get(`${this.path}s/user_managed/`, userAuth, this.getMLModelsManagedByUser)
 			.get(`${this.path}s_in_org/:orgId/`, organizationAdminAuth, organizationExists, this.getMLModelsInOrg)
-			.get(`${this.path}s_in_group/:groupId`, groupExists, groupAdminAuth, this.getMLModelsInGroup)
-			.get(`${this.path}/:groupId/:propName/:propValue`, groupExists, groupAdminAuth, this.getMLModelByProp)
+			.get(`${this.path}s_in_group/:groupId`, groupExists, groupViewerAuth, this.getMLModelsInGroup)
+			.get(`${this.path}/:groupId/:propName/:propValue`, groupExists, groupViewerAuth, this.getMLModelByProp)
 			.delete(`${this.path}/:groupId/:mlModelId`, groupExists, groupAdminAuth, this.deleteMLModelById)
 			.patch(
 				`${this.path}/:groupId/:propName/:propValue`,
@@ -100,13 +100,13 @@ class MLModelController implements IController {
 			.get(
 				`${this.path}_download_file/:groupId/:mlModelId/:fileName`,
 				asHandler(mlModelAndGroupExist),
-				groupAdminAuth,
+				groupViewerAuth,
 				asHandler(this.downloadMLModelFile)
 			)
 			.get(
 				`${this.path}_file_list/:groupId/:mlModelId`,
 				asHandler(mlModelAndGroupExist),
-				groupAdminAuth,
+				groupViewerAuth,
 				asHandler(this.getMLModelFilesInfoList)
 			)
 			.delete(

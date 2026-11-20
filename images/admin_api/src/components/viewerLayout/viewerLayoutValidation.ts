@@ -18,7 +18,11 @@
 // the panel's own time: timeFrom, timeShift, interval, maxDataPoints),
 // "alarms" and "approvals" (the twin's alarms and approval requests, from the history tables; one of each) and
 // "markdown" (a Text panel: text with markdown, LaTeX and values of the NATS messages) and "picture" (an image of
-// the twin's files, viewerImages; an SVG with animations of its elements: bindings).
+// the twin's files, viewerImages; an SVG with animations of its elements: bindings) and "surface" (a 3D Surface:
+// z = f(x, y) of a formula whose parameters can be values of the NATS messages, or a grid of values that a message
+// carries) and "assetState" (the current state of the twin's asset, iot_data.assetState; one per slide: stateFields,
+// the fields of the state shown with their label and unit; statusColors, the colour of each status; staleMinutes,
+// after how long without a change the state is shown as old).
 
 export const VIEWER_LAYOUT_VERSION = 2;
 export const VIEWER_LAYOUT_MAX_SLIDES = 20;
@@ -34,7 +38,54 @@ export const CHART_VIZ = ["timeseries", "barchart", "stat", "gauge", "bargauge",
 const SAFE_URL = /^(https?:\/\/|\/(?!\/))/i;
 export const SERIES_AGGREGATIONS = ["mean", "min", "max", "last", "first", "sum", "count"] as const;
 export const REFRESH_INTERVALS = ["", "200ms", "1s", "5s", "10s", "30s", "1m", "5m", "15m", "30m", "1h", "2h", "1d"] as const;
-export const VIEWER_PANEL_TYPES = ["model", "image", "chart", "alarms", "approvals", "markdown", "picture"] as const;
+export const VIEWER_PANEL_TYPES = ["model", "image", "chart", "alarms", "approvals", "markdown", "picture", "surface", "assetState"] as const;
+// an "Asset state" panel (the frontend's assetStatePanel.ts says the same)
+export const ASSET_STATE_MAX_FIELDS = 20;
+export const ASSET_STATE_MAX_COLORS = 12;
+export const ASSET_STATE_MAX_STALE_MINUTES = 10080;
+// a path of the state: keys separated by dots ("production.speed", "lots.0.id"), at most 10, of 64 characters
+const STATE_PATH_KEY = /^[^./"'\\\u0000-\u001f]{1,64}$/;
+const STATUS_NAME = /^[\p{L}\p{N} _.-]{1,40}$/u;
+// a 3D Surface panel (the frontend's surfacePanel.ts says the same)
+export const VIEWER_SURFACE_MODES = ["function", "data"] as const;
+export const VIEWER_SURFACE_COLORS = ["viridis", "turbo", "coolwarm", "blues", "grays"] as const;
+export const VIEWER_SURFACE_MAX_EXPRESSION = 500;
+export const VIEWER_SURFACE_MAX_PARAMS = 20;
+export const VIEWER_SURFACE_STEPS = [5, 150] as const;
+const SURFACE_PARAM = /^[A-Za-z_][A-Za-z0-9_]{0,19}$/;
+// names a parameter cannot have: the variables, the constants and the functions of the formulas
+const SURFACE_RESERVED = new Set([
+	"x", "y", "pi", "e", "sin", "cos", "tan", "asin", "acos", "atan", "atan2", "sinh", "cosh", "tanh", "exp", "log",
+	"ln", "log10", "log2", "sqrt", "cbrt", "abs", "min", "max", "pow", "floor", "ceil", "round", "sign", "hypot", "mod",
+]);
+
+export interface IViewerSurfaceParam {
+	name: string;
+	value: number;
+	topicRef?: string;
+	path?: string;
+}
+
+export interface IViewerSurface {
+	mode: (typeof VIEWER_SURFACE_MODES)[number];
+	expression?: string;
+	params?: IViewerSurfaceParam[];
+	topicRef?: string;
+	path?: string;
+	xMin: number;
+	xMax: number;
+	yMin: number;
+	yMax: number;
+	steps?: number;
+	zMin?: number;
+	zMax?: number;
+	xLabel?: string;
+	yLabel?: string;
+	zLabel?: string;
+	colors?: (typeof VIEWER_SURFACE_COLORS)[number];
+	wireframe?: boolean;
+	opacity?: number;
+}
 // a Picture panel: an image of the twin (folder viewerImages of its files) and, for an SVG, animations of its
 // elements with values of the NATS messages
 export const VIEWER_PICTURE_FILE = /^[A-Za-z0-9_][A-Za-z0-9_.-]{0,79}\.(png|jpe?g|webp|gif|svg)$/i;
@@ -103,6 +154,80 @@ const validatePictureBindings = (raw: unknown): IPictureBinding[] | string => {
 };
 // the text of a Text panel (markdown, LaTeX and {{topicRef.path}} values of the NATS messages)
 export const VIEWER_MARKDOWN_MAX_LENGTH = 20000;
+
+// A 3D Surface panel: the formula is only kept here (the Viewer evaluates it with its own interpreter, never as
+// code), so it is checked for its length and its characters only
+const validateSurface = (raw: unknown): IViewerSurface | string => {
+	if (!raw || typeof raw !== "object" || Array.isArray(raw)) return "a 3D Surface needs its settings";
+	const s = raw as Record<string, unknown>;
+	if (!VIEWER_SURFACE_MODES.includes(s.mode as IViewerSurface["mode"])) return 'the mode must be "function" or "data"';
+	for (const key of ["xMin", "xMax", "yMin", "yMax"]) {
+		if (!isNum(s[key])) return `${key} must be a number`;
+	}
+	if ((s.xMin as number) >= (s.xMax as number) || (s.yMin as number) >= (s.yMax as number)) return "each axis needs its minimum below its maximum";
+	const surface: IViewerSurface = { mode: s.mode as IViewerSurface["mode"], xMin: s.xMin as number, xMax: s.xMax as number, yMin: s.yMin as number, yMax: s.yMax as number };
+	if (surface.mode === "function") {
+		if (typeof s.expression !== "string" || s.expression.length > VIEWER_SURFACE_MAX_EXPRESSION || !/^[\w\s.+\-*/^(),]*$/.test(s.expression)) {
+			return `the formula must have at most ${VIEWER_SURFACE_MAX_EXPRESSION} characters: letters, digits, spaces and . + - * / ^ ( ) ,`;
+		}
+		surface.expression = s.expression;
+		if (s.params !== undefined) {
+			if (!Array.isArray(s.params) || s.params.length > VIEWER_SURFACE_MAX_PARAMS) return `the parameters must be a list of at most ${VIEWER_SURFACE_MAX_PARAMS}`;
+			const names = new Set<string>();
+			surface.params = [];
+			for (const [i, item] of s.params.entries()) {
+				const where = `parameter ${i + 1}`;
+				if (!item || typeof item !== "object" || Array.isArray(item)) return `${where}: must be an object`;
+				const q = item as Record<string, unknown>;
+				if (typeof q.name !== "string" || !SURFACE_PARAM.test(q.name) || SURFACE_RESERVED.has(q.name.toLowerCase())) return `${where}: invalid name`;
+				if (names.has(q.name)) return `${where}: repeated name ${q.name}`;
+				names.add(q.name);
+				if (!isNum(q.value)) return `${where}: its value must be a number`;
+				const param: IViewerSurfaceParam = { name: q.name, value: q.value };
+				if (q.topicRef !== undefined || q.path !== undefined) {
+					if (typeof q.topicRef !== "string" || !SOURCE.test(q.topicRef)) return `${where}: invalid topic`;
+					if (typeof q.path !== "string" || !PICTURE_PATH.test(q.path)) return `${where}: invalid field`;
+					param.topicRef = q.topicRef;
+					param.path = q.path;
+				}
+				surface.params.push(param);
+			}
+		}
+		if (s.steps !== undefined) {
+			if (!isInt(s.steps, VIEWER_SURFACE_STEPS[0], VIEWER_SURFACE_STEPS[1])) return `the resolution must be from ${VIEWER_SURFACE_STEPS[0]} to ${VIEWER_SURFACE_STEPS[1]}`;
+			surface.steps = s.steps;
+		}
+	} else {
+		if (typeof s.topicRef !== "string" || !SOURCE.test(s.topicRef)) return "invalid topic of the data";
+		if (typeof s.path !== "string" || !PICTURE_PATH.test(s.path)) return "invalid field of the data";
+		surface.topicRef = s.topicRef;
+		surface.path = s.path;
+	}
+	if (s.zMin !== undefined || s.zMax !== undefined) {
+		if (!isNum(s.zMin) || !isNum(s.zMax) || s.zMin >= s.zMax) return "a fixed z range needs a minimum below its maximum";
+		surface.zMin = s.zMin;
+		surface.zMax = s.zMax;
+	}
+	for (const key of ["xLabel", "yLabel", "zLabel"] as const) {
+		const label: unknown = s[key];
+		if (label === undefined) continue;
+		if (typeof label !== "string" || label.length > 40) return `${key} must have at most 40 characters`;
+		if (label.trim()) surface[key] = label.trim();
+	}
+	if (s.colors !== undefined) {
+		if (!VIEWER_SURFACE_COLORS.includes(s.colors as NonNullable<IViewerSurface["colors"]>)) return "unknown colour scale";
+		surface.colors = s.colors as IViewerSurface["colors"];
+	}
+	if (s.wireframe !== undefined) {
+		if (typeof s.wireframe !== "boolean") return "wireframe must be true or false";
+		surface.wireframe = s.wireframe;
+	}
+	if (s.opacity !== undefined) {
+		if (!isNum(s.opacity) || s.opacity < 0.1 || s.opacity > 1) return "the opacity must be from 0.1 to 1";
+		surface.opacity = s.opacity;
+	}
+	return surface;
+};
 export const CHART_RANGES = ["15m", "1h", "6h", "24h", "7d", "30d"] as const;
 export const CHART_MAX_SERIES = 8;
 
@@ -125,6 +250,62 @@ export interface IViewerTime {
 	refresh: string;
 }
 
+export interface IAssetStateField {
+	path: string;
+	label?: string;
+	unit?: string;
+}
+
+export const isStatePath = (path: unknown): path is string => {
+	if (typeof path !== "string" || path.length === 0 || path.length > 200) return false;
+	const keys = path.split(".");
+	return keys.length <= 10 && keys.every((key) => STATE_PATH_KEY.test(key));
+};
+
+// The settings of an "Asset state" panel
+const validateAssetState = (p: Record<string, unknown>, panel: IViewerPanel): string | null => {
+	if (p.stateFields !== undefined) {
+		if (!Array.isArray(p.stateFields)) return "the fields must be a list";
+		if (p.stateFields.length > ASSET_STATE_MAX_FIELDS) return `at most ${ASSET_STATE_MAX_FIELDS} fields`;
+		const fields: IAssetStateField[] = [];
+		for (const raw of p.stateFields as unknown[]) {
+			if (!raw || typeof raw !== "object" || Array.isArray(raw)) return "each field must be an object";
+			const f = raw as Record<string, unknown>;
+			if (!isStatePath(f.path)) return `invalid path of a field: keys separated by dots, without / " ' \\`;
+			const field: IAssetStateField = { path: f.path };
+			for (const key of ["label", "unit"] as const) {
+				const text: unknown = f[key];
+				if (text === undefined || text === "") continue;
+				if (typeof text !== "string" || text.length > 40) return `the ${key} of a field: at most 40 characters`;
+				field[key] = text;
+			}
+			fields.push(field);
+		}
+		if (fields.length) panel.stateFields = fields;
+	}
+	if (p.statusColors !== undefined) {
+		if (!p.statusColors || typeof p.statusColors !== "object" || Array.isArray(p.statusColors)) {
+			return "statusColors must be an object";
+		}
+		const entries = Object.entries(p.statusColors as Record<string, unknown>);
+		if (entries.length > ASSET_STATE_MAX_COLORS) return `at most ${ASSET_STATE_MAX_COLORS} status colours`;
+		const colors: Record<string, string> = {};
+		for (const [status, color] of entries) {
+			if (!STATUS_NAME.test(status)) return `invalid status name: ${status.slice(0, 40)}`;
+			if (typeof color !== "string" || !PICTURE_COLOR.test(color)) return `invalid colour of status ${status}`;
+			colors[status] = color;
+		}
+		if (entries.length) panel.statusColors = colors;
+	}
+	if (p.staleMinutes !== undefined) {
+		if (!isInt(p.staleMinutes, 0, ASSET_STATE_MAX_STALE_MINUTES)) {
+			return `staleMinutes must be from 0 to ${ASSET_STATE_MAX_STALE_MINUTES}`;
+		}
+		if (p.staleMinutes > 0) panel.staleMinutes = p.staleMinutes;
+	}
+	return null;
+};
+
 export interface IViewerPanel {
 	id: string;
 	type: ViewerPanelType;
@@ -136,6 +317,7 @@ export interface IViewerPanel {
 	file?: string;
 	fit?: (typeof VIEWER_PICTURE_FITS)[number];
 	bindings?: IPictureBinding[];
+	surface?: IViewerSurface;
 	series?: IChartSeries[];
 	range?: (typeof CHART_RANGES)[number];
 	viz?: (typeof CHART_VIZ)[number];
@@ -145,6 +327,9 @@ export interface IViewerPanel {
 	timeShift?: string;
 	interval?: string;
 	maxDataPoints?: number;
+	stateFields?: IAssetStateField[];
+	statusColors?: Record<string, string>;
+	staleMinutes?: number;
 	x: number;
 	y: number;
 	w: number;
@@ -273,7 +458,7 @@ const validatePanels = (panels: unknown, prefix: string): IViewerPanel[] | strin
 		ids.add(p.id);
 		if (!VIEWER_PANEL_TYPES.includes(p.type as ViewerPanelType)) return `${where}: unknown type`;
 		if (p.type === "model" && ++models > 1) return `${prefix}only one 3D model panel`;
-		if ((p.type === "alarms" || p.type === "approvals") && clean.some((q) => q.type === p.type)) {
+		if ((p.type === "alarms" || p.type === "approvals" || p.type === "assetState") && clean.some((q) => q.type === p.type)) {
 			return `${prefix}only one ${p.type} panel`;
 		}
 		if (!isInt(p.x, 0, VIEWER_LAYOUT_COLS - 1)) return `${where}: invalid x`;
@@ -313,6 +498,15 @@ const validatePanels = (panels: unknown, prefix: string): IViewerPanel[] | strin
 			const bindings = validatePictureBindings(p.bindings);
 			if (typeof bindings === "string") return `${where}: ${bindings}`;
 			if (bindings.length) panel.bindings = bindings;
+		}
+		if (p.type === "assetState") {
+			const problem = validateAssetState(p, panel);
+			if (problem) return `${where}: ${problem}`;
+		}
+		if (p.type === "surface") {
+			const surface = validateSurface(p.surface);
+			if (typeof surface === "string") return `${where}: ${surface}`;
+			panel.surface = surface;
 		}
 		if (p.type === "chart") {
 			const series = validateChartSeries(p.series);

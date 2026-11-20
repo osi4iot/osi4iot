@@ -5,7 +5,7 @@ import type { Readable } from "stream";
 import { GetObjectCommand } from "@aws-sdk/client-s3";
 import IController from "../../interfaces/controller.interface";
 import groupExists from "../../middleware/groupExists.middleware";
-import { groupAdminAuth } from "../../middleware/auth.middleware";
+import { groupAdminAuth, groupViewerAuth } from "../../middleware/auth.middleware";
 import HttpException from "../../exceptions/HttpException";
 import IRequestWithGroup from "./interfaces/requestWithGroup.interface";
 import s3Client from "../../config/s3Config";
@@ -156,8 +156,8 @@ class GroupKnowledgeController implements IController {
 				uploadKnowledgeFile.single("file"),
 				this.uploadKnowledgeFile
 			)
-			.get(`${this.path}_file_list/:groupId`, groupExists, groupAdminAuth, this.getKnowledgeFileList)
-			.get(`${this.path}_enabled/:groupId`, groupExists, groupAdminAuth, this.getKnowledgeEnabled)
+			.get(`${this.path}_file_list/:groupId`, groupExists, groupViewerAuth, this.getKnowledgeFileList)
+			.get(`${this.path}_enabled/:groupId`, groupExists, groupViewerAuth, this.getKnowledgeEnabled)
 			.patch(
 				`${this.path}_file_title/:groupId/:fileName`,
 				groupExists,
@@ -168,7 +168,7 @@ class GroupKnowledgeController implements IController {
 			.get(
 				`${this.path}_download_file/:groupId/:fileName`,
 				groupExists,
-				groupAdminAuth,
+				groupViewerAuth,
 				validKnowledgeFileName,
 				this.downloadKnowledgeFile
 			)

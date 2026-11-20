@@ -30,10 +30,12 @@ const Harness = ({
     simulator = {} as Record<string, any>,
     twinLighting,
     onSaveLighting,
+    onBackToViewer,
 }: {
     simulator?: Record<string, any>;
     twinLighting?: LightingOptions;
     onSaveLighting?: () => void;
+    onBackToViewer?: () => void;
 }) => {
     const [opts, setOpts] = useState<ViewerOptions>(baseOpts);
     latest = opts;
@@ -58,6 +60,7 @@ const Harness = ({
             handleLockReadMeasurementsButtonClick={() => {}}
             twinLighting={twinLighting}
             onSaveLighting={onSaveLighting}
+            onBackToViewer={onBackToViewer}
         />
     );
 };
@@ -334,5 +337,17 @@ describe("AssistantPanel", () => {
         fireEvent.change(screen.getByLabelText("Temperature"), { target: { value: "42" } });
         expect(latest.digitalTwinSimulatorState.temperature).toBe(42);
         expect(screen.getByRole("button", { name: "Get last measurements" })).toBeInTheDocument();
+    });
+});
+
+describe("Assistant panel on a phone", () => {
+    it("has a Back to viewer button only when it covers the viewer", () => {
+        const { unmount } = render(<Harness />);
+        expect(screen.queryByRole("button", { name: "Back to viewer" })).toBeNull();
+        unmount();
+        const onBackToViewer = vi.fn();
+        render(<Harness onBackToViewer={onBackToViewer} />);
+        fireEvent.click(screen.getByRole("button", { name: "Back to viewer" }));
+        expect(onBackToViewer).toHaveBeenCalledTimes(1);
     });
 });

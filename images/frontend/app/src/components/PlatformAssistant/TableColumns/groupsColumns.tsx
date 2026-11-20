@@ -40,6 +40,7 @@ export interface IGroup {
     llmEnabled: boolean;
     gpuUsageEnabled: boolean;
     ragEnabled?: boolean;
+    chatAttachmentsEnabled?: boolean;
     timezone?: string;
 }
 
@@ -264,6 +265,12 @@ export const Create_GROUPS_COLUMNS = (refreshGroups: () => void): Column<IGroupC
             Cell: (props: { value?: boolean }) => <span>{props.value ? "Enabled" : "Disabled"}</span>,
         },
         {
+            Header: "Chat attachments",
+            accessor: "chatAttachmentsEnabled",
+            disableFilters: true,
+            Cell: (props: { value?: boolean }) => <span>{props.value ? "Enabled" : "Disabled"}</span>,
+        },
+        {
             Header: "Time zone",
             accessor: "timezone",
             disableFilters: true,
@@ -289,6 +296,7 @@ export const Create_GROUPS_COLUMNS = (refreshGroups: () => void): Column<IGroupC
                 const gpuUsageEnabled = row?.cells[12]?.value; 
                 const llmEnabled = row?.cells[13]?.value;
                 const ragEnabled = row?.original?.ragEnabled === true;
+                const chatAttachmentsEnabled = row?.original?.chatAttachmentsEnabled === true;
                 const timezone = row?.original?.timezone || "";
                 const groupInputData = {
                     name,
@@ -302,6 +310,7 @@ export const Create_GROUPS_COLUMNS = (refreshGroups: () => void): Column<IGroupC
                     llmEnabled,
                     gpuUsageEnabled,
                     ragEnabled,
+                    chatAttachmentsEnabled,
                     timezone,
                 };
                 return <EditGroup groupId={groupId} rowIndex={rowIndex} groupInputData={groupInputData} />;

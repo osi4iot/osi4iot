@@ -200,6 +200,8 @@ const EditGroup: FC<EditGroupProps> = ({
             // Not sent when the organization has it disabled: the group keeps
             // its setting, which counts only with the organization's.
             ...(ragEnabledInOrg ? { ragEnabled: values.ragEnabled === true } : {}),
+            // images attached to the chat: they go to the LLM, so only with it (off by default)
+            ...(llmEnabledInOrg ? { chatAttachmentsEnabled: (values.chatAttachmentsEnabled === true || values.chatAttachmentsEnabled === "true") } : {}),
             timezone: values.timezone ?? "",
         };
         setIsSubmitting(true);
@@ -328,6 +330,15 @@ const EditGroup: FC<EditGroupProps> = ({
                                         control="select"
                                         label="Large Language Model (LLM)"
                                         name="llmEnabled"
+                                        options={enableDisableOptions}
+                                        type="text"
+                                    />
+                                )}{" "}
+                                {llmEnabledInOrg && (
+                                    <FormikControl
+                                        control="select"
+                                        label="Chat attachments (photos, documents and tables)"
+                                        name="chatAttachmentsEnabled"
                                         options={enableDisableOptions}
                                         type="text"
                                     />

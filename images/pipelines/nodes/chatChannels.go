@@ -17,7 +17,6 @@ import (
 	"errors"
 	"fmt"
 	"html"
-	"regexp"
 	"strings"
 	"time"
 
@@ -40,8 +39,15 @@ func chatTopicSubject(fm common.Manager, dt *common.DigitalTwin, topicRef string
 // AskChatAsUser sends a question to the digital twin's chat as the user: the viewers of the user show it (as
 // the voice questions, field "transcription") and the AI agent answers it. via: "mobile", "telegram"
 func AskChatAsUser(fm common.Manager, dt *common.DigitalTwin, userName, text, via string) error {
+	return AskChatAsUserWithAttachments(fm, dt, userName, text, via, nil)
+}
+
+// AskChatAsUserWithAttachments is AskChatAsUser with files attached to the question (stored already in the
+// user's folder, utils.PutChatAttachment): the chat shows them and the AI agent reads them.
+func AskChatAsUserWithAttachments(fm common.Manager, dt *common.DigitalTwin, userName, text, via string,
+	attachments []utils.ChatAttachment) error {
 	text = strings.TrimSpace(text)
-	if userName == "" || text == "" {
+	if userName == "" || text == "" && len(attachments) == 0 {
 		return errors.New("a question needs a user and a text")
 	}
 	sim2llm := chatTopicSubject(fm, dt, "sim2llm")
@@ -49,11 +55,17 @@ func AskChatAsUser(fm common.Manager, dt *common.DigitalTwin, userName, text, vi
 	if sim2llm == "" || llm2sim == "" {
 		return fmt.Errorf("the digital twin %d has no sim2llm or llm2sim topic", dt.Id)
 	}
-	shown, _ := json.Marshal(map[string]string{"transcription": text, "userName": userName, "via": via})
+	shownMsg := map[string]any{"transcription": text, "userName": userName, "via": via}
+	askedMsg := map[string]any{"message": text, "via": via}
+	if len(attachments) > 0 {
+		shownMsg["attachments"] = attachments
+		askedMsg["attachments"] = attachments
+	}
+	shown, _ := json.Marshal(shownMsg)
 	if err := fm.NatsPublish(utils.UserInboxSubject(userName, llm2sim), shown); err != nil {
 		return err
 	}
-	asked, _ := json.Marshal(map[string]string{"message": text, "via": via})
+	asked, _ := json.Marshal(askedMsg)
 	return fm.NatsPublish(utils.UserChatSubject(userName, sim2llm), asked)
 }
 
@@ -109,12 +121,7 @@ func (m ChatInboxMessage) IsAnswer() bool {
 
 const telegramMaxText = 4000
 
-var markdownBoldRe = regexp.MustCompile(`\*\*(.+?)\*\*`)
-
-// telegramHTML: a chat text as Telegram HTML (escaped, its **bold** in bold)
-func telegramHTML(text string) string {
-	return markdownBoldRe.ReplaceAllString(html.EscapeString(strings.TrimSpace(text)), "<b>$1</b>")
-}
+// telegramHTML (telegramLatex.go): a chat text as Telegram HTML, its formulas as text
 
 // TelegramAnswerText is an answer of the AI agent as it is sent to Telegram (HTML): the answer and, in a
 // bilingual chat, its translation under the name of its language
@@ -123,15 +130,33 @@ func TelegramAnswerText(m ChatInboxMessage) string {
 	if strings.TrimSpace(answer) == "" {
 		answer = m.EmailBody
 	}
-	text := telegramHTML(answer)
-	if m.Translation != nil && strings.TrimSpace(m.Translation.Message) != "" {
-		text += "\n\n<i>" + html.EscapeString(chatLanguageNativeName(m.Translation.TranslatedLanguage)) + "</i>\n" +
-			telegramHTML(m.Translation.Message)
+	translation := ""
+	if m.Translation != nil {
+		translation = strings.TrimSpace(m.Translation.Message)
 	}
-	if runes := []rune(text); len(runes) > telegramMaxText {
-		text = string(runes[:telegramMaxText]) + "…"
+	build := func(answer, translation string) string {
+		text := telegramHTML(answer)
+		if translation != "" {
+			text += "\n\n<i>" + html.EscapeString(chatLanguageNativeName(m.Translation.TranslatedLanguage)) + "</i>\n" +
+				telegramHTML(translation)
+		}
+		return text
+	}
+	text := build(answer, translation)
+	// too long: the source texts are shortened (cutting the HTML could leave a <pre> or a <b> open, and
+	// Telegram would refuse the message)
+	for n := max(len([]rune(answer)), len([]rune(translation))); len([]rune(text)) > telegramMaxText && n > 0; {
+		n = n * 4 / 5
+		text = build(truncateRunes(answer, n), truncateRunes(translation, n))
 	}
 	return text
+}
+
+func truncateRunes(s string, n int) string {
+	if r := []rune(s); len(r) > n {
+		return string(r[:n]) + "…"
+	}
+	return s
 }
 
 // chatLanguageNativeNames: the name of each language in itself (as the chat shows it)

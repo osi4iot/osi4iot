@@ -285,7 +285,8 @@ func RemoveNodeFromPlatform(pd *pt.PlatformData, view NodeView, logger *log.Logg
 	// down, and forcing it leaves the machine believing it is still in
 	// a swarm it has been evicted from — which is a mess to undo by
 	// hand later.
-	if nodeClient, ok := pt.DCMap[view.Address()]; ok {
+	// (an unreachable node has a nil client: it goes by the manager's side)
+	if nodeClient, ok := pt.DCMap[view.Address()]; ok && nodeClient != nil && nodeClient.Cli != nil {
 		logger.Printf("Taking %s out of the swarm...", view.Hostname())
 		if err := nodeLeaveSwarm(nodeClient); err != nil {
 			return fmt.Errorf("error leaving the swarm on %s: %w", view.Hostname(), err)

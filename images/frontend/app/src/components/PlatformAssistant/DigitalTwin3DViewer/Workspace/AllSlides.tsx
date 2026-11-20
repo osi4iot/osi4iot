@@ -5,7 +5,7 @@
 // for the user) as every other change of the layout. While searching, the order cannot be changed.
 import { DragEvent, FC, KeyboardEvent, useEffect, useRef, useState } from "react";
 import styled from "styled-components";
-import { BellRing, Box, ChartLine, FileImage, FileText, Image as ImageIcon, Video, ClipboardCheck, Eye, EyeOff, GripVertical, Search, X } from "lucide-react";
+import { BellRing, Box, ChartLine, FileImage, FileText, Image as ImageIcon, Video, ClipboardCheck, Eye, EyeOff, GripVertical, Search, X, Axis3d, Activity } from "lucide-react";
 import { scrollbarStyle } from "../../../Tools/FormTools";
 import { GRID_COLS, PAGE_ROWS, PanelType, WorkspaceSlide, panelTitle, searchSlides } from "./workspaceLayout";
 
@@ -314,6 +314,8 @@ const BLOCK_COLOR: Record<PanelType, string> = {
     approvals: "#262f48",
     markdown: "#2f3540",
     picture: "#2d3a2f",
+    surface: "#33294a",
+    assetState: "#203d3a",
 };
 
 const blockIcon = (type: PanelType, photo = false) =>
@@ -325,10 +327,14 @@ const blockIcon = (type: PanelType, photo = false) =>
         <FileText aria-hidden="true" />
     ) : type === "picture" ? (
         <FileImage aria-hidden="true" />
+    ) : type === "surface" ? (
+        <Axis3d aria-hidden="true" />
     ) : type === "alarms" ? (
         <BellRing aria-hidden="true" />
     ) : type === "approvals" ? (
         <ClipboardCheck aria-hidden="true" />
+    ) : type === "assetState" ? (
+        <Activity aria-hidden="true" />
     ) : (
         <ChartLine aria-hidden="true" />
     );

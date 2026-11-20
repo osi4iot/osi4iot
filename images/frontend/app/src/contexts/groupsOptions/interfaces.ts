@@ -22,6 +22,8 @@ export interface IGroupInputData {
 	llmEnabled: boolean;
 	gpuUsageEnabled: boolean;
 	ragEnabled?: boolean;
+	// images attached to the chat of the digital twins (needs the LLM)
+	chatAttachmentsEnabled?: boolean;
 	// IANA time zone of the group ("": not set, UTC)
 	timezone?: string;
     groupAdminDataArray?: IGroupAdminData[];

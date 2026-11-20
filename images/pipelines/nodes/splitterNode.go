@@ -101,12 +101,17 @@ func (n *SplitterNode) processMessage(msg common.Message, log *logger.Logger) er
 	}
 
 	wireArray := nodeOutputWires[outputIndex]
-	for _, wire := range wireArray {
+	// the debug log before sending: once sent, the next node may be changing the message
+	if n.Debug == "on" && len(wireArray) > 0 {
+		n.HandleDebug(msg, outputIndex)
+	}
+	for idx, wire := range wireArray {
+		out := msg
+		if idx > 0 {
+			out = msg.Clone() // each wire its own copy
+		}
 		select {
-		case wire.Channel <- msg:
-			if n.Debug == "on" {
-				n.HandleDebug(msg, outputIndex)
-			}
+		case wire.Channel <- out:
 		case <-n.Ctx.Done():
 			log.Infof("Context cancelled while sending message from SplitterNode %s", n.NodeUid)
 			return nil

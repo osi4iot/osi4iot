@@ -3,7 +3,10 @@
 //   dev2pdb, dev2pdb_wt, dev2pdb_ma  ->  dev2pdb_1, dev2pdb_2, ...   (measurements stored in the IoT database)
 //   dev2dtm                          ->  dev2dtm_1, dev2dtm_2, ...   (device -> digital twin: photos, video, audio...)
 //   dtm2dev                          ->  dtm2dev_1, dtm2dev_2, ...   (digital twin -> device: commands)
-// The digital twin keeps its own "dev2dtm" and "dtm2dev" (without number): a general channel (the chat's voice, tests).
+//   dtm2pdb                          ->  dtm2pdb_1, dtm2pdb_2, ...   (computed measurements, stored by a pipeline in the
+//                                                                     IoT database: their sensors are computed sensors)
+// The digital twin keeps its own "dev2dtm", "dtm2dev" and "dtm2pdb" (without number): a general channel (the chat's
+// voice, tests, the data the digital twin stores without sensors).
 import pool, { readQuery } from "../../config/dbconfig";
 import natsClient from "../../config/natsConfig";
 import { logger } from "../../config/winston";
@@ -13,6 +16,7 @@ export const assetTopicRefPrefix = (topicType: string): string | null => {
 	if (topicType === "dev2pdb" || topicType === "dev2pdb_wt" || topicType === "dev2pdb_ma") return "dev2pdb";
 	if (topicType === "dev2dtm") return "dev2dtm";
 	if (topicType === "dtm2dev") return "dtm2dev";
+	if (topicType === "dtm2pdb") return "dtm2pdb";
 	return null;
 };
 
@@ -49,11 +53,18 @@ export const assetTopicsRefProblems = (topicsRef: TopicRefInput[], sensorsRef: S
 	return problems;
 };
 
-const TRACE = / · (dev2dtm|dtm2dev)_\d+ for Asset_\S+$/;
+const TRACE = / · (dev2dtm|dtm2dev|dtm2pdb)_\d+ for Asset_\S+$/;
+
+// the topics of an asset whose description says whose they are
+const TRACED_TOPIC_TYPES = [...DEVICE_TOPIC_TYPES, "dtm2pdb"];
+
+// A computed sensor: a sensor of a dtm2pdb_n topic of its asset (its values are computed and stored by a pipeline)
+export const COMPUTED_TOPIC_REF = /^dtm2pdb_\d+$/;
+export const isComputedTopicRef = (topicRef: string): boolean => COMPUTED_TOPIC_REF.test(topicRef ?? "");
 
 // Description of a device topic of an asset, to trace it in the topic lists: "Mobile video · dev2dtm_2 for Asset_<uid>"
 export const assetTopicDescription = (topicType: string, topicRef: string, description: string, assetUid: string): string => {
-	if (!DEVICE_TOPIC_TYPES.includes(topicType)) return description;
+	if (!TRACED_TOPIC_TYPES.includes(topicType)) return description;
 	const own = (description ?? "").replace(TRACE, "").trim();
 	const trace = `${topicRef} for Asset_${assetUid}`;
 	return own && own !== trace ? `${own} · ${trace}` : trace;

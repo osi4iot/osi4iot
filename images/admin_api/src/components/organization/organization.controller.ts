@@ -53,6 +53,7 @@ import {
 	getGroupMemberByProp,
 	getGroupMembers,
 	getGroupsManagedByUserId,
+	getGroupsOfMemberByUserId,
 	getGroupsOfOrgIdWhereUserIdIsMember,
 	getOrgsIdArrayForGroupsManagedByUserId,
 	removeMembersInGroup,
@@ -106,6 +107,7 @@ class OrganizationController implements IController {
 		this.router
 			.get(`${this.path}s/user_managed/`, userAuth, this.getOrganizationsManagedByUser)
 			.get(`${this.path}s/user_groups_managed/`, userAuth, this.getOrganizationsOfGroupsManagedByUser)
+			.get(`${this.path}s/user_groups_viewable/`, userAuth, this.getOrganizationsOfGroupsViewableByUser)
 			.get(`/organization_users/user_orgs_managed/`, userAuth, this.getOrganizationsUsersForOrgsManagedByUser)
 			.get(
 				`/organization_users/user_groups_managed/`,
@@ -231,7 +233,8 @@ class OrganizationController implements IController {
 		}
 	};
 
-	private organizationsOfGroupsManagedByUser = async (user: IUser): Promise<IOrganization[]> => {
+	// orgs of the groups the user administers or edits (viewable: of every group it is a member of, for the map)
+	private organizationsOfGroupsManagedByUser = async (user: IUser, viewable = false): Promise<IOrganization[]> => {
 		let organizations: IOrganization[];
 		if (user.isGrafanaAdmin) {
 			organizations = await getOrganizations();
@@ -241,7 +244,7 @@ class OrganizationController implements IController {
 			if (organizations.length !== 0) {
 				orgsManagedIdArray = organizations.map((org) => org.id);
 			}
-			const groups = await getGroupsManagedByUserId(user.id);
+			const groups = viewable ? await getGroupsOfMemberByUserId(user.id) : await getGroupsManagedByUserId(user.id);
 			if (groups.length !== 0) {
 				const orgIdsArray = groups.map((group) => group.orgId);
 				const orgsOfGroupsManaged = await getOrganizationsWithIdsArray(orgIdsArray);
@@ -253,6 +256,14 @@ class OrganizationController implements IController {
 			}
 		}
 		return organizations;
+	};
+
+	private getOrganizationsOfGroupsViewableByUser = async (req: IRequestWithUser, res: Response, next: NextFunction): Promise<void> => {
+		try {
+			res.status(200).send(await this.organizationsOfGroupsManagedByUser(req.user, true));
+		} catch (error) {
+			next(error);
+		}
 	};
 
 	private getOrganizationsOfGroupsManagedByUser = async (

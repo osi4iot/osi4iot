@@ -55,6 +55,8 @@ type ChatMessage struct {
 	Charts []ChartRef `json:"charts,omitempty"`
 	// Bilingual chat: the message in the other language of the conversation
 	Translation *MessageTranslation `json:"translation,omitempty"`
+	// Files the user attached to the message (the frontend asks admin_api for each one)
+	Attachments []ChatAttachment `json:"attachments,omitempty"`
 }
 
 // MessageTranslation is a message of a bilingual chat in its other language: Language is the language the
@@ -82,6 +84,10 @@ type StoredMessage struct {
 	Content string `json:"content"`
 	// bilingual chat: the message in the other language (only shown; the AI agent gets Content)
 	Translation *MessageTranslation `json:"translation,omitempty"`
+	// Files the user attached (shown in the chat) and what the image model read in them: the AI agent gets it
+	// after Content, the chat does not show it
+	Attachments    []ChatAttachment `json:"attachments,omitempty"`
+	AttachmentText string           `json:"attachmentText,omitempty"`
 }
 
 func GetChatMessages(

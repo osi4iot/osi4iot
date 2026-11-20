@@ -33,6 +33,7 @@ The OSI4IOT platform is a web-based IOT platform for monitoring in real time ind
 - [GPU nodes](#gpu-nodes)
 - [LLM providers and models](#llm-providers-and-models)
 - [Knowledge bases (RAG)](#knowledge-bases-rag)
+- [Permissions](#permissions)
 - [Backups and recovery](#backups-and-recovery)
 - [CLI reference](#cli-reference)
 - [Glossary](#glossary)
@@ -403,6 +404,73 @@ A group can have a knowledge base: documents its administrators upload (manuals,
 -	The knowledge bases require Patroni (`Use Patroni = yes`). `post_init.sh` creates the `pipelines_rag` role, the `rag` schema and the `vector` and `pg_textsearch` extensions when the Patroni cluster is bootstrapped (`osi4iot init`); `pipelines` creates its tables, admin_api its own. Platforms created before this version have to be recreated, or that SQL run by hand.
 -	BM25 comes from `pg_textsearch` (PostgreSQL license), not from `pg_search` (ParadeDB): the community edition of `pg_search` does not let the Patroni replicas replay its indexes' WAL, and stops them (`replicas are not supported on community`). `pg_textsearch`'s index is WAL-logged like PostgreSQL's own, so the replicas replay it and keep it after a failover. The image no longer has `pg_search`; a platform that had created its extension has to be recreated.
 
+## Permissions
+
+Who may do what in a group follows one principle: **the Admin decides which resources the group has** (who is in it, which expensive services are enabled), **the Editor works with what there is** (it changes everything that is built and uses the services the Admin enabled, but enlarges nothing) and **the Viewer looks**.
+
+### Roles
+
+Each member of a group has a role in it (its Grafana team: `roleInGroup`):
+
+| Role | Who |
+|---|---|
+| **Admin** | The administrators of the group (team permission 4). The administrators of its organization and the platform administrators are Admin of every group. |
+| **Editor** | Members with the Editor role (team permission 2). |
+| **Viewer** | Members with the Viewer role (team permission 1, or a member without a role). |
+
+| | Viewer | Editor | Admin |
+|---|:-:|:-:|:-:|
+| **Look** | | | |
+| Open the digital twins in the viewer: 3D model, panels (Chart, Text, Picture, 3D Surface, Alarms, Approvals, Asset state…), histories, measurements | ✓ | ✓ | ✓ |
+| The chat of the assistant, with attachments when the group allows them | ✓ | ✓ | ✓ |
+| Read the group's lists: assets, sensors, topics, digital twins, dashboards, skills, ML models, knowledge base documents | ✓ | ✓ | ✓ |
+| **Operate** | | | |
+| Acknowledge, shelve and reset alarms; approve or reject the requests of the Approval nodes (viewer and Telegram) | – | ✓ | ✓ |
+| **Edit what is built** | | | |
+| The layout of the viewer for the whole group (a Viewer changes it only for itself) and its images | – | ✓ | ✓ |
+| Pipelines: edit, deploy, stop, with the nodes of the services the Admin enabled | – | ✓ | ✓ |
+| Create and edit sensors, topics (also the `dtm2pdb_n` topics of computed sensors), assets and digital twins; their files (3D models, FEM results); the group's skills | – | ✓ | ✓ |
+| Delete them, when they hold no expensive resources (see below) | – | ✓ | ✓ |
+| Edit and delete stored measurements | – | ✓ | ✓ |
+| **Assign resources** | | | |
+| The members of the group and their roles | – | – | ✓ |
+| Upload and delete knowledge base documents (RAG); choose the documents of a digital twin | – | – | ✓ |
+| Upload and delete ML models; run a pipeline on GPU (`pipelineRequiresGpu`) | – | – | ✓ |
+| S3 storage of the assets (archive folders) | – | – | ✓ |
+| The group's settings (LLM, GPU, knowledge base, chat attachments, Telegram, time zone…) | – | – | ✓ |
+| Delete what holds expensive resources | – | – | ✓ |
+
+The organization administrator sets, besides, the **monthly token limit** of each group (below).
+
+### Expensive resources
+
+An Editor may delete sensors, topics, assets and digital twins, except those that hold expensive resources; only an Admin may delete these:
+
+-	**A digital twin** that reads knowledge base documents, whose pipeline runs on GPU, or whose pipeline uses paid AI services (`AiAgent`, `AiTool`, `Translator`, `Transcriptor`, `Text2Speech` with OpenAI).
+-	**An asset** with archives in S3 (asset S3 folders), or with such a digital twin.
+
+admin_api refuses it with a 403 that says why (`utils/permissions/deletePolicy.ts`). In the same way, an Editor cannot give a digital twin expensive resources: running its pipeline on GPU or choosing its knowledge base documents.
+
+### Deleting stored data
+
+Deleting a sensor, topic, asset or digital twin whose topics have stored measurements needs an explicit confirmation, whoever deletes it: the measurements stay in the IoT database, but nothing names them any more. admin_api answers 409 with how many there are; the forms ask, and delete with `?confirmDataLoss=true` once confirmed.
+
+### Monthly token limit of each group
+
+The organization administrator sets it, group by group, in **Organization admin → AI usage → Monthly token limit of each group** (0: no limit). The tokens of the month (UTC) count every LLM operation of the group (AI agents, translations, transcriptions, voices) as admin_api stores them (`iot_data.llm_usage`).
+
+-	At the organization's warning percentage and at the limit the users are told, once a month, in the pipeline logs (and in the chat of the 3D viewer).
+-	A group that reaches its limit is **stopped until the month ends** or the limit is raised: its nodes do not call the provider; the AI agent answers that the limit was reached, and the Translator, Transcriptor and Text2Speech nodes pass their messages on unchanged with a warning. pipelines learns it in the answer to each batch of usage and asks admin_api every minute which groups are stopped.
+-	The organization's own limit (**Monthly token limit**) only warns, as before.
+-	A group administrator can read its group's usage of the month: `GET /llm_usage_group/:groupId`.
+
+### Where it is enforced
+
+-	**admin_api**: each route of a group asks for a minimum role (`groupViewerAuth`, `groupEditorAuth`, `groupAdminAuth` in `middleware/auth.middleware.ts`). The lists of the map and the viewer (`*/user_managed`) include every group of which the user is a member; the group admin layer, the groups the user administers or edits, each with its role (`roleInGroup`). Every route of a group also checks that what it names belongs to the group of the route (`groupExists` with `middleware/groupOwnership.ts`): the ids of the path (assets, digital twins, topics, ML models, dashboards), the item of the routes by property (assets, digital twins, sensors, topics, ML models, S3 folders) and the topic of a sensor; an item of another group is answered as not found (404).
+-	**NATS** (`auth_callout`): an Admin and an Editor get the whole permissions of the group's topics; a Viewer subscribes to them and publishes only to its own copies of the chat topics (`user.<login>.sim2llm…`, `sim2state`, `approval`).
+-	**pipelines**: the Alarm and Approval nodes ask admin_api for the role of whoever presses a button in the viewer (`/application/group_role`, kept for a minute) and refuse a Viewer; from Telegram, editors and administrators with a linked account may decide.
+-	**frontend**: the group admin layer shows the sections of the administrators (members, S3 storage, knowledge, ML models) only to those who administer some group; the viewer shows the Pipeline page and the alarm and request buttons only to the editors and administrators of the digital twin's group.
+
 ## Backups and recovery
 
 `system_manager` backs up both database clusters (WAL-G, continuous archiving), the NATS streams and the state file to the bucket. A copy of the state file is stored every time it changes.
@@ -590,7 +658,7 @@ The hierarchy of roles is established as:
 
 `Super Admin` > `Organizations Admin` > `Groups Admin` > `User`
 
-The `home` button is just the viewer and it is available to all the roles. The descendent order implicates that the role below is of higher rank, for example a `Super Admin` can manage the same information as the `Organizations Admin`, but not otherwise.
+The `home` button is just the viewer and it is available to all the roles. Inside a group, its members are Viewer, Editor or Admin: see [Permissions](#permissions). The descendent order implicates that the role below is of higher rank, for example a `Super Admin` can manage the same information as the `Organizations Admin`, but not otherwise.
 
 The following picture illustrates the information that can be accessed by the different roles.
  <br/><br/>

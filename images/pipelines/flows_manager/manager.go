@@ -533,6 +533,33 @@ func (fm *FlowsManager) GetDbReadPool() *pgxpool.Pool {
 	return fm.DBReadPool
 }
 
+// the roles of the users in the groups, for a minute (CanOperateGroup)
+type groupRoleEntry struct {
+	role string
+	at   time.Time
+}
+
+var groupRoles sync.Map // "<groupId>/<login>" -> groupRoleEntry
+
+const groupRoleTTL = time.Minute
+
+func (fm *FlowsManager) CanOperateGroup(ctx context.Context, groupId int, login string) (bool, error) {
+	key := strconv.Itoa(groupId) + "/" + login
+	if e, ok := groupRoles.Load(key); ok && time.Since(e.(groupRoleEntry).at) < groupRoleTTL {
+		role := e.(groupRoleEntry).role
+		return role == "Editor" || role == "Admin", nil
+	}
+	if fm.Admin == nil {
+		return false, fmt.Errorf("the platform administration is not available")
+	}
+	role, err := fm.Admin.GetGroupRole(ctx, groupId, login)
+	if err != nil {
+		return false, err
+	}
+	groupRoles.Store(key, groupRoleEntry{role: role, at: time.Now()})
+	return role == "Editor" || role == "Admin", nil
+}
+
 func (fm *FlowsManager) GetTelegramApprover(ctx context.Context, groupId int, telegramUserId int64) (string, error) {
 	if fm.Admin == nil {
 		return "", fmt.Errorf("the platform administration is not available")

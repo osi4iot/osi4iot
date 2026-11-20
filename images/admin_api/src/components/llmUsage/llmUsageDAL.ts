@@ -462,3 +462,127 @@ export const getUsageTrend = async (orgId: number): Promise<IUsageTrendMonth[]> 
 		bySource: m.bySource.sort((a, b) => tokens(b) - tokens(a)),
 	}));
 };
+
+// ── The monthly token limit of each group (README, "Permissions") ───────────────────────────────────────────────
+// Set by the administrator of its organization (0: none). Unlike the organization's limit, which only warns, a
+// group that reaches its limit is blocked until the month ends: pipelines refuses its LLM operations (AI agents,
+// translations, transcriptions, voices). The warning percentage is the organization's.
+
+export interface IGroupTokenStatus {
+	groupId: number;
+	orgId: number;
+	month: string; // YYYY-MM (UTC)
+	monthTokens: number;
+	monthlyTokenLimit: number; // 0: no limit
+	warningPercent: number;
+	blocked: boolean;
+	// set when this batch crossed a threshold not notified yet this month
+	notify: "warning" | "limit" | null;
+}
+
+// Groups of older versions: the columns of the limit (every replica, before serving)
+export const ensureGroupTokenLimitColumns = async (): Promise<void> => {
+	await pool.query(
+		`ALTER TABLE grafanadb.group ADD COLUMN IF NOT EXISTS llm_monthly_token_limit BIGINT NOT NULL DEFAULT 0,
+		ADD COLUMN IF NOT EXISTS llm_token_notified VARCHAR(20) NOT NULL DEFAULT ''`
+	);
+};
+
+const monthTokensByGroup = async (groupIds: number[]): Promise<Map<number, number>> => {
+	if (groupIds.length === 0) return new Map();
+	const totals = await timescaledb_pool.query(
+		`SELECT group_id, COALESCE(SUM(input_tokens + output_tokens), 0) AS tokens
+		 FROM iot_data.llm_usage
+		 WHERE group_id = ANY($1::bigint[]) AND created_at >= ${MONTH_START_SQL}
+		 GROUP BY group_id;`,
+		[groupIds]
+	);
+	return new Map<number, number>(totals.rows.map((row) => [Number(row.group_id), Number(row.tokens)]));
+};
+
+// The status of the groups with a limit among groupIds (all the groups with a limit when groupIds is null), and
+// the thresholds crossed now (notified once per month, the groups' rows locked as for the organizations)
+export const updateGroupTokenStatus = async (groupIds: number[] | null): Promise<IGroupTokenStatus[]> => {
+	if (groupIds !== null && groupIds.length === 0) return [];
+	const month = monthOf();
+	const client = await pool.connect();
+	try {
+		await client.query("BEGIN");
+		const groups = await client.query(
+			`SELECT g.id, g.org_id, g.llm_monthly_token_limit, g.llm_token_notified, o.llm_token_warning_percent
+			 FROM grafanadb.group g INNER JOIN grafanadb.org o ON o.id = g.org_id
+			 WHERE g.llm_monthly_token_limit > 0 AND ($1::bigint[] IS NULL OR g.id = ANY($1::bigint[]))
+			 FOR UPDATE OF g;`,
+			[groupIds]
+		);
+		const ids = groups.rows.map((row) => Number(row.id));
+		const tokens = await monthTokensByGroup(ids);
+		const status: IGroupTokenStatus[] = [];
+		for (const group of groups.rows) {
+			const groupId = Number(group.id);
+			const monthTokens = tokens.get(groupId) ?? 0;
+			const limit = Number(group.llm_monthly_token_limit) || 0;
+			const warningPercent = Number(group.llm_token_warning_percent) || 80;
+			const [notifiedMonth, notifiedLevel] = String(group.llm_token_notified || "").split(":");
+			const levelThisMonth = notifiedMonth === month ? notifiedLevel : "";
+			let notify: IGroupTokenStatus["notify"] = null;
+			if (monthTokens >= limit && levelThisMonth !== "limit") notify = "limit";
+			else if (monthTokens >= (limit * warningPercent) / 100 && monthTokens < limit && levelThisMonth === "") notify = "warning";
+			if (notify) {
+				await client.query("UPDATE grafanadb.group SET llm_token_notified = $1 WHERE id = $2;", [`${month}:${notify}`, groupId]);
+			}
+			status.push({
+				groupId,
+				orgId: Number(group.org_id),
+				month,
+				monthTokens,
+				monthlyTokenLimit: limit,
+				warningPercent,
+				blocked: monthTokens >= limit,
+				notify,
+			});
+		}
+		await client.query("COMMIT");
+		return status;
+	} catch (error) {
+		await client.query("ROLLBACK").catch((): undefined => undefined);
+		throw error;
+	} finally {
+		client.release();
+	}
+};
+
+export interface IGroupTokenUsage {
+	groupId: number;
+	name: string;
+	acronym: string;
+	monthTokens: number;
+	monthlyTokenLimit: number;
+}
+
+// The groups of an organization with their tokens this month and their limits (or one group)
+export const getGroupsTokenUsage = async (orgId: number, groupId?: number): Promise<IGroupTokenUsage[]> => {
+	const groups = await readQuery(
+		`SELECT id, name, acronym, llm_monthly_token_limit FROM grafanadb.group
+		 WHERE org_id = $1 AND ($2::bigint IS NULL OR id = $2) ORDER BY name;`,
+		[orgId, groupId ?? null]
+	);
+	const ids = groups.rows.map((row) => Number(row.id));
+	const tokens = await monthTokensByGroup(ids);
+	return groups.rows.map((row) => ({
+		groupId: Number(row.id),
+		name: String(row.name),
+		acronym: String(row.acronym),
+		monthTokens: tokens.get(Number(row.id)) ?? 0,
+		monthlyTokenLimit: Number(row.llm_monthly_token_limit) || 0,
+	}));
+};
+
+// A new limit is notified again when it is crossed: the month's notification is cleared
+export const updateGroupTokenLimit = async (orgId: number, groupId: number, monthlyTokenLimit: number): Promise<boolean> => {
+	const result = await pool.query(
+		`UPDATE grafanadb.group SET llm_monthly_token_limit = $1, llm_token_notified = '' WHERE id = $2 AND org_id = $3;`,
+		[monthlyTokenLimit, groupId, orgId]
+	);
+	return (result.rowCount ?? 0) > 0;
+};

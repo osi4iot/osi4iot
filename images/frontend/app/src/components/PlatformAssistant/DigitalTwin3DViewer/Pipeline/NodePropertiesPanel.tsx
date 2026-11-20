@@ -161,6 +161,8 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
     const [listenTopicsRef, setListenTopicsRef] = useState<string[]>([]);
     const [publishTopicsRef, setPublishTopicsRef] = useState<string[]>([]);
     const [dev2pdbTopicsRef, setDev2pdbTopicsRef] = useState<string[]>([]);
+    // the topics of the computed sensors of the asset (dtm2pdb_n): where an IoTDB node stores what the pipeline computes
+    const [dtm2pdbTopicsRef, setDtm2pdbTopicsRef] = useState<string[]>([]);
     // Device topics of the asset (dev2dtm_n, dtm2dev_n) and the digital twin's own topics to publish to
     const [dev2dtmTopicsRef, setDev2dtmTopicsRef] = useState<string[]>([]);
     const [dtm2devTopicsRef, setDtm2devTopicsRef] = useState<string[]>([]);
@@ -298,6 +300,7 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
         setListenTopicsRef(listenTopics);
         setPublishTopicsRef([...assetTopics.dev2pdb, ...assetTopics.dev2dtm, ...assetTopics.dtm2dev, ...dtPublishTopics]);
         setDev2pdbTopicsRef(assetTopics.dev2pdb);
+        setDtm2pdbTopicsRef(assetTopics.dtm2pdb);
         setDev2dtmTopicsRef(assetTopics.dev2dtm);
         setDtm2devTopicsRef(assetTopics.dtm2dev);
         setDtPublishTopicsRef(dtPublishTopics);
@@ -1068,6 +1071,20 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                                     />
                                 </FormGroup>
                                 <FormGroup>
+                                    <Label>Image model</Label>
+                                    <LlmModelSelect
+                                        groupId={digitalTwinSelected.groupId}
+                                        value={formData.imageModel || ""}
+                                        onChange={(model) => handleInputChange("imageModel", model)}
+                                        emptyLabel="Default (gpt-5-mini; gemini-2.5-flash with Google)"
+                                    />
+                                    <div style={{ color: "#9a9a9a", fontSize: 11, marginTop: 4 }}>
+                                        Reads once the images attached to the chat (it needs vision): it transcribes
+                                        text and formulas for the agent. A cheap model is enough. Images are read only if
+                                        the group has chat attachments enabled.
+                                    </div>
+                                </FormGroup>
+                                <FormGroup>
                                     <Label>Temperature</Label>
                                     <Input
                                         type="number"
@@ -1332,11 +1349,24 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                                                         handleInputChange("insertTopicRef", e.target.value)
                                                     }
                                                 >
-                                                    {dev2pdbTopicsRef.map((topic) => (
-                                                        <option key={topic} value={topic}>
-                                                            {topic}
-                                                        </option>
-                                                    ))}
+                                                    {dev2pdbTopicsRef.length > 0 && (
+                                                        <optgroup label="Sensors of the asset (dev2pdb)">
+                                                            {dev2pdbTopicsRef.map((topic) => (
+                                                                <option key={topic} value={topic}>
+                                                                    {topic}
+                                                                </option>
+                                                            ))}
+                                                        </optgroup>
+                                                    )}
+                                                    {dtm2pdbTopicsRef.length > 0 && (
+                                                        <optgroup label="Computed sensors of the asset (dtm2pdb)">
+                                                            {dtm2pdbTopicsRef.map((topic) => (
+                                                                <option key={topic} value={topic}>
+                                                                    {topic}
+                                                                </option>
+                                                            ))}
+                                                        </optgroup>
+                                                    )}
                                                 </Select>
                                             </FormGroup>
                                         )}
@@ -1697,7 +1727,9 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                     type={nodeType}
                     formData={formData}
                     onChange={handleInputChange}
-                    topicRefs={Array.from(new Set([...dev2pdbTopicsRef, ...dev2dtmTopicsRef, ...dtm2devTopicsRef, ...listenTopicsRef]))}
+                    topicRefs={Array.from(
+                        new Set([...dev2pdbTopicsRef, ...dtm2pdbTopicsRef, ...dev2dtmTopicsRef, ...dtm2devTopicsRef, ...listenTopicsRef]),
+                    )}
                 />
             );
         }
@@ -2312,4 +2344,3 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
 };
 
 export default NodePropertiesPanel;
-

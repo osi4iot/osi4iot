@@ -3,11 +3,13 @@ package docker
 import (
 	"context"
 	"fmt"
+	"net"
 	"net/http"
 	"os"
 	"slices"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/docker/docker/client"
 	pt "github.com/osi4iot/osi4iot/utils/osi4iot/internals/types"
@@ -16,6 +18,43 @@ import (
 
 var once sync.Once
 var sshPrivKeyTempFile *os.File
+
+// sshReachTimeout is how long a node has to accept a TCP connection on its
+// SSH port before it is taken as unreachable.
+//
+// The Docker client of a remote node is lazy: creating it opens no
+// connection, so a node that is down (an EC2 instance stopped to save
+// money, say) used to look fine here and only failed later, deep inside
+// whatever command was running, after ssh's own 30 s ConnectTimeout —
+// once per call. Probing the port up front lets SetDockerClientsMap store
+// nil for it, which every command already understands as "unreachable":
+// `stop`, `run`, `status`… go on with the other nodes, and only the
+// commands that need every node (init, delete) refuse.
+var sshReachTimeout = 5 * time.Second
+
+// nodeReachable reports whether the node accepts a TCP connection on its
+// SSH port.
+func nodeReachable(ip string) error {
+	conn, err := net.DialTimeout("tcp", net.JoinHostPort(ip, "22"), sshReachTimeout)
+	if err != nil {
+		return fmt.Errorf("node %s is unreachable (its SSH port did not answer in %s; is the machine stopped?): %v",
+			ip, sshReachTimeout, err)
+	}
+	_ = conn.Close()
+	return nil
+}
+
+// UnreachableNodes are the IPs of the nodes SetDockerClientsMap could not
+// reach, in the order of NodesData.
+func UnreachableNodes(platformData *pt.PlatformData) []string {
+	var ips []string
+	for _, node := range platformData.PlatformInfo.NodesData {
+		if dc, ok := pt.DCMap[node.NodeIP]; ok && dc == nil {
+			ips = append(ips, node.NodeIP)
+		}
+	}
+	return ips
+}
 
 func getNodeDockerClient(node pt.NodeData, deploymentLocation string, sshPrivKeyTempFile *os.File) (*pt.DockerClient, error) {
 	var cli *client.Client
@@ -35,6 +74,9 @@ func getNodeDockerClient(node pt.NodeData, deploymentLocation string, sshPrivKey
 			return nil, fmt.Errorf("error creating docker client in node %s: %v", node.NodeIP, err)
 		}
 	} else if deploymentLocation == "On-premise cluster deployment" || deploymentLocation == "AWS cluster deployment" {
+		if err := nodeReachable(node.NodeIP); err != nil {
+			return nil, err
+		}
 		daemonUrl := fmt.Sprintf("ssh://%s@%s:22", node.NodeUserName, node.NodeIP)
 		helper, err := getConnectionHelper(daemonUrl, sshPrivKeyTempFile)
 		if err != nil {
@@ -194,7 +236,10 @@ func CheckDockerClientsMap(DCMap map[string]*pt.DockerClient, action string) err
 		}
 	}
 
-	if action == "init" {
+	// init builds the Swarm and the volumes on every node, and delete
+	// removes them from every node: a node left out would keep the
+	// previous platform's volumes, which a later init would find.
+	if action == "init" || action == "delete" {
 		if existNilMap {
 			return fmt.Errorf("error")
 		}

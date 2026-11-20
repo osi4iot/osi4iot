@@ -21,7 +21,7 @@ import containerMetricsDashboard from './defaultDashboards/containerMetricsDashb
 import volumeMetricsDashboard from './defaultDashboards/volumeMetricsDashboard.json';
 import walArchiverMetricsDashboard from './defaultDashboards/walArchiverMetricsDashboard.json';
 import systemMonitoringDashboard from './defaultDashboards/systemMonitoringDashboard.json';
-import { toMeasurements } from "../../utils/measurements/measurements";
+import { MeasurementItem, measurementItems, toMeasurements } from "../../utils/measurements/measurements";
 
 
 // A dashboard of a group's folder, written straight into Grafana's
@@ -274,6 +274,17 @@ export const createSystemMonitoringDashboard = async (group: IGroup,  dashboardT
 	return dashboardCreated.id as number;
 };
 
+// The value of a measurement in the SQL of its Grafana dashboard: the path as a text[] literal (the levels of a path
+// have no quotes or backslashes: utils/measurements), a number, a boolean as 1 / 0, a text as it is
+const grafanaValueSql = (item: MeasurementItem): string => {
+	const path = `'{${item.path.map((s) => `"${s}"`).join(",")}}'`;
+	if (item.type === "string") return `payload #>> ${path}`;
+	if (item.type === "boolean") {
+		return `CASE payload #>> ${path} WHEN 'true' THEN 1 WHEN 'false' THEN 0 END`;
+	}
+	return `CAST(payload #>> ${path} AS DOUBLE PRECISION)`;
+};
+
 export const createSensorDashboard = async (
 	group: IGroup,
 	sensorData: Partial<CreateSensorDto>,
@@ -298,37 +309,12 @@ export const createSensorDashboard = async (
 		measurements = toMeasurements(sensorType.defaultMeasurements);
 	}
 
-	let units = "-";
-	const keys = Object.keys(measurements);
-	if (keys.length === 1) {
-		const payloadKey = keys[0];
-		const { type: keyType, label: paramLabel } = measurements[payloadKey];
-		units = measurements[payloadKey].units;
-		if (keyType === "number") {
-			rawSql = `SELECT timestamp AS \"time\", CAST(payload->>'${payloadKey}' AS DOUBLE PRECISION) AS \"${paramLabel}\" FROM  iot_datasource.${tableHash} WHERE topic = '${topicString}' AND $__timeFilter(timestamp) ORDER BY time DESC;`;
-		} else if (keyType === "array") {
-			const itemLabels = paramLabel.split(",");
-			rawSql = `SELECT timestamp AS \"time\",`;
-			for (let i = 0; i < itemLabels.length; i++) {
-				rawSql = `${rawSql} CAST(payload->'${payloadKey}'->>${i} AS DOUBLE PRECISION) AS "${itemLabels[i]}"`;
-				if (i < itemLabels.length - 1) {
-					rawSql = `${rawSql},`;
-				}
-			}
-			rawSql = `${rawSql} FROM  iot_datasource.${tableHash} WHERE topic = '${topicString}' AND $__timeFilter(timestamp) ORDER BY time DESC;`;
-		}
-	} else if (keys.length > 1) {
-		rawSql = `SELECT timestamp AS \"time\",`;
-		units = measurements[keys[0]].units;
-		for (let i = 0; i < keys.length; i++) {
-			const payloadKey = keys[i];
-			const paramLabel = measurements[keys[i]].label;
-			rawSql = `${rawSql} CAST(payload->>'${payloadKey}' AS DOUBLE PRECISION) AS "${paramLabel}"`;
-			if (i < keys.length - 1) {
-				rawSql = `${rawSql},`;
-			}
-		}
-		rawSql = `${rawSql} FROM  iot_datasource.${tableHash} WHERE topic = '${topicString}' AND $__timeFilter(timestamp) ORDER BY time DESC;`;
+	// one column per value (an array: one per item), at its path in the message (dotted key or JSON Pointer)
+	const items = Object.keys(measurements).flatMap((key) => measurementItems(key, measurements[key]));
+	const units = items[0]?.units ?? "-";
+	if (items.length > 0) {
+		const columns = items.map((item) => `${grafanaValueSql(item)} AS "${item.label.replace(/"/g, '""')}"`);
+		rawSql = `SELECT timestamp AS \"time\", ${columns.join(", ")} FROM  iot_datasource.${tableHash} WHERE topic = '${topicString}' AND $__timeFilter(timestamp) ORDER BY time DESC;`;
 	}
 
 	dashboard.panels[0].title = `${sensorData.description} (${units})`;

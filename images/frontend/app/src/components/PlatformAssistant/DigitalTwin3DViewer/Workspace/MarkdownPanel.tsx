@@ -394,3 +394,6 @@ export const MarkdownEditor: FC<MarkdownEditorProps> = ({ panel, store, topics, 
         </Backdrop>
     );
 };
+
+// the parts of the editor's window, for the other panel editors that look the same (the 3D Surface)
+export const EditorParts = { Backdrop, Dialog, Head, Body, Column, Preview, Help, Actions, Secondary, Primary, Close };

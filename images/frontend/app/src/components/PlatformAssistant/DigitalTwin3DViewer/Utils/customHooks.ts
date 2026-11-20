@@ -6,6 +6,7 @@ import {
 import { createFrameStore } from "../Workspace/frameStore";
 // hooks.ts
 import { sanitizeTranslation } from "../ChatAssitant/chatLanguages";
+import { sanitizeAttachments } from "../ChatAssitant/chatAttachments";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { reloadTable } from "../../../../state";
 import YAML from "yaml";
@@ -582,11 +583,14 @@ export const usePipelineState = (
         [digitalTwinSelected],
     );
 
+    // on the user's copy of sim2state, where every member of the group may publish (a Viewer may not publish on
+    // the group's topic itself: README, "Permissions"); the answer comes on dtm2sim, as before
     const queryPipelineStatus = useCallback(() => {
         if (digitalTwinSelected && digitalTwinSelected.pipelineFileData !== "" && natsClient && sim2stateTopic !== "") {
-            natsClient.publish(sim2stateTopic, JSON.stringify({ action: "queryPipelineStatus" }));
+            const subject = userName ? natsUserChatSubject(userName, sim2stateTopic) : sim2stateTopic;
+            natsClient.publish(subject, JSON.stringify({ action: "queryPipelineStatus" }));
         }
-    }, [digitalTwinSelected, natsClient, sim2stateTopic]);
+    }, [digitalTwinSelected, natsClient, sim2stateTopic, userName]);
 
     const queryChatMessages = useCallback(() => {
         if (
@@ -641,6 +645,7 @@ export const usePipelineState = (
                 } catch (e) {}
                 msg.charts = sanitizeCharts(msg.charts);
                 msg.translation = sanitizeTranslation(msg.translation);
+                msg.attachments = sanitizeAttachments(msg.attachments);
                 for (const c of msg.charts) {
                     if (c.data === "" && c.id) missing.push(c.id);
                 }

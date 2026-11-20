@@ -48,9 +48,10 @@ func UserSubjectToken(username string) string {
 const UserChatSubjectPrefix = "user"
 
 // userChatTopicTypes are the topics with a per-user copy. "approval" too:
-// the decisions on the requests of the Approval nodes, which pipelines takes
-// from administrators of the group only (the users get NATS permissions only
-// for the groups they administer, see GetGroupsManagedByUser).
+// the decisions on the requests of the Approval nodes and the presses of the
+// alarm buttons, which pipelines takes from the editors and administrators of
+// the group only (a Viewer may only publish to these copies, see
+// User.GetPermissions; pipelines checks its role before a decision).
 var userChatTopicTypes = []string{"sim2llm", "sim2state", "approval"}
 
 // UserChatSubjects are the per-user copies of the chat subjects among

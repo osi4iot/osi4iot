@@ -208,6 +208,8 @@ export interface ChatMessage {
     translation?: { language: string; translatedLanguage: string; message: string };
     // pregunta llegada por un canal del chat: "mobile", "telegram"
     via?: string;
+    // imágenes adjuntas a la pregunta (en el bucket; ChatAssitant/chatAttachments.ts)
+    attachments?: { file: string; name: string; mimeType: string; size: number }[];
 }
 
 export interface IPipelineNode {

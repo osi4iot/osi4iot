@@ -9,7 +9,7 @@
 import { Router, NextFunction, Response } from "express";
 import IController from "../../interfaces/controller.interface";
 import digitalTwinAndGroupExist from "../../middleware/digitalTwinAndGroupExist.middleware";
-import { groupAdminAuth } from "../../middleware/auth.middleware";
+import { groupViewerAuth, groupEditorAuth } from "../../middleware/auth.middleware";
 import IRequestWithDigitalTwinAndGroup from "../group/interfaces/requestWithDigitalTwinAndGroup.interface";
 import HttpException from "../../exceptions/HttpException";
 import { deleteViewerLayout, getViewerLayout, saveViewerLayout } from "./viewerLayoutDAL";
@@ -28,9 +28,9 @@ class ViewerLayoutController implements IController {
 
 	private initializeRoutes(): void {
 		this.router
-			.get(`${this.path}/:groupId/:digitalTwinId`, digitalTwinAndGroupExist, groupAdminAuth, this.getLayout)
-			.put(`${this.path}/:groupId/:digitalTwinId`, digitalTwinAndGroupExist, groupAdminAuth, this.saveLayout)
-			.delete(`${this.path}/:groupId/:digitalTwinId`, digitalTwinAndGroupExist, groupAdminAuth, this.deleteLayout);
+			.get(`${this.path}/:groupId/:digitalTwinId`, digitalTwinAndGroupExist, groupViewerAuth, this.getLayout)
+			.put(`${this.path}/:groupId/:digitalTwinId`, digitalTwinAndGroupExist, groupEditorAuth, this.saveLayout)
+			.delete(`${this.path}/:groupId/:digitalTwinId`, digitalTwinAndGroupExist, groupEditorAuth, this.deleteLayout);
 	}
 
 	// the twin must belong to the group of the URL

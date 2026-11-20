@@ -227,8 +227,8 @@ const findBounds = (buildings: IBuilding[], assetsWithMarker: IAsset[]) => {
 const HOME_TABLES: TableName[] = [
     "buildings",
     "floors",
-    "orgsOfGroupsManaged",
-    "groupsManaged",
+    "orgsOfGroupsViewable",
+    "groupsViewable",
     "assetTypes",
     "assets",
     "sensorTypes",
@@ -254,8 +254,9 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
     // ---- datos del servidor (TanStack Query, compartidos con el resto de capas)
     const buildingsTable = useTable("buildings");
     const floorsTable = useTable("floors");
-    const orgsOfGroupsManagedTable = useTable("orgsOfGroupsManaged");
-    const groupsManagedTable = useTable("groupsManaged");
+    // every group the user is a member of, whatever its role (the group admin layer: only those it manages)
+    const orgsOfGroupsManagedTable = useTable("orgsOfGroupsViewable");
+    const groupsManagedTable = useTable("groupsViewable");
     const assetTypesTable = useTable("assetTypes");
     const assetsTable = useTable("assets");
     const sensorTypesTable = useTable("sensorTypes");
@@ -344,8 +345,8 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 
     const refreshBuildings = useCallback(() => reloadTable("buildings"), []);
     const refreshFloors = useCallback(() => reloadTable("floors"), []);
-    const refreshOrgsOfGroupsManaged = useCallback(() => reloadTable("orgsOfGroupsManaged"), []);
-    const refreshGroupsManaged = useCallback(() => reloadTable("groupsManaged"), []);
+    const refreshOrgsOfGroupsManaged = useCallback(() => reloadTable("orgsOfGroupsViewable"), []);
+    const refreshGroupsManaged = useCallback(() => reloadTable("groupsViewable"), []);
     const refreshAssetTypes = useCallback(() => reloadTable("assetTypes"), []);
     const refreshAssets = useCallback(() => reloadTable("assets"), []);
     const refreshAssetsWithMarker = useCallback(() => reloadTable("lastGeolocations"), []);

@@ -25,7 +25,7 @@ describe("viewer configuration in the viewer", () => {
         expect(onDownloadConfig).toHaveBeenCalled();
         const input = screen.getByTestId("viewer-config-file") as HTMLInputElement;
         fireEvent.change(input, { target: { files: [new File([file], "oc4.json", { type: "application/json" })] } });
-        await waitFor(() => expect(onLoadConfig).toHaveBeenCalledWith("oc4.json", file));
+        await waitFor(() => expect(onLoadConfig).toHaveBeenCalledWith(expect.objectContaining({ name: "oc4.json" })));
 
         rerender(<WorkspaceControls visible canSave={false} origin="group" onEdit={vi.fn()} onRestore={vi.fn()} onDownloadConfig={onDownloadConfig} onLoadConfig={onLoadConfig} />);
         fireEvent.click(screen.getByRole("button", { name: "Viewer configuration" }));
@@ -46,5 +46,28 @@ describe("viewer configuration in the viewer", () => {
         render(<ViewerConfigDialog fileName="x.json" result={parseViewerConfig("[]")} refWarnings={[]} onLoad={vi.fn()} onClose={vi.fn()} />);
         expect(screen.getByRole("alert")).toHaveTextContent("This is not a viewer configuration");
         expect(screen.queryByRole("button", { name: "Load" })).not.toBeInTheDocument();
+    });
+
+    it("tells what the images of a .zip do and what to check", () => {
+        render(
+            <ViewerConfigDialog
+                fileName="oc4.zip"
+                result={parseViewerConfig(file)}
+                refWarnings={["A Picture panel shows plan.png, which is neither in the zip nor in the twin."]}
+                images={{ summary: "2 images (0.40 MB)", count: 2, replaces: ["status.svg"], ignored: ["notes.txt: not a configuration or an image"] }}
+                onLoad={vi.fn()}
+                onClose={vi.fn()}
+            />,
+        );
+        expect(screen.getByTestId("viewer-config-images")).toHaveTextContent("With 2 images (0.40 MB): the Picture panels show them at once");
+        expect(screen.getByText("3 things to check")).toBeInTheDocument();
+        expect(screen.getByText("It replaces the twin's image with the same name: status.svg.")).toBeInTheDocument();
+        expect(screen.getByText("Left out of the zip: notes.txt: not a configuration or an image.")).toBeInTheDocument();
+    });
+
+    it("downloads a .zip when the layout has images", () => {
+        render(<WorkspaceControls visible canSave origin="group" onEdit={vi.fn()} onRestore={vi.fn()} onDownloadConfig={vi.fn()} downloadImages={3} />);
+        fireEvent.click(screen.getByRole("button", { name: "Viewer configuration" }));
+        expect(screen.getByRole("menuitem", { name: /Download \(\.zip\)/ })).toHaveTextContent("its 3 images");
     });
 });

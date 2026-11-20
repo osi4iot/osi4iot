@@ -73,6 +73,7 @@ import { createHandlers } from "../Utils/handlers";
 import { useAuthDispatch, useAuthState } from "../../../../contexts/authContext";
 import { useLoggedUserLogin } from "../../../../contexts/authContext/authContext";
 import { natsUserChatSubject } from "../../../../tools/natsInbox";
+import { useMediaQuery } from "../../../../tools/useMediaQuery";
 import { viewerContents } from "../Utils/viewerContents";
 import PipelineErrorBoundary from "../Pipeline/PipelineErrorBoundary";
 import { forgetViewer, getViewerMemory, rememberViewer } from "../../../../state/viewerMemoryStore";
@@ -95,6 +96,8 @@ import TimePicker from "../Workspace/charts/TimePicker";
 import { DEFAULT_PAGE_TIME, PageTime, RefreshClock, TimeRange, createRefreshClock, isLive, refreshMs, resolveRange } from "../Workspace/charts/timeRange";
 import HistoryPanel, { HistoryActions } from "../Workspace/HistoryPanel";
 import { historyPanelApi } from "../Workspace/historyPanelsApi";
+import AssetStatePanel, { AssetStateEditor } from "../Workspace/AssetStatePanel";
+import { assetStateApi } from "../Workspace/assetStateApi";
 import { chartSeriesOptions } from "../Workspace/chartSeries";
 import { fetchTimeSeries, TimeSeriesQuery } from "../Workspace/timeSeriesApi";
 import WorkspaceControls, { SoundToggle } from "../Workspace/WorkspaceControls";
@@ -123,6 +126,7 @@ import {
     stepSlide,
     updateSlide,
     visibleSlides,
+    WORKSPACE_PHONE_BELOW,
 } from "../Workspace/workspaceLayout";
 import SlideBar from "../Workspace/SlideBar";
 import AllSlides from "../Workspace/AllSlides";
@@ -131,7 +135,26 @@ import { acknowledgeAlarms, describeAlarmError, resetAlarms, shelveAlarms } from
 import { approvalSubject, decideApprovalRequest, describeApprovalError } from "../Pipeline/approvalRequests";
 import { MarkdownEditor, MarkdownView } from "../Workspace/MarkdownPanel";
 import { PictureEditor, PictureFiles, PictureView } from "../Workspace/PicturePanel";
-import { deleteViewerImage, listViewerImages, loadViewerImage, onViewerImageChange, uploadViewerImage } from "../Workspace/viewerImagesApi";
+import {
+    deleteViewerImage,
+    isPendingViewerImage,
+    listViewerImages,
+    loadViewerImage,
+    onViewerImageChange,
+    setPendingViewerImages,
+    uploadViewerImage,
+    uploadViewerImages,
+    viewerImageBytes,
+} from "../Workspace/viewerImagesApi";
+import {
+    PackageImage,
+    describePackageImages,
+    downloadViewerPackage,
+    isZipName,
+    layoutImageNames,
+    packageImageWarnings,
+    readViewerPackage,
+} from "../Workspace/viewerPackage";
 import { createLiveValueStore, liveTopicRefs, liveTopicsOf, topicRefsOf, useLiveValues } from "../Workspace/liveValues";
 import {
     ParsedViewerConfig,
@@ -140,14 +163,23 @@ import {
     downloadViewerConfig,
     parseViewerConfig,
     viewerConfigFileName,
+    viewerConfigText,
 } from "../Workspace/viewerConfig";
 import ModelSlot, { createModelHost } from "../Workspace/ModelSlot";
+import { SurfaceView } from "../Workspace/surface/SurfacePanel";
+import { SurfaceEditor } from "../Workspace/surface/SurfaceEditor";
+import { surfaceTopics } from "../Workspace/surface/surfacePanel";
 import {
     SavedViewerLayout,
     deleteViewerLayout,
     fetchViewerLayout,
     saveViewerLayout,
 } from "../Workspace/viewerLayoutApi";
+import {
+    ChatAttachmentService,
+    fetchChatAttachmentsConfig,
+    makeChatAttachmentService,
+} from "../ChatAssitant/chatAttachments";
 import useNatsSubscription from "../NatsHook/useNatsSubcription";
 import { filterNatsSubject } from "../NatsHook/tools";
 import useDeviceImages from "../NatsHook/useDeviceImages";
@@ -223,6 +255,9 @@ const PageClock: FC<{ clock: RefreshClock; time: PageTime; children: (range: Tim
     return <>{children(range, tick)}</>;
 };
 
+// below this height (CSS pixels) the Viewer page scrolls: a phone held sideways
+const VIEWER_LOW_SCREEN_BELOW = 520;
+
 const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
     digitalTwinSelected,
     digitalTwinGltfData,
@@ -294,6 +329,8 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
         rememberViewer(dtUid, { workspaceTime: localTime ?? undefined });
     }, [dtUid, localTime]);
     const chatTabSelected = chatEnabled && state.isChatAssistantOpen;
+    // a phone held upright: the assistant panel covers the viewer, so it has a button to go back to it
+    const narrowScreen = useMediaQuery(`(max-width: ${WORKSPACE_PHONE_BELOW - 1}px)`);
     // the assistant panel: in the Viewer with the 3D model always; in the Viewer with only the image and in the
     // pipeline of a twin without viewer, only with the chat
     const assistantPanelShown =
@@ -343,12 +380,14 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
         }
         return info;
     }, [sensorsTable, digitalTwinSelected?.assetId]);
-    const orgsOfGroupsManagedTable = useTable("orgsOfGroupsManaged");
+    // the group and organization of the twin: among all those the user is a member of (a Viewer manages none)
+    const groupsViewableTable = useTable("groupsViewable");
+    const orgsOfGroupsManagedTable = useTable("orgsOfGroupsViewable");
     const dtGroup = useMemo(() => {
         const groupId = digitalTwinSelected?.groupId;
         if (groupSelected && (groupId === undefined || groupSelected.id === groupId)) return groupSelected;
-        return groupsManagedTable.find((group) => group.id === groupId) ?? groupSelected ?? null;
-    }, [groupSelected, groupsManagedTable, digitalTwinSelected?.groupId]);
+        return groupsViewableTable.find((group) => group.id === groupId) ?? groupSelected ?? null;
+    }, [groupSelected, groupsViewableTable, digitalTwinSelected?.groupId]);
     const dtOrg = useMemo(() => {
         const orgId = dtGroup?.orgId;
         if (orgSelected && (orgId === undefined || orgSelected.id === orgId)) return orgSelected;
@@ -861,11 +900,13 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
                     // timeZone: the AI agent writes the times in the user's zone (the
                     // group's when the question comes without it, e.g. from Telegram)
                     // viewer: what the 3D viewer holds, so that the AI agent names it exactly in uiOpts
+                    // attachments: only the references of the images (they are in the bucket, chatAttachments.ts)
                     const messageToSend = JSON.stringify({
                         userName: chatMessages[chatMessages.length - 1].userName,
                         message: chatMessages[chatMessages.length - 1].message,
                         timeZone: userTimeZone,
                         viewer: viewerContentsRef.current,
+                        ...(lastMessage.attachments?.length ? { attachments: lastMessage.attachments } : {}),
                     });
                     const h = headers();
                     h.set("Content-Type", "application/json");
@@ -941,7 +982,8 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
                 return;
             }
             const text = (newMessage.message ?? "").trim();
-            if (text === "") return;
+            // una foto enviada a Telegram puede venir sin texto
+            if (text === "" && !newMessage.attachments?.length) return;
             const author = newMessage.userName || loggedUserNameRef.current;
             setChatMessages((prev) => [
                 ...prev,
@@ -954,6 +996,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
                     source: "pipeline",
                     // canal por el que llegó (móvil, Telegram)
                     ...(newMessage.via ? { via: newMessage.via } : {}),
+                    ...(newMessage.attachments?.length ? { attachments: newMessage.attachments } : {}),
                 },
             ]);
             if (author === loggedUserNameRef.current) openChatTabRef.current();
@@ -1060,22 +1103,68 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
     const viewerRightInset = assistantPanelShown ? assistantPanelWidth + 2 * VIEWER_GAP : VIEWER_GAP;
     const panelsTop = VIEWER_GAP + Math.round(topBarHeight) + VIEWER_GAP;
     const inViewer = state.activeViewer === "3D";
+    // A low screen (a phone held sideways): the bars above the panels would leave them no room, so the viewer
+    // is made taller than the screen and the page scrolls. Its height lets the panels fill the whole visible area
+    // once the bars have scrolled out of sight.
+    const lowScreen = useMediaQuery(`(max-height: ${VIEWER_LOW_SCREEN_BELOW - 1}px)`);
+    const [scrollMinHeight, setScrollMinHeight] = useState<number | undefined>(undefined);
+    useEffect(() => {
+        const page = canvasContainerRef.current?.parentElement;
+        if (!lowScreen || !inViewer || !page) {
+            setScrollMinHeight(undefined);
+            return;
+        }
+        const update = () => setScrollMinHeight(Math.round(page.clientHeight + panelsTop - VIEWER_GAP));
+        update();
+        if (typeof ResizeObserver === "undefined") return;
+        const observer = new ResizeObserver(update);
+        observer.observe(page);
+        return () => observer.disconnect();
+    }, [lowScreen, inViewer, panelsTop, canvasContainerRef]);
     const [savedLayout, setSavedLayout] = useState<SavedViewerLayout | null>(null);
     const [draftLayout, setDraftLayout] = useState<WorkspaceLayout | null>(null);
     const [layoutSaving, setLayoutSaving] = useState(false);
     // a viewer configuration file being loaded (its dialog), and the lighting it brought while the layout is
     // edited: "Save for the group" saves it for the twin, Cancel puts back the one before
-    const [configLoad, setConfigLoad] = useState<{ fileName: string; result: ParsedViewerConfig | { error: string } } | null>(null);
+    // a configuration file being loaded: a .zip also brings images (and the twin's own, to tell which it replaces)
+    const [configLoad, setConfigLoad] = useState<{
+        fileName: string;
+        result: ParsedViewerConfig | { error: string };
+        images?: PackageImage[];
+        ignored?: string[];
+        twinImages?: string[] | null;
+    } | null>(null);
+    // the images of a .zip loaded and not saved yet: the Picture panels show them; saving uploads them
+    const [pendingImages, setPendingImages] = useState<PackageImage[] | null>(null);
     const [configLighting, setConfigLighting] = useState<{ before: LightingOptions } | null>(null);
     const [workspacePhone, setWorkspacePhone] = useState(false);
     const [maximizeFirstImage, setMaximizeFirstImage] = useState(false);
-    // group administrators save the layout for the whole group; the others change it only for themselves
+    // the editors and administrators of the group (README, "Permissions") save the layout for the whole group, act on
+    // the alarms and requests and edit the pipeline; the viewers change the layout only for themselves
     const canSaveLayout =
         !!digitalTwinSelected && groupsManagedTable.some((group) => group.id === digitalTwinSelected.groupId);
     const layoutAuth = useMemo(
         () => ({ accessToken, refreshToken, authDispatch }),
         [accessToken, refreshToken, authDispatch],
     );
+    // adjuntos del chat: si el grupo los permite se pueden enviar imágenes; las de los mensajes se ven siempre
+    const [chatAttachmentService, setChatAttachmentService] = useState<ChatAttachmentService | null>(null);
+    const chatAttachmentsGroupId = digitalTwinSelected?.groupId;
+    const chatAttachmentsDtId = digitalTwinSelected?.id;
+    useEffect(() => {
+        setChatAttachmentService(null);
+        if (!chatEnabled || chatAttachmentsGroupId === undefined || chatAttachmentsDtId === undefined) return;
+        let cancelled = false;
+        fetchChatAttachmentsConfig(chatAttachmentsGroupId, chatAttachmentsDtId, layoutAuth).then((config) => {
+            if (cancelled || !config) return;
+            setChatAttachmentService(
+                makeChatAttachmentService(chatAttachmentsGroupId, chatAttachmentsDtId, config, layoutAuth),
+            );
+        });
+        return () => {
+            cancelled = true;
+        };
+    }, [chatEnabled, chatAttachmentsGroupId, chatAttachmentsDtId, layoutAuth]);
     useEffect(() => {
         if (!digitalTwinSelected) return;
         let cancelled = false;
@@ -1137,6 +1226,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
         [sensorsTable, sensorTypesTable, digitalTwinSelected?.assetId],
     );
     const historyApi = useMemo(() => historyPanelApi(layoutAuth), [layoutAuth]);
+    const loadAssetState = useMemo(() => assetStateApi(layoutAuth), [layoutAuth]);
     // the group's administrators manage the alarms and requests from their panels, by the pipeline (as the
     // Alarms and Approvals pages: on the twin's approval subject, as the user)
     const historyActions = useMemo<HistoryActions | undefined>(() => {
@@ -1158,7 +1248,9 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
         };
     }, [canSaveLayout, natsClient, loggedUserName, digitalTwinGltfData?.natsSubjectsData]);
     // the viewer configuration (.json): the layout shown (the one being edited, if any) and the lighting shown
-    const downloadConfig = () => {
+    // with the images of its Picture panels, a .zip
+    const configImageNames = useMemo(() => layoutImageNames(workspaceLayout), [workspaceLayout]);
+    const downloadConfig = async () => {
         const now = new Date();
         const config = buildViewerConfig({
             layout: workspaceLayout,
@@ -1167,11 +1259,53 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
             description: digitalTwinSelected?.description,
             now,
         });
-        downloadViewerConfig(config, viewerConfigFileName(digitalTwinSelected?.digitalTwinUid, now));
+        const fileName = viewerConfigFileName(digitalTwinSelected?.digitalTwinUid, now);
+        if (configImageNames.length === 0 || !digitalTwinSelected) {
+            downloadViewerConfig(config, fileName);
+            return;
+        }
+        const images: PackageImage[] = [];
+        const missing: string[] = [];
+        for (const name of configImageNames) {
+            const data = await viewerImageBytes(digitalTwinSelected.groupId, digitalTwinSelected.id, name, layoutAuth);
+            if (data) images.push({ fileName: name, data });
+            else missing.push(name);
+        }
+        if (missing.length > 0) toast.warning(`Images not found, left out of the zip: ${missing.join(", ")}`);
+        downloadViewerPackage(fileName, viewerConfigText(config), images);
+    };
+    // a file chosen to load: a .json, or a .zip with the configuration and its images
+    const openConfigFile = async (file: File) => {
+        if (!isZipName(file.name)) {
+            setConfigLoad({ fileName: file.name, result: parseViewerConfig(await file.text()) });
+            return;
+        }
+        const read = readViewerPackage(new Uint8Array(await file.arrayBuffer()));
+        if ("error" in read) {
+            setConfigLoad({ fileName: file.name, result: read });
+            return;
+        }
+        const load = { fileName: file.name, result: parseViewerConfig(read.configText), images: read.images, ignored: read.ignored, twinImages: null };
+        setConfigLoad(load);
+        if (digitalTwinSelected && read.images.length > 0) {
+            const twinImages = (await listViewerImages(digitalTwinSelected.groupId, digitalTwinSelected.id, layoutAuth)).map((image) => image.fileName);
+            setConfigLoad((current) => (current === load || current?.images === read.images ? { ...current, twinImages } : current));
+        }
+    };
+    // the images of a .zip not saved: back to the twin's
+    const dropPendingImages = () => {
+        if (!pendingImages || !digitalTwinSelected) return;
+        void setPendingViewerImages(digitalTwinSelected.groupId, digitalTwinSelected.id, null);
+        setPendingImages(null);
     };
     const loadConfig = () => {
         if (!configLoad || "error" in configLoad.result) return;
         const { layout, lighting } = configLoad.result;
+        if (digitalTwinSelected) {
+            const images = configLoad.images ?? [];
+            void setPendingViewerImages(digitalTwinSelected.groupId, digitalTwinSelected.id, images.length > 0 ? images : null);
+            setPendingImages(images.length > 0 ? images : null);
+        }
         setMaximizedPanel(null);
         setDraftLayout(layout ?? shownLayout);
         if (layout) setSlideId(layout.slides[0]?.id ?? null);
@@ -1182,6 +1316,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
         setConfigLoad(null);
     };
     const cancelLayoutEdit = () => {
+        dropPendingImages();
         if (configLighting) {
             const { before } = configLighting;
             setOpts((prev) => ({ ...prev, ...before }));
@@ -1231,11 +1366,12 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
     const viewerSound = useViewerSounds(liveStore, twinLiveTopics.includes(SOUND_TOPIC));
     const shownLiveTopics = useMemo(() => {
         const sounds = soundTopics(viewerSound.enabled, twinLiveTopics);
-        if (editingPanel?.type === "markdown" || editingPanel?.type === "picture") return twinLiveTopics;
+        if (editingPanel?.type === "markdown" || editingPanel?.type === "picture" || editingPanel?.type === "surface") return twinLiveTopics;
         const panels = workspaceLayout.slides.flatMap((slide) => slide.panels);
         const texts = panels.filter((p) => p.type === "markdown").map((p) => p.text ?? "");
         const animated = panels.flatMap((p) => (p.type === "picture" ? (p.bindings ?? []).map((b) => b.topicRef) : []));
-        return Array.from(new Set([...topicRefsOf(texts), ...animated, ...sounds])).sort();
+        const surfaces = panels.flatMap((p) => (p.type === "surface" ? surfaceTopics(p.surface) : []));
+        return Array.from(new Set([...topicRefsOf(texts), ...animated, ...surfaces, ...sounds])).sort();
     }, [editingPanel?.type, twinLiveTopics, workspaceLayout, viewerSound.enabled]);
     // the images of the Picture panels: files of the twin
     const pictureFiles = useMemo<PictureFiles | undefined>(() => {
@@ -1271,6 +1407,20 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
     const saveLayoutForGroup = async () => {
         if (!digitalTwinSelected || !draftLayout) return;
         setLayoutSaving(true);
+        // the images of a .zip first, so that the layout finds them (not those uploaded since by hand, under the
+        // same name, from a Picture panel)
+        if (pendingImages) {
+            const { groupId, id } = digitalTwinSelected;
+            const stillPending = pendingImages.filter((image) => isPendingViewerImage(groupId, id, image.fileName));
+            const failed = await uploadViewerImages(groupId, id, stillPending, layoutAuth);
+            if (failed.length > 0) {
+                toast.error(`Images not uploaded: ${failed.join(", ")}. The layout is not saved.`);
+                setLayoutSaving(false);
+                return;
+            }
+            void setPendingViewerImages(digitalTwinSelected.groupId, digitalTwinSelected.id, null);
+            setPendingImages(null);
+        }
         const saved = await saveViewerLayout(digitalTwinSelected.groupId, digitalTwinSelected.id, draftLayout, layoutAuth);
         // the lighting of a configuration file loaded, with the layout
         if (saved && configLighting) {
@@ -1297,7 +1447,8 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
     };
     // administrators: back to the automatic layout for the group; the others: back to the group's layout
     const restoreLayout = async () => {
-        // the lighting of a configuration file not saved goes back too
+        // the lighting and the images of a configuration file not saved go back too
+        dropPendingImages();
         if (configLighting) {
             const { before } = configLighting;
             setOpts((prev) => ({ ...prev, ...before }));
@@ -1657,7 +1808,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
                 />
             )}
 
-            <CanvasContainer ref={canvasContainerRef}>
+            <CanvasContainer ref={canvasContainerRef} style={scrollMinHeight ? { minHeight: scrollMinHeight } : undefined}>
                 <ViewerWorkspace
                     layout={currentSlide}
                     origin={layoutOrigin}
@@ -1743,6 +1894,16 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
                                     actions={historyActions}
                                 />
                             ) : null
+                        ) : panel.type === "assetState" ? (
+                            digitalTwinSelected ? (
+                                <AssetStatePanel
+                                    panel={panel}
+                                    groupId={digitalTwinSelected.groupId}
+                                    digitalTwinId={digitalTwinSelected.id}
+                                    load={loadAssetState}
+                                    paused={!inViewer || editingPanelId !== null}
+                                />
+                            ) : null
                         ) : panel.type === "chart" ? (
                             digitalTwinSelected ? (
                                 <PageClock clock={refreshClock} time={pageTime}>
@@ -1763,6 +1924,8 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
                             <PictureView file={panel.file} fit={panel.fit} bindings={panel.bindings} store={liveStore} load={pictureFiles?.load} subscribe={pictureFiles?.subscribe} />
                         ) : panel.type === "markdown" ? (
                             <MarkdownView text={panel.text ?? ""} store={liveStore} />
+                        ) : panel.type === "surface" ? (
+                            <SurfaceView surface={panel.surface} store={liveStore} label={panel.title ?? "3D Surface"} />
                         ) : panel.type === "image" ? (
                             <ImageFrame frameStore={frameStore} source={panel.source ?? ANY_IMAGE_SOURCE} mode={panel.display === "photo" ? "photo" : "video"} />
                         ) : viewerHasModel ? (
@@ -1836,8 +1999,9 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
                             origin={layoutOrigin}
                             onEdit={startLayoutEdit}
                             onRestore={restoreLayout}
-                            onDownloadConfig={downloadConfig}
-                            onLoadConfig={(fileName, text) => setConfigLoad({ fileName, result: parseViewerConfig(text) })}
+                            onDownloadConfig={() => void downloadConfig()}
+                            downloadImages={configImageNames.length}
+                            onLoadConfig={(file) => void openConfigFile(file)}
                         />
                         </>
                     }
@@ -1850,6 +2014,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
                     viewerAvailable={viewerAvailable}
                     viewerHasModel={viewerHasModel}
                     onHeightChange={setTopBarHeight}
+                    canEditPipeline={canSaveLayout || !viewerAvailable}
                 />
 
                 {configLoad && (
@@ -1859,12 +2024,29 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
                         refWarnings={
                             "error" in configLoad.result || !configLoad.result.layout
                                 ? []
-                                : checkViewerConfigRefs(configLoad.result.layout, {
-                                      series: chartOptions,
-                                      imageSources: (digitalTwinGltfData?.natsSubjectsData ?? [])
-                                          .map((data) => data.topicRef)
-                                          .filter((ref) => DEVICE_IMAGE_SOURCE.test(ref)),
-                                  })
+                                : [
+                                      ...checkViewerConfigRefs(configLoad.result.layout, {
+                                          series: chartOptions,
+                                          imageSources: (digitalTwinGltfData?.natsSubjectsData ?? [])
+                                              .map((data) => data.topicRef)
+                                              .filter((ref) => DEVICE_IMAGE_SOURCE.test(ref)),
+                                      }),
+                                      ...(configLoad.images
+                                          ? packageImageWarnings(configLoad.result.layout, configLoad.images, configLoad.twinImages ?? null).missing.map(
+                                                (name) => `A Picture panel shows ${name}, which is neither in the zip nor in the twin.`,
+                                            )
+                                          : []),
+                                  ]
+                        }
+                        images={
+                            configLoad.images && !("error" in configLoad.result)
+                                ? {
+                                      summary: describePackageImages(configLoad.images),
+                                      count: configLoad.images.length,
+                                      replaces: packageImageWarnings(configLoad.result.layout, configLoad.images, configLoad.twinImages ?? null).replaces,
+                                      ignored: configLoad.ignored ?? [],
+                                  }
+                                : undefined
                         }
                         onLoad={loadConfig}
                         onClose={() => setConfigLoad(null)}
@@ -1903,6 +2085,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
                                     chatAssistantVoiceLanguage={digitalTwinSelected.chatAssistantVoiceLanguage}
                                     handleRemoveChatAssistantHistory={handleRemoveChatAssistantHistory}
                                     voiceService={chatVoiceService}
+                                    attachmentService={chatAttachmentService}
                                 />
                             ) : undefined
                         }
@@ -1912,6 +2095,11 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
                         chatOnly={state.activeViewer !== "3D" || !viewerHasModel}
                         width={assistantPanelWidth}
                         onResizeWidth={chatEnabled ? setChatWidth : undefined}
+                        onBackToViewer={
+                            narrowScreen
+                                ? () => setState((prev) => ({ ...prev, isAssistantPanelOpen: false }))
+                                : undefined
+                        }
                         simulatorFloating={state.showDtSimulatorModal}
                         onFloatSimulator={handlers.handleOpenSimulator}
                         onDockSimulator={handlers.handleDockSimulator}
@@ -1955,6 +2143,25 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
                         onDiscard={() => setEditingPanelId(null)}
                     />
                 )}
+                {editingPanel?.type === "surface" && (
+                    <SurfaceEditor
+                        panel={editingPanel}
+                        store={liveStore}
+                        topics={liveTopics}
+                        onApply={applyPanel}
+                        onDiscard={() => setEditingPanelId(null)}
+                    />
+                )}
+                {editingPanel?.type === "assetState" && digitalTwinSelected && (
+                    <AssetStateEditor
+                        panel={editingPanel}
+                        groupId={digitalTwinSelected.groupId}
+                        digitalTwinId={digitalTwinSelected.id}
+                        load={loadAssetState}
+                        onApply={applyPanel}
+                        onDiscard={() => setEditingPanelId(null)}
+                    />
+                )}
                 {editingPanel?.type === "markdown" && (
                     <MarkdownEditor
                         panel={editingPanel}
@@ -1987,4 +2194,3 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 };
 
 export default DigitalTwin3DViewer;
-

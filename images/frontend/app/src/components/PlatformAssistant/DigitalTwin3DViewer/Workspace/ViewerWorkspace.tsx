@@ -4,13 +4,15 @@
 // page shows one panel at a time, chosen with tabs.
 //
 // Every panel stays mounted (the 3D model is never rebuilt, images keep painting): a full page panel covers
-// the others, which are only hidden.
+// the others, which are only hidden. A panel can also go full screen (the Fullscreen API: on Android it hides
+// the browser and the status bar too); where the browser does not allow it (Safari on the iPhone) the panel covers
+// the page instead.
 import { CSSProperties, FC, ReactNode, useEffect, useId, useRef, useState } from "react";
 import styled, { css } from "styled-components";
 import { scrollbarStyle } from "../../../Tools/FormTools";
 import GridLayout from "react-grid-layout";
 import "react-grid-layout/css/styles.css";
-import { BellRing, Box, ChartBar, FileImage, FileText, Image as ImageIcon, Video, ChartColumn, ChartColumnBig, ChartGantt, ChartLine, ChartPie, ClipboardCheck, Gauge, Hash, Table2, GripVertical, Info, Maximize2, Minimize2, Pencil, Plus, X } from "lucide-react";
+import { Activity, Axis3d, BellRing, Box, ChartBar, FileImage, FileText, Image as ImageIcon, Video, ChartColumn, ChartColumnBig, ChartGantt, ChartLine, ChartPie, ClipboardCheck, Gauge, Hash, Table2, GripVertical, Info, Maximize, Maximize2, Minimize, Minimize2, Pencil, Plus, X } from "lucide-react";
 import { ChartSeriesOption, defaultChartTitle } from "./chartSeries";
 import { PanelLinks } from "./charts/Links";
 import ImageSourceField from "./ImageSourceField";
@@ -93,9 +95,21 @@ const Scroller = styled.div<{ $locked: boolean }>`
         visibility: hidden;
         pointer-events: none;
     }
+    /* full screen where the browser has no Fullscreen API (iPhone): the panel covers the page */
+    .react-grid-item.ws-fs {
+        position: fixed !important;
+        inset: 0 !important;
+        transform: none !important;
+        width: 100vw !important;
+        height: 100vh !important;
+        height: 100dvh !important;
+        z-index: 3000;
+        transition: none;
+    }
 `;
 
-const Panel = styled.section<{ $editing: boolean }>`
+const Panel = styled.section<{ $editing: boolean; $fullscreen?: boolean }>`
+    position: relative;
     box-sizing: border-box;
     display: flex;
     flex-direction: column;
@@ -103,6 +117,41 @@ const Panel = styled.section<{ $editing: boolean }>`
     border: 1px solid ${({ $editing }) => ($editing ? "#34537f" : "#262a2f")};
     border-radius: 12px;
     overflow: hidden;
+    ${({ $fullscreen }) =>
+        $fullscreen &&
+        css`
+            border: none;
+            border-radius: 0;
+        `}
+`;
+
+// to leave the full screen: always visible over the panel, in a corner
+const ExitFullscreenButton = styled.button`
+    position: absolute;
+    top: max(10px, env(safe-area-inset-top));
+    right: max(10px, env(safe-area-inset-right));
+    z-index: 10;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border: none;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.55);
+    color: #fff;
+    cursor: pointer;
+
+    &:hover,
+    &:focus-visible {
+        background: rgba(0, 0, 0, 0.75);
+    }
+
+    svg {
+        width: 20px;
+        height: 20px;
+    }
 `;
 
 const PanelBar = styled.div<{ $editing: boolean }>`
@@ -460,6 +509,8 @@ interface AddPanelDialogProps {
     // the alarms and approvals panels (one of each on a page)
     canAddAlarms?: boolean;
     canAddApprovals?: boolean;
+    // the asset state panel (one on a page)
+    canAddAssetState?: boolean;
     sources: ImageSourceOption[];
     // the fields of the asset's sensors a chart can show
     chartOptions: ChartSeriesOption[];
@@ -524,12 +575,13 @@ const Hint = styled.p`
 `;
 
 // the Image panels are two choices: video (live, with pause) and photo (the last one)
-type DialogType = "model" | "video" | "photo" | "picture" | "chart" | "markdown" | "alarms" | "approvals";
+type DialogType = "model" | "video" | "photo" | "picture" | "chart" | "markdown" | "surface" | "alarms" | "approvals" | "assetState";
 
 export const AddPanelDialog: FC<AddPanelDialogProps> = ({
     canAddModel,
     canAddAlarms = true,
     canAddApprovals = true,
+    canAddAssetState = true,
     sources,
     chartOptions,
     onAdd,
@@ -561,6 +613,7 @@ export const AddPanelDialog: FC<AddPanelDialogProps> = ({
         },
         { value: "picture" as const, label: "Picture", hint: "An image of the twin; an SVG can move with live values", icon: <FileImage />, disabled: false },
         { value: "markdown" as const, label: "Text", hint: "Markdown, LaTeX formulas and live values", icon: <FileText />, disabled: false },
+        { value: "surface" as const, label: "3D Surface", hint: "z = f(x, y) of a formula with live parameters, or a grid of values", icon: <Axis3d />, disabled: false },
         {
             value: "alarms" as const,
             label: "Alarms",
@@ -575,18 +628,27 @@ export const AddPanelDialog: FC<AddPanelDialogProps> = ({
             icon: <ClipboardCheck />,
             disabled: !canAddApprovals,
         },
+        {
+            value: "assetState" as const,
+            label: "Asset state",
+            hint: canAddAssetState ? "Status and fields of the asset now" : "Already on the page",
+            icon: <Activity />,
+            disabled: !canAddAssetState,
+        },
     ];
     const canSubmit =
         type === "model"
             ? canAddModel
             : type === "chart"
               ? chosen.length > 0
-              : type === "markdown" || type === "picture"
+              : type === "markdown" || type === "picture" || type === "surface"
                 ? true
                 : type === "alarms"
                 ? canAddAlarms
                 : type === "approvals"
                   ? canAddApprovals
+                  : type === "assetState"
+                  ? canAddAssetState
                   : sourceOk;
     const toggle = (key: string) =>
         setChosen((list) =>
@@ -603,8 +665,12 @@ export const AddPanelDialog: FC<AddPanelDialogProps> = ({
                   ? "Text"
                   : type === "picture"
                   ? "Picture"
+                  : type === "surface"
+                  ? "3D Surface"
                   : type === "alarms"
                   ? "Alarms"
+                  : type === "assetState"
+                  ? "Asset state"
                   : "Approvals";
     return (
         <Backdrop
@@ -676,12 +742,19 @@ export const AddPanelDialog: FC<AddPanelDialogProps> = ({
                     </div>
                 )}
                 {type === "picture" && <Hint>The picture opens in its editor: choose or upload an image (JPEG, PNG, WebP, GIF or SVG) and, for an SVG, animate its elements with the values of the NATS messages.</Hint>}
+                {type === "surface" && <Hint>The 3D Surface opens in its editor: a formula z = f(x, y) whose parameters can be fixed or values of the NATS messages, or a grid of values that a message carries (e.g. computed by the pipeline).</Hint>}
                 {type === "markdown" && <Hint>The text opens in its editor: markdown, LaTeX formulas ($…$) and values of the NATS messages as they arrive ({"{{dtm2sim.rotorRpm}}"}).</Hint>}
                 {(type === "alarms" || type === "approvals") && (
                     <Hint>
                         {type === "alarms"
                             ? "The alarms of this digital twin that are not normal now, and its latest alarm events (from the alarm history)."
                             : "The approval requests of this digital twin that wait for a decision, and the latest decisions (from the approval history)."}
+                    </Hint>
+                )}
+                {type === "assetState" && (
+                    <Hint>
+                        The current state of this digital twin's asset, as the pipelines write it (Asset state, Alarm and Machine state nodes): its
+                        status, description, alarms and machines. Edit the panel to show fields of the state and colour other statuses.
                     </Hint>
                 )}
                 {type === "chart" && (
@@ -784,10 +857,14 @@ const panelIcon = (panel: WorkspacePanel) =>
         <BellRing aria-hidden="true" />
     ) : panel.type === "approvals" ? (
         <ClipboardCheck aria-hidden="true" />
+    ) : panel.type === "assetState" ? (
+        <Activity aria-hidden="true" />
     ) : panel.type === "markdown" ? (
         <FileText aria-hidden="true" />
     ) : panel.type === "picture" ? (
         <FileImage aria-hidden="true" />
+    ) : panel.type === "surface" ? (
+        <Axis3d aria-hidden="true" />
     ) : panel.type === "chart" ? (
         panel.viz === "stat" ? (
             <Hash aria-hidden="true" />
@@ -865,6 +942,38 @@ const ViewerWorkspace: FC<ViewerWorkspaceProps> = ({
         onPhoneChange?.(phone);
     }, [phone, onPhoneChange]);
 
+    // the panel in full screen: with the Fullscreen API ("native") or covering the page
+    const [fullscreen, setFullscreen] = useState<{ id: string; native: boolean } | null>(null);
+    const panelElements = useRef(new Map<string, HTMLElement>());
+    const enterFullscreen = (id: string) => {
+        const el = panelElements.current.get(id);
+        if (el && document.fullscreenEnabled && typeof el.requestFullscreen === "function") {
+            setFullscreen({ id, native: true });
+            el.requestFullscreen({ navigationUI: "hide" }).catch(() => setFullscreen({ id, native: false }));
+        } else {
+            setFullscreen({ id, native: false });
+        }
+    };
+    const exitFullscreen = () => {
+        if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+        setFullscreen(null);
+    };
+    useEffect(() => {
+        // left with the system (Android's back gesture, Esc): the panel goes back to its place
+        const onChange = () => {
+            if (!document.fullscreenElement) setFullscreen((prev) => (prev?.native ? null : prev));
+        };
+        const onKey = (e: KeyboardEvent) => {
+            if (e.key === "Escape") setFullscreen((prev) => (prev && !prev.native ? null : prev));
+        };
+        document.addEventListener("fullscreenchange", onChange);
+        document.addEventListener("keydown", onKey);
+        return () => {
+            document.removeEventListener("fullscreenchange", onChange);
+            document.removeEventListener("keydown", onKey);
+        };
+    }, []);
+
     const panels = layout.panels;
     const activePhonePanel = phone ? panels.find((p) => p.id === phoneTab) ?? panels[0] ?? null : null;
     const fullId = phone ? activePhonePanel?.id ?? null : panels.some((p) => p.id === maximizedId) ? maximizedId : null;
@@ -882,7 +991,7 @@ const ViewerWorkspace: FC<ViewerWorkspaceProps> = ({
         const next = addPanel(layout, spec);
         onLayoutChange(next);
         // a new chart goes straight to the panel editor
-        if ((spec.type === "chart" || spec.type === "markdown" || spec.type === "picture") && next !== layout) onEditPanel?.(next.panels[next.panels.length - 1].id);
+        if ((spec.type === "chart" || spec.type === "markdown" || spec.type === "picture" || spec.type === "surface") && next !== layout) onEditPanel?.(next.panels[next.panels.length - 1].id);
     };
 
     const openAdd = () => {
@@ -988,7 +1097,11 @@ const ViewerWorkspace: FC<ViewerWorkspaceProps> = ({
                     >
                         {panels.map((panel) => {
                             const isFull = fullId === panel.id;
-                            const className = fullId ? (isFull ? "ws-max" : "ws-hidden") : undefined;
+                            const isFullscreen = fullscreen?.id === panel.id;
+                            const className =
+                                [fullId ? (isFull ? "ws-max" : "ws-hidden") : "", isFullscreen && !fullscreen?.native ? "ws-fs" : ""]
+                                    .filter(Boolean)
+                                    .join(" ") || undefined;
                             return (
                                 <div key={panel.id} className={className} aria-hidden={fullId && !isFull ? true : undefined}>
                                     <WorkspacePanelView
@@ -997,10 +1110,16 @@ const ViewerWorkspace: FC<ViewerWorkspaceProps> = ({
                                         isFull={isFull}
                                         phone={phone}
                                         meta={panelMeta?.(panel)}
+                                        isFullscreen={isFullscreen}
+                                        panelRef={(el) => {
+                                            if (el) panelElements.current.set(panel.id, el);
+                                            else panelElements.current.delete(panel.id);
+                                        }}
+                                        onFullscreen={() => (isFullscreen ? exitFullscreen() : enterFullscreen(panel.id))}
                                         onMaximize={() => onMaximize(isFull ? null : panel.id)}
                                         onRemove={() => onLayoutChange(removePanel(layout, panel.id))}
                                         onRename={(title) => onLayoutChange(renamePanel(layout, panel.id, title))}
-                                        onEdit={(panel.type === "chart" || panel.type === "markdown" || panel.type === "picture") && onEditPanel && !phone ? () => onEditPanel(panel.id) : undefined}
+                                        onEdit={(panel.type === "chart" || panel.type === "markdown" || panel.type === "picture" || panel.type === "surface" || panel.type === "assetState") && onEditPanel && !phone ? () => onEditPanel(panel.id) : undefined}
                                         source={
                                             editable && panel.type === "image" ? (
                                                 <SourceRow>
@@ -1039,6 +1158,7 @@ const ViewerWorkspace: FC<ViewerWorkspaceProps> = ({
                     canAddModel={canAddModelPanel(layout, hasModel)}
                     canAddAlarms={canAddPanelType(layout, "alarms", hasModel)}
                     canAddApprovals={canAddPanelType(layout, "approvals", hasModel)}
+                    canAddAssetState={canAddPanelType(layout, "assetState", hasModel)}
                     sources={imageSources}
                     chartOptions={chartOptions}
                     onAdd={addFromDialog}
@@ -1056,6 +1176,10 @@ interface WorkspacePanelViewProps {
     isFull: boolean;
     phone: boolean;
     meta?: ReactNode;
+    // full screen: the panel's element (for the Fullscreen API), whether it is, and the button
+    isFullscreen?: boolean;
+    panelRef?: (el: HTMLElement | null) => void;
+    onFullscreen?: () => void;
     onMaximize: () => void;
     onRemove: () => void;
     onRename: (title: string) => void;
@@ -1071,6 +1195,9 @@ const WorkspacePanelView: FC<WorkspacePanelViewProps> = ({
     isFull,
     phone,
     meta,
+    isFullscreen = false,
+    panelRef,
+    onFullscreen,
     onMaximize,
     onRemove,
     onRename,
@@ -1083,10 +1210,19 @@ const WorkspacePanelView: FC<WorkspacePanelViewProps> = ({
         panel.type === "image" && panel.title ? imageSourceLabel(panel.source) : null;
     return (
         <Panel
+            ref={panelRef}
             $editing={editing}
+            $fullscreen={isFullscreen}
             aria-label={title}
-            style={{ height: "100%", ...(panel.options?.transparent === true && !editing ? { background: "transparent", borderColor: "transparent" } : {}) }}
+            style={{ height: "100%", ...(panel.options?.transparent === true && !editing && !isFullscreen ? { background: "transparent", borderColor: "transparent" } : {}) }}
         >
+            {isFullscreen && onFullscreen && (
+                <ExitFullscreenButton type="button" aria-label="Exit full screen" title="Exit full screen" onClick={onFullscreen}>
+                    <Minimize aria-hidden="true" />
+                </ExitFullscreenButton>
+            )}
+            {/* in full screen, all the screen for the panel: its bar comes back when it leaves */}
+            {!isFullscreen && (
             <PanelBar $editing={editing} className="ws-drag-handle">
                 {editing && <GripVertical aria-hidden="true" />}
                 {panelIcon(panel)}
@@ -1132,6 +1268,17 @@ const WorkspacePanelView: FC<WorkspacePanelViewProps> = ({
                         {isFull ? <Minimize2 aria-hidden="true" /> : <Maximize2 aria-hidden="true" />}
                     </IconButton>
                 )}
+                {!editing && onFullscreen && (
+                    <IconButton
+                        type="button"
+                        className="ws-no-drag"
+                        aria-label={`Show ${title} full screen`}
+                        title="Full screen"
+                        onClick={onFullscreen}
+                    >
+                        <Maximize aria-hidden="true" />
+                    </IconButton>
+                )}
                 {editing && (
                     <IconButton
                         type="button"
@@ -1144,6 +1291,7 @@ const WorkspacePanelView: FC<WorkspacePanelViewProps> = ({
                     </IconButton>
                 )}
             </PanelBar>
+            )}
             {source && <SourceStrip className="ws-no-drag">{source}</SourceStrip>}
             <PanelBody>{children}</PanelBody>
         </Panel>

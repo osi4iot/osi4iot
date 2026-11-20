@@ -49,6 +49,8 @@ export interface NavSection {
     option: string;
     label: string;
     icon: LucideIcon;
+    // only for the administrators of a group, not for its editors (README, "Permissions")
+    adminOnly?: boolean;
 }
 
 export interface NavLayer {
@@ -100,17 +102,17 @@ export const NAV_LAYERS: NavLayer[] = [
         roles: ["GroupAdmin", "OrgAdmin", "PlatformAdmin"],
         sections: [
             { option: GROUP_ADMIN_OPTIONS.GROUPS_MANAGED, label: "Groups managed", icon: UsersRound },
-            { option: GROUP_ADMIN_OPTIONS.GROUP_MEMBERS, label: "Group members", icon: UserPlus },
+            { option: GROUP_ADMIN_OPTIONS.GROUP_MEMBERS, label: "Group members", icon: UserPlus , adminOnly: true },
             { option: GROUP_ADMIN_OPTIONS.ASSETS, label: "Assets", icon: Package },
             { option: GROUP_ADMIN_OPTIONS.SENSORS, label: "Sensors", icon: Cpu },
             { option: GROUP_ADMIN_OPTIONS.TOPICS, label: "Topics", icon: Rss },
             { option: GROUP_ADMIN_OPTIONS.MEASUREMENTS, label: "Measurements", icon: ChartLine },
-            { option: GROUP_ADMIN_OPTIONS.S3_STORAGE, label: "S3 storage", icon: HardDrive },
+            { option: GROUP_ADMIN_OPTIONS.S3_STORAGE, label: "S3 storage", icon: HardDrive , adminOnly: true },
             { option: GROUP_ADMIN_OPTIONS.DASHBOARDS, label: "Dashboards", icon: LayoutDashboard },
             { option: GROUP_ADMIN_OPTIONS.DIGITAL_TWINS, label: "Digital twins", icon: Box },
-            { option: GROUP_ADMIN_OPTIONS.KNOWLEDGE, label: "Knowledge", icon: BookOpenText },
+            { option: GROUP_ADMIN_OPTIONS.KNOWLEDGE, label: "Knowledge", icon: BookOpenText , adminOnly: true },
             { option: GROUP_ADMIN_OPTIONS.SKILLS, label: "Skills", icon: Sparkles },
-            { option: GROUP_ADMIN_OPTIONS.ML_MODELS, label: "ML models", icon: BrainCircuit },
+            { option: GROUP_ADMIN_OPTIONS.ML_MODELS, label: "ML models", icon: BrainCircuit , adminOnly: true },
             { option: GROUP_ADMIN_OPTIONS.ALARM_HISTORY, label: "Alarm history", icon: BellRing },
             { option: GROUP_ADMIN_OPTIONS.APPROVAL_HISTORY, label: "Approval history", icon: ClipboardCheck },
         ],

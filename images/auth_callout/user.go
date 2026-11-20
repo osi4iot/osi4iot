@@ -95,7 +95,26 @@ func (u *User) GetPermissions(authModel *AuthModel, group *Group, svc *Service) 
 			MaxMsgs: 1,
 		}
 
-		for _, g := range groupsManaged {
+		// The roles in a group (README, "Permissions"): an Admin (group,
+		// organization or platform administrator) and an Editor get the whole
+		// permissions of the group; a Viewer subscribes to its topics and only
+		// publishes to its own copies of the chat topics (questions to the
+		// agent, the chat's history, the list of the alarms and requests:
+		// pipelines refuses a Viewer's decisions on them).
+		editors, err := authModel.GetSQLGroupsOfMemberWithRole(u, []int{2})
+		if err != nil {
+			slog.Error("Error getting the groups the user edits: no permissions", "username", u.Username, "error", err)
+			return defaultPermissions
+		}
+		viewers, err := authModel.GetSQLGroupsOfMemberWithRole(u, []int{0, 1})
+		if err != nil {
+			slog.Error("Error getting the groups the user views: no permissions", "username", u.Username, "error", err)
+			return defaultPermissions
+		}
+		full := uniqueGroups(append(append([]Group{}, groupsManaged...), editors...))
+		fullIDs := make(map[int64]bool, len(full))
+		for _, g := range full {
+			fullIDs[g.ID] = true
 			groupPermissions := g.GroupPermissions(authModel)
 			pubSubjetArray = append(pubSubjetArray, groupPermissions.Pub.Allow...)
 			subSubjectArray = append(subSubjectArray, groupPermissions.Sub.Allow...)
@@ -107,6 +126,17 @@ func (u *User) GetPermissions(authModel *AuthModel, group *Group, svc *Service) 
 		// the same restrictions as the topics
 		pubSubjetArray = append(pubSubjetArray, UserChatSubjects(u.Username, pubSubjetArray)...)
 		denyPub = append(denyPub, UserChatSubjects(u.Username, denyPub)...)
+
+		for _, g := range uniqueGroups(viewers) {
+			if fullIDs[g.ID] {
+				continue
+			}
+			groupPermissions := g.GroupPermissions(authModel)
+			subSubjectArray = append(subSubjectArray, groupPermissions.Sub.Allow...)
+			denySub = append(denySub, groupPermissions.Sub.Deny...)
+			pubSubjetArray = append(pubSubjetArray, UserChatSubjects(u.Username, groupPermissions.Pub.Allow)...)
+			denyPub = append(denyPub, UserChatSubjects(u.Username, groupPermissions.Pub.Deny)...)
+		}
 
 		if len(pubSubjetArray) == 0 {
 			denyPub = append(denyPub, ">")

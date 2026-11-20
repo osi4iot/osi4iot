@@ -58,6 +58,9 @@ type Group struct {
 	LlmEnabled                    bool   `json:"llmEnabled"`
 	GpuUsageEnabled               bool   `json:"gpuUsageEnabled"`
 	RagEnabled                    bool   `json:"ragEnabled"`
+	// ChatAttachmentsEnabled: the files attached to the chat of the group's digital twins may be sent to the
+	// organization's LLM provider (off by default; see ChatAttachmentsAllowed)
+	ChatAttachmentsEnabled bool `json:"chatAttachmentsEnabled"`
 	// Timezone is the group's IANA time zone ("" not set: UTC), for the
 	// AI agents' times when the user's own is not known.
 	Timezone string `json:"timezone"`
@@ -71,6 +74,13 @@ type Group struct {
 // (either flag off, or org/group unknown) means CPU.
 func GpuUsageAllowed(org *Org, group *Group) bool {
 	return org != nil && group != nil && org.GpuUsageEnabled && group.GpuUsageEnabled
+}
+
+// ChatAttachmentsAllowed: the files attached to a chat (photos of the phone, Telegram...) may be sent to the
+// LLM provider only if the LLM is enabled for the organization and the group AND the group administrator
+// allowed the attachments (photos of people or internal documents may have to stay in the platform).
+func ChatAttachmentsAllowed(org *Org, group *Group) bool {
+	return org != nil && group != nil && org.LlmEnabled && group.LlmEnabled && group.ChatAttachmentsEnabled
 }
 
 // RagAllowed is the knowledge bases' policy, like the GPU's: a group has

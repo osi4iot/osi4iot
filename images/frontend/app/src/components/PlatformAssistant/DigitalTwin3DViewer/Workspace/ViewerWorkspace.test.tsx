@@ -144,3 +144,37 @@ describe("Viewer workspace", () => {
         expect(onStartEdit).toHaveBeenCalled();
     });
 });
+
+describe("Viewer workspace full screen", () => {
+    it("puts a panel full screen with the Fullscreen API and leaves it with the floating button", async () => {
+        width = 1200;
+        const requestFullscreen = vi.fn(() => Promise.resolve());
+        Object.defineProperty(document, "fullscreenEnabled", { configurable: true, value: true });
+        const original = HTMLElement.prototype.requestFullscreen;
+        HTMLElement.prototype.requestFullscreen = requestFullscreen as any;
+        try {
+            setup();
+            fireEvent.click(screen.getByRole("button", { name: "Show Video full screen" }));
+            expect(requestFullscreen).toHaveBeenCalledTimes(1);
+            expect(requestFullscreen.mock.instances[0]).toBe(screen.getByRole("region", { name: "Video" }));
+            // the bar is hidden; a floating button leaves the full screen
+            expect(screen.queryByRole("button", { name: "Show Video full page" })).toBeNull();
+            fireEvent.click(screen.getByRole("button", { name: "Exit full screen" }));
+            expect(screen.getByRole("button", { name: "Show Video full screen" })).toBeInTheDocument();
+        } finally {
+            HTMLElement.prototype.requestFullscreen = original;
+        }
+    });
+
+    it("covers the page where there is no Fullscreen API (iPhone), also on a phone", () => {
+        width = 400;
+        Object.defineProperty(document, "fullscreenEnabled", { configurable: true, value: false });
+        const { container } = setup();
+        // on a phone the panels have no full page button, but they have the full screen one
+        expect(screen.queryByRole("button", { name: /full page/ })).toBeNull();
+        fireEvent.click(screen.getByRole("button", { name: "Show 3D model full screen" }));
+        expect(container.querySelector(".ws-fs")).toContainElement(screen.getByTestId("content-model"));
+        fireEvent.keyDown(document, { key: "Escape" });
+        expect(container.querySelector(".ws-fs")).toBeNull();
+    });
+});

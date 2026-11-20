@@ -1,7 +1,7 @@
 import { Router, NextFunction, Request, Response } from "express";
 import IController from "../../interfaces/controller.interface";
 import groupExists from "../../middleware/groupExists.middleware";
-import { groupAdminAuth, superAdminAuth, userAuth } from "../../middleware/auth.middleware";
+import { superAdminAuth, userAuth, groupViewerAuth, groupEditorAuth } from "../../middleware/auth.middleware";
 import HttpException from "../../exceptions/HttpException";
 import IRequestWithGroup from "../group/interfaces/requestWithGroup.interface";
 import infoLogger from "../../utils/logger/infoLogger";
@@ -69,21 +69,21 @@ class SkillController implements IController {
 			.get("/platform_skill/:skillName", superAdminAuth, validSkillName, this.getPlatformSkill)
 			.put("/platform_skill/:skillName", superAdminAuth, validSkillName, notBuiltin, this.putPlatformSkill)
 			.delete("/platform_skill/:skillName", superAdminAuth, validSkillName, notBuiltin, this.deletePlatformSkill)
-			.get("/group_skills/:groupId", groupExists, groupAdminAuth, this.getGroupSkills)
-			.get("/group_skill/:groupId/:skillName", groupExists, groupAdminAuth, validSkillName, this.getGroupSkill)
-			.put("/group_skill/:groupId/:skillName", groupExists, groupAdminAuth, validSkillName, this.putGroupSkill)
+			.get("/group_skills/:groupId", groupExists, groupViewerAuth, this.getGroupSkills)
+			.get("/group_skill/:groupId/:skillName", groupExists, groupViewerAuth, validSkillName, this.getGroupSkill)
+			.put("/group_skill/:groupId/:skillName", groupExists, groupEditorAuth, validSkillName, this.putGroupSkill)
 			.delete(
 				"/group_skill/:groupId/:skillName",
 				groupExists,
-				groupAdminAuth,
+				groupEditorAuth,
 				validSkillName,
 				this.deleteGroupSkill
 			)
-			.get("/group_available_skills/:groupId", groupExists, groupAdminAuth, this.getGroupAvailableSkills)
+			.get("/group_available_skills/:groupId", groupExists, groupViewerAuth, this.getGroupAvailableSkills)
 			.get(
 				"/group_platform_skill/:groupId/:skillName",
 				groupExists,
-				groupAdminAuth,
+				groupViewerAuth,
 				validSkillName,
 				this.getPlatformSkill
 			);

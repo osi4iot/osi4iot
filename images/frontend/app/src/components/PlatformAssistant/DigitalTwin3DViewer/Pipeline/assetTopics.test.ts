@@ -6,19 +6,22 @@ describe("asset topics by their reference", () => {
         expect(assetTopicKind("dev2pdb_3")).toBe("dev2pdb");
         expect(assetTopicKind("dev2dtm_2")).toBe("dev2dtm");
         expect(assetTopicKind("dtm2dev_1")).toBe("dtm2dev");
+        expect(assetTopicKind("dtm2pdb_2")).toBe("dtm2pdb");
+        expect(assetTopicKind("dtm2pdb")).toBeNull();
         expect(assetTopicKind("dev2dtm")).toBeNull();
         expect(assetTopicKind("dtm2dev")).toBeNull();
         expect(assetTopicKind("sim2dtm")).toBeNull();
     });
 
     it("groups and orders them by number", () => {
-        const refs = ["dev2dtm", "dev2pdb_10", "dev2dtm_2", "dev2pdb_2", "dtm2dev_1", "dev2dtm_1", "sim2dtm", "dev2pdb_1"];
+        const refs = ["dev2dtm", "dev2pdb_10", "dev2dtm_2", "dev2pdb_2", "dtm2dev_1", "dev2dtm_1", "sim2dtm", "dev2pdb_1", "dtm2pdb_2", "dtm2pdb_1", "dtm2pdb"];
         expect(assetTopicsRef(refs.map((topicRef) => ({ topicRef })))).toEqual({
             dev2pdb: ["dev2pdb_1", "dev2pdb_2", "dev2pdb_10"],
             dev2dtm: ["dev2dtm_1", "dev2dtm_2"],
             dtm2dev: ["dtm2dev_1"],
+            dtm2pdb: ["dtm2pdb_1", "dtm2pdb_2"],
         });
-        expect(assetTopicsRef(undefined)).toEqual({ dev2pdb: [], dev2dtm: [], dtm2dev: [] });
+        expect(assetTopicsRef(undefined)).toEqual({ dev2pdb: [], dev2dtm: [], dtm2dev: [], dtm2pdb: [] });
     });
 });
 
@@ -29,8 +32,10 @@ describe("topic references of a new asset", () => {
                 { topicRef: "dev2pdb_1", topicType: "dev2pdb_wt" },
                 { topicRef: "dev2dtm_1", topicType: "dev2dtm" },
                 { topicRef: "dtm2dev_1", topicType: "dtm2dev" },
+                { topicRef: "dtm2pdb_1", topicType: "dtm2pdb" },
             ]),
         ).toBeNull();
+        expect(checkAssetTopicsRef([{ topicRef: "power", topicType: "dtm2pdb" }])).toMatch(/dtm2pdb_<number>/);
         expect(checkAssetTopicsRef([{ topicRef: "dev2pdb_5", topicType: "dev2dtm" }])).toMatch(/dev2dtm_<number>/);
         expect(checkAssetTopicsRef([{ topicRef: "dtm2dev_1", topicType: "dtm2dev" }, { topicRef: "dtm2dev_1", topicType: "dtm2dev" }])).toMatch(/repeated/);
         expect(checkAssetTopicsRef({})).toMatch(/list/);

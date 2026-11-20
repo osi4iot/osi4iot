@@ -699,11 +699,14 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
                 }
 
                 if (viewerConfigFile) {
-                    void applyViewerConfig(groupId, data.digitalTwinId, viewerConfigFile.config, null, {
-                        accessToken,
-                        refreshToken,
-                        authDispatch,
-                    });
+                    void applyViewerConfig(
+                        groupId,
+                        data.digitalTwinId,
+                        viewerConfigFile.config,
+                        null,
+                        { accessToken, refreshToken, authDispatch },
+                        viewerConfigFile.images,
+                    );
                 }
 
                 if (Object.keys(digitalTwinPipelineData).length !== 0) {

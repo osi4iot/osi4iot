@@ -169,9 +169,8 @@ export const checkViewerConfigRefs = (
     return warnings;
 };
 
-// The file to the user's computer
-export const downloadViewerConfig = (config: ViewerConfig, fileName: string) => {
-    const blob = new Blob([JSON.stringify(config, null, 2)], { type: "application/json" });
+// A file to the user's computer
+export const downloadBlob = (blob: Blob, fileName: string) => {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
@@ -181,6 +180,12 @@ export const downloadViewerConfig = (config: ViewerConfig, fileName: string) => 
     a.remove();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
 };
+
+export const viewerConfigText = (config: ViewerConfig) => JSON.stringify(config, null, 2);
+
+// The configuration file to the user's computer
+export const downloadViewerConfig = (config: ViewerConfig, fileName: string) =>
+    downloadBlob(new Blob([viewerConfigText(config)], { type: "application/json" }), fileName);
 
 // A short description of what a file brings
 export const describeViewerConfig = (parsed: ParsedViewerConfig): string => {

@@ -10,7 +10,7 @@
 import { Router, NextFunction, Response } from "express";
 import IController from "../../interfaces/controller.interface";
 import groupExists from "../../middleware/groupExists.middleware";
-import { groupAdminAuth } from "../../middleware/auth.middleware";
+import { groupViewerAuth } from "../../middleware/auth.middleware";
 import IRequestWithUserAndGroup from "../group/interfaces/requestWithUserAndGroup.interface";
 import HttpException from "../../exceptions/HttpException";
 import {
@@ -35,11 +35,11 @@ class AlarmHistoryController implements IController {
 
 	private initializeRoutes(): void {
 		this.router
-			.get(`${this.path}/:groupId`, groupExists, groupAdminAuth, this.getHistory)
-			.get(`${this.path}_event/:groupId/:eventId`, groupExists, groupAdminAuth, this.getEvent)
-			.get(`${this.path}_export/:groupId`, groupExists, groupAdminAuth, this.exportHistory)
+			.get(`${this.path}/:groupId`, groupExists, groupViewerAuth, this.getHistory)
+			.get(`${this.path}_event/:groupId/:eventId`, groupExists, groupViewerAuth, this.getEvent)
+			.get(`${this.path}_export/:groupId`, groupExists, groupViewerAuth, this.exportHistory)
 			// the panel of the Viewer page: ?digitalTwinId=n&days=30
-			.get(`${this.path}_active/:groupId`, groupExists, groupAdminAuth, this.getPanel);
+			.get(`${this.path}_active/:groupId`, groupExists, groupViewerAuth, this.getPanel);
 	}
 
 	private getHistory = async (req: IRequestWithUserAndGroup, res: Response, next: NextFunction): Promise<void> => {

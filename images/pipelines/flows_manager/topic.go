@@ -7,8 +7,10 @@ import (
 )
 
 // References of the topics of an asset (assetTopicsRef.json): dev2pdb_n (measurements), dev2dtm_n (device -> digital
-// twin) and dtm2dev_n (digital twin -> device). The digital twin's own topics are "dev2dtm", "dtm2dev", "sim2dtm"...
-var assetTopicRefPattern = regexp.MustCompile(`^(dev2pdb|dev2dtm|dtm2dev)_\d+$`)
+// twin), dtm2dev_n (digital twin -> device) and dtm2pdb_n (computed measurements, which a pipeline stores with an
+// IoTDB node: the topics of the computed sensors). The digital twin's own topics are "dev2dtm", "dtm2dev", "dtm2pdb",
+// "sim2dtm"...
+var assetTopicRefPattern = regexp.MustCompile(`^(dev2pdb|dev2dtm|dtm2dev|dtm2pdb)_\d+$`)
 
 // IsAssetTopicRef says whether a topic reference names a topic of the asset (and not of the digital twin)
 func IsAssetTopicRef(topicRef string) bool {

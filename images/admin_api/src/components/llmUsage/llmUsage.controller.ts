@@ -17,7 +17,9 @@
 import { Router, NextFunction, Request, Response } from "express";
 import IController from "../../interfaces/controller.interface";
 import organizationExists from "../../middleware/organizationExists.middleware";
-import { organizationAdminAuth, superAdminAuth } from "../../middleware/auth.middleware";
+import { groupAdminAuth, organizationAdminAuth, superAdminAuth } from "../../middleware/auth.middleware";
+import groupExists from "../../middleware/groupExists.middleware";
+import IRequestWithGroup from "../group/interfaces/requestWithGroup.interface";
 import IRequestWithOrganization from "../organization/interfaces/requestWithOrganization.interface";
 import HttpException from "../../exceptions/HttpException";
 import { logger } from "../../config/winston";
@@ -32,6 +34,9 @@ import {
 	normalizeUsageRecord,
 	updateOrgTokenLimit,
 	updateOrgTokenStatus,
+	getGroupsTokenUsage,
+	updateGroupTokenLimit,
+	updateGroupTokenStatus,
 } from "./llmUsageDAL";
 
 const MAX_RECORDS_PER_POST = 2000;
@@ -69,7 +74,13 @@ class LlmUsageController implements IController {
 			.post(`${this.path}`, superAdminAuth, this.postUsage)
 			.get(`${this.path}/:orgId`, organizationAdminAuth, organizationExists, this.getUsage)
 			.get(`${this.path}_trend/:orgId`, organizationAdminAuth, organizationExists, this.getTrend)
-			.put(`${this.path}_limit/:orgId`, organizationAdminAuth, organizationExists, this.putLimit);
+			.put(`${this.path}_limit/:orgId`, organizationAdminAuth, organizationExists, this.putLimit)
+			// the monthly token limit of each group: set by the administrator of its organization; pipelines asks
+			// which groups have reached theirs (they are blocked until the month ends)
+			.get(`${this.path}_groups/:orgId`, organizationAdminAuth, organizationExists, this.getGroupsUsage)
+			.put(`${this.path}_group_limit/:orgId/:groupId`, organizationAdminAuth, organizationExists, this.putGroupLimit)
+			.get(`${this.path}_group/:groupId`, groupExists, groupAdminAuth, this.getGroupUsage)
+			.get(`${this.path}_blocked_groups`, superAdminAuth, this.getBlockedGroups);
 	}
 
 	private postUsage = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -95,7 +106,50 @@ class LlmUsageController implements IController {
 			}
 			const orgIds = Array.from(new Set(records.map((r) => r.orgId)));
 			const orgs = await updateOrgTokenStatus(orgIds);
-			res.status(200).send({ stored: records.length, orgs });
+			const groupIds = Array.from(new Set(records.map((r) => Number(r.groupId)).filter((id) => id > 0)));
+			const groups = await updateGroupTokenStatus(groupIds);
+			res.status(200).send({ stored: records.length, orgs, groups });
+		} catch (error) {
+			next(error);
+		}
+	};
+
+	private getGroupsUsage = async (req: IRequestWithOrganization, res: Response, next: NextFunction): Promise<void> => {
+		try {
+			res.status(200).send(await getGroupsTokenUsage(Number(req.organization.id)));
+		} catch (error) {
+			next(error);
+		}
+	};
+
+	private putGroupLimit = async (req: IRequestWithOrganization, res: Response, next: NextFunction): Promise<void> => {
+		try {
+			const groupId = Number(req.params.groupId);
+			const limit = Number((req.body as { monthlyTokenLimit?: unknown })?.monthlyTokenLimit);
+			if (!Number.isSafeInteger(groupId) || !Number.isSafeInteger(limit) || limit < 0) {
+				throw new HttpException(req, res, 400, "monthlyTokenLimit must be a whole number of tokens (0: no limit)");
+			}
+			const updated = await updateGroupTokenLimit(Number(req.organization.id), groupId, limit);
+			if (!updated) throw new HttpException(req, res, 404, "The group is not in this organization");
+			res.status(200).send({ message: "Monthly token limit of the group updated" });
+		} catch (error) {
+			next(error);
+		}
+	};
+
+	private getGroupUsage = async (req: IRequestWithGroup, res: Response, next: NextFunction): Promise<void> => {
+		try {
+			const [usage] = await getGroupsTokenUsage(Number(req.group.orgId), Number(req.group.id));
+			res.status(200).send(usage ?? null);
+		} catch (error) {
+			next(error);
+		}
+	};
+
+	private getBlockedGroups = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+		try {
+			const status = await updateGroupTokenStatus(null);
+			res.status(200).send({ groups: status.filter((g) => g.blocked).map((g) => g.groupId) });
 		} catch (error) {
 			next(error);
 		}

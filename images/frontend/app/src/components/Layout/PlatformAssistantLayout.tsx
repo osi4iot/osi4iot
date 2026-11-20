@@ -5,12 +5,14 @@
 //    se muestran en un menú flotante al pasar el ratón).
 //  - Móvil / ventanas estrechas: el menú se abre como un panel deslizante con el botón de la barra.
 import { FC, ReactNode, useCallback, useEffect, useMemo, useState } from "react";
+import { isAdminOfSomeGroup } from "../../tools/groupRoles";
 import { useNavigate } from "react-router";
 import styled, { css } from "styled-components";
 import { ChevronDown, Menu, PanelLeftClose, PanelLeftOpen, X } from "lucide-react";
 import { useMediaQuery } from "../../tools/useMediaQuery";
 import { usePersistentState, useUiStore } from "../../state/uiStore";
 import { useUserRole } from "../../state/sessionStore";
+import { useTable } from "../../state";
 import { useEnsureUserRole } from "../../tools/useEnsureUserRole";
 import {
     AppLogo,
@@ -445,14 +447,18 @@ const PlatformAssistantLayout: FC<PlatformAssistantLayoutProps> = ({ layer: acti
         return dt?.description || dt?.digitalTwinUid || "";
     });
 
+    // an editor of groups (that administers none) does not see the sections of their administrators
+    const groupsManaged = useTable("groupsManaged");
+    const groupAdmin = isAdminOfSomeGroup(userRole, groupsManaged);
     const layers = useMemo(
         () =>
             NAV_LAYERS.filter((layer) => isLayerVisible(layer, userRole)).map((layer) => {
-                if (layer.key !== "home" || !hasOpenDigitalTwin) return layer;
-                const [geolocation, ...rest] = layer.sections;
-                return { ...layer, sections: [geolocation, DIGITAL_TWIN_SECTION, ...rest] };
+                const visible = groupAdmin ? layer : { ...layer, sections: layer.sections.filter((section) => !section.adminOnly) };
+                if (visible.key !== "home" || !hasOpenDigitalTwin) return visible;
+                const [geolocation, ...rest] = visible.sections;
+                return { ...visible, sections: [geolocation, DIGITAL_TWIN_SECTION, ...rest] };
             }),
-        [userRole, hasOpenDigitalTwin],
+        [userRole, hasOpenDigitalTwin, groupAdmin],
     );
 
     const activeLayer = layers.find((layer) => layer.key === activeLayerKey) ?? layerByKey(activeLayerKey);

@@ -12,17 +12,56 @@ import (
 	"pipelines/timeparser"
 )
 
-// Field is a value a sensor measures: a numeric field of its messages, or
-// one item of an array field ("accelerations[1]"), as the sensor's
-// measurements describe them (admin_api's utils/measurements: { "<field>":
-// { "type": "number" | "array", "label", "units" } }; for an array, label
-// lists the label of each item separated by commas).
+// Field is a value a sensor measures: a numeric (or boolean, as 1 / 0)
+// field of its messages, or one item of an array field
+// ("accelerations[1]"), as the sensor's measurements describe them
+// (admin_api's utils/measurements: { "<field>": { "type": "number" |
+// "array" | "boolean" | "string", "label", "units", "path" } }; for an
+// array, label lists the label of each item separated by commas). The
+// field may be nested: the key with dots between levels
+// ("battery.voltage", "sensors.0.t"), or "path", a JSON Pointer
+// ("/power/dc/voltage"); an array with a "*" level ("sensors.*.t") has
+// one item per label. Texts ("string") are not fields here: the tools
+// compute with numbers.
 type Field struct {
-	Name  string `json:"name"`  // temperature, accelerations[1]
-	Key   string `json:"-"`     // the message field: temperature, accelerations
-	Index int    `json:"-"`     // the array item; -1 for a number
-	Label string `json:"label"` // Temperature, Ay
-	Units string `json:"units"` // °C, m/s^2 ("" when unknown)
+	Name  string   `json:"name"`  // temperature, accelerations[1], battery.voltage
+	Key   string   `json:"-"`     // the measurement: temperature, accelerations
+	Index int      `json:"-"`     // the array item; -1 for a number
+	Path  []string `json:"-"`     // where the value is in the message
+	Label string   `json:"label"` // Temperature, Ay
+	Units string   `json:"units"` // °C, m/s^2 ("" when unknown)
+}
+
+const anyItem = "*"
+
+// measurementPath is where a measurement is in the messages: its "path"
+// (a JSON Pointer) or its key, with a dot between levels.
+func measurementPath(key string, item map[string]any) []string {
+	if p, _ := item["path"].(string); strings.HasPrefix(p, "/") {
+		parts := strings.Split(p[1:], "/")
+		for i, s := range parts {
+			parts[i] = strings.ReplaceAll(strings.ReplaceAll(s, "~1", "/"), "~0", "~")
+		}
+		return parts
+	}
+	return strings.Split(key, ".")
+}
+
+// itemPath is the path of item i of an array measurement: its "*" level
+// is the item, else the item is one more level.
+func itemPath(path []string, i int) []string {
+	out := make([]string, 0, len(path)+1)
+	star := false
+	for _, s := range path {
+		if s == anyItem {
+			s, star = strconv.Itoa(i), true
+		}
+		out = append(out, s)
+	}
+	if !star {
+		out = append(out, strconv.Itoa(i))
+	}
+	return out
 }
 
 // SensorInfo is a sensor of the digital twin's group, as the tools list it.
@@ -180,21 +219,28 @@ func sensorFields(s *common.Sensor) []Field {
 		if units == "-" {
 			units = ""
 		}
+		path := measurementPath(key, item)
+		if typ == "string" {
+			continue // a text: nothing to compute with
+		}
 		if typ != "array" {
 			if label == "" {
 				label = key
 			}
-			fields = append(fields, Field{Name: key, Key: key, Index: -1, Label: label, Units: units})
+			fields = append(fields, Field{Name: key, Key: key, Index: -1, Path: path, Label: label, Units: units})
 			continue
 		}
 		labels := strings.Split(label, ",")
 		for i, l := range labels {
+			if i > 63 {
+				break
+			}
 			l = strings.TrimSpace(l)
 			name := fmt.Sprintf("%s[%d]", key, i)
 			if l == "" {
 				l = name
 			}
-			fields = append(fields, Field{Name: name, Key: key, Index: i, Label: l, Units: units})
+			fields = append(fields, Field{Name: name, Key: key, Index: i, Path: itemPath(path, i), Label: l, Units: units})
 		}
 	}
 	return fields
@@ -304,10 +350,10 @@ func resolveField(s SensorInfo, spec string) (Field, error) {
 	if len(s.Fields) == 0 {
 		if m := fieldItemRe.FindStringSubmatch(spec); m != nil {
 			i, _ := strconv.Atoi(m[2])
-			return Field{Name: spec, Key: m[1], Index: i, Label: spec}, nil
+			return Field{Name: spec, Key: m[1], Index: i, Path: itemPath(strings.Split(m[1], "."), i), Label: spec}, nil
 		}
 		if fieldKeyRe.MatchString(spec) {
-			return Field{Name: spec, Key: spec, Index: -1, Label: spec}, nil
+			return Field{Name: spec, Key: spec, Index: -1, Path: strings.Split(spec, "."), Label: spec}, nil
 		}
 	}
 	return Field{}, fmt.Errorf("%s has no field %q: %s", s.name(), spec, fieldNames(s.Fields))

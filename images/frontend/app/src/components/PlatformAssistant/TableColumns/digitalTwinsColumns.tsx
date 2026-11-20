@@ -1,4 +1,5 @@
 import { FC, useState, useEffect } from 'react';
+import { deleteConfirmingDataLoss } from "../../../tools/deleteConfirmingDataLoss";
 import { reloadTable } from "../../../state";
 import { Column } from '../Utils/platformTable';
 import { toast } from 'react-toastify';
@@ -120,8 +121,7 @@ const DeleteDigitalTwinModal: FC<DeleteDigitalTwinModalProps> = ({ rowIndex, gro
     const action = (hideModal: () => void) => {
         const url = `${protocol}://${domainName}/admin_api/digital_twin/${groupId}/${digitalTwinId}`;
         const config = axiosAuth(accessToken);
-        getAxiosInstance(refreshToken, authDispatch)
-            .delete(url, config)
+        deleteConfirmingDataLoss(getAxiosInstance(refreshToken, authDispatch), url, config)
             .then((response: AxiosResponse<any, any>) => {
                 setIsDigitalTwinDeleted(true);
                 setIsSubmitting(false);

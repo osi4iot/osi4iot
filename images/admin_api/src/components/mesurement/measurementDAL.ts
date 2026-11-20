@@ -4,6 +4,8 @@ import ISensor from "../sensor/sensor.interface";
 import ITopic from "../topic/topic.interface";import IGeolocationMeasurement from "./geolocation_measurement.interface";
 ;
 import IMeasurement from "./measurement.interface";
+import { readQuery } from "../../config/dbconfig";
+import { Measurements, tablePath, toMeasurements, withoutValueAtPath } from "../../utils/measurements/measurements";
 
 const timestampAsString = 'to_char(timestamp, \'YYYY-MM-DD HH24:MI:SS.USOF\') AS "timestamp"';
 
@@ -164,24 +166,25 @@ export const getDuringSensorMeasurementsWithPagination = async (
 	end: string,
 	pageIndex: number,
 	itemsPerPage: number,
-	payloadKey: string
+	payloadKey: string,
+	payloadPath: string[]
 ): Promise<IMeasurement[]> => {
 	const offset = pageIndex * itemsPerPage;
 	// la clave va como parámetro; el nombre de la columna, entre comillas dobles escapadas
 	const queryString =
 		`SELECT ${timestampAsString},
-		topic, payload->>$7 AS "${payloadKey.replace(/"/g, '""')}"
+		topic, payload #>> $7::text[] AS "${payloadKey.replace(/"/g, '""')}"
 		FROM iot_data.thingData
 		WHERE group_uid = $1 AND
 		topic = $2 AND
 		timestamp >= $3 AND
 		timestamp <= $4 AND
-		payload->>$7 IS NOT NULL
+		payload #>> $7::text[] IS NOT NULL
 		ORDER BY timestamp DESC
 		LIMIT $5
 		OFFSET  $6;`
 	const response = await timescaledbReadQuery(queryString
-		, [groupUid, topic, start, end, itemsPerPage, offset, payloadKey]);
+		, [groupUid, topic, start, end, itemsPerPage, offset, payloadPath]);
 
 	return response.rows as IMeasurement[];
 };
@@ -225,7 +228,7 @@ export const getTotalRowsDuringSensorMeasurements = async (
 	topic: string,
 	start: string,
 	end: string,
-	payloadKey: string
+	payloadPath: string[]
 ): Promise<number> => {
 	const queryString = `
 		SELECT COUNT(*) FROM iot_data.thingData
@@ -233,9 +236,9 @@ export const getTotalRowsDuringSensorMeasurements = async (
 		topic = $2 AND
 		timestamp >= $3 AND
 		timestamp <= $4 AND
-		payload->>$5 IS NOT NULL`;
+		payload #>> $5::text[] IS NOT NULL`;
 	const response = await timescaledbReadQuery(queryString,
-		[groupUid, topic, start, end, payloadKey]);
+		[groupUid, topic, start, end, payloadPath]);
 	return response.rows[0].count as number;
 };
 
@@ -252,27 +255,47 @@ export const updateMeasurementsGroupUid = async (group: IGroup, newGroupUid: str
 
 export const deleteSensorMeasurementsBeforeSomeDate = async (
 	measurements: IMeasurement[],
-	payloadKey: string,
+	payloadPath: string[],
 	groupUid: string,
 	topic: string
 ): Promise<number>  => {
 	const deleteQueries = [];
 	for (const measurement of measurements) {
-		const existentPayloadKeys = Object.keys(measurement.payload);
-		if (existentPayloadKeys.indexOf(payloadKey) !== -1) {
-			if (existentPayloadKeys.length === 1) {
-				const query = deleteMeasurement(groupUid, topic, measurement.timestamp);
-				deleteQueries.push(query);
-			} else {
-				const oldPayload = measurement.payload;
-				const acceptedKeys = existentPayloadKeys.filter(key => key !== payloadKey);
-				const filteredEntries = Object.entries(oldPayload).filter(([k,]) => acceptedKeys.includes(k));
-				const newPayload = JSON.stringify(Object.fromEntries(filteredEntries));
-				const query = await updateMeasurement(groupUid, topic, measurement.timestamp, newPayload);
-				deleteQueries.push(query);
-			}
+		// the value at the path out of the message; nothing left: the message out
+		const { payload, found } = withoutValueAtPath(measurement.payload, payloadPath);
+		if (!found) continue;
+		if (payload === undefined || (typeof payload === "object" && payload !== null && Object.keys(payload).length === 0)) {
+			deleteQueries.push(deleteMeasurement(groupUid, topic, measurement.timestamp));
+		} else {
+			deleteQueries.push(updateMeasurement(groupUid, topic, measurement.timestamp, JSON.stringify(payload)));
 		}
 	}
 	const responses = await Promise.all(deleteQueries);
 	return responses.length;
 }
+// The measurements of the sensors of a topic of a group (a sensor without them: those of its type), to find where a
+// field is in its messages
+export const topicSensorsMeasurements = async (groupId: number, topic: string): Promise<Measurements> => {
+	const topicUid = topic.replace(/^Topic_/, "");
+	const result = await readQuery(
+		`SELECT grafanadb.sensor.measurements, grafanadb.sensor_type.default_measurements AS "defaultMeasurements"
+		FROM grafanadb.sensor
+		INNER JOIN grafanadb.asset ON grafanadb.sensor.asset_id = grafanadb.asset.id
+		INNER JOIN grafanadb.topic ON grafanadb.topic.id = grafanadb.sensor.topic_id
+		INNER JOIN grafanadb.sensor_type ON grafanadb.sensor_type.id = grafanadb.sensor.sensor_type_id
+		WHERE grafanadb.asset.group_id = $1 AND grafanadb.topic.topic_uid = $2
+		ORDER BY grafanadb.sensor.id ASC`,
+		[groupId, topicUid]
+	);
+	const measurements: Measurements = {};
+	for (const row of result.rows as { measurements: unknown; defaultMeasurements: unknown }[]) {
+		let own = toMeasurements(row.measurements);
+		if (Object.keys(own).length === 0) own = toMeasurements(row.defaultMeasurements);
+		for (const [field, m] of Object.entries(own)) if (!(field in measurements)) measurements[field] = m;
+	}
+	return measurements;
+};
+
+// Where the measurements table of the sensors of a topic finds a field (as the measurements say; else a dotted key)
+export const topicFieldPath = async (groupId: number, topic: string, payloadKey: string): Promise<string[]> =>
+	tablePath(payloadKey, (await topicSensorsMeasurements(groupId, topic))[payloadKey]);

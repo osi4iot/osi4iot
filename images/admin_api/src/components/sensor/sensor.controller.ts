@@ -1,11 +1,7 @@
-import { Router, NextFunction, Request, Response } from "express";
+import { Router, NextFunction, Response } from "express";
 import IController from "../../interfaces/controller.interface";
 import validationMiddleware from "../../middleware/validation.middleware";
-import {
-	groupAdminAuth,
-	organizationAdminAuth,
-	userAuth
-} from "../../middleware/auth.middleware";
+import { organizationAdminAuth, userAuth, groupViewerAuth, groupEditorAuth } from "../../middleware/auth.middleware";
 import ItemNotFoundException from "../../exceptions/ItemNotFoundException";
 import InvalidPropNameExeception from "../../exceptions/InvalidPropNameExeception";
 import groupExists from "../../middleware/groupExists.middleware";
@@ -45,6 +41,9 @@ import infoLogger from "../../utils/logger/infoLogger";
 import CreateSensorTypeDto from "./sensorType.dto";
 import ISensorType from "./sensorType.interface";
 import HttpException from "../../exceptions/HttpException";
+import { IRequestWithGroupRole } from "../../middleware/auth.middleware";
+import { checkDeletion, noExpensiveResources, topicOfId } from "../../utils/permissions/deletePolicy";
+import { measurementsProblems } from "../../utils/measurements/measurements";
 import UpdateSensorDto from "./sensorUpdate.dto";
 
 class SensorController implements IController {
@@ -116,38 +115,38 @@ class SensorController implements IController {
 			.get(
 				`${this.path}s_in_group/:groupId`,
 				groupExists,
-				groupAdminAuth,
+				groupViewerAuth,
 				this.getSensorsInGroup
 			)
 			.get(
 				`${this.path}s_in_group/:groupId/:assetId`,
 				groupExists,
-				groupAdminAuth,
+				groupViewerAuth,
 				this.getSensorsInAsset
 			)
 			.get(
 				`${this.path}/:groupId/:propName/:propValue`,
 				groupExists,
-				groupAdminAuth,
+				groupViewerAuth,
 				this.getSensorByProp
 			)
 			.delete(
 				`${this.path}/:groupId/:propName/:propValue`,
 				groupExists,
-				groupAdminAuth,
+				groupEditorAuth,
 				this.deleteSensorByProp
 			)
 			.patch(
 				`${this.path}/:groupId/:propName/:propValue`,
 				groupExists,
-				groupAdminAuth,
+				groupEditorAuth,
 				validationMiddleware<UpdateSensorDto>(UpdateSensorDto, true),
 				this.updateSensorByProp
 			)
 			.post(
 				`${this.path}/:groupId/:assetId`,
 				groupExists,
-				groupAdminAuth,
+				groupEditorAuth,
 				validationMiddleware<CreateSensorDto>(CreateSensorDto),
 				this.createSensor
 			)
@@ -242,6 +241,7 @@ class SensorController implements IController {
 			const { propName, propValue } = req.params;
 			const sensorTypeData = req.body;
 			if (!this.isValidSensorTypePropName(propName)) throw new InvalidPropNameExeception(req, res, propName);
+			this.checkMeasurements(req, res, sensorTypeData.defaultMeasurements ?? sensorTypeData.defaultPayloadJsonSchema);
 			const orgId = req.organization.id;
 			let sensorType = await getSensorTypeByPropName(orgId, propName, propValue);
 			if (!sensorType) throw new ItemNotFoundException(req, res, "The sensor type", propName, propValue);
@@ -264,6 +264,7 @@ class SensorController implements IController {
 	): Promise<void> => {
 		try {
 			let sensorTypeData: CreateSensorTypeDto = req.body;
+			this.checkMeasurements(req, res, (req.body.defaultMeasurements ?? req.body.defaultPayloadJsonSchema) as unknown);
 			const orgId = req.organization.id;
 			sensorTypeData = { ...sensorTypeData, orgId };
 			await createNewSensorType(sensorTypeData);
@@ -395,7 +396,7 @@ class SensorController implements IController {
 	};
 
 	private deleteSensorByProp = async (
-		req: Request,
+		req: IRequestWithGroupRole,
 		res: Response,
 		next: NextFunction
 	): Promise<void> => {
@@ -403,7 +404,11 @@ class SensorController implements IController {
 			const { propName, propValue } = req.params;
 			if (!this.isValidSensorPropName(propName)) throw new InvalidPropNameExeception(req, res, propName);
 			const sensor = await getSensorByPropName(propName, propValue);
-			if (!sensor) throw new ItemNotFoundException(req, res, "The sensor", propName, propValue);
+			if (!sensor || Number(sensor.groupId) !== Number(req.group.id)) {
+				throw new ItemNotFoundException(req, res, "The sensor", propName, propValue);
+			}
+			// anyone: confirming that its stored measurements are left without a sensor to name them
+			await checkDeletion(req, res, "this sensor", noExpensiveResources, () => topicOfId(Number(sensor.topicId)));
 			const dashboardId = sensor.dashboardId;
 			await deleteSensorByPropName(propName, propValue);
 			await deleteDashboard(dashboardId);
@@ -423,6 +428,7 @@ class SensorController implements IController {
 			const { propName, propValue } = req.params;
 			const sensorData = req.body;
 			if (!this.isValidSensorPropName(propName)) throw new InvalidPropNameExeception(req, res, propName);
+			this.checkMeasurements(req, res, sensorData.measurements ?? sensorData.payloadJsonSchema);
 			let sensor = await getSensorByPropName(propName, propValue);
 			if (!sensor) throw new ItemNotFoundException(req, res, "The sensor", propName, propValue);
 			sensor = { ...sensor, ...sensorData };
@@ -442,6 +448,7 @@ class SensorController implements IController {
 		try {
 			const assetId = parseInt(req.params.assetId, 10);
 			const sensorData: CreateSensorDto = req.body;
+			this.checkMeasurements(req, res, (req.body.measurements ?? req.body.payloadJsonSchema) as unknown);
 			const sensorUid = nanoid(20).replace(/-/g, "x").replace(/_/g, "X");
 			const dashboarId = await createSensorDashboard(req.group, sensorData, sensorUid);
 			const dashboardsInfo = await getDashboardsInfoFromIdArray([dashboarId]);
@@ -453,6 +460,12 @@ class SensorController implements IController {
 		} catch (error) {
 			next(error);
 		}
+	};
+
+	// measurements that cannot be saved (a path with dots in a wrong place, an unknown type…): 400 with the reasons
+	private checkMeasurements = (req: IRequestWithGroup | IRequestWithOrganization, res: Response, value: unknown) => {
+		const problems = measurementsProblems(value);
+		if (problems.length > 0) throw new HttpException(req, res, 400, `Measurements: ${problems.join("; ")}`);
 	};
 
 	private isValidSensorPropName = (propName: string) => {

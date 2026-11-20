@@ -55,7 +55,7 @@ export const TONE_COLORS: Record<Tone, { fg: string; bg: string; border: string 
 };
 
 // how often a panel asks again (the pipelines write the history every 2 s)
-export const HISTORY_PANEL_REFRESH_MS = 10_000;
+export const HISTORY_PANEL_REFRESH_MS = 5_000;
 export const HISTORY_PANEL_EVENTS = 50;
 
 // --- alarms ----------------------------------------------------------------------------------------------

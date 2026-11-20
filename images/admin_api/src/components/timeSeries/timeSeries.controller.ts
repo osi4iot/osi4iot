@@ -16,7 +16,7 @@
 import { Router, NextFunction, Response } from "express";
 import IController from "../../interfaces/controller.interface";
 import groupExists from "../../middleware/groupExists.middleware";
-import { groupAdminAuth } from "../../middleware/auth.middleware";
+import { groupViewerAuth } from "../../middleware/auth.middleware";
 import IRequestWithGroup from "../group/interfaces/requestWithGroup.interface";
 import HttpException from "../../exceptions/HttpException";
 import {
@@ -29,7 +29,9 @@ import {
 	parseSeries,
 	RAW_INTERVAL,
 	rawStepSeconds,
+	resolvedSeries,
 	sensorMeasurements,
+	SeriesRequest,
 	seriesLabel,
 } from "./timeSeries";
 import { getRawSeriesPoints, getSeriesExtent, getSeriesHistogram, getSeriesPoints, getSeriesSensors } from "./timeSeriesDAL";
@@ -40,7 +42,7 @@ class TimeSeriesController implements IController {
 	public router = Router();
 
 	constructor() {
-		this.router.get(`${this.path}/:groupId`, groupExists, groupAdminAuth, this.getTimeSeries);
+		this.router.get(`${this.path}/:groupId`, groupExists, groupViewerAuth, this.getTimeSeries);
 	}
 
 	private getTimeSeries = async (req: IRequestWithGroup, res: Response, next: NextFunction): Promise<void> => {
@@ -62,11 +64,16 @@ class TimeSeriesController implements IController {
 			if (missing.length) {
 				throw new HttpException(req, res, 404, `Sensors not found in the group: ${missing.join(", ")}`);
 			}
+			// each series with the path of its value, as the measurements of its sensor say
+			const located = (s: SeriesRequest) => {
+				const sensor = byId.get(s.sensorId);
+				return resolvedSeries(s, sensorMeasurements(sensor.measurements, sensor.defaultMeasurements));
+			};
 			const histogram = parseHistogram(req.query.histogram, req.query.bucketSize, req.query.bucketOffset);
 			if (typeof histogram === "string") throw new HttpException(req, res, 400, histogram);
 			if (histogram) {
 				const extents = await Promise.all(
-					series.map((s) => getSeriesExtent(group.groupUid, byId.get(s.sensorId).topicUid, s, range))
+					series.map((s) => getSeriesExtent(group.groupUid, byId.get(s.sensorId).topicUid, located(s), range))
 				);
 				const mins = extents.map((e) => e.min).filter((v): v is number => v !== null);
 				const maxs = extents.map((e) => e.max).filter((v): v is number => v !== null);
@@ -78,7 +85,7 @@ class TimeSeriesController implements IController {
 						const sensor = byId.get(s.sensorId);
 						const { label, units } = seriesLabel(s, sensorMeasurements(sensor.measurements, sensor.defaultMeasurements));
 						const counted = extents[i].count
-							? await getSeriesHistogram(group.groupUid, sensor.topicUid, s, range, size, histogram.offset)
+							? await getSeriesHistogram(group.groupUid, sensor.topicUid, located(s), range, size, histogram.offset)
 							: [];
 						return { ...s, label, units, sensor: sensor.description, count: extents[i].count, bins: counted };
 					})
@@ -96,8 +103,8 @@ class TimeSeriesController implements IController {
 					const sensor = byId.get(s.sensorId);
 					const { label, units } = seriesLabel(s, sensorMeasurements(sensor.measurements, sensor.defaultMeasurements));
 					const points = raw
-						? await getRawSeriesPoints(group.groupUid, sensor.topicUid, s, range)
-						: await getSeriesPoints(group.groupUid, sensor.topicUid, s, range, bucket);
+						? await getRawSeriesPoints(group.groupUid, sensor.topicUid, located(s), range)
+						: await getSeriesPoints(group.groupUid, sensor.topicUid, located(s), range, bucket);
 					return { ...s, label, units, sensor: sensor.description, points };
 				})
 			);

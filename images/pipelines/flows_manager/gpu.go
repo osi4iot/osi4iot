@@ -200,7 +200,7 @@ func (fm *FlowsManager) skipPipelineOnThisReplica(ctx context.Context, dt *commo
 	fm.dropLocalPipeline(ctx, dt)
 	fm.log.Infof("Digital twin %d requires GPU; replica %d has none (%s): pipeline not created here",
 		dt.Id, fm.ReplicaIndex, fm.GpuReason)
-	dt.PipelineStatusSubscription = common.NewSubscriptionGroup(fm.setNoGpuStatusSubscription(ctx, dt))
+	dt.PipelineStatusSubscription = common.NewSubscriptionGroup(fm.setNoGpuStatusSubscription(ctx, dt)...)
 
 	// One replica says it, once per create/update, and only when the
 	// pipeline really has nowhere to run.
@@ -213,13 +213,13 @@ func (fm *FlowsManager) skipPipelineOnThisReplica(ctx context.Context, dt *commo
 // pipeline while no GPU replica is alive. Its own queue group, so exactly
 // one replica without GPU answers, and it stays silent as soon as a GPU
 // replica exists (that one answers through pipeline_status_<uid>).
-func (fm *FlowsManager) setNoGpuStatusSubscription(ctx context.Context, dt *common.DigitalTwin) *nats.Subscription {
+func (fm *FlowsManager) setNoGpuStatusSubscription(ctx context.Context, dt *common.DigitalTwin) []*nats.Subscription {
 	subject := fm.dtSubject(dt, "sim2state")
 	if subject == "" {
 		return nil
 	}
 	queueName := fmt.Sprintf("pipeline_status_nogpu_%s", dt.DigitalTwinUid)
-	sub, err := fm.NatsQueueSubscribe(subject, queueName, func(msg *nats.Msg) {
+	answer := func(msg *nats.Msg) {
 		var raw map[string]any
 		if err := json.Unmarshal(msg.Data, &raw); err != nil {
 			return
@@ -234,12 +234,19 @@ func (fm *FlowsManager) setNoGpuStatusSubscription(ctx context.Context, dt *comm
 			PipelineStatus:     common.PipelineStatusError.String(),
 			ReplicaIndexLeader: -1,
 		})
-	})
+	}
+	sub, err := fm.NatsQueueSubscribe(subject, queueName, answer)
 	if err != nil {
 		fm.log.Errorf("Failed to subscribe no-GPU status handler for digital twin %d: %v", dt.Id, err)
 		return nil
 	}
-	return sub
+	// the viewers ask on their own copy of sim2state (a Viewer may not publish on the group's topic)
+	userSub, err := fm.NatsQueueSubscribe(utils.AllUsersChatSubject(subject), queueName, answer)
+	if err != nil {
+		fm.log.Errorf("Failed to subscribe the users' no-GPU status handler for digital twin %d: %v", dt.Id, err)
+		return []*nats.Subscription{sub}
+	}
+	return []*nats.Subscription{sub, userSub}
 }
 
 func (fm *FlowsManager) publishNoGpuError(dt *common.DigitalTwin) {

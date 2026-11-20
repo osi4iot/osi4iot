@@ -132,6 +132,15 @@ RUN cd mcp_servers/fem_results && \
     CGO_ENABLED=1 CC=gcc \
     go build -ldflags="-s -w" -o /usr/local/bin/fem_results .
 
+# chat_data (las tablas CSV/Excel adjuntas al chat: DuckDB, CGO con enlace estático, como fem_results)
+COPY mcp_servers/chat_data/go.mod ./mcp_servers/chat_data/
+COPY mcp_servers/chat_data/go.sum ./mcp_servers/chat_data/
+RUN cd mcp_servers/chat_data && go mod download && go mod verify
+COPY mcp_servers/chat_data/main.go mcp_servers/chat_data/xlsx.go ./mcp_servers/chat_data/
+RUN cd mcp_servers/chat_data && \
+    CGO_ENABLED=1 CC=gcc \
+    go build -ldflags="-s -w" -o /usr/local/bin/chat_data .
+
 ########################################
 # 1b) GPU libraries (only with ORT_FLAVOR=gpu)
 #
@@ -244,6 +253,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY --from=builder /usr/local/bin/pipelines     /usr/local/bin/pipelines
 COPY --from=builder /usr/local/bin/current_date  /usr/local/bin/current_date
 COPY --from=builder /usr/local/bin/fem_results   /usr/local/bin/fem_results
+COPY --from=builder /usr/local/bin/chat_data     /usr/local/bin/chat_data
 COPY --from=builder /usr/local/bin/doc_info      /usr/local/bin/doc_info
 COPY --from=builder /usr/local/bin/sensor_history /usr/local/bin/sensor_history
 COPY --from=builder /usr/local/bin/asset_state   /usr/local/bin/asset_state

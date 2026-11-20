@@ -26,6 +26,7 @@ import { IAssetType } from '../TableColumns/assetTypesColumns';
 import SvgComponent from '../../Tools/SvgComponent';
 import { AxiosResponse, AxiosError } from 'axios';
 import { ControlsContainer, DraggableFormContainer, FormSection } from "../../Tools/FormTools";
+import ComputedTopics from "./ComputedTopics";
 
 export const FieldContainer = styled.div`
     margin: 20px 0;
@@ -351,6 +352,9 @@ const EditAsset: FC<EditAssetProps> = ({
                                             </SelectLocationButton>
                                         </SelectAssetLocationButtonContainer>
                                     </AssetLocationContainer>
+                                    </FormSection>
+                                    <FormSection title="Topics for computed sensors">
+                                        <ComputedTopics groupId={groupId} assetId={assetId} />
                                     </FormSection>
                                 </ControlsContainer>
                                 <FormButtonsProps onCancel={onCancel} isValid={formik.isValid} isSubmitting={formik.isSubmitting} />

@@ -27,7 +27,7 @@ import LlmModelsController from "./components/organization/llmModels.controller"
 import AlarmHistoryController from "./components/alarmHistory/alarmHistory.controller";
 import ApprovalHistoryController from "./components/approvalHistory/approvalHistory.controller";
 import { ensureEventHistoryTables } from "./utils/eventHistory/eventHistory";
-import { LLM_USAGE_RETENTION_DAYS } from "./components/llmUsage/llmUsageDAL";
+import { LLM_USAGE_RETENTION_DAYS, ensureGroupTokenLimitColumns } from "./components/llmUsage/llmUsageDAL";
 import LlmUsageController from "./components/llmUsage/llmUsage.controller";
 import SkillController from "./components/skill/skill.controller";
 import { seedBuiltinSkills } from "./components/skill/skillStorage";
@@ -40,6 +40,11 @@ import ViewerLayoutController from "./components/viewerLayout/viewerLayout.contr
 import TimeSeriesController from "./components/timeSeries/timeSeries.controller";
 import { ensureViewerLayoutTable } from "./components/viewerLayout/viewerLayoutDAL";
 import { ensureRefreshTokenPreviousColumn } from "./components/Authentication/authenticationDAL";
+import ChatAttachmentController from "./components/chatAttachment/chatAttachment.controller";
+import {
+	ensureGroupChatAttachmentsColumn,
+	scheduleChatAttachmentsCleanup,
+} from "./components/chatAttachment/chatAttachmentDAL";
 
 const main = async (): Promise<void> => {
 	try {
@@ -64,6 +69,14 @@ const main = async (): Promise<void> => {
 		} catch (err) {
 			const message = err instanceof Error ? err.message : String(err);
 			logger.log("error", "The bilingual chat columns of the digital twins could not be added: %s", message);
+		}
+		// groups of older versions: the setting of the chat attachments (every replica, before serving)
+		try {
+			await ensureGroupChatAttachmentsColumn();
+			await ensureGroupTokenLimitColumns();
+		} catch (err) {
+			const message = err instanceof Error ? err.message : String(err);
+			logger.log("error", "The chat_attachments_enabled column of the groups could not be added: %s", message);
 		}
 		// the layouts of the Viewer page (one per digital twin, saved by group administrators)
 		try {
@@ -116,6 +129,8 @@ const main = async (): Promise<void> => {
 		}
 		// the platform's built-in skills, in the bucket (they do not stop the start if they fail)
 		await seedBuiltinSkills();
+		// the files attached to the chats are deleted after some days (one replica)
+		if (process_env.REPLICA === "1") scheduleChatAttachmentsCleanup();
 
 		// prettier-ignore
 		const app = new App([
@@ -131,6 +146,7 @@ const main = async (): Promise<void> => {
 			new AlarmHistoryController(),
 			new ApprovalHistoryController(),
 			new ViewerLayoutController(),
+			new ChatAttachmentController(),
 			new TimeSeriesController(),
 			new SkillController(),
 			new AssetController(),

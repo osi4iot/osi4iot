@@ -1,9 +1,10 @@
 // What a viewer configuration file brings, before loading it in the Viewer: its layout and lighting, and what was
 // left out or may not work in this twin. Loading it starts editing the layout (with the file's) and shows its
-// lighting; "Save for the group" saves both, Cancel leaves both as they were.
+// lighting; "Save for the group" saves both, Cancel leaves both as they were. A .zip also brings the images of its
+// Picture panels: shown at once, uploaded to the twin when the layout is saved.
 import { FC, useEffect, useRef } from "react";
 import styled from "styled-components";
-import { AlertTriangle, FileJson, X } from "lucide-react";
+import { AlertTriangle, FileArchive, FileJson, X } from "lucide-react";
 import { ParsedViewerConfig, describeViewerConfig } from "./viewerConfig";
 
 const font = `Roboto, "Helvetica Neue", Arial, sans-serif`;
@@ -149,16 +150,28 @@ export interface ViewerConfigDialogProps {
     result: ParsedViewerConfig | { error: string };
     // what the layout names that this twin does not have
     refWarnings: string[];
+    // a .zip: what its images are ("3 images (1.2 MB)"), those that replace the twin's, and what was left out
+    images?: { summary: string; count: number; replaces: string[]; ignored: string[] };
     onLoad: () => void;
     onClose: () => void;
 }
 
-const ViewerConfigDialog: FC<ViewerConfigDialogProps> = ({ fileName, result, refWarnings, onLoad, onClose }) => {
+const ViewerConfigDialog: FC<ViewerConfigDialogProps> = ({ fileName, result, refWarnings, images, onLoad, onClose }) => {
     const firstRef = useRef<HTMLButtonElement>(null);
     useEffect(() => {
         firstRef.current?.focus();
     }, []);
-    const warnings = "error" in result ? [] : [...result.warnings, ...refWarnings];
+    const warnings =
+        "error" in result
+            ? []
+            : [
+                  ...result.warnings,
+                  ...refWarnings,
+                  ...(images && images.replaces.length > 0
+                      ? [`It replaces the twin's ${images.replaces.length === 1 ? "image" : "images"} with the same name: ${images.replaces.join(", ")}.`]
+                      : []),
+                  ...(images?.ignored ?? []).map((what) => `Left out of the zip: ${what}.`),
+              ];
     return (
         <Backdrop
             onMouseDown={(e) => {
@@ -175,7 +188,7 @@ const ViewerConfigDialog: FC<ViewerConfigDialogProps> = ({ fileName, result, ref
             >
                 <Head>
                     <h2 id="viewer-config-title">
-                        <FileJson aria-hidden="true" />
+                        {images ? <FileArchive aria-hidden="true" /> : <FileJson aria-hidden="true" />}
                         Load viewer configuration
                     </h2>
                     <Close type="button" aria-label="Close" onClick={onClose}>
@@ -194,6 +207,18 @@ const ViewerConfigDialog: FC<ViewerConfigDialogProps> = ({ fileName, result, ref
                             {result.source?.digitalTwinUid ? ` · from ${result.source.digitalTwinUid}` : ""}
                             {result.exportedAt ? ` · ${result.exportedAt.slice(0, 16).replace("T", " ")} UTC` : ""}
                         </p>
+                        {images && (
+                            <p data-testid="viewer-config-images">
+                                {images.count > 0 ? (
+                                    <>
+                                        With <strong>{images.summary}</strong>: the Picture panels show them at once, and they are
+                                        uploaded to the twin when you save for the group.
+                                    </>
+                                ) : (
+                                    "The zip has no images."
+                                )}
+                            </p>
+                        )}
                         <p>
                             {result.layout ? "Its layout opens to edit, " : "The layout stays as it is, "}
                             {result.lighting ? "and its lighting is shown. " : "and the lighting stays as it is. "}

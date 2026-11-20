@@ -1,11 +1,12 @@
 // Recuadros de archivo de los formularios de crear y editar gemelo digital, para cargarlos todos de una vez
 // (MultiFileLoader): pipeline (.yml), modelo 3D (.gltf/.glb), resultados FEM (.json con "metadata") y formato de
 // simulación (.json/.yaml con campos label, units, minValue...) y configuración del Viewer (.json con "format":
-// "osi4iot-viewer-config").
+// "osi4iot-viewer-config", o un .zip con ella y sus imágenes).
 import YAML from "yaml";
 import { FileTarget } from "../../Tools/MultiFileLoader";
 import { digitalTwinFormatValidation } from "../../../tools/tools";
 import { VIEWER_CONFIG_FORMAT } from "../DigitalTwin3DViewer/Workspace/viewerConfig";
+import { isZipName } from "../DigitalTwin3DViewer/Workspace/viewerPackage";
 
 interface FilePickerTarget {
     clear: () => void;
@@ -129,8 +130,9 @@ export const digitalTwinFileTargets = ({
                   {
                       key: "viewerConfig",
                       label: "Viewer configuration",
-                      accept: [".json"],
-                      test: isViewerConfigDocument,
+                      accept: [".json", ".zip"],
+                      // a .zip: only the viewer configuration takes one (what is inside is checked when it loads)
+                      test: (text: string, file: File) => isZipName(file.name) || isViewerConfigDocument(text),
                       load: loadViewerConfig,
                   },
               ]

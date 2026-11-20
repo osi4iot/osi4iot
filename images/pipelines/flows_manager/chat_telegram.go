@@ -159,7 +159,11 @@ func (fm *FlowsManager) handleChatTelegramMessage(ctx context.Context, channel *
 		}
 		return // other commands are for the nodes of the pipeline (TelegramListen)
 	}
-	if msg.Type != telegram.MessageTypeText && msg.Type != telegram.MessageTypeVoice && msg.Type != telegram.MessageTypeAudio {
+	// a photo, or a file (an image uncompressed, a PDF, a Word document, a text): an attachment of the chat
+	// (utils/chatAttachments.go; its content decides whether it is accepted)
+	isAttachment := msg.Type == telegram.MessageTypePhoto && msg.Photo != nil ||
+		msg.Type == telegram.MessageTypeDocument && msg.Document != nil
+	if msg.Type != telegram.MessageTypeText && msg.Type != telegram.MessageTypeVoice && msg.Type != telegram.MessageTypeAudio && !isAttachment {
 		return
 	}
 
@@ -180,8 +184,48 @@ func (fm *FlowsManager) handleChatTelegramMessage(ctx context.Context, channel *
 		return
 	}
 
-	switch msg.Type {
-	case telegram.MessageTypeVoice, telegram.MessageTypeAudio:
+	var attachments []utils.ChatAttachment
+	switch {
+	case isAttachment:
+		group := fm.GetGroup(dt.GroupId)
+		if !common.ChatAttachmentsAllowed(fm.GetOrg(dt.OrgId), group) {
+			fm.chatTelegramReply(channel, "Files cannot be sent to the chat of this digital twin: attachments are "+
+				"not enabled for its group.", false)
+			return
+		}
+		fileId, name, size := "", "", int64(0)
+		if msg.Photo != nil {
+			fileId, size = msg.Photo.FileID, msg.Photo.FileSize
+			name = "telegram_photo.jpg"
+		} else {
+			fileId, name, size = msg.Document.FileID, msg.Document.FileName, msg.Document.FileSize
+		}
+		if fileId == "" {
+			return
+		}
+		if size > utils.MaxChatAttachmentSize {
+			fm.chatTelegramReply(channel, fmt.Sprintf("The file is larger than %d MB.", utils.MaxChatAttachmentSize/(1024*1024)), false)
+			return
+		}
+		fileData, _, err := telegram.DownloadFile(channel.botToken, fileId)
+		if err != nil {
+			fm.log.Errorf("Digital twin %d: file of %s not downloaded from Telegram: %v", dt.Id, userName, err)
+			fm.chatTelegramReply(channel, "The file could not be read.", false)
+			return
+		}
+		putCtx, putCancel := context.WithTimeout(ctx, 60*time.Second)
+		attachment, err := utils.PutChatAttachment(putCtx, fm.GetS3Client(), fm.GetS3BucketName(), dt.OrgId, dt.GroupId,
+			dt.Id, userName, name, fileData)
+		putCancel()
+		if err != nil {
+			fm.log.Errorf("Digital twin %d: file of %s not stored: %v", dt.Id, userName, err)
+			fm.chatTelegramReply(channel, "The file could not be stored: only images (JPEG, PNG, WebP) and documents (PDF, "+
+				"Word .docx, UTF-8 .txt or .md) and tables (CSV, Excel .xlsx) can be sent, of up to 10 MB (1 MB a text).", false)
+			return
+		}
+		attachments = []utils.ChatAttachment{attachment}
+		text = strings.TrimSpace(msg.Caption) // the question that comes with the file
+	case msg.Type == telegram.MessageTypeVoice || msg.Type == telegram.MessageTypeAudio:
 		fileId, mime := "", "audio/ogg"
 		if msg.Voice != nil {
 			fileId = msg.Voice.FileID
@@ -216,14 +260,14 @@ func (fm *FlowsManager) handleChatTelegramMessage(ctx context.Context, channel *
 		// what was understood, before the answer
 		fm.chatTelegramReply(channel, "🎤 "+text, false)
 	}
-	if text == "" {
+	if text == "" && len(attachments) == 0 {
 		return
 	}
 
 	if err := fm.chatTelegramWaitAnswer(channel, userName); err != nil {
 		fm.log.Errorf("Digital twin %d: the answer for %s would not reach Telegram: %v", dt.Id, userName, err)
 	}
-	if err := nodes.AskChatAsUser(fm, dt, userName, text, "telegram"); err != nil {
+	if err := nodes.AskChatAsUserWithAttachments(fm, dt, userName, text, "telegram", attachments); err != nil {
 		fm.log.Errorf("Digital twin %d: the Telegram message of %s not sent to the chat: %v", dt.Id, userName, err)
 		fm.chatTelegramReply(channel, "The message could not be sent to the chat.", false)
 		return

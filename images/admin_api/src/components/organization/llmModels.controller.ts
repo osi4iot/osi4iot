@@ -2,7 +2,7 @@ import { Router, NextFunction, Request, Response } from "express";
 import IController from "../../interfaces/controller.interface";
 import groupExists from "../../middleware/groupExists.middleware";
 import organizationExists from "../../middleware/organizationExists.middleware";
-import { groupAdminAuth, superAdminAuth } from "../../middleware/auth.middleware";
+import { superAdminAuth, groupViewerAuth } from "../../middleware/auth.middleware";
 import IRequestWithGroup from "../group/interfaces/requestWithGroup.interface";
 import IRequestWithOrganization from "./interfaces/requestWithOrganization.interface";
 import { getOrganizationFullInfoByProp } from "./organizationDAL";
@@ -38,7 +38,7 @@ class LlmModelsController implements IController {
 		this.router
 			.get("/organization_llm_models/:orgId", organizationExists, superAdminAuth, this.getOrganizationLlmModels)
 			.post("/organization_llm_models_preview", superAdminAuth, this.previewLlmModels)
-			.get("/group_llm_models/:groupId", groupExists, groupAdminAuth, this.getGroupLlmModels);
+			.get("/group_llm_models/:groupId", groupExists, groupViewerAuth, this.getGroupLlmModels);
 	}
 
 	private getOrganizationLlmModels = async (

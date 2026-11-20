@@ -671,11 +671,16 @@ func (n *FuncNode) handleProcessedData(
 		if msg, ok := processedData.(common.Message); ok {
 			n.addEventTriggerTopicType(originalMessage.GetTopic(), msg)
 			common.InheritSender(originalMessage, msg)
-			for _, wire := range nodeOutputWires[0] {
-				if n.Debug == "on" {
-					n.HandleDebug(msg, 0)
+			// the debug log before sending, and each wire its own copy: two nodes must never share a message
+			if n.Debug == "on" && len(nodeOutputWires[0]) > 0 {
+				n.HandleDebug(msg, 0)
+			}
+			for idx, wire := range nodeOutputWires[0] {
+				out := msg
+				if idx > 0 {
+					out = msg.Clone()
 				}
-				wire.Channel <- msg
+				wire.Channel <- out
 			}
 		} else {
 			errorMsg := fmt.Errorf("processed data is not of type Message in node %s", n.NodeUid)
@@ -691,6 +696,7 @@ func (n *FuncNode) handleProcessedData(
 				n.addEventTriggerTopicType(originalMessage.GetTopic(), msg)
 				common.InheritSender(originalMessage, msg)
 			}
+			sent := map[common.Message]bool{}
 			for idx, wireArray := range nodeOutputWires {
 				if idx < len(msgs) {
 					if msgs[idx] == nil {
@@ -699,9 +705,7 @@ func (n *FuncNode) handleProcessedData(
 					if n.Debug == "on" {
 						n.HandleDebug(msgs[idx], idx)
 					}
-					for _, wire := range wireArray {
-						wire.Channel <- msgs[idx]
-					}
+					sendToWires(wireArray, msgs[idx], sent)
 				}
 			}
 		} else if msgs, ok := processedData.([]interface{}); ok {
@@ -714,6 +718,7 @@ func (n *FuncNode) handleProcessedData(
 					common.InheritSender(originalMessage, msg1)
 				}
 			}
+			sent := map[common.Message]bool{}
 			for idx, wireArray := range nodeOutputWires {
 				if idx < len(msgs) {
 					if msgs[idx] == nil {
@@ -723,9 +728,7 @@ func (n *FuncNode) handleProcessedData(
 						if n.Debug == "on" {
 							n.HandleDebug(msg1, idx)
 						}
-						for _, wire := range wireArray {
-							wire.Channel <- msg1
-						}
+						sendToWires(wireArray, msg1, sent)
 					}
 				}
 			}
@@ -734,6 +737,20 @@ func (n *FuncNode) handleProcessedData(
 		}
 	}
 	return nil
+}
+
+// sendToWires sends msg to the wires of an output: the message itself to the first wire, if no other output got
+// it already (a function may return the same msg in several outputs: return [msg, msg]), and a copy to the rest.
+func sendToWires(wires []*common.Wire, msg common.Message, sent map[common.Message]bool) {
+	for _, wire := range wires {
+		out := msg
+		if sent[msg] {
+			out = msg.Clone()
+		} else {
+			sent[msg] = true
+		}
+		wire.Channel <- out
+	}
 }
 
 func (n *FuncNode) addEventTriggerTopicType(subject string, msg common.Message) {

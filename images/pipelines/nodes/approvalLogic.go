@@ -237,7 +237,7 @@ func (r *approvalRequest) telegramText(decision, by string, at time.Time, loc *t
 		if r.Expires > 0 {
 			b.WriteString("\nExpires: ");b.WriteString(time.UnixMilli(r.Expires).In(loc).Format("2006-01-02 15:04"))
 		}
-		b.WriteString("\nOnly group administrators with a linked Telegram account can decide.")
+		b.WriteString("\nOnly group editors and administrators with a linked Telegram account can decide.")
 	} else {
 		b.WriteString("\n");b.WriteString(at.In(loc).Format("2006-01-02 15:04"))
 		if by != "" {

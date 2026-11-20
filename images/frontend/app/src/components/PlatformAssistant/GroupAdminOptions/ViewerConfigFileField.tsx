@@ -1,6 +1,7 @@
-// The viewer configuration file (.json) of the create and edit forms of a digital twin: the layout of the
-// Viewer for the twin's group and the twin's lighting, as the Viewer downloads them. When the form is saved it
-// replaces the group's layout and the twin's lighting.
+// The viewer configuration file of the create and edit forms of a digital twin: the layout of the Viewer for the
+// twin's group and the twin's lighting, as the Viewer downloads them; a .json, or a .zip that also brings the
+// images of its Picture panels. When the form is saved it replaces the group's layout and the twin's lighting, and
+// the zip's images are uploaded to the twin (they replace those with the same name).
 import { FC, useRef } from "react";
 import styled from "styled-components";
 import { toast } from "react-toastify";
@@ -12,21 +13,38 @@ import {
     describeViewerConfig,
     parseViewerConfig,
 } from "../DigitalTwin3DViewer/Workspace/viewerConfig";
+import { PackageImage, describePackageImages, isZipName, readViewerPackage } from "../DigitalTwin3DViewer/Workspace/viewerPackage";
 
 export interface ViewerConfigFile {
     fileName: string;
     lastModified: string;
     config: ParsedViewerConfig;
+    // a .zip: its images, and what was left out of it
+    images?: PackageImage[];
+    ignored?: string[];
 }
 
 // null (and a message) when the file is not a valid configuration
 export const readViewerConfigFile = async (file: File): Promise<ViewerConfigFile | null> => {
-    const result = parseViewerConfig(await file.text());
+    let text: string;
+    let images: PackageImage[] | undefined;
+    let ignored: string[] | undefined;
+    if (isZipName(file.name)) {
+        const read = readViewerPackage(new Uint8Array(await file.arrayBuffer()));
+        if ("error" in read) {
+            toast.error(`${file.name}: ${read.error}`);
+            return null;
+        }
+        ({ configText: text, images, ignored } = read);
+    } else {
+        text = await file.text();
+    }
+    const result = parseViewerConfig(text);
     if ("error" in result) {
         toast.error(`${file.name}: ${result.error}`);
         return null;
     }
-    return { fileName: file.name, lastModified: formatDateString(file.lastModified as any), config: result };
+    return { fileName: file.name, lastModified: formatDateString(file.lastModified as any), config: result, images, ignored };
 };
 
 const Container = styled.div`
@@ -119,7 +137,8 @@ const ViewerConfigFileField: FC<ViewerConfigFileFieldProps> = ({ value, onChange
             <Container>
                 <Note>
                     The layout of the Viewer (slides, panels, time) for the twin&apos;s group and the twin&apos;s
-                    lighting, as the Viewer downloads them (Configuration › Download).
+                    lighting, as the Viewer downloads them (Configuration › Download): a .json, or a .zip with the
+                    images of its Picture panels.
                     {replaces ? " Saving the form replaces the current ones." : ""}
                 </Note>
                 <Field>
@@ -128,9 +147,16 @@ const ViewerConfigFileField: FC<ViewerConfigFileFieldProps> = ({ value, onChange
                 </Field>
                 <Field>
                     <label>Content</label>
-                    <div>{value ? describeViewerConfig(value.config) : "-"}</div>
+                    <div>
+                        {value
+                            ? [describeViewerConfig(value.config), value.images ? describePackageImages(value.images) : ""].filter(Boolean).join(" · ")
+                            : "-"}
+                    </div>
                 </Field>
-                {value?.config.warnings.map((warning) => (
+                {value?.images && value.images.length > 0 && (
+                    <Note>Its images are uploaded to the twin when the form is saved (they replace those with the same name).</Note>
+                )}
+                {[...(value?.config.warnings ?? []), ...(value?.ignored ?? []).map((what) => `Left out of the zip: ${what}.`)].map((warning) => (
                     <Note key={warning} $warn>
                         {warning}
                     </Note>
@@ -146,7 +172,7 @@ const ViewerConfigFileField: FC<ViewerConfigFileFieldProps> = ({ value, onChange
                 <input
                     ref={inputRef}
                     type="file"
-                    accept=".json,application/json"
+                    accept=".json,application/json,.zip,application/zip"
                     hidden
                     aria-label="Viewer configuration file"
                     onChange={(e) => {
@@ -155,7 +181,7 @@ const ViewerConfigFileField: FC<ViewerConfigFileFieldProps> = ({ value, onChange
                         void load(file);
                     }}
                 />
-                <FileDrop hintStyle={{ margin: "-30px 0 6px 0" }} accept={".json"} onFiles={(files) => void load(files[0])} />
+                <FileDrop hintStyle={{ margin: "-30px 0 6px 0" }} accept={[".json", ".zip"]} onFiles={(files) => void load(files[0])} />
             </Container>
         </FormSection>
     );

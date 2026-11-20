@@ -1886,7 +1886,10 @@ export const DegradationSettingsEditor: FC<{ settings: DegradationSettings; onCh
     onChange,
     topicRefs,
 }) => {
-    const historyRefs = Array.from(new Set([...topicRefs.filter((r) => r.startsWith("dev2pdb")), "dtm2pdb"]));
+    // stored topics: the sensors' (dev2pdb_n), the computed sensors' (dtm2pdb_n) and the digital twin's (dtm2pdb)
+    const historyRefs = Array.from(
+        new Set([...topicRefs.filter((r) => r.startsWith("dev2pdb") || /^dtm2pdb_\d+$/.test(r)), "dtm2pdb"]),
+    );
     const history = settings.historyTopicRef ?? "";
     return (
         <>

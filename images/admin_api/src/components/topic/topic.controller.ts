@@ -1,8 +1,10 @@
 import { Router, NextFunction, Response } from "express";
 import IController from "../../interfaces/controller.interface";
 import validationMiddleware from "../../middleware/validation.middleware";
-import { basicGroupAdminAuth, groupAdminAuth, organizationAdminAuth, userAuth } from "../../middleware/auth.middleware";
+import { basicGroupAdminAuth, organizationAdminAuth, userAuth, groupViewerAuth, groupEditorAuth } from "../../middleware/auth.middleware";
 import ItemNotFoundException from "../../exceptions/ItemNotFoundException";
+import { IRequestWithGroupRole } from "../../middleware/auth.middleware";
+import { checkDeletion, noExpensiveResources, topicOfId } from "../../utils/permissions/deletePolicy";
 import InvalidPropNameExeception from "../../exceptions/InvalidPropNameExeception";
 import groupExists from "../../middleware/groupExists.middleware";
 import organizationExists from "../../middleware/organizationExists.middleware";
@@ -72,25 +74,25 @@ class TopicController implements IController {
 			.get(
 				`${this.path}s_in_group/:groupId`,
 				groupExists,
-				groupAdminAuth,
+				groupViewerAuth,
 				this.getTopicsInGroup
 			)
 			.patch(
 				`${this.path}/:groupId/changeUid/:topicId`,
 				groupExists,
-				groupAdminAuth,
+				groupEditorAuth,
 				this.changeTopicUid
 			)
 			.get(
 				`${this.path}_message_schemas/:groupId/:topicId`,
 				groupExists,
-				groupAdminAuth,
+				groupViewerAuth,
 				this.getMessageSchemaVersions
 			)
 			.get(
 				`${this.path}/:groupId/:propName/:propValue`,
 				groupExists,
-				groupAdminAuth,
+				groupViewerAuth,
 				this.getTopicByProp
 			)
 			.post(
@@ -103,20 +105,20 @@ class TopicController implements IController {
 			.delete(
 				`${this.path}/:groupId/:topicId`,
 				groupExists,
-				groupAdminAuth,
+				groupEditorAuth,
 				this.deleteTopicById
 			)
 			.patch(
 				`${this.path}/:groupId/:topicId`,
 				groupExists,
-				groupAdminAuth,
+				groupEditorAuth,
 				validationMiddleware<CreateTopicDto>(CreateTopicDto, true),
 				this.updateTopicById
 			)
 			.post(
 				`${this.path}/:groupId`,
 				groupExists,
-				groupAdminAuth,
+				groupEditorAuth,
 				validationMiddleware<CreateTopicDto>(CreateTopicDto, true),
 				this.createTopic
 			)
@@ -242,14 +244,18 @@ class TopicController implements IController {
 	};
 
 	private deleteTopicById = async (
-		req: IRequestWithGroup,
+		req: IRequestWithGroup & IRequestWithGroupRole,
 		res: Response,
 		next: NextFunction
 	): Promise<void> => {
 		try {
 			const { topicId } = req.params;
 			const topic = await getTopicByProp("id", topicId);
-			if (!topic) throw new ItemNotFoundException(req, res, "The topic", "id", topicId);
+			if (!topic || Number(topic.groupId) !== Number(req.group.id)) {
+				throw new ItemNotFoundException(req, res, "The topic", "id", topicId);
+			}
+			// anyone: confirming the loss of its stored measurements (a topic holds no expensive resources)
+			await checkDeletion(req, res, "this topic", noExpensiveResources, () => topicOfId(Number(topicId)));
 			await deleteTopicById(req.group.id, parseInt(topicId, 10));
 			const message = { message: "Topic deleted successfully" }
 			res.status(200).json(message);

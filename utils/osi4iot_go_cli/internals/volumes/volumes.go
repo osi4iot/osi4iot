@@ -289,6 +289,9 @@ func removeReplicaVolume(pd *pt.PlatformData, volumeName string) error {
 		}
 		// Cleaning up the local Docker volume reference is best-effort, as the EBS volume has already been deleted.
 		for _, dc := range pt.DCMap {
+			if dc == nil || dc.Cli == nil {
+				continue // unreachable: its reference goes when Docker next lists the volume
+			}
 			err := dc.Cli.VolumeRemove(dc.Ctx, volumeName, true)
 			if err != nil && !isVolumeAlreadyRemovedError(err) && !errdefs.IsNotFound(err) {
 				fmt.Printf("Warning: could not remove local volume reference %s on node %s: %v\n", volumeName, dc.Node.NodeIP, err)
@@ -866,6 +869,9 @@ func GetNumVolumes(pd *pt.PlatformData) (int, error) {
 		numVolumes = len(volumes)
 	} else {
 		for _, dc := range pt.DCMap {
+			if dc == nil || dc.Cli == nil {
+				continue // unreachable: its volumes cannot be counted
+			}
 			existingVolumes, err := dc.Cli.VolumeList(dc.Ctx, volume.ListOptions{
 				Filters: filterArgs,
 			})

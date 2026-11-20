@@ -129,11 +129,32 @@ export const getTelegramApprover = async (groupId: number, telegramUserId: numbe
 		WHERE u.telegram_user_id = $1 AND g.id = $2 AND NOT u.is_disabled AND (
 			u.is_admin
 			OR EXISTS (SELECT 1 FROM grafanadb.team_member tm
-				WHERE tm.team_id = g.team_id AND tm.user_id = u.id AND tm.permission = 4)
+				WHERE tm.team_id = g.team_id AND tm.user_id = u.id AND tm.permission >= 2)
 			OR EXISTS (SELECT 1 FROM grafanadb.org_user ou
 				WHERE ou.org_id = g.org_id AND ou.user_id = u.id AND ou.role = 'Admin')
 		)`,
 		[telegramUserId, groupId]
 	);
 	return result.rows.length !== 0 ? result.rows[0].login : null;
+};
+// The role of a platform user (by login) in a group, for pipelines (who may act on the alarms and requests of the
+// viewer): "Admin" (platform, organization or group administrator), "Editor", "Viewer", or null when not a member
+export const groupRoleOfLogin = async (groupId: number, login: string): Promise<"Admin" | "Editor" | "Viewer" | null> => {
+	const result = await readQuery<{ isAdmin: boolean; orgAdmin: boolean; permission: number | null }>(
+		`SELECT u.is_admin AS "isAdmin",
+			EXISTS (SELECT 1 FROM grafanadb.org_user ou
+				WHERE ou.org_id = g.org_id AND ou.user_id = u.id AND ou.role = 'Admin') AS "orgAdmin",
+			(SELECT MAX(tm.permission) FROM grafanadb.team_member tm
+				WHERE tm.team_id = g.team_id AND tm.user_id = u.id) AS "permission"
+		FROM grafanadb.user u, grafanadb.group g
+		WHERE u.login = $1 AND g.id = $2 AND NOT u.is_disabled`,
+		[login, groupId]
+	);
+	const row = result.rows[0];
+	if (!row) return null;
+	if (row.isAdmin || row.orgAdmin) return "Admin";
+	if (row.permission === null || row.permission === undefined) return null;
+	if (Number(row.permission) >= 4) return "Admin";
+	if (Number(row.permission) >= 2) return "Editor";
+	return "Viewer";
 };

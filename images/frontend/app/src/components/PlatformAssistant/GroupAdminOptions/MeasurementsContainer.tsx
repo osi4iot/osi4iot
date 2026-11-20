@@ -19,7 +19,7 @@ import SelectSensor from './SelectSensor';
 import { ISelectSensor } from '../TableColumns/selectSensorColumns';
 import { AxiosError, AxiosResponse } from 'axios';
 import { Column } from '../Utils/platformTable';
-import { sensorPayloadKey } from "../../../tools/measurements";
+import { sensorPayloadKey, sensorPayloadPath, withValueAtPath } from "../../../tools/measurements";
 import { useTable } from "../../../state";
 
 const giveMeasurementSensor = (selectedSensor: ISensor) => {
@@ -55,6 +55,8 @@ const MeasurementsContainer: FC<MeasurementsContainerProps> = ({ sensors, topics
     const sensorTypes = useTable("sensorTypes");
     // campo de los mensajes que se muestra: el primero que mide el sensor (o su tipo)
     const payloadKey = useMemo(() => sensorPayloadKey(selectedSensor, sensorTypes), [selectedSensor, sensorTypes]);
+    // where it is in the message (a nested field: battery.voltage, or a JSON Pointer)
+    const payloadPath = useMemo(() => sensorPayloadPath(selectedSensor, sensorTypes), [selectedSensor, sensorTypes]);
 
     const updateMeasurementsTable = (measurementsTable: IMeasurement[]) => {
         setMeasurementsTable(measurementsTable);
@@ -78,14 +80,16 @@ const MeasurementsContainer: FC<MeasurementsContainerProps> = ({ sensors, topics
                 .then((response: AxiosResponse<any, any>) => {
                     const measurements = response.data;
                     measurements.map((measurement: any) => {
-                        const payload: Record<string, string> = {};
-                        const value = measurement[payloadKey];
+                        // the field, shown where it is in the message ({ "battery": { "voltage": 3.7 } })
+                        const raw = measurement[payloadKey];
+                        let value: unknown = raw;
                         try {
-                            payload[payloadKey] = JSON.parse(value);
+                            value = JSON.parse(raw);
                         } catch {
-                            payload[payloadKey] = value;
+                            value = raw;
                         }
-                        measurement.payload = JSON.stringify(payload);
+                        const path = payloadPath.length > 0 ? payloadPath : [payloadKey];
+                        measurement.payload = JSON.stringify(withValueAtPath({}, path, value));
                         return measurement;
                     })
                     setMeasurementsTable(measurements);
@@ -107,6 +111,7 @@ const MeasurementsContainer: FC<MeasurementsContainerProps> = ({ sensors, topics
             groupId,
             selectedSensor,
             payloadKey,
+            payloadPath,
             startDate,
             endDate,
             refreshToken,
@@ -178,6 +183,7 @@ const MeasurementsContainer: FC<MeasurementsContainerProps> = ({ sensors, topics
                     measurements={measurementsTable}
                     backToTable={showMeasurementsTableOption}
                     updateMeasurementsTable={updateMeasurementsTable}
+                    payloadKey={payloadKey}
                 />
             }
             {measurementsOptionToShow === MEASUREMENTS_OPTIONS.TABLE &&

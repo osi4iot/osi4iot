@@ -276,6 +276,10 @@ func (n *ApprovalNode) processViewerMessage(msg *nats.Msg, log *logger.Logger) e
 		}
 		reply(map[string]any{"ok": true, "requests": list})
 	case "approve", "reject":
+		if why := viewerActionRefusal(n.Ctx, n.Fm, n.GetGroupId(), user); why != "" {
+			reply(map[string]any{"ok": false, "error": why})
+			return nil
+		}
 		decided, err := n.decide(request.RequestId, request.Action == "approve", user, "viewer", request.Comment, log)
 		switch {
 		case err != nil:
@@ -327,7 +331,7 @@ func (n *ApprovalNode) telegramDecision(id string, approve bool, msg *telegram.T
 		return "The decision could not be checked now: try again later"
 	}
 	if user == "" {
-		return "Only group administrators with a Telegram account linked in their profile can decide"
+		return "Only group editors and administrators with a Telegram account linked in their profile can decide"
 	}
 	decided, err := n.decide(id, approve, user, "telegram", "", log)
 	switch {

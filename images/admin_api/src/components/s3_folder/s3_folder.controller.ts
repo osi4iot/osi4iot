@@ -1,7 +1,7 @@
 import { Router, NextFunction, Response } from "express";
 import IController from "../../interfaces/controller.interface";
 import validationMiddleware from "../../middleware/validation.middleware";
-import { groupAdminAuth, organizationAdminAuth, userAuth } from "../../middleware/auth.middleware";
+import { groupAdminAuth, organizationAdminAuth, userAuth, groupViewerAuth } from "../../middleware/auth.middleware";
 import ItemNotFoundException from "../../exceptions/ItemNotFoundException";
 import InvalidPropNameExeception from "../../exceptions/InvalidPropNameExeception";
 import groupExists from "../../middleware/groupExists.middleware";
@@ -53,24 +53,24 @@ class S3FolderController implements IController {
 			.get(`${this.path}s/user_managed/`, userAuth, this.getS3FoldersManagedByUser)
 			.get(`${this.path}s_with_history/user_managed/`, userAuth, this.getS3FoldersWithHistoryManagedByUser)
 			.get(`${this.path}s_in_org/:orgId/`, organizationAdminAuth, organizationExists, this.getS3FoldersInOrg)
-			.get(`${this.path}s_in_group/:groupId`, groupExists, groupAdminAuth, this.getS3FoldersInGroup)
-			.get(`${this.path}/:groupId/:assetId`, groupExists, groupAdminAuth, this.getS3FoldersInAsset)
+			.get(`${this.path}s_in_group/:groupId`, groupExists, groupViewerAuth, this.getS3FoldersInGroup)
+			.get(`${this.path}/:groupId/:assetId`, groupExists, groupViewerAuth, this.getS3FoldersInAsset)
 			.get(
 				`${this.path}/:groupId/:assetId/:propName/:propValue`,
 				groupExists,
-				groupAdminAuth,
+				groupViewerAuth,
 				this.getS3FolderByProp
 			)
 			.get(
 				`${this.path}s_history/:groupId/:assetId/:folderName`,
 				groupExists,
-				groupAdminAuth,
+				groupViewerAuth,
 				this.getS3FoldersHistoryByFolderName
 			)
 			.get(
 				`${this.path}_token/:groupId/:assetId/:folderName/:initDate/:finalDate`,
 				groupExists,
-				groupAdminAuth,
+				groupViewerAuth,
 				this.getAssetS3StorageToken
 			)
 			.get(

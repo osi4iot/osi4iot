@@ -73,9 +73,11 @@ interface LlmModelSelectProps {
     groupId: number;
     value: string;
     onChange: (model: string) => void;
+    // the option for no model (the node's default), always shown when given
+    emptyLabel?: string;
 }
 
-const LlmModelSelect: FC<LlmModelSelectProps> = ({ groupId, value, onChange }) => {
+const LlmModelSelect: FC<LlmModelSelectProps> = ({ groupId, value, onChange, emptyLabel }) => {
     const { accessToken, refreshToken } = useAuthState();
     const authDispatch = useAuthDispatch();
     const [list, setList] = useState<ILlmModelList | null>(listCache.get(groupId) || null);
@@ -164,7 +166,7 @@ const LlmModelSelect: FC<LlmModelSelectProps> = ({ groupId, value, onChange }) =
             )}
             <Row>
                 <Select value={current} onChange={(e: { target: { value: string } }) => onChange(e.target.value)}>
-                    {!current && <option value="">Select a model...</option>}
+                    {(!current || emptyLabel) && <option value="">{emptyLabel ?? "Select a model..."}</option>}
                     {models.map((m) => (
                         <option key={m.id} value={m.id}>
                             {m.id === current && !valueInList ? `${m.id} (not in the list)` : formatLlmModelLabel(m)}

@@ -68,6 +68,13 @@ export const AI_AGENT_MCP_SERVERS: IMcpServerInfo[] = [
 			"States of the assets of the digital twin's group, as the AssetState nodes keep them: status, description, other fields, last update (asset_state__*).",
 		condition: "",
 	},
+	{
+		name: "chat_data",
+		label: "Chat tables",
+		description:
+			"The tables (CSV, Excel .xlsx) the users attach to the chat: their columns and summary, SQL queries over them (DuckDB) and charts shown with the answer (chat_data__describe-table, chat_data__query-table, chat_data__table-chart).",
+		condition: "Only when the group allows chat attachments; each user can only query their own files.",
+	},
 ];
 
 export const MCP_SERVER_NAMES = AI_AGENT_MCP_SERVERS.map((s) => s.name);

@@ -102,14 +102,17 @@ interface WorkspaceControlsProps {
     origin: "local" | "group" | "automatic";
     onEdit: () => void;
     onRestore: () => void;
-    // the viewer configuration: download it; load a file (group administrators)
+    // the viewer configuration: download it (a .zip with the images of its Picture panels, when it has some);
+    // load a file, .json or .zip (group administrators)
     onDownloadConfig?: () => void;
-    onLoadConfig?: (fileName: string, text: string) => void;
+    downloadImages?: number;
+    onLoadConfig?: (file: File) => void;
 }
 
-const ConfigMenu: FC<Pick<WorkspaceControlsProps, "canSave" | "onDownloadConfig" | "onLoadConfig">> = ({
+const ConfigMenu: FC<Pick<WorkspaceControlsProps, "canSave" | "onDownloadConfig" | "downloadImages" | "onLoadConfig">> = ({
     canSave,
     onDownloadConfig,
+    downloadImages = 0,
     onLoadConfig,
 }) => {
     const [open, setOpen] = useState(false);
@@ -155,8 +158,12 @@ const ConfigMenu: FC<Pick<WorkspaceControlsProps, "canSave" | "onDownloadConfig"
                         >
                             <Download aria-hidden="true" />
                             <span>
-                                Download (.json)
-                                <small>The layout and the lighting shown</small>
+                                {downloadImages > 0 ? "Download (.zip)" : "Download (.json)"}
+                                <small>
+                                    {downloadImages > 0
+                                        ? `The layout, the lighting and ${downloadImages === 1 ? "its image" : `its ${downloadImages} images`}`
+                                        : "The layout and the lighting shown"}
+                                </small>
                             </span>
                         </button>
                     )}
@@ -165,7 +172,7 @@ const ConfigMenu: FC<Pick<WorkspaceControlsProps, "canSave" | "onDownloadConfig"
                             <Upload aria-hidden="true" />
                             <span>
                                 Load a file…
-                                <small>To edit it, then save it for the group</small>
+                                <small>A .json, or a .zip with its images: to edit it, then save it for the group</small>
                             </span>
                         </button>
                     )}
@@ -174,7 +181,7 @@ const ConfigMenu: FC<Pick<WorkspaceControlsProps, "canSave" | "onDownloadConfig"
             <input
                 ref={fileRef}
                 type="file"
-                accept=".json,application/json"
+                accept=".json,application/json,.zip,application/zip"
                 hidden
                 data-testid="viewer-config-file"
                 onChange={(e) => {
@@ -182,7 +189,7 @@ const ConfigMenu: FC<Pick<WorkspaceControlsProps, "canSave" | "onDownloadConfig"
                     e.target.value = "";
                     if (!file || !onLoadConfig) return;
                     setOpen(false);
-                    file.text().then((text) => onLoadConfig(file.name, text));
+                    onLoadConfig(file);
                 }}
             />
         </MenuWrap>
@@ -196,12 +203,13 @@ const WorkspaceControls: FC<WorkspaceControlsProps> = ({
     onEdit,
     onRestore,
     onDownloadConfig,
+    downloadImages,
     onLoadConfig,
 }) => {
     if (!visible) return null;
     return (
         <Wrap>
-            <ConfigMenu canSave={canSave} onDownloadConfig={onDownloadConfig} onLoadConfig={onLoadConfig} />
+            <ConfigMenu canSave={canSave} onDownloadConfig={onDownloadConfig} downloadImages={downloadImages} onLoadConfig={onLoadConfig} />
             {!canSave && origin === "local" && (
                 <Button type="button" onClick={onRestore} aria-label="Back to the group layout" title="Back to the group layout">
                     <RotateCcw aria-hidden="true" />

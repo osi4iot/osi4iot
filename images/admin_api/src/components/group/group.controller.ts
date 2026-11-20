@@ -24,6 +24,7 @@ import {
 	getGroupMembersByEmailsArray,
 	getGroupMembersInTeamIdArray,
 	getGroupsManagedByUserId,
+	getGroupsOfMemberByUserId,
 	getNotificationAllChannels,
 	getNotificationChannelById,
 	getNumberOfGroupMemberWithAdminRole,
@@ -75,6 +76,8 @@ class GroupController implements IController {
 	private initializeRoutes(): void {
 		this.router
 			.get(`${this.path}s/user_managed/`, userAuth, this.getGroupsManagedByUser)
+			// the groups of the map and the viewer: every group the user is a member of (any role) or administers
+			.get(`${this.path}s/user_viewable/`, userAuth, this.getGroupsViewableByUser)
 			.get(`${this.path}_user_managed/:groupId`, groupExists, groupAdminAuth, this.getGroupManagedByUser)
 			.patch(
 				`${this.path}_user_managed/:groupId/`,
@@ -180,20 +183,43 @@ class GroupController implements IController {
 	private groupsManagedByUsers = async (user: IUser): Promise<IGroup[]> => {
 		let groups: IGroup[] = [];
 		if (user.isGrafanaAdmin) {
-			groups = await getAllGroups();
+			groups = (await getAllGroups()).map((group) => ({ ...group, roleInGroup: "Admin" }));
 		} else {
 			groups = await getGroupsManagedByUserId(user.id);
 			const organizations = await getOrganizationsManagedByUserId(user.id);
 			if (organizations.length !== 0) {
 				const orgIdsArray = organizations.map((org) => org.id);
 				const groupsInOrgs = await getAllGroupsInOrgArray(orgIdsArray);
+				// the administrator of an organization is Admin of all its groups
+				const orgIds = new Set(orgIdsArray.map(Number));
+				groups = groups.map((group) => (orgIds.has(Number(group.orgId)) ? { ...group, roleInGroup: "Admin" } : group));
 				const groupsIdArray = groups.map((group) => group.id);
 				groupsInOrgs.forEach((groupInOrg) => {
-					if (groupsIdArray.indexOf(groupInOrg.id) === -1) groups.push(groupInOrg);
+					if (groupsIdArray.indexOf(groupInOrg.id) === -1) groups.push({ ...groupInOrg, roleInGroup: "Admin" });
 				});
 			}
 		}
 		return groups;
+	};
+
+	// The groups the user sees in the map and the viewer: those it is a member of, with its role, and those of the
+	// organizations it administers (Admin); all of them for a platform administrator
+	private groupsViewableByUsers = async (user: IUser): Promise<IGroup[]> => {
+		if (user.isGrafanaAdmin) return (await getAllGroups()).map((group) => ({ ...group, roleInGroup: "Admin" }));
+		const managed = await this.groupsManagedByUsers(user);
+		const byId = new Map<number, IGroup>(managed.map((group) => [Number(group.id), group]));
+		for (const group of await getGroupsOfMemberByUserId(user.id)) {
+			if (!byId.has(Number(group.id))) byId.set(Number(group.id), group);
+		}
+		return [...byId.values()].sort((a, b) => Number(a.id) - Number(b.id));
+	};
+
+	private getGroupsViewableByUser = async (req: IRequestWithUser, res: Response, next: NextFunction): Promise<void> => {
+		try {
+			res.status(200).send(await this.groupsViewableByUsers(req.user));
+		} catch (error) {
+			next(error);
+		}
 	};
 
 	private getGroupsManagedByUser = async (

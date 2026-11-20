@@ -4,7 +4,7 @@ import multerS3 from "multer-s3";
 import { ReadStream } from "fs";
 import IController from "../../interfaces/controller.interface";
 import validationMiddleware from "../../middleware/validation.middleware";
-import { groupAdminAuth, organizationAdminAuth, userAuth } from "../../middleware/auth.middleware";
+import { organizationAdminAuth, userAuth, groupViewerAuth, groupEditorAuth } from "../../middleware/auth.middleware";
 import ItemNotFoundException from "../../exceptions/ItemNotFoundException";
 import InvalidPropNameExeception from "../../exceptions/InvalidPropNameExeception";
 import groupExists from "../../middleware/groupExists.middleware";
@@ -50,6 +50,8 @@ import {
 import IDigitalTwin from "./digitalTwin.interface";
 import IDigitalTwinState from "./digitalTwinState.interface";
 import HttpException from "../../exceptions/HttpException";
+import { IRequestWithGroupRole } from "../../middleware/auth.middleware";
+import { checkDeletion, expensiveResourcesOfDigitalTwin, topicsOfDigitalTwin } from "../../utils/permissions/deletePolicy";
 import { getOrganizationsManagedByUserId } from "../organization/organizationDAL";
 import IDigitalTwinSimulator from "./digitalTwinSimulator.interface";
 import s3Client from "../../config/s3Config";
@@ -137,46 +139,46 @@ class DigitalTwinController implements IController {
 			.get(`${this.path}s_state/user_managed/`, userAuth, this.getStateOfDigitalTwinsManagedByUser)
 			.get(`${this.path}_simulators/user_managed/`, userAuth, this.getDigitalTwinSimulatorsManagedByUser)
 			.get(`${this.path}s_in_org/:orgId/`, organizationAdminAuth, organizationExists, this.getDigitalTwinsInOrg)
-			.get(`${this.path}s_in_group/:groupId`, groupExists, groupAdminAuth, this.getDigitalTwinsInGroup)
+			.get(`${this.path}s_in_group/:groupId`, groupExists, groupViewerAuth, this.getDigitalTwinsInGroup)
 			.get(
 				`${this.path}_mqtt_topics_in_group/:groupId`,
 				groupExists,
-				groupAdminAuth,
+				groupViewerAuth,
 				this.getDigitalTwinMqttTopicsInGroup
 			)
-			.get(`${this.path}/:groupId/:propName/:propValue`, groupExists, groupAdminAuth, this.getDigitalTwinByProp)
-			.get(`${this.path}_data/:groupId/:digitalTwinId`, groupExists, groupAdminAuth, this.getDigitalTwinData)
+			.get(`${this.path}/:groupId/:propName/:propValue`, groupExists, groupViewerAuth, this.getDigitalTwinByProp)
+			.get(`${this.path}_data/:groupId/:digitalTwinId`, groupExists, groupViewerAuth, this.getDigitalTwinData)
 			.get(
 				`${this.path}_glbfile/:groupId/:digitalTwinId`,
 				groupExists,
-				groupAdminAuth,
+				groupViewerAuth,
 				this.getDigitalTwinGlbFile
 			)
 			.get(
 				`${this.path}_gltffile/:groupId/:digitalTwinId`,
 				groupExists,
-				groupAdminAuth,
+				groupViewerAuth,
 				this.getDigitalTwinGltfFile
 			)
-			.delete(`${this.path}/:groupId/:digitalTwinId`, groupExists, groupAdminAuth, this.deleteDigitalTwinById)
+			.delete(`${this.path}/:groupId/:digitalTwinId`, groupExists, groupEditorAuth, this.deleteDigitalTwinById)
 			.patch(
 				`${this.path}/:groupId/:digitalTwinId`,
 				groupExists,
-				groupAdminAuth,
+				groupEditorAuth,
 				validationMiddleware<UpdateDigitalTwinDto>(UpdateDigitalTwinDto),
 				this.updateDigitalTwinById
 			)
 			.post(
 				`${this.path}/:groupId/:assetId`,
 				assetAndGroupExist,
-				groupAdminAuth,
+				groupEditorAuth,
 				validationMiddleware<CreateDigitalTwinDto>(CreateDigitalTwinDto, true),
 				this.createDigitalTwin
 			)
 			.post(
 				`${this.path}_upload_file/:groupId/:digitalTwinId/:folder/:fileName`,
 				digitalTwinAndGroupExist,
-				groupAdminAuth,
+				groupEditorAuth,
 				validDigitalTwinUploadFolder,
 				uploadDigitalTwinFile.single("file"),
 				this.uploadDigitalTwinFile
@@ -184,53 +186,53 @@ class DigitalTwinController implements IController {
 			.get(
 				`${this.path}_download_file/:groupId/:digitalTwinId/:folder/:fileName`,
 				digitalTwinAndGroupExist,
-				groupAdminAuth,
+				groupViewerAuth,
 				this.downloadDigitalTwinFile
 			)
 			.get(
 				`${this.path}_file_list/:groupId/:digitalTwinId/:folder`,
 				digitalTwinAndGroupExist,
-				groupAdminAuth,
+				groupViewerAuth,
 				this.getDigitalTwinFileInfoList
 			)
 			.delete(
 				`${this.path}_delete_file/:groupId/:digitalTwinId/:folder/:fileName`,
 				digitalTwinAndGroupExist,
-				groupAdminAuth,
+				groupEditorAuth,
 				this.deleteDigitalTwinFile
 			)
 			.post(
 				`${this.path}_pipeline/:groupId/:digitalTwinId`,
 				digitalTwinAndGroupExist,
-				groupAdminAuth,
+				groupEditorAuth,
 				validationMiddleware<PipelineDto>(PipelineDto, true),
 				this.createPipeline
 			)
 			.patch(
 				`${this.path}_pipeline/:groupId/:digitalTwinId`,
 				digitalTwinAndGroupExist,
-				groupAdminAuth,
+				groupEditorAuth,
 				validationMiddleware<PipelineDto>(PipelineDto, true),
 				this.updatePipeline
 			)
 			.delete(
 				`${this.path}_pipeline/:groupId/:digitalTwinId`,
 				digitalTwinAndGroupExist,
-				groupAdminAuth,
+				groupEditorAuth,
 				validationMiddleware<PipelineDto>(PipelineDto, true),
 				this.deletePipeline
 			)
 			.put(
 				`${this.path}_viewer_settings/:groupId/:digitalTwinId`,
 				digitalTwinAndGroupExist,
-				groupAdminAuth,
+				groupEditorAuth,
 				validationMiddleware<UpdateViewerSettingsDto>(UpdateViewerSettingsDto),
 				this.updateViewerSettings
 			)
 			.post(
 				`${this.path}_pipeline_action/:groupId/:digitalTwinId`,
 				digitalTwinAndGroupExist,
-				groupAdminAuth,
+				groupEditorAuth,
 				validationMiddleware<CreatePipelineActionDto>(CreatePipelineActionDto, true),
 				this.setPipelineAction
 			)
@@ -238,7 +240,7 @@ class DigitalTwinController implements IController {
 			.get(
 				`${this.path}_topics/:groupId/:digitalTwinId`,
 				groupExists,
-				groupAdminAuth,
+				groupViewerAuth,
 				this.getDigitalTwinTopicsByDTid
 			);
 	}
@@ -433,11 +435,47 @@ class DigitalTwinController implements IController {
 		}
 	};
 
-	private deleteDigitalTwinById = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+	// Only an Admin gives a digital twin expensive resources: a pipeline on GPU, knowledge base documents (RAG)
+	private checkExpensiveSettings = (
+		req: IRequestWithGroupRole,
+		res: Response,
+		data: { pipelineRequiresGpu?: boolean; knowledgeDocuments?: string[] },
+		existent: { pipelineRequiresGpu?: boolean; knowledgeDocuments?: string[] } | null
+	): void => {
+		if (req.groupRole === "Admin") return;
+		const gpuBefore = existent?.pipelineRequiresGpu === true;
+		if (data.pipelineRequiresGpu !== undefined && data.pipelineRequiresGpu === true && !gpuBefore) {
+			throw new HttpException(req, res, 403, "Only an administrator of the group can run a pipeline on GPU.");
+		}
+		if (data.knowledgeDocuments !== undefined) {
+			const before = [...(existent?.knowledgeDocuments ?? [])].sort().join("\n");
+			const after = [...(data.knowledgeDocuments ?? [])].sort().join("\n");
+			if (before !== after) {
+				throw new HttpException(
+					req,
+					res,
+					403,
+					"Only an administrator of the group can choose the knowledge base documents of a digital twin."
+				);
+			}
+		}
+	};
+
+	private deleteDigitalTwinById = async (req: IRequestWithGroupRole, res: Response, next: NextFunction): Promise<void> => {
 		try {
 			const { digitalTwinId } = req.params;
 			const digitalTwin = await getDigitalTwinByProp("id", digitalTwinId);
-			if (!digitalTwin) throw new ItemNotFoundException(req, res, "The digital twin", "id", digitalTwinId);
+			if (!digitalTwin || Number(digitalTwin.groupId) !== Number(req.group.id)) {
+				throw new ItemNotFoundException(req, res, "The digital twin", "id", digitalTwinId);
+			}
+			// an Editor: only without expensive resources; anyone: confirming the loss of its stored measurements
+			await checkDeletion(
+				req,
+				res,
+				"this digital twin",
+				() => expensiveResourcesOfDigitalTwin(Number(digitalTwinId)),
+				() => topicsOfDigitalTwin(Number(digitalTwinId))
+			);
 			await deleteDigitalTwinById(digitalTwin);
 			const orgId = digitalTwin.orgId;
 			const groupId = digitalTwin.groupId;
@@ -451,7 +489,7 @@ class DigitalTwinController implements IController {
 	};
 
 	private updateDigitalTwinById = async (
-		req: IRequestWithGroup,
+		req: IRequestWithGroup & IRequestWithGroupRole,
 		res: Response,
 		next: NextFunction
 	): Promise<void> => {
@@ -462,6 +500,7 @@ class DigitalTwinController implements IController {
 			const existentDigitalTwin = await getDigitalTwinByProp("id", digitalTwinId);
 			if (!existentDigitalTwin)
 				throw new ItemNotFoundException(req, res, "The digital twin", "id", digitalTwinId);
+			this.checkExpensiveSettings(req, res, digitalTwinData, existentDigitalTwin);
 			const digitalTwinUpdated: IDigitalTwin & UpdateDigitalTwinDto = {
 				...existentDigitalTwin,
 				...digitalTwinData,
@@ -493,6 +532,7 @@ class DigitalTwinController implements IController {
 			const digitalTwinData: CreateDigitalTwinDto = req.body;
 			const asset = req.asset;
 			const group = req.group;
+			this.checkExpensiveSettings(req as IRequestWithGroupRole, res, digitalTwinData, null);
 
 			const existDigitalTwin = await getDigitalTwinByProp("digital_twin_uid", digitalTwinData.digitalTwinUid);
 			if (existDigitalTwin)

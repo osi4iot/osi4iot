@@ -137,6 +137,12 @@ func (n *TranslatorNode) processMessage(msg common.Message, log *logger.Logger) 
 		n.sendToOutputs(msg, log)
 		return nil
 	}
+	// the group reached its monthly LLM token limit: the message goes on unchanged, without calling the provider
+	if refusal := n.llmLimitReached(); refusal != "" {
+		n.HandleWarn(refusal)
+		n.sendToOutputs(msg, log)
+		return nil
+	}
 
 	log.Infof("TranslatorNode %s: translating message to %s", n.NodeUid, n.TargetLanguage)
 

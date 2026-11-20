@@ -1,7 +1,7 @@
 // Chart panels of the Viewer page: the fields of the asset's sensors that can be charted, the ranges of time,
 // and the ECharts options built from the aggregated series of admin_api (/time_series: mean, min and max of
 // each bucket of time). Pure functions, so they are easy to test.
-import { toMeasurements } from "../../../../tools/measurements";
+import { measurementItems, toMeasurements } from "../../../../tools/measurements";
 import { ChartRange, ChartSeriesRef, seriesKey } from "./workspaceLayout";
 
 export interface ChartRangeInfo {
@@ -43,8 +43,8 @@ export interface ChartSeriesOption extends ChartSeriesRef {
     units: string;
 }
 
-// The fields of the asset's sensors (their measurements, or those of their type); an array field gives one
-// option per item of its label ("Ax,Ay,Az")
+// The fields of the asset's sensors (their measurements, or those of their type), nested ones too
+// ("battery.voltage", a JSON Pointer); an array field gives one option per item of its label ("Ax,Ay,Az")
 export const chartSeriesOptions = (
     sensors: ChartSensor[],
     sensorTypes: ChartSensorType[],
@@ -58,16 +58,13 @@ export const chartSeriesOptions = (
             const type = sensorTypes.find((t) => t.id === sensor.sensorTypeId);
             measurements = toMeasurements(type?.defaultMeasurements);
         }
+        // each value (an array: each item) at its path; texts are not drawn (charts draw numbers and booleans)
         for (const [field, m] of Object.entries(measurements)) {
             const base = { sensor: sensor.sensorRef, sensorId: sensor.id, sensorDescription: sensor.description, units: m.units };
-            if (m.type === "array") {
-                m.label.split(",").forEach((label, index) => {
-                    const ref = { sensor: sensor.sensorRef, field, index };
-                    options.push({ ...base, ...ref, key: seriesKey(ref), label: label.trim() || `${field}[${index}]` });
-                });
-            } else {
-                const ref = { sensor: sensor.sensorRef, field };
-                options.push({ ...base, ...ref, key: seriesKey(ref), label: m.label });
+            for (const item of measurementItems(field, m)) {
+                if (item.type === "string") continue;
+                const ref = item.index === undefined ? { sensor: sensor.sensorRef, field } : { sensor: sensor.sensorRef, field, index: item.index };
+                options.push({ ...base, ...ref, key: seriesKey(ref), label: item.label });
             }
         }
     }
@@ -120,8 +117,8 @@ export interface TimeSeriesResponse {
     histogram?: { min: number; max: number; size: number; offset: number };
 }
 
-// colours of the series (the OSI4IOT palette, readable on the dark panels)
-export const SERIES_COLORS = ["#4c9af0", "#f58b3c", "#4cc38a", "#e0b232", "#a97be0", "#f7949f", "#8ec0f7", "#3da874"];
+// colours of the series (the same order as Grafana's classic palette, readable on the dark panels)
+export const SERIES_COLORS = ["#5794f2", "#ff9830", "#73bf69", "#f2cc0c", "#b877d9", "#ff7383", "#8ab8ff", "#56a64b"];
 
 export const formatBucket = (seconds: number): string => {
     if (seconds < 1) return `${Math.round(seconds * 1000)} ms`;
@@ -244,3 +241,4 @@ export const buildChartOption = (data: TimeSeriesResponse, now = Date.now()) => 
 };
 
 export const hasPoints = (data: TimeSeriesResponse | null) => !!data && data.series.some((s) => s.points.length > 0);
+

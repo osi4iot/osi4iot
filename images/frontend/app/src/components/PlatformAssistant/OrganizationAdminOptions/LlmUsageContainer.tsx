@@ -977,11 +977,112 @@ const LimitCard: FC<{
             <Note id="llm-usage-limit-note">
                 0 means no limit. When the organization's tokens reach the warning percentage and the limit, the users
                 are told once a month in the pipeline logs and in the chat of the digital twins; the AI tools keep
-                working. The usage is kept for {summary.retentionDays ?? 400} days and then deleted.
+                working (each group can also have a limit of its own, below, which stops it). The usage is kept for {summary.retentionDays ?? 400} days and then deleted.
             </Note>
         </Card>
     );
 };
+
+// ---------------------------------------------------------------- limits of the groups
+
+interface GroupTokenUsage {
+    groupId: number;
+    name: string;
+    acronym: string;
+    monthTokens: number;
+    monthlyTokenLimit: number;
+}
+
+// The monthly token limit of each group (README, "Permissions"): set here by the administrator of the
+// organization. Unlike the organization's limit, a group that reaches its own is stopped until the month ends.
+const GroupLimitRow: FC<{ group: GroupTokenUsage; onSave: (groupId: number, limit: number) => Promise<void> }> = ({
+    group,
+    onSave,
+}) => {
+    const [text, setText] = useState(String(group.monthlyTokenLimit || 0));
+    const [saving, setSaving] = useState(false);
+    useEffect(() => setText(String(group.monthlyTokenLimit || 0)), [group.monthlyTokenLimit]);
+    const parsed = Number(text.replace(/[\s,._]/g, ""));
+    const valid = Number.isInteger(parsed) && parsed >= 0;
+    const limit = group.monthlyTokenLimit;
+    const reached = limit > 0 && group.monthTokens >= limit;
+    return (
+        <tr>
+            <td>
+                {group.name} <span style={{ color: c.textMuted }}>({group.acronym})</span>
+            </td>
+            <td>{formatInt(group.monthTokens)}</td>
+            <td>
+                {limit > 0 ? (
+                    reached ? (
+                        <b style={{ color: c.danger }}>Stopped</b>
+                    ) : (
+                        `${Math.floor((group.monthTokens / limit) * 100)} %`
+                    )
+                ) : (
+                    "—"
+                )}
+            </td>
+            <td>
+                <input
+                    aria-label={`Monthly token limit of ${group.name}`}
+                    inputMode="numeric"
+                    value={text}
+                    onChange={(e) => setText(e.target.value)}
+                    style={{ width: 130 }}
+                />
+            </td>
+            <td>
+                <PrimaryButton
+                    type="button"
+                    disabled={!valid || parsed === limit || saving}
+                    onClick={() => {
+                        setSaving(true);
+                        onSave(group.groupId, parsed).finally(() => setSaving(false));
+                    }}
+                >
+                    {saving ? "Saving…" : "Save"}
+                </PrimaryButton>
+            </td>
+        </tr>
+    );
+};
+
+const GroupLimitsCard: FC<{ groups: GroupTokenUsage[]; onSave: (groupId: number, limit: number) => Promise<void> }> = ({
+    groups,
+    onSave,
+}) => (
+    <Card aria-labelledby="llm-usage-groups">
+        <h2 id="llm-usage-groups">Monthly token limit of each group · {monthLabel(currentMonth())} (UTC)</h2>
+        {groups.length === 0 ? (
+            <Empty>The organization has no groups.</Empty>
+        ) : (
+            <TableWrap>
+                <Table>
+                    <thead>
+                        <tr>
+                            <th scope="col">Group</th>
+                            <th scope="col">Tokens this month</th>
+                            <th scope="col">Of its limit</th>
+                            <th scope="col">Monthly limit (tokens)</th>
+                            <th scope="col" />
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {groups.map((g) => (
+                            <GroupLimitRow key={g.groupId} group={g} onSave={onSave} />
+                        ))}
+                    </tbody>
+                </Table>
+            </TableWrap>
+        )}
+        <Note>
+            0 means no limit. A group that reaches its limit is stopped until the month ends or the limit is raised: its
+            AI agents, translations, transcriptions and voices do not call the provider (the chat answers that the limit
+            was reached). Its users are told at the organization&apos;s warning percentage and at the limit.
+        </Note>
+    </Card>
+);
 
 // ---------------------------------------------------------------- page
 
@@ -998,6 +1099,31 @@ const LlmUsageContainer: FC<LlmUsageContainerProps> = ({ orgsManaged }) => {
     const [loading, setLoading] = useState(false);
     const [saving, setSaving] = useState(false);
     const [showTable, setShowTable] = useState(false);
+    const [groupsUsage, setGroupsUsage] = useState<GroupTokenUsage[]>([]);
+    const loadGroupsUsage = useCallback(
+        (id: number) => {
+            const url = `${getProtocol()}://${getDomainName()}/admin_api/llm_usage_groups/${id}`;
+            getAxiosInstance(refreshToken, authDispatch)
+                .get(url, axiosAuth(accessToken))
+                .then((response: AxiosResponse<GroupTokenUsage[]>) => setGroupsUsage(response.data ?? []))
+                .catch((error: AxiosError) => axiosErrorHandler(error, authDispatch));
+        },
+        [accessToken, refreshToken, authDispatch],
+    );
+    const saveGroupLimit = useCallback(
+        (groupId: number, limit: number): Promise<void> => {
+            if (orgId === null) return Promise.resolve();
+            const url = `${getProtocol()}://${getDomainName()}/admin_api/llm_usage_group_limit/${orgId}/${groupId}`;
+            return getAxiosInstance(refreshToken, authDispatch)
+                .put(url, { monthlyTokenLimit: limit }, axiosAuth(accessToken))
+                .then(() => loadGroupsUsage(orgId))
+                .catch((error: AxiosError) => axiosErrorHandler(error, authDispatch));
+        },
+        [orgId, accessToken, refreshToken, authDispatch, loadGroupsUsage],
+    );
+    useEffect(() => {
+        if (orgId !== null) loadGroupsUsage(orgId);
+    }, [orgId, loadGroupsUsage]);
     const [trend, setTrend] = useState<UsageTrend | null>(null);
 
     const selectedOrg = orgsManaged.find((o) => o.id === orgId) ?? orgsManaged[0];
@@ -1142,6 +1268,8 @@ const LlmUsageContainer: FC<LlmUsageContainerProps> = ({ orgsManaged }) => {
                     </Tiles>
 
                     <LimitCard summary={summary} saving={saving} onSave={saveLimit} />
+
+                    <GroupLimitsCard groups={groupsUsage} onSave={saveGroupLimit} />
 
                     <Card aria-labelledby="llm-usage-daily">
                         <h2 id="llm-usage-daily" style={{ display: "flex", justifyContent: "space-between" }}>

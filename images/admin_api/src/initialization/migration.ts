@@ -489,6 +489,7 @@ export const dataBaseInitialization = async () => {
 					gpu_usage_enabled BOOLEAN DEFAULT false,
 					rag_enabled BOOLEAN NOT NULL DEFAULT false,
 					timezone VARCHAR(64) NOT NULL DEFAULT '',
+					chat_attachments_enabled BOOLEAN NOT NULL DEFAULT false,
 					created TIMESTAMPTZ,
 					updated TIMESTAMPTZ,
 					CONSTRAINT fk_org_id

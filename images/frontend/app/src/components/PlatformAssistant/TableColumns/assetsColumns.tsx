@@ -1,4 +1,5 @@
 import { FC, useState, useEffect } from 'react';
+import { deleteConfirmingDataLoss } from "../../../tools/deleteConfirmingDataLoss";
 import { reloadTable } from "../../../state";
 import { Column } from '../Utils/platformTable';
 import { toast } from 'react-toastify';
@@ -82,8 +83,7 @@ const DeleteAssetModal: FC<DeleteAssetModalProps> = ({ rowIndex, groupId, assetI
     const action = (hideModal: () => void) => {
         const url = `${protocol}://${domainName}/admin_api/asset/${groupId}/id/${assetId}`;
         const config = axiosAuth(accessToken);
-        getAxiosInstance(refreshToken, authDispatch)
-            .delete(url, config)
+        deleteConfirmingDataLoss(getAxiosInstance(refreshToken, authDispatch), url, config)
             .then((response: AxiosResponse<any, any>) => {
                 setIsAssetDeleted(true);
                 setIsSubmitting(false);

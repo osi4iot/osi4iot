@@ -37,6 +37,13 @@ function threeDecoders(): Plugin {
 
 export default defineConfig({
   plugins: [react(), threeDecoders()],
+  resolve: {
+    alias: [
+      // ECharts GL (paneles 3D Surface) importa archivos internos de ECharts y zrender sin ".js"
+      // ("echarts/lib/echarts"), y sus exports ("./*": "./*") ya no lo permiten: se les añade la extensión.
+      { find: /^(echarts|zrender)\/lib\/(.+?)(?<!\.js)$/, replacement: '$1/lib/$2.js' },
+    ],
+  },
   define: {
     'process.env': '{}',
     'process.browser': true,

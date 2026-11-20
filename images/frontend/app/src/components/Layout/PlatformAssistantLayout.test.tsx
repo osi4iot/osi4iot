@@ -6,6 +6,9 @@ import { useSessionStore } from "../../state/sessionStore";
 import { useUiStore } from "../../state/uiStore";
 import PlatformAssistantLayout from "./PlatformAssistantLayout";
 
+// the groups the user administers or edits (the sections only for administrators): none here
+vi.mock("../../state", () => ({ useTable: () => [] }));
+
 vi.hoisted(() => {
     localStorage.setItem("iot_platform_auth", JSON.stringify({ userName: "u", accessToken: "a.b.c", refreshToken: "r" }));
 });

@@ -2,6 +2,8 @@ package nodes
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -77,6 +79,12 @@ type AiAgentNode struct {
 	translationMu   sync.Mutex
 	translationUser string
 	translation     *chatTurnTranslation
+
+	// the attachments of the prompt being answered, by user (aiAgentAttachments.go)
+	attachmentsMu      sync.Mutex
+	pendingAttachments map[string][]utils.ChatAttachment
+	// the secret of the handles of the tables attached to the chat; nil: no chat_data server (aiAgentTables.go)
+	tableSecret []byte
 }
 
 // How long before the log says that an agent is still busy: accepting a
@@ -91,7 +99,7 @@ const (
 // skill/skillFormat.ts has the same list, for the editor). The tools are
 // named <server>__<tool>: the system prompts use these names.
 var aiAgentMcpServers = []string{
-	"current_date", "calculate_expression1", "fem_results", "documents", "sensor_history", "asset_state",
+	"current_date", "calculate_expression1", "fem_results", "documents", "sensor_history", "asset_state", "chat_data",
 }
 
 // parseAiAgentMcpServers reads the node's "mcpServers" setting: nil when
@@ -278,6 +286,33 @@ func CreateAiAgentNode(ctx context.Context, node common.NodeData, fm common.Mana
 
 	// The MCP servers and skills the node chose.
 	mcpSelected, unknownServers := parseAiAgentMcpServers(node.Settings)
+
+	// The tables attached to the chat (CSV, Excel), queried with DuckDB in the bucket's attachments folder of the
+	// digital twin; the handles of the tables are signed with a secret of the node (aiAgentTables.go). The server
+	// inherits the bucket's settings (MCP_S3_*), as fem_results; its charts go through the agent data endpoint.
+	var tableSecret []byte
+	if bucket := fm.GetS3BucketName(); bucket != "" && (mcpSelected == nil || mcpSelected["chat_data"]) {
+		tableSecret = make([]byte, 32)
+		if _, err := rand.Read(tableSecret); err != nil {
+			return nil, fmt.Errorf("the secret of the chat tables: %w", err)
+		}
+		bin := "/usr/local/bin/chat_data"
+		if fm.GetMode() == "local" {
+			bin = filepath.Join(mcpServersPath, "chat_data", "chat_data")
+		}
+		srv := aiAgentServer{
+			command: []string{bin},
+			args: []string{"--prefix", "s3://" + bucket + "/" +
+				utils.ChatAttachmentsDigitalTwinPrefix(p.GetOrgId(), p.GetGroupId(), p.GetDigitalTwinId())},
+			env: []string{chatDataSecretEnv + "=" + hex.EncodeToString(tableSecret)},
+		}
+		if url, token, ok := fm.AgentDataAccess(p.GetGroupId(), p.GetDigitalTwinId()); ok {
+			srv.args = append(srv.args, "--data_url", url, "--group_id", strconv.Itoa(p.GetGroupId()),
+				"--digital_twin_id", strconv.Itoa(p.GetDigitalTwinId()))
+			srv.env = append(srv.env, "OSI4IOT_AGENTDATA_TOKEN="+token)
+		}
+		servers["chat_data"] = srv
+	}
 	if len(unknownServers) > 0 {
 		fm.Log().Warnf("AI Agent Node %s: unknown MCP servers ignored: %s", node.NodeUid, strings.Join(unknownServers, ", "))
 	}
@@ -337,6 +372,7 @@ func CreateAiAgentNode(ctx context.Context, node common.NodeData, fm common.Mana
 		mcpSelected:       mcpSelected,
 		skillRefs:         skillRefs,
 		flowToolsSelected: parseAiAgentFlowTools(node.Settings),
+		tableSecret:       tableSecret,
 	}, nil
 }
 
@@ -720,10 +756,28 @@ func (n *AiAgentNode) handleInputWires(log *logger.Logger, processor func(llmage
 					if !ok || text == "" {
 						text = "no prompt"
 					}
+					// the group reached its monthly LLM token limit: the answer says so, nothing goes to the provider
+					if refusal := n.llmLimitReached(); refusal != "" {
+						log.Warnf("AiAgentNode %s: prompt of %s not sent: the group reached its LLM token limit", n.NodeUid, userName)
+						out := message.NewMessageFromPayload(utils.CreateCommonMessage(utils.ParseMessage(refusal), nil))
+						out.SetSender(sender)
+						n.sendToOutputs(out, log)
+						continue
+					}
 					// The user's time zone: the chat sends it; else the group's.
 					userZone, _ := msg.GetStringFromPayload("timeZone")
 					// what the chat's 3D viewer holds, so that uiOpts name it exactly
 					viewer, _ := msg.GetFieldFromPayload("viewer")
+					// files attached to the question: read once here, by the image model (aiAgentAttachments.go)
+					rawAttachments, _ := msg.GetFieldFromPayload("attachments")
+					attachments := utils.ParseChatAttachments(rawAttachments)
+					if len(attachments) > 0 {
+						if text == "no prompt" {
+							text = ""
+						}
+						text = withAttachments(text, n.withTableHandles(userName, n.readAttachments(userName, text, attachments, log)))
+					}
+					n.setPendingAttachments(userName, attachments)
 					prompt := llmagent.Prompt{UserName: userName, Text: text, TimeZone: n.promptTimeZone(userZone),
 						Context: llmagent.ViewerContext(viewer)}
 					if err := processor(prompt, sender, log); err != nil {
@@ -825,11 +879,13 @@ const (
 var chartIdRe = regexp.MustCompile(`chart_[0-9a-f]{24}`)
 
 // chartIDs are the charts the sensor_history tools (sensor-chart,
-// sensor-spectrum, sensor-distribution…) drew for an answer, in order.
+// sensor-spectrum, sensor-distribution…) and chat_data's table-chart drew
+// for an answer, in order.
 func chartIDs(calls []llmagent.ToolCall) []string {
 	var ids []string
 	for _, c := range calls {
-		if !strings.HasPrefix(c.ToolName, "sensor_history__") || c.Result == "" {
+		drawn := strings.HasPrefix(c.ToolName, "sensor_history__") || c.ToolName == "chat_data__table-chart"
+		if !drawn || c.Result == "" {
 			continue
 		}
 		if id := chartIdRe.FindString(c.Result); id != "" {
@@ -880,7 +936,9 @@ func (n *AiAgentNode) agentHistory(userName string) []llmagent.HistoryMessage {
 	stored := utils.GetChatMessages(n.Ctx, n.Fm.Log(), kvStore, userName, n.GetOrgHash(), n.GetDigitalTwinUid())
 	history := make([]llmagent.HistoryMessage, 0, len(stored))
 	for _, m := range stored {
-		history = append(history, llmagent.HistoryMessage{Role: m.Role, Content: m.Content})
+		// what was read in the attachments of a question goes with it (the chat only shows the question)
+		history = append(history, llmagent.HistoryMessage{Role: m.Role,
+			Content: withAttachments(m.Content, n.withTableHandles(userName, m.AttachmentText))})
 	}
 	return history
 }
@@ -890,6 +948,10 @@ func (n *AiAgentNode) agentHistory(userName string) []llmagent.HistoryMessage {
 // image under its own key of the digital twin's KV store, so that the
 // conversation shows them again when it is opened).
 func (n *AiAgentNode) saveAgentTurn(userName, prompt, answer string, calls []llmagent.ToolCall) error {
+	// the question and, apart, what was read in its attachments (aiAgentAttachments.go)
+	prompt, attachmentText := splitAttachments(prompt)
+	attachmentText = n.withTablePlaceholders(userName, attachmentText) // the handles change when the node restarts
+	attachments := n.takePendingAttachments(userName)
 	// bilingual chat: the turn in the other language, kept with it and sent with the answer
 	tr, translated := n.translateTurn(userName, prompt, answer)
 	if translated {
@@ -917,7 +979,7 @@ func (n *AiAgentNode) saveAgentTurn(userName, prompt, answer string, calls []llm
 		refs = append(refs, utils.ChartRef{ID: chart.ID, Title: chart.Title})
 	}
 	messages := []utils.StoredMessage{
-		{Role: "user", Content: prompt, Translation: tr.Question},
+		{Role: "user", Content: prompt, Translation: tr.Question, Attachments: attachments, AttachmentText: attachmentText},
 		{Role: "assistant", Content: answer, Translation: tr.Answer},
 	}
 	err = utils.SaveChatMessages(

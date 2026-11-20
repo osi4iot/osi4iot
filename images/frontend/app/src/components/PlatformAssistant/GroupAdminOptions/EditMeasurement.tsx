@@ -51,9 +51,11 @@ interface EditMeasurementProps {
     measurements: IMeasurement[];
     backToTable: () => void;
     updateMeasurementsTable: (measurementsTable: IMeasurement[]) => void;
+    // the table of a sensor: only the value of its field changes in the message (admin_api finds where it is)
+    payloadKey?: string;
 }
 
-const EditMeasurement: FC<EditMeasurementProps> = ({ groupId, measurements, backToTable, updateMeasurementsTable }) => {
+const EditMeasurement: FC<EditMeasurementProps> = ({ groupId, measurements, backToTable, updateMeasurementsTable, payloadKey }) => {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const { accessToken, refreshToken } = useAuthState();
     const authDispatch = useAuthDispatch();
@@ -68,7 +70,8 @@ const EditMeasurement: FC<EditMeasurementProps> = ({ groupId, measurements, back
         const updatedMesurement = {
             timestamp,
             topic,
-            updatedPayload: values.payload
+            updatedPayload: values.payload,
+            ...(payloadKey ? { payloadKey } : {}),
         };
         setIsSubmitting(true);
 

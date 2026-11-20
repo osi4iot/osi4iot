@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { objectFieldValue } from "./objectFields";
 import { Camera } from '@react-three/fiber';
 import {
 	ISensorObject,
@@ -188,7 +189,6 @@ export const generateInitialSensorsState = (
 				const fieldName = obj.node.userData.fieldName;
 				const timeout = obj.node.userData.timeout;
 				const payloadObject = lastMeasurement.payload as any;
-				const payloadKeys = Object.keys(lastMeasurement.payload);
 				const elpasedTimeInSeconds = getElapsedTimeInSeconds(lastMeasurement.timestamp);
 				let timeoutAction = "switchOff";
 				if (obj.node.userData.sensorObjectType !== undefined &&
@@ -203,8 +203,8 @@ export const generateInitialSensorsState = (
 				}
 
 				if (timeoutAction === "keepLastValue") {
-					if (payloadKeys.indexOf(fieldName) !== -1) {
-						const value = payloadObject[fieldName];
+					const value = objectFieldValue(payloadObject, fieldName);
+						if (value !== undefined) {
 						if (isSensorValue(value)) {
 							sensorsState.stateString = "on";
 							sensorsState.highlight = false;
@@ -241,9 +241,8 @@ export const generateInitialSensorsState = (
 				if (lastMeasurement) {
 					const fieldName = obj.node.userData.clipFieldName;
 					const payloadObject = lastMeasurement.payload as any;
-					const payloadKeys = Object.keys(lastMeasurement.payload);
-					if (payloadKeys.indexOf(fieldName) !== -1) {
-						const value = payloadObject[fieldName];
+					const value = objectFieldValue(payloadObject, fieldName);
+						if (value !== undefined) {
 						if (typeof value === 'number') {
 							clipValue = value;
 						}
@@ -316,9 +315,8 @@ export const generateInitialAssetsState = (
 				if (lastMeasurement) {
 					const fieldName = obj.node.userData.clipFieldName;
 					const payloadObject = lastMeasurement.payload as any;
-					const payloadKeys = Object.keys(lastMeasurement.payload);
-					if (payloadKeys.indexOf(fieldName) !== -1) {
-						const value = payloadObject[fieldName];
+					const value = objectFieldValue(payloadObject, fieldName);
+						if (value !== undefined) {
 						if (typeof value === 'number') {
 							clipValue = value;
 						}
@@ -376,9 +374,8 @@ export const generateInitialGenericObjectsState = (
 				if (lastMeasurement) {
 					const fieldName = obj.node.userData.clipFieldName;
 					const payloadObject = lastMeasurement.payload as any;
-					const payloadKeys = Object.keys(lastMeasurement.payload);
-					if (payloadKeys.indexOf(fieldName) !== -1) {
-						const value = payloadObject[fieldName];
+					const value = objectFieldValue(payloadObject, fieldName);
+						if (value !== undefined) {
 						if (typeof value === 'number') {
 							clipValue = value;
 						}
@@ -452,9 +449,8 @@ export const generateInitialFemSimObjectsState = (
 				if (lastMeasurement) {
 					const fieldName = obj.node.userData.clipFieldName;
 					const payloadObject = lastMeasurement.payload as any;
-					const payloadKeys = Object.keys(lastMeasurement.payload);
-					if (payloadKeys.indexOf(fieldName) !== -1) {
-						const value = payloadObject[fieldName];
+					const value = objectFieldValue(payloadObject, fieldName);
+						if (value !== undefined) {
 						if (typeof value === 'number') {
 							clipValue = value;
 						}

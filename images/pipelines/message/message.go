@@ -221,10 +221,85 @@ func (m *Message) GetJsonStructure() string {
 	return jsonStructure
 }
 
-// Clone creates a deep copy of the message
+// deepCopyValue copies the maps and lists of a payload (as JSON decodes them and as nodes build them), so that
+// two nodes never share one: a node that changes its copy while another one reads or marshals its own would
+// make Go stop the whole process ("concurrent map read and map write"). Other values are kept as they are
+// (numbers, strings, and images and tensors, which nodes do not change once sent).
+func deepCopyValue(v any) any {
+	switch t := v.(type) {
+	case map[string]any:
+		return deepCopyMap(t)
+	case []any:
+		if t == nil {
+			return t
+		}
+		out := make([]any, len(t))
+		for i, item := range t {
+			out[i] = deepCopyValue(item)
+		}
+		return out
+	case []map[string]any:
+		if t == nil {
+			return t
+		}
+		out := make([]map[string]any, len(t))
+		for i, item := range t {
+			out[i] = deepCopyMap(item)
+		}
+		return out
+	case map[string]string:
+		if t == nil {
+			return t
+		}
+		out := make(map[string]string, len(t))
+		maps.Copy(out, t)
+		return out
+	case []string:
+		if t == nil {
+			return t
+		}
+		return append([]string(nil), t...)
+	case []float64:
+		if t == nil {
+			return t
+		}
+		return append([]float64(nil), t...)
+	case []float32:
+		if t == nil {
+			return t
+		}
+		return append([]float32(nil), t...)
+	case []int:
+		if t == nil {
+			return t
+		}
+		return append([]int(nil), t...)
+	case []byte:
+		if t == nil {
+			return t
+		}
+		return append([]byte(nil), t...)
+	}
+	return v
+}
+
+func deepCopyMap(m map[string]any) map[string]any {
+	if m == nil {
+		return nil
+	}
+	out := make(map[string]any, len(m))
+	for k, v := range m {
+		out[k] = deepCopyValue(v)
+	}
+	return out
+}
+
+// Clone creates a deep copy of the message (payload and state included: see deepCopyValue)
 func (m *Message) Clone() common.Message {
-	newPayload := make(map[string]any, len(m.Payload))
-	maps.Copy(newPayload, m.Payload)
+	newPayload := deepCopyMap(m.Payload)
+	if newPayload == nil {
+		newPayload = map[string]any{}
+	}
 
 	var fileCopy *common.File
 	if m.File != nil {
@@ -241,7 +316,7 @@ func (m *Message) Clone() common.Message {
 	return &Message{
 		Topic:         m.Topic,
 		Payload:       newPayload,
-		State:         m.State,
+		State:         deepCopyMap(m.State),
 		ContentType:   m.ContentType,
 		JsonStructure: m.JsonStructure,
 		File:          fileCopy,

@@ -491,6 +491,12 @@ func (n *AlarmNode) processViewerMessage(msg *nats.Msg, log *logger.Logger) erro
 		return nil
 	}
 	now := time.Now()
+	if req.Action != "list" {
+		if why := viewerActionRefusal(n.Ctx, n.Fm, n.GetGroupId(), user); why != "" {
+			reply(map[string]any{"ok": false, "error": why})
+			return nil
+		}
+	}
 	switch req.Action {
 	case "list":
 		alarms, err := n.viewerAlarms(now)

@@ -11,6 +11,8 @@ import { asIcon } from "../../../../tools/icons";
 import { panelColors as ic } from "../AssistantPanel/controls";
 import { canRecordAudio, Recording, startRecording } from "../../../../tools/audioRecorder";
 import { hasSpeechSynthesisVoices, PipelineVoiceService, playAudioBlob } from "./voiceService";
+import type { ChatAttachmentRef, ChatAttachmentService } from "./chatAttachments";
+import { AttachButton, AttachmentThumbs, PendingAttachments, usePendingAttachments } from "./ChatAttachmentsUI";
 import {
     chooseSpeechToText,
     chooseTextToSpeech,
@@ -100,6 +102,8 @@ export interface LlmMessage {
     questionTranslation?: MessageTranslation;
     // pregunta llegada por un canal del chat: "mobile", "telegram"
     via?: string;
+    // imágenes adjuntas a la pregunta (fotos enviadas a Telegram)
+    attachments?: ChatAttachmentRef[];
 }
 
 export interface ChatMessage {
@@ -116,6 +120,8 @@ export interface ChatMessage {
     translation?: MessageTranslation;
     // pregunta llegada por un canal del chat: "mobile" (nota de voz del móvil), "telegram"
     via?: string;
+    // imágenes adjuntas a la pregunta (en el bucket; chatAttachments.ts)
+    attachments?: ChatAttachmentRef[];
 }
 
 export interface IChatVoice {
@@ -676,6 +682,8 @@ interface ChatAssistantProps {
     handleRemoveChatAssistantHistory: () => void;
     // voz a texto y texto a voz con el pipeline del gemelo digital, cuando el navegador no los ofrece
     voiceService?: PipelineVoiceService | null;
+    // adjuntar imágenes a las preguntas y verlas en los mensajes (null: sin adjuntos)
+    attachmentService?: ChatAttachmentService | null;
     // pestaña del panel del asistente en lugar de panel flotante; visible: si la pestaña está a la vista
     embedded?: boolean;
     visible?: boolean;
@@ -698,6 +706,7 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({
     chatAssistantVoiceLanguage = "question",
     handleRemoveChatAssistantHistory,
     voiceService = null,
+    attachmentService = null,
     embedded = false,
     visible = true,
 }) => {
@@ -706,6 +715,10 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({
     const [input, setInput] = useState<string>("");
     const [showMcpTools, setShowMcpTools] = useState<boolean>(false);
     const [isLoading, setIsLoading] = useState<boolean>(false);
+    // imágenes elegidas para la próxima pregunta (se suben al elegirlas)
+    const attachments = usePendingAttachments(attachmentService);
+    const takeAttachments = attachments.take;
+    const attachmentsPendingRef = attachments.pendingRef;
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const messagesRef = useRef<HTMLDivElement>(null);
     const { transcript, resetTranscript, browserSupportsSpeechRecognition } = useSpeechRecognition();
@@ -852,7 +865,10 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({
     const sendText = useCallback(
         (text: string) => {
             const messageToSend = text.trim();
-            if (messageToSend === "") return;
+            // las imágenes ya subidas van con la pregunta (que puede ser solo la imagen)
+            const hasAttachments = attachmentsPendingRef.current.some((p) => p.ref);
+            if (messageToSend === "" && !hasAttachments) return;
+            const sentAttachments = hasAttachments ? takeAttachments() : [];
 
             setIsLoading(true);
 
@@ -862,6 +878,7 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({
                 sender: "user",
                 time: new Date().toISOString(),
                 mcpToolCalls: [],
+                ...(sentAttachments.length > 0 ? { attachments: sentAttachments } : {}),
             };
 
             setChatMessages((prev: ChatMessage[]) => [...prev, newMessage]);
@@ -870,7 +887,7 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({
             resetTranscript();
             lastTranscriptRef.current = "";
         },
-        [resetTranscript, userName, setChatMessages],
+        [resetTranscript, userName, setChatMessages, takeAttachments, attachmentsPendingRef],
     );
 
     // Pregunta por voz con el pipeline: graba hasta un silencio, la transcribe y la envía como texto
@@ -1274,7 +1291,24 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({
         };
     }, [isVoiceEnabled, nativeStt, systemStatus, voiceSettings, voice?.recognitionLang, chatAssistantLanguage]);
 
-    const handleSend = useCallback(() => sendText(input), [input, sendText]);
+    // con una imagen subiéndose se espera a que acabe (si no, la pregunta iría sin ella)
+    const attachmentsUploading = attachments.uploading;
+    const handleSend = useCallback(() => {
+        if (!attachmentsUploading) sendText(input);
+    }, [input, sendText, attachmentsUploading]);
+
+    // una imagen pegada en el cuadro de texto (captura de pantalla) se adjunta
+    const addAttachmentFiles = attachments.addFiles;
+    const handlePaste = useCallback(
+        (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+            if (!attachmentService?.enabled) return;
+            const images = Array.from(e.clipboardData?.files ?? []).filter((f) => f.type.startsWith("image/"));
+            if (images.length === 0) return;
+            e.preventDefault();
+            addAttachmentFiles(images);
+        },
+        [attachmentService, addAttachmentFiles],
+    );
 
     useEffect(() => {
         speakRef.current = speak;
@@ -1542,7 +1576,8 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({
                                 <span style={{ marginLeft: "10px", fontSize: "0.6rem", opacity: 0.7 }}>📊 LaTeX</span>
                             )}
                         </Label>
-                        <MathMessage html={msg.message} />
+                        {msg.message !== "" && <MathMessage html={msg.message} />}
+                        <AttachmentThumbs attachments={msg.attachments} service={attachmentService} />
                         {msg.translation && (
                             <TranslationBlock lang={msg.translation.translatedLanguage}>
                                 <TranslationLabel>{chatLanguageNative(msg.translation.translatedLanguage)}</TranslationLabel>
@@ -1621,6 +1656,7 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({
                     </label>
                 </VoiceSettingsPanel>
             )}
+            <PendingAttachments pending={attachments.pending} onRemove={attachments.remove} />
             <InputContainer $embedded={embedded}>
                 <TextArea
                     $embedded={embedded}
@@ -1628,12 +1664,17 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({
                     value={input}
                     onChange={handleInputChange}
                     onKeyPress={handleKeyPress}
+                    onPaste={handlePaste}
                     placeholder="Type your question..."
                     disabled={isVoiceEnabled && systemStatus === "listening"}
                 />
                 <ButtonContainer>
                     <ButtonRow>
-                        <Button onClick={handleSend} disabled={isLoading || !input.trim()}>
+                        <Button
+                            onClick={handleSend}
+                            disabled={isLoading || attachments.uploading || (!input.trim() && !attachments.ready)}
+                            title={attachments.uploading ? "Uploading the image…" : undefined}
+                        >
                             Send
                         </Button>
                     </ButtonRow>
@@ -1653,6 +1694,13 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({
                         >
                             <FaSlidersHIcon style={{ opacity: showVoiceSettings ? 1 : 0.6 }} />
                         </ToggleButton>
+                        {attachmentService?.enabled && (
+                            <AttachButton
+                                service={attachmentService}
+                                onFiles={attachments.addFiles}
+                                disabled={attachments.pending.length >= 4}
+                            />
+                        )}
                         <MicWrap>
                             <MicButton
                                 active={isVoiceEnabled}

@@ -1,5 +1,7 @@
 import { useEffect, useRef } from "react";
+import { objectFieldValue } from "../ViewerTools/objectFields";
 import { sanitizeTranslation } from "../ChatAssitant/chatLanguages";
+import { sanitizeAttachments } from "../ChatAssitant/chatAttachments";
 import { type NatsConnection } from "@nats-io/nats-core";
 import { StringCodec } from "../../../../tools/natsCodec";
 import * as THREE from "three";
@@ -239,6 +241,7 @@ const updateObjectsState = (
                     message: natsMessage.transcription,
                     userName: typeof natsMessage.userName === "string" ? natsMessage.userName : undefined,
                     via: typeof natsMessage.via === "string" ? natsMessage.via : undefined,
+                    attachments: sanitizeAttachments(natsMessage.attachments),
                     uiOpts: {},
                     mcpToolCalls: [],
                     sender: "user",
@@ -302,8 +305,8 @@ const updateObjectsState = (
                         dev2simTopicId === messageTopicId
                     ) {
                         const fieldName = obj.node.userData.fieldName;
-                        if (messagePayloadKeys.indexOf(fieldName) !== -1) {
-                            const value = natsMessage[fieldName];
+                        const value = objectFieldValue(natsMessage, fieldName);
+                            if (value !== undefined) {
                             let stateString = sensorsNewState[objName].stateString;
                             if (
                                 isSensorValue(value)
@@ -330,8 +333,8 @@ const updateObjectsState = (
                         ) {
                             let clipValue = sensorsNewState[objName].clipValue;
                             const fieldName = obj.node.userData.clipFieldName;
-                            if (messagePayloadKeys.indexOf(fieldName) !== -1) {
-                                const value = natsMessage[fieldName];
+                            const value = objectFieldValue(natsMessage, fieldName);
+                                if (value !== undefined) {
                                 if (typeof value === "number") {
                                     clipValue = value;
                                     isSensorStateChanged = true;
@@ -355,8 +358,8 @@ const updateObjectsState = (
                         ) {
                             let clipValue = assestsNewState[objName].clipValue;
                             const fieldName = obj.node.userData.clipFieldName;
-                            if (messagePayloadKeys.indexOf(fieldName) !== -1) {
-                                const value = natsMessage[fieldName];
+                            const value = objectFieldValue(natsMessage, fieldName);
+                                if (value !== undefined) {
                                 if (typeof value === "number") {
                                     clipValue = value;
                                     isAssetStateChanged = true;
@@ -380,8 +383,8 @@ const updateObjectsState = (
                         ) {
                             let clipValue = genericObjectNewState[objName].clipValue;
                             const fieldName = obj.node.userData.clipFieldName;
-                            if (messagePayloadKeys.indexOf(fieldName) !== -1) {
-                                const value = natsMessage[fieldName];
+                            const value = objectFieldValue(natsMessage, fieldName);
+                                if (value !== undefined) {
                                 if (typeof value === "number") {
                                     clipValue = value;
                                     isGenericObjectsStateChanged = true;
@@ -407,8 +410,8 @@ const updateObjectsState = (
                             let clipValue = femSimulationObjectsNewState[index].clipValue;
                             const fieldName = obj.node.userData.clipFieldName;
                             if (fieldName !== undefined) {
-                                if (messagePayloadKeys.indexOf(fieldName) !== -1) {
-                                    const value = natsMessage[fieldName];
+                                const value = objectFieldValue(natsMessage, fieldName);
+                                    if (value !== undefined) {
                                     if (typeof value === "number") {
                                         clipValue = value;
                                         isfemSimulationObjectsStateChanged = true;
@@ -452,8 +455,9 @@ const updateObjectsState = (
                                 llmResponseValue = natsMessage.uiOpts.digitalTwinSimulatorState[fieldName];
                             }
                         }
-                        if (messagePayloadKeys.indexOf(fieldName) !== -1 || llmResponseValue !== null) {
-                            const value = llmResponseValue === null ? natsMessage[fieldName] : llmResponseValue;
+                        const fieldValue = llmResponseValue === null ? objectFieldValue(natsMessage, fieldName) : llmResponseValue;
+                        if (fieldValue !== undefined) {
+                            const value = fieldValue;
                             if (
                                 isSensorValue(value)
                             ) {

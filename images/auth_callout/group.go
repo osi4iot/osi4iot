@@ -314,13 +314,23 @@ func (m *AuthModel) GetGroupsByOrgId(orgId int64) ([]Group, error) {
 }
 
 func (m *AuthModel) GetSQLGroupsManagedByUser(user *User) ([]Group, error) {
+	return m.getSQLGroupsOfMember(user, []int{4})
+}
+
+// GetSQLGroupsOfMemberWithRole are the groups where the user is a member with
+// one of these team permissions (1 Viewer, 2 Editor, 4 Admin)
+func (m *AuthModel) GetSQLGroupsOfMemberWithRole(user *User, permissions []int) ([]Group, error) {
+	return m.getSQLGroupsOfMember(user, permissions)
+}
+
+func (m *AuthModel) getSQLGroupsOfMember(user *User, permissions []int) ([]Group, error) {
 	var groups []Group
 	queryString := `SELECT ` + groupSelectColumns + `
 	FROM grafanadb.group
 	INNER JOIN grafanadb.org ON grafanadb.group.org_id = grafanadb.org.id
 	INNER JOIN grafanadb.team_member ON grafanadb.team_member.team_id = grafanadb.group.team_id
-	WHERE grafanadb.team_member.user_id = $1 AND grafanadb.team_member.permission = $2`
-	rows, err := m.db.Query(context.Background(), queryString, user.ID, 4)
+	WHERE grafanadb.team_member.user_id = $1 AND grafanadb.team_member.permission = ANY($2::int[])`
+	rows, err := m.db.Query(context.Background(), queryString, user.ID, permissions)
 	if err != nil {
 		return nil, err
 	}

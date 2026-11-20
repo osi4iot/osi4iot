@@ -1,6 +1,6 @@
 import { Router, NextFunction, Request, Response } from "express";
 import IController from "../../interfaces/controller.interface";
-import { groupAdminAuth, userAuth } from "../../middleware/auth.middleware";
+import { userAuth, groupViewerAuth } from "../../middleware/auth.middleware";
 import ItemNotFoundException from "../../exceptions/ItemNotFoundException";
 import groupExists from "../../middleware/groupExists.middleware";
 import IRequestWithUser from "../../interfaces/requestWithUser.interface";
@@ -28,7 +28,7 @@ class DashboardController implements IController {
 			.get(
 				`${this.path}/:groupId/:dashboardId`,
 				groupExists,
-				groupAdminAuth,
+				groupViewerAuth,
 				this.getDashboardById
 			)
 

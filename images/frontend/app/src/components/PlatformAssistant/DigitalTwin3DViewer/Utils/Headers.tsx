@@ -391,6 +391,8 @@ interface HeaderProps {
     viewerHasModel?: boolean;
     // the height of the bar (it wraps on narrow pages): the panels of the Viewer page start below it
     onHeightChange?: (height: number) => void;
+    // the user edits the digital twin (an Editor or Admin of its group): else no Pipeline page (a Viewer)
+    canEditPipeline?: boolean;
 }
 
 // "3D" is the Viewer page: the 3D model, images… as panels on a grid (Workspace/)
@@ -437,6 +439,7 @@ export const Header: FC<HeaderProps> = ({
     handleAssistantPanelOpenAndClose,
     handleSetActiveViewer,
     handlePipelineLogsOpen,
+    canEditPipeline = true,
     handleOpenGrafanaDashboard,
     handleDigitalTwinStateShield,
     handleDeployPipeline,
@@ -487,7 +490,8 @@ export const Header: FC<HeaderProps> = ({
     const right = rightPanel > 0 ? `${rightPanel + 2 * VIEWER_GAP}px` : `${VIEWER_GAP}px`;
 
     const dtOk = digitalTwinState === "OK";
-    const viewerOptions = VIEWER_OPTIONS;
+    // a Viewer of the group sees the Viewer page only (the Pipeline page is for its editors and administrators)
+    const viewerOptions = canEditPipeline ? VIEWER_OPTIONS : VIEWER_OPTIONS.filter((o) => o.value !== "pipeline");
 
     // Panel lateral: en el Viewer con modelo 3D siempre; en el Viewer sin modelo 3D (solo la imagen) y en
     // Pipeline (gemelo sin visor), solo con el chat

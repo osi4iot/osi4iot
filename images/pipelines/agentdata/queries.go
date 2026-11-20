@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -38,15 +39,30 @@ func groupView(groupUid string) (string, error) {
 	return "iot_datasource.Table_" + groupUid, nil
 }
 
-// valueSQL is the field's value in a message, NULL when it is not a
-// number. The field comes as parameters $4 (key) and $5 (array item).
-func valueSQL(f Field) (string, []any) {
-	if f.Index < 0 {
-		return `CASE WHEN jsonb_typeof(payload -> $4::text) = 'number'
-			THEN (payload ->> $4::text)::double precision END`, []any{f.Key}
+// fieldValueSQL is the value at the path given by parameter $n: a
+// number, a boolean as 1 / 0; NULL for anything else.
+func fieldValueSQL(n int) string {
+	return fmt.Sprintf(`CASE jsonb_typeof(payload #> $%[1]d::text[])
+			WHEN 'number' THEN (payload #>> $%[1]d::text[])::double precision
+			WHEN 'boolean' THEN CASE WHEN payload #>> $%[1]d::text[] = 'true' THEN 1.0 ELSE 0.0 END END`, n)
+}
+
+// fieldPath is where a field is in the messages (an old Field without a
+// path: its key, and its item).
+func fieldPath(f Field) []string {
+	if len(f.Path) > 0 {
+		return f.Path
 	}
-	return `CASE WHEN jsonb_typeof(payload -> $4::text -> $5::int) = 'number'
-			THEN (payload -> $4::text ->> $5::int)::double precision END`, []any{f.Key, f.Index}
+	if f.Index < 0 {
+		return []string{f.Key}
+	}
+	return []string{f.Key, strconv.Itoa(f.Index)}
+}
+
+// valueSQL is the field's value in a message, NULL when it is not a
+// number (or a boolean). The field's path comes as parameter $4.
+func valueSQL(f Field) (string, []any) {
+	return fieldValueSQL(4), []any{fieldPath(f)}
 }
 
 // seriesSQL selects (ts, v) for a sensor's field in [from, to), numbers only.
@@ -281,17 +297,9 @@ func multiValueSQL(fields []Field, first int) ([]string, []any) {
 	var args []any
 	n := first
 	for _, f := range fields {
-		if f.Index < 0 {
-			exprs = append(exprs, fmt.Sprintf(`CASE WHEN jsonb_typeof(payload -> $%d::text) = 'number'
-				THEN (payload ->> $%d::text)::double precision END`, n, n))
-			args = append(args, f.Key)
-			n++
-			continue
-		}
-		exprs = append(exprs, fmt.Sprintf(`CASE WHEN jsonb_typeof(payload -> $%d::text -> $%d::int) = 'number'
-				THEN (payload -> $%d::text ->> $%d::int)::double precision END`, n, n+1, n, n+1))
-		args = append(args, f.Key, f.Index)
-		n += 2
+		exprs = append(exprs, fieldValueSQL(n))
+		args = append(args, fieldPath(f))
+		n++
 	}
 	return exprs, args
 }

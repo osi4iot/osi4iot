@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { objectFieldMeasurement } from "../ViewerTools/objectFields";
 import { clipWeight } from "../Utils/clipWeight";
 import React, { FC, useRef, useState, useLayoutEffect, useEffect, useMemo } from "react";
 import { useThree, useFrame } from "@react-three/fiber";
@@ -352,7 +353,7 @@ const SensorBase: FC<SensorProps> = ({
                     onActiveChange={setMarkerActive}
                     title={info?.description || obj.userData.sensorRef || obj.name}
                     subtitle={[info?.sensorType, obj.userData.sensorRef].filter(Boolean).join(" · ")}
-                    measurement={info?.measurements?.[fieldName]}
+                    measurement={objectFieldMeasurement(info?.measurements, fieldName)}
                     fieldName={fieldName}
                     value={sensorState?.sensorValue}
                     status={markerStatus}

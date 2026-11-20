@@ -34,6 +34,8 @@
     "acorn-walk": "^8.3.5",
     "axios": "^1.20.0",
     "echarts": "6.1.0",
+    "echarts-gl": "2.1.0",
+    "fflate": "^0.8.3",
     "formik": "^2.4.9",
     "katex": "^0.19.1",
     "leaflet": "^1.9.4",

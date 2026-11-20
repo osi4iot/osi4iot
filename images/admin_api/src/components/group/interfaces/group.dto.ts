@@ -46,6 +46,12 @@ class CreateGroupDto {
 	@IsBoolean()
 	public ragEnabled?: boolean;
 
+	// Files attached to the chat (photos of the phone, Telegram...) may be sent to the organization's LLM
+	// provider: off unless enabled (photos of people or internal documents may have to stay in the platform).
+	@IsOptional()
+	@IsBoolean()
+	public chatAttachmentsEnabled?: boolean;
+
 	// IANA time zone of the group ("": not set, UTC): the AI agents' times
 	// when the user's own is not known.
 	@IsOptional()

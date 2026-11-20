@@ -111,6 +111,7 @@ func (s *Service) Handler() http.Handler {
 	mux.HandleFunc("POST /v1/agentdata/correlation", s.handleCorrelation)
 	mux.HandleFunc("POST /v1/agentdata/comparison", s.handleComparison)
 	mux.HandleFunc("POST /v1/agentdata/heatmap", s.handleHeatmap)
+	mux.HandleFunc("POST /v1/agentdata/table_chart", s.handleTableChart)
 	return mux
 }
 
@@ -217,6 +218,11 @@ func (s *Service) readCall(w http.ResponseWriter, r *http.Request) (*call, bool)
 		writeError(w, http.StatusBadRequest, "invalid request")
 		return nil, false
 	}
+	return s.checkCall(w, req)
+}
+
+// checkCall checks a request's token and that its digital twin is still in its group.
+func (s *Service) checkCall(w http.ResponseWriter, req Request) (*call, bool) {
 	if !hmac.Equal([]byte(s.DigitalTwinToken(req.GroupID, req.DigitalTwinID)), []byte(req.Token)) {
 		writeError(w, http.StatusForbidden, "invalid token for this digital twin")
 		return nil, false

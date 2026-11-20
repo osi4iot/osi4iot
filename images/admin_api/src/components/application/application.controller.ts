@@ -19,7 +19,7 @@ import InvalidPropNameExeception from "../../exceptions/InvalidPropNameExeceptio
 import { cleanEmailNotificationChannelForGroupsArray, getGroupsWhereUserIdIsMember } from "../group/groupDAL";
 import CreateGlobalUsersArrayDto from "../user/interfaces/GlobalUsersArray.dto";
 import TelegramLinkDto from "../user/interfaces/TelegramLink.dto";
-import { getTelegramApprover, getTelegramGroupMember, linkTelegramUser } from "../user/telegramLinkDAL";
+import { getTelegramApprover, getTelegramGroupMember, linkTelegramUser, groupRoleOfLogin } from "../user/telegramLinkDAL";
 import HttpException from "../../exceptions/HttpException";
 import infoLogger from "../../utils/logger/infoLogger";
 
@@ -93,6 +93,8 @@ class ApplicationController implements IController {
 				superAdminAuth,
 				this.getTelegramGroupMember
 			)
+			// the role of a user in a group: who may act on the alarms and requests of the viewer (pipelines)
+			.get(`${this.path}/group_role/:groupId/:login`, superAdminAuth, this.getGroupRole)
 	}
 
 	private linkTelegramUser = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -118,6 +120,20 @@ class ApplicationController implements IController {
 			}
 			const userName = await getTelegramApprover(groupId, telegramUserId);
 			res.status(200).send({ userName });
+		} catch (error) {
+			next(error);
+		}
+	};
+
+	private getGroupRole = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+		try {
+			const groupId = Number(req.params.groupId);
+			const login = String(req.params.login ?? "");
+			if (!Number.isSafeInteger(groupId) || login === "" || login.length > 190) {
+				throw new HttpException(req, res, 400, "Invalid group or user");
+			}
+			const role = await groupRoleOfLogin(groupId, login);
+			res.status(200).send({ role });
 		} catch (error) {
 			next(error);
 		}

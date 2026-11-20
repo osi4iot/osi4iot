@@ -82,8 +82,10 @@ export const useTablesPending = (names: TableName[]) => {
 
 // Tablas que comparten la misma URL (p. ej. "groups" de la capa de organización y "groupsManaged")
 const SAME_DATA: Partial<Record<TableName, TableName[]>> = {
-    groups: ["groupsManaged"],
-    groupsManaged: ["groups"],
+    groups: ["groupsManaged", "groupsViewable"],
+    groupsManaged: ["groups", "groupsViewable"],
+    // the map's lists follow those of the group admin layer
+    orgsOfGroupsManaged: ["orgsOfGroupsViewable"],
 };
 
 // Marca la tabla como desactualizada en todas las capas y vuelve a pedir las que están en pantalla

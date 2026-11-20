@@ -1,4 +1,5 @@
 import { FC, useState, useEffect } from "react";
+import { deleteConfirmingDataLoss } from "../../../tools/deleteConfirmingDataLoss";
 import { reloadTable } from "../../../state";
 import { Column } from '../Utils/platformTable';
 import { toast } from "react-toastify";
@@ -78,8 +79,7 @@ const DeleteSensorModal: FC<DeleteSensorModalProps> = ({ rowIndex, groupId, sens
     const action = (hideModal: () => void) => {
         const url = `${protocol}://${domainName}/admin_api/sensor/${groupId}/id/${sensorId}`;
         const config = axiosAuth(accessToken);
-        getAxiosInstance(refreshToken, authDispatch)
-            .delete(url, config)
+        deleteConfirmingDataLoss(getAxiosInstance(refreshToken, authDispatch), url, config)
             .then((response: AxiosResponse<any, any>) => {
                 setIsSensorDeleted(true);
                 setIsSubmitting(false);

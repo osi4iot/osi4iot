@@ -9,6 +9,31 @@ const sensors = [
 const types = [{ id: 2, defaultMeasurements: { acc: { type: "array", label: "Ax, Ay,Az", units: "m/s^2" } } }];
 
 describe("chart series", () => {
+    it("ofrece los campos anidados y los elementos con *, sin los textos", () => {
+        const sensors = [
+            {
+                id: 3,
+                assetId: 7,
+                sensorRef: "sensor_9",
+                sensorTypeId: 1,
+                description: "Batería",
+                measurements: {
+                    "battery.voltage": { type: "number", label: "V", units: "V" },
+                    "sensors.*.t": { type: "array", label: "Norte,Sur", units: "°C" },
+                    door: { type: "boolean", label: "Puerta", units: "-" },
+                    mode: { type: "string", label: "Modo", units: "-" },
+                },
+            },
+        ];
+        const options = chartSeriesOptions(sensors, [], 7);
+        expect(options.map((o) => `${o.field}${o.index === undefined ? "" : `[${o.index}]`}=${o.label}`)).toEqual([
+            "battery.voltage=V",
+            "sensors.*.t[0]=Norte",
+            "sensors.*.t[1]=Sur",
+            "door=Puerta",
+        ]);
+    });
+
     it("lists the fields of the asset's sensors, one per item of an array", () => {
         const options = chartSeriesOptions(sensors, types, 7);
         expect(options.map((o) => [o.key, o.label, o.units, o.sensorId])).toEqual([
@@ -60,7 +85,7 @@ describe("chart series", () => {
         expect(option.yAxis.map((a: any) => a.name)).toEqual(["°C", "m/s^2"]);
         expect(option.xAxis.max).toBe(Date.parse("2026-11-09T11:00:00Z"));
         const html = option.tooltip.formatter([
-            { seriesName: "Temperature · Thermo A", color: "#4c9af0", value: [Date.parse("2026-11-09T10:00:00Z"), 21.5] },
+            { seriesName: "Temperature · Thermo A", color: "#5794f2", value: [Date.parse("2026-11-09T10:00:00Z"), 21.5] },
             { seriesName: "<Ax>", color: "#f00", value: [Date.parse("2026-11-09T10:00:00Z"), null] },
         ]);
         expect(html).toContain("<b>21.5</b> °C");

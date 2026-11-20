@@ -1,4 +1,3 @@
-
 // The layout of the Viewer page: slides, one screen each, and in each slide panels on a grid of GRID_COLS
 // columns (react-grid-layout). One layout per digital twin, saved by a group administrator for the whole group
 // (admin_api /viewer_layout); the others can change it for themselves while the viewer is open, without saving.
@@ -11,6 +10,8 @@
 // Pure functions, so they are easy to test. admin_api checks the same shape (viewerLayoutValidation.ts).
 import { PICTURE_FITS, PictureBinding, PictureFit, sanitizeBindings } from "./pictureBindings";
 import { REFRESH_INTERVALS } from "./charts/timeRange";
+import { SurfaceOptions, defaultSurface, sanitizeSurface } from "./surface/surfacePanel";
+import { AssetStateField, sanitizeAssetStateSettings } from "./assetStatePanel";
 
 export const WORKSPACE_LAYOUT_VERSION = 2;
 export const MAX_SLIDES = 20;
@@ -29,7 +30,7 @@ export const WORKSPACE_PHONE_BELOW = 640;
 
 export const ANY_IMAGE_SOURCE = "any";
 
-export type PanelType = "model" | "image" | "chart" | "alarms" | "approvals" | "markdown" | "picture";
+export type PanelType = "model" | "image" | "chart" | "alarms" | "approvals" | "markdown" | "picture" | "surface" | "assetState";
 // the text of a Text panel (markdown, LaTeX and {{topicRef.path}} values): at most these characters
 export const MARKDOWN_MAX_LENGTH = 20000;
 // how an Image panel shows the frames of its source: as a video (live, with pause) or as a photo (the last
@@ -37,7 +38,7 @@ export const MARKDOWN_MAX_LENGTH = 20000;
 export type ImageDisplay = "video" | "photo";
 export const imageDisplayOf = (panel: { display?: ImageDisplay }): ImageDisplay => (panel.display === "photo" ? "photo" : "video");
 // at most one panel of these types on a page
-export const SINGLE_PANEL_TYPES: PanelType[] = ["model", "alarms", "approvals"];
+export const SINGLE_PANEL_TYPES: PanelType[] = ["model", "alarms", "approvals", "assetState"];
 
 // a series of a chart: a field of a sensor of the asset (an item, for an array field)
 export interface ChartSeriesRef {
@@ -78,6 +79,12 @@ export interface WorkspacePanel {
     file?: string;
     fit?: PictureFit;
     bindings?: PictureBinding[];
+    // surface: a 3D Surface, of a formula or of a grid of values of the messages (surface/surfacePanel.ts)
+    surface?: SurfaceOptions;
+    // assetState: the fields of the state shown, the colour of each status, after how many minutes it is old
+    stateFields?: AssetStateField[];
+    statusColors?: Record<string, string>;
+    staleMinutes?: number;
     // chart: its series, its visualization and settings (Grafana's options and fieldConfig) and its own time
     series?: ChartSeriesRef[];
     // the panels of 1.4.0 before the editor: now timeFrom
@@ -126,6 +133,8 @@ const NEW_PANEL_SIZE: Record<PanelType, { w: number; h: number }> = {
     approvals: { w: 5, h: 6 },
     markdown: { w: 4, h: 4 },
     picture: { w: 5, h: 6 },
+    surface: { w: 6, h: 7 },
+    assetState: { w: 4, h: 5 },
 };
 const MIN_SIZE: Record<PanelType, { w: number; h: number }> = {
     model: { w: 3, h: 3 },
@@ -135,11 +144,13 @@ const MIN_SIZE: Record<PanelType, { w: number; h: number }> = {
     approvals: { w: 3, h: 3 },
     markdown: { w: 2, h: 1 },
     picture: { w: 2, h: 2 },
+    surface: { w: 3, h: 3 },
+    assetState: { w: 2, h: 2 },
 };
 
 export const minSizeOf = (type: PanelType) => MIN_SIZE[type];
 
-const PANEL_TYPES: PanelType[] = ["model", "image", "chart", "alarms", "approvals", "markdown", "picture"];
+const PANEL_TYPES: PanelType[] = ["model", "image", "chart", "alarms", "approvals", "markdown", "picture", "surface", "assetState"];
 export const PICTURE_FILE = /^[A-Za-z0-9_][A-Za-z0-9_.-]{0,79}\.(png|jpe?g|webp|gif|svg)$/i;
 const PANEL_ID = /^[A-Za-z0-9_-]{1,40}$/;
 const SOURCE = /^[A-Za-z0-9_.-]{1,60}$/;
@@ -254,7 +265,7 @@ const sanitizePanels = (panels: unknown, hasModel: boolean): WorkspacePanel[] =>
         if (!PANEL_TYPES.includes(p.type as PanelType)) continue;
         const type = p.type as PanelType;
         if (type === "model" && (!hasModel || hasModelPanel)) continue;
-        if ((type === "alarms" || type === "approvals") && clean.some((q) => q.type === type)) continue;
+        if ((type === "alarms" || type === "approvals" || type === "assetState") && clean.some((q) => q.type === type)) continue;
         if (!isInt(p.x) || !isInt(p.y) || !isInt(p.w) || !isInt(p.h)) continue;
         const w = clamp(p.w, 1, GRID_COLS);
         const panel: WorkspacePanel = {
@@ -276,6 +287,12 @@ const sanitizePanels = (panels: unknown, hasModel: boolean): WorkspacePanel[] =>
             if (PICTURE_FITS.includes(p.fit as PictureFit)) panel.fit = p.fit as PictureFit;
             const bindings = sanitizeBindings(p.bindings);
             if (bindings.length) panel.bindings = bindings;
+        }
+        if (p.type === "assetState") Object.assign(panel, sanitizeAssetStateSettings(p));
+        if (p.type === "surface") {
+            const surface = sanitizeSurface(p.surface);
+            if (!surface) continue;
+            panel.surface = surface;
         }
         if (p.type === "chart") {
             const series = sanitizeChartSeries(p.series);
@@ -366,6 +383,7 @@ export const addPanel = <T extends WorkspacePage>(layout: T, spec: NewPanel): T 
     }
     if (spec.type === "markdown") panel.text = (spec.text ?? "").slice(0, MARKDOWN_MAX_LENGTH);
     if (spec.type === "picture" && spec.file && PICTURE_FILE.test(spec.file)) panel.file = spec.file;
+    if (spec.type === "surface") panel.surface = defaultSurface();
     if (spec.type === "chart") {
         const series = sanitizeChartSeries(spec.series);
         if (series.length === 0) return layout;
@@ -635,6 +653,8 @@ export const panelTitle = (panel: WorkspacePanel): string => {
     if (panel.type === "approvals") return "Approvals";
     if (panel.type === "markdown") return "Text";
     if (panel.type === "picture") return panel.file ? panel.file.replace(/\.[^.]+$/, "") : "Picture";
+    if (panel.type === "surface") return "3D Surface";
+    if (panel.type === "assetState") return "Asset state";
     const kind = imageDisplayOf(panel) === "photo" ? "Photo" : "Video";
     return panel.source && panel.source !== ANY_IMAGE_SOURCE ? `${kind} · ${imageSourceLabel(panel.source)}` : kind;
 };

@@ -136,7 +136,7 @@ const SelectGroupManaged: FC<SelectGroupManagedProps> = (
         sensorsState
     }) => {
     const [selectedGroupManaged, setSelectedGroupManaged] = useState<ISelectGroupManaged | null>(null);
-    const groupsManagedTable = useTable("groupsManaged");
+    const groupsManagedTable = useTable("groupsViewable");
     const groupsManagedFiltered = groupsManagedTable.filter(group => group.orgId === orgId && group.floorNumber === floorNumber);
     const selectGroupsManaged = useState(groupsManagedFiltered.map(group =>
         addStateToGroupManaged(group, assets, digitalTwinsState, sensorsState)

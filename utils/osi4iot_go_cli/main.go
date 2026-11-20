@@ -144,6 +144,14 @@ func main() {
 					errMsg := utils.StyleErrMsg.Render(combinedErr.Error())
 					exitWithError(errMsg)
 				}
+				// Going on without them: say which, and what that means.
+				if down := docker.UnreachableNodes(pd); len(down) > 0 {
+					fmt.Println(utils.StyleWarningMsg.Render(fmt.Sprintf(
+						"Warning: node(s) %s unreachable (stopped?). Continuing with the other nodes: whatever is on them "+
+							"is not touched now (Swarm tidies their containers when they come back), and services "+
+							"that can only run on them stay pending until they do.",
+						strings.Join(down, ", "))))
+				}
 			}
 			defer func() {
 				docker.CleanResources()

@@ -28,6 +28,16 @@ func (n *BaseNode) recordLlmUsage(source, userName, providerType, model string, 
 	}, usage)
 }
 
+// llmLimitReached is the answer of a node whose group reached its monthly LLM token limit (llmusage/groups.go):
+// it does not call the provider until the month ends or the limit is raised. "" when it may.
+func (n *BaseNode) llmLimitReached() string {
+	if !llmusage.GroupBlocked(n.Pipeline.GetGroupId()) {
+		return ""
+	}
+	return "The group has reached its monthly LLM token limit: the AI tools are stopped until the month ends " +
+		"or the organization administrator raises the limit."
+}
+
 // messageUserName is who sent a message, when known: the verified sender or its "userName" field.
 func messageUserName(msg common.Message) string {
 	if sender := msg.GetSender(); sender != nil && strings.TrimSpace(sender.User) != "" {

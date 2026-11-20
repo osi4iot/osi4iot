@@ -333,6 +333,13 @@ func (p *Pipeline) ClearChatMessagesHistory(ctx context.Context, userName string
 	if err := utils.DeleteChatHistory(ctx, p.Fm.Log(), kvStore, userName, p.GetOrgHash(), p.GetDigitalTwinUid()); err != nil {
 		p.Fm.Log().Warnf("Chat history of %s in digital twin %d not deleted: %v", userName, p.GetDigitalTwinId(), err)
 	}
+	// and the files the user attached to it
+	if client, bucket := p.Fm.GetS3Client(), p.Fm.GetS3BucketName(); client != nil && bucket != "" {
+		prefix := utils.ChatAttachmentsUserPrefix(p.GetOrgId(), p.GetGroupId(), p.GetDigitalTwinId(), userName)
+		if err := utils.DeleteS3Prefix(ctx, client, bucket, prefix); err != nil {
+			p.Fm.Log().Warnf("Chat attachments of %s in digital twin %d not deleted: %v", userName, p.GetDigitalTwinId(), err)
+		}
+	}
 
 	var chatMessages []utils.ChatMessage = []utils.ChatMessage{}
 	payload := ChatMessagesPayload{
@@ -753,6 +760,7 @@ func (p *Pipeline) PublishChatMessages(ctx context.Context, userName string) {
 			McpToolCalls: mcpToolCallsArray[index],
 			Charts:       chartsArray[index],
 			Translation:  msg.Translation,
+			Attachments:  msg.Attachments,
 		})
 	}
 

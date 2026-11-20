@@ -489,6 +489,7 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
                 viewerConfigFile.config,
                 digitalTwins[digitalTwinRowIndex].viewerSettings,
                 { accessToken, refreshToken, authDispatch },
+                viewerConfigFile.images,
             );
             if (saved) setViewerConfigFile(null);
         }

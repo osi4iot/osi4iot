@@ -23,5 +23,8 @@ export default interface IGroup {
 	llmEnabled: boolean;
 	gpuUsageEnabled: boolean;
 	ragEnabled?: boolean;
+	chatAttachmentsEnabled?: boolean; // chat attachments may go to the LLM provider (off by default)
 	timezone?: string; // IANA name; "" not set (UTC)
+	// the role of the user who asks in the group (lists of the groups it administers or edits)
+	roleInGroup?: "Admin" | "Editor" | "Viewer";
 }

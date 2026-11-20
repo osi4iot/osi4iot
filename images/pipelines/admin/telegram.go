@@ -3,6 +3,7 @@ package admin
 import (
 	"context"
 	"fmt"
+	neturl "net/url"
 	"strings"
 
 	"pipelines/utils"
@@ -71,4 +72,25 @@ func (a *Admin) GetTelegramGroupMember(ctx context.Context, groupId int, telegra
 		return "", nil
 	}
 	return *answer.UserName, nil
+}
+
+// GetGroupRole is the role of a platform user (its login) in a group:
+// "Admin" (group, organization or platform administrator), "Editor",
+// "Viewer", or "" when it is not a member.
+func (a *Admin) GetGroupRole(ctx context.Context, groupId int, login string) (string, error) {
+	url := fmt.Sprintf("%s/application/group_role/%d/%s", a.baseUrl, groupId, neturl.PathEscape(login))
+	response, err := utils.HttpGetWithJwt(ctx, url, a.accessToken)
+	if err != nil {
+		return "", err
+	}
+	var answer struct {
+		Role *string `json:"role"`
+	}
+	if err := utils.UnmarshalData(response, &answer); err != nil {
+		return "", err
+	}
+	if answer.Role == nil {
+		return "", nil
+	}
+	return *answer.Role, nil
 }

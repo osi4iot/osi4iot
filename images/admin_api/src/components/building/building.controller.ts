@@ -1,4 +1,3 @@
-
 import { Router, NextFunction, Request, Response } from "express";
 import IController from "../../interfaces/controller.interface";
 import validationMiddleware from "../../middleware/validation.middleware";
@@ -12,7 +11,7 @@ import CreateBuildingDto from "./building.dto";
 import IRequestWithUser from "../../interfaces/requestWithUser.interface";
 import { createBuilding, createFloor, deleteBuildingById, deleteFloorById, getAllFloors, getAllFloorsFromOrgIdArray, getAllBuildings, getBuildingByProp, getFloorByBuildingIdAndFloorNumber, getFloorById, getBuildingsFromOrgIdArray, updateBuildingById, updateFloorById } from "./buildingDAL";
 import IBuiliding from "./building.interface";
-import { getGroupsManagedByUserId } from "../group/groupDAL";
+import { getGroupsOfMemberByUserId } from "../group/groupDAL";
 import { getOrganizationsManagedByUserId, getOrganizationsWithIdsArray } from "../organization/organizationDAL";
 import IFloor from "./floor.interface";
 import { findBuildingBounds, findFloorBounds, findGeographicCoordinates } from "../../utils/geolocation.ts/geolocation";
@@ -95,6 +94,8 @@ class BuildingController implements IController {
 
 	}
 
+	// the buildings and floors of the map: those of the organizations the user administers or of the groups it is a
+	// member of (any role)
 	private getBuildingsForOrgsWithGroupsManagedByUser = async (req: IRequestWithUser, res: Response, next: NextFunction): Promise<void> => {
 		try {
 			let buildings: IBuiliding[] = [];
@@ -103,7 +104,7 @@ class BuildingController implements IController {
 			} else {
 				const organizations = await getOrganizationsManagedByUserId(req.user.id);
 				const orgsManagedIdArray = organizations.map(org => org.id);
-				const groups = await getGroupsManagedByUserId(req.user.id);
+				const groups = await getGroupsOfMemberByUserId(req.user.id);
 				if (groups.length !== 0) {
 					const orgIdsArray = groups.map(group => group.orgId);
 					const orgsOfGroupsManaged = await getOrganizationsWithIdsArray(orgIdsArray)
@@ -134,7 +135,7 @@ class BuildingController implements IController {
 			} else {
 				const organizations = await getOrganizationsManagedByUserId(req.user.id);
 				const orgsManagedIdArray = organizations.map(org => org.id);
-				const groups = await getGroupsManagedByUserId(req.user.id);
+				const groups = await getGroupsOfMemberByUserId(req.user.id);
 				if (groups.length !== 0) {
 					const orgIdsArray = groups.map(group => group.orgId);
 					if (orgIdsArray.length !== 0) {

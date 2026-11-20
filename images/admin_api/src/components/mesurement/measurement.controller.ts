@@ -1,7 +1,7 @@
 import { Router, NextFunction, Response } from "express";
 import IController from "../../interfaces/controller.interface";
 import validationMiddleware from "../../middleware/validation.middleware";
-import { groupAdminAuth, userAuth } from "../../middleware/auth.middleware";
+import { userAuth, groupViewerAuth, groupEditorAuth } from "../../middleware/auth.middleware";
 import ItemNotFoundException from "../../exceptions/ItemNotFoundException";
 import groupExists from "../../middleware/groupExists.middleware";
 import UpdateMeasurementDto from "./measurementUpdate.dto";
@@ -19,6 +19,7 @@ import {
 	getTotalRowsDuringMeasurements,
 	getSensorMeasurementsBeforeDate,
 	deleteSensorMeasurementsBeforeSomeDate,
+	topicFieldPath,
 	getLastGeolocationMeasurementsFromSensorsArray
 } from "./measurementDAL";
 import HttpException from "../../exceptions/HttpException";
@@ -31,7 +32,7 @@ import { getMqttTopicsInfoFromIdArray } from "../topic/topicDAL";
 import { generateSqlTopic } from "../digitalTwin/digitalTwinDAL";
 import SensorMeasurementsWithPaginationDto from "./sensorMeasurementsWithPagination.dto";
 import { getAllGeolocationSensors, getGeolocationSensorsByGroupsIdArray, getSensorByPropName, getSensorTypeByPropName } from "../sensor/sensorDAL";
-import { toMeasurements } from "../../utils/measurements/measurements";
+import { tablePath, toMeasurements, valueAtPath, withValueAtPath, withoutValueAtPath } from "../../utils/measurements/measurements";
 import SensorMeasurementRequestBodyDto from "./sensorMeasurementRequestBody.dto";
 import DeleteSensorMeasurementsBeforeDateDto from "./deleteSensorMeasurementsBeforeDate.dto";
 import IRequestWithUser from "../../interfaces/requestWithUser.interface";
@@ -53,21 +54,21 @@ class MeasurementController implements IController {
 			.post(
 				`${this.path}/:groupId`,
 				groupExists,
-				groupAdminAuth,
+				groupViewerAuth,
 				validationMiddleware<MeasurementRequestBodyDto>(MeasurementRequestBodyDto),
 				this.getMeasurement
 			)
 			.post(
 				`${this.path}s_last/:groupId`,
 				groupExists,
-				groupAdminAuth,
+				groupViewerAuth,
 				validationMiddleware<LastMeasurementsDto>(LastMeasurementsDto),
 				this.getLastMeasurements
 			)
 			.post(
 				`${this.path}s_last_from_topicsid_array/:groupId`,
 				groupExists,
-				groupAdminAuth,
+				groupViewerAuth,
 				validationMiddleware<LastMeasurementsForTopicsIdArrayDto>(LastMeasurementsForTopicsIdArrayDto),
 				this.getLastMeasurementsFromTopicsIdArray
 			)
@@ -79,49 +80,49 @@ class MeasurementController implements IController {
 			.post(
 				`${this.path}s_pagination/:groupId`,
 				groupExists,
-				groupAdminAuth,
+				groupViewerAuth,
 				validationMiddleware<MeasurementsWithPaginationDto>(MeasurementsWithPaginationDto),
 				this.getMeasurementsWithPagination
 			)
 			.post(
 				`/sensor_measurements_pagination/:groupId`,
 				groupExists,
-				groupAdminAuth,
+				groupViewerAuth,
 				validationMiddleware<SensorMeasurementsWithPaginationDto>(SensorMeasurementsWithPaginationDto),
 				this.getSensorMeasurementsWithPagination
 			)
 			.patch(
 				`${this.path}/:groupId`,
 				groupExists,
-				groupAdminAuth,
+				groupEditorAuth,
 				validationMiddleware<UpdateMeasurementDto>(UpdateMeasurementDto),
 				this.updateMeasurement
 			)
 			.delete(
 				`${this.path}/:groupId`,
 				groupExists,
-				groupAdminAuth,
+				groupEditorAuth,
 				validationMiddleware<MeasurementRequestBodyDto>(MeasurementRequestBodyDto),
 				this.deleteMeasurement
 			)
 			.delete(
 				`/sensor_measurement/:groupId`,
 				groupExists,
-				groupAdminAuth,
+				groupEditorAuth,
 				validationMiddleware<SensorMeasurementRequestBodyDto>(SensorMeasurementRequestBodyDto),
 				this.deleteSensorMeasurement
 			)
 			.delete(
 				`${this.path}s_before_date/:groupId`,
 				groupExists,
-				groupAdminAuth,
+				groupEditorAuth,
 				validationMiddleware<DeleteMeasurementsBeforeDateDto>(DeleteMeasurementsBeforeDateDto),
 				this.deleteMeasurementsBeforeDate
 			)
 			.delete(
 				`/sensor_measurements_before_date/:groupId`,
 				groupExists,
-				groupAdminAuth,
+				groupEditorAuth,
 				validationMiddleware<DeleteSensorMeasurementsBeforeDateDto>(DeleteSensorMeasurementsBeforeDateDto),
 				this.deleteSensorMeasurementsBeforeDate
 			)
@@ -242,11 +243,12 @@ class MeasurementController implements IController {
 			if (!sensor) throw new ItemNotFoundException(req, res, "The sensor", "id", sensorId);
 			const topic = `Topic_${sensor.topicUid}`;
 			// campo de los mensajes: uno de los que mide el sensor (o su tipo), por defecto el primero
-			let measurementKeys = Object.keys(toMeasurements(sensor.measurements));
-			if (measurementKeys.length === 0) {
+			let sensorMeasurements = toMeasurements(sensor.measurements);
+			if (Object.keys(sensorMeasurements).length === 0) {
 				const sensorType = await getSensorTypeByPropName(sensor.orgId, "id", sensor.sensorTypeId);
-				measurementKeys = Object.keys(toMeasurements(sensorType?.defaultMeasurements));
+				sensorMeasurements = toMeasurements(sensorType?.defaultMeasurements);
 			}
+			const measurementKeys = Object.keys(sensorMeasurements);
 			const requestedKey = req.body.payloadKey as string | undefined;
 			const payloadKey = requestedKey && measurementKeys.includes(requestedKey) ? requestedKey : measurementKeys[0];
 			if (payloadKey === undefined) {
@@ -260,7 +262,8 @@ class MeasurementController implements IController {
 				endDate,
 				pageIndex,
 				itemsPerPage,
-				payloadKey
+				payloadKey,
+				tablePath(payloadKey, sensorMeasurements[payloadKey])
 			);
 			if (pageIndex === 0 && measurements.length !== 0) {
 				measurements[0].totalRows = await getTotalRowsDuringSensorMeasurements(
@@ -268,7 +271,7 @@ class MeasurementController implements IController {
 					topic,
 					startDate,
 					endDate,
-					payloadKey
+					tablePath(payloadKey, sensorMeasurements[payloadKey])
 				)
 			}
 			res.status(200).send(measurements);
@@ -283,12 +286,26 @@ class MeasurementController implements IController {
 		next: NextFunction
 	): Promise<void> => {
 		try {
-			const { topic, timestamp, updatedPayload } = req.body;
+			const { topic, timestamp, updatedPayload, payloadKey } = req.body;
 			const groupUid = req.group.groupUid;
 			const existMeasurement = await getMeasurement(groupUid, topic, timestamp);
 			if (!existMeasurement) throw new ItemNotFoundException(req, res, "The measurement", "timestamp", timestamp);
 			let newPayload = existMeasurement.payload;
-			if (JSON.stringify(existMeasurement.payload) !== JSON.stringify(updatedPayload)) {
+			if (typeof payloadKey === "string" && payloadKey !== "") {
+				// the table of a sensor: only its field changes, the rest of the message stays
+				let edited: unknown = updatedPayload;
+				if (typeof edited === "string") {
+					try {
+						edited = JSON.parse(edited);
+					} catch {
+						throw new HttpException(req, res, 400, "The measurement is not valid JSON");
+					}
+				}
+				const path = await topicFieldPath(Number(req.group.id), topic, payloadKey);
+				const value = valueAtPath(edited, path);
+				if (value === undefined) throw new HttpException(req, res, 400, `The measurement has no ${path.join(".")}`);
+				newPayload = withValueAtPath(existMeasurement.payload, path, value) as typeof newPayload;
+			} else if (JSON.stringify(existMeasurement.payload) !== JSON.stringify(updatedPayload)) {
 				newPayload = updatedPayload;
 			}
 			const response = await updateMeasurement(groupUid, topic, timestamp, newPayload);
@@ -329,21 +346,16 @@ class MeasurementController implements IController {
 			const { topic, payloadKey, timestamp } = req.body;
 			const existMeasurement = await getMeasurement(groupUid, topic, timestamp);
 			if (!existMeasurement) throw new ItemNotFoundException(req, res, "The measurement", "timestamp", timestamp);
-			const existentPayloadKeys = Object.keys(existMeasurement.payload);
-			if (existentPayloadKeys.indexOf(payloadKey) !== -1) {
-				if (existentPayloadKeys.length === 1) {
-					const response = await deleteMeasurement(groupUid, topic, timestamp);
-					if (!response) throw new HttpException(req, res, 500, "Any measurement has been deleted");
-				} else {
-					const oldPayload = existMeasurement.payload;
-					const acceptedKeys = existentPayloadKeys.filter(key => key !== payloadKey);
-					const filteredEntries = Object.entries(oldPayload).filter(([k,]) => acceptedKeys.includes(k));
-					const newPayload = JSON.stringify(Object.fromEntries(filteredEntries));
-					const response = await updateMeasurement(groupUid, topic, timestamp, newPayload);
-					if (!response) throw new HttpException(req, res, 500, "The sensor measurement could not be deleted");
-				}
+			// the value of the sensor's field out of the message (at its path); nothing left: the message out
+			const path = await topicFieldPath(Number(req.group.id), topic, String(payloadKey ?? ""));
+			const { payload, found } = withoutValueAtPath(existMeasurement.payload, path);
+			if (!found) throw new ItemNotFoundException(req, res, "The sensor measurement", "timestamp", timestamp);
+			if (payload === undefined || (typeof payload === "object" && payload !== null && Object.keys(payload).length === 0)) {
+				const response = await deleteMeasurement(groupUid, topic, timestamp);
+				if (!response) throw new HttpException(req, res, 500, "Any measurement has been deleted");
 			} else {
-				throw new ItemNotFoundException(req, res, "The sensor measurement", "timestamp", timestamp);
+				const response = await updateMeasurement(groupUid, topic, timestamp, JSON.stringify(payload));
+				if (!response) throw new HttpException(req, res, 500, "The sensor measurement could not be deleted");
 			}
 			const message = { message: `Sensor measurement deleted succesfully` }
 			res.status(200).json(message);
@@ -379,7 +391,8 @@ class MeasurementController implements IController {
 			const { topic, payloadKey, deleteDate } = req.body;
 			const measurements = await getSensorMeasurementsBeforeDate(groupUid, topic, deleteDate);
 			if (measurements.length === 0) throw new HttpException(req, res, 500, "None one measurement has been founded");
-			const numMeasurementsDeleted = await deleteSensorMeasurementsBeforeSomeDate(measurements, payloadKey, groupUid, topic);
+			const path = await topicFieldPath(Number(req.group.id), topic, String(payloadKey ?? ""));
+			const numMeasurementsDeleted = await deleteSensorMeasurementsBeforeSomeDate(measurements, path, groupUid, topic);
 			const message = { message: `Have been deleted ${numMeasurementsDeleted} measurements succesfully` }
 			res.status(200).json(message);
 		} catch (error) {
