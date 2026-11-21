@@ -42,3 +42,30 @@ func TestUserChatSubjects(t *testing.T) {
 		}
 	}
 }
+
+// The members subscribe to the changes of the asset states of the group;
+// they are not a chat topic, so no user publishes a copy of them.
+func TestAssetStateSubjects(t *testing.T) {
+	if got := AssetStateSubjects("g1"); got != "assetstate.Group_g1.*" {
+		t.Fatalf("subject: %s", got)
+	}
+	if copies := UserChatSubjects("someone", []string{AssetStateSubjects("g1")}); len(copies) != 0 {
+		t.Fatalf("a user copy of the asset states: %v", copies)
+	}
+}
+
+func TestPipelineLogSubjects(t *testing.T) {
+	if got := PipelineLogSubjects("g1"); got != "dtmlog.Group_g1.*" {
+		t.Fatalf("got %q", got)
+	}
+	// the denied subject is one of the group's topics: it must be the same pattern the Allow has
+	found := false
+	for _, topicType := range topicTypeArray {
+		if topicType+".Group_g1.*" == PipelineLogSubjects("g1") {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatal("PipelineLogSubjects must match the group's dtmlog topics")
+	}
+}

@@ -1,4 +1,5 @@
-import { FC, useState, SyntheticEvent, useEffect } from "react";
+import { FC, useState, SyntheticEvent, useEffect, useMemo } from "react";
+import { isControlRoomAssetType } from "./ControlRoomButton";
 import { reloadTable } from "../../../state";
 import styled from "styled-components";
 import { Formik, Form, FormikProps } from "formik";
@@ -193,9 +194,11 @@ const CreateAsset: FC<CreateAssetProps> = ({
     refreshAssets,
     orgsOfGroupManaged,
     groupsManaged,
-    assetTypes,
+    assetTypes: allAssetTypes,
     selectLocationOption,
 }) => {
+    // the types of the control rooms are only theirs (Create control room)
+    const assetTypes = useMemo(() => allAssetTypes.filter((t) => !isControlRoomAssetType(t.type)), [allAssetTypes]);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const { accessToken, refreshToken } = useAuthState();
     const authDispatch = useAuthDispatch();

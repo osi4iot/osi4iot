@@ -16,6 +16,7 @@ import DeleteModalWithSelect from '../../Tools/DeleteModalWithSelect';
 import { getAxiosInstance } from '../../../tools/axiosIntance';
 import axiosErrorHandler from '../../../tools/axiosErrorHandler';
 import { AxiosResponse, AxiosError } from 'axios';
+import { OrgOverviewButton } from "../GroupAdminOptions/ControlRoomButton";
 
 interface AddOrgUsersProps {
     rowIndex: number;
@@ -190,6 +191,18 @@ export const CREATE_ORGS_MANAGED_COLUMNS = (refreshOrgUsers: () => void): Column
                 return <span style={style}>{mqttAccessControl}</span>;
             }             
         },        
+        {
+            Header: () => <div style={{ backgroundColor: '#202226' }}>Org<br />overview</div>,
+            id: "orgOverview",
+            disableFilters: true,
+            disableSortBy: true,
+            Cell: (props: { row: { id: string; }; rows: any[]; }) => {
+                const rowIndex = parseInt(props.row.id, 10);
+                const row = props.rows.filter((row: { index: number; }) => row.index === rowIndex)[0];
+                // its indicators (Organization overview): a virtual asset and digital twin in its default group
+                return <OrgOverviewButton orgId={parseInt(row?.cells[0]?.value, 10)} />;
+            }
+        },
         {
             Header: () => <div style={{ backgroundColor: '#202226' }}>Add<br />users</div>,
             accessor: "addOrgUsers",

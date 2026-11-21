@@ -62,6 +62,15 @@ func TopicToNatsSubject(topicType, groupUid, topicUid string) string {
 	return fmt.Sprintf("%s.Group_%s.Topic_%s", topicType, groupUid, topicUid)
 }
 
+// AssetStateSubject is where pipelines says that the state of an asset
+// (iot_data.assetState) changed: the Viewer's "Asset state" panel reads it
+// again at once. Only the asset's uids and when: the state itself is read
+// from admin_api, which checks who asks. The members of the group may
+// subscribe (auth_callout: "assetstate.Group_<uid>.*"), none may publish.
+func AssetStateSubject(groupUid, assetUid string) string {
+	return fmt.Sprintf("assetstate.Group_%s.Asset_%s", groupUid, assetUid)
+}
+
 var SystemMonitoringTopicMap = map[string]string{
 	"Log entries":       "system.observability.logs",
 	"Host metrics":      "system.observability.host_metrics",

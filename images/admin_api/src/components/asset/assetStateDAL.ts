@@ -59,6 +59,10 @@ export const deleteAssetStateRowOfAsset = async (groupId: number, assetUid: stri
 			groupUid,
 			assetUid,
 		]);
+		// and the history of its states (an older cluster may not have it yet)
+		await timescaledb_pool
+			.query("DELETE FROM iot_data.asset_state_history WHERE group_uid = $1 AND asset_uid = $2", [groupUid, assetUid])
+			.catch((error) => logger.log("warn", `The state history of asset ${assetUid}: ${describe(error)}`));
 	} catch (error) {
 		logger.log("error", `The asset state of asset ${assetUid} could not be deleted: ${describe(error)}`);
 	}
@@ -67,6 +71,9 @@ export const deleteAssetStateRowOfAsset = async (groupId: number, assetUid: stri
 export const deleteAssetStatesOfGroup = async (groupUid: string): Promise<void> => {
 	try {
 		await timescaledb_pool.query("DELETE FROM iot_data.assetState WHERE group_uid = $1", [groupUid]);
+		await timescaledb_pool
+			.query("DELETE FROM iot_data.asset_state_history WHERE group_uid = $1", [groupUid])
+			.catch((error) => logger.log("warn", `The state history of group ${groupUid}: ${describe(error)}`));
 	} catch (error) {
 		logger.log("error", `The asset states of group ${groupUid} could not be deleted: ${describe(error)}`);
 	}
@@ -79,6 +86,9 @@ export const moveAssetStatesOfGroup = async (oldGroupUid: string, newGroupUid: s
 			oldGroupUid,
 			newGroupUid,
 		]);
+		await timescaledb_pool
+			.query("UPDATE iot_data.asset_state_history SET group_uid = $2 WHERE group_uid = $1", [oldGroupUid, newGroupUid])
+			.catch((error) => logger.log("warn", `The state history of group ${oldGroupUid}: ${describe(error)}`));
 	} catch (error) {
 		logger.log("error", `The asset states of group ${oldGroupUid} could not be moved: ${describe(error)}`);
 	}
@@ -133,4 +143,71 @@ export const getAssetStateView = async (
 		state,
 		lastUpdated: when === null ? null : new Date(when).toISOString(),
 	};
+};
+
+// What is kept of an asset's states (iot_data.asset_state_history, written by pipelines): a row at every change of
+// its status, and a copy of the whole state at most every snapshotMinutes (0 none). Both off by default (an asset
+// of a digital twin used for teaching keeps nothing). Editors and administrators of the group set them.
+export const ASSET_STATE_SNAPSHOT_MAX_MINUTES = 1440;
+
+export interface IAssetStateHistorySettings {
+	statusChanges: boolean;
+	snapshotMinutes: number;
+	// what is kept now: rows and the newest one
+	rows: number;
+	lastRecorded: string | null;
+}
+
+interface HistorySettingsRow {
+	statusChanges: boolean;
+	snapshotMinutes: number;
+}
+
+interface HistoryCountRow {
+	rows: string;
+	lastRecorded: Date | null;
+}
+
+export const getAssetStateHistorySettings = async (
+	groupUid: string,
+	assetUid: string
+): Promise<IAssetStateHistorySettings> => {
+	const settings = await timescaledb_pool.query<HistorySettingsRow>(
+		`SELECT history_status_changes AS "statusChanges", history_snapshot_minutes AS "snapshotMinutes"
+		 FROM iot_data.assetState WHERE group_uid = $1 AND asset_uid = $2`,
+		[groupUid, assetUid]
+	);
+	const kept = await timescaledb_pool.query<HistoryCountRow>(
+		`SELECT count(*) AS rows, max(time) AS "lastRecorded"
+		 FROM iot_data.asset_state_history WHERE group_uid = $1 AND asset_uid = $2`,
+		[groupUid, assetUid]
+	);
+	const row = settings.rows[0];
+	const last = kept.rows[0]?.lastRecorded ?? null;
+	return {
+		statusChanges: !!row?.statusChanges,
+		snapshotMinutes: Number(row?.snapshotMinutes ?? 0),
+		rows: Number(kept.rows[0]?.rows ?? 0),
+		lastRecorded: last ? new Date(last).toISOString() : null,
+	};
+};
+
+// The row is created with the default state when it is missing; a new interval of copies starts now
+export const setAssetStateHistorySettings = async (
+	groupUid: string,
+	assetUid: string,
+	statusChanges: boolean,
+	snapshotMinutes: number
+): Promise<void> => {
+	await timescaledb_pool.query(
+		`INSERT INTO iot_data.assetState AS a (group_uid, asset_uid, state, last_updated,
+		     history_status_changes, history_snapshot_minutes, history_last_snapshot)
+		 VALUES ($1, $2, $3::jsonb, NOW(), $4, $5, NULL)
+		 ON CONFLICT (group_uid, asset_uid) DO UPDATE SET
+		     history_status_changes   = EXCLUDED.history_status_changes,
+		     history_snapshot_minutes = EXCLUDED.history_snapshot_minutes,
+		     history_last_snapshot    = CASE WHEN a.history_snapshot_minutes = EXCLUDED.history_snapshot_minutes
+		                                     THEN a.history_last_snapshot ELSE NULL END`,
+		[groupUid, assetUid, JSON.stringify(DEFAULT_ASSET_STATE), statusChanges, snapshotMinutes]
+	);
 };

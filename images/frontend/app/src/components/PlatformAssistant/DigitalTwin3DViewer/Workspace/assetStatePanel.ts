@@ -12,12 +12,22 @@ import { TONE_COLORS, Tone } from "./historyPanels";
 
 // how often the panel reads the state again (the Alarms and Approvals panels too)
 export const ASSET_STATE_REFRESH_MS = 5_000;
+// while pipelines tells it of each change (NATS, assetStateSubject), the panel reads it at once and checks
+// only this often
+export const ASSET_STATE_REFRESH_LIVE_MS = 30_000;
+
+// where pipelines says that the state of an asset changed (pipelines utils.AssetStateSubject; auth_callout lets the
+// members of the group subscribe)
+export const assetStateSubject = (groupUid: string, assetUid: string) => `assetstate.Group_${groupUid}.Asset_${assetUid}`;
+
+// subscribes to a subject; returns how to stop (the viewer gives one on its NATS connection)
+export type SubjectWatcher = (subject: string, onMessage: () => void) => () => void;
 export const ASSET_STATE_MAX_FIELDS = 20;
 export const ASSET_STATE_MAX_COLORS = 12;
 export const ASSET_STATE_MAX_STALE_MINUTES = 10080;
 export const ASSET_STATE_LABEL_MAX = 40;
 // the paths offered in the editor, from the current state (not those of the projected sections)
-const MAX_OFFERED_PATHS = 200;
+export const MAX_OFFERED_PATHS = 200;
 
 export interface AssetStateField {
     path: string;

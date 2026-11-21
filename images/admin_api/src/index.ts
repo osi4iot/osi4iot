@@ -28,6 +28,7 @@ import AlarmHistoryController from "./components/alarmHistory/alarmHistory.contr
 import ApprovalHistoryController from "./components/approvalHistory/approvalHistory.controller";
 import { ensureEventHistoryTables } from "./utils/eventHistory/eventHistory";
 import { LLM_USAGE_RETENTION_DAYS, ensureGroupTokenLimitColumns } from "./components/llmUsage/llmUsageDAL";
+import { ensureAssetContextColumn } from "./components/asset/controlRoom";
 import LlmUsageController from "./components/llmUsage/llmUsage.controller";
 import SkillController from "./components/skill/skill.controller";
 import { seedBuiltinSkills } from "./components/skill/skillStorage";
@@ -77,6 +78,13 @@ const main = async (): Promise<void> => {
 		} catch (err) {
 			const message = err instanceof Error ? err.message : String(err);
 			logger.log("error", "The chat_attachments_enabled column of the groups could not be added: %s", message);
+		}
+		// the context of the assets (real ones, and the virtual ones of the control rooms)
+		try {
+			await ensureAssetContextColumn();
+		} catch (err) {
+			const message = err instanceof Error ? err.message : String(err);
+			logger.log("error", "The context column of the assets could not be added: %s", message);
 		}
 		// the layouts of the Viewer page (one per digital twin, saved by group administrators)
 		try {

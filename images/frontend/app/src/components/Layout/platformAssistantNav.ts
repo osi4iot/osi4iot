@@ -115,6 +115,7 @@ export const NAV_LAYERS: NavLayer[] = [
             { option: GROUP_ADMIN_OPTIONS.ML_MODELS, label: "ML models", icon: BrainCircuit , adminOnly: true },
             { option: GROUP_ADMIN_OPTIONS.ALARM_HISTORY, label: "Alarm history", icon: BellRing },
             { option: GROUP_ADMIN_OPTIONS.APPROVAL_HISTORY, label: "Approval history", icon: ClipboardCheck },
+            { option: GROUP_ADMIN_OPTIONS.AI_USAGE, label: "AI usage", icon: Gauge, adminOnly: true },
         ],
     },
     {

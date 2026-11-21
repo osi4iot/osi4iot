@@ -12,7 +12,7 @@ import styled, { css } from "styled-components";
 import { scrollbarStyle } from "../../../Tools/FormTools";
 import GridLayout from "react-grid-layout";
 import "react-grid-layout/css/styles.css";
-import { Activity, Axis3d, BellRing, Box, ChartBar, FileImage, FileText, Image as ImageIcon, Video, ChartColumn, ChartColumnBig, ChartGantt, ChartLine, ChartPie, ClipboardCheck, Gauge, Hash, Table2, GripVertical, Info, Maximize, Maximize2, Minimize, Minimize2, Pencil, Plus, X } from "lucide-react";
+import { Activity, Building2, HeartPulse, ScrollText, Axis3d, BellRing, Box, ChartBar, FileImage, FileText, Image as ImageIcon, Video, ChartColumn, ChartColumnBig, ChartGantt, ChartLine, ChartPie, ClipboardCheck, Gauge, Hash, Table2, GripVertical, Info, Maximize, Maximize2, Minimize, Minimize2, Pencil, Plus, X } from "lucide-react";
 import { ChartSeriesOption, defaultChartTitle } from "./chartSeries";
 import { PanelLinks } from "./charts/Links";
 import ImageSourceField from "./ImageSourceField";
@@ -511,6 +511,13 @@ interface AddPanelDialogProps {
     canAddApprovals?: boolean;
     // the asset state panel (one on a page)
     canAddAssetState?: boolean;
+    // a group's control room: its Health and Pipeline logs panels (one of each on a page)
+    controlRoom?: boolean;
+    canAddHealth?: boolean;
+    canAddPipelineLogs?: boolean;
+    // the organization overview: its indicators panel (one on a page)
+    organization?: boolean;
+    canAddOrgOverview?: boolean;
     sources: ImageSourceOption[];
     // the fields of the asset's sensors a chart can show
     chartOptions: ChartSeriesOption[];
@@ -575,13 +582,31 @@ const Hint = styled.p`
 `;
 
 // the Image panels are two choices: video (live, with pause) and photo (the last one)
-type DialogType = "model" | "video" | "photo" | "picture" | "chart" | "markdown" | "surface" | "alarms" | "approvals" | "assetState";
+type DialogType =
+    | "model"
+    | "video"
+    | "photo"
+    | "picture"
+    | "chart"
+    | "markdown"
+    | "surface"
+    | "alarms"
+    | "approvals"
+    | "assetState"
+    | "health"
+    | "pipelineLogs"
+    | "orgOverview";
 
 export const AddPanelDialog: FC<AddPanelDialogProps> = ({
     canAddModel,
     canAddAlarms = true,
     canAddApprovals = true,
     canAddAssetState = true,
+    controlRoom = false,
+    canAddHealth = true,
+    canAddPipelineLogs = true,
+    organization = false,
+    canAddOrgOverview = true,
     sources,
     chartOptions,
     onAdd,
@@ -635,6 +660,35 @@ export const AddPanelDialog: FC<AddPanelDialogProps> = ({
             icon: <Activity />,
             disabled: !canAddAssetState,
         },
+        ...(controlRoom
+            ? [
+                  {
+                      value: "health" as const,
+                      label: "Health",
+                      hint: canAddHealth ? "Pipelines, last data, devices, S3" : "Already on the page",
+                      icon: <HeartPulse />,
+                      disabled: !canAddHealth,
+                  },
+                  {
+                      value: "pipelineLogs" as const,
+                      label: "Pipeline logs",
+                      hint: canAddPipelineLogs ? "What the pipelines logged and log now" : "Already on the page",
+                      icon: <ScrollText />,
+                      disabled: !canAddPipelineLogs,
+                  },
+              ]
+            : []),
+        ...(organization
+            ? [
+                  {
+                      value: "orgOverview" as const,
+                      label: "Organization overview",
+                      hint: canAddOrgOverview ? "Availability, alarms and approvals of every group" : "Already on the page",
+                      icon: <Building2 />,
+                      disabled: !canAddOrgOverview,
+                  },
+              ]
+            : []),
     ];
     const canSubmit =
         type === "model"
@@ -649,6 +703,12 @@ export const AddPanelDialog: FC<AddPanelDialogProps> = ({
                   ? canAddApprovals
                   : type === "assetState"
                   ? canAddAssetState
+                  : type === "health"
+                  ? canAddHealth
+                  : type === "pipelineLogs"
+                  ? canAddPipelineLogs
+                  : type === "orgOverview"
+                  ? canAddOrgOverview
                   : sourceOk;
     const toggle = (key: string) =>
         setChosen((list) =>
@@ -671,6 +731,12 @@ export const AddPanelDialog: FC<AddPanelDialogProps> = ({
                   ? "Alarms"
                   : type === "assetState"
                   ? "Asset state"
+                  : type === "health"
+                  ? "Health"
+                  : type === "pipelineLogs"
+                  ? "Pipeline logs"
+                  : type === "orgOverview"
+                  ? "Organization overview"
                   : "Approvals";
     return (
         <Backdrop
@@ -753,8 +819,28 @@ export const AddPanelDialog: FC<AddPanelDialogProps> = ({
                 )}
                 {type === "assetState" && (
                     <Hint>
-                        The current state of this digital twin's asset, as the pipelines write it (Asset state, Alarm and Machine state nodes): its
-                        status, description, alarms and machines. Edit the panel to show fields of the state and colour other statuses.
+                        {controlRoom
+                            ? "The current state of every asset of the group, as a table: what needs attention first. Edit the panel to add columns with fields of the states and colour other statuses."
+                            : "The current state of this digital twin's asset, as the pipelines write it (Asset state, Alarm and Machine state nodes): its status, description, alarms and machines. Edit the panel to show fields of the state and colour other statuses."}
+                    </Hint>
+                )}
+                {type === "health" && (
+                    <Hint>
+                        Each digital twin of the group: whether its pipeline runs, when its asset last sent data, how many of its devices sent
+                        data within the hour, and its S3 archives.
+                    </Hint>
+                )}
+                {type === "pipelineLogs" && (
+                    <Hint>
+                        What the pipelines of the group's digital twins logged in the last 7 days and log now, with filters by level and digital
+                        twin (for the group's editors and administrators).
+                    </Hint>
+                )}
+                {type === "orgOverview" && (
+                    <Hint>
+                        The indicators of the organization: availability, MTBF and MTTR of the assets with the state history on, the alarms and the
+                        approvals of every group. Edit the panel to say which statuses are not available (for the organization&apos;s
+                        administrators).
                     </Hint>
                 )}
                 {type === "chart" && (
@@ -844,6 +930,10 @@ export interface ViewerWorkspaceProps {
     onPhoneChange?: (phone: boolean) => void;
     // opens a chart panel in the panel editor
     onEditPanel?: (id: string) => void;
+    // a group's control room: it may add the Health and Pipeline logs panels
+    controlRoom?: boolean;
+    // the organization overview: it may add the Organization overview panel
+    organization?: boolean;
     // the slides (arrows, tabs, filters) above the panels
     slideBar?: ReactNode;
     // shown over the slide bar and the panels (e.g. all the slides)
@@ -859,6 +949,12 @@ const panelIcon = (panel: WorkspacePanel) =>
         <ClipboardCheck aria-hidden="true" />
     ) : panel.type === "assetState" ? (
         <Activity aria-hidden="true" />
+    ) : panel.type === "health" ? (
+        <HeartPulse aria-hidden="true" />
+    ) : panel.type === "pipelineLogs" ? (
+        <ScrollText aria-hidden="true" />
+    ) : panel.type === "orgOverview" ? (
+        <Building2 aria-hidden="true" />
     ) : panel.type === "markdown" ? (
         <FileText aria-hidden="true" />
     ) : panel.type === "picture" ? (
@@ -898,6 +994,8 @@ const ViewerWorkspace: FC<ViewerWorkspaceProps> = ({
     canSave,
     saving = false,
     hasModel,
+    controlRoom = false,
+    organization = false,
     imageSources,
     chartOptions = [],
     maximizedId,
@@ -1119,7 +1217,7 @@ const ViewerWorkspace: FC<ViewerWorkspaceProps> = ({
                                         onMaximize={() => onMaximize(isFull ? null : panel.id)}
                                         onRemove={() => onLayoutChange(removePanel(layout, panel.id))}
                                         onRename={(title) => onLayoutChange(renamePanel(layout, panel.id, title))}
-                                        onEdit={(panel.type === "chart" || panel.type === "markdown" || panel.type === "picture" || panel.type === "surface" || panel.type === "assetState") && onEditPanel && !phone ? () => onEditPanel(panel.id) : undefined}
+                                        onEdit={(panel.type === "chart" || panel.type === "markdown" || panel.type === "picture" || panel.type === "surface" || panel.type === "assetState" || panel.type === "orgOverview") && onEditPanel && !phone ? () => onEditPanel(panel.id) : undefined}
                                         source={
                                             editable && panel.type === "image" ? (
                                                 <SourceRow>
@@ -1159,6 +1257,11 @@ const ViewerWorkspace: FC<ViewerWorkspaceProps> = ({
                     canAddAlarms={canAddPanelType(layout, "alarms", hasModel)}
                     canAddApprovals={canAddPanelType(layout, "approvals", hasModel)}
                     canAddAssetState={canAddPanelType(layout, "assetState", hasModel)}
+                    controlRoom={controlRoom}
+                    canAddHealth={canAddPanelType(layout, "health", hasModel)}
+                    canAddPipelineLogs={canAddPanelType(layout, "pipelineLogs", hasModel)}
+                    organization={organization}
+                    canAddOrgOverview={canAddPanelType(layout, "orgOverview", hasModel)}
                     sources={imageSources}
                     chartOptions={chartOptions}
                     onAdd={addFromDialog}

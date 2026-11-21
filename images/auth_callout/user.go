@@ -97,10 +97,10 @@ func (u *User) GetPermissions(authModel *AuthModel, group *Group, svc *Service) 
 
 		// The roles in a group (README, "Permissions"): an Admin (group,
 		// organization or platform administrator) and an Editor get the whole
-		// permissions of the group; a Viewer subscribes to its topics and only
-		// publishes to its own copies of the chat topics (questions to the
-		// agent, the chat's history, the list of the alarms and requests:
-		// pipelines refuses a Viewer's decisions on them).
+		// permissions of the group; a Viewer subscribes to its topics (but the
+		// pipeline logs, dtmlog) and only publishes to its own copies of the chat
+		// topics (questions to the agent, the chat's history, the list of the
+		// alarms and requests: pipelines refuses a Viewer's decisions on them).
 		editors, err := authModel.GetSQLGroupsOfMemberWithRole(u, []int{2})
 		if err != nil {
 			slog.Error("Error getting the groups the user edits: no permissions", "username", u.Username, "error", err)
@@ -134,6 +134,8 @@ func (u *User) GetPermissions(authModel *AuthModel, group *Group, svc *Service) 
 			groupPermissions := g.GroupPermissions(authModel)
 			subSubjectArray = append(subSubjectArray, groupPermissions.Sub.Allow...)
 			denySub = append(denySub, groupPermissions.Sub.Deny...)
+			// not the pipeline logs (only for editors and administrators)
+			denySub = append(denySub, PipelineLogSubjects(g.GroupUID))
 			pubSubjetArray = append(pubSubjetArray, UserChatSubjects(u.Username, groupPermissions.Pub.Allow)...)
 			denyPub = append(denyPub, UserChatSubjects(u.Username, groupPermissions.Pub.Deny)...)
 		}

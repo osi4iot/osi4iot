@@ -1,6 +1,7 @@
 import * as THREE from "three";
+import { isVirtualAsset } from "./ControlRoomButton";
 import { reloadTable, useTable } from "../../../state";
-import { FC, useState, SyntheticEvent, useEffect } from "react";
+import { FC, useState, SyntheticEvent, useEffect, useMemo } from "react";
 import styled from "styled-components";
 import { Formik, Form, FormikProps } from "formik";
 import * as Yup from "yup";
@@ -349,7 +350,9 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
     const digitalTwinsDispatch = useDigitalTwinsDispatch();
     const orgsOfGroupManaged = useTable("orgsOfGroupsManaged");
     const groupsManaged = useTable("groupsManaged");
-    const assets = useTable("assets");
+    // a control room gets its digital twin with it (Create control room)
+    const allAssets = useTable("assets");
+    const assets = useMemo(() => allAssets.filter((asset) => !isVirtualAsset(asset)), [allAssets]);
     const initOrg = orgsOfGroupManaged[0];
     const initGroup = groupsManaged.filter((group) => group.orgId === initOrg.id)[0];
     const initAsset = assets.filter((asset) => asset.groupId === initGroup.id)[0];

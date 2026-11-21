@@ -38,6 +38,11 @@ describe("Header: pipeline logs only in the pipeline view", () => {
         render(<Header {...(props({ activeViewer: "pipeline", pipelineErrors: 3 }) as any)} />);
         expect(screen.getByRole("button", { name: "Pipeline logs (3 new pipeline errors)" })).toHaveTextContent("3");
     });
+
+    it("has no logs button for a viewer of the group (the logs are for editors and administrators)", () => {
+        render(<Header {...(props({ activeViewer: "pipeline", showOnlyPipelineViewer: true, canSeePipelineLogs: false }) as any)} />);
+        expect(screen.queryByRole("button", { name: /Pipeline logs/ })).toBeNull();
+    });
 });
 
 describe("Header: un solo botón para el panel lateral (chat y ajustes)", () => {

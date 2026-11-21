@@ -158,6 +158,7 @@ func (n *AssetStateNode) processUpsertQuery(msg common.Message, log *logger.Logg
 		GroupUid: n.GroupUid,
 		AssetUid: n.AssetUid,
 		State:    state,
+		Writer:   n.GetDigitalTwinUid() + "/" + n.NodeUid,
 	}
 
 	pool := n.Fm.GetDbPool()
@@ -181,6 +182,7 @@ func (n *AssetStateNode) processUpsertQuery(msg common.Message, log *logger.Logg
 		log.Errorf("AssetStateNode %s: failed to upsert asset state: %v", n.NodeUid, err)
 		return fmt.Errorf("failed to upsert asset state: %w", err)
 	}
+	announceAssetState(n.Fm, n.GroupUid, n.AssetUid)
 
 	// Output: only when the status changed, so that Email or Telegram nodes
 	// can be told of it whoever sets the state.

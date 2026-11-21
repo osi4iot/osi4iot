@@ -139,8 +139,24 @@ class LlmUsageController implements IController {
 
 	private getGroupUsage = async (req: IRequestWithGroup, res: Response, next: NextFunction): Promise<void> => {
 		try {
-			const [usage] = await getGroupsTokenUsage(Number(req.group.orgId), Number(req.group.id));
-			res.status(200).send(usage ?? null);
+			// with the organization's warning percentage and the state of the month: what the group's
+			// administrator sees (Group admin → AI usage)
+			const [[usage], orgLimit] = await Promise.all([
+				getGroupsTokenUsage(Number(req.group.orgId), Number(req.group.id)),
+				getOrgTokenLimit(Number(req.group.orgId)),
+			]);
+			if (!usage) {
+				res.status(200).send(null);
+				return;
+			}
+			const limit = usage.monthlyTokenLimit;
+			const percent = limit > 0 ? (usage.monthTokens / limit) * 100 : 0;
+			res.status(200).send({
+				...usage,
+				month: new Date().toISOString().slice(0, 7),
+				warningPercent: orgLimit.warningPercent,
+				state: limit <= 0 ? "none" : percent >= 100 ? "stopped" : percent >= orgLimit.warningPercent ? "warning" : "ok",
+			});
 		} catch (error) {
 			next(error);
 		}

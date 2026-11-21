@@ -147,10 +147,34 @@ export const ensureRetentionPolicy = async (table: string, days: number): Promis
 };
 
 // The history tables of a cluster created before them, and the retention of the LLM usage (2 years).
+// The history of the asset states (as in init_metrics.sql.template): its settings in iot_data.assetState and its
+// hypertable, which pipelines writes (iotdb/assetState.go)
+export const ASSET_STATE_HISTORY_DDL: string[] = [
+	`ALTER TABLE iot_data.assetState
+	    ADD COLUMN IF NOT EXISTS history_status_changes   BOOLEAN NOT NULL DEFAULT false,
+	    ADD COLUMN IF NOT EXISTS history_snapshot_minutes INTEGER NOT NULL DEFAULT 0,
+	    ADD COLUMN IF NOT EXISTS history_last_snapshot    TIMESTAMPTZ`,
+	`CREATE TABLE IF NOT EXISTS iot_data.asset_state_history (
+	    time            TIMESTAMPTZ  NOT NULL,
+	    group_uid       VARCHAR(42)  NOT NULL,
+	    asset_uid       VARCHAR(42)  NOT NULL,
+	    cause           VARCHAR(16)  NOT NULL,
+	    status          VARCHAR(64)  NOT NULL DEFAULT '',
+	    previous_status VARCHAR(64)  NOT NULL DEFAULT '',
+	    writer          VARCHAR(190) NOT NULL DEFAULT '',
+	    state           JSONB
+	)`,
+	`SELECT create_hypertable('iot_data.asset_state_history', 'time',
+	    chunk_time_interval => INTERVAL '30 days', if_not_exists => TRUE)`,
+	`CREATE INDEX IF NOT EXISTS idx_asset_state_history_asset
+	    ON iot_data.asset_state_history (group_uid, asset_uid, time DESC)`,
+];
+
 export const ensureEventHistoryTables = async (llmUsageRetentionDays: number): Promise<void> => {
-	for (const statement of EVENT_HISTORY_DDL) {
+	for (const statement of [...EVENT_HISTORY_DDL, ...ASSET_STATE_HISTORY_DDL]) {
 		await timescaledb_pool.query(statement);
 	}
+	await ensureRetentionPolicy("iot_data.asset_state_history", HISTORY_RETENTION_DAYS);
 	await ensureRetentionPolicy("iot_data.alarm", HISTORY_RETENTION_DAYS);
 	await ensureRetentionPolicy("iot_data.approval", HISTORY_RETENTION_DAYS);
 	await ensureRetentionPolicy("iot_data.llm_usage", llmUsageRetentionDays);

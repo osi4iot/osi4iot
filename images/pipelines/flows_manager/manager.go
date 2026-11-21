@@ -13,6 +13,7 @@ import (
 	"pipelines/config"
 	"pipelines/iotdb"
 	"pipelines/logger"
+	"pipelines/pipelinelog"
 	"pipelines/rag"
 	"strconv"
 	"strings"
@@ -348,6 +349,8 @@ func (fm *FlowsManager) NatsQueueSubscribe(subject, queue string, handler nats.M
 }
 
 func (fm *FlowsManager) NatsPublish(subject string, msg []byte) error {
+	// the pipeline logs (dtmlog) are also kept, for the control room (pipelinelog)
+	pipelinelog.Keep(subject, msg)
 	if err := fm.Nats.Publish(subject, msg); err != nil {
 		fm.log.Errorf("Failed to publish message to subject %s: %v", subject, err)
 		return err

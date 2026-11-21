@@ -424,8 +424,13 @@ Each member of a group has a role in it (its Grafana team: `roleInGroup`):
 | Open the digital twins in the viewer: 3D model, panels (Chart, Text, Picture, 3D Surface, Alarms, Approvals, Asset state…), histories, measurements | ✓ | ✓ | ✓ |
 | The chat of the assistant, with attachments when the group allows them | ✓ | ✓ | ✓ |
 | Read the group's lists: assets, sensors, topics, digital twins, dashboards, skills, ML models, knowledge base documents | ✓ | ✓ | ✓ |
+| The pipeline logs: live in the pipeline view, and those of the last 7 days in the control room's Pipeline logs panel (they tell how the pipelines work inside, the nodes' errors and what the AI agents answered) | – | ✓ | ✓ |
 | **Operate** | | | |
 | Acknowledge, shelve and reset alarms; approve or reject the requests of the Approval nodes (viewer and Telegram) | – | ✓ | ✓ |
+| Send data from the phone (mobile sensors: geolocation, motion, photo, video, audio) | – | ✓ | ✓ |
+| Turn on the state history of an asset (Edit asset → State history) | – | ✓ | ✓ |
+| Create or delete the control room of a group, or the overview of the organization (in its default group) | – | – | ✓ |
+| See the indicators of the organization overview (only the organization's and the platform's administrators, whatever their role in the default group) | – | – | – |
 | **Edit what is built** | | | |
 | The layout of the viewer for the whole group (a Viewer changes it only for itself) and its images | – | ✓ | ✓ |
 | Pipelines: edit, deploy, stop, with the nodes of the services the Admin enabled | – | ✓ | ✓ |
@@ -455,9 +460,50 @@ admin_api refuses it with a 403 that says why (`utils/permissions/deletePolicy.t
 
 Deleting a sensor, topic, asset or digital twin whose topics have stored measurements needs an explicit confirmation, whoever deletes it: the measurements stay in the IoT database, but nothing names them any more. admin_api answers 409 with how many there are; the forms ask, and delete with `?confirmDataLoss=true` once confirmed.
 
+### Control rooms
+
+A **control room** is a digital twin of a whole group (its assets' state, alarms, approvals, health…), and the **organization overview** one of the whole organization (where its BI panels go). Each has a *virtual asset*, told apart by the asset's `context` (`grafanadb.asset.context`: `asset` for a real one, `group`, `organization`), which is set when it is created and never changes:
+
+- Created on demand by the group's administrators: **Group admin → Groups managed → Create control room**, and **Organization admin → Groups → Create overview** (in the organization's default group). At most one of each per group.
+- On the map with their own icon (the asset types *Group control room* and *Organization overview*, predefined in each organization: not editable nor deletable, and not for real assets), and open as any digital twin (no 3D model).
+- No device topics nor physical sensors: only topics for computed values (`dtm2pdb_n`), the first one created with it, and computed sensors on them.
+- An Editor cannot delete them. (`grafanadb.digital_twin.scope`, from older versions, is always `Asset` and unused.)
+
+The panels of a group's control room show the whole group (any member reads them; `GET /admin_api/control_room/:groupId/:digitalTwinId`). Its automatic layout has them all:
+
+- **Asset state**: a table of every asset of the group, what needs attention first (Alarm, Warning…), with the fields chosen as columns; a row opens the asset's whole state. It reads again at once when pipelines says a state changed (NATS `assetstate.Group_<uid>.*`).
+- **Alarms** and **Approvals**: those of all the group's digital twins (shown only: they are acted on in the Alarms and Approvals pages).
+- **Health**: each digital twin's pipeline (its status, which pipelines publish every second on `state2sim`), the last data of each asset (within 7 days), how many of its devices sent data within the hour, and its S3 archives.
+- **Pipeline logs** (editors and administrators): what the pipelines of the group's digital twins logged in the last 7 days and log now (`dtmlog`), the newest first (at most 300), filtered by digital twin and by level: *warnings, errors and pipeline events* (the default: the events of the pipelines themselves, created, started, stopped, deleted or failed, whatever their level), *errors* or *all*. pipelines writes every `dtmlog` message but the debug ones (a node's output with its payload) as a JSON line of its output (`pipelines/pipelinelog`: `event: "pipeline_log"`, the uids of the group and of the topic, the node or pipeline, without payload or state, texts cut to 4,000 characters, and of a message repeated in a loop, the first 100 of each second and then 1 of every 100); Vector keeps it in `observability.log_entries`, which admin_api reads (`GET /control_room_logs/:groupId/:digitalTwinId?levels=important|all`). The same lines are in the platform's *Log entries* dashboard, with those of every service.
+
+#### Organization overview
+
+The digital twin of the organization overview opens with the **Organization overview** panel (one per page; it can be added only there): the indicators of every group of the organization, for the last 7 days, 30 days, 90 days or 12 months. Only the organization's administrators and the platform's administrators see them (`GET /organization_overview/:groupId/:digitalTwinId?period=…&unavailable=…`, `components/asset/organizationOverview.ts`); the other members of the default group see a notice.
+
+- **Cards**: availability (target 98 %), active alarms by level, alarms raised and MTTA, approvals pending, the assets with *no data recorded*, the AI tokens of the month against the organization's limit, the pipelines running (and in error) and the S3 archives.
+- **Groups**: a row per group, what needs attention first (active alarms of the Alarm level, any active alarm, the lowest availability): availability, MTBF, MTTR, alarms raised, MTTA, active alarms, approvals pending, AI tokens of the month against the group's limit, pipelines and S3 archives, with how many of its assets are measured.
+- **Availability** and **alarms raised** by day (7 and 30 days), week (90 days) or month (12 months), the **most repeated alarms** (often thresholds to tune), the **time in each status** of each group and the **AI tokens by model** this month.
+
+How they are computed:
+- **Availability, MTBF, MTTR and time in each status** come from the status changes of `iot_data.asset_state_history`: only the assets with the state history on (Edit asset → State history). The status of an asset at the start of the period is its last change before it; an asset whose state was written in the period without changing its status is in its current status all along. A status is available unless it is one of the panel's *unavailable statuses* (by default `Alarm`; edit the panel to add those of your pipelines, e.g. `Stopped`, `Fault`). Availability = time available / time with a known status, weighted by time across assets. MTBF = time available / entries into an unavailable status; MTTR = mean length of the unavailable spans that ended in the period.
+- **No data recorded**: an asset with the history on whose state was not written in the period is inactive; it does not count in the availability and shows apart.
+- **Alarms** come from `iot_data.alarm` (raised, and the acknowledgements for the MTTA: from raised to acknowledged); the active alarms and the pending requests, as the Alarms and Approvals panels (the latest event of each in the last 30 days).
+- **AI tokens**: input + output tokens of `iot_data.llm_usage` in the current month (UTC), against the monthly limits of the organization and of each group (*AI usage*); whatever the period chosen, as the limits are monthly.
+- **Pipelines**: the digital twins with a pipeline. Their status is live: each pipeline says it every second on `state2sim` while it runs, and the panel listens while it is shown (*running*, *error*, or *not running* when it is silent: stopped, deleted or its replica down). Below, the failures of the pipelines themselves (creation, start, stop, no GPU…) and the errors of their nodes in their kept logs (`observability.log_entries`: the period, at most its 7 days).
+- **S3 archives**: the current folders of the assets of each group (`grafanadb.s3_folder`), their size and when they were last stored.
+
+### State history of the assets
+
+What is kept of an asset's states, in the IoT database (`iot_data.asset_state_history`, patroni_metrics), is set asset by asset in **Edit asset → State history**, by the group's editors and administrators. Both options are off by default, so an asset of a digital twin used for teaching keeps nothing:
+
+- **Keep every change of status**: a row each time its status changes (OK, Warning, Alarm…), whoever writes it (Asset state, Alarm or Machine state nodes), with the previous status, the whole state and who wrote it. The ground of availability, MTBF/MTTR and time in each status.
+- **Copy of the whole state**: at most one every 5, 15, 30, 60 minutes, 4 hours or a day, taken when the state is written (nothing new to copy otherwise).
+
+The settings live in the asset's row of `iot_data.assetState`, and pipelines records the history in the same transaction that writes the state, so writers at the same time neither lose nor repeat a change. Kept 2 years, as the histories of alarms and approvals; deleted with the asset.
+
 ### Monthly token limit of each group
 
-The organization administrator sets it, group by group, in **Organization admin → AI usage → Monthly token limit of each group** (0: no limit). The tokens of the month (UTC) count every LLM operation of the group (AI agents, translations, transcriptions, voices) as admin_api stores them (`iot_data.llm_usage`).
+The organization administrator sets it, group by group, in **Organization admin → AI usage → Monthly token limit of each group** (0: no limit). The tokens of the month (UTC) count every LLM operation of the group (AI agents, translations, transcriptions, voices) as admin_api stores them (`iot_data.llm_usage`). The group's administrators see the month's tokens, the limit and the share used in **Group admin → AI usage**.
 
 -	At the organization's warning percentage and at the limit the users are told, once a month, in the pipeline logs (and in the chat of the 3D viewer).
 -	A group that reaches its limit is **stopped until the month ends** or the limit is raised: its nodes do not call the provider; the AI agent answers that the limit was reached, and the Translator, Transcriptor and Text2Speech nodes pass their messages on unchanged with a warning. pipelines learns it in the answer to each batch of usage and asks admin_api every minute which groups are stopped.
@@ -467,7 +513,7 @@ The organization administrator sets it, group by group, in **Organization admin 
 ### Where it is enforced
 
 -	**admin_api**: each route of a group asks for a minimum role (`groupViewerAuth`, `groupEditorAuth`, `groupAdminAuth` in `middleware/auth.middleware.ts`). The lists of the map and the viewer (`*/user_managed`) include every group of which the user is a member; the group admin layer, the groups the user administers or edits, each with its role (`roleInGroup`). Every route of a group also checks that what it names belongs to the group of the route (`groupExists` with `middleware/groupOwnership.ts`): the ids of the path (assets, digital twins, topics, ML models, dashboards), the item of the routes by property (assets, digital twins, sensors, topics, ML models, S3 folders) and the topic of a sensor; an item of another group is answered as not found (404).
--	**NATS** (`auth_callout`): an Admin and an Editor get the whole permissions of the group's topics; a Viewer subscribes to them and publishes only to its own copies of the chat topics (`user.<login>.sim2llm…`, `sim2state`, `approval`).
+-	**NATS** (`auth_callout`): an Admin and an Editor get the whole permissions of the group's topics; a Viewer subscribes to them (but not to the pipeline logs, `dtmlog`, in its `Sub.Deny`) and publishes only to its own copies of the chat topics (`user.<login>.sim2llm…`, `sim2state`, `approval`). Every member subscribes to `assetstate.Group_<uid>.*`, where pipelines says that the state of an asset changed (the Viewer's Asset state panel reads it at once); only pipelines publishes there.
 -	**pipelines**: the Alarm and Approval nodes ask admin_api for the role of whoever presses a button in the viewer (`/application/group_role`, kept for a minute) and refuse a Viewer; from Telegram, editors and administrators with a linked account may decide.
 -	**frontend**: the group admin layer shows the sections of the administrators (members, S3 storage, knowledge, ML models) only to those who administer some group; the viewer shows the Pipeline page and the alarm and request buttons only to the editors and administrators of the digital twin's group.
 
@@ -856,3 +902,4 @@ Note: videos may take a few seconds to be loaded.
 - [x] GPU inference of ONNX models on NVIDIA GPU nodes (CUDA).
 - [x] Knowledge bases for the AI agents (hybrid RAG: pgvector and BM25 with pg_textsearch).
 - [ ] Org2Org & Group2Group message system.
+

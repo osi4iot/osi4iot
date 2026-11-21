@@ -61,6 +61,13 @@ export const expensiveResourcesOfDigitalTwin = async (digitalTwinId: number): Pr
 	if (!row) return [];
 	const name = `the digital twin "${row.description}"`;
 	const reasons: string[] = [];
+	// the digital twin of a control room (controlRoom.ts): only the group's administrators delete it
+	const kind = await readQuery(
+		`SELECT a.context FROM grafanadb.digital_twin dt INNER JOIN grafanadb.asset a ON a.id = dt.asset_id WHERE dt.id = $1`,
+		[digitalTwinId]
+	);
+	const context = (kind.rows[0] as { context?: string } | undefined)?.context;
+	if (context && context !== "asset") reasons.push(`${name} is the ${context === "group" ? "group's control room" : "organization's overview"}`);
 	if (Number(row.documents) > 0) reasons.push(`${name} reads ${row.documents} knowledge base document(s)`);
 	if (row.requiresGpu) reasons.push(`the pipeline of ${name} runs on GPU`);
 	const paid = paidAiServicesOfPipeline(row.pipeline);
@@ -71,6 +78,10 @@ export const expensiveResourcesOfDigitalTwin = async (digitalTwinId: number): Pr
 // Why an asset holds expensive resources (its S3 archives, its digital twins)
 export const expensiveResourcesOfAsset = async (assetId: number): Promise<string[]> => {
 	const reasons: string[] = [];
+	// the virtual asset of a control room (controlRoom.ts): only the group's administrators delete it
+	const kind = await readQuery(`SELECT context FROM grafanadb.asset WHERE id = $1`, [assetId]);
+	const context = (kind.rows[0] as { context?: string } | undefined)?.context;
+	if (context && context !== "asset") reasons.push(`it is the ${context === "group" ? "group's control room" : "organization's overview"}`);
 	const folders = await readQuery(`SELECT COUNT(*) AS "count" FROM grafanadb.s3_folder WHERE asset_id = $1`, [assetId]);
 	const archives = Number((folders.rows[0] as { count?: number } | undefined)?.count ?? 0);
 	if (archives > 0) reasons.push(`the asset keeps archives in S3 (${archives} folder(s))`);

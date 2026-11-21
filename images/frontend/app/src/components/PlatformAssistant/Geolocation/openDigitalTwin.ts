@@ -154,6 +154,7 @@ const openDigitalTwin = async (
                 topicIdBySensorRef: digitalTwin3DModelData.topicIdBySensorRef,
                 digitalTwinSimulationFormat: digitalTwin3DModelData.digitalTwinSimulationFormat,
                 isGroupDTDemo: digitalTwin3DModelData.isGroupDTDemo,
+                assetContext: digitalTwin3DModelData.assetContext,
             };
             openDigitalTwin3DViewer(digitalTwinGltfData);
             setGlftDataLoading(false);

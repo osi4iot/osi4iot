@@ -39,6 +39,8 @@ export interface IAsset {
     latitude: number;
     longitude: number;
     geolocationMode: string;
+    // asset: a real one; group / organization: the virtual asset of a control room (ControlRoomButton)
+    context?: "asset" | "group" | "organization";
 }
 
 

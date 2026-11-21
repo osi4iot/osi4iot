@@ -385,6 +385,8 @@ interface HeaderProps {
     // pipeline errors not seen yet: badge on the logs button, dot on the Pipeline tab
     pipelineErrors?: number;
     isPipelineLogsOpen?: boolean;
+    // the pipeline logs are only for the editors and administrators of the group: else no logs button
+    canSeePipelineLogs?: boolean;
     // the Viewer page (3D model and/or Image) has something to show: else only the pipeline
     viewerAvailable?: boolean;
     // the Viewer page has the 3D model (else only the Image): the scene settings of the assistant panel
@@ -463,6 +465,7 @@ export const Header: FC<HeaderProps> = ({
     logsWidth = 0,
     pipelineErrors = 0,
     isPipelineLogsOpen = false,
+    canSeePipelineLogs = true,
     viewerAvailable = !showOnlyPipelineViewer,
     viewerHasModel = true,
     onHeightChange,
@@ -629,8 +632,12 @@ export const Header: FC<HeaderProps> = ({
                     >
                         <Upload aria-hidden="true" />
                     </ToolButton>
-                    <Divider />
-                    {logsButton}
+                    {canSeePipelineLogs && (
+                        <>
+                            <Divider />
+                            {logsButton}
+                        </>
+                    )}
                     {showOnlyPipelineViewer && dashboardButton}
                 </Group>
             )}

@@ -96,7 +96,17 @@ import TimePicker from "../Workspace/charts/TimePicker";
 import { DEFAULT_PAGE_TIME, PageTime, RefreshClock, TimeRange, createRefreshClock, isLive, refreshMs, resolveRange } from "../Workspace/charts/timeRange";
 import HistoryPanel, { HistoryActions } from "../Workspace/HistoryPanel";
 import { historyPanelApi } from "../Workspace/historyPanelsApi";
-import AssetStatePanel, { AssetStateEditor } from "../Workspace/AssetStatePanel";
+import AssetStatePanel, { AssetStateEditor, settingsOfPanel } from "../Workspace/AssetStatePanel";
+import {
+    GroupAssetStateEditor,
+    GroupAssetStatePanel,
+    HealthPanel,
+    OrganizationScopeNotice,
+    PipelineLogsPanel,
+} from "../Workspace/ControlRoomPanels";
+import { controlRoomApi, controlRoomLogsApi, scopeOfDigitalTwin } from "../Workspace/controlRoom";
+import { orgOverviewApi } from "../Workspace/orgOverview";
+import { OrgOverviewEditor, OrgOverviewPanel } from "../Workspace/OrgOverviewPanel";
 import { assetStateApi } from "../Workspace/assetStateApi";
 import { chartSeriesOptions } from "../Workspace/chartSeries";
 import { fetchTimeSeries, TimeSeriesQuery } from "../Workspace/timeSeriesApi";
@@ -302,7 +312,17 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
     // without a model only the image; with neither, only the pipeline.
     const viewerHasModel = !showOnlyPipelineViewer && !!digitalTwinGltfData?.digitalTwinGltfUrl;
     const viewerHasImage = !!assetWithCameraSelected;
-    const viewerAvailable = viewerHasModel || viewerHasImage;
+    // the scope of the twin (its asset's context, from admin_api; else from the assets table): a group's control
+    // room and the organization overview have no model nor camera, but their Viewer page with their panels
+    const assetsForScope = useTable("assets");
+    const dtScope = useMemo(
+        () =>
+            digitalTwinGltfData?.assetContext === "group" || digitalTwinGltfData?.assetContext === "organization"
+                ? digitalTwinGltfData.assetContext
+                : scopeOfDigitalTwin(digitalTwinSelected, assetsForScope),
+        [digitalTwinGltfData?.assetContext, digitalTwinSelected, assetsForScope],
+    );
+    const viewerAvailable = viewerHasModel || viewerHasImage || dtScope !== "asset";
     // the panel shown full page (by everybody, without editing the layout)
     const [maximizedPanel, setMaximizedPanel] = useState<string | null>(memory.workspaceMaximized ?? null);
     // the user's own changes to the layout (not saved: they last while the viewer is open)
@@ -1004,9 +1024,16 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
         [handleUpdateChatAssistantMessages, setChatMessages, setState],
     );
 
+    // the pipeline logs (dtmlog) only for the editors and administrators of the group (README, "Permissions";
+    // auth_callout denies them to a Viewer)
+    const canSeePipelineLogs =
+        !!digitalTwinSelected && groupsManagedTable.some((group) => group.id === digitalTwinSelected.groupId);
     useNatsSubscription(
         natsClient,
-        digitalTwinGltfData?.natsSubjectsData?.map((subject) => subject.natsSubject).filter(filterNatsSubject) || [],
+        digitalTwinGltfData?.natsSubjectsData
+            ?.filter((subject) => canSeePipelineLogs || subject.topicRef !== "dtmlog")
+            .map((subject) => subject.natsSubject)
+            .filter(filterNatsSubject) || [],
         digitalTwinGltfData?.natsSubjectsData || [],
         digitalTwinGltfData?.topicIdBySensorRef || {},
         currentSensorsState,
@@ -1087,15 +1114,20 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
                 setMaximizeFirstImage(true);
             } else if (!viewerAvailable) {
                 handlers.handleSetActiveViewer("pipeline");
+            } else if (dtScope !== "asset") {
+                // a control room or the organization overview: they open with their panels
+                handlers.handleSetActiveViewer("3D");
             }
         }
-    }, [digitalTwinSelected, sensorWithCameraSelected]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [digitalTwinSelected, sensorWithCameraSelected, dtScope]);
 
     // El editor de pipelines (Flow) registra aquí la función que coloca con el ratón los nodos importados
     const pipelineImportRef = useRef<((nodes: any[], edges: any[]) => void) | null>(null);
 
     // Pipeline logs: only in the pipeline view, docked on the right (width kept while the app is open)
-    const logsShown = !!digitalTwinSelected && state.isPipelineLogsOpen && state.activeViewer === "pipeline";
+    const logsShown =
+        !!digitalTwinSelected && canSeePipelineLogs && state.isPipelineLogsOpen && state.activeViewer === "pipeline";
 
     // The Viewer page: panels on a grid (Workspace/), below the top bar (it wraps on narrow pages) and left of
     // the assistant panel. The layout: the user's temporary one, else the group's (admin_api), else automatic.
@@ -1177,8 +1209,13 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [digitalTwinSelected?.id]);
     const workspaceContext = useMemo(
-        () => ({ hasModel: viewerHasModel, hasCamera: viewerHasImage }),
-        [viewerHasModel, viewerHasImage],
+        () => ({
+            hasModel: viewerHasModel,
+            hasCamera: viewerHasImage,
+            controlRoom: dtScope === "group",
+            organization: dtScope === "organization",
+        }),
+        [viewerHasModel, viewerHasImage, dtScope],
     );
     const { layout: shownLayout, origin: layoutOrigin } = useMemo(
         () => effectiveWorkspaceLayout(localLayout, savedLayout?.layout, workspaceContext),
@@ -1227,6 +1264,41 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
     );
     const historyApi = useMemo(() => historyPanelApi(layoutAuth), [layoutAuth]);
     const loadAssetState = useMemo(() => assetStateApi(layoutAuth), [layoutAuth]);
+    const loadControlRoom = useMemo(() => controlRoomApi(layoutAuth), [layoutAuth]);
+    const loadControlRoomLogs = useMemo(() => controlRoomLogsApi(layoutAuth), [layoutAuth]);
+    const loadOrgOverview = useMemo(() => orgOverviewApi(layoutAuth), [layoutAuth]);
+    // the subjects of a control room (states, pipelines' status and logs), with the JSON of each message
+    const controlRoomLive = useMemo(() => {
+        if (!natsClient || !dtGroup?.groupUid) return undefined;
+        const listen = (subject: string, onMessage: (data: unknown) => void) => {
+            const sub = natsClient.subscribe(subject);
+            (async () => {
+                for await (const msg of sub) {
+                    let data: unknown = null;
+                    try {
+                        data = JSON.parse(new TextDecoder().decode(msg.data));
+                    } catch {
+                        // not JSON
+                    }
+                    onMessage(data);
+                }
+            })().catch(() => undefined);
+            return () => sub.unsubscribe();
+        };
+        return { groupUid: dtGroup.groupUid, listen };
+    }, [natsClient, dtGroup?.groupUid]);
+    // the changes of the asset's state that pipelines tells (NATS): the Asset state panel reads it at once
+    const assetStateLive = useMemo(() => {
+        if (!natsClient || !dtGroup?.groupUid) return undefined;
+        const watch = (subject: string, onMessage: () => void) => {
+            const sub = natsClient.subscribe(subject);
+            (async () => {
+                for await (const _msg of sub) onMessage();
+            })().catch(() => undefined);
+            return () => sub.unsubscribe();
+        };
+        return { groupUid: dtGroup.groupUid, watch };
+    }, [natsClient, dtGroup?.groupUid]);
     // the group's administrators manage the alarms and requests from their panels, by the pipeline (as the
     // Alarms and Approvals pages: on the twin's approval subject, as the user)
     const historyActions = useMemo<HistoryActions | undefined>(() => {
@@ -1816,6 +1888,8 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
                     canSave={canSaveLayout}
                     saving={layoutSaving}
                     hasModel={viewerHasModel}
+                    controlRoom={dtScope === "group"}
+                    organization={dtScope === "organization"}
                     imageSources={imageSources}
                     chartOptions={chartOptions}
                     maximizedId={maximizedPanel}
@@ -1883,17 +1957,65 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
                     onPhoneChange={setWorkspacePhone}
                     onEditPanel={editPanel}
                     renderPanel={(panel: WorkspacePanel) =>
-                        panel.type === "alarms" || panel.type === "approvals" ? (
+                        panel.type === "orgOverview" ? (
+                            dtScope === "organization" && digitalTwinSelected ? (
+                                <OrgOverviewPanel
+                                    panel={panel}
+                                    groupId={digitalTwinSelected.groupId}
+                                    digitalTwinId={digitalTwinSelected.id}
+                                    load={loadOrgOverview}
+                                    paused={!inViewer || editingPanelId !== null}
+                                    live={controlRoomLive}
+                                />
+                            ) : (
+                                <OrganizationScopeNotice organizationPanel />
+                            )
+                        ) : dtScope === "organization" &&
+                        (panel.type === "alarms" || panel.type === "approvals" || panel.type === "assetState" || panel.type === "health" || panel.type === "pipelineLogs") ? (
+                            <OrganizationScopeNotice />
+                        ) : panel.type === "alarms" || panel.type === "approvals" ? (
                             digitalTwinSelected ? (
                                 <HistoryPanel
                                     kind={panel.type}
                                     groupId={digitalTwinSelected.groupId}
-                                    digitalTwinId={digitalTwinSelected.id}
+                                    // a control room: those of the whole group (shown only: acting on them goes through the
+                                    // Alarms and Approvals pages, which know each digital twin)
+                                    digitalTwinId={dtScope === "group" ? 0 : digitalTwinSelected.id}
                                     api={historyApi}
                                     paused={!inViewer}
-                                    actions={historyActions}
+                                    actions={dtScope === "group" ? undefined : historyActions}
                                 />
                             ) : null
+                        ) : (panel.type === "health" || panel.type === "pipelineLogs") && digitalTwinSelected ? (
+                            dtScope !== "group" ? (
+                                <OrganizationScopeNotice />
+                            ) : panel.type === "health" ? (
+                                <HealthPanel
+                                    groupId={digitalTwinSelected.groupId}
+                                    digitalTwinId={digitalTwinSelected.id}
+                                    load={loadControlRoom}
+                                    paused={!inViewer}
+                                    live={controlRoomLive}
+                                />
+                            ) : (
+                                <PipelineLogsPanel
+                                    groupId={digitalTwinSelected.groupId}
+                                    digitalTwinId={digitalTwinSelected.id}
+                                    load={loadControlRoom}
+                                    loadLogs={loadControlRoomLogs}
+                                    paused={!inViewer}
+                                    live={controlRoomLive}
+                                />
+                            )
+                        ) : panel.type === "assetState" && dtScope === "group" && digitalTwinSelected ? (
+                            <GroupAssetStatePanel
+                                groupId={digitalTwinSelected.groupId}
+                                digitalTwinId={digitalTwinSelected.id}
+                                load={loadControlRoom}
+                                paused={!inViewer || editingPanelId !== null}
+                                live={controlRoomLive}
+                                settings={settingsOfPanel(panel)}
+                            />
                         ) : panel.type === "assetState" ? (
                             digitalTwinSelected ? (
                                 <AssetStatePanel
@@ -1902,6 +2024,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
                                     digitalTwinId={digitalTwinSelected.id}
                                     load={loadAssetState}
                                     paused={!inViewer || editingPanelId !== null}
+                                    live={assetStateLive}
                                 />
                             ) : null
                         ) : panel.type === "chart" ? (
@@ -2011,6 +2134,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
                     logsWidth={logsShown ? pipelineLogsWidth : 0}
                     pipelineErrors={unseenPipelineErrors}
                     isPipelineLogsOpen={logsShown}
+                    canSeePipelineLogs={canSeePipelineLogs}
                     viewerAvailable={viewerAvailable}
                     viewerHasModel={viewerHasModel}
                     onHeightChange={setTopBarHeight}
@@ -2152,7 +2276,22 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
                         onDiscard={() => setEditingPanelId(null)}
                     />
                 )}
-                {editingPanel?.type === "assetState" && digitalTwinSelected && (
+                {editingPanel?.type === "orgOverview" && (
+                    <OrgOverviewEditor panel={editingPanel} onApply={applyPanel} onDiscard={() => setEditingPanelId(null)} />
+                )}
+                {editingPanel?.type === "assetState" && digitalTwinSelected && dtScope === "group" && (
+                    // a control room: the paths and the preview of the group's assets (its own asset is virtual)
+                    <GroupAssetStateEditor
+                        panel={editingPanel}
+                        groupId={digitalTwinSelected.groupId}
+                        digitalTwinId={digitalTwinSelected.id}
+                        load={loadControlRoom}
+                        live={controlRoomLive}
+                        onApply={applyPanel}
+                        onDiscard={() => setEditingPanelId(null)}
+                    />
+                )}
+                {editingPanel?.type === "assetState" && digitalTwinSelected && dtScope !== "group" && (
                     <AssetStateEditor
                         panel={editingPanel}
                         groupId={digitalTwinSelected.groupId}

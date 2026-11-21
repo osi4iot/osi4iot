@@ -693,8 +693,10 @@ export const dataBaseInitialization = async () => {
 					geolocation POINT,
 					icon_radio real NOT NULL DEFAULT 1.0,
 					icon_size_factor real NOT NULL DEFAULT 1.0,
+					context VARCHAR(16) NOT NULL DEFAULT 'asset',
 					created TIMESTAMPTZ,
 					updated TIMESTAMPTZ,
+					CONSTRAINT chk_asset_context CHECK (context IN ('asset', 'group', 'organization')),
 					CONSTRAINT fk_group_id
 						FOREIGN KEY(group_id)
 							REFERENCES grafanadb.group(id)
@@ -711,7 +713,12 @@ export const dataBaseInitialization = async () => {
 				-- an asset is chosen by its description: two assets of a group cannot have the same one
 				-- (the same text, ignoring case and the spaces around it; asset.controller.ts also checks it)
 				CREATE UNIQUE INDEX IF NOT EXISTS uq_asset_group_description
-				ON grafanadb.asset (group_id, lower(btrim(description)));`;
+				ON grafanadb.asset (group_id, lower(btrim(description)));
+
+				-- the virtual assets (asset/controlRoom.ts): one control room per group, one overview per
+				-- organization (in its default group)
+				CREATE UNIQUE INDEX IF NOT EXISTS uq_asset_virtual_context
+				ON grafanadb.asset (group_id, context) WHERE context <> 'asset';`;
 
 				try {
 					await postgresClient.query(queryStringAsset);
@@ -1042,6 +1049,8 @@ export const dataBaseInitialization = async () => {
 					id serial PRIMARY KEY,
 					group_id bigint,
 					asset_id bigint,
+					-- scope: kept from older versions and always 'Asset' (one digital twin per asset); what an
+					-- asset is (a real one or a control room's) is its context (grafanadb.asset.context)
 					scope VARCHAR(10) NOT NULL DEFAULT 'Asset',
 					digital_twin_uid VARCHAR(40) UNIQUE,
 					description VARCHAR(190),

@@ -49,6 +49,23 @@ const groupSelectColumns = `grafanadb.group.id,
 	COALESCE(grafanadb.org.mqtt_access_control, 'None') AS org_mqtt_access_control,
 	COALESCE(grafanadb.group.created, to_timestamp(0)), COALESCE(grafanadb.group.updated, to_timestamp(0))`
 
+// AssetStateSubjects is where pipelines says that the state of an asset of
+// the group changed (the Viewer's "Asset state" panel reads it again at
+// once). Every member may subscribe; only pipelines publishes there, so it
+// is not one of the topic types (topicTypeArray), which members may also
+// publish to.
+func AssetStateSubjects(groupUID string) string {
+	return "assetstate.Group_" + groupUID + ".*"
+}
+
+// PipelineLogSubjects are the pipeline logs of the group's digital twins (dtmlog): only its editors and
+// administrators read them (README, "Permissions"), so a Viewer gets them in its Sub.Deny (Deny wins over the
+// Allow of the group's topics). They tell how the pipelines work inside, the nodes' errors and what the AI
+// agents answered to other users.
+func PipelineLogSubjects(groupUID string) string {
+	return "dtmlog.Group_" + groupUID + ".*"
+}
+
 func (g *Group) GroupPermissions(authModel *AuthModel) jwt.Permissions {
 	groupHash := "Group_" + g.GroupUID
 	defaultSubjectArray := []string{}
@@ -66,6 +83,7 @@ func (g *Group) GroupPermissions(authModel *AuthModel) jwt.Permissions {
 	var subSubjectArray []string = []string{}
 	if (g.MQTTAccessControl == "Pub & Sub" || g.MQTTAccessControl == "Sub") && (g.OrgMQTTAccessControl == "Pub & Sub" || g.OrgMQTTAccessControl == "Sub") {
 		subSubjectArray = append(subSubjectArray, defaultSubjectArray...)
+		subSubjectArray = append(subSubjectArray, AssetStateSubjects(g.GroupUID))
 	}
 
 	var respPermission *jwt.ResponsePermission = &jwt.ResponsePermission{}

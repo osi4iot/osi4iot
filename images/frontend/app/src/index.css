@@ -40,3 +40,38 @@ div {
 .leaflet-interactive:focus {
     outline: none;
 }
+
+/* The platform's scrollbars everywhere (the same as scrollbarStyle in components/Tools/FormTools.tsx): also in
+   the containers that do not use it, in third-party components (menus, dialogs, editors) and in text areas. A
+   component's own scrollbar style wins (its class is more specific). */
+*::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+
+*::-webkit-scrollbar-track {
+    background: #202226;
+    border-radius: 5px;
+}
+
+*::-webkit-scrollbar-thumb {
+    background: #2c3235;
+    border-radius: 5px;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+    background-color: #343840;
+}
+
+*::-webkit-scrollbar-corner {
+    background: transparent;
+}
+
+/* Firefox (no ::-webkit-scrollbar): the same colours. Only there: in Chrome, scrollbar-color would replace the
+   ::-webkit-scrollbar styles above */
+@supports not selector(::-webkit-scrollbar) {
+    * {
+        scrollbar-width: thin;
+        scrollbar-color: #2c3235 #202226;
+    }
+}

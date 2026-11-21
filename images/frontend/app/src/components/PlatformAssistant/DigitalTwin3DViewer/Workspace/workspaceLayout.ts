@@ -1,3 +1,4 @@
+
 // The layout of the Viewer page: slides, one screen each, and in each slide panels on a grid of GRID_COLS
 // columns (react-grid-layout). One layout per digital twin, saved by a group administrator for the whole group
 // (admin_api /viewer_layout); the others can change it for themselves while the viewer is open, without saving.
@@ -12,6 +13,7 @@ import { PICTURE_FITS, PictureBinding, PictureFit, sanitizeBindings } from "./pi
 import { REFRESH_INTERVALS } from "./charts/timeRange";
 import { SurfaceOptions, defaultSurface, sanitizeSurface } from "./surface/surfacePanel";
 import { AssetStateField, sanitizeAssetStateSettings } from "./assetStatePanel";
+import { OrgOverviewPeriod, sanitizeOrgOverviewSettings } from "./orgOverview";
 
 export const WORKSPACE_LAYOUT_VERSION = 2;
 export const MAX_SLIDES = 20;
@@ -30,7 +32,19 @@ export const WORKSPACE_PHONE_BELOW = 640;
 
 export const ANY_IMAGE_SOURCE = "any";
 
-export type PanelType = "model" | "image" | "chart" | "alarms" | "approvals" | "markdown" | "picture" | "surface" | "assetState";
+export type PanelType =
+    | "model"
+    | "image"
+    | "chart"
+    | "alarms"
+    | "approvals"
+    | "markdown"
+    | "picture"
+    | "surface"
+    | "assetState"
+    | "health"
+    | "pipelineLogs"
+    | "orgOverview";
 // the text of a Text panel (markdown, LaTeX and {{topicRef.path}} values): at most these characters
 export const MARKDOWN_MAX_LENGTH = 20000;
 // how an Image panel shows the frames of its source: as a video (live, with pause) or as a photo (the last
@@ -38,7 +52,11 @@ export const MARKDOWN_MAX_LENGTH = 20000;
 export type ImageDisplay = "video" | "photo";
 export const imageDisplayOf = (panel: { display?: ImageDisplay }): ImageDisplay => (panel.display === "photo" ? "photo" : "video");
 // at most one panel of these types on a page
-export const SINGLE_PANEL_TYPES: PanelType[] = ["model", "alarms", "approvals", "assetState"];
+export const SINGLE_PANEL_TYPES: PanelType[] = ["model", "alarms", "approvals", "assetState", "health", "pipelineLogs", "orgOverview"];
+// the panels of a group's control room only (controlRoom.ts)
+export const CONTROL_ROOM_PANEL_TYPES: PanelType[] = ["health", "pipelineLogs"];
+// the panels of the organization overview only (orgOverview.ts)
+export const ORGANIZATION_PANEL_TYPES: PanelType[] = ["orgOverview"];
 
 // a series of a chart: a field of a sensor of the asset (an item, for an array field)
 export interface ChartSeriesRef {
@@ -85,6 +103,9 @@ export interface WorkspacePanel {
     stateFields?: AssetStateField[];
     statusColors?: Record<string, string>;
     staleMinutes?: number;
+    // orgOverview: the statuses that are not available ("Alarm" when none) and the period it opens with
+    unavailableStatuses?: string[];
+    period?: OrgOverviewPeriod;
     // chart: its series, its visualization and settings (Grafana's options and fieldConfig) and its own time
     series?: ChartSeriesRef[];
     // the panels of 1.4.0 before the editor: now timeFrom
@@ -122,6 +143,10 @@ export interface WorkspaceLayout {
 export interface WorkspaceContext {
     hasModel: boolean;
     hasCamera: boolean;
+    // a group's control room: its automatic layout shows the whole group
+    controlRoom?: boolean;
+    // the organization overview: its automatic layout shows the indicators of the organization
+    organization?: boolean;
 }
 
 // size of a new panel of each type
@@ -135,6 +160,9 @@ const NEW_PANEL_SIZE: Record<PanelType, { w: number; h: number }> = {
     picture: { w: 5, h: 6 },
     surface: { w: 6, h: 7 },
     assetState: { w: 4, h: 5 },
+    health: { w: 6, h: 6 },
+    pipelineLogs: { w: 6, h: 6 },
+    orgOverview: { w: 12, h: 12 },
 };
 const MIN_SIZE: Record<PanelType, { w: number; h: number }> = {
     model: { w: 3, h: 3 },
@@ -146,11 +174,27 @@ const MIN_SIZE: Record<PanelType, { w: number; h: number }> = {
     picture: { w: 2, h: 2 },
     surface: { w: 3, h: 3 },
     assetState: { w: 2, h: 2 },
+    health: { w: 3, h: 3 },
+    pipelineLogs: { w: 3, h: 3 },
+    orgOverview: { w: 6, h: 6 },
 };
 
 export const minSizeOf = (type: PanelType) => MIN_SIZE[type];
 
-const PANEL_TYPES: PanelType[] = ["model", "image", "chart", "alarms", "approvals", "markdown", "picture", "surface", "assetState"];
+const PANEL_TYPES: PanelType[] = [
+    "model",
+    "image",
+    "chart",
+    "alarms",
+    "approvals",
+    "markdown",
+    "picture",
+    "surface",
+    "assetState",
+    "health",
+    "pipelineLogs",
+    "orgOverview",
+];
 export const PICTURE_FILE = /^[A-Za-z0-9_][A-Za-z0-9_.-]{0,79}\.(png|jpe?g|webp|gif|svg)$/i;
 const PANEL_ID = /^[A-Za-z0-9_-]{1,40}$/;
 const SOURCE = /^[A-Za-z0-9_.-]{1,60}$/;
@@ -205,7 +249,34 @@ export const sanitizeTime = (raw: unknown): WorkspaceTime | undefined => {
 
 export const seriesKey = (s: ChartSeriesRef) => `${s.sensor}|${s.field}|${s.index ?? ""}`;
 
-export const defaultWorkspaceLayout = ({ hasModel, hasCamera }: WorkspaceContext): WorkspaceLayout => {
+// a group's control room: the states, health, alarms and approvals of the group; then the pipelines' logs
+export const controlRoomWorkspaceLayout = (): WorkspaceLayout => ({
+    version: WORKSPACE_LAYOUT_VERSION,
+    slides: [
+        {
+            id: "slide-1",
+            title: "Overview",
+            tag: "Slide_1",
+            panels: [
+                { id: "states", type: "assetState", x: 0, y: 0, w: 7, h: 6 },
+                { id: "health", type: "health", x: 7, y: 0, w: 5, h: 6 },
+                { id: "alarms", type: "alarms", x: 0, y: 6, w: 6, h: 6 },
+                { id: "approvals", type: "approvals", x: 6, y: 6, w: 6, h: 6 },
+            ],
+        },
+        { id: "slide-2", title: "Pipeline logs", tag: "Slide_2", panels: [{ id: "logs", type: "pipelineLogs", x: 0, y: 0, w: GRID_COLS, h: PAGE_ROWS }] },
+    ],
+});
+
+// the organization overview: its indicators, the whole page
+export const organizationWorkspaceLayout = (): WorkspaceLayout => ({
+    version: WORKSPACE_LAYOUT_VERSION,
+    slides: [{ id: "slide-1", title: "Overview", tag: "Slide_1", panels: [{ id: "overview", type: "orgOverview", x: 0, y: 0, w: GRID_COLS, h: 24 }] }],
+});
+
+export const defaultWorkspaceLayout = ({ hasModel, hasCamera, controlRoom, organization }: WorkspaceContext): WorkspaceLayout => {
+    if (organization) return organizationWorkspaceLayout();
+    if (controlRoom) return controlRoomWorkspaceLayout();
     const panels: WorkspacePanel[] = [];
     if (hasModel && hasCamera) {
         panels.push({ id: "model", type: "model", x: 0, y: 0, w: 7, h: PAGE_ROWS });
@@ -265,7 +336,7 @@ const sanitizePanels = (panels: unknown, hasModel: boolean): WorkspacePanel[] =>
         if (!PANEL_TYPES.includes(p.type as PanelType)) continue;
         const type = p.type as PanelType;
         if (type === "model" && (!hasModel || hasModelPanel)) continue;
-        if ((type === "alarms" || type === "approvals" || type === "assetState") && clean.some((q) => q.type === type)) continue;
+        if (SINGLE_PANEL_TYPES.includes(type) && type !== "model" && clean.some((q) => q.type === type)) continue;
         if (!isInt(p.x) || !isInt(p.y) || !isInt(p.w) || !isInt(p.h)) continue;
         const w = clamp(p.w, 1, GRID_COLS);
         const panel: WorkspacePanel = {
@@ -289,6 +360,7 @@ const sanitizePanels = (panels: unknown, hasModel: boolean): WorkspacePanel[] =>
             if (bindings.length) panel.bindings = bindings;
         }
         if (p.type === "assetState") Object.assign(panel, sanitizeAssetStateSettings(p));
+        if (p.type === "orgOverview") Object.assign(panel, sanitizeOrgOverviewSettings(p));
         if (p.type === "surface") {
             const surface = sanitizeSurface(p.surface);
             if (!surface) continue;
@@ -655,6 +727,9 @@ export const panelTitle = (panel: WorkspacePanel): string => {
     if (panel.type === "picture") return panel.file ? panel.file.replace(/\.[^.]+$/, "") : "Picture";
     if (panel.type === "surface") return "3D Surface";
     if (panel.type === "assetState") return "Asset state";
+    if (panel.type === "health") return "Health";
+    if (panel.type === "pipelineLogs") return "Pipeline logs";
+    if (panel.type === "orgOverview") return "Organization overview";
     const kind = imageDisplayOf(panel) === "photo" ? "Photo" : "Video";
     return panel.source && panel.source !== ANY_IMAGE_SOURCE ? `${kind} · ${imageSourceLabel(panel.source)}` : kind;
 };

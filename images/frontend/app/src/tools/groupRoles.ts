@@ -16,3 +16,8 @@ export const isAdminOfSomeGroup = (userRole: string, groupsManaged: IGroupWithRo
     userRole === "OrgAdmin" ||
     groupsManaged.length === 0 ||
     groupsManaged.some((g) => g.roleInGroup !== "Editor");
+
+// the user administers this group (its members, hash and settings): an Editor does not; the administrators of the
+// organization and platform come as Admin, and a group without a role (an older admin_api) is left to admin_api
+export const canAdministerGroup = (group: IGroupWithRole | null | undefined): boolean =>
+    !!group && group.roleInGroup !== "Editor" && group.roleInGroup !== "Viewer";

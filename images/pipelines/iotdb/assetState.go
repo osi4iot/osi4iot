@@ -5,9 +5,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"sync/atomic"
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -17,6 +19,127 @@ type AssetState struct {
 	AssetUid    string         `json:"asset_uid"`
 	State       map[string]any `json:"state"`
 	LastUpdated *time.Time     `json:"last_updated,omitempty"`
+	// who writes it, for the history ("<digital twin uid>/<node uid>")
+	Writer string `json:"-"`
+}
+
+// The history of the asset states (iot_data.asset_state_history), optional
+// for each asset in its row of iot_data.assetState (set in admin_api, Edit
+// asset): history_status_changes, a row at every change of its status;
+// history_snapshot_minutes, a copy of the whole state at most every so many
+// minutes (0 none), taken when the state is written (nothing new to copy
+// otherwise). Recorded by the same statement that writes the state, on the
+// locked row, so that writers at the same time (replicas, digital twins,
+// Alarm nodes) neither lose nor repeat a change. Both off by default: an
+// asset of a digital twin used for teaching keeps nothing.
+
+// historySnapshotSet is the SET of the time of the last copy: now when one
+// is due.
+const historySnapshotSet = `,
+			history_last_snapshot = CASE WHEN a.history_snapshot_minutes > 0 AND (a.history_last_snapshot IS NULL
+				OR a.history_last_snapshot <= NOW() - make_interval(mins => a.history_snapshot_minutes))
+				THEN NOW() ELSE a.history_last_snapshot END`
+
+// historyMissingUntil: the history columns or table do not exist yet (a
+// cluster created before them, until admin_api adds them at its start): the
+// state is written without history, and tried again with it a minute later.
+var historyMissingUntil atomic.Int64
+
+func historyMissing(err error) bool {
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) && (pgErr.Code == "42703" || pgErr.Code == "42P01") {
+		historyMissingUntil.Store(time.Now().Add(time.Minute).UnixNano())
+		return true
+	}
+	return false
+}
+
+func historyAvailable() bool {
+	return time.Now().UnixNano() >= historyMissingUntil.Load()
+}
+
+// execWithHistory runs the state's upsert with its history, or without it
+// when the history's columns are not there. In a transaction that first
+// locks the row and reads its status: a writer at the same time waits, and
+// then sees the status this one left (args are $1 group, $2 asset, …).
+func execWithHistory(ctx context.Context, pool *pgxpool.Pool, upsert string, args []any, writer string) error {
+	if historyAvailable() {
+		err := upsertWithHistory(ctx, pool, upsert, args, writer)
+		if err == nil || !historyMissing(err) {
+			return err
+		}
+	}
+	_, err := pool.Exec(ctx, upsert, args...)
+	return err
+}
+
+func upsertWithHistory(ctx context.Context, pool *pgxpool.Pool, upsert string, args []any, writer string) error {
+	tx, err := pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+	previous := ""
+	err = tx.QueryRow(ctx, `SELECT COALESCE(state->>'status', '') FROM iot_data.assetState
+		WHERE group_uid = $1 AND asset_uid = $2 FOR UPDATE`, args[0], args[1]).Scan(&previous)
+	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+		return err
+	}
+	var (
+		stateJSON   []byte
+		changes     bool
+		snapshotDue bool
+	)
+	err = tx.QueryRow(ctx, upsert+historySnapshotSet+`
+		RETURNING a.state, a.history_status_changes,
+			a.history_snapshot_minutes > 0 AND a.history_last_snapshot = NOW()`, args...).
+		Scan(&stateJSON, &changes, &snapshotDue)
+	if err != nil {
+		return err
+	}
+	status := statusOfState(stateJSON)
+	var causes []string
+	if changes && status != previous {
+		causes = append(causes, "status_change")
+	}
+	if snapshotDue {
+		causes = append(causes, "snapshot")
+	}
+	// a plain INSERT (a TimescaleDB hypertable); at clock_timestamp(): after
+	// the lock, so that the rows follow the order of the writes, not of the
+	// start of their transactions
+	for _, cause := range causes {
+		if _, err := tx.Exec(ctx, `INSERT INTO iot_data.asset_state_history
+			(time, group_uid, asset_uid, cause, status, previous_status, writer, state)
+			VALUES (clock_timestamp(), $1, $2, $3, $4, $5, $6, $7)`,
+			args[0], args[1], cause, truncate(status, 64), truncate(previous, 64), truncate(writer, 190), stateJSON); err != nil {
+			return err
+		}
+	}
+	return tx.Commit(ctx)
+}
+
+// statusOfState is the "status" of a state ("" none or not a text)
+func statusOfState(stateJSON []byte) string {
+	var s struct {
+		Status any `json:"status"`
+	}
+	if json.Unmarshal(stateJSON, &s) != nil {
+		return ""
+	}
+	if text, ok := s.Status.(string); ok {
+		return text
+	}
+	return ""
+}
+
+// truncate keeps at most n characters (the columns' sizes)
+func truncate(text string, n int) string {
+	r := []rune(text)
+	if len(r) <= n {
+		return text
+	}
+	return string(r[:n])
 }
 
 // The sections of an asset state that nodes project into it (alarms of the
@@ -41,15 +164,14 @@ func UpsertAssetState(ctx context.Context, pool *pgxpool.Pool, as AssetState) er
 		DO UPDATE SET
 			state        = EXCLUDED.state || jsonb_strip_nulls(jsonb_build_object(
 				'alarms', a.state->'alarms', 'machines', a.state->'machines')),
-			last_updated = NOW()
-	`
+			last_updated = NOW()`
 
 	stateJSON, err := json.Marshal(as.State)
 	if err != nil {
 		return fmt.Errorf("marshal state: %w", err)
 	}
 
-	_, err = pool.Exec(ctx, query, as.GroupUid, as.AssetUid, stateJSON)
+	err = execWithHistory(ctx, pool, query, []any{as.GroupUid, as.AssetUid, stateJSON}, as.Writer)
 	if err != nil {
 		return fmt.Errorf("UpsertAssetState: %w", err)
 	}
@@ -134,6 +256,12 @@ func mergedState(base string) string {
 // section (alarms, machines; "" none; an entry nil removes it). The other
 // fields and entries are kept.
 func MergeAssetState(ctx context.Context, pool *pgxpool.Pool, groupUid, assetUid string, fields map[string]any, section string, entries map[string]any) error {
+	return MergeAssetStateBy(ctx, pool, groupUid, assetUid, fields, section, entries, "")
+}
+
+// MergeAssetStateBy is MergeAssetState saying who writes (the history:
+// "<digital twin uid>/<node uid>").
+func MergeAssetStateBy(ctx context.Context, pool *pgxpool.Pool, groupUid, assetUid string, fields map[string]any, section string, entries map[string]any, writer string) error {
 	if fields == nil {
 		fields = map[string]any{}
 	}
@@ -154,9 +282,8 @@ func MergeAssetState(ctx context.Context, pool *pgxpool.Pool, groupUid, assetUid
 		ON CONFLICT (group_uid, asset_uid)
 		DO UPDATE SET
 			state        = ` + mergedState("a.state") + `,
-			last_updated = NOW()
-	`
-	if _, err := pool.Exec(ctx, query, groupUid, assetUid, string(fieldsJSON), section, string(entriesJSON)); err != nil {
+			last_updated = NOW()`
+	if err := execWithHistory(ctx, pool, query, []any{groupUid, assetUid, string(fieldsJSON), section, string(entriesJSON)}, writer); err != nil {
 		return fmt.Errorf("MergeAssetState: %w", err)
 	}
 	return nil

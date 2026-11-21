@@ -23,6 +23,8 @@ import { IGroupManagedData } from '../../../contexts/groupsManagedOptions/interf
 import { getAxiosInstance } from '../../../tools/axiosIntance';
 import axiosErrorHandler from '../../../tools/axiosErrorHandler';
 import { AxiosResponse, AxiosError } from 'axios';
+import { canAdministerGroup } from '../../../tools/groupRoles';
+import ControlRoomButton from '../GroupAdminOptions/ControlRoomButton';
 
 
 interface AddGroupMembersProps {
@@ -217,7 +219,20 @@ export interface IGroupManaged {
     llmEnabled: boolean;
     gpuUsageEnabled: boolean;
     ragEnabled?: boolean;
+    // the user's role in the group (README, "Permissions"); the administrators of the org and platform: Admin
+    roleInGroup?: "Admin" | "Editor" | "Viewer";
 }
+
+// what only the group's administrators do (members, hash, settings): an Editor sees why it is not there
+const AdminOnly = styled.span`
+    display: inline-block;
+    width: 100%;
+    text-align: center;
+    color: #6b7280;
+    cursor: default;
+`;
+
+const adminOnly = <AdminOnly title="Only the group's administrators">—</AdminOnly>;
 
 interface IGroupManagedColumn extends IGroupManaged {
     addGroupMembers: string;
@@ -247,6 +262,12 @@ export const CREATE_GROUPS_MANAGED_COLUMNS = (refreshGroupMembers: () => void, r
             accessor: "acronym"
         },
         {
+            Header: () => <div style={{ backgroundColor: '#202226' }}>Your<br />role</div>,
+            accessor: "roleInGroup",
+            disableFilters: true,
+            Cell: (props: { value?: string }) => <span>{props.value || "Admin"}</span>
+        },
+        {
             Header: "Type",
             accessor: "isOrgDefaultGroup",
             disableFilters: true
@@ -269,7 +290,7 @@ export const CREATE_GROUPS_MANAGED_COLUMNS = (refreshGroupMembers: () => void, r
             Cell: (props: { row: { id: string; }; rows: any[]; }) => {
                 const rowIndex = parseInt(props.row.id, 10);
                 const row = props.rows.filter((row: { index: number; }) => row.index === rowIndex)[0];
-                const mqttAccessControl = row?.cells[7]?.value;
+                const mqttAccessControl = row?.original?.mqttAccessControl;
                 const style: React.CSSProperties = {
                     color: mqttAccessControl === "None" ? 'red' : 'white'
                 };
@@ -311,6 +332,7 @@ export const CREATE_GROUPS_MANAGED_COLUMNS = (refreshGroupMembers: () => void, r
                 const rowIndex = parseInt(props.row.id, 10);
                 const row = props.rows.filter((row: { index: number; }) => row.index === rowIndex)[0];
                 const groupId = row?.cells[0]?.value;
+                if (!canAdministerGroup(row?.original)) return adminOnly;
                 return <AddGroupMembers rowIndex={rowIndex} groupManagedId={parseInt(groupId, 10)} />
             }
         },
@@ -323,6 +345,7 @@ export const CREATE_GROUPS_MANAGED_COLUMNS = (refreshGroupMembers: () => void, r
                 const rowIndex = parseInt(props.row.id, 10);
                 const row = props.rows.filter((row: { index: number; }) => row.index === rowIndex)[0];
                 const groupId = row?.cells[0]?.value;
+                if (!canAdministerGroup(row?.original)) return adminOnly;
                 return <RemoveAllGroupMembersModal groupId={groupId} rowIndex={rowIndex} refreshGroupMembers={refreshGroupMembers} />
             }
         },
@@ -335,6 +358,7 @@ export const CREATE_GROUPS_MANAGED_COLUMNS = (refreshGroupMembers: () => void, r
                 const rowIndex = parseInt(props.row.id, 10);
                 const row = props.rows.filter((row: { index: number; }) => row.index === rowIndex)[0];
                 const groupId = row?.cells[0]?.value;
+                if (!canAdministerGroup(row?.original)) return adminOnly;
                 return <ChangeGroupHashModal groupId={groupId} rowIndex={rowIndex} refreshGroupsManaged={refreshGroupsManaged} />
             }
         },        
@@ -347,6 +371,7 @@ export const CREATE_GROUPS_MANAGED_COLUMNS = (refreshGroupMembers: () => void, r
                 const rowIndex = parseInt(props.row.id, 10);
                 const row = props.rows.filter((row: { index: number; }) => row.index === rowIndex)[0];
                 const groupId = row?.original?.id;
+                if (!canAdministerGroup(row?.original)) return adminOnly;
                 const name = row?.original?.name;
                 const acronym = row?.original?.acronym;
                 const orgId = row?.original?.orgId;
@@ -365,6 +390,19 @@ export const CREATE_GROUPS_MANAGED_COLUMNS = (refreshGroupMembers: () => void, r
                     telegramChatId,
                 }
                 return <EditGroupManaged rowIndex={rowIndex} groupId={groupId} groupManagedData={groupManagedData} />
+            }
+        },
+        {
+            Header: () => <div style={{ backgroundColor: '#202226' }}>Control<br />room</div>,
+            id: "controlRoom",
+            disableFilters: true,
+            disableSortBy: true,
+            Cell: (props: { row: { id: string; }; rows: any[]; }) => {
+                const rowIndex = parseInt(props.row.id, 10);
+                const row = props.rows.filter((row: { index: number; }) => row.index === rowIndex)[0];
+                const groupId = row?.original?.id;
+                if (!canAdministerGroup(row?.original)) return adminOnly;
+                return <ControlRoomButton groupId={groupId} context="group" />;
             }
         },
     ]

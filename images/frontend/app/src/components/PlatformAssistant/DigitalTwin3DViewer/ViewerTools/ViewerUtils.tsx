@@ -101,6 +101,9 @@ export interface IDigitalTwinGltfData {
 	topicIdBySensorRef: Record<string, number>;
 	digitalTwinSimulationFormat: Record<string, DigitalTwinSimulationParameter>;
 	isGroupDTDemo: boolean;
+	// the context of its asset (admin_api digital_twin_data): "group", a group's control room; "organization", the
+	// overview of the organization; else a real asset
+	assetContext?: string;
 }
 
 

@@ -2,11 +2,13 @@ package nodes
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"time"
 
 	"pipelines/common"
 	"pipelines/iotdb"
+	"pipelines/utils"
 )
 
 // What the Alarm and Machine state nodes write into the asset state (the IoT
@@ -45,7 +47,28 @@ func (n *BaseNode) mergeAssetState(fields map[string]any, section string, entrie
 	if pool == nil {
 		return fmt.Errorf("the IoT DB is not available")
 	}
-	return iotdb.MergeAssetState(n.Ctx, pool, groupUid, assetUid, fields, section, entries)
+	if err := iotdb.MergeAssetStateBy(n.Ctx, pool, groupUid, assetUid, fields, section, entries, n.GetDigitalTwinUid()+"/"+n.NodeUid); err != nil {
+		return err
+	}
+	announceAssetState(n.Fm, groupUid, assetUid)
+	return nil
+}
+
+// announceAssetState tells the viewers that the asset's state changed
+// (utils.AssetStateSubject): their "Asset state" panels read it again at
+// once instead of at their next refresh. Best effort: a lost message only
+// delays the panel until then.
+func announceAssetState(fm common.Manager, groupUid, assetUid string) {
+	if fm == nil || groupUid == "" || assetUid == "" {
+		return
+	}
+	data, err := json.Marshal(map[string]any{"assetUid": assetUid, "at": time.Now().UTC().Format(time.RFC3339Nano)})
+	if err != nil {
+		return
+	}
+	if err := fm.NatsPublish(utils.AssetStateSubject(groupUid, assetUid), data); err != nil {
+		fm.Log().Debugf("Asset %s: the change of its state could not be announced: %v", assetUid, err)
+	}
 }
 
 // projectionKey is the entry of a node's partition key in a section.
@@ -85,7 +108,10 @@ func (n *BaseNode) removeProjection(section string, all bool, key string) error 
 	if !all {
 		onlyKey = &key
 	}
-	_, err = iotdb.RemoveAssetStateEntries(n.Ctx, pool, groupUid, assetUid, section, n.GetDigitalTwinUid(), nil, n.NodeUid, onlyKey)
+	removed, err := iotdb.RemoveAssetStateEntries(n.Ctx, pool, groupUid, assetUid, section, n.GetDigitalTwinUid(), nil, n.NodeUid, onlyKey)
+	if err == nil && removed > 0 {
+		announceAssetState(n.Fm, groupUid, assetUid)
+	}
 	return err
 }
 
@@ -126,6 +152,7 @@ func PruneAssetStateProjections(ctx context.Context, fm common.Manager, p common
 			fm.Log().Warnf("Digital twin %s: cleaning the %s of the asset state: %v", p.GetDigitalTwinUid(), section, err)
 		} else if removed > 0 {
 			fm.Log().Infof("Digital twin %s: %d entries of %s removed from the asset state (their nodes no longer write them)", p.GetDigitalTwinUid(), removed, section)
+			announceAssetState(fm, group.GroupUID, asset.AssetUid)
 		}
 	}
 }

@@ -1,4 +1,5 @@
 import { Router, NextFunction, Response } from "express";
+import { virtualAssetSensorProblem } from "../asset/controlRoom";
 import IController from "../../interfaces/controller.interface";
 import validationMiddleware from "../../middleware/validation.middleware";
 import { organizationAdminAuth, userAuth, groupViewerAuth, groupEditorAuth } from "../../middleware/auth.middleware";
@@ -432,6 +433,8 @@ class SensorController implements IController {
 			let sensor = await getSensorByPropName(propName, propValue);
 			if (!sensor) throw new ItemNotFoundException(req, res, "The sensor", propName, propValue);
 			sensor = { ...sensor, ...sensorData };
+			const virtualProblem = await virtualAssetSensorProblem(Number(sensor.assetId), sensor.topicId);
+			if (virtualProblem) throw new HttpException(req, res, 400, virtualProblem);
 			await updateSensorByPropName(propName, propValue, sensor);
 			const message = { message: "Sensor updated successfully" }
 			res.status(200).json(message);
@@ -449,6 +452,8 @@ class SensorController implements IController {
 			const assetId = parseInt(req.params.assetId, 10);
 			const sensorData: CreateSensorDto = req.body;
 			this.checkMeasurements(req, res, (req.body.measurements ?? req.body.payloadJsonSchema) as unknown);
+			const virtualProblem = await virtualAssetSensorProblem(assetId, sensorData.topicId);
+			if (virtualProblem) throw new HttpException(req, res, 400, virtualProblem);
 			const sensorUid = nanoid(20).replace(/-/g, "x").replace(/_/g, "X");
 			const dashboarId = await createSensorDashboard(req.group, sensorData, sensorUid);
 			const dashboardsInfo = await getDashboardsInfoFromIdArray([dashboarId]);

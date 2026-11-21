@@ -22,7 +22,9 @@
 // z = f(x, y) of a formula whose parameters can be values of the NATS messages, or a grid of values that a message
 // carries) and "assetState" (the current state of the twin's asset, iot_data.assetState; one per slide: stateFields,
 // the fields of the state shown with their label and unit; statusColors, the colour of each status; staleMinutes,
-// after how long without a change the state is shown as old).
+// after how long without a change the state is shown as old), "health" and "pipelineLogs" (a group's control room)
+// and "orgOverview" (the indicators of the organization, organizationOverview.ts: unavailableStatuses, the statuses
+// that are not available, "Alarm" when none; period, the one it opens with).
 
 export const VIEWER_LAYOUT_VERSION = 2;
 export const VIEWER_LAYOUT_MAX_SLIDES = 20;
@@ -38,7 +40,26 @@ export const CHART_VIZ = ["timeseries", "barchart", "stat", "gauge", "bargauge",
 const SAFE_URL = /^(https?:\/\/|\/(?!\/))/i;
 export const SERIES_AGGREGATIONS = ["mean", "min", "max", "last", "first", "sum", "count"] as const;
 export const REFRESH_INTERVALS = ["", "200ms", "1s", "5s", "10s", "30s", "1m", "5m", "15m", "30m", "1h", "2h", "1d"] as const;
-export const VIEWER_PANEL_TYPES = ["model", "image", "chart", "alarms", "approvals", "markdown", "picture", "surface", "assetState"] as const;
+export const VIEWER_PANEL_TYPES = [
+	"model",
+	"image",
+	"chart",
+	"alarms",
+	"approvals",
+	"markdown",
+	"picture",
+	"surface",
+	"assetState",
+	// a group's control room: its Health and Pipeline logs (one of each per slide)
+	"health",
+	"pipelineLogs",
+	// the organization overview: its indicators (one per slide)
+	"orgOverview",
+] as const;
+const ONE_PER_SLIDE = ["alarms", "approvals", "assetState", "health", "pipelineLogs", "orgOverview"];
+// an "Organization overview" panel (organizationOverview.ts and the frontend's orgOverview.ts say the same)
+export const ORG_OVERVIEW_PERIODS = ["7d", "30d", "90d", "12m"] as const;
+export const ORG_OVERVIEW_MAX_STATUSES = 12;
 // an "Asset state" panel (the frontend's assetStatePanel.ts says the same)
 export const ASSET_STATE_MAX_FIELDS = 20;
 export const ASSET_STATE_MAX_COLORS = 12;
@@ -263,6 +284,24 @@ export const isStatePath = (path: unknown): path is string => {
 };
 
 // The settings of an "Asset state" panel
+const validateOrgOverview = (p: Record<string, unknown>, panel: IViewerPanel): string | null => {
+	if (p.unavailableStatuses !== undefined) {
+		if (!Array.isArray(p.unavailableStatuses)) return "unavailableStatuses must be a list";
+		if (p.unavailableStatuses.length > ORG_OVERVIEW_MAX_STATUSES) return `at most ${ORG_OVERVIEW_MAX_STATUSES} unavailable statuses`;
+		const statuses: string[] = [];
+		for (const status of p.unavailableStatuses as unknown[]) {
+			if (typeof status !== "string" || !STATUS_NAME.test(status.trim())) return "invalid unavailable status";
+			if (!statuses.includes(status.trim())) statuses.push(status.trim());
+		}
+		if (statuses.length) panel.unavailableStatuses = statuses;
+	}
+	if (p.period !== undefined) {
+		if (!ORG_OVERVIEW_PERIODS.includes(p.period as IViewerPanel["period"] & string)) return "period must be 7d, 30d, 90d or 12m";
+		panel.period = p.period as IViewerPanel["period"];
+	}
+	return null;
+};
+
 const validateAssetState = (p: Record<string, unknown>, panel: IViewerPanel): string | null => {
 	if (p.stateFields !== undefined) {
 		if (!Array.isArray(p.stateFields)) return "the fields must be a list";
@@ -330,6 +369,8 @@ export interface IViewerPanel {
 	stateFields?: IAssetStateField[];
 	statusColors?: Record<string, string>;
 	staleMinutes?: number;
+	unavailableStatuses?: string[];
+	period?: (typeof ORG_OVERVIEW_PERIODS)[number];
 	x: number;
 	y: number;
 	w: number;
@@ -458,8 +499,9 @@ const validatePanels = (panels: unknown, prefix: string): IViewerPanel[] | strin
 		ids.add(p.id);
 		if (!VIEWER_PANEL_TYPES.includes(p.type as ViewerPanelType)) return `${where}: unknown type`;
 		if (p.type === "model" && ++models > 1) return `${prefix}only one 3D model panel`;
-		if ((p.type === "alarms" || p.type === "approvals" || p.type === "assetState") && clean.some((q) => q.type === p.type)) {
-			return `${prefix}only one ${p.type} panel`;
+		const type = p.type as ViewerPanelType;
+		if (ONE_PER_SLIDE.includes(type) && clean.some((q) => q.type === type)) {
+			return `${prefix}only one ${type} panel`;
 		}
 		if (!isInt(p.x, 0, VIEWER_LAYOUT_COLS - 1)) return `${where}: invalid x`;
 		if (!isInt(p.w, 1, VIEWER_LAYOUT_COLS) || (p.x ) + (p.w ) > VIEWER_LAYOUT_COLS) {
@@ -501,6 +543,10 @@ const validatePanels = (panels: unknown, prefix: string): IViewerPanel[] | strin
 		}
 		if (p.type === "assetState") {
 			const problem = validateAssetState(p, panel);
+			if (problem) return `${where}: ${problem}`;
+		}
+		if (p.type === "orgOverview") {
+			const problem = validateOrgOverview(p, panel);
 			if (problem) return `${where}: ${problem}`;
 		}
 		if (p.type === "surface") {

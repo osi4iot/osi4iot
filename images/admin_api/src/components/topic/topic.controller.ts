@@ -15,7 +15,7 @@ import { getDashboardsDataWithRawSqlOfGroup, updateDashboardsDataRawSqlOfTopic }
 import LoginDto from "../Authentication/login.dto";
 import IRequestWithUser from "../../interfaces/requestWithUser.interface";
 import ITopic from "./topic.interface";
-import { getAllGroupsInOrgArray, getGroupsThatCanBeEditatedAndAdministratedByUserId } from "../group/groupDAL";
+import { getAllGroupsInOrgArray, getGroupsManagedByUserId, getGroupsThatCanBeEditatedAndAdministratedByUserId } from "../group/groupDAL";
 import {
 	changeTopicUidByUid,
 	createTopic,
@@ -165,7 +165,9 @@ class TopicController implements IController {
 			if (req.user.isGrafanaAdmin) {
 				topics = await getAllMobileTopics();
 			} else {
-				const groups = await getGroupsThatCanBeEditatedAndAdministratedByUserId(req.user.id);
+				// only the groups the user edits or administers: the phone publishes on the group's topics, and a
+				// Viewer may not (README, "Permissions"; video and audio are a heavy load)
+				const groups = await getGroupsManagedByUserId(req.user.id);
 				const organizations = await getOrganizationsManagedByUserId(req.user.id);
 				if (organizations.length !== 0) {
 					const orgIdsArray = organizations.map(org => org.id);

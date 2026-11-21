@@ -1,4 +1,5 @@
 import { FC, useState, SyntheticEvent, useEffect } from 'react';
+import { isControlRoomAssetType, isVirtualAsset } from './ControlRoomButton';
 import styled from "styled-components";
 import { Formik, Form, FormikProps } from 'formik';
 import * as Yup from 'yup';
@@ -27,6 +28,7 @@ import SvgComponent from '../../Tools/SvgComponent';
 import { AxiosResponse, AxiosError } from 'axios';
 import { ControlsContainer, DraggableFormContainer, FormSection } from "../../Tools/FormTools";
 import ComputedTopics from "./ComputedTopics";
+import AssetStateHistory from "./AssetStateHistory";
 
 export const FieldContainer = styled.div`
     margin: 20px 0;
@@ -168,7 +170,11 @@ const EditAsset: FC<EditAssetProps> = ({
     const groupAcronym = group.acronym;
     const organization = orgsOfGroupManaged.filter(org => org.id === group.orgId)[0];
     const orgAcronym = organization.acronym;
-    const assetTypesFiltered = assetTypes.filter(item => item.orgId === orgId);
+    // a control room keeps its own type; a real asset cannot take a control room's
+    const virtual = isVirtualAsset(assets[assetRowIndex]);
+    const assetTypesFiltered = assetTypes.filter(
+        item => item.orgId === orgId && (virtual ? item.type === initialAssetData.assetType : !isControlRoomAssetType(item.type))
+    );
     const assetsTypeArray = assetTypesFiltered.map(item => item.type);
     const assetTypeOptions = convertArrayToOptions(assetsTypeArray);
     const initialAssetType = assetTypesFiltered.filter(item => item.type === initialAssetData.assetType)[0];
@@ -355,6 +361,9 @@ const EditAsset: FC<EditAssetProps> = ({
                                     </FormSection>
                                     <FormSection title="Topics for computed sensors">
                                         <ComputedTopics groupId={groupId} assetId={assetId} />
+                                    </FormSection>
+                                    <FormSection title="State history">
+                                        <AssetStateHistory groupId={groupId} assetId={assetId} />
                                     </FormSection>
                                 </ControlsContainer>
                                 <FormButtonsProps onCancel={onCancel} isValid={formik.isValid} isSubmitting={formik.isSubmitting} />

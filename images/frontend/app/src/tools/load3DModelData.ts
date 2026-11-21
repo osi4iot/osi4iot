@@ -39,6 +39,7 @@ const load3DModelData = (
         topicIdBySensorRef: digitalTwin3DModelData.topicIdBySensorRef,
         digitalTwinSimulationFormat: digitalTwin3DModelData.digitalTwinSimulationFormat,
         isGroupDTDemo: digitalTwin3DModelData.isGroupDTDemo,
+        assetContext: digitalTwin3DModelData.assetContext,
     };
 
     const natsSubjects = digitalTwin3DModelData.natsSubjectsData.map((subjectData: INatsSubjectData) => subjectData.natsSubject);

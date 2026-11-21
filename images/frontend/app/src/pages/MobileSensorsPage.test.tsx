@@ -20,6 +20,7 @@ vi.mock("../components/Tools/MobileVideoForm", () => ({
 }));
 
 import { AuthProvider } from "../contexts/authContext";
+import { clearPermissionViolations, reportPermissionViolation } from "../tools/natsPermissions";
 import MobileSensorsPage from "./MobileSensorsPage";
 
 // the react-selects of the form, in order: org, group, asset, sensor
@@ -42,7 +43,10 @@ const renderPage = async () => {
 };
 
 describe("mobile sensors page", () => {
-    beforeEach(() => window.localStorage.clear());
+    beforeEach(() => {
+        window.localStorage.clear();
+        clearPermissionViolations();
+    });
 
     it("keeps the sensor chosen when going back from its form, ", async () => {
         await renderPage();
@@ -61,5 +65,15 @@ describe("mobile sensors page", () => {
         await renderPage();
         expect(screen.getByText("Portico biempotrado Yolo")).toBeInTheDocument();
         expect(screen.getByText("Mobile video sensor")).toBeInTheDocument();
+    });
+
+    it("says when the server refuses to send the data (a Viewer)", async () => {
+        await renderPage();
+        expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+        await act(async () => {
+            reportPermissionViolation({ name: "PermissionViolationError", subject: "dev2pdb.Group_g.Topic_t1", operation: "publish" });
+        });
+        expect(screen.getByRole("alert")).toHaveTextContent("The server refused to send the data (dev2pdb)");
+        expect(screen.getByRole("alert")).toHaveTextContent("Editor or Admin role");
     });
 });

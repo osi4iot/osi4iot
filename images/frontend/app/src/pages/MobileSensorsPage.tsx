@@ -21,6 +21,7 @@ import MobileVideoForm from "../components/Tools/MobileVideoForm";
 import MobileAudioForm from "../components/Tools/MobileAudioForm";
 import MobileGeolocationForm from "../components/Tools/MobileGeolocationForm";
 import { findMobileTopic, isMobileSensorType, recallMobileSelection, rememberMobileSelection } from "../tools/mobileSensors";
+import { topicKindOf, usePermissionViolations } from "../tools/natsPermissions";
 
 const LoadingItem = styled.div`
     background-color: #202226;
@@ -31,6 +32,21 @@ const LoadingItem = styled.div`
     width: 100%;
     height: 100%;
 `;
+
+// what the server refused to the phone (README, "Permissions": only Editors and Admins send data from it)
+const Refused = styled.div`
+    margin: 8px;
+    padding: 10px 12px;
+    border: 1px solid rgba(242, 73, 92, 0.45);
+    border-radius: 8px;
+    background: rgba(242, 73, 92, 0.14);
+    color: #ffb3bb;
+    font-size: 14px;
+    line-height: 1.4;
+`;
+
+export const NO_MOBILE_SENSORS_TEXT =
+    "No mobile sensor in the groups you edit or administer. Sending data from the phone needs the Editor or Admin role in the group.";
 
 export interface InitialMobileSensorData {
     orgAcronym: string;
@@ -64,6 +80,9 @@ const MobileSensorsPage: FC<ChildrenProp> = ({ children }) => {
     const userName = useLoggedUserLogin();
     const natsClientRef = useRef<NatsConnection | null>(null);
     const isMountedRef = useRef(true);
+    // a publication the server refused: the light is not green, whatever the connection says
+    const refusedPublications = usePermissionViolations().filter((v) => v.operation === "publish");
+    const canSend = isNatsConnected && refusedPublications.length === 0;
 
     useEffect(() => {
         isMountedRef.current = true;
@@ -97,7 +116,7 @@ const MobileSensorsPage: FC<ChildrenProp> = ({ children }) => {
                     setMobileTopicSelected(topic);
                     setInitialMobileSensorData(selectionOf(topic));
                 } else {
-                    setLoadingLabel("No mobile sensor found");
+                    setLoadingLabel(NO_MOBILE_SENSORS_TEXT);
                 }
             })
             .catch((error: AxiosError) => {
@@ -150,10 +169,16 @@ const MobileSensorsPage: FC<ChildrenProp> = ({ children }) => {
             <Header />
             <Main>
                 <>
+                    {refusedPublications.length > 0 && (
+                        <Refused role="alert">
+                            The server refused to send the data ({refusedPublications.map((v) => topicKindOf(v.subject)).join(", ")}).
+                            Sending data from the phone needs the Editor or Admin role in the group.
+                        </Refused>
+                    )}
                     {!initialMobileSensorData && <LoadingItem>{loadingLabel}</LoadingItem>}
                     {mobileSensorSelected === "none" && initialMobileSensorData !== null && (
                         <MobileSensorSelectForm
-                            isNatsConnected={isNatsConnected}
+                            isNatsConnected={canSend}
                             handleMobileSensorSelection={handleMobileSensorSelection}
                             mobileTopicsManaged={mobileTopicsManaged}
                             initialMobileSensorData={initialMobileSensorData as InitialMobileSensorData}
@@ -164,7 +189,7 @@ const MobileSensorsPage: FC<ChildrenProp> = ({ children }) => {
                     {mobileSensorSelected === "Mobile geolocation" && (
                         <MobileGeolocationForm
                             natsClient={natsClientRef.current as NatsConnection}
-                            isNatsConnected={isNatsConnected}
+                            isNatsConnected={canSend}
                             setMobileSensorSelected={setMobileSensorSelected}
                             mobileTopicSelected={mobileTopicSelected as IMobileTopic}
                         />
@@ -172,7 +197,7 @@ const MobileSensorsPage: FC<ChildrenProp> = ({ children }) => {
                     {mobileSensorSelected === "Mobile accelerations" && (
                         <MobileAccelerationForm
                             natsClient={natsClientRef.current as NatsConnection}
-                            isNatsConnected={isNatsConnected}
+                            isNatsConnected={canSend}
                             setMobileSensorSelected={setMobileSensorSelected}
                             mobileTopicSelected={mobileTopicSelected as IMobileTopic}
                         />
@@ -180,7 +205,7 @@ const MobileSensorsPage: FC<ChildrenProp> = ({ children }) => {
                     {mobileSensorSelected === "Mobile orientation" && (
                         <MobileOrientationForm
                             natsClient={natsClientRef.current as NatsConnection}
-                            isNatsConnected={isNatsConnected}
+                            isNatsConnected={canSend}
                             setMobileSensorSelected={setMobileSensorSelected}
                             mobileTopicSelected={mobileTopicSelected as IMobileTopic}
                         />
@@ -188,7 +213,7 @@ const MobileSensorsPage: FC<ChildrenProp> = ({ children }) => {
                     {mobileSensorSelected === "Mobile motion" && (
                         <MobileMotionForm
                             natsClient={natsClientRef.current as NatsConnection}
-                            isNatsConnected={isNatsConnected}
+                            isNatsConnected={canSend}
                             setMobileSensorSelected={setMobileSensorSelected}
                             mobileTopicSelected={mobileTopicSelected as IMobileTopic}
                         />
@@ -196,7 +221,7 @@ const MobileSensorsPage: FC<ChildrenProp> = ({ children }) => {
                     {mobileSensorSelected === "Mobile photo" && (
                         <MobilePhotoForm
                             natsClient={natsClientRef.current as NatsConnection}
-                            isNatsConnected={isNatsConnected}
+                            isNatsConnected={canSend}
                             setMobileSensorSelected={setMobileSensorSelected}
                             mobileTopicSelected={mobileTopicSelected as IMobileTopic}
                         />
@@ -204,7 +229,7 @@ const MobileSensorsPage: FC<ChildrenProp> = ({ children }) => {
                     {mobileSensorSelected === "Mobile video" && (
                         <MobileVideoForm
                             natsClient={natsClientRef.current as NatsConnection}
-                            isNatsConnected={isNatsConnected}
+                            isNatsConnected={canSend}
                             setMobileSensorSelected={setMobileSensorSelected}
                             mobileTopicSelected={mobileTopicSelected as IMobileTopic}
                         />
@@ -212,7 +237,7 @@ const MobileSensorsPage: FC<ChildrenProp> = ({ children }) => {
                     {mobileSensorSelected === "Mobile audio" && (
                         <MobileAudioForm
                             natsClient={natsClientRef.current as NatsConnection}
-                            isNatsConnected={isNatsConnected}
+                            isNatsConnected={canSend}
                             setMobileSensorSelected={setMobileSensorSelected}
                             mobileTopicSelected={mobileTopicSelected as IMobileTopic}
                         />

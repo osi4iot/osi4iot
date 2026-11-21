@@ -71,12 +71,57 @@ SELECT add_retention_policy(
 -- IOT DATA — assetState table (latest state per asset, plain table)
 -- =============================================================================
 
+-- history_*: what is kept of the asset's states in iot_data.asset_state_history
+-- (set in admin_api, Edit asset; both off by default): a row at every change of
+-- its status; a copy of the whole state at most every history_snapshot_minutes
+-- (0 none), taken when the state is written. history_last_snapshot: when the
+-- last copy was taken (pipelines).
 CREATE TABLE IF NOT EXISTS iot_data.assetState (
-    group_uid    varchar(42) NOT NULL,
-    asset_uid    varchar(42) NOT NULL,
-    state        jsonb       NOT NULL,
-    last_updated TIMESTAMPTZ,
+    group_uid                varchar(42) NOT NULL,
+    asset_uid                varchar(42) NOT NULL,
+    state                    jsonb       NOT NULL,
+    last_updated             TIMESTAMPTZ,
+    history_status_changes   BOOLEAN     NOT NULL DEFAULT false,
+    history_snapshot_minutes INTEGER     NOT NULL DEFAULT 0,
+    history_last_snapshot    TIMESTAMPTZ,
     CONSTRAINT assetstate_pkey PRIMARY KEY (group_uid, asset_uid)
+);
+
+-- =============================================================================
+-- IOT DATA — asset_state_history hypertable (history of the asset states)
+--
+-- Written by pipelines in the same transaction as the state (iotdb/assetState.go),
+-- only for the assets whose history is on: cause 'status_change' (status and
+-- previous_status) or 'snapshot' (a copy); state is the whole state then;
+-- writer, "<digital twin uid>/<node uid>". The ground of the indicators of
+-- availability, MTBF/MTTR and time in each status. Kept 2 years, as the
+-- histories of alarms and approvals.
+-- =============================================================================
+
+CREATE TABLE IF NOT EXISTS iot_data.asset_state_history (
+    time            TIMESTAMPTZ  NOT NULL,
+    group_uid       VARCHAR(42)  NOT NULL,
+    asset_uid       VARCHAR(42)  NOT NULL,
+    cause           VARCHAR(16)  NOT NULL,
+    status          VARCHAR(64)  NOT NULL DEFAULT '',
+    previous_status VARCHAR(64)  NOT NULL DEFAULT '',
+    writer          VARCHAR(190) NOT NULL DEFAULT '',
+    state           JSONB
+);
+
+SELECT create_hypertable(
+    'iot_data.asset_state_history', 'time',
+    chunk_time_interval => INTERVAL '30 days',
+    if_not_exists       => TRUE
+);
+
+CREATE INDEX IF NOT EXISTS idx_asset_state_history_asset
+    ON iot_data.asset_state_history (group_uid, asset_uid, time DESC);
+
+SELECT add_retention_policy(
+    'iot_data.asset_state_history',
+    drop_after    => INTERVAL '730 days',
+    if_not_exists => TRUE
 );
 
 -- =============================================================================

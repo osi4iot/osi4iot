@@ -63,7 +63,7 @@ import digitalTwinAndGroupExist from "../../middleware/digitalTwinAndGroupExist.
 import IRequestWithAssetAndGroup from "../group/interfaces/requestWithAssetAndGroup.interface";
 import IRequestWithDigitalTwinAndGroup from "../group/interfaces/requestWithDigitalTwinAndGroup.interface";
 import infoLogger from "../../utils/logger/infoLogger";
-import { getAssetTopicsInfoFromByDTIdsArray } from "../asset/assetDAL";
+import { getAssetByPropName, getAssetTopicsInfoFromByDTIdsArray } from "../asset/assetDAL";
 import type { Readable } from "stream";
 import {
 	applyPipelineAction,
@@ -402,6 +402,9 @@ class DigitalTwinController implements IController {
 			const digitalTwin = await getDigitalTwinByProp("id", parseInt(digitalTwinId, 10));
 			if (!digitalTwin) throw new ItemNotFoundException(req, res, "The digital twin", "id", digitalTwinId);
 			const digitalTwinData = await getDigitalTwinData(req.group, digitalTwin);
+			// the viewer opens a control room or the organization overview with their panels (any member reads it)
+			const asset = await getAssetByPropName("id", digitalTwin.assetId);
+			digitalTwinData.assetContext = asset?.context ?? "asset";
 			res.status(200).send(digitalTwinData);
 		} catch (error) {
 			next(error);
@@ -543,6 +546,10 @@ class DigitalTwinController implements IController {
 					`A digital twin with uid: ${digitalTwinData.digitalTwinUid} already exist`
 				);
 
+			// the digital twin of a control room comes with it (Create control room)
+			if (asset.context && asset.context !== "asset") {
+				throw new HttpException(req, res, 400, "This asset is a control room: its digital twin is made with Create control room");
+			}
 			const isConstraintOk = await checkDigitalTwinConstraint(group.id, asset.id, "Asset");
 			if (!isConstraintOk)
 				throw new HttpException(

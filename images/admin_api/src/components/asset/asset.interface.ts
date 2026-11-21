@@ -1,3 +1,5 @@
+export type AssetContext = "asset" | "group" | "organization";
+
 export default interface IAsset {
 	id?: number;
 	orgId?: number;
@@ -11,6 +13,9 @@ export default interface IAsset {
 	longitude: number;
 	latitude: number;
 	iconSvgString?: string;
+	// asset: a real asset; group / organization: the virtual asset of a group's control room or of an
+	// organization's overview (controlRoom.ts)
+	context?: AssetContext;
 	created?: string;
 	updated?: string;
 }

@@ -5,7 +5,7 @@ import { point, polygon } from "@turf/helpers";
 import pool, { readQuery } from "../../config/dbconfig";
 import IGroup from "../group/interfaces/Group.interface";
 import CreateAssetDto from "./asset.dto";
-import IAsset from "./asset.interface";
+import IAsset, { AssetContext } from "./asset.interface";
 import IAssetType from "./assetType.interface";
 import CreateAssetTypeDto from "./assetType.dto";
 import { findGroupGeojsonData } from "../../utils/geolocation.ts/geolocation";
@@ -238,13 +238,13 @@ export const isAssetDescriptionTaken = async (
 export const insertAsset = async (assetData: IAsset): Promise<IAsset> => {
 	const queryString = `INSERT INTO grafanadb.asset (group_id, asset_uid,
 		asset_type_id, description, geolocation, icon_radio, icon_size_factor,
-		created, updated)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW())
+		context, created, updated)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW())
 		RETURNING id, group_id AS "groupId",
 		asset_uid AS "assetUid",
 		asset_type_id AS "assetTypeId",
 		description, icon_radio AS "iconRadio",
-		icon_size_factor AS "iconSizeFactor",
+		icon_size_factor AS "iconSizeFactor", context,
 		geolocation[0] AS longitude,
 		geolocation[1] AS latitude,
 		created, updated`;
@@ -257,6 +257,7 @@ export const insertAsset = async (assetData: IAsset): Promise<IAsset> => {
 		`(${assetData.longitude},${assetData.latitude})`,
 		assetData.iconRadio,
 		assetData.iconSizeFactor,
+		assetData.context ?? "asset",
 	]);
 	const newAsset = result.rows[0] as IAsset;
 	// its row in the IoT DB's asset states, with the default state (OK, no alarms)
@@ -286,11 +287,17 @@ export const checkSensorReferences = async (group: IGroup, assetData: CreateAsse
 	return wrong;
 };
 
-export const createNewAsset = async (group: IGroup, assetData: CreateAssetDto, isDefault = false): Promise<IAsset> => {
+// context: only controlRoom.ts creates the virtual assets (a "context" in the body of a request is ignored)
+export const createNewAsset = async (
+	group: IGroup,
+	assetData: CreateAssetDto,
+	isDefault = false,
+	context: AssetContext = "asset"
+): Promise<IAsset> => {
 	const assetUid = nanoid(20).replace(/-/g, "x").replace(/_/g, "X");
 	const groupId = group.id;
 
-	const assetInput: IAsset = { ...assetData, groupId, assetUid };
+	const assetInput: IAsset = { ...assetData, groupId, assetUid, context };
 	const newAsset = await insertAsset(assetInput);
 
 	const topicsRef = assetData.topicsRef;
@@ -344,7 +351,7 @@ export const createSystemMonitoringAsset = async (
 	const assetUid = nanoid(20).replace(/-/g, "x").replace(/_/g, "X");
 	const groupId = group.id;
 
-	const assetInput: IAsset = { ...assetData, groupId, assetUid };
+	const assetInput: IAsset = { ...assetData, groupId, assetUid, context: "asset" };
 	const newAsset = await insertAsset(assetInput);
 
 	const topicsRef = assetData.topicsRef;
@@ -438,6 +445,7 @@ export const getAssetByPropName = async (propName: string, propValue: string | n
 		grafanadb.asset.asset_type_id AS "assetTypeId",
 		grafanadb.asset.icon_radio AS "iconRadio",
 		grafanadb.asset.icon_size_factor AS "iconSizeFactor",
+		grafanadb.asset.context,
 		grafanadb.asset.geolocation[0] AS longitude,
 		grafanadb.asset.geolocation[1] AS latitude, 
 		grafanadb.asset.created, grafanadb.asset.updated
@@ -459,6 +467,7 @@ export const getAllAssets = async (): Promise<IAsset[]> => {
 		grafanadb.asset.asset_type_id AS "assetTypeId",
 		grafanadb.asset.icon_radio AS "iconRadio",
 		grafanadb.asset.icon_size_factor AS "iconSizeFactor",
+		grafanadb.asset.context,
 		grafanadb.asset.geolocation[0] AS longitude,
 		grafanadb.asset.geolocation[1] AS latitude, 
 		grafanadb.asset.created, grafanadb.asset.updated
@@ -484,6 +493,7 @@ export const getAssetsByGroupId = async (groupId: number): Promise<IAsset[]> => 
 		grafanadb.asset.asset_type_id AS "assetTypeId",
 		grafanadb.asset.icon_radio AS "iconRadio",
 		grafanadb.asset.icon_size_factor AS "iconSizeFactor",
+		grafanadb.asset.context,
 		grafanadb.asset.geolocation[0] AS longitude,
 		grafanadb.asset.geolocation[1] AS latitude, 
 		grafanadb.asset.created, grafanadb.asset.updated
@@ -506,6 +516,7 @@ export const getAssetsByGroupsIdArray = async (groupsIdArray: number[]): Promise
 		grafanadb.asset.asset_type_id AS "assetTypeId",
 		grafanadb.asset.icon_radio AS "iconRadio",
 		grafanadb.asset.icon_size_factor AS "iconSizeFactor",
+		grafanadb.asset.context,
 		grafanadb.asset.geolocation[0] AS longitude,
 		grafanadb.asset.geolocation[1] AS latitude, 
 		grafanadb.asset.created, grafanadb.asset.updated
@@ -537,6 +548,7 @@ export const getAssetsByOrgId = async (orgId: number): Promise<IAsset[]> => {
 		grafanadb.asset.asset_type_id AS "assetTypeId",
 		grafanadb.asset.icon_radio AS "iconRadio",
 		grafanadb.asset.icon_size_factor AS "iconSizeFactor",
+		grafanadb.asset.context,
 		grafanadb.asset.geolocation[0] AS longitude,
 		grafanadb.asset.geolocation[1] AS latitude, 
 		grafanadb.asset.created, grafanadb.asset.updated

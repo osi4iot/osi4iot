@@ -10,11 +10,14 @@ import { AlarmRow, ApprovalRow, HISTORY_PANEL_EVENTS, HistoryPanelKind } from ".
 const base = (kind: HistoryPanelKind) =>
     `${PROTOCOL}://${DOMAIN_NAME}/admin_api/${kind === "alarms" ? "alarm_history" : "approval_history"}`;
 
+// digitalTwinId 0: the whole group (a group's control room)
+const twinQuery = (digitalTwinId: number) => (digitalTwinId > 0 ? `digitalTwinId=${digitalTwinId}&` : "");
+
 export const nowUrl = (kind: HistoryPanelKind, groupId: number, digitalTwinId: number) =>
-    `${base(kind)}${kind === "alarms" ? "_active" : "_pending"}/${groupId}?digitalTwinId=${digitalTwinId}`;
+    `${base(kind)}${kind === "alarms" ? "_active" : "_pending"}/${groupId}?${twinQuery(digitalTwinId)}`.replace(/[?&]$/, "");
 
 export const eventsUrl = (kind: HistoryPanelKind, groupId: number, digitalTwinId: number, limit = HISTORY_PANEL_EVENTS) =>
-    `${base(kind)}/${groupId}?digitalTwinId=${digitalTwinId}&limit=${limit}`;
+    `${base(kind)}/${groupId}?${twinQuery(digitalTwinId)}limit=${limit}`;
 
 export const eventUrl = (kind: HistoryPanelKind, groupId: number, eventId: string) =>
     `${base(kind)}_event/${groupId}/${encodeURIComponent(eventId)}`;

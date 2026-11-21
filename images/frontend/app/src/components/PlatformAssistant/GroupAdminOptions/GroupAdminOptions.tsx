@@ -28,6 +28,7 @@ import { Column } from '../Utils/platformTable';
 import KnowledgeContainer from "./KnowledgeContainer";
 import AlarmHistoryContainer from "./AlarmHistoryContainer";
 import ApprovalHistoryContainer from "./ApprovalHistoryContainer";
+import GroupAiUsageContainer from "./GroupAiUsageContainer";
 import SkillsContainer from "../Utils/SkillsContainer";
 import { reloadTable, TableName, usePersistentState, useTable, useTablesPending } from "../../../state";
 
@@ -240,6 +241,7 @@ const GroupAdminOptions: FC<{}> = () => {
                         {optionToShow === GROUP_ADMIN_OPTIONS.APPROVAL_HISTORY && (
                             <ApprovalHistoryContainer groupsManaged={groupsManagedTable} digitalTwins={digitalTwinsTable} />
                         )}
+                        {optionToShow === GROUP_ADMIN_OPTIONS.AI_USAGE && <GroupAiUsageContainer />}
                     </>
                 )}
             </ContentContainer>

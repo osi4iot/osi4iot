@@ -54,6 +54,32 @@ describe("Asset state panel view", () => {
         vi.useRealTimers();
     });
 
+    it("reads at once when pipelines says the state changed, and checks only every 30 s", async () => {
+        vi.useFakeTimers();
+        const load = vi.fn().mockResolvedValue(view);
+        let tell: (() => void) | null = null;
+        const watch = vi.fn((subject: string, onMessage: () => void) => {
+            tell = onMessage;
+            return () => {
+                tell = null;
+            };
+        });
+        render(<AssetStatePanel panel={panel} groupId={1} digitalTwinId={2} load={load} live={{ groupUid: "g1", watch }} />);
+        await act(async () => {});
+        // the asset is known after the first reading: then it listens to its subject
+        expect(watch).toHaveBeenCalledWith("assetstate.Group_g1.Asset_a1", expect.any(Function));
+        const before = load.mock.calls.length;
+        await act(async () => {
+            vi.advanceTimersByTime(10_000);
+        });
+        expect(load.mock.calls.length).toBe(before);
+        await act(async () => {
+            tell?.();
+        });
+        expect(load.mock.calls.length).toBe(before + 1);
+        vi.useRealTimers();
+    });
+
     it("edits the fields, colours and the minutes", async () => {
         const load = vi.fn().mockResolvedValue(view);
         const onApply = vi.fn();

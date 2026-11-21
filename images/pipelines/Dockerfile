@@ -55,6 +55,7 @@ COPY logger/ ./logger/
 COPY message/ ./message/
 COPY nats/ ./nats/
 COPY nodes/ ./nodes/
+COPY pipelinelog/ ./pipelinelog/
 COPY s3folder/ ./s3folder/
 COPY safehttp/ ./safehttp/
 COPY telegram/ ./telegram/

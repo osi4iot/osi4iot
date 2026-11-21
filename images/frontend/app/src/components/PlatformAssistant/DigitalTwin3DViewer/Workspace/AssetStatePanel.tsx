@@ -12,11 +12,14 @@ import {
     ASSET_STATE_MAX_COLORS,
     ASSET_STATE_MAX_FIELDS,
     ASSET_STATE_MAX_STALE_MINUTES,
+    ASSET_STATE_REFRESH_LIVE_MS,
     ASSET_STATE_REFRESH_MS,
     AssetStateField,
     AssetStateSettings,
     AssetStateView,
+    SubjectWatcher,
     assetStateSettingsProblems,
+    assetStateSubject,
     descriptionOf,
     formatStateValue,
     isStale,
@@ -34,10 +37,32 @@ const font = `Roboto, "Helvetica Neue", Arial, sans-serif`;
 // ---------------------------------------------------------------------------------------------------------
 // Reading the state
 
-// The state of the twin's asset, read now and every ASSET_STATE_REFRESH_MS while the page is visible
-export const useAssetState = (load: AssetStateLoader | undefined, groupId: number, digitalTwinId: number, paused = false) => {
+// Where the change of the asset's state is told (NATS): the group's uid and, once the state is read, the asset's
+export interface AssetStateLive {
+    groupUid?: string;
+    watch?: SubjectWatcher;
+}
+
+// The state of the twin's asset, read now and every ASSET_STATE_REFRESH_MS while the page is visible; with `live`,
+// read at once when pipelines says it changed, and only every ASSET_STATE_REFRESH_LIVE_MS besides
+export const useAssetState = (
+    load: AssetStateLoader | undefined,
+    groupId: number,
+    digitalTwinId: number,
+    paused = false,
+    live?: AssetStateLive,
+) => {
     const [view, setView] = useState<AssetStateView | null>(null);
     const [error, setError] = useState<string | null>(null);
+    // a reading asked by a message of pipelines
+    const [changes, setChanges] = useState(0);
+    const subject = live?.watch && live.groupUid && view?.assetUid ? assetStateSubject(live.groupUid, view.assetUid) : "";
+    const watch = live?.watch;
+    useEffect(() => {
+        if (paused || !subject || !watch) return;
+        return watch(subject, () => setChanges((n) => n + 1));
+    }, [paused, subject, watch]);
+    const every = subject ? ASSET_STATE_REFRESH_LIVE_MS : ASSET_STATE_REFRESH_MS;
     useEffect(() => {
         if (paused || !load) return;
         let controller: AbortController | null = null;
@@ -57,7 +82,7 @@ export const useAssetState = (load: AssetStateLoader | undefined, groupId: numbe
             }
         };
         read();
-        const timer = window.setInterval(read, ASSET_STATE_REFRESH_MS);
+        const timer = window.setInterval(read, every);
         const onVisible = () => {
             if (!document.hidden) read();
         };
@@ -68,8 +93,8 @@ export const useAssetState = (load: AssetStateLoader | undefined, groupId: numbe
             window.clearInterval(timer);
             document.removeEventListener("visibilitychange", onVisible);
         };
-    }, [load, groupId, digitalTwinId, paused]);
-    return { view, error };
+    }, [load, groupId, digitalTwinId, paused, every, changes]);
+    return { view, error, live: !!subject };
 };
 
 // ---------------------------------------------------------------------------------------------------------
@@ -339,6 +364,8 @@ export interface AssetStatePanelProps {
     digitalTwinId: number;
     load: AssetStateLoader;
     paused?: boolean;
+    // the changes told by pipelines (NATS): without it, the panel reads every 5 s
+    live?: AssetStateLive;
 }
 
 export const settingsOfPanel = (panel: WorkspacePanel): AssetStateSettings => ({
@@ -347,8 +374,8 @@ export const settingsOfPanel = (panel: WorkspacePanel): AssetStateSettings => ({
     staleMinutes: panel.staleMinutes,
 });
 
-const AssetStatePanel: FC<AssetStatePanelProps> = ({ panel, groupId, digitalTwinId, load, paused = false }) => {
-    const { view, error } = useAssetState(load, groupId, digitalTwinId, paused);
+const AssetStatePanel: FC<AssetStatePanelProps> = ({ panel, groupId, digitalTwinId, load, paused = false, live }) => {
+    const { view, error } = useAssetState(load, groupId, digitalTwinId, paused, live);
     // "updated … ago" moves on between readings
     const [, setTick] = useState(0);
     useEffect(() => {
@@ -458,9 +485,13 @@ export interface AssetStateEditorProps {
     panel: WorkspacePanel;
     groupId: number;
     digitalTwinId: number;
-    load: AssetStateLoader;
+    // the state of the digital twin's asset (the preview and the paths offered)
+    load?: AssetStateLoader;
     onApply: (panel: WorkspacePanel) => void;
     onDiscard: () => void;
+    // instead (a control room, ControlRoomPanels GroupAssetStateEditor): the paths of the group's assets and the
+    // preview of its table
+    group?: { paths: string[]; preview: (settings: AssetStateSettings) => ReactNode };
 }
 
 interface ColorRow {
@@ -468,7 +499,7 @@ interface ColorRow {
     color: string;
 }
 
-export const AssetStateEditor: FC<AssetStateEditorProps> = ({ panel, groupId, digitalTwinId, load, onApply, onDiscard }) => {
+export const AssetStateEditor: FC<AssetStateEditorProps> = ({ panel, groupId, digitalTwinId, load, onApply, onDiscard, group }) => {
     const titleId = useId();
     const pathsId = useId();
     const [title, setTitle] = useState(panel.title ?? "");
@@ -476,8 +507,8 @@ export const AssetStateEditor: FC<AssetStateEditorProps> = ({ panel, groupId, di
     const [colors, setColors] = useState<ColorRow[]>(() => Object.entries(panel.statusColors ?? {}).map(([status, color]) => ({ status, color })));
     const [stale, setStale] = useState(panel.staleMinutes ? String(panel.staleMinutes) : "");
     // the current state: the preview, and the paths it has to choose the fields
-    const { view, error } = useAssetState(load, groupId, digitalTwinId);
-    const offered = useMemo(() => (view ? statePaths(view.state) : []), [view]);
+    const { view, error } = useAssetState(group ? undefined : load, groupId, digitalTwinId);
+    const offered = useMemo(() => (group ? group.paths : view ? statePaths(view.state) : []), [group, view]);
 
     const settings: AssetStateSettings = useMemo(() => {
         const s: AssetStateSettings = {};
@@ -583,7 +614,11 @@ export const AssetStateEditor: FC<AssetStateEditorProps> = ({ panel, groupId, di
                             </datalist>
                             <Help style={{ marginTop: 6 }}>
                                 A path of the state: keys separated by dots, and the position of an item of a list (<code>lots.0.id</code>).
-                                {offered.length > 0 ? " The paths of the current state are offered as you type." : ""}
+                                {offered.length > 0
+                                    ? group
+                                        ? " The paths of the states of the group's assets are offered as you type."
+                                        : " The paths of the current state are offered as you type."
+                                    : ""}
                             </Help>
                         </Group>
                         <Group title={`Status colours (${colors.length}/${ASSET_STATE_MAX_COLORS})`}>
@@ -640,9 +675,13 @@ export const AssetStateEditor: FC<AssetStateEditorProps> = ({ panel, groupId, di
                         )}
                     </Settings>
                     <Column>
-                        <span className="label">Preview (the current state)</span>
+                        <span className="label">{group ? "Preview (the assets of the group)" : "Preview (the current state)"}</span>
                         <Preview>
-                            <AssetStateContent view={view} error={error} settings={problems.length ? settingsOfPanel(panel) : settings} />
+                            {group ? (
+                                group.preview(problems.length ? settingsOfPanel(panel) : settings)
+                            ) : (
+                                <AssetStateContent view={view} error={error} settings={problems.length ? settingsOfPanel(panel) : settings} />
+                            )}
                         </Preview>
                     </Column>
                 </Body>

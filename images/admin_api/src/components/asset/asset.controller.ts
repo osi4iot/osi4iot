@@ -1,7 +1,14 @@
 import { Router, NextFunction, Request, Response } from "express";
 import IController from "../../interfaces/controller.interface";
 import validationMiddleware from "../../middleware/validation.middleware";
-import { organizationAdminAuth, userAuth, groupViewerAuth, groupEditorAuth } from "../../middleware/auth.middleware";
+import {
+	organizationAdminAuth,
+	userAuth,
+	groupViewerAuth,
+	groupEditorAuth,
+	groupAdminAuth,
+	groupRoleRank,
+} from "../../middleware/auth.middleware";
 import ItemNotFoundException from "../../exceptions/ItemNotFoundException";
 import InvalidPropNameExeception from "../../exceptions/InvalidPropNameExeception";
 import groupExists from "../../middleware/groupExists.middleware";
@@ -36,7 +43,17 @@ import IRequestWithGroup from "../group/interfaces/requestWithGroup.interface";
 import IRequestWithUser from "../../interfaces/requestWithUser.interface";
 import IAsset from "./asset.interface";
 import { getAllGroupsInOrgArray, getGroupsThatCanBeEditatedAndAdministratedByUserId } from "../group/groupDAL";
-import { getOrganizationsManagedByUserId } from "../organization/organizationDAL";
+import { getOrganizationByProp, getOrganizationsManagedByUserId } from "../organization/organizationDAL";
+import { controlRoomProblem, createControlRoom, isControlRoomAssetType, isVirtualContext } from "./controlRoom";
+import { getControlRoomData } from "./controlRoomData";
+import { getControlRoomLogs, MAX_PIPELINE_LOGS, pipelineLogLevelsOf } from "./controlRoomLogs";
+import {
+	getOrganizationOverview,
+	MAX_UNAVAILABLE_STATUSES,
+	overviewPeriodOf,
+	unavailableStatusesOf,
+} from "./organizationOverview";
+import { isThisUserOrgAdmin } from "../user/userDAL";
 import infoLogger from "../../utils/logger/infoLogger";
 import { getSensorsByAssetId } from "../sensor/sensorDAL";
 import { deleteDashboard, deleteDashboardsByIdArray } from "../group/dashboardDAL";
@@ -50,7 +67,12 @@ import { createTopic } from "../topic/topicDAL";
 import { assetTopicDescription, assetTopicsRefProblems } from "./assetTopicRefs";
 import IAssetTopic from "./assetTopic.interface";
 import { deleteTopicsOfDT, getDigitalTwinByProp } from "../digitalTwin/digitalTwinDAL";
-import { getAssetStateView } from "./assetStateDAL";
+import {
+	ASSET_STATE_SNAPSHOT_MAX_MINUTES,
+	getAssetStateHistorySettings,
+	getAssetStateView,
+	setAssetStateHistorySettings,
+} from "./assetStateDAL";
 
 class AssetController implements IController {
 	public path = "/asset";
@@ -134,8 +156,164 @@ class AssetController implements IController {
 			)
 			// the Viewer's "Asset state" panel: the current state of the digital twin's asset (only reading: the
 			// pipelines write it)
-			.get(`${this.path}_state/:groupId/:digitalTwinId`, groupExists, groupViewerAuth, this.getAssetStateOfDigitalTwin);
+			.get(`${this.path}_state/:groupId/:digitalTwinId`, groupExists, groupViewerAuth, this.getAssetStateOfDigitalTwin)
+			// what is kept of the asset's states (README, "Permissions": editors and administrators set it)
+			.get(`${this.path}_state_history/:groupId/:assetId`, groupExists, groupViewerAuth, this.getAssetStateHistory)
+			.put(`${this.path}_state_history/:groupId/:assetId`, groupExists, groupEditorAuth, this.putAssetStateHistory)
+			// the control room of a group or the overview of an organization (in its default group): its virtual
+			// asset and digital twin (controlRoom.ts; README, "Permissions": only the group's administrators)
+			.post(`/control_room/:groupId`, groupExists, groupAdminAuth, this.postControlRoom)
+			// what the panels of a group's control room show (any member of the group)
+			.get(`/control_room/:groupId/:digitalTwinId`, groupExists, groupViewerAuth, this.getControlRoomData)
+			// what the pipelines of the group logged in the last days (controlRoomLogs.ts; README, "Permissions": only the
+			// group's editors and administrators)
+			.get(`/control_room_logs/:groupId/:digitalTwinId`, groupExists, groupEditorAuth, this.getControlRoomLogs)
+			// the indicators of the organization (organizationOverview.ts; README, "Permissions": only the organization's
+			// administrators and the platform's administrators, though the overview lives in the default group)
+			.get(`/organization_overview/:groupId/:digitalTwinId`, groupExists, groupViewerAuth, this.getOrganizationOverview);
 	}
+
+	private postControlRoom = async (req: IRequestWithGroup, res: Response, next: NextFunction): Promise<void> => {
+		try {
+			const context = (req.body as { context?: unknown } | undefined)?.context ?? "group";
+			if (!isVirtualContext(context)) {
+				throw new HttpException(req, res, 400, `context must be "group" or "organization"`);
+			}
+			const problem = controlRoomProblem(req.group, context);
+			if (problem) throw new HttpException(req, res, 400, problem);
+			const organization = await getOrganizationByProp("id", req.group.orgId);
+			const room = await createControlRoom(req.group, context, organization?.name ?? `organization ${req.group.orgId}`);
+			const what = context === "group" ? "control room of the group" : "overview of the organization";
+			if (!room) throw new HttpException(req, res, 409, `The ${what} already exists`);
+			const message = room.created === "both" ? `The ${what} has been created` : `The digital twin of the ${what} has been created again`;
+			infoLogger(req, res, 200, message);
+			res.status(201).json({ message, assetId: room.asset.id, digitalTwinId: room.digitalTwin.id });
+		} catch (error) {
+			next(error);
+		}
+	};
+
+	// the digital twin of the request must be the group's control room (its asset, the virtual asset of context "group")
+	private checkControlRoomTwin = async (req: IRequestWithGroup, res: Response): Promise<void> => {
+		const digitalTwinId = parseInt(req.params.digitalTwinId, 10);
+		const digitalTwin = Number.isInteger(digitalTwinId) ? await getDigitalTwinByProp("id", digitalTwinId) : null;
+		if (!digitalTwin || Number(digitalTwin.groupId) !== Number(req.group.id)) {
+			throw new ItemNotFoundException(req, res, "The digital twin", "id", req.params.digitalTwinId);
+		}
+		const asset = await getAssetByPropName("id", digitalTwin.assetId);
+		if (asset?.context !== "group") {
+			const text =
+				asset?.context === "organization"
+					? "The panels of the organization overview come with its indicators"
+					: "This digital twin is not a group's control room";
+			throw new HttpException(req, res, 400, text);
+		}
+	};
+
+	private getControlRoomData = async (req: IRequestWithGroupRole, res: Response, next: NextFunction): Promise<void> => {
+		try {
+			await this.checkControlRoomTwin(req, res);
+			// the pipeline logs only for the editors and administrators (README, "Permissions")
+			const canSeeLogs = groupRoleRank(req.groupRole) >= groupRoleRank("Editor");
+			res.status(200).json(await getControlRoomData(Number(req.group.id), req.group.groupUid, canSeeLogs));
+		} catch (error) {
+			next(error);
+		}
+	};
+
+	private getControlRoomLogs = async (req: IRequestWithGroup, res: Response, next: NextFunction): Promise<void> => {
+		try {
+			await this.checkControlRoomTwin(req, res);
+			const levels = pipelineLogLevelsOf(req.query.levels);
+			const limit = req.query.limit === undefined ? MAX_PIPELINE_LOGS : Number(req.query.limit);
+			res.status(200).json(await getControlRoomLogs(Number(req.group.id), req.group.groupUid, levels, limit));
+		} catch (error) {
+			next(error);
+		}
+	};
+
+	private getOrganizationOverview = async (req: IRequestWithGroupRole, res: Response, next: NextFunction): Promise<void> => {
+		try {
+			const user = req.user as { id: number; isGrafanaAdmin?: boolean };
+			const orgId = Number(req.group.orgId);
+			if (user.isGrafanaAdmin !== true && !(await isThisUserOrgAdmin(user.id, orgId))) {
+				// 403 (not 401): a 401 makes the browser renew its session and retry
+				throw new HttpException(req, res, 403, "The organization overview is only for the organization's administrators");
+			}
+			const digitalTwinId = parseInt(req.params.digitalTwinId, 10);
+			const digitalTwin = Number.isInteger(digitalTwinId) ? await getDigitalTwinByProp("id", digitalTwinId) : null;
+			if (!digitalTwin || Number(digitalTwin.groupId) !== Number(req.group.id)) {
+				throw new ItemNotFoundException(req, res, "The digital twin", "id", req.params.digitalTwinId);
+			}
+			const asset = await getAssetByPropName("id", digitalTwin.assetId);
+			if (asset?.context !== "organization") {
+				throw new HttpException(req, res, 400, "This digital twin is not the organization overview");
+			}
+			const unavailable = unavailableStatusesOf(req.query.unavailable);
+			if (!unavailable) {
+				throw new HttpException(req, res, 400, `unavailable: at most ${MAX_UNAVAILABLE_STATUSES} statuses, separated by commas`);
+			}
+			res.status(200).json(await getOrganizationOverview(orgId, overviewPeriodOf(req.query.period), unavailable));
+		} catch (error) {
+			next(error);
+		}
+	};
+
+	// the asset types of the virtual assets are only theirs (controlRoom.ts)
+	private checkNotControlRoomType = async (req: IRequestWithGroup, res: Response, assetTypeId: unknown): Promise<void> => {
+		if (assetTypeId === undefined || assetTypeId === null) return;
+		const assetType = await getAssetTypeByPropName(req.group.orgId, "id", Number(assetTypeId));
+		if (assetType && isControlRoomAssetType(assetType.type)) {
+			throw new HttpException(req, res, 400, `"${assetType.type}" is the type of a control room: choose another one`);
+		}
+	};
+
+	// the asset of the route (groupExists has checked that it is of the group)
+	private assetOfRoute = async (req: IRequestWithGroup, res: Response) => {
+		const assetId = parseInt(req.params.assetId, 10);
+		const asset = Number.isInteger(assetId) ? await getAssetByPropName("id", assetId) : null;
+		if (!asset || Number(asset.groupId) !== Number(req.group.id)) {
+			throw new ItemNotFoundException(req, res, "The asset", "id", req.params.assetId);
+		}
+		return asset;
+	};
+
+	private getAssetStateHistory = async (req: IRequestWithGroup, res: Response, next: NextFunction): Promise<void> => {
+		try {
+			const asset = await this.assetOfRoute(req, res);
+			res.status(200).json(await getAssetStateHistorySettings(req.group.groupUid, asset.assetUid));
+		} catch (error) {
+			next(error);
+		}
+	};
+
+	private putAssetStateHistory = async (req: IRequestWithGroup, res: Response, next: NextFunction): Promise<void> => {
+		try {
+			const asset = await this.assetOfRoute(req, res);
+			const body = (req.body ?? {}) as { statusChanges?: unknown; snapshotMinutes?: unknown };
+			const minutes = body.snapshotMinutes ?? 0;
+			if (typeof body.statusChanges !== "boolean") {
+				throw new HttpException(req, res, 400, "statusChanges must be true or false");
+			}
+			if (
+				typeof minutes !== "number" ||
+				!Number.isInteger(minutes) ||
+				minutes < 0 ||
+				minutes > ASSET_STATE_SNAPSHOT_MAX_MINUTES
+			) {
+				throw new HttpException(
+					req,
+					res,
+					400,
+					`snapshotMinutes must be a whole number of minutes from 0 to ${ASSET_STATE_SNAPSHOT_MAX_MINUTES}`
+				);
+			}
+			await setAssetStateHistorySettings(req.group.groupUid, asset.assetUid, body.statusChanges, minutes);
+			res.status(200).json(await getAssetStateHistorySettings(req.group.groupUid, asset.assetUid));
+		} catch (error) {
+			next(error);
+		}
+	};
 
 	private getAssetStateOfDigitalTwin = async (req: IRequestWithGroup, res: Response, next: NextFunction): Promise<void> => {
 		try {
@@ -273,6 +451,9 @@ class AssetController implements IController {
 			const orgId = req.organization.id;
 			let assetType = await getAssetTypeByPropName(orgId, propName, propValue);
 			if (!assetType) throw new ItemNotFoundException(req, res, "The asset type", propName, propValue);
+			if (isControlRoomAssetType(assetType.type)) {
+				throw new HttpException(req, res, 400, `"${assetType.type}" is the type of the control rooms: it cannot be changed`);
+			}
 			assetType = { ...assetType, ...assetTypeData };
 			await updateAssetTypeByPropName(propName, propValue, assetType);
 			const message = { message: "Asset type updated successfully" };
@@ -290,6 +471,9 @@ class AssetController implements IController {
 		try {
 			let assetTypeData: CreateAssetTypeDto = req.body;
 			const orgId = req.organization.id;
+			if (isControlRoomAssetType(assetTypeData.type?.trim())) {
+				throw new HttpException(req, res, 400, `"${assetTypeData.type}" is the name of the control rooms' type: choose another one`);
+			}
 			assetTypeData = { ...assetTypeData, orgId };
 			await createNewAssetType(assetTypeData);
 			const message = { message: `A new asset type has been created` };
@@ -414,6 +598,13 @@ class AssetController implements IController {
 				assetData.description = assetData.description.trim();
 				await this.checkAssetDescription(req, res, asset.groupId, assetData.description, asset.id);
 			}
+			if (isVirtualContext(asset.context)) {
+				// a control room keeps its type (its icon), and its context never changes
+				delete assetData.assetTypeId;
+			} else {
+				await this.checkNotControlRoomType(req, res, assetData.assetTypeId);
+			}
+			delete assetData.context;
 			asset = { ...asset, ...assetData };
 			await updateAssetByPropName(propName, propValue, asset);
 			const message = { message: "Asset updated successfully" };
@@ -451,6 +642,7 @@ class AssetController implements IController {
 			assetData.description = (assetData.description || "").trim();
 			await this.checkAssetDescription(req, res, req.group.id, assetData.description);
 			await checkInitialAssetGeolocation(req.group, assetData);
+			await this.checkNotControlRoomType(req, res, assetData.assetTypeId);
 			// the name of each topic reference says its type (dev2pdb_n, dev2dtm_n, dtm2dev_n): pipelines find them by it
 			const topicProblems = assetTopicsRefProblems(assetData.topicsRef ?? [], assetData.sensorsRef ?? []);
 			if (topicProblems.length !== 0) {

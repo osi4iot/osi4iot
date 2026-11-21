@@ -113,6 +113,7 @@ export const GROUP_ADMIN_OPTIONS = {
     ML_MODELS: "ML models",
     ALARM_HISTORY: "Alarm history",
     APPROVAL_HISTORY: "Approval history",
+    AI_USAGE: "AI usage",
 }
 
 export const GROUPS_MANAGED_OPTIONS = {

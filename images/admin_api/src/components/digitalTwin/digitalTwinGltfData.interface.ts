@@ -19,6 +19,8 @@ export interface IMqttTopicDataShort {
 
 export interface IDigitalTwinData {
 	id?: number;
+	// the context of its asset: "asset" (a real one), "group" (a group's control room), "organization" (the overview)
+	assetContext?: string;
 	digitalTwinSimulationFormat: string;
 	mqttTopicsData: IMqttTopicDataShort[];
 	topicIdBySensorRef: Record<string, number>;

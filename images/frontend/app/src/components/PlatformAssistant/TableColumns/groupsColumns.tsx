@@ -1,4 +1,5 @@
 import { FC, useState, useEffect } from "react";
+import ControlRoomButton from "../GroupAdminOptions/ControlRoomButton";
 import { reloadTable } from "../../../state";
 import { Column } from '../Utils/platformTable';
 import { toast } from "react-toastify";
@@ -334,6 +335,25 @@ export const Create_GROUPS_COLUMNS = (refreshGroups: () => void): Column<IGroupC
                         refreshGroups={refreshGroups}
                     />
                 );
+            },
+        },
+        {
+            Header: () => (
+                <div style={{ backgroundColor: "#202226" }}>
+                    Org
+                    <br />
+                    overview
+                </div>
+            ),
+            id: "orgOverview",
+            disableFilters: true,
+            disableSortBy: true,
+            Cell: (props: { row: { id: string; }; rows: any[]; }) => {
+                const rowIndex = parseInt(props.row.id, 10);
+                const row = props.rows.filter((row: { index: number; }) => row.index === rowIndex)[0];
+                // the overview of the organization lives in its default group
+                if (row?.original?.isOrgDefaultGroup !== "Default" && row?.original?.isOrgDefaultGroup !== true) return null;
+                return <ControlRoomButton groupId={row?.original?.id} context="organization" />;
             },
         },
     ];
