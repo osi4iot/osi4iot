@@ -274,6 +274,14 @@ For each instance it shows the Swarm task and the service's own view: NATS route
 
 `service image pipelines=...` keeps the version you give and deploys its CPU or GPU flavor (`pipelines:X` / `pipelines:X-gpu`) as the GPU mode requires.
 
+After upgrading the CLI, bring the service images back to the ones this CLI version ships:
+
+    osi4iot state reset_images --dry-run          # show what would change
+    osi4iot state reset_images                    # update the state file only
+    osi4iot state reset_images --apply            # also update the running services (platform running)
+
+Only the image changes; replicas, CPU and memory are kept, and services without a default image are left alone. `--service <name>` (repeatable) limits it to some services. `--apply` updates the services one at a time, waiting for each rolling update, and skips those already on their image, so running it again after a failure only finishes what is left. Without `--apply`, the services get the new images on the next deployment.
+
 Scaling NATS between 1 and 3 or more servers carries the streams over through a backup in the bucket. Every Garage change (adding, moving or retiring an instance) is one layout change at a time, and an old instance is only removed once its data is safe elsewhere; this takes at least about 10 minutes, Garage's own safety delay. An interrupted change is resumed by `osi4iot service rebalance garage`.
 
 ### Nodes
@@ -569,7 +577,7 @@ Every command has its own help: `osi4iot <command> --help`.
 | `service` | `ls`, `inspect`, `scale`, `rebalance`, `resources`, `image`, `state`, `gpu_mode` |
 | `node` | `ls`, `inspect`, `ps`, `add`, `drain`, `activate`, `remove`, `update` |
 | `backup` | `trigger`, `list`, `restore`, `extract`, `apply`, `snapshot` |
-| `state` | `export`, `recover` |
+| `state` | `export`, `recover`, `reset_images` |
 | `streams` | `ls` |
 | `certs` | `check`, `update`, `download` |
 | `custom_service` | `list`, `add`, `update`, `remove` |

@@ -133,7 +133,7 @@ func main() {
 			}
 		}
 
-		if slices.Contains(cmd.SwarmActions, action) {
+		if slices.Contains(cmd.SwarmActions, action) || cmd.NeedsSwarmClients(args) {
 			DCMap, dcMapErr := docker.SetDockerClientsMap(pd, action)
 			// `status` reports whatever it can reach — an unreachable
 			// manager is exactly what it must be able to say.
