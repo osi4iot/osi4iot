@@ -153,8 +153,12 @@ func removingNodeQuestions(m *Model) {
 
 func addNumNodesQuestion(index int, m *Model) {
 	idx := m.FindQuestionIdByKey("NUMBER_OF_SWARM_NODES")
-	numNatsNodes := m.FindAnswerByKey("NUMBER_OF_NATS_NODES")
+	numNatsNodes := m.FindAnswerByKey("DEFAULT_NUMBER_OF_NATS_REPLICAS")
 	if idx == -1 {
+		rules := []string{"required", "isInt", "minval:1", "maxval:100"}
+		if numNatsNodes != "" {
+			rules = append(rules, "numNatsClusterNodes:"+numNatsNodes)
+		}
 		numNodesQuestion := Question{
 			Key:           "NUMBER_OF_SWARM_NODES",
 			QuestionType:  "generic",
@@ -164,7 +168,7 @@ func addNumNodesQuestion(index int, m *Model) {
 			ErrorMessage:  "",
 			Choices:       []string{},
 			ChoiceFocus:   0,
-			Rules:         []string{"required", "isInt", "minval:1", "maxval:100", "numNatsClusterNodes:" + numNatsNodes},
+			Rules:         rules,
 			ActionKey:     "creatingNodeQuestions",
 			Margin:        0,
 		}
