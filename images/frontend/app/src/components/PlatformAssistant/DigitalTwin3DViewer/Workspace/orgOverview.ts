@@ -27,7 +27,8 @@ export interface OrgOverviewSettings {
     period?: OrgOverviewPeriod;
 }
 
-export const isOrgOverviewPeriod = (value: unknown): value is OrgOverviewPeriod => ORG_OVERVIEW_PERIODS.includes(value as OrgOverviewPeriod);
+export const isOrgOverviewPeriod = (value: unknown): value is OrgOverviewPeriod =>
+    ORG_OVERVIEW_PERIODS.includes(value as OrgOverviewPeriod);
 
 // the settings of a panel as they are stored, made safe (what does not fit is dropped)
 export const sanitizeOrgOverviewSettings = (raw: Record<string, unknown>): OrgOverviewSettings => {
@@ -128,14 +129,16 @@ export type OrgOverviewLoader = (
     signal?: AbortSignal,
 ) => Promise<OrgOverviewData>;
 
-export const orgOverviewApi = (auth: ApiAuth): OrgOverviewLoader => async (groupId, digitalTwinId, period, unavailable, signal) => {
-    const config = { ...(axiosAuth(auth.accessToken) as object), signal };
-    const response = await getAxiosInstance(auth.refreshToken, auth.authDispatch).get(
-        orgOverviewUrl(groupId, digitalTwinId, period, unavailable),
-        config as any,
-    );
-    return response.data as OrgOverviewData;
-};
+export const orgOverviewApi =
+    (auth: ApiAuth): OrgOverviewLoader =>
+    async (groupId, digitalTwinId, period, unavailable, signal) => {
+        const config = { ...(axiosAuth(auth.accessToken) as object), signal };
+        const response = await getAxiosInstance(auth.refreshToken, auth.authDispatch).get(
+            orgOverviewUrl(groupId, digitalTwinId, period, unavailable),
+            config as any,
+        );
+        return response.data as OrgOverviewData;
+    };
 
 // ---------------------------------------------------------------------------------------------------------
 // How the values are shown
@@ -212,24 +215,32 @@ export const statusColor = (status: string, unavailable: string[], index: number
     return ["#73bf69", "#5794f2", "#37b3a6", "#a0c75a", "#8ab8ff"][index % 5];
 };
 
-// The geometry of the charts (an SVG of CHART_W × CHART_H: plot from PLOT_LEFT to PLOT_RIGHT, PLOT_TOP to PLOT_BOTTOM)
+// The geometry of the charts: an SVG as wide as its box (CHART_W until it is measured) and CHART_H high, drawn at
+// its real size so the text keeps its size; the plot from PLOT_LEFT to plotRight(width), PLOT_TOP to PLOT_BOTTOM
 export const CHART_W = 560;
+export const plotRight = (width: number) => Math.max(PLOT_LEFT + 60, width - 10);
 export const CHART_H = 200;
 export const PLOT_LEFT = 44;
-export const PLOT_RIGHT = 550;
 export const PLOT_TOP = 16;
 export const PLOT_BOTTOM = 168;
 
-const xOf = (i: number, n: number) => (n <= 1 ? (PLOT_LEFT + PLOT_RIGHT) / 2 : PLOT_LEFT + 14 + (i * (PLOT_RIGHT - PLOT_LEFT - 28)) / (n - 1));
+const xOf = (i: number, n: number, width: number) => {
+    const right = plotRight(width);
+    return n <= 1 ? (PLOT_LEFT + right) / 2 : PLOT_LEFT + 14 + (i * (right - PLOT_LEFT - 28)) / (n - 1);
+};
 
 // the availability line: its range (from the lowest value, at least 5 points down) and the points with a value
-export const availabilityChart = (series: OrgOverviewData["series"]) => {
+export const availabilityChart = (series: OrgOverviewData["series"], width = CHART_W) => {
     const values = series.map((s) => s.availability).filter((v): v is number => v !== null);
     const lowest = values.length ? Math.min(...values, AVAILABILITY_TARGET) : AVAILABILITY_TARGET;
     const min = Math.max(0, Math.floor((lowest - 0.01) * 20) / 20);
     const yOf = (v: number) => PLOT_BOTTOM - ((v - min) / (1 - min)) * (PLOT_BOTTOM - PLOT_TOP);
     const points = series
-        .map((s, i) => (s.availability === null ? null : { x: xOf(i, series.length), y: yOf(s.availability), value: s.availability, start: s.start }))
+        .map((s, i) =>
+            s.availability === null
+                ? null
+                : { x: xOf(i, series.length, width), y: yOf(s.availability), value: s.availability, start: s.start },
+        )
         .filter((p): p is { x: number; y: number; value: number; start: string } => p !== null);
     // a gap where a bucket has no value
     let path = "";
@@ -239,35 +250,47 @@ export const availabilityChart = (series: OrgOverviewData["series"]) => {
             pen = false;
             return;
         }
-        path += `${pen ? "L" : "M"}${xOf(i, series.length).toFixed(1)} ${yOf(s.availability).toFixed(1)} `;
+        path += `${pen ? "L" : "M"}${xOf(i, series.length, width).toFixed(1)} ${yOf(s.availability).toFixed(1)} `;
         pen = true;
     });
     return { min, path: path.trim(), points, targetY: yOf(AVAILABILITY_TARGET), midY: yOf((1 + min) / 2), mid: (1 + min) / 2 };
 };
 
 // the alarm bars: per bucket, the Alarm level and the others stacked
-export const alarmsChart = (series: OrgOverviewData["series"]) => {
+export const alarmsChart = (series: OrgOverviewData["series"], width = CHART_W) => {
     const totals = series.map((s) => Object.values(s.alarms).reduce((a, n) => a + n, 0));
     const max = Math.max(4, ...totals);
     const step = Math.ceil(max / 4);
     const top = step * 4;
     const scale = (PLOT_BOTTOM - PLOT_TOP) / top;
-    const width = Math.max(3, Math.min(28, ((PLOT_RIGHT - PLOT_LEFT - 28) / Math.max(1, series.length)) * 0.6));
+    const barWidth = Math.max(3, Math.min(28, ((plotRight(width) - PLOT_LEFT - 28) / Math.max(1, series.length)) * 0.6));
     const bars = series.map((s, i) => {
         const alarm = alarmLevelCount(s.alarms);
         const other = totals[i] - alarm;
         const ah = alarm * scale;
         const oh = other * scale;
-        return { x: xOf(i, series.length) - width / 2, width, alarm, other, ay: PLOT_BOTTOM - ah, ah, oy: PLOT_BOTTOM - ah - oh, oh, start: s.start };
+        return {
+            x: xOf(i, series.length, width) - barWidth / 2,
+            width: barWidth,
+            alarm,
+            other,
+            ay: PLOT_BOTTOM - ah,
+            ah,
+            oy: PLOT_BOTTOM - ah - oh,
+            oh,
+            start: s.start,
+        };
     });
     return { bars, top, ticks: [0, step * 2, top].map((v) => ({ value: v, y: PLOT_BOTTOM - v * scale })) };
 };
 
-// some of the labels of the x axis (at most 7)
-export const axisLabels = (series: OrgOverviewData["series"], bucket: OrgOverviewData["bucket"]) => {
-    const every = Math.max(1, Math.ceil(series.length / 7));
+// some of the labels of the x axis (as many as fit)
+export const axisLabels = (series: OrgOverviewData["series"], bucket: OrgOverviewData["bucket"], width = CHART_W) => {
+    // about one label every 90 px, at most 12
+    const fit = Math.max(2, Math.min(12, Math.floor((plotRight(width) - PLOT_LEFT) / 90)));
+    const every = Math.max(1, Math.ceil(series.length / fit));
     return series
-        .map((s, i) => ({ x: xOf(i, series.length), label: bucketLabel(s.start, bucket), i }))
+        .map((s, i) => ({ x: xOf(i, series.length, width), label: bucketLabel(s.start, bucket), i }))
         .filter((l) => (series.length - 1 - l.i) % every === 0);
 };
 
