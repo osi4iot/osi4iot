@@ -18,7 +18,9 @@
 // the panel's own time: timeFrom, timeShift, interval, maxDataPoints),
 // "alarms" and "approvals" (the twin's alarms and approval requests, from the history tables; one of each) and
 // "markdown" (a Text panel: text with markdown, LaTeX and values of the NATS messages) and "picture" (an image of
-// the twin's files, viewerImages; an SVG with animations of its elements: bindings) and "surface" (a 3D Surface:
+// the twin's files, viewerImages; an SVG with animations of its elements: bindings) and "dataChart" (the data of
+// one JSON as a 2D chart, a heat map, a 3D surface or 3D points: data; see validateDataChart) and "surface" (a 3D Surface,
+// now a Data chart of kind "surface":
 // z = f(x, y) of a formula whose parameters can be values of the NATS messages, or a grid of values that a message
 // carries) and "assetState" (the current state of the twin's asset, iot_data.assetState; one per slide: stateFields,
 // the fields of the state shown with their label and unit; statusColors, the colour of each status; staleMinutes,
@@ -26,6 +28,10 @@
 // and "orgOverview" (the indicators of the organization, organizationOverview.ts: unavailableStatuses, the statuses
 // that are not available, "Alarm" when none; period, the one it opens with) and "simulator" (the digital twin's
 // simulator; one per slide; format: its own parameters, those of its slide; without it, the digital twin's format).
+//
+// On a slide with a canvas, frame is the frame of the drawing a panel is in (the frontend keeps it as the panel is
+// placed). There each frame can have its own 3D model and its own simulator: the scope "<slide>:<frame>"
+// (slideModels.ts), whose files are under slides/<slide>/frames/<frame>/ and whose messages carry it ("$slide").
 //
 // A "simulator" panel can float over the slide (floating: true) instead of taking its place in the grid (x, y, w, h,
 // kept as where it docks): float is its window, as fractions (0 to 1) of the slide's area: { x, y, w, h }.
@@ -64,8 +70,14 @@ export const VIEWER_PANEL_TYPES = [
 	"orgOverview",
 	// the digital twin's simulator (one per slide; docked or floating)
 	"simulator",
+	// a Data chart: the data of one JSON (the last message of a topic, the asset's state or a formula) as a 2D chart,
+	// a heat map, a 3D surface or 3D points (data). The 3D Surface panels ("surface") are Data charts of kind
+	// "surface" now: still accepted, the frontend turns them into Data charts.
+	"dataChart",
 ] as const;
-const ONE_PER_SLIDE = ["alarms", "approvals", "assetState", "health", "pipelineLogs", "orgOverview", "simulator"];
+const ONE_PER_SLIDE = ["alarms", "approvals", "assetState", "health", "pipelineLogs", "orgOverview"];
+// one per slide, or one per frame of its canvas (slideModels.ts: the scope slide:frame)
+const ONE_PER_FRAME = ["model", "simulator"];
 // the panels that can float over the slide
 const FLOATING_TYPES = ["simulator"];
 // a floating window: at least this fraction of the slide's area wide and high
@@ -86,6 +98,7 @@ export const VIEWER_SURFACE_COLORS = ["viridis", "turbo", "coolwarm", "blues", "
 export const VIEWER_SURFACE_MAX_EXPRESSION = 500;
 export const VIEWER_SURFACE_MAX_PARAMS = 20;
 export const VIEWER_SURFACE_STEPS = [5, 150] as const;
+export const VIEWER_SURFACE_MAX_LABEL = 40;
 const SURFACE_PARAM = /^[A-Za-z_][A-Za-z0-9_]{0,19}$/;
 // names a parameter cannot have: the variables, the constants and the functions of the formulas
 const SURFACE_RESERVED = new Set([
@@ -104,6 +117,10 @@ export interface IViewerSurface {
 	mode: (typeof VIEWER_SURFACE_MODES)[number];
 	expression?: string;
 	params?: IViewerSurfaceParam[];
+	// function: its ranges of x and y from a message ({xMin, xMax, yMin, yMax}), else its own
+	range?: ILiveRange;
+	// function: drawn only up to this height (a number, or one of its parameters)
+	clipAbove?: number | string;
 	topicRef?: string;
 	path?: string;
 	xMin: number;
@@ -162,7 +179,7 @@ const validatePictureBindings = (raw: unknown): IPictureBinding[] | string => {
 		}
 		for (const key of ["prefix", "suffix"]) {
 			if (b[key] === undefined) continue;
-			if (typeof b[key] !== "string" || (b[key] ).length > 20) return `${where}: ${key} must be a text of at most 20 characters`;
+			if (typeof b[key] !== "string" || (b[key]).length > 20) return `${where}: ${key} must be a text of at most 20 characters`;
 			binding[key] = b[key];
 		}
 		if (b.target !== undefined) {
@@ -191,6 +208,49 @@ export const VIEWER_MARKDOWN_MAX_LENGTH = 20000;
 
 // A 3D Surface panel: the formula is only kept here (the Viewer evaluates it with its own interpreter, never as
 // code), so it is checked for its length and its characters only
+// the parameters of a formula: fixed, or values of a topic or of the asset's state
+const validateSurfaceParams = (raw: unknown): IViewerSurfaceParam[] | string => {
+	if (!Array.isArray(raw) || raw.length > VIEWER_SURFACE_MAX_PARAMS) return `the parameters must be a list of at most ${VIEWER_SURFACE_MAX_PARAMS}`;
+	const names = new Set<string>();
+	const params: IViewerSurfaceParam[] = [];
+	for (const [i, item] of raw.entries()) {
+		const where = `parameter ${i + 1}`;
+		if (!item || typeof item !== "object" || Array.isArray(item)) return `${where}: must be an object`;
+		const q = item as Record<string, unknown>;
+		if (typeof q.name !== "string" || !SURFACE_PARAM.test(q.name) || SURFACE_RESERVED.has(q.name.toLowerCase())) return `${where}: invalid name`;
+		if (names.has(q.name)) return `${where}: repeated name ${q.name}`;
+		names.add(q.name);
+		if (!isNum(q.value)) return `${where}: its value must be a number`;
+		const param: IViewerSurfaceParam = { name: q.name, value: q.value };
+		if (q.topicRef !== undefined || q.path !== undefined) {
+			if (typeof q.topicRef !== "string" || !DATA_SOURCE.test(q.topicRef)) return `${where}: invalid topic`;
+			if (typeof q.path !== "string" || !PICTURE_PATH.test(q.path)) return `${where}: invalid field`;
+			param.topicRef = q.topicRef;
+			param.path = q.path;
+		}
+		params.push(param);
+	}
+	return params;
+};
+
+// the ranges of the axes of a formula from a message: the field of a topic with {xMin, xMax, yMin?, yMax?}
+export interface ILiveRange {
+	topicRef: string;
+	path: string;
+}
+const validateLiveRange = (raw: unknown): ILiveRange | string => {
+	if (!raw || typeof raw !== "object" || Array.isArray(raw)) return "the range from a message needs its topic and field";
+	const r = raw as Record<string, unknown>;
+	if (typeof r.topicRef !== "string" || !DATA_SOURCE.test(r.topicRef)) return "invalid topic of the range";
+	if (typeof r.path !== "string" || !PICTURE_PATH.test(r.path)) return "invalid field of the range";
+	return { topicRef: r.topicRef, path: r.path };
+};
+
+const validateFormulaText = (expression: unknown): string | null =>
+	typeof expression !== "string" || expression.length > VIEWER_SURFACE_MAX_EXPRESSION || !/^[\w\s.+\-*/^(),]*$/.test(expression)
+		? `the formula must have at most ${VIEWER_SURFACE_MAX_EXPRESSION} characters: letters, digits, spaces and . + - * / ^ ( ) ,`
+		: null;
+
 const validateSurface = (raw: unknown): IViewerSurface | string => {
 	if (!raw || typeof raw !== "object" || Array.isArray(raw)) return "a 3D Surface needs its settings";
 	const s = raw as Record<string, unknown>;
@@ -201,38 +261,31 @@ const validateSurface = (raw: unknown): IViewerSurface | string => {
 	if ((s.xMin as number) >= (s.xMax as number) || (s.yMin as number) >= (s.yMax as number)) return "each axis needs its minimum below its maximum";
 	const surface: IViewerSurface = { mode: s.mode as IViewerSurface["mode"], xMin: s.xMin as number, xMax: s.xMax as number, yMin: s.yMin as number, yMax: s.yMax as number };
 	if (surface.mode === "function") {
-		if (typeof s.expression !== "string" || s.expression.length > VIEWER_SURFACE_MAX_EXPRESSION || !/^[\w\s.+\-*/^(),]*$/.test(s.expression)) {
-			return `the formula must have at most ${VIEWER_SURFACE_MAX_EXPRESSION} characters: letters, digits, spaces and . + - * / ^ ( ) ,`;
-		}
-		surface.expression = s.expression;
+		const wrong = validateFormulaText(s.expression);
+		if (wrong) return wrong;
+		surface.expression = s.expression as string;
 		if (s.params !== undefined) {
-			if (!Array.isArray(s.params) || s.params.length > VIEWER_SURFACE_MAX_PARAMS) return `the parameters must be a list of at most ${VIEWER_SURFACE_MAX_PARAMS}`;
-			const names = new Set<string>();
-			surface.params = [];
-			for (const [i, item] of s.params.entries()) {
-				const where = `parameter ${i + 1}`;
-				if (!item || typeof item !== "object" || Array.isArray(item)) return `${where}: must be an object`;
-				const q = item as Record<string, unknown>;
-				if (typeof q.name !== "string" || !SURFACE_PARAM.test(q.name) || SURFACE_RESERVED.has(q.name.toLowerCase())) return `${where}: invalid name`;
-				if (names.has(q.name)) return `${where}: repeated name ${q.name}`;
-				names.add(q.name);
-				if (!isNum(q.value)) return `${where}: its value must be a number`;
-				const param: IViewerSurfaceParam = { name: q.name, value: q.value };
-				if (q.topicRef !== undefined || q.path !== undefined) {
-					if (typeof q.topicRef !== "string" || !SOURCE.test(q.topicRef)) return `${where}: invalid topic`;
-					if (typeof q.path !== "string" || !PICTURE_PATH.test(q.path)) return `${where}: invalid field`;
-					param.topicRef = q.topicRef;
-					param.path = q.path;
-				}
-				surface.params.push(param);
-			}
+			const params = validateSurfaceParams(s.params);
+			if (typeof params === "string") return params;
+			surface.params = params;
+		}
+		if (s.range !== undefined) {
+			const range = validateLiveRange(s.range);
+			if (typeof range === "string") return range;
+			surface.range = range;
+		}
+		// drawn only up to a height: a number, or one of its parameters
+		if (s.clipAbove !== undefined) {
+			const ok = isNum(s.clipAbove) || (typeof s.clipAbove === "string" && (surface.params ?? []).some((p) => p.name === s.clipAbove));
+			if (!ok) return "the height to cut the surface at must be a number or one of its parameters";
+			surface.clipAbove = s.clipAbove as number | string;
 		}
 		if (s.steps !== undefined) {
 			if (!isInt(s.steps, VIEWER_SURFACE_STEPS[0], VIEWER_SURFACE_STEPS[1])) return `the resolution must be from ${VIEWER_SURFACE_STEPS[0]} to ${VIEWER_SURFACE_STEPS[1]}`;
 			surface.steps = s.steps;
 		}
 	} else {
-		if (typeof s.topicRef !== "string" || !SOURCE.test(s.topicRef)) return "invalid topic of the data";
+		if (typeof s.topicRef !== "string" || !DATA_SOURCE.test(s.topicRef)) return "invalid topic of the data";
 		if (typeof s.path !== "string" || !PICTURE_PATH.test(s.path)) return "invalid field of the data";
 		surface.topicRef = s.topicRef;
 		surface.path = s.path;
@@ -262,6 +315,163 @@ const validateSurface = (raw: unknown): IViewerSurface | string => {
 	}
 	return surface;
 };
+// The data of a Data chart: the last message of a topic (its topicRef) or the state of the twin's asset
+// (iot_data.assetState.state)
+export const ASSET_STATE_SOURCE = "@assetState";
+export const FORMULA_SOURCE = "@formula";
+export const DATA_FORMULA_POINTS: [number, number] = [2, 2000];
+const DATA_SOURCE = /^(@assetState|[A-Za-z0-9_.-]{1,60})$/;
+// a path of the data; "*" takes a field of every item of a list (points.*.f)
+const DATA_PATH = /^([A-Za-z0-9_-]+|\*)(\.([A-Za-z0-9_-]+|\*)){0,15}$/;
+export const DATA_CHART_KINDS = ["xy", "heatmap", "surface", "points3d"] as const;
+export const DATA_CHART_STYLES = ["line", "scatter", "bar", "area"] as const;
+export const DATA_CHART_MAX_SERIES = 8;
+const DATA_COLOR = /^#[0-9a-fA-F]{6}$/;
+
+// a series of a formula y = f(x) (source "@formula", 2D charts only): its parameters as those of a surface, over
+// [xMin, xMax] at `points` points
+export interface IDataFormula {
+	expression: string;
+	params?: IViewerSurfaceParam[];
+	xMin: number;
+	xMax: number;
+	// its range of x from a message ({xMin, xMax}), else its own
+	range?: ILiveRange;
+	points?: number;
+}
+
+export interface IDataSeries {
+	source: string;
+	formula?: IDataFormula;
+	x?: string;
+	// the field of y (all but the formulas)
+	y?: string;
+	z?: string;
+	name?: string;
+	style?: (typeof DATA_CHART_STYLES)[number];
+	color?: string;
+}
+
+export interface IDataChart {
+	kind: (typeof DATA_CHART_KINDS)[number];
+	// heatmap and surface: a formula or a grid (the settings of the 3D Surface panels)
+	surface?: IViewerSurface;
+	// xy and points3d
+	series?: IDataSeries[];
+	xLabel?: string;
+	yLabel?: string;
+	zLabel?: string;
+	xLog?: boolean;
+	yLog?: boolean;
+	xMin?: number;
+	xMax?: number;
+	yMin?: number;
+	yMax?: number;
+	legend?: boolean;
+}
+
+// the name, style and colour of a series (into `series`), or what is wrong
+const validateSeriesLook = (q: Record<string, unknown>, series: IDataSeries): string | null => {
+	if (q.name !== undefined && q.name !== "") {
+		if (typeof q.name !== "string" || q.name.length > 40) return "the name has at most 40 characters";
+		series.name = q.name.trim();
+	}
+	if (q.style !== undefined) {
+		if (!DATA_CHART_STYLES.includes(q.style as (typeof DATA_CHART_STYLES)[number])) return "invalid style";
+		series.style = q.style as IDataSeries["style"];
+	}
+	if (q.color !== undefined && q.color !== "") {
+		if (typeof q.color !== "string" || !DATA_COLOR.test(q.color)) return "invalid colour";
+		series.color = q.color;
+	}
+	return null;
+};
+
+const validateDataFormula = (raw: unknown): IDataFormula | string => {
+	if (!raw || typeof raw !== "object" || Array.isArray(raw)) return "a formula series needs its formula";
+	const f = raw as Record<string, unknown>;
+	const wrong = validateFormulaText(f.expression);
+	if (wrong) return wrong;
+	if (!isNum(f.xMin) || !isNum(f.xMax) || f.xMin >= f.xMax) return "the range of x needs its minimum below its maximum";
+	const formula: IDataFormula = { expression: f.expression as string, xMin: f.xMin, xMax: f.xMax };
+	if (f.params !== undefined) {
+		const params = validateSurfaceParams(f.params);
+		if (typeof params === "string") return params;
+		formula.params = params;
+	}
+	if (f.range !== undefined) {
+		const range = validateLiveRange(f.range);
+		if (typeof range === "string") return range;
+		formula.range = range;
+	}
+	if (f.points !== undefined) {
+		if (!isInt(f.points, DATA_FORMULA_POINTS[0], DATA_FORMULA_POINTS[1])) return `the points must be from ${DATA_FORMULA_POINTS[0]} to ${DATA_FORMULA_POINTS[1]}`;
+		formula.points = f.points;
+	}
+	return formula;
+};
+
+const validateDataChart = (raw: unknown): IDataChart | string => {
+	if (!raw || typeof raw !== "object" || Array.isArray(raw)) return "a Data chart needs its settings";
+	const d = raw as Record<string, unknown>;
+	if (!DATA_CHART_KINDS.includes(d.kind as IDataChart["kind"])) return `the kind must be ${DATA_CHART_KINDS.join(", ")}`;
+	const data: IDataChart = { kind: d.kind as IDataChart["kind"] };
+	if (data.kind === "heatmap" || data.kind === "surface") {
+		const surface = validateSurface(d.surface);
+		if (typeof surface === "string") return surface;
+		data.surface = surface;
+		return data;
+	}
+	if (!Array.isArray(d.series) || d.series.length === 0 || d.series.length > DATA_CHART_MAX_SERIES) {
+		return `a Data chart needs from 1 to ${DATA_CHART_MAX_SERIES} series`;
+	}
+	data.series = [];
+	for (const [i, item] of d.series.entries()) {
+		const where = `series ${i + 1}`;
+		if (!item || typeof item !== "object" || Array.isArray(item)) return `${where}: must be an object`;
+		const q = item as Record<string, unknown>;
+		if (q.source === FORMULA_SOURCE) {
+			if (data.kind !== "xy") return `${where}: a formula is only for 2D charts`;
+			const formula = validateDataFormula(q.formula);
+			if (typeof formula === "string") return `${where}: ${formula}`;
+			const formulaSeries: IDataSeries = { source: FORMULA_SOURCE, formula };
+			const wrongLook = validateSeriesLook(q, formulaSeries);
+			if (wrongLook) return `${where}: ${wrongLook}`;
+			data.series.push(formulaSeries);
+			continue;
+		}
+		if (typeof q.source !== "string" || !DATA_SOURCE.test(q.source)) return `${where}: invalid source`;
+		if (typeof q.y !== "string" || !DATA_PATH.test(q.y)) return `${where}: invalid field of y`;
+		const series: IDataSeries = { source: q.source, y: q.y };
+		for (const axis of ["x", "z"] as const) {
+			if (q[axis] === undefined || q[axis] === "") continue;
+			if (typeof q[axis] !== "string" || !DATA_PATH.test(q[axis])) return `${where}: invalid field of ${axis}`;
+			series[axis] = q[axis];
+		}
+		if (data.kind === "points3d" && (!series.x || !series.z)) return `${where}: 3D points need the fields of x, y and z`;
+		const look = validateSeriesLook(q, series);
+		if (look) return `${where}: ${look}`;
+		data.series.push(series);
+	}
+	for (const key of ["xLabel", "yLabel", "zLabel"] as const) {
+		if (d[key] === undefined || d[key] === "") continue;
+		if (typeof d[key] !== "string" || d[key].length > VIEWER_SURFACE_MAX_LABEL) return `${key} has at most ${VIEWER_SURFACE_MAX_LABEL} characters`;
+		data[key] = d[key].trim();
+	}
+	for (const key of ["xLog", "yLog", "legend"] as const) {
+		if (d[key] === undefined) continue;
+		if (typeof d[key] !== "boolean") return `${key} must be true or false`;
+		data[key] = d[key];
+	}
+	for (const [lo, hi] of [["xMin", "xMax"], ["yMin", "yMax"]] as const) {
+		if (d[lo] === undefined && d[hi] === undefined) continue;
+		if (!isNum(d[lo]) || !isNum(d[hi]) || d[lo] >= d[hi]) return `${lo} and ${hi} must be numbers, the first below the second`;
+		data[lo] = d[lo];
+		data[hi] = d[hi];
+	}
+	return data;
+};
+
 export const CHART_RANGES = ["15m", "1h", "6h", "24h", "7d", "30d"] as const;
 export const CHART_MAX_SERIES = 8;
 
@@ -370,6 +580,7 @@ export interface IViewerPanel {
 	fit?: (typeof VIEWER_PICTURE_FITS)[number];
 	bindings?: IPictureBinding[];
 	surface?: IViewerSurface;
+	data?: IDataChart;
 	series?: IChartSeries[];
 	range?: (typeof CHART_RANGES)[number];
 	viz?: (typeof CHART_VIZ)[number];
@@ -379,12 +590,19 @@ export interface IViewerPanel {
 	timeShift?: string;
 	interval?: string;
 	maxDataPoints?: number;
+	// chart: the seconds of the live series ("@live:…") shown
+	liveWindow?: number;
 	stateFields?: IAssetStateField[];
 	statusColors?: Record<string, string>;
 	staleMinutes?: number;
 	unavailableStatuses?: string[];
 	period?: (typeof ORG_OVERVIEW_PERIODS)[number];
 	floating?: boolean;
+	// a translucent background: what is behind it (a canvas) shows through
+	translucent?: boolean;
+	// on a canvas: the frame of the drawing it is in (its id in the scene); a 3D model or a simulator in a frame is
+	// that frame's (scope slide:frame)
+	frame?: string;
 	float?: IFloatRect;
 	// a simulator's own format (that of its slide: none, the digital twin's)
 	format?: Record<string, ISimulatorParameter>;
@@ -450,11 +668,20 @@ const validateFloat = (raw: unknown): IFloatRect | string => {
 	return { x, y, w, h };
 };
 
+// A Canvas: a whiteboard (Excalidraw) behind the panels of its slide, its scene in S3 (slides/<id>/canvas/scene.json,
+// slideCanvas.ts). Its slide's panels are on a fine grid (CANVAS_GRID: 48 × 48, one page, without compaction).
+export const CANVAS_STYLES = ["clean", "hand"] as const;
+export interface IViewerCanvas {
+	style: (typeof CANVAS_STYLES)[number];
+}
+export const CANVAS_GRID = { cols: 48, maxRows: 48 };
+
 export interface IViewerSlide {
 	id: string;
 	title: string;
 	tag: string;
 	panels: IViewerPanel[];
+	canvas?: IViewerCanvas;
 }
 
 export interface IViewerLayout {
@@ -502,6 +729,8 @@ const validateSettings = (raw: unknown, name: string): Record<string, unknown> |
 };
 
 const PANEL_ID = /^[A-Za-z0-9_-]{1,40}$/;
+// the id of a frame of a canvas (Excalidraw's ids)
+export const FRAME_ID = /^[A-Za-z0-9_-]{1,40}$/;
 // a topicRef (dtm2sim, dev2dtm_1…) or "any"
 const SOURCE = /^[A-Za-z0-9_.-]{1,60}$/;
 
@@ -541,9 +770,17 @@ export const validateViewerLayout = (raw: unknown): IViewerLayout | string => {
 		if (typeof sl.tag !== "string" || !SLIDE_TAG.test(sl.tag)) {
 			return `${where}: the tag must have from 1 to 40 letters, digits, spaces, _ . or -`;
 		}
-		const checked = validatePanels(sl.panels, slides === undefined ? "" : `${where}, `);
+		let canvas: IViewerCanvas | undefined;
+		if (sl.canvas !== undefined) {
+			const c = sl.canvas as Record<string, unknown>;
+			if (!c || typeof c !== "object" || Array.isArray(c) || !CANVAS_STYLES.includes(c.style as IViewerCanvas["style"])) {
+				return `${where}: the canvas needs its style (${CANVAS_STYLES.join(" or ")})`;
+			}
+			canvas = { style: c.style as IViewerCanvas["style"] };
+		}
+		const checked = validatePanels(sl.panels, slides === undefined ? "" : `${where}, `, canvas ? CANVAS_GRID : undefined);
 		if (typeof checked === "string") return checked;
-		cleanSlides.push({ id: sl.id, title: sl.title.trim(), tag: sl.tag.trim(), panels: checked });
+		cleanSlides.push({ id: sl.id, title: sl.title.trim(), tag: sl.tag.trim(), panels: checked, ...(canvas ? { canvas } : {}) });
 	}
 	const layout: IViewerLayout = { version: VIEWER_LAYOUT_VERSION, slides: cleanSlides };
 	if (time !== undefined) {
@@ -562,12 +799,15 @@ export const validateViewerLayout = (raw: unknown): IViewerLayout | string => {
 const SLIDE_TAG = /^[\p{L}\p{N} _.-]{1,40}$/u;
 
 // The panels of one slide
-const validatePanels = (panels: unknown, prefix: string): IViewerPanel[] | string => {
+const validatePanels = (
+	panels: unknown,
+	prefix: string,
+	grid: { cols: number; maxRows: number } = { cols: VIEWER_LAYOUT_COLS, maxRows: VIEWER_LAYOUT_MAX_ROWS }
+): IViewerPanel[] | string => {
 	if (!Array.isArray(panels)) return `${prefix}the panels must be a list`;
 	if (panels.length > VIEWER_LAYOUT_MAX_PANELS) return `${prefix}at most ${VIEWER_LAYOUT_MAX_PANELS} panels`;
 	const ids = new Set<string>();
 	const clean: IViewerPanel[] = [];
-	let models = 0;
 	for (const [index, item] of panels.entries()) {
 		const where = `${prefix}Panel ${index + 1}`;
 		if (!item || typeof item !== "object" || Array.isArray(item)) return `${where} must be an object`;
@@ -576,18 +816,32 @@ const validatePanels = (panels: unknown, prefix: string): IViewerPanel[] | strin
 		if (ids.has(p.id)) return `${where}: repeated id ${p.id}`;
 		ids.add(p.id);
 		if (!VIEWER_PANEL_TYPES.includes(p.type as ViewerPanelType)) return `${where}: unknown type`;
-		if (p.type === "model" && ++models > 1) return `${prefix}only one 3D model panel`;
 		const type = p.type as ViewerPanelType;
-		if (ONE_PER_SLIDE.includes(type) && clean.some((q) => q.type === type)) {
+		// on a canvas, the frame of the drawing the panel is in (a frame of Excalidraw: its id)
+		let frame: string | undefined;
+		if (p.frame !== undefined) {
+			if (typeof p.frame !== "string" || !FRAME_ID.test(p.frame)) return `${where}: invalid frame`;
+			if (grid === CANVAS_GRID) frame = p.frame;
+		}
+		// the 3D model and the simulator: one of each per slide, or per frame of its canvas (each its own scope)
+		if (ONE_PER_FRAME.includes(type)) {
+			if (clean.some((q) => q.type === type && q.frame === frame)) {
+				const label = type === "model" ? "3D model" : type;
+				return frame ? `${prefix}only one ${label} panel in each frame of the canvas` : `${prefix}only one ${label} panel`;
+			}
+		} else if (ONE_PER_SLIDE.includes(type) && clean.some((q) => q.type === type)) {
 			return `${prefix}only one ${type} panel`;
 		}
-		if (!isInt(p.x, 0, VIEWER_LAYOUT_COLS - 1)) return `${where}: invalid x`;
-		if (!isInt(p.w, 1, VIEWER_LAYOUT_COLS) || (p.x ) + (p.w ) > VIEWER_LAYOUT_COLS) {
+		if (!isInt(p.x, 0, grid.cols - 1)) return `${where}: invalid x`;
+		if (!isInt(p.w, 1, grid.cols) || p.x + p.w > grid.cols) {
 			return `${where}: invalid width`;
 		}
-		if (!isInt(p.y, 0, VIEWER_LAYOUT_MAX_ROWS - 1)) return `${where}: invalid y`;
-		if (!isInt(p.h, 1, VIEWER_LAYOUT_MAX_ROWS)) return `${where}: invalid height`;
+		if (!isInt(p.y, 0, grid.maxRows - 1)) return `${where}: invalid y`;
+		if (!isInt(p.h, 1, grid.maxRows)) return `${where}: invalid height`;
+		// a slide with a canvas is one page
+		if (grid === CANVAS_GRID && p.y + p.h > grid.maxRows) return `${where}: below the page of the canvas`;
 		const panel: IViewerPanel = { id: p.id, type: p.type as ViewerPanelType, x: p.x, y: p.y, w: p.w, h: p.h };
+		if (frame) panel.frame = frame;
 		if (p.title !== undefined) {
 			if (typeof p.title !== "string" || p.title.length > 80) return `${where}: the title must have at most 80 characters`;
 			if (p.title.trim()) panel.title = p.title.trim();
@@ -627,6 +881,11 @@ const validatePanels = (panels: unknown, prefix: string): IViewerPanel[] | strin
 			const problem = validateOrgOverview(p, panel);
 			if (problem) return `${where}: ${problem}`;
 		}
+		// a translucent background (not the 3D model: it draws its own)
+		if (p.translucent !== undefined) {
+			if (typeof p.translucent !== "boolean") return `${where}: translucent must be true or false`;
+			if (p.translucent && type !== "model") panel.translucent = true;
+		}
 		if (p.floating !== undefined || p.float !== undefined) {
 			if (!FLOATING_TYPES.includes(type)) return `${where}: only a simulator panel can float`;
 			if (p.floating !== undefined) {
@@ -650,6 +909,11 @@ const validatePanels = (panels: unknown, prefix: string): IViewerPanel[] | strin
 			if (typeof surface === "string") return `${where}: ${surface}`;
 			panel.surface = surface;
 		}
+		if (p.type === "dataChart") {
+			const data = validateDataChart(p.data);
+			if (typeof data === "string") return `${where}: ${data}`;
+			panel.data = data;
+		}
 		if (p.type === "chart") {
 			const series = validateChartSeries(p.series);
 			if (typeof series === "string") return `${where}: ${series}`;
@@ -672,12 +936,18 @@ const validatePanels = (panels: unknown, prefix: string): IViewerPanel[] | strin
 			for (const key of ["timeFrom", "timeShift", "interval"] as const) {
 				if (p[key] === undefined || p[key] === "") continue;
 				const valid = key === "interval" ? INTERVAL : SPAN;
-				if (typeof p[key] !== "string" || !valid.test(p[key] )) return `${where}: invalid ${key}`;
-				panel[key] = p[key] ;
+				if (typeof p[key] !== "string" || !valid.test(p[key])) return `${where}: invalid ${key}`;
+				panel[key] = p[key];
 			}
 			if (p.maxDataPoints !== undefined) {
 				if (!isInt(p.maxDataPoints, 10, 2000)) return `${where}: maxDataPoints must be from 10 to 2000`;
 				panel.maxDataPoints = p.maxDataPoints;
+			}
+			if (p.liveWindow !== undefined) {
+				if (!isInt(p.liveWindow, CHART_LIVE_WINDOW[0], CHART_LIVE_WINDOW[1])) {
+					return `${where}: liveWindow must be from ${CHART_LIVE_WINDOW[0]} to ${CHART_LIVE_WINDOW[1]} seconds`;
+				}
+				panel.liveWindow = p.liveWindow;
 			}
 		}
 		clean.push(panel);
@@ -685,7 +955,10 @@ const validatePanels = (panels: unknown, prefix: string): IViewerPanel[] | strin
 	return clean;
 };
 
-const SENSOR_REF = /^[A-Za-z0-9_.-]{1,60}$/;
+// a sensor, or the history of the state of the twin's asset ("@assetState": field a dotted path of the state),
+// or the values of a topic since the viewer was opened ("@live:dtm2sim")
+const SENSOR_REF = /^(@assetState|@live:[A-Za-z0-9_.-]{1,60}|[A-Za-z0-9_.-]{1,60})$/;
+export const CHART_LIVE_WINDOW: [number, number] = [10, 3600];
 
 const validateChartSeries = (raw: unknown): IChartSeries[] | string => {
 	if (!Array.isArray(raw) || raw.length === 0) return "a chart needs at least one series";

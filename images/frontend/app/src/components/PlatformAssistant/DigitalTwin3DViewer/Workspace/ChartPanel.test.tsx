@@ -72,7 +72,7 @@ describe("Chart panel", () => {
             />,
         );
         const tile = await screen.findByLabelText("Rotor speed: 88 rpm");
-        expect(tile).toHaveAttribute("data-color", "#EF5B6B");
+        expect(tile).toHaveAttribute("data-color", "#F2495C");
     });
 
     it("says when its sensors no longer exist, and asks for nothing while paused", () => {
@@ -88,5 +88,17 @@ describe("Chart panel", () => {
         const fetchSeries = vi.fn().mockRejectedValue({ response: { data: { message: "Sensors not found in the group: 1" } } });
         render(<ChartPanel panel={panel()} groupId={3} options={options} fetchSeries={fetchSeries} pageRange={PAGE} refreshTick={0} now={() => NOW} />);
         expect(await screen.findByText("Sensors not found in the group: 1")).toBeInTheDocument();
+    });
+
+    it("says that the asset state history is off, and shows only the last live window", async () => {
+        const off = vi.fn().mockResolvedValue({ ...answer([]), series: [{ sensorId: 0, assetId: 7, field: "kpi.oee", label: "kpi.oee", units: "-", sensor: "x", points: [], historyOff: true }] });
+        render(<ChartPanel panel={panel({ series: [{ sensor: "@assetState", field: "kpi.oee" }] })} groupId={3} options={options} fetchSeries={off} pageRange={PAGE} refreshTick={0} now={() => NOW} />);
+        expect(await screen.findByText(/The history of the asset's state is off/)).toBeInTheDocument();
+        expect(off.mock.calls[0][0].series).toEqual([{ sensorId: 0, field: "kpi.oee", index: undefined, sensor: "@assetState" }]);
+
+        const live = vi.fn().mockResolvedValue({ ...answer([]), series: [{ sensorId: 0, field: "load", label: "load", units: "-", sensor: "Live", points: [], live: true }] });
+        render(<ChartPanel panel={panel({ series: [{ sensor: "@live:dtm2sim", field: "load" }], liveWindow: 60 })} groupId={3} options={options} fetchSeries={live} pageRange={PAGE} refreshTick={0} now={() => NOW} />);
+        expect(await screen.findByText(/nothing has arrived yet/)).toBeInTheDocument();
+        expect(live.mock.calls[0][0]).toMatchObject({ from: NOW - 60_000, to: NOW });
     });
 });

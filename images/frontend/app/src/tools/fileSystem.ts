@@ -42,7 +42,8 @@ export const getDtRootFolder = async () => {
 };
 
 // where the 3D model of a slide of a twin's Viewer and its FEM results are kept in the browser (a twin's uid has no "-")
-export const slideModelCacheKey = (digitalTwinUid: string, slideId: string) => `${digitalTwinUid}--${slideId}`;
+// (slideId: a scope, "<slide>:<frame>" for the model of a frame of a canvas: no ":" in the folder's name)
+export const slideModelCacheKey = (digitalTwinUid: string, slideId: string) => `${digitalTwinUid}--${slideId.replace(/:/g, "~")}`;
 
 export const getDTFolder = async (digitalTwinUid: string) => {
     const dtRootFolder = await getDtRootFolder();

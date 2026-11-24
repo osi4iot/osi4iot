@@ -1068,8 +1068,10 @@ func (n *AiAgentNode) GetName() string {
 // have that name: they are letters, digits, "_", "." and "-").
 const SlideField = "$slide"
 
-// slideIdPattern is the shape of a slide's id (admin_api SLIDE_ID).
-var slideIdPattern = regexp.MustCompile(`^[A-Za-z0-9_-]{1,40}$`)
+// slideIdPattern is the shape of a model's scope (admin_api MODEL_SCOPE):
+// a slide's id, or "<slideId>:<frameId>" for the model of a frame of its
+// canvas.
+var slideIdPattern = regexp.MustCompile(`^[A-Za-z0-9_-]{1,40}(?::[A-Za-z0-9_-]{1,40})?$`)
 
 // promptSlide is the slide a prompt comes from: the "$slide" field of the
 // message, else the slide the chat's Viewer shows ("slide" of its

@@ -25,6 +25,8 @@ import (
 // and the Parquet files go to the bucket, next to it:
 //
 //	org_data/org_<org>/group_<group>/digitalTwin_<dt>/slides/<slideId>/
+//	    (or …/slides/<slideId>/frames/<frameId>/ for the model of a frame of
+//	    its canvas: the scope "<slideId>:<frameId>")
 //	    femResJson/<file>.json
 //	    femResParquet/mesh_<n>.parquet, femres_On*_mesh_<n>.parquet, metadata.json
 //
@@ -64,10 +66,18 @@ const (
 	mcpS3EndpointEnv  = "MCP_S3_ENDPOINT"
 )
 
+// femResultsParquetPrefix is the Parquet folder of the model of a scope
+// (admin_api slideModels.ts): a slide ("<slideId>": slides/<slideId>) or
+// a frame of its canvas ("<slideId>:<frameId>":
+// slides/<slideId>/frames/<frameId>).
 func femResultsParquetPrefix(orgId, groupId, digitalTwinId int, slideId string) string {
 	base := fmt.Sprintf("org_data/org_%d/group_%d/digitalTwin_%d", orgId, groupId, digitalTwinId)
 	if slideId != "" {
-		base += "/slides/" + slideId
+		slide, frame, inFrame := strings.Cut(slideId, ":")
+		base += "/slides/" + slide
+		if inFrame {
+			base += "/frames/" + frame
+		}
 	}
 	return base + "/" + femResultsParquetFolder
 }
@@ -307,7 +317,8 @@ func (fm *FlowsManager) lockFemResults(ctx context.Context, digitalTwinId int, s
 	}
 	key := "femres_dt_" + strconv.Itoa(digitalTwinId)
 	if slideId != "" {
-		key += "_" + slideId
+		// the keys of a KV store take no ":" (a frame's scope)
+		key += "_" + strings.ReplaceAll(slideId, ":", ".")
 	}
 	if _, err := kv.Create(ctx, key, []byte(strconv.Itoa(fm.ReplicaIndex))); err != nil {
 		return nil, false

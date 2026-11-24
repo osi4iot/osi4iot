@@ -2,7 +2,7 @@
 // and the ECharts options built from the aggregated series of admin_api (/time_series: mean, min and max of
 // each bucket of time). Pure functions, so they are easy to test.
 import { measurementItems, toMeasurements } from "../../../../tools/measurements";
-import { ChartRange, ChartSeriesRef, seriesKey } from "./workspaceLayout";
+import { ASSET_STATE_SERIES, ChartRange, ChartSeriesRef, liveTopicOfSeries, seriesKey } from "./workspaceLayout";
 
 export interface ChartRangeInfo {
     label: string;
@@ -71,13 +71,39 @@ export const chartSeriesOptions = (
     return options;
 };
 
+// The series of the asset's state (its history) and of the topics since the viewer was opened (charts/chartSources.ts):
+// a dotted path of the state or of the messages, the items of lists by position (vibration.1)
+export const isSourceSeries = (ref: ChartSeriesRef) => ref.sensor === ASSET_STATE_SERIES || liveTopicOfSeries(ref.sensor) !== null;
+
+export const sourceSeriesLabel = (field: string) => field.replace(/\.(\d+)(?=\.|$)/g, "[$1]");
+
+export const sourceSeriesOption = (ref: ChartSeriesRef): ChartSeriesOption => {
+    const topic = liveTopicOfSeries(ref.sensor);
+    const base = { sensor: ref.sensor, field: ref.field, ...(ref.index === undefined ? {} : { index: ref.index }) };
+    return {
+        ...base,
+        key: seriesKey(base),
+        sensorId: 0,
+        sensorDescription: topic === null ? "Asset state" : `Live ${topic}`,
+        label: sourceSeriesLabel(ref.index === undefined ? ref.field : `${ref.field}.${ref.index}`),
+        units: "-",
+    };
+};
+
+// The fields of the asset's state and of the topics that can be series of a chart: numbers (booleans, numbers in
+// texts) at their paths
+export const sourceSeriesOptions = (stateFields: string[], liveFields: { topic: string; fields: string[] }[]): ChartSeriesOption[] => [
+    ...stateFields.map((field) => sourceSeriesOption({ sensor: ASSET_STATE_SERIES, field })),
+    ...liveFields.flatMap(({ topic, fields }) => fields.map((field) => sourceSeriesOption({ sensor: `@live:${topic}`, field }))),
+];
+
 // The series of a panel that still exist (a sensor may have been removed): what to ask admin_api for
 export const resolveSeries = (series: ChartSeriesRef[], options: ChartSeriesOption[]) => {
     const byKey = new Map(options.map((o) => [o.key, o]));
     const found: ChartSeriesOption[] = [];
     const missing: ChartSeriesRef[] = [];
     for (const s of series) {
-        const option = byKey.get(seriesKey(s));
+        const option = byKey.get(seriesKey(s)) ?? (isSourceSeries(s) ? sourceSeriesOption(s) : undefined);
         if (option) found.push(option);
         else missing.push(s);
     }
@@ -104,6 +130,11 @@ export interface TimeSeriesResponse {
     // a point per interval: [t, mean, min, max, count, sum, last, first]
     series: {
         sensorId: number;
+        // a field of the state of an asset (its history), and whether the history is off
+        assetId?: number;
+        historyOff?: boolean;
+        // values of a topic since the viewer was opened
+        live?: boolean;
         field: string;
         index?: number;
         label: string;
@@ -241,4 +272,3 @@ export const buildChartOption = (data: TimeSeriesResponse, now = Date.now()) => 
 };
 
 export const hasPoints = (data: TimeSeriesResponse | null) => !!data && data.series.some((s) => s.points.length > 0);
-

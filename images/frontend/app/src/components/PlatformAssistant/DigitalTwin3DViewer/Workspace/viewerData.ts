@@ -25,7 +25,8 @@ import { isZipName, readViewerPackage, VIEWER_PACKAGE_MAX_BYTES } from "./viewer
 import { listZipEntries, readZipEntry, writeZip, ZipInput } from "./zipStream";
 
 export const VIEWER_DATA_FORMAT = "osi4iot-viewer-data";
-// 2: a model and FEM results for each slide (slides/<slideId>/…); 1 had one (models/, fem/), still read
+// 2: a model and FEM results for each slide (slides/<slideId>/…) and for each frame of its canvas that has one
+// (slides/<slideId>/frames/<frameId>/…); 1 had one (models/, fem/), still read
 export const VIEWER_DATA_VERSION = 2;
 // a .zip of viewer data is checked before anything is decompressed (the sizes its directory gives)
 export const VIEWER_DATA_MAX_FILES = 300;
@@ -36,12 +37,14 @@ export const TEXT_CHECK_MAX_BYTES = 64 * 1024 * 1024;
 export const VIEWER_DATA_FILE_NAME = (digitalTwinUid: string | undefined, now = new Date()) =>
     `viewer_data_${digitalTwinUid ?? "twin"}_${now.toISOString().slice(0, 10)}.zip`;
 
-export type ViewerDataPart = "model" | "fem" | "simulator" | "config" | "pipeline";
-// the order they are loaded in: the model before its FEM results; the pipeline last (it restarts)
-export const VIEWER_DATA_PARTS: ViewerDataPart[] = ["model", "fem", "simulator", "config", "pipeline"];
+export type ViewerDataPart = "model" | "fem" | "canvas" | "simulator" | "config" | "pipeline";
+// the order they are loaded in: the model before its FEM results; a canvas before the configuration (whose layout
+// says that its slide has it); the pipeline last (it restarts)
+export const VIEWER_DATA_PARTS: ViewerDataPart[] = ["model", "fem", "canvas", "simulator", "config", "pipeline"];
 export const PART_LABELS: Record<ViewerDataPart, string> = {
     model: "3D model",
     fem: "FEM results",
+    canvas: "Canvas",
     simulator: "Simulator format",
     config: "Viewer configuration",
     pipeline: "Pipeline",
@@ -50,6 +53,7 @@ export const PART_LABELS: Record<ViewerDataPart, string> = {
 export const PART_EFFECTS: Record<ViewerDataPart, string> = {
     model: "Replaces the 3D model of its slide",
     fem: "Added to the stored results (the oldest go beyond the limit)",
+    canvas: "Replaces the canvas of its slide (shown when the layout gives the slide a canvas)",
     simulator: "Replaces the simulator format",
     config: "Replaces the group's layout and the lighting (the 3D models of the slides it does not have are removed)",
     pipeline: "Replaces the pipeline and restarts it",
@@ -116,21 +120,34 @@ const isManifestText = (text: string) => {
 // The folder of the .zip of viewer data a file came from: what it is, without reading it. The model and FEM results
 // of each slide are in slides/<slideId>/models and slides/<slideId>/fem (version 2; version 1 had one model, in models
 // and fem).
-export type DataFolder = "models" | "fem" | "simulator" | "pipeline";
+export type DataFolder = "models" | "fem" | "canvas" | "simulator" | "pipeline";
 const DATA_FOLDERS: DataFolder[] = ["models", "fem", "simulator", "pipeline"];
 const SLIDE_ID = /^[A-Za-z0-9_-]{1,40}$/;
+// the scope of a model: a slide, or a frame of its canvas (slide:frame, workspaceLayout scopeOf)
+const MODEL_SCOPE = /^[A-Za-z0-9_-]{1,40}(?::[A-Za-z0-9_-]{1,40})?$/;
+// the folder of the files of a scope in the .zip: slides/<slideId> or slides/<slideId>/frames/<frameId>
+const scopePath = (scope: string) => {
+    const [slide, frame] = scope.split(":");
+    return frame ? `slides/${slide}/frames/${frame}` : `slides/${slide}`;
+};
+// the scope and folder of a file of slides/: slides/<slideId>/<folder>/<file> or
+// slides/<slideId>/frames/<frameId>/<folder>/<file> (a model of a frame: no canvas there)
+const slidePathOf = (path: string): { scope: string; folder: DataFolder } | undefined => {
+    const parts = path.split("/");
+    if (parts[0] !== "slides" || !SLIDE_ID.test(parts[1] ?? "")) return undefined;
+    if (parts.length === 4 && (parts[2] === "models" || parts[2] === "fem" || parts[2] === "canvas")) return { scope: parts[1], folder: parts[2] as DataFolder };
+    if (parts.length === 6 && parts[2] === "frames" && SLIDE_ID.test(parts[3]) && (parts[4] === "models" || parts[4] === "fem")) {
+        return { scope: `${parts[1]}:${parts[3]}`, folder: parts[4] as DataFolder };
+    }
+    return undefined;
+};
 const folderOf = (path: string): DataFolder | undefined => {
     const parts = path.split("/");
-    if (parts[0] === "slides" && parts.length === 4 && SLIDE_ID.test(parts[1])) {
-        return parts[2] === "models" || parts[2] === "fem" ? (parts[2] as DataFolder) : undefined;
-    }
+    if (parts[0] === "slides") return slidePathOf(path)?.folder;
     return parts.length > 1 ? DATA_FOLDERS.find((f) => f === parts[0]) : undefined;
 };
-// the slide of a model or FEM results of the .zip (slides/<slideId>/…)
-const slideOfPath = (path: string): string | undefined => {
-    const parts = path.split("/");
-    return parts[0] === "slides" && parts.length === 4 && SLIDE_ID.test(parts[1]) ? parts[1] : undefined;
-};
+// the scope (slide, or slide:frame) of a model or FEM results of the .zip
+const slideOfPath = (path: string): string | undefined => slidePathOf(path)?.scope;
 
 // what one file is (a .zip of viewer data is opened by readViewerDataFiles); null: the manifest, nothing to load
 export const classifyFile = async (file: DataFile, folder?: DataFolder): Promise<{ item: ViewerDataItem } | { ignored: string } | null> => {
@@ -139,6 +156,9 @@ export const classifyFile = async (file: DataFile, folder?: DataFolder): Promise
     if (name.endsWith(".glb")) return { item: { part: "model", file, summary: `binary glTF · ${size}` } };
     if (name.endsWith(".gltf")) return { item: { part: "model", file, summary: `glTF · ${size}` } };
     if (folder === "fem" && name.endsWith(".json")) return { item: { part: "fem", file, summary: size } };
+    // the scene of a slide's canvas (slides/<slideId>/canvas/scene.json)
+    if (folder === "canvas" && name.endsWith(".json")) return { item: { part: "canvas", file, summary: `scene · ${size}` } };
+    if (folder === "canvas") return { ignored: `${file.name}: not the scene of a canvas` };
     const isText = name.endsWith(".yml") || name.endsWith(".yaml") || name.endsWith(".json");
     if (isText && file.data.size > TEXT_CHECK_MAX_BYTES) {
         if (name.endsWith(".json")) return { item: { part: "fem", file, summary: `${size} (too big to check: taken as FEM results)` } };
@@ -282,11 +302,13 @@ export const readViewerDataFiles = async (files: DataFile[], options: ReadOption
     return { items: chosen, ignored };
 };
 
-// the model and FEM results of a slide
+// the model, FEM results and canvas of a slide (slideId: a scope, slide:frame for the model of a frame of its canvas)
 export interface SlideFiles {
     slideId: string;
     model?: DataFile | null;
     fem?: DataFile[];
+    // the scene of its canvas (JSON)
+    canvas?: DataFile | null;
 }
 
 export interface ViewerDataContents {
@@ -313,19 +335,24 @@ export const buildViewerDataZip = async (
         add(contents.config.name, contents.config.data);
         parts.config = contents.config.name;
     }
-    const slides: Record<string, { model?: string; fem?: string[] }> = {};
+    const slides: Record<string, { model?: string; fem?: string[]; canvas?: string }> = {};
     for (const slide of contents.slides ?? []) {
-        if (!SLIDE_ID.test(slide.slideId)) continue;
-        const entry: { model?: string; fem?: string[] } = {};
+        if (!MODEL_SCOPE.test(slide.slideId)) continue;
+        const entry: { model?: string; fem?: string[]; canvas?: string } = {};
+        const base = scopePath(slide.slideId);
+        if (slide.canvas && SLIDE_ID.test(slide.slideId)) {
+            add(`${base}/canvas/scene.json`, slide.canvas.data);
+            entry.canvas = "scene.json";
+        }
         if (slide.model) {
-            add(`slides/${slide.slideId}/models/${slide.model.name}`, slide.model.data);
+            add(`${base}/models/${slide.model.name}`, slide.model.data);
             entry.model = slide.model.name;
         }
         if (slide.fem && slide.fem.length > 0) {
-            for (const f of slide.fem) add(`slides/${slide.slideId}/fem/${f.name}`, f.data);
+            for (const f of slide.fem) add(`${base}/fem/${f.name}`, f.data);
             entry.fem = slide.fem.map((f) => f.name);
         }
-        if (entry.model || entry.fem) slides[slide.slideId] = entry;
+        if (entry.model || entry.fem || entry.canvas) slides[slide.slideId] = entry;
     }
     if (Object.keys(slides).length > 0) parts.slides = slides;
     if (contents.simulator && Object.keys(contents.simulator).length > 0) {

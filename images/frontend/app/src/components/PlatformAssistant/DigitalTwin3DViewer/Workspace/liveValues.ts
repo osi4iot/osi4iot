@@ -70,27 +70,32 @@ export const createLiveValueStore = (): LiveValueStore => {
     };
 };
 
-// The values as the panels of a slide see them: the messages of that slide and those of no slide, the newest of the
-// two. Outside a slide (null) the store itself: only the messages of no slide.
+// whether the messages of a scope ("$slide": a slide, or a frame of its canvas, "<slide>:<frame>") reach the panels
+// (or the 3D model) of another: the same scope, or a slide for its frames
+export const scopeReaches = (messageScope: string, scope: string): boolean => messageScope === scope || scope.startsWith(`${messageScope}:`);
+// the scopes whose messages reach one: itself and, for a frame, its slide
+const scopesReaching = (scope: string): string[] => (scope.includes(":") ? [scope, scope.split(":")[0]] : [scope]);
+
+// The values as the panels of a slide (or of a frame of its canvas: "<slide>:<frame>") see them: the messages of that
+// scope, those of its slide and those of no slide, the newest. Outside a slide (null) the store itself: only the
+// messages of no slide.
 export const scopedToSlide = (store: LiveValueStore, slideId: string | null): LiveValueStore => {
     if (!slideId) return store;
+    const scopes = scopesReaching(slideId);
     const get = (topicRef: string) => {
-        const own = store.get(slideKey(topicRef, slideId));
-        const shared = store.get(topicRef);
-        if (!own) return shared;
-        if (!shared) return own;
-        return own.receivedAt >= shared.receivedAt ? own : shared;
+        let newest = store.get(topicRef);
+        for (const scope of scopes) {
+            const own = store.get(slideKey(topicRef, scope));
+            if (own && (!newest || own.receivedAt >= newest.receivedAt)) newest = own;
+        }
+        return newest;
     };
     return {
         get,
         fields: store.fields,
         subscribe: (topicRef, listener) => {
-            const offOwn = store.subscribe(slideKey(topicRef, slideId), listener);
-            const offShared = store.subscribe(topicRef, listener);
-            return () => {
-                offOwn();
-                offShared();
-            };
+            const offs = [...scopes.map((scope) => store.subscribe(slideKey(topicRef, scope), listener)), store.subscribe(topicRef, listener)];
+            return () => offs.forEach((off) => off());
         },
         publish: store.publish,
     };

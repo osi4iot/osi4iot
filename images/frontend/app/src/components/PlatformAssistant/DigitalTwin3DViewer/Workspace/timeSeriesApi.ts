@@ -7,7 +7,9 @@ import { TimeSeriesResponse } from "./chartSeries";
 
 export interface TimeSeriesQuery {
     groupId: number;
-    series: { sensorId: number; field: string; index?: number }[];
+    // a sensor's field; with assetId, a field of the state of an asset (its history); with sensor "@assetState" or
+    // "@live:<topic>", a series of those sources before they are asked for (charts/chartSources.ts)
+    series: { sensorId: number; field: string; index?: number; assetId?: number; sensor?: string }[];
     from: number;
     to: number;
     points: number;
@@ -19,7 +21,9 @@ export interface TimeSeriesQuery {
 
 export const timeSeriesUrl = ({ groupId, series, from, to, points, interval, histogram }: TimeSeriesQuery) => {
     const params = new URLSearchParams({
-        series: JSON.stringify(series.map(({ sensorId, field, index }) => (index === undefined ? { sensorId, field } : { sensorId, field, index }))),
+        series: JSON.stringify(
+            series.map(({ sensorId, assetId, field, index }) => ({ ...(assetId !== undefined ? { assetId } : { sensorId }), field, ...(index === undefined ? {} : { index }) })),
+        ),
         from: String(Math.round(from)),
         to: String(Math.round(to)),
         points: String(Math.round(points)),

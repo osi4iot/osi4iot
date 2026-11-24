@@ -5,9 +5,9 @@
 // for the user) as every other change of the layout. While searching, the order cannot be changed.
 import { DragEvent, FC, KeyboardEvent, useEffect, useRef, useState } from "react";
 import styled from "styled-components";
-import { BellRing, Box, ChartLine, FileImage, FileText, Image as ImageIcon, Video, ClipboardCheck, Eye, EyeOff, GripVertical, Search, X, Axis3d, Activity, HeartPulse, ScrollText, Building2, SlidersHorizontal } from "lucide-react";
+import { BellRing, Box, ChartLine, FileImage, FileText, Image as ImageIcon, Video, ClipboardCheck, Eye, EyeOff, GripVertical, Search, X, ChartScatter, Activity, HeartPulse, ScrollText, Building2, SlidersHorizontal } from "lucide-react";
 import { scrollbarStyle } from "../../../Tools/FormTools";
-import { GRID_COLS, PAGE_ROWS, PanelType, WorkspaceSlide, panelTitle, searchSlides } from "./workspaceLayout";
+import { PanelType, WorkspaceSlide, gridOf, panelTitle, searchSlides } from "./workspaceLayout";
 
 const font = `Roboto, "Helvetica Neue", Arial, sans-serif`;
 
@@ -153,7 +153,6 @@ const Card = styled.button<{ $current: boolean; $muted: boolean }>`
 const Mini = styled.span`
     flex: 1;
     display: grid;
-    grid-template-columns: repeat(${GRID_COLS}, minmax(0, 1fr));
     gap: 3px;
     min-height: 0;
 `;
@@ -315,6 +314,7 @@ const BLOCK_COLOR: Record<PanelType, string> = {
     markdown: "#2f3540",
     picture: "#2d3a2f",
     surface: "#33294a",
+    dataChart: "#33294a",
     assetState: "#203d3a",
     health: "#3a2a2a",
     pipelineLogs: "#2a2f3a",
@@ -331,8 +331,8 @@ const blockIcon = (type: PanelType, photo = false) =>
         <FileText aria-hidden="true" />
     ) : type === "picture" ? (
         <FileImage aria-hidden="true" />
-    ) : type === "surface" ? (
-        <Axis3d aria-hidden="true" />
+    ) : type === "surface" || type === "dataChart" ? (
+        <ChartScatter aria-hidden="true" />
     ) : type === "alarms" ? (
         <BellRing aria-hidden="true" />
     ) : type === "approvals" ? (
@@ -353,16 +353,26 @@ const blockIcon = (type: PanelType, photo = false) =>
 
 // The panels of a slide drawn small: the grid of the slide, at least one page high
 const Thumbnail: FC<{ slide: WorkspaceSlide }> = ({ slide }) => {
-    const rows = Math.max(PAGE_ROWS, ...slide.panels.map((p) => p.y + p.h));
+    // a slide with a canvas: its fine grid, over a pale whiteboard
+    const grid = gridOf(slide);
+    const rows = Math.max(grid.rows, ...slide.panels.map((p) => p.y + p.h));
     return (
-        <Mini aria-hidden="true" style={{ gridTemplateRows: `repeat(${rows}, minmax(0, 1fr))` }}>
+        <Mini
+            aria-hidden="true"
+            style={{
+                gridTemplateColumns: `repeat(${grid.cols}, minmax(0, 1fr))`,
+                gridTemplateRows: `repeat(${rows}, minmax(0, 1fr))`,
+                gap: grid.compact ? 3 : 0,
+                ...(slide.canvas ? { background: "repeating-linear-gradient(45deg, #1f242b 0 6px, #232931 6px 12px)", borderRadius: 4 } : {}),
+            }}
+        >
             {slide.panels.map((p) => (
                 <Block
                     key={p.id}
                     style={{ gridColumn: `${p.x + 1} / span ${p.w}`, gridRow: `${p.y + 1} / span ${p.h}`, background: BLOCK_COLOR[p.type] }}
                 >
                     {blockIcon(p.type, p.display === "photo")}
-                    {p.w >= 3 && p.h >= 2 && <span>{panelTitle(p)}</span>}
+                    {p.w >= 3 * grid.scale && p.h >= 2 * grid.scale && <span>{panelTitle(p)}</span>}
                 </Block>
             ))}
         </Mini>

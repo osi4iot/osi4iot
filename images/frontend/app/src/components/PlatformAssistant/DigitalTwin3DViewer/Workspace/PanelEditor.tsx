@@ -26,7 +26,16 @@ import {
     ChartColumnBig,
 } from "lucide-react";
 import OverridesEditor from "./charts/OverridesEditor";
-import { CHART_MAX_SERIES, ChartSeriesRef, WorkspacePanel, seriesKey } from "./workspaceLayout";
+import {
+    CHART_LIVE_WINDOW_DEFAULT,
+    CHART_LIVE_WINDOW_MAX,
+    CHART_LIVE_WINDOW_MIN,
+    CHART_MAX_SERIES,
+    ChartSeriesRef,
+    WorkspacePanel,
+    liveTopicOfSeries,
+    seriesKey,
+} from "./workspaceLayout";
 import { ChartSeriesOption, formatBucket } from "./chartSeries";
 import { ChartSettings, SERIES_AGGS, VIZ_TYPES, VizType, changeViz, chartSettingsOf, drawSeries, getPath, newChartSettings, setPath, withChartSettings } from "./charts/chartConfig";
 import { OPTION_SECTIONS, searchSections } from "./charts/optionsSchema";
@@ -527,13 +536,13 @@ const PanelEditor: FC<PanelEditorProps> = ({ panel, groupId, chartOptions, fetch
                         <Scroll>
                             <QueryOptions aria-label="Query options">
                                 <span style={{ fontSize: 12, color: "#9aa1aa", alignSelf: "center" }}>
-                                    Source: <b style={{ color: "#e6e8eb" }}>sensors of the asset</b>
+                                    Source: <b style={{ color: "#e6e8eb" }}>sensors, asset state history, live topics</b>
                                 </span>
                                 {spanField(
                                     "Min interval",
                                     "interval",
                                     "auto",
-                                    "The smallest interval of time each point summarizes (e.g. 200ms, 1s, 1m), or raw: every sample, without intervals (for fast sensors, such as the phone's accelerations)",
+                                    "The smallest interval of time each point summarizes (e.g. 200ms, 1s, 1m), or raw: every sample, as Grafana's raw queries (the fast sensors, as the phone's accelerations)",
                                 )}
                                 <label title="How many points a series may have at most">
                                     Max data points
@@ -555,6 +564,29 @@ const PanelEditor: FC<PanelEditorProps> = ({ panel, groupId, chartOptions, fetch
                                         }}
                                     />
                                 </label>
+                                {series.some((x) => liveTopicOfSeries(x.sensor) !== null) && (
+                                    <label title="The live series keep what arrived since the viewer was opened (at most an hour). A chart of only live series shows the last … seconds, drawn again every second">
+                                        Live window (s)
+                                        <Input
+                                            type="number"
+                                            aria-label="Live window (s)"
+                                            min={CHART_LIVE_WINDOW_MIN}
+                                            max={CHART_LIVE_WINDOW_MAX}
+                                            placeholder={String(CHART_LIVE_WINDOW_DEFAULT)}
+                                            value={draft.liveWindow ?? ""}
+                                            style={{ width: 90 }}
+                                            onChange={(e) => {
+                                                const v = Number(e.target.value);
+                                                setDraft((d) => {
+                                                    const next = { ...d };
+                                                    if (e.target.value === "" || !Number.isFinite(v)) delete next.liveWindow;
+                                                    else next.liveWindow = Math.max(CHART_LIVE_WINDOW_MIN, Math.min(CHART_LIVE_WINDOW_MAX, Math.round(v)));
+                                                    return next;
+                                                });
+                                            }}
+                                        />
+                                    </label>
+                                )}
                                 {spanField("Relative time", "timeFrom", "page", "This panel shows the last … (e.g. 24h) whatever the range of the page")}
                                 {spanField("Time shift", "timeShift", "none", "The range moved back by … (e.g. 1d: the same hours of yesterday)")}
                             </QueryOptions>
@@ -616,6 +648,10 @@ const PanelEditor: FC<PanelEditorProps> = ({ panel, groupId, chartOptions, fetch
                                 Add series
                             </Button>
                             {chartOptions.length === 0 && <span style={{ color: "#9aa1aa" }}>The asset has no sensors with measurements.</span>}
+                            <span style={{ color: "#8d949c", fontSize: 12 }}>
+                                Besides the sensors: the fields of the asset state (from its history, when it is kept) and of the topics (live: what arrives since the
+                                viewer was opened; their fields appear as messages arrive).
+                            </span>
                         </Scroll>
                     </DataArea>
                 </Main>

@@ -57,6 +57,7 @@ describe("Viewer data", () => {
                 slides: [
                     { slideId: "slide-1", model: text("pump.glb", "binary model"), fem: [json("r1.json", fem), json("r2.json", fem)] },
                     { slideId: "s-tank", model: text("tank.glb", "tank model"), fem: [] },
+                    { slideId: "s-idea", canvas: json("scene.json", { elements: [{ id: "a", type: "text" }] }) },
                 ],
                 simulator,
                 pipelineYaml: YAML.stringify(pipeline),
@@ -70,6 +71,7 @@ describe("Viewer data", () => {
                 "slides/slide-1/fem/r2.json",
                 "slides/slide-1/models/pump.glb",
                 "slides/s-tank/models/tank.glb",
+                "slides/s-idea/canvas/scene.json",
                 "manifest.json",
                 "pipeline/pipeline.yml",
                 "simulator/simulator_format.json",
@@ -81,7 +83,7 @@ describe("Viewer data", () => {
             format: VIEWER_DATA_FORMAT,
             version: 2,
             digitalTwinUid: "abc",
-            parts: { slides: { "slide-1": { model: "pump.glb", fem: ["r1.json", "r2.json"] }, "s-tank": { model: "tank.glb" } } },
+            parts: { slides: { "slide-1": { model: "pump.glb", fem: ["r1.json", "r2.json"] }, "s-tank": { model: "tank.glb" }, "s-idea": { canvas: "scene.json" } } },
         });
 
         const set = await readViewerDataFiles([{ name: "viewer_data.zip", data: zip }], { loosePipeline: false, looseModel: false });
@@ -90,6 +92,7 @@ describe("Viewer data", () => {
             "model:slide-1",
             "fem:slide-1",
             "fem:slide-1",
+            "canvas:s-idea",
             "simulator:",
             "config:",
             "pipeline:",

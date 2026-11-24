@@ -16,6 +16,7 @@ import { PipelineLog } from "../Pipeline/PipelineLogs";
 import { IMessage } from "./interfaces";
 import { natsInboxPrefix, natsUserInboxSubject, USER_PRIVATE_TOPIC_REFS } from "../../../../tools/natsInbox";
 import { sendCameraCommand } from "../Utils/cameraControl";
+import { scopeReaches } from "../Workspace/liveValues";
 
 const sc = StringCodec();
 
@@ -49,8 +50,10 @@ const useNatsSubscription = (
     handleSetChatMessages: (messages: ChatMessage[] | undefined, owner?: string, chart?: ChatChart) => void,
     // usuario conectado: las respuestas del AI Agent y su historial llegan a su buzón (natsUserInboxSubject)
     userName?: string,
-    // the slide whose 3D model is shown: a message of another slide ("$slide") does not move it
+    // the scope (slide, or slide:frame) whose 3D model is shown: a message of another one ("$slide") does not move it
     modelSlideRef?: { current: string | undefined },
+    // set here: gives the model of a scope the messages it missed while it was not shown
+    replayRef?: { current: ((scope: string) => void) | null },
 ) => {
     let femResultNames: string[] = [];
     if (femSimulationObjects.length && femResultData && Object.keys(femResultData).length !== 0) {
@@ -78,6 +81,92 @@ const useNatsSubscription = (
             femResultNames,
         };
     });
+
+    // Everything the messages are applied to, as it is now. The subscriptions last while the connection does, so
+    // they read it here: the 3D model of a slide is loaded after the viewer opens (when its slide is shown), and its
+    // objects (sensors, FEM meshes…) given when the subscriptions started would be those of no model at all.
+    const live = useRef({
+        natsSubjectsData,
+        topicIdBySensorRef,
+        sensorObjects,
+        assetObjects,
+        genericObjects,
+        femSimulationObjects,
+        setAssetsState,
+        setSensorsState,
+        setGenericObjectsState,
+        setFemSimulationObjectsState,
+        setFemResFilesLastUpdate,
+        isGroupDTDemo,
+        setDigitalTwinState,
+        handleImageUrlChange,
+        handleUpdateChatAssistantMessages,
+        handleUpdateLogMessages,
+        handlePipelineStatusChange,
+        handlePipelineLeaderReplicaIndexChange,
+        handleSetChatMessages,
+    });
+    live.current = {
+        natsSubjectsData,
+        topicIdBySensorRef,
+        sensorObjects,
+        assetObjects,
+        genericObjects,
+        femSimulationObjects,
+        setAssetsState,
+        setSensorsState,
+        setGenericObjectsState,
+        setFemSimulationObjectsState,
+        setFemResFilesLastUpdate,
+        isGroupDTDemo,
+        setDigitalTwinState,
+        handleImageUrlChange,
+        handleUpdateChatAssistantMessages,
+        handleUpdateLogMessages,
+        handlePipelineStatusChange,
+        handlePipelineLeaderReplicaIndexChange,
+        handleSetChatMessages,
+    };
+    // a message applied to the model and the rest of the page (as everything is now: live, stateRef)
+    const apply = (receivedMessage: IMessage) => {
+        const s = stateRef.current;
+        const l = live.current;
+        updateObjectsState(
+            receivedMessage,
+            l.natsSubjectsData,
+            l.topicIdBySensorRef,
+            s.sensorsState,
+            s.assetsState,
+            s.genericObjectsState,
+            s.femSimulationObjectsState,
+            s.digitalTwinSimulatorSendData,
+            l.sensorObjects,
+            l.assetObjects,
+            l.genericObjects,
+            l.femSimulationObjects,
+            l.setAssetsState,
+            l.setSensorsState,
+            l.setGenericObjectsState,
+            l.setFemSimulationObjectsState,
+            s.femResultNames,
+            l.setFemResFilesLastUpdate,
+            l.isGroupDTDemo,
+            l.setDigitalTwinState,
+            l.handleUpdateChatAssistantMessages,
+            l.handleUpdateLogMessages,
+            l.handlePipelineStatusChange,
+            l.handlePipelineLeaderReplicaIndexChange,
+            l.handleSetChatMessages,
+        );
+    };
+    const missed = useRef(createMissedMessages());
+
+    // the subjects listened to: subscribed again when they change (the twin's topics read after the connection)
+    const subjectsKey = JSON.stringify([
+        [natsSubjects].flat(),
+        userName ?? "",
+        natsSubjectsData.filter((d) => d.natsSubject && USER_PRIVATE_TOPIC_REFS.includes(d.topicRef)).map((d) => d.natsSubject),
+    ]);
 
     useEffect(() => {
         if (!natsClient) return;
@@ -110,10 +199,10 @@ const useNatsSubscription = (
                         // Binary image payload — pass bytes and mime type directly,
                         // no JSON parsing needed
                         // the topic it came on, for the Image panels that show only one topic
-                        const source = natsSubjectsData.find(
+                        const source = live.current.natsSubjectsData.find(
                             (data) => data.natsSubject && matches(mqttTopicToNatsSubject(data.natsSubject), subject),
                         );
-                        handleImageUrlChange(msg.data, contentType, source?.topicRef);
+                        live.current.handleImageUrlChange(msg.data, contentType, source?.topicRef);
                         continue;
                     }
 
@@ -123,35 +212,13 @@ const useNatsSubscription = (
                         message: sc.decode(msg.data),
                     };
 
-                    if (typeof receivedMessage.message === "string" && isOtherSlide(receivedMessage.message, modelSlideRef?.current)) continue;
-                    const s = stateRef.current;
-                    updateObjectsState(
-                        receivedMessage,
-                        natsSubjectsData,
-                        topicIdBySensorRef,
-                        s.sensorsState,
-                        s.assetsState,
-                        s.genericObjectsState,
-                        s.femSimulationObjectsState,
-                        s.digitalTwinSimulatorSendData,
-                        sensorObjects,
-                        assetObjects,
-                        genericObjects,
-                        femSimulationObjects,
-                        setAssetsState,
-                        setSensorsState,
-                        setGenericObjectsState,
-                        setFemSimulationObjectsState,
-                        s.femResultNames,
-                        setFemResFilesLastUpdate,
-                        isGroupDTDemo,
-                        setDigitalTwinState,
-                        handleUpdateChatAssistantMessages,
-                        handleUpdateLogMessages,
-                        handlePipelineStatusChange,
-                        handlePipelineLeaderReplicaIndexChange,
-                        handleSetChatMessages,
-                    );
+                    if (typeof receivedMessage.message === "string" && isOtherSlide(receivedMessage.message, modelSlideRef?.current)) {
+                        // kept for its model, until it is shown again (what moves a model: not the chat, nor the logs)
+                        const ref = live.current.natsSubjectsData.find((d) => d.natsSubject && matches(mqttTopicToNatsSubject(d.natsSubject), subject))?.topicRef;
+                        if (ref && !NOT_REPLAYED.includes(ref)) missed.current.keep(messageScope(receivedMessage.message) as string, receivedMessage);
+                        continue;
+                    }
+                    apply(receivedMessage);
                 }
             })().catch(() => undefined); // a refused subject ends its subscription: noted by the connection
         }
@@ -164,7 +231,24 @@ const useNatsSubscription = (
         };
 
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [natsClient]);
+    }, [natsClient, subjectsKey]);
+
+    // the messages the model of a scope missed while it was not shown (the last one of each topic), given to it once
+    // it is shown again; one after the other, so that each one sees the state the previous one left
+    useEffect(() => {
+        if (!replayRef) return;
+        replayRef.current = (scope: string) => {
+            missed.current.take(scope).forEach((message, i) =>
+                window.setTimeout(() => {
+                    if (modelSlideRef?.current === scope) apply(message);
+                }, 60 * (i + 1)),
+            );
+        };
+        return () => {
+            replayRef.current = null;
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [replayRef]);
 };
 
 const updateObjectsState = (
@@ -727,13 +811,49 @@ const findOnOffObjectAndSetProperty = (node: IThreeMesh, objName: string, onOff:
 
 export default useNatsSubscription;
 
-// a message of a slide ("$slide") other than that of the model shown (a message of no slide is for every slide)
-export const isOtherSlide = (text: string, modelSlide: string | undefined): boolean => {
-    if (!modelSlide || !text.includes('"$slide"')) return false;
+// The scope a message names ("$slide": a slide, or a frame of its canvas, "<slide>:<frame>"), or null
+export const messageScope = (text: string): string | null => {
+    if (!text.includes('"$slide"')) return null;
     try {
         const value = JSON.parse(text);
-        return !!value && typeof value === "object" && typeof value.$slide === "string" && value.$slide !== modelSlide;
+        return !!value && typeof value === "object" && typeof value.$slide === "string" ? value.$slide : null;
     } catch {
-        return false;
+        return null;
     }
+};
+
+// A message of another scope than that of the model shown: of another slide, or of another frame. A message of no
+// slide is for every model, and one of a slide for the models of its frames too (scopeReaches).
+export const isOtherSlide = (text: string, modelSlide: string | undefined): boolean => {
+    if (!modelSlide) return false;
+    const scope = messageScope(text);
+    return scope !== null && !scopeReaches(scope, modelSlide);
+};
+
+// The last message of each topic for the scopes whose model is not shown (another frame, another slide): given to
+// their model when it is shown again
+const MISSED_SCOPES = 20;
+// the topics whose messages are not given again (they do not move the model: the chat, the pipeline's logs)
+const NOT_REPLAYED = ["llm2sim", "dtmlog", "state2sim", "sim2llm"];
+export const createMissedMessages = () => {
+    const byScope = new Map<string, Map<string, IMessage>>();
+    return {
+        keep: (scope: string, message: IMessage) => {
+            const topics = byScope.get(scope) ?? new Map<string, IMessage>();
+            byScope.delete(scope);
+            topics.set(message.topic, message);
+            byScope.set(scope, topics);
+            while (byScope.size > MISSED_SCOPES) byScope.delete(byScope.keys().next().value as string);
+        },
+        // those for the model of a scope (its own; those of its slide stay for its other frames)
+        take: (scope: string): IMessage[] => {
+            const out: IMessage[] = [];
+            for (const [key, topics] of Array.from(byScope.entries())) {
+                if (!scopeReaches(key, scope)) continue;
+                out.push(...topics.values());
+                if (key === scope) byScope.delete(key);
+            }
+            return out;
+        },
+    };
 };

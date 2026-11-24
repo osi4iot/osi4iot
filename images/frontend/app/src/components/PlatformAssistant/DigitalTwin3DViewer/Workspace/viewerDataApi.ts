@@ -15,6 +15,8 @@ import { applyViewerConfig } from "./viewerConfigApi";
 import { parseViewerConfig } from "./viewerConfig";
 import { isZipName, readViewerPackage } from "./viewerPackage";
 import { DataFile, PART_LABELS, ViewerDataItem, pipelineNodesOf, simulatorFormatOf } from "./viewerData";
+import { CanvasScene, sanitizeCanvasScene } from "./canvas/canvasScene";
+import { saveSlideCanvas } from "./canvas/canvasApi";
 
 export interface TwinRef {
     groupId: number;
@@ -204,6 +206,31 @@ export const loadConfig = async (
     return applyViewerConfig(ref.groupId, ref.digitalTwinId, parsed, viewerSettings, auth, images);
 };
 
+// the scene of a slide's canvas (only from the .zip of all the viewer data: it names its slide)
+const loadCanvas = async (ref: SlideRef | null, file: DataFile, auth: ApiAuth): Promise<boolean> => {
+    if (!ref) {
+        toast.error(`${file.name}: a canvas comes with its slide, in the .zip of all the viewer data`);
+        return false;
+    }
+    let scene: CanvasScene | null = null;
+    try {
+        scene = sanitizeCanvasScene(JSON.parse(await file.data.text()));
+    } catch {
+        scene = null;
+    }
+    if (!scene) {
+        toast.error(`${file.name}: not the scene of a canvas`);
+        return false;
+    }
+    try {
+        await saveSlideCanvas(ref, scene, auth);
+        return true;
+    } catch (error) {
+        toast.error(`The canvas of ${ref.slideId}: ${messageOf(error)}`);
+        return false;
+    }
+};
+
 export interface ApplyContext {
     auth: ApiAuth;
     // where a model or FEM results without a slide of their own go (the slide shown)
@@ -222,7 +249,8 @@ export const applyViewerData = async (ref: TwinRef, items: ViewerDataItem[], ctx
         progress(0);
         let ok = false;
         const slideId = item.slideId ?? ctx.slideId;
-        if ((item.part === "model" || item.part === "fem") && !slideId) {
+        if (item.part === "canvas") ok = await loadCanvas(item.slideId ? { ...ref, slideId: item.slideId } : null, item.file, ctx.auth);
+        else if ((item.part === "model" || item.part === "fem") && !slideId) {
             toast.error(`${item.file.name}: load it in a 3D Model panel`);
             ok = false;
         } else if (item.part === "model") ok = await loadModel({ ...ref, slideId: slideId as string }, item.file, ctx.auth, progress);

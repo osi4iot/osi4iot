@@ -1,16 +1,19 @@
-// The chart of a 3D Surface panel: ECharts with ECharts GL (WebGL). It is a module of its own, loaded only when a
-// 3D Surface is shown (React.lazy): ECharts GL is large and the other twins do not need it.
+// The 3D chart of a Data chart (a surface, 3D points or lines): ECharts with ECharts GL (WebGL). It is a module of
+// its own, loaded only when one is shown (React.lazy): ECharts GL is large and the other twins do not need it.
 //
 // It keeps the view the user has turned and zoomed: only the first options say where the camera is.
 import { FC, useEffect, useRef, useState } from "react";
 import * as echarts from "echarts/core";
-import { TooltipComponent, VisualMapComponent } from "echarts/components";
+import { LegendComponent, TooltipComponent, VisualMapComponent } from "echarts/components";
 import { CanvasRenderer } from "echarts/renderers";
-// only the surface and its 3D grid (echarts-gl/charts would bring all the charts of ECharts GL)
+// only the surface, the 3D points and lines and their 3D grid (echarts-gl/charts would bring all the charts of
+// ECharts GL)
 import { install as SurfaceSeries } from "echarts-gl/lib/chart/surface/install";
+import { install as Scatter3DSeries } from "echarts-gl/lib/chart/scatter3D/install";
+import { install as Line3DSeries } from "echarts-gl/lib/chart/line3D/install";
 import { install as Grid3DComponent } from "echarts-gl/lib/component/grid3D/install";
 
-echarts.use([SurfaceSeries, Grid3DComponent, VisualMapComponent, TooltipComponent, CanvasRenderer]);
+echarts.use([SurfaceSeries, Scatter3DSeries, Line3DSeries, Grid3DComponent, VisualMapComponent, LegendComponent, TooltipComponent, CanvasRenderer]);
 
 export interface SurfaceChartProps {
     option: Record<string, unknown>;

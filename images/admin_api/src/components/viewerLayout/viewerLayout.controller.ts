@@ -17,9 +17,11 @@ import IRequestWithDigitalTwinAndGroup from "../group/interfaces/requestWithDigi
 import HttpException from "../../exceptions/HttpException";
 import { deleteViewerLayout, getViewerLayout, saveViewerLayout } from "./viewerLayoutDAL";
 import { IViewerLayout } from "./viewerLayoutValidation";
-import { getSlideModels, removedModelSlides, removeSlideFiles } from "../digitalTwin/slideModels";
+import { getSlideModels, movedModels, moveModels, removedModelSlides, removeSlideFiles } from "../digitalTwin/slideModels";
+import { getCanvasSlides, removedCanvasSlides, removeSlideCanvas } from "../digitalTwin/slideCanvas";
 import { refreshTopicsMessageSchema, topicIdsOfDigitalTwin } from "../topic/messageSchema";
 import { validateViewerLayout } from "./viewerLayoutValidation";
+import natsClient from "../../config/natsConfig";
 
 type Req = IRequestWithDigitalTwinAndGroup & { user?: { login?: string; name?: string; email?: string } };
 
@@ -50,8 +52,19 @@ class ViewerLayoutController implements IController {
 	// slideModels.ts, removedModelSlides): removed once the layout is saved. The slides removed.
 	private removeModelsOfLayout = async (req: Req, previous: IViewerLayout | null, next: IViewerLayout | null): Promise<string[]> => {
 		const stored = Object.keys(await getSlideModels(req.digitalTwin));
+		// a 3D Model panel moved to another frame of its canvas takes its files (movedModels); the scope it left goes
+		const filled = await moveModels(req.digitalTwin, movedModels(previous, next), stored);
+		for (const scope of filled) {
+			await natsClient.jsPublish("femResults", "create", req.digitalTwin.id, {
+				groupId: req.digitalTwin.groupId,
+				digitalTwinId: req.digitalTwin.id,
+				slideId: scope,
+			});
+		}
 		const removed = removedModelSlides(previous, next, stored);
 		await removeSlideFiles(req.digitalTwin, removed);
+		// and the scenes of the canvases it no longer has (slideCanvas.ts)
+		await removeSlideCanvas(req.digitalTwin, removedCanvasSlides(previous, next, await getCanvasSlides(req.digitalTwin)));
 		return removed;
 	};
 

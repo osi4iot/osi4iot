@@ -121,7 +121,7 @@ describe("Viewer workspace", () => {
         const onEditPanel = vi.fn();
         const { onLayoutChange } = setup({ editing: true, chartOptions, onEditPanel, addingPanel: true, onAddingPanelChange: vi.fn() });
         const dialog = screen.getByRole("dialog", { name: "Add panel" });
-        fireEvent.click(within(dialog).getByRole("radio", { name: /Chart/ }));
+        fireEvent.click(within(dialog).getByRole("radio", { name: /Time series chart/ }));
         const add = within(dialog).getByRole("button", { name: "Add panel" });
         expect(add).toBeDisabled();
         fireEvent.click(within(dialog).getByRole("checkbox", { name: /Temperature/ }));

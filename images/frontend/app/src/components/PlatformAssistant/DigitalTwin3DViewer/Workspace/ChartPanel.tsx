@@ -4,7 +4,7 @@
 // again at every refresh of the page.
 import { FC, useEffect, useMemo, useRef, useState } from "react";
 import styled from "styled-components";
-import { WorkspacePanel } from "./workspaceLayout";
+import { CHART_LIVE_WINDOW_DEFAULT, WorkspacePanel, liveTopicOfSeries } from "./workspaceLayout";
 import { ChartSeriesOption, TimeSeriesResponse, formatBucket, resolveSeries } from "./chartSeries";
 import { TimeSeriesQuery } from "./timeSeriesApi";
 import { Bucket, ChartSettings, SeriesSource, chartSettingsOf } from "./charts/chartConfig";
@@ -40,7 +40,7 @@ const Message = styled.p<{ $error?: boolean }>`
     padding: 12px;
     text-align: center;
     font-size: 13px;
-    color: ${({ $error }) => ($error ? "#f7949f" : "#9aa1aa")};
+    color: ${({ $error }) => ($error ? "#ff7383" : "#9aa1aa")};
     pointer-events: none;
 `;
 
@@ -73,7 +73,14 @@ export interface ChartDataState {
     loading: boolean;
     missing: number;
     hasSeries: boolean;
+    // why some series have no data (the asset's state history is off; nothing has arrived yet from a topic)
+    notices?: string[];
 }
+
+export const HISTORY_OFF_NOTICE = "The history of the asset's state is off: turn it on in the asset (Edit asset › State history)";
+export const LIVE_EMPTY_NOTICE = "Live series: nothing has arrived yet since the viewer was opened";
+const LIVE_REFRESH_MS = 1000;
+const formatWindow = (seconds: number) => (seconds % 60 === 0 ? `${seconds / 60} min` : `${seconds} s`);
 
 // The data of a chart panel: asked for when the panel, the range or the refresh tick change
 export const useChartData = (
@@ -93,14 +100,32 @@ export const useChartData = (
     const [data, setData] = useState<TimeSeriesResponse | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
+    // a chart of only live series (since the viewer was opened): the last liveWindow seconds, drawn again every second
+    const onlyLive = found.length > 0 && found.every((o) => liveTopicOfSeries(o.sensor) !== null);
+    const liveWindow = panel.liveWindow ?? CHART_LIVE_WINDOW_DEFAULT;
+    const [liveTick, setLiveTick] = useState(0);
+    useEffect(() => {
+        if (!onlyLive || paused) return;
+        const timer = window.setInterval(() => setLiveTick((n) => n + 1), LIVE_REFRESH_MS);
+        return () => window.clearInterval(timer);
+    }, [onlyLive, paused]);
     const { range, info } = useMemo(
-        () => panelTimeRange(pageRange, now(), panel.timeFrom, panel.timeShift),
+        () => {
+            if (onlyLive) {
+                const to = now();
+                return { range: { from: to - liveWindow * 1000, to }, info: `Live: the last ${formatWindow(liveWindow)}` };
+            }
+            return panelTimeRange(pageRange, now(), panel.timeFrom, panel.timeShift);
+        },
         // eslint-disable-next-line react-hooks/exhaustive-deps
-        [pageRange, panel.timeFrom, panel.timeShift, refreshTick],
+        [pageRange, panel.timeFrom, panel.timeShift, refreshTick, onlyLive, liveWindow, liveTick],
     );
     const auto = Math.min(MAX_POINTS, Math.max(MIN_POINTS, Math.round(width / (settings.viz === "barchart" ? 24 : 2))));
     const points = panel.maxDataPoints ?? (Math.round(auto / 20) * 20 || 300);
-    const query = useMemo(() => found.map(({ sensorId, field, index }) => ({ sensorId, field, index })), [found]);
+    const query = useMemo(
+        () => found.map(({ sensorId, field, index, sensor }) => ({ sensorId, field, index, ...(sensorId === 0 ? { sensor } : {}) })),
+        [found],
+    );
     const queryKey = JSON.stringify(query);
     const requested = useRef(0);
     // the request on its way: a refresh does not cancel it (with a fast refresh, a slow query would never
@@ -156,7 +181,7 @@ export const useChartData = (
                 if (id === requested.current) setLoading(false);
             });
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [groupId, queryKey, range.from, range.to, points, panel.interval, fetchSeries, paused, width === 0, refreshTick, histogramKey]);
+    }, [groupId, queryKey, range.from, range.to, points, panel.interval, fetchSeries, paused, width === 0, refreshTick, histogramKey, liveTick]);
 
     const sources = useMemo<SeriesSource[]>(() => {
         if (!data) return [];
@@ -174,7 +199,15 @@ export const useChartData = (
         });
     }, [data, found, refs]);
 
-    return { settings, sources, data, range, info, error, loading, missing: missing.length, hasSeries: found.length > 0 };
+    // the series of the asset's state whose history is off, and those of the topics that have nothing yet
+    const notices = useMemo(() => {
+        const out: string[] = [];
+        if (data?.series.some((s) => s.historyOff && !(s.points?.length || s.bins?.length))) out.push(HISTORY_OFF_NOTICE);
+        if (data?.series.some((s) => s.live && !(s.points?.length || s.bins?.length))) out.push(LIVE_EMPTY_NOTICE);
+        return out;
+    }, [data]);
+
+    return { settings, sources, data, range, info, error, loading, missing: missing.length, hasSeries: found.length > 0, notices };
 };
 
 export interface ChartPanelProps {
@@ -214,22 +247,28 @@ const ChartPanel: FC<ChartPanelProps> = ({ panel, groupId, options, fetchSeries,
 };
 
 export const ChartBody: FC<{ state: ChartDataState; label: string }> = ({ state, label }) => {
-    const { settings, sources, data, range, info, error, loading, missing, hasSeries } = state;
+    const { settings, sources, data, range, info, error, loading, missing, hasSeries, notices = [] } = state;
     let message: { text: string; error?: boolean } | null = null;
     if (!hasSeries) message = { text: missing ? "The sensors of this chart no longer exist." : "This chart has no series. Edit it to add some.", error: missing > 0 };
     else if (error && !data) message = { text: error, error: true };
     else if (loading && !data) message = { text: "Loading…" };
-    else if (data && !data.series.some((s) => (s.points?.length ?? 0) > 0 || (s.bins?.length ?? 0) > 0)) message = { text: "No data" };
+    else if (data && !data.series.some((s) => (s.points?.length ?? 0) > 0 || (s.bins?.length ?? 0) > 0)) message = { text: notices.length ? notices.join(". ") : "No data" };
     const bucket = data?.bucketSeconds ?? 10;
-    const notes = !!(info || (missing > 0 && hasSeries) || (error && data));
+    const notes = !!(info || (missing > 0 && hasSeries) || (error && data) || (notices.length && !message));
     return (
         <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column" }}>
             {notes && (
                 <Notes>
                     {info && <span style={{ color: "#9cc2ff" }}>{info}</span>}
-                    {missing > 0 && hasSeries && <span style={{ color: "#e0b232" }}>{missing === 1 ? "1 series no longer exists" : `${missing} series no longer exist`}</span>}
+                    {!message &&
+                        notices.map((n) => (
+                            <span key={n} style={{ color: "#f2cc0c" }}>
+                                {n}
+                            </span>
+                        ))}
+                    {missing > 0 && hasSeries && <span style={{ color: "#f2cc0c" }}>{missing === 1 ? "1 series no longer exists" : `${missing} series no longer exist`}</span>}
                     {error && data && (
-                        <span style={{ color: "#f7949f" }} title={error}>
+                        <span style={{ color: "#ff7383" }} title={error}>
                             Not updated
                         </span>
                     )}

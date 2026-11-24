@@ -35,8 +35,38 @@ function threeDecoders(): Plugin {
   }
 }
 
+// Las fuentes de Excalidraw (paneles Canvas del Viewer) se sirven desde la propia plataforma, no desde un CDN
+// (instalaciones sin Internet): de node_modules en desarrollo y copiadas a dist/excalidraw-assets en build. Sin
+// Xiaolai (13 MB, solo para chino): esos textos usan la fuente del sistema. El cliente apunta a ellas con
+// window.EXCALIDRAW_ASSET_PATH = "/excalidraw-assets/".
+const excalidrawFontsDir = fileURLToPath(new URL('./node_modules/@excalidraw/excalidraw/dist/prod/fonts/', import.meta.url))
+function excalidrawFonts(): Plugin {
+  const files = readdirSync(excalidrawFontsDir, { withFileTypes: true })
+    .filter((d) => d.isDirectory() && d.name !== 'Xiaolai')
+    .flatMap((d) =>
+      readdirSync(excalidrawFontsDir + d.name)
+        .filter((name) => name.endsWith('.woff2'))
+        .map((name) => ({ publicPath: `excalidraw-assets/fonts/${d.name}/${name}`, absPath: `${excalidrawFontsDir}${d.name}/${name}` })),
+    )
+  return {
+    name: 'excalidraw-fonts',
+    configureServer(server) {
+      server.middlewares.use((req, res, next) => {
+        const url = (req.url || '').split('?')[0].replace(/^\//, '')
+        const file = files.find((f) => f.publicPath === url)
+        if (!file) return next()
+        res.setHeader('Content-Type', 'font/woff2')
+        res.end(readFileSync(file.absPath))
+      })
+    },
+    generateBundle() {
+      for (const f of files) this.emitFile({ type: 'asset', fileName: f.publicPath, source: readFileSync(f.absPath) })
+    },
+  }
+}
+
 export default defineConfig({
-  plugins: [react(), threeDecoders()],
+  plugins: [react(), threeDecoders(), excalidrawFonts()],
   resolve: {
     alias: [
       // ECharts GL (paneles 3D Surface) importa archivos internos de ECharts y zrender sin ".js"

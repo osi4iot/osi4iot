@@ -1,4 +1,5 @@
 import styled, { keyframes, css } from "styled-components";
+import { scrollbarStyle } from "../../../Tools/FormTools";
 
 // CSS estándar para el resizing - mejor performance
 export const resizableStyles = `
@@ -339,27 +340,13 @@ export const Tab = styled.button<{ isActive: boolean }>`
     }
 `;
 
+// its scrollbar kept clear of the resize handle of the panel's right edge (ResizeHandle, 8 px)
 export const PanelContent = styled.div`
     flex: 1;
     overflow-y: auto;
+    margin-right: 12px;
     background-color: #2a2a2a;
-
-    &::-webkit-scrollbar {
-        width: 8px;
-    }
-
-    &::-webkit-scrollbar-track {
-        background: #2a2a2a;
-    }
-
-    &::-webkit-scrollbar-thumb {
-        background: #4b5563;
-        border-radius: 4px;
-    }
-
-    &::-webkit-scrollbar-thumb:hover {
-        background: #6b7280;
-    }
+    ${scrollbarStyle}
 `;
 
 export const TabContent = styled.div`

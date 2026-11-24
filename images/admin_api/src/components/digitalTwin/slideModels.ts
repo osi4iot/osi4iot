@@ -7,6 +7,11 @@
 //       femResJson/<results>.json      its FEM results (the newest maxNumResFemFiles)
 //       femResParquet/…                the same, converted by pipelines for the AI agents
 //
+// A slide with a canvas can have a 3D Model panel in each frame of its drawing: the scope of such a model is
+// "<slideId>:<frameId>" (MODEL_SCOPE), its files under slides/<slideId>/frames/<frameId>/ (the same folders). The
+// scope is what the API takes (?slide=), what the database keeps (slide_id) and what the messages of that model's
+// simulator carry ("$slide"). A model panel moved to another frame takes its files with it (movedModels).
+//
 // grafanadb.digital_twin_slide_model keeps, for each slide with a model, the file's name and the sensors the model
 // points at: the twin's sensors (digital_twin_sensor) are the union of those of all its models.
 //
@@ -29,13 +34,26 @@ export const SLIDE_ID = /^[A-Za-z0-9_-]{1,40}$/;
 export const FIRST_SLIDE_ID = "slide-1";
 // the folders of a slide's model
 export const MODEL_FOLDERS = ["gltfFile", "femResJson", "femResParquet"];
+// the scope of a model: a slide, or a frame of its canvas (slide:frame)
+export const MODEL_SCOPE = /^[A-Za-z0-9_-]{1,40}(?::[A-Za-z0-9_-]{1,40})?$/;
+// the folder of a slide's frames (slides/<slideId>/frames/<frameId>/…)
+export const FRAMES_FOLDER = "frames";
+// where the files of moved models wait while they are moved (slides/<slideId>/moving/<n>/…)
+const MOVING_FOLDER = "moving";
+
+export const scopeOf = (slideId: string, frame?: string): string => (frame ? `${slideId}:${frame}` : slideId);
+export const slideOfScope = (scope: string): string => scope.split(":")[0];
 
 export const twinKeyBase = (digitalTwin: Pick<IDigitalTwin, "orgId" | "groupId" | "id">): string =>
 	`org_data/org_${digitalTwin.orgId}/group_${digitalTwin.groupId}/digitalTwin_${digitalTwin.id}`;
 
-// where the files of a slide's model are ("": the root of the twin's folder, as before slides had models)
-export const modelKeyBase = (digitalTwin: Pick<IDigitalTwin, "orgId" | "groupId" | "id">, slideId: string): string =>
-	slideId ? `${twinKeyBase(digitalTwin)}/slides/${slideId}` : twinKeyBase(digitalTwin);
+// where the files of a model are, by its scope: a slide (slides/<slideId>), a frame of its canvas
+// (slides/<slideId>/frames/<frameId>); "": the root of the twin's folder, as before slides had models
+export const modelKeyBase = (digitalTwin: Pick<IDigitalTwin, "orgId" | "groupId" | "id">, scope: string): string => {
+	if (!scope) return twinKeyBase(digitalTwin);
+	const [slideId, frame] = scope.split(":");
+	return `${twinKeyBase(digitalTwin)}/slides/${slideId}${frame ? `/${FRAMES_FOLDER}/${frame}` : ""}`;
+};
 
 // the slide of a request (?slide=…): "" when none; null when it is not a slide's id
 export const slideOfQuery = (value: unknown): string | null => {
@@ -43,10 +61,16 @@ export const slideOfQuery = (value: unknown): string | null => {
 	return typeof value === "string" && SLIDE_ID.test(value) ? value : null;
 };
 
+// the scope of a model of a request (?slide=<slideId> or <slideId>:<frameId>): "" when none; null when invalid
+export const scopeOfQuery = (value: unknown): string | null => {
+	if (value === undefined || value === "") return "";
+	return typeof value === "string" && MODEL_SCOPE.test(value) ? value : null;
+};
+
 export const SLIDE_MODEL_DDL = `
 CREATE TABLE IF NOT EXISTS grafanadb.digital_twin_slide_model(
 	digital_twin_id bigint NOT NULL,
-	slide_id VARCHAR(40) NOT NULL,
+	slide_id VARCHAR(81) NOT NULL,
 	file_name VARCHAR(200) NOT NULL,
 	sensors_ref TEXT[] NOT NULL DEFAULT '{}',
 	updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -60,6 +84,13 @@ CREATE TABLE IF NOT EXISTS grafanadb.digital_twin_slide_model(
 // Every replica at start, before serving
 export const ensureSlideModelTable = async (): Promise<void> => {
 	await pool.query(SLIDE_MODEL_DDL);
+	// slide_id is a scope (slide:frame) since the frames of a canvas have models: the tables of older versions grow
+	const width = await pool.query(
+		`SELECT character_maximum_length AS len FROM information_schema.columns
+		WHERE table_schema = 'grafanadb' AND table_name = 'digital_twin_slide_model' AND column_name = 'slide_id'`
+	);
+	const len = Number(width.rows[0]?.len ?? 81);
+	if (len < 81) await pool.query("ALTER TABLE grafanadb.digital_twin_slide_model ALTER COLUMN slide_id TYPE VARCHAR(81)");
 };
 
 export interface ISlideModelRow {
@@ -131,15 +162,30 @@ export interface ISlideModelInfo {
 
 const emptyInfo = (): ISlideModelInfo => ({ gltfFileName: "", gltfFileDate: "", gltfFileSize: 0, femResults: 0 });
 
-// the files under <twin>/slides/, by slide (from their keys: slides/<slideId>/<folder>/<file>)
+// the scope, folder and file of a key under <twin>/slides/: slides/<slideId>/<folder>/<file> or
+// slides/<slideId>/frames/<frameId>/<folder>/<file>; null for anything else (a canvas, files being moved…)
+export const modelFileOfKey = (rest: string): { scope: string; folder: string; file: string } | null => {
+	const parts = rest.split("/");
+	if (parts.length === 3 && SLIDE_ID.test(parts[0]) && parts[1] !== FRAMES_FOLDER && parts[2]) {
+		return { scope: parts[0], folder: parts[1], file: parts[2] };
+	}
+	if (parts.length === 5 && SLIDE_ID.test(parts[0]) && parts[1] === FRAMES_FOLDER && SLIDE_ID.test(parts[2]) && parts[4]) {
+		return { scope: scopeOf(parts[0], parts[2]), folder: parts[3], file: parts[4] };
+	}
+	return null;
+};
+
+// the files under <twin>/slides/, by scope (a slide, or a frame of its canvas: modelFileOfKey)
 export const slideModelsFromKeys = (keyBase: string, objects: IS3Object[]): Record<string, ISlideModelInfo> => {
 	const prefix = `${keyBase}/slides/`;
 	const bySlide: Record<string, ISlideModelInfo> = {};
 	const newest: Record<string, number> = {};
 	for (const o of objects) {
 		if (!o.key.startsWith(prefix)) continue;
-		const [slideId, folder, ...rest] = o.key.slice(prefix.length).split("/");
-		if (!SLIDE_ID.test(slideId) || rest.length !== 1 || !rest[0]) continue;
+		const found = modelFileOfKey(o.key.slice(prefix.length));
+		if (!found) continue;
+		const { scope: slideId, folder } = found;
+		const rest = [found.file];
 		const info = (bySlide[slideId] ??= emptyInfo());
 		if (folder === "gltfFile") {
 			const time = new Date(o.lastModified).getTime() || 0;
@@ -239,28 +285,89 @@ export const removePrefix = async (prefix: string): Promise<number> => {
 	return keys.length;
 };
 
-// removes the files of these slides (model, FEM results and their Parquet) and what the database keeps of them
-export const removeSlideFiles = async (digitalTwin: IDigitalTwin, slideIds: string[]): Promise<void> => {
-	const ids = slideIds.filter((id) => SLIDE_ID.test(id));
+const removeModelFolders = async (digitalTwin: Pick<IDigitalTwin, "orgId" | "groupId" | "id">, scope: string): Promise<void> => {
+	for (const folder of MODEL_FOLDERS) await removePrefix(`${modelKeyBase(digitalTwin, scope)}/${folder}`);
+};
+
+// removes the files of these scopes (model, FEM results and their Parquet) and what the database keeps of them
+export const removeSlideFiles = async (digitalTwin: IDigitalTwin, scopes: string[]): Promise<void> => {
+	const ids = scopes.filter((id) => MODEL_SCOPE.test(id));
 	if (ids.length === 0) return;
-	for (const id of ids) await removePrefix(modelKeyBase(digitalTwin, id));
+	// only the model's folders: its Canvas (slideCanvas.ts) has its own life
+	for (const id of ids) await removeModelFolders(digitalTwin, id);
 	await deleteSlideModelRows(digitalTwin.id, ids);
 	await refreshTwinFromModels(digitalTwin);
 };
 
-// a duplicated slide gets a copy of the files of its model (the Parquet too: pipelines finds it current)
-export const copySlideFiles = async (digitalTwin: IDigitalTwin, from: string, to: string): Promise<number> => {
-	const copied = await copyPrefix(modelKeyBase(digitalTwin, from), modelKeyBase(digitalTwin, to), MODEL_FOLDERS);
-	const row = (await getSlideModelRows(digitalTwin.id)).find((r) => r.slideId === from);
-	if (row) await setSlideModelRow(digitalTwin.id, to, row.fileName, row.sensorsRef);
-	return copied;
+// a duplicated slide gets a copy of the files of its models, those of the frames of its canvas too (the Parquet
+// too: pipelines finds it current), and of its Canvas (whose frames keep their ids). The scopes copied.
+export const copySlideFiles = async (digitalTwin: IDigitalTwin, from: string, to: string): Promise<{ copied: number; scopes: string[] }> => {
+	const copied = await copyPrefix(modelKeyBase(digitalTwin, from), modelKeyBase(digitalTwin, to), [...MODEL_FOLDERS, "canvas", FRAMES_FOLDER]);
+	const scopes: string[] = [];
+	for (const row of await getSlideModelRows(digitalTwin.id)) {
+		if (slideOfScope(row.slideId) !== from) continue;
+		const scope = `${to}${row.slideId.slice(from.length)}`;
+		await setSlideModelRow(digitalTwin.id, scope, row.fileName, row.sensorsRef);
+		scopes.push(scope);
+	}
+	return { copied, scopes };
+};
+
+// A model panel moved to another frame (or into a frame, or out of it): its files go with it, to its new scope.
+// The files are first copied apart (two models can swap their frames), then the targets emptied and filled, and the
+// database follows. The scopes left behind are removed with removedModelSlides (they had a model and no longer do).
+// Returns the scopes filled (their FEM results are converted again by pipelines).
+export const moveModels = async (digitalTwin: IDigitalTwin, moves: IModelMove[], stored: string[]): Promise<string[]> => {
+	const todo = moves.filter((m) => stored.includes(m.from) && m.from !== m.to);
+	if (todo.length === 0) return [];
+	const rows = await getSlideModelRows(digitalTwin.id);
+	const base = twinKeyBase(digitalTwin);
+	const staged = todo.map((m, i) => ({ ...m, tmp: `${base}/slides/${slideOfScope(m.from)}/${MOVING_FOLDER}/${i}` }));
+	for (const m of staged) await copyPrefix(modelKeyBase(digitalTwin, m.from), m.tmp, MODEL_FOLDERS);
+	for (const m of staged) {
+		await removeModelFolders(digitalTwin, m.to);
+		await copyPrefix(m.tmp, modelKeyBase(digitalTwin, m.to), MODEL_FOLDERS);
+		await removePrefix(m.tmp);
+	}
+	await deleteSlideModelRows(digitalTwin.id, staged.map((m) => m.to));
+	for (const m of staged) {
+		const row = rows.find((r) => r.slideId === m.from);
+		if (row) await setSlideModelRow(digitalTwin.id, m.to, row.fileName, row.sensorsRef);
+	}
+	return staged.map((m) => m.to);
 };
 
 // ---------------------------------------------------------------------------------------------------------
 // The layout decides which slides keep their files
 
+// the scopes of the 3D Model panels of a layout (a slide, or slide:frame for one in a frame of its canvas)
 const modelSlides = (layout: IViewerLayout | null | undefined): Set<string> =>
-	new Set((layout?.slides ?? []).filter((s) => s.panels.some((p) => p.type === "model")).map((s) => s.id));
+	new Set((layout?.slides ?? []).flatMap((s) => s.panels.filter((p) => p.type === "model").map((p) => scopeOf(s.id, p.frame))));
+
+export interface IModelMove {
+	from: string;
+	to: string;
+}
+
+// the 3D Model panels whose scope changes from `previous` to `next` (the same panel of the same slide, in another
+// frame): their files go with them (moveModels)
+export const movedModels = (previous: IViewerLayout | null, next: IViewerLayout | null): IModelMove[] => {
+	if (!previous || !next) return [];
+	const moves: IModelMove[] = [];
+	for (const slide of next.slides) {
+		const before = previous.slides.find((s) => s.id === slide.id);
+		if (!before) continue;
+		for (const panel of slide.panels) {
+			if (panel.type !== "model") continue;
+			const old = before.panels.find((p) => p.id === panel.id && p.type === "model");
+			if (!old) continue;
+			const from = scopeOf(slide.id, old.frame);
+			const to = scopeOf(slide.id, panel.frame);
+			if (from !== to) moves.push({ from, to });
+		}
+	}
+	return moves;
+};
 
 // The slides whose files go when the group's layout becomes `next` (previous: the layout saved until now; null: the
 // automatic one, whose only slide is FIRST_SLIDE_ID): those of `stored` (the slides with files) that are not in
@@ -274,13 +381,15 @@ export const removedModelSlides = (
 	const nextIds = new Set(next ? next.slides.map((s) => s.id) : [FIRST_SLIDE_ID]);
 	const before = previous ? modelSlides(previous) : new Set([FIRST_SLIDE_ID]);
 	const after = next ? modelSlides(next) : new Set([FIRST_SLIDE_ID]);
-	return stored.filter((id) => !nextIds.has(id) || (before.has(id) && !after.has(id)));
+	return stored.filter((id) => !nextIds.has(slideOfScope(id)) || (before.has(id) && !after.has(id)));
 };
 
 // The slides in the order of the layout (the automatic one: FIRST_SLIDE_ID), and then the others with files
+// (the frames of a slide right after it)
 export const slidesInOrder = (layout: IViewerLayout | null, stored: string[]): string[] => {
 	const order = layout ? layout.slides.map((s) => s.id) : [FIRST_SLIDE_ID];
-	return [...order.filter((id) => stored.includes(id)), ...stored.filter((id) => !order.includes(id)).sort()];
+	const ofSlide = (id: string) => stored.filter((s) => slideOfScope(s) === id).sort((a, b) => (a === id ? -1 : b === id ? 1 : a.localeCompare(b)));
+	return [...order.flatMap(ofSlide), ...stored.filter((s) => !order.includes(slideOfScope(s))).sort()];
 };
 
 // ---------------------------------------------------------------------------------------------------------

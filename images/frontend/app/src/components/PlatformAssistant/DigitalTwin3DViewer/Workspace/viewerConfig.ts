@@ -143,7 +143,8 @@ export const checkViewerConfigRefs = (
             for (const panel of slide.panels) {
                 if (panel.type !== "chart") continue;
                 for (const s of panel.series ?? []) {
-                    if (fields.has(`${s.sensor}|${s.field}`)) continue;
+                    // the asset's state and the live values are not sensors: nothing to check
+                    if (fields.has(`${s.sensor}|${s.field}`) || s.sensor.startsWith("@")) continue;
                     const what = sensors.has(s.sensor) ? `${s.sensor}.${s.field}` : s.sensor;
                     const where = `${slide.title} › ${panelTitle(panel)}`;
                     if (!missing.has(what)) missing.set(what, new Set());

@@ -7,6 +7,13 @@
 //             a list of rows [[z, z, …], …] (a row for each y, a value for each x) or an object
 //             { z: [[…], …], x: [...], y: [...] }; without x and y, the panel's ranges.
 //
+// A function can be drawn only up to a height (clipAbove: a number or one of its parameters): above it there is no
+// surface, and its edge follows that height smoothly (the points of the grid next to it are moved onto it), as the
+// drawing of a bowl cut at a level.
+//
+// A function's ranges of x and y can follow a message too (range: the field of a topic with {xMin, xMax, yMin, yMax},
+// e.g. a window around a minimum computed by the pipeline): its own ranges until it arrives, or when it is not valid.
+//
 // admin_api (viewerLayoutValidation.ts) checks the same settings.
 import { LiveMessage, valueAt } from "../liveValues";
 import { compileSurfaceExpression, isReservedSurfaceName, SURFACE_EXPRESSION_MAX_LENGTH } from "./surfaceExpression";
@@ -24,7 +31,8 @@ export const SURFACE_DATA_MAX = 200;
 export const SURFACE_LABEL_MAX = 40;
 
 const PARAM_NAME = /^[A-Za-z_][A-Za-z0-9_]{0,19}$/;
-const TOPIC = /^[A-Za-z0-9_.-]{1,60}$/;
+// a topic, or the state of the twin's asset (dataChart.ts, ASSET_STATE_SOURCE)
+const TOPIC = /^(@assetState|[A-Za-z0-9_.-]{1,60})$/;
 const PATH = /^[A-Za-z0-9_-]+(\.[A-Za-z0-9_-]+){0,15}$/;
 
 export interface SurfaceParam {
@@ -36,8 +44,18 @@ export interface SurfaceParam {
     path?: string;
 }
 
+// where the ranges of the axes come from: the field of a topic with { xMin, xMax, yMin?, yMax? }
+export interface LiveRange {
+    topicRef: string;
+    path: string;
+}
+
 export interface SurfaceOptions {
     mode: SurfaceMode;
+    // function: its ranges of x and y from a message (liveRangeOf)
+    range?: LiveRange;
+    // function: drawn only up to this height: a number, or the name of one of its parameters
+    clipAbove?: number | string;
     expression?: string;
     params?: SurfaceParam[];
     // data: where the grid is
@@ -104,7 +122,13 @@ export const sanitizeSurface = (raw: unknown): SurfaceOptions | null => {
                 }
                 return param;
             });
-        if (Number.isInteger(s.steps) && (s.steps as number) >= SURFACE_STEPS_MIN && (s.steps as number) <= SURFACE_STEPS_MAX) surface.steps = s.steps as number;
+        const range = sanitizeLiveRange(s.range);
+        if (range) surface.range = range;
+        if (isNum(s.clipAbove) || (typeof s.clipAbove === "string" && (surface.params ?? []).some((p) => p.name === s.clipAbove))) {
+            surface.clipAbove = s.clipAbove as number | string;
+        }
+        if (Number.isInteger(s.steps) && (s.steps as number) >= SURFACE_STEPS_MIN && (s.steps as number) <= SURFACE_STEPS_MAX)
+            surface.steps = s.steps as number;
     } else {
         if (typeof s.topicRef === "string" && TOPIC.test(s.topicRef)) surface.topicRef = s.topicRef;
         if (typeof s.path === "string" && PATH.test(s.path)) surface.path = s.path;
@@ -122,11 +146,37 @@ export const sanitizeSurface = (raw: unknown): SurfaceOptions | null => {
     return surface;
 };
 
+export const sanitizeLiveRange = (raw: unknown): LiveRange | undefined => {
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return undefined;
+    const r = raw as Record<string, unknown>;
+    return typeof r.topicRef === "string" && TOPIC.test(r.topicRef) && typeof r.path === "string" && PATH.test(r.path)
+        ? { topicRef: r.topicRef, path: r.path }
+        : undefined;
+};
+
+// The ranges a message gives ({xMin, xMax} and, for a surface, {yMin, yMax}: finite, each min below its max), or null
+export const liveRangeOf = (
+    range: LiveRange | undefined,
+    get: (topicRef: string) => LiveMessage | undefined,
+    withY: boolean,
+): { xMin: number; xMax: number; yMin?: number; yMax?: number } | null => {
+    if (!range) return null;
+    const value = valueAt(get(range.topicRef)?.payload, range.path.split("."));
+    if (!value || typeof value !== "object") return null;
+    const v = value as Record<string, unknown>;
+    if (!isNum(v.xMin) || !isNum(v.xMax) || v.xMin >= v.xMax) return null;
+    if (!withY) return { xMin: v.xMin, xMax: v.xMax };
+    if (!isNum(v.yMin) || !isNum(v.yMax) || v.yMin >= v.yMax) return null;
+    return { xMin: v.xMin, xMax: v.xMax, yMin: v.yMin, yMax: v.yMax };
+};
+
 // The topics a surface follows
 export const surfaceTopics = (surface: SurfaceOptions | undefined): string[] => {
     if (!surface) return [];
     if (surface.mode === "data") return surface.topicRef ? [surface.topicRef] : [];
-    return Array.from(new Set((surface.params ?? []).map((p) => p.topicRef).filter((t): t is string => !!t)));
+    const topics = (surface.params ?? []).map((p) => p.topicRef).filter((t): t is string => !!t);
+    if (surface.range) topics.push(surface.range.topicRef);
+    return Array.from(new Set(topics));
 };
 
 // A surface ready to draw: its points row by row (a row for each y, x growing), its shape and the range of z
@@ -136,6 +186,9 @@ export interface SurfaceGrid {
     columns: number;
     zMin: number;
     zMax: number;
+    // the values of x and y of the grid (its points can be moved: clipGrid)
+    xs?: number[];
+    ys?: number[];
 }
 
 export type SurfaceResult = { grid: SurfaceGrid; note?: string } | { error: string };
@@ -177,12 +230,17 @@ export const surfaceParamValues = (params: SurfaceParam[], get: (topicRef: strin
 // function: the formula over the grid, with the values of the parameters
 export const computeFunctionSurface = (surface: SurfaceOptions, get: (topicRef: string) => LiveMessage | undefined): SurfaceResult => {
     const params = surface.params ?? [];
-    const compiled = compileSurfaceExpression(surface.expression ?? "", params.map((p) => p.name));
+    const compiled = compileSurfaceExpression(
+        surface.expression ?? "",
+        params.map((p) => p.name),
+    );
     if ("error" in compiled) return { error: compiled.error };
     const { values, waiting } = surfaceParamValues(params, get);
     const steps = surface.steps ?? SURFACE_DEFAULT_STEPS;
-    const xs = axisValues(surface.xMin, surface.xMax, steps);
-    const ys = axisValues(surface.yMin, surface.yMax, steps);
+    // the ranges of a message, else its own
+    const range = liveRangeOf(surface.range, get, true) ?? surface;
+    const xs = axisValues(range.xMin, range.xMax, steps);
+    const ys = axisValues(range.yMin as number, range.yMax as number, steps);
     const data: [number, number, number][] = [];
     const vars = values;
     for (const y of ys) {
@@ -192,10 +250,48 @@ export const computeFunctionSurface = (surface: SurfaceOptions, get: (topicRef: 
             data.push([x, y, compiled.evaluate(vars)]);
         }
     }
+    const cap = typeof surface.clipAbove === "number" ? surface.clipAbove : surface.clipAbove !== undefined ? values[surface.clipAbove] : undefined;
+    if (cap !== undefined && Number.isFinite(cap)) clipGrid(data, ys.length, xs.length, cap);
     return {
-        grid: { data, rows: ys.length, columns: xs.length, ...rangeOf(data) },
+        grid: { data, rows: ys.length, columns: xs.length, ...rangeOf(data), xs, ys },
         note: waiting.length ? `Waiting for the value of ${waiting.join(", ")}: shown with its own value` : undefined,
     };
+};
+
+// The grid without what is above a height: a point above it next to one below (of the 8 around it) is moved onto
+// the line between them, where the height is reached (linearly), so that the edge follows the level; the others are
+// holes (NaN)
+export const clipGrid = (data: [number, number, number][], rows: number, columns: number, cap: number) => {
+    const z = data.map((d) => d[2]);
+    const below = (k: number) => Number.isFinite(z[k]) && z[k] <= cap;
+    for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < columns; c++) {
+            const k = r * columns + c;
+            if (below(k)) continue;
+            // the neighbour below that leaves the point closest to where it is
+            let best = -1;
+            let bestT = -1;
+            for (let dr = -1; dr <= 1; dr++) {
+                for (let dc = -1; dc <= 1; dc++) {
+                    if ((!dr && !dc) || r + dr < 0 || r + dr >= rows || c + dc < 0 || c + dc >= columns) continue;
+                    const n = (r + dr) * columns + c + dc;
+                    if (!below(n)) continue;
+                    const t = Number.isFinite(z[k]) ? (cap - z[n]) / (z[k] - z[n]) : 0;
+                    if (t > bestT) {
+                        bestT = t;
+                        best = n;
+                    }
+                }
+            }
+            if (best < 0) {
+                data[k] = [data[k][0], data[k][1], NaN];
+                continue;
+            }
+            const [nx, ny] = data[best];
+            const [px, py] = data[k];
+            data[k] = [nx + bestT * (px - nx), ny + bestT * (py - ny), cap];
+        }
+    }
 };
 
 const numberOr = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : NaN);
@@ -217,7 +313,8 @@ export const computeDataSurface = (surface: SurfaceOptions, get: (topicRef: stri
     }
     const columns = Math.min(...(rowsIn as unknown[][]).map((row) => row.length));
     if (columns < 2) return { error: "The grid needs at least 2 values in each row" };
-    if (rowsIn.length > SURFACE_DATA_MAX || columns > SURFACE_DATA_MAX) return { error: `The grid can have at most ${SURFACE_DATA_MAX} × ${SURFACE_DATA_MAX} values` };
+    if (rowsIn.length > SURFACE_DATA_MAX || columns > SURFACE_DATA_MAX)
+        return { error: `The grid can have at most ${SURFACE_DATA_MAX} × ${SURFACE_DATA_MAX} values` };
     const rows = rowsIn.length;
     const notes: string[] = [];
     const axis = (values: unknown, count: number, min: number, max: number, name: string) => {
@@ -311,8 +408,16 @@ export const surfaceChartOption = (surface: SurfaceOptions, grid: SurfaceGrid): 
             formatter: (v: number) => String(roundForAxis(v)),
             inRange: { color: SURFACE_PALETTES[surface.colors ?? "viridis"] },
         },
-        xAxis3D: { ...axis(surface.xLabel, "x"), min: grid.data[0]?.[0], max: grid.data[grid.columns - 1]?.[0] },
-        yAxis3D: { ...axis(surface.yLabel, "y"), min: grid.data[0]?.[1], max: grid.data[grid.data.length - 1]?.[1] },
+        xAxis3D: {
+            ...axis(surface.xLabel, "x"),
+            min: grid.xs?.[0] ?? grid.data[0]?.[0],
+            max: grid.xs?.[grid.xs.length - 1] ?? grid.data[grid.columns - 1]?.[0],
+        },
+        yAxis3D: {
+            ...axis(surface.yLabel, "y"),
+            min: grid.ys?.[0] ?? grid.data[0]?.[1],
+            max: grid.ys?.[grid.ys.length - 1] ?? grid.data[grid.data.length - 1]?.[1],
+        },
         zAxis3D: { ...axis(surface.zLabel, "z"), min: zMin, max: zMax, ...(fixedZ || !autoZ.step ? {} : { interval: autoZ.step }) },
         grid3D: {
             boxWidth: 100,
@@ -320,7 +425,8 @@ export const surfaceChartOption = (surface: SurfaceOptions, grid: SurfaceGrid): 
             boxHeight: 60,
             // the point under the mouse projected on the three planes
             axisPointer: { show: true, lineStyle: { color: "rgba(255, 255, 255, 0.55)", width: 1 }, label: { show: false } },
-            viewControl: { distance: 210, alpha: 25, beta: 40, damping: 0.8 },
+            // as the 3D model (and Blender): the middle button turns it, the left one moves it, the wheel zooms
+            viewControl: { distance: 210, alpha: 25, beta: 40, damping: 0.8, rotateMouseButton: "middle", panMouseButton: "left" },
             light: { main: { intensity: 1.1, shadow: false, alpha: 35, beta: 30 }, ambient: { intensity: 0.35 } },
             environment: "none",
         },

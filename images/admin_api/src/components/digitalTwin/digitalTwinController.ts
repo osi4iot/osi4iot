@@ -86,7 +86,8 @@ import {
 	setSimulatorFormat,
 	simulatorFormatProblem,
 } from "./digitalTwinParts";
-import { copySlideFiles, getSlideModels, modelKeyBase, slideOfQuery, slidesInOrder, twinKeyBase } from "./slideModels";
+import { copySlideFiles, getSlideModels, modelKeyBase, scopeOfQuery, slideOfQuery, slideOfScope, slidesInOrder, twinKeyBase } from "./slideModels";
+import { CANVAS_MAX_BYTES, canvasSceneProblem, getSlideCanvas, putSlideCanvas } from "./slideCanvas";
 import { getViewerLayout } from "../viewerLayout/viewerLayoutDAL";
 
 // a list of at most 500 strings, or null
@@ -105,7 +106,7 @@ const uploadDigitalTwinFile = multer({
 			const { groupId, digitalTwinId, folder, fileName } = req.params;
 			const twin = { orgId: group.orgId, groupId: Number(groupId), id: Number(digitalTwinId) };
 			// a model and its FEM results go to their slide (validDigitalTwinUploadFolder checked it)
-			const keyBase = folderKeyBase(twin, folder, slideOfQuery(req.query.slide) ?? "");
+			const keyBase = folderKeyBase(twin, folder, scopeOfQuery(req.query.slide) ?? "");
 			cb(null, `${keyBase}/${folder}/${fileName}`);
 		},
 	}),
@@ -134,7 +135,7 @@ const folderKeyBase = (twin: { orgId: number; groupId: number; id?: number }, fo
 
 const validDigitalTwinUploadFolder = (req: IRequestWithDigitalTwinAndGroup, res: Response, next: NextFunction): void => {
 	const { folder } = req.params;
-	const slideId = slideOfQuery(req.query.slide);
+	const slideId = scopeOfQuery(req.query.slide);
 	if (SLIDE_FOLDERS.includes(folder) && !slideId) {
 		return next(new HttpException(req, res, 400, "A 3D model and its FEM results go to a slide: ?slide=<slide id>"));
 	}
@@ -278,6 +279,9 @@ class DigitalTwinController implements IController {
 			// duplicated slide
 			.get(`${this.path}_slide_models/:groupId/:digitalTwinId`, digitalTwinAndGroupExist, groupViewerAuth, this.getSlideModels)
 			.post(`${this.path}_slide_copy/:groupId/:digitalTwinId`, digitalTwinAndGroupExist, groupEditorAuth, this.copySlide)
+			// the Canvas of a slide (slideCanvas.ts): its scene, ?slide=<slide id>
+			.get(`${this.path}_slide_canvas/:groupId/:digitalTwinId`, digitalTwinAndGroupExist, groupViewerAuth, this.getSlideCanvas)
+			.put(`${this.path}_slide_canvas/:groupId/:digitalTwinId`, digitalTwinAndGroupExist, groupEditorAuth, this.putSlideCanvas)
 			.get(`${this.path}_topics/user_managed`, userAuth, this.getDigitalTwinTopicsUserManaged)
 			.get(
 				`${this.path}_topics/:groupId/:digitalTwinId`,
@@ -306,7 +310,7 @@ class DigitalTwinController implements IController {
 			const refs = stringListOf(body.sensorsRef);
 			if (!MODEL_FILE_NAME.test(fileName)) throw new HttpException(req, res, 400, "fileName must be a .glb or .gltf file");
 			if (!refs) throw new HttpException(req, res, 400, "sensorsRef must be a list of strings");
-			const slideId = slideOfQuery(req.query.slide);
+			const slideId = scopeOfQuery(req.query.slide);
 			if (!slideId) throw new HttpException(req, res, 400, "The slide of the model is missing: ?slide=<slide id>");
 			const missing = await missingSensorsRef(req.digitalTwin.assetId, refs);
 			if (missing.length) {
@@ -326,7 +330,7 @@ class DigitalTwinController implements IController {
 
 	private removeModel = async (req: IRequestWithDigitalTwinAndGroup, res: Response, next: NextFunction): Promise<void> => {
 		try {
-			const slideId = slideOfQuery(req.query.slide);
+			const slideId = scopeOfQuery(req.query.slide);
 			if (!slideId) throw new HttpException(req, res, 400, "The slide of the model is missing: ?slide=<slide id>");
 			await removeModel(req.digitalTwin, slideId);
 			res.status(200).json({ message: "The 3D model has been removed" });
@@ -369,16 +373,51 @@ class DigitalTwinController implements IController {
 			const to = slideOfQuery(req.body?.to);
 			if (!from || !to || from === to) throw new HttpException(req, res, 400, "from and to must be two slide ids");
 			const models = await getSlideModels(req.digitalTwin);
-			if (models[to]) throw new HttpException(req, res, 400, `The slide ${to} already has files`);
-			const copied = await copySlideFiles(req.digitalTwin, from, to);
-			if (copied > 0 && models[from]?.femResults) {
+			if (Object.keys(models).some((scope) => slideOfScope(scope) === to)) {
+				throw new HttpException(req, res, 400, `The slide ${to} already has files`);
+			}
+			// its model and those of the frames of its canvas
+			const { copied, scopes } = await copySlideFiles(req.digitalTwin, from, to);
+			for (const scope of scopes) {
+				if (!models[`${from}${scope.slice(to.length)}`]?.femResults) continue;
 				await natsClient.jsPublish("femResults", "create", req.digitalTwin.id, {
 					groupId: req.digitalTwin.groupId,
 					digitalTwinId: req.digitalTwin.id,
-					slideId: to,
+					slideId: scope,
 				});
 			}
 			res.status(200).json({ message: `${copied} files copied`, copied });
+		} catch (error) {
+			next(error);
+		}
+	};
+
+	private getSlideCanvas = async (req: IRequestWithDigitalTwinAndGroup, res: Response, next: NextFunction): Promise<void> => {
+		try {
+			const slideId = slideOfQuery(req.query.slide);
+			if (!slideId) throw new HttpException(req, res, 400, "The slide of the canvas is missing: ?slide=<slide id>");
+			const scene = await getSlideCanvas(req.digitalTwin, slideId);
+			if (scene === null) throw new HttpException(req, res, 404, "The slide has no canvas");
+			res.status(200).type("application/json").send(scene);
+		} catch (error) {
+			next(error);
+		}
+	};
+
+	// body { scene }: the scene of Excalidraw (its elements, files and appState)
+	private putSlideCanvas = async (req: IRequestWithDigitalTwinAndGroup, res: Response, next: NextFunction): Promise<void> => {
+		try {
+			const slideId = slideOfQuery(req.query.slide);
+			if (!slideId) throw new HttpException(req, res, 400, "The slide of the canvas is missing: ?slide=<slide id>");
+			const scene = req.body?.scene;
+			const problem = canvasSceneProblem(scene);
+			if (problem) throw new HttpException(req, res, 400, problem);
+			const json = JSON.stringify(scene);
+			if (Buffer.byteLength(json) > CANVAS_MAX_BYTES) {
+				throw new HttpException(req, res, 413, `The canvas has more than ${CANVAS_MAX_BYTES / 1024 / 1024} MB (its pictures)`);
+			}
+			await putSlideCanvas(req.digitalTwin, slideId, json);
+			res.status(200).json({ message: "The canvas has been saved" });
 		} catch (error) {
 			next(error);
 		}
@@ -568,7 +607,7 @@ class DigitalTwinController implements IController {
 			const { digitalTwinId } = req.params;
 			const digitalTwin = await getDigitalTwinByProp("id", parseInt(digitalTwinId, 10));
 			if (!digitalTwin) throw new ItemNotFoundException(req, res, "The digital twin", "id", digitalTwinId);
-			const digitalTwinGltfFile = await getDigitalTwinGltfFile(digitalTwin, slideOfQuery(req.query.slide) ?? "");
+			const digitalTwinGltfFile = await getDigitalTwinGltfFile(digitalTwin, scopeOfQuery(req.query.slide) ?? "");
 			res.status(200).send(digitalTwinGltfFile);
 		} catch (error) {
 			next(error);
@@ -580,7 +619,7 @@ class DigitalTwinController implements IController {
 			const { digitalTwinId } = req.params;
 			const digitalTwin = await getDigitalTwinByProp("id", parseInt(digitalTwinId, 10));
 			if (!digitalTwin) throw new ItemNotFoundException(req, res, "The digital twin", "id", digitalTwinId);
-			const response = await getDigitalTwinGlbFile(digitalTwin, slideOfQuery(req.query.slide) ?? "");
+			const response = await getDigitalTwinGlbFile(digitalTwin, scopeOfQuery(req.query.slide) ?? "");
 			if (!response) throw new HttpException(req, res, 500, "The glb file does not exist");
 			res.set("content-type", "model/gltf-binary");
 			const stream = response.Body as Readable;
@@ -735,7 +774,7 @@ class DigitalTwinController implements IController {
 		next: NextFunction
 	): Promise<void> => {
 		const { fileName, folder } = req.params;
-		const slideId = slideOfQuery(req.query.slide) ?? "";
+		const slideId = scopeOfQuery(req.query.slide) ?? "";
 		try {
 			const message = {
 				message: `The file ${fileName} has been successfully uploaded in the S3 bucket`,
@@ -781,7 +820,7 @@ class DigitalTwinController implements IController {
 		next: NextFunction
 	): Promise<void> => {
 		const { folder, fileName } = req.params;
-		const slideId = slideOfQuery(req.query.slide);
+		const slideId = scopeOfQuery(req.query.slide);
 		if (slideId === null) return next(new HttpException(req, res, 400, "Invalid slide"));
 		const fileKey = `${folderKeyBase(req.digitalTwin, folder, slideId)}/${folder}/${fileName}`;
 		const bucketParams = {
@@ -810,7 +849,7 @@ class DigitalTwinController implements IController {
 		next: NextFunction
 	): Promise<void> => {
 		const { folder } = req.params;
-		const slideId = slideOfQuery(req.query.slide);
+		const slideId = scopeOfQuery(req.query.slide);
 		if (slideId === null) return next(new HttpException(req, res, 400, "Invalid slide"));
 		const folderPath = `${folderKeyBase(req.digitalTwin, folder, slideId)}/${folder}`;
 		try {
@@ -827,7 +866,7 @@ class DigitalTwinController implements IController {
 		next: NextFunction
 	): Promise<void> => {
 		const { folder, fileName } = req.params;
-		const slideId = slideOfQuery(req.query.slide);
+		const slideId = scopeOfQuery(req.query.slide);
 		if (slideId === null) return next(new HttpException(req, res, 400, "Invalid slide"));
 		const fileKey = `${folderKeyBase(req.digitalTwin, folder, slideId)}/${folder}/${fileName}`;
 		try {

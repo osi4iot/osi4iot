@@ -11,18 +11,16 @@ import { CSSProperties, FC, ReactNode, PointerEvent as ReactPointerEvent, useEff
 import { createPortal } from "react-dom";
 import styled, { css } from "styled-components";
 import { scrollbarStyle } from "../../../Tools/FormTools";
-import GridLayout from "react-grid-layout";
+import GridLayout, { getCompactor } from "react-grid-layout";
 import "react-grid-layout/css/styles.css";
-import { Activity, Building2, HeartPulse, PictureInPicture2, SlidersHorizontal, ScrollText, Axis3d, BellRing, Box, ChartBar, FileImage, FileText, Image as ImageIcon, Video, ChartColumn, ChartColumnBig, ChartGantt, ChartLine, ChartPie, ClipboardCheck, Gauge, Hash, Table2, GripVertical, Info, Maximize, Maximize2, Minimize, Minimize2, Pencil, Plus, Upload, X } from "lucide-react";
+import { Blend, Presentation, Activity, Building2, HeartPulse, PictureInPicture2, SlidersHorizontal, ScrollText, ChartScatter, BellRing, Box, ChartBar, FileImage, FileText, Image as ImageIcon, Video, ChartColumn, ChartColumnBig, ChartGantt, ChartLine, ChartPie, ClipboardCheck, Gauge, Hash, Table2, GripVertical, Info, Maximize, Maximize2, Minimize, Minimize2, Pencil, Plus, Upload, X } from "lucide-react";
 import { ChartSeriesOption, defaultChartTitle } from "./chartSeries";
 import { PanelLinks } from "./charts/Links";
 import ImageSourceField from "./ImageSourceField";
 import {
     CHART_MAX_SERIES,
-    GRID_COLS,
     GRID_MARGIN,
     ImageSourceOption,
-    MAX_ROWS,
     NewPanel,
     WORKSPACE_PHONE_BELOW,
     WorkspaceSlide,
@@ -40,14 +38,17 @@ import {
     setPanelDisplay,
     imageDisplayOf,
     rowHeightFor,
+    gridOf,
     toGridItems,
     FLOATING_PANEL_TYPES,
     FloatRect,
     showsSimulation,
     setPanelFloat,
+    setPanelTranslucent,
 } from "./workspaceLayout";
 
 export const PANEL_BAR_HEIGHT = 40;
+const CANVAS_COMPACTOR = getCompactor(null, true);
 const EDIT_BAR_HEIGHT = 52;
 const PHONE_TABS_HEIGHT = 48;
 
@@ -63,13 +64,26 @@ const Area = styled.div`
     color: #e6e8eb;
 `;
 
-const Scroller = styled.div<{ $locked: boolean }>`
+const Scroller = styled.div<{ $locked: boolean; $canvas?: "view" | "edit" }>`
     position: relative;
     flex: 1;
     min-height: 0;
     overflow-x: hidden;
-    overflow-y: ${({ $locked }) => ($locked ? "hidden" : "auto")};
+    overflow-y: ${({ $locked, $canvas }) => ($locked || $canvas ? "hidden" : "auto")};
     ${scrollbarStyle}
+    /* over a canvas: the canvas is used where there is no panel; while the canvas is edited, the panels are faint
+       and let it be drawn under them */
+    ${({ $canvas }) =>
+        $canvas
+            ? `
+    z-index: 1;
+    pointer-events: none;
+    .react-grid-item {
+        pointer-events: ${$canvas === "edit" ? "none" : "auto"};
+        opacity: ${$canvas === "edit" ? 0.3 : 1};
+        transition: opacity 0.2s;
+    }`
+            : ""}
 
 
     .react-grid-item.react-grid-placeholder {
@@ -113,14 +127,41 @@ const Scroller = styled.div<{ $locked: boolean }>`
     }
 `;
 
+// the canvas of a slide, behind its panels (without a stacking context of its own: its controls go over them)
+const CanvasHost = styled.div`
+    position: absolute;
+    inset: 0;
+`;
+
 // the slide's area: the grid (it scrolls) and, over it, the floating panels (they do not)
-const Stage = styled.div`
+const Stage = styled.div<{ $covering?: "present" | "edit" }>`
     position: relative;
     flex: 1;
     min-height: 0;
     display: flex;
     flex-direction: column;
+    /* the slide in full screen (a slide with a canvas): its canvas and its panels, in the same proportions */
+    &:fullscreen {
+        background: #121417;
+    }
+    ${({ $covering }) =>
+        $covering &&
+        css`
+            position: fixed;
+            inset: 0;
+            /* drawing a canvas: under the dialogs of the panels (Add panel, the editors) */
+            z-index: ${$covering === "edit" ? 1500 : 3000};
+            background: #121417;
+        `}
 `;
+
+// what the canvas of a slide can do with the slide's area: show it in full screen
+export interface StageControls {
+    fullscreen: boolean;
+    toggleFullscreen: () => void;
+    // a panel of the slide, with its bar (its title, edit, remove…): the canvas draws it as an element
+    renderPanel: (panelId: string) => ReactNode;
+}
 
 // over the slide; over the whole screen while a panel is in full screen (then it is put inside that panel, the only
 // thing the browser shows)
@@ -192,6 +233,14 @@ const Panel = styled.section<{ $editing: boolean; $fullscreen?: boolean }>`
             border-radius: 0;
         `}
 `;
+
+// a translucent panel: what is behind it shows through, blurred
+const TRANSLUCENT: CSSProperties = {
+    backgroundColor: "rgba(20, 22, 25, 0.55)",
+    backdropFilter: "blur(8px)",
+    WebkitBackdropFilter: "blur(8px)",
+    borderColor: "rgba(255, 255, 255, 0.1)",
+};
 
 // a panel's own actions in full screen (its bar is hidden there): next to the button that leaves it
 const FullscreenActions = styled.div`
@@ -635,6 +684,9 @@ interface AddPanelDialogProps {
     canAddOrgOverview?: boolean;
     // the digital twin's simulator (one on a page; not in control rooms nor in the organization overview)
     canAddSimulator?: boolean;
+    // a canvas behind the panels of the slide (one; not in control rooms nor in the organization overview)
+    canAddCanvas?: boolean;
+    onAddCanvas?: () => void;
     sources: ImageSourceOption[];
     // the fields of the asset's sensors a chart can show
     chartOptions: ChartSeriesOption[];
@@ -706,14 +758,15 @@ type DialogType =
     | "picture"
     | "chart"
     | "markdown"
-    | "surface"
+    | "dataChart"
     | "alarms"
     | "approvals"
     | "assetState"
     | "health"
     | "pipelineLogs"
     | "orgOverview"
-    | "simulator";
+    | "simulator"
+    | "canvas";
 
 export const AddPanelDialog: FC<AddPanelDialogProps> = ({
     canAddModel,
@@ -726,6 +779,8 @@ export const AddPanelDialog: FC<AddPanelDialogProps> = ({
     organization = false,
     canAddOrgOverview = true,
     canAddSimulator = true,
+    canAddCanvas = false,
+    onAddCanvas,
     sources,
     chartOptions,
     onAdd,
@@ -750,14 +805,20 @@ export const AddPanelDialog: FC<AddPanelDialogProps> = ({
         { value: "photo" as const, label: "Photo", hint: "The last photo of a device and when it arrived", icon: <ImageIcon />, disabled: false },
         {
             value: "chart" as const,
-            label: "Chart",
-            hint: chartOptions.length ? "Measurements of the asset's sensors" : "The asset has no sensors with measurements",
+            label: "Time series chart",
+            hint: chartOptions.length ? "Measurements of the asset's sensors in time" : "The asset has no sensors with measurements",
             icon: <ChartLine />,
             disabled: chartOptions.length === 0,
         },
         { value: "picture" as const, label: "Picture", hint: "An image of the twin; an SVG can move with live values", icon: <FileImage />, disabled: false },
         { value: "markdown" as const, label: "Text", hint: "Markdown, LaTeX formulas and live values", icon: <FileText />, disabled: false },
-        { value: "surface" as const, label: "3D Surface", hint: "z = f(x, y) of a formula with live parameters, or a grid of values", icon: <Axis3d />, disabled: false },
+        {
+            value: "dataChart" as const,
+            label: "Data chart",
+            hint: "The data of a message or of the asset state: 2D series, heat maps, 3D surfaces or points",
+            icon: <ChartScatter />,
+            disabled: false,
+        },
         {
             value: "alarms" as const,
             label: "Alarms",
@@ -787,6 +848,17 @@ export const AddPanelDialog: FC<AddPanelDialogProps> = ({
                       hint: canAddSimulator ? "Send simulated values to the digital twin; it can float" : "Already on the page",
                       icon: <SlidersHorizontal />,
                       disabled: !canAddSimulator,
+                  },
+              ]
+            : []),
+        ...(!controlRoom && !organization && onAddCanvas
+            ? [
+                  {
+                      value: "canvas" as const,
+                      label: "Canvas",
+                      hint: canAddCanvas ? "A whiteboard behind the panels: ideas, diagrams, live values, steps" : "The slide already has one",
+                      icon: <Presentation />,
+                      disabled: !canAddCanvas,
                   },
               ]
             : []),
@@ -825,7 +897,7 @@ export const AddPanelDialog: FC<AddPanelDialogProps> = ({
             ? canAddModel
             : type === "chart"
               ? chosen.length > 0
-              : type === "markdown" || type === "picture" || type === "surface"
+              : type === "markdown" || type === "picture" || type === "dataChart"
                 ? true
                 : type === "alarms"
                 ? canAddAlarms
@@ -841,6 +913,8 @@ export const AddPanelDialog: FC<AddPanelDialogProps> = ({
                   ? canAddOrgOverview
                   : type === "simulator"
                   ? canAddSimulator
+                  : type === "canvas"
+                  ? canAddCanvas
                   : sourceOk;
     const toggle = (key: string) =>
         setChosen((list) =>
@@ -857,8 +931,8 @@ export const AddPanelDialog: FC<AddPanelDialogProps> = ({
                   ? "Text"
                   : type === "picture"
                   ? "Picture"
-                  : type === "surface"
-                  ? "3D Surface"
+                  : type === "dataChart"
+                  ? "Data chart"
                   : type === "alarms"
                   ? "Alarms"
                   : type === "assetState"
@@ -891,7 +965,8 @@ export const AddPanelDialog: FC<AddPanelDialogProps> = ({
                 onSubmit={(e) => {
                     e.preventDefault();
                     if (!canSubmit) return;
-                    if (type === "video" || type === "photo") onAdd({ type: "image", display: type, source, title });
+                    if (type === "canvas") onAddCanvas?.();
+                    else if (type === "video" || type === "photo") onAdd({ type: "image", display: type, source, title });
                     else if (type === "chart") {
                         onAdd({
                             type,
@@ -942,7 +1017,12 @@ export const AddPanelDialog: FC<AddPanelDialogProps> = ({
                     </div>
                 )}
                 {type === "picture" && <Hint>The picture opens in its editor: choose or upload an image (JPEG, PNG, WebP, GIF or SVG) and, for an SVG, animate its elements with the values of the NATS messages.</Hint>}
-                {type === "surface" && <Hint>The 3D Surface opens in its editor: a formula z = f(x, y) whose parameters can be fixed or values of the NATS messages, or a grid of values that a message carries (e.g. computed by the pipeline).</Hint>}
+                {type === "dataChart" && (
+                    <Hint>
+                        The Data chart opens in its editor: lists of numbers of the last message of a topic (dtm2sim…) or of the asset state — a spectrum freq[] / amplitude[] — as lines, points, bars or areas;
+                        or a grid or a formula z = f(x, y) as a heat map or a 3D surface; or 3D points. For values in time, the Time series chart.
+                    </Hint>
+                )}
                 {type === "markdown" && <Hint>The text opens in its editor: markdown, LaTeX formulas ($…$) and values of the NATS messages as they arrive ({"{{dtm2sim.rotorRpm}}"}).</Hint>}
                 {(type === "alarms" || type === "approvals") && (
                     <Hint>
@@ -1070,6 +1150,8 @@ export interface ViewerWorkspaceProps {
     panelActions?: (panel: WorkspacePanel) => PanelAction[];
     // the Add panel dialog, when the caller opens it (the Add panel icon of the slide bar)
     addingPanel?: boolean;
+    // Insert panel of a canvas: the frame the new panel goes to (one 3D model and one simulator in each frame)
+    insertFrame?: string | null;
     onAddingPanelChange?: (adding: boolean) => void;
     // a group's control room: it may add the Health and Pipeline logs panels
     controlRoom?: boolean;
@@ -1079,6 +1161,11 @@ export interface ViewerWorkspaceProps {
     slideBar?: ReactNode;
     // shown over the slide bar and the panels (e.g. all the slides)
     overlay?: ReactNode;
+    // the canvas of the slide (layout.canvas), behind its panels; while it is edited the panels let it be drawn
+    canvasLayer?: ReactNode | ((stage: StageControls) => ReactNode);
+    canvasEditing?: boolean;
+    // gives the slide a canvas (Add panel › Canvas)
+    onAddCanvas?: () => void;
 }
 
 const panelIcon = (panel: WorkspacePanel) =>
@@ -1102,8 +1189,8 @@ const panelIcon = (panel: WorkspacePanel) =>
         <FileText aria-hidden="true" />
     ) : panel.type === "picture" ? (
         <FileImage aria-hidden="true" />
-    ) : panel.type === "surface" ? (
-        <Axis3d aria-hidden="true" />
+    ) : panel.type === "surface" || panel.type === "dataChart" ? (
+        <ChartScatter aria-hidden="true" />
     ) : panel.type === "chart" ? (
         panel.viz === "stat" ? (
             <Hash aria-hidden="true" />
@@ -1158,10 +1245,15 @@ const ViewerWorkspace: FC<ViewerWorkspaceProps> = ({
     onEditPanel,
     panelActions,
     addingPanel,
+    insertFrame = null,
     onAddingPanelChange,
     slideBar,
     overlay,
+    canvasLayer,
+    canvasEditing = false,
+    onAddCanvas,
 }) => {
+    const grid = gridOf(layout);
     const scrollerRef = useRef<HTMLDivElement>(null);
     const [size, setSize] = useState({ width: 0, height: 0 });
     const [addingOwn, setAddingOwn] = useState(false);
@@ -1243,7 +1335,9 @@ const ViewerWorkspace: FC<ViewerWorkspaceProps> = ({
         if (editable) onLayoutChange(setPanelFloat(layout, panel.id, floating));
         else setLocalFloat((prev) => ({ ...prev, [panel.id]: floating }));
     };
-    const gridPanels = panels;
+    // a slide with a canvas: its panels are elements of the drawing (canvas/canvasPanels.ts), not in the grid
+    const panelsInCanvas = !!layout.canvas && !!canvasLayer;
+    const gridPanels = panelsInCanvas ? [] : panels;
     // the panel covering the slide, if any: the floating ones are shown over it
     const coverId = fullscreen?.id ?? fullId;
     // only over a panel that shows the simulation (showsSimulation: the 3D model, the panels of dtm2sim / sim2dtm)
@@ -1263,12 +1357,90 @@ const ViewerWorkspace: FC<ViewerWorkspaceProps> = ({
             },
         ];
     };
-    const actionsOf = (panel: WorkspacePanel): PanelAction[] => [...(editable ? [] : panelActions?.(panel) ?? []), ...floatAction(panel)];
+    // while the layout is edited: a translucent background (what is behind it shows through: a canvas, a panel)
+    const translucentActionOf = (panel: WorkspacePanel): PanelAction[] =>
+        panel.type !== "model"
+            ? [
+                  {
+                      label: panel.translucent ? "Translucent background: make it opaque" : "Make the background translucent",
+                      icon: <Blend aria-hidden="true" />,
+                      active: panel.translucent === true,
+                      onClick: () => onLayoutChange(setPanelTranslucent(layout, panel.id, !panel.translucent)),
+                  },
+              ]
+            : [];
+    const actionsOf = (panel: WorkspacePanel): PanelAction[] => [...(editable ? [] : panelActions?.(panel) ?? []), ...floatAction(panel), ...(editable ? translucentActionOf(panel) : [])];
+
+    // The slide in full screen (a slide with a canvas): its canvas and its panels fill the screen in the same
+    // proportions (the grid follows the size of its area). With the Fullscreen API, else covering the page.
+    const [stageFull, setStageFull] = useState<{ native: boolean } | null>(null);
+    const toggleStageFullscreen = () => {
+        if (stageFull) {
+            if (stageFull.native && document.fullscreenElement) document.exitFullscreen().catch(() => {});
+            setStageFull(null);
+            return;
+        }
+        const el = stageRef.current;
+        if (el && document.fullscreenEnabled && typeof el.requestFullscreen === "function") {
+            setStageFull({ native: true });
+            el.requestFullscreen({ navigationUI: "hide" }).catch(() => setStageFull({ native: false }));
+        } else setStageFull({ native: false });
+    };
+    useEffect(() => {
+        if (!stageFull) return;
+        const onChange = () => {
+            if (stageFull.native && document.fullscreenElement !== stageRef.current) setStageFull(null);
+        };
+        const onKey = (e: KeyboardEvent) => {
+            if (e.key === "Escape" && !stageFull.native) setStageFull(null);
+        };
+        document.addEventListener("fullscreenchange", onChange);
+        document.addEventListener("keydown", onKey);
+        return () => {
+            document.removeEventListener("fullscreenchange", onChange);
+            document.removeEventListener("keydown", onKey);
+        };
+    }, [stageFull]);
+    // another slide, or one without a canvas: out of the full screen
+    useEffect(() => {
+        if (stageFull && (!layout.canvas || editing)) toggleStageFullscreen();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [layout.id, layout.canvas, editing]);
+    const editOf = (panel: WorkspacePanel) =>
+        (panel.type === "chart" || panel.type === "markdown" || panel.type === "picture" || panel.type === "dataChart" || panel.type === "assetState" || panel.type === "orgOverview") && onEditPanel && !phone
+            ? () => onEditPanel(panel.id)
+            : undefined;
+    // a panel drawn in the canvas: its bar and its content (no full page nor full screen: the slide has them)
+    const renderCanvasPanel = (panelId: string) => {
+        const panel = panels.find((p) => p.id === panelId);
+        if (!panel) return null;
+        return (
+            <WorkspacePanelView
+                panel={panel}
+                editing={editing}
+                isFull={false}
+                phone={phone}
+                meta={panelMeta?.(panel)}
+                onRemove={() => onLayoutChange(removePanel(layout, panel.id))}
+                onRename={(title) => onLayoutChange(renamePanel(layout, panel.id, title))}
+                actions={[...(editing ? [] : panelActions?.(panel) ?? []), ...(editing && !phone ? translucentActionOf(panel) : [])]}
+                onEdit={editOf(panel)}
+            >
+                {renderPanel(panel)}
+            </WorkspacePanelView>
+        );
+    };
+    const shownCanvas =
+        layout.canvas && canvasLayer
+            ? typeof canvasLayer === "function"
+                ? canvasLayer({ fullscreen: !!stageFull, toggleFullscreen: toggleStageFullscreen, renderPanel: renderCanvasPanel })
+                : canvasLayer
+            : null;
 
     // its size in the grid
     const floatSize = (panel: WorkspacePanel) => {
-        const width = Math.round((panel.w / GRID_COLS) * size.width);
-        const height = Math.round(panel.h * rowHeightFor(size.height));
+        const width = Math.round((panel.w / grid.cols) * size.width);
+        const height = Math.round(panel.h * (rowHeightFor(size.height, grid.margin, grid.rows) + grid.margin));
         return { width: Math.max(220, width), height: Math.max(150, height) };
     };
 
@@ -1385,14 +1557,14 @@ const ViewerWorkspace: FC<ViewerWorkspaceProps> = ({
         if (fullId && scrollerRef.current) scrollerRef.current.scrollTop = 0;
     }, [fullId]);
 
-    const rowHeight = rowHeightFor(size.height);
+    const rowHeight = rowHeightFor(size.height, grid.margin, grid.rows);
 
     const addFromDialog = (spec: NewPanel) => {
         setAdding(false);
-        const next = addPanel(layout, spec);
+        const next = addPanel(layout, { ...spec, frame: insertFrame });
         onLayoutChange(next);
         // a new chart goes straight to the panel editor
-        if ((spec.type === "chart" || spec.type === "markdown" || spec.type === "picture" || spec.type === "surface") && next !== layout) onEditPanel?.(next.panels[next.panels.length - 1].id);
+        if ((spec.type === "chart" || spec.type === "markdown" || spec.type === "picture" || spec.type === "dataChart") && next !== layout) onEditPanel?.(next.panels[next.panels.length - 1].id);
     };
 
     const openAdd = () => {
@@ -1464,13 +1636,15 @@ const ViewerWorkspace: FC<ViewerWorkspaceProps> = ({
                 </Tabs>
             )}
 
-            <Stage ref={stageRef}>
+            <Stage ref={stageRef} $covering={shownCanvas && canvasEditing ? "edit" : stageFull?.native === false ? "present" : undefined}>
+            {shownCanvas && <CanvasHost>{shownCanvas}</CanvasHost>}
             <Scroller
                 ref={scrollerRef}
                 $locked={!!fullId}
+                $canvas={shownCanvas ? (canvasEditing ? "edit" : "view") : undefined}
                 style={{ ["--ws-height" as string]: `${size.height}px` } as CSSProperties}
             >
-                {panels.length === 0 && (
+                {panels.length === 0 && !layout.canvas && (
                     <Empty>
                         <span>There are no panels on this slide.</span>
                         <TextButton type="button" $primary onClick={openAdd}>
@@ -1495,12 +1669,14 @@ const ViewerWorkspace: FC<ViewerWorkspaceProps> = ({
                         width={size.width}
                         layout={toGridItems({ panels: gridPanels }, editable)}
                         gridConfig={{
-                            cols: GRID_COLS,
+                            cols: grid.cols,
                             rowHeight,
-                            margin: [GRID_MARGIN, GRID_MARGIN],
+                            margin: [grid.margin, grid.margin],
                             containerPadding: [0, 0],
-                            maxRows: MAX_ROWS,
+                            maxRows: grid.maxRows,
                         }}
+                        // over a canvas a panel stays where it is put (no compaction) and may overlap another
+                        compactor={grid.compact ? undefined : CANVAS_COMPACTOR}
                         dragConfig={{ enabled: editable, handle: ".ws-drag-handle", cancel: ".ws-no-drag", bounded: false }}
                         resizeConfig={{ enabled: editable, handles: ["se", "e", "s"] }}
                         onLayoutChange={(items) => {
@@ -1534,7 +1710,7 @@ const ViewerWorkspace: FC<ViewerWorkspaceProps> = ({
                                         onRemove={() => onLayoutChange(removePanel(layout, panel.id))}
                                         onRename={(title) => onLayoutChange(renamePanel(layout, panel.id, title))}
                                         actions={actionsOf(panel)}
-                                        onEdit={(panel.type === "chart" || panel.type === "markdown" || panel.type === "picture" || panel.type === "surface" || panel.type === "assetState" || panel.type === "orgOverview") && onEditPanel && !phone ? () => onEditPanel(panel.id) : undefined}
+                                        onEdit={editOf(panel)}
                                         source={
                                             editable && panel.type === "image" ? (
                                                 <SourceRow>
@@ -1572,16 +1748,25 @@ const ViewerWorkspace: FC<ViewerWorkspaceProps> = ({
 
             {adding && (
                 <AddPanelDialog
-                    canAddModel={canAddModelPanel(layout, hasModel)}
-                    canAddAlarms={canAddPanelType(layout, "alarms", hasModel)}
-                    canAddApprovals={canAddPanelType(layout, "approvals", hasModel)}
-                    canAddAssetState={canAddPanelType(layout, "assetState", hasModel)}
+                    canAddModel={canAddModelPanel(layout, hasModel, insertFrame)}
+                    canAddAlarms={canAddPanelType(layout, "alarms", hasModel, insertFrame)}
+                    canAddApprovals={canAddPanelType(layout, "approvals", hasModel, insertFrame)}
+                    canAddAssetState={canAddPanelType(layout, "assetState", hasModel, insertFrame)}
                     controlRoom={controlRoom}
-                    canAddHealth={canAddPanelType(layout, "health", hasModel)}
-                    canAddPipelineLogs={canAddPanelType(layout, "pipelineLogs", hasModel)}
+                    canAddHealth={canAddPanelType(layout, "health", hasModel, insertFrame)}
+                    canAddPipelineLogs={canAddPanelType(layout, "pipelineLogs", hasModel, insertFrame)}
                     organization={organization}
-                    canAddOrgOverview={canAddPanelType(layout, "orgOverview", hasModel)}
-                    canAddSimulator={canAddPanelType(layout, "simulator", hasModel)}
+                    canAddOrgOverview={canAddPanelType(layout, "orgOverview", hasModel, insertFrame)}
+                    canAddSimulator={canAddPanelType(layout, "simulator", hasModel, insertFrame)}
+                    canAddCanvas={!layout.canvas && !!onAddCanvas}
+                    onAddCanvas={
+                        onAddCanvas
+                            ? () => {
+                                  setAdding(false);
+                                  onAddCanvas();
+                              }
+                            : undefined
+                    }
                     sources={imageSources}
                     chartOptions={chartOptions}
                     onAdd={addFromDialog}
@@ -1640,7 +1825,11 @@ const WorkspacePanelView: FC<WorkspacePanelViewProps> = ({
             $editing={editing}
             $fullscreen={isFullscreen}
             aria-label={title}
-            style={{ height: "100%", ...(panel.options?.transparent === true && !editing && !isFullscreen ? { background: "transparent", borderColor: "transparent" } : {}) }}
+            style={{
+                height: "100%",
+                ...(panel.translucent && !isFullscreen ? TRANSLUCENT : {}),
+                ...(panel.options?.transparent === true && !editing && !isFullscreen ? { background: "transparent", borderColor: "transparent" } : {}),
+            }}
         >
             {isFullscreen && actions && actions.length > 0 && (
                 <FullscreenActions>

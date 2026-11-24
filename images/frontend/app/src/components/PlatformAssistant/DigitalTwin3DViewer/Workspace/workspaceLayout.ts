@@ -12,6 +12,7 @@
 import { PICTURE_FITS, PictureBinding, PictureFit, sanitizeBindings } from "./pictureBindings";
 import { REFRESH_INTERVALS } from "./charts/timeRange";
 import { SurfaceOptions, defaultSurface, sanitizeSurface, surfaceTopics } from "./surface/surfacePanel";
+import { DataChartOptions, dataChartOfSurface, dataChartTopics, defaultDataChart, sanitizeDataChart } from "./dataChart/dataChart";
 import { AssetStateField, sanitizeAssetStateSettings } from "./assetStatePanel";
 import { OrgOverviewPeriod, sanitizeOrgOverviewSettings } from "./orgOverview";
 
@@ -41,6 +42,7 @@ export type PanelType =
     | "markdown"
     | "picture"
     | "surface"
+    | "dataChart"
     | "assetState"
     | "health"
     | "pipelineLogs"
@@ -54,6 +56,20 @@ export type ImageDisplay = "video" | "photo";
 export const imageDisplayOf = (panel: { display?: ImageDisplay }): ImageDisplay => (panel.display === "photo" ? "photo" : "video");
 // at most one panel of these types on a page
 export const SINGLE_PANEL_TYPES: PanelType[] = ["model", "alarms", "approvals", "assetState", "health", "pipelineLogs", "orgOverview", "simulator"];
+// of these, one in each frame of a canvas (each frame its own 3D model and simulator: the scope slide:frame)
+export const ONE_PER_FRAME_TYPES: PanelType[] = ["model", "simulator"];
+
+// The scope of a 3D model and of a simulator: their slide, or a frame of its canvas ("<slideId>:<frameId>", the id
+// of the frame in the scene). The files of a model are those of its scope (admin_api slideModels.ts), and the
+// messages of a simulator carry its scope ("$slide"): they go to the model and the panels of that scope.
+export const scopeOf = (slideId: string, frame?: string | null): string => (frame ? `${slideId}:${frame}` : slideId);
+export const slideOfScope = (scope: string): string => scope.split(":")[0];
+export const frameOfScope = (scope: string): string | null => scope.split(":")[1] ?? null;
+// the id of a frame of a canvas (Excalidraw's ids)
+export const FRAME_ID = /^[A-Za-z0-9_-]{1,40}$/;
+// a panel's place among those of its type that are one per slide, or one per frame of a canvas
+const sameSingleSlot = (type: PanelType, a: Pick<WorkspacePanel, "frame">, frame: string | null | undefined) =>
+    !ONE_PER_FRAME_TYPES.includes(type) || (a.frame ?? null) === (frame ?? null);
 // the panels that can float over the slide instead of taking a place in its grid (also over a panel in full screen)
 export const FLOATING_PANEL_TYPES: PanelType[] = ["simulator"];
 // a floating window, in fractions (0 to 1) of the slide's area; its grid place (x, y, w, h) is where it docks
@@ -110,8 +126,12 @@ export interface WorkspacePanel {
     file?: string;
     fit?: PictureFit;
     bindings?: PictureBinding[];
-    // surface: a 3D Surface, of a formula or of a grid of values of the messages (surface/surfacePanel.ts)
+    // surface: a 3D Surface, of a formula or of a grid of values of the messages (surface/surfacePanel.ts); read as a
+    // Data chart of kind "surface" (sanitizePanels)
     surface?: SurfaceOptions;
+    // dataChart: the data of one JSON (a message, the asset's state or a formula) as a 2D chart, a heat map, a 3D
+    // surface or 3D points (dataChart/dataChart.ts)
+    data?: DataChartOptions;
     // assetState: the fields of the state shown, the colour of each status, after how many minutes it is old
     stateFields?: AssetStateField[];
     statusColors?: Record<string, string>;
@@ -121,6 +141,11 @@ export interface WorkspacePanel {
     period?: OrgOverviewPeriod;
     // simulator: floating over the slide (its window: float) instead of in its place of the grid
     floating?: boolean;
+    // a translucent background (blurred): what is behind it shows through (a canvas, the panels under it)
+    translucent?: boolean;
+    // on a canvas: the frame of the drawing it is in (its id; kept from the scene: withPanelFrames). A 3D model or a
+    // simulator in a frame is that frame's (scopeOf)
+    frame?: string;
     float?: FloatRect;
     // simulator: its own format, that of its slide (none: the digital twin's); the values it sends carry the slide
     // ("$slide") and the answers with it go to the panels of the slide
@@ -136,6 +161,8 @@ export interface WorkspacePanel {
     timeShift?: string;
     interval?: string;
     maxDataPoints?: number;
+    // chart: the seconds shown of its live series (LIVE_SERIES_PREFIX); CHART_LIVE_WINDOW_DEFAULT without it
+    liveWindow?: number;
     x: number;
     y: number;
     w: number;
@@ -145,7 +172,89 @@ export interface WorkspacePanel {
 // the panels of one screen
 export interface WorkspacePage {
     panels: WorkspacePanel[];
+    // a whiteboard behind the panels (canvas/canvasScene.ts): the panels are then on the fine grid (gridOf)
+    canvas?: SlideCanvas;
 }
+
+// --- Canvas ----------------------------------------------------------------------------------------------------
+
+export const CANVAS_STYLES = ["clean", "hand"] as const;
+export type CanvasStyle = (typeof CANVAS_STYLES)[number];
+export interface SlideCanvas {
+    // clean lines (a straight stroke and a plain font) or hand-drawn: how new elements are drawn
+    style: CanvasStyle;
+}
+
+// A slide with a canvas is one page whose panels are on a grid CANVAS_SCALE times finer (48 × 48), without
+// compaction (a panel stays where it is put, leaving the canvas seen around it) and with overlaps allowed
+export const CANVAS_SCALE = 4;
+export const CANVAS_GRID_MARGIN = 4;
+export interface PageGrid {
+    cols: number;
+    // the rows of one page, and the most a panel can reach
+    rows: number;
+    maxRows: number;
+    scale: number;
+    margin: number;
+    // panels move up to fill gaps (no: they stay where they are put, and may overlap)
+    compact: boolean;
+}
+export const gridOf = (page: Pick<WorkspacePage, "canvas"> | null | undefined): PageGrid =>
+    page?.canvas
+        ? { cols: GRID_COLS * CANVAS_SCALE, rows: PAGE_ROWS * CANVAS_SCALE, maxRows: PAGE_ROWS * CANVAS_SCALE, scale: CANVAS_SCALE, margin: CANVAS_GRID_MARGIN, compact: false }
+        : { cols: GRID_COLS, rows: PAGE_ROWS, maxRows: MAX_ROWS, scale: 1, margin: GRID_MARGIN, compact: true };
+
+const sanitizeCanvas = (raw: unknown): SlideCanvas | undefined =>
+    plainObject(raw) && CANVAS_STYLES.includes(raw.style as CanvasStyle) ? { style: raw.style as CanvasStyle } : undefined;
+
+// A panel of one grid on another (a slide gets or loses its canvas): its place and size scaled, kept inside the page
+const regrid = (p: WorkspacePanel, from: PageGrid, to: PageGrid): WorkspacePanel => {
+    const f = to.scale / from.scale;
+    const w = clamp(Math.round(p.w * f), 1, to.cols);
+    const h = clamp(Math.round(p.h * f), 1, to.maxRows);
+    return { ...p, x: clamp(Math.round(p.x * f), 0, to.cols - w), y: clamp(Math.round(p.y * f), 0, to.maxRows - h), w, h };
+};
+
+// A slide with a canvas (or without it: null): its panels go to the grid of the new page
+export const setSlideCanvas = <T extends WorkspacePage>(slide: T, canvas: SlideCanvas | null): T => {
+    const from = gridOf(slide);
+    const next = { ...slide } as T;
+    if (canvas) next.canvas = canvas;
+    else delete next.canvas;
+    const to = gridOf(next);
+    if (from.scale !== to.scale) next.panels = slide.panels.map((p) => regrid(p, from, to));
+    // without a canvas there are no frames
+    if (!canvas && next.panels.some((p) => p.frame)) next.panels = next.panels.map(({ frame: _frame, ...p }) => p);
+    return next;
+};
+
+// The panels with the frames the scene puts them in (panelFrames of canvasPanels.ts): the same page when nothing
+// changes. A 3D model or a simulator that would share a frame with another of its type stays out of frames.
+export const withPanelFrames = <T extends WorkspacePage>(page: T, frames: Record<string, string>): T => {
+    let changed = false;
+    const taken = new Set<string>();
+    const panels = page.panels.map((p) => {
+        let frame: string | undefined = page.canvas ? frames[p.id] : undefined;
+        if (frame && ONE_PER_FRAME_TYPES.includes(p.type)) {
+            const key = `${p.type}|${frame}`;
+            if (taken.has(key)) frame = undefined;
+            else taken.add(key);
+        }
+        if ((p.frame ?? undefined) === frame) return p;
+        changed = true;
+        const { frame: _old, ...rest } = p;
+        return frame ? { ...rest, frame } : rest;
+    });
+    return changed ? { ...page, panels } : page;
+};
+
+// the scope of a panel of a slide (scopeOf)
+export const panelScope = (slideId: string, panel: Pick<WorkspacePanel, "frame">): string => scopeOf(slideId, panel.frame);
+
+// The 3D model or the simulator in use on a slide when a frame of its canvas is shown (null: none, or no canvas):
+// the one in that frame, else the slide's own (outside every frame)
+export const panelInUse = (page: WorkspacePage, type: PanelType, frame: string | null): WorkspacePanel | undefined =>
+    (frame ? page.panels.find((p) => p.type === type && p.frame === frame) : undefined) ?? page.panels.find((p) => p.type === type && !p.frame);
 
 export interface WorkspaceSlide extends WorkspacePage {
     id: string;
@@ -186,6 +295,7 @@ const NEW_PANEL_SIZE: Record<PanelType, { w: number; h: number }> = {
     markdown: { w: 4, h: 4 },
     picture: { w: 5, h: 6 },
     surface: { w: 6, h: 7 },
+    dataChart: { w: 6, h: 6 },
     assetState: { w: 4, h: 5 },
     health: { w: 6, h: 6 },
     pipelineLogs: { w: 6, h: 6 },
@@ -201,6 +311,7 @@ const MIN_SIZE: Record<PanelType, { w: number; h: number }> = {
     markdown: { w: 2, h: 1 },
     picture: { w: 2, h: 2 },
     surface: { w: 3, h: 3 },
+    dataChart: { w: 3, h: 3 },
     assetState: { w: 2, h: 2 },
     health: { w: 3, h: 3 },
     pipelineLogs: { w: 3, h: 3 },
@@ -219,6 +330,7 @@ const PANEL_TYPES: PanelType[] = [
     "markdown",
     "picture",
     "surface",
+    "dataChart",
     "assetState",
     "health",
     "pipelineLogs",
@@ -228,7 +340,15 @@ const PANEL_TYPES: PanelType[] = [
 export const PICTURE_FILE = /^[A-Za-z0-9_][A-Za-z0-9_.-]{0,79}\.(png|jpe?g|webp|gif|svg)$/i;
 const PANEL_ID = /^[A-Za-z0-9_-]{1,40}$/;
 const SOURCE = /^[A-Za-z0-9_.-]{1,60}$/;
-const SENSOR_REF = /^[A-Za-z0-9_.-]{1,60}$/;
+// a sensor, the history of the twin's asset state (ASSET_STATE_SERIES) or the values of a topic since the viewer was
+// opened (LIVE_SERIES_PREFIX + topic)
+const SENSOR_REF = /^(@assetState|@live:[A-Za-z0-9_.-]{1,60}|[A-Za-z0-9_.-]{1,60})$/;
+export const ASSET_STATE_SERIES = "@assetState";
+export const LIVE_SERIES_PREFIX = "@live:";
+export const CHART_LIVE_WINDOW_MIN = 10;
+export const CHART_LIVE_WINDOW_MAX = 3600;
+export const CHART_LIVE_WINDOW_DEFAULT = 300;
+export const liveTopicOfSeries = (sensor: string) => (sensor.startsWith(LIVE_SERIES_PREFIX) ? sensor.slice(LIVE_SERIES_PREFIX.length) : null);
 
 export const isChartRange = (value: unknown): value is ChartRange => CHART_RANGES.includes(value as ChartRange);
 
@@ -323,8 +443,10 @@ export const defaultWorkspaceLayout = ({ hasModel, hasCamera, controlRoom, organ
 // a slide with a floating simulator (it docks in the first free place of its size)
 const withFloatingSimulator = <T extends WorkspacePage>(slide: T): T => {
     if (slide.panels.some((p) => p.type === "simulator")) return slide;
-    const { w, h } = NEW_PANEL_SIZE.simulator;
-    const { x, y } = freePlace(slide.panels, w, h);
+    const grid = gridOf(slide);
+    const w = NEW_PANEL_SIZE.simulator.w * grid.scale;
+    const h = Math.min(NEW_PANEL_SIZE.simulator.h * grid.scale, grid.maxRows);
+    const { x, y } = freePlace(slide.panels, w, h, grid);
     const panel: WorkspacePanel = { id: newPanelId(slide.panels, "simulator"), type: "simulator", x, y, w, h, floating: true, float: { ...DEFAULT_FLOAT } };
     return { ...slide, panels: [...slide.panels, panel] };
 };
@@ -369,10 +491,11 @@ export const sanitizeSimulatorFormat = (raw: unknown): Record<string, SimulatorP
     return format;
 };
 
-// the slide with its simulator's own format (the simulator of the slide: one per slide)
-export const setSimulatorFormat = <T extends WorkspacePage>(slide: T, format: Record<string, SimulatorParameter>): T => ({
+// the slide with its simulator's own format (the simulator of the slide, or that of one of the frames of its canvas:
+// panelId)
+export const setSimulatorFormat = <T extends WorkspacePage>(slide: T, format: Record<string, SimulatorParameter>, panelId?: string): T => ({
     ...slide,
-    panels: slide.panels.map((p) => (p.type === "simulator" ? { ...p, format } : p)),
+    panels: slide.panels.map((p) => (p.type === "simulator" && (!panelId || p.id === panelId) ? { ...p, format } : p)),
 });
 
 // a floating window inside the slide and not too small, or undefined
@@ -399,6 +522,10 @@ export const showsSimulation = (panel: WorkspacePanel): boolean => {
             return true;
         case "surface":
             return surfaceTopics(panel.surface).some((t) => SIMULATION_TOPICS.includes(t));
+        case "dataChart":
+            return dataChartTopics(panel.data).some((t) => SIMULATION_TOPICS.includes(t));
+        case "chart":
+            return (panel.series ?? []).some((s) => SIMULATION_TOPICS.includes(liveTopicOfSeries(s.sensor) ?? ""));
         case "image":
             return SIMULATION_TOPICS.includes(panel.source ?? "");
         case "picture":
@@ -411,6 +538,18 @@ export const showsSimulation = (panel: WorkspacePanel): boolean => {
 };
 
 export const isFloating = (panel: WorkspacePanel) => FLOATING_PANEL_TYPES.includes(panel.type) && panel.floating === true;
+
+// a panel with a translucent background, or opaque again (not the 3D model: it draws its own background)
+export const setPanelTranslucent = <T extends WorkspacePage>(layout: T, id: string, translucent: boolean): T => ({
+    ...layout,
+    panels: layout.panels.map((p) => {
+        if (p.id !== id || p.type === "model") return p;
+        const next: WorkspacePanel = { ...p };
+        if (translucent) next.translucent = true;
+        else delete next.translucent;
+        return next;
+    }),
+});
 
 // a panel floated or docked, or its window moved (an editor saving the layout)
 export const setPanelFloat = <T extends WorkspacePage>(layout: T, id: string, floating: boolean, float?: FloatRect): T => ({
@@ -467,7 +606,8 @@ export const sanitizeWorkspaceLayout = (
         const title = typeof item.title === "string" && item.title.trim() ? item.title.trim().slice(0, SLIDE_TITLE_MAX) : `Slide ${n}`;
         const tag = typeof item.tag === "string" && SLIDE_TAG.test(item.tag.trim()) ? item.tag.trim() : `Slide_${n}`;
         slideIds.add(item.id);
-        clean.push({ id: item.id, title, tag, panels: sanitizePanels(item.panels, keepModels) });
+        const canvas = sanitizeCanvas(item.canvas);
+        clean.push({ id: item.id, title, tag, panels: sanitizePanels(item.panels, keepModels, gridOf({ canvas })), ...(canvas ? { canvas } : {}) });
     }
     if (clean.length === 0) return null;
     const layout: WorkspaceLayout = { version: WORKSPACE_LAYOUT_VERSION, slides: clean };
@@ -478,29 +618,33 @@ export const sanitizeWorkspaceLayout = (
 };
 
 // The panels of one slide, made safe
-const sanitizePanels = (panels: unknown, hasModel: boolean): WorkspacePanel[] => {
+const sanitizePanels = (panels: unknown, hasModel: boolean, grid: PageGrid = gridOf(null)): WorkspacePanel[] => {
     if (!Array.isArray(panels)) return [];
     const ids = new Set<string>();
     const clean: WorkspacePanel[] = [];
-    let hasModelPanel = false;
     for (const item of panels.slice(0, MAX_PANELS)) {
         if (!item || typeof item !== "object") continue;
         const p = item as Record<string, unknown>;
         if (typeof p.id !== "string" || !PANEL_ID.test(p.id) || ids.has(p.id)) continue;
         if (!PANEL_TYPES.includes(p.type as PanelType)) continue;
         const type = p.type as PanelType;
-        if (type === "model" && (!hasModel || hasModelPanel)) continue;
-        if (SINGLE_PANEL_TYPES.includes(type) && type !== "model" && clean.some((q) => q.type === type)) continue;
+        // on a canvas, the frame it is in (the 3D model and the simulator: one in each frame)
+        const frame = !grid.compact && typeof p.frame === "string" && FRAME_ID.test(p.frame) ? p.frame : undefined;
+        if (type === "model" && !hasModel) continue;
+        if (SINGLE_PANEL_TYPES.includes(type) && clean.some((q) => q.type === type && sameSingleSlot(type, q, frame))) continue;
         if (!isInt(p.x) || !isInt(p.y) || !isInt(p.w) || !isInt(p.h)) continue;
-        const w = clamp(p.w, 1, GRID_COLS);
+        const w = clamp(p.w, 1, grid.cols);
+        const h = clamp(p.h, 1, grid.maxRows);
         const panel: WorkspacePanel = {
             id: p.id,
             type,
-            x: clamp(p.x, 0, GRID_COLS - w),
-            y: clamp(p.y, 0, MAX_ROWS - 1),
+            x: clamp(p.x, 0, grid.cols - w),
+            // one page with a canvas
+            y: clamp(p.y, 0, grid.compact ? grid.maxRows - 1 : grid.maxRows - h),
             w,
-            h: clamp(p.h, 1, MAX_ROWS),
+            h,
         };
+        if (frame) panel.frame = frame;
         if (typeof p.title === "string" && p.title.trim()) panel.title = p.title.trim().slice(0, 80);
         if (p.type === "image") {
             panel.source = typeof p.source === "string" && SOURCE.test(p.source) ? p.source : ANY_IMAGE_SOURCE;
@@ -513,6 +657,7 @@ const sanitizePanels = (panels: unknown, hasModel: boolean): WorkspacePanel[] =>
             const bindings = sanitizeBindings(p.bindings);
             if (bindings.length) panel.bindings = bindings;
         }
+        if (p.translucent === true && type !== "model") panel.translucent = true;
         if (p.type === "assetState") Object.assign(panel, sanitizeAssetStateSettings(p));
         if (p.type === "orgOverview") Object.assign(panel, sanitizeOrgOverviewSettings(p));
         if (FLOATING_PANEL_TYPES.includes(type)) {
@@ -524,10 +669,17 @@ const sanitizePanels = (panels: unknown, hasModel: boolean): WorkspacePanel[] =>
             const format = sanitizeSimulatorFormat(p.format);
             if (format) panel.format = format;
         }
+        // the 3D Surface panels of before: Data charts of kind "surface" now
         if (p.type === "surface") {
             const surface = sanitizeSurface(p.surface);
             if (!surface) continue;
-            panel.surface = surface;
+            panel.type = "dataChart";
+            panel.data = dataChartOfSurface(surface);
+        }
+        if (p.type === "dataChart") {
+            const data = sanitizeDataChart(p.data);
+            if (!data) continue;
+            panel.data = data;
         }
         if (p.type === "chart") {
             const series = sanitizeChartSeries(p.series);
@@ -543,8 +695,8 @@ const sanitizePanels = (panels: unknown, hasModel: boolean): WorkspacePanel[] =>
             // the charts of 1.4.0 before the editor had a range of their own: their relative time now
             if (!panel.timeFrom && isChartRange(p.range)) panel.timeFrom = p.range;
             if (isInt(p.maxDataPoints) && p.maxDataPoints >= 10 && p.maxDataPoints <= 2000) panel.maxDataPoints = p.maxDataPoints;
+            if (isInt(p.liveWindow) && p.liveWindow >= CHART_LIVE_WINDOW_MIN && p.liveWindow <= CHART_LIVE_WINDOW_MAX) panel.liveWindow = p.liveWindow;
         }
-        if (p.type === "model") hasModelPanel = true;
         ids.add(p.id);
         clean.push(panel);
     }
@@ -569,15 +721,17 @@ const collides = (a: { x: number; y: number; w: number; h: number }, b: Workspac
     a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
 
 // The first free place of w × h, from the top left; below everything if there is none
-export const freePlace = (panels: WorkspacePanel[], w: number, h: number): { x: number; y: number } => {
+export const freePlace = (panels: WorkspacePanel[], w: number, h: number, grid: PageGrid = gridOf(null)): { x: number; y: number } => {
     const bottom = panels.reduce((max, p) => Math.max(max, p.y + p.h), 0);
-    for (let y = 0; y <= bottom; y++) {
-        for (let x = 0; x + w <= GRID_COLS; x++) {
+    // one page (a canvas): the free place in it, else the top left corner (panels may overlap there)
+    const last = grid.compact ? bottom : grid.maxRows - h;
+    for (let y = 0; y <= last; y++) {
+        for (let x = 0; x + w <= grid.cols; x++) {
             const box = { x, y, w, h };
             if (!panels.some((p) => collides(box, p))) return { x, y };
         }
     }
-    return { x: 0, y: bottom };
+    return grid.compact ? { x: 0, y: bottom } : { x: 0, y: 0 };
 };
 
 export const newPanelId = (panels: WorkspacePanel[], type: PanelType): string => {
@@ -596,22 +750,28 @@ export interface NewPanel {
     title?: string;
     series?: ChartSeriesRef[];
     viz?: string;
+    // on a canvas: the frame it goes to
+    frame?: string | null;
 }
 
-export const canAddModelPanel = (layout: WorkspacePage, hasModel: boolean) =>
-    hasModel && !layout.panels.some((p) => p.type === "model");
+// frame: on a canvas, the frame the panel would go to (a 3D model and a simulator: one in each frame)
+export const canAddModelPanel = (layout: WorkspacePage, hasModel: boolean, frame?: string | null) => canAddPanelType(layout, "model", hasModel, frame);
 
-// a type that can be added: one model (when the twin has one), one alarms and one approvals panel
-export const canAddPanelType = (layout: WorkspacePage, type: PanelType, hasModel: boolean) => {
+// a type that can be added: one model (when the twin has one), one alarms and one approvals panel; on a canvas, one
+// model and one simulator in each frame
+export const canAddPanelType = (layout: WorkspacePage, type: PanelType, hasModel: boolean, frame?: string | null) => {
     if (type === "model" && !hasModel) return false;
-    return !SINGLE_PANEL_TYPES.includes(type) || !layout.panels.some((p) => p.type === type);
+    const slot = layout.canvas ? frame : null;
+    return !SINGLE_PANEL_TYPES.includes(type) || !layout.panels.some((p) => p.type === type && sameSingleSlot(type, p, slot));
 };
 
 export const addPanel = <T extends WorkspacePage>(layout: T, spec: NewPanel): T => {
     if (layout.panels.length >= MAX_PANELS) return layout;
-    if (SINGLE_PANEL_TYPES.includes(spec.type) && layout.panels.some((p) => p.type === spec.type)) return layout;
-    const { w, h } = NEW_PANEL_SIZE[spec.type];
-    const { x, y } = freePlace(layout.panels, w, h);
+    if (!canAddPanelType(layout, spec.type, true, spec.frame)) return layout;
+    const grid = gridOf(layout);
+    const w = NEW_PANEL_SIZE[spec.type].w * grid.scale;
+    const h = Math.min(NEW_PANEL_SIZE[spec.type].h * grid.scale, grid.maxRows);
+    const { x, y } = freePlace(layout.panels, w, h, grid);
     const panel: WorkspacePanel = { id: newPanelId(layout.panels, spec.type), type: spec.type, x, y, w, h };
     if (spec.type === "image") {
         panel.source = spec.source || ANY_IMAGE_SOURCE;
@@ -619,7 +779,12 @@ export const addPanel = <T extends WorkspacePage>(layout: T, spec: NewPanel): T 
     }
     if (spec.type === "markdown") panel.text = (spec.text ?? "").slice(0, MARKDOWN_MAX_LENGTH);
     if (spec.type === "picture" && spec.file && PICTURE_FILE.test(spec.file)) panel.file = spec.file;
-    if (spec.type === "surface") panel.surface = defaultSurface();
+    // a 3D Surface is a Data chart of kind "surface"
+    if (spec.type === "surface") {
+        panel.type = "dataChart";
+        panel.data = dataChartOfSurface(defaultSurface());
+    }
+    if (spec.type === "dataChart") panel.data = defaultDataChart();
     if (spec.type === "chart") {
         const series = sanitizeChartSeries(spec.series);
         if (series.length === 0) return layout;
@@ -627,6 +792,7 @@ export const addPanel = <T extends WorkspacePage>(layout: T, spec: NewPanel): T 
         if (spec.viz) panel.viz = spec.viz;
     }
     if (spec.title?.trim()) panel.title = spec.title.trim().slice(0, 80);
+    if (layout.canvas && spec.frame && FRAME_ID.test(spec.frame)) panel.frame = spec.frame;
     return { ...layout, panels: [...layout.panels, panel] };
 };
 
@@ -677,41 +843,29 @@ export const toGridItems = (layout: WorkspacePage, editable: boolean) =>
         y: p.y,
         w: p.w,
         h: p.h,
-        minW: minSizeOf(p.type).w,
-        minH: minSizeOf(p.type).h,
+        minW: minSizeOf(p.type).w * gridOf(layout).scale,
+        minH: minSizeOf(p.type).h * gridOf(layout).scale,
         isDraggable: editable,
         isResizable: editable,
     }));
 
-const normalized = (layout: WorkspacePage) =>
-    JSON.stringify(
-        [...layout.panels]
-            .sort((a, b) => a.id.localeCompare(b.id))
-            .map((p) => [
-                p.id,
-                p.type,
-                p.title ?? "",
-                p.source ?? "",
-                JSON.stringify(p.series ?? []),
-                p.range ?? "",
-                p.viz ?? "",
-                JSON.stringify(p.options ?? {}),
-                JSON.stringify(p.fieldConfig ?? {}),
-                p.timeFrom ?? "",
-                p.timeShift ?? "",
-                p.interval ?? "",
-                p.maxDataPoints ?? "",
-                p.floating === true,
-                JSON.stringify(p.float ?? null),
-                p.x,
-                p.y,
-                p.w,
-                p.h,
-            ]),
-    );
+// a value as JSON with the keys of its objects in order (two panels with the same settings give the same text)
+const stableJson = (value: unknown): string =>
+    Array.isArray(value)
+        ? `[${value.map(stableJson).join(",")}]`
+        : value !== null && typeof value === "object"
+          ? `{${Object.keys(value as object)
+                .filter((k) => (value as Record<string, unknown>)[k] !== undefined)
+                .sort()
+                .map((k) => `${JSON.stringify(k)}:${stableJson((value as Record<string, unknown>)[k])}`)
+                .join(",")}}`
+          : JSON.stringify(value ?? null);
+
+// every setting of the panels (their text, picture, Data chart, format… too), in the order of their ids
+const normalized = (layout: WorkspacePage) => stableJson([...layout.panels].sort((a, b) => a.id.localeCompare(b.id)));
 
 const sameSlide = (a: WorkspaceSlide, b: WorkspaceSlide) =>
-    a.id === b.id && a.title === b.title && a.tag === b.tag && normalized(a) === normalized(b);
+    a.id === b.id && a.title === b.title && a.tag === b.tag && stableJson(a.canvas ?? null) === stableJson(b.canvas ?? null) && normalized(a) === normalized(b);
 
 export const sameLayout = (a: WorkspaceLayout, b: WorkspaceLayout) =>
     !!a.simulatorPlaced === !!b.simulatorPlaced &&
@@ -751,6 +905,7 @@ export const duplicateSlide = (layout: WorkspaceLayout, id: string): { layout: W
         title: `${source.title} (copy)`.slice(0, SLIDE_TITLE_MAX),
         tag: source.tag,
         panels: source.panels.map((p) => ({ ...p })),
+        ...(source.canvas ? { canvas: { ...source.canvas } } : {}),
     };
     const slides = [...layout.slides];
     slides.splice(at + 1, 0, copy);
@@ -887,12 +1042,13 @@ export const setPanelSource = <T extends WorkspacePage>(layout: T, id: string, s
 export const panelTitle = (panel: WorkspacePanel): string => {
     if (panel.title) return panel.title;
     if (panel.type === "model") return "3D model";
-    if (panel.type === "chart") return "Chart";
+    if (panel.type === "chart") return "Time series chart";
     if (panel.type === "alarms") return "Alarms";
     if (panel.type === "approvals") return "Approvals";
     if (panel.type === "markdown") return "Text";
     if (panel.type === "picture") return panel.file ? panel.file.replace(/\.[^.]+$/, "") : "Picture";
     if (panel.type === "surface") return "3D Surface";
+    if (panel.type === "dataChart") return "Data chart";
     if (panel.type === "assetState") return "Asset state";
     if (panel.type === "health") return "Health";
     if (panel.type === "pipelineLogs") return "Pipeline logs";
@@ -932,6 +1088,8 @@ export const imageSourceOptions = (topicRefs: string[], liveSources: string[]): 
 };
 
 // Height of a row so that PAGE_ROWS rows fill the page
-export const rowHeightFor = (height: number, margin = GRID_MARGIN) =>
-    Math.max(MIN_ROW_HEIGHT, Math.floor((height - margin * (PAGE_ROWS - 1)) / PAGE_ROWS));
-
+export const rowHeightFor = (height: number, margin = GRID_MARGIN, rows = PAGE_ROWS) =>
+    rows === PAGE_ROWS
+        ? Math.max(MIN_ROW_HEIGHT, Math.floor((height - margin * (rows - 1)) / rows))
+        : // a canvas: its rows fill the page exactly (they are small)
+          Math.max(4, (height - margin * (rows - 1)) / rows);

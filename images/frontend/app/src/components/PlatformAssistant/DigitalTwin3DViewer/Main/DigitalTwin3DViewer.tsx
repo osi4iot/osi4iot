@@ -94,7 +94,7 @@ import { ReactFlowProvider } from "@xyflow/react";
 import { toast } from "react-toastify";
 import { Download, Pencil, SlidersHorizontal, Upload, Video } from "lucide-react";
 import { ImageFrame } from "../PhotoFrame/PhotoFrame";
-import ViewerWorkspace, { PanelAction } from "../Workspace/ViewerWorkspace";
+import ViewerWorkspace, { PanelAction, StageControls } from "../Workspace/ViewerWorkspace";
 import ModelFilesTab from "../AssistantPanel/ModelFilesTab";
 import ChartPanel from "../Workspace/ChartPanel";
 import PanelEditor from "../Workspace/PanelEditor";
@@ -114,7 +114,7 @@ import { controlRoomApi, controlRoomLogsApi, scopeOfDigitalTwin } from "../Works
 import { orgOverviewApi } from "../Workspace/orgOverview";
 import { OrgOverviewEditor, OrgOverviewPanel } from "../Workspace/OrgOverviewPanel";
 import { assetStateApi } from "../Workspace/assetStateApi";
-import { chartSeriesOptions } from "../Workspace/chartSeries";
+import { chartSeriesOptions, sourceSeriesOptions } from "../Workspace/chartSeries";
 import { fetchTimeSeries, TimeSeriesQuery } from "../Workspace/timeSeriesApi";
 import WorkspaceControls, { SoundToggle } from "../Workspace/WorkspaceControls";
 import ViewerDataMenu from "../Workspace/ViewerDataMenu";
@@ -157,6 +157,9 @@ import {
     addSlide,
     currentSlideOf,
     duplicateSlide,
+    setSlideCanvas,
+    WorkspaceSlide,
+    removePanel,
     moveSlide,
     removeSlide,
     replaceSlide,
@@ -170,6 +173,11 @@ import {
     updateSlide,
     visibleSlides,
     WORKSPACE_PHONE_BELOW,
+    panelInUse,
+    panelScope,
+    scopeOf,
+    slideOfScope,
+    withPanelFrames,
 } from "../Workspace/workspaceLayout";
 import SlideBar from "../Workspace/SlideBar";
 import AllSlides from "../Workspace/AllSlides";
@@ -198,7 +206,7 @@ import {
     packageImageWarnings,
     readViewerPackage,
 } from "../Workspace/viewerPackage";
-import { SLIDE_FIELD, createLiveValueStore, liveTopicRefs, liveTopicsOf, scopedToSlide, topicRefsOf, useLiveValues } from "../Workspace/liveValues";
+import { SLIDE_FIELD, createLiveValueStore, liveTopicRefs, liveTopicsOf, scopedToSlide, topicRefsOf, useLiveValues, type LiveValueStore } from "../Workspace/liveValues";
 import {
     ParsedViewerConfig,
     buildViewerConfig,
@@ -209,9 +217,17 @@ import {
     viewerConfigText,
 } from "../Workspace/viewerConfig";
 import ModelSlot, { createModelHost } from "../Workspace/ModelSlot";
-import { SurfaceView } from "../Workspace/surface/SurfacePanel";
-import { SurfaceEditor } from "../Workspace/surface/SurfaceEditor";
-import { surfaceTopics } from "../Workspace/surface/surfacePanel";
+import { DataChartView } from "../Workspace/dataChart/DataChartPanel";
+import { DataChartEditor } from "../Workspace/dataChart/DataChartEditor";
+import { ASSET_STATE_SOURCE, dataChartSources, dataChartTopics } from "../Workspace/dataChart/dataChart";
+import { useWithAssetState, withAssetStateOf } from "../Workspace/dataChart/assetStateSource";
+import { OtherFrameNotice } from "../Workspace/OtherFrameNotice";
+import { SlideCanvas } from "../Workspace/canvas/SlideCanvas";
+import { useSlideCanvases } from "../Workspace/canvas/useSlideCanvases";
+import { sceneTopics } from "../Workspace/canvas/canvasScene";
+import { loadSlideCanvas } from "../Workspace/canvas/canvasApi";
+import { chartLiveTopics, combineFetchSeries, createLiveSeriesBuffer, numericStatePaths, recordingStore } from "../Workspace/charts/chartSources";
+import { useAssetState } from "../Workspace/AssetStatePanel";
 import {
     SavedViewerLayout,
     deleteViewerLayout,
@@ -720,13 +736,20 @@ const DigitalTwin3DViewerScene: FC<Viewer3DProps & SceneProps> = ({
         }
     }, [state.femResultData, state.femSimulationObjects, digitalTwinSelected, digitalTwinGltfData, setState]);
 
+    // The values of the simulator of each scope (a slide, a frame of its canvas) left, and the last message it sent:
+    // coming back to it, its simulator has them again (and sends nothing new)
+    const simulatorMemory = useRef(new Map<string, { values: Record<string, number>; sent: string }>());
+    const simulatorScopeRef = useRef<string | null>(null);
     // Update digital twin simulator state when format changes
     useEffect(() => {
         if (Object.keys(digitalTwinGltfData.digitalTwinSimulationFormat).length !== 0) {
             const digitalTwinSimulationFormat = digitalTwinGltfData.digitalTwinSimulationFormat;
             const digitalTwinSimulatorState: Record<string, number> = {};
+            const kept = simulatorScopeRef.current ? simulatorMemory.current.get(simulatorScopeRef.current)?.values : undefined;
             Object.keys(digitalTwinSimulationFormat).forEach((paramName) => {
-                if (state.initialDigitalTwinSimulatorState[paramName] !== undefined) {
+                if (kept?.[paramName] !== undefined) {
+                    digitalTwinSimulatorState[paramName] = kept[paramName];
+                } else if (state.initialDigitalTwinSimulatorState[paramName] !== undefined) {
                     digitalTwinSimulatorState[paramName] = state.initialDigitalTwinSimulatorState[paramName];
                 } else {
                     digitalTwinSimulatorState[paramName] = digitalTwinSimulationFormat[paramName].defaultValue;
@@ -855,21 +878,62 @@ const DigitalTwin3DViewerScene: FC<Viewer3DProps & SceneProps> = ({
         [natsClient, voiceTopicSubject, voiceBuiltInSubject],
     );
 
+    // The state of the 3D model of each scope (a slide, a frame of its canvas) as it was left: when its model is
+    // shown again it gets it back, and then the messages it missed meanwhile (replayModelRef)
+    const modelSnapshots = useRef(new Map<string, ModelSnapshot>());
+    // (a model of a scope: its file and date; a new upload is another model)
+    const snapshotKey =
+        digitalTwinGltfData.gltfFile && digitalTwinGltfData.slideId
+            ? `${digitalTwinGltfData.slideId}|${digitalTwinGltfData.gltfFileName}|${digitalTwinGltfData.slideModels?.[digitalTwinGltfData.slideId]?.gltfFileDate ?? ""}`
+            : null;
+    const modelKeyRef = useRef(snapshotKey);
+    modelKeyRef.current = snapshotKey;
+    // the model each part of the state is of (once its initial state has come)
+    const statesOf = useRef<Record<keyof ModelSnapshot, string | null>>({ sensors: null, assets: null, generic: null, fem: null });
+    const replayModelRef = useRef<((scope: string) => void) | null>(null);
+    const replayedFor = useRef<string | null>(null);
+    // the initial state of a part, or the one kept for that model when it comes back
+    const syncPart = <K extends keyof ModelSnapshot>(part: K, initial: ModelSnapshot[K], set: (value: NonNullable<ModelSnapshot[K]>) => void) => {
+        const key = modelKeyRef.current;
+        const kept = key && statesOf.current[part] !== key ? modelSnapshots.current.get(key)?.[part] : undefined;
+        set((kept ?? initial) as NonNullable<ModelSnapshot[K]>);
+        statesOf.current[part] = key;
+        // a model shown: the messages it missed, once its state is there
+        if (key && replayedFor.current !== key) {
+            replayedFor.current = key;
+            const scope = key.split("|")[0];
+            window.setTimeout(() => replayModelRef.current?.(scope), 120);
+        }
+    };
+    const keepPart = <K extends keyof ModelSnapshot>(part: K, value: ModelSnapshot[K]) => {
+        const key = statesOf.current[part];
+        if (!key) return;
+        modelSnapshots.current.set(key, { ...modelSnapshots.current.get(key), [part]: value });
+    };
+    useEffect(() => keepPart("sensors", currentSensorsState), [currentSensorsState]);
+    useEffect(() => keepPart("assets", currentAssetsState), [currentAssetsState]);
+    useEffect(() => keepPart("generic", currentGenericObjectsState), [currentGenericObjectsState]);
+    useEffect(() => keepPart("fem", currentFemSimulationObjectsState), [currentFemSimulationObjectsState]);
+
     // Sync initial states with current states when they change
     useEffect(() => {
-        if (state.initialSensorsState) setCurrentSensorsState(state.initialSensorsState);
+        if (state.initialSensorsState) syncPart("sensors", state.initialSensorsState, setCurrentSensorsState);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [state.initialSensorsState]);
 
     useEffect(() => {
-        if (state.initialAssetsState) setCurrentAssetsState(state.initialAssetsState);
+        if (state.initialAssetsState) syncPart("assets", state.initialAssetsState, setCurrentAssetsState);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [state.initialAssetsState]);
 
     useEffect(() => {
-        if (state.initialGenericObjectsState) setCurrentGenericObjectsState(state.initialGenericObjectsState);
+        if (state.initialGenericObjectsState) syncPart("generic", state.initialGenericObjectsState, setCurrentGenericObjectsState);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [state.initialGenericObjectsState]);
 
     useEffect(() => {
-        if (state.initialFemSimObjectsState) setCurrentFemSimulationObjectsState(state.initialFemSimObjectsState);
+        if (state.initialFemSimObjectsState) syncPart("fem", state.initialFemSimObjectsState, setCurrentFemSimulationObjectsState);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [state.initialFemSimObjectsState]);
 
     // Valores del simulador como texto comparable: solo sus campos (los del formato del gemelo), en orden fijo
@@ -1137,6 +1201,7 @@ const DigitalTwin3DViewerScene: FC<Viewer3DProps & SceneProps> = ({
         handleSetChatMessages,
         loggedUserName,
         modelSlideRef,
+        replayModelRef,
     );
 
     const [pipelineNodes, setPipelineNodes] = useState([] as IPipelineNode[]);
@@ -1303,27 +1368,61 @@ const DigitalTwin3DViewerScene: FC<Viewer3DProps & SceneProps> = ({
     const editingLayout = draftLayout !== null;
     const workspaceLayout = draftLayout ?? shownLayout;
     const currentSlide = currentSlideOf(workspaceLayout, slideId, hiddenSlides);
-    // the 3D model shown is that of the slide shown (DigitalTwin3DViewer loads it); a slide without a 3D Model panel
-    // keeps the last one
-    const currentSlideHasModelPanel = currentSlide.panels.some((panel) => panel.type === "model");
-    shownSlideRef.current = currentSlide.id;
+    // the frame of the canvas whose step is shown (SlideCanvas): each frame can have its own 3D model and simulator
+    const [canvasFrame, setCanvasFrame] = useState<{ slide: string; frame: string | null } | null>(null);
+    const shownFrame = currentSlide.canvas && canvasFrame?.slide === currentSlide.id ? canvasFrame.frame : null;
+    // the scope shown: the slide, or the frame of its canvas (the live values of its panels, the charts' live series)
+    const shownScope = scopeOf(currentSlide.id, shownFrame);
+    const shownScopeRef = useRef(shownScope);
+    shownScopeRef.current = shownScope;
+    // the 3D model shown is that of the slide shown, or of the frame of its canvas shown (DigitalTwin3DViewer loads
+    // it: its scope); a slide (a frame) without a 3D Model panel keeps the last one
+    const modelPanelInUse = panelInUse(currentSlide, "model", shownFrame);
+    const modelScopeInUse = modelPanelInUse ? panelScope(currentSlide.id, modelPanelInUse) : null;
+    // the simulator in use: its values carry its scope ("$slide"), and the answers with it go to that scope
+    const simulatorPanelInUse = panelInUse(currentSlide, "simulator", shownFrame);
+    const simulatorScope = simulatorPanelInUse ? panelScope(currentSlide.id, simulatorPanelInUse) : currentSlide.id;
+    shownSlideRef.current = simulatorScope;
+    // another simulator in use (another frame, another slide): the values of the one left are kept, and those of this
+    // one come back (the format's effect, above, takes them)
+    useLayoutEffect(() => {
+        const left = simulatorScopeRef.current;
+        if (left === simulatorScope) return;
+        if (left && opts.digitalTwinSimulatorState) simulatorMemory.current.set(left, { values: opts.digitalTwinSimulatorState, sent: lastNatsMessageSent });
+        simulatorScopeRef.current = simulatorScope;
+        const kept = simulatorMemory.current.get(simulatorScope);
+        if (kept) {
+            setLastNatsMessageSent(kept.sent);
+            setOpts((prev) => ({ ...prev, digitalTwinSimulatorState: { ...prev.digitalTwinSimulatorState, ...kept.values } }));
+        } else if (left) {
+            // a simulator never used: from its first values
+            const format = digitalTwinGltfData.digitalTwinSimulationFormat ?? {};
+            const first: Record<string, number> = {};
+            for (const [name, parameter] of Object.entries(format)) first[name] = state.initialDigitalTwinSimulatorState[name] ?? parameter.defaultValue;
+            setOpts((prev) => ({ ...prev, digitalTwinSimulatorState: first }));
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [simulatorScope]);
     // the simulator of the slide shown, with its own format or the twin's (DigitalTwin3DViewer gives it as the
     // twin's data's format: the sliders, the values sent and what the AI agent is told follow it)
-    const slideSimulatorFormat = currentSlide.panels.find((panel) => panel.type === "simulator")?.format ?? null;
+    const slideSimulatorFormat = simulatorPanelInUse?.format ?? null;
     const slideSimulatorFormatKey = slideSimulatorFormat ? JSON.stringify(slideSimulatorFormat) : "";
     useEffect(() => {
         onSlideSimulatorFormat?.(slideSimulatorFormat);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [onSlideSimulatorFormat, slideSimulatorFormatKey]);
     useEffect(() => {
-        onShownSlide?.(currentSlideHasModelPanel ? currentSlide.id : null);
-    }, [onShownSlide, currentSlide.id, currentSlideHasModelPanel]);
+        onShownSlide?.(modelScopeInUse);
+    }, [onShownSlide, modelScopeInUse]);
     // the scene is loaded when some slide shows the model
     const layoutHasModel = workspaceLayout.slides.some((slide) => slide.panels.some((panel) => panel.type === "model"));
     const goToSlide = useCallback((id: string) => {
         setSlideId(id);
         setMaximizedPanel(null);
+        setCanvasStartAtEnd(false);
     }, []);
+    // a canvas reached going back (from the next slide) shows its last step, as a presentation
+    const [canvasStartAtEnd, setCanvasStartAtEnd] = useState(false);
     // all the slides as thumbnails (search, order)
     const [slidesOverview, setSlidesOverview] = useState(false);
     // opened from a camera: its image full page (the other panels one click away)
@@ -1454,6 +1553,21 @@ const DigitalTwin3DViewerScene: FC<Viewer3DProps & SceneProps> = ({
     const [viewerDataBusy, setViewerDataBusy] = useState<string | null>(null);
     const [femCount, setFemCount] = useState<number | null>(null);
     const twinRef = digitalTwinSelected ? { groupId: digitalTwinSelected.groupId, digitalTwinId: digitalTwinSelected.id } : null;
+    // the canvases of the slides (canvas/): the scene of the slide shown is read when it has one
+    const slideCanvases = useSlideCanvases(twinRef, layoutAuth, currentSlide.canvas ? currentSlide.id : null);
+    // drawing on the canvas (the panels let it be drawn under them), while the layout is edited
+    const [canvasEditing, setCanvasEditing] = useState(false);
+    useEffect(() => {
+        if (!editingLayout || !currentSlide.canvas) setCanvasEditing(false);
+    }, [editingLayout, currentSlide.canvas]);
+    const currentCanvas = currentSlide.canvas ? slideCanvases.entryOf(currentSlide.id) : undefined;
+    // the topics of the live values of the canvas shown
+    const canvasTopics = useMemo(() => (currentCanvas?.scene ? sceneTopics(currentCanvas.scene.elements) : []), [currentCanvas?.scene]);
+    // the slides one step before or after (the slide bar, the canvas past its last step)
+    const stepSlideBy = (delta: number) => {
+        goToSlide(stepSlide(workspaceLayout, currentSlide.id, delta, hiddenSlides));
+        if (delta < 0) setCanvasStartAtEnd(true);
+    };
     // the slide whose 3D model is shown: its files (each slide has its own model and FEM results)
     const modelSlideId = viewerHasModel ? digitalTwinGltfData.slideId : undefined;
     const slideRef = twinRef && modelSlideId ? { ...twinRef, slideId: modelSlideId } : null;
@@ -1471,7 +1585,8 @@ const DigitalTwin3DViewerScene: FC<Viewer3DProps & SceneProps> = ({
     const onViewerDataFiles = async (files: File[], from: "menu" | "panel" | "model" = "menu") => {
         if (files.length === 0) return;
         setViewerDataBusy("Reading files…");
-        setModelLoadSlide(from === "model" ? currentSlide.id : null);
+        // (the scope of the 3D Model panel in use: the slide, or the frame of its canvas shown)
+        setModelLoadSlide(from === "model" ? modelScopeInUse ?? currentSlide.id : null);
         try {
             // a File is a Blob: nothing is read into memory here (the .zip is read entry by entry)
             const dataFiles: DataFile[] = files.map((file) => ({ name: file.name, data: file, lastModified: file.lastModified }));
@@ -1518,6 +1633,7 @@ const DigitalTwin3DViewerScene: FC<Viewer3DProps & SceneProps> = ({
         if (loaded.length > 0) {
             refreshDigitalTwins();
             readFemCount();
+            if (loaded.some((item) => item.part === "canvas")) slideCanvases.reload();
             // the model, the FEM results, the layout and the formats come again with the twin
             onReloadDigitalTwin?.();
         }
@@ -1531,7 +1647,8 @@ const DigitalTwin3DViewerScene: FC<Viewer3DProps & SceneProps> = ({
         const deck = draftLayout ?? shownLayout;
         const slide = deck.slides.find((sl) => sl.id === currentSlide.id);
         if (!slide) return;
-        const next = replaceSlide(deck, setSimulatorFormat(slide, format));
+        // the simulator in use (that of the frame of the canvas shown)
+        const next = replaceSlide(deck, setSimulatorFormat(slide, format, simulatorPanelInUse?.id));
         if (draftLayout) setDraftLayout(next);
         else changeSlides(next, currentSlide.id);
     };
@@ -1602,6 +1719,17 @@ const DigitalTwin3DViewerScene: FC<Viewer3DProps & SceneProps> = ({
                 setViewerDataBusy(`Downloading FEM results ${step}…`);
                 const fem = info.femResults > 0 ? await fetchFemResults(ref, layoutAuth) : [];
                 slides.push({ slideId, model, fem });
+            }
+            // the canvases of the slides of the group's layout (the scenes saved)
+            const canvasSlides = (savedLayout?.layout?.slides ?? []).filter((sl: { canvas?: unknown }) => !!sl.canvas).map((sl: { id: string }) => sl.id);
+            for (const [index, slideId] of canvasSlides.entries()) {
+                setViewerDataBusy(`Downloading canvases (${index + 1}/${canvasSlides.length})…`);
+                const scene = await loadSlideCanvas({ ...twinRef, slideId }, layoutAuth).catch(() => null);
+                if (!scene) continue;
+                const data = new Blob([JSON.stringify(scene)], { type: "application/json" });
+                const entry = slides.find((sl) => sl.slideId === slideId);
+                if (entry) entry.canvas = { name: "scene.json", data };
+                else slides.push({ slideId, canvas: { name: "scene.json", data } });
             }
             setViewerDataBusy("Preparing the zip…");
             const zip = await buildViewerDataZip(
@@ -1769,6 +1897,8 @@ const DigitalTwin3DViewerScene: FC<Viewer3DProps & SceneProps> = ({
     };
     const cancelLayoutEdit = () => {
         dropPendingImages();
+        slideCanvases.discard();
+        setCanvasEditing(false);
         if (configLighting) {
             const { before } = configLighting;
             setOpts((prev) => ({ ...prev, ...before }));
@@ -1806,9 +1936,13 @@ const DigitalTwin3DViewerScene: FC<Viewer3DProps & SceneProps> = ({
     const editingPanel = editingPanelId ? currentSlide.panels.find((panel) => panel.id === editingPanelId) ?? null : null;
     // the values of the NATS messages for the Text panels: the topics they name (all of them while one is edited,
     // so that its editor offers their fields)
-    const liveStore = useMemo(createLiveValueStore, []);
+    // the numbers of the messages since the viewer was opened: the live series of the Time series charts
+    const liveSeriesBuffer = useMemo(() => createLiveSeriesBuffer(), []);
+    const liveStore = useMemo(() => recordingStore(createLiveValueStore(), liveSeriesBuffer), [liveSeriesBuffer]);
     // the panels of the slide shown see its messages ("$slide") and those of no slide
     const slideLiveStore = useMemo(() => scopedToSlide(liveStore, currentSlide.id), [liveStore, currentSlide.id]);
+    // those of the frame of its canvas shown too (its live texts, the sounds)
+    const shownLiveStore = useMemo(() => scopedToSlide(liveStore, shownScope), [liveStore, shownScope]);
     const twinLiveTopics = useMemo(() => liveTopicRefs(digitalTwinGltfData?.natsSubjectsData ?? []), [digitalTwinGltfData?.natsSubjectsData]);
     // the same topics with what is known of them: the fields of the sensors of each dev2pdb topic
     const liveTopics = useMemo(() => {
@@ -1817,16 +1951,70 @@ const DigitalTwin3DViewerScene: FC<Viewer3DProps & SceneProps> = ({
         return liveTopicsOf(digitalTwinGltfData?.natsSubjectsData ?? [], chartOptions, topicOfSensor);
     }, [digitalTwinGltfData?.natsSubjectsData, chartOptions, sensorsTable]);
     // the sounds the pipeline asks for (dtm2sim "sound"), while the user has the sound on
-    const viewerSound = useViewerSounds(slideLiveStore, twinLiveTopics.includes(SOUND_TOPIC));
+    const viewerSound = useViewerSounds(shownLiveStore, twinLiveTopics.includes(SOUND_TOPIC));
     const shownLiveTopics = useMemo(() => {
         const sounds = soundTopics(viewerSound.enabled, twinLiveTopics);
-        if (editingPanel?.type === "markdown" || editingPanel?.type === "picture" || editingPanel?.type === "surface") return twinLiveTopics;
+        // drawing a canvas: every topic, so that its live texts show their values once presented
+        if (canvasEditing || editingPanel?.type === "markdown" || editingPanel?.type === "picture" || editingPanel?.type === "dataChart" || editingPanel?.type === "chart") {
+            return Array.from(new Set([...twinLiveTopics, ...chartLiveTopics(workspaceLayout)])).sort();
+        }
         const panels = workspaceLayout.slides.flatMap((slide) => slide.panels);
         const texts = panels.filter((p) => p.type === "markdown").map((p) => p.text ?? "");
         const animated = panels.flatMap((p) => (p.type === "picture" ? (p.bindings ?? []).map((b) => b.topicRef) : []));
-        const surfaces = panels.flatMap((p) => (p.type === "surface" ? surfaceTopics(p.surface) : []));
-        return Array.from(new Set([...topicRefsOf(texts), ...animated, ...surfaces, ...sounds])).sort();
-    }, [editingPanel?.type, twinLiveTopics, workspaceLayout, viewerSound.enabled]);
+        const surfaces = panels.flatMap((p) => (p.type === "dataChart" ? dataChartTopics(p.data) : []));
+        // the live series of the charts of every slide: kept from the opening of the viewer
+        return Array.from(new Set([...topicRefsOf(texts), ...animated, ...surfaces, ...sounds, ...chartLiveTopics(workspaceLayout), ...canvasTopics])).sort();
+    }, [editingPanel?.type, twinLiveTopics, workspaceLayout, viewerSound.enabled, canvasTopics, canvasEditing]);
+    // the state of the twin's asset as a source of the Data charts ("@assetState"): read while the slide shown has
+    // one that uses it, or one is being edited
+    const assetStateWanted = useMemo(
+        () =>
+            editingPanel?.type === "dataChart" ||
+            editingPanel?.type === "chart" ||
+            currentSlide.panels.some((p) => p.type === "dataChart" && dataChartSources(p.data).includes(ASSET_STATE_SOURCE)),
+        [editingPanel?.type, currentSlide.panels],
+    );
+    const chartAssetState = useAssetState(
+        loadAssetState,
+        digitalTwinSelected?.groupId ?? 0,
+        digitalTwinSelected?.id ?? 0,
+        !inViewer || !assetStateWanted || !digitalTwinSelected || dtScope === "group",
+        assetStateLive,
+    );
+    const dataChartStore = useWithAssetState(slideLiveStore, chartAssetState.view);
+    // the panels of a frame of a canvas see the messages of that frame ("$slide": "<slide>:<frame>") too
+    const frameStores = useMemo(() => new Map<string, { live: LiveValueStore; data: LiveValueStore }>(), [liveStore, dataChartStore]);
+    const storesOfPanel = (panel: WorkspacePanel): { live: LiveValueStore; data: LiveValueStore } => {
+        if (!panel.frame || !currentSlide.canvas) return { live: slideLiveStore, data: dataChartStore };
+        const scope = panelScope(currentSlide.id, panel);
+        let stores = frameStores.get(scope);
+        if (!stores) {
+            const live = scopedToSlide(liveStore, scope);
+            stores = { live, data: withAssetStateOf(live, dataChartStore) };
+            frameStores.set(scope, stores);
+        }
+        return stores;
+    };
+
+    // the series of the Time series charts: the sensors' fields, those of the asset's state (its history) and those of
+    // the topics since the viewer was opened
+    const chartSeriesChoices = useMemo(() => {
+        const hasAsset = !!digitalTwinSelected?.assetId && dtScope !== "group";
+        const stateFields = hasAsset && chartAssetState.view ? numericStatePaths(chartAssetState.view.state) : [];
+        const liveFields = Array.from(new Set([...twinLiveTopics, ...chartLiveTopics(workspaceLayout)])).map((topic) => ({ topic, fields: liveSeriesBuffer.fields(topic) }));
+        return [...chartOptions, ...sourceSeriesOptions(stateFields, liveFields)];
+        // the fields seen grow with the messages: read again when the editor opens or the state is read
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [chartOptions, chartAssetState.view, twinLiveTopics, workspaceLayout, editingPanelId, dtScope, digitalTwinSelected?.assetId]);
+    const chartFetch = useMemo(
+        () =>
+            combineFetchSeries(fetchChartSeries, {
+                assetId: dtScope !== "group" ? digitalTwinSelected?.assetId : undefined,
+                buffer: liveSeriesBuffer,
+                slideId: () => shownScopeRef.current,
+            }),
+        [fetchChartSeries, dtScope, digitalTwinSelected?.assetId, liveSeriesBuffer],
+    );
     // the images of the Picture panels: files of the twin
     const pictureFiles = useMemo<PictureFiles | undefined>(() => {
         if (!digitalTwinSelected) return undefined;
@@ -1841,6 +2029,50 @@ const DigitalTwin3DViewerScene: FC<Viewer3DProps & SceneProps> = ({
     }, [digitalTwinSelected, layoutAuth]);
     useLiveValues(natsClient, digitalTwinGltfData?.natsSubjectsData ?? [], shownLiveTopics, liveStore);
 
+    const changeCurrentSlide = (slide: WorkspaceSlide) => setDraftLayout(replaceSlide(draftLayout ?? shownLayout, slide));
+    const slideCanvas = currentSlide.canvas;
+    const canvasLayer = slideCanvas ? (stage: StageControls) => (
+        <SlideCanvas
+            fullscreen={stage.fullscreen}
+            onFullscreen={stage.toggleFullscreen}
+            page={currentSlide}
+            renderPanel={stage.renderPanel}
+            onPanelsRemoved={(ids) => {
+                let slide = currentSlide;
+                for (const id of ids) slide = removePanel(slide, id);
+                changeCurrentSlide(slide);
+            }}
+            onInsertPanel={(frame) => {
+                setInsertFrame(frame);
+                setAddingPanel(true);
+            }}
+            slideId={currentSlide.id}
+            canvas={slideCanvas}
+            scene={currentCanvas?.scene}
+            sceneKey={currentCanvas?.key ?? 0}
+            error={currentCanvas?.error}
+            layoutEditing={editingLayout && !workspacePhone}
+            canvasEditing={canvasEditing}
+            store={shownLiveStore}
+            startAtEnd={canvasStartAtEnd}
+            onShownFrame={(frame) => setCanvasFrame({ slide: currentSlide.id, frame })}
+            onPanelFrames={(frames) => {
+                // the 3D model and the simulator of each frame: the layout knows which frame each panel is in
+                if (!editingLayout) return;
+                const placed = withPanelFrames(currentSlide, frames);
+                if (placed !== currentSlide) changeCurrentSlide(placed);
+            }}
+            active={inViewer && editingPanelId === null && !slidesOverview}
+            onCanvasEditing={setCanvasEditing}
+            onSceneChange={(scene) => slideCanvases.setScene(currentSlide.id, scene)}
+            onStyleChange={(style) => changeCurrentSlide({ ...currentSlide, canvas: { style } })}
+            onRemove={() => {
+                setCanvasEditing(false);
+                changeCurrentSlide(setSlideCanvas(currentSlide, null));
+            }}
+            onLeave={stepSlideBy}
+        />
+    ) : null;
     const startLayoutEdit = useCallback(() => {
         setMaximizedPanel(null);
         setDraftLayout(shownLayout);
@@ -1892,6 +2124,13 @@ const DigitalTwin3DViewerScene: FC<Viewer3DProps & SceneProps> = ({
             void setPendingViewerImages(digitalTwinSelected.groupId, digitalTwinSelected.id, null);
             setPendingImages(null);
         }
+        // the scenes of the canvases edited, before the layout (its save removes those of the canvases it no longer has)
+        const canvasesFailed = await slideCanvases.saveEdited(draftLayout);
+        if (canvasesFailed.length > 0) {
+            toast.error(`The canvas of ${canvasesFailed.map((id) => draftLayout.slides.find((sl) => sl.id === id)?.title ?? id).join(", ")} could not be saved. The layout is not saved.`);
+            setLayoutSaving(false);
+            return;
+        }
         // saved with simulator panels: from now on a simulator removed by the editor stays removed (withSimulatorPanel)
         const saved = await saveViewerLayout(digitalTwinSelected.groupId, digitalTwinSelected.id, { ...draftLayout, simulatorPlaced: true }, layoutAuth);
         // the lighting of a configuration file loaded, with the layout
@@ -1908,6 +2147,7 @@ const DigitalTwin3DViewerScene: FC<Viewer3DProps & SceneProps> = ({
         setLocalLayout(null);
         setLocalTime(null);
         setDraftLayout(null);
+        setCanvasEditing(false);
         afterModelsRemoved(saved.removedSlideModels);
     };
     // the others: their changes stay while the viewer is open (none when they are the group's layout again)
@@ -1967,7 +2207,10 @@ const DigitalTwin3DViewerScene: FC<Viewer3DProps & SceneProps> = ({
     const duplicateCurrentSlide = async () => {
         const copy = duplicateSlide(draftLayout ?? shownLayout, currentSlide.id);
         if (copy.id === currentSlide.id) return;
-        const source = digitalTwinGltfData.slideModels?.[currentSlide.id];
+        // its canvas: a copy of the scene, saved with the layout
+        if (currentSlide.canvas) slideCanvases.copy(currentSlide.id, copy.id);
+        // (its model, or those of the frames of its canvas)
+        const source = Object.keys(digitalTwinGltfData.slideModels ?? {}).some((scope) => slideOfScope(scope) === currentSlide.id);
         if (source && canSaveLayout && twinRef) {
             setViewerDataBusy("Copying the 3D model…");
             const copied = await copySlideModel(twinRef, currentSlide.id, copy.id, layoutAuth);
@@ -1982,6 +2225,11 @@ const DigitalTwin3DViewerScene: FC<Viewer3DProps & SceneProps> = ({
     };
     // the Add panel dialog, opened from the slide bar
     const [addingPanel, setAddingPanel] = useState(false);
+    // Insert panel of a canvas: the frame it goes to (a 3D model and a simulator: one in each frame)
+    const [insertFrame, setInsertFrame] = useState<string | null>(null);
+    useEffect(() => {
+        if (!addingPanel) setInsertFrame(null);
+    }, [addingPanel]);
     // the simulator format, from the Upload icon of the Simulator panel's bar
     const simulatorFormatInput = useRef<HTMLInputElement>(null);
     const [logsWidth, setLogsWidth] = usePersistentState<number>("pipelineLogs.width", PIPELINE_LOGS_WIDTH);
@@ -2067,6 +2315,9 @@ const DigitalTwin3DViewerScene: FC<Viewer3DProps & SceneProps> = ({
                             outputColorSpace: THREE.SRGBColorSpace,
                         }}
                         camera={{ position: [4, 4, 0], zoom: 300 }}
+                        // the size of its panel without CSS transforms: in a canvas the panel is scaled with the zoom
+                        // of the drawing, and the measured (scaled) size would leave part of the panel empty
+                        resize={{ offsetSize: true }}
                     >
                         {/* Opaque background, the colour of CanvasContainer. With the transparent canvas of R3F
                             (clear alpha 0), three.js fills what glass and liquids (KHR_materials_transmission)
@@ -2348,11 +2599,21 @@ const DigitalTwin3DViewerScene: FC<Viewer3DProps & SceneProps> = ({
                     controlRoom={dtScope === "group"}
                     organization={dtScope === "organization"}
                     imageSources={imageSources}
-                    chartOptions={chartOptions}
+                    chartOptions={chartSeriesChoices}
                     maximizedId={maximizedPanel}
                     hidden={!inViewer}
                     style={{ left: VIEWER_GAP, top: panelsTop, right: viewerRightInset, bottom: VIEWER_GAP }}
                     onLayoutChange={(slide) => setDraftLayout(replaceSlide(draftLayout ?? shownLayout, slide))}
+                    canvasLayer={canvasLayer}
+                    canvasEditing={canvasEditing}
+                    onAddCanvas={
+                        dtScope === "group" || dtScope === "organization"
+                            ? undefined
+                            : () => {
+                                  changeCurrentSlide(setSlideCanvas(currentSlide, { style: "clean" }));
+                                  setCanvasEditing(true);
+                              }
+                    }
                     slideBar={
                         // always: with one slide too, it is where the layout is edited
                         (
@@ -2364,7 +2625,7 @@ const DigitalTwin3DViewerScene: FC<Viewer3DProps & SceneProps> = ({
                                 editing={editingLayout}
                                 phone={workspacePhone}
                                 onGo={goToSlide}
-                                onStep={(delta) => goToSlide(stepSlide(workspaceLayout, currentSlide.id, delta, hiddenSlides))}
+                                onStep={stepSlideBy}
                                 // out of the editing they take effect at once (changeSlides); while editing, in the draft
                                 onAdd={() => {
                                     const added = addSlide(draftLayout ?? shownLayout, currentSlide.id);
@@ -2434,9 +2695,13 @@ const DigitalTwin3DViewerScene: FC<Viewer3DProps & SceneProps> = ({
                     onEditPanel={editPanel}
                     panelActions={panelActions}
                     addingPanel={addingPanel}
+                    insertFrame={insertFrame}
                     onAddingPanelChange={setAddingPanel}
                     renderPanel={(panel: WorkspacePanel) =>
-                        panel.type === "simulator" ? (
+                        panel.type === "simulator" && simulatorPanelInUse?.id !== panel.id ? (
+                            // the simulator of another frame of the canvas
+                            <OtherFrameNotice kind="simulator" />
+                        ) : panel.type === "simulator" ? (
                             simulatorEditing && canSaveLayout ? (
                                 <SimulatorFormatEditor
                                     format={digitalTwinGltfData.digitalTwinSimulationFormat ?? {}}
@@ -2531,8 +2796,8 @@ const DigitalTwin3DViewerScene: FC<Viewer3DProps & SceneProps> = ({
                                         <ChartPanel
                                             panel={panel}
                                             groupId={digitalTwinSelected.groupId}
-                                            options={chartOptions}
-                                            fetchSeries={fetchChartSeries}
+                                            options={chartSeriesChoices}
+                                            fetchSeries={chartFetch}
                                             pageRange={pageRange}
                                             refreshTick={refreshTick}
                                             paused={!inViewer || editingPanelId !== null}
@@ -2541,18 +2806,21 @@ const DigitalTwin3DViewerScene: FC<Viewer3DProps & SceneProps> = ({
                                 </PageClock>
                             ) : null
                         ) : panel.type === "picture" ? (
-                            <PictureView file={panel.file} fit={panel.fit} bindings={panel.bindings} store={slideLiveStore} load={pictureFiles?.load} subscribe={pictureFiles?.subscribe} />
+                            <PictureView file={panel.file} fit={panel.fit} bindings={panel.bindings} store={storesOfPanel(panel).live} load={pictureFiles?.load} subscribe={pictureFiles?.subscribe} />
                         ) : panel.type === "markdown" ? (
-                            <MarkdownView text={panel.text ?? ""} store={slideLiveStore} />
-                        ) : panel.type === "surface" ? (
-                            <SurfaceView surface={panel.surface} store={slideLiveStore} label={panel.title ?? "3D Surface"} />
+                            <MarkdownView text={panel.text ?? ""} store={storesOfPanel(panel).live} />
+                        ) : panel.type === "dataChart" ? (
+                            <DataChartView data={panel.data} store={storesOfPanel(panel).data} label={panel.title ?? "Data chart"} />
                         ) : panel.type === "image" ? (
                             <ImageFrame frameStore={frameStore} source={panel.source ?? ANY_IMAGE_SOURCE} mode={panel.display === "photo" ? "photo" : "video"} />
-                        ) : viewerHasModel && digitalTwinGltfData.slideId === currentSlide.id ? (
+                        ) : viewerHasModel && digitalTwinGltfData.slideId === panelScope(currentSlide.id, panel) && modelScopeInUse === digitalTwinGltfData.slideId ? (
                             <>
                                 <ModelSlot host={modelHost} right={modelSettingsView && !workspacePhone ? MODEL_SETTINGS_INSET : undefined} />
                                 {modelSettingsView}
                             </>
+                        ) : modelPanelInUse?.id !== panel.id ? (
+                            // the model of another frame of the canvas
+                            <OtherFrameNotice kind="model" />
                         ) : (
                             <EmptyModelPanel
                                 loading={slideModelLoading}
@@ -2778,11 +3046,12 @@ const DigitalTwin3DViewerScene: FC<Viewer3DProps & SceneProps> = ({
                         onDiscard={() => setEditingPanelId(null)}
                     />
                 )}
-                {editingPanel?.type === "surface" && (
-                    <SurfaceEditor
+                {editingPanel?.type === "dataChart" && (
+                    <DataChartEditor
                         panel={editingPanel}
-                        store={slideLiveStore}
+                        store={dataChartStore}
                         topics={liveTopics}
+                        assetState={!!digitalTwinSelected && dtScope !== "group"}
                         onApply={applyPanel}
                         onDiscard={() => setEditingPanelId(null)}
                     />
@@ -2876,8 +3145,8 @@ const DigitalTwin3DViewerScene: FC<Viewer3DProps & SceneProps> = ({
                             <PanelEditor
                                 panel={editingPanel}
                                 groupId={digitalTwinSelected.groupId}
-                                chartOptions={chartOptions}
-                                fetchSeries={fetchChartSeries}
+                                chartOptions={chartSeriesChoices}
+                                fetchSeries={chartFetch}
                                 pageRange={pageRange}
                                 refreshTick={refreshTick}
                                 timeControls={<TimePicker time={pageTime} onChange={changePageTime} onRefresh={refreshNow} compact />}
@@ -2891,6 +3160,14 @@ const DigitalTwin3DViewerScene: FC<Viewer3DProps & SceneProps> = ({
         </>
     );
 };
+
+// the state of a 3D model, kept for its scope while another one is shown
+interface ModelSnapshot {
+    sensors?: Record<string, SensorState>;
+    assets?: Record<string, AssetState>;
+    generic?: Record<string, GenericObjectState>;
+    fem?: FemSimulationObjectState[];
+}
 
 // The Viewer with the 3D model of the slide it shows: each slide of the twin has its own (slideModel.ts). The scene
 // says which slide it shows; the model is read (browser storage, else admin_api) and given to it with the twin's data.
@@ -2935,3 +3212,4 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = (props) => {
 };
 
 export default DigitalTwin3DViewer;
+

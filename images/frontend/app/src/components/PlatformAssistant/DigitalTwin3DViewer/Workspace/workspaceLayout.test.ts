@@ -184,7 +184,7 @@ describe("workspace layout", () => {
         const changed = replacePanel(added, { ...added.panels[0], fieldConfig: { defaults: { unit: "celsius" } } });
         expect(sameLayout(deck(added), deck(changed))).toBe(false);
         expect(sameLayout(deck(added), setLayoutTime(deck(added), { from: "now-1h", to: "now", refresh: "" }))).toBe(false);
-        expect(panelTitle({ ...added.panels[0], title: undefined })).toBe("Chart");
+        expect(panelTitle({ ...added.panels[0], title: undefined })).toBe("Time series chart");
     });
 
     it("allows one alarms and one approvals panel", () => {
@@ -407,6 +407,37 @@ describe("simulator panels", () => {
     });
 });
 
+describe("Data chart panels", () => {
+    it("reads the 3D Surface panels of before as Data charts of kind surface", async () => {
+        const { sanitizeWorkspaceLayout, panelTitle } = await import("./workspaceLayout");
+        const surface = { mode: "data", topicRef: "dtm2sim", path: "grid", xMin: 0, xMax: 1, yMin: 0, yMax: 1 };
+        const layout = sanitizeWorkspaceLayout(
+            {
+                version: 2,
+                slides: [
+                    {
+                        id: "a",
+                        title: "A",
+                        tag: "A",
+                        panels: [
+                            { id: "s", type: "surface", x: 0, y: 0, w: 6, h: 6, surface },
+                            { id: "d", type: "dataChart", x: 6, y: 0, w: 6, h: 6, data: { kind: "xy", series: [{ source: "@assetState", y: "psd.a" }] } },
+                            { id: "bad", type: "dataChart", x: 0, y: 6, w: 6, h: 6, data: { kind: "xy", series: [] } },
+                        ],
+                    },
+                ],
+            },
+            { hasModel: false },
+        );
+        const panels = layout!.slides[0].panels;
+        expect(panels.map((p) => p.id)).toEqual(["s", "d"]);
+        expect(panels[0]).toMatchObject({ type: "dataChart", data: { kind: "surface", surface } });
+        expect(panels[0].surface).toBeUndefined();
+        expect(panelTitle(panels[1])).toBe("Data chart");
+        expect(panelTitle({ id: "c", type: "chart", x: 0, y: 0, w: 1, h: 1 })).toBe("Time series chart");
+    });
+});
+
 describe("panels that show the simulation (the simulator floats only over them)", () => {
     it("the 3D model and the panels of dtm2sim / sim2dtm; not the rest", async () => {
         const { showsSimulation } = await import("./workspaceLayout");
@@ -422,6 +453,8 @@ describe("panels that show the simulation (the simulator floats only over them)"
             } as any),
         ).toBe(true);
         expect(showsSimulation({ id: "s", type: "surface", ...at, surface: { mode: "data", topicRef: "dev2pdb_1", xMin: 0, xMax: 1, yMin: 0, yMax: 1 } } as any)).toBe(false);
+        expect(showsSimulation({ id: "d", type: "dataChart", ...at, data: { kind: "xy", series: [{ source: "dtm2sim", y: "a" }] } })).toBe(true);
+        expect(showsSimulation({ id: "d", type: "dataChart", ...at, data: { kind: "xy", series: [{ source: "@assetState", y: "a" }] } })).toBe(false);
         expect(showsSimulation({ id: "i", type: "image", ...at, source: "dtm2sim" } as any)).toBe(true);
         expect(showsSimulation({ id: "i", type: "image", ...at, source: "any" } as any)).toBe(false);
         expect(showsSimulation({ id: "p", type: "picture", ...at, bindings: [{ topicRef: "sim2dtm" }] } as any)).toBe(true);

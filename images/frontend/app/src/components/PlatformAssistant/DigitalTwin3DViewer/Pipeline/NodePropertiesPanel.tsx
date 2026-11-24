@@ -54,6 +54,7 @@ import {
 } from "./types";
 import IAssetS3Folder from "../../TableColumns/assetS3FolderColumns";
 import { CodeMirrorWrapper } from "../../../Tools/CodeMirrorWrapper";
+import { CopyCodeButton } from "./CopyCodeButton";
 
 //New
 import { buildEditorExtensions, disposeEditor, restartEditor } from "./editor";
@@ -476,6 +477,12 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                             {tab.label}
                         </Tab>
                     ))}
+                    {(activeTab === "onInitiation" || activeTab === "onStart" || activeTab === "onMessage") && (
+                        <CopyCodeButton
+                            code={formData[`${activeTab}Script`] ?? NODE_FUNCTION_SCRIPTS[activeTab]}
+                            label={`Copy the code of ${tabs.find((t) => t.id === activeTab)?.label ?? "the tab"}`}
+                        />
+                    )}
                 </TabsContainer>
                 <PanelContent>
                     <TabContentFunction>

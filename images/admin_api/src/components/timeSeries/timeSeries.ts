@@ -1,4 +1,3 @@
-// Aggregated time series of sensor fields, for the chart panels of the Viewer page: the measurements of
 // iot_data.thingData grouped in buckets of time (TimescaleDB time_bucket), with the mean, minimum and maximum
 // of each bucket. The bucket grows with the range, so a chart never gets more than about `points` points.
 //
@@ -6,6 +5,8 @@
 import { Measurements, itemPath, toMeasurements } from "../../utils/measurements/measurements";
 
 export const MAX_SERIES = 8;
+// a path in an asset's state: keys without dots, slashes, quotes or backslashes, joined by dots
+export const STATE_PATH = /^[^./"'\\\u0000-\u001f]{1,64}(\.[^./"'\\\u0000-\u001f]{1,64}){0,15}$/;
 export const MAX_FIELD_LENGTH = 100;
 export const MAX_ARRAY_INDEX = 63;
 export const DEFAULT_RANGE_MS = 60 * 60 * 1000;
@@ -20,8 +21,11 @@ export const BUCKET_STEPS = [
 	0.1, 0.2, 0.5, 1, 2, 5, 10, 15, 30, 60, 120, 300, 600, 900, 1800, 3600, 7200, 10800, 21600, 43200, 86400, 172800, 604800,
 ];
 
+// A series: a field of a sensor (sensorId), or a field of the state of an asset kept in its history (assetId:
+// iot_data.asset_state_history, a dotted path in the state)
 export interface SeriesRequest {
-	sensorId: number;
+	sensorId?: number;
+	assetId?: number;
 	field: string;
 	// item of an array field (accelerations[1]…)
 	index?: number;
@@ -52,10 +56,18 @@ export const parseSeries = (raw: unknown): SeriesRequest[] | string => {
 	for (const [i, item] of data.entries()) {
 		const where = `Series ${i + 1}`;
 		if (!isRecord(item)) return `${where} must be an object`;
-		const { sensorId, field, index } = item;
-		if (typeof sensorId !== "number" || !Number.isInteger(sensorId) || sensorId <= 0) return `${where}: invalid sensorId`;
-		if (typeof field !== "string" || field === "" || field.length > MAX_FIELD_LENGTH) return `${where}: invalid field`;
-		const series: SeriesRequest = { sensorId, field };
+		const { sensorId, assetId, field, index } = item;
+		const positive = (v: unknown): v is number => typeof v === "number" && Number.isInteger(v) && v > 0;
+		let series: SeriesRequest;
+		if (assetId !== undefined) {
+			if (!positive(assetId) || sensorId !== undefined) return `${where}: invalid assetId`;
+			if (typeof field !== "string" || field.length > MAX_FIELD_LENGTH || !STATE_PATH.test(field)) return `${where}: invalid field of the state`;
+			series = { assetId, field };
+		} else {
+			if (!positive(sensorId)) return `${where}: invalid sensorId`;
+			if (typeof field !== "string" || field === "" || field.length > MAX_FIELD_LENGTH) return `${where}: invalid field`;
+			series = { sensorId, field };
+		}
 		if (index !== undefined && index !== null) {
 			if (typeof index !== "number" || !Number.isInteger(index) || index < 0 || index > MAX_ARRAY_INDEX) {
 				return `${where}: invalid index`;
@@ -185,7 +197,22 @@ export const rawStepSeconds = (seriesPoints: (number | null)[][][]): number => {
 
 // The path of the value of a series in the message: as the measurements of its sensor say (a dotted key, a JSON
 // Pointer, an item of an array); a field the measurements do not describe, as a dotted key
-export const seriesPath = (series: SeriesRequest): string[] => series.path ?? itemPath(series.field, undefined, series.index);
+export const seriesPath = (series: SeriesRequest): string[] =>
+	series.path ?? (series.assetId !== undefined ? statePath(series) : itemPath(series.field, undefined, series.index));
+
+// the path of a field of an asset's state, and its item
+export const statePath = (series: SeriesRequest): string[] => [
+	...series.field.split("."),
+	...(series.index === undefined ? [] : [String(series.index)]),
+];
+
+// The same queries over the history of the asset states (iot_data.asset_state_history): its time, its state and
+// its asset instead of the messages' timestamp, payload and topic (the parameters in the same places)
+export const overAssetStates = (sql: string): string =>
+	sql
+		.replace(/SELECT timestamp, payload #>/g, "SELECT time AS timestamp, state #>")
+		.replace(/FROM iot_data\.thingData\s+WHERE group_uid = (\$\d+) AND topic = (\$\d+) AND timestamp >= (\$\d+) AND timestamp < (\$\d+)/g,
+			"FROM iot_data.asset_state_history\n\t\tWHERE group_uid = $1 AND asset_uid = $2 AND time >= $3 AND time < $4");
 
 export const resolvedSeries = (series: SeriesRequest, measurements: Measurements): SeriesRequest => ({
 	...series,

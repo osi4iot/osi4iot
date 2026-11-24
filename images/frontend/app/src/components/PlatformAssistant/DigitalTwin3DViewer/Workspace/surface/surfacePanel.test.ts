@@ -61,7 +61,7 @@ describe("3D Surface panels", () => {
         expect(surfaceTopics(surface!)).toEqual(["dev2pdb_1"]);
     });
 
-    it("is a panel type of the layout", () => {
+    it("is read as a Data chart of kind surface", () => {
         const layout = sanitizeWorkspaceLayout(
             {
                 version: 2,
@@ -70,7 +70,8 @@ describe("3D Surface panels", () => {
             { hasModel: false },
         );
         expect(layout!.slides[0].panels.map((p) => p.id)).toEqual(["p"]);
-        expect(layout!.slides[0].panels[0].surface?.expression).toBe("A*sin(k*x)*cos(k*y)");
+        expect(layout!.slides[0].panels[0].type).toBe("dataChart");
+        expect(layout!.slides[0].panels[0].data?.surface?.expression).toBe("A*sin(k*x)*cos(k*y)");
     });
 
     it("draws a formula over its grid, with the parameters' values as they arrive", () => {
