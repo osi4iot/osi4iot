@@ -120,6 +120,13 @@ const (
 // manual/curl testing.
 const defaultRetain = 7
 
+// walgCommand runs wal-g inside this cluster's own folder of the
+// archive, WALG_S3_PREFIX/<system identifier> (see walg-scoped in the
+// image): backups, the catalogue and retention only ever see this
+// cluster. The backups stored before those folders existed, in the bare
+// prefix, are never deleted from here.
+const walgCommand = "walg-scoped"
+
 func dataDir() string {
 	if v := os.Getenv("PATRONI_DATA_DIR"); v != "" {
 		return v
@@ -149,7 +156,7 @@ func retainCount(r *http.Request) int {
 func runBackup() ([]byte, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), walgTimeout)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, "wal-g", "backup-push", dataDir())
+	cmd := exec.CommandContext(ctx, walgCommand, "backup-push", dataDir())
 	cmd.Env = os.Environ()
 	return cmd.CombinedOutput()
 }
@@ -157,7 +164,7 @@ func runBackup() ([]byte, error) {
 func runDeleteRetain(retain int) ([]byte, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), walgTimeout)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, "wal-g", "delete", "retain", "FULL", strconv.Itoa(retain), "--confirm")
+	cmd := exec.CommandContext(ctx, walgCommand, "delete", "retain", "FULL", strconv.Itoa(retain), "--confirm")
 	cmd.Env = os.Environ()
 	return cmd.CombinedOutput()
 }
@@ -412,7 +419,7 @@ func runBackupList() (stdout []byte, stderr []byte, err error) {
 	ctx, cancel := context.WithTimeout(context.Background(), walgBackupListTimeout)
 	defer cancel()
 
-	cmd := exec.CommandContext(ctx, "wal-g", "backup-list", "--json", "--detail")
+	cmd := exec.CommandContext(ctx, walgCommand, "backup-list", "--json", "--detail")
 	cmd.Env = os.Environ()
 
 	var outBuf, errBuf bytes.Buffer

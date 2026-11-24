@@ -103,6 +103,7 @@ type ServiceUpdateOptions struct {
 	RemoveEnv     []string          // Environment variables to remove
 	Placement     *swarm.Placement  // Replace constraints and preferences
 	UpdateOrder   string            // "start-first" / "stop-first" for updates and rollbacks
+	Labels        map[string]string // Service labels to set ("" value: remove the label)
 
 	// SkipMonitor returns as soon as Docker accepts the update instead
 	// of waiting for the service to become healthy.
@@ -141,6 +142,7 @@ func ServiceUpdate(
 		len(options.Env) > 0 ||
 		len(options.RemoveEnv) > 0 ||
 		options.Placement != nil ||
+		len(options.Labels) > 0 ||
 		options.UpdateOrder != ""
 
 	// pipelines never runs two tasks of the same replica at once, also
@@ -331,6 +333,16 @@ func ServiceUpdate(
 	// 6b. Placement
 	if options.Placement != nil {
 		service.Spec.TaskTemplate.Placement = options.Placement
+	}
+	for key, value := range options.Labels {
+		if service.Spec.Annotations.Labels == nil {
+			service.Spec.Annotations.Labels = map[string]string{}
+		}
+		if value == "" {
+			delete(service.Spec.Annotations.Labels, key)
+		} else {
+			service.Spec.Annotations.Labels[key] = value
+		}
 	}
 
 	// 6c. Update order: Swarm applies this update with the new spec's

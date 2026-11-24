@@ -453,7 +453,9 @@ func finishInitFromSnapshot(pd *pt.PlatformData, snapshotPath string) error {
 		}
 
 		logger.Printf("\nRestoring %s from %s...", target, tm.RestoreBackupName())
-		opts := docker.PatroniRestoreOptions{Backup: tm.RestoreBackupName()}
+		// in the cluster folder the snapshot's backups were seeded into
+		// (seedTarget): the one of the cluster they came from
+		opts := docker.PatroniRestoreOptions{Backup: tm.RestoreBackupName(), Cluster: docker.SnapshotRestoreCluster(tm.Prefix)}
 
 		// No confirmation prompt here: the operator already agreed to
 		// this when they confirmed the snapshot, and the clusters being

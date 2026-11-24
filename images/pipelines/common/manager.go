@@ -140,13 +140,15 @@ type Manager interface {
 	GetPipelinesDataPath() string
 	GetMaxChatMessagesPerUser() int
 
-	GetS3DigitalTwinFolderInfo(ctx context.Context, groupId int, digitalTwinId int, folder string) []*S3FolderFileInfo
+	GetS3DigitalTwinFolderInfo(ctx context.Context, groupId int, digitalTwinId int, folder string, slideId string) []*S3FolderFileInfo
 	GetFemResultsPath(orgId int, groupId int, digitalTwinId int) string
-	FemResultsS3URI(ctx context.Context, orgId, groupId, digitalTwinId int) (uri string, version string, err error)
+	// FEM results of the 3D model of a slide of the digital twin's Viewer
+	// (slideId ""): the first slide that has them)
+	FemResultsS3URI(ctx context.Context, orgId, groupId, digitalTwinId int, slideId string) (uri string, version string, err error)
 	GetDigitalTwinFolder(orgId int, groupId int, digitalTwinId int) string
 	AddFemResultsInDigitalTwins(ctx context.Context) error
-	AddFemResultsInDigitalTwin(ctx context.Context, digitalTwinId int) error
-	DeleteFemResultsInDigitalTwin(digitalTwinId int) error
+	AddFemResultsInDigitalTwin(ctx context.Context, digitalTwinId int, slideId string) error
+	DeleteFemResultsInDigitalTwin(digitalTwinId int, slideId string) error
 
 	KnowledgeS3Prefix(orgId, groupId int) string
 	// KnowledgeAccess is what a digital twin's doc_info server needs to

@@ -8,13 +8,14 @@ describe("SoundToggle", () => {
         const { rerender } = render(<SoundToggle visible enabled={false} onToggle={onToggle} />);
         const button = screen.getByRole("button", { name: "Sound muted: turn it on" });
         expect(button.getAttribute("aria-pressed")).toBe("false");
-        expect(button.textContent).toContain("Muted");
+        // an icon: its name is in its label and tooltip
+        expect(button.getAttribute("title")).toContain("muted");
         fireEvent.click(button);
         expect(onToggle).toHaveBeenCalledTimes(1);
         rerender(<SoundToggle visible enabled onToggle={onToggle} />);
         const on = screen.getByRole("button", { name: "Sound on: mute the viewer" });
         expect(on.getAttribute("aria-pressed")).toBe("true");
-        expect(on.textContent).toContain("Sound on");
+        expect(on.getAttribute("title")).toContain("Sound on");
     });
 
     it("is hidden when the twin cannot send sounds", () => {

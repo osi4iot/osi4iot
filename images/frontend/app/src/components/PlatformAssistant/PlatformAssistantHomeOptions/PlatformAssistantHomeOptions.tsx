@@ -447,6 +447,20 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
         });
     };
 
+    // the twin open, opened again: its Viewer data changed (a 3D model, FEM results, its layout...)
+    const reloadDigitalTwin = () => {
+        if (!digitalTwinSelected || !assetSelected) return;
+        openDigitalTwin(digitalTwinSelected, assetSelected, sensorsTable, {
+            accessToken,
+            refreshToken,
+            authDispatch,
+            setGlftDataLoading,
+            setGltfFileDownloadProgress,
+            openDigitalTwin3DViewer,
+            setAssetWithCameraSelected,
+        });
+    };
+
     const setNewOuterBounds = (outerBounds: number[][]) => {
         setOuterBounds(outerBounds);
     };
@@ -615,6 +629,7 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
                                             sensorWithCameraSelected={sensorWithCameraSelected}
                                             assetName={assetSelected?.description || assetSelected?.assetUid}
                                             onOpenAssetSwitcher={() => setSwitcherOpen(true)}
+                                            onReloadDigitalTwin={reloadDigitalTwin}
                                         />
                                     </Suspense>
                                 </WebGLErrorBoundary>

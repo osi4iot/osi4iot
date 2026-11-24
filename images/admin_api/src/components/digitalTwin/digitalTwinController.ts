@@ -76,6 +76,22 @@ import UpdateViewerSettingsDto from "./viewerSettings.dto";
 import IDigitalTwinTopic from "./digitalTwinTopic.interface";
 import PipelineDto from "./pipeline.dto";
 import natsClient from "../../config/natsConfig";
+import {
+	MAX_FEM_RESULT_FILES,
+	MODEL_FILE_NAME,
+	missingSensorsRef,
+	registerModel,
+	removeModel,
+	setMaxFemResultFiles,
+	setSimulatorFormat,
+	simulatorFormatProblem,
+} from "./digitalTwinParts";
+import { copySlideFiles, getSlideModels, modelKeyBase, slideOfQuery, slidesInOrder, twinKeyBase } from "./slideModels";
+import { getViewerLayout } from "../viewerLayout/viewerLayoutDAL";
+
+// a list of at most 500 strings, or null
+const stringListOf = (value: unknown): string[] | null =>
+	Array.isArray(value) && value.length <= 500 && value.every((v) => typeof v === "string" && v.length <= 190) ? (value as string[]) : null;
 
 const uploadDigitalTwinFile = multer({
 	storage: multerS3({
@@ -87,9 +103,10 @@ const uploadDigitalTwinFile = multer({
 		key: (req: IRequestWithDigitalTwinAndGroup, file, cb) => {
 			const group = req.group;
 			const { groupId, digitalTwinId, folder, fileName } = req.params;
-			const keyBase = `org_data/org_${group.orgId}/group_${groupId}/digitalTwin_${digitalTwinId}`;
-			const fileKey = `${keyBase}/${folder}/${fileName}`;
-			cb(null, fileKey);
+			const twin = { orgId: group.orgId, groupId: Number(groupId), id: Number(digitalTwinId) };
+			// a model and its FEM results go to their slide (validDigitalTwinUploadFolder checked it)
+			const keyBase = folderKeyBase(twin, folder, slideOfQuery(req.query.slide) ?? "");
+			cb(null, `${keyBase}/${folder}/${fileName}`);
 		},
 	}),
 });
@@ -110,11 +127,26 @@ export const viewerImageContentType = (fileName: string): string => {
 	return `image/${ext}`;
 };
 
+// the folders of a slide's 3D model (slideModels.ts); the others are the twin's
+const SLIDE_FOLDERS = ["gltfFile", "femResJson"];
+const folderKeyBase = (twin: { orgId: number; groupId: number; id?: number }, folder: string, slideId: string): string =>
+	SLIDE_FOLDERS.includes(folder) ? modelKeyBase(twin, slideId) : twinKeyBase(twin);
+
 const validDigitalTwinUploadFolder = (req: IRequestWithDigitalTwinAndGroup, res: Response, next: NextFunction): void => {
 	const { folder } = req.params;
+	const slideId = slideOfQuery(req.query.slide);
+	if (SLIDE_FOLDERS.includes(folder) && !slideId) {
+		return next(new HttpException(req, res, 400, "A 3D model and its FEM results go to a slide: ?slide=<slide id>"));
+	}
 	if (!DIGITAL_TWIN_UPLOAD_FOLDERS.includes(folder)) {
 		const hint = folder === "docInfoFiles" ? " Documents for the AI agents go to the group's knowledge base." : "";
 		return next(new HttpException(req, res, 400, `Invalid digital twin folder: ${folder}.${hint}`));
+	}
+	if (folder === "gltfFile" && !MODEL_FILE_NAME.test(req.params.fileName)) {
+		return next(new HttpException(req, res, 400, "A 3D model must be a .glb or .gltf file (at most 200 characters)."));
+	}
+	if (folder === "femResJson" && !/^[^/\\]{1,200}\.json$/i.test(req.params.fileName)) {
+		return next(new HttpException(req, res, 400, "FEM results must be a .json file (at most 200 characters)."));
 	}
 	if (folder === "viewerImages" && !VIEWER_IMAGE_NAME.test(req.params.fileName)) {
 		return next(
@@ -236,6 +268,16 @@ class DigitalTwinController implements IController {
 				validationMiddleware<CreatePipelineActionDto>(CreatePipelineActionDto, true),
 				this.setPipelineAction
 			)
+			// the parts of the twin the Viewer loads (digitalTwinParts.ts; README, "Viewer data")
+			.post(`${this.path}_model_check/:groupId/:digitalTwinId`, digitalTwinAndGroupExist, groupEditorAuth, this.checkModel)
+			.put(`${this.path}_model/:groupId/:digitalTwinId`, digitalTwinAndGroupExist, groupEditorAuth, this.registerModel)
+			.delete(`${this.path}_model/:groupId/:digitalTwinId`, digitalTwinAndGroupExist, groupEditorAuth, this.removeModel)
+			.put(`${this.path}_simulator_format/:groupId/:digitalTwinId`, digitalTwinAndGroupExist, groupEditorAuth, this.setSimulatorFormat)
+			.put(`${this.path}_fem_settings/:groupId/:digitalTwinId`, digitalTwinAndGroupExist, groupEditorAuth, this.setFemSettings)
+			// the 3D models of the slides (slideModels.ts): those there are, in the order of the layout; a copy for a
+			// duplicated slide
+			.get(`${this.path}_slide_models/:groupId/:digitalTwinId`, digitalTwinAndGroupExist, groupViewerAuth, this.getSlideModels)
+			.post(`${this.path}_slide_copy/:groupId/:digitalTwinId`, digitalTwinAndGroupExist, groupEditorAuth, this.copySlide)
 			.get(`${this.path}_topics/user_managed`, userAuth, this.getDigitalTwinTopicsUserManaged)
 			.get(
 				`${this.path}_topics/:groupId/:digitalTwinId`,
@@ -244,6 +286,116 @@ class DigitalTwinController implements IController {
 				this.getDigitalTwinTopicsByDTid
 			);
 	}
+
+	// the sensor references of a model, before uploading it: those its asset does not have
+	private checkModel = async (req: IRequestWithDigitalTwinAndGroup, res: Response, next: NextFunction): Promise<void> => {
+		try {
+			const refs = stringListOf(req.body?.sensorsRef);
+			if (!refs) throw new HttpException(req, res, 400, "sensorsRef must be a list of strings");
+			res.status(200).json({ missingSensorsRef: await missingSensorsRef(req.digitalTwin.assetId, refs) });
+		} catch (error) {
+			next(error);
+		}
+	};
+
+	// the model just uploaded (digital_twin_upload_file, folder gltfFile)
+	private registerModel = async (req: IRequestWithDigitalTwinAndGroup, res: Response, next: NextFunction): Promise<void> => {
+		try {
+			const body = (req.body ?? {}) as { fileName?: unknown; sensorsRef?: unknown };
+			const fileName: string = typeof body.fileName === "string" ? body.fileName : "";
+			const refs = stringListOf(body.sensorsRef);
+			if (!MODEL_FILE_NAME.test(fileName)) throw new HttpException(req, res, 400, "fileName must be a .glb or .gltf file");
+			if (!refs) throw new HttpException(req, res, 400, "sensorsRef must be a list of strings");
+			const slideId = slideOfQuery(req.query.slide);
+			if (!slideId) throw new HttpException(req, res, 400, "The slide of the model is missing: ?slide=<slide id>");
+			const missing = await missingSensorsRef(req.digitalTwin.assetId, refs);
+			if (missing.length) {
+				throw new HttpException(req, res, 400, `The asset has no sensor with the reference: ${missing.join(", ")}`);
+			}
+			let result: { type: string; fileName: string };
+			try {
+				result = await registerModel(req.group, req.digitalTwin, slideId, fileName, refs);
+			} catch (error) {
+				throw new HttpException(req, res, 400, error instanceof Error ? error.message : String(error));
+			}
+			res.status(200).json({ message: `The 3D model ${fileName} has been loaded`, ...result });
+		} catch (error) {
+			next(error);
+		}
+	};
+
+	private removeModel = async (req: IRequestWithDigitalTwinAndGroup, res: Response, next: NextFunction): Promise<void> => {
+		try {
+			const slideId = slideOfQuery(req.query.slide);
+			if (!slideId) throw new HttpException(req, res, 400, "The slide of the model is missing: ?slide=<slide id>");
+			await removeModel(req.digitalTwin, slideId);
+			res.status(200).json({ message: "The 3D model has been removed" });
+		} catch (error) {
+			next(error);
+		}
+	};
+
+	private setSimulatorFormat = async (req: IRequestWithDigitalTwinAndGroup, res: Response, next: NextFunction): Promise<void> => {
+		try {
+			const format = req.body?.format;
+			const problem = simulatorFormatProblem(format);
+			if (problem) throw new HttpException(req, res, 400, problem);
+			const fileName = typeof req.body?.fileName === "string" ? req.body.fileName : "-";
+			const lastModifDate = typeof req.body?.lastModifDate === "string" ? req.body.lastModifDate : "-";
+			await setSimulatorFormat(req.digitalTwin, format as Record<string, unknown>, fileName, lastModifDate);
+			res.status(200).json({ message: "The simulator format has been saved" });
+		} catch (error) {
+			next(error);
+		}
+	};
+
+	private getSlideModels = async (req: IRequestWithDigitalTwinAndGroup, res: Response, next: NextFunction): Promise<void> => {
+		try {
+			const models = await getSlideModels(req.digitalTwin);
+			const layout = (await getViewerLayout(Number(req.group.id), Number(req.digitalTwin.id)))?.layout ?? null;
+			res.status(200).json(
+				slidesInOrder(layout, Object.keys(models)).map((slideId) => ({ slideId, ...models[slideId] }))
+			);
+		} catch (error) {
+			next(error);
+		}
+	};
+
+	// the files of a slide's model, for the slide that duplicates it (body { from, to }); while the copy is not saved
+	// in the group's layout, the next save removes them (removedModelSlides)
+	private copySlide = async (req: IRequestWithDigitalTwinAndGroup, res: Response, next: NextFunction): Promise<void> => {
+		try {
+			const from = slideOfQuery(req.body?.from);
+			const to = slideOfQuery(req.body?.to);
+			if (!from || !to || from === to) throw new HttpException(req, res, 400, "from and to must be two slide ids");
+			const models = await getSlideModels(req.digitalTwin);
+			if (models[to]) throw new HttpException(req, res, 400, `The slide ${to} already has files`);
+			const copied = await copySlideFiles(req.digitalTwin, from, to);
+			if (copied > 0 && models[from]?.femResults) {
+				await natsClient.jsPublish("femResults", "create", req.digitalTwin.id, {
+					groupId: req.digitalTwin.groupId,
+					digitalTwinId: req.digitalTwin.id,
+					slideId: to,
+				});
+			}
+			res.status(200).json({ message: `${copied} files copied`, copied });
+		} catch (error) {
+			next(error);
+		}
+	};
+
+	private setFemSettings = async (req: IRequestWithDigitalTwinAndGroup, res: Response, next: NextFunction): Promise<void> => {
+		try {
+			const max = Number(req.body?.maxNumResFemFiles);
+			if (!Number.isInteger(max) || max < 1 || max > MAX_FEM_RESULT_FILES) {
+				throw new HttpException(req, res, 400, `maxNumResFemFiles must be a whole number from 1 to ${MAX_FEM_RESULT_FILES}`);
+			}
+			await setMaxFemResultFiles(req.digitalTwin, max);
+			res.status(200).json({ message: `The digital twin keeps its ${max} newest FEM result files` });
+		} catch (error) {
+			next(error);
+		}
+	};
 
 	private getDigitalTwinsManagedByUser = async (
 		req: IRequestWithUser,
@@ -416,7 +568,7 @@ class DigitalTwinController implements IController {
 			const { digitalTwinId } = req.params;
 			const digitalTwin = await getDigitalTwinByProp("id", parseInt(digitalTwinId, 10));
 			if (!digitalTwin) throw new ItemNotFoundException(req, res, "The digital twin", "id", digitalTwinId);
-			const digitalTwinGltfFile = await getDigitalTwinGltfFile(digitalTwin);
+			const digitalTwinGltfFile = await getDigitalTwinGltfFile(digitalTwin, slideOfQuery(req.query.slide) ?? "");
 			res.status(200).send(digitalTwinGltfFile);
 		} catch (error) {
 			next(error);
@@ -428,7 +580,7 @@ class DigitalTwinController implements IController {
 			const { digitalTwinId } = req.params;
 			const digitalTwin = await getDigitalTwinByProp("id", parseInt(digitalTwinId, 10));
 			if (!digitalTwin) throw new ItemNotFoundException(req, res, "The digital twin", "id", digitalTwinId);
-			const response = await getDigitalTwinGlbFile(digitalTwin);
+			const response = await getDigitalTwinGlbFile(digitalTwin, slideOfQuery(req.query.slide) ?? "");
 			if (!response) throw new HttpException(req, res, 500, "The glb file does not exist");
 			res.set("content-type", "model/gltf-binary");
 			const stream = response.Body as Readable;
@@ -511,7 +663,7 @@ class DigitalTwinController implements IController {
 
 			const isSensorsRefOk = await checkExistentSensorsRef(
 				digitalTwinUpdated.assetId,
-				digitalTwinUpdated.sensorsRef
+				digitalTwinUpdated.sensorsRef ?? []
 			);
 			if (!isSensorsRefOk) throw new HttpException(req, res, 500, "Some indicated sensor has not been defined");
 
@@ -583,19 +735,21 @@ class DigitalTwinController implements IController {
 		next: NextFunction
 	): Promise<void> => {
 		const { fileName, folder } = req.params;
+		const slideId = slideOfQuery(req.query.slide) ?? "";
 		try {
 			const message = {
 				message: `The file ${fileName} has been successfully uploaded in the S3 bucket`,
 			};
 			if (folder === "femResJson") {
-				await checkMaxNumberOfFemResFiles(req.digitalTwin);
+				await checkMaxNumberOfFemResFiles(req.digitalTwin, slideId);
 				const context = {
 					groupId: req.digitalTwin.groupId,
 					digitalTwinId: req.digitalTwin.id,
+					slideId,
 				};
 				await natsClient.jsPublish("femResults", "create", req.digitalTwin.id, context);
 			} else if (folder === "gltfFile") {
-				await checkNumberOfGltfFiles(req.digitalTwin);
+				await checkNumberOfGltfFiles(req.digitalTwin, slideId);
 			} else if (folder === "viewerImages") {
 				// too big, or too many: the file uploaded is removed again
 				const file = (req as unknown as { file?: { size?: number; key?: string } }).file;
@@ -626,11 +780,10 @@ class DigitalTwinController implements IController {
 		res: Response,
 		next: NextFunction
 	): Promise<void> => {
-		const group = req.group;
-		const { groupId, digitalTwinId, folder, fileName } = req.params;
-		const keyBase = `org_data/org_${group.orgId}/group_${groupId}/digitalTwin_${digitalTwinId}`;
-		const fileKey = `${keyBase}/${folder}/${fileName}`;
-
+		const { folder, fileName } = req.params;
+		const slideId = slideOfQuery(req.query.slide);
+		if (slideId === null) return next(new HttpException(req, res, 400, "Invalid slide"));
+		const fileKey = `${folderKeyBase(req.digitalTwin, folder, slideId)}/${folder}/${fileName}`;
 		const bucketParams = {
 			Bucket: process_env.S3_BUCKET_NAME,
 			Key: fileKey,
@@ -656,11 +809,10 @@ class DigitalTwinController implements IController {
 		res: Response,
 		next: NextFunction
 	): Promise<void> => {
-		const group = req.group;
-		const { groupId, digitalTwinId, folder } = req.params;
-		const keyBase = `org_data/org_${group.orgId}/group_${groupId}/digitalTwin_${digitalTwinId}`;
-		const folderPath = `${keyBase}/${folder}`;
-
+		const { folder } = req.params;
+		const slideId = slideOfQuery(req.query.slide);
+		if (slideId === null) return next(new HttpException(req, res, 400, "Invalid slide"));
+		const folderPath = `${folderKeyBase(req.digitalTwin, folder, slideId)}/${folder}`;
 		try {
 			const fileInfoList = await getBucketFolderInfoFileList(folderPath);
 			res.status(200).send(fileInfoList);
@@ -674,16 +826,17 @@ class DigitalTwinController implements IController {
 		res: Response,
 		next: NextFunction
 	): Promise<void> => {
-		const group = req.group;
-		const { groupId, digitalTwinId, folder, fileName } = req.params;
-		const keyBase = `org_data/org_${group.orgId}/group_${groupId}/digitalTwin_${digitalTwinId}`;
-		const fileKey = `${keyBase}/${folder}/${fileName}`;
+		const { folder, fileName } = req.params;
+		const slideId = slideOfQuery(req.query.slide);
+		if (slideId === null) return next(new HttpException(req, res, 400, "Invalid slide"));
+		const fileKey = `${folderKeyBase(req.digitalTwin, folder, slideId)}/${folder}/${fileName}`;
 		try {
 			await deleteBucketFile(fileKey);
 			if (folder === "femResJson") {
 				const context = {
 					groupId: req.digitalTwin.groupId,
 					digitalTwinId: req.digitalTwin.id,
+					slideId,
 				};
 				await natsClient.jsPublish("femResults", "delete", req.digitalTwin.id, context);
 			}

@@ -157,7 +157,18 @@ var subCmdBackupRestore = &cobra.Command{
 			return
 		}
 
+		var restoreSource *docker.RestoreSource
 		if isPatroni {
+			// Which cluster of the archive, shown before confirming: every
+			// cluster archives in its own folder, and after the volumes
+			// are lost the running one is a new, empty cluster.
+			source, err := docker.ResolvePatroniRestoreSource(pd, dc, target, patroniRestoreOptions(), log.New(os.Stdout, "", 0))
+			if err != nil {
+				exitWithError(fmt.Sprintf("Error choosing what to restore %s from: %v", target, err))
+				return
+			}
+			restoreSource = &source
+			printRestoreSource(target, source)
 			if err := confirmPatroniRestore(target, backupRestoreTargetTime, dc, yes); err != nil {
 				fmt.Println(err)
 				return
@@ -184,9 +195,13 @@ var subCmdBackupRestore = &cobra.Command{
 		var output string
 		switch target {
 		case "patroni_admin":
-			err = docker.RestorePatroniAdmin(pd, dc, patroniRestoreOptions(), log.New(os.Stdout, "", 0))
+			opts := patroniRestoreOptions()
+			opts.Source = restoreSource
+			err = docker.RestorePatroniAdmin(pd, dc, opts, log.New(os.Stdout, "", 0))
 		case "patroni_metrics":
-			err = docker.RestorePatroniMetrics(pd, dc, patroniRestoreOptions(), log.New(os.Stdout, "", 0))
+			opts := patroniRestoreOptions()
+			opts.Source = restoreSource
+			err = docker.RestorePatroniMetrics(pd, dc, opts, log.New(os.Stdout, "", 0))
 		case "nats_streams":
 			output, err = docker.RestoreNatsBackupFromS3(pd, dc)
 		case "state":
@@ -224,6 +239,7 @@ var subCmdBackupRestore = &cobra.Command{
 var (
 	backupRestoreRun        string
 	backupRestoreTargetTime string
+	backupRestoreCluster    string
 
 	backupExtractTargetTime string
 	backupExtractBackup     string
@@ -264,11 +280,13 @@ var subCmdBackupList = &cobra.Command{
 			if backups, err = docker.ListPatroniAdminBackups(pd, dc); err == nil {
 				err = printPatroniBackups(target, backups)
 			}
+			printOtherArchiveClusters(pd, dc, target)
 		case "patroni_metrics":
 			var backups []docker.PatroniBackup
 			if backups, err = docker.ListPatroniMetricsBackups(pd, dc); err == nil {
 				err = printPatroniBackups(target, backups)
 			}
+			printOtherArchiveClusters(pd, dc, target)
 		case "nats_streams":
 			err = printNatsBackupRuns(pd, dc)
 		case "state":
@@ -407,7 +425,58 @@ func patroniRestoreOptions() docker.PatroniRestoreOptions {
 	return docker.PatroniRestoreOptions{
 		Backup:     backupRestoreRun,
 		TargetTime: backupRestoreTargetTime,
+		Cluster:    backupRestoreCluster,
 	}
+}
+
+// printRestoreSource says which cluster of the archive a restore reads,
+// and which others it holds.
+func printRestoreSource(target string, source docker.RestoreSource) {
+	fmt.Printf("%s will be restored from cluster %s of the archive (%s).\n", target, source.Cluster.Label(), source.Reason)
+	if newest := source.Cluster.Newest(); !newest.IsZero() {
+		fmt.Printf("  Its newest backup: %s, %s.\n", source.Cluster.Backups[0].Name, newest.Local().Format("2006-01-02 15:04"))
+	}
+	if len(source.Others) > 0 {
+		fmt.Println("  Other clusters in the archive (choose one with --cluster):")
+		for _, c := range source.Others {
+			fmt.Printf("    %s: %d backup(s), newest %s\n", c.Label(), len(c.Backups), c.Newest().Local().Format("2006-01-02 15:04"))
+		}
+	}
+	fmt.Println()
+}
+
+// printOtherArchiveClusters lists, after the running cluster's own
+// catalogue, the other clusters of the archive: each cluster archives in
+// its own folder (WALG_S3_PREFIX/<system identifier>), and the backups
+// from before those folders are the "legacy" one. They are what
+// 'backup restore --cluster' can restore from.
+func printOtherArchiveClusters(pd *pt.PlatformData, dc *pt.DockerClient, target string) {
+	clusters, live, err := docker.ListPatroniArchiveClusters(pd, dc, target, nil)
+	if err != nil {
+		fmt.Printf("\n(The other clusters of the archive could not be listed: %v)\n", err)
+		return
+	}
+	var others []docker.WalgCluster
+	for _, c := range clusters {
+		if len(c.Backups) > 0 && (live == 0 || c.SystemIdentifier != live) {
+			others = append(others, c)
+		}
+	}
+	if len(others) == 0 {
+		return
+	}
+	fmt.Printf("\nOther clusters in %s's archive (restore one with 'osi4iot backup restore %s --cluster <CLUSTER>'):\n", target, target)
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	fmt.Fprintln(w, "  CLUSTER\tCREATED\tBACKUPS\tNEWEST\tNEWEST BACKUP")
+	for _, c := range others {
+		created := "-"
+		if t := c.InitTime(); !t.IsZero() {
+			created = t.Local().Format("2006-01-02 15:04")
+		}
+		fmt.Fprintf(w, "  %s\t%s\t%d\t%s\t%s\n", c.Label(), created, len(c.Backups),
+			c.Newest().Local().Format("2006-01-02 15:04"), c.Backups[0].Name)
+	}
+	_ = w.Flush()
 }
 
 // confirmPatroniRestore spells out what is about to happen and makes
@@ -654,6 +723,10 @@ func init() {
 
 	subCmdBackupApply.Flags().StringVar(&backupApplyFile, "file", "",
 		"the file produced by 'osi4iot backup extract'")
+	subCmdBackupRestore.Flags().StringVar(&backupRestoreCluster, "cluster", "",
+		"patroni targets: the archive's cluster to restore from — a system identifier, or 'legacy' for the "+
+			"backups taken before each cluster had its own folder (default: the one with the newest backup, "+
+			"leaving out a running cluster created in the last 48 hours; see 'osi4iot backup list')")
 	subCmdBackupRestore.Flags().StringVar(&backupRestoreTargetTime, "target-time", "",
 		"point-in-time recovery target for the patroni targets, e.g. '2026-09-08 14:30:00+00'")
 	subCmdBackupRestore.Flags().StringVar(&backupRestoreRun, "run", "",

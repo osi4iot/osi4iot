@@ -39,7 +39,7 @@ import { useAuthDispatch, useAuthState, useLoggedUserLogin } from "../../../../c
 import { PipelineLog } from "../Pipeline/PipelineLogs";
 import { appendCapped, capLogs } from "../Pipeline/pipelineLogsModel";
 import { axiosAuth, openWindowTab } from "../../../../tools/tools";
-import { existFemResFileLocallyStored, readFemResFile, writeFemResFile } from "../../../../tools/fileSystem";
+import { existFemResFileLocallyStored, readFemResFile, slideModelCacheKey, writeFemResFile } from "../../../../tools/fileSystem";
 import { readFemSimulationInfo } from "../ViewerTools/ViewerUtils";
 import { getAxiosInstance } from "../../../../tools/axiosIntance";
 import { AxiosError, AxiosResponse } from "axios";
@@ -766,11 +766,13 @@ export const useLegendRenderer = () => {
     return legendRenderer;
 };
 
+// The FEM results of the 3D model shown: that of a slide (each slide has its own model and results; none: no results)
 export const useFemResults = (
     digitalTwinSelected: Viewer3DProps["digitalTwinSelected"],
     legendRenderer: THREE.WebGLRenderer | null,
     opts: ViewerOptions,
     fetchFemResFileWorker: Worker,
+    slideId?: string,
 ) => {
     const { accessToken, refreshToken } = useAuthState();
     const authDispatch = useAuthDispatch();
@@ -780,15 +782,19 @@ export const useFemResults = (
     const [femResultData, setFemResultData] = useState<any>(null);
     const [femSimulationGeneralInfo, setFemSimulationGeneralInfo] = useState<any>(null);
 
-    // Effect to fetch FEM result files list
+    // Effect to fetch FEM result files list (another slide: those of its model)
     useEffect(() => {
-        if (digitalTwinSelected) {
+        setFemResultDates([]);
+        setFemResultFileNames([]);
+        setFemResultData(null);
+        setFemSimulationGeneralInfo(null);
+        if (digitalTwinSelected && slideId) {
             const config = axiosAuth(accessToken);
             const groupId = digitalTwinSelected.groupId;
             const digitalTwinId = digitalTwinSelected.id;
             let urlBase = `${PROTOCOL}://${DOMAIN_NAME}/admin_api/digital_twin_file_list`;
             const urlFemResFolderBase = `${urlBase}/${groupId}/${digitalTwinId}`;
-            const urlFemResFolder = `${urlFemResFolderBase}/femResJson`;
+            const urlFemResFolder = `${urlFemResFolderBase}/femResJson?slide=${encodeURIComponent(slideId)}`;
 
             getAxiosInstance(refreshToken, authDispatch)
                 .get(urlFemResFolder, config)
@@ -798,7 +804,7 @@ export const useFemResults = (
                         lastModified: string;
                     }[] = response.data;
                     const dates = femResFilesInfo.map((fileInfo) => formatDateString(fileInfo.lastModified));
-                    const fileNames = femResFilesInfo.map((fileInfo) => fileInfo.fileName.split("/")[5]);
+                    const fileNames = femResFilesInfo.map((fileInfo) => fileInfo.fileName.split("/").pop() ?? fileInfo.fileName);
 
                     setFemResultDates(dates);
                     setFemResultFileNames(fileNames);
@@ -808,16 +814,17 @@ export const useFemResults = (
                     toast.warning(warningMessage);
                 });
         }
-    }, [digitalTwinSelected, accessToken, refreshToken, authDispatch]);
+    }, [digitalTwinSelected, slideId, accessToken, refreshToken, authDispatch]);
 
     // Effect to load FEM result data
     useEffect(() => {
-        if (!legendRenderer || !digitalTwinSelected || femResultDates.length === 0 || femResultFileNames.length === 0) {
+        if (!legendRenderer || !digitalTwinSelected || !slideId || femResultDates.length === 0 || femResultFileNames.length === 0) {
             return;
         }
 
         let femResultDate = opts.femResultDate;
-        if (femResultDate === undefined || femResultDate === "-") {
+        // none chosen, or one of the results of another slide's model: the newest
+        if (femResultDate === undefined || femResultDate === "-" || !femResultDates.includes(femResultDate)) {
             femResultDate = femResultDates[0];
         }
 
@@ -828,9 +835,10 @@ export const useFemResults = (
             const digitalTwinId = digitalTwinSelected.id;
             let urlBase = `${PROTOCOL}://${DOMAIN_NAME}/admin_api/digital_twin_download_file`;
             const urlFemResFileBase = `${urlBase}/${groupId}/${digitalTwinId}`;
-            const urlFemResFile = `${urlFemResFileBase}/femResJson/${femResultFileName}`;
+            const urlFemResFile = `${urlFemResFileBase}/femResJson/${encodeURIComponent(femResultFileName)}?slide=${encodeURIComponent(slideId)}`;
             const config = axiosAuth(accessToken);
-            const digitalTwinUid = digitalTwinSelected.digitalTwinUid;
+            // kept in the browser with the slide's model
+            const digitalTwinUid = slideModelCacheKey(digitalTwinSelected.digitalTwinUid, slideId);
 
             existFemResFileLocallyStored(digitalTwinUid, femResultFileName, femResultDates, femResultFileNames).then(
                 async (exists: boolean) => {
@@ -847,7 +855,7 @@ export const useFemResults = (
                             const message = {
                                 urlFemResFile,
                                 accessToken,
-                                digitalTwinUid: digitalTwinSelected.digitalTwinUid,
+                                digitalTwinUid,
                             };
                             fetchFemResFileWorker.postMessage(message);
                             fetchFemResFileWorker.onmessage = (e: MessageEvent<string>) => {
@@ -890,6 +898,7 @@ export const useFemResults = (
     }, [
         legendRenderer,
         digitalTwinSelected,
+        slideId,
         femResultDates,
         femResultFileNames,
         opts.femResultDate,

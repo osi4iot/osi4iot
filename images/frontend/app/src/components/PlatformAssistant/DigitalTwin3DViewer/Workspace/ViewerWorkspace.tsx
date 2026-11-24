@@ -7,12 +7,13 @@
 // the others, which are only hidden. A panel can also go full screen (the Fullscreen API: on Android it hides
 // the browser and the status bar too); where the browser does not allow it (Safari on the iPhone) the panel covers
 // the page instead.
-import { CSSProperties, FC, ReactNode, useEffect, useId, useRef, useState } from "react";
+import { CSSProperties, FC, ReactNode, PointerEvent as ReactPointerEvent, useEffect, useId, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import styled, { css } from "styled-components";
 import { scrollbarStyle } from "../../../Tools/FormTools";
 import GridLayout from "react-grid-layout";
 import "react-grid-layout/css/styles.css";
-import { Activity, Building2, HeartPulse, ScrollText, Axis3d, BellRing, Box, ChartBar, FileImage, FileText, Image as ImageIcon, Video, ChartColumn, ChartColumnBig, ChartGantt, ChartLine, ChartPie, ClipboardCheck, Gauge, Hash, Table2, GripVertical, Info, Maximize, Maximize2, Minimize, Minimize2, Pencil, Plus, X } from "lucide-react";
+import { Activity, Building2, HeartPulse, PictureInPicture2, SlidersHorizontal, ScrollText, Axis3d, BellRing, Box, ChartBar, FileImage, FileText, Image as ImageIcon, Video, ChartColumn, ChartColumnBig, ChartGantt, ChartLine, ChartPie, ClipboardCheck, Gauge, Hash, Table2, GripVertical, Info, Maximize, Maximize2, Minimize, Minimize2, Pencil, Plus, Upload, X } from "lucide-react";
 import { ChartSeriesOption, defaultChartTitle } from "./chartSeries";
 import { PanelLinks } from "./charts/Links";
 import ImageSourceField from "./ImageSourceField";
@@ -40,6 +41,10 @@ import {
     imageDisplayOf,
     rowHeightFor,
     toGridItems,
+    FLOATING_PANEL_TYPES,
+    FloatRect,
+    showsSimulation,
+    setPanelFloat,
 } from "./workspaceLayout";
 
 export const PANEL_BAR_HEIGHT = 40;
@@ -108,6 +113,69 @@ const Scroller = styled.div<{ $locked: boolean }>`
     }
 `;
 
+// the slide's area: the grid (it scrolls) and, over it, the floating panels (they do not)
+const Stage = styled.div`
+    position: relative;
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+`;
+
+// over the slide; over the whole screen while a panel is in full screen (then it is put inside that panel, the only
+// thing the browser shows)
+const FloatLayer = styled.div<{ $screen: boolean }>`
+    position: ${({ $screen }) => ($screen ? "fixed" : "absolute")};
+    inset: 0;
+    pointer-events: none;
+    z-index: ${({ $screen }) => ($screen ? 3001 : 30)};
+`;
+
+const FloatFrame = styled.div<{ $moving: boolean }>`
+    position: absolute;
+    pointer-events: auto;
+    display: flex;
+    min-width: 220px;
+    min-height: 150px;
+    border-radius: 12px;
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.55);
+
+    & > section {
+        flex: 1;
+        min-width: 0;
+        height: 100%;
+    }
+    /* moved by its bar */
+    .ws-drag-handle {
+        cursor: ${({ $moving }) => ($moving ? "grabbing" : "grab")};
+        touch-action: none;
+    }
+`;
+
+// resizes a floating panel, from its lower right corner
+const ResizeGrip = styled.div`
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    width: 18px;
+    height: 18px;
+    cursor: nwse-resize;
+    touch-action: none;
+    z-index: 7;
+
+    &::after {
+        content: "";
+        position: absolute;
+        right: 4px;
+        bottom: 4px;
+        width: 8px;
+        height: 8px;
+        border-right: 2px solid #9aa1aa;
+        border-bottom: 2px solid #9aa1aa;
+        opacity: 0.7;
+    }
+`;
+
 const Panel = styled.section<{ $editing: boolean; $fullscreen?: boolean }>`
     position: relative;
     box-sizing: border-box;
@@ -123,6 +191,39 @@ const Panel = styled.section<{ $editing: boolean; $fullscreen?: boolean }>`
             border: none;
             border-radius: 0;
         `}
+`;
+
+// a panel's own actions in full screen (its bar is hidden there): next to the button that leaves it
+const FullscreenActions = styled.div`
+    position: absolute;
+    top: max(10px, env(safe-area-inset-top));
+    right: calc(max(10px, env(safe-area-inset-right)) + 48px);
+    z-index: 10;
+    display: flex;
+    gap: 8px;
+
+    button {
+        width: 40px;
+        height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0;
+        border: none;
+        border-radius: 50%;
+        background: rgba(0, 0, 0, 0.55);
+        color: #fff;
+        cursor: pointer;
+    }
+    button:hover,
+    button:focus-visible,
+    button[aria-pressed="true"] {
+        background: rgba(0, 0, 0, 0.75);
+    }
+    svg {
+        width: 18px;
+        height: 18px;
+    }
 `;
 
 // to leave the full screen: always visible over the panel, in a corner
@@ -230,7 +331,21 @@ const IconButton = styled.button`
         width: 16px;
         height: 16px;
     }
+    &[aria-pressed="true"] {
+        background: #1f2a3a;
+        border-color: #3d82f0;
+        color: #e6e8eb;
+    }
 `;
+
+// An action of a panel of its own, in its bar (and over it in full screen): e.g. the 3D model's settings
+export interface PanelAction {
+    label: string;
+    icon: ReactNode;
+    // a toggle: pressed while what it opens is open
+    active?: boolean;
+    onClick: () => void;
+}
 
 const TitleInput = styled.input`
     min-width: 0;
@@ -518,6 +633,8 @@ interface AddPanelDialogProps {
     // the organization overview: its indicators panel (one on a page)
     organization?: boolean;
     canAddOrgOverview?: boolean;
+    // the digital twin's simulator (one on a page; not in control rooms nor in the organization overview)
+    canAddSimulator?: boolean;
     sources: ImageSourceOption[];
     // the fields of the asset's sensors a chart can show
     chartOptions: ChartSeriesOption[];
@@ -595,7 +712,8 @@ type DialogType =
     | "assetState"
     | "health"
     | "pipelineLogs"
-    | "orgOverview";
+    | "orgOverview"
+    | "simulator";
 
 export const AddPanelDialog: FC<AddPanelDialogProps> = ({
     canAddModel,
@@ -607,6 +725,7 @@ export const AddPanelDialog: FC<AddPanelDialogProps> = ({
     canAddPipelineLogs = true,
     organization = false,
     canAddOrgOverview = true,
+    canAddSimulator = true,
     sources,
     chartOptions,
     onAdd,
@@ -660,6 +779,17 @@ export const AddPanelDialog: FC<AddPanelDialogProps> = ({
             icon: <Activity />,
             disabled: !canAddAssetState,
         },
+        ...(!controlRoom && !organization
+            ? [
+                  {
+                      value: "simulator" as const,
+                      label: "Simulator",
+                      hint: canAddSimulator ? "Send simulated values to the digital twin; it can float" : "Already on the page",
+                      icon: <SlidersHorizontal />,
+                      disabled: !canAddSimulator,
+                  },
+              ]
+            : []),
         ...(controlRoom
             ? [
                   {
@@ -709,6 +839,8 @@ export const AddPanelDialog: FC<AddPanelDialogProps> = ({
                   ? canAddPipelineLogs
                   : type === "orgOverview"
                   ? canAddOrgOverview
+                  : type === "simulator"
+                  ? canAddSimulator
                   : sourceOk;
     const toggle = (key: string) =>
         setChosen((list) =>
@@ -737,6 +869,8 @@ export const AddPanelDialog: FC<AddPanelDialogProps> = ({
                   ? "Pipeline logs"
                   : type === "orgOverview"
                   ? "Organization overview"
+                  : type === "simulator"
+                  ? "Simulator"
                   : "Approvals";
     return (
         <Backdrop
@@ -902,6 +1036,8 @@ export const AddPanelDialog: FC<AddPanelDialogProps> = ({
 export interface ViewerWorkspaceProps {
     // the slide shown: its panels
     layout: WorkspaceSlide;
+    // an empty slide of a twin without model: the editor may load its viewer data (Viewer data)
+    onLoadViewerData?: () => void;
     // where the layout comes from: the user's temporary changes, the group's, or automatic
     origin: "local" | "group" | "automatic";
     editing: boolean;
@@ -930,6 +1066,11 @@ export interface ViewerWorkspaceProps {
     onPhoneChange?: (phone: boolean) => void;
     // opens a chart panel in the panel editor
     onEditPanel?: (id: string) => void;
+    // a panel's own actions, out of the layout editing (e.g. the 3D model's settings)
+    panelActions?: (panel: WorkspacePanel) => PanelAction[];
+    // the Add panel dialog, when the caller opens it (the Add panel icon of the slide bar)
+    addingPanel?: boolean;
+    onAddingPanelChange?: (adding: boolean) => void;
     // a group's control room: it may add the Health and Pipeline logs panels
     controlRoom?: boolean;
     // the organization overview: it may add the Organization overview panel
@@ -955,6 +1096,8 @@ const panelIcon = (panel: WorkspacePanel) =>
         <ScrollText aria-hidden="true" />
     ) : panel.type === "orgOverview" ? (
         <Building2 aria-hidden="true" />
+    ) : panel.type === "simulator" ? (
+        <SlidersHorizontal aria-hidden="true" />
     ) : panel.type === "markdown" ? (
         <FileText aria-hidden="true" />
     ) : panel.type === "picture" ? (
@@ -996,6 +1139,7 @@ const ViewerWorkspace: FC<ViewerWorkspaceProps> = ({
     hasModel,
     controlRoom = false,
     organization = false,
+    onLoadViewerData,
     imageSources,
     chartOptions = [],
     maximizedId,
@@ -1012,12 +1156,17 @@ const ViewerWorkspace: FC<ViewerWorkspaceProps> = ({
     panelMeta,
     onPhoneChange,
     onEditPanel,
+    panelActions,
+    addingPanel,
+    onAddingPanelChange,
     slideBar,
     overlay,
 }) => {
     const scrollerRef = useRef<HTMLDivElement>(null);
     const [size, setSize] = useState({ width: 0, height: 0 });
-    const [adding, setAdding] = useState(false);
+    const [addingOwn, setAddingOwn] = useState(false);
+    const adding = addingPanel ?? addingOwn;
+    const setAdding = (value: boolean) => (onAddingPanelChange ? onAddingPanelChange(value) : setAddingOwn(value));
     const [phoneTab, setPhoneTab] = useState<string | null>(null);
 
     useEffect(() => {
@@ -1042,6 +1191,7 @@ const ViewerWorkspace: FC<ViewerWorkspaceProps> = ({
 
     // the panel in full screen: with the Fullscreen API ("native") or covering the page
     const [fullscreen, setFullscreen] = useState<{ id: string; native: boolean } | null>(null);
+    const [, setFullscreenTick] = useState(0);
     const panelElements = useRef(new Map<string, HTMLElement>());
     const enterFullscreen = (id: string) => {
         const el = panelElements.current.get(id);
@@ -1060,6 +1210,8 @@ const ViewerWorkspace: FC<ViewerWorkspaceProps> = ({
         // left with the system (Android's back gesture, Esc): the panel goes back to its place
         const onChange = () => {
             if (!document.fullscreenElement) setFullscreen((prev) => (prev?.native ? null : prev));
+            // the floating panels go into the panel in full screen (or come back): see FloatLayer
+            setFullscreenTick((t) => t + 1);
         };
         const onKey = (e: KeyboardEvent) => {
             if (e.key === "Escape") setFullscreen((prev) => (prev && !prev.native ? null : prev));
@@ -1076,6 +1228,157 @@ const ViewerWorkspace: FC<ViewerWorkspaceProps> = ({
     const activePhonePanel = phone ? panels.find((p) => p.id === phoneTab) ?? panels[0] ?? null : null;
     const fullId = phone ? activePhonePanel?.id ?? null : panels.some((p) => p.id === maximizedId) ? maximizedId : null;
     const editable = editing && !phone && !fullId;
+
+    // --- Floating panels (the simulator) ----------------------------------------------------------------------
+    // A floating panel keeps its place in the grid: it is never moved nor resized there. Floating only matters
+    // while another panel that shows the simulation (the 3D model, a 3D Surface of dtm2sim…: showsSimulation)
+    // covers the slide (full screen, or full page): then it is shown over that one — top right
+    // at its own size until the user drags it by its bar or resizes it from its corner — so it stays at hand. Its "float" icon turns that on or off: while the layout
+    // is edited it changes the layout (an editor saves it for the group); otherwise it lasts while the viewer is
+    // open. On a phone a panel is always alone on screen, so nothing floats.
+    const [localFloat, setLocalFloat] = useState<Record<string, boolean>>({});
+    const floatingOf = (panel: WorkspacePanel) =>
+        !phone && FLOATING_PANEL_TYPES.includes(panel.type) && (editable ? panel.floating === true : localFloat[panel.id] ?? panel.floating === true);
+    const setFloat = (panel: WorkspacePanel, floating: boolean) => {
+        if (editable) onLayoutChange(setPanelFloat(layout, panel.id, floating));
+        else setLocalFloat((prev) => ({ ...prev, [panel.id]: floating }));
+    };
+    const gridPanels = panels;
+    // the panel covering the slide, if any: the floating ones are shown over it
+    const coverId = fullscreen?.id ?? fullId;
+    // only over a panel that shows the simulation (showsSimulation: the 3D model, the panels of dtm2sim / sim2dtm)
+    const cover = coverId ? panels.find((p) => p.id === coverId) : undefined;
+    const floatPanels = cover && showsSimulation(cover) ? panels.filter((p) => p.id !== cover.id && floatingOf(p)) : [];
+    const floatAction = (panel: WorkspacePanel): PanelAction[] => {
+        if (phone || !FLOATING_PANEL_TYPES.includes(panel.type)) return [];
+        const floating = floatingOf(panel);
+        return [
+            {
+                label: floating
+                    ? "Floating over the 3D model or a panel of the simulation in full screen: turn it off"
+                    : "Float over the 3D model or a panel of the simulation in full screen",
+                icon: <PictureInPicture2 aria-hidden="true" />,
+                active: floating,
+                onClick: () => setFloat(panel, !floating),
+            },
+        ];
+    };
+    const actionsOf = (panel: WorkspacePanel): PanelAction[] => [...(editable ? [] : panelActions?.(panel) ?? []), ...floatAction(panel)];
+
+    // its size in the grid
+    const floatSize = (panel: WorkspacePanel) => {
+        const width = Math.round((panel.w / GRID_COLS) * size.width);
+        const height = Math.round(panel.h * rowHeightFor(size.height));
+        return { width: Math.max(220, width), height: Math.max(150, height) };
+    };
+
+    // Over the panel in full screen it can be moved by its bar and resized from its corner. Where it is stays while
+    // the viewer is open, in fractions of what it floats over (the screen, or the slide's area), so it keeps its
+    // place when the window changes size. Until moved: top right, at its size in the grid.
+    const stageRef = useRef<HTMLDivElement>(null);
+    const [floatRects, setFloatRects] = useState<Record<string, FloatRect>>({});
+    const floatArea = () => {
+        if (fullscreen) return { width: window.innerWidth, height: window.innerHeight };
+        const rect = stageRef.current?.getBoundingClientRect();
+        return rect && rect.width > 0 && rect.height > 0 ? { width: rect.width, height: rect.height } : null;
+    };
+    const defaultFloatRect = (panel: WorkspacePanel, index: number, area: { width: number; height: number }): FloatRect => {
+        const { width, height } = floatSize(panel);
+        const top = (fullscreen ? 62 : 54) + index * 24;
+        const w = Math.min(width, area.width - 28) / area.width;
+        const h = Math.min(height, area.height - top - 14) / area.height;
+        const x = Math.max(0, 1 - w - (14 + index * 24) / area.width);
+        return { x, y: Math.min(top / area.height, 1 - h), w, h };
+    };
+    const [moving, setMoving] = useState<{ id: string; mode: "move" | "resize"; x0: number; y0: number; rect: FloatRect; areaW: number; areaH: number } | null>(
+        null,
+    );
+    const [movingRect, setMovingRect] = useState<FloatRect | null>(null);
+    const movingRectRef = useRef<FloatRect | null>(null);
+    const startMove = (event: ReactPointerEvent, panel: WorkspacePanel, index: number, mode: "move" | "resize") => {
+        const target = event.target as HTMLElement;
+        if (mode === "move" && (!target.closest(".ws-drag-handle") || target.closest(".ws-no-drag, button, input, select, textarea, a"))) return;
+        const area = floatArea();
+        if (!area) return;
+        event.preventDefault();
+        event.stopPropagation();
+        movingRectRef.current = null;
+        const rect = floatRects[panel.id] ?? defaultFloatRect(panel, index, area);
+        setMoving({ id: panel.id, mode, x0: event.clientX, y0: event.clientY, rect, areaW: area.width, areaH: area.height });
+    };
+    useEffect(() => {
+        if (!moving) return;
+        const clampTo = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
+        const onMove = (e: PointerEvent) => {
+            const dx = (e.clientX - moving.x0) / moving.areaW;
+            const dy = (e.clientY - moving.y0) / moving.areaH;
+            const r = moving.rect;
+            const next =
+                moving.mode === "move"
+                    ? { ...r, x: clampTo(r.x + dx, 0, 1 - r.w), y: clampTo(r.y + dy, 0, 1 - r.h) }
+                    : {
+                          ...r,
+                          w: clampTo(r.w + dx, Math.min(220 / moving.areaW, 1 - r.x), 1 - r.x),
+                          h: clampTo(r.h + dy, Math.min(150 / moving.areaH, 1 - r.y), 1 - r.y),
+                      };
+            movingRectRef.current = next;
+            setMovingRect(next);
+        };
+        const onUp = () => {
+            const rect = movingRectRef.current;
+            if (rect) setFloatRects((prev) => ({ ...prev, [moving.id]: rect }));
+            setMoving(null);
+            setMovingRect(null);
+        };
+        document.addEventListener("pointermove", onMove);
+        document.addEventListener("pointerup", onUp);
+        return () => {
+            document.removeEventListener("pointermove", onMove);
+            document.removeEventListener("pointerup", onUp);
+        };
+    }, [moving]);
+
+    const floatingView =
+        floatPanels.length > 0 ? (
+            <FloatLayer $screen={!!fullscreen}>
+                {floatPanels.map((panel, index) => {
+                    const area = floatArea();
+                    const r =
+                        moving?.id === panel.id && movingRect
+                            ? movingRect
+                            : floatRects[panel.id] ?? (area ? defaultFloatRect(panel, index, area) : null);
+                    const { width, height } = floatSize(panel);
+                    const style = r
+                        ? { left: `${r.x * 100}%`, top: `${r.y * 100}%`, width: `${r.w * 100}%`, height: `${r.h * 100}%` }
+                        : { top: 54, right: 14, width: `min(${width}px, calc(100% - 28px))`, height: `min(${height}px, calc(100% - 76px))` };
+                    return (
+                        <FloatFrame
+                            key={panel.id}
+                            $moving={moving?.id === panel.id && moving.mode === "move"}
+                            data-testid={`floating-${panel.id}`}
+                            style={style}
+                            onPointerDown={(e) => startMove(e, panel, index, "move")}
+                        >
+                            <WorkspacePanelView
+                                panel={panel}
+                                editing={false}
+                                isFull={false}
+                                phone={false}
+                                meta={panelMeta?.(panel)}
+                                onRemove={() => onLayoutChange(removePanel(layout, panel.id))}
+                                onRename={(title) => onLayoutChange(renamePanel(layout, panel.id, title))}
+                                actions={actionsOf(panel)}
+                            >
+                                {renderPanel(panel)}
+                            </WorkspacePanelView>
+                            <ResizeGrip aria-hidden="true" data-testid={`resize-${panel.id}`} onPointerDown={(e) => startMove(e, panel, index, "resize")} />
+                        </FloatFrame>
+                    );
+                })}
+            </FloatLayer>
+        ) : null;
+    // with a panel in full screen (Fullscreen API) the browser only shows that panel: the floating ones go inside it
+    const floatingTarget = fullscreen?.native && document.fullscreenElement instanceof HTMLElement ? document.fullscreenElement : null;
 
     // a full page panel: scrolled to the top so that it covers the visible area
     useEffect(() => {
@@ -1099,7 +1402,8 @@ const ViewerWorkspace: FC<ViewerWorkspaceProps> = ({
 
     return (
         <Area style={{ ...style, display: hidden ? "none" : "flex" }} data-testid="viewer-workspace">
-            {editing && (
+            {/* editing on a wide screen is driven from the slide bar (Add panel, Cancel, Save); on a phone, this */}
+            {editing && phone && (
                 <Bar role="region" aria-label="Edit layout">
                     {phone ? (
                         <p>The layout is edited on a wider screen.</p>
@@ -1160,6 +1464,7 @@ const ViewerWorkspace: FC<ViewerWorkspaceProps> = ({
                 </Tabs>
             )}
 
+            <Stage ref={stageRef}>
             <Scroller
                 ref={scrollerRef}
                 $locked={!!fullId}
@@ -1172,12 +1477,23 @@ const ViewerWorkspace: FC<ViewerWorkspaceProps> = ({
                             <Plus aria-hidden="true" />
                             Add panel
                         </TextButton>
+                        {onLoadViewerData && (
+                            <>
+                                <span style={{ marginTop: 6 }}>
+                                    Or load all its viewer data (the .zip of a whole digital twin) or a viewer configuration.
+                                </span>
+                                <TextButton type="button" onClick={onLoadViewerData}>
+                                    <Upload aria-hidden="true" />
+                                    Load viewer data
+                                </TextButton>
+                            </>
+                        )}
                     </Empty>
                 )}
-                {size.width > 0 && panels.length > 0 && (
+                {size.width > 0 && gridPanels.length > 0 && (
                     <GridLayout
                         width={size.width}
-                        layout={toGridItems(layout, editable)}
+                        layout={toGridItems({ panels: gridPanels }, editable)}
                         gridConfig={{
                             cols: GRID_COLS,
                             rowHeight,
@@ -1193,7 +1509,7 @@ const ViewerWorkspace: FC<ViewerWorkspaceProps> = ({
                             if (next !== layout) onLayoutChange(next);
                         }}
                     >
-                        {panels.map((panel) => {
+                        {gridPanels.map((panel) => {
                             const isFull = fullId === panel.id;
                             const isFullscreen = fullscreen?.id === panel.id;
                             const className =
@@ -1217,6 +1533,7 @@ const ViewerWorkspace: FC<ViewerWorkspaceProps> = ({
                                         onMaximize={() => onMaximize(isFull ? null : panel.id)}
                                         onRemove={() => onLayoutChange(removePanel(layout, panel.id))}
                                         onRename={(title) => onLayoutChange(renamePanel(layout, panel.id, title))}
+                                        actions={actionsOf(panel)}
                                         onEdit={(panel.type === "chart" || panel.type === "markdown" || panel.type === "picture" || panel.type === "surface" || panel.type === "assetState" || panel.type === "orgOverview") && onEditPanel && !phone ? () => onEditPanel(panel.id) : undefined}
                                         source={
                                             editable && panel.type === "image" ? (
@@ -1250,6 +1567,8 @@ const ViewerWorkspace: FC<ViewerWorkspaceProps> = ({
                     </GridLayout>
                 )}
             </Scroller>
+            {floatingTarget && floatingView ? createPortal(floatingView, floatingTarget) : floatingView}
+            </Stage>
 
             {adding && (
                 <AddPanelDialog
@@ -1262,6 +1581,7 @@ const ViewerWorkspace: FC<ViewerWorkspaceProps> = ({
                     canAddPipelineLogs={canAddPanelType(layout, "pipelineLogs", hasModel)}
                     organization={organization}
                     canAddOrgOverview={canAddPanelType(layout, "orgOverview", hasModel)}
+                    canAddSimulator={canAddPanelType(layout, "simulator", hasModel)}
                     sources={imageSources}
                     chartOptions={chartOptions}
                     onAdd={addFromDialog}
@@ -1283,10 +1603,12 @@ interface WorkspacePanelViewProps {
     isFullscreen?: boolean;
     panelRef?: (el: HTMLElement | null) => void;
     onFullscreen?: () => void;
-    onMaximize: () => void;
+    // none: no full page button (a floating panel)
+    onMaximize?: () => void;
     onRemove: () => void;
     onRename: (title: string) => void;
     onEdit?: () => void;
+    actions?: PanelAction[];
     // the source of an Image panel, while the layout is edited
     source?: ReactNode;
     children: ReactNode;
@@ -1305,6 +1627,7 @@ const WorkspacePanelView: FC<WorkspacePanelViewProps> = ({
     onRemove,
     onRename,
     onEdit,
+    actions,
     source,
     children,
 }) => {
@@ -1319,6 +1642,22 @@ const WorkspacePanelView: FC<WorkspacePanelViewProps> = ({
             aria-label={title}
             style={{ height: "100%", ...(panel.options?.transparent === true && !editing && !isFullscreen ? { background: "transparent", borderColor: "transparent" } : {}) }}
         >
+            {isFullscreen && actions && actions.length > 0 && (
+                <FullscreenActions>
+                    {actions.map((action) => (
+                        <button
+                            key={action.label}
+                            type="button"
+                            aria-label={action.label}
+                            title={action.label}
+                            aria-pressed={action.active === undefined ? undefined : action.active}
+                            onClick={action.onClick}
+                        >
+                            {action.icon}
+                        </button>
+                    ))}
+                </FullscreenActions>
+            )}
             {isFullscreen && onFullscreen && (
                 <ExitFullscreenButton type="button" aria-label="Exit full screen" title="Exit full screen" onClick={onFullscreen}>
                     <Minimize aria-hidden="true" />
@@ -1355,12 +1694,25 @@ const WorkspacePanelView: FC<WorkspacePanelViewProps> = ({
                 )}
                 <BarSpacer />
                 {!editing && Array.isArray(panel.options?.links) && <PanelLinks links={panel.options.links} />}
+                {actions?.map((action) => (
+                    <IconButton
+                        key={action.label}
+                        type="button"
+                        className="ws-no-drag"
+                        aria-label={action.label}
+                        title={action.label}
+                        aria-pressed={action.active === undefined ? undefined : action.active}
+                        onClick={action.onClick}
+                    >
+                        {action.icon}
+                    </IconButton>
+                ))}
                 {onEdit && (
                     <IconButton type="button" className="ws-no-drag" aria-label={`Edit ${title}`} title="Edit the panel" onClick={onEdit}>
                         <Pencil aria-hidden="true" />
                     </IconButton>
                 )}
-                {!phone && (
+                {!phone && onMaximize && (
                     <IconButton
                         type="button"
                         className="ws-no-drag"

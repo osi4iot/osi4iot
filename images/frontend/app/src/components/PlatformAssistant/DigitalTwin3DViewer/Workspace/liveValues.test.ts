@@ -44,3 +44,25 @@ describe("live values of the NATS messages", () => {
         expect(store.get("dtm2sim")?.payload).toEqual({ rotorRpm: 10, camera: { position: [1, 2, 3], view: "top" } });
     });
 });
+
+describe("messages of a slide ($slide)", () => {
+    it("go to the panels of their slide; those of no slide to every slide; the newest wins", async () => {
+        const { createLiveValueStore, scopedToSlide } = await import("./liveValues");
+        const store = createLiveValueStore();
+        const a = scopedToSlide(store, "s-a");
+        const b = scopedToSlide(store, "s-b");
+        const heardA: unknown[] = [];
+        a.subscribe("dtm2sim", (m) => heardA.push(m.last));
+        store.publish("dtm2sim", { load: 1, $slide: "s-a" }, 10);
+        expect((a.get("dtm2sim")?.payload as { load: number }).load).toBe(1);
+        expect(b.get("dtm2sim")).toBeUndefined();
+        store.publish("dtm2sim", { load: 2 }, 20);
+        expect((a.get("dtm2sim")?.payload as { load: number }).load).toBe(2);
+        expect((b.get("dtm2sim")?.payload as { load: number }).load).toBe(2);
+        store.publish("dtm2sim", { load: 3, $slide: "s-b" }, 30);
+        expect((a.get("dtm2sim")?.payload as { load: number }).load).toBe(2);
+        expect(heardA).toEqual([{ load: 1, $slide: "s-a" }, { load: 2 }]);
+        // the fields offered to the editors, whatever the slide (not $slide)
+        expect(store.fields("dtm2sim")).toEqual(["load"]);
+    });
+});

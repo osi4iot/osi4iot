@@ -46,13 +46,15 @@ bootstrap:
   wal_g:
     # no_params is required: without it Patroni appends --scope and
     # --datadir, which wal-g does not accept.
-    command: wal-g backup-fetch /data/patroni ${PATRONI_RESTORE_BACKUP}
+    # walg-scoped --restore reads the folder the CLI gives in
+    # PATRONI_RESTORE_PREFIX (PGDATA is still empty here).
+    command: walg-scoped --restore backup-fetch /data/patroni ${PATRONI_RESTORE_BACKUP}
     no_params: true
     recovery_conf:
       # Needed on every restore, not just PITR: after backup-fetch,
       # PostgreSQL has to replay WAL from the archive to reach a
       # consistent state.
-      restore_command: 'wal-g wal-fetch %f %p'
+      restore_command: 'walg-scoped --restore wal-fetch %f %p'
       # These two lines are removed by entrypoint.sh when no target
       # time is set, so a plain restore recovers to the end of the
       # available WAL.
@@ -78,8 +80,10 @@ bootstrap:
         wal_log_hints: "on"
         archive_mode: "on"
         archive_timeout: 1800s
-        archive_command: 'wal-g wal-push %p'
-        restore_command: 'wal-g wal-fetch %f %p'
+        # Through walg-scoped: each cluster archives in its own folder,
+        # WALG_S3_PREFIX/<system identifier> (see walg-scoped).
+        archive_command: 'walg-scoped wal-push %p'
+        restore_command: 'walg-scoped wal-fetch %f %p'
 
   initdb:
     - encoding: UTF8
@@ -112,6 +116,12 @@ postgresql:
 
   parameters:
         unix_socket_directories: '/var/run/postgresql'
+        # Also here, not only in bootstrap.dcs: the local configuration wins
+        # over the DCS and is read on every start, so clusters bootstrapped
+        # before walg-scoped existed (with 'wal-g ...' in their DCS) switch
+        # to their own folder too.
+        archive_command: 'walg-scoped wal-push %p'
+        restore_command: 'walg-scoped wal-fetch %f %p'
         wal_log_hints: "on"
         shared_preload_libraries: 'timescaledb'
         shared_buffers: 256MB

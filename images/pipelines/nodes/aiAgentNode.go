@@ -38,6 +38,12 @@ import (
 type AiAgentNode struct {
 	BaseNode
 
+	// The slide of the digital twin's Viewer the last prompt came from:
+	// the agent reads the FEM results of that slide's 3D model (""): the
+	// first slide that has them). See promptSlide.
+	femSlideMu sync.Mutex
+	femSlide   string
+
 	agentConfig llmagent.Config // channels and callbacks are set in Start
 	agentIn     chan llmagent.Prompt
 	agentOut    chan llmagent.Answer
@@ -148,7 +154,7 @@ type aiAgentServer struct {
 // fem_results when the digital twin has FEM results, documents when it
 // may read documents of its group's knowledge base.
 type agentTools struct {
-	femURI      string
+	femURI      string // of the slide of the last prompt (femSlide)
 	femVersion  string // "" no FEM results
 	docsVersion string // "" no documents
 }
@@ -406,7 +412,7 @@ func (n *AiAgentNode) currentTools(ctx context.Context, log *logger.Logger, prev
 	// Not checked for a server the node did not choose.
 	if n.mcpChosen("fem_results") {
 		femCtx, cancel := context.WithTimeout(ctx, toolsCheckTimeout)
-		uri, version, err := n.Fm.FemResultsS3URI(femCtx, p.GetOrgId(), p.GetGroupId(), p.GetDigitalTwinId())
+		uri, version, err := n.Fm.FemResultsS3URI(femCtx, p.GetOrgId(), p.GetGroupId(), p.GetDigitalTwinId(), n.femSlideOf())
 		cancel()
 		if err != nil {
 			log.Warnf("AiAgentNode %s: could not check the FEM results: %v", n.NodeUid, err)
@@ -768,6 +774,9 @@ func (n *AiAgentNode) handleInputWires(log *logger.Logger, processor func(llmage
 					userZone, _ := msg.GetStringFromPayload("timeZone")
 					// what the chat's 3D viewer holds, so that uiOpts name it exactly
 					viewer, _ := msg.GetFieldFromPayload("viewer")
+					// the FEM results the agent reads: those of the slide the
+					// prompt comes from (sent before reloadIfToolsChanged looks)
+					n.setFemSlide(promptSlide(msg.GetFieldFromPayload, viewer))
 					// files attached to the question: read once here, by the image model (aiAgentAttachments.go)
 					rawAttachments, _ := msg.GetFieldFromPayload("attachments")
 					attachments := utils.ParseChatAttachments(rawAttachments)
@@ -1052,4 +1061,41 @@ func (n *AiAgentNode) Stop(log *logger.Logger) {
 
 func (n *AiAgentNode) GetName() string {
 	return n.Name
+}
+
+// SlideField is the reserved field of a message that names the slide of
+// the digital twin's Viewer it belongs to (no simulation parameter can
+// have that name: they are letters, digits, "_", "." and "-").
+const SlideField = "$slide"
+
+// slideIdPattern is the shape of a slide's id (admin_api SLIDE_ID).
+var slideIdPattern = regexp.MustCompile(`^[A-Za-z0-9_-]{1,40}$`)
+
+// promptSlide is the slide a prompt comes from: the "$slide" field of the
+// message, else the slide the chat's Viewer shows ("slide" of its
+// "viewer" field); "" none.
+func promptSlide(field func(string) (any, bool), viewer any) string {
+	if v, ok := field(SlideField); ok {
+		if s, ok := v.(string); ok && slideIdPattern.MatchString(s) {
+			return s
+		}
+	}
+	if m, ok := viewer.(map[string]any); ok {
+		if s, ok := m["slide"].(string); ok && slideIdPattern.MatchString(s) {
+			return s
+		}
+	}
+	return ""
+}
+
+func (n *AiAgentNode) setFemSlide(slide string) {
+	n.femSlideMu.Lock()
+	n.femSlide = slide
+	n.femSlideMu.Unlock()
+}
+
+func (n *AiAgentNode) femSlideOf() string {
+	n.femSlideMu.Lock()
+	defer n.femSlideMu.Unlock()
+	return n.femSlide
 }

@@ -133,13 +133,13 @@ func extractFromPatroniFamily(
 		logger.Printf("  %s", summary)
 	}
 
-	backup := opts.Backup
-	if backup == "" {
-		var err error
-		backup, err = pickBackupBefore(pd, dc, family, opts.TargetTime)
-		if err != nil {
-			return err
-		}
+	// the running cluster's own folder of the archive, or the legacy
+	// backups (extractSource)
+	walgPrefix, backup, err := extractSource(pd, dc, family, opts, logger)
+	if err != nil {
+		return err
+	}
+	if opts.Backup == "" {
 		logger.Printf("Using base backup %s (the newest one taken before %s).", backup, opts.TargetTime)
 	}
 
@@ -153,7 +153,7 @@ func extractFromPatroniFamily(
 	// cannot mount one, and the CLI holds the same values in its state
 	// file anyway. These are exactly the variables
 	// secrets.CreatePatroniSecrets writes into patroni_<family>.
-	env := walgEnvFor(pd, family)
+	env := walgEnvFor(pd, family, walgPrefix)
 
 	// Whether to dump the table's definition as well as its rows is not
 	// something the operator should have to work out: it depends on

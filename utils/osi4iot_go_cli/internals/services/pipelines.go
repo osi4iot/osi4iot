@@ -33,6 +33,7 @@ func PipelinesService(
 	}
 
 	gpu := PipelinesGPUSpecFor(pd, nodeRoleNumMaps)
+	reservedCPUs, reservedMem := PipelinesReservations(svcResources.NanoCPUs, svcResources.MemoryBytes)
 
 	env := []string{"REPLICA={{.Task.Slot}}"}
 	env = append(env, gpu.Env...)
@@ -49,8 +50,8 @@ func PipelinesService(
 	}
 
 	image := gpu.Image
-	reservedCPUs, reservedMem := PipelinesReservations(svcResources.NanoCPUs, svcResources.MemoryBytes)
 	return NewService("pipelines", pd, sd).
+		WithAnnotationsLabels(gpu.Labels).
 		WithImage(image).
 		WithEnv(env).
 		WithSecrets(secrets).
@@ -121,6 +122,13 @@ type PipelinesGPUSpec struct {
 
 	// UpdateOrder of the rolling updates: always PipelinesUpdateOrder.
 	UpdateOrder string
+
+	// labels of the service: with Pipelines workers, those that let the
+	// system_manager controller move it (pipelines_placement.go)
+	Labels map[string]string
+	// with Pipelines workers: the replicas are on them (else on the
+	// Platform workers, while they are off or full)
+	OnPipelinesWorkers bool
 }
 
 // PipelinesUpdateOrder is "stop-first" in every GPU mode: two tasks of
@@ -158,15 +166,20 @@ func PipelinesGPUSpecFor(pd *pt.PlatformData, nodeRoleNumMaps map[string]int) Pi
 		"node.role==worker",
 		"node.labels.platform_worker==true",
 	}
-	gpuRole := "Platform worker"
+	gpuRoles := map[string]bool{"Platform worker": true}
 	if nodeRoleNumMaps["Platform worker"] == 0 {
 		constraints = []string{"node.role==manager"}
-		gpuRole = "Manager"
+		gpuRoles = map[string]bool{"Manager": true}
+	}
+	// with Pipelines workers it runs on them, or on the Platform workers
+	// while they are off (PipelinesService places it)
+	if HasPipelinesWorkers(pd) {
+		gpuRoles[PipelinesWorkerRole] = true
 	}
 
 	gpuNodes := 0
 	for _, node := range pd.PlatformInfo.NodesData {
-		if node.NodeGPU != "" && node.NodeRole == gpuRole {
+		if node.NodeGPU != "" && gpuRoles[node.NodeRole] {
 			gpuNodes++
 		}
 	}
@@ -195,6 +208,27 @@ func PipelinesGPUSpecFor(pd *pt.PlatformData, nodeRoleNumMaps map[string]int) Pi
 		}
 	}
 	s.Constraints = constraints
+
+	// With Pipelines workers: on them while those up hold every replica,
+	// else on any worker (pipelines_placement.go). The system_manager
+	// controller keeps it so as they go down and come up.
+	s.Labels = map[string]string{}
+	if HasPipelinesWorkers(pd) {
+		reservedCPUs, reservedMem := PipelinesReservations(resources.GetNanoCPU(pd, "pipelines"), resources.GetMemoryBytes(pd, "pipelines"))
+		placement := DecidePipelinesPlacement(PipelinesPlacementInput{
+			GPUMode:             mode,
+			Workers:             pipelinesWorkersUp(pd),
+			Replicas:            utils.GetServiceReplicas(pd, "pipelines"),
+			ReservedNanoCPUs:    reservedCPUs,
+			ReservedMemoryBytes: reservedMem,
+			UsesGPU:             s.UsesGPU,
+		})
+		s.Constraints = placement.Constraints
+		s.Spread = placement.Spread
+		s.OnPipelinesWorkers = placement.Dedicated
+		s.Labels[PipelinesPlacementLabel] = PipelinesPlacementManaged
+		s.Labels[PipelinesGPUModeLabel] = mode
+	}
 
 	set := map[string]bool{}
 	for _, kv := range s.Env {

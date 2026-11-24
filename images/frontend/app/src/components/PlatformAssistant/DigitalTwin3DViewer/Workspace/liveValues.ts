@@ -10,6 +10,15 @@ import { StringCodec } from "../../../../tools/natsCodec";
 import type { INatsSubjectData } from "../Main/Model";
 import { mqttTopicToNatsSubject } from "../NatsHook/tools";
 
+// The field of a message (sim2dtm, dtm2sim…) that names the slide of the Viewer it belongs to: its simulator sent it,
+// or it answers one that did. Such a message goes to the panels of that slide; one without it, to every slide.
+export const SLIDE_FIELD = "$slide";
+const slideOf = (payload: unknown): string | null =>
+    payload && typeof payload === "object" && !Array.isArray(payload) && typeof (payload as Record<string, unknown>)[SLIDE_FIELD] === "string"
+        ? ((payload as Record<string, unknown>)[SLIDE_FIELD] as string)
+        : null;
+const slideKey = (topicRef: string, slideId: string) => `${topicRef}@${slideId}`;
+
 export interface LiveMessage {
     payload: unknown;
     receivedAt: number;
@@ -44,16 +53,46 @@ export const createLiveValueStore = (): LiveValueStore => {
             };
         },
         publish: (topicRef, payload, receivedAt = Date.now()) => {
+            // a message of a slide: kept apart, for the panels of that slide (scopedToSlide)
+            const slide = slideOf(payload);
+            const key = slide ? slideKey(topicRef, slide) : topicRef;
             // the last value of each field: a message that does not carry a field (a topic can carry messages of
             // different kinds) leaves its previous value
-            const message = { payload: mergeLatest(latest.get(topicRef)?.payload, payload), receivedAt };
-            latest.set(topicRef, message);
+            const message = { payload: mergeLatest(latest.get(key)?.payload, payload), receivedAt };
+            latest.set(key, message);
             const event = { ...message, last: payload };
+            // the fields of the topic, whatever the slide (the editors of the panels offer them)
             if (!seen.has(topicRef)) seen.set(topicRef, new Set());
             const known = seen.get(topicRef)!;
             if (known.size < 500) fieldPaths(payload).forEach((path) => known.add(path));
-            listeners.get(topicRef)?.forEach((listener) => listener(event));
+            listeners.get(key)?.forEach((listener) => listener(event));
         },
+    };
+};
+
+// The values as the panels of a slide see them: the messages of that slide and those of no slide, the newest of the
+// two. Outside a slide (null) the store itself: only the messages of no slide.
+export const scopedToSlide = (store: LiveValueStore, slideId: string | null): LiveValueStore => {
+    if (!slideId) return store;
+    const get = (topicRef: string) => {
+        const own = store.get(slideKey(topicRef, slideId));
+        const shared = store.get(topicRef);
+        if (!own) return shared;
+        if (!shared) return own;
+        return own.receivedAt >= shared.receivedAt ? own : shared;
+    };
+    return {
+        get,
+        fields: store.fields,
+        subscribe: (topicRef, listener) => {
+            const offOwn = store.subscribe(slideKey(topicRef, slideId), listener);
+            const offShared = store.subscribe(topicRef, listener);
+            return () => {
+                offOwn();
+                offShared();
+            };
+        },
+        publish: store.publish,
     };
 };
 

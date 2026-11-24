@@ -80,7 +80,7 @@ sudo ufw enable
 					Script: managerScript,
 					Args:   []string{},
 				}
-			case "Platform worker":
+			case "Platform worker", "Pipelines worker":
 				nodeScript = utils.NodeScript{
 					Node:   node,
 					Script: platformWorkerScript,
@@ -215,6 +215,7 @@ func addNodesLabels(pd *types.PlatformData) error {
 			}
 		}
 		delete(spec.Labels, "platform_worker")
+		delete(spec.Labels, "pipelines_worker")
 
 		// GPU, on any role: a manager-only cluster can have GPUs too.
 		delete(spec.Labels, GPULabel)
@@ -237,6 +238,11 @@ func addNodesLabels(pd *types.PlatformData) error {
 				priorityIndex++
 			}
 			spec.Labels["KEEPALIVED_PRIORITY"] = priority
+
+		case "Pipelines worker":
+			// pipelines runs here, and nothing else of the platform (the
+			// other services ask for platform_worker)
+			spec.Labels["pipelines_worker"] = "true"
 
 		case "Platform worker":
 			spec.Labels["platform_worker"] = "true"
@@ -280,4 +286,3 @@ func keepalivedPriority(index int) string {
 	}
 	return "50"
 }
-

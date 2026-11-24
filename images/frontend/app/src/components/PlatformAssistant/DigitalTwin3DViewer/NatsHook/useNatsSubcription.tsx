@@ -49,6 +49,8 @@ const useNatsSubscription = (
     handleSetChatMessages: (messages: ChatMessage[] | undefined, owner?: string, chart?: ChatChart) => void,
     // usuario conectado: las respuestas del AI Agent y su historial llegan a su buzón (natsUserInboxSubject)
     userName?: string,
+    // the slide whose 3D model is shown: a message of another slide ("$slide") does not move it
+    modelSlideRef?: { current: string | undefined },
 ) => {
     let femResultNames: string[] = [];
     if (femSimulationObjects.length && femResultData && Object.keys(femResultData).length !== 0) {
@@ -121,6 +123,7 @@ const useNatsSubscription = (
                         message: sc.decode(msg.data),
                     };
 
+                    if (typeof receivedMessage.message === "string" && isOtherSlide(receivedMessage.message, modelSlideRef?.current)) continue;
                     const s = stateRef.current;
                     updateObjectsState(
                         receivedMessage,
@@ -723,3 +726,14 @@ const findOnOffObjectAndSetProperty = (node: IThreeMesh, objName: string, onOff:
 };
 
 export default useNatsSubscription;
+
+// a message of a slide ("$slide") other than that of the model shown (a message of no slide is for every slide)
+export const isOtherSlide = (text: string, modelSlide: string | undefined): boolean => {
+    if (!modelSlide || !text.includes('"$slide"')) return false;
+    try {
+        const value = JSON.parse(text);
+        return !!value && typeof value === "object" && typeof value.$slide === "string" && value.$slide !== modelSlide;
+    } catch {
+        return false;
+    }
+};

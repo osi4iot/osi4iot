@@ -7,14 +7,20 @@ class UpdateDigitalTwinDto {
 	@IsString()
 	public description: string;
 
+	// optional: the Viewer loads it now (digitalTwinParts.ts); absent, the stored one is kept
+	@IsOptional()
 	@IsString()
-	public type: string;
+	public type?: string;
 
+	// optional: the Viewer loads it now (digitalTwinParts.ts); absent, the stored one is kept
+	@IsOptional()
 	@IsNumber()
-	public maxNumResFemFiles: number;
+	public maxNumResFemFiles?: number;
 
+	// optional: the Viewer loads it now (digitalTwinParts.ts); absent, the stored one is kept
+	@IsOptional()
 	@IsBoolean()
-	public isGltfFileModified: boolean;
+	public isGltfFileModified?: boolean;
 
 	@IsBoolean()
 	public chatAssistantEnabled: boolean;
@@ -44,8 +50,10 @@ class UpdateDigitalTwinDto {
 	@Matches(/^(-?\d{1,20})?$/)
 	public chatTelegramChatId?: string;
 
+	// optional: the Viewer loads it now (digitalTwinParts.ts); absent, the stored one is kept
+	@IsOptional()
 	@IsString()
-	public digitalTwinSimulationFormat: string;
+	public digitalTwinSimulationFormat?: string;
 
 	// The file the simulation format was loaded from ("-": none)
 	@IsOptional()
@@ -59,8 +67,10 @@ class UpdateDigitalTwinDto {
 	@IsBoolean()
 	public pipelineRequiresGpu: boolean;
 
+	// optional: the 3D model loaded in the Viewer gives them (digital_twin_model)
+	@IsOptional()
 	@IsString({ each: true })
-	public sensorsRef: string[];
+	public sensorsRef?: string[];
 
 	// The knowledge base documents (file names) its AI agents may read:
 	// none unless chosen.

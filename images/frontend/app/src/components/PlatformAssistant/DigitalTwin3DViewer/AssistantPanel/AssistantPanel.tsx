@@ -1,5 +1,10 @@
-// Panel del asistente (AssistantPanel), acoplado a la derecha del visor: chat con el asistente y ajustes del visor 3D
-// por pestañas (sustituye al panel de react-dat-gui).
+// The assistant panel, in two places:
+// - placement "panel": the settings of the 3D model, over the model in its own panel (the gear of the 3D model
+//   panel): scene, collections, FEM objects, system and, for the group's editors and administrators,
+//   the model's files (filesContent). Everybody can change the view; what is saved for the twin (the lighting) is
+//   for the editors and administrators.
+// - placement "side" (chatOnly): the chat with the assistant, docked on the right of the Viewer.
+// (It replaced the react-dat-gui panel.)
 import { FC, ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 import styled from "styled-components";
 import {
@@ -10,11 +15,8 @@ import {
     Grid3x3,
     Layers,
     Lightbulb,
-    Lock,
-    LockOpen,
     MapPin,
     MessageSquare,
-    PictureInPicture2,
     Radio,
     RotateCcw,
     Save,
@@ -22,7 +24,10 @@ import {
     SlidersHorizontal,
     Sun,
     Wrench,
+    X,
+    FolderCog,
 } from "lucide-react";
+import { scrollbarStyle } from "../../../Tools/FormTools";
 
 import { ViewerOptions } from "../Types/types";
 import { DEFAULT_VIEWER_OPTIONS, ENVIRONMENT_OPTIONS } from "../Utils/constants";
@@ -64,7 +69,7 @@ export const ASSISTANT_PANEL_MIN_WIDTH = 440;
 export const clampChatWidth = (width: number) =>
     Math.round(Math.max(ASSISTANT_PANEL_MIN_WIDTH, Math.min(width, Math.max(ASSISTANT_PANEL_MIN_WIDTH, window.innerWidth - 80))));
 
-type TabId = "chat" | "scene" | "sensors" | "assets" | "objects" | "fem" | "simulator" | "system";
+type TabId = "chat" | "scene" | "sensors" | "assets" | "objects" | "fem" | "simulator" | "system" | "files";
 type SettingsTabId = Exclude<TabId, "chat">;
 
 // Estado de la interfaz (última pestaña de ajustes, secciones y colecciones abiertas): se conserva al cerrar y
@@ -85,14 +90,21 @@ const uiMemory: { tab: SettingsTabId; open: Record<string, boolean> } = {
     },
 };
 
-const Panel = styled.aside`
+// beside the 3D model, inside its panel, from top to bottom: the model narrows to its left (MODEL_SETTINGS_INSET),
+// and with it the object information of its lower right corner. Never wider than 45 % of the panel.
+const IN_PANEL_GAP = 8;
+export const MODEL_SETTINGS_WIDTH = `min(${ASSISTANT_PANEL_WIDTH}px, 45%)`;
+// what the model leaves on its right while its settings are open
+export const MODEL_SETTINGS_INSET = `calc(${MODEL_SETTINGS_WIDTH} + ${2 * IN_PANEL_GAP}px)`;
+
+const Panel = styled.aside<{ $inPanel?: boolean }>`
     position: absolute;
-    top: ${VIEWER_GAP}px;
-    right: ${VIEWER_GAP}px;
-    bottom: ${VIEWER_GAP}px;
+    top: ${({ $inPanel }) => ($inPanel ? IN_PANEL_GAP : VIEWER_GAP)}px;
+    right: ${({ $inPanel }) => ($inPanel ? IN_PANEL_GAP : VIEWER_GAP)}px;
+    bottom: ${({ $inPanel }) => ($inPanel ? IN_PANEL_GAP : VIEWER_GAP)}px;
     width: ${ASSISTANT_PANEL_WIDTH}px;
     transition: width 160ms ease;
-    max-width: calc(100% - ${2 * VIEWER_GAP}px);
+    max-width: calc(100% - ${({ $inPanel }) => 2 * ($inPanel ? IN_PANEL_GAP : VIEWER_GAP)}px);
     display: flex;
     flex-direction: column;
     background-color: ${c.surface};
@@ -103,7 +115,7 @@ const Panel = styled.aside`
     color: ${c.text};
     font-family: Roboto, "Helvetica Neue", Arial, sans-serif;
     overflow: hidden;
-    z-index: 1000;
+    z-index: ${({ $inPanel }) => ($inPanel ? 5 : 1000)};
     user-select: none;
 
     input,
@@ -228,69 +240,54 @@ const ChatPane = styled.div`
     }
 `;
 
-const HeaderAction = styled.button`
-    flex: none;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    height: 28px;
-    padding: 0 8px;
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    border-radius: 7px;
-    background: transparent;
-    color: ${c.textSecondary};
-    font: 500 12px Roboto, "Helvetica Neue", Arial, sans-serif;
-    cursor: pointer;
-    ${focusRing}
-
-    &:hover {
-        background-color: ${c.hover};
-        color: ${c.text};
-    }
-
-    svg {
-        width: 14px;
-        height: 14px;
-    }
-`;
-
-const FloatingNote = styled.div`
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    margin: 4px 12px 0 28px;
-    padding: 12px;
-    border: 1px dashed rgba(255, 255, 255, 0.16);
-    border-radius: 10px;
-    font-size: 12px;
-    line-height: 1.45;
-    color: ${c.textSecondary};
-`;
-
 const Body = styled.div`
     flex: 1;
     overflow-y: auto;
     padding: 8px 0 16px;
-
-    &::-webkit-scrollbar {
-        width: 8px;
-    }
-    &::-webkit-scrollbar-thumb {
-        background: ${c.track};
-        border-radius: 4px;
-    }
+    ${scrollbarStyle}
 `;
 
-const Footer = styled.div`
+// the title of the panel and the button that closes it (the settings over the model; the chat alone)
+const TitleBar = styled.div`
+    flex: none;
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    height: 48px;
-    padding: 0 16px;
-    border-top: 1px solid ${c.divider};
-    font-size: 12px;
-    color: ${c.textMuted};
+    gap: 8px;
+    height: 42px;
+    padding: 0 6px 0 14px;
+    border-bottom: 1px solid ${c.divider};
+    font-size: 14px;
+    font-weight: 500;
+
+    svg {
+        width: 16px;
+        height: 16px;
+        color: ${c.textMuted};
+    }
+    span {
+        flex: 1;
+    }
+    button {
+        width: 30px;
+        height: 30px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: none;
+        border-radius: 7px;
+        background: transparent;
+        color: ${c.textMuted};
+        cursor: pointer;
+    }
+    button:hover,
+    button:focus-visible {
+        background: ${c.hover};
+        color: ${c.text};
+    }
+    button:disabled {
+        opacity: 0.45;
+        cursor: default;
+    }
 `;
 
 // the camera views of the View section (Utils/cameraControl.ts)
@@ -312,42 +309,6 @@ const ViewButtons = styled.div`
     button {
         height: 30px;
         font-size: 12px;
-    }
-`;
-
-const FooterActions = styled.div`
-    display: flex;
-    align-items: center;
-    gap: 8px;
-`;
-
-const SmallButton = styled.button`
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    height: 30px;
-    padding: 0 10px;
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    border-radius: 7px;
-    background: transparent;
-    color: ${c.textSecondary};
-    font: 500 12px Roboto, "Helvetica Neue", Arial, sans-serif;
-    cursor: pointer;
-    ${focusRing}
-
-    &:hover {
-        background-color: ${c.hover};
-        color: ${c.text};
-    }
-
-    &:disabled {
-        opacity: 0.5;
-        cursor: default;
-    }
-
-    svg {
-        width: 14px;
-        height: 14px;
     }
 `;
 
@@ -391,13 +352,6 @@ const CollectionList = styled.div`
     padding: 0 12px;
 `;
 
-const ButtonStack = styled.div`
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    padding: 12px 6px 4px 28px;
-`;
-
 const EmptyText = styled.p`
     margin: 8px 18px;
     font-size: 12px;
@@ -434,15 +388,19 @@ interface AssistantPanelProps {
     onResizeWidth?: (width: number) => void;
     // en el móvil el panel tapa el visor: botón para cerrarlo y volver al visor (sin él, no se muestra)
     onBackToViewer?: () => void;
-    // Simulador en ventana flotante
-    simulatorFloating?: boolean;
-    onFloatSimulator?: () => void;
-    onDockSimulator?: () => void;
     // The twin's own lighting (Reset goes back to it) and saving the current lighting as the twin's own
     // (group administrators; without onSaveLighting the button is not shown)
     twinLighting?: LightingOptions;
     onSaveLighting?: () => void;
     savingLighting?: boolean;
+    // over the 3D model in its panel, or docked on the right of the Viewer (the chat)
+    placement?: "side" | "panel";
+    // the button that closes it (the settings over the model)
+    onClose?: () => void;
+    // the model's files (3D model, FEM results): a tab for the group's editors and administrators
+    filesContent?: ReactNode;
+    // over the whole panel (a phone: beside the model it would be too narrow)
+    fullWidth?: boolean;
 }
 
 type CollectionKind = "sensors" | "assets" | "objects" | "fem";
@@ -475,7 +433,6 @@ const COLLECTION_KEYS: Record<
     },
 };
 
-const sentenceCase = (text: string) => (text ? text.charAt(0).toUpperCase() + text.slice(1).toLowerCase() : text);
 
 const countByCollection = (objects: any[]) => {
     const counts: Record<string, number> = {};
@@ -512,13 +469,15 @@ export const AssistantPanel: FC<AssistantPanelProps> = ({
     width = ASSISTANT_PANEL_WIDTH,
     onResizeWidth,
     onBackToViewer,
-    simulatorFloating = false,
-    onFloatSimulator,
-    onDockSimulator,
     twinLighting,
     onSaveLighting,
     savingLighting = false,
+    placement = "side",
+    onClose,
+    filesContent,
+    fullWidth = false,
 }) => {
+    const inPanel = placement === "panel";
     const [tab, setTab] = useState<SettingsTabId>(uiMemory.tab);
     const [resizing, setResizing] = useState(false);
     const [open, setOpen] = useState<Record<string, boolean>>(uiMemory.open);
@@ -529,7 +488,6 @@ export const AssistantPanel: FC<AssistantPanelProps> = ({
         uiMemory.open = open;
     }, [tab, open]);
 
-    const simulatorParams = Object.keys(digitalTwinSimulationFormat ?? {});
     const tabs = useMemo(() => {
         const list: { id: TabId; label: string; title?: string; icon: ReactNode }[] = [];
         const hasChat = chatContent !== undefined && chatContent !== null;
@@ -540,17 +498,17 @@ export const AssistantPanel: FC<AssistantPanelProps> = ({
         if (assetObjects.length) list.push({ id: "assets", label: "Assets", icon: <Wrench /> });
         if (genericObjects.length) list.push({ id: "objects", label: "Generic", title: "Generic objects", icon: <Layers /> });
         if (femSimulationObjects.length) list.push({ id: "fem", label: "FEM", icon: <Grid3x3 /> });
-        if (simulatorParams.length) list.push({ id: "simulator", label: "Sim.", title: "Digital twin simulator", icon: <SlidersHorizontal /> });
         list.push({ id: "system", label: "System", icon: <Cpu /> });
+        if (filesContent) list.push({ id: "files", label: "Files", title: "3D model and FEM results files", icon: <FolderCog /> });
         return list;
     }, [
+        filesContent,
         chatContent,
         chatOnly,
         sensorObjects.length,
         assetObjects.length,
         genericObjects.length,
         femSimulationObjects.length,
-        simulatorParams.length,
     ]);
 
     const hasChatTab = tabs.some((t) => t.id === "chat");
@@ -1084,68 +1042,6 @@ export const AssistantPanel: FC<AssistantPanelProps> = ({
         );
     };
 
-    const simulatorTab = () => (
-        <Section
-            title="Digital twin simulator"
-            open={isOpen("simulator", true)}
-            onToggle={() => toggle("simulator", true)}
-            actions={
-                onFloatSimulator && !simulatorFloating ? (
-                    <HeaderAction
-                        type="button"
-                        onClick={onFloatSimulator}
-                        title="Open the simulator in a floating window, to move the sliders while you watch the model or chat"
-                        aria-label="Open the simulator in a floating window"
-                    >
-                        <PictureInPicture2 aria-hidden="true" />
-                        Float
-                    </HeaderAction>
-                ) : undefined
-            }
-        >
-            {simulatorFloating ? (
-                <FloatingNote role="status">
-                    The simulator is open in its floating window. Its values are being sent to the digital twin.
-                    {onDockSimulator && (
-                        <SecondaryButton type="button" onClick={onDockSimulator}>
-                            <PictureInPicture2 aria-hidden="true" />
-                            Bring it back here
-                        </SecondaryButton>
-                    )}
-                </FloatingNote>
-            ) : (
-                <>
-            {simulatorParams.map((paramName) => {
-                const format = digitalTwinSimulationFormat[paramName] ?? {};
-                const label = format.label !== undefined ? format.label : paramName;
-                return (
-                    <SliderField
-                        key={paramName}
-                        id={`assistant-panel-sim-${paramName.replace(/[^A-Za-z0-9_-]/g, "_")}`}
-                        label={label}
-                        unit={format.units}
-                        value={opts.digitalTwinSimulatorState?.[paramName]}
-                        min={Number(format.minValue ?? 0)}
-                        max={Number(format.maxValue ?? 1)}
-                        step={Number(format.step ?? 0.01)}
-                        onChange={(v) => set(["digitalTwinSimulatorState", paramName], v)}
-                    />
-                );
-            })}
-            <ButtonStack>
-                <PrimaryButton type="button" onClick={handleGetLastMeasurementsButton}>
-                    {sentenceCase(getLastMeasurementsButtomLabel)}
-                </PrimaryButton>
-                <SecondaryButton type="button" onClick={handleLockReadMeasurementsButtonClick}>
-                    {/^UNLOCK/i.test(lockReadingButtomLabel) ? <LockOpen aria-hidden="true" /> : <Lock aria-hidden="true" />}
-                    {sentenceCase(lockReadingButtomLabel)}
-                </SecondaryButton>
-            </ButtonStack>
-                </>
-            )}
-        </Section>
-    );
-
     const systemTab = () => (
         <Section
             title="Web workers"
@@ -1178,10 +1074,10 @@ export const AssistantPanel: FC<AssistantPanelProps> = ({
                 return collectionsTab("objects", genericObjects, genericObjectCollectionNames, "Generic object collections");
             case "fem":
                 return collectionsTab("fem", femSimulationObjects, femSimObjectCollectionNames, "FEM objects");
-            case "simulator":
-                return simulatorTab();
             case "system":
                 return systemTab();
+            case "files":
+                return filesContent;
             case "chat":
                 return null;
             default:
@@ -1190,8 +1086,11 @@ export const AssistantPanel: FC<AssistantPanelProps> = ({
     };
 
     return (
-        <Panel aria-label="Assistant panel" data-testid="assistant-panel"
-            style={{ width, transition: resizing ? "none" : undefined }}
+        <Panel
+            $inPanel={inPanel}
+            aria-label={inPanel ? "3D model settings" : "Chat with assistant"}
+            data-testid={inPanel ? "model-settings" : "assistant-panel"}
+            style={{ width: inPanel ? (fullWidth ? `calc(100% - ${2 * IN_PANEL_GAP}px)` : MODEL_SETTINGS_WIDTH) : width, transition: resizing ? "none" : undefined }}
         >
             {onResizeWidth && (
                 <ResizeEdge
@@ -1209,6 +1108,40 @@ export const AssistantPanel: FC<AssistantPanelProps> = ({
                     Back to viewer
                 </BackToViewerButton>
             )}
+            {(inPanel || (onClose && tabs.length === 1)) && (
+                <TitleBar>
+                    {inPanel ? <SlidersHorizontal aria-hidden="true" /> : <MessageSquare aria-hidden="true" />}
+                    <span>{inPanel ? "3D model settings" : "Chat with assistant"}</span>
+                    {inPanel && onSaveLighting && (
+                        <button
+                            type="button"
+                            aria-label={savingLighting ? "Saving the lighting for the twin" : "Save the lighting for the twin"}
+                            title="Save for twin: this lighting becomes the digital twin's own, everyone opening it sees it"
+                            disabled={savingLighting}
+                            onClick={onSaveLighting}
+                        >
+                            <Save aria-hidden="true" />
+                        </button>
+                    )}
+                    {inPanel && (
+                        <button
+                            type="button"
+                            aria-label="Reset the lighting"
+                            title="Reset: back to the digital twin's own lighting"
+                            onClick={resetScene}
+                        >
+                            <RotateCcw aria-hidden="true" />
+                        </button>
+                    )}
+                    {onClose && (
+                        <button type="button" aria-label={inPanel ? "Close the 3D model settings" : "Close the chat"} title="Close" onClick={onClose}>
+                            <X aria-hidden="true" />
+                        </button>
+                    )}
+                </TitleBar>
+            )}
+            {/* the chat alone needs no tabs */}
+            {tabs.length > 1 && (
             <TabList role="tablist" aria-label="Settings" $count={tabs.length}>
                 {tabs.map((t) => (
                     <Tab
@@ -1230,38 +1163,13 @@ export const AssistantPanel: FC<AssistantPanelProps> = ({
                     </Tab>
                 ))}
             </TabList>
+            )}
             {hasChatTab && (
                 <ChatPane role="tabpanel" aria-label="Chat with assistant" style={{ display: activeTab === "chat" ? "flex" : "none" }}>
                     {chatContent}
                 </ChatPane>
             )}
             {activeTab !== "chat" && <Body role="tabpanel">{content()}</Body>}
-            {activeTab === "scene" && (
-                <Footer>
-                    <span>Changes apply live</span>
-                    <FooterActions>
-                        {onSaveLighting && (
-                            <SmallButton
-                                type="button"
-                                onClick={onSaveLighting}
-                                disabled={savingLighting}
-                                title="Save this lighting as the digital twin's own: everyone opening it sees it"
-                            >
-                                <Save aria-hidden="true" />
-                                {savingLighting ? "Saving…" : "Save for twin"}
-                            </SmallButton>
-                        )}
-                        <SmallButton
-                            type="button"
-                            onClick={resetScene}
-                            title="Back to the digital twin's own lighting"
-                        >
-                            <RotateCcw aria-hidden="true" />
-                            Reset
-                        </SmallButton>
-                    </FooterActions>
-                </Footer>
-            )}
         </Panel>
     );
 };

@@ -670,6 +670,7 @@ func (n *FuncNode) handleProcessedData(
 	} else if len(nodeOutputWires) == 1 {
 		if msg, ok := processedData.(common.Message); ok {
 			n.addEventTriggerTopicType(originalMessage.GetTopic(), msg)
+			inheritSlide(originalMessage, msg)
 			common.InheritSender(originalMessage, msg)
 			// the debug log before sending, and each wire its own copy: two nodes must never share a message
 			if n.Debug == "on" && len(nodeOutputWires[0]) > 0 {
@@ -694,6 +695,7 @@ func (n *FuncNode) handleProcessedData(
 					continue
 				}
 				n.addEventTriggerTopicType(originalMessage.GetTopic(), msg)
+				inheritSlide(originalMessage, msg)
 				common.InheritSender(originalMessage, msg)
 			}
 			sent := map[common.Message]bool{}
@@ -715,6 +717,7 @@ func (n *FuncNode) handleProcessedData(
 				}
 				if msg1, ok1 := msg.(common.Message); ok1 {
 					n.addEventTriggerTopicType(originalMessage.GetTopic(), msg1)
+					inheritSlide(originalMessage, msg1)
 					common.InheritSender(originalMessage, msg1)
 				}
 			}
@@ -760,5 +763,25 @@ func (n *FuncNode) addEventTriggerTopicType(subject string, msg common.Message) 
 			eventTriggerTopicType = "sim2dtm"
 		}
 		msg.GetPayload()["eventTriggerTopicType"] = eventTriggerTopicType
+	}
+}
+
+// inheritSlide gives a function's output the slide of the Viewer its
+// input came from ("$slide": the simulator of that slide sent it), unless
+// the function set one: the answer (dtm2sim) goes to the panels of that
+// slide.
+func inheritSlide(from, to common.Message) {
+	if from == nil || to == nil {
+		return
+	}
+	slide, ok := from.GetFieldFromPayload(SlideField)
+	if !ok {
+		return
+	}
+	if _, has := to.GetFieldFromPayload(SlideField); has {
+		return
+	}
+	if payload := to.GetPayload(); payload != nil {
+		payload[SlideField] = slide
 	}
 }

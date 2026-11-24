@@ -45,7 +45,7 @@ var subCmdNodeList = &cobra.Command{
 	Long: "Lists the swarm's nodes with the platform's view of each one beside it.\n\n" +
 		"The two roles are not the same thing. SWARM is Docker's — manager or worker, and " +
 		"which one holds the raft leadership. PLATFORM ROLE is the state file's: 'Manager', " +
-		" or 'Platform worker'.\n\n" +
+		"'Platform worker' or 'Pipelines worker' (it runs pipelines only).\n\n" +
 		"Below the table, LABELS lists every label of each node in full, the platform's first " +
 		"and yours after. The platform's are the part nothing else shows: nodesConfiguration " +
 		"writes them from the state file and they decide where replicas can run. nats_2 means " +
@@ -861,7 +861,7 @@ func init() {
 
 	subCmdNodeAdd.Flags().StringVar(&nodeAddIP, "ip", "", "The machine's address (required)")
 	subCmdNodeAdd.Flags().StringVar(&nodeAddRole, "role", "Platform worker",
-		"Manager, Platform worker")
+		"Manager, Platform worker, Pipelines worker (runs pipelines only; see 'osi4iot service gpu_mode')")
 	subCmdNodeAdd.Flags().StringVar(&nodeAddUser, "user", "", "SSH user on the machine (required)")
 	subCmdNodeAdd.Flags().StringVar(&nodeAddLabel, "label", "", "Name for the node in the state file")
 	subCmdNodeAdd.Flags().StringVar(&nodeAddHostname, "hostname", "", "The machine's hostname")

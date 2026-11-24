@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { WorkspaceSlide } from "./workspaceLayout";
 import {
     reorderSlide,
     imageDisplayOf,
@@ -235,25 +236,30 @@ describe("workspace layout", () => {
         let layout = defaultWorkspaceLayout({ hasModel: true, hasCamera: false });
         const added = addSlide(layout, "slide-1");
         layout = added.layout;
-        expect(added.id).toBe("slide-2");
-        expect(layout.slides[1]).toEqual({ id: "slide-2", title: "Slide 2", tag: "Slide_2", panels: [] });
+        const second = added.id;
+        // a new id, never "slide-<n>" (a removed slide may have had it, and its 3D model's files were kept under it)
+        expect(second).toMatch(/^s-[a-z0-9]{8}$/);
+        expect(layout.slides[1]).toEqual({ id: second, title: "Slide 2", tag: "Slide_2", panels: [] });
         layout = updateSlide(layout, "slide-1", { title: " Overview ", tag: "Monitoring" });
         expect(updateSlide(layout, "slide-1", { title: " ", tag: "x<y" }).slides[0]).toMatchObject({ title: "Overview", tag: "Monitoring" });
         const copy = duplicateSlide(layout, "slide-1");
         layout = copy.layout;
+        const third = copy.id;
+        expect(third).toMatch(/^s-[a-z0-9]{8}$/);
+        expect(third).not.toBe(second);
         expect(layout.slides.map((s) => [s.id, s.title, s.tag, s.panels.length])).toEqual([
             ["slide-1", "Overview", "Monitoring", 1],
-            ["slide-3", "Overview (copy)", "Monitoring", 1],
-            ["slide-2", "Slide 2", "Slide_2", 0],
+            [third, "Overview (copy)", "Monitoring", 1],
+            [second, "Slide 2", "Slide_2", 0],
         ]);
         expect(copy.layout.slides[1].panels[0]).not.toBe(copy.layout.slides[0].panels[0]);
         // a new slide does not repeat a name in use
-        expect(addSlide(layout).layout.slides.at(-1)).toMatchObject({ id: "slide-4", title: "Slide 4", tag: "Slide_4" });
-        layout = moveSlide(layout, "slide-2", -1);
-        expect(layout.slides.map((s) => s.id)).toEqual(["slide-1", "slide-2", "slide-3"]);
+        expect(addSlide(layout).layout.slides.at(-1)).toMatchObject({ title: "Slide 4", tag: "Slide_4" });
+        layout = moveSlide(layout, second, -1);
+        expect(layout.slides.map((s) => s.id)).toEqual(["slide-1", second, third]);
         expect(moveSlide(layout, "slide-1", -1)).toBe(layout);
-        const removed = removeSlide(layout, "slide-3");
-        expect([removed.layout.slides.length, removed.id]).toEqual([2, "slide-2"]);
+        const removed = removeSlide(layout, third);
+        expect([removed.layout.slides.length, removed.id]).toEqual([2, second]);
         const single = defaultWorkspaceLayout({ hasModel: true, hasCamera: false });
         expect(removeSlide(single, "slide-1").layout).toBe(single);
         let full = single;
@@ -341,5 +347,114 @@ describe("video and photo panels", () => {
         const kept = sanitizeWorkspaceLayout({ version: 2, slides: [{ id: "s", title: "S", tag: "S", panels: [{ id: "i", type: "image", display: "photo", x: 0, y: 0, w: 4, h: 4 }] }] }, { hasModel: false })!;
         expect(kept.slides[0].panels[0].display).toBe("photo");
         expect(setPanelDisplay(page, page.panels[1].id, "photo").panels[1].display).toBe("photo");
+    });
+});
+
+describe("simulator panels", () => {
+    it("the automatic layout of a twin with a simulator format has a floating simulator", async () => {
+        const { defaultWorkspaceLayout } = await import("./workspaceLayout");
+        const layout = defaultWorkspaceLayout({ hasModel: true, hasCamera: false, hasSimulator: true });
+        const sim = layout.slides[0].panels.find((p) => p.type === "simulator");
+        expect(sim?.floating).toBe(true);
+        expect(sim?.float).toEqual({ x: 0.66, y: 0.04, w: 0.32, h: 0.62 });
+        expect(defaultWorkspaceLayout({ hasModel: true, hasCamera: false }).slides[0].panels.some((p) => p.type === "simulator")).toBe(false);
+    });
+
+    it("a layout saved before simulator panels gets one on its first slide, not one saved since", async () => {
+        const { withSimulatorPanel, effectiveWorkspaceLayout } = await import("./workspaceLayout");
+        const old = deck({ panels: [{ id: "model", type: "model", x: 0, y: 0, w: 12, h: 12 }] });
+        const migrated = withSimulatorPanel(old, true);
+        expect(migrated.slides[0].panels.map((p) => `${p.type}:${p.floating ?? false}`)).toEqual(["model:false", "simulator:true"]);
+        expect(withSimulatorPanel(old, false)).toBe(old);
+        expect(withSimulatorPanel({ ...old, simulatorPlaced: true }, true).slides[0].panels).toHaveLength(1);
+        // the group's layout, as read
+        const { layout, origin } = effectiveWorkspaceLayout(null, old, { hasModel: true, hasCamera: false, hasSimulator: true });
+        expect(origin).toBe("group");
+        expect(layout.slides[0].panels.some((p) => p.type === "simulator")).toBe(true);
+    });
+
+    it("keeps a simulator's floating window when it is valid; one per slide; only simulators float", async () => {
+        const { setPanelFloat } = await import("./workspaceLayout");
+        const raw = {
+            version: 2,
+            simulatorPlaced: true,
+            slides: [
+                {
+                    id: "s1",
+                    title: "S",
+                    tag: "Slide_1",
+                    panels: [
+                        { id: "sim", type: "simulator", x: 0, y: 0, w: 4, h: 6, floating: true, float: { x: 0.9, y: 0.1, w: 0.3, h: 0.5 } },
+                        { id: "sim2", type: "simulator", x: 4, y: 0, w: 4, h: 6 },
+                        { id: "text", type: "markdown", text: "", x: 8, y: 0, w: 4, h: 6, floating: true, float: { x: 0, y: 0, w: 0.5, h: 0.5 } },
+                    ],
+                },
+            ],
+        };
+        const layout = sanitizeWorkspaceLayout(raw, { hasModel: false })!;
+        expect(layout.simulatorPlaced).toBe(true);
+        const [sim, text] = layout.slides[0].panels;
+        expect(layout.slides[0].panels.map((p) => p.id)).toEqual(["sim", "text"]);
+        // kept inside the slide
+        expect(sim.float).toEqual({ x: 0.7, y: 0.1, w: 0.3, h: 0.5 });
+        expect(sim.floating).toBe(true);
+        expect(text.floating).toBeUndefined();
+        expect(canAddPanelType(layout.slides[0], "simulator", false)).toBe(false);
+        const docked = setPanelFloat(layout.slides[0], "sim", false);
+        expect(docked.panels[0].floating).toBeUndefined();
+        expect(docked.panels[0].float).toEqual(sim.float);
+        expect(sameLayout(layout, { ...layout, slides: [{ ...layout.slides[0], panels: docked.panels }] })).toBe(false);
+    });
+});
+
+describe("panels that show the simulation (the simulator floats only over them)", () => {
+    it("the 3D model and the panels of dtm2sim / sim2dtm; not the rest", async () => {
+        const { showsSimulation } = await import("./workspaceLayout");
+        const at = { x: 0, y: 0, w: 4, h: 4 };
+        expect(showsSimulation({ id: "m", type: "model", ...at })).toBe(true);
+        expect(showsSimulation({ id: "s", type: "surface", ...at, surface: { mode: "data", topicRef: "dtm2sim", xMin: 0, xMax: 1, yMin: 0, yMax: 1 } } as any)).toBe(true);
+        expect(
+            showsSimulation({
+                id: "s",
+                type: "surface",
+                ...at,
+                surface: { mode: "function", params: [{ name: "a", topicRef: "sim2dtm", field: "a" }], xMin: 0, xMax: 1, yMin: 0, yMax: 1 },
+            } as any),
+        ).toBe(true);
+        expect(showsSimulation({ id: "s", type: "surface", ...at, surface: { mode: "data", topicRef: "dev2pdb_1", xMin: 0, xMax: 1, yMin: 0, yMax: 1 } } as any)).toBe(false);
+        expect(showsSimulation({ id: "i", type: "image", ...at, source: "dtm2sim" } as any)).toBe(true);
+        expect(showsSimulation({ id: "i", type: "image", ...at, source: "any" } as any)).toBe(false);
+        expect(showsSimulation({ id: "p", type: "picture", ...at, bindings: [{ topicRef: "sim2dtm" }] } as any)).toBe(true);
+        expect(showsSimulation({ id: "t", type: "markdown", ...at, text: "Load: {{dtm2sim.load}} kN" } as any)).toBe(true);
+        expect(showsSimulation({ id: "t", type: "markdown", ...at, text: "No simulation here" } as any)).toBe(false);
+        expect(showsSimulation({ id: "a", type: "alarms", ...at })).toBe(false);
+        expect(showsSimulation({ id: "c", type: "chart", ...at } as any)).toBe(false);
+    });
+});
+
+describe("3D Model panels of a twin without models yet", () => {
+    it("its automatic layout has none, but its editors' slides keep the ones they add", async () => {
+        const { defaultWorkspaceLayout, sanitizeWorkspaceLayout, effectiveWorkspaceLayout } = await import("./workspaceLayout");
+        const empty = defaultWorkspaceLayout({ hasModel: false, hasCamera: false, modelPanels: true });
+        expect(empty.slides[0].panels).toEqual([]);
+        const saved = { version: 2, slides: [{ id: "slide-1", title: "Slide 1", tag: "Slide_1", panels: [{ id: "m", type: "model", x: 0, y: 0, w: 6, h: 6 }] }] };
+        expect(sanitizeWorkspaceLayout(saved, { hasModel: false, modelPanels: true })?.slides[0].panels).toHaveLength(1);
+        expect(sanitizeWorkspaceLayout(saved, { hasModel: false })?.slides[0].panels).toHaveLength(0);
+        expect(effectiveWorkspaceLayout(null, saved, { hasModel: false, hasCamera: false, modelPanels: true }).layout.slides[0].panels).toHaveLength(1);
+    });
+});
+
+describe("the simulator of a slide with its own format", () => {
+    it("keeps a valid format and drops a wrong one", async () => {
+        const { sanitizeSimulatorFormat, sanitizeWorkspaceLayout, setSimulatorFormat } = await import("./workspaceLayout");
+        const format = { load: { label: "Load", units: "kN", minValue: 0, maxValue: 10, defaultValue: 2, step: 0.5 } };
+        expect(sanitizeSimulatorFormat(format)).toEqual(format);
+        expect(sanitizeSimulatorFormat({ load: { ...format.load, minValue: 20 } })).toBeUndefined();
+        expect(sanitizeSimulatorFormat({ "a b": format.load })).toBeUndefined();
+        const slide: WorkspaceSlide = { id: "slide-1", title: "S", tag: "S", panels: [{ id: "sim", type: "simulator", x: 0, y: 0, w: 4, h: 6 }] };
+        const withFormat = setSimulatorFormat(slide, format);
+        expect(withFormat.panels[0].format).toEqual(format);
+        const read = sanitizeWorkspaceLayout({ version: 2, slides: [withFormat] }, { hasModel: false });
+        expect(read?.slides[0].panels[0].format).toEqual(format);
     });
 });

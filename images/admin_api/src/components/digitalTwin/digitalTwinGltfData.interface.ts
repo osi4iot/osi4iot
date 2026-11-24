@@ -1,3 +1,4 @@
+import { ISlideModelInfo } from "./slideModels";
 import IMeasurement from "../mesurement/measurement.interface";
 import IDigitalTwinSensorDashboard from "./digitalTwinSensorDashboard.interface";
 
@@ -22,6 +23,8 @@ export interface IDigitalTwinData {
 	// the context of its asset: "asset" (a real one), "group" (a group's control room), "organization" (the overview)
 	assetContext?: string;
 	digitalTwinSimulationFormat: string;
+	// the 3D model of each slide that has one (slideModels.ts)
+	slideModels?: Record<string, ISlideModelInfo>;
 	mqttTopicsData: IMqttTopicDataShort[];
 	topicIdBySensorRef: Record<string, number>;
 	sensorsDashboards: IDigitalTwinSensorDashboard[];

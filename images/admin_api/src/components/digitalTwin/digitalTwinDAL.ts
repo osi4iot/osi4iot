@@ -46,6 +46,7 @@ import {
 import PipelineDto from "./pipeline.dto";
 import { setDigitalTwinKnowledgeDocuments } from "../group/knowledgeDAL";
 import { refreshTopicsMessageSchema, topicIdsOfDigitalTwin } from "../topic/messageSchema";
+import { FIRST_SLIDE_ID, ensureSlideModelTable, getSlideModels, modelKeyBase, setSlideModelRow } from "./slideModels";
 
 export const insertDigitalTwin = async (digitalTwinData: Partial<IDigitalTwin>): Promise<IDigitalTwin> => {
 	const queryString = `INSERT INTO grafanadb.digital_twin (group_id, asset_id,
@@ -54,8 +55,8 @@ export const insertDigitalTwin = async (digitalTwinData: Partial<IDigitalTwin>):
 		chat_assistant_second_language, chat_assistant_voice_language,
 		chat_mobile_voice_enabled, chat_telegram_chat_id,
 		digital_twin_simulation_format, digital_twin_simulation_format_file_name,
-		digital_twin_simulation_format_last_modif_date, created, updated)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, NOW(), NOW())
+		digital_twin_simulation_format_last_modif_date, pipeline_requires_gpu, created, updated)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, NOW(), NOW())
 		RETURNING  id, group_id AS "groupId", asset_id AS "assetId",
 		scope, digital_twin_uid AS "digitalTwinUid", description,
 		type, dashboard_id AS "dashboardId",
@@ -93,6 +94,7 @@ export const insertDigitalTwin = async (digitalTwinData: Partial<IDigitalTwin>):
 		digitalTwinData.digitalTwinSimulationFormat,
 		digitalTwinData.digitalTwinSimulationFormatFileName || "-",
 		digitalTwinData.digitalTwinSimulationFormatLastModifDate || "-",
+		digitalTwinData.pipelineRequiresGpu === true,
 	]);
 	return result.rows[0] as IDigitalTwin;
 };
@@ -593,6 +595,16 @@ export const getDigitalTwinMqttTopicsInfoFromByDTIdsArray = async (
 	return response.rows as IMqttDigitalTwinTopicInfo[];
 };
 
+// The 3D model of the default mobile phone digital twin: that of the first slide (the automatic layout's)
+export const uploadMobilePhoneModel = async (
+	digitalTwin: Pick<IDigitalTwin, "orgId" | "groupId" | "id">,
+	sensorsRef: string[]
+): Promise<void> => {
+	await uploadMobilePhoneGltfFile(`${modelKeyBase(digitalTwin, FIRST_SLIDE_ID)}/gltfFile/mobile_phone.gltf`);
+	await ensureSlideModelTable();
+	await setSlideModelRow(digitalTwin.id, FIRST_SLIDE_ID, "mobile_phone.gltf", sensorsRef);
+};
+
 export const uploadMobilePhoneGltfFile = async (gltfFileName: string) => {
 	const gltfFileData = JSON.parse(mobilePhoneGltfFileData);
 	if (Object.keys(gltfFileData).length && gltfFileData.nodes?.length !== 0) {
@@ -1021,6 +1033,7 @@ export const createDigitalTwin = async (
 		digitalTwinSimulationFormat: digitalTwinInput.digitalTwinSimulationFormat,
 		digitalTwinSimulationFormatFileName: digitalTwinInput.digitalTwinSimulationFormatFileName,
 		digitalTwinSimulationFormatLastModifDate: digitalTwinInput.digitalTwinSimulationFormatLastModifDate,
+		pipelineRequiresGpu: digitalTwinInput.pipelineRequiresGpu === true,
 	};
 	const digitalTwin = await insertDigitalTwin(digitalTwinUpdated);
 	if (digitalTwinInput.knowledgeDocuments && digitalTwinInput.knowledgeDocuments.length !== 0) {
@@ -1190,15 +1203,14 @@ export const getDigitalTwinData = async (group: IGroup, digitalTwin: IDigitalTwi
 	const sensorsDashboards = await getSensorDashboardByAssetId(digitalTwin.assetId);
 	const topicIdBySensorRef = await getTopicIdBySensorRef(digitalTwinId);
 
-	const { gltfFileName, gltfFileDate, gltfFileSize } = await getGltfFileInfo(digitalTwin);
+	// the 3D model of each slide (slideModels.ts)
+	const slideModels = await getSlideModels(digitalTwin);
 
 	const gltfData = {
 		id: digitalTwinId,
 		digitalTwinUid: digitalTwin.digitalTwinUid,
 		digitalTwinType: digitalTwin.type,
-		gltfFileName,
-		gltfFileDate,
-		gltfFileSize,
+		slideModels,
 		digitalTwinSimulationFormat: digitalTwin.digitalTwinSimulationFormat,
 		mqttTopicsData,
 		topicIdBySensorRef,
@@ -1208,11 +1220,8 @@ export const getDigitalTwinData = async (group: IGroup, digitalTwin: IDigitalTwi
 	return gltfData;
 };
 
-export const getDigitalTwinGltfFile = async (digitalTwin: IDigitalTwin): Promise<string> => {
-	const orgId = digitalTwin.orgId;
-	const groupId = digitalTwin.groupId;
-	const digitalTwinId = digitalTwin.id;
-	const keyBase = `org_data/org_${orgId}/group_${groupId}/digitalTwin_${digitalTwinId}`;
+export const getDigitalTwinGltfFile = async (digitalTwin: IDigitalTwin, slideId = ""): Promise<string> => {
+	const keyBase = modelKeyBase(digitalTwin, slideId);
 	const gltfFileFolder = `${keyBase}/gltfFile`;
 	const gltfFileList = await getBucketFolderFileList(gltfFileFolder);
 
@@ -1229,11 +1238,8 @@ export const getDigitalTwinGltfFile = async (digitalTwin: IDigitalTwin): Promise
 	return gltfFile;
 };
 
-export const getDigitalTwinGlbFile = async (digitalTwin: IDigitalTwin): Promise<GetObjectCommandOutput | null> => {
-	const orgId = digitalTwin.orgId;
-	const groupId = digitalTwin.groupId;
-	const digitalTwinId = digitalTwin.id;
-	const keyBase = `org_data/org_${orgId}/group_${groupId}/digitalTwin_${digitalTwinId}`;
+export const getDigitalTwinGlbFile = async (digitalTwin: IDigitalTwin, slideId = ""): Promise<GetObjectCommandOutput | null> => {
+	const keyBase = modelKeyBase(digitalTwin, slideId);
 	const gltfFileFolder = `${keyBase}/gltfFile`;
 	const gltfFileList = await getBucketFolderFileList(gltfFileFolder);
 
@@ -1419,12 +1425,10 @@ export const getBucketFolderInfoFileList = async (folderPath: string): Promise<I
 	return fileInfoList;
 };
 
-export const checkMaxNumberOfFemResFiles = async (digitalTwin: IDigitalTwin) => {
-	const orgId = digitalTwin.orgId;
-	const groupId = digitalTwin.groupId;
-	const digitalTwinId = digitalTwin.id;
+// the newest maxNumResFemFiles FEM result files of a slide's model ("": the root, before slides had models)
+export const checkMaxNumberOfFemResFiles = async (digitalTwin: IDigitalTwin, slideId = "") => {
 	const maxNumResFemFiles = digitalTwin.maxNumResFemFiles;
-	const keyBase = `org_data/org_${orgId}/group_${groupId}/digitalTwin_${digitalTwinId}`;
+	const keyBase = modelKeyBase(digitalTwin, slideId);
 	const folderPath = `${keyBase}/femResJson`;
 
 	const femResFileInfoList = await getBucketFolderInfoFileList(folderPath);
@@ -1435,11 +1439,8 @@ export const checkMaxNumberOfFemResFiles = async (digitalTwin: IDigitalTwin) => 
 	}
 };
 
-export const checkNumberOfGltfFiles = async (digitalTwin: IDigitalTwin) => {
-	const orgId = digitalTwin.orgId;
-	const groupId = digitalTwin.groupId;
-	const digitalTwinId = digitalTwin.id;
-	const keyBase = `org_data/org_${orgId}/group_${groupId}/digitalTwin_${digitalTwinId}`;
+export const checkNumberOfGltfFiles = async (digitalTwin: IDigitalTwin, slideId = "") => {
+	const keyBase = modelKeyBase(digitalTwin, slideId);
 	const folderPath = `${keyBase}/gltfFile`;
 
 	const gltfFileInfoList = await getBucketFolderInfoFileList(folderPath);
@@ -1451,12 +1452,10 @@ export const checkNumberOfGltfFiles = async (digitalTwin: IDigitalTwin) => {
 };
 
 export const getGltfFileInfo = async (
-	digitalTwin: IDigitalTwin
+	digitalTwin: IDigitalTwin,
+	slideId = ""
 ): Promise<{ gltfFileName: string; gltfFileDate: string; gltfFileSize: number }> => {
-	const orgId = digitalTwin.orgId;
-	const groupId = digitalTwin.groupId;
-	const digitalTwinId = digitalTwin.id;
-	const keyBase = `org_data/org_${orgId}/group_${groupId}/digitalTwin_${digitalTwinId}`;
+	const keyBase = modelKeyBase(digitalTwin, slideId);
 	const folderPath = `${keyBase}/gltfFile`;
 
 	const gltfFileInfoList = await getBucketFolderInfoFileList(folderPath);

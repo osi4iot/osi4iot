@@ -647,6 +647,12 @@ gpu=nvidia label).
 Organizations and groups must still have gpuUsageEnabled for their models
 to use the GPU.
 
+With "Pipelines worker" nodes, pipelines runs on them (in gpu_only, on those
+with a GPU) and on the Platform workers only while they are off or cannot
+hold every replica: system_manager moves the replicas back about a minute
+after they are up again. Meanwhile the replicas run on CPU, and the digital
+twins that require a GPU wait.
+
 Without an argument it shows the current mode. With the platform running
 the pipelines service is updated at once (rolling update); with it stopped
 the mode is stored and used by the next 'osi4iot run'.
@@ -667,6 +673,15 @@ Examples:
 			fmt.Printf("Image: %s\n", spec.Image)
 			if spec.Mode != pt.PipelinesGPUOff && spec.GPUNodes == 0 {
 				fmt.Println(utils.StyleWarningMsg.Render("No GPU node detected: pipelines runs on CPU."))
+			}
+			if services.HasPipelinesWorkers(pd) {
+				if spec.OnPipelinesWorkers {
+					fmt.Println("Placement: on the Pipelines workers")
+				} else {
+					fmt.Println(utils.StyleWarningMsg.Render("Placement: on the Platform workers too " +
+						"(the Pipelines workers are off, or cannot hold every replica); " +
+						"system_manager moves it back once they are up"))
+				}
 			}
 			return
 		}

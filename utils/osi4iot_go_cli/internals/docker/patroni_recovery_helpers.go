@@ -2,8 +2,11 @@ package docker
 
 import (
 	"bytes"
+	"context"
 	"fmt"
+	"log"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -23,7 +26,10 @@ import (
 // rather than read from the secret because Docker does not allow
 // reading a secret's contents back, and a standalone container cannot
 // mount one at all.
-func walgEnvFor(pd *pt.PlatformData, family patroniFamily) []string {
+//
+// prefix is the archive's cluster folder to read (walg_clusters.go); ""
+// is the family's bare prefix.
+func walgEnvFor(pd *pt.PlatformData, family patroniFamily, prefix string) []string {
 	pi := pd.PlatformInfo
 
 	consumer := utils.S3ConsumerWalgAdmin
@@ -32,9 +38,8 @@ func walgEnvFor(pd *pt.PlatformData, family patroniFamily) []string {
 	}
 	creds := utils.S3CredentialsFor(pi, consumer)
 
-	prefix := pi.WalgS3PrefixAdmin
-	if family.NamePrefix == "patroni_metrics" {
-		prefix = pi.WalgS3PrefixMetrics
+	if prefix == "" {
+		prefix = familyWalgPrefix(pd, family)
 	}
 
 	env := []string{
@@ -245,4 +250,78 @@ func execInContainer(dc *pt.DockerClient, containerID, user string, cmd []string
 // `sh -c` strings this package builds.
 func shellQuote(value string) string {
 	return "'" + strings.ReplaceAll(value, "'", `'"'"'`) + "'"
+}
+
+// familyWalgPrefix is the family's wal-g prefix, without a cluster
+// folder.
+func familyWalgPrefix(pd *pt.PlatformData, family patroniFamily) string {
+	if family.NamePrefix == "patroni_metrics" {
+		return pd.PlatformInfo.WalgS3PrefixMetrics
+	}
+	return pd.PlatformInfo.WalgS3PrefixAdmin
+}
+
+// extractSource is the archive folder and base backup an extraction
+// starts from: the running cluster's own folder (its catalogue comes
+// from patroni_sidecar, through walg-scoped), or — when it has no
+// backup early enough, as right after the upgrade to cluster folders —
+// the legacy backups of the bare prefix.
+func extractSource(pd *pt.PlatformData, dc *pt.DockerClient, family patroniFamily, opts PatroniExtractOptions, logger *log.Logger) (string, string, error) {
+	base := strings.TrimSuffix(familyWalgPrefix(pd, family), "/")
+	backups, _ := listPatroniFamilyBackups(pd, dc, family)
+	own := base
+	if len(backups) > 0 && backups[0].SystemIdentifier != 0 {
+		own = base + "/" + strconv.FormatUint(backups[0].SystemIdentifier, 10)
+	}
+
+	if opts.Backup != "" {
+		for _, b := range backups {
+			if b.Name == opts.Backup {
+				return own, opts.Backup, nil
+			}
+		}
+	} else {
+		backup, err := pickBackupBefore(pd, dc, family, opts.TargetTime)
+		if err == nil {
+			return own, backup, nil
+		}
+		if own == base {
+			return "", "", err
+		}
+		logger.Printf("The running cluster has no backup early enough (%v); looking at the legacy backups.", err)
+	}
+
+	// the legacy backups, from S3
+	target, err := parseRecoveryTime(opts.TargetTime)
+	if err != nil {
+		return "", "", err
+	}
+	ctx := context.Background()
+	store, err := OpenPlatformS3(ctx, pd, dc, "", logger)
+	if err != nil {
+		return "", "", fmt.Errorf("error opening the object store: %w", err)
+	}
+	defer store.Close()
+	clusters, err := listWalgClusters(ctx, store, base)
+	if err != nil {
+		return "", "", err
+	}
+	for _, c := range clusters {
+		if c.Folder != "" {
+			continue
+		}
+		for _, b := range c.Backups { // newest first
+			if opts.Backup != "" && b.Name == opts.Backup {
+				return base, b.Name, nil
+			}
+			if opts.Backup == "" && !b.Time.After(target) {
+				logger.Printf("Using legacy base backup %s.", b.Name)
+				return base, b.Name, nil
+			}
+		}
+	}
+	if opts.Backup != "" {
+		return "", "", fmt.Errorf("backup %s is neither the running cluster's nor a legacy one", opts.Backup)
+	}
+	return "", "", fmt.Errorf("no backup of the running cluster nor any legacy one was taken before %s", opts.TargetTime)
 }

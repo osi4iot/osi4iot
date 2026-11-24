@@ -93,9 +93,12 @@ type PatroniBackup struct {
 	// ChainBroken marks a delta whose parent is missing from the
 	// catalogue — it cannot be restored from.
 	ChainBroken bool `json:"chain_broken"`
-	// SystemIdentifier is the PostgreSQL cluster this backup came from.
-	// See patroni_restore.go's liveClusterOwnsBackups for what it is
-	// used to decide.
+	// SystemIdentifier is the PostgreSQL cluster this backup came from:
+	// assigned at initdb and kept by a restore, so a cluster bootstrapped
+	// empty after the data was lost has another one. It names the
+	// cluster's folder of the archive (walg-scoped) and tells whether a
+	// restore reads the running cluster's own backups (walg_clusters.go,
+	// RestoreSource.SameAsLive).
 	SystemIdentifier uint64 `json:"system_identifier"`
 }
 

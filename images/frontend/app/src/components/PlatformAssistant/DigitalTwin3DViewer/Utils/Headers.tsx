@@ -9,7 +9,7 @@ import {
     CircleStop,
     Download,
     Logs,
-    PanelRight,
+    MessageSquare,
     Play,
     RefreshCw,
     Upload,
@@ -496,13 +496,11 @@ export const Header: FC<HeaderProps> = ({
     // a Viewer of the group sees the Viewer page only (the Pipeline page is for its editors and administrators)
     const viewerOptions = canEditPipeline ? VIEWER_OPTIONS : VIEWER_OPTIONS.filter((o) => o.value !== "pipeline");
 
-    // Panel lateral: en el Viewer con modelo 3D siempre; en el Viewer sin modelo 3D (solo la imagen) y en
-    // Pipeline (gemelo sin visor), solo con el chat
+    // The side panel is the chat with the assistant: in the Viewer, and in the pipeline of a twin without viewer
+    // (the 3D model's settings are in its own panel)
     const panelOpen = assistantPanelWidth > 0;
-    const showPanelButton =
-        (activeViewer === "3D" && viewerHasModel) ||
-        (chatEnabled && (activeViewer === "3D" || showOnlyPipelineViewer));
-    const panelLabel = panelOpen ? "Close assistant panel" : "Open assistant panel";
+    const showPanelButton = chatEnabled && (activeViewer === "3D" || showOnlyPipelineViewer);
+    const panelLabel = panelOpen ? "Close the chat" : "Chat with assistant";
     // The logs come from the pipeline nodes: their button is only in the pipeline view
     const errorsText = `${pipelineErrors} new pipeline ${pipelineErrors === 1 ? "error" : "errors"}`;
     const logsButton = (
@@ -670,13 +668,13 @@ export const Header: FC<HeaderProps> = ({
                 <ToolButton
                     type="button"
                     aria-label={panelLabel}
-                    data-tooltip={activeViewer === "3D" ? `${panelLabel} · chat & settings` : `${panelLabel} · chat`}
+                    data-tooltip={panelLabel}
                     data-tooltip-align="end"
                     aria-pressed={panelOpen}
                     $active={panelOpen}
                     onClick={handleAssistantPanelOpenAndClose}
                 >
-                    <PanelRight aria-hidden="true" />
+                    <MessageSquare aria-hidden="true" />
                     {chatUnread && <AttentionDot aria-label="New answer from the assistant" />}
                 </ToolButton>
             )}

@@ -100,6 +100,13 @@ else
     export PATRONI_PARTNER_ADDRS="[$ADDRS]"
 fi
 
+# ── WAL-G: one folder of the archive per cluster ──────────────
+# wal-g is always called through walg-scoped, which puts each cluster
+# in WALG_S3_PREFIX/<system identifier>: a cluster created from scratch
+# never reads the archive of the one before it. The family's prefix is
+# kept here; walg-scoped sets WALG_S3_PREFIX itself on every call.
+export WALG_S3_PREFIX_BASE="${WALG_S3_PREFIX%/}"
+
 # ── WAL-G libsodium encoding format ─────────────────────────
 export WALG_LIBSODIUM_KEY_TRANSFORM=hex
 
@@ -288,7 +295,7 @@ fi
 echo "Starting Patroni Metrics node: $PATRONI_NAME"
 echo "DCS: embedded Raft — peer ${PATRONI_NAME}:${RAFT_PORT}"
 echo "Cluster size: $PATRONI_NUM_NODES node(s)"
-echo "WAL-G prefix: $WALG_S3_PREFIX"
+echo "WAL-G prefix: $WALG_S3_PREFIX_BASE/<system identifier> (walg-scoped)"
 
 # ── Graceful shutdown ─────────────────────────────────────────
 # THE reason this file exists in its current form. Read before editing.

@@ -225,8 +225,10 @@ RUN mkdir -p /etc/patroni /data/patroni /data/raft
 COPY patroni.yml        /etc/patroni/patroni.yml
 COPY post_init.sh       /etc/patroni/post_init.sh
 COPY entrypoint.sh      /entrypoint.sh
+# wal-g in this cluster's own folder of the archive (see the script)
+COPY walg-scoped /usr/local/bin/walg-scoped
 
-RUN chmod +x /etc/patroni/post_init.sh /entrypoint.sh
+RUN chmod +x /etc/patroni/post_init.sh /entrypoint.sh /usr/local/bin/walg-scoped
 
 # ── Runtime user ──────────────────────────────────────────────────────────────
 RUN mkdir -p /var/run/postgresql \

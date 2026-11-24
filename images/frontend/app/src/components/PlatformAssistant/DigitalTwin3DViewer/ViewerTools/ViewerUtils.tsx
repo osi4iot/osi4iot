@@ -104,6 +104,21 @@ export interface IDigitalTwinGltfData {
 	// the context of its asset (admin_api digital_twin_data): "group", a group's control room; "organization", the
 	// overview of the organization; else a real asset
 	assetContext?: string;
+	// the name of the 3D model shown ("": none): that of the slide shown (slideId)
+	gltfFileName?: string;
+	// the digital twin's own simulator format, when digitalTwinSimulationFormat is that of the slide shown
+	twinSimulationFormat?: Record<string, DigitalTwinSimulationParameter>;
+	// the slide of the Viewer whose 3D model this is (each slide has its own: slideModels)
+	slideId?: string;
+	// the 3D model and FEM results of each slide that has them (admin_api digital_twin_data)
+	slideModels?: Record<string, SlideModelInfo>;
+}
+
+export interface SlideModelInfo {
+	gltfFileName: string;
+	gltfFileDate: string;
+	gltfFileSize: number;
+	femResults: number;
 }
 
 

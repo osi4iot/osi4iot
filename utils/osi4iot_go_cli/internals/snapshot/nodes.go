@@ -16,6 +16,8 @@ import (
 const (
 	RoleManager        = "Manager"
 	RolePlatformWorker = "Platform worker"
+	// runs pipelines only (pipelines_worker=true): see services/pipelines_placement.go
+	RolePipelinesWorker = "Pipelines worker"
 )
 
 // Deployment locations, as ui/form/actions.go offers them.
@@ -25,7 +27,7 @@ const (
 	LocationAWS       = "AWS cluster deployment"
 )
 
-var validRoles = []string{RoleManager, RolePlatformWorker}
+var validRoles = []string{RoleManager, RolePlatformWorker, RolePipelinesWorker}
 
 var validLocations = []string{LocationLocal, LocationOnPremise, LocationAWS}
 
@@ -34,7 +36,7 @@ var validLocations = []string{LocationLocal, LocationOnPremise, LocationAWS}
 // never seen one before, so the instructions travel inside it.
 const nodesNote = "Edit this file to describe the machines the platform will run on, " +
 	"then pass the zip to 'osi4iot init --snapshot-file'. Roles are case sensitive: " +
-	"\"Manager\", \"Platform worker\". nodeLabel is optional. nodePassword is exported empty " +
+	"\"Manager\", \"Platform worker\", \"Pipelines worker\". nodeLabel is optional. nodePassword is exported empty " +
 	"on purpose — fill it in only if the new nodes need an SSH password; leave it empty " +
 	"to use the SSH key from the state file."
 

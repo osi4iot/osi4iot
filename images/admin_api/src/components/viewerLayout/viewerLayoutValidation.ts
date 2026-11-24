@@ -24,7 +24,14 @@
 // the fields of the state shown with their label and unit; statusColors, the colour of each status; staleMinutes,
 // after how long without a change the state is shown as old), "health" and "pipelineLogs" (a group's control room)
 // and "orgOverview" (the indicators of the organization, organizationOverview.ts: unavailableStatuses, the statuses
-// that are not available, "Alarm" when none; period, the one it opens with).
+// that are not available, "Alarm" when none; period, the one it opens with) and "simulator" (the digital twin's
+// simulator; one per slide; format: its own parameters, those of its slide; without it, the digital twin's format).
+//
+// A "simulator" panel can float over the slide (floating: true) instead of taking its place in the grid (x, y, w, h,
+// kept as where it docks): float is its window, as fractions (0 to 1) of the slide's area: { x, y, w, h }.
+// simulatorPlaced: the layout was saved once simulator panels existed; layouts without it get a floating simulator
+// on their first slide when the twin has a simulator format (the frontend adds it: the simulator of older versions
+// was a floating window).
 
 export const VIEWER_LAYOUT_VERSION = 2;
 export const VIEWER_LAYOUT_MAX_SLIDES = 20;
@@ -55,8 +62,14 @@ export const VIEWER_PANEL_TYPES = [
 	"pipelineLogs",
 	// the organization overview: its indicators (one per slide)
 	"orgOverview",
+	// the digital twin's simulator (one per slide; docked or floating)
+	"simulator",
 ] as const;
-const ONE_PER_SLIDE = ["alarms", "approvals", "assetState", "health", "pipelineLogs", "orgOverview"];
+const ONE_PER_SLIDE = ["alarms", "approvals", "assetState", "health", "pipelineLogs", "orgOverview", "simulator"];
+// the panels that can float over the slide
+const FLOATING_TYPES = ["simulator"];
+// a floating window: at least this fraction of the slide's area wide and high
+export const FLOAT_MIN_FRACTION = 0.05;
 // an "Organization overview" panel (organizationOverview.ts and the frontend's orgOverview.ts say the same)
 export const ORG_OVERVIEW_PERIODS = ["7d", "30d", "90d", "12m"] as const;
 export const ORG_OVERVIEW_MAX_STATUSES = 12;
@@ -371,11 +384,71 @@ export interface IViewerPanel {
 	staleMinutes?: number;
 	unavailableStatuses?: string[];
 	period?: (typeof ORG_OVERVIEW_PERIODS)[number];
+	floating?: boolean;
+	float?: IFloatRect;
+	// a simulator's own format (that of its slide: none, the digital twin's)
+	format?: Record<string, ISimulatorParameter>;
 	x: number;
 	y: number;
 	w: number;
 	h: number;
 }
+
+// A parameter of a simulator's format (the frontend's digitalTwinFormatValidation, and its editor)
+export interface ISimulatorParameter {
+	label: string;
+	units: string;
+	minValue: number;
+	maxValue: number;
+	defaultValue: number;
+	step: number;
+}
+export const MAX_SIMULATOR_PARAMETERS = 200;
+const SIMULATOR_PARAMETER_NAME = /^[A-Za-z0-9_.-]{1,80}$/;
+
+// The format of the simulator of a slide (its parameters: the fields of the sim2dtm messages it sends), or why not
+export const validateSimulatorFormat = (raw: unknown): Record<string, ISimulatorParameter> | string => {
+	if (!raw || typeof raw !== "object" || Array.isArray(raw)) return "format must be an object of parameters";
+	const entries = Object.entries(raw as Record<string, unknown>);
+	if (entries.length > MAX_SIMULATOR_PARAMETERS) return `format has at most ${MAX_SIMULATOR_PARAMETERS} parameters`;
+	const format: Record<string, ISimulatorParameter> = {};
+	for (const [name, value] of entries) {
+		if (!SIMULATOR_PARAMETER_NAME.test(name)) return `invalid parameter name: ${name.slice(0, 80)}`;
+		if (!value || typeof value !== "object" || Array.isArray(value)) return `the parameter ${name} must be an object`;
+		const v = value as Record<string, unknown>;
+		const num = (key: string) => (typeof v[key] === "number" && Number.isFinite(v[key]) ? Number(v[key]) : null);
+		const [minValue, maxValue, defaultValue, step] = [num("minValue"), num("maxValue"), num("defaultValue"), num("step")];
+		if (typeof v.label !== "string" || v.label.length > 120) return `the parameter ${name} needs a label (at most 120 characters)`;
+		if (typeof v.units !== "string" || v.units.length > 40) return `the parameter ${name} needs units (at most 40 characters)`;
+		if (minValue === null || maxValue === null || defaultValue === null || step === null) {
+			return `the parameter ${name} needs minValue, maxValue, defaultValue and step (numbers)`;
+		}
+		if (minValue >= maxValue) return `the parameter ${name}: minValue must be lower than maxValue`;
+		if (defaultValue < minValue || defaultValue > maxValue) return `the parameter ${name}: defaultValue must be between minValue and maxValue`;
+		if (step <= 0) return `the parameter ${name}: step must be greater than 0`;
+		format[name] = { label: v.label, units: v.units, minValue, maxValue, defaultValue, step };
+	}
+	return format;
+};
+
+// a floating window, in fractions of the slide's area
+export interface IFloatRect {
+	x: number;
+	y: number;
+	w: number;
+	h: number;
+}
+
+const isFraction = (value: unknown): value is number => typeof value === "number" && Number.isFinite(value) && value >= 0 && value <= 1;
+
+const validateFloat = (raw: unknown): IFloatRect | string => {
+	if (!raw || typeof raw !== "object" || Array.isArray(raw)) return "float must be an object";
+	const { x, y, w, h } = raw as Record<string, unknown>;
+	if (!isFraction(x) || !isFraction(y) || !isFraction(w) || !isFraction(h)) return "float: x, y, w and h must be from 0 to 1";
+	if (w < FLOAT_MIN_FRACTION || h < FLOAT_MIN_FRACTION) return "float: the window is too small";
+	if (x + w > 1.0001 || y + h > 1.0001) return "float: the window must be inside the slide";
+	return { x, y, w, h };
+};
 
 export interface IViewerSlide {
 	id: string;
@@ -388,6 +461,7 @@ export interface IViewerLayout {
 	version: number;
 	time?: IViewerTime;
 	slides: IViewerSlide[];
+	simulatorPlaced?: boolean;
 }
 
 // "now", "now-6h", "now-1d/d", "now/w" (Grafana's relative times) or a date (ISO, or milliseconds)
@@ -440,7 +514,7 @@ export const validateViewerLayout = (raw: unknown): IViewerLayout | string => {
 	if (JSON.stringify(raw).length > VIEWER_LAYOUT_MAX_BYTES) {
 		return `The layout must be at most ${VIEWER_LAYOUT_MAX_BYTES / 1000} kB`;
 	}
-	const { version, panels, slides, time } = raw as Record<string, unknown>;
+	const { version, panels, slides, time, simulatorPlaced } = raw as Record<string, unknown>;
 	let rawSlides: unknown[];
 	if (version === 1) {
 		if (!Array.isArray(panels)) return "The layout must have a list of panels";
@@ -476,6 +550,10 @@ export const validateViewerLayout = (raw: unknown): IViewerLayout | string => {
 		const checked = validateTime(time);
 		if (typeof checked === "string") return checked;
 		layout.time = checked;
+	}
+	if (simulatorPlaced !== undefined) {
+		if (typeof simulatorPlaced !== "boolean") return "simulatorPlaced must be true or false";
+		if (simulatorPlaced) layout.simulatorPlaced = true;
 	}
 	return layout;
 };
@@ -548,6 +626,24 @@ const validatePanels = (panels: unknown, prefix: string): IViewerPanel[] | strin
 		if (p.type === "orgOverview") {
 			const problem = validateOrgOverview(p, panel);
 			if (problem) return `${where}: ${problem}`;
+		}
+		if (p.floating !== undefined || p.float !== undefined) {
+			if (!FLOATING_TYPES.includes(type)) return `${where}: only a simulator panel can float`;
+			if (p.floating !== undefined) {
+				if (typeof p.floating !== "boolean") return `${where}: floating must be true or false`;
+				if (p.floating) panel.floating = true;
+			}
+			if (p.float !== undefined) {
+				const float = validateFloat(p.float);
+				if (typeof float === "string") return `${where}: ${float}`;
+				panel.float = float;
+			}
+		}
+		if (p.format !== undefined) {
+			if (type !== "simulator") return `${where}: only a simulator panel has a format`;
+			const format = validateSimulatorFormat(p.format);
+			if (typeof format === "string") return `${where}: ${format}`;
+			panel.format = format;
 		}
 		if (p.type === "surface") {
 			const surface = validateSurface(p.surface);

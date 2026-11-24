@@ -283,6 +283,7 @@ var internalPayloadKeys = map[string]struct{}{
     "sql":                   {},
     "eventTriggerTopicType": {},
     "timestamp":             {},
+    SlideField:              {}, // the slide of the Viewer the message came from
 }
 
 func (n *IoTDbNode) CreateAndSendRow(msg common.Message, params IotDbParams, log *logger.Logger) error {

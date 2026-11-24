@@ -2,6 +2,7 @@ package docker
 
 import (
 	"fmt"
+	"github.com/osi4iot/osi4iot/utils/osi4iot/internals/services"
 	"log"
 	"strings"
 	"time"
@@ -233,7 +234,33 @@ func AddNodeToPlatform(pd *pt.PlatformData, node pt.NodeData, logger *log.Logger
 		return fmt.Errorf("error saving the state file: %w", err)
 	}
 
+	if node.NodeRole == services.PipelinesWorkerRole {
+		refreshPipelinesPlacement(pd, manager, logger)
+	}
 	return nil
+}
+
+// refreshPipelinesPlacement places the pipelines service again after a
+// Pipelines worker joined or left: on the Pipelines workers that are up,
+// with the labels the system_manager controller needs (none once the last
+// one is gone), and with the GPU image if a GPU arrived. Best effort: the
+// next 'osi4iot run' or 'osi4iot service gpu_mode' does it too.
+func refreshPipelinesPlacement(pd *pt.PlatformData, dc *pt.DockerClient, logger *log.Logger) {
+	if service, _ := utils.GetSwarmServiceByName(dc, "pipelines"); service == nil {
+		return
+	}
+	logger.Printf("Placing pipelines on the Pipelines workers...")
+	res, err := SetPipelinesGPUMode(pd, dc, pd.PlatformInfo.PipelinesGPUMode)
+	if err != nil {
+		logger.Printf("Warning: pipelines could not be placed again (run 'osi4iot service gpu_mode %s'): %v",
+			pd.PlatformInfo.PipelinesGPUMode, err)
+		return
+	}
+	if res.Spec.OnPipelinesWorkers {
+		logger.Printf("pipelines runs on the Pipelines workers")
+	} else if services.HasPipelinesWorkers(pd) {
+		logger.Printf("pipelines runs on the Platform workers until the Pipelines workers are up")
+	}
 }
 
 // RemoveNodeFromPlatform drains a node, takes it out of the swarm and
@@ -334,6 +361,11 @@ func RemoveNodeFromPlatform(pd *pt.PlatformData, view NodeView, logger *log.Logg
 		return fmt.Errorf("error reassigning the node labels: %w", err)
 	}
 
+	if view.Platform.NodeRole == services.PipelinesWorkerRole {
+		if dc, err := GetManagerDC(); err == nil {
+			refreshPipelinesPlacement(pd, dc, logger)
+		}
+	}
 	return nil
 }
 

@@ -45,22 +45,21 @@ describe("Header: pipeline logs only in the pipeline view", () => {
     });
 });
 
-describe("Header: un solo botón para el panel lateral (chat y ajustes)", () => {
-    it("no hay botón de chat aparte y el del panel lo abre y lo cierra", () => {
+describe("Header: the chat button (the side panel is the chat)", () => {
+    it("opens and closes the chat", () => {
         const toggle = vi.fn();
         const { rerender } = render(<Header {...(props({ chatEnabled: true, handleAssistantPanelOpenAndClose: toggle }) as any)} />);
-        expect(screen.queryByRole("button", { name: "Chat with assistant" })).toBeNull();
-        fireEvent.click(screen.getByRole("button", { name: "Open assistant panel" }));
+        fireEvent.click(screen.getByRole("button", { name: "Chat with assistant" }));
         expect(toggle).toHaveBeenCalledTimes(1);
         rerender(<Header {...(props({ chatEnabled: true, assistantPanelWidth: 600 }) as any)} />);
-        expect(screen.getByRole("button", { name: "Close assistant panel" })).toHaveAttribute("aria-pressed", "true");
+        expect(screen.getByRole("button", { name: "Close the chat" })).toHaveAttribute("aria-pressed", "true");
     });
 
-    it("en el Viewer sin modelo 3D (solo la imagen) solo aparece si el gemelo tiene chat, con aviso de respuesta sin leer", () => {
-        const { rerender } = render(<Header {...(props({ viewerHasModel: false }) as any)} />);
-        expect(screen.queryByRole("button", { name: "Open assistant panel" })).toBeNull();
+    it("is only there when the twin has a chat, with the unread answer dot", () => {
+        const { rerender } = render(<Header {...(props() as any)} />);
+        expect(screen.queryByRole("button", { name: "Chat with assistant" })).toBeNull();
         rerender(<Header {...(props({ viewerHasModel: false, chatEnabled: true, chatUnread: true }) as any)} />);
-        expect(screen.getByRole("button", { name: "Open assistant panel" })).toBeInTheDocument();
+        expect(screen.getByRole("button", { name: "Chat with assistant" })).toBeInTheDocument();
         expect(screen.getByLabelText("New answer from the assistant")).toBeInTheDocument();
     });
 });

@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"path"
+	"strconv"
 	"strings"
 	"time"
 
@@ -474,15 +475,27 @@ func addPatroniToSnapshot(
 		return fmt.Errorf("error listing %s's backups: %w", target, err)
 	}
 
-	tm := writer.Manifest().EnsureTarget(target)
-	tm.Prefix = prefix
-	tm.CompressionMethod = pd.PlatformInfo.WalgCompressionMethod
-
 	if len(backups) == 0 {
 		return fmt.Errorf("%s has no backups in its wal-g catalogue. "+
 			"Take one first with 'osi4iot backup trigger %s', or run this with --fresh",
 			target, target)
 	}
+
+	// The catalogue is the running cluster's, from its own folder of the
+	// archive (walg-scoped in the image: WALG_S3_PREFIX/<system
+	// identifier>); its objects are there. The folder is recorded in the
+	// manifest, and a seed puts them back into the same one. An image
+	// from before those folders reports backups without an identifier:
+	// then they are in the bare prefix.
+	if id := backups[0].SystemIdentifier; id != 0 {
+		folder := strconv.FormatUint(id, 10)
+		keyPrefix = path.Join(keyPrefix, folder)
+		prefix = strings.TrimSuffix(prefix, "/") + "/" + folder
+	}
+
+	tm := writer.Manifest().EnsureTarget(target)
+	tm.Prefix = prefix
+	tm.CompressionMethod = pd.PlatformInfo.WalgCompressionMethod
 
 	if opts.AllBackups {
 		logger.Printf("Carrying every stored object for %s (--all-backups).", target)

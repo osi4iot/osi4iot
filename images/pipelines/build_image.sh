@@ -1,4 +1,4 @@
-VERSION=1.4.0
+VERSION=1.5.0
 
 # CPU image (as before)
 docker buildx build --platform linux/amd64,linux/arm64 \

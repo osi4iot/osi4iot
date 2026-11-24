@@ -135,24 +135,16 @@ export const createHandlers = (
 
     // Botón del panel lateral (chat del asistente + ajustes del visor): es el único que lo abre y lo cierra.
     // En las vistas Imagen y Pipeline solo tiene el chat, así que se abre en esa pestaña.
+    // The side panel is the chat with the assistant (the 3D model's settings are in its own panel)
     const handleAssistantPanelOpenAndClose = () => {
-        const { isAssistantPanelShown, lockReadingButtomLabel, activeViewer, digitalTwinSelected } = params;
+        const { isAssistantPanelShown, activeViewer, digitalTwinSelected } = params;
         if (isAssistantPanelShown) {
             setters.setIsAssistantPanelOpen(false);
-        } else if (activeViewer !== "3D" || params.viewerHasModel === false) {
-            if (digitalTwinSelected?.chatAssistantEnabled) {
-                setters.setChatAssistantOpen(true);
-                setters.setIsAssistantPanelOpen(true);
-                // both panels dock on the right: in the pipeline view the assistant panel replaces the logs
-                if (activeViewer === "pipeline") setters.setPipelineLogsOpen(false);
-            }
-        } else {
-            // the simulator shows the last measurements, unless the reading is locked: then it keeps the
-            // values being simulated (set in the Sim tab or by the AI agent)
-            if (lockReadingButtomLabel !== BUTTON_LABELS.UNLOCK_READ_MEASUREMENTS) handleGetLastMeasurementsButton();
-            // opens on the last tab it had (the chat included); the logs are only shown in the pipeline
-            // view, so they stay as they are
+        } else if (digitalTwinSelected?.chatAssistantEnabled) {
+            setters.setChatAssistantOpen(true);
             setters.setIsAssistantPanelOpen(true);
+            // both panels dock on the right: in the pipeline view the chat replaces the logs
+            if (activeViewer === "pipeline") setters.setPipelineLogsOpen(false);
         }
     };
 

@@ -114,6 +114,8 @@ func nodeMatches(node pt.NodeData, constraints []string) (matches bool, understo
 			matches = matches && node.NodeRole != "Manager"
 		case c == "node.labels.platform_worker==true":
 			matches = matches && node.NodeRole == "Platform worker"
+		case c == "node.labels.pipelines_worker==true":
+			matches = matches && node.NodeRole == PipelinesWorkerRole
 		case c == "node.labels.gpu==nvidia":
 			matches = matches && node.NodeGPU == "nvidia"
 		case c == "node.labels.gpu!=nvidia":

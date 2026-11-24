@@ -276,9 +276,9 @@ func (fm *FlowsManager) Listen(ctx context.Context) {
 		case "femResults":
 			switch adminMsg.Action {
 			case "create":
-				fm.AddFemResultsInDigitalTwin(ctx, adminMsg.Id)
+				fm.AddFemResultsInDigitalTwin(ctx, adminMsg.Id, slideIdOf(adminMsg.Context))
 			case "delete":
-				fm.DeleteFemResultsInDigitalTwin(adminMsg.Id)
+				fm.DeleteFemResultsInDigitalTwin(adminMsg.Id, slideIdOf(adminMsg.Context))
 			default:
 				fm.log.Errorf("Unknown action: %s for component: %s", adminMsg.Action, adminMsg.Component)
 				return

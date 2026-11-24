@@ -20,7 +20,15 @@ const setup = (props: Partial<SlideBarProps> = {}) => {
         onUpdate: vi.fn(),
     };
     render(
-        <SlideBar slides={slides} allSlides={slides} current={slides[1]} tags={["Monitoring", "Vision"]} editing={false} {...handlers} {...props} />,
+        <SlideBar
+            slides={slides}
+            allSlides={slides}
+            current={slides[1]}
+            tags={["Monitoring", "Vision"]}
+            editing={false}
+            {...handlers}
+            {...props}
+        />,
     );
     return handlers;
 };
@@ -52,26 +60,56 @@ describe("slide bar", () => {
         expect(onOverview).toHaveBeenCalled();
     });
 
-    it("edits the current slide while the layout is edited", () => {
-        const { onUpdate, onMove, onDuplicate, onRemove, onAdd } = setup({ editing: true });
-        const tools = screen.getByRole("region", { name: "This slide" });
-        const title = within(tools).getByLabelText("Title");
-        fireEvent.change(title, { target: { value: "Cameras" } });
-        fireEvent.blur(title);
-        expect(onUpdate).toHaveBeenCalledWith({ title: "Cameras" });
-        const tag = within(tools).getByLabelText("Tag");
+    it("has the slide icons: New, Duplicate, Edit, Delete (confirmed) and All slides", () => {
+        const onEdit = vi.fn();
+        const onOverview = vi.fn();
+        const { onAdd, onDuplicate, onRemove } = setup({ canEdit: true, canSave: true, onEdit, onOverview });
+        const bar = screen.getByRole("toolbar", { name: "Slide" });
+        fireEvent.click(within(bar).getByRole("button", { name: "New slide" }));
+        fireEvent.click(within(bar).getByRole("button", { name: "Duplicate slide" }));
+        fireEvent.click(within(bar).getByRole("button", { name: "Edit slide" }));
+        fireEvent.click(within(bar).getByRole("button", { name: "Delete the slide Vision" }));
+        expect(onRemove).not.toHaveBeenCalled();
+        fireEvent.click(within(bar).getByRole("button", { name: "Confirm: delete the slide Vision" }));
+        fireEvent.click(within(bar).getByRole("button", { name: "All slides" }));
+        expect([
+            onAdd.mock.calls.length,
+            onDuplicate.mock.calls.length,
+            onEdit.mock.calls.length,
+            onRemove.mock.calls.length,
+            onOverview.mock.calls.length,
+        ]).toEqual([1, 1, 1, 1, 1]);
+        expect(within(bar).queryByRole("button", { name: "Add panel" })).toBeNull();
+    });
+
+    it("while editing: Add panel, Cancel and Save for the group (Done for the others)", () => {
+        const handlers = { onAddPanel: vi.fn(), onCancel: vi.fn(), onSave: vi.fn(), onDone: vi.fn(), onRestore: vi.fn() };
+        setup({ canEdit: true, canSave: true, editing: true, restoreLabel: "Automatic layout", onOverview: vi.fn(), ...handlers });
+        const bar = screen.getByRole("toolbar", { name: "Edit slide" });
+        expect(within(bar).queryByRole("button", { name: "New slide" })).toBeNull();
+        expect(within(bar).queryByRole("button", { name: "All slides" })).toBeNull();
+        fireEvent.click(within(bar).getByRole("button", { name: "Add panel" }));
+        fireEvent.click(within(bar).getByRole("button", { name: "Back to the automatic layout" }));
+        fireEvent.click(within(bar).getByRole("button", { name: "Cancel" }));
+        fireEvent.click(within(bar).getByRole("button", { name: "Save for the group" }));
+        expect(Object.values(handlers).map((h) => h.mock.calls.length)).toEqual([1, 1, 1, 0, 1]);
+    });
+
+    it("renames the current slide and its tag from a double click on its tab, while editing", () => {
+        const { onUpdate } = setup({ canEdit: true, editing: true });
+        fireEvent.doubleClick(screen.getByRole("tab", { name: "Vision" }));
+        const dialog = screen.getByRole("dialog", { name: "Slide title and tag" });
+        fireEvent.change(within(dialog).getByLabelText("Title"), { target: { value: "Cameras" } });
+        const tag = within(dialog).getByLabelText("Tag");
         fireEvent.change(tag, { target: { value: "bad<tag>" } });
         expect(tag).toHaveAttribute("aria-invalid", "true");
-        fireEvent.blur(tag);
-        expect(tag).toHaveValue("Vision");
-        fireEvent.change(tag, { target: { value: "Monitoring" } });
-        fireEvent.blur(tag);
-        expect(onUpdate).toHaveBeenLastCalledWith({ tag: "Monitoring" });
-        fireEvent.click(within(tools).getByRole("button", { name: "Move the slide before" }));
-        fireEvent.click(within(tools).getByRole("button", { name: "Duplicate" }));
-        fireEvent.click(within(tools).getByRole("button", { name: "Remove the slide Vision" }));
-        fireEvent.click(within(tools).getByRole("button", { name: "New slide" }));
-        expect([onMove.mock.calls[0][0], onDuplicate.mock.calls.length, onRemove.mock.calls.length, onAdd.mock.calls.length]).toEqual([-1, 1, 1, 1]);
+        fireEvent.keyDown(tag, { key: "Enter" });
+        expect(onUpdate).toHaveBeenCalledWith({ title: "Cameras" });
+        expect(screen.queryByRole("dialog", { name: "Slide title and tag" })).toBeNull();
+        // not out of the editing
+        setup({ canEdit: true, editing: false });
+        fireEvent.doubleClick(screen.getAllByRole("tab", { name: "Vision" })[1]);
+        expect(screen.queryByRole("dialog", { name: "Slide title and tag" })).toBeNull();
     });
 
     it("has nothing to step through with one slide", () => {

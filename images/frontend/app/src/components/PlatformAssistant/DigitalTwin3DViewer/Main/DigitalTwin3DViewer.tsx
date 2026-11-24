@@ -33,9 +33,14 @@ import ChatAssistant, { LlmMessage } from "../ChatAssitant/ChatAssistant";
 import { createPipelineVoiceService } from "../ChatAssitant/voiceService";
 import PipelineLogs, { PIPELINE_LOGS_WIDTH, PipelineLog, clampLogsWidth } from "../Pipeline/PipelineLogs";
 import { levelOf } from "../Pipeline/pipelineLogsModel";
-import DigitalTwinSimulatorModal from "../ViewerTools/DigitalTwinSimulatorModal";
+import SimulatorPanel from "../Workspace/SimulatorPanel";
+import SimulatorFormatEditor from "../Workspace/SimulatorFormatEditor";
+import EmptyModelPanel from "../Workspace/EmptyModelPanel";
+import ModelRemovalDialog from "../Workspace/ModelRemovalDialog";
+import { LostModel, lostModels } from "../Workspace/slideModelFiles";
+import { useSlideModel } from "./slideModel";
 import { Header } from "../Utils/Headers";
-import AssistantPanel, { ASSISTANT_PANEL_CHAT_WIDTH, VIEWER_GAP, ASSISTANT_PANEL_WIDTH, clampChatWidth } from "../AssistantPanel/AssistantPanel";
+import AssistantPanel, { ASSISTANT_PANEL_CHAT_WIDTH, MODEL_SETTINGS_INSET, VIEWER_GAP, clampChatWidth } from "../AssistantPanel/AssistantPanel";
 import { usePersistentState } from "../../../../state/uiStore";
 
 // Styled components
@@ -87,9 +92,10 @@ import {
 import Flow, { processInitialPipelineData } from "../Pipeline/Flow";
 import { ReactFlowProvider } from "@xyflow/react";
 import { toast } from "react-toastify";
-import { Video } from "lucide-react";
+import { Download, Pencil, SlidersHorizontal, Upload, Video } from "lucide-react";
 import { ImageFrame } from "../PhotoFrame/PhotoFrame";
-import ViewerWorkspace from "../Workspace/ViewerWorkspace";
+import ViewerWorkspace, { PanelAction } from "../Workspace/ViewerWorkspace";
+import ModelFilesTab from "../AssistantPanel/ModelFilesTab";
 import ChartPanel from "../Workspace/ChartPanel";
 import PanelEditor from "../Workspace/PanelEditor";
 import TimePicker from "../Workspace/charts/TimePicker";
@@ -111,6 +117,30 @@ import { assetStateApi } from "../Workspace/assetStateApi";
 import { chartSeriesOptions } from "../Workspace/chartSeries";
 import { fetchTimeSeries, TimeSeriesQuery } from "../Workspace/timeSeriesApi";
 import WorkspaceControls, { SoundToggle } from "../Workspace/WorkspaceControls";
+import ViewerDataMenu from "../Workspace/ViewerDataMenu";
+import ViewerDataLoadDialog, { ItemState } from "../Workspace/ViewerDataLoadDialog";
+import {
+    DataFile,
+    VIEWER_DATA_FILE_NAME,
+    ViewerDataItem,
+    ViewerDataPart,
+    ViewerDataSet,
+    SlideFiles,
+    buildViewerDataZip,
+    pipelineYamlOf,
+    readViewerDataFiles,
+    simulatorFormatOf,
+} from "../Workspace/viewerData";
+import {
+    applyViewerData,
+    fetchFemResults,
+    fetchModel,
+    listFemResults,
+    copySlideModel,
+    removeModel as removeTwinModel,
+    setMaxFemResults,
+} from "../Workspace/viewerDataApi";
+import { writeZip } from "../Workspace/zipStream";
 import NatsPermissionNotice from "../Workspace/NatsPermissionNotice";
 import { soundTopics, SOUND_TOPIC, useViewerSounds } from "../Workspace/viewerSounds";
 import {
@@ -130,6 +160,9 @@ import {
     moveSlide,
     removeSlide,
     replaceSlide,
+    sanitizeSimulatorFormat,
+    setSimulatorFormat,
+    SimulatorParameter,
     reorderSlide,
     setSlidesHidden,
     slideTags,
@@ -158,19 +191,19 @@ import {
 } from "../Workspace/viewerImagesApi";
 import {
     PackageImage,
+    buildViewerPackage,
     describePackageImages,
-    downloadViewerPackage,
     isZipName,
     layoutImageNames,
     packageImageWarnings,
     readViewerPackage,
 } from "../Workspace/viewerPackage";
-import { createLiveValueStore, liveTopicRefs, liveTopicsOf, topicRefsOf, useLiveValues } from "../Workspace/liveValues";
+import { SLIDE_FIELD, createLiveValueStore, liveTopicRefs, liveTopicsOf, scopedToSlide, topicRefsOf, useLiveValues } from "../Workspace/liveValues";
 import {
     ParsedViewerConfig,
     buildViewerConfig,
     checkViewerConfigRefs,
-    downloadViewerConfig,
+    downloadBlob,
     parseViewerConfig,
     viewerConfigFileName,
     viewerConfigText,
@@ -227,7 +260,7 @@ const mergeVisibilityState = <T,>(initial: Record<string, T>, previous: Record<s
 
 // Guarda en la memoria del visor la cámara que deja el usuario (al terminar cada giro, desplazamiento o
 // zoom con los controles de órbita): al volver al visor, Stage la recupera en lugar de encuadrar el modelo.
-const CameraMemory: FC<{ dtUid: string; controlsRef: { current: any } }> = ({ dtUid, controlsRef }) => {
+const CameraMemory: FC<{ dtUid: string; slideId?: string; controlsRef: { current: any } }> = ({ dtUid, slideId, controlsRef }) => {
     const camera = useThree((state) => state.camera);
     const size = useThree((state) => state.size);
     const sizeRef = useRef(size);
@@ -238,18 +271,19 @@ const CameraMemory: FC<{ dtUid: string; controlsRef: { current: any } }> = ({ dt
         const save = () => {
             const viewSize = Math.min(sizeRef.current.width, sizeRef.current.height);
             if (viewSize <= 0) return;
-            rememberViewer(dtUid, {
-                camera: {
-                    position: camera.position.toArray() as [number, number, number],
-                    target: ctrl.target.toArray() as [number, number, number],
-                    zoom: camera.zoom,
-                    viewSize,
-                },
-            });
+            const view = {
+                position: camera.position.toArray() as [number, number, number],
+                target: ctrl.target.toArray() as [number, number, number],
+                zoom: camera.zoom,
+                viewSize,
+            };
+            // that of the slide's model (each slide has its own)
+            const cameras = slideId ? { ...getViewerMemory(dtUid).cameras, [slideId]: view } : getViewerMemory(dtUid).cameras;
+            rememberViewer(dtUid, { camera: view, cameras });
         };
         ctrl.addEventListener("end", save);
         return () => ctrl.removeEventListener("end", save);
-    }, [camera, controlsRef, dtUid]);
+    }, [camera, controlsRef, dtUid, slideId]);
     return null;
 };
 
@@ -268,9 +302,24 @@ const PageClock: FC<{ clock: RefreshClock; time: PageTime; children: (range: Tim
 // below this height (CSS pixels) the Viewer page scrolls: a phone held sideways
 const VIEWER_LOW_SCREEN_BELOW = 520;
 
-const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
+// what the wrapper (DigitalTwin3DViewer, below) adds: the 3D model of the slide shown (slideModel.ts)
+interface SceneProps {
+    // the slide shown, when it has a 3D Model panel (null: it has none; the model loaded stays)
+    onShownSlide?: (slideId: string | null) => void;
+    // the model of the slide is being read (the fraction of its download), or could not be
+    slideModelLoading?: number | null;
+    slideModelError?: string | null;
+    // the format of the simulator of the slide shown, when it has its own (null: the digital twin's)
+    onSlideSimulatorFormat?: (format: Record<string, SimulatorParameter> | null) => void;
+}
+
+const DigitalTwin3DViewerScene: FC<Viewer3DProps & SceneProps> = ({
     digitalTwinSelected,
     digitalTwinGltfData,
+    onShownSlide,
+    onSlideSimulatorFormat,
+    slideModelLoading = null,
+    slideModelError = null,
     assetS3Folders,
     orgSelected,
     groupSelected,
@@ -281,6 +330,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
     sensorWithCameraSelected,
     assetName,
     onOpenAssetSwitcher,
+    onReloadDigitalTwin,
 }) => {
     // Hooks
     const { accessToken, refreshToken } = useAuthState();
@@ -306,11 +356,11 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
     // está a la vista cuando además el panel del asistente está abierto. En las vistas Imagen y Pipeline (gemelos sin
     // modelo 3D) el panel del asistente solo tiene el chat.
     const chatEnabled = !!digitalTwinSelected?.chatAssistantEnabled;
-    const showOnlyPipelineViewer = digitalTwinGltfData.gltfFile == null;
-    // The Viewer page ("3D"): the 3D model and the Image (frames of the asset's camera, or of a pipeline) as
-    // panels side by side, or one of them full page (Main/viewerLayout.ts). Without a camera only the model;
-    // without a model only the image; with neither, only the pipeline.
-    const viewerHasModel = !showOnlyPipelineViewer && !!digitalTwinGltfData?.digitalTwinGltfUrl;
+    // The Viewer page ("3D"): its slides of panels (Workspace/). Each slide has its own 3D model (at most one, in its
+    // 3D Model panel: slideModel.ts); viewerHasModel: that of the slide shown is loaded. A twin without models nor
+    // camera opens on its pipeline (its editors have the Viewer page, to load them).
+    const twinHasModels = Object.values(digitalTwinGltfData.slideModels ?? {}).some((m) => !!m.gltfFileName);
+    const viewerHasModel = !!digitalTwinGltfData.gltfFile && !!digitalTwinGltfData.digitalTwinGltfUrl;
     const viewerHasImage = !!assetWithCameraSelected;
     // the scope of the twin (its asset's context, from admin_api; else from the assets table): a group's control
     // room and the organization overview have no model nor camera, but their Viewer page with their panels
@@ -322,7 +372,11 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
                 : scopeOfDigitalTwin(digitalTwinSelected, assetsForScope),
         [digitalTwinGltfData?.assetContext, digitalTwinSelected, assetsForScope],
     );
-    const viewerAvailable = viewerHasModel || viewerHasImage || dtScope !== "asset";
+    // the group's editors and administrators always have the Viewer page: to load its Viewer data
+    const groupsManagedForViewer = useTable("groupsManaged");
+    const isTwinEditor = !!digitalTwinSelected && groupsManagedForViewer.some((group) => group.id === digitalTwinSelected.groupId);
+    const viewerAvailable = twinHasModels || viewerHasImage || dtScope !== "asset" || isTwinEditor;
+    const showOnlyPipelineViewer = !viewerAvailable;
     // the panel shown full page (by everybody, without editing the layout)
     const [maximizedPanel, setMaximizedPanel] = useState<string | null>(memory.workspaceMaximized ?? null);
     // the user's own changes to the layout (not saved: they last while the viewer is open)
@@ -351,19 +405,20 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
     const chatTabSelected = chatEnabled && state.isChatAssistantOpen;
     // a phone held upright: the assistant panel covers the viewer, so it has a button to go back to it
     const narrowScreen = useMediaQuery(`(max-width: ${WORKSPACE_PHONE_BELOW - 1}px)`);
-    // the assistant panel: in the Viewer with the 3D model always; in the Viewer with only the image and in the
-    // pipeline of a twin without viewer, only with the chat
-    const assistantPanelShown =
-        state.isAssistantPanelOpen &&
-        ((state.activeViewer === "3D" && viewerHasModel) ||
-            (chatTabSelected && (state.activeViewer === "3D" || showOnlyPipelineViewer)));
-    const chatVisible = assistantPanelShown && chatTabSelected;
+    // the side panel is the chat with the assistant: in the Viewer, and in the pipeline of a twin without viewer
+    // (the 3D model's settings are in its own panel: modelSettingsOpen)
+    const assistantPanelShown = state.isAssistantPanelOpen && chatEnabled && (state.activeViewer === "3D" || showOnlyPipelineViewer);
+    const chatVisible = assistantPanelShown;
+    // the settings of the 3D model, over the model in its panel (its gear); for everybody
+    const [modelSettingsOpen, setModelSettingsOpen] = useState(false);
+    // the Simulator panel shows the editor of its format (its Edit icon, for the group's editors and administrators)
+    const [simulatorEditing, setSimulatorEditing] = useState(false);
     const chatVisibleRef = useRef(chatVisible);
     chatVisibleRef.current = chatVisible;
     // con chat el panel lateral es más ancho y tiene el mismo ancho en todas las pestañas (el usuario lo
     // puede cambiar arrastrando su borde izquierdo y se conserva)
     const [chatWidth, setChatWidth] = usePersistentState<number>("assistantPanel.width", ASSISTANT_PANEL_CHAT_WIDTH);
-    const assistantPanelWidth = chatEnabled ? clampChatWidth(chatWidth) : ASSISTANT_PANEL_WIDTH;
+    const assistantPanelWidth = clampChatWidth(chatWidth);
     // respuesta del asistente que ha llegado sin estar el chat a la vista
     const [chatUnread, setChatUnread] = useState(false);
     useEffect(() => {
@@ -491,7 +546,14 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
     } = usePipelineState(digitalTwinSelected, natsClient, sim2stateTopic, setChatMessages);
 
     // Initialize FEM results logic
-    const femResults = useFemResults(digitalTwinSelected, legendRenderer, opts, fetchFemResFileWorker);
+    // the FEM results of the model shown: those of its slide
+    const femResults = useFemResults(
+        digitalTwinSelected,
+        legendRenderer,
+        opts,
+        fetchFemResFileWorker,
+        digitalTwinGltfData.gltfFile ? digitalTwinGltfData.slideId : undefined,
+    );
 
     // Update state with FEM results when they change
     useEffect(() => {
@@ -831,6 +893,8 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
         [simulatorFields],
     );
     const lastSimulatorValuesRef = useRef<string | null>(null);
+    // the slide shown: the values its simulator sends carry it ("$slide"), and the answers with it go to its panels
+    const shownSlideRef = useRef<string | null>(null);
 
     // 1. Send digital twin simulator state via NATS
     useLayoutEffect(() => {
@@ -838,7 +902,11 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
             if (digitalTwinModelNatsTopic && Object.keys(opts.digitalTwinSimulatorState).length !== 0) {
                 if (state.digitalTwinSimulatorSendData) {
                     const natsSubject = digitalTwinModelNatsTopic.natsSubject;
-                    const messageToSend = JSON.stringify(opts.digitalTwinSimulatorState);
+                    const messageToSend = JSON.stringify(
+                        shownSlideRef.current
+                            ? { ...opts.digitalTwinSimulatorState, [SLIDE_FIELD]: shownSlideRef.current }
+                            : opts.digitalTwinSimulatorState,
+                    );
                     if (lastNatsMessageSent !== messageToSend) {
                         const h = headers();
                         h.set("Content-Type", "application/json");
@@ -858,10 +926,10 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
                         current !== previous &&
                         current !== simulatorValuesKey(state.initialDigitalTwinSimulatorState) &&
                         current !== simulatorValuesKey(lastNatsMessageSent) &&
-                        !(chatVisible || state.showDtSimulatorModal || state.activeViewer === "pipeline")
+                        !(chatVisible || state.activeViewer === "pipeline")
                     ) {
                         toast.warning(
-                            "Warning: To use the digital twin simulator, reading the measurements from the sensors must be locked.",
+                            "To send these values to the digital twin, start the simulation in the Simulator panel.",
                             { toastId: "simulator-locked-warning" },
                         );
                     }
@@ -892,6 +960,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
         femResultNames: state.femResultNames,
         simulationFormat: digitalTwinGltfData.digitalTwinSimulationFormat,
         simulatorState: opts.digitalTwinSimulatorState,
+        slideId: digitalTwinGltfData.gltfFile ? digitalTwinGltfData.slideId : undefined,
     });
 
     // 2. Send chat assistant messages via NATS, on the user's own copy of the sim2llm topic: pipelines takes
@@ -1028,6 +1097,9 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
     // auth_callout denies them to a Viewer)
     const canSeePipelineLogs =
         !!digitalTwinSelected && groupsManagedTable.some((group) => group.id === digitalTwinSelected.groupId);
+    // the slide of the model shown: the messages of other slides do not move it
+    const modelSlideRef = useRef<string | undefined>(undefined);
+    modelSlideRef.current = digitalTwinGltfData.gltfFile ? digitalTwinGltfData.slideId : undefined;
     useNatsSubscription(
         natsClient,
         digitalTwinGltfData?.natsSubjectsData
@@ -1064,6 +1136,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
         handlePipelineLeaderReplicaIndexChange,
         handleSetChatMessages,
         loggedUserName,
+        modelSlideRef,
     );
 
     const [pipelineNodes, setPipelineNodes] = useState([] as IPipelineNode[]);
@@ -1112,7 +1185,8 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
                 // opened from a camera: its image full page (the 3D model one click away)
                 handlers.handleSetActiveViewer("3D");
                 setMaximizeFirstImage(true);
-            } else if (!viewerAvailable) {
+            } else if (!viewerAvailable || (!twinHasModels && !viewerHasImage && dtScope === "asset")) {
+                // nothing to see yet: the pipeline (an editor has the Viewer page one click away)
                 handlers.handleSetActiveViewer("pipeline");
             } else if (dtScope !== "asset") {
                 // a control room or the organization overview: they open with their panels
@@ -1210,12 +1284,17 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
     }, [digitalTwinSelected?.id]);
     const workspaceContext = useMemo(
         () => ({
-            hasModel: viewerHasModel,
+            // the automatic layout shows a 3D model only when the twin has one; a 3D Model panel can be added to any
+            // slide of an asset's twin (empty, its editors load the slide's model in it)
+            hasModel: dtScope === "asset" && twinHasModels,
+            modelPanels: dtScope === "asset" && (twinHasModels || canSaveLayout),
             hasCamera: viewerHasImage,
             controlRoom: dtScope === "group",
             organization: dtScope === "organization",
+            // the simulator floats over the automatic layout, and over the layouts saved before simulator panels
+            hasSimulator: dtScope === "asset" && Object.keys(digitalTwinGltfData.digitalTwinSimulationFormat ?? {}).length > 0,
         }),
-        [viewerHasModel, viewerHasImage, dtScope],
+        [twinHasModels, canSaveLayout, viewerHasImage, dtScope, digitalTwinGltfData.digitalTwinSimulationFormat],
     );
     const { layout: shownLayout, origin: layoutOrigin } = useMemo(
         () => effectiveWorkspaceLayout(localLayout, savedLayout?.layout, workspaceContext),
@@ -1224,6 +1303,21 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
     const editingLayout = draftLayout !== null;
     const workspaceLayout = draftLayout ?? shownLayout;
     const currentSlide = currentSlideOf(workspaceLayout, slideId, hiddenSlides);
+    // the 3D model shown is that of the slide shown (DigitalTwin3DViewer loads it); a slide without a 3D Model panel
+    // keeps the last one
+    const currentSlideHasModelPanel = currentSlide.panels.some((panel) => panel.type === "model");
+    shownSlideRef.current = currentSlide.id;
+    // the simulator of the slide shown, with its own format or the twin's (DigitalTwin3DViewer gives it as the
+    // twin's data's format: the sliders, the values sent and what the AI agent is told follow it)
+    const slideSimulatorFormat = currentSlide.panels.find((panel) => panel.type === "simulator")?.format ?? null;
+    const slideSimulatorFormatKey = slideSimulatorFormat ? JSON.stringify(slideSimulatorFormat) : "";
+    useEffect(() => {
+        onSlideSimulatorFormat?.(slideSimulatorFormat);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [onSlideSimulatorFormat, slideSimulatorFormatKey]);
+    useEffect(() => {
+        onShownSlide?.(currentSlideHasModelPanel ? currentSlide.id : null);
+    }, [onShownSlide, currentSlide.id, currentSlideHasModelPanel]);
     // the scene is loaded when some slide shows the model
     const layoutHasModel = workspaceLayout.slides.some((slide) => slide.panels.some((panel) => panel.type === "model"));
     const goToSlide = useCallback((id: string) => {
@@ -1322,7 +1416,8 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
     // the viewer configuration (.json): the layout shown (the one being edited, if any) and the lighting shown
     // with the images of its Picture panels, a .zip
     const configImageNames = useMemo(() => layoutImageNames(workspaceLayout), [workspaceLayout]);
-    const downloadConfig = async () => {
+    // the viewer configuration as a file: a .json, or a .zip with the images of its Picture panels
+    const buildConfigFile = async (): Promise<DataFile> => {
         const now = new Date();
         const config = buildViewerConfig({
             layout: workspaceLayout,
@@ -1333,8 +1428,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
         });
         const fileName = viewerConfigFileName(digitalTwinSelected?.digitalTwinUid, now);
         if (configImageNames.length === 0 || !digitalTwinSelected) {
-            downloadViewerConfig(config, fileName);
-            return;
+            return { name: fileName, data: new Blob([viewerConfigText(config)], { type: "application/json" }) };
         }
         const images: PackageImage[] = [];
         const missing: string[] = [];
@@ -1344,8 +1438,294 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
             else missing.push(name);
         }
         if (missing.length > 0) toast.warning(`Images not found, left out of the zip: ${missing.join(", ")}`);
-        downloadViewerPackage(fileName, viewerConfigText(config), images);
+        const zip = buildViewerPackage("viewer_config.json", viewerConfigText(config), images);
+        return { name: fileName.replace(/\.json$/i, "") + ".zip", data: new Blob([zip as BlobPart], { type: "application/zip" }) };
     };
+    const downloadConfig = async () => {
+        const file = await buildConfigFile();
+        downloadBlob(file.data, file.name);
+    };
+
+    // ---------------------------------------------------------------------------------------------------------
+    // Viewer data (viewerData.ts): load the .zip of all of it (or loose parts), download it all or a part
+    const viewerDataInputRef = useRef<HTMLInputElement>(null);
+    const [viewerDataLoad, setViewerDataLoad] = useState<{ set: ViewerDataSet; source: string } | null>(null);
+    const [viewerDataStates, setViewerDataStates] = useState<ItemState[] | null>(null);
+    const [viewerDataBusy, setViewerDataBusy] = useState<string | null>(null);
+    const [femCount, setFemCount] = useState<number | null>(null);
+    const twinRef = digitalTwinSelected ? { groupId: digitalTwinSelected.groupId, digitalTwinId: digitalTwinSelected.id } : null;
+    // the slide whose 3D model is shown: its files (each slide has its own model and FEM results)
+    const modelSlideId = viewerHasModel ? digitalTwinGltfData.slideId : undefined;
+    const slideRef = twinRef && modelSlideId ? { ...twinRef, slideId: modelSlideId } : null;
+    const readFemCount = () => {
+        if (!slideRef) return;
+        void listFemResults(slideRef, layoutAuth).then((list) => setFemCount(list.length));
+    };
+    // the slide where a model is loaded from its panel (the empty 3D Model panel, or the Files tab of its settings)
+    const slideModelInput = useRef<HTMLInputElement>(null);
+    const [modelLoadSlide, setModelLoadSlide] = useState<string | null>(null);
+    const openViewerDataPicker = () => viewerDataInputRef.current?.click();
+    // the Viewer data menu takes the .zip of all the viewer data (every slide's model with it) and a configuration;
+    // the panels take their own files: a 3D Model panel its slide's model and FEM results ("model"), the Simulator
+    // its format ("panel")
+    const onViewerDataFiles = async (files: File[], from: "menu" | "panel" | "model" = "menu") => {
+        if (files.length === 0) return;
+        setViewerDataBusy("Reading files…");
+        setModelLoadSlide(from === "model" ? currentSlide.id : null);
+        try {
+            // a File is a Blob: nothing is read into memory here (the .zip is read entry by entry)
+            const dataFiles: DataFile[] = files.map((file) => ({ name: file.name, data: file, lastModified: file.lastModified }));
+            const set = await readViewerDataFiles(dataFiles, {
+                loosePipeline: false,
+                looseSimulator: from === "panel",
+                looseModel: from === "model",
+            });
+            setViewerDataStates(null);
+            setViewerDataLoad({ set, source: files.length === 1 ? files[0].name : `${files.length} files` });
+        } catch (error) {
+            toast.error(`The files could not be read: ${error instanceof Error ? error.message : String(error)}`);
+        } finally {
+            setViewerDataBusy(null);
+        }
+    };
+    const loadViewerData = async (items: ViewerDataItem[]) => {
+        if (!twinRef || !viewerDataLoad) return;
+        const all = viewerDataLoad.set.items;
+        const states: ItemState[] = all.map((item) => ({ status: items.includes(item) ? "waiting" : "done" }));
+        setViewerDataStates(states);
+        setViewerDataBusy("Loading viewer data…");
+        const { loaded } = await applyViewerData(twinRef, items, {
+            auth: layoutAuth,
+            // a model without a slide of its own (a .zip of an older version): the first slide with a 3D Model panel
+            slideId:
+                modelLoadSlide ??
+                workspaceLayout.slides.find((slide) => slide.panels.some((panel) => panel.type === "model"))?.id,
+            viewerSettings: digitalTwinSelected?.viewerSettings as Record<string, unknown> | null | undefined,
+            onStep: (item, fraction) => {
+                const i = all.indexOf(item);
+                setViewerDataStates((current) => {
+                    if (!current) return current;
+                    const next = [...current];
+                    // the previous one ended (loaded or not: applyViewerData says it at the end)
+                    for (let j = 0; j < i; j++) if (next[j].status === "loading") next[j] = { status: "done" };
+                    next[i] = { status: "loading", fraction };
+                    return next;
+                });
+            },
+        });
+        setViewerDataStates(all.map((item) => (items.includes(item) ? { status: loaded.includes(item) ? "done" : "failed" } : { status: "done" })));
+        setViewerDataBusy(null);
+        if (loaded.length > 0) {
+            refreshDigitalTwins();
+            readFemCount();
+            // the model, the FEM results, the layout and the formats come again with the twin
+            onReloadDigitalTwin?.();
+        }
+    };
+    const downloadFile = (file: DataFile) => downloadBlob(file.data, file.name);
+    const percent = (fraction: number) => `${Math.round(Math.min(1, fraction) * 100)}%`;
+    // the simulator format written in the Simulator panel: saved like a loaded file, then the twin is read again
+    // the format of the slide's simulator (written in its panel, or uploaded): in the layout, with its slide; saved
+    // for the group at once, or with the layout being edited
+    const setSlideSimulatorFormat = (format: Record<string, SimulatorParameter>) => {
+        const deck = draftLayout ?? shownLayout;
+        const slide = deck.slides.find((sl) => sl.id === currentSlide.id);
+        if (!slide) return;
+        const next = replaceSlide(deck, setSimulatorFormat(slide, format));
+        if (draftLayout) setDraftLayout(next);
+        else changeSlides(next, currentSlide.id);
+    };
+    const saveEditedSimulatorFormat = async (format: Record<string, unknown>) => {
+        const clean = sanitizeSimulatorFormat(format);
+        if (!clean) return false;
+        setSlideSimulatorFormat(clean);
+        setSimulatorEditing(false);
+        return true;
+    };
+    const uploadSlideSimulatorFormat = async (file: File) => {
+        const text = await file.text();
+        const format = sanitizeSimulatorFormat(simulatorFormatOf(text));
+        if (!format) {
+            toast.error(`${file.name}: each parameter needs label, units, minValue, maxValue, defaultValue and step (min < default ≤ max, step > 0)`);
+            return;
+        }
+        setSlideSimulatorFormat(format);
+        toast.success(`${file.name}: the simulator format of this slide`);
+    };
+    // the simulator format, from the Simulator panel
+    const downloadSimulatorFormat = () => {
+        const format = digitalTwinGltfData.digitalTwinSimulationFormat ?? {};
+        if (Object.keys(format).length === 0) return;
+        const uid = digitalTwinSelected?.digitalTwinUid ?? "digital_twin";
+        downloadFile({ name: `simulator_format_${uid}.json`, data: new Blob([JSON.stringify(format, null, 2)], { type: "application/json" }) });
+    };
+    const downloadViewerDataPart = async (part: ViewerDataPart) => {
+        if (!twinRef || !digitalTwinSelected) return;
+        const uid = digitalTwinSelected.digitalTwinUid;
+        if (part === "config") return downloadConfig();
+        setViewerDataBusy(part === "model" ? "Downloading 3D model…" : "Downloading FEM results…");
+        try {
+            if (part === "model") {
+                if (!slideRef) return;
+                const model = await fetchModel(slideRef, digitalTwinGltfData.gltfFileName ?? "", layoutAuth, (f) =>
+                    setViewerDataBusy(`Downloading 3D model… ${percent(f)}`),
+                );
+                if (model) downloadFile(model);
+            } else if (part === "fem") {
+                if (!slideRef) return;
+                const files = await fetchFemResults(slideRef, layoutAuth);
+                if (files.length === 1) downloadFile(files[0]);
+                else if (files.length > 1) {
+                    const zipped = await writeZip(files.map((f) => ({ path: f.name, data: f.data, deflate: f.data.size <= 50 * 1024 * 1024 })));
+                    downloadFile({ name: `fem_results_${uid}.zip`, data: zipped });
+                }
+            }
+        } finally {
+            setViewerDataBusy(null);
+        }
+    };
+    const downloadAllViewerData = async () => {
+        if (!twinRef || !digitalTwinSelected) return;
+        setViewerDataBusy("Preparing the zip…");
+        try {
+            const now = new Date();
+            const config = await buildConfigFile();
+            // the model and FEM results of every slide
+            const slides: SlideFiles[] = [];
+            const models = Object.entries(digitalTwinGltfData.slideModels ?? {});
+            for (const [index, [slideId, info]] of models.entries()) {
+                const ref = { ...twinRef, slideId };
+                const step = `(${index + 1}/${models.length})`;
+                const model = info.gltfFileName
+                    ? await fetchModel(ref, info.gltfFileName, layoutAuth, (f) => setViewerDataBusy(`Downloading 3D models ${step}… ${percent(f)}`))
+                    : null;
+                setViewerDataBusy(`Downloading FEM results ${step}…`);
+                const fem = info.femResults > 0 ? await fetchFemResults(ref, layoutAuth) : [];
+                slides.push({ slideId, model, fem });
+            }
+            setViewerDataBusy("Preparing the zip…");
+            const zip = await buildViewerDataZip(
+                {
+                    config,
+                    slides,
+                    // the twin's own format (those of the slides are in the layout of the configuration)
+                    simulator: (digitalTwinGltfData.twinSimulationFormat ?? digitalTwinGltfData.digitalTwinSimulationFormat) as unknown as Record<string, unknown>,
+                    pipelineYaml: pipelineYamlOf(digitalTwinSelected.pipelineFileData),
+                },
+                { digitalTwinUid: digitalTwinSelected.digitalTwinUid, description: digitalTwinSelected.description, now },
+                (f) => setViewerDataBusy(`Preparing the zip… ${percent(f)}`),
+            );
+            downloadFile({ name: VIEWER_DATA_FILE_NAME(digitalTwinSelected.digitalTwinUid, now), data: zip });
+        } catch (error) {
+            toast.error(`The zip could not be made: ${error instanceof Error ? error.message : String(error)}`);
+        } finally {
+            setViewerDataBusy(null);
+        }
+    };
+    const removeViewerModel = async () => {
+        if (!slideRef) return;
+        setViewerDataBusy("Removing 3D model…");
+        const ok = await removeTwinModel(slideRef, layoutAuth);
+        setViewerDataBusy(null);
+        if (ok) {
+            toast.success("The 3D model has been removed");
+            refreshDigitalTwins();
+            onReloadDigitalTwin?.();
+        }
+    };
+    const saveFemMax = async (max: number) => {
+        if (!twinRef) return;
+        if (await setMaxFemResults(twinRef, max, layoutAuth)) {
+            toast.success(`The digital twin keeps its ${max} newest FEM result files`);
+            refreshDigitalTwins();
+            readFemCount();
+        }
+    };
+
+    // ---------------------------------------------------------------------------------------------------------
+    // The 3D model's settings, over the model in its panel: opened with the gear of the panel (also in full screen)
+    const toggleModelSettings = () => {
+        if (!modelSettingsOpen && state.lockReadingButtomLabel !== BUTTON_LABELS.UNLOCK_READ_MEASUREMENTS) {
+            // the simulator shows the last measurements, unless the reading is locked: then it keeps the values being
+            // simulated (set in the Sim tab or by the AI agent)
+            handlers.handleGetLastMeasurementsButton();
+        }
+        setModelSettingsOpen((open) => !open);
+    };
+    const panelActions = (panel: WorkspacePanel): PanelAction[] =>
+        panel.type === "simulator"
+            ? canSaveLayout
+                ? [
+                      {
+                          label: simulatorEditing ? "Close the editor of the simulator format" : "Edit the simulator parameters",
+                          icon: <Pencil aria-hidden="true" />,
+                          active: simulatorEditing,
+                          onClick: () => setSimulatorEditing((editing) => !editing),
+                      },
+                      {
+                          label: "Upload a simulator format (.json or .yaml)",
+                          icon: <Upload aria-hidden="true" />,
+                          onClick: () => simulatorFormatInput.current?.click(),
+                      },
+                      ...(Object.keys(digitalTwinGltfData.digitalTwinSimulationFormat ?? {}).length > 0
+                          ? [{ label: "Download the simulator format", icon: <Download aria-hidden="true" />, onClick: downloadSimulatorFormat }]
+                          : []),
+                  ]
+                : []
+            : panel.type === "model" && viewerHasModel
+            ? [
+                  {
+                      label: modelSettingsOpen ? "Close the 3D model settings" : "3D model settings",
+                      icon: <SlidersHorizontal aria-hidden="true" />,
+                      active: modelSettingsOpen,
+                      onClick: toggleModelSettings,
+                  },
+              ]
+            : [];
+    const modelSettingsView =
+        modelSettingsOpen && viewerHasModel ? (
+            <AssistantPanel
+                placement="panel"
+                fullWidth={workspacePhone}
+                onClose={() => setModelSettingsOpen(false)}
+                opts={opts}
+                setOpts={setOpts}
+                sensorObjects={state.sensorObjects}
+                sensorCollectionNames={state.sensorCollectionNames}
+                assetObjects={state.assetObjects}
+                assetCollectionNames={state.assetCollectionNames}
+                genericObjects={state.genericObjects}
+                genericObjectCollectionNames={state.genericObjectCollectionNames}
+                femSimulationObjects={state.femSimulationObjects}
+                femSimObjectCollectionNames={state.femSimObjectCollectionNames}
+                femResultDates={state.femResultDates}
+                femResultNames={state.femResultNames}
+                digitalTwinSimulationFormat={digitalTwinGltfData.digitalTwinSimulationFormat}
+                getLastMeasurementsButtomLabel={state.getLastMeasurementsButtomLabel}
+                lockReadingButtomLabel={state.lockReadingButtomLabel}
+                handleGetLastMeasurementsButton={handlers.handleGetLastMeasurementsButton}
+                handleLockReadMeasurementsButtonClick={handlers.handleLockReadMeasurementsButtonClick}
+                twinLighting={savedTwinLighting}
+                onSaveLighting={digitalTwinSelected && canSaveLayout ? handleSaveLighting : undefined}
+                savingLighting={savingLighting}
+                filesContent={
+                    canSaveLayout ? (
+                        <ModelFilesTab
+                            model={digitalTwinGltfData.gltfFileName || null}
+                            femCount={femCount}
+                            femMax={Number(digitalTwinSelected?.maxNumResFemFiles) || 1}
+                            busy={viewerDataBusy}
+                            onShow={readFemCount}
+                            onLoadFiles={(files) => void onViewerDataFiles(files, "model")}
+                            onDownloadModel={() => void downloadViewerDataPart("model")}
+                            onRemoveModel={() => void removeViewerModel()}
+                            onDownloadFem={() => void downloadViewerDataPart("fem")}
+                            onSetFemMax={(max) => void saveFemMax(max)}
+                        />
+                    ) : undefined
+                }
+            />
+        ) : null;
     // a file chosen to load: a .json, or a .zip with the configuration and its images
     const openConfigFile = async (file: File) => {
         if (!isZipName(file.name)) {
@@ -1427,6 +1807,8 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
     // the values of the NATS messages for the Text panels: the topics they name (all of them while one is edited,
     // so that its editor offers their fields)
     const liveStore = useMemo(createLiveValueStore, []);
+    // the panels of the slide shown see its messages ("$slide") and those of no slide
+    const slideLiveStore = useMemo(() => scopedToSlide(liveStore, currentSlide.id), [liveStore, currentSlide.id]);
     const twinLiveTopics = useMemo(() => liveTopicRefs(digitalTwinGltfData?.natsSubjectsData ?? []), [digitalTwinGltfData?.natsSubjectsData]);
     // the same topics with what is known of them: the fields of the sensors of each dev2pdb topic
     const liveTopics = useMemo(() => {
@@ -1435,7 +1817,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
         return liveTopicsOf(digitalTwinGltfData?.natsSubjectsData ?? [], chartOptions, topicOfSensor);
     }, [digitalTwinGltfData?.natsSubjectsData, chartOptions, sensorsTable]);
     // the sounds the pipeline asks for (dtm2sim "sound"), while the user has the sound on
-    const viewerSound = useViewerSounds(liveStore, twinLiveTopics.includes(SOUND_TOPIC));
+    const viewerSound = useViewerSounds(slideLiveStore, twinLiveTopics.includes(SOUND_TOPIC));
     const shownLiveTopics = useMemo(() => {
         const sounds = soundTopics(viewerSound.enabled, twinLiveTopics);
         if (editingPanel?.type === "markdown" || editingPanel?.type === "picture" || editingPanel?.type === "surface") return twinLiveTopics;
@@ -1476,7 +1858,24 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
         });
         setEditingPanelId(null);
     };
-    const saveLayoutForGroup = async () => {
+    // Saving a layout without some slides, or without their 3D Model panels, removes their models' files: asked first
+    const [modelRemoval, setModelRemoval] = useState<{ lost: LostModel[]; proceed: () => void } | null>(null);
+    const checkModelRemoval = (next: WorkspaceLayout | null, proceed: () => void) => {
+        const lost = lostModels(savedLayout?.layout ?? null, next, workspaceLayout, digitalTwinGltfData.slideModels);
+        if (lost.length === 0) proceed();
+        else setModelRemoval({ lost, proceed });
+    };
+    // the twin's models changed (admin_api removed those of the slides gone): read again
+    const afterModelsRemoved = (removed: string[] | undefined) => {
+        if (!removed || removed.length === 0) return;
+        refreshDigitalTwins();
+        onReloadDigitalTwin?.();
+    };
+    const saveLayoutForGroup = () => {
+        if (!draftLayout) return;
+        checkModelRemoval(draftLayout, () => void saveLayoutForGroupNow());
+    };
+    const saveLayoutForGroupNow = async () => {
         if (!digitalTwinSelected || !draftLayout) return;
         setLayoutSaving(true);
         // the images of a .zip first, so that the layout finds them (not those uploaded since by hand, under the
@@ -1493,7 +1892,8 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
             void setPendingViewerImages(digitalTwinSelected.groupId, digitalTwinSelected.id, null);
             setPendingImages(null);
         }
-        const saved = await saveViewerLayout(digitalTwinSelected.groupId, digitalTwinSelected.id, draftLayout, layoutAuth);
+        // saved with simulator panels: from now on a simulator removed by the editor stays removed (withSimulatorPanel)
+        const saved = await saveViewerLayout(digitalTwinSelected.groupId, digitalTwinSelected.id, { ...draftLayout, simulatorPlaced: true }, layoutAuth);
         // the lighting of a configuration file loaded, with the layout
         if (saved && configLighting) {
             const lighting = lightingOf(opts);
@@ -1508,6 +1908,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
         setLocalLayout(null);
         setLocalTime(null);
         setDraftLayout(null);
+        afterModelsRemoved(saved.removedSlideModels);
     };
     // the others: their changes stay while the viewer is open (none when they are the group's layout again)
     const finishLayoutEdit = () => {
@@ -1518,7 +1919,11 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
         setDraftLayout(null);
     };
     // administrators: back to the automatic layout for the group; the others: back to the group's layout
-    const restoreLayout = async () => {
+    const restoreLayout = () => {
+        if (canSaveLayout) checkModelRemoval(null, () => void restoreLayoutNow());
+        else void restoreLayoutNow();
+    };
+    const restoreLayoutNow = async () => {
         // the lighting and the images of a configuration file not saved go back too
         dropPendingImages();
         if (configLighting) {
@@ -1532,10 +1937,53 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
             setLayoutSaving(false);
             if (!deleted) return;
             setSavedLayout({ layout: null });
+            if (deleted === "models removed") afterModelsRemoved(["removed"]);
         }
         setLocalLayout(null);
         setDraftLayout(null);
     };
+    // New, Duplicate and Delete slide out of the layout editing take effect at once: saved for the group by its
+    // administrators, kept while the viewer is open by the others (as their layout changes are)
+    const changeSlides = (next: WorkspaceLayout, goTo: string) => {
+        if (canSaveLayout) checkModelRemoval(next, () => void changeSlidesNow(next, goTo));
+        else void changeSlidesNow(next, goTo);
+    };
+    const changeSlidesNow = async (next: WorkspaceLayout, goTo: string) => {
+        if (canSaveLayout && digitalTwinSelected) {
+            setLayoutSaving(true);
+            const saved = await saveViewerLayout(digitalTwinSelected.groupId, digitalTwinSelected.id, { ...next, simulatorPlaced: true }, layoutAuth);
+            setLayoutSaving(false);
+            if (!saved) return;
+            setSavedLayout(saved);
+            setLocalLayout(null);
+            afterModelsRemoved(saved.removedSlideModels);
+        } else {
+            setLocalLayout(next);
+        }
+        goToSlide(goTo);
+    };
+    // A duplicated slide has its own copy of its source's model and FEM results (the group's editors and
+    // administrators: the others' slides are only theirs, and show no model of their own)
+    const duplicateCurrentSlide = async () => {
+        const copy = duplicateSlide(draftLayout ?? shownLayout, currentSlide.id);
+        if (copy.id === currentSlide.id) return;
+        const source = digitalTwinGltfData.slideModels?.[currentSlide.id];
+        if (source && canSaveLayout && twinRef) {
+            setViewerDataBusy("Copying the 3D model…");
+            const copied = await copySlideModel(twinRef, currentSlide.id, copy.id, layoutAuth);
+            setViewerDataBusy(null);
+            if (!copied) return;
+            onReloadDigitalTwin?.();
+        }
+        if (draftLayout) {
+            setDraftLayout(copy.layout);
+            goToSlide(copy.id);
+        } else changeSlides(copy.layout, copy.id);
+    };
+    // the Add panel dialog, opened from the slide bar
+    const [addingPanel, setAddingPanel] = useState(false);
+    // the simulator format, from the Upload icon of the Simulator panel's bar
+    const simulatorFormatInput = useRef<HTMLInputElement>(null);
     const [logsWidth, setLogsWidth] = usePersistentState<number>("pipelineLogs.width", PIPELINE_LOGS_WIDTH);
     const pipelineLogsWidth = clampLogsWidth(logsWidth);
     // "Show in flow": Flow registers here the function that centres the canvas on a node
@@ -1602,9 +2050,11 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 
     // The 3D model, rendered once and moved into the model panel of the slide shown (ModelSlot): changing the
     // slide does not reload the scene, and several slides can show the model.
+    // a new scene for each model (the model of another slide, or a new upload): its objects are read again
+    const modelKey = `${digitalTwinGltfData.slideId ?? ""}|${digitalTwinGltfData.digitalTwinGltfUrl ?? ""}`;
     const modelView = viewerHasModel ? (
                     <>
-                    <div style={{ position: "absolute", inset: 0 }} data-testid="viewer-model-canvas">
+                    <div key={modelKey} style={{ position: "absolute", inset: 0 }} data-testid="viewer-model-canvas">
                     <Canvas
                         ref={canvasRef}
                         dpr={window.devicePixelRatio}
@@ -1667,7 +2117,11 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
                             showAxes={opts.showAxes}
                             axesScale={opts.axesScale}
                             femResultLoaded={state.femResultLoaded}
-                            initialView={memory.camera}
+                            initialView={
+                                digitalTwinGltfData.slideId
+                                    ? getViewerMemory(dtUid).cameras?.[digitalTwinGltfData.slideId]
+                                    : memory.camera
+                            }
                             onBounds={handleSceneBounds}
                         >
                             <Model
@@ -1779,7 +2233,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
                             onFovRequest={(fov) => setOpts((prev) => ({ ...prev, cameraFov: fov }))}
                         />
                         <OrbitControls ref={controlsRef} mouseButtons={MOUSE_BUTTONS} />
-                        <CameraMemory dtUid={dtUid} controlsRef={controlsRef} />
+                        <CameraMemory dtUid={dtUid} slideId={digitalTwinGltfData.slideId} controlsRef={controlsRef} />
                     </Canvas>
                     </div>
                     {followStatus.active && (
@@ -1834,6 +2288,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
             {modelView && layoutHasModel && createPortal(modelView, modelHost)}
             {digitalTwinSelected && digitalTwinGltfData && digitalTwinGltfData.digitalTwinGltfUrl && (
                 <SetGltfObjects
+                    key={modelKey}
                     digitalTwinGltfData={digitalTwinGltfData}
                     setSensorObjects={(objects) => setState((prev) => ({ ...prev, sensorObjects: objects }))}
                     setSensorCollectionNames={(names) =>
@@ -1882,12 +2337,14 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 
             <CanvasContainer ref={canvasContainerRef} style={scrollMinHeight ? { minHeight: scrollMinHeight } : undefined}>
                 <ViewerWorkspace
+                    onLoadViewerData={canSaveLayout && !twinHasModels ? openViewerDataPicker : undefined}
                     layout={currentSlide}
                     origin={layoutOrigin}
                     editing={editingLayout}
                     canSave={canSaveLayout}
                     saving={layoutSaving}
-                    hasModel={viewerHasModel}
+                    // a 3D Model panel per slide: each slide has its own model (loaded in its panel)
+                    hasModel={!!workspaceContext.modelPanels}
                     controlRoom={dtScope === "group"}
                     organization={dtScope === "organization"}
                     imageSources={imageSources}
@@ -1897,7 +2354,8 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
                     style={{ left: VIEWER_GAP, top: panelsTop, right: viewerRightInset, bottom: VIEWER_GAP }}
                     onLayoutChange={(slide) => setDraftLayout(replaceSlide(draftLayout ?? shownLayout, slide))}
                     slideBar={
-                        (workspaceLayout.slides.length > 1 || editingLayout) && (
+                        // always: with one slide too, it is where the layout is edited
+                        (
                             <SlideBar
                                 slides={visibleSlides(workspaceLayout, hiddenSlides)}
                                 allSlides={workspaceLayout.slides}
@@ -1907,30 +2365,48 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
                                 phone={workspacePhone}
                                 onGo={goToSlide}
                                 onStep={(delta) => goToSlide(stepSlide(workspaceLayout, currentSlide.id, delta, hiddenSlides))}
+                                // out of the editing they take effect at once (changeSlides); while editing, in the draft
                                 onAdd={() => {
                                     const added = addSlide(draftLayout ?? shownLayout, currentSlide.id);
-                                    setDraftLayout(added.layout);
-                                    goToSlide(added.id);
+                                    if (draftLayout) {
+                                        setDraftLayout(added.layout);
+                                        goToSlide(added.id);
+                                    } else void changeSlides(added.layout, added.id);
                                 }}
-                                onDuplicate={() => {
-                                    const copy = duplicateSlide(draftLayout ?? shownLayout, currentSlide.id);
-                                    setDraftLayout(copy.layout);
-                                    goToSlide(copy.id);
-                                }}
+                                onDuplicate={() => void duplicateCurrentSlide()}
                                 onRemove={() => {
                                     const rest = removeSlide(draftLayout ?? shownLayout, currentSlide.id);
-                                    setDraftLayout(rest.layout);
-                                    goToSlide(rest.id);
+                                    if (draftLayout) {
+                                        setDraftLayout(rest.layout);
+                                        goToSlide(rest.id);
+                                    } else void changeSlides(rest.layout, rest.id);
                                 }}
                                 onMove={(delta) => setDraftLayout(moveSlide(draftLayout ?? shownLayout, currentSlide.id, delta))}
                                 onUpdate={(patch) => setDraftLayout(updateSlide(draftLayout ?? shownLayout, currentSlide.id, patch))}
                                 onOverview={() => setSlidesOverview(true)}
+                                canEdit={inViewer && !workspacePhone}
+                                canSave={canSaveLayout}
+                                saving={layoutSaving}
+                                restoreLabel={
+                                    canSaveLayout
+                                        ? editingLayout && layoutOrigin !== "automatic"
+                                            ? "Automatic layout"
+                                            : null
+                                        : layoutOrigin === "local"
+                                        ? "Group layout"
+                                        : null
+                                }
+                                onEdit={startLayoutEdit}
+                                onAddPanel={() => setAddingPanel(true)}
+                                onCancel={cancelLayoutEdit}
+                                onSave={() => void saveLayoutForGroup()}
+                                onDone={finishLayoutEdit}
+                                onRestore={() => void restoreLayout()}
                             />
                         )
                     }
                     overlay={
-                        slidesOverview &&
-                        (workspaceLayout.slides.length > 1 || editingLayout) && (
+                        slidesOverview && (
                             <AllSlides
                                 slides={workspaceLayout.slides}
                                 currentId={currentSlide.id}
@@ -1956,8 +2432,29 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
                     onRestore={restoreLayout}
                     onPhoneChange={setWorkspacePhone}
                     onEditPanel={editPanel}
+                    panelActions={panelActions}
+                    addingPanel={addingPanel}
+                    onAddingPanelChange={setAddingPanel}
                     renderPanel={(panel: WorkspacePanel) =>
-                        panel.type === "orgOverview" ? (
+                        panel.type === "simulator" ? (
+                            simulatorEditing && canSaveLayout ? (
+                                <SimulatorFormatEditor
+                                    format={digitalTwinGltfData.digitalTwinSimulationFormat ?? {}}
+                                    onSave={saveEditedSimulatorFormat}
+                                    onCancel={() => setSimulatorEditing(false)}
+                                />
+                            ) : (
+                            <SimulatorPanel
+                                format={digitalTwinGltfData.digitalTwinSimulationFormat ?? {}}
+                                values={opts.digitalTwinSimulatorState}
+                                simulating={state.lockReadingButtomLabel === BUTTON_LABELS.UNLOCK_READ_MEASUREMENTS}
+                                onChange={handlers.updateDigitalTwinSimulatorState}
+                                onToggleSimulation={handlers.handleLockReadMeasurementsButtonClick}
+                                onGetLastMeasurements={handlers.handleGetLastMeasurementsButton}
+                                canEdit={canSaveLayout}
+                            />
+                            )
+                        ) : panel.type === "orgOverview" ? (
                             dtScope === "organization" && digitalTwinSelected ? (
                                 <OrgOverviewPanel
                                     panel={panel}
@@ -2044,16 +2541,27 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
                                 </PageClock>
                             ) : null
                         ) : panel.type === "picture" ? (
-                            <PictureView file={panel.file} fit={panel.fit} bindings={panel.bindings} store={liveStore} load={pictureFiles?.load} subscribe={pictureFiles?.subscribe} />
+                            <PictureView file={panel.file} fit={panel.fit} bindings={panel.bindings} store={slideLiveStore} load={pictureFiles?.load} subscribe={pictureFiles?.subscribe} />
                         ) : panel.type === "markdown" ? (
-                            <MarkdownView text={panel.text ?? ""} store={liveStore} />
+                            <MarkdownView text={panel.text ?? ""} store={slideLiveStore} />
                         ) : panel.type === "surface" ? (
-                            <SurfaceView surface={panel.surface} store={liveStore} label={panel.title ?? "3D Surface"} />
+                            <SurfaceView surface={panel.surface} store={slideLiveStore} label={panel.title ?? "3D Surface"} />
                         ) : panel.type === "image" ? (
                             <ImageFrame frameStore={frameStore} source={panel.source ?? ANY_IMAGE_SOURCE} mode={panel.display === "photo" ? "photo" : "video"} />
-                        ) : viewerHasModel ? (
-                            <ModelSlot host={modelHost} />
-                        ) : null
+                        ) : viewerHasModel && digitalTwinGltfData.slideId === currentSlide.id ? (
+                            <>
+                                <ModelSlot host={modelHost} right={modelSettingsView && !workspacePhone ? MODEL_SETTINGS_INSET : undefined} />
+                                {modelSettingsView}
+                            </>
+                        ) : (
+                            <EmptyModelPanel
+                                loading={slideModelLoading}
+                                error={slideModelError}
+                                busy={viewerDataBusy}
+                                onLoad={canSaveLayout && !editingLayout ? () => slideModelInput.current?.click() : undefined}
+                                editing={editingLayout}
+                            />
+                        )
                     }
                 />
                 {state.activeViewer === "pipeline" && (
@@ -2125,6 +2633,17 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
                             onDownloadConfig={() => void downloadConfig()}
                             downloadImages={configImageNames.length}
                             onLoadConfig={(file) => void openConfigFile(file)}
+                            dataMenu={
+                                <ViewerDataMenu
+                                    canEdit={canSaveLayout}
+                                    busy={viewerDataBusy}
+                                    status={{ configImages: configImageNames.length }}
+                                    onLoadFiles={openViewerDataPicker}
+                                    onDownloadAll={() => void downloadAllViewerData()}
+                                    onDownloadPart={(part) => void downloadViewerDataPart(part)}
+                                    onOpenConfigFile={(file) => void openConfigFile(file)}
+                                />
+                            }
                         />
                         </>
                     }
@@ -2141,6 +2660,17 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
                     canEditPipeline={canSaveLayout || !viewerAvailable}
                 />
 
+                {modelRemoval && (
+                    <ModelRemovalDialog
+                        lost={modelRemoval.lost}
+                        onCancel={() => setModelRemoval(null)}
+                        onConfirm={() => {
+                            const { proceed } = modelRemoval;
+                            setModelRemoval(null);
+                            proceed();
+                        }}
+                    />
+                )}
                 {configLoad && (
                     <ViewerConfigDialog
                         fileName={configLoad.fileName}
@@ -2177,9 +2707,10 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
                     />
                 )}
 
-                {/* Panel del asistente (chat y ajustes del visor) */}
-                {assistantPanelShown && (
+                {/* The chat with the assistant, docked on the right of the Viewer */}
+                {assistantPanelShown && digitalTwinSelected && (
                     <AssistantPanel
+                        placement="side"
                         opts={opts}
                         setOpts={setOpts}
                         sensorObjects={state.sensorObjects}
@@ -2198,38 +2729,29 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
                         handleGetLastMeasurementsButton={handlers.handleGetLastMeasurementsButton}
                         handleLockReadMeasurementsButtonClick={handlers.handleLockReadMeasurementsButtonClick}
                         chatContent={
-                            digitalTwinSelected && chatEnabled ? (
-                                <ChatAssistant
-                                    embedded
-                                    visible={chatVisible}
-                                    chatMessages={chatMessages}
-                                    setChatMessages={setChatMessages}
-                                    chatAssistantLanguage={digitalTwinSelected.chatAssistantLanguage}
-                                    chatAssistantSecondLanguage={digitalTwinSelected.chatAssistantSecondLanguage}
-                                    chatAssistantVoiceLanguage={digitalTwinSelected.chatAssistantVoiceLanguage}
-                                    handleRemoveChatAssistantHistory={handleRemoveChatAssistantHistory}
-                                    voiceService={chatVoiceService}
-                                    attachmentService={chatAttachmentService}
-                                />
-                            ) : undefined
+                            <ChatAssistant
+                                embedded
+                                visible={chatVisible}
+                                chatMessages={chatMessages}
+                                setChatMessages={setChatMessages}
+                                chatAssistantLanguage={digitalTwinSelected.chatAssistantLanguage}
+                                chatAssistantSecondLanguage={digitalTwinSelected.chatAssistantSecondLanguage}
+                                chatAssistantVoiceLanguage={digitalTwinSelected.chatAssistantVoiceLanguage}
+                                handleRemoveChatAssistantHistory={handleRemoveChatAssistantHistory}
+                                voiceService={chatVoiceService}
+                                attachmentService={chatAttachmentService}
+                            />
                         }
-                        chatActive={chatTabSelected}
-                        onChatActiveChange={(active) => setState((prev) => ({ ...prev, isChatAssistantOpen: active }))}
-                        chatUnread={chatUnread}
-                        chatOnly={state.activeViewer !== "3D" || !viewerHasModel}
+                        chatActive
+                        chatOnly
                         width={assistantPanelWidth}
-                        onResizeWidth={chatEnabled ? setChatWidth : undefined}
+                        onResizeWidth={setChatWidth}
+                        onClose={narrowScreen ? undefined : () => setState((prev) => ({ ...prev, isAssistantPanelOpen: false }))}
                         onBackToViewer={
                             narrowScreen
                                 ? () => setState((prev) => ({ ...prev, isAssistantPanelOpen: false }))
                                 : undefined
                         }
-                        simulatorFloating={state.showDtSimulatorModal}
-                        onFloatSimulator={handlers.handleOpenSimulator}
-                        onDockSimulator={handlers.handleDockSimulator}
-                        twinLighting={savedTwinLighting}
-                        onSaveLighting={digitalTwinSelected ? handleSaveLighting : undefined}
-                        savingLighting={savingLighting}
                     />
                 )}
 
@@ -2246,21 +2768,10 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
                     />
                 )}
 
-                {/* Digital Twin Simulator Modal */}
-                {state.showDtSimulatorModal && (
-                    <DigitalTwinSimulatorModal
-                        digitalTwinSimulatorFormat={digitalTwinGltfData.digitalTwinSimulationFormat}
-                        values={opts.digitalTwinSimulatorState}
-                        updateDigitalTwinSimulatorState={handlers.updateDigitalTwinSimulatorState}
-                        onDock={handlers.handleDockSimulator}
-                        onStop={handlers.handleStopSimulator}
-                    />
-                )}
-
                 {editingPanel?.type === "picture" && pictureFiles && (
                     <PictureEditor
                         panel={editingPanel}
-                        store={liveStore}
+                        store={slideLiveStore}
                         topics={liveTopics}
                         files={pictureFiles}
                         onApply={applyPanel}
@@ -2270,10 +2781,59 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
                 {editingPanel?.type === "surface" && (
                     <SurfaceEditor
                         panel={editingPanel}
-                        store={liveStore}
+                        store={slideLiveStore}
                         topics={liveTopics}
                         onApply={applyPanel}
                         onDiscard={() => setEditingPanelId(null)}
+                    />
+                )}
+                <input
+                    ref={viewerDataInputRef}
+                    type="file"
+                    multiple
+                    hidden
+                    accept=".zip,.glb,.gltf,.json"
+                    data-testid="viewer-data-files"
+                    onChange={(e) => {
+                        const files = Array.from(e.target.files ?? []);
+                        e.target.value = "";
+                        void onViewerDataFiles(files);
+                    }}
+                />
+                <input
+                    ref={slideModelInput}
+                    type="file"
+                    hidden
+                    accept=".glb,.gltf,model/gltf-binary,model/gltf+json"
+                    data-testid="slide-model-file"
+                    onChange={(e) => {
+                        const files = Array.from(e.target.files ?? []);
+                        e.target.value = "";
+                        if (files.length > 0) void onViewerDataFiles(files, "model");
+                    }}
+                />
+                <input
+                    ref={simulatorFormatInput}
+                    type="file"
+                    hidden
+                    accept=".json,.yml,.yaml,application/json"
+                    data-testid="simulator-format-file"
+                    onChange={(e) => {
+                        const files = Array.from(e.target.files ?? []);
+                        e.target.value = "";
+                        if (files.length > 0) void uploadSlideSimulatorFormat(files[0]);
+                    }}
+                />
+                {viewerDataLoad && (
+                    <ViewerDataLoadDialog
+                        set={viewerDataLoad.set}
+                        source={viewerDataLoad.source}
+                        states={viewerDataStates}
+                        onLoad={(items) => void loadViewerData(items)}
+                        onClose={() => {
+                            setViewerDataLoad(null);
+                            setViewerDataStates(null);
+                        }}
                     />
                 )}
                 {editingPanel?.type === "orgOverview" && (
@@ -2304,7 +2864,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
                 {editingPanel?.type === "markdown" && (
                     <MarkdownEditor
                         panel={editingPanel}
-                        store={liveStore}
+                        store={slideLiveStore}
                         topics={liveTopics}
                         onApply={applyPanel}
                         onDiscard={() => setEditingPanelId(null)}
@@ -2329,6 +2889,48 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
                 )}
             </CanvasContainer>
         </>
+    );
+};
+
+// The Viewer with the 3D model of the slide it shows: each slide of the twin has its own (slideModel.ts). The scene
+// says which slide it shows; the model is read (browser storage, else admin_api) and given to it with the twin's data.
+const DigitalTwin3DViewer: FC<Viewer3DProps> = (props) => {
+    const { accessToken, refreshToken } = useAuthState();
+    const authDispatch = useAuthDispatch();
+    const twin = props.digitalTwinSelected;
+    // the slide remembered for this twin: its model starts loading at once
+    const [slide, setSlide] = useState<string | null>(() => getViewerMemory(twin?.digitalTwinUid ?? "").workspaceSlide ?? null);
+    const source = useMemo(
+        () =>
+            twin
+                ? {
+                      digitalTwinUid: twin.digitalTwinUid,
+                      groupId: twin.groupId,
+                      digitalTwinId: twin.id,
+                      auth: { accessToken, refreshToken, authDispatch },
+                  }
+                : null,
+        [twin, accessToken, refreshToken, authDispatch],
+    );
+    const { data: withModel, loading, error } = useSlideModel(props.digitalTwinGltfData, slide, source);
+    // the simulator of the slide shown: its own format, or the twin's
+    const [slideFormat, setSlideFormat] = useState<Record<string, SimulatorParameter> | null>(null);
+    const data = useMemo(
+        () =>
+            slideFormat
+                ? { ...withModel, digitalTwinSimulationFormat: slideFormat as any, twinSimulationFormat: withModel.digitalTwinSimulationFormat }
+                : withModel,
+        [withModel, slideFormat],
+    );
+    return (
+        <DigitalTwin3DViewerScene
+            {...props}
+            digitalTwinGltfData={data}
+            onShownSlide={setSlide}
+            onSlideSimulatorFormat={setSlideFormat}
+            slideModelLoading={loading}
+            slideModelError={error}
+        />
     );
 };
 

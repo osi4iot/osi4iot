@@ -49,6 +49,40 @@ describe("Viewer workspace", () => {
         expect(screen.queryByRole("button", { name: /Remove the panel/ })).toBeNull();
     });
 
+    it("shows a panel's own actions in its bar, out of the layout editing (the 3D model's settings)", () => {
+        width = 1200;
+        const onClick = vi.fn();
+        const panelActions = (panel: { type: string }) =>
+            panel.type === "model" ? [{ label: "3D model settings", icon: <span />, active: false, onClick }] : [];
+        const { rerender } = setup({ panelActions });
+        const button = within(screen.getByRole("region", { name: "3D model" })).getByRole("button", { name: "3D model settings" });
+        expect(button).toHaveAttribute("aria-pressed", "false");
+        fireEvent.click(button);
+        expect(onClick).toHaveBeenCalledTimes(1);
+        expect(within(screen.getByRole("region", { name: "Video" })).queryByRole("button", { name: "3D model settings" })).toBeNull();
+        rerender(
+            <ViewerWorkspace
+                layout={defaultWorkspaceLayout({ hasModel: true, hasCamera: true }).slides[0]}
+                origin="automatic"
+                editing
+                canSave
+                hasModel
+                imageSources={imageSourceOptions(["dtm2sim"], ["dtm2sim"])}
+                maximizedId={null}
+                renderPanel={(panel) => <div data-testid={`content-${panel.id}`} />}
+                onLayoutChange={vi.fn()}
+                onMaximize={vi.fn()}
+                onStartEdit={vi.fn()}
+                onCancelEdit={vi.fn()}
+                onSave={vi.fn()}
+                onDone={vi.fn()}
+                onRestore={vi.fn()}
+                panelActions={panelActions}
+            />,
+        );
+        expect(screen.queryByRole("button", { name: "3D model settings" })).toBeNull();
+    });
+
     it("covers the page with the full page panel and keeps the others mounted", () => {
         width = 1200;
         const { onMaximize, container } = setup({ maximizedId: "image" });
@@ -60,12 +94,13 @@ describe("Viewer workspace", () => {
 
     it("lets a group administrator remove, add and save panels", () => {
         width = 1200;
-        const { onLayoutChange, onSave } = setup({ editing: true });
-        expect(screen.getByRole("region", { name: "Edit layout" })).toHaveTextContent("Editing the layout of the group");
+        // Add panel, Cancel and Save are icons of the slide bar now (SlideBar): it opens the dialog through addingPanel
+        const onAddingPanelChange = vi.fn();
+        const { onLayoutChange } = setup({ editing: true, addingPanel: true, onAddingPanelChange });
+        expect(screen.queryByRole("region", { name: "Edit layout" })).toBeNull();
         fireEvent.click(screen.getByRole("button", { name: "Remove the panel Video" }));
         expect(onLayoutChange.mock.calls[0][0].panels.map((p: any) => p.id)).toEqual(["model"]);
 
-        fireEvent.click(screen.getByRole("button", { name: "Add panel" }));
         const dialog = screen.getByRole("dialog", { name: "Add panel" });
         expect(within(dialog).getByRole("radio", { name: /3D model/ })).toBeDisabled();
         expect(within(dialog).getByRole("combobox")).toHaveValue("dtm2sim");
@@ -73,9 +108,7 @@ describe("Viewer workspace", () => {
         fireEvent.click(within(dialog).getByRole("button", { name: "Add panel" }));
         const added = onLayoutChange.mock.calls[1][0].panels.at(-1);
         expect(added).toMatchObject({ type: "image", source: "dtm2sim", title: "Detections" });
-
-        fireEvent.click(screen.getByRole("button", { name: "Save for the group" }));
-        expect(onSave).toHaveBeenCalled();
+        expect(onAddingPanelChange).toHaveBeenCalledWith(false);
     });
 
     it("adds a chart of the asset's sensor fields", () => {
@@ -86,8 +119,7 @@ describe("Viewer workspace", () => {
             7,
         );
         const onEditPanel = vi.fn();
-        const { onLayoutChange } = setup({ editing: true, chartOptions, onEditPanel });
-        fireEvent.click(screen.getByRole("button", { name: "Add panel" }));
+        const { onLayoutChange } = setup({ editing: true, chartOptions, onEditPanel, addingPanel: true, onAddingPanelChange: vi.fn() });
         const dialog = screen.getByRole("dialog", { name: "Add panel" });
         fireEvent.click(within(dialog).getByRole("radio", { name: /Chart/ }));
         const add = within(dialog).getByRole("button", { name: "Add panel" });
@@ -113,17 +145,6 @@ describe("Viewer workspace", () => {
         fireEvent.click(screen.getByRole("button", { name: "Edit Rotor" }));
         expect(onEditPanel).toHaveBeenCalledWith("chart-1");
         expect(screen.getByLabelText("About: Rotor speed")).toBeInTheDocument();
-    });
-
-    it("tells the others their changes are only theirs", () => {
-        width = 1200;
-        const { onDone, onRestore } = setup({ editing: true, canSave: false, origin: "local" });
-        expect(screen.getByRole("region", { name: "Edit layout" })).toHaveTextContent("Your changes are only for you");
-        expect(screen.queryByRole("button", { name: "Save for the group" })).toBeNull();
-        fireEvent.click(screen.getByRole("button", { name: "Group layout" }));
-        expect(onRestore).toHaveBeenCalled();
-        fireEvent.click(screen.getByRole("button", { name: "Done" }));
-        expect(onDone).toHaveBeenCalled();
     });
 
     it("shows one panel at a time with tabs on a phone", () => {
@@ -176,5 +197,105 @@ describe("Viewer workspace full screen", () => {
         expect(container.querySelector(".ws-fs")).toContainElement(screen.getByTestId("content-model"));
         fireEvent.keyDown(document, { key: "Escape" });
         expect(container.querySelector(".ws-fs")).toBeNull();
+    });
+});
+
+describe("Viewer workspace: floating panels (the simulator)", () => {
+    const simSlide = (floating: boolean) => ({
+        panels: [
+            { id: "model", type: "model" as const, x: 0, y: 0, w: 8, h: 12 },
+            { id: "sim", type: "simulator" as const, x: 8, y: 0, w: 4, h: 8, floating },
+        ],
+    });
+
+    it("stays in its place of the grid; floating, it is shown over another panel in full page", () => {
+        width = 1200;
+        const { rerender } = setup({ layout: simSlide(true) as any });
+        // in the grid, and nothing over it
+        expect(screen.getByRole("region", { name: "Simulator" })).toBeInTheDocument();
+        expect(screen.queryByTestId("floating-sim")).toBeNull();
+        const float = screen.getByRole("button", { name: "Floating over the 3D model or a panel of the simulation in full screen: turn it off" });
+        expect(float).toHaveAttribute("aria-pressed", "true");
+        rerender(
+            <ViewerWorkspace
+                layout={simSlide(true) as any}
+                origin="automatic"
+                editing={false}
+                canSave
+                hasModel
+                imageSources={imageSourceOptions(["dtm2sim"], ["dtm2sim"])}
+                maximizedId="model"
+                renderPanel={(panel) => <div data-testid={`content-${panel.id}`} />}
+                onLayoutChange={vi.fn()}
+                onMaximize={vi.fn()}
+                onStartEdit={vi.fn()}
+                onCancelEdit={vi.fn()}
+                onSave={vi.fn()}
+                onDone={vi.fn()}
+                onRestore={vi.fn()}
+            />,
+        );
+        const frame = screen.getByTestId("floating-sim");
+        expect(within(frame).getByRole("region", { name: "Simulator" })).toBeInTheDocument();
+        // not movable: no full page / full screen of its own there
+        expect(within(frame).queryByRole("button", { name: /full page/ })).toBeNull();
+    });
+
+    it("does not float over a panel that does not show the simulation", () => {
+        width = 1200;
+        const layout = {
+            panels: [
+                { id: "model", type: "model" as const, x: 0, y: 0, w: 6, h: 12 },
+                { id: "cam", type: "alarms" as const, x: 6, y: 0, w: 2, h: 6 },
+                { id: "sim", type: "simulator" as const, x: 8, y: 0, w: 4, h: 8, floating: true },
+            ],
+        };
+        setup({ layout: layout as any, maximizedId: "cam" });
+        expect(screen.queryByTestId("floating-sim")).toBeNull();
+    });
+
+    it("over the panel in full page it moves by its bar and resizes from its corner, inside the area", () => {
+        width = 1200;
+        const rect = vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockReturnValue({
+            x: 0, y: 0, left: 0, top: 0, right: 1000, bottom: 500, width: 1000, height: 500, toJSON: () => ({}),
+        } as DOMRect);
+        try {
+            setup({ layout: simSlide(true) as any, maximizedId: "model" });
+            const frame = () => screen.getByTestId("floating-sim");
+            const bar = () => within(frame()).getByRole("heading", { name: "Simulator" });
+            const left0 = parseFloat(frame().style.left);
+            fireEvent.pointerDown(bar(), { clientX: 500, clientY: 100 });
+            fireEvent.pointerMove(document, { clientX: 400, clientY: 150 });
+            fireEvent.pointerUp(document);
+            expect(parseFloat(frame().style.left)).toBeCloseTo(left0 - 10, 5);
+            // past the edge: kept inside
+            fireEvent.pointerDown(bar(), { clientX: 0, clientY: 0 });
+            fireEvent.pointerMove(document, { clientX: -5000, clientY: 0 });
+            fireEvent.pointerUp(document);
+            expect(frame().style.left).toBe("0%");
+            // resized from its corner
+            const w0 = parseFloat(frame().style.width);
+            fireEvent.pointerDown(screen.getByTestId("resize-sim"), { clientX: 0, clientY: 0 });
+            fireEvent.pointerMove(document, { clientX: 100, clientY: 0 });
+            fireEvent.pointerUp(document);
+            expect(parseFloat(frame().style.width)).toBeCloseTo(w0 + 10, 5);
+        } finally {
+            rect.mockRestore();
+        }
+    });
+
+    it("its float icon is the user's own while not editing, and the layout's while an editor edits it", () => {
+        width = 1200;
+        const { onLayoutChange } = setup({ layout: simSlide(true) as any });
+        fireEvent.click(screen.getByRole("button", { name: "Floating over the 3D model or a panel of the simulation in full screen: turn it off" }));
+        expect(onLayoutChange).not.toHaveBeenCalled();
+        expect(screen.getByRole("button", { name: "Float over the 3D model or a panel of the simulation in full screen" })).toHaveAttribute("aria-pressed", "false");
+    });
+
+    it("while an editor edits the layout, the float icon changes the layout", () => {
+        width = 1200;
+        const { onLayoutChange } = setup({ layout: simSlide(false) as any, editing: true });
+        fireEvent.click(screen.getByRole("button", { name: "Float over the 3D model or a panel of the simulation in full screen" }));
+        expect(onLayoutChange.mock.calls[0][0].panels.find((p: any) => p.id === "sim")).toMatchObject({ floating: true });
     });
 });

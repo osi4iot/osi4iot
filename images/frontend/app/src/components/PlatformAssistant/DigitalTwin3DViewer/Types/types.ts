@@ -38,6 +38,8 @@ export interface Viewer3DProps {
     assetName?: string;
     // opens the asset switcher (Ctrl K)
     onOpenAssetSwitcher?: () => void;
+    // opens the twin again (its 3D model, its data and its layout), after its Viewer data changed
+    onReloadDigitalTwin?: () => void;
 }
 
 export interface ViewerState {

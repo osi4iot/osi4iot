@@ -56,6 +56,11 @@ class CreateDigitalTwinDto {
 	@IsString({ each: true })
 	public sensorsRef: string[];
 
+	// Its pipeline runs on a GPU (only where the group may use GPUs: checkExpensiveSettings). Not given: no.
+	@IsOptional()
+	@IsBoolean()
+	public pipelineRequiresGpu?: boolean;
+
 	// The knowledge base documents (file names) its AI agents may read:
 	// none unless chosen.
 	@IsOptional()

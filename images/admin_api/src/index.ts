@@ -1,5 +1,6 @@
 /* istanbul ignore file */
 import "reflect-metadata";
+import { ensureSlideModelTable, migrateRootModels } from "./components/digitalTwin/slideModels";
 import App from "./app";
 import HealthCheckController from "./utils/healthCheck/healthCheck.controller";
 import AuthenticationController from "./components/Authentication/authentication.controller";
@@ -93,6 +94,13 @@ const main = async (): Promise<void> => {
 			const message = err instanceof Error ? err.message : String(err);
 			logger.log("error", "The viewer_layout table could not be created: %s", message);
 		}
+		// the 3D models of the slides of the viewers (every replica, before serving)
+		try {
+			await ensureSlideModelTable();
+		} catch (err) {
+			const message = err instanceof Error ? err.message : String(err);
+			logger.log("error", "The digital_twin_slide_model table could not be created: %s", message);
+		}
 		// esquemas de mensaje calculados (sensores, simulación, fijos): por si ha cambiado algo de lo que dependen
 		await refreshAllComputedMessageSchemas();
 		await natsClient.connect();
@@ -104,6 +112,16 @@ const main = async (): Promise<void> => {
 			} catch (err) {
 				const message = err instanceof Error ? err.message : String(err);
 				logger.log("error", "The pipeline topics of the digital twins could not be migrated: %s", message);
+			}
+		}
+		// digital twins of older versions: their 3D model and FEM results, from the root of their folder to their slides
+		if (process_env.REPLICA === "1") {
+			try {
+				const moved = await migrateRootModels((message) => logger.log("info", message));
+				if (moved > 0) logger.log("info", `The 3D models of ${moved} digital twins were moved to their slides`);
+			} catch (err) {
+				const message = err instanceof Error ? err.message : String(err);
+				logger.log("error", "The 3D models of the digital twins could not be moved to their slides: %s", message);
 			}
 		}
 		// device topics of the assets named by their type (dev2dtm_n, dtm2dev_n; the mobile asset had dev2pdb_5..7)

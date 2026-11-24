@@ -22,8 +22,9 @@ import (
 // Without --apply it is a local edit of the state file and works in
 // any platform state. With --apply it then updates the running
 // services to those images, and so needs the platform running: main.go
-// builds the Docker clients for it (NeedsSwarmClients) like it does
-// for the swarm actions.
+// builds the Docker clients for it (UsesSwarmClients) like it does
+// for the swarm actions; without --apply it still asks the platform's
+// state, to say when the new images take effect, but does not need it.
 
 var subCmdStateResetImages = &cobra.Command{
 	Use:   "reset_images",
@@ -48,11 +49,20 @@ func init() {
 	cmdState.AddCommand(subCmdStateResetImages)
 }
 
-// NeedsSwarmClients says whether the command line needs the Docker
-// clients although its action is not one of SwarmActions.
-func NeedsSwarmClients(args []string) bool {
-	return len(args) >= 2 && args[0] == "state" && args[1] == "reset_images" &&
-		slices.ContainsFunc(args[2:], func(a string) bool { return a == "--apply" || a == "--apply=true" })
+// UsesSwarmClients says whether the command line needs the Docker
+// clients although its action is not one of SwarmActions: reset_images
+// always looks at the platform, to say what its change means for the
+// running services, and --apply updates them.
+func UsesSwarmClients(args []string) bool {
+	return len(args) >= 2 && args[0] == "state" && args[1] == "reset_images"
+}
+
+// SwarmClientsOptional says whether the command can go on when no
+// manager answers: reset_images without --apply only edits the state
+// file, and then just cannot tell whether the platform is running.
+func SwarmClientsOptional(args []string) bool {
+	return UsesSwarmClients(args) &&
+		!slices.ContainsFunc(args[2:], func(a string) bool { return a == "--apply" || a == "--apply=true" })
 }
 
 func runStateResetImages(cmd *cobra.Command, _ []string) {
@@ -111,8 +121,7 @@ func runStateResetImages(cmd *cobra.Command, _ []string) {
 
 	if !apply {
 		if len(plan.Changes) > 0 {
-			fmt.Println(utils.StyleWarningMsg.Render("The running services were not changed. " +
-				"Run again with --apply to update them, or they get these images on the next deployment."))
+			printWhenImagesTakeEffect(data.GetPlatformState())
 		}
 		return
 	}
@@ -130,6 +139,24 @@ func runStateResetImages(cmd *cobra.Command, _ []string) {
 	fmt.Println()
 	results := docker.ApplyStateImages(pd, dc, plan.Selected)
 	printApplyResults(results)
+}
+
+// printWhenImagesTakeEffect says, after a change without --apply, when
+// the services will run the new images. A stopped platform has no
+// services: 'osi4iot run' creates them from the state file.
+func printWhenImagesTakeEffect(state data.PlatformStatus) {
+	switch state {
+	case data.Running, data.Degraded:
+		fmt.Println(utils.StyleWarningMsg.Render("The running services were not changed. " +
+			"Run 'osi4iot state reset_images --apply' to update them."))
+	case data.Stopped:
+		fmt.Println("The platform is stopped: 'osi4iot run' starts the services with these images.")
+	case data.Deleted:
+		fmt.Println("The platform is deleted: 'osi4iot init' deploys the services with these images.")
+	default:
+		fmt.Println(utils.StyleWarningMsg.Render("The platform's state could not be determined. If it is running, " +
+			"run 'osi4iot state reset_images --apply' to update the services; otherwise they start with these images."))
+	}
 }
 
 func printImagesPlan(plan utils.DefaultImagesPlan) {

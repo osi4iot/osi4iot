@@ -1,9 +1,8 @@
-// system_manager runs maintenance jobs for the osi4iot platform —
-// periodic WAL-G backups for the patroni_admin and patroni_metrics
-// clusters (internal/patroni_backup), periodic S3 backups of NATS
 // JetStream streams (internal/nats_backup), and Let's Encrypt
 // certificate renewal via ACME/Route53 with Docker secret rotation
-// (internal/certrenewer, internal/dockersvc) — and exposes every one of
+// (internal/certrenewer, internal/dockersvc), plus the controller that keeps
+// pipelines on the "Pipelines worker" nodes while they are up
+// (internal/pipelinesplacement) — and exposes every one of
 // them as an on-demand NATS request-reply endpoint too
 // (internal/natssvc), so "runs on its own schedule" and "triggered
 // manually" are the exact same code path for every task (see
@@ -28,10 +27,12 @@ import (
 	"system_manager/internal/certrenewer"
 	"system_manager/internal/certstore"
 	"system_manager/internal/config"
+	"system_manager/internal/dockersvc"
 	"system_manager/internal/nats_backup"
 	"system_manager/internal/natssvc"
 	"system_manager/internal/patroni"
 	"system_manager/internal/patroni_backup"
+	"system_manager/internal/pipelinesplacement"
 	"system_manager/internal/prune"
 	"system_manager/internal/schedule"
 	"system_manager/internal/statefile"
@@ -218,6 +219,23 @@ func main() {
 	pruner := task.SerializeScheduled(prune.New(prune.LoadConfig()))
 	scheduled = append(scheduled, pruner)
 	tasks = append(tasks, pruner)
+
+	// Keeps pipelines on the "Pipelines worker" nodes while they are up,
+	// and on the Platform workers while they are not — see
+	// internal/pipelinesplacement. Not a task: it reacts to the swarm's
+	// node events (and checks every minute), and only touches a pipelines
+	// service the CLI labelled as managed (a platform with Pipelines
+	// workers), so it is harmless everywhere else. Same Docker access as
+	// prune.
+	if os.Getenv("PIPELINES_PLACEMENT_CONTROLLER") != "false" {
+		if cli, err := dockersvc.NewClient(); err != nil {
+			log.Printf("[pipelines placement] not started: %v", err)
+		} else {
+			stable := time.Duration(config.EnvIntDefault("PIPELINES_WORKER_STABLE_SECONDS", 60)) * time.Second
+			every := time.Duration(config.EnvIntDefault("PIPELINES_PLACEMENT_CHECK_SECONDS", 60)) * time.Second
+			go pipelinesplacement.New(cli, stable, every).Run(ctx)
+		}
+	}
 
 	// Add future tasks the same way: build them, wrap with
 	// task.Serialize (or task.SerializeScheduled if they also run on

@@ -1,0 +1,99 @@
+#!/bin/bash
+# =============================================================
+# walg-scoped — wal-g, inside this cluster's own folder of the archive.
+#
+#   walg-scoped <wal-g arguments...>            e.g. wal-push %p
+#   walg-scoped --restore <wal-g arguments...>  e.g. backup-fetch ... LATEST
+#
+# WHY. Every cluster of a family (patroni_admin, patroni_metrics) used
+# to share one WALG_S3_PREFIX. A cluster created from scratch — its
+# volumes lost or deleted — then read the archive of the one before it:
+# its replicas and its restarted primary fetched that cluster's
+# .history files and WAL, whose names are the same as its own
+# (00000001000000000000000N...), followed a timeline that was never
+# theirs and stopped with
+#
+#   PANIC: could not locate a valid checkpoint record
+#
+# so the new cluster never got a leader. WALG_PREVENT_WAL_OVERWRITE
+# kept the old archive from being overwritten, not from being read.
+#
+# HOW. The archive of a cluster is WALG_S3_PREFIX/<system identifier>.
+# The identifier is assigned by initdb and read from PGDATA's pg_control
+# on every call (pg_controldata: no connection, works while PostgreSQL
+# is starting). Its replicas, and a cluster restored from its backups,
+# have the same identifier and so the same folder; a cluster created
+# from scratch has a new one and sees nothing of the others.
+#
+# --restore is for the custom bootstrap of a restore (patroni.yml,
+# bootstrap.wal_g): PGDATA is still empty, so the folder to read is
+# given by the platform CLI in PATRONI_RESTORE_PREFIX (a cluster's
+# folder, or the bare prefix for the backups taken before these
+# folders existed: "legacy").
+#
+# The backups stored before this script existed stay in the bare
+# prefix. This script never writes there and retention (wal-g delete,
+# run through it by patroni_sidecar) never deletes from there.
+# =============================================================
+set -euo pipefail
+
+# ── Configuration ────────────────────────────────────────────
+# Patroni, PostgreSQL and patroni_sidecar inherit it from entrypoint.sh.
+# A `docker exec` into the container does not (entrypoint.sh sources
+# the secret into its own environment only), so read it here too.
+if [ -z "${WALG_S3_PREFIX:-}" ]; then
+    for secret in /run/secrets/patroni_admin.txt /run/secrets/patroni_metrics.txt; do
+        if [ -f "$secret" ]; then
+            set -a
+            # shellcheck source=/dev/null
+            . "$secret"
+            set +a
+            break
+        fi
+    done
+fi
+export WALG_LIBSODIUM_KEY_TRANSFORM="${WALG_LIBSODIUM_KEY_TRANSFORM:-hex}"
+
+# The family's prefix, without a cluster folder. entrypoint.sh keeps it
+# in WALG_S3_PREFIX_BASE; WALG_S3_PREFIX itself is set below, per call.
+base="${WALG_S3_PREFIX_BASE:-${WALG_S3_PREFIX:-}}"
+base="${base%/}"
+if [ -z "$base" ]; then
+    echo "walg-scoped: WALG_S3_PREFIX is not set" >&2
+    exit 1
+fi
+
+if [ "${1:-}" = "--restore" ]; then
+    shift
+    prefix="${PATRONI_RESTORE_PREFIX:-}"
+    if [ -z "$prefix" ]; then
+        echo "walg-scoped: --restore needs PATRONI_RESTORE_PREFIX (set by 'osi4iot backup restore')" >&2
+        exit 1
+    fi
+else
+    pgdata="${PGDATA:-/data/patroni}"
+    bin_dir="$(ls -d /usr/lib/postgresql/*/bin 2>/dev/null | sort -V | tail -1)"
+    sysid="$("${bin_dir}/pg_controldata" -D "$pgdata" 2>/dev/null | sed -n 's/^Database system identifier: *//p' || true)"
+    if ! [[ "$sysid" =~ ^[0-9]+$ ]]; then
+        echo "walg-scoped: no system identifier in $pgdata (is PGDATA initialized?)" >&2
+        exit 1
+    fi
+    prefix="${base}/${sysid}"
+
+    # A cluster restored from another folder (a restore leaves
+    # PATRONI_RESTORE_PREFIX in its service until the next deployment):
+    # the WAL it needs from before the restore is there, not in its own
+    # folder — always so for a backup taken before these folders existed.
+    # Its own folder first, which holds everything since.
+    restore_prefix="${PATRONI_RESTORE_PREFIX:-}"
+    restore_prefix="${restore_prefix%/}"
+    if [ "${1:-}" = "wal-fetch" ] && [ -n "$restore_prefix" ] && [ "$restore_prefix" != "$prefix" ]; then
+        if WALG_S3_PREFIX="$prefix" wal-g "$@"; then
+            exit 0
+        fi
+        prefix="$restore_prefix"
+    fi
+fi
+
+export WALG_S3_PREFIX="${prefix%/}"
+exec wal-g "$@"

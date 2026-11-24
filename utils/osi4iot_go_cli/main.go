@@ -133,11 +133,12 @@ func main() {
 			}
 		}
 
-		if slices.Contains(cmd.SwarmActions, action) || cmd.NeedsSwarmClients(args) {
+		if slices.Contains(cmd.SwarmActions, action) || cmd.UsesSwarmClients(args) {
 			DCMap, dcMapErr := docker.SetDockerClientsMap(pd, action)
 			// `status` reports whatever it can reach — an unreachable
-			// manager is exactly what it must be able to say.
-			if dcMapErr != nil && action != "status" {
+			// manager is exactly what it must be able to say. The same
+			// for a command that only wants to know the state.
+			if dcMapErr != nil && action != "status" && !cmd.SwarmClientsOptional(args) {
 				err := docker.CheckDockerClientsMap(DCMap, action)
 				if err != nil {
 					combinedErr := fmt.Errorf("error setting Docker clients map: %w", dcMapErr)

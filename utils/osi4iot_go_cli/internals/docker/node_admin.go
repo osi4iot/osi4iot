@@ -44,7 +44,7 @@ import (
 // Anything with one of these names is rewritten from the state file on
 // the next init or run.
 var PlatformLabelPrefixes = []string{
-	"platform_worker", "nats_", "admin-id", "metrics-id",
+	"platform_worker", "pipelines_worker", "nats_", "admin-id", "metrics-id",
 	// garage_<ID>=true pins each Garage instance to its node, with its
 	// volumes (see utils/garage_cluster.go). Removing one by hand would
 	// leave the instance with nowhere to run.

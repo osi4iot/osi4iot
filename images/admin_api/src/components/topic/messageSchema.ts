@@ -244,8 +244,17 @@ interface ISimulationParameter {
 	step?: number;
 }
 
+// The field of a sim2dtm / dtm2sim message that names the slide of the Viewer it belongs to (its simulator sent it;
+// the answer goes to the panels of that slide). No parameter can have that name.
+export const SLIDE_FIELD = "$slide";
+
+// simulationFormat: the digital twin's format, or a list of formats (the twin's and those of the simulators of the
+// slides of its Viewer: each slide may have its own); with several, no parameter is required
 export const simulationMessageSchema = (topicType: string, simulationFormat: unknown): JsonSchema => {
-	const format = normalizeMessageSchema(simulationFormat) as Record<string, ISimulationParameter>;
+	const formats = (Array.isArray(simulationFormat) ? simulationFormat : [simulationFormat])
+		.map((f) => normalizeMessageSchema(f) as Record<string, ISimulationParameter>)
+		.filter((f) => Object.keys(f).length > 0);
+	const format: Record<string, ISimulationParameter> = Object.assign({}, ...[...formats].reverse());
 	const names = Object.keys(format);
 	if (names.length === 0) return {};
 	const properties: Record<string, JsonSchema> = {};
@@ -259,12 +268,13 @@ export const simulationMessageSchema = (topicType: string, simulationFormat: unk
 		if (typeof parameter.defaultValue === "number") schema.default = parameter.defaultValue;
 		properties[name] = schema;
 	}
+	const slide: JsonSchema = { type: "string", description: "The slide of the digital twin's Viewer the message belongs to" };
 	if (topicType === "sim2dtm") {
 		return {
 			type: "object",
 			description: "Parameters of the simulator of the digital twin",
-			properties,
-			required: names,
+			properties: { ...properties, [SLIDE_FIELD]: slide },
+			...(formats.length === 1 ? { required: names } : {}),
 			additionalProperties: false,
 		};
 	}
@@ -277,6 +287,7 @@ export const simulationMessageSchema = (topicType: string, simulationFormat: unk
 				type: "string",
 				description: "Type of the topic of the message that produced the results",
 			},
+			[SLIDE_FIELD]: slide,
 		},
 	};
 };
@@ -307,16 +318,23 @@ const topicMeasurements = async (topicId: number, topicType: string): Promise<Me
 	return measurements;
 };
 
-const topicSimulationFormat = async (topicId: number): Promise<unknown> => {
-	const result = await pool.query<{ format: unknown }>(
-		`SELECT grafanadb.digital_twin.digital_twin_simulation_format AS "format"
+// the digital twin's format and those of the simulators of the slides of its Viewer (the group's layout)
+const topicSimulationFormat = async (topicId: number): Promise<unknown[]> => {
+	const result = await pool.query<{ format: unknown; layout: { slides?: { panels?: { type?: string; format?: unknown }[] }[] } | null }>(
+		`SELECT grafanadb.digital_twin.digital_twin_simulation_format AS "format", grafanadb.viewer_layout.layout
 		FROM grafanadb.digital_twin
 		INNER JOIN grafanadb.digital_twin_topic ON grafanadb.digital_twin_topic.digital_twin_id = grafanadb.digital_twin.id
+		LEFT JOIN grafanadb.viewer_layout ON grafanadb.viewer_layout.digital_twin_id = grafanadb.digital_twin.id
 		WHERE grafanadb.digital_twin_topic.topic_id = $1
 		ORDER BY grafanadb.digital_twin.id ASC LIMIT 1`,
 		[topicId]
 	);
-	return result.rows[0]?.format ?? {};
+	const row = result.rows[0];
+	if (!row) return [];
+	const slideFormats = (row.layout?.slides ?? []).flatMap((slide) =>
+		(slide.panels ?? []).filter((p) => p.type === "simulator" && p.format).map((p) => p.format)
+	);
+	return [row.format ?? {}, ...slideFormats];
 };
 
 // Schema of a topic that is not written by the user (null for the "user" ones). topicId undefined: a topic not

@@ -28,7 +28,7 @@ import {
 } from "../components/asset/assetDAL";
 import { createNewSensorType } from "../components/sensor/sensorDAL";
 import { nanoid } from "nanoid";
-import { createDigitalTwin, uploadMobilePhoneGltfFile } from "../components/digitalTwin/digitalTwinDAL";
+import { createDigitalTwin, uploadMobilePhoneModel } from "../components/digitalTwin/digitalTwinDAL";
 import IAssetType from "../components/asset/assetType.interface";
 import { predefinedAssetTypes, systemMonitoringAssetType } from "./predefinedAssetTypes";
 import IFloor from "../components/building/floor.interface";
@@ -1497,9 +1497,7 @@ export const dataBaseInitialization = async () => {
 						null,
 						true
 					);
-					const keyBase = `org_data/org_1/group_${group.id}/digitalTwin_${mobileSensorsDigitalTwin.id}`;
-					const gltfFileName = `${keyBase}/gltfFile/mobile_phone.gltf`;
-					await uploadMobilePhoneGltfFile(gltfFileName);
+					await uploadMobilePhoneModel({ orgId: 1, groupId: group.id, id: mobileSensorsDigitalTwin.id }, ["sensor_3"]);
 					logger.log("info", `Default mobile phone digital twin has been created sucessfully`);
 				} catch (err) {
 					const message = err instanceof Error ? err.message : String(err);

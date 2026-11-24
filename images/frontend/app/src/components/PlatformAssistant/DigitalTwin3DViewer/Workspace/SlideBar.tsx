@@ -1,18 +1,21 @@
-// The slides of the Viewer: arrows, the current slide's title and position, a tab per slide and the button of
-// all the slides (where the user chooses which slides the bar shows). Only the slides shown are gone through.
-// PageUp / PageDown change the slide too, when no field is being typed in.
+// The slides of the Viewer, in one row whether there is one slide or several and whether the layout is edited
+// or not: arrows, the current slide's title and position, a tab per slide and, on the right, icons.
+// Only the slides shown are gone through; PageUp / PageDown change the slide too, when no field is being typed in.
 //
-// While the layout is edited, a second row changes the current slide: its title and tag, its place, a copy of
-// it, a new slide or removing it.
-import { FC, KeyboardEvent, useEffect, useId, useState } from "react";
+// The icons: New slide, Duplicate slide, Edit slide, Delete slide (a second click confirms) and All slides (where
+// the user chooses which slides the bar shows, and reorders them). Edit slide edits the layout: the icons become
+// Add panel, Cancel and Save for the group (Done for those who only change it for themselves), and a double click
+// on the current tab opens its title and tag.
+import { FC, KeyboardEvent, ReactNode, useEffect, useId, useRef, useState } from "react";
 import styled from "styled-components";
-import { ChevronLeft, ChevronRight, Copy, LayoutGrid, MoveLeft, MoveRight, Plus, Trash2 } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, Copy, LayoutGrid, Pencil, Plus, RotateCcw, SquarePlus, Trash2, X } from "lucide-react";
 import { scrollbarStyle } from "../../../Tools/FormTools";
 import { MAX_SLIDES, SLIDE_TAG, SLIDE_TITLE_MAX, WorkspaceSlide } from "./workspaceLayout";
 
 const font = `Roboto, "Helvetica Neue", Arial, sans-serif`;
 
 const Wrap = styled.div`
+    position: relative;
     flex: none;
     display: flex;
     flex-direction: column;
@@ -55,6 +58,65 @@ const Arrow = styled.button`
     }
 `;
 
+// an icon of the right of the row (its tooltip names it)
+const Icon = styled(Arrow)<{ $tone?: "primary" | "danger" | "armed" }>`
+    ${({ $tone }) =>
+        $tone === "primary"
+            ? "background: #3d82f0; border-color: #3d82f0; color: #ffffff;"
+            : $tone === "danger"
+              ? "color: #f2a1aa; border-color: #5a2e33;"
+              : $tone === "armed"
+                ? "background: #e5484d; border-color: #e5484d; color: #ffffff;"
+                : ""}
+`;
+
+// apart from the tabs: a line between them and some room
+const Icons = styled.div`
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-left: auto;
+    flex: none;
+    padding-left: 12px;
+    border-left: 1px solid #2c3137;
+`;
+
+const IconSeparator = styled.span`
+    width: 1px;
+    height: 22px;
+    margin: 0 2px;
+    background: #2c3137;
+`;
+
+// the title and tag of the current slide (a double click on its tab, while the layout is edited)
+const Popover = styled.div`
+    position: absolute;
+    top: calc(100% + 6px);
+    z-index: 1100;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    width: 260px;
+    padding: 12px;
+    background: #16181c;
+    border: 1px solid #2c3137;
+    border-radius: 10px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+    font-size: 13px;
+
+    label {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        color: #c7cbd1;
+        font-size: 12px;
+    }
+    small {
+        color: #9aa1aa;
+        font-size: 11px;
+    }
+`;
+
 const Current = styled.div`
     display: flex;
     flex-direction: column;
@@ -76,13 +138,24 @@ const Current = styled.div`
     }
 `;
 
-const Scroll = styled.div`
+// the tabs scroll; where some are hidden, that edge fades out (so a cut tab is not taken for one touching the icons)
+const FADE = 28;
+const Scroll = styled.div<{ $fadeLeft: boolean; $fadeRight: boolean }>`
+    /* positioned: the tabs' offsetLeft is measured from here */
+    position: relative;
     display: flex;
     align-items: center;
     gap: 6px;
     min-width: 0;
     overflow-x: auto;
     padding: 2px 0;
+    mask-image: linear-gradient(
+        to right,
+        transparent 0,
+        #000 ${({ $fadeLeft }) => ($fadeLeft ? FADE : 0)}px,
+        #000 calc(100% - ${({ $fadeRight }) => ($fadeRight ? FADE : 0)}px),
+        transparent 100%
+    );
     ${scrollbarStyle}
     &::-webkit-scrollbar {
         height: 6px;
@@ -105,23 +178,6 @@ const Tab = styled.button<{ $on: boolean }>`
     text-overflow: ellipsis;
 `;
 
-const Tools = styled.div`
-    display: flex;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 8px;
-    padding: 8px 10px;
-    background: #121820;
-    border: 1px solid #263a57;
-    border-radius: 10px;
-    font-size: 13px;
-
-    label {
-        color: #c7cbd1;
-        font-size: 12px;
-    }
-`;
-
 const Field = styled.input`
     height: 30px;
     box-sizing: border-box;
@@ -141,33 +197,6 @@ const Field = styled.input`
     }
 `;
 
-const ToolButton = styled.button<{ $danger?: boolean }>`
-    height: 30px;
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 0 10px;
-    background: #1b1e22;
-    border: 1px solid ${({ $danger }) => ($danger ? "#5a2e33" : "#2c3137")};
-    border-radius: 7px;
-    color: ${({ $danger }) => ($danger ? "#f2a1aa" : "#d5d9de")};
-    font: 500 12px ${font};
-    cursor: pointer;
-
-    &:disabled {
-        opacity: 0.45;
-        cursor: default;
-    }
-    svg {
-        width: 14px;
-        height: 14px;
-    }
-`;
-
-const Spacer = styled.span`
-    flex: 1;
-`;
-
 export interface SlideBarProps {
     // the slides shown (those the user did not hide), and all of them (their count)
     slides: WorkspaceSlide[];
@@ -182,10 +211,24 @@ export interface SlideBarProps {
     onAdd: () => void;
     onDuplicate: () => void;
     onRemove: () => void;
-    onMove: (delta: -1 | 1) => void;
+    // (kept for the callers; the slides are reordered in All slides)
+    onMove?: (delta: -1 | 1) => void;
     onUpdate: (patch: { title?: string; tag?: string }) => void;
     // opens all the slides (thumbnails, search, order)
     onOverview?: () => void;
+    // the slide icons (New, Duplicate, Edit, Delete): whoever can change the layout, not on a phone
+    canEdit?: boolean;
+    // a group administrator: the layout is saved for the group
+    canSave?: boolean;
+    saving?: boolean;
+    // a layout to go back to (the automatic one, or the group's), with its name; none: no icon
+    restoreLabel?: string | null;
+    onEdit?: () => void;
+    onAddPanel?: () => void;
+    onCancel?: () => void;
+    onSave?: () => void;
+    onDone?: () => void;
+    onRestore?: () => void;
 }
 
 // typing in a field (or a menu): PageUp / PageDown are the field's
@@ -207,13 +250,63 @@ const SlideBar: FC<SlideBarProps> = ({
     onAdd,
     onDuplicate,
     onRemove,
-    onMove,
     onUpdate,
     onOverview,
+    canEdit = false,
+    canSave = false,
+    saving = false,
+    restoreLabel = null,
+    onEdit,
+    onAddPanel,
+    onCancel,
+    onSave,
+    onDone,
+    onRestore,
 }) => {
     const ids = useId();
-    const at = Math.max(0, slides.findIndex((s) => s.id === current.id));
+    const at = Math.max(
+        0,
+        slides.findIndex((s) => s.id === current.id),
+    );
     const several = slides.length > 1;
+    const wrapRef = useRef<HTMLDivElement>(null);
+    // the tabs: whether some are hidden on the left / on the right
+    const scrollRef = useRef<HTMLDivElement>(null);
+    const [hidden, setHidden] = useState({ left: false, right: false });
+    const measure = () => {
+        const el = scrollRef.current;
+        if (!el) return;
+        const left = el.scrollLeft > 1;
+        const right = el.scrollLeft + el.clientWidth < el.scrollWidth - 1;
+        setHidden((h) => (h.left === left && h.right === right ? h : { left, right }));
+    };
+    useEffect(() => {
+        const el = scrollRef.current;
+        if (!el) return;
+        measure();
+        if (typeof ResizeObserver === "undefined") return;
+        const observer = new ResizeObserver(measure);
+        observer.observe(el);
+        return () => observer.disconnect();
+    }, [phone, slides.length]);
+    // the tab of the slide shown is always in sight (clear of the fading edges)
+    useEffect(() => {
+        const el = scrollRef.current;
+        const tab = el?.querySelectorAll<HTMLElement>('[role="tab"]')[at];
+        if (!el || !tab) return;
+        if (tab.offsetLeft - FADE < el.scrollLeft) el.scrollLeft = Math.max(0, tab.offsetLeft - FADE);
+        else if (tab.offsetLeft + tab.offsetWidth + FADE > el.scrollLeft + el.clientWidth)
+            el.scrollLeft = tab.offsetLeft + tab.offsetWidth + FADE - el.clientWidth;
+        measure();
+    }, [at, slides.length]);
+    // the title and tag of the current slide: where its tab is
+    const [naming, setNaming] = useState<number | null>(null);
+    // Delete is armed by a first click; a second one deletes
+    const [deleteArmed, setDeleteArmed] = useState(false);
+    useEffect(() => setDeleteArmed(false), [current.id, editing]);
+    useEffect(() => {
+        if (!editing) setNaming(null);
+    }, [editing]);
 
     useEffect(() => {
         if (!several) return;
@@ -238,11 +331,30 @@ const SlideBar: FC<SlideBarProps> = ({
         target?.focus();
     };
 
-    const allAt = allSlides.findIndex((s) => s.id === current.id);
+    const icon = (
+        label: string,
+        title: string,
+        node: ReactNode,
+        onClick?: () => void,
+        extra: { disabled?: boolean; tone?: "primary" | "danger" | "armed" } = {},
+    ) => (
+        <Icon type="button" aria-label={label} title={title} disabled={extra.disabled || !onClick} $tone={extra.tone} onClick={onClick}>
+            {node}
+        </Icon>
+    );
+
+    const count = allSlides.length;
+    const showIcons = canEdit && !phone;
     return (
-        <Wrap aria-label="Slides" role="group">
+        <Wrap aria-label="Slides" role="group" ref={wrapRef}>
             <Row>
-                <Arrow type="button" aria-label="Previous slide" title="Previous slide (PageUp)" disabled={!several} onClick={() => onStep(-1)}>
+                <Arrow
+                    type="button"
+                    aria-label="Previous slide"
+                    title="Previous slide (PageUp)"
+                    disabled={!several}
+                    onClick={() => onStep(-1)}
+                >
                     <ChevronLeft aria-hidden="true" />
                 </Arrow>
                 <Current aria-live="polite">
@@ -256,7 +368,15 @@ const SlideBar: FC<SlideBarProps> = ({
                     <ChevronRight aria-hidden="true" />
                 </Arrow>
                 {!phone && (
-                    <Scroll role="tablist" aria-label="Slide" onKeyDown={onTabsKey}>
+                    <Scroll
+                        ref={scrollRef}
+                        role="tablist"
+                        aria-label="Slide"
+                        onKeyDown={onTabsKey}
+                        onScroll={measure}
+                        $fadeLeft={hidden.left}
+                        $fadeRight={hidden.right}
+                    >
                         {slides.map((s) => (
                             <Tab
                                 key={s.id}
@@ -265,124 +385,204 @@ const SlideBar: FC<SlideBarProps> = ({
                                 aria-selected={s.id === current.id}
                                 tabIndex={s.id === current.id ? 0 : -1}
                                 $on={s.id === current.id}
-                                title={`${s.title} · ${s.tag}`}
+                                title={
+                                    editing && s.id === current.id
+                                        ? `${s.title} · ${s.tag} · double-click to rename`
+                                        : `${s.title} · ${s.tag}`
+                                }
                                 onClick={() => onGo(s.id)}
+                                onDoubleClick={(e) => {
+                                    if (!editing || s.id !== current.id) return;
+                                    const wrap = wrapRef.current?.getBoundingClientRect();
+                                    const tab = e.currentTarget.getBoundingClientRect();
+                                    setNaming(wrap ? Math.max(0, tab.left - wrap.left) : 0);
+                                }}
                             >
                                 {s.title}
                             </Tab>
                         ))}
                     </Scroll>
                 )}
-                {onOverview && (
-                    <Arrow
-                        type="button"
-                        aria-label="All slides"
-                        title="All slides: find, show or hide, reorder"
-                        style={{ marginLeft: "auto" }}
-                        onClick={onOverview}
-                    >
-                        <LayoutGrid aria-hidden="true" />
-                    </Arrow>
-                )}
+                <Icons role="toolbar" aria-label={editing ? "Edit slide" : "Slide"}>
+                    {showIcons && !editing && (
+                        <>
+                            {icon(
+                                "New slide",
+                                count >= MAX_SLIDES ? `At most ${MAX_SLIDES} slides` : "New slide",
+                                <Plus aria-hidden="true" />,
+                                onAdd,
+                                {
+                                    disabled: count >= MAX_SLIDES || saving,
+                                },
+                            )}
+                            {icon("Duplicate slide", "Duplicate slide", <Copy aria-hidden="true" />, onDuplicate, {
+                                disabled: count >= MAX_SLIDES || saving,
+                            })}
+                            {icon(
+                                "Edit slide",
+                                canSave
+                                    ? "Edit slide: add, move and resize its panels, for the whole group"
+                                    : "Edit slide: add, move and resize its panels (only for you)",
+                                <Pencil aria-hidden="true" />,
+                                onEdit,
+                                { disabled: saving },
+                            )}
+                            {icon(
+                                deleteArmed ? `Confirm: delete the slide ${current.title}` : `Delete the slide ${current.title}`,
+                                count <= 1
+                                    ? "The only slide cannot be deleted"
+                                    : deleteArmed
+                                      ? "Click again to delete the slide"
+                                      : "Delete slide",
+                                <Trash2 aria-hidden="true" />,
+                                () => {
+                                    if (!deleteArmed) {
+                                        setDeleteArmed(true);
+                                        return;
+                                    }
+                                    setDeleteArmed(false);
+                                    onRemove();
+                                },
+                                { disabled: count <= 1 || saving, tone: deleteArmed ? "armed" : "danger" },
+                            )}
+                            {restoreLabel &&
+                                !canSave &&
+                                icon(
+                                    `Back to the ${restoreLabel.toLowerCase()}`,
+                                    `Back to the ${restoreLabel.toLowerCase()}`,
+                                    <RotateCcw aria-hidden="true" />,
+                                    onRestore,
+                                )}
+                        </>
+                    )}
+                    {showIcons && editing && (
+                        <>
+                            {icon("Add panel", "Add panel", <SquarePlus aria-hidden="true" />, onAddPanel, { disabled: saving })}
+                            {restoreLabel &&
+                                icon(
+                                    `Back to the ${restoreLabel.toLowerCase()}`,
+                                    `Back to the ${restoreLabel.toLowerCase()}`,
+                                    <RotateCcw aria-hidden="true" />,
+                                    onRestore,
+                                    { disabled: saving },
+                                )}
+                            <IconSeparator aria-hidden="true" />
+                            {icon("Cancel", "Cancel: undo the changes", <X aria-hidden="true" />, onCancel, { disabled: saving })}
+                            {canSave
+                                ? icon(
+                                      saving ? "Saving…" : "Save for the group",
+                                      saving ? "Saving…" : "Save for the group",
+                                      <Check aria-hidden="true" />,
+                                      onSave,
+                                      {
+                                          disabled: saving,
+                                          tone: "primary",
+                                      },
+                                  )
+                                : icon(
+                                      "Done",
+                                      "Done: keep these changes while the viewer is open (only for you)",
+                                      <Check aria-hidden="true" />,
+                                      onDone,
+                                      {
+                                          tone: "primary",
+                                      },
+                                  )}
+                        </>
+                    )}
+                    {onOverview && !(showIcons && editing) && (
+                        <>
+                            {showIcons && <IconSeparator aria-hidden="true" />}
+                            {icon("All slides", "All slides: find, show or hide, reorder", <LayoutGrid aria-hidden="true" />, onOverview)}
+                        </>
+                    )}
+                </Icons>
             </Row>
-            {editing && !phone && (
-                <SlideTools
+            {editing && naming !== null && !phone && (
+                <SlideNaming
                     key={current.id}
                     idBase={ids}
                     slide={current}
                     tags={tags}
-                    index={allAt}
-                    count={allSlides.length}
-                    onAdd={onAdd}
-                    onDuplicate={onDuplicate}
-                    onRemove={onRemove}
-                    onMove={onMove}
+                    left={naming}
                     onUpdate={onUpdate}
+                    onClose={() => setNaming(null)}
                 />
             )}
         </Wrap>
     );
 };
 
-interface SlideToolsProps {
+interface SlideNamingProps {
     idBase: string;
     slide: WorkspaceSlide;
     tags: string[];
-    index: number;
-    count: number;
-    onAdd: () => void;
-    onDuplicate: () => void;
-    onRemove: () => void;
-    onMove: (delta: -1 | 1) => void;
+    left: number;
     onUpdate: (patch: { title?: string; tag?: string }) => void;
+    onClose: () => void;
 }
 
-// The current slide while the layout is edited
-const SlideTools: FC<SlideToolsProps> = ({ idBase, slide, tags, index, count, onAdd, onDuplicate, onRemove, onMove, onUpdate }) => {
+// The title and tag of the current slide, under its tab
+const SlideNaming: FC<SlideNamingProps> = ({ idBase, slide, tags, left, onUpdate, onClose }) => {
     const [title, setTitle] = useState(slide.title);
     const [tag, setTag] = useState(slide.tag);
+    const ref = useRef<HTMLDivElement>(null);
     const tagValid = SLIDE_TAG.test(tag.trim());
-    const commitTitle = () => {
-        if (!title.trim()) setTitle(slide.title);
-        else if (title.trim() !== slide.title) onUpdate({ title });
+    const commit = () => {
+        const patch: { title?: string; tag?: string } = {};
+        if (title.trim() && title.trim() !== slide.title) patch.title = title;
+        if (tagValid && tag.trim() !== slide.tag) patch.tag = tag;
+        if (patch.title !== undefined || patch.tag !== undefined) onUpdate(patch);
+        onClose();
     };
-    const commitTag = () => {
-        if (!tagValid) setTag(slide.tag);
-        else if (tag.trim() !== slide.tag) onUpdate({ tag });
-    };
-    const enter = (e: KeyboardEvent<HTMLInputElement>) => {
-        if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+    const commitRef = useRef(commit);
+    commitRef.current = commit;
+    useEffect(() => {
+        ref.current?.querySelector("input")?.focus();
+        // a click outside keeps what was typed
+        const onDown = (e: MouseEvent) => {
+            if (ref.current && !ref.current.contains(e.target as Node)) commitRef.current();
+        };
+        document.addEventListener("mousedown", onDown);
+        return () => document.removeEventListener("mousedown", onDown);
+    }, []);
+    const keys = (e: KeyboardEvent<HTMLInputElement>) => {
+        if (e.key === "Enter") commit();
+        if (e.key === "Escape") onClose();
     };
     return (
-        <Tools role="region" aria-label="This slide">
-            <label htmlFor={`${idBase}-title`}>Title</label>
-            <Field
-                id={`${idBase}-title`}
-                value={title}
-                maxLength={SLIDE_TITLE_MAX}
-                style={{ width: 180 }}
-                onChange={(e) => setTitle(e.target.value)}
-                onBlur={commitTitle}
-                onKeyDown={enter}
-            />
-            <label htmlFor={`${idBase}-tag`}>Tag</label>
-            <Field
-                id={`${idBase}-tag`}
-                value={tag}
-                maxLength={40}
-                list={`${idBase}-tags`}
-                style={{ width: 140 }}
-                aria-invalid={!tagValid}
-                title="Letters, digits, spaces, _ . -. Slides with the same tag are shown or hidden together."
-                onChange={(e) => setTag(e.target.value)}
-                onBlur={commitTag}
-                onKeyDown={enter}
-            />
+        <Popover ref={ref} role="dialog" aria-label="Slide title and tag" style={{ left }}>
+            <label>
+                Title
+                <Field
+                    id={`${idBase}-title`}
+                    value={title}
+                    maxLength={SLIDE_TITLE_MAX}
+                    onChange={(e) => setTitle(e.target.value)}
+                    onKeyDown={keys}
+                />
+            </label>
+            <label>
+                Tag
+                <Field
+                    id={`${idBase}-tag`}
+                    value={tag}
+                    maxLength={40}
+                    list={`${idBase}-tags`}
+                    aria-invalid={!tagValid}
+                    onChange={(e) => setTag(e.target.value)}
+                    onKeyDown={keys}
+                />
+            </label>
             <datalist id={`${idBase}-tags`}>
                 {tags.map((t) => (
                     <option key={t} value={t} />
                 ))}
             </datalist>
-            <ToolButton type="button" aria-label="Move the slide before" title="Move before" disabled={index <= 0} onClick={() => onMove(-1)}>
-                <MoveLeft aria-hidden="true" />
-            </ToolButton>
-            <ToolButton type="button" aria-label="Move the slide after" title="Move after" disabled={index >= count - 1} onClick={() => onMove(1)}>
-                <MoveRight aria-hidden="true" />
-            </ToolButton>
-            <Spacer />
-            <ToolButton type="button" disabled={count >= MAX_SLIDES} onClick={onDuplicate}>
-                <Copy aria-hidden="true" />
-                Duplicate
-            </ToolButton>
-            <ToolButton type="button" disabled={count <= 1} $danger onClick={onRemove} aria-label={`Remove the slide ${slide.title}`}>
-                <Trash2 aria-hidden="true" />
-                Remove
-            </ToolButton>
-            <ToolButton type="button" disabled={count >= MAX_SLIDES} onClick={onAdd} title={count >= MAX_SLIDES ? `At most ${MAX_SLIDES} slides` : undefined}>
-                <Plus aria-hidden="true" />
-                New slide
-            </ToolButton>
-        </Tools>
+            <small>
+                Letters, digits, spaces, _ . -. Slides with the same tag are shown or hidden together. Enter keeps it, Esc leaves it.
+            </small>
+        </Popover>
     );
 };
 

@@ -12,6 +12,8 @@ export interface SavedViewerLayout {
     layout: WorkspaceLayout | null;
     updatedBy?: string;
     updatedAt?: string;
+    // the slides whose 3D model files admin_api removed with this save (Workspace/slideModelFiles.ts)
+    removedSlideModels?: string[];
 }
 
 export interface ApiAuth {
@@ -65,14 +67,14 @@ export const deleteViewerLayout = async (
     groupId: number,
     digitalTwinId: number,
     { accessToken, refreshToken, authDispatch }: ApiAuth,
-): Promise<boolean> => {
+): Promise<boolean | "models removed"> => {
     try {
         const response = await getAxiosInstance(refreshToken, authDispatch).delete(
             viewerLayoutUrl(groupId, digitalTwinId),
             axiosAuth(accessToken) as any,
         );
         toast.success(response.data?.message ?? "Back to the automatic layout");
-        return true;
+        return (response.data?.removedSlideModels?.length ?? 0) > 0 ? "models removed" : true;
     } catch (error) {
         axiosErrorHandler(error as AxiosError, authDispatch);
         return false;

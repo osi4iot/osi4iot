@@ -23,6 +23,8 @@ export interface AdminMsgContext {
 	topicRef?: string;
 	fileName?: string;
 	updatedField?: string;
+	// the slide of a digital twin's Viewer whose 3D model the message is about (femResults)
+	slideId?: string;
 }
 
 export interface Nats {

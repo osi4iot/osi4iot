@@ -74,10 +74,13 @@ func SetPipelinesGPUMode(pd *pt.PlatformData, dc *pt.DockerClient, mode string) 
 		order := res.Spec.UpdateOrder
 
 		updateResult, err := ServiceUpdate(pd, dc, service, "pipelines", ServiceUpdateOptions{
-			Image:       &image,
-			Env:         env,
-			RemoveEnv:   res.Spec.RemoveEnv,
-			Placement:   &placement,
+			Image:     &image,
+			Env:       env,
+			RemoveEnv: res.Spec.RemoveEnv,
+			Placement: &placement,
+			// with Pipelines workers, what the system_manager controller
+			// reads (and, without them any more, nothing for it to do)
+			Labels:      pipelinesPlacementLabels(res.Spec),
 			UpdateOrder: order,
 		})
 		if err != nil {
@@ -111,4 +114,14 @@ func pipelinesImageWarning(spec services.PipelinesGPUSpec) string {
 			"Make sure it is the %s image.\n", spec.Image, map[bool]string{true: "GPU", false: "CPU"}[spec.UsesGPU])
 	}
 	return ""
+}
+
+// pipelinesPlacementLabels are the labels of the pipelines service for the
+// system_manager controller: set with Pipelines workers, removed without.
+func pipelinesPlacementLabels(spec services.PipelinesGPUSpec) map[string]string {
+	labels := map[string]string{services.PipelinesPlacementLabel: "", services.PipelinesGPUModeLabel: ""}
+	for k, v := range spec.Labels {
+		labels[k] = v
+	}
+	return labels
 }

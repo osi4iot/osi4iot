@@ -4,7 +4,8 @@
 import { FC, useLayoutEffect, useRef } from "react";
 
 // Where the 3D model goes in its panel: the host element (rendered once, with a portal) is moved in here
-const ModelSlot: FC<{ host: HTMLDivElement }> = ({ host }) => {
+// right: what it leaves free on its right (the 3D model's settings, beside it)
+const ModelSlot: FC<{ host: HTMLDivElement; right?: string }> = ({ host, right }) => {
     const ref = useRef<HTMLDivElement>(null);
     useLayoutEffect(() => {
         const slot = ref.current;
@@ -14,7 +15,7 @@ const ModelSlot: FC<{ host: HTMLDivElement }> = ({ host }) => {
             if (host.parentNode === slot) slot.removeChild(host);
         };
     }, [host]);
-    return <div ref={ref} style={{ position: "absolute", inset: 0 }} />;
+    return <div ref={ref} style={{ position: "absolute", top: 0, left: 0, bottom: 0, right: right ?? 0 }} />;
 };
 
 // The host element of the model: positioned to fill the panel it is moved into

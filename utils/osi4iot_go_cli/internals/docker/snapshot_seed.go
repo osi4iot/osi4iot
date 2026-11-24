@@ -155,6 +155,19 @@ func seedTarget(
 	entries := reader.Entries(target)
 	manifestTarget := reader.Manifest().Target(target)
 
+	// The wal-g targets go into the folder of the cluster they came from
+	// (walg_clusters.go): that is where the image's walg-scoped looks once
+	// the restored cluster runs — it keeps its system identifier — and it
+	// keeps them apart from the empty cluster this platform just created.
+	// A snapshot taken before those folders existed recorded the bare
+	// prefix, and is seeded there, as before ("legacy").
+	if (target == snapshot.TargetPatroniAdmin || target == snapshot.TargetPatroniMetrics) && manifestTarget != nil {
+		if cluster := SnapshotRestoreCluster(manifestTarget.Prefix); cluster != LegacyWalgCluster {
+			keyPrefix = path.Join(keyPrefix, cluster)
+			destination = strings.TrimSuffix(destination, "/") + "/" + cluster
+		}
+	}
+
 	if source := manifestTarget.Prefix; source != "" && source != destination {
 		logger.Printf("%s: %s  ->  %s", target, source, destination)
 	}

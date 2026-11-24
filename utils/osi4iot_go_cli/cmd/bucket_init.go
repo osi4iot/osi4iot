@@ -462,16 +462,18 @@ func finishInitFromBucket(pd *pt.PlatformData) error {
 	// LATEST now could pick up a backup of the empty clusters this init
 	// just created.
 	for _, target := range []snapshot.Target{snapshot.TargetPatroniAdmin, snapshot.TargetPatroniMetrics} {
-		name := capturedCatalogue.AdminBackup
+		name, cluster := capturedCatalogue.AdminBackup, capturedCatalogue.AdminCluster
 		if target == snapshot.TargetPatroniMetrics {
-			name = capturedCatalogue.MetricsBackup
+			name, cluster = capturedCatalogue.MetricsBackup, capturedCatalogue.MetricsCluster
 		}
 		if name == "" {
 			continue
 		}
 
-		logger.Printf("\nRestoring %s from %s...", target, name)
-		opts := docker.PatroniRestoreOptions{Backup: name}
+		logger.Printf("\nRestoring %s from %s (cluster %s of the archive)...", target, name, cluster)
+		// by its cluster too: the empty clusters this init created have
+		// folders of their own, and a backup name can repeat across them
+		opts := docker.PatroniRestoreOptions{Backup: name, Cluster: cluster}
 		if target == snapshot.TargetPatroniAdmin {
 			err = docker.RestorePatroniAdmin(pd, dc, opts, logger)
 		} else {

@@ -112,10 +112,10 @@ func NodesList(rows []NodeRow) {
 		{Title: "HOSTNAME", Width: 17},
 		{Title: "ADDRESS", Width: 15},
 		{Title: "SWARM", Width: 10},
-		// 16, not 14: "Platform worker" is fifteen characters and was
+		// 17, not 14: "Pipelines worker" is sixteen characters, and "Platform worker" was
 		// coming out as "Platform wo...", which is the one value in
 		// this column that anybody needs to read.
-		{Title: "PLATFORM ROLE", Width: 16},
+		{Title: "PLATFORM ROLE", Width: 17},
 		{Title: "AVAILABILITY", Width: 13},
 		{Title: "STATE", Width: 8},
 		{Title: "TASKS", Width: 6},

@@ -51,7 +51,7 @@ import IUser from "../user/interfaces/User.interface";
 import {
 	createDigitalTwin,
 	removeFilesFromBucketFolder,
-	uploadMobilePhoneGltfFile,
+	uploadMobilePhoneModel,
 } from "../digitalTwin/digitalTwinDAL";
 import { getFloorByOrgIdAndFloorNumber } from "../building/buildingDAL";
 import { findGroupGeojsonData } from "../../utils/geolocation.ts/geolocation";
@@ -449,9 +449,7 @@ class GroupController implements IController {
 				pipelineFileData: "",
 			};
 			const digitalTwin = await createDigitalTwin(groupCreated, asset, digitalTwinData);
-			const keyBase = `org_data/org_${orgId}/group_${groupCreated.id}/digitalTwin_${digitalTwin.id}`;
-			const gltfFileName = `${keyBase}/gltfFile/mobile_phone.gltf`;
-			await uploadMobilePhoneGltfFile(gltfFileName);
+			await uploadMobilePhoneModel({ orgId, groupId: groupCreated.id, id: digitalTwin.id }, ["sensor_3"]);
 
 			const groupHash = `Group_${groupCreated.groupUid}`;
 			const tableHash = `Table_${groupCreated.groupUid}`;

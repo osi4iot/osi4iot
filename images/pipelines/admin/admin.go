@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	neturl "net/url"
 	"pipelines/common"
 	"pipelines/config"
 	"pipelines/logger"
@@ -555,9 +556,20 @@ func (a *Admin) GetWire(ctx context.Context, groupId int, wireId int) *common.Wi
 	return &wire
 }
 
-func (a *Admin) GetS3DigitalTwinFolderInfo(ctx context.Context, groupId int, digitalTwinId int, folder string) []*common.S3FolderFileInfo {
+// slideSuffix is the query of a slide's 3D model (gltfFile, femResJson
+// are a slide's): "" for the digital twin's own folders.
+func slideSuffix(slideId string) string {
+	if slideId == "" {
+		return ""
+	}
+	return "?slide=" + neturl.QueryEscape(slideId)
+}
+
+// GetS3DigitalTwinFolderInfo lists a folder of a digital twin; slideId:
+// the slide whose 3D model the folder is (gltfFile, femResJson).
+func (a *Admin) GetS3DigitalTwinFolderInfo(ctx context.Context, groupId int, digitalTwinId int, folder string, slideId string) []*common.S3FolderFileInfo {
 	var folderInfo []*common.S3FolderFileInfo
-	url := fmt.Sprintf("%s/digital_twin_file_list/%d/%d/%s", a.baseUrl, groupId, digitalTwinId, folder)
+	url := fmt.Sprintf("%s/digital_twin_file_list/%d/%d/%s%s", a.baseUrl, groupId, digitalTwinId, folder, slideSuffix(slideId))
 	response, err := utils.HttpGetWithJwt(ctx, url, a.accessToken)
 	if err != nil {
 		a.log.Errorf("failed to get s3 folder info: %v", err)
@@ -592,10 +604,27 @@ func (a *Admin) GetS3MlModelFolderInfo(ctx context.Context, groupId int, mlModel
 }
 
 // DownloadDigitalTwinFile downloads one file of a digital twin's S3
-// folder (gltfFile, femResJson) through the admin API.
-func (a *Admin) DownloadDigitalTwinFile(ctx context.Context, groupId int, digitalTwinId int, folder string, fileName string) ([]byte, error) {
-	url := fmt.Sprintf("%s/digital_twin_download_file/%d/%d/%s/%s", a.baseUrl, groupId, digitalTwinId, folder, fileName)
+// folder (gltfFile, femResJson of a slide's 3D model) through the admin
+// API.
+func (a *Admin) DownloadDigitalTwinFile(ctx context.Context, groupId int, digitalTwinId int, folder string, fileName string, slideId string) ([]byte, error) {
+	url := fmt.Sprintf("%s/digital_twin_download_file/%d/%d/%s/%s%s", a.baseUrl, groupId, digitalTwinId, folder,
+		neturl.PathEscape(fileName), slideSuffix(slideId))
 	return utils.HttpGetWithJwt(ctx, url, a.accessToken)
+}
+
+// GetSlideModels lists the slides of a digital twin's Viewer that have a
+// 3D model or FEM results, in the order of its layout.
+func (a *Admin) GetSlideModels(ctx context.Context, groupId int, digitalTwinId int) ([]common.SlideModel, error) {
+	url := fmt.Sprintf("%s/digital_twin_slide_models/%d/%d", a.baseUrl, groupId, digitalTwinId)
+	response, err := utils.HttpGetWithJwt(ctx, url, a.accessToken)
+	if err != nil {
+		return nil, err
+	}
+	var models []common.SlideModel
+	if err := utils.UnmarshalData(response, &models); err != nil {
+		return nil, err
+	}
+	return models, nil
 }
 
 func (a *Admin) GetAssetS3Folders(ctx context.Context) []*common.AssetS3Folder {

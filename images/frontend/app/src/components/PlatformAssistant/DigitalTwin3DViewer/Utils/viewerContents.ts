@@ -21,6 +21,8 @@ export interface ViewerContents {
     femResults: string[];
     // inputs of the digital twin simulator (digitalTwinSimulatorState), with their range and current value
     simulator: SimulatorField[];
+    // the slide whose 3D model the viewer shows: the AI agent reads its FEM results (each slide has its own)
+    slide?: string;
 }
 
 interface SimulatorFormat {
@@ -46,7 +48,9 @@ export const viewerContents = (source: {
     femResultNames?: readonly string[];
     simulationFormat?: Record<string, SimulatorFormat>;
     simulatorState?: Record<string, number>;
+    slideId?: string;
 }): ViewerContents => ({
+    ...(source.slideId ? { slide: source.slideId } : {}),
     sensors: names(source.sensorCollectionNames),
     assets: names(source.assetCollectionNames),
     animatedObjects: names(source.animatedObjectNames),
@@ -120,4 +124,3 @@ export const resolveCollectionKeys = (
 };
 
 export const isCollectionMapKey = (key: string) => key.endsWith("VisibilityState");
-

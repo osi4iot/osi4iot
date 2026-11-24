@@ -31,4 +31,12 @@ describe("model slot", () => {
         act(() => rerender(<Page slide={2} />));
         expect(screen.getByRole("region", { name: "slide 2" })).toContainElement(screen.getByRole("button", { name: "scene 1" }));
     });
+
+    it("leaves free on its right what it is told (the 3D model's settings, beside it)", () => {
+        const host = createModelHost();
+        const { container } = render(<ModelSlot host={host} right="120px" />);
+        const slot = container.firstElementChild as HTMLElement;
+        expect(slot.style.right).toBe("120px");
+        expect(slot.style.left).toBe("0px");
+    });
 });

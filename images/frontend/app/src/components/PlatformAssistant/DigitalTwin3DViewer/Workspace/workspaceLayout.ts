@@ -11,7 +11,7 @@
 // Pure functions, so they are easy to test. admin_api checks the same shape (viewerLayoutValidation.ts).
 import { PICTURE_FITS, PictureBinding, PictureFit, sanitizeBindings } from "./pictureBindings";
 import { REFRESH_INTERVALS } from "./charts/timeRange";
-import { SurfaceOptions, defaultSurface, sanitizeSurface } from "./surface/surfacePanel";
+import { SurfaceOptions, defaultSurface, sanitizeSurface, surfaceTopics } from "./surface/surfacePanel";
 import { AssetStateField, sanitizeAssetStateSettings } from "./assetStatePanel";
 import { OrgOverviewPeriod, sanitizeOrgOverviewSettings } from "./orgOverview";
 
@@ -44,7 +44,8 @@ export type PanelType =
     | "assetState"
     | "health"
     | "pipelineLogs"
-    | "orgOverview";
+    | "orgOverview"
+    | "simulator";
 // the text of a Text panel (markdown, LaTeX and {{topicRef.path}} values): at most these characters
 export const MARKDOWN_MAX_LENGTH = 20000;
 // how an Image panel shows the frames of its source: as a video (live, with pause) or as a photo (the last
@@ -52,7 +53,19 @@ export const MARKDOWN_MAX_LENGTH = 20000;
 export type ImageDisplay = "video" | "photo";
 export const imageDisplayOf = (panel: { display?: ImageDisplay }): ImageDisplay => (panel.display === "photo" ? "photo" : "video");
 // at most one panel of these types on a page
-export const SINGLE_PANEL_TYPES: PanelType[] = ["model", "alarms", "approvals", "assetState", "health", "pipelineLogs", "orgOverview"];
+export const SINGLE_PANEL_TYPES: PanelType[] = ["model", "alarms", "approvals", "assetState", "health", "pipelineLogs", "orgOverview", "simulator"];
+// the panels that can float over the slide instead of taking a place in its grid (also over a panel in full screen)
+export const FLOATING_PANEL_TYPES: PanelType[] = ["simulator"];
+// a floating window, in fractions (0 to 1) of the slide's area; its grid place (x, y, w, h) is where it docks
+export interface FloatRect {
+    x: number;
+    y: number;
+    w: number;
+    h: number;
+}
+export const FLOAT_MIN_FRACTION = 0.05;
+// where a simulator floats when nobody has moved it: on the right, near the top
+export const DEFAULT_FLOAT: FloatRect = { x: 0.66, y: 0.04, w: 0.32, h: 0.62 };
 // the panels of a group's control room only (controlRoom.ts)
 export const CONTROL_ROOM_PANEL_TYPES: PanelType[] = ["health", "pipelineLogs"];
 // the panels of the organization overview only (orgOverview.ts)
@@ -106,6 +119,12 @@ export interface WorkspacePanel {
     // orgOverview: the statuses that are not available ("Alarm" when none) and the period it opens with
     unavailableStatuses?: string[];
     period?: OrgOverviewPeriod;
+    // simulator: floating over the slide (its window: float) instead of in its place of the grid
+    floating?: boolean;
+    float?: FloatRect;
+    // simulator: its own format, that of its slide (none: the digital twin's); the values it sends carry the slide
+    // ("$slide") and the answers with it go to the panels of the slide
+    format?: Record<string, SimulatorParameter>;
     // chart: its series, its visualization and settings (Grafana's options and fieldConfig) and its own time
     series?: ChartSeriesRef[];
     // the panels of 1.4.0 before the editor: now timeFrom
@@ -138,15 +157,23 @@ export interface WorkspaceLayout {
     version: number;
     time?: WorkspaceTime;
     slides: WorkspaceSlide[];
+    // saved once simulator panels existed: a layout without it gets a floating simulator on its first slide when the
+    // twin has a simulator format (withSimulatorPanel; the simulator of older versions was a floating window)
+    simulatorPlaced?: boolean;
 }
 
 export interface WorkspaceContext {
+    // the twin has a 3D model: its automatic layout shows it
     hasModel: boolean;
+    // 3D Model panels may be added and kept (each slide loads its own model in its panel); default: hasModel
+    modelPanels?: boolean;
     hasCamera: boolean;
     // a group's control room: its automatic layout shows the whole group
     controlRoom?: boolean;
     // the organization overview: its automatic layout shows the indicators of the organization
     organization?: boolean;
+    // the twin has a simulator format: its automatic layout has a floating simulator
+    hasSimulator?: boolean;
 }
 
 // size of a new panel of each type
@@ -163,6 +190,7 @@ const NEW_PANEL_SIZE: Record<PanelType, { w: number; h: number }> = {
     health: { w: 6, h: 6 },
     pipelineLogs: { w: 6, h: 6 },
     orgOverview: { w: 12, h: 12 },
+    simulator: { w: 4, h: 8 },
 };
 const MIN_SIZE: Record<PanelType, { w: number; h: number }> = {
     model: { w: 3, h: 3 },
@@ -177,6 +205,7 @@ const MIN_SIZE: Record<PanelType, { w: number; h: number }> = {
     health: { w: 3, h: 3 },
     pipelineLogs: { w: 3, h: 3 },
     orgOverview: { w: 6, h: 6 },
+    simulator: { w: 3, h: 4 },
 };
 
 export const minSizeOf = (type: PanelType) => MIN_SIZE[type];
@@ -194,6 +223,7 @@ const PANEL_TYPES: PanelType[] = [
     "health",
     "pipelineLogs",
     "orgOverview",
+    "simulator",
 ];
 export const PICTURE_FILE = /^[A-Za-z0-9_][A-Za-z0-9_.-]{0,79}\.(png|jpe?g|webp|gif|svg)$/i;
 const PANEL_ID = /^[A-Za-z0-9_-]{1,40}$/;
@@ -274,7 +304,7 @@ export const organizationWorkspaceLayout = (): WorkspaceLayout => ({
     slides: [{ id: "slide-1", title: "Overview", tag: "Slide_1", panels: [{ id: "overview", type: "orgOverview", x: 0, y: 0, w: GRID_COLS, h: 24 }] }],
 });
 
-export const defaultWorkspaceLayout = ({ hasModel, hasCamera, controlRoom, organization }: WorkspaceContext): WorkspaceLayout => {
+export const defaultWorkspaceLayout = ({ hasModel, hasCamera, controlRoom, organization, hasSimulator }: WorkspaceContext): WorkspaceLayout => {
     if (organization) return organizationWorkspaceLayout();
     if (controlRoom) return controlRoomWorkspaceLayout();
     const panels: WorkspacePanel[] = [];
@@ -286,11 +316,130 @@ export const defaultWorkspaceLayout = ({ hasModel, hasCamera, controlRoom, organ
     } else if (hasCamera) {
         panels.push({ id: "image", type: "image", source: ANY_IMAGE_SOURCE, x: 0, y: 0, w: GRID_COLS, h: PAGE_ROWS });
     }
-    return { version: WORKSPACE_LAYOUT_VERSION, slides: [{ ...slideNames(1), panels }] };
+    const slide: WorkspaceSlide = { ...slideNames(1), panels };
+    return { version: WORKSPACE_LAYOUT_VERSION, slides: [hasSimulator ? withFloatingSimulator(slide) : slide] };
 };
+
+// a slide with a floating simulator (it docks in the first free place of its size)
+const withFloatingSimulator = <T extends WorkspacePage>(slide: T): T => {
+    if (slide.panels.some((p) => p.type === "simulator")) return slide;
+    const { w, h } = NEW_PANEL_SIZE.simulator;
+    const { x, y } = freePlace(slide.panels, w, h);
+    const panel: WorkspacePanel = { id: newPanelId(slide.panels, "simulator"), type: "simulator", x, y, w, h, floating: true, float: { ...DEFAULT_FLOAT } };
+    return { ...slide, panels: [...slide.panels, panel] };
+};
+
+// The layouts saved before simulator panels existed get a floating simulator on their first slide when the twin has
+// a simulator format: the simulator was a floating window then. Not those saved since (simulatorPlaced), where an
+// editor may have removed it on purpose.
+export const withSimulatorPanel = (layout: WorkspaceLayout, hasSimulator: boolean): WorkspaceLayout => {
+    if (!hasSimulator || layout.simulatorPlaced || layout.slides.length === 0) return layout;
+    if (layout.slides.some((s) => s.panels.some((p) => p.type === "simulator"))) return layout;
+    return { ...layout, slides: [withFloatingSimulator(layout.slides[0]), ...layout.slides.slice(1)] };
+};
+
+const isFraction = (value: unknown): value is number => typeof value === "number" && Number.isFinite(value) && value >= 0 && value <= 1;
+
+// A parameter of a simulator's format (the slider of the Simulator panel)
+export interface SimulatorParameter {
+    label: string;
+    units: string;
+    minValue: number;
+    maxValue: number;
+    defaultValue: number;
+    step: number;
+}
+
+// the format of a slide's simulator, as admin_api checks it (validateSimulatorFormat); undefined: not a format
+export const sanitizeSimulatorFormat = (raw: unknown): Record<string, SimulatorParameter> | undefined => {
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return undefined;
+    const entries = Object.entries(raw as Record<string, unknown>);
+    if (entries.length > 200) return undefined;
+    const format: Record<string, SimulatorParameter> = {};
+    for (const [name, value] of entries) {
+        if (!/^[A-Za-z0-9_.-]{1,80}$/.test(name) || !value || typeof value !== "object") return undefined;
+        const v = value as Record<string, unknown>;
+        const n = (k: string) => (typeof v[k] === "number" && Number.isFinite(v[k]) ? (v[k] as number) : NaN);
+        const [minValue, maxValue, defaultValue, step] = [n("minValue"), n("maxValue"), n("defaultValue"), n("step")];
+        if (typeof v.label !== "string" || typeof v.units !== "string") return undefined;
+        if (![minValue, maxValue, defaultValue, step].every(Number.isFinite) || minValue >= maxValue || step <= 0) return undefined;
+        if (defaultValue < minValue || defaultValue > maxValue) return undefined;
+        format[name] = { label: v.label, units: v.units, minValue, maxValue, defaultValue, step };
+    }
+    return format;
+};
+
+// the slide with its simulator's own format (the simulator of the slide: one per slide)
+export const setSimulatorFormat = <T extends WorkspacePage>(slide: T, format: Record<string, SimulatorParameter>): T => ({
+    ...slide,
+    panels: slide.panels.map((p) => (p.type === "simulator" ? { ...p, format } : p)),
+});
+
+// a floating window inside the slide and not too small, or undefined
+export const sanitizeFloat = (raw: unknown): FloatRect | undefined => {
+    if (!raw || typeof raw !== "object") return undefined;
+    const { x, y, w, h } = raw as Record<string, unknown>;
+    if (!isFraction(x) || !isFraction(y) || !isFraction(w) || !isFraction(h)) return undefined;
+    if (w < FLOAT_MIN_FRACTION || h < FLOAT_MIN_FRACTION) return undefined;
+    return { x: Math.min(x, 1 - w), y: Math.min(y, 1 - h), w, h };
+};
+
+// The topics of the simulation: what the simulator sends to the pipeline (sim2dtm) and what the pipeline answers
+// with (dtm2sim).
+const SIMULATION_TOPICS = ["dtm2sim", "sim2dtm"];
+const SIMULATION_TOPIC_IN_TEXT = /\b(dtm2sim|sim2dtm)\b/;
+
+// Whether a panel shows the simulation: the 3D model, and the panels that use its topics (a 3D Surface of their
+// values, an image of dtm2sim, an animated picture or a text with their values). The simulator floats only over
+// these, when one is in full screen: over the rest (charts and alarms read the database, cameras the real world)
+// the values being simulated change nothing.
+export const showsSimulation = (panel: WorkspacePanel): boolean => {
+    switch (panel.type) {
+        case "model":
+            return true;
+        case "surface":
+            return surfaceTopics(panel.surface).some((t) => SIMULATION_TOPICS.includes(t));
+        case "image":
+            return SIMULATION_TOPICS.includes(panel.source ?? "");
+        case "picture":
+            return (panel.bindings ?? []).some((b) => SIMULATION_TOPICS.includes(b.topicRef));
+        case "markdown":
+            return SIMULATION_TOPIC_IN_TEXT.test(panel.text ?? "");
+        default:
+            return false;
+    }
+};
+
+export const isFloating = (panel: WorkspacePanel) => FLOATING_PANEL_TYPES.includes(panel.type) && panel.floating === true;
+
+// a panel floated or docked, or its window moved (an editor saving the layout)
+export const setPanelFloat = <T extends WorkspacePage>(layout: T, id: string, floating: boolean, float?: FloatRect): T => ({
+    ...layout,
+    panels: layout.panels.map((p) => {
+        if (p.id !== id || !FLOATING_PANEL_TYPES.includes(p.type)) return p;
+        const next: WorkspacePanel = { ...p, float: float ?? p.float ?? { ...DEFAULT_FLOAT } };
+        if (floating) next.floating = true;
+        else delete next.floating;
+        return next;
+    }),
+});
 
 // the id, title and tag of the slide number n
 const slideNames = (n: number) => ({ id: `slide-${n}`, title: `Slide ${n}`, tag: `Slide_${n}` });
+
+// The id of a new slide: never used before in this twin (its 3D model's files are kept under it, admin_api
+// slideModels.ts, and a slide keeps it when renamed or moved), unlike "slide-<n>", which a removed slide may have had
+export const newSlideId = (layout: WorkspaceLayout): string => {
+    const used = new Set(layout.slides.map((s) => s.id));
+    for (;;) {
+        const random =
+            typeof crypto !== "undefined" && "getRandomValues" in crypto
+                ? Array.from(crypto.getRandomValues(new Uint8Array(8)), (b) => (b % 36).toString(36)).join("")
+                : Math.random().toString(36).slice(2, 10);
+        const id = `s-${random}`;
+        if (!used.has(id)) return id;
+    }
+};
 
 const isInt = (value: unknown): value is number => typeof value === "number" && Number.isInteger(value);
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
@@ -298,7 +447,11 @@ const clamp = (value: number, min: number, max: number) => Math.min(max, Math.ma
 // A layout read from admin_api or from memory, made safe: unknown or broken slides and panels are dropped,
 // sizes are kept inside the grid, and the model panels are dropped when the twin has no 3D model. A layout of
 // version 1 becomes one slide. null when it is not a layout.
-export const sanitizeWorkspaceLayout = (raw: unknown, { hasModel }: Pick<WorkspaceContext, "hasModel">): WorkspaceLayout | null => {
+export const sanitizeWorkspaceLayout = (
+    raw: unknown,
+    { hasModel, modelPanels }: Pick<WorkspaceContext, "hasModel" | "modelPanels">,
+): WorkspaceLayout | null => {
+    const keepModels = modelPanels ?? hasModel;
     if (!plainObject(raw)) return null;
     const { version, panels, slides } = raw;
     let rawSlides: unknown[];
@@ -314,12 +467,13 @@ export const sanitizeWorkspaceLayout = (raw: unknown, { hasModel }: Pick<Workspa
         const title = typeof item.title === "string" && item.title.trim() ? item.title.trim().slice(0, SLIDE_TITLE_MAX) : `Slide ${n}`;
         const tag = typeof item.tag === "string" && SLIDE_TAG.test(item.tag.trim()) ? item.tag.trim() : `Slide_${n}`;
         slideIds.add(item.id);
-        clean.push({ id: item.id, title, tag, panels: sanitizePanels(item.panels, hasModel) });
+        clean.push({ id: item.id, title, tag, panels: sanitizePanels(item.panels, keepModels) });
     }
     if (clean.length === 0) return null;
     const layout: WorkspaceLayout = { version: WORKSPACE_LAYOUT_VERSION, slides: clean };
     const time = sanitizeTime(raw.time);
     if (time) layout.time = time;
+    if (raw.simulatorPlaced === true) layout.simulatorPlaced = true;
     return layout;
 };
 
@@ -361,6 +515,15 @@ const sanitizePanels = (panels: unknown, hasModel: boolean): WorkspacePanel[] =>
         }
         if (p.type === "assetState") Object.assign(panel, sanitizeAssetStateSettings(p));
         if (p.type === "orgOverview") Object.assign(panel, sanitizeOrgOverviewSettings(p));
+        if (FLOATING_PANEL_TYPES.includes(type)) {
+            const float = sanitizeFloat(p.float);
+            if (float) panel.float = float;
+            if (p.floating === true) panel.floating = true;
+        }
+        if (p.type === "simulator" && p.format !== undefined) {
+            const format = sanitizeSimulatorFormat(p.format);
+            if (format) panel.format = format;
+        }
         if (p.type === "surface") {
             const surface = sanitizeSurface(p.surface);
             if (!surface) continue;
@@ -397,7 +560,8 @@ export const effectiveWorkspaceLayout = (
     const fromLocal = sanitizeWorkspaceLayout(local, context);
     if (fromLocal) return { layout: fromLocal, origin: "local" };
     const fromSaved = sanitizeWorkspaceLayout(saved, context);
-    if (fromSaved) return { layout: fromSaved, origin: "group" };
+    // a layout saved before simulator panels existed: the simulator floats on its first slide, as it used to
+    if (fromSaved) return { layout: withSimulatorPanel(fromSaved, !!context.hasSimulator), origin: "group" };
     return { layout: defaultWorkspaceLayout(context), origin: "automatic" };
 };
 
@@ -537,6 +701,8 @@ const normalized = (layout: WorkspacePage) =>
                 p.timeShift ?? "",
                 p.interval ?? "",
                 p.maxDataPoints ?? "",
+                p.floating === true,
+                JSON.stringify(p.float ?? null),
                 p.x,
                 p.y,
                 p.w,
@@ -548,6 +714,7 @@ const sameSlide = (a: WorkspaceSlide, b: WorkspaceSlide) =>
     a.id === b.id && a.title === b.title && a.tag === b.tag && normalized(a) === normalized(b);
 
 export const sameLayout = (a: WorkspaceLayout, b: WorkspaceLayout) =>
+    !!a.simulatorPlaced === !!b.simulatorPlaced &&
     a.slides.length === b.slides.length &&
     a.slides.every((slide, i) => sameSlide(slide, b.slides[i])) &&
     JSON.stringify(a.time ?? null) === JSON.stringify(b.time ?? null);
@@ -567,7 +734,7 @@ export const canAddSlide = (layout: WorkspaceLayout) => layout.slides.length < M
 // A new empty slide after the slide `after` (at the end without it); returns the layout and the new slide's id
 export const addSlide = (layout: WorkspaceLayout, after?: string): { layout: WorkspaceLayout; id: string } => {
     if (!canAddSlide(layout)) return { layout, id: after ?? layout.slides[0].id };
-    const slide: WorkspaceSlide = { ...slideNames(freeSlideNumber(layout)), panels: [] };
+    const slide: WorkspaceSlide = { ...slideNames(freeSlideNumber(layout)), id: newSlideId(layout), panels: [] };
     const at = after ? layout.slides.findIndex((s) => s.id === after) : -1;
     const slides = [...layout.slides];
     slides.splice(at === -1 ? slides.length : at + 1, 0, slide);
@@ -580,7 +747,7 @@ export const duplicateSlide = (layout: WorkspaceLayout, id: string): { layout: W
     if (at === -1 || !canAddSlide(layout)) return { layout, id };
     const source = layout.slides[at];
     const copy: WorkspaceSlide = {
-        id: slideNames(freeSlideNumber(layout)).id,
+        id: newSlideId(layout),
         title: `${source.title} (copy)`.slice(0, SLIDE_TITLE_MAX),
         tag: source.tag,
         panels: source.panels.map((p) => ({ ...p })),
@@ -730,6 +897,7 @@ export const panelTitle = (panel: WorkspacePanel): string => {
     if (panel.type === "health") return "Health";
     if (panel.type === "pipelineLogs") return "Pipeline logs";
     if (panel.type === "orgOverview") return "Organization overview";
+    if (panel.type === "simulator") return "Simulator";
     const kind = imageDisplayOf(panel) === "photo" ? "Photo" : "Video";
     return panel.source && panel.source !== ANY_IMAGE_SOURCE ? `${kind} · ${imageSourceLabel(panel.source)}` : kind;
 };
@@ -766,3 +934,4 @@ export const imageSourceOptions = (topicRefs: string[], liveSources: string[]): 
 // Height of a row so that PAGE_ROWS rows fill the page
 export const rowHeightFor = (height: number, margin = GRID_MARGIN) =>
     Math.max(MIN_ROW_HEIGHT, Math.floor((height - margin * (PAGE_ROWS - 1)) / PAGE_ROWS));
+

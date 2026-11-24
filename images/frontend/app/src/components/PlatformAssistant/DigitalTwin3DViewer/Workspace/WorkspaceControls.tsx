@@ -1,9 +1,9 @@
 // The Viewer page's buttons in the top bar: "Edit layout", for those who are not group administrators
-// "Group layout" while they have their own changes, and the viewer configuration (.json): download it, and for
-// group administrators load one.
-import { FC, useEffect, useRef, useState } from "react";
+// "Group layout" while they have their own changes, and the Viewer data (ViewerDataMenu; without it, the viewer
+// configuration alone: download it, and for group administrators load one).
+import { FC, ReactNode, useEffect, useRef, useState } from "react";
 import styled from "styled-components";
-import { Download, FileJson, LayoutDashboard, RotateCcw, Upload, Volume2, VolumeX } from "lucide-react";
+import { Download, FileJson, Upload, Volume2, VolumeX } from "lucide-react";
 
 const Wrap = styled.div`
     display: flex;
@@ -107,6 +107,8 @@ interface WorkspaceControlsProps {
     onDownloadConfig?: () => void;
     downloadImages?: number;
     onLoadConfig?: (file: File) => void;
+    // the Viewer data menu (ViewerDataMenu), in place of the configuration's
+    dataMenu?: ReactNode;
 }
 
 const ConfigMenu: FC<Pick<WorkspaceControlsProps, "canSave" | "onDownloadConfig" | "downloadImages" | "onLoadConfig">> = ({
@@ -199,32 +201,18 @@ const ConfigMenu: FC<Pick<WorkspaceControlsProps, "canSave" | "onDownloadConfig"
 const WorkspaceControls: FC<WorkspaceControlsProps> = ({
     visible,
     canSave,
-    origin,
-    onEdit,
-    onRestore,
     onDownloadConfig,
     downloadImages,
     onLoadConfig,
+    dataMenu,
 }) => {
     if (!visible) return null;
     return (
         <Wrap>
-            <ConfigMenu canSave={canSave} onDownloadConfig={onDownloadConfig} downloadImages={downloadImages} onLoadConfig={onLoadConfig} />
-            {!canSave && origin === "local" && (
-                <Button type="button" onClick={onRestore} aria-label="Back to the group layout" title="Back to the group layout">
-                    <RotateCcw aria-hidden="true" />
-                    <span>Group layout</span>
-                </Button>
+            {dataMenu ?? (
+                <ConfigMenu canSave={canSave} onDownloadConfig={onDownloadConfig} downloadImages={downloadImages} onLoadConfig={onLoadConfig} />
             )}
-            <Button
-                type="button"
-                onClick={onEdit}
-                aria-label="Edit layout"
-                title={canSave ? "Arrange the panels for the whole group" : "Arrange the panels (only for you)"}
-            >
-                <LayoutDashboard aria-hidden="true" />
-                <span>Edit layout</span>
-            </Button>
+            {/* editing the layout and going back to the group's one are in the slide bar (SlideBar) */}
         </Wrap>
     );
 };
@@ -247,7 +235,6 @@ export const SoundToggle: FC<{ visible: boolean; enabled: boolean; onToggle: () 
             onClick={onToggle}
         >
             {enabled ? <Volume2 aria-hidden="true" /> : <VolumeX aria-hidden="true" />}
-            <span>{enabled ? "Sound on" : "Muted"}</span>
         </SoundButton>
     );
 };

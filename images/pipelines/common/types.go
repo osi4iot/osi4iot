@@ -365,6 +365,16 @@ type PipelineLog struct {
 	State       map[string]any `json:"state"`
 }
 
+// SlideModel is a slide of a digital twin's Viewer with a 3D model or FEM
+// results (admin API digital_twin_slide_models). Each slide's model has
+// its own files: digitalTwin_<id>/slides/<slideId>/gltfFile, femResJson,
+// femResParquet.
+type SlideModel struct {
+	SlideId      string `json:"slideId"`
+	GltfFileName string `json:"gltfFileName"`
+	FemResults   int    `json:"femResults"`
+}
+
 type S3FolderFileInfo struct {
 	FileName     string `json:"fileName"`
 	LastModified string `json:"lastModified"`

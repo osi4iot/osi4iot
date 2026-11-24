@@ -252,10 +252,17 @@ func (fm *FlowsManager) DeleteDigitalTwin(ctx context.Context, digitalTwinId int
 		fm.DigitalTwins.Delete(digitalTwinIdStr)
 		fm.DeleteDigitalTwinTopicsRefByDTid(digitalTwinId)
 
-		// Its Parquet FEM results in the bucket (admin_api removes the
-		// rest of the digital twin's files).
-		if err := fm.deleteFemResultsParquet(ctx, digitalTwin); err != nil {
+		// Its Parquet FEM results in the bucket, those of the root of its
+		// folder (before slides had models) and of its slides (admin_api
+		// removes the rest of the digital twin's files).
+		if err := fm.deleteFemResultsParquet(ctx, digitalTwin, ""); err != nil {
 			fm.log.Errorf("Digital twin %d: %v", digitalTwinId, err)
+		}
+		if fm.S3Client != nil && fm.S3BucketName != "" {
+			slides := fmt.Sprintf("org_data/org_%d/group_%d/digitalTwin_%d/slides/", digitalTwin.OrgId, digitalTwin.GroupId, digitalTwin.Id)
+			if err := utils.DeleteS3Prefix(ctx, fm.S3Client, fm.S3BucketName, slides); err != nil {
+				fm.log.Errorf("Digital twin %d: %v", digitalTwinId, err)
+			}
 		}
 
 		return nil
@@ -419,8 +426,8 @@ func (fm *FlowsManager) CheckIfNodeExistInPipelineFile(digitalTwin *common.Digit
 	return false
 }
 
-func (fm *FlowsManager) GetS3DigitalTwinFolderInfo(ctx context.Context, groupId int, digitalTwinId int, folder string) []*common.S3FolderFileInfo {
-	return fm.Admin.GetS3DigitalTwinFolderInfo(ctx, groupId, digitalTwinId, folder)
+func (fm *FlowsManager) GetS3DigitalTwinFolderInfo(ctx context.Context, groupId int, digitalTwinId int, folder string, slideId string) []*common.S3FolderFileInfo {
+	return fm.Admin.GetS3DigitalTwinFolderInfo(ctx, groupId, digitalTwinId, folder, slideId)
 }
 
 func makeDigitalTwinTopicRefKey(digitalTwinId int, topicRef string) string {

@@ -188,6 +188,7 @@ func GetNodeRoleNumMap(platformData *pt.PlatformData) map[string]int {
 	roleNumMap := make(map[string]int)
 	roleNumMap["Manager"] = 0
 	roleNumMap["Platform worker"] = 0
+	roleNumMap["Pipelines worker"] = 0
 	nodesData := platformData.PlatformInfo.NodesData
 
 	for _, node := range nodesData {
@@ -197,6 +198,8 @@ func GetNodeRoleNumMap(platformData *pt.PlatformData) map[string]int {
 			roleNumMap["Manager"] += 1
 		case "Platform worker":
 			roleNumMap["Platform worker"] += 1
+		case "Pipelines worker":
+			roleNumMap["Pipelines worker"] += 1
 		}
 	}
 

@@ -66,6 +66,11 @@ const (
 	restoreEnvBootstrapMethod = "PATRONI_BOOTSTRAP_METHOD"
 	restoreEnvBackup          = "PATRONI_RESTORE_BACKUP"
 	restoreEnvTargetTime      = "PATRONI_RESTORE_TARGET_TIME"
+	// restoreEnvPrefix is the cluster folder of the archive the restore
+	// reads (walg-scoped --restore, in the image): the nodes' PGDATA is
+	// empty then, so they cannot work it out from their own system
+	// identifier. See walg_clusters.go.
+	restoreEnvPrefix = "PATRONI_RESTORE_PREFIX"
 )
 
 // PatroniRestoreOptions configures a cluster restore.
@@ -75,6 +80,13 @@ type PatroniRestoreOptions struct {
 	// TargetTime, when set, is the PITR target in a form PostgreSQL
 	// accepts for recovery_target_time (e.g. "2026-09-08 14:30:00+00").
 	TargetTime string
+	// Cluster is the archive's cluster to restore from: a system
+	// identifier, "legacy" (the backups taken before each cluster had a
+	// folder), or "" to choose (see chooseRestoreCluster).
+	Cluster string
+	// Source is the choice already made (ResolvePatroniRestoreSource,
+	// shown to the operator before confirming); nil makes it here.
+	Source *RestoreSource
 }
 
 // RestorePatroniAdmin restores the patroni_admin cluster.
@@ -109,6 +121,18 @@ func restorePatroniFamily(
 	}
 	n := int(replicas)
 
+	// ── 0. Which cluster of the archive ───────────────────────────
+	source := opts.Source
+	if source == nil {
+		resolved, err := ResolvePatroniRestoreSource(pd, dc, family.NamePrefix, opts, logger)
+		if err != nil {
+			return err
+		}
+		source = &resolved
+	}
+	opts.Backup = source.Backup
+	logger.Printf("Restoring from cluster %s of the archive (%s): %s.", source.Cluster.Label(), source.Reason, source.Prefix)
+
 	// ── 1. Get everything committed into the archive ──────────────
 	//
 	// With archive_timeout at 1800s, up to half an hour of committed
@@ -122,7 +146,17 @@ func restorePatroniFamily(
 	// silently loses data. With no primary there is nothing to flush
 	// and nothing to lose by continuing; with one, flushing is always
 	// right.
-	switch owns, reason := liveClusterOwnsBackups(pd, dc, family); owns {
+	// Flushing only helps when the backups are the running cluster's
+	// own: each cluster archives in its own folder (walg-scoped), so the
+	// WAL of any other cluster could not reach this one's archive anyway.
+	owns, reason := source.SameAsLive(), ""
+	if !owns {
+		reason = "the running cluster is not the one being restored, so it holds no WAL of it"
+		if source.LiveSystemIdentifier == 0 {
+			reason = "no primary is available, so there is no unarchived WAL to rescue"
+		}
+	}
+	switch owns {
 	case false:
 		// Nothing worth rescuing: either there is no primary at all, or
 		// there is one but it is not the cluster these backups came
@@ -194,7 +228,7 @@ func restorePatroniFamily(
 	// ── 4. Bring them back with the restore bootstrap ─────────────
 	logger.Printf("Starting the cluster with the restore bootstrap (backup: %s)...", opts.Backup)
 	for i := 1; i <= n; i++ {
-		if err := startPatroniNodeForRestore(pd, dc, family, i, opts); err != nil {
+		if err := startPatroniNodeForRestore(pd, dc, family, i, opts, source.Prefix); err != nil {
 			return err
 		}
 		logger.Printf("  %s%d started", family.NamePrefix, i)
@@ -212,60 +246,14 @@ func restorePatroniFamily(
 	}
 
 	logger.Printf("Restore complete. Leader: %s", leader)
+	if source.Cluster.Folder == "" {
+		// Restored from the legacy backups: from now on it archives in
+		// its own folder, which has no base backup yet — a later restore
+		// of it would have to start from the legacy one again.
+		logger.Printf("It now archives in its own folder of the archive, which has no base backup yet: "+
+			"take one with 'osi4iot backup trigger %s'.", family.NamePrefix)
+	}
 	return nil
-}
-
-// liveClusterOwnsBackups reports whether the cluster currently running
-// is the same one the backups were taken from, and why not when it
-// isn't.
-//
-// The question matters because "is there a primary?" is not the same as
-// "is there data worth rescuing?". Delete the volumes of a running
-// cluster and Patroni does exactly what it should: bootstraps a new,
-// empty cluster. That cluster has a primary, reports healthy, and holds
-// nothing — and its WAL segment names collide with the real cluster's
-// in the archive, so with WALG_PREVENT_WAL_OVERWRITE on it cannot
-// archive at all. A flush against it fails, and aborting on that
-// failure blocks the restore that would put the real data back.
-//
-// PostgreSQL's system identifier separates the two cleanly: it is
-// assigned at initdb and survives a restore, so it matches for the real
-// cluster and differs for a freshly bootstrapped one.
-//
-// Errors resolve to false. Not being able to tell should not block a
-// restore — the flush is an optimization protecting the last few
-// minutes, while the restore is the thing that recovers everything
-// else.
-func liveClusterOwnsBackups(pd *pt.PlatformData, dc *pt.DockerClient, family patroniFamily) (bool, string) {
-	leader, err := queryPatroniLeader(pd, dc, family)
-	if err != nil || leader == "" {
-		return false, "no primary is available, so there is no unarchived WAL to rescue"
-	}
-
-	liveID, err := livePatroniSystemIdentifier(leader)
-	if err != nil {
-		return false, fmt.Sprintf("could not read %s's system identifier (%v)", leader, err)
-	}
-
-	backups, err := listPatroniFamilyBackups(pd, dc, family)
-	if err != nil || len(backups) == 0 {
-		return false, "there are no backups to compare the running cluster against"
-	}
-
-	backupID := backups[0].SystemIdentifier
-	if backupID == 0 {
-		// An older wal-g, or a catalogue entry without the field. Fall
-		// back to the previous behaviour: assume it is the same cluster
-		// and let a flush failure stop the restore, which is the safer
-		// side when the data might be real.
-		return true, ""
-	}
-	if liveID != backupID {
-		return false, fmt.Sprintf("the running cluster (system identifier %d) is not the one these "+
-			"backups came from (%d) — it was bootstrapped empty after the data was lost",
-			liveID, backupID)
-	}
-	return true, ""
 }
 
 // livePatroniSystemIdentifier reads the identifier straight out of the
@@ -344,6 +332,7 @@ func startPatroniNodeForRestore(
 	family patroniFamily,
 	replica int,
 	opts PatroniRestoreOptions,
+	restorePrefix string,
 ) error {
 	name := fmt.Sprintf("%s%d", family.NamePrefix, replica)
 
@@ -355,6 +344,7 @@ func startPatroniNodeForRestore(
 	env := map[string]string{
 		restoreEnvBootstrapMethod: "wal_g",
 		restoreEnvBackup:          opts.Backup,
+		restoreEnvPrefix:          restorePrefix,
 	}
 	removeEnv := []string{}
 	if opts.TargetTime != "" {

@@ -31,11 +31,13 @@ const Harness = ({
     twinLighting,
     onSaveLighting,
     onBackToViewer,
+    placement,
 }: {
     simulator?: Record<string, any>;
     twinLighting?: LightingOptions;
     onSaveLighting?: () => void;
     onBackToViewer?: () => void;
+    placement?: "side" | "panel";
 }) => {
     const [opts, setOpts] = useState<ViewerOptions>(baseOpts);
     latest = opts;
@@ -61,6 +63,7 @@ const Harness = ({
             twinLighting={twinLighting}
             onSaveLighting={onSaveLighting}
             onBackToViewer={onBackToViewer}
+            placement={placement}
         />
     );
 };
@@ -149,10 +152,30 @@ describe("AssistantPanel con el chat", () => {
         expect(onChatActiveChange).toHaveBeenLastCalledWith(false);
     });
 
-    it("solo el chat en las vistas sin modelo 3D y punto de mensajes sin leer", () => {
-        render(<AssistantPanel {...(chatProps({ chatOnly: true }) as any)} />);
-        expect(screen.getAllByRole("tab")).toHaveLength(1);
+    it("the side panel is the chat alone: no tabs, a title and a close button", () => {
+        const onClose = vi.fn();
+        render(<AssistantPanel {...(chatProps({ chatOnly: true, chatActive: true, onClose }) as any)} />);
+        expect(screen.queryAllByRole("tab")).toHaveLength(0);
         expect(screen.getByText("chat body")).toBeVisible();
+        expect(screen.getByRole("complementary", { name: "Chat with assistant" })).toBeInTheDocument();
+        fireEvent.click(screen.getByRole("button", { name: "Close the chat" }));
+        expect(onClose).toHaveBeenCalledTimes(1);
+    });
+
+    it("over the 3D model: the settings without the chat, the Files tab for the editors, a close button", () => {
+        const onClose = vi.fn();
+        const { rerender } = render(
+            <AssistantPanel {...(chatProps({ chatContent: undefined, placement: "panel", onClose, filesContent: <div>model files</div> }) as any)} />,
+        );
+        expect(screen.getByRole("complementary", { name: "3D model settings" })).toBeInTheDocument();
+        expect(screen.queryByRole("tab", { name: "Chat with assistant" })).toBeNull();
+        fireEvent.click(screen.getByRole("tab", { name: "3D model and FEM results files" }));
+        expect(screen.getByText("model files")).toBeInTheDocument();
+        fireEvent.click(screen.getByRole("button", { name: "Close the 3D model settings" }));
+        expect(onClose).toHaveBeenCalledTimes(1);
+        // a viewer of the group: no Files tab
+        rerender(<AssistantPanel {...(chatProps({ chatContent: undefined, placement: "panel", onClose }) as any)} />);
+        expect(screen.queryByRole("tab", { name: "3D model and FEM results files" })).toBeNull();
     });
 
     it("avisa de una respuesta sin leer en la pestaña del chat", () => {
@@ -160,23 +183,9 @@ describe("AssistantPanel con el chat", () => {
         expect(screen.getByLabelText("New answer from the assistant")).toBeInTheDocument();
     });
 
-    it("el simulador se saca a una ventana flotante y se vuelve a traer", () => {
-        const onFloat = vi.fn();
-        const onDock = vi.fn();
-        const { rerender } = render(
-            <AssistantPanel {...(chatProps({ onFloatSimulator: onFloat, onDockSimulator: onDock }) as any)} />,
-        );
-        fireEvent.click(screen.getByRole("tab", { name: "Digital twin simulator" }));
-        fireEvent.click(screen.getByRole("button", { name: "Open the simulator in a floating window" }));
-        expect(onFloat).toHaveBeenCalledTimes(1);
-        rerender(
-            <AssistantPanel
-                {...(chatProps({ onFloatSimulator: onFloat, onDockSimulator: onDock, simulatorFloating: true }) as any)}
-            />,
-        );
-        expect(screen.queryByRole("button", { name: "Open the simulator in a floating window" })).toBeNull();
-        fireEvent.click(screen.getByRole("button", { name: "Bring it back here" }));
-        expect(onDock).toHaveBeenCalledTimes(1);
+    it("has no Simulator tab: the simulator is a panel of its own", () => {
+        render(<AssistantPanel {...(chatProps({ chatContent: undefined, placement: "panel" }) as any)} />);
+        expect(screen.queryByRole("tab", { name: "Digital twin simulator" })).toBeNull();
     });
 });
 
@@ -275,13 +284,13 @@ describe("AssistantPanel", () => {
     it("iluminación del gemelo: Reset vuelve a la suya y Save for twin la guarda", () => {
         const twin = lightingOf(presetOptions("industrial"));
         const save = vi.fn();
-        render(<Harness twinLighting={twin} onSaveLighting={save} />);
+        render(<Harness twinLighting={twin} onSaveLighting={save} placement="panel" />);
         fireEvent.change(screen.getByRole("combobox", { name: "Environment" }), { target: { value: "night" } });
         expect(latest.environment).toBe("night");
-        fireEvent.click(screen.getByRole("button", { name: /Reset/ }));
+        fireEvent.click(screen.getByRole("button", { name: "Reset the lighting" }));
         expect(latest.environment).toBe("warehouse");
         expect(latest.lightingPreset).toBe("industrial");
-        fireEvent.click(screen.getByRole("button", { name: /Save for twin/ }));
+        fireEvent.click(screen.getByRole("button", { name: "Save the lighting for the twin" }));
         expect(save).toHaveBeenCalledTimes(1);
     });
 
@@ -302,9 +311,9 @@ describe("AssistantPanel", () => {
     });
 
     it("sin permiso para guardar no aparece Save for twin", () => {
-        render(<Harness />);
-        expect(screen.queryByRole("button", { name: /Save for twin/ })).toBeNull();
-        expect(screen.getByRole("button", { name: /Reset/ })).toBeInTheDocument();
+        render(<Harness placement="panel" />);
+        expect(screen.queryByRole("button", { name: "Save the lighting for the twin" })).toBeNull();
+        expect(screen.getByRole("button", { name: "Reset the lighting" })).toBeInTheDocument();
     });
 
     it("colecciones: 'All collections' usa las opciones globales y cada colección las suyas", () => {
@@ -328,15 +337,6 @@ describe("AssistantPanel", () => {
         expect(screen.queryByText("All collections")).toBeNull();
         fireEvent.click(screen.getByRole("switch", { name: "Show deep objects" }));
         expect(latest.genericObjectsShowDeepObjects).toBe(true);
-    });
-
-    it("pestaña Simulator con los parámetros del gemelo digital", () => {
-        render(<Harness simulator={{ temperature: { label: "Temperature", units: "ºC", minValue: 0, maxValue: 100, step: 1 } }} />);
-        fireEvent.click(screen.getByRole("tab", { name: "Digital twin simulator" }));
-        expect(screen.getByRole("button", { name: /Temperature: 20 ºC/ })).toBeInTheDocument();
-        fireEvent.change(screen.getByLabelText("Temperature"), { target: { value: "42" } });
-        expect(latest.digitalTwinSimulatorState.temperature).toBe(42);
-        expect(screen.getByRole("button", { name: "Get last measurements" })).toBeInTheDocument();
     });
 });
 

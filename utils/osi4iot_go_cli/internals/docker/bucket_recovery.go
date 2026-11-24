@@ -198,7 +198,11 @@ func FetchStateBackup(ctx context.Context, store *PlatformS3, bucket, key string
 type BucketCatalogue struct {
 	AdminBackup   string
 	MetricsBackup string
-	NatsRun       string
+	// AdminCluster and MetricsCluster are the archive's cluster each
+	// backup is in: a system identifier, or "legacy" (walg_clusters.go).
+	AdminCluster   string
+	MetricsCluster string
+	NatsRun        string
 }
 
 // CaptureBucketCatalogue reads the newest restorable backup of each
@@ -218,17 +222,17 @@ func CaptureBucketCatalogue(ctx context.Context, store *PlatformS3, pd *pt.Platf
 	var catalogue BucketCatalogue
 
 	if pd.PlatformInfo.UsePatroniTool {
-		admin, err := newestWalgBackup(ctx, store, pd.PlatformInfo.WalgS3PrefixAdmin)
+		admin, adminCluster, err := newestWalgBackup(ctx, store, pd.PlatformInfo.WalgS3PrefixAdmin)
 		if err != nil {
 			return catalogue, fmt.Errorf("patroni_admin: %w", err)
 		}
-		catalogue.AdminBackup = admin
+		catalogue.AdminBackup, catalogue.AdminCluster = admin, adminCluster
 
-		metrics, err := newestWalgBackup(ctx, store, pd.PlatformInfo.WalgS3PrefixMetrics)
+		metrics, metricsCluster, err := newestWalgBackup(ctx, store, pd.PlatformInfo.WalgS3PrefixMetrics)
 		if err != nil {
 			return catalogue, fmt.Errorf("patroni_metrics: %w", err)
 		}
-		catalogue.MetricsBackup = metrics
+		catalogue.MetricsBackup, catalogue.MetricsCluster = metrics, metricsCluster
 	}
 
 	run, err := newestNatsRun(ctx, store, pd.PlatformInfo.NATSBackupS3Prefix)
@@ -240,45 +244,24 @@ func CaptureBucketCatalogue(ctx context.Context, store *PlatformS3, pd *pt.Platf
 	return catalogue, nil
 }
 
-// newestWalgBackup returns the name of the newest completed base backup
-// under a wal-g prefix, or "" when there is none.
-func newestWalgBackup(ctx context.Context, store *PlatformS3, s3Prefix string) (string, error) {
+// newestWalgBackup returns the newest completed base backup under a
+// wal-g prefix and the archive's cluster it is in, or "" when there is
+// none. Every cluster folder counts (walg_clusters.go), and the legacy
+// backups of the bare prefix: before the platform starts there is no
+// running cluster to leave out.
+func newestWalgBackup(ctx context.Context, store *PlatformS3, s3Prefix string) (string, string, error) {
 	if s3Prefix == "" {
-		return "", nil
+		return "", "", nil
 	}
-	bucket, keyPrefix, err := ParseS3Prefix(s3Prefix)
+	clusters, err := listWalgClusters(ctx, store, s3Prefix)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
-
-	objects, err := store.List(ctx, bucket, path.Join(keyPrefix, walgBaseBackupsDir)+"/")
-	if err != nil {
-		return "", err
+	if len(clusters) == 0 || len(clusters[0].Backups) == 0 {
+		return "", "", fmt.Errorf("no completed backups under %s", s3Prefix)
 	}
-
-	type sentinel struct {
-		name string
-		at   time.Time
-	}
-	var sentinels []sentinel
-
-	for _, object := range objects {
-		base := path.Base(object.Key)
-		if !strings.HasSuffix(base, walgSentinelSuffix) {
-			continue
-		}
-		sentinels = append(sentinels, sentinel{
-			name: strings.TrimSuffix(base, walgSentinelSuffix),
-			at:   object.ModTime,
-		})
-	}
-
-	if len(sentinels) == 0 {
-		return "", fmt.Errorf("no completed backups under %s", s3Prefix)
-	}
-
-	sort.Slice(sentinels, func(i, j int) bool { return sentinels[i].at.After(sentinels[j].at) })
-	return sentinels[0].name, nil
+	// newest backup first
+	return clusters[0].Backups[0].Name, clusters[0].Label(), nil
 }
 
 // newestNatsRun returns the name of the newest NATS backup run, or ""

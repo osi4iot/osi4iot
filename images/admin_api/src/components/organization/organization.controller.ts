@@ -73,7 +73,7 @@ import IUser from "../user/interfaces/User.interface";
 import {
 	createDigitalTwin,
 	removeFilesFromBucketFolder,
-	uploadMobilePhoneGltfFile,
+	uploadMobilePhoneModel,
 } from "../digitalTwin/digitalTwinDAL";
 import { existsBuildingWithId, getFloorByOrgIdAndFloorNumber } from "../building/buildingDAL";
 import process_env from "../../config/api_config";
@@ -623,9 +623,7 @@ class OrganizationController implements IController {
 					pipelineFileData: "",
 				};
 				const digitalTwin = await createDigitalTwin(group, asset, digitalTwinData);
-				const keyBase = `org_data/org_${orgId}/group_${group.id}/digitalTwin_${digitalTwin.id}`;
-				const gltfFileName = `${keyBase}/gltfFile/mobile_phone.gltf`;
-				await uploadMobilePhoneGltfFile(gltfFileName);
+				await uploadMobilePhoneModel({ orgId, groupId: group.id, id: digitalTwin.id }, ["sensor_3"]);
 			}
 			const message = { message: "Organization created successfully" };
 			infoLogger(req, res, 200, message.message);

@@ -41,6 +41,9 @@ export const getDtRootFolder = async () => {
     return dtRootFolder;
 };
 
+// where the 3D model of a slide of a twin's Viewer and its FEM results are kept in the browser (a twin's uid has no "-")
+export const slideModelCacheKey = (digitalTwinUid: string, slideId: string) => `${digitalTwinUid}--${slideId}`;
+
 export const getDTFolder = async (digitalTwinUid: string) => {
     const dtRootFolder = await getDtRootFolder();
     const dtFolderName = `dt_${digitalTwinUid}`;
@@ -332,6 +335,16 @@ export const readFemResFile = async (
 export const removeDTStoragebyUid = async (digitalTwinUid: string) => {
     const existDTFolder = await existsDTFolderFun(digitalTwinUid);
     const dtRootFolder = await getDtRootFolder();
+    // the models of the twin's slides too (slideModelCacheKey: dt_<uid>--<slideId>)
+    let slideFolders = 0;
+    if (!digitalTwinUid.includes("--")) {
+        const prefix = `dt_${digitalTwinUid}--`;
+        const names: string[] = [];
+        for await (const name of dtRootFolder.keys()) if ((name as string).startsWith(prefix)) names.push(name as string);
+        for (const name of names) await dtRootFolder.removeEntry(name, { recursive: true });
+        slideFolders = names.length;
+    }
+    if (!existDTFolder && slideFolders > 0) return "Current DT locally stored data succefully removed";
     if (existDTFolder) {
         const dtFolder = await getDTFolder(digitalTwinUid);
         const existGltfFolder = await existFolderOrFile(
@@ -398,9 +411,11 @@ export const syncDigitalTwinsLocalStorage = async (
         const dtRootFolder = await getDtRootFolder();
         const removeFolderQueries = [];
         for await (let dtFolderName of dtRootFolder.keys()) {
-            const digitalTwinUid = dtFolderName.split("_")[1];
+            // "dt_<uid>", or "dt_<uid>--<slideId>": the 3D model of a slide (slideModelCacheKey)
+            const cacheKey = (dtFolderName as string).slice(3);
+            const digitalTwinUid = cacheKey.split("--")[0];
             if (digitalTwinUidArray.indexOf(digitalTwinUid) === -1) {
-                const query = removeDTStoragebyUid(dtFolderName);
+                const query = removeDTStoragebyUid(cacheKey);
                 removeFolderQueries.push(query);
             }
         }
