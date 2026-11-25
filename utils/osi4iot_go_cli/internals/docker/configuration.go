@@ -69,24 +69,24 @@ fi
 
 		nodesData := pi.NodesData
 		nodeSripts := []utils.NodeScript{}
+		// a node of no known role gets no script (before, an empty one: run on
+		// the IP "", so the whole step failed) and is told
+		skipped := []string{}
 		for _, node := range nodesData {
-			var nodeScript utils.NodeScript
-			nodeRole := node.NodeRole
-			switch nodeRole {
+			var script string
+			switch strings.TrimSpace(node.NodeRole) {
 			case "Manager":
-				nodeScript = utils.NodeScript{
-					Node:   node,
-					Script: managerScript,
-					Args:   []string{},
-				}
+				script = managerScript
 			case "Platform worker":
-				nodeScript = utils.NodeScript{
-					Node:   node,
-					Script: platformWorkerScript,
-					Args:   []string{},
-				}
+				script = platformWorkerScript
+			default:
+				skipped = append(skipped, fmt.Sprintf("%s (%s, role %q)", node.NodeHostName, node.NodeIP, node.NodeRole))
+				continue
 			}
-			nodeSripts = append(nodeSripts, nodeScript)
+			nodeSripts = append(nodeSripts, utils.NodeScript{Node: node, Script: script, Args: []string{}})
+		}
+		if len(skipped) > 0 {
+			fmt.Printf("\nUFW is not configured on these nodes, as their role is neither Manager nor Platform worker: %s\n", strings.Join(skipped, ", "))
 		}
 		responses, err := utils.RunScriptInNodes(pd, nodeSripts)
 		if err != nil {
