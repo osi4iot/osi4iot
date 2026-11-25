@@ -136,6 +136,9 @@ export interface IViewerSurface {
 	colors?: (typeof VIEWER_SURFACE_COLORS)[number];
 	wireframe?: boolean;
 	opacity?: number;
+	// heat map: its contour lines and about how many levels
+	contours?: boolean;
+	contourLevels?: number;
 }
 // a Picture panel: an image of the twin (folder viewerImages of its files) and, for an SVG, animations of its
 // elements with values of the NATS messages
@@ -312,6 +315,15 @@ const validateSurface = (raw: unknown): IViewerSurface | string => {
 	if (s.opacity !== undefined) {
 		if (!isNum(s.opacity) || s.opacity < 0.1 || s.opacity > 1) return "the opacity must be from 0.1 to 1";
 		surface.opacity = s.opacity;
+	}
+	if (s.contours !== undefined) {
+		if (typeof s.contours !== "boolean") return "contours must be true or false";
+		surface.contours = s.contours;
+	}
+	if (s.contourLevels !== undefined) {
+		if (!Number.isInteger(s.contourLevels) || (s.contourLevels as number) < 2 || (s.contourLevels as number) > 30)
+			return "the contour levels must be a whole number from 2 to 30";
+		surface.contourLevels = s.contourLevels as number;
 	}
 	return surface;
 };

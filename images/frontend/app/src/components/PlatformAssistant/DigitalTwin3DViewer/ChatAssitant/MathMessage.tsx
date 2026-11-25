@@ -1,5 +1,4 @@
-import katex from "katex";
-import "katex/dist/katex.min.css";
+import { texToHtml } from "../../../../tools/mathTex";
 import styled from "styled-components";
 
 function escapeHTML(s: string) {
@@ -173,7 +172,7 @@ function processBlockMarkdown(text: string, options: MarkdownOptions = {}): stri
 export function renderExplicitMathBlocks(input: string, options: MarkdownOptions = {}): string {
     let src = input;
 
-    // Marcadores para reinsertar el HTML de KaTeX sin ser escapado
+    // Marcadores para reinsertar el HTML de las fórmulas (MathJax) sin ser escapado
     const chunks: string[] = [];
     const makeMarker = (html: string) => {
         const i = chunks.push(html) - 1;
@@ -184,12 +183,8 @@ export function renderExplicitMathBlocks(input: string, options: MarkdownOptions
     const fenceRE = /```(math|latex)\r?\n([\s\S]*?)\r?\n```/g;
     src = src.replace(fenceRE, (_m, _lang, body) => {
         try {
-            const html = katex.renderToString(body, {
-                displayMode: true,
-                throwOnError: false,
-                strict: "ignore",
-            });
-            return makeMarker(html); // <span class="katex-display">…</span>
+            const html = texToHtml(body, true);
+            return makeMarker(html); // <span class="math-display">…</span>
         } catch {
             return makeMarker(`<pre class="latex-error">${escapeHTML(body)}</pre>`);
         }
@@ -212,11 +207,7 @@ export function renderExplicitMathBlocks(input: string, options: MarkdownOptions
     const blockDollarRE = /(^|\n)\s*\$\$\s*\r?\n([\s\S]*?)\r?\n\s*\$\$\s*(?=\n|$)/g;
     src = src.replace(blockDollarRE, (_m, lead, body) => {
         try {
-            const html = katex.renderToString(body, {
-                displayMode: true,
-                throwOnError: false,
-                strict: "ignore",
-            });
+            const html = texToHtml(body, true);
             return `${lead}${makeMarker(html)}`;
         } catch {
             return `${lead}${makeMarker(`<pre class="latex-error">${escapeHTML(body)}</pre>`)}`;
@@ -227,7 +218,7 @@ export function renderExplicitMathBlocks(input: string, options: MarkdownOptions
     src = src.replace(/\$\$([^$\n]+?)\$\$/g, (_m, body) => {
         try {
             return makeMarker(
-                katex.renderToString(body, { displayMode: true, throwOnError: false, strict: "ignore" })
+                texToHtml(body, true)
             );
         } catch {
             return makeMarker(`<span class="latex-error">${escapeHTML(body)}</span>`);
@@ -239,7 +230,7 @@ export function renderExplicitMathBlocks(input: string, options: MarkdownOptions
     src = src.replace(/(?<![\\$\w])\$(?=\S)([^$\n]+?)(?<=\S)\$(?![\w$])/g, (_m, body) => {
         try {
             return makeMarker(
-                katex.renderToString(body, { displayMode: false, throwOnError: false, strict: "ignore" })
+                texToHtml(body, false)
             );
         } catch {
             return makeMarker(`<span class="latex-error">${escapeHTML(body)}</span>`);
@@ -250,11 +241,7 @@ export function renderExplicitMathBlocks(input: string, options: MarkdownOptions
     const displayBracketRE = /\\\[\s*([\s\S]*?)\s*\\\]/g;
     src = src.replace(displayBracketRE, (_m, body) => {
         try {
-            const html = katex.renderToString(body, {
-                displayMode: true,
-                throwOnError: false,
-                strict: "ignore",
-            });
+            const html = texToHtml(body, true);
             return makeMarker(html);
         } catch {
             return makeMarker(`<pre class="latex-error">${escapeHTML(body)}</pre>`);
@@ -265,12 +252,8 @@ export function renderExplicitMathBlocks(input: string, options: MarkdownOptions
     const inlineParenRE = /\\\(([\s\S]*?)\\\)/g;
     src = src.replace(inlineParenRE, (_m, body) => {
         try {
-            const html = katex.renderToString(body, {
-                displayMode: false,
-                throwOnError: false,
-                strict: "ignore",
-            });
-            return makeMarker(html); // <span class="katex">…</span>
+            const html = texToHtml(body, false);
+            return makeMarker(html); // <span class="math">…</span>
         } catch {
             return makeMarker(`<span class="latex-error">${escapeHTML(body)}</span>`);
         }
@@ -283,17 +266,13 @@ export function renderExplicitMathBlocks(input: string, options: MarkdownOptions
     src = src
         .split(/\r?\n/)
         .map((line) => {
-            // Si ya hay delimitadores o marcadores KaTeX, no tocar
+            // Si ya hay delimitadores o marcadores de fórmulas, no tocar
             if (hasAnyDelims(line) || /\u0001\d+\u0001/.test(line)) return line;
 
             // Si la línea empieza con un comando LaTeX claro, la renderizamos como display
             if (/^\s*\\[a-zA-Z]+(?:\*?)\b/.test(line)) {
                 try {
-                    const html = katex.renderToString(line.trim(), {
-                        displayMode: true,
-                        throwOnError: false,
-                        strict: "ignore",
-                    });
+                    const html = texToHtml(line.trim(), true);
                     return makeMarker(html);
                 } catch {
                     return makeMarker(`<pre class="latex-error">${escapeHTML(line)}</pre>`);
@@ -319,7 +298,7 @@ export function renderExplicitMathBlocks(input: string, options: MarkdownOptions
     // 7) Markdown: tablas, títulos, listas, negrita, cursiva, código
     safe = processBlockMarkdown(safe, options);
 
-    // 8) Reinyectar los fragmentos de KaTeX
+    // 8) Reinyectar las fórmulas
     safe = safe.replace(/\u0001(\d+)\u0001/g, (_m, i) => chunks[Number(i)]);
 
     return safe;
@@ -434,17 +413,21 @@ export const MessageContent = styled.div`
         white-space: normal;
     }
 
-    /* ===== KaTeX: estilos seguros ===== */
-    .katex {
-        /* No forzar font-family: KaTeX usa sus propias familias */
-        font-size: 1.05em; /* escala global suave */
-        line-height: 1; /* importante para la baseline */
-        color: #f1f1f1; /* color de tema */
-        vertical-align: baseline; /* inline correcto */
+    /* ===== Fórmulas (MathJax: SVG con el color del texto) ===== */
+    .math {
+        display: inline-block;
+        color: #f1f1f1;
+        margin: 0 0.1em;
+        line-height: 1;
+    }
+    .math svg {
+        /* tamaño en ex del texto: vertical-align lo pone MathJax */
+        overflow: visible;
     }
 
     /* Bloques display */
-    span.katex-display {
+    span.math-display {
+        display: block;
         margin: 0.5em 0;
         text-align: left;
         padding: 1em;
@@ -454,60 +437,38 @@ export const MessageContent = styled.div`
         background: rgba(255, 255, 255, 0.02);
         border-radius: 6px;
         border-left: 3px solid rgba(50, 116, 217, 0.4);
+        white-space: nowrap;
+    }
+    span.math-display > .math {
+        margin: 0;
     }
 
-    .katex-display > .katex {
-        display: inline-block; /* mantiene alineación sin estirar */
-    }
-
-    /* Inline math */
-    .katex:not(.katex-display) {
-        display: inline-block;
-        margin: 0 0.1em;
-        /* No forzar vertical-align ni line-height aquí */
-    }
-
-    /* Matrices / tablas: sólo ajustes leves, sin cambiar la escala */
-    .katex .mtable {
-        margin: 0.2em 0;
-    }
-    .katex .arraycolsep {
-        width: 0.8em;
-    }
-
-    /* Fracciones/raíces: color del tema sin tocar métricas */
-    .katex .frac-line {
-        border-bottom-color: currentColor;
-    }
-    .katex svg {
-        fill: currentColor;
-        stroke: currentColor;
+    /* TeX que no se pudo leer: MathJax lo dibuja en rojo en su sitio */
+    .math-error {
+        cursor: help;
     }
 
     /* Scrollbar horizontal en display (opcional) */
-    .katex-display::-webkit-scrollbar {
+    .math-display::-webkit-scrollbar {
         height: 4px;
     }
-    .katex-display::-webkit-scrollbar-track {
+    .math-display::-webkit-scrollbar-track {
         background: rgba(255, 255, 255, 0.1);
         border-radius: 2px;
     }
-    .katex-display::-webkit-scrollbar-thumb {
+    .math-display::-webkit-scrollbar-thumb {
         background: rgba(50, 116, 217, 0.5);
         border-radius: 2px;
         cursor: pointer;
     }
-    .katex-display::-webkit-scrollbar-thumb:hover {
+    .math-display::-webkit-scrollbar-thumb:hover {
         background: rgba(50, 116, 217, 0.7);
     }
 
     /* Espaciado entre fórmulas consecutivas inline */
-    .katex + .katex {
+    .math + .math {
         margin-left: 0.5em;
     }
-
-    /* No ocultes errores nativos mientras depuras */
-    /* .katex-error { display: none !important; } */
 
     /* Error personalizado (si lo usas en tu app) */
     .latex-error {
@@ -556,10 +517,7 @@ export const MessageContent = styled.div`
 
     /* Modo responsive */
     @media (max-width: 600px) {
-        .katex {
-            font-size: 1em;
-        }
-        .katex-display {
+        .math-display {
             margin: 0.5em 0;
             padding: 0.35em;
         }

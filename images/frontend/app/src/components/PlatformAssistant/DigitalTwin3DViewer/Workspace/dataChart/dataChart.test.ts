@@ -260,13 +260,14 @@ describe("Data chart values", () => {
         );
         if ("error" in grid) throw new Error(grid.error);
         const option = heatmapChartOption(surface, grid.grid) as any;
-        expect(option.xAxis.data).toEqual(["10", "20"]);
-        expect(option.yAxis.data).toEqual(["5", "6"]);
-        expect(option.series[0].data).toEqual([
-            [0, 0, 1],
-            [1, 0, 2],
-            [0, 1, 3],
-            [1, 1, 4],
+        // axes in the units of x and y, the values under the mouse at the points of the grid
+        expect(option.xAxis).toMatchObject({ type: "value", min: 10, max: 20 });
+        expect(option.yAxis).toMatchObject({ type: "value", min: 5, max: 6 });
+        expect(option.series.find((s: any) => s.name === "values").data).toEqual([
+            [10, 5, 1],
+            [20, 5, 2],
+            [10, 6, 3],
+            [20, 6, 4],
         ]);
     });
 

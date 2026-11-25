@@ -1,14 +1,15 @@
 // The Text panels of the Viewer page: markdown (titles, lists, tables, links, images, code), LaTeX formulas
-// (KaTeX, as in the chat: $…$, $$…$$) and values of the NATS messages as they arrive: {{dtm2sim.rotorRpm}},
+// (LaTeX: MathJax, as in the chat: $…$, $$…$$) and values of the NATS messages as they arrive: {{dtm2sim.rotorRpm}},
 // {{dtm2sim.rotorRpm|1}} (1 decimal). The editor shows the text and how it looks, and offers the fields of the
 // last message of each topic to put them in the text.
 import { FC, useEffect, useId, useMemo, useRef, useState } from "react";
 import styled from "styled-components";
-import { FileText, X } from "lucide-react";
+import { FileText, Sigma, X } from "lucide-react";
 import { MessageContent, renderExplicitMathBlocks } from "../ChatAssitant/MathMessage";
 import { scrollbarStyle } from "../../../Tools/FormTools";
 import { LiveTopic, LiveValueStore, fillPlaceholders, topicRefsOf, useLiveTick } from "./liveValues";
 import { MARKDOWN_MAX_LENGTH, WorkspacePanel } from "./workspaceLayout";
+import { FormulaDialog } from "./canvas/FormulaDialog";
 
 const font = `Roboto, "Helvetica Neue", Arial, sans-serif`;
 
@@ -234,6 +235,29 @@ const Primary = styled.button`
     color: #fff;
 `;
 
+const FormulaButton = styled.button`
+    margin-left: auto;
+    height: 26px;
+    padding: 0 10px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    background: #1b1e22;
+    border: 1px solid #2c3137;
+    border-radius: 7px;
+    color: #d5d9de;
+    font: 12px ${font};
+    text-transform: none;
+    letter-spacing: normal;
+    cursor: pointer;
+
+    svg {
+        width: 14px;
+        height: 14px;
+        color: #8ab4ff;
+    }
+`;
+
 const Close = styled.button`
     width: 32px;
     height: 32px;
@@ -282,6 +306,17 @@ export const MarkdownEditor: FC<MarkdownEditorProps> = ({ panel, store, topics, 
         sourceRef.current?.focus();
     }, []);
 
+    // Insert formula: the visual editor of formulas (as a Canvas's); a formula selected ($…$ or $$…$$) is edited
+    const [formula, setFormula] = useState<{ tex: string; inline: boolean; editing: boolean } | null>(null);
+    const openFormula = () => {
+        const area = sourceRef.current;
+        const selected = area ? text.slice(area.selectionStart, area.selectionEnd).trim() : "";
+        const display = /^\$\$([\s\S]*)\$\$$/.exec(selected);
+        const inline = display ? null : /^\$([^$]*)\$$/.exec(selected);
+        if (display) setFormula({ tex: display[1].trim(), inline: false, editing: true });
+        else if (inline) setFormula({ tex: inline[1].trim(), inline: true, editing: true });
+        else setFormula({ tex: "", inline: false, editing: false });
+    };
     const insert = (snippet: string) => {
         const area = sourceRef.current;
         const start = area?.selectionStart ?? text.length;
@@ -330,8 +365,12 @@ export const MarkdownEditor: FC<MarkdownEditorProps> = ({ panel, store, topics, 
                 </label>
                 <Body>
                     <Column>
-                        <span className="label">
+                        <span className="label" style={{ display: "flex", alignItems: "center", gap: 8 }}>
                             Markdown ({text.length.toLocaleString()} / {MARKDOWN_MAX_LENGTH.toLocaleString()})
+                            <FormulaButton type="button" onClick={openFormula} title="The visual editor of formulas (or select a formula, $…$ or $$…$$, to edit it)">
+                                <Sigma aria-hidden="true" />
+                                Formula
+                            </FormulaButton>
                         </span>
                         <Source
                             ref={sourceRef}
@@ -391,9 +430,22 @@ export const MarkdownEditor: FC<MarkdownEditorProps> = ({ panel, store, topics, 
                     <Primary type="submit">Apply</Primary>
                 </Actions>
             </Dialog>
+            {formula && (
+                <FormulaDialog
+                    formula={{ tex: formula.tex, color: "#1e1e1e", size: 28, inline: formula.inline }}
+                    editing={formula.editing}
+                    look={false}
+                    onDiscard={() => setFormula(null)}
+                    onApply={(f) => {
+                        setFormula(null);
+                        insert(f.inline ? `$${f.tex}$` : `\n$$\n${f.tex}\n$$\n`);
+                    }}
+                />
+            )}
         </Backdrop>
     );
 };
 
 // the parts of the editor's window, for the other panel editors that look the same (the 3D Surface)
 export const EditorParts = { Backdrop, Dialog, Head, Body, Column, Preview, Help, Actions, Secondary, Primary, Close };
+

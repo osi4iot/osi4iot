@@ -1,18 +1,25 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
+// MathLive needs a real browser: the visual editor of formulas is a field of LaTeX here
+vi.mock("./canvas/MathFieldEditor", () => ({
+    default: ({ value, onChange }: any) => <input aria-label="Formula" value={value} onChange={(e) => onChange(e.target.value)} />,
+}));
+
 import { MarkdownEditor, MarkdownView, renderMarkdownPanel } from "./MarkdownPanel";
 import { createLiveValueStore } from "./liveValues";
 
 describe("Text panels", () => {
     it("draws markdown, LaTeX, links and images, and nothing that can run", () => {
-        const html = renderMarkdownPanel("# Rotor\n\n> note\n\n---\n[docs](https://example.com/a_b) ![plot](https://example.com/p.png) [bad](javascript:alert(1)) $x^2$ <img src=x onerror=alert(1)>");
+        const html = renderMarkdownPanel(
+            "# Rotor\n\n> note\n\n---\n[docs](https://example.com/a_b) ![plot](https://example.com/p.png) [bad](javascript:alert(1)) $x^2$ <img src=x onerror=alert(1)>",
+        );
         expect(html).toContain('<h1 class="md-heading">Rotor</h1>');
         expect(html).toContain('<blockquote class="md-quote">note</blockquote>');
         expect(html).toContain('<hr class="md-rule"/>');
         expect(html).toContain('href="https://example.com/a_b"');
         expect(html).toContain('<img class="md-image" src="https://example.com/p.png"');
         expect(html).not.toContain('href="javascript');
-        expect(html).toContain("katex");
+        expect(html).toContain('class="math');
         expect(html).not.toContain("<img src=x");
     });
 
@@ -33,7 +40,18 @@ describe("Text panels", () => {
         const store = createLiveValueStore();
         store.publish("dtm2sim", { rotorRpm: 9.5, pose: { distance: 1.2 } });
         const onApply = vi.fn();
-        render(<MarkdownEditor panel={{ id: "markdown-1", type: "markdown", text: "", x: 0, y: 0, w: 4, h: 4 }} store={store} topics={[{ ref: "dtm2sim", label: "dtm2sim" }, { ref: "dev2pdb_1", label: "dev2pdb_1", fields: [{ path: "Ay", label: "Acceleration_y", units: "m/s²", sensor: "Acceleration" }] }]} onApply={onApply} onDiscard={vi.fn()} />);
+        render(
+            <MarkdownEditor
+                panel={{ id: "markdown-1", type: "markdown", text: "", x: 0, y: 0, w: 4, h: 4 }}
+                store={store}
+                topics={[
+                    { ref: "dtm2sim", label: "dtm2sim" },
+                    { ref: "dev2pdb_1", label: "dev2pdb_1", fields: [{ path: "Ay", label: "Acceleration_y", units: "m/s²", sensor: "Acceleration" }] },
+                ]}
+                onApply={onApply}
+                onDiscard={vi.fn()}
+            />,
+        );
         const area = screen.getByRole("textbox", { name: "Markdown text" });
         fireEvent.change(area, { target: { value: "Speed: " } });
         (area as HTMLTextAreaElement).selectionStart = (area as HTMLTextAreaElement).selectionEnd = 7;
@@ -42,5 +60,33 @@ describe("Text panels", () => {
         expect(screen.getByLabelText("Preview")).toHaveTextContent("Speed: 1.2");
         fireEvent.click(screen.getByRole("button", { name: "Apply" }));
         expect(onApply).toHaveBeenCalledWith(expect.objectContaining({ id: "markdown-1", text: "Speed: {{dtm2sim.pose.distance}}" }));
+    });
+
+    it("inserts a formula with the visual editor, and edits the one selected", async () => {
+        const onApply = vi.fn();
+        render(
+            <MarkdownEditor
+                panel={{ id: "markdown-1", type: "markdown", text: "", x: 0, y: 0, w: 4, h: 4 }}
+                topics={[]}
+                onApply={onApply}
+                onDiscard={vi.fn()}
+            />,
+        );
+        const area = screen.getByRole("textbox", { name: "Markdown text" }) as HTMLTextAreaElement;
+        fireEvent.change(area, { target: { value: "Energy: " } });
+        area.selectionStart = area.selectionEnd = 8;
+        fireEvent.click(screen.getByRole("button", { name: "Formula" }));
+        expect(screen.queryByLabelText("Color")).toBeNull();
+        fireEvent.change(await screen.findByLabelText("Formula"), { target: { value: "\\Pi=U-W" } });
+        fireEvent.change(screen.getByLabelText("Mode"), { target: { value: "inline" } });
+        fireEvent.click(screen.getByRole("button", { name: "Insert" }));
+        expect(area).toHaveValue("Energy: $\\Pi=U-W$");
+        // the Text panel's dialog is still open (the formula's form is not its)
+        expect(onApply).not.toHaveBeenCalled();
+        area.selectionStart = 8;
+        area.selectionEnd = area.value.length;
+        fireEvent.click(screen.getByRole("button", { name: "Formula" }));
+        expect(screen.getByRole("dialog", { name: "Edit formula" })).toBeInTheDocument();
+        expect(await screen.findByLabelText("Formula")).toHaveValue("\\Pi=U-W");
     });
 });

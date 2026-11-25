@@ -1,20 +1,20 @@
 // An ECharts chart that fills its box: only the parts the panels use are loaded (lines, bars, scatter,
-// gauges, heat maps, marks, tooltip, grid, legend). It follows the size of its box and draws the options it is given.
+// gauges, heat maps (a picture and its contour lines), marks, tooltip, grid, legend). It follows the size of its box and draws the options it is given.
 import { FC, useEffect, useRef } from "react";
 import * as echarts from "echarts/core";
-import { BarChart, GaugeChart, HeatmapChart, LineChart, PieChart, ScatterChart } from "echarts/charts";
+import { BarChart, CustomChart, GaugeChart, LineChart, PieChart, ScatterChart } from "echarts/charts";
 import { GridComponent, LegendComponent, MarkAreaComponent, MarkLineComponent, TooltipComponent, VisualMapComponent } from "echarts/components";
 import { CanvasRenderer } from "echarts/renderers";
 import { ChartPointer } from "./echartsOptions";
 
-// HeatmapChart, VisualMapComponent and LegendComponent: the heat maps and the legends of the Data charts
+// CustomChart (the picture of a heat map), VisualMapComponent and LegendComponent: the heat maps and the legends of the Data charts
 echarts.use([
     LineChart,
     BarChart,
     ScatterChart,
     GaugeChart,
     PieChart,
-    HeatmapChart,
+    CustomChart,
     GridComponent,
     TooltipComponent,
     MarkLineComponent,

@@ -39,7 +39,7 @@ describe("chat markdown", () => {
 
     it("still renders LaTeX, also inside a table", () => {
         const html = renderExplicitMathBlocks("| a | b |\n|---|---|\n| \\(x^2\\) | 1 |");
-        expect(html).toContain("katex");
+        expect(html).toContain("class=\"math");
         expect(html).toContain("<table>");
     });
 
@@ -56,16 +56,16 @@ describe("chat markdown", () => {
     });
 
     it("renders $…$ and inline $$…$$ but not amounts", () => {
-        expect(renderExplicitMathBlocks("La matriz $A = \\begin{bmatrix} 1 & 2 \\\\ 2 & 1 \\end{bmatrix}$ es simétrica")).toContain("katex");
-        expect(renderExplicitMathBlocks("Resultado: $$E = mc^2$$ en línea")).toContain("katex-display");
+        expect(renderExplicitMathBlocks("La matriz $A = \\begin{bmatrix} 1 & 2 \\\\ 2 & 1 \\end{bmatrix}$ es simétrica")).toContain("class=\"math");
+        expect(renderExplicitMathBlocks("Resultado: $$E = mc^2$$ en línea")).toContain("class=\"math-display");
         const money = renderExplicitMathBlocks("Cuesta de $5 a $10");
-        expect(money).not.toContain("katex");
+        expect(money).not.toContain("class=\"math");
         expect(money).toContain("$5 a $10");
     });
 
     it("keeps $ and LaTeX inside code as text", () => {
         const html = renderExplicitMathBlocks("Usa `$x^2$` así y ```\nprint('$a$')\n```");
-        expect(html).not.toContain("katex");
+        expect(html).not.toContain("class=\"math");
         expect(html).toContain("<code>$x^2$</code>");
     });
 });

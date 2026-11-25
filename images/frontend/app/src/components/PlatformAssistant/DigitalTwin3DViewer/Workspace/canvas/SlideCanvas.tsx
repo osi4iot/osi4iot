@@ -8,10 +8,12 @@
 // Coming back from the next slide it shows its last frame.
 import { FC, ReactNode, Suspense, lazy, useEffect, useRef, useState } from "react";
 import styled from "styled-components";
-import { Check, Frame, Pointer, ChevronLeft, ChevronRight, Maximize, Minimize, Paintbrush, Plus, Trash2 } from "lucide-react";
+import { Check, Frame, Pointer, ChevronLeft, ChevronRight, Maximize, Minimize, Paintbrush, Plus, Sigma, Trash2 } from "lucide-react";
 import { LiveValueStore } from "../liveValues";
 import { CANVAS_STYLES, CanvasStyle, SlideCanvas as SlideCanvasSettings, WorkspacePage } from "../workspaceLayout";
-import { CanvasBoardControl } from "./CanvasBoard";
+import { CanvasBoardControl, SelectedFormula } from "./CanvasBoard";
+import { CanvasFormula } from "./canvasFormula";
+import { FormulaDialog } from "./FormulaDialog";
 import { CANVAS_STYLE_LABELS, CanvasScene, nextCanvasStep } from "./canvasScene";
 import { LaserPointer } from "./LaserPointer";
 
@@ -158,6 +160,9 @@ export const SlideCanvas: FC<SlideCanvasProps> = ({
     onPanelFrames,
 }) => {
     const control = useRef<CanvasBoardControl | null>(null);
+    // the formula selected in the drawing (Edit formula), and the formula dialog (a new one, or one to edit)
+    const [selectedFormula, setSelectedFormula] = useState<SelectedFormula | null>(null);
+    const [formulaDialog, setFormulaDialog] = useState<{ id: string | null; formula: CanvasFormula } | null>(null);
     // the frames of the drawing (their ids), in the order of the steps
     const [frameIds, setFrameIds] = useState<string[]>([]);
     const frames = frameIds.length;
@@ -171,6 +176,12 @@ export const SlideCanvas: FC<SlideCanvasProps> = ({
     laserRef.current = toggleLaser;
     useEffect(() => setRemoveArmed(false), [slideId, layoutEditing]);
     const editing = layoutEditing && canvasEditing;
+    useEffect(() => {
+        if (!editing) {
+            setSelectedFormula(null);
+            setFormulaDialog(null);
+        }
+    }, [editing]);
     const presenting = !editing && frames > 0;
     // a new slide, scene or mode: the first step (or the last one: the board takes its last frame)
     const start = startAtEnd ? Number.MAX_SAFE_INTEGER : 0;
@@ -213,8 +224,10 @@ export const SlideCanvas: FC<SlideCanvasProps> = ({
             }
             const delta = e.key === "ArrowRight" || e.key === "PageDown" ? 1 : e.key === "ArrowLeft" || e.key === "PageUp" ? -1 : 0;
             if (!delta || !presentingRef.current) return;
-            // before the slide bar (PageUp / PageDown change the slide there): this step is the canvas's
+            // before the slide bar (PageUp / PageDown change the slide there) and Excalidraw (they scroll the drawing
+            // a screen up or down there, away from the frame): this step is the canvas's
             e.preventDefault();
+            e.stopPropagation();
             goRef.current(delta);
         };
         window.addEventListener("keydown", onKey, true);
@@ -244,11 +257,25 @@ export const SlideCanvas: FC<SlideCanvasProps> = ({
                             onPanelsRemoved={onPanelsRemoved}
                             step={shownStep}
                             fullscreen={fullscreen}
+                            onFormulaSelected={setSelectedFormula}
+                            onEditFormula={(selected) => setFormulaDialog({ id: selected.id, formula: selected.formula })}
                         />
                     </Suspense>
                 )}
                 {laser && !editing && <LaserPointer />}
             </Board>
+            {formulaDialog && (
+                <FormulaDialog
+                    formula={formulaDialog.formula}
+                    editing={formulaDialog.id !== null}
+                    onDiscard={() => setFormulaDialog(null)}
+                    onApply={(formula) => {
+                        if (formulaDialog.id) control.current?.updateFormula(formulaDialog.id, formula);
+                        else control.current?.insertFormula(formula);
+                        setFormulaDialog(null);
+                    }}
+                />
+            )}
 
             {(!editing || frames > 0) && (
                 <Controls style={{ right: 12, bottom: 12 }} role="group" aria-label="Steps of the canvas">
@@ -331,6 +358,25 @@ export const SlideCanvas: FC<SlideCanvasProps> = ({
                             Insert panel
                         </button>
                     )}
+                    <button
+                        type="button"
+                        disabled={!editing}
+                        onClick={() =>
+                            setFormulaDialog(
+                                selectedFormula
+                                    ? { id: selectedFormula.id, formula: selectedFormula.formula }
+                                    : { id: null, formula: { ...(control.current?.formulaDefaults() ?? { color: "#1e1e1e", size: 28 }), tex: "" } },
+                            )
+                        }
+                        title={
+                            selectedFormula
+                                ? "Edit the LaTeX of the formula selected (or double click it)"
+                                : "A formula (LaTeX) in the middle of the frame shown: then move it as any shape; double click it to edit it"
+                        }
+                    >
+                        <Sigma aria-hidden="true" />
+                        {selectedFormula ? "Edit formula" : "Insert formula"}
+                    </button>
                     <select aria-label="Style of the canvas" value={canvas.style} onChange={(e) => onStyleChange(e.target.value as CanvasStyle)}>
                         {CANVAS_STYLES.map((s) => (
                             <option key={s} value={s}>

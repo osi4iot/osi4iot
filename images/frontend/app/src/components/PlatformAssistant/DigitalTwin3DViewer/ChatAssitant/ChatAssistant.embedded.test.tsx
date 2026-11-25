@@ -32,7 +32,7 @@ describe("ChatAssistant en la pestaña del panel del asistente", () => {
         );
         const root = screen.getByTestId("chat-assistant-embedded");
         expect(root.querySelector(".md-table, table")).not.toBeNull();
-        expect(root.querySelector(".katex")).not.toBeNull();
+        expect(root.querySelector(".math svg")).not.toBeNull();
         fireEvent.change(screen.getByPlaceholderText("Type your question..."), { target: { value: "Hola" } });
         fireEvent.click(screen.getByRole("button", { name: "Send" }));
         expect(latest.at(-1)).toMatchObject({ sender: "user", message: "Hola", userName: "tester" });

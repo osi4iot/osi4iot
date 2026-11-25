@@ -6,7 +6,7 @@
 //   editing     every tool of Excalidraw; the new elements in the canvas's style; the scene is reported (at most
 //               every 400 ms) to be saved with the layout
 import { FC, ReactNode, useEffect, useMemo, useRef } from "react";
-import { Excalidraw, MainMenu, CaptureUpdateAction, hashElementsVersion } from "@excalidraw/excalidraw";
+import { Excalidraw, MainMenu, CaptureUpdateAction, hashElementsVersion, restoreElements } from "@excalidraw/excalidraw";
 import type { ExcalidrawImperativeAPI } from "@excalidraw/excalidraw/types";
 import "@excalidraw/excalidraw/index.css";
 import { LiveValueStore, useLiveTick } from "../liveValues";
@@ -25,6 +25,7 @@ import {
     styleAppState,
     withLiveValues,
 } from "./canvasScene";
+import { CanvasFormula, FORMULA_SIZE_DEFAULT, formulaElement, formulaFile, formulaOf, formulaPicture, formulaSpot, sanitizeFormula } from "./canvasFormula";
 
 declare global {
     interface Window {
@@ -44,6 +45,17 @@ export interface CanvasBoardControl {
     addFrame: () => void;
     // the frame in the middle of what is shown (its id), where a panel inserted goes
     frameInView: () => string | null;
+    // a formula (LaTeX) in the middle of the frame shown, selected; or another formula for an element (its id)
+    insertFormula: (formula: CanvasFormula) => void;
+    updateFormula: (id: string, formula: CanvasFormula) => void;
+    // the color and size of the next texts (those of a new formula)
+    formulaDefaults: () => CanvasFormula;
+}
+
+// a formula of the drawing (its element)
+export interface SelectedFormula {
+    id: string;
+    formula: CanvasFormula;
 }
 
 export interface CanvasBoardProps {
@@ -69,6 +81,9 @@ export interface CanvasBoardProps {
     step?: number;
     // the slide in full screen: the frames shown at 100 % (when they fit), the wheel only for the panels
     fullscreen?: boolean;
+    // editing: the formula selected (alone), when it changes; a formula double clicked (to edit it)
+    onFormulaSelected?: (selected: SelectedFormula | null) => void;
+    onEditFormula?: (selected: SelectedFormula) => void;
 }
 
 const UI_OPTIONS = {
@@ -103,6 +118,8 @@ const CanvasBoard: FC<CanvasBoardProps> = ({
     onFrames,
     onPanelFrames,
     onControl,
+    onFormulaSelected,
+    onEditFormula,
     page,
     renderPanel,
     onPanelsRemoved,
@@ -186,6 +203,22 @@ const CanvasBoard: FC<CanvasBoardProps> = ({
                 const frame = frameInView();
                 return frame ? String(frame.id) : null;
             },
+            insertFormula: (formula) => putFormula(formula),
+            updateFormula: (id, formula) => putFormula(formula, id),
+            formulaDefaults: () => {
+                const state = (apiRef.current?.getAppState() ?? {}) as unknown as Record<string, unknown>;
+                return (
+                    sanitizeFormula({
+                        tex: " ",
+                        color: state.currentItemStrokeColor,
+                        size: Math.max(Number(state.currentItemFontSize) || 0, FORMULA_SIZE_DEFAULT),
+                    }) ?? {
+                        tex: "",
+                        color: "#1e1e1e",
+                        size: FORMULA_SIZE_DEFAULT,
+                    }
+                );
+            },
         });
         return () => onControl?.(null);
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -231,6 +264,36 @@ const CanvasBoard: FC<CanvasBoardProps> = ({
         const shown = shownArea();
         if (!shown || !apiRef.current) return undefined;
         return frameAt(apiRef.current.getSceneElements() as unknown as CanvasElement[], shown.x + shown.width / 2, shown.y + shown.height / 2);
+    };
+    // a formula: a picture of the drawing (canvasFormula.ts), new in the frame shown or in place of another one
+    const putFormula = (formula: CanvasFormula, id?: string) => {
+        const api = apiRef.current;
+        const shown = shownArea();
+        if (!api || !shown) return;
+        const picture = formulaPicture(formula);
+        const all = api.getSceneElementsIncludingDeleted() as unknown as CanvasElement[];
+        let elements: CanvasElement[];
+        let selected: string;
+        if (id) {
+            const previous = all.find((e) => e.id === id);
+            if (!previous) return;
+            elements = all.map((e) => (e.id === id ? formulaElement(formula, picture, previous as never, previous) : e));
+            selected = id;
+        } else {
+            const [element] = restoreElements(
+                [formulaElement(formula, picture, formulaSpot(frameInView(), shown))] as never,
+                null,
+            ) as unknown as CanvasElement[];
+            elements = [...all, element];
+            selected = element.id;
+        }
+        api.updateScene({
+            elements: elements as never,
+            appState: { selectedElementIds: { [selected]: true } } as never,
+            captureUpdate: CaptureUpdateAction.IMMEDIATELY,
+        });
+        // its picture, once the element is there (Excalidraw loads the pictures of the elements that have it)
+        api.addFiles([formulaFile(picture) as never]);
     };
     const panelKey = (page?.panels ?? []).map((p) => p.id).join("|");
     const placedOnce = useRef(false);
@@ -329,8 +392,26 @@ const CanvasBoard: FC<CanvasBoardProps> = ({
     useEffect(() => () => window.clearTimeout(timer.current), []);
     const frameIds = useRef("");
     const panelFramesKey = useRef("");
+    const selectedKey = useRef("");
+    // the formula selected (alone)
+    const selectedFormula = (elements: readonly CanvasElement[], appState: Record<string, unknown>): SelectedFormula | null => {
+        const ids = Object.entries((appState.selectedElementIds as Record<string, boolean>) ?? {})
+            .filter(([, on]) => on)
+            .map(([key]) => key);
+        if (ids.length !== 1) return null;
+        const formula = formulaOf(elements.find((e) => e.id === ids[0]));
+        return formula ? { id: ids[0], formula } : null;
+    };
     const changed = (elements: readonly unknown[], appState: Record<string, unknown>, files: Record<string, unknown>) => {
         if (!editing || !onChange) return;
+        if (onFormulaSelected) {
+            const selected = selectedFormula(elements as CanvasElement[], appState);
+            const key = selected ? `${selected.id}|${JSON.stringify(selected.formula)}` : "";
+            if (key !== selectedKey.current) {
+                selectedKey.current = key;
+                onFormulaSelected(selected);
+            }
+        }
         // frames drawn, removed or renamed (their order): the steps
         const ids = framesInOrder(elements as CanvasElement[]).map((f) => String(f.id));
         if (placedOnce.current && ids.join("|") !== frameIds.current) {
@@ -371,6 +452,26 @@ const CanvasBoard: FC<CanvasBoardProps> = ({
             onChange(saved);
         }, 400);
     };
+
+    // a formula double clicked while drawing: edited (not cropped as a picture)
+    const editFormulaRef = useRef(onEditFormula);
+    editFormulaRef.current = onEditFormula;
+    useEffect(() => {
+        const el = box.current;
+        if (!el || !editing) return;
+        const onDoubleClick = (event: MouseEvent) => {
+            const api = apiRef.current;
+            if (!api || !editFormulaRef.current) return;
+            const selected = selectedFormula(api.getSceneElements() as unknown as CanvasElement[], api.getAppState() as unknown as Record<string, unknown>);
+            if (!selected) return;
+            event.stopPropagation();
+            event.preventDefault();
+            editFormulaRef.current(selected);
+        };
+        el.addEventListener("dblclick", onDoubleClick, true);
+        return () => el.removeEventListener("dblclick", onDoubleClick, true);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [editing]);
 
     return (
         <div ref={box} style={{ position: "absolute", inset: 0 }}>

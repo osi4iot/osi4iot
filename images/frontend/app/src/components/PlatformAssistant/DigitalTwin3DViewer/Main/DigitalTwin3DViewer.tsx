@@ -740,6 +740,9 @@ const DigitalTwin3DViewerScene: FC<Viewer3DProps & SceneProps> = ({
     // coming back to it, its simulator has them again (and sends nothing new)
     const simulatorMemory = useRef(new Map<string, { values: Record<string, number>; sent: string }>());
     const simulatorScopeRef = useRef<string | null>(null);
+    // the simulator's values when the viewer set them itself (another frame or slide, another format), not the user:
+    // no warning that they are not sent (the send effect, below)
+    const programmaticSimulatorValues = useRef<Record<string, number> | null>(null);
     // Update digital twin simulator state when format changes
     useEffect(() => {
         if (Object.keys(digitalTwinGltfData.digitalTwinSimulationFormat).length !== 0) {
@@ -755,6 +758,7 @@ const DigitalTwin3DViewerScene: FC<Viewer3DProps & SceneProps> = ({
                     digitalTwinSimulatorState[paramName] = digitalTwinSimulationFormat[paramName].defaultValue;
                 }
             });
+            programmaticSimulatorValues.current = digitalTwinSimulatorState;
             setOpts((prev) => ({ ...prev, digitalTwinSimulatorState }));
         }
     }, [state.initialDigitalTwinSimulatorState, digitalTwinGltfData.digitalTwinSimulationFormat, setOpts]);
@@ -988,6 +992,7 @@ const DigitalTwin3DViewerScene: FC<Viewer3DProps & SceneProps> = ({
                     if (
                         previous !== null &&
                         current !== previous &&
+                        opts.digitalTwinSimulatorState !== programmaticSimulatorValues.current &&
                         current !== simulatorValuesKey(state.initialDigitalTwinSimulatorState) &&
                         current !== simulatorValuesKey(lastNatsMessageSent) &&
                         !(chatVisible || state.activeViewer === "pipeline")
@@ -1393,12 +1398,15 @@ const DigitalTwin3DViewerScene: FC<Viewer3DProps & SceneProps> = ({
         const kept = simulatorMemory.current.get(simulatorScope);
         if (kept) {
             setLastNatsMessageSent(kept.sent);
-            setOpts((prev) => ({ ...prev, digitalTwinSimulatorState: { ...prev.digitalTwinSimulatorState, ...kept.values } }));
+            const back = { ...(opts.digitalTwinSimulatorState ?? {}), ...kept.values };
+            programmaticSimulatorValues.current = back;
+            setOpts((prev) => ({ ...prev, digitalTwinSimulatorState: back }));
         } else if (left) {
             // a simulator never used: from its first values
             const format = digitalTwinGltfData.digitalTwinSimulationFormat ?? {};
             const first: Record<string, number> = {};
             for (const [name, parameter] of Object.entries(format)) first[name] = state.initialDigitalTwinSimulatorState[name] ?? parameter.defaultValue;
+            programmaticSimulatorValues.current = first;
             setOpts((prev) => ({ ...prev, digitalTwinSimulatorState: first }));
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -3212,4 +3220,3 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = (props) => {
 };
 
 export default DigitalTwin3DViewer;
-

@@ -5,9 +5,12 @@ import { describe, expect, it, vi } from "vitest";
 const shown: number[] = [];
 const restyled: string[] = [];
 const added: number[] = [];
+const formulas: unknown[] = [];
+let selectFormula: ((s: unknown) => void) | null = null;
 // Excalidraw needs a real canvas: the board says what it was asked to show
 vi.mock("./CanvasBoard", () => ({
-    default: ({ editing, startAt, onFrames, onControl }: any) => {
+    default: ({ editing, startAt, onFrames, onControl, onFormulaSelected }: any) => {
+        selectFormula = onFormulaSelected;
         useEffect(() => {
             onFrames(["f1", "f2", "f3"]);
             onControl({
@@ -15,10 +18,18 @@ vi.mock("./CanvasBoard", () => ({
                 restyleAll: (s: string) => restyled.push(s),
                 addFrame: () => added.push(1),
                 frameInView: () => "f2",
+                insertFormula: (f: unknown) => formulas.push(["insert", f]),
+                updateFormula: (id: string, f: unknown) => formulas.push(["update", id, f]),
+                formulaDefaults: () => ({ tex: "", color: "#1971c2", size: 30 }),
             });
         }, []);
         return <div data-testid="board">{`${editing ? "editing" : "presenting"} from ${startAt}`}</div>;
     },
+}));
+
+// MathLive needs a real browser: the visual editor is a field of LaTeX here
+vi.mock("./MathFieldEditor", () => ({
+    default: ({ value, onChange }: any) => <input aria-label="Formula" value={value} onChange={(e) => onChange(e.target.value)} />,
 }));
 
 import { SlideCanvas } from "./SlideCanvas";
@@ -133,5 +144,44 @@ describe("Canvas of a slide", () => {
         });
         expect(screen.queryByTestId("laser-pointer")).toBeNull();
         expect(screen.getByRole("button", { name: "Laser pointer (K)" })).toHaveAttribute("aria-pressed", "false");
+    });
+
+    it("inserts a formula (LaTeX) and edits the one selected", async () => {
+        render(<SlideCanvas {...props({ layoutEditing: true, canvasEditing: true })} />);
+        fireEvent.click(await screen.findByRole("button", { name: "Insert formula" }));
+        const dialog = screen.getByRole("dialog", { name: "Insert formula" });
+        expect(screen.getByLabelText("Color")).toHaveValue("#1971c2");
+        expect(screen.getByLabelText("Size")).toHaveValue(30);
+        fireEvent.change(await screen.findByLabelText("Formula"), { target: { value: "E=mc" } });
+        // the same formula in the LaTeX tab, with its preview
+        fireEvent.click(screen.getByRole("tab", { name: "LaTeX" }));
+        expect(screen.getByLabelText("LaTeX")).toHaveValue("E=mc");
+        fireEvent.change(screen.getByLabelText("LaTeX"), { target: { value: "E=mc^2" } });
+        // the preview: the picture that goes to the drawing
+        expect(dialog.querySelector("img")?.getAttribute("src")).toMatch(/^data:image\/svg\+xml;base64,/);
+        fireEvent.click(screen.getByRole("button", { name: "Insert" }));
+        expect(formulas).toEqual([["insert", { tex: "E=mc^2", color: "#1971c2", size: 30 }]]);
+        expect(screen.queryByRole("dialog")).toBeNull();
+        // one selected: Edit formula
+        act(() => selectFormula?.({ id: "img1", formula: { tex: "a+b", color: "#e03131", size: 40 } }));
+        fireEvent.click(screen.getByRole("button", { name: "Edit formula" }));
+        expect(await screen.findByLabelText("Formula")).toHaveValue("a+b");
+        fireEvent.change(screen.getByLabelText("Formula"), { target: { value: "a-b" } });
+        fireEvent.click(screen.getByRole("button", { name: "Apply" }));
+        expect(formulas[1]).toEqual(["update", "img1", { tex: "a-b", color: "#e03131", size: 40 }]);
+    });
+
+    it("keeps PageUp / PageDown from Excalidraw while presenting (it would scroll the drawing away)", async () => {
+        render(<SlideCanvas {...props()} />);
+        await screen.findByRole("group", { name: "Steps of the canvas" });
+        const heard = vi.fn();
+        document.addEventListener("keydown", heard);
+        act(() => {
+            fireEvent.keyDown(document.body, { key: "PageDown" });
+        });
+        expect(heard).not.toHaveBeenCalled();
+        expect(screen.getByRole("group", { name: "Steps of the canvas" })).toHaveTextContent("2 / 3");
+        document.removeEventListener("keydown", heard);
+        shown.length = 0;
     });
 });

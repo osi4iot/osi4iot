@@ -65,8 +65,32 @@ function excalidrawFonts(): Plugin {
   }
 }
 
+// MathLive (the visual editor of formulas) loads its fonts from MathfieldElement.fontsDirectory: they are served at
+// /mathlive-assets/fonts/ (canvas/MathFieldEditor.tsx), as Excalidraw's above
+const mathliveFontsDir = fileURLToPath(new URL('./node_modules/mathlive/fonts/', import.meta.url))
+function mathliveFonts(): Plugin {
+  const files = readdirSync(mathliveFontsDir)
+    .filter((name) => name.endsWith('.woff2'))
+    .map((name) => ({ publicPath: `mathlive-assets/fonts/${name}`, absPath: `${mathliveFontsDir}${name}` }))
+  return {
+    name: 'mathlive-fonts',
+    configureServer(server) {
+      server.middlewares.use((req, res, next) => {
+        const url = (req.url || '').split('?')[0].replace(/^\//, '')
+        const file = files.find((f) => f.publicPath === url)
+        if (!file) return next()
+        res.setHeader('Content-Type', 'font/woff2')
+        res.end(readFileSync(file.absPath))
+      })
+    },
+    generateBundle() {
+      for (const f of files) this.emitFile({ type: 'asset', fileName: f.publicPath, source: readFileSync(f.absPath) })
+    },
+  }
+}
+
 export default defineConfig({
-  plugins: [react(), threeDecoders(), excalidrawFonts()],
+  plugins: [react(), threeDecoders(), excalidrawFonts(), mathliveFonts()],
   resolve: {
     alias: [
       // ECharts GL (paneles 3D Surface) importa archivos internos de ECharts y zrender sin ".js"

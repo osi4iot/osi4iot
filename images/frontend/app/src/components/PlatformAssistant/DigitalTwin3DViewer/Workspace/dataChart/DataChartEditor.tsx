@@ -13,6 +13,9 @@ import { LiveTopic, LiveValueStore, useLiveTick } from "../liveValues";
 import { WorkspacePanel } from "../workspaceLayout";
 import { SURFACE_EXPRESSION_MAX_LENGTH, compileSurfaceExpression, isReservedSurfaceName } from "../surface/surfaceExpression";
 import {
+    CONTOUR_LEVELS_DEFAULT,
+    CONTOUR_LEVELS_MAX,
+    CONTOUR_LEVELS_MIN,
     SURFACE_COLORS,
     SURFACE_DATA_MAX,
     SURFACE_DEFAULT_STEPS,
@@ -464,6 +467,9 @@ export const DataChartEditor: FC<DataChartEditorProps> = ({ panel, store, topics
                         if (kind === "heatmap") {
                             delete surface.opacity;
                             delete surface.wireframe;
+                        } else {
+                            delete surface.contours;
+                            delete surface.contourLevels;
                         }
                         data = { kind, surface };
                     } else {
@@ -827,6 +833,36 @@ export const DataChartEditor: FC<DataChartEditorProps> = ({ panel, store, topics
                                             <input type="checkbox" checked={draft.wireframe !== false} onChange={(e) => set({ wireframe: e.target.checked })} />
                                             Wireframe
                                         </label>
+                                    )}
+                                    {kind === "heatmap" && (
+                                        <div className="row">
+                                            <label className="check">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={draft.contours !== false}
+                                                    onChange={(e) => set({ contours: e.target.checked })}
+                                                />
+                                                Contour lines
+                                            </label>
+                                            {draft.contours !== false && (
+                                                <label>
+                                                    <span>Levels (about)</span>
+                                                    <input
+                                                        aria-label="Contour levels"
+                                                        type="number"
+                                                        min={CONTOUR_LEVELS_MIN}
+                                                        max={CONTOUR_LEVELS_MAX}
+                                                        step={1}
+                                                        value={draft.contourLevels ?? CONTOUR_LEVELS_DEFAULT}
+                                                        onChange={(e) => {
+                                                            const n = Math.round(Number(e.target.value));
+                                                            if (Number.isFinite(n))
+                                                                set({ contourLevels: Math.min(CONTOUR_LEVELS_MAX, Math.max(CONTOUR_LEVELS_MIN, n)) });
+                                                        }}
+                                                    />
+                                                </label>
+                                            )}
+                                        </div>
                                     )}
                                 </fieldset>
                             </>

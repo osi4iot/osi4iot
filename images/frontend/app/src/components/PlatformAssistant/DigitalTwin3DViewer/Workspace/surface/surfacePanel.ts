@@ -26,6 +26,10 @@ export const SURFACE_MAX_PARAMS = 20;
 export const SURFACE_STEPS_MIN = 5;
 export const SURFACE_STEPS_MAX = 150;
 export const SURFACE_DEFAULT_STEPS = 40;
+// heat map: about how many contour lines
+export const CONTOUR_LEVELS_DEFAULT = 10;
+export const CONTOUR_LEVELS_MIN = 2;
+export const CONTOUR_LEVELS_MAX = 30;
 // the largest grid a message can bring
 export const SURFACE_DATA_MAX = 200;
 export const SURFACE_LABEL_MAX = 40;
@@ -76,6 +80,9 @@ export interface SurfaceOptions {
     colors?: SurfaceColors;
     wireframe?: boolean;
     opacity?: number;
+    // heat map: its contour lines (with their values) and about how many levels
+    contours?: boolean;
+    contourLevels?: number;
 }
 
 export const defaultSurface = (): SurfaceOptions => ({
@@ -143,6 +150,9 @@ export const sanitizeSurface = (raw: unknown): SurfaceOptions | null => {
     if (SURFACE_COLORS.includes(s.colors as SurfaceColors)) surface.colors = s.colors as SurfaceColors;
     if (typeof s.wireframe === "boolean") surface.wireframe = s.wireframe;
     if (isNum(s.opacity) && s.opacity >= 0.1 && s.opacity <= 1) surface.opacity = s.opacity;
+    if (typeof s.contours === "boolean") surface.contours = s.contours;
+    if (Number.isInteger(s.contourLevels) && (s.contourLevels as number) >= CONTOUR_LEVELS_MIN && (s.contourLevels as number) <= CONTOUR_LEVELS_MAX)
+        surface.contourLevels = s.contourLevels as number;
     return surface;
 };
 
@@ -189,6 +199,9 @@ export interface SurfaceGrid {
     // the values of x and y of the grid (its points can be moved: clipGrid)
     xs?: number[];
     ys?: number[];
+    // a cut (clipAbove): its height, and the values of z before it (a heat map draws them up to it)
+    cap?: number;
+    zs?: number[];
 }
 
 export type SurfaceResult = { grid: SurfaceGrid; note?: string } | { error: string };
@@ -251,9 +264,11 @@ export const computeFunctionSurface = (surface: SurfaceOptions, get: (topicRef: 
         }
     }
     const cap = typeof surface.clipAbove === "number" ? surface.clipAbove : surface.clipAbove !== undefined ? values[surface.clipAbove] : undefined;
-    if (cap !== undefined && Number.isFinite(cap)) clipGrid(data, ys.length, xs.length, cap);
+    const cut = cap !== undefined && Number.isFinite(cap);
+    const zs = cut ? data.map((d) => d[2]) : undefined;
+    if (cut) clipGrid(data, ys.length, xs.length, cap);
     return {
-        grid: { data, rows: ys.length, columns: xs.length, ...rangeOf(data), xs, ys },
+        grid: { data, rows: ys.length, columns: xs.length, ...rangeOf(data), xs, ys, ...(cut ? { cap, zs } : {}) },
         note: waiting.length ? `Waiting for the value of ${waiting.join(", ")}: shown with its own value` : undefined,
     };
 };

@@ -22,6 +22,7 @@ import {
     roundForAxis,
     sanitizeSurface,
     SURFACE_PALETTES,
+    CONTOUR_LEVELS_DEFAULT,
     SurfaceGrid,
     surfaceParamValues,
     surfaceTopics,
@@ -30,6 +31,7 @@ import {
     sanitizeLiveRange,
 } from "../surface/surfacePanel";
 import { compileSurfaceExpression } from "../surface/surfaceExpression";
+import { contourLevels, contours, gridAxes, gridValues, heatmapCanvas, heatmapPixels } from "./heatmapPicture";
 
 // the source of the state of the twin's asset (not a topic: a topic's reference never starts with @)
 export const ASSET_STATE_SOURCE = "@assetState";
@@ -495,44 +497,73 @@ export const xyChartOption = (data: DataChartOptions, result: DataResult): Recor
     };
 };
 
-// a grid as a heat map: the cells by position (x and y as categories, labelled with their values)
+// a grid as a heat map: a picture of its values interpolated (smooth colours, and a smooth edge where it is cut), on
+// axes of x and y in their units, with its contour lines and their values
 export const heatmapChartOption = (surface: SurfaceOptions, grid: SurfaceGrid): Record<string, unknown> => {
     const fixed = surface.zMin !== undefined && surface.zMax !== undefined;
     const auto = niceRange(grid.zMin, grid.zMax);
-    const xs = Array.from({ length: grid.columns }, (_, c) => roundForAxis(grid.xs?.[c] ?? grid.data[c]?.[0] ?? c));
-    const ys = Array.from({ length: grid.rows }, (_, r) => roundForAxis(grid.ys?.[r] ?? grid.data[r * grid.columns]?.[1] ?? r));
-    const cells: [number, number, number | "-"][] = grid.data.map(([, , z], k) => [
-        k % grid.columns,
-        Math.floor(k / grid.columns),
-        Number.isFinite(z) ? z : "-",
-    ]);
-    const category = (name: string | undefined, values: number[]) => ({
-        type: "category",
-        data: values.map(String),
+    const zMin = (fixed ? surface.zMin : auto.min) as number;
+    const zMax = (fixed ? surface.zMax : auto.max) as number;
+    const palette = SURFACE_PALETTES[surface.colors ?? "viridis"];
+    const { xs, ys } = gridAxes(grid);
+    const z = gridValues(grid);
+    const picture = heatmapPixels(grid, palette, zMin, zMax);
+    const canvas = picture ? heatmapCanvas(picture) : null;
+    const xMin = Math.min(xs[0], xs[xs.length - 1]);
+    const xMax = Math.max(xs[0], xs[xs.length - 1]);
+    const yMin = Math.min(ys[0], ys[ys.length - 1]);
+    const yMax = Math.max(ys[0], ys[ys.length - 1]);
+    // the values under the mouse: the points of the grid (at most about 60 × 60 of them)
+    const stride = Math.max(1, Math.ceil(Math.max(grid.rows, grid.columns) / 60));
+    const probes: [number, number, number][] = [];
+    for (let r = 0; r < grid.rows; r += stride) {
+        for (let c = 0; c < grid.columns; c += stride) {
+            const v = z[r * grid.columns + c];
+            if (Number.isFinite(v) && (grid.cap === undefined || v <= grid.cap)) probes.push([xs[c], ys[r], v]);
+        }
+    }
+    const top = grid.cap !== undefined ? Math.min(zMax, grid.cap) : zMax;
+    const drawn =
+        surface.contours !== false
+            ? contours(grid, contourLevels(Math.max(zMin, grid.zMin), Math.min(top, grid.zMax), surface.contourLevels ?? CONTOUR_LEVELS_DEFAULT))
+            : { lines: [], labels: [] };
+    const lineData: ([number, number] | "-")[] = [];
+    for (const line of drawn.lines) {
+        if (lineData.length) lineData.push("-");
+        lineData.push(...line.points);
+    }
+    const axis = (name: string | undefined, min: number, max: number) => ({
+        type: "value",
+        min,
+        max,
         name,
         nameLocation: "middle",
         nameGap: 28,
         nameTextStyle: { color: "#c7cbd1", fontSize: 12 },
-        axisLabel: { color: TEXT, fontSize: 11 },
-        axisLine: { lineStyle: { color: AXIS_LINE } },
-        splitArea: { show: false },
+        // the ends of the grid are not round values: only the round ones are written
+        axisLabel: { color: TEXT, fontSize: 11, showMinLabel: false, showMaxLabel: false, formatter: (v: number) => String(roundForAxis(v)) },
+        axisLine: { show: true, onZero: false, lineStyle: { color: AXIS_LINE } },
+        axisTick: { show: true },
+        splitLine: { show: false },
     });
     return {
         backgroundColor: "transparent",
         animation: false,
-        grid: { left: 56, right: 70, top: 16, bottom: 42 },
+        grid: { left: 64, right: 70, top: 16, bottom: 42 },
         tooltip: {
             ...tooltipStyle,
             formatter: (p: { value?: [number, number, number] }) => {
-                const [c, r, z] = p.value ?? [0, 0, 0];
-                return `${surface.xLabel ?? "x"}: ${xs[c]}<br/>${surface.yLabel ?? "y"}: ${ys[r]}<br/>${surface.zLabel ?? "z"}: ${typeof z === "number" ? roundForAxis(z) : "-"}`;
+                const [x, y, v] = p.value ?? [0, 0, 0];
+                return `${surface.xLabel ?? "x"}: ${roundForAxis(x)}<br/>${surface.yLabel ?? "y"}: ${roundForAxis(y)}<br/>${surface.zLabel ?? "z"}: ${roundForAxis(v)}`;
             },
         },
-        xAxis: category(surface.xLabel, xs),
-        yAxis: { ...category(surface.yLabel, ys), nameGap: 42 },
+        xAxis: axis(surface.xLabel, xMin, xMax),
+        yAxis: { ...axis(surface.yLabel, yMin, yMax), nameGap: 48 },
         visualMap: {
-            min: fixed ? surface.zMin : auto.min,
-            max: fixed ? surface.zMax : auto.max,
+            min: zMin,
+            max: zMax,
+            seriesIndex: 0,
+            dimension: 2,
             calculable: false,
             right: 6,
             top: "middle",
@@ -540,9 +571,61 @@ export const heatmapChartOption = (surface: SurfaceOptions, grid: SurfaceGrid): 
             text: [surface.zLabel ?? "z", ""],
             textStyle: { color: TEXT, fontSize: 11 },
             formatter: (v: number) => String(roundForAxis(v)),
-            inRange: { color: SURFACE_PALETTES[surface.colors ?? "viridis"] },
+            inRange: { color: palette },
         },
-        series: [{ type: "heatmap", data: cells, progressive: 0 }],
+        series: [
+            {
+                type: "custom",
+                name: "map",
+                silent: true,
+                clip: true,
+                data: [[xMin, yMax, zMin]],
+                renderItem: (_: unknown, api: { coord: (v: number[]) => number[] }) => {
+                    if (!canvas) return null;
+                    const [x0, y0] = api.coord([xMin, yMax]);
+                    const [x1, y1] = api.coord([xMax, yMin]);
+                    return { type: "image", silent: true, style: { image: canvas, x: x0, y: y0, width: x1 - x0, height: y1 - y0 } };
+                },
+            },
+            {
+                type: "line",
+                name: "contours",
+                silent: true,
+                showSymbol: false,
+                connectNulls: false,
+                lineStyle: { color: "rgba(255, 255, 255, 0.55)", width: 1 },
+                data: lineData,
+                z: 3,
+            },
+            {
+                type: "scatter",
+                name: "contour values",
+                silent: true,
+                symbolSize: 0,
+                data: drawn.labels.map((l) => [l.at[0], l.at[1], l.level]),
+                label: {
+                    show: true,
+                    position: "inside",
+                    formatter: (p: { value: [number, number, number] }) => String(roundForAxis(p.value[2])),
+                    color: "#ffffff",
+                    fontSize: 10,
+                    backgroundColor: "rgba(17, 19, 22, 0.7)",
+                    borderRadius: 3,
+                    padding: [1, 3],
+                },
+                z: 4,
+            },
+            {
+                type: "scatter",
+                name: "values",
+                symbol: "rect",
+                symbolSize: 12,
+                itemStyle: { color: "rgba(0, 0, 0, 0)" },
+                emphasis: { disabled: true },
+                data: probes,
+                z: 5,
+            },
+        ],
     };
 };
 
