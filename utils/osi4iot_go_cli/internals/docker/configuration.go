@@ -34,39 +34,38 @@ func installUFWOnNodes(pd *types.PlatformData) error {
 		endMsg := "UFW installed on all nodes"
 		utils.Spinner(spinnerMsg, endMsg, spinnerDone)
 
-		managerScript := `#!/bin/bash
-REQUIRED_PKG="ufw"
-if [ $(dpkg-query -W -f='${Status}' $REQUIRED_PKG 2>/dev/null | grep -c "ok installed") -eq 0 ];
-then
-    sudo apt-get update -y
-    sudo apt-get install ufw -y
+		// Run as the node's user over SSH, without a terminal: what needs root
+		// goes through sudo, which must not ask for a password (the user of
+		// add_osi4iot_user.sh). A firewall already active is the site's own:
+		// its rules are left as they are (often narrower than these, by
+		// network) and only reported. Otherwise the rules are added first and
+		// the firewall enabled last, and set -e stops before enabling it if
+		// any of them fails: never a firewall up without SSH and Swarm.
+		ufwScript := func(ports []string) string {
+			allow := ""
+			for _, port := range ports {
+				allow += fmt.Sprintf("sudo ufw allow %s\n", port)
+			}
+			return `#!/bin/bash
+set -e
+if ! sudo -n true 2>/dev/null; then
+	echo "the user $(id -un) needs sudo without a password on this node (e.g. /etc/sudoers.d/$(id -un): $(id -un) ALL=(ALL:ALL) NOPASSWD: ALL)" >&2
+	exit 1
 fi
-ufw allow 22/tcp
-ufw allow 80/tcp
-ufw allow 443/tcp
-ufw allow 2377/tcp
-ufw allow 7946/tcp 
-ufw allow 7946/udp 
-ufw allow 4789/udp
-sudo ufw enable
-`
-		platformWorkerScript := `#!/bin/bash
-REQUIRED_PKG="ufw"
-if [ $(dpkg-query -W -f='${Status}' $REQUIRED_PKG 2>/dev/null | grep -c "ok installed") -eq 0 ];
-then
-	sudo apt-get update -y
-	sudo apt-get install ufw -y
+if ! dpkg-query -W -f='${Status}' ufw 2>/dev/null | grep -q "ok installed"; then
+	sudo DEBIAN_FRONTEND=noninteractive apt-get update -y </dev/null
+	sudo DEBIAN_FRONTEND=noninteractive apt-get install -y ufw </dev/null
 fi
-ufw allow 22/tcp
-ufw allow 1883/tcp
-ufw allow 8883/tcp
-ufw allow 9001/tcp
-ufw allow 2377/tcp
-ufw allow 7946/tcp 
-ufw allow 7946/udp 
-ufw allow 4789/udp
-sudo ufw enable
+if sudo ufw status | grep -q "^Status: active"; then
+	echo "UFW_ALREADY_ACTIVE"
+	exit 0
+fi
+` + allow + `sudo ufw --force enable
 `
+		}
+		swarmPorts := []string{"2377/tcp", "7946/tcp", "7946/udp", "4789/udp"}
+		managerScript := ufwScript(append([]string{"22/tcp", "80/tcp", "443/tcp"}, swarmPorts...))
+		platformWorkerScript := ufwScript(append([]string{"22/tcp", "1883/tcp", "8883/tcp", "9001/tcp"}, swarmPorts...))
 
 		nodesData := pi.NodesData
 		nodeSripts := []utils.NodeScript{}
@@ -80,7 +79,7 @@ sudo ufw enable
 					Script: managerScript,
 					Args:   []string{},
 				}
-			case "Platform worker", "Pipelines worker":
+			case "Platform worker":
 				nodeScript = utils.NodeScript{
 					Node:   node,
 					Script: platformWorkerScript,
@@ -89,12 +88,23 @@ sudo ufw enable
 			}
 			nodeSripts = append(nodeSripts, nodeScript)
 		}
-		_, err := utils.RunScriptInNodes(pd, nodeSripts)
+		responses, err := utils.RunScriptInNodes(pd, nodeSripts)
 		if err != nil {
 			spinnerDone <- false
 			return err
 		}
 		spinnerDone <- true
+		kept := 0
+		for _, resp := range responses {
+			if strings.Contains(resp, "UFW_ALREADY_ACTIVE") {
+				kept++
+			}
+		}
+		if kept > 0 {
+			fmt.Printf("UFW was already active on %d node(s): their rules have been left as they are. "+
+				"Make sure that they allow 2377/tcp, 7946/tcp, 7946/udp and 4789/udp between the nodes (Docker Swarm), "+
+				"and the platform's ports (managers: 80/tcp, 443/tcp; platform workers: 1883/tcp, 8883/tcp, 9001/tcp).\n", kept)
+		}
 	}
 
 	return nil
@@ -215,7 +225,6 @@ func addNodesLabels(pd *types.PlatformData) error {
 			}
 		}
 		delete(spec.Labels, "platform_worker")
-		delete(spec.Labels, "pipelines_worker")
 
 		// GPU, on any role: a manager-only cluster can have GPUs too.
 		delete(spec.Labels, GPULabel)
@@ -238,11 +247,6 @@ func addNodesLabels(pd *types.PlatformData) error {
 				priorityIndex++
 			}
 			spec.Labels["KEEPALIVED_PRIORITY"] = priority
-
-		case "Pipelines worker":
-			// pipelines runs here, and nothing else of the platform (the
-			// other services ask for platform_worker)
-			spec.Labels["pipelines_worker"] = "true"
 
 		case "Platform worker":
 			spec.Labels["platform_worker"] = "true"

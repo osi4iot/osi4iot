@@ -158,7 +158,21 @@ func generatePublicKey(privatekey *rsa.PublicKey) ([]byte, error) {
 	return pubKeyBytes, nil
 }
 
-func CopyKeyInNode(nodeData types.NodeData, publicKey string) error {
+// CopyKeyInNode adds the platform's public key to the authorized_keys of the
+// node's user (with the node's password), and then checks that the node lets
+// the platform in with its private key (when given), so that a key that could
+// not be added is told here and not later, when the platform is started.
+//
+// The key is one line, without its line break: grep -Fx is given exactly that
+// line (with the break it was given an empty line as well, which matches any
+// empty line of authorized_keys, so the key was taken as already there), and
+// nothing but that line is added (no empty lines).
+func CopyKeyInNode(nodeData types.NodeData, publicKey, privateKey string) error {
+	key := strings.TrimSpace(publicKey)
+	if key == "" || strings.ContainsAny(key, "\n\r'") {
+		return fmt.Errorf("the platform's SSH public key is not a single line")
+	}
+
 	sshConfig := configWithPassword(nodeData.NodeUserName, nodeData.NodePassword)
 	client, err := ssh.Dial("tcp", nodeData.NodeIP+":22", sshConfig)
 	if err != nil {
@@ -172,25 +186,42 @@ func CopyKeyInNode(nodeData types.NodeData, publicKey string) error {
 	}
 	defer session.Close()
 
-	session.Stdin = strings.NewReader(publicKey + "\n")
-
-	command := fmt.Sprintf(`
-if ! grep -Fxq "%s" ~/.ssh/authorized_keys; then
-	mkdir -p ~/.ssh
-	chmod 700 ~/.ssh
-	echo "%s" >> ~/.ssh/authorized_keys
-	chmod 600 ~/.ssh/authorized_keys
-	echo "Clave pública añadida."
-else
-	echo "The public key already exists in authorized_keys."
+	// the key in single quotes: none in it (checked above)
+	command := fmt.Sprintf(`set -e
+KEY='%s'
+mkdir -p ~/.ssh
+chmod 700 ~/.ssh
+touch ~/.ssh/authorized_keys
+chmod 600 ~/.ssh/authorized_keys
+if ! grep -Fxq -- "$KEY" ~/.ssh/authorized_keys; then
+	# a last line without its line break would be joined to the key
+	if [ -s ~/.ssh/authorized_keys ] && [ -n "$(tail -c 1 ~/.ssh/authorized_keys)" ]; then
+		echo >> ~/.ssh/authorized_keys
+	fi
+	printf '%%s\n' "$KEY" >> ~/.ssh/authorized_keys
 fi
-`, strings.ReplaceAll(publicKey, `"`, `\"`), publicKey)
+`, key)
 
-	err = session.Run(command)
-	if err != nil {
-		return err
+	if output, err := session.CombinedOutput(command); err != nil {
+		return fmt.Errorf("could not add the platform's SSH key to %s@%s: %w: %s", nodeData.NodeUserName, nodeData.NodeIP, err, strings.TrimSpace(string(output)))
 	}
 
+	return checkKeyLogin(nodeData, privateKey)
+}
+
+// checkKeyLogin tells whether the node lets the platform's user in with the
+// platform's key (that every later step uses), and why not.
+func checkKeyLogin(nodeData types.NodeData, privateKey string) error {
+	if strings.TrimSpace(privateKey) == "" {
+		return nil
+	}
+	client, err := ssh.Dial("tcp", nodeData.NodeIP+":22", SshConfigWithKey(nodeData.NodeUserName, privateKey))
+	if err != nil {
+		return fmt.Errorf("the platform's SSH key was added to %s@%s, but the node does not let it in with it "+
+			"(check the permissions of ~ (not writable by group or others), ~/.ssh (700) and ~/.ssh/authorized_keys (600), "+
+			"and the node's sshd log): %w", nodeData.NodeUserName, nodeData.NodeIP, err)
+	}
+	client.Close()
 	return nil
 }
 

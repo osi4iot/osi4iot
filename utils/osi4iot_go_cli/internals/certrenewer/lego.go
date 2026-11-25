@@ -12,12 +12,26 @@ import (
 	"os"
 
 	"github.com/go-acme/lego/certificate"
+	"github.com/go-acme/lego/challenge/dns01"
 	"github.com/go-acme/lego/lego"
 	"github.com/go-acme/lego/providers/dns/route53"
 	"github.com/go-acme/lego/registration"
 	"github.com/osi4iot/osi4iot/utils/osi4iot/internals/types"
 	"github.com/osi4iot/osi4iot/utils/osi4iot/internals/utils"
 )
+
+// route53Published replaces lego's own check that the TXT record of the
+// challenge can be seen before Let's Encrypt is asked to validate it. That
+// check asks the resolver of the host (/etc/resolv.conf) for the zone's name
+// servers and then those servers directly, so it never succeeds where the
+// local DNS has its own view of the domain (an internal domain whose public
+// zone is in Route53) or where DNS queries out of the network are blocked,
+// although Let's Encrypt, from the Internet, would see the record. It is not
+// needed with Route53: its provider returns only once the change is INSYNC,
+// published on all of the zone's name servers.
+var route53Published = dns01.WrapPreCheck(func(_, _, _ string, _ dns01.PreCheckFunc) (bool, error) {
+	return true, nil
+})
 
 // SetOrUpdateAcmeCerts sets or updates the ACME certificates for the platform.
 func SetOrUpdateAcmeCerts(platformData *types.PlatformData) error {
@@ -46,7 +60,7 @@ func SetOrUpdateAcmeCerts(platformData *types.PlatformData) error {
 	if err != nil {
 		return fmt.Errorf("could not initialize Route53 DNS provider: %w", err)
 	}
-	client.Challenge.SetDNS01Provider(provider)
+	client.Challenge.SetDNS01Provider(provider, route53Published)
 
 	privateKey := platformData.Certs.DomainCerts.PrivateKey
 	sslCertCrt := platformData.Certs.DomainCerts.SslCertCrt
@@ -104,7 +118,7 @@ func loadOrCreateAcmeUser(platformData *types.PlatformData, caDirUrl string) (*t
 	if err != nil {
 		return nil, fmt.Errorf("could not initialize Route53 DNS provider: %w", err)
 	}
-	client.Challenge.SetDNS01Provider(provider)
+	client.Challenge.SetDNS01Provider(provider, route53Published)
 
 	reg, err := client.Registration.Register(registration.RegisterOptions{TermsOfServiceAgreed: true})
 	if err != nil {

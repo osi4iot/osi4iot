@@ -33,6 +33,15 @@ func getConnectionHelper(daemonURL string, sshPrivKeyTempFile *os.File) (*connhe
 	sshFlags = disablePseudoTerminalAllocation(sshFlags)
 	sshFlags = append(sshFlags, "-o", "StrictHostKeyChecking=no")
 	sshFlags = append(sshFlags, "-o", "UserKnownHostsFile=/dev/null")
+	// Only the platform's key: not those of an ssh-agent too, which the
+	// server counts against its MaxAuthTries before this one is tried.
+	sshFlags = append(sshFlags, "-o", "IdentitiesOnly=yes")
+	// Never a prompt (a password, a passphrase): fail at once instead.
+	sshFlags = append(sshFlags, "-o", "BatchMode=yes")
+	// Errors only: the notice of a host added to known hosts was all that an
+	// error showed of ssh's output, the real cause (Permission denied, the
+	// remote docker failing…) left out.
+	sshFlags = append(sshFlags, "-o", "LogLevel=ERROR")
 	helper := &connhelper.ConnectionHelper{
 		Dialer: func(ctx context.Context, network, addr string) (net.Conn, error) {
 			args := []string{"docker"}
@@ -50,7 +59,7 @@ func getConnectionHelper(daemonURL string, sshPrivKeyTempFile *os.File) (*connhe
 
 func addSSHTimeout(sshFlags []string) []string {
 	if !strings.Contains(strings.Join(sshFlags, ""), "ConnectTimeout") {
-		sshFlags = append(sshFlags, "-o ConnectTimeout=30")
+		sshFlags = append(sshFlags, "-o", "ConnectTimeout=30")
 	}
 	return sshFlags
 }

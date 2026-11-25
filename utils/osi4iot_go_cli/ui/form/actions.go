@@ -92,7 +92,7 @@ func creatingNodeQuestions(m *Model) (submissionResultMsg, error) {
 					QuestionType: "list",
 					Prompt:       "Role",
 					Answer:       defaultNodeData.NodeRole,
-					Choices:      []string{"Manager", "Platform worker", "Pipelines worker"},
+					Choices:      []string{"Manager", "Platform worker"},
 					ChoiceFocus:  0,
 					ErrorMessage: "",
 					Rules:        []string{"required", "string"},
@@ -153,12 +153,8 @@ func removingNodeQuestions(m *Model) {
 
 func addNumNodesQuestion(index int, m *Model) {
 	idx := m.FindQuestionIdByKey("NUMBER_OF_SWARM_NODES")
-	numNatsNodes := m.FindAnswerByKey("DEFAULT_NUMBER_OF_NATS_REPLICAS")
+	numNatsNodes := m.FindAnswerByKey("NUMBER_OF_NATS_NODES")
 	if idx == -1 {
-		rules := []string{"required", "isInt", "minval:1", "maxval:100"}
-		if numNatsNodes != "" {
-			rules = append(rules, "numNatsClusterNodes:"+numNatsNodes)
-		}
 		numNodesQuestion := Question{
 			Key:           "NUMBER_OF_SWARM_NODES",
 			QuestionType:  "generic",
@@ -168,7 +164,7 @@ func addNumNodesQuestion(index int, m *Model) {
 			ErrorMessage:  "",
 			Choices:       []string{},
 			ChoiceFocus:   0,
-			Rules:         rules,
+			Rules:         []string{"required", "isInt", "minval:1", "maxval:100", "numNatsClusterNodes:" + numNatsNodes},
 			ActionKey:     "creatingNodeQuestions",
 			Margin:        0,
 		}
@@ -582,7 +578,7 @@ func copyKeyInNode(m *Model) (submissionResultMsg, error) {
 		}
 		platformData := data.GetData()
 		publicKey := platformData.PlatformInfo.SshPubKey
-		err = utils.CopyKeyInNode(nodeData, publicKey)
+		err = utils.CopyKeyInNode(nodeData, publicKey, platformData.PlatformInfo.SshPrivKey)
 		if err != nil {
 			return submissionResultMsg("Error: copying key to node " + hostName), err
 		}
@@ -597,7 +593,7 @@ func usePatroniToolQuestions(m *Model) (submissionResultMsg, error) {
 		addPatroniNodesQuestions(m.Focus+1, m)
 	} else {
 		m.removeQuestionByKey("NUM_PATRONI_ADMIN_NODES")
-		m.removeQuestionByKey("NUM_PAT	switch deploymentLocation {RONI_METRICS_NODES")
+		m.removeQuestionByKey("NUM_PATRONI_METRICS_NODES")
 	}
 	return submissionResultMsg("Patroni questions updated"), nil
 }
