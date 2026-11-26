@@ -144,7 +144,9 @@ export interface IViewerSurface {
 // elements with values of the NATS messages
 export const VIEWER_PICTURE_FILE = /^[A-Za-z0-9_][A-Za-z0-9_.-]{0,79}\.(png|jpe?g|webp|gif|svg)$/i;
 export const VIEWER_PICTURE_FITS = ["contain", "cover", "fill"] as const;
-export const VIEWER_PICTURE_ACTIONS = ["text", "color", "rotate", "translateX", "translateY", "scale", "opacity", "visible"] as const;
+export const VIEWER_PICTURE_ACTIONS = ["text", "color", "rotate", "translateX", "translateY", "scale", "scaleX", "scaleY", "opacity", "visible"] as const;
+// the speeds of a picture that plays series in time (1: real time)
+export const VIEWER_PLAYBACK_SPEEDS = [0.1, 0.25, 0.5, 1, 2];
 export const VIEWER_PICTURE_MAX_BINDINGS = 100;
 const PICTURE_ELEMENT = /^[A-Za-z_][A-Za-z0-9_.:-]{0,79}$/;
 const PICTURE_PATH = /^[A-Za-z0-9_-]+(\.[A-Za-z0-9_-]+){0,15}$/;
@@ -175,6 +177,11 @@ const validatePictureBindings = (raw: unknown): IPictureBinding[] | string => {
 		if (typeof b.path !== "string" || !PICTURE_PATH.test(b.path)) return `${where}: invalid field`;
 		if (!VIEWER_PICTURE_ACTIONS.includes(b.action as IPictureBinding["action"])) return `${where}: invalid action`;
 		const binding: IPictureBinding = { element: b.element, topicRef: b.topicRef, path: b.path, action: b.action as IPictureBinding["action"] };
+		// a series played in time: the field of the times of the values of path
+		if (b.timePath !== undefined) {
+			if (typeof b.timePath !== "string" || !PICTURE_PATH.test(b.timePath)) return `${where}: invalid field of the times`;
+			binding.timePath = b.timePath;
+		}
 		for (const key of ["inMin", "inMax", "outMin", "outMax", "cx", "cy", "value", "decimals"]) {
 			if (b[key] === undefined) continue;
 			if (!isNum(b[key])) return `${where}: ${key} must be a number`;
@@ -380,6 +387,9 @@ export interface IDataChart {
 	yMin?: number;
 	yMax?: number;
 	legend?: boolean;
+	// xy: the axes follow every new data (else they only grow, so a change is seen against the same scale)
+	rescale?: boolean;
+	cursor?: boolean;
 }
 
 // the name, style and colour of a series (into `series`), or what is wrong
@@ -470,7 +480,7 @@ const validateDataChart = (raw: unknown): IDataChart | string => {
 		if (typeof d[key] !== "string" || d[key].length > VIEWER_SURFACE_MAX_LABEL) return `${key} has at most ${VIEWER_SURFACE_MAX_LABEL} characters`;
 		data[key] = d[key].trim();
 	}
-	for (const key of ["xLog", "yLog", "legend"] as const) {
+	for (const key of ["xLog", "yLog", "legend", "rescale", "cursor"] as const) {
 		if (d[key] === undefined) continue;
 		if (typeof d[key] !== "boolean") return `${key} must be true or false`;
 		data[key] = d[key];
@@ -591,6 +601,7 @@ export interface IViewerPanel {
 	file?: string;
 	fit?: (typeof VIEWER_PICTURE_FITS)[number];
 	bindings?: IPictureBinding[];
+	playbackSpeed?: number;
 	surface?: IViewerSurface;
 	data?: IDataChart;
 	series?: IChartSeries[];
@@ -884,6 +895,10 @@ const validatePanels = (
 			const bindings = validatePictureBindings(p.bindings);
 			if (typeof bindings === "string") return `${where}: ${bindings}`;
 			if (bindings.length) panel.bindings = bindings;
+			if (p.playbackSpeed !== undefined) {
+				if (!VIEWER_PLAYBACK_SPEEDS.includes(p.playbackSpeed as number)) return `${where}: playbackSpeed must be one of ${VIEWER_PLAYBACK_SPEEDS.join(", ")}`;
+				panel.playbackSpeed = p.playbackSpeed as number;
+			}
 		}
 		if (p.type === "assetState") {
 			const problem = validateAssetState(p, panel);

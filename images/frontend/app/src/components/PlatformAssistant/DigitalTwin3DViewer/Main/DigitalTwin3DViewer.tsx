@@ -82,6 +82,7 @@ import { useMediaQuery } from "../../../../tools/useMediaQuery";
 import { viewerContents } from "../Utils/viewerContents";
 import PipelineErrorBoundary from "../Pipeline/PipelineErrorBoundary";
 import { forgetViewer, getViewerMemory, rememberViewer } from "../../../../state/viewerMemoryStore";
+import { layoutHasSlides, openingViewer } from "./openingViewer";
 import {
     AssetState,
     FemSimulationObjectState,
@@ -391,7 +392,13 @@ const DigitalTwin3DViewerScene: FC<Viewer3DProps & SceneProps> = ({
     // the group's editors and administrators always have the Viewer page: to load its Viewer data
     const groupsManagedForViewer = useTable("groupsManaged");
     const isTwinEditor = !!digitalTwinSelected && groupsManagedForViewer.some((group) => group.id === digitalTwinSelected.groupId);
-    const viewerAvailable = twinHasModels || viewerHasImage || dtScope !== "asset" || isTwinEditor;
+    // the group's layout (admin_api), and whether it has been asked for yet (null as well when it could not be read)
+    const [savedLayout, setSavedLayout] = useState<SavedViewerLayout | null>(null);
+    const [savedLayoutLoaded, setSavedLayoutLoaded] = useState(false);
+    // a twin made of panels, without a model nor a camera (a presentation with its Canvas, charts…): its Viewer page
+    // is what there is to see, for everybody
+    const twinHasSlides = layoutHasSlides(savedLayout?.layout);
+    const viewerAvailable = twinHasModels || viewerHasImage || twinHasSlides || dtScope !== "asset" || isTwinEditor;
     const showOnlyPipelineViewer = !viewerAvailable;
     // the panel shown full page (by everybody, without editing the layout)
     const [maximizedPanel, setMaximizedPanel] = useState<string | null>(memory.workspaceMaximized ?? null);
@@ -1249,22 +1256,27 @@ const DigitalTwin3DViewerScene: FC<Viewer3DProps & SceneProps> = ({
         });
     }, [dtUid, pipelineNodes, pipelineEdges, state.isPipelineUiChanged]);
 
+    // where a twin opens: decided once for each twin opened (later changes of its layout do not move the user)
+    const openedViewerFor = useRef<string | null>(null);
     useEffect(() => {
-        if (digitalTwinSelected) {
-            if (sensorWithCameraSelected) {
-                // opened from a camera: its image full page (the 3D model one click away)
-                handlers.handleSetActiveViewer("3D");
-                setMaximizeFirstImage(true);
-            } else if (!viewerAvailable || (!twinHasModels && !viewerHasImage && dtScope === "asset")) {
-                // nothing to see yet: the pipeline (an editor has the Viewer page one click away)
-                handlers.handleSetActiveViewer("pipeline");
-            } else if (dtScope !== "asset") {
-                // a control room or the organization overview: they open with their panels
-                handlers.handleSetActiveViewer("3D");
-            }
-        }
+        if (!digitalTwinSelected) return;
+        const key = `${digitalTwinSelected.id}:${sensorWithCameraSelected ? "camera" : ""}:${dtScope}`;
+        if (openedViewerFor.current === key) return;
+        const viewer = openingViewer({
+            fromCamera: !!sensorWithCameraSelected,
+            scope: dtScope,
+            hasModels: twinHasModels,
+            hasImage: viewerHasImage,
+            layoutLoaded: savedLayoutLoaded,
+            hasSlides: twinHasSlides,
+        });
+        if (viewer === "wait") return;
+        if (viewer) handlers.handleSetActiveViewer(viewer);
+        // opened from a camera: its image full page (the 3D model one click away)
+        if (sensorWithCameraSelected) setMaximizeFirstImage(true);
+        openedViewerFor.current = key;
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [digitalTwinSelected, sensorWithCameraSelected, dtScope]);
+    }, [digitalTwinSelected, sensorWithCameraSelected, dtScope, savedLayoutLoaded, twinHasSlides]);
 
     // El editor de pipelines (Flow) registra aquí la función que coloca con el ratón los nodos importados
     const pipelineImportRef = useRef<((nodes: any[], edges: any[]) => void) | null>(null);
@@ -1297,7 +1309,6 @@ const DigitalTwin3DViewerScene: FC<Viewer3DProps & SceneProps> = ({
         observer.observe(page);
         return () => observer.disconnect();
     }, [lowScreen, inViewer, panelsTop, canvasContainerRef]);
-    const [savedLayout, setSavedLayout] = useState<SavedViewerLayout | null>(null);
     const [draftLayout, setDraftLayout] = useState<WorkspaceLayout | null>(null);
     const [layoutSaving, setLayoutSaving] = useState(false);
     // a viewer configuration file being loaded (its dialog), and the lighting it brought while the layout is
@@ -1344,8 +1355,11 @@ const DigitalTwin3DViewerScene: FC<Viewer3DProps & SceneProps> = ({
     useEffect(() => {
         if (!digitalTwinSelected) return;
         let cancelled = false;
+        setSavedLayoutLoaded(false);
         fetchViewerLayout(digitalTwinSelected.groupId, digitalTwinSelected.id, layoutAuth).then((saved) => {
-            if (!cancelled) setSavedLayout(saved);
+            if (cancelled) return;
+            setSavedLayout(saved);
+            setSavedLayoutLoaded(true);
         });
         return () => {
             cancelled = true;
@@ -2814,11 +2828,25 @@ const DigitalTwin3DViewerScene: FC<Viewer3DProps & SceneProps> = ({
                                 </PageClock>
                             ) : null
                         ) : panel.type === "picture" ? (
-                            <PictureView file={panel.file} fit={panel.fit} bindings={panel.bindings} store={storesOfPanel(panel).live} load={pictureFiles?.load} subscribe={pictureFiles?.subscribe} />
+                            <PictureView
+                                file={panel.file}
+                                fit={panel.fit}
+                                bindings={panel.bindings}
+                                store={storesOfPanel(panel).live}
+                                load={pictureFiles?.load}
+                                subscribe={pictureFiles?.subscribe}
+                                clockKey={panelScope(currentSlide.id, panel)}
+                                speed={panel.playbackSpeed}
+                            />
                         ) : panel.type === "markdown" ? (
                             <MarkdownView text={panel.text ?? ""} store={storesOfPanel(panel).live} />
                         ) : panel.type === "dataChart" ? (
-                            <DataChartView data={panel.data} store={storesOfPanel(panel).data} label={panel.title ?? "Data chart"} />
+                            <DataChartView
+                                data={panel.data}
+                                store={storesOfPanel(panel).data}
+                                label={panel.title ?? "Data chart"}
+                                clockKey={panelScope(currentSlide.id, panel)}
+                            />
                         ) : panel.type === "image" ? (
                             <ImageFrame frameStore={frameStore} source={panel.source ?? ANY_IMAGE_SOURCE} mode={panel.display === "photo" ? "photo" : "video"} />
                         ) : viewerHasModel && digitalTwinGltfData.slideId === panelScope(currentSlide.id, panel) && modelScopeInUse === digitalTwinGltfData.slideId ? (

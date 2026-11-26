@@ -3,7 +3,7 @@
 // chooses or uploads the image, how it fits, and the animations: click an element of the SVG to animate it.
 import { FC, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import styled from "styled-components";
-import { FileImage, ImageOff, Plus, Trash2, Upload, X } from "lucide-react";
+import { FileImage, ImageOff, Pause, Play, Plus, RotateCcw, Trash2, Upload, X } from "lucide-react";
 import { scrollbarStyle } from "../../../Tools/FormTools";
 import { LiveTopic, LiveValueStore, useLiveTick } from "./liveValues";
 import { BindingCard, newBinding } from "./PictureBindingCard";
@@ -14,9 +14,13 @@ import {
     PictureFit,
     applyEffects,
     bindingEffects,
+    playbackDuration,
+    playbackStamp,
+    playsSeries,
     sanitizeSvg,
     svgElementIds,
 } from "./pictureBindings";
+import { DEFAULT_PLAYBACK_SPEED, PLAYBACK_SPEEDS, setPlayback } from "./playbackClock";
 import { LoadedViewerImage, ViewerImageInfo, isSvgName, viewerImageName } from "./viewerImagesApi";
 import { WorkspacePanel } from "./workspaceLayout";
 
@@ -69,6 +73,70 @@ const Note = styled.div`
     }
 `;
 
+// the controls of a picture that plays series: play / pause, from the start, speed, and the time
+const Controls = styled.div`
+    position: absolute;
+    left: 8px;
+    bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 6px;
+    background: rgba(14, 16, 19, 0.82);
+    border: 1px solid #2c3137;
+    border-radius: 8px;
+    color: #c7cbd1;
+    font: 400 12px ${font};
+    z-index: 2;
+    opacity: 0.6;
+    transition: opacity 0.15s;
+
+    &:hover,
+    &:focus-within {
+        opacity: 1;
+    }
+
+    button {
+        width: 26px;
+        height: 24px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0;
+        background: transparent;
+        border: 1px solid transparent;
+        border-radius: 6px;
+        color: #c7cbd1;
+        cursor: pointer;
+    }
+    button:hover {
+        border-color: #3a4048;
+        color: #fff;
+    }
+    button svg {
+        width: 14px;
+        height: 14px;
+    }
+    select {
+        height: 24px;
+        padding: 0 4px;
+        background: #0e1013;
+        border: 1px solid #2c3137;
+        border-radius: 6px;
+        color: #e6e8eb;
+        font: 400 12px ${font};
+    }
+    .time {
+        min-width: 64px;
+        text-align: right;
+        font-variant-numeric: tabular-nums;
+    }
+`;
+
+const nextFrame = (callback: (now: number) => void): number =>
+    typeof requestAnimationFrame === "function" ? requestAnimationFrame(callback) : (setTimeout(() => callback(Date.now()), 16) as unknown as number);
+const cancelFrame = (id: number) => (typeof cancelAnimationFrame === "function" ? cancelAnimationFrame(id) : clearTimeout(id));
+
 const PRESERVE: Record<PictureFit, string> = { contain: "xMidYMid meet", cover: "xMidYMid slice", fill: "none" };
 
 // a number that changes each time the image is uploaded again or removed: its readers read it again
@@ -108,9 +176,23 @@ export interface PictureViewProps {
     // the editor: the element under the pointer is marked, and a click on an element chooses it
     highlight?: string | null;
     onPickElement?: (id: string) => void;
+    // series played in time: the clock shared with the Data charts of the same scope, and its starting speed
+    clockKey?: string;
+    speed?: number;
 }
 
-export const PictureView: FC<PictureViewProps> = ({ file, fit = "contain", bindings = [], store, load, subscribe, highlight, onPickElement }) => {
+export const PictureView: FC<PictureViewProps> = ({
+    file,
+    fit = "contain",
+    bindings = [],
+    store,
+    load,
+    subscribe,
+    highlight,
+    onPickElement,
+    clockKey,
+    speed: initialSpeed = DEFAULT_PLAYBACK_SPEED,
+}) => {
     const image = useImage(file, load, subscribe);
     const svg = useMemo(() => (image?.svg ? sanitizeSvg(image.svg) : null), [image]);
     const hostRef = useRef<HTMLDivElement>(null);
@@ -126,11 +208,56 @@ export const PictureView: FC<PictureViewProps> = ({ file, fit = "contain", bindi
         root?.setAttribute("preserveAspectRatio", PRESERVE[fit]);
     }, [svg, fit]);
 
+    // series played in time: a clock that the screen's frames move (in a loop), the drawing at its time
+    const plays = !!store && playsSeries(bindings);
+    const [playing, setPlaying] = useState(true);
+    const [speed, setSpeed] = useState(initialSpeed);
+    useEffect(() => setSpeed(initialSpeed), [initialSpeed]);
+    const playingRef = useRef(playing);
+    playingRef.current = playing;
+    const speedRef = useRef(speed);
+    speedRef.current = speed;
+    const timeRef = useRef(0);
+    const timeText = useRef<HTMLSpanElement>(null);
+
     useLayoutEffect(() => {
         const root = hostRef.current?.querySelector("svg");
-        if (!root || !store || bindings.length === 0) return;
+        if (!root || !store || bindings.length === 0 || plays) return;
         applyEffects(root, bindingEffects(bindings, store.get));
-    }, [svg, bindings, store, tick]);
+    }, [svg, bindings, store, tick, plays]);
+
+    useEffect(() => {
+        if (!plays || !store) return;
+        let frame = 0;
+        let last: number | null = null;
+        let stamp = "";
+        const step = (now: number) => {
+            const dt = last === null ? 0 : Math.min(0.1, Math.max(0, (now - last) / 1000));
+            last = now;
+            const get = store.get;
+            // a new message: from the start
+            const current = playbackStamp(bindings, get);
+            if (current !== stamp) {
+                stamp = current;
+                timeRef.current = 0;
+            }
+            const duration = playbackDuration(bindings, get);
+            if (playingRef.current && duration > 0) {
+                timeRef.current += dt * speedRef.current;
+                if (timeRef.current > duration) timeRef.current %= duration;
+            }
+            const root = hostRef.current?.querySelector("svg");
+            if (root) applyEffects(root, bindingEffects(bindings, get, timeRef.current));
+            if (timeText.current) timeText.current.textContent = duration > 0 ? `t = ${timeRef.current.toFixed(2)} s` : "–";
+            if (clockKey) setPlayback(clockKey, { time: duration > 0 ? timeRef.current : null, duration });
+            frame = nextFrame(step);
+        };
+        frame = nextFrame(step);
+        return () => {
+            cancelFrame(frame);
+            if (clockKey) setPlayback(clockKey, { time: null, duration: 0 });
+        };
+    }, [plays, svg, bindings, store, clockKey]);
 
     useLayoutEffect(() => {
         const root = hostRef.current?.querySelector("svg");
@@ -172,6 +299,33 @@ export const PictureView: FC<PictureViewProps> = ({ file, fit = "contain", bindi
             {image && !isSvgName(file) && <img src={image.url} alt={file} style={{ objectFit: fit }} />}
             <div ref={hostRef} className="svg-host" role={svg ? "img" : undefined} aria-label={svg ? file : undefined} style={{ display: svg ? "block" : "none", cursor: onPickElement ? "crosshair" : undefined }} />
             {image === undefined && <Note>Loading {file}…</Note>}
+            {plays && svg && (
+                <Controls className="ws-no-drag" role="group" aria-label="Playback" onClick={(e) => e.stopPropagation()}>
+                    <button type="button" aria-label={playing ? "Pause" : "Play"} title={playing ? "Pause" : "Play"} onClick={() => setPlaying((p) => !p)}>
+                        {playing ? <Pause aria-hidden="true" /> : <Play aria-hidden="true" />}
+                    </button>
+                    <button
+                        type="button"
+                        aria-label="From the start"
+                        title="From the start"
+                        onClick={() => {
+                            timeRef.current = 0;
+                        }}
+                    >
+                        <RotateCcw aria-hidden="true" />
+                    </button>
+                    <select aria-label="Speed" title="Speed" value={speed} onChange={(e) => setSpeed(Number(e.target.value))}>
+                        {PLAYBACK_SPEEDS.map((v) => (
+                            <option key={v} value={v}>
+                                ×{v}
+                            </option>
+                        ))}
+                    </select>
+                    <span className="time" ref={timeText}>
+                        –
+                    </span>
+                </Controls>
+            )}
         </Frame>
     );
 };
@@ -396,6 +550,7 @@ export const PictureEditor: FC<PictureEditorProps> = ({ panel, store, topics, fi
     const [fit, setFit] = useState<PictureFit>(panel.fit ?? "contain");
     const [title, setTitle] = useState(panel.title ?? "");
     const [bindings, setBindings] = useState<PictureBinding[]>(panel.bindings ?? []);
+    const [playbackSpeed, setPlaybackSpeed] = useState<number>(panel.playbackSpeed ?? DEFAULT_PLAYBACK_SPEED);
     const [list, setList] = useState<ViewerImageInfo[] | null>(null);
     const [busy, setBusy] = useState(false);
     const [hover, setHover] = useState<string | null>(null);
@@ -429,7 +584,7 @@ export const PictureEditor: FC<PictureEditorProps> = ({ panel, store, topics, fi
 
     const update = (i: number, patch: Partial<PictureBinding>) => setBindings((list) => list.map((b, k) => (k === i ? { ...b, ...patch } : b)));
     const changeAction = (i: number, action: PictureAction) =>
-        setBindings((list) => list.map((b, k) => (k === i ? newBinding(b.element, b.topicRef, action, b.path) : b)));
+        setBindings((list) => list.map((b, k) => (k === i ? newBinding(b.element, b.topicRef, action, b.path, b.timePath) : b)));
     const addBinding = (element?: string) => {
         if (bindings.length >= PICTURE_MAX_BINDINGS) return;
         // an element that is a <text>: show the value as text; the rest: its colour
@@ -470,9 +625,22 @@ export const PictureEditor: FC<PictureEditorProps> = ({ panel, store, topics, fi
                     const next: WorkspacePanel = { ...panel, fit };
                     if (file) next.file = file;
                     else delete next.file;
-                    const valid = isSvg ? bindings.filter((b) => b.element && b.path) : [];
+                    // a series without the field of its times: not played in time
+                    const valid = isSvg
+                        ? bindings
+                              .filter((b) => b.element && b.path)
+                              .map((b) => {
+                                  if (b.timePath !== undefined && !b.timePath) {
+                                      const { timePath: _unused, ...rest } = b;
+                                      return rest;
+                                  }
+                                  return b;
+                              })
+                        : [];
                     if (valid.length) next.bindings = valid;
                     else delete next.bindings;
+                    if (playsSeries(valid) && playbackSpeed !== DEFAULT_PLAYBACK_SPEED) next.playbackSpeed = playbackSpeed;
+                    else delete next.playbackSpeed;
                     if (title.trim()) next.title = title.trim().slice(0, 80);
                     else delete next.title;
                     onApply(next);
@@ -489,6 +657,21 @@ export const PictureEditor: FC<PictureEditorProps> = ({ panel, store, topics, fi
                         <option value="cover">Fill and crop</option>
                         <option value="fill">Stretch</option>
                     </select>
+                    {playsSeries(bindings) && (
+                        <select
+                            aria-label="Playback speed"
+                            title="The speed its series start playing at (the panel's controls change it while it is shown)"
+                            value={playbackSpeed}
+                            onChange={(e) => setPlaybackSpeed(Number(e.target.value))}
+                            style={{ height: 34 }}
+                        >
+                            {PLAYBACK_SPEEDS.map((v) => (
+                                <option key={v} value={v}>
+                                    Plays at ×{v}
+                                </option>
+                            ))}
+                        </select>
+                    )}
                     <IconOnly type="button" aria-label="Discard the changes" onClick={onDiscard}>
                         <X aria-hidden="true" />
                     </IconOnly>
@@ -554,6 +737,7 @@ export const PictureEditor: FC<PictureEditorProps> = ({ panel, store, topics, fi
                             subscribe={files.subscribe}
                             highlight={hover}
                             onPickElement={isSvg ? (id) => addBinding(id) : undefined}
+                            speed={playbackSpeed}
                         />
                     </Preview>
                     <Bindings aria-label="Animations" ref={listRef}>

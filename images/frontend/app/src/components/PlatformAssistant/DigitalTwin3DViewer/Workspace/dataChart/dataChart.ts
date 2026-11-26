@@ -102,6 +102,11 @@ export interface DataChartOptions {
     yMin?: number;
     yMax?: number;
     legend?: boolean;
+    // xy: the axes fit every new data; by default they keep their range and only grow (when a parameter changes, the
+    // curve is seen changing against the same scale, not the scale changing under it)
+    rescale?: boolean;
+    // xy: a vertical line at the time played by a Picture panel of the same frame (its series in time)
+    cursor?: boolean;
 }
 
 export const isGridKind = (kind: DataChartKind) => kind === "heatmap" || kind === "surface";
@@ -181,7 +186,7 @@ export const sanitizeDataChart = (raw: unknown): DataChartOptions | null => {
         const l = label(d[key]);
         if (l) out[key] = l;
     }
-    for (const key of ["xLog", "yLog", "legend"] as const) if (typeof d[key] === "boolean") out[key] = d[key] as boolean;
+    for (const key of ["xLog", "yLog", "legend", "rescale", "cursor"] as const) if (typeof d[key] === "boolean") out[key] = d[key] as boolean;
     for (const [lo, hi] of [
         ["xMin", "xMax"],
         ["yMin", "yMax"],
@@ -405,6 +410,9 @@ const AXIS_LINE = "#3a4048";
 const SPLIT_LINE = "rgba(255, 255, 255, 0.08)";
 export const DATA_CHART_COLORS = ["#73bf69", "#f2cc0c", "#5794f2", "#ff9830", "#f2495c", "#b877d9", "#8ab8ff", "#fade2a"];
 
+// the names in a tooltip are text (ECharts writes them as HTML)
+const escapeHtml = (text: string) => text.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c] ?? c);
+
 const tooltipStyle = {
     backgroundColor: "#1b1e22",
     borderColor: "#2c3137",
@@ -416,52 +424,99 @@ const axis2D = (name: string | undefined, log: boolean | undefined, min?: number
     name,
     nameLocation: "middle",
     nameGap: 28,
-    nameTextStyle: { color: "#c7cbd1", fontSize: 12 },
+    nameTextStyle: { color: "#c7cbd1", fontSize: 13 },
     scale: true,
     ...(min !== undefined && max !== undefined ? { min, max } : {}),
     axisLabel: {
         color: TEXT,
-        fontSize: 11,
+        fontSize: 12,
         formatter: (v: number) => String(roundForAxis(v)),
     },
     axisLine: { lineStyle: { color: AXIS_LINE } },
     splitLine: { lineStyle: { color: SPLIT_LINE } },
 });
 
-// 2D series (xy)
-export const xyChartOption = (data: DataChartOptions, result: DataResult): Record<string, unknown> => {
+// The range an axis keeps (when the chart does not rescale): the one it had, grown to take the new data — at round
+// values, with `room` (a fraction of the span) around the data — and never made smaller
+export interface HeldRange {
+    min: number;
+    max: number;
+}
+
+export const dataExtent = (result: DataResult, axis: 0 | 1, positiveOnly = false): HeldRange | null => {
+    let min = Infinity;
+    let max = -Infinity;
+    for (const s of result.series) {
+        for (const p of s.points as number[][]) {
+            const v = p[axis];
+            if (!Number.isFinite(v) || (positiveOnly && v <= 0)) continue;
+            if (v < min) min = v;
+            if (v > max) max = v;
+        }
+    }
+    return min <= max ? { min, max } : null;
+};
+
+export const holdRange = (held: HeldRange | null | undefined, extent: HeldRange | null, log = false, room = 0.04): HeldRange | null => {
+    if (!extent) return held ?? null;
+    if (held && extent.min >= held.min && extent.max <= held.max) return held;
+    const min = held ? Math.min(held.min, extent.min) : extent.min;
+    const max = held ? Math.max(held.max, extent.max) : extent.max;
+    if (log) {
+        // whole decades
+        return { min: Math.pow(10, Math.floor(Math.log10(min))), max: Math.pow(10, Math.ceil(Math.log10(max))) };
+    }
+    const span = max - min || Math.abs(max) || 1;
+    const nice = niceRange(min - room * span, max + room * span);
+    return { min: nice.min, max: nice.max };
+};
+
+// 2D series (xy); `held`: the ranges the axes keep (an axis without a fixed range, in a chart that does not rescale)
+export const xyChartOption = (data: DataChartOptions, result: DataResult, held?: { x?: HeldRange | null; y?: HeldRange | null }): Record<string, unknown> => {
     const legend = data.legend !== false && result.series.length > 1;
     return {
         backgroundColor: "transparent",
         animation: false,
         color: DATA_CHART_COLORS,
         grid: {
-            left: 56,
-            right: 18,
-            top: legend ? 34 : 16,
-            bottom: 42,
+            left: 64,
+            right: 20,
+            top: legend ? 36 : 16,
+            bottom: 46,
             containLabel: false,
         },
         legend: legend
             ? {
                   show: true,
                   top: 4,
-                  textStyle: { color: "#c7cbd1", fontSize: 11 },
+                  textStyle: { color: "#c7cbd1", fontSize: 12 },
                   itemHeight: 8,
               }
             : { show: false },
+        // the values near the mouse: at the x of the pointer, the nearest point of every series (with a cross on
+        // the axes), not only over a point drawn
         tooltip: {
             ...tooltipStyle,
-            trigger: "item",
-            formatter: (p: { seriesName?: string; value?: number[] }) => {
-                const [x, y] = p.value ?? [];
-                return `${p.seriesName ?? ""}<br/>${data.xLabel ?? "x"}: ${roundForAxis(x as number)}<br/>${data.yLabel ?? "y"}: ${roundForAxis(y as number)}`;
+            trigger: "axis",
+            confine: true,
+            axisPointer: {
+                type: "cross",
+                lineStyle: { color: "rgba(255, 255, 255, 0.35)" },
+                crossStyle: { color: "rgba(255, 255, 255, 0.35)" },
+                label: { backgroundColor: "#2c3137", color: "#e6e8eb", formatter: (p: { value: number }) => String(roundForAxis(p.value)) },
+            },
+            formatter: (params: { seriesName?: string; value?: number[]; marker?: string }[] | { seriesName?: string; value?: number[]; marker?: string }) => {
+                const list = (Array.isArray(params) ? params : [params]).filter((p) => Array.isArray(p.value));
+                if (!list.length) return "";
+                const x = list[0].value![0];
+                const rows = list.map((p) => `${p.marker ?? ""}${escapeHtml(p.seriesName ?? "")}: <b>${roundForAxis(p.value![1])}</b>`);
+                return `${escapeHtml(data.xLabel ?? "x")}: ${roundForAxis(x)}<br/>${rows.join("<br/>")}`;
             },
         },
-        xAxis: axis2D(data.xLabel, data.xLog, data.xMin, data.xMax),
+        xAxis: axis2D(data.xLabel, data.xLog, data.xMin ?? held?.x?.min, data.xMax ?? held?.x?.max),
         yAxis: {
-            ...axis2D(data.yLabel, data.yLog, data.yMin, data.yMax),
-            nameGap: 42,
+            ...axis2D(data.yLabel, data.yLog, data.yMin ?? held?.y?.min, data.yMax ?? held?.y?.max),
+            nameGap: 46,
         },
         series: result.series.map((s) => {
             // a log axis cannot draw 0 or less
@@ -488,8 +543,8 @@ export const xyChartOption = (data: DataChartOptions, result: DataResult): Recor
                 name: s.name,
                 data: points,
                 showSymbol: points.length <= 60,
-                symbolSize: 4,
-                lineStyle: { width: 1.6, ...(s.color ? { color: s.color } : {}) },
+                symbolSize: 5,
+                lineStyle: { width: 2.2, ...(s.color ? { color: s.color } : {}) },
                 ...(s.color ? { itemStyle: { color: s.color } } : {}),
                 ...(s.style === "area" ? { areaStyle: { opacity: 0.18 } } : {}),
             };
@@ -581,10 +636,21 @@ export const heatmapChartOption = (surface: SurfaceOptions, grid: SurfaceGrid): 
                 clip: true,
                 data: [[xMin, yMax, zMin]],
                 renderItem: (_: unknown, api: { coord: (v: number[]) => number[] }) => {
-                    if (!canvas) return null;
+                    if (!canvas || !picture) return null;
                     const [x0, y0] = api.coord([xMin, yMax]);
                     const [x1, y1] = api.coord([xMax, yMin]);
-                    return { type: "image", silent: true, style: { image: canvas, x: x0, y: y0, width: x1 - x0, height: y1 - y0 } };
+                    // drawn at its own size and stretched by a scale: the SVG renderer writes an <image> without
+                    // preserveAspectRatio, so a picture given the plot's size would keep its own proportions
+                    // (shrunk and centred, away from its contour lines)
+                    return {
+                        type: "image",
+                        silent: true,
+                        x: x0,
+                        y: y0,
+                        scaleX: (x1 - x0) / picture.width,
+                        scaleY: (y1 - y0) / picture.height,
+                        style: { image: canvas, x: 0, y: 0, width: picture.width, height: picture.height },
+                    };
                 },
             },
             {

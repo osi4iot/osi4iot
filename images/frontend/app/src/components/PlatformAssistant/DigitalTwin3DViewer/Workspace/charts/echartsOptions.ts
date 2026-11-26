@@ -118,6 +118,9 @@ const thresholdMarks = (settings: ChartSettings, mode: string, extent: [number, 
 export interface ChartPointer {
     y: number | null;
     toPixelY: ((value: number, yAxisIndex: number) => number | null) | null;
+    // a value of the x axis in pixels, and the rectangle of the plot (the playback cursor of a Data chart)
+    toPixelX?: ((value: number) => number | null) | null;
+    plotRect?: (() => { x: number; y: number; width: number; height: number } | null) | null;
 }
 
 export const createChartPointer = (): ChartPointer => ({ y: null, toPixelY: null });
@@ -586,7 +589,7 @@ export const histogramOption = ({ series, settings, size, hidden }: HistogramInp
                   type: "bar" as const,
                   barWidth: "99%",
                   data: starts.map((start) => [start + size / 2, visible.reduce((a, s) => a + (new Map(s.bins ?? []).get(start) ?? 0), 0)]),
-                  itemStyle: { color: hexToRgba(visible[0]?.color ?? "#4CC38A", fillOpacity), borderColor: visible[0]?.color, borderWidth: Number(c.lineWidth ?? 1) },
+                  itemStyle: { color: hexToRgba(visible[0]?.color ?? "#73BF69", fillOpacity), borderColor: visible[0]?.color, borderWidth: Number(c.lineWidth ?? 1) },
               },
           ]
         : visible.map((s) => ({

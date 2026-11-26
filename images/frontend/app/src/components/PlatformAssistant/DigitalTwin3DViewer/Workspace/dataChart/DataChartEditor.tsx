@@ -1109,7 +1109,28 @@ export const DataChartEditor: FC<DataChartEditorProps> = ({ panel, store, topics
                                                     </div>
                                                 );
                                             })}
-                                            <p className="hint">A logarithmic axis leaves out the values of 0 or less.</p>
+                                            <label className="check">
+                                                <input
+                                                    type="checkbox"
+                                                    aria-label="Rescale the axes to each new data"
+                                                    checked={!!chart.rescale}
+                                                    onChange={(e) => setAxes({ rescale: e.target.checked || undefined })}
+                                                />
+                                                Rescale the axes to each new data
+                                            </label>
+                                            <label className="check">
+                                                <input
+                                                    type="checkbox"
+                                                    aria-label="Playback cursor"
+                                                    checked={!!chart.cursor}
+                                                    onChange={(e) => setAxes({ cursor: e.target.checked || undefined })}
+                                                />
+                                                Playback cursor: a line at the time a Picture panel of the frame plays (x is that time)
+                                            </label>
+                                            <p className="hint">
+                                                A logarithmic axis leaves out the values of 0 or less. Without rescaling, an axis without a fixed range keeps
+                                                the range it had and only grows: when a parameter changes, the curve is seen changing against the same scale.
+                                            </p>
                                         </>
                                     )}
                                     <label className="check">

@@ -6,6 +6,8 @@ import {
     FORMULA_SOURCE,
     dataChartSources,
     dataChartTopics,
+    dataExtent,
+    holdRange,
     dataFieldPaths,
     heatmapChartOption,
     numbersAt,
@@ -310,5 +312,32 @@ describe("Data chart values", () => {
         });
         expect(assetStateMessage({ assetUid: "a", description: "", state: { v: 1 }, lastUpdated: null }, 7)).toEqual({ payload: { v: 1 }, receivedAt: 7 });
         expect(assetStateMessage(null)).toBeUndefined();
+    });
+});
+
+describe("axes that keep their range", () => {
+    const result = (points: [number, number][]) => ({ series: [{ name: "a", style: "line", points }], notes: [] }) as any;
+
+    it("grows to take new data, at round values with a little room, and never shrinks", () => {
+        const first = holdRange(null, dataExtent(result([[0, -20], [4, 20]]), 1));
+        expect(first).toEqual({ min: -30, max: 30 });
+        // smaller data: the same range (the change is seen against the same scale)
+        expect(holdRange(first, dataExtent(result([[0, -5], [4, 5]]), 1))).toBe(first);
+        // larger: it grows
+        const grown = holdRange(first, dataExtent(result([[0, -40], [4, 30]]), 1))!;
+        expect(grown.min).toBeLessThanOrEqual(-40);
+        expect(grown.max).toBeGreaterThanOrEqual(30);
+    });
+
+    it("takes whole decades on a log axis, and leaves out what it cannot draw", () => {
+        expect(holdRange(null, dataExtent(result([[0.5, 0], [3, 23]]), 1, true), true)).toEqual({ min: 10, max: 100 });
+    });
+
+    it("is drawn as the axis range, unless the axis has its own, and rescaling is kept by the layout", () => {
+        const data = { kind: "xy", series: [{ source: "dtm2sim", x: "a", y: "b" }], yMin: 0, yMax: 6 } as any;
+        const option = xyChartOption(data, result([[0, 1]]), { x: { min: -1, max: 9 }, y: { min: -50, max: 50 } }) as any;
+        expect(option.xAxis).toMatchObject({ min: -1, max: 9 });
+        expect(option.yAxis).toMatchObject({ min: 0, max: 6 });
+        expect(sanitizeDataChart({ ...data, rescale: true })?.rescale).toBe(true);
     });
 });

@@ -19,6 +19,8 @@ export const ACTION_LABEL: Record<PictureAction, string> = {
     translateX: "Move it horizontally",
     translateY: "Move it vertically",
     scale: "Scale it",
+    scaleX: "Stretch it horizontally",
+    scaleY: "Stretch it vertically",
     opacity: "Fade it (opacity)",
     visible: "Show it only when…",
 };
@@ -31,13 +33,16 @@ const ACTION_HINT: Record<PictureAction, string> = {
     translateX: "For a cursor, a level…: the value is turned into a distance (units of the SVG).",
     translateY: "For a cursor, a level…: the value is turned into a distance (units of the SVG; down is positive).",
     scale: "The value is turned into a size factor (1 = as drawn).",
+    scaleX: "For a spring, a rod, an arrow…: the value is turned into a stretch along x (1 = as drawn) about a fixed x (a wall, its tail).",
+    scaleY: "For a spring, a rod, an arrow…: the value is turned into a stretch along y (1 = as drawn) about a fixed y.",
     opacity: "The value is turned into an opacity (0 transparent, 1 as drawn).",
     visible: "For a warning: shown while the condition holds, hidden otherwise (and while there is no value).",
 };
 
 // a new animation, with values that already do something
-export const newBinding = (element: string, topicRef: string, action: PictureAction = "text", path = ""): PictureBinding => {
+export const newBinding = (element: string, topicRef: string, action: PictureAction = "text", path = "", timePath?: string): PictureBinding => {
     const b: PictureBinding = { element, topicRef, path, action };
+    if (timePath) b.timePath = timePath;
     if (action === "text") b.decimals = 1;
     if (action === "color") {
         b.target = "fill";
@@ -49,6 +54,7 @@ export const newBinding = (element: string, topicRef: string, action: PictureAct
     if (action === "rotate") Object.assign(b, { inMin: 0, inMax: 100, outMin: 0, outMax: 180 });
     if (action === "translateX" || action === "translateY") Object.assign(b, { inMin: 0, inMax: 100, outMin: 0, outMax: 100 });
     if (action === "scale") Object.assign(b, { inMin: 0, inMax: 100, outMin: 1, outMax: 2 });
+    if (action === "scaleX" || action === "scaleY") Object.assign(b, { inMin: -50, inMax: 50, outMin: 0.5, outMax: 1.5 });
     if (action === "opacity") Object.assign(b, { inMin: 0, inMax: 100, outMin: 0.2, outMax: 1 });
     if (action === "visible") Object.assign(b, { op: ">", value: 0 });
     return b;
@@ -247,10 +253,18 @@ const FieldInput: FC<{ topic: LiveTopic | undefined; topicRef: string; value: st
 // what the value does now: "11.4 → 12.6°"
 const nowText = (b: PictureBinding, store?: LiveValueStore): { text: string; missing: boolean } => {
     if (!b.path) return { text: "choose the field of the value", missing: true };
-    const raw = valueAt(store?.get(b.topicRef)?.payload, b.path.split("."));
-    if (raw === undefined || raw === null) return { text: `no value of ${b.topicRef}.${b.path} yet`, missing: true };
+    const payload = store?.get(b.topicRef)?.payload;
+    const listed = valueAt(payload, b.path.split("."));
+    if (listed === undefined || listed === null) return { text: `no value of ${b.topicRef}.${b.path} yet`, missing: true };
+    // a series in time: what it does at its first time
+    let raw = listed;
+    if (b.timePath) {
+        const times = valueAt(payload, b.timePath.split("."));
+        if (!Array.isArray(listed) || !Array.isArray(times)) return { text: `${b.path} and ${b.timePath} must be lists (values and their times)`, missing: true };
+        raw = listed[0];
+    }
     const e = bindingEffects([b], store!.get).get(b.element) ?? {};
-    const value = formatLiveValue(raw);
+    const value = (b.timePath ? `${(listed as unknown[]).length} values in time; at the start ` : "") + formatLiveValue(raw);
     const r = (v: number | undefined) => (v === undefined ? "–" : String(Math.round(v * 100) / 100));
     const out =
         b.action === "text"
@@ -265,6 +279,8 @@ const nowText = (b: PictureBinding, store?: LiveValueStore): { text: string; mis
                     ? `y + ${r(e.translateY)}`
                     : b.action === "scale"
                       ? `× ${r(e.scale)}`
+                      : b.action === "scaleX" || b.action === "scaleY"
+                        ? `stretched × ${r(e[b.action])}`
                       : b.action === "opacity"
                         ? `opacity ${r(e.opacity)}`
                         : e.visible
@@ -337,6 +353,41 @@ export const BindingCard: FC<BindingCardProps> = ({ index, binding: b, elements,
                 <FieldInput topic={topic} topicRef={b.topicRef} value={b.path} seen={seen} onChange={(path) => onChange({ path })} />
             </Line>
 
+            <span className="key">In time</span>
+            <Line style={{ gridColumn: "2 / span 2" }}>
+                <label className="word" style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                    <input
+                        type="checkbox"
+                        aria-label="Play a series in time"
+                        checked={b.timePath !== undefined}
+                        onChange={(e) => onChange({ timePath: e.target.checked ? (b.timePath ?? "") : undefined })}
+                    />
+                    play it in time
+                </label>
+                {b.timePath !== undefined && (
+                    <>
+                        <span className="word">with its times in</span>
+                        <input
+                            aria-label="Field of the times"
+                            placeholder="e.g. resp.t"
+                            value={b.timePath}
+                            list={`times-${index}`}
+                            onChange={(e) => onChange({ timePath: e.target.value.trim() })}
+                            style={{ width: 160 }}
+                        />
+                        <datalist id={`times-${index}`}>
+                            {seen.map((f) => (
+                                <option key={f} value={f} />
+                            ))}
+                        </datalist>
+                    </>
+                )}
+                <span className="hint">
+                    The field is a list of values and this one their times (both lists, e.g. resp.u and resp.t): the panel plays them in a loop, with its
+                    controls (play, pause, from the start, speed); a new message plays from the start.
+                </span>
+            </Line>
+
             <span className="key">Does</span>
             <Line style={{ gridColumn: "2 / span 2" }}>
                 <select aria-label="Action" value={b.action} onChange={(e) => onAction(e.target.value as PictureAction)}>
@@ -368,6 +419,7 @@ export const BindingCard: FC<BindingCardProps> = ({ index, binding: b, elements,
                 {b.action === "rotate" && range("rotate it", "Degrees", <span className="word">degrees</span>)}
                 {(b.action === "translateX" || b.action === "translateY") && range("move it", "Distance", <span className="word">units</span>)}
                 {b.action === "scale" && range("scale it", "Factor", <span className="word">times</span>, 0.1)}
+                {(b.action === "scaleX" || b.action === "scaleY") && range("stretch it", "Stretch", <span className="word">times</span>, 0.05)}
                 {b.action === "opacity" && range("its opacity goes", "Opacity", null, 0.1)}
                 {b.action === "visible" && (
                     <>
@@ -422,6 +474,26 @@ export const BindingCard: FC<BindingCardProps> = ({ index, binding: b, elements,
                 </>
             )}
 
+            {b.action === "scaleX" && (
+                <>
+                    <span className="key">Fixed at</span>
+                    <Line style={{ gridColumn: "2 / span 2" }}>
+                        <span className="word">x</span>
+                        <NumberField label="Fixed x" placeholder="centre" value={b.cx} onChange={(v) => onChange({ cx: v })} />
+                        <span className="hint">The x that does not move (units of the SVG): the wall of a spring, the tail of an arrow. Empty: its centre.</span>
+                    </Line>
+                </>
+            )}
+            {b.action === "scaleY" && (
+                <>
+                    <span className="key">Fixed at</span>
+                    <Line style={{ gridColumn: "2 / span 2" }}>
+                        <span className="word">y</span>
+                        <NumberField label="Fixed y" placeholder="centre" value={b.cy} onChange={(v) => onChange({ cy: v })} />
+                        <span className="hint">The y that does not move (units of the SVG). Empty: its centre.</span>
+                    </Line>
+                </>
+            )}
             {(b.action === "rotate" || b.action === "scale") && (
                 <>
                     <span className="key">About</span>

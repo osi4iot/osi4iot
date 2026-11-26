@@ -10,6 +10,7 @@
 //
 // Pure functions, so they are easy to test. admin_api checks the same shape (viewerLayoutValidation.ts).
 import { PICTURE_FITS, PictureBinding, PictureFit, sanitizeBindings } from "./pictureBindings";
+import { isPlaybackSpeed } from "./playbackClock";
 import { REFRESH_INTERVALS } from "./charts/timeRange";
 import { SurfaceOptions, defaultSurface, sanitizeSurface, surfaceTopics } from "./surface/surfacePanel";
 import { DataChartOptions, dataChartOfSurface, dataChartTopics, defaultDataChart, sanitizeDataChart } from "./dataChart/dataChart";
@@ -126,6 +127,8 @@ export interface WorkspacePanel {
     file?: string;
     fit?: PictureFit;
     bindings?: PictureBinding[];
+    // a picture that plays series in time: the speed it starts with (1: real time)
+    playbackSpeed?: number;
     // surface: a 3D Surface, of a formula or of a grid of values of the messages (surface/surfacePanel.ts); read as a
     // Data chart of kind "surface" (sanitizePanels)
     surface?: SurfaceOptions;
@@ -656,6 +659,7 @@ const sanitizePanels = (panels: unknown, hasModel: boolean, grid: PageGrid = gri
             if (PICTURE_FITS.includes(p.fit as PictureFit)) panel.fit = p.fit as PictureFit;
             const bindings = sanitizeBindings(p.bindings);
             if (bindings.length) panel.bindings = bindings;
+            if (isPlaybackSpeed(p.playbackSpeed)) panel.playbackSpeed = p.playbackSpeed;
         }
         if (p.translucent === true && type !== "model") panel.translucent = true;
         if (p.type === "assetState") Object.assign(panel, sanitizeAssetStateSettings(p));

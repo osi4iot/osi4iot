@@ -9,12 +9,20 @@
 //   scale      scales it about its centre: the value to outMin..outMax
 //   opacity    the value to outMin..outMax (0 to 1)
 //   visible    shown only when the value compares true with `value` (op: > >= < <= == !=); hidden without a value
+//   scaleX / scaleY   stretches it along x (or y) about a fixed point (cx or cy; its box centre when not said): a
+//              spring anchored to a wall, an arrow from its tail
+//
+// A binding can also PLAY a series in time: with `timePath`, its field (`path`) is a list of values and `timePath`
+// the list of their times (e.g. resp.u and resp.t of a pipeline's answer). The panel then runs a clock (play, pause,
+// restart, speed, in a loop) and the value is the series at the clock's time — the drawing moves as the solution the
+// pipeline computed, at the screen's pace. A new message starts it again from the first time. The clock of a panel
+// is shared with the Data charts of its frame that show a playback cursor (playbackClock.ts).
 //
 // The SVG is cleaned before it is drawn: no scripts, no event attributes, no links or external resources. The
 // SVG runs nothing of its own; the animations are only these bindings.
 import { LiveMessage, valueAt } from "./liveValues";
 
-export const PICTURE_ACTIONS = ["text", "color", "rotate", "translateX", "translateY", "scale", "opacity", "visible"] as const;
+export const PICTURE_ACTIONS = ["text", "color", "rotate", "translateX", "translateY", "scale", "scaleX", "scaleY", "opacity", "visible"] as const;
 export type PictureAction = (typeof PICTURE_ACTIONS)[number];
 export const PICTURE_COMPARE = [">", ">=", "<", "<=", "==", "!="] as const;
 export type PictureCompare = (typeof PICTURE_COMPARE)[number];
@@ -32,6 +40,8 @@ export interface PictureBinding {
     element: string;
     topicRef: string;
     path: string;
+    // a series played in time: the field of the times of the values of `path` (both lists)
+    timePath?: string;
     action: PictureAction;
     // text
     decimals?: number;
@@ -72,6 +82,7 @@ export const sanitizeBindings = (raw: unknown): PictureBinding[] => {
         if (typeof b.path !== "string" || !PATH.test(b.path)) continue;
         if (!PICTURE_ACTIONS.includes(b.action as PictureAction)) continue;
         const binding: PictureBinding = { element: b.element, topicRef: b.topicRef, path: b.path, action: b.action as PictureAction };
+        if (typeof b.timePath === "string" && PATH.test(b.timePath)) binding.timePath = b.timePath;
         const decimals = num(b.decimals);
         if (decimals !== undefined && Number.isInteger(decimals) && decimals >= 0 && decimals <= 10) binding.decimals = decimals;
         for (const key of ["prefix", "suffix"] as const) if (typeof b[key] === "string") binding[key] = (b[key] as string).slice(0, AFFIX);
@@ -181,15 +192,66 @@ export interface ElementEffect {
     translateX?: number;
     translateY?: number;
     scale?: number;
+    scaleX?: number;
+    scaleY?: number;
     cx?: number;
     cy?: number;
 }
 
+// --- series played in time ----------------------------------------------------------------------------------
+
+const numbersOf = (value: unknown): number[] | null => (Array.isArray(value) ? value.map((v) => (typeof v === "number" ? v : Number(v))) : null);
+
+// The value of a series at time t: linear between the times around it (the first or the last value outside them)
+export const seriesValueAt = (values: unknown, times: unknown, t: number): number => {
+    const ys = numbersOf(values);
+    const ts = numbersOf(times);
+    if (!ys || !ts) return NaN;
+    const n = Math.min(ys.length, ts.length);
+    if (n === 0) return NaN;
+    if (n === 1 || t <= ts[0]) return ys[0];
+    if (t >= ts[n - 1]) return ys[n - 1];
+    let lo = 0;
+    let hi = n - 1;
+    while (hi - lo > 1) {
+        const mid = (lo + hi) >> 1;
+        if (ts[mid] <= t) lo = mid;
+        else hi = mid;
+    }
+    const span = ts[hi] - ts[lo];
+    const r = span > 0 ? (t - ts[lo]) / span : 0;
+    const a = ys[lo];
+    const b = ys[hi];
+    return Number.isFinite(a) && Number.isFinite(b) ? a + r * (b - a) : Number.isFinite(a) ? a : b;
+};
+
+export const playsSeries = (bindings: PictureBinding[]) => bindings.some((b) => !!b.timePath);
+
+// how long the series last: the largest last time of their lists (0 without any)
+export const playbackDuration = (bindings: PictureBinding[], get: (topicRef: string) => LiveMessage | undefined): number => {
+    let end = 0;
+    for (const b of bindings) {
+        if (!b.timePath) continue;
+        const ts = numbersOf(valueAt(get(b.topicRef)?.payload, b.timePath.split(".")));
+        const last = ts && ts.length ? ts[ts.length - 1] : NaN;
+        if (Number.isFinite(last) && last > end) end = last;
+    }
+    return end;
+};
+
+// when the messages of the series arrived: a new one starts the playback again
+export const playbackStamp = (bindings: PictureBinding[], get: (topicRef: string) => LiveMessage | undefined): string =>
+    Array.from(new Set(bindings.filter((b) => b.timePath).map((b) => b.topicRef)))
+        .map((ref) => `${ref}:${get(ref)?.receivedAt ?? ""}`)
+        .join("|");
+
 // What the bindings do to each element with the latest values (elements without a value are left as they are)
-export const bindingEffects = (bindings: PictureBinding[], get: (topicRef: string) => LiveMessage | undefined): Map<string, ElementEffect> => {
+// (`time`: the clock of the playback, for the bindings that play a series)
+export const bindingEffects = (bindings: PictureBinding[], get: (topicRef: string) => LiveMessage | undefined, time = 0): Map<string, ElementEffect> => {
     const effects = new Map<string, ElementEffect>();
     for (const b of bindings) {
-        const raw = valueAt(get(b.topicRef)?.payload, b.path.split("."));
+        const payload = get(b.topicRef)?.payload;
+        const raw = b.timePath ? seriesValueAt(valueAt(payload, b.path.split(".")), valueAt(payload, b.timePath.split(".")), time) : valueAt(payload, b.path.split("."));
         const effect = effects.get(b.element) ?? {};
         if (b.action === "text") {
             effect.text = bindingText(raw, b);
@@ -216,6 +278,10 @@ export const bindingEffects = (bindings: PictureBinding[], get: (topicRef: strin
         else if (b.action === "scale") {
             effect.scale = clampMap(value, b, 1, 2);
             if (b.cx !== undefined && b.cy !== undefined) [effect.cx, effect.cy] = [b.cx, b.cy];
+        } else if (b.action === "scaleX" || b.action === "scaleY") {
+            effect[b.action] = clampMap(value, b, 1, 2);
+            if (b.action === "scaleX" && b.cx !== undefined) effect.cx = b.cx;
+            if (b.action === "scaleY" && b.cy !== undefined) effect.cy = b.cy;
         } else if (b.action === "opacity") effect.opacity = Math.max(0, Math.min(1, clampMap(value, b, 0, 1)));
         else if (b.action === "visible") effect.visible = compare(value, b.op, b.value ?? 0);
         effects.set(b.element, effect);
@@ -232,6 +298,8 @@ export const effectTransform = (own: string, effect: ElementEffect, centre: { x:
     const cy = effect.cy ?? centre.y;
     if (effect.rotate !== undefined) parts.push(`rotate(${round(effect.rotate)} ${round(cx)} ${round(cy)})`);
     if (effect.scale !== undefined) parts.push(`translate(${round(cx)} ${round(cy)}) scale(${round(effect.scale)}) translate(${round(-cx)} ${round(-cy)})`);
+    if (effect.scaleX !== undefined || effect.scaleY !== undefined)
+        parts.push(`translate(${round(cx)} ${round(cy)}) scale(${round(effect.scaleX ?? 1)} ${round(effect.scaleY ?? 1)}) translate(${round(-cx)} ${round(-cy)})`);
     return parts.join(" ");
 };
 
@@ -263,7 +331,14 @@ export const applyEffects = (root: Element, effects: Map<string, ElementEffect>)
         if (effect.stroke) el.style.stroke = effect.stroke;
         if (effect.opacity !== undefined) el.style.opacity = String(effect.opacity);
         if (effect.visible !== undefined) el.style.visibility = effect.visible ? "" : "hidden";
-        if (effect.rotate !== undefined || effect.scale !== undefined || effect.translateX !== undefined || effect.translateY !== undefined) {
+        if (
+            effect.rotate !== undefined ||
+            effect.scale !== undefined ||
+            effect.scaleX !== undefined ||
+            effect.scaleY !== undefined ||
+            effect.translateX !== undefined ||
+            effect.translateY !== undefined
+        ) {
             el.setAttribute("transform", effectTransform(own.__own.transform, effect, own.__own.centre));
         }
     });

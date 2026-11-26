@@ -4,7 +4,7 @@ import { FC, useEffect, useRef } from "react";
 import * as echarts from "echarts/core";
 import { BarChart, CustomChart, GaugeChart, LineChart, PieChart, ScatterChart } from "echarts/charts";
 import { GridComponent, LegendComponent, MarkAreaComponent, MarkLineComponent, TooltipComponent, VisualMapComponent } from "echarts/components";
-import { CanvasRenderer } from "echarts/renderers";
+import { SVGRenderer } from "echarts/renderers";
 import { ChartPointer } from "./echartsOptions";
 
 // CustomChart (the picture of a heat map), VisualMapComponent and LegendComponent: the heat maps and the legends of the Data charts
@@ -21,7 +21,7 @@ echarts.use([
     MarkAreaComponent,
     VisualMapComponent,
     LegendComponent,
-    CanvasRenderer,
+    SVGRenderer,
 ]);
 
 export interface EchartsViewProps {
@@ -33,6 +33,28 @@ export interface EchartsViewProps {
     // filled with where the pointer is over the chart (the tooltip of the time series)
     pointer?: ChartPointer;
 }
+
+// A legend of many series wraps onto more lines in a narrow chart: the plot starts below it (its grid's top is moved
+// down to the legend's height as drawn), so that the legend does not cover the curves
+const makeRoomForLegend = (chart: echarts.ECharts, option: Record<string, unknown>) => {
+    const legend = option.legend as { show?: boolean; top?: number } | undefined;
+    const grid = option.grid as { top?: number } | undefined;
+    if (!legend?.show || !grid || typeof grid.top !== "number") return;
+    try {
+        const anyChart = chart as unknown as {
+            getModel: () => { getComponent: (type: string) => unknown };
+            getViewOfComponentModel: (model: unknown) => { group: { getBoundingRect: () => { height: number } } } | undefined;
+        };
+        const model = anyChart.getModel().getComponent("legend");
+        const height = model ? anyChart.getViewOfComponentModel(model)?.group.getBoundingRect().height : undefined;
+        if (!height) return;
+        const top = Math.max(grid.top, Math.ceil((legend.top ?? 0) + height + 10));
+        const current = (chart.getOption() as { grid?: { top?: number }[] }).grid?.[0]?.top;
+        if (current !== top) chart.setOption({ grid: { top } });
+    } catch {
+        // (an ECharts without these: the legend stays where it is)
+    }
+};
 
 const EchartsView: FC<EchartsViewProps> = ({ option, label, onSize, onClick, pointer }) => {
     const ref = useRef<HTMLDivElement>(null);
@@ -47,7 +69,9 @@ const EchartsView: FC<EchartsViewProps> = ({ option, label, onSize, onClick, poi
         if (!el) return;
         let chart: echarts.ECharts | null = null;
         try {
-            chart = echarts.init(el, undefined, { renderer: "canvas" });
+            // SVG: sharp at any scale (a canvas presented full screen, zoomed: its panels are scaled, and a canvas
+            // renderer's bitmap would be stretched, its lines and labels blurred)
+            chart = echarts.init(el, undefined, { renderer: "svg" });
         } catch {
             chart = null; // no canvas (tests)
         }
@@ -67,6 +91,23 @@ const EchartsView: FC<EchartsViewProps> = ({ option, label, onSize, onClick, poi
                     return null;
                 }
             };
+            pointer.toPixelX = (value) => {
+                try {
+                    const px = drawn.convertToPixel({ xAxisIndex: 0 }, value);
+                    return typeof px === "number" && Number.isFinite(px) ? px : null;
+                } catch {
+                    return null;
+                }
+            };
+            pointer.plotRect = () => {
+                try {
+                    const grid = (drawn as unknown as { getModel: () => { getComponent: (type: string) => any } }).getModel().getComponent("grid");
+                    const rect = grid?.coordinateSystem?.getRect?.();
+                    return rect ? { x: rect.x, y: rect.y, width: rect.width, height: rect.height } : null;
+                } catch {
+                    return null;
+                }
+            };
             drawn.getZr().on("mousemove", (e: { offsetY: number }) => {
                 pointer.y = e.offsetY;
             });
@@ -76,6 +117,7 @@ const EchartsView: FC<EchartsViewProps> = ({ option, label, onSize, onClick, poi
         }
         const report = () => {
             chart?.resize();
+            if (chart && optionRef.current) makeRoomForLegend(chart, optionRef.current);
             sizeRef.current?.(el.clientWidth, el.clientHeight);
         };
         report();
@@ -91,12 +133,20 @@ const EchartsView: FC<EchartsViewProps> = ({ option, label, onSize, onClick, poi
             if (pointer) {
                 pointer.y = null;
                 pointer.toPixelY = null;
+                pointer.toPixelX = null;
+                pointer.plotRect = null;
             }
         };
     }, []);
 
+    const optionRef = useRef(option);
+    optionRef.current = option;
+
     useEffect(() => {
-        if (chartRef.current && option) chartRef.current.setOption(option as any, { notMerge: true });
+        if (chartRef.current && option) {
+            chartRef.current.setOption(option as any, { notMerge: true });
+            makeRoomForLegend(chartRef.current, option);
+        }
     }, [option]);
 
     return <div ref={ref} role="img" aria-label={label} style={{ position: "absolute", inset: 0 }} />;
