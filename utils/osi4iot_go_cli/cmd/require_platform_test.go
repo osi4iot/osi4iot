@@ -23,6 +23,9 @@ func TestPlatformRequirementBlocker(t *testing.T) {
 		{"streams ls", data.Deleted, true, "there are no NATS streams"},
 		{"certs check", data.Deleted, false, ""}, // works from the state file
 		{"certs check", data.Empty, true, "osi4iot create"},
+		{"certs import", data.Deleted, false, ""}, // stored in the state, deployed by init
+		{"certs import", data.Stopped, false, ""},
+		{"certs update", data.Deleted, true, "system_manager, which is not running"},
 		// Stopped: the swarm is there, the services are not.
 		{"node ls", data.Stopped, false, ""},
 		{"service ls", data.Stopped, true, "osi4iot run"},

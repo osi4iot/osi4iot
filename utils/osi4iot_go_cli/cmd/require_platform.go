@@ -34,6 +34,7 @@ var platformNeeds = map[string]struct {
 	"backup":           {needServices, "backups are taken, listed and restored by system_manager"},
 	"certs":            {needServices, "certificates are renewed and stored by system_manager"},
 	"certs check":      {needStateFile, ""}, // reads the state file only
+	"certs import":     {needStateFile, ""}, // stored in the state; applied if running
 	"service":          {needServices, "services"},
 	"service gpu_mode": {needStateFile, ""}, // stored in the state; applied if running
 	"streams":          {needServices, "NATS streams"},

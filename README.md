@@ -623,6 +623,9 @@ When the platform cannot hand back its state file (stopped, or the file is lost)
     osi4iot certs check       # expiration dates
     osi4iot certs update      # renew the Let's Encrypt certificates
     osi4iot certs download    # bring system_manager's renewed certificates into the state file
+    osi4iot certs import --key KEY --cert CERT [--ca CA]   # use certificates issued by a CA
+
+`certs import` puts certificates issued by a CA into the platform and switches it to *Certs provided by an CA*, whatever it used before (a platform created with Let's Encrypt included), without creating it again. `--cert` is the domain's certificate in PEM, possibly followed by the CA's chain (a fullchain file); `--ca` the CA's certificates when `--cert` does not carry them (the intermediate is needed: clients such as curl, MQTT or NATS do not fetch it; the root that the systems already have is not). They are checked first: the key matches the certificate, the certificate covers the domain and has not expired, and each certificate of the chain issued the one before it. traefik and NATS serve the domain's certificate with the intermediates. A running platform gets them at once and system_manager stops renewing with Let's Encrypt; a stopped or deleted one, with the next `osi4iot run` or `osi4iot init`. The platform does not renew certificates issued by a CA: when the CA issues new ones, import them the same way.
 
 ## CLI reference
 
@@ -639,7 +642,7 @@ Every command has its own help: `osi4iot <command> --help`.
 | `backup` | `trigger`, `list`, `restore`, `extract`, `apply`, `snapshot` |
 | `state` | `export`, `recover`, `reset_images` |
 | `streams` | `ls` |
-| `certs` | `check`, `update`, `download` |
+| `certs` | `check`, `update`, `download`, `import` |
 | `custom_service` | `list`, `add`, `update`, `remove` |
 | `passphrase` | `reset` |
 | `completion` | `install`, `bash`, `zsh`, `fish`, `powershell` |
