@@ -153,6 +153,15 @@ const (
 
 var projectedSections = []string{AssetStateAlarms, AssetStateMachines}
 
+// AssetStateGeolocation is the section of the position of an asset that
+// moves: { latitude, longitude, at[, accuracy] }, written by the AssetState
+// node ("Update geolocation of current asset") from the messages of its
+// geolocation sensors and read by admin_api for the map (the position of
+// the asset in grafanadb.asset when there is none). Setting the whole state
+// keeps it too; it is not pruned when a pipeline starts (the last position
+// stays valid whoever wrote it).
+const AssetStateGeolocation = "geolocation"
+
 // UpsertAssetState inserts or updates an asset state in the database: the
 // state replaces the stored one, except the sections that nodes project
 // into it (alarms, machines), which are kept.
@@ -163,7 +172,8 @@ func UpsertAssetState(ctx context.Context, pool *pgxpool.Pool, as AssetState) er
 		ON CONFLICT (group_uid, asset_uid)
 		DO UPDATE SET
 			state        = EXCLUDED.state || jsonb_strip_nulls(jsonb_build_object(
-				'alarms', a.state->'alarms', 'machines', a.state->'machines')),
+				'alarms', a.state->'alarms', 'machines', a.state->'machines',
+				'geolocation', a.state->'geolocation')),
 			last_updated = NOW()`
 
 	stateJSON, err := json.Marshal(as.State)
@@ -334,6 +344,26 @@ func RemoveAssetStateEntries(ctx context.Context, pool *pgxpool.Pool, groupUid, 
 		return 0, fmt.Errorf("RemoveAssetStateEntries: %w", err)
 	}
 	return int(removed), nil
+}
+
+// SetAssetGeolocation writes the position of an asset into its state (the
+// section geolocation, replaced; the rest of the state kept).
+func SetAssetGeolocation(ctx context.Context, pool *pgxpool.Pool, groupUid, assetUid string, position map[string]any, writer string) error {
+	query := `
+		INSERT INTO iot_data.assetState AS a (group_uid, asset_uid, state, last_updated)
+		VALUES ($1, $2, jsonb_build_object($3::text, $4::jsonb), NOW())
+		ON CONFLICT (group_uid, asset_uid)
+		DO UPDATE SET
+			state        = COALESCE(a.state, '{}'::jsonb) || jsonb_build_object($3::text, $4::jsonb),
+			last_updated = NOW()`
+	positionJSON, err := json.Marshal(position)
+	if err != nil {
+		return fmt.Errorf("marshal position: %w", err)
+	}
+	if err := execWithHistory(ctx, pool, query, []any{groupUid, assetUid, AssetStateGeolocation, string(positionJSON)}, writer); err != nil {
+		return fmt.Errorf("SetAssetGeolocation: %w", err)
+	}
+	return nil
 }
 
 // ProjectedSections are the sections of an asset state written by nodes.

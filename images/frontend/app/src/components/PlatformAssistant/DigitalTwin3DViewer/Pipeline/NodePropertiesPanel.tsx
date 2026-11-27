@@ -1560,7 +1560,8 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                                     tab.id === "json" &&
                                     (formData.setStateMode === "state_from_payload" ||
                                         formData.action === "Get state of current asset" ||
-                                        formData.action === "Get states of assets in current group")
+                                        formData.action === "Get states of assets in current group" ||
+                                        formData.action === "Update geolocation of current asset")
                                 ),
                         )
                         .map((tab) => (
@@ -1600,7 +1601,18 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                                         <option value="Get states of assets in current group">
                                             Get states of assets in current group
                                         </option>
+                                        <option value="Update geolocation of current asset">
+                                            Update geolocation of current asset
+                                        </option>
                                     </Select>
+                                    {formData.action === "Update geolocation of current asset" && (
+                                        <div style={{ color: "#9a9a9a", fontSize: 12, marginTop: 6, lineHeight: 1.45 }}>
+                                            Keeps the latitude and longitude of each message (a Mobile geolocation or Geolocation
+                                            sensor) in the asset state, under geolocation: the map places the asset there. Written at
+                                            most every 5 s, and every minute while it does not move; messages without a position are
+                                            ignored. No output.
+                                        </div>
+                                    )}
                                 </FormGroup>
                                 {formData.action === "Set or update state of current asset" && (
                                     <FormGroup>

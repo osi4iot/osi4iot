@@ -37,6 +37,8 @@ import {
     SwitcherTwin,
 } from "../AssetSwitcher/assetSwitcherData";
 import openDigitalTwin from "../Geolocation/openDigitalTwin";
+import LiveAssetPositions from "../Geolocation/LiveAssetPositions";
+import { assetOfSubjects, LivePosition, withKeptPositions, withLivePositions } from "../Geolocation/liveAssetPositions";
 
 const ContentContainer = styled.div`
     position: relative;
@@ -277,17 +279,22 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
     const lastGeolocationsEnabled =
         assetsWithMarkerCandidates.length !== 0 && buildingsFiltered.length !== 0 && orgsOfGroupsManagedTable.length !== 0;
     const lastGeolocationsQuery = useTableQuery("lastGeolocations", { enabled: lastGeolocationsEnabled });
-    const assetsWithMarker = useMemo(() => {
-        if (!lastGeolocationsEnabled || !lastGeolocationsQuery.data) return [] as IAsset[];
-        const lastGeolocationMeasurements = lastGeolocationsQuery.data;
-        const positioned = assetsWithMarkerCandidates.map((asset) => {
-            const lastGeolocation = lastGeolocationMeasurements.find((item) => item.assetUid === asset.assetUid);
-            return lastGeolocation
-                ? { ...asset, longitude: lastGeolocation.longitude, latitude: lastGeolocation.latitude }
-                : { ...asset };
-        });
-        return filterAssetWithMarker(positioned, buildingsFiltered, orgsOfGroupsManagedTable);
-    }, [lastGeolocationsEnabled, lastGeolocationsQuery.data, assetsWithMarkerCandidates, buildingsFiltered, orgsOfGroupsManagedTable]);
+    // The assets with the position kept in their state (the assets that move; the others, and those without one, at
+    // their own position). An asset that moves is shown with its marker on the map when it is out of its building,
+    // and on its floor plan (its group) when it is in it.
+    const assetsKept = useMemo(
+        () => (lastGeolocationsEnabled && lastGeolocationsQuery.data ? withKeptPositions(assetsTable, lastGeolocationsQuery.data) : assetsTable),
+        [lastGeolocationsEnabled, lastGeolocationsQuery.data, assetsTable],
+    );
+    const markersOf = useCallback(
+        (assets: IAsset[]) =>
+            lastGeolocationsEnabled && lastGeolocationsQuery.data
+                ? filterAssetWithMarker(findAssetsWithMarker(assetTypesTable, assets), buildingsFiltered, orgsOfGroupsManagedTable)
+                : ([] as IAsset[]),
+        [lastGeolocationsEnabled, lastGeolocationsQuery.data, assetTypesTable, buildingsFiltered, orgsOfGroupsManagedTable],
+    );
+    // at the kept positions: the bounds of the map
+    const assetsWithMarker = useMemo(() => markersOf(assetsKept), [markersOf, assetsKept]);
     const loading = tablesPending || (lastGeolocationsQuery.isPending && lastGeolocationsQuery.fetchStatus !== "idle");
 
     // ---- estado de la interfaz (Zustand): se conserva al ir a otra capa y volver
@@ -297,6 +304,22 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
         null,
     );
     const isDigitalTwinViewerOpen = optionToShow === PLATFORM_ASSISTANT_HOME_OPTIONS.DIGITAL_TWINS && !!digitalTwinGltfData;
+    // the live positions of the assets that move (NATS, LiveAssetPositions): for their markers and their floor plans
+    // (out of or in their building, decided at that position), not for the bounds of the map (which would move the
+    // view with each message)
+    const assetOfSubject = useMemo(
+        () => (lastGeolocationsEnabled && lastGeolocationsQuery.data ? assetOfSubjects(lastGeolocationsQuery.data) : {}),
+        [lastGeolocationsEnabled, lastGeolocationsQuery.data],
+    );
+    const [livePositions, setLivePositions] = useState<Record<string, LivePosition>>({});
+    const addLivePositions = useCallback(
+        (positions: Record<string, LivePosition>) => setLivePositions((previous) => ({ ...previous, ...positions })),
+        [],
+    );
+    // a new reading of the kept positions replaces what came live before it
+    useEffect(() => setLivePositions({}), [lastGeolocationsQuery.data]);
+    const assetsLive = useMemo(() => withLivePositions(assetsKept, livePositions), [assetsKept, livePositions]);
+    const assetsWithMarkerLive = useMemo(() => markersOf(assetsLive), [markersOf, assetsLive]);
     const computedOuterBounds = useMemo(() => findBounds(buildingsFiltered, assetsWithMarker), [buildingsFiltered, assetsWithMarker]);
     const [outerBounds, setOuterBounds] = usePersistentState("home.outerBounds", computedOuterBounds);
     const [initialOuterBounds, setInitialOuterBounds] = usePersistentState("home.initialOuterBounds", computedOuterBounds);
@@ -558,6 +581,9 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
                                     <kbd aria-hidden="true">Ctrl K</kbd>
                                 </MapSearchPill>
                             )}
+                            {optionToShow === PLATFORM_ASSISTANT_HOME_OPTIONS.GEOLOCATION && Object.keys(assetOfSubject).length !== 0 && (
+                                <LiveAssetPositions assetOfSubject={assetOfSubject} onPositions={addLivePositions} />
+                            )}
                             {optionToShow === PLATFORM_ASSISTANT_HOME_OPTIONS.GEOLOCATION && (
                                 <GeolocationContainer
                                     buildings={buildingsFiltered}
@@ -565,8 +591,8 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
                                     orgsOfGroupsManaged={orgsOfGroupsManagedTable}
                                     groupsManaged={groupsManagedTable}
                                     assetTypes={assetTypesTable}
-                                    assets={assetsTable}
-                                    assetsWithMarker={assetsWithMarker}
+                                    assets={assetsLive}
+                                    assetsWithMarker={assetsWithMarkerLive}
                                     sensorTypes={sensorTypesTable}
                                     sensors={sensorsTable}
                                     digitalTwins={digitalTwinsTable}

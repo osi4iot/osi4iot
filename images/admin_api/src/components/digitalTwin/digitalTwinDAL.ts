@@ -41,6 +41,7 @@ import PipelineFileDataDto from "./pipelineFileData.dto";
 import {
 	createDefaultPipelineDataForDigitalTwin,
 	createDefaultPipelineDataForSystemMonitoring,
+	hasGeolocationSensor,
 	createDigitalTwinPipeline,
 } from "./pipeline";
 import PipelineDto from "./pipeline.dto";
@@ -1167,7 +1168,8 @@ export const createDigitalTwin = async (
 	if (group.isAdminGroup && digitalTwin.description === "System monitoring") {
 		defaultPipelineData = createDefaultPipelineDataForSystemMonitoring();
 	} else {
-		defaultPipelineData = createDefaultPipelineDataForDigitalTwin();
+		// the position of the asset in its state when it has a Mobile geolocation or Geolocation sensor
+		defaultPipelineData = createDefaultPipelineDataForDigitalTwin(hasGeolocationSensor(sensorsInAsset));
 	}
 	await createDigitalTwinPipeline(digitalTwin.id, defaultPipelineData, group.id, isDefault);
 

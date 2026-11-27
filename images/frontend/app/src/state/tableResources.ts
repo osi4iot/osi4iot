@@ -31,10 +31,13 @@ import elaspsedTimeFormat from "../tools/elapsedTimeFormat";
 import { getDTStorageInfo, syncDigitalTwinsLocalStorage } from "../tools/fileSystem";
 import { LayerScope } from "./layerScope";
 
+// the position of an asset that moves (kept in its state; null: none, the asset's own) and the NATS subjects of its
+// geolocation sensors (the map moves its marker with their messages)
 export interface IGeolocationMeasurement {
     assetUid: string;
-    longitude: number;
-    latitude: number;
+    longitude: number | null;
+    latitude: number | null;
+    natsSubjects?: string[];
     [key: string]: unknown;
 }
 

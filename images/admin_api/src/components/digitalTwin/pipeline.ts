@@ -172,7 +172,15 @@ export const applyPipelineAction = async (
 	await natsClient.jsPublish("pipeline_action", action, digitalTwinId, context);
 };
 
-export const createDefaultPipelineDataForDigitalTwin = (): PipelineDto => {
+// The sensor types whose messages carry the position of an asset that moves (latitude, longitude)
+export const GEOLOCATION_SENSOR_TYPES = ["Mobile geolocation", "Geolocation"];
+
+export const hasGeolocationSensor = (sensors: { sensorType?: string }[]): boolean =>
+	sensors.some((sensor) => GEOLOCATION_SENSOR_TYPES.includes(sensor.sensorType ?? ""));
+
+// The default pipeline of a digital twin: every dev2pdb message of its asset stored in the IoT DB and, when the asset
+// has a geolocation sensor (withGeolocation), its position kept in the asset state (section geolocation) for the map
+export const createDefaultPipelineDataForDigitalTwin = (withGeolocation = false): PipelineDto => {
 	const defaultPipeline: PipelineDto = {
 		pipelineFileName: "pipeline_all_dev2pdb.yml",
 		pipelineFileLastModifDate: new Date().toISOString(),
@@ -271,6 +279,29 @@ export const createDefaultPipelineDataForDigitalTwin = (): PipelineDto => {
 			wires: [],
 		}
 	);
+
+	if (withGeolocation) {
+		const nodeGeolocationUid: string = generateUid();
+		const nodeGeolocationSettings = {
+			action: "Update geolocation of current asset",
+			setStateMode: "custom_state",
+			customState: '{\n    "status": "OK"\n}',
+		};
+		const listener = defaultPipeline.nodes.find((node) => node.nodeUid === nodeListenerUid);
+		if (listener) listener.wires[0].push({ nodeEndUid: nodeGeolocationUid });
+		defaultPipeline.nodes.push({
+			nodeUid: nodeGeolocationUid,
+			name: "Keep the asset position",
+			type: "AssetState",
+			x: 180,
+			y: 170,
+			numOutputs: 1,
+			settings: JSON.stringify(nodeGeolocationSettings),
+			wires: [[]],
+		});
+		const comment = defaultPipeline.nodes.find((node) => node.nodeUid === nodeCommentUid);
+		if (comment) comment.settings = JSON.stringify({ comment: "Store all dev2pdb topics in IoT DB, and the asset position in its state" });
+	}
 
 	return defaultPipeline;
 };

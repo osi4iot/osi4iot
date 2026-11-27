@@ -2140,13 +2140,13 @@ Use this node whenever a pipeline must react to live data published on NATS or M
         description: "Sets, updates, or retrieves the state of the current asset or the assets in the current group.",
 
         details:
-            "The AssetState node manages asset state information in the IoT DB (the asset state table of the platform's time-series database), where the TelegramListen node reads it too. It supports three actions. 'Set or update state of current asset' stores the current asset state, and sends a message on its output only when the status changes (with status, previousStatus, the state and a text in 'message'), so that any change of status can be notified by an Email or Telegram node, whoever sets it. In that mode, the state can come from a custom JSON object configured in the node or from 'msg.payload.state', and it replaces the stored one except its 'alarms' and 'machines', which the Alarm and Machine state nodes write. 'Get state of current asset' reads the current asset state and adds it to the outgoing payload under 'state', together with 'state_description'. 'Get states of assets in current group' reads the states of all assets in the current group and adds them to the outgoing payload under 'assetStates'. An asset whose state has never been set has the status 'Unknown'. When reading state data, the node ensures that 'status' is always present, defaulting to 'Unknown' if missing. It also ensures that 'state_description' is present when returning state information. The history of the asset's states (every change of status, and a copy of the whole state at most every so many minutes) is kept only when it is turned on for the asset (Group admin, Edit asset, State history; off by default); it is the asset's setting, so it also records the changes of status written by the Alarm and Machine state nodes.",
+            "The AssetState node manages asset state information in the IoT DB (the asset state table of the platform's time-series database), where the TelegramListen node reads it too. It supports four actions. 'Set or update state of current asset' stores the current asset state, and sends a message on its output only when the status changes (with status, previousStatus, the state and a text in 'message'), so that any change of status can be notified by an Email or Telegram node, whoever sets it. In that mode, the state can come from a custom JSON object configured in the node or from 'msg.payload.state', and it replaces the stored one except its 'alarms' and 'machines', which the Alarm and Machine state nodes write, and its 'geolocation'. 'Get state of current asset' reads the current asset state and adds it to the outgoing payload under 'state', together with 'state_description'. 'Get states of assets in current group' reads the states of all assets in the current group and adds them to the outgoing payload under 'assetStates'. 'Update geolocation of current asset' keeps the position of an asset that moves: from each message it takes 'latitude' and 'longitude' (also 'Latitude' / 'Longitude', 'lat', 'lon' or 'lng'; numbers, or texts with numbers), and 'accuracy' (m) and 'timestamp' (RFC 3339) when there are, and writes them into the asset state as 'geolocation': { latitude, longitude, at, accuracy }, leaving the rest of the state as it is. The map of the platform places the asset there (its position in the asset's settings when there is none), and moves its marker live with each message of its Mobile geolocation or Geolocation sensors. A phone sends its position every second or so, so the position is written at most every 5 s (the last one received is written when the 5 s are over, even if no message follows) and, while it moves less than 2 m, once a minute. Messages without a valid position (latitude −90…90, longitude −180…180) are ignored; it sends nothing on its output. The default pipeline of a digital twin whose asset has a Mobile geolocation or Geolocation sensor includes it, after its 'Listen all dev2pdb' node. An asset whose state has never been set has the status 'Unknown'. When reading state data, the node ensures that 'status' is always present, defaulting to 'Unknown' if missing. It also ensures that 'state_description' is present when returning state information. The history of the asset's states (every change of status, and a copy of the whole state at most every so many minutes) is kept only when it is turned on for the asset (Group admin, Edit asset, State history; off by default); it is the asset's setting, so it also records the changes of status written by the Alarm and Machine state nodes.",
 
         params: [
             {
                 name: "Action",
                 description:
-                    "Defines the operation to perform. 'Set or update state of current asset' writes state for the current asset. 'Get state of current asset' retrieves the current asset state. 'Get states of assets in current group' retrieves the states of all assets in the current group.",
+                    "Defines the operation to perform. 'Set or update state of current asset' writes state for the current asset. 'Get state of current asset' retrieves the current asset state. 'Get states of assets in current group' retrieves the states of all assets in the current group. 'Update geolocation of current asset' keeps the latitude and longitude of each message in the asset state, under 'geolocation'.",
             },
             {
                 name: "Set state mode",
@@ -2173,6 +2173,17 @@ Use this node whenever a pipeline must react to live data published on NATS or M
                                 temperature: 84.2,
                             },
                         },
+                    },
+                    null,
+                    2,
+                ),
+            },
+            {
+                label: "Update geolocation (a Mobile geolocation sensor)",
+                code: JSON.stringify(
+                    {
+                        topic: "dev2pdb_wt.<group>.<topic>",
+                        payload: { timestamp: "2026-11-27T12:00:00.000Z", latitude: 41.3887, longitude: 2.1128 },
                     },
                     null,
                     2,

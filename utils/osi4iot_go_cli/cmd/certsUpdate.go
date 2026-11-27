@@ -44,7 +44,8 @@ func runCertsUpdate(logger *log.Logger) error {
 	switch pd.PlatformInfo.DomainCertsType {
 	case "Let's encrypt certs with DNS-01 challenge and AWS Route 53 provider":
 	case "Certs provided by an CA":
-		return fmt.Errorf("certificate update not supported for type: %s", pd.PlatformInfo.DomainCertsType)
+		return fmt.Errorf("certificates issued by a CA are not renewed by the platform: when the CA issues new ones, " +
+			"use 'osi4iot certs import --key KEY --cert CERT [--ca CA]'")
 	default:
 		return fmt.Errorf("unsupported domain certs type: %s", pd.PlatformInfo.DomainCertsType)
 	}

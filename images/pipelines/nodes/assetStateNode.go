@@ -10,6 +10,7 @@ import (
 	"pipelines/message"
 	"pipelines/utils"
 	"slices"
+	"time"
 )
 
 /* NOTE: To use ParamOptions="state_from_payload" the msg.Payload should contain a "state" field
@@ -28,7 +29,11 @@ type AssetStateNode struct {
 	CustomState  map[string]any
 	GroupUid     string
 	AssetUid     string
+	// "Update geolocation of current asset": the positions written
+	geolocation geolocationThrottle
 }
+
+const actionUpdateGeolocation = "Update geolocation of current asset"
 
 var posibleStateModesForAssetStateNode = []string{
 	"custom_state",
@@ -39,6 +44,7 @@ var posibleActionsForAssetStateNode = []string{
 	"Set or update state of current asset",
 	"Get state of current asset",
 	"Get states of assets in current group",
+	actionUpdateGeolocation,
 }
 
 func CreateAssetStateNode(node common.NodeData, fm common.Manager, p common.Pipeline) (*AssetStateNode, error) {
@@ -53,6 +59,10 @@ func CreateAssetStateNode(node common.NodeData, fm common.Manager, p common.Pipe
 	}
 
 	setStateMode, ok := node.Settings["setStateMode"].(string)
+	if action == actionUpdateGeolocation {
+		// the position comes from the message: no mode
+		setStateMode, ok = "state_from_payload", true
+	}
 	if !ok || !slices.Contains(posibleStateModesForAssetStateNode, setStateMode) {
 		fm.Log().Errorf("AssetStateNode %s: invalid 'setStateMode' setting", node.NodeUid)
 		return nil, fmt.Errorf("invalid setStateMode setting")
@@ -121,7 +131,59 @@ func (n *AssetStateNode) Start(ctx context.Context, log *logger.Logger, needRein
 	n.SetStatus(common.NodeStatusRunning)
 	log.Infof("Starting AssetStateNode with UID: %s", n.NodeUid)
 
+	if n.Action == actionUpdateGeolocation {
+		go n.writeDueGeolocation(nodectx, log)
+	}
+
 	n.handleInputWires(log, n.processMessage)
+}
+
+// writeDueGeolocation writes the last position received when its interval is
+// over (no message after it: a phone that stopped sending)
+func (n *AssetStateNode) writeDueGeolocation(ctx context.Context, log *logger.Logger) {
+	ticker := time.NewTicker(time.Second)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case now := <-ticker.C:
+			if p := n.geolocation.due(now); p != nil {
+				if err := n.writeGeolocation(*p); err != nil {
+					log.Errorf("AssetStateNode %s: %v", n.NodeUid, err)
+				}
+			}
+		}
+	}
+}
+
+// processGeolocation keeps the position of a message (its latitude and
+// longitude) in the asset state; a message without a position is ignored
+func (n *AssetStateNode) processGeolocation(msg common.Message, log *logger.Logger) error {
+	now := time.Now()
+	p, ok := positionFromPayload(msg.GetPayload(), now)
+	if !ok {
+		log.Debugf("AssetStateNode %s: a message without latitude and longitude ignored", n.NodeUid)
+		return nil
+	}
+	if write := n.geolocation.offer(p, now); write != nil {
+		return n.writeGeolocation(*write)
+	}
+	return nil
+}
+
+func (n *AssetStateNode) writeGeolocation(p geolocationPosition) error {
+	pool := n.Fm.GetDbPool()
+	if pool == nil {
+		n.geolocation.forget()
+		return fmt.Errorf("the IoT DB is not available")
+	}
+	if err := iotdb.SetAssetGeolocation(n.Ctx, pool, n.GroupUid, n.AssetUid, p.state(), n.GetDigitalTwinUid()+"/"+n.NodeUid); err != nil {
+		n.geolocation.forget()
+		return fmt.Errorf("failed to write the geolocation of the asset: %w", err)
+	}
+	announceAssetState(n.Fm, n.GroupUid, n.AssetUid)
+	return nil
 }
 
 func (n *AssetStateNode) processMessage(msg common.Message, log *logger.Logger) error {
@@ -133,6 +195,8 @@ func (n *AssetStateNode) processMessage(msg common.Message, log *logger.Logger) 
 		return n.processGetStateQuery(msg, log)
 	case "Get states of assets in current group":
 		return n.processGetStatesInGroupQuery(msg, log)
+	case actionUpdateGeolocation:
+		return n.processGeolocation(msg, log)
 	default:
 		log.Errorf("Unknown action '%s' for AssetStateNode %s", n.Action, n.NodeUid)
 		return fmt.Errorf("unknown action '%s'", n.Action)

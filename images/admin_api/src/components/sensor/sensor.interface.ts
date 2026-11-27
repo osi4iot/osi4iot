@@ -11,6 +11,7 @@ export default interface ISensor {
 	sensorTypeId: number;
 	topicId: number;
 	topicUid: string;
+	topicType?: string; // e.g. "dev2pdb_wt" (only in some queries: the geolocation sensors)
 	topicRef: string; // e.g. "dev2pdb_2" (asset_topic.topic_ref)
 	description: string;
 	dashboardId: number;

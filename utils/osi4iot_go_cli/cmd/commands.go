@@ -751,6 +751,28 @@ var subCmdCertsUpdate = &cobra.Command{
 	},
 }
 
+var subCmdCertsImport = &cobra.Command{
+	Use:   "import --key KEY --cert CERT [--ca CA]",
+	Short: "Use domain certificates issued by a CA",
+	Long: "Put the domain certificates issued by a CA into the platform, and switch it to " +
+		"\"Certs provided by an CA\" whatever it used before (Let's Encrypt included). " +
+		"--key is the private key, --cert the domain's certificate (PEM; it may carry the CA's " +
+		"chain after it, as fullchain files do) and --ca the CA's certificates, when --cert " +
+		"does not carry them. They are checked first: the key matches the certificate, the " +
+		"certificate covers the platform's domain and has not expired, and the chain issued it.\n\n" +
+		"A running platform gets them at once (traefik and the NATS nodes) and system_manager " +
+		"stops renewing with Let's Encrypt; a stopped or deleted one, with the next 'osi4iot run' " +
+		"or 'osi4iot init'. Certificates issued by a CA are renewed the same way: import the new ones.",
+	Args: cobra.NoArgs,
+	Run: func(cmd *cobra.Command, args []string) {
+		checkState("certs import")
+		stdoutLogger := log.New(os.Stdout, "", 0)
+		if err := runCertsImport(stdoutLogger, certsImportKey, certsImportCert, certsImportCa); err != nil {
+			exitWithError(err.Error())
+		}
+	},
+}
+
 var subCmdCertsDownload = &cobra.Command{
 	Use:     "download",
 	Aliases: []string{"pull"},
@@ -1056,6 +1078,12 @@ func init() {
 	cmdCerts.AddCommand(subCmdCertsCheck)
 	cmdCerts.AddCommand(subCmdCertsUpdate)
 	cmdCerts.AddCommand(subCmdCertsDownload)
+	subCmdCertsImport.Flags().StringVar(&certsImportKey, "key", "", "private key of the domain (PEM)")
+	subCmdCertsImport.Flags().StringVar(&certsImportCert, "cert", "", "certificate of the domain (PEM), possibly followed by the CA's chain")
+	subCmdCertsImport.Flags().StringVar(&certsImportCa, "ca", "", "certificates of the CA (PEM), when --cert does not carry them")
+	_ = subCmdCertsImport.MarkFlagRequired("key")
+	_ = subCmdCertsImport.MarkFlagRequired("cert")
+	cmdCerts.AddCommand(subCmdCertsImport)
 	rootCmd.AddCommand(cmdCerts)
 
 	subCmdStateRecover.Flags().StringVar(&stateRecoverFile, "file", "",

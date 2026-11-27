@@ -92,20 +92,73 @@ export const getLastMeasurementInChunk = async (groupUid: string, topic: string)
 	return response.rows[0] as IMeasurement;
 };
 
+interface AssetGeolocationRow {
+	groupUid: string;
+	assetUid: string;
+	geolocation: unknown;
+	lastUpdated: Date | string | null;
+}
+
+const finiteNumber = (v: unknown): number | null => {
+	const n = typeof v === "string" ? Number(v) : v;
+	return typeof n === "number" && Number.isFinite(n) ? n : null;
+};
+
+// The position kept in a state's section geolocation ({ latitude, longitude, at }), or null
+export const positionOfStateGeolocation = (
+	geolocation: unknown
+): { latitude: number; longitude: number; at: string | null } | null => {
+	if (!geolocation || typeof geolocation !== "object" || Array.isArray(geolocation)) return null;
+	const g = geolocation as Record<string, unknown>;
+	const latitude = finiteNumber(g.latitude);
+	const longitude = finiteNumber(g.longitude);
+	if (latitude === null || longitude === null || Math.abs(latitude) > 90 || Math.abs(longitude) > 180) return null;
+	return { latitude, longitude, at: typeof g.at === "string" ? g.at : null };
+};
+
+// The NATS subject of a topic (as pipelines and the viewers build it)
+export const topicNatsSubject = (topicType: string, groupUid: string, topicUid: string): string =>
+	`${topicType}.Group_${groupUid}.Topic_${topicUid}`;
+
+// The positions of the assets of the geolocation sensors: one entry per asset, with the position kept in its state
+// (null without one: the map uses the asset's own) and the subjects of its sensors
 export const getLastGeolocationMeasurementsFromSensorsArray = async (sensors: ISensor[]): Promise<IGeolocationMeasurement[]> => {
-	const lastMeasurementQueries = [];
+	const byAsset = new Map<string, { groupUid: string; assetUid: string; natsSubjects: string[] }>();
 	for (const sensor of sensors) {
-		const sqlTopic = `Topic_${sensor.topicUid}`;
-		const query = getLastGeolocationMeasurementInChunk(sensor.groupUid, sensor.assetUid, sqlTopic);
-		lastMeasurementQueries.push(query);
+		const key = `${sensor.groupUid}|${sensor.assetUid}`;
+		let entry = byAsset.get(key);
+		if (!entry) {
+			entry = { groupUid: sensor.groupUid, assetUid: sensor.assetUid, natsSubjects: [] };
+			byAsset.set(key, entry);
+		}
+		if (sensor.topicType && sensor.topicUid) {
+			const subject = topicNatsSubject(sensor.topicType, sensor.groupUid, sensor.topicUid);
+			if (!entry.natsSubjects.includes(subject)) entry.natsSubjects.push(subject);
+		}
 	}
-	const responses = await Promise.all(lastMeasurementQueries);
-	const lastGeolocationMeasurements = responses.filter(lastMeasurement =>
-		lastMeasurement !== undefined &&
-		lastMeasurement.longitude !== null &&
-		lastMeasurement.latitude !== null
+	if (byAsset.size === 0) return [];
+	const assets = [...byAsset.values()];
+	const response = await timescaledbReadQuery<AssetGeolocationRow>(
+		`SELECT group_uid AS "groupUid", asset_uid AS "assetUid", state->'geolocation' AS "geolocation",
+				last_updated AS "lastUpdated"
+		 FROM iot_data.assetState
+		 WHERE (group_uid, asset_uid) IN (SELECT * FROM unnest($1::text[], $2::text[]))`,
+		[assets.map((a) => a.groupUid), assets.map((a) => a.assetUid)]
 	);
-	return lastGeolocationMeasurements;
+	const kept = new Map<string, AssetGeolocationRow>();
+	for (const row of response.rows) kept.set(`${row.groupUid}|${row.assetUid}`, row);
+	return assets.map((asset) => {
+		const row = kept.get(`${asset.groupUid}|${asset.assetUid}`);
+		const position = positionOfStateGeolocation(row?.geolocation);
+		const updated = row?.lastUpdated ? new Date(row.lastUpdated).toISOString() : null;
+		return {
+			timestamp: position ? position.at ?? updated : null,
+			assetUid: asset.assetUid,
+			longitude: position?.longitude ?? null,
+			latitude: position?.latitude ?? null,
+			natsSubjects: asset.natsSubjects,
+		};
+	});
 };
 
 
